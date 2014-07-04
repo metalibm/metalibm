@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ###############################################################################
-# This file is part of Kalray's Metalibm tool
+# This file is part of KFG
 # Copyright (2013)
 # All rights reserved
 # created:          Jul  3rd, 2014

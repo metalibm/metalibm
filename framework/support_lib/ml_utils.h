@@ -1,5 +1,5 @@
 /*******************************************************************************
-* This file is part of Kalray's Metalibm tool
+* This file is part of KFG
 * Copyright (2013)
 * All rights reserved
 * created:          Dec 23rd, 2013
@@ -48,7 +48,7 @@ static inline double double_from_64b_encoding(uint64_t v) {
     return conv_tmp.d;
 }
 
-/** Metalibm implementation of x * y + z with single rounding 
+/** KFG Implementation of x * y + z with single rounding 
  *  dummy: rely on HW FMA (present on K1A and K1B) do not use for x86 before Haswell generation 
  *  (which should be forced) */
 static inline float ml_fmaf(float x, float y, float z) {

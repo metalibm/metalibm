@@ -1,5 +1,5 @@
 /*******************************************************************************
-* This file is part of Kalray's Metalibm tool
+* This file is part of KFG
 * Copyright (2013)
 * All rights reserved
 * created:          Dec 23rd, 2013
