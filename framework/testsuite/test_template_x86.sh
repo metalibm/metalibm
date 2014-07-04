@@ -23,7 +23,7 @@ if [ -z $TEST_START   ]; then TEST_START=0; fi
  &&  python $ML_DIR/framework/testbench/result_extract_function.py --informat $INPUT_FORMAT --outformat $OUTPUT_FORMAT --output $RESULT_EXTRACT_FILE \
  &&  python $ML_DIR/framework/testbench/gen_func_test_gen.py --round-mode $RND_MODE --informat $INPUT_FORMAT --outformat $OUTPUT_FORMAT --output func_test_gen.cpp --mpfr $MPFR_FUNC_NAME --result-extract ./result_extract.c  \
  &&  echo -e "\033[32;1m Building and executing test vector generator \033[0m" \
- &&  make -f $ML_DIR/framework/testbench/test_lib/Makefile gen_test MPFR_LIB=-lmpfr TEST_LIB_DIR=$ML_DIR/framework/testbench/test_lib SUPPORT_LIB_DIR=$ML_DIR/framework MPFR_INCLUDE_DIR=/work1/nbrunie/local_install/bin TEST_FUNCTION=$FUNCTION_NAME NUM_TEST=$NUM_TEST RESULT_EXTRACT_FILE=$RESULT_EXTRACT_FILE INF_INTERVAL=$INF_INTERVAL SUP_INTERVAL=$SUP_INTERVAL SEED=$SEED RESULT_EXTRACT_DIR=./ \
+ &&  make -f $ML_DIR/framework/testbench/test_lib/Makefile gen_test MPFR_LIB=-lmpfr TEST_LIB_DIR=$ML_DIR/framework/testbench/test_lib SUPPORT_LIB_DIR=$ML_DIR/framework MPFR_INCLUDE_DIR= TEST_FUNCTION=$FUNCTION_NAME NUM_TEST=$NUM_TEST RESULT_EXTRACT_FILE=$RESULT_EXTRACT_FILE INF_INTERVAL=$INF_INTERVAL SUP_INTERVAL=$SUP_INTERVAL SEED=$SEED RESULT_EXTRACT_DIR=./ \
  &&  echo -e "\033[32;1m Generating testbench \033[0m" \
  &&  python $ML_DIR/framework/testbench/gen_test_template.py --test-mode faithful --informat $INPUT_FORMAT --outformat $OUTPUT_FORMAT --output $TEST_TEMPLATE_FILE --test $FUNCTION_NAME \
  &&  echo -e "\033[32;1m Generating function implementation \033[0m" \

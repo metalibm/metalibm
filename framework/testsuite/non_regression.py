@@ -7,7 +7,7 @@ import os
 import sys
 
 
-METALIBM_DIR="/work1/hardware/users/nbrunie/tools/metalibm"
+METALIBM_DIR="./metalibm"
 CURRENT_DIR = os.getcwd()
 
 current_time = time.localtime()
