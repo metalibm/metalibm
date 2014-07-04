@@ -34,7 +34,6 @@ class Target:
         Target.TARGET_LIST.append(self)
 
 target_x86_sse4 = Target("sse", "gcc", runner = "", extra_options = ["-msse4"])
-target_k1a = Target("k1a", "k1-gcc", runner = "k1-cluster  -- ", extra_options = ["-I/work1/hardware/users/nbrunie/tools_master/HAL/machine/core/common"])
 
 SUCCESS_LIST = []
 FAIL_LIST = []
