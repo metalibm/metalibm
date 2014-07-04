@@ -2,7 +2,6 @@
 RESULT_EXTRACT_FILE=result_extract.c
 TEST_TEMPLATE_FILE=test_template.c
 NUM_TEST=10000
-TOOLS_DIR=/work1/nbrunie/tools_multiarch_bare_build/devimage/toolchain_bare/k1tools/bin/
 SPECIFIC_CC=gcc
 SPECIFIC_RUNNER=
 
@@ -15,7 +14,7 @@ PRECISION=binary32
 
 if [ -z $SEED         ]; then SEED=17; fi
 if [ -z $RND_MODE     ]; then RND_MODE=rn; fi
-if [ -z $ML_DIR       ]; then ML_DIR=/work1/nbrunie/tools_master/metalibm; fi
+if [ -z $ML_DIR       ]; then ML_DIR=./metalibm; fi
 if [ -z $INF_INTERVAL ]; then INF_INTERVAL=0.5; fi
 if [ -z $SUP_INTERVAL ]; then SUP_INTERVAL=1.5; fi
 if [ -z $TEST_START   ]; then TEST_START=0; fi
