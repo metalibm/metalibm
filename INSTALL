@@ -2,6 +2,8 @@ LOCAL_DIR=$PWD
 
 git clone git+ssh://nbrunie@scm.gforge.inria.fr//gitroot/metalibm/pythonsollya.git
 git clone git+ssh://nbrunie@scm.gforge.inria.fr//gitroot/metalibm/metalibm-lugdunum.git
+cd metalibm-lugdunum && git submodule update --init --recursive
+cd $LOCAL_DIR
 
 INSTALL_DIR=$PWD/local_install
 mkdir $INSTALL_DIR
@@ -12,5 +14,5 @@ cd sollya-4.1/ && ./configure --prefix=$INSTALL_DIR && make -j 4 && make install
 cd pythonsollya/ && LOCAL_INSTALL_DIR=$INSTALL_DIR python setup.py build && python setup.py install --prefix $INSTALL_DIR 
 
 cd $LOCAL_DIR
-echo "export PYTHONPATH=$LOCAL_DIR/metalibm-lugdunum/framework:$LOCAL_INSTALL/lib64/python2.7/site-packages/:$PYTHONPATH" > setup_env.sh
+echo "export PYTHONPATH=$LOCAL_DIR/metalibm-lugdunum/metalibm-lugdunum-core/:$LOCAL_DIR/metalibm-lugdunum/metalibm-lugdunum-functions/:$LOCAL_INSTALL/lib64/python2.7/site-packages/:$PYTHONPATH" > setup_env.sh
 
