@@ -4,22 +4,22 @@ import sys
 
 from pythonsollya import *
 
-from core.attributes import ML_Debug
-from core.ml_operations import *
-from core.ml_formats import *
-from code_generation.c_code_generator import CCodeGenerator
-from code_generation.generic_processor import GenericProcessor
-from code_generation.code_object import CodeObject
-from code_generation.code_element import CodeFunction
-from code_generation.generator_utility import C_Code 
-from core.ml_optimization_engine import OptimizationEngine
-from core.polynomials import *
-from core.ml_table import ML_Table
+from metalibm_core.core.attributes import ML_Debug
+from metalibm_core.core.ml_operations import *
+from metalibm_core.core.ml_formats import *
+from metalibm_core.code_generation.c_code_generator import CCodeGenerator
+from metalibm_core.code_generation.generic_processor import GenericProcessor
+from metalibm_core.code_generation.code_object import CodeObject
+from metalibm_core.code_generation.code_element import CodeFunction
+from metalibm_core.code_generation.generator_utility import C_Code 
+from metalibm_core.core.ml_optimization_engine import OptimizationEngine
+from metalibm_core.core.polynomials import *
+from metalibm_core.core.ml_table import ML_Table
 
-from code_generation.gappa_code_generator import GappaCodeGenerator
+from metalibm_core.code_generation.gappa_code_generator import GappaCodeGenerator
 
 
-from utility.ml_template import ML_ArgTemplate
+from metalibm_core.utility.ml_template import ML_ArgTemplate
 
 class ML_Exponential:
     def __init__(self, 
