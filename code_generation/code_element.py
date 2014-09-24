@@ -10,8 +10,8 @@
 # author(s): Nicolas Brunie (nicolas.brunie@kalray.eu)
 ###############################################################################
 
-from core.ml_operations import Variable
-from code_generation.code_object import NestedCode
+from ..core.ml_operations import Variable
+from .code_object import NestedCode
 
 
 class CodeVariable: 

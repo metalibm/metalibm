@@ -9,9 +9,9 @@
 # author(s): Nicolas Brunie (nicolas.brunie@kalray.eu)
 ###############################################################################
 
-from utility.log_report import Log
-from core.ml_operations import *
-from core.ml_formats import *
+from ..utility.log_report import Log
+from .ml_operations import *
+from .ml_formats import *
 
 
 def merge_abstract_format(*args):

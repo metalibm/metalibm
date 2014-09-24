@@ -10,12 +10,12 @@
 # author(s): Nicolas Brunie (nicolas.brunie@kalray.eu)
 ###############################################################################
 
-from utility.log_report import *
-from code_generation.generator_utility import SymbolOperator, FunctionOperator, TemplateOperator, C_Code, Gappa_Code, build_simplified_operator_generation, IdentityOperator, FO_Arg, RoundOperator, type_strict_match, type_relax_match, type_result_match, type_function_match, FunctionObjectOperator
-from code_generation.code_element import *
-from core.ml_formats import *
-from core.ml_operations import *
-from utility.common import Callable
+from ..utility.log_report import *
+from .generator_utility import SymbolOperator, FunctionOperator, TemplateOperator, C_Code, Gappa_Code, build_simplified_operator_generation, IdentityOperator, FO_Arg, RoundOperator, type_strict_match, type_relax_match, type_result_match, type_function_match, FunctionObjectOperator
+from .code_element import *
+from ..core.ml_formats import *
+from ..core.ml_operations import *
+from ..utility.common import Callable
 
 
 def LibFunctionConstructor(require_header):

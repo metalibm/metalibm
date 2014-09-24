@@ -14,11 +14,11 @@ import re
 import commands
 from pythonsollya import *
 
-from core.ml_operations import Variable
-from code_generation.code_constant import C_Code, Gappa_Code
-from core.ml_formats import ML_GlobalRoundMode
+from ..core.ml_operations import Variable
+from .code_constant import C_Code, Gappa_Code
+from ..core.ml_formats import ML_GlobalRoundMode
 
-import utility.version_info as ml_version_info
+from ..utility import version_info as ml_version_info
 
 
 class DataLayout:

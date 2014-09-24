@@ -12,8 +12,8 @@
 
 from pythonsollya import *
 
-from utility.common import Callable
-from ml_operations import Constant, Variable, Multiplication, Addition
+from ..utility.common import Callable
+from .ml_operations import Constant, Variable, Multiplication, Addition
 
 class Polynomial:
     """ Mathematical polynomial object class """

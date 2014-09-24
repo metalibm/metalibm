@@ -10,8 +10,8 @@
 # author(s): Nicolas Brunie (nicolas.brunie@kalray.eu)
 ###############################################################################
 
-from utility.log_report import Log
-from utility.common import Callable
+from ..utility.log_report import Log
+from ..utility.common import Callable
 
 
 def attr_init(attrs, attr_name, default_value = None, required = False):

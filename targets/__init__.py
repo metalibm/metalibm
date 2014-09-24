@@ -1,2 +1,5 @@
+# -*- coding: utf-8 -*-
 
-from intel import *
+__all__ = ["intel", "kalray"]
+
+# listing submodule

@@ -12,10 +12,10 @@
 
 from pythonsollya import Interval, SollyaObject, PSI_is_range, nearestint
 
-from utility.log_report import Log
-from utility.common import Callable
-from core.attributes import Attributes, attr_init
-from core.ml_formats import * # FP_SpecialValue, ML_FloatingPointException, ML_FloatingPoint_RoundingMode, ML_FPRM_Type, ML_FPE_Type
+from ..utility.log_report import Log
+from ..utility.common import Callable
+from .attributes import Attributes, attr_init
+from .ml_formats import * # FP_SpecialValue, ML_FloatingPointException, ML_FloatingPoint_RoundingMode, ML_FPRM_Type, ML_FPE_Type
 
 
 def std_merge_abstract_format(*args):

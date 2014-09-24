@@ -10,11 +10,11 @@
 # author(s): Nicolas Brunie (nicolas.brunie@kalray.eu)
 ###############################################################################
 
-from utility.log_report import Log
-from utility.common import ML_NotImplemented, zip_index
-from core.ml_formats import *
-from code_generation.code_element import CodeVariable, CodeExpression, CodeFunction
-from code_generation.code_constant import C_Code, Gappa_Code
+from ..utility.log_report import Log
+from ..utility.common import ML_NotImplemented, zip_index
+from ..core.ml_formats import *
+from .code_element import CodeVariable, CodeExpression, CodeFunction
+from .code_constant import C_Code, Gappa_Code
 
 
 class DummyTree:

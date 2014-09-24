@@ -10,7 +10,7 @@
 # author(s): Nicolas Brunie (nicolas.brunie@kalray.eu)
 ###############################################################################
 
-from utility.common import Callable
+from ..utility.common import Callable
 
 class TargetRegister:
     target_map = {}
