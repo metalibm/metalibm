@@ -19,7 +19,7 @@ from core.ml_table import ML_Table
 from code_generation.gappa_code_generator import GappaCodeGenerator
 
 
-from metalibm_functions.ml_template import ML_ArgTemplate
+from utility.ml_template import ML_ArgTemplate
 
 class ML_Exponential:
     def __init__(self, 
@@ -96,8 +96,11 @@ class ML_Exponential:
             vx: Variable("x", precision = ML_Binary32, interval = Interval(-104, 89)),
             tag_map["k"]: Variable("k", interval = Interval(-100, 100), precision = ML_Binary32)
         }
-        eval_error = gappacg.get_eval_error(opt_r, cg_eval_error_copy_map)
-        print "eval error: ", eval_error
+        try:
+            eval_error = gappacg.get_eval_error(opt_r, cg_eval_error_copy_map)
+            print "eval error: ", eval_error
+        except:
+            print "gappa error evaluation failed"
 
         print "building mathematical polynomial"
         approx_interval = Interval(-log(2)/2, log(2)/2)
