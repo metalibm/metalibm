@@ -1,7 +1,7 @@
 LOCAL_DIR=$PWD
 
-git clone git+ssh://nbrunie@scm.gforge.inria.fr//gitroot/metalibm/pythonsollya.git
-git clone git+ssh://nbrunie@scm.gforge.inria.fr//gitroot/metalibm/metalibm-lugdunum.git
+git clone git+ssh://scm.gforge.inria.fr//gitroot/metalibm/pythonsollya.git
+git clone git+ssh://scm.gforge.inria.fr//gitroot/metalibm/metalibm-lugdunum.git
 cd metalibm-lugdunum && git submodule update --init --recursive
 cd $LOCAL_DIR
 
