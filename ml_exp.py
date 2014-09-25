@@ -168,10 +168,10 @@ class ML_Exponential:
         
         cg = CCodeGenerator(processor, declare_cst = False, disable_debug = not debug_flag, libm_compliant = libm_compliant)
         self.result = exp_implementation.get_definition(cg, C_Code, static_cst = True)
-        self.result.add_header("support_lib/ml_types.h")
-        self.result.add_header("support_lib/ml_special_values.h")
-        self.result.add_header("stdio.h")
-        self.result.add_header("inttypes.h")
+        #self.result.add_header("support_lib/ml_types.h")
+        #self.result.add_header("support_lib/ml_special_values.h")
+        #self.result.add_header("stdio.h")
+        #self.result.add_header("inttypes.h")
         output_stream = open(output_file, "w")#"%s.c" % exp_implementation.get_name(), "w")
         output_stream.write(self.result.get(cg))
         output_stream.close()
@@ -179,7 +179,7 @@ class ML_Exponential:
 
 if __name__ == "__main__":
     # auto-test
-    arg_template = ML_ArgTemplate(default_function_name = "new_div", default_output_file = "new_div.c" )
+    arg_template = ML_ArgTemplate(default_function_name = "new_exp", default_output_file = "new_exp.c" )
     # argument extraction 
     arg_template.sys_arg_extraction()
 
