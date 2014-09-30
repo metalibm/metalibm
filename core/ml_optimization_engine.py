@@ -267,6 +267,22 @@ exactify_rule = {
 
 support_simplification = {
     FusedMultiplyAdd: {
+        FusedMultiplyAdd.Standard: {
+            lambda optree: True: 
+                lambda optree: Addition(Multiplication(optree.inputs[0], optree.inputs[1], precision = optree.get_precision()), optree.inputs[2], precision = optree.get_precision()),
+        },
+        FusedMultiplyAdd.Subtract: {
+            lambda optree: True: 
+                lambda optree: Subtraction(Multiplication(optree.inputs[0], optree.inputs[1], precision = optree.get_precision()), optree.inputs[2], precision = optree.get_precision()),
+        },
+        FusedMultiplyAdd.Negate: {
+            lambda optree: True: 
+                lambda optree: Negate(Addition(Multiplication(optree.inputs[0], optree.inputs[1], precision = optree.get_precision()), optree.inputs[2], precision = optree.get_precision()), precision = optree.get_precision()),
+        },
+        FusedMultiplyAdd.SubtractNegate: {
+            lambda optree: True: 
+                lambda optree: Subtraction(optree.inputs[2], Multiplication(optree.inputs[0], optree.inputs[1], precision = optree.get_precision()), precision = optree.get_precision()),
+        },
         FusedMultiplyAdd.DotProduct: {
             lambda optree: True:
                 lambda optree: Addition(Multiplication(optree.inputs[0], optree.inputs[1], precision = optree.get_precision()), Multiplication(optree.inputs[2], optree.inputs[3], precision = optree.get_precision()), precision = optree.get_precision()), 
