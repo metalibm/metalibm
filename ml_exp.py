@@ -40,9 +40,11 @@ class ML_Exponential:
 
         # declaring CodeFunction and retrieving input variable
         self.function_name = function_name
-        exp_implementation = CodeFunction(self.function_name, output_format = ML_Binary32)
-        vx = exp_implementation.add_input_variable("x", ML_Binary32) 
+        exp_implementation = CodeFunction(self.function_name, output_format = self.precision)
+        vx = exp_implementation.add_input_variable("x", self.precision) 
 
+
+        print "\033[33;1m generating implementation scheme \033[0m"
 
         # local overloading of RaiseReturn operation
         def ExpRaiseReturn(*args, **kwords):
@@ -56,30 +58,52 @@ class ML_Exponential:
         test_positive = Comparison(vx, 0, specifier = Comparison.GreaterOrEqual, debug = True, tag = "inf_sign")
 
         test_signaling_nan = Test(vx, specifier = Test.IsSignalingNaN, debug = True, tag = "is_signaling_nan")
-        return_snan = Statement(ExpRaiseReturn(ML_FPE_Invalid, return_value = FP_QNaN(ML_Binary32)))
+        return_snan = Statement(ExpRaiseReturn(ML_FPE_Invalid, return_value = FP_QNaN(self.precision)))
 
         # return in case of infinity input
-        infty_return = Statement(ConditionBlock(test_positive, Return(FP_PlusInfty(ML_Binary32)), Return(FP_PlusZero(ML_Binary32))))
+        infty_return = Statement(ConditionBlock(test_positive, Return(FP_PlusInfty(self.precision)), Return(FP_PlusZero(self.precision))))
         # return in case of specific value input (NaN or inf)
-        specific_return = ConditionBlock(test_nan, ConditionBlock(test_signaling_nan, return_snan, Return(FP_QNaN(ML_Binary32))), infty_return)
+        specific_return = ConditionBlock(test_nan, ConditionBlock(test_signaling_nan, return_snan, Return(FP_QNaN(self.precision))), infty_return)
         # return in case of standard (non-special) input
 
         # exclusion of early overflow and underflow cases
-        early_overflow_test = Comparison(vx, 89, likely = False, specifier = Comparison.Greater)
-        early_overflow_return = Statement(ClearException(), ExpRaiseReturn(ML_FPE_Inexact, ML_FPE_Overflow, return_value = FP_PlusInfty(ML_Binary32)))
-        early_underflow_test = Comparison(vx, -104, likely = False, specifier = Comparison.Less)
-        early_underflow_return = Statement(ClearException(), ExpRaiseReturn(ML_FPE_Inexact, ML_FPE_Underflow, return_value = FP_PlusZero(ML_Binary32)))
+        precision_emax      = self.precision.get_emax()
+        precision_max_value = S2 * S2**precision_emax 
+        exp_overflow_bound  = ceil(log(precision_max_value))
+        early_overflow_test = Comparison(vx, exp_overflow_bound, likely = False, specifier = Comparison.Greater)
+        early_overflow_return = Statement(ClearException(), ExpRaiseReturn(ML_FPE_Inexact, ML_FPE_Overflow, return_value = FP_PlusInfty(self.precision)))
+
+        precision_emin = self.precision.get_emin_subnormal()
+        precision_min_value = S2 ** precision_emin
+        exp_underflow_bound = floor(log(precision_min_value))
+
+
+        early_underflow_test = Comparison(vx, exp_underflow_bound, likely = False, specifier = Comparison.Less)
+        early_underflow_return = Statement(ClearException(), ExpRaiseReturn(ML_FPE_Inexact, ML_FPE_Underflow, return_value = FP_PlusZero(self.precision)))
+
+
+
+        sollya_prec_map = {ML_Binary32: binary32, ML_Binary64: binary64}
+
 
         # constant computation
-        invlog2 = round(1/log(2), binary32, RN)
-        invlog2_cst = Constant(invlog2, precision = ML_Binary32)
-        log2_hi = round(log(2), 16, RN) 
-        log2_lo = round(log(2) - log2_hi, binary32, RN)
+        invlog2 = round(1/log(2), sollya_prec_map[self.precision], RN)
+
+        interval_vx = Interval(exp_underflow_bound, exp_overflow_bound)
+        interval_fk = interval_vx * invlog2
+        interval_k = Interval(floor(inf(interval_fk)), ceil(sup(interval_fk)))
+
+
+        log2_hi_precision = self.precision.get_field_size() - (ceil(log2(sup(abs(interval_k)))) + 2)
+        print "log2_hi_precision: ", log2_hi_precision
+        invlog2_cst = Constant(invlog2, precision = self.precision)
+        log2_hi = round(log(2), log2_hi_precision, RN) 
+        log2_lo = round(log(2) - log2_hi, sollya_prec_map[self.precision], RN)
 
         # argument reduction
         unround_k = vx * invlog2
         unround_k.set_attributes(tag = "unround_k", debug = ML_Debug(display_format = "%f"))
-        k = NearestInteger(unround_k, precision = ML_Binary32, debug = ML_Debug(display_format = "%d"))
+        k = NearestInteger(unround_k, precision = self.precision, debug = ML_Debug(display_format = "%f"))
         ik = NearestInteger(unround_k, precision = ML_Int32, debug = ML_Debug(display_format = "%d"), tag = "ik")
         ik.set_tag("ik")
         k.set_tag("k")
@@ -87,14 +111,14 @@ class ML_Exponential:
         r.set_tag("r")
         r.set_attributes(debug = ML_Debug(display_format = "%f"))
 
-        opt_r = opt_eng.optimization_process(r, ML_Binary32, copy = True, fuse_fma = fuse_fma)
+        opt_r = opt_eng.optimization_process(r, self.precision, copy = True, fuse_fma = fuse_fma)
 
         tag_map = {}
         opt_eng.register_nodes_by_tag(opt_r, tag_map)
 
         cg_eval_error_copy_map = {
-            vx: Variable("x", precision = ML_Binary32, interval = Interval(-104, 89)),
-            tag_map["k"]: Variable("k", interval = Interval(-100, 100), precision = ML_Binary32)
+            vx: Variable("x", precision = self.precision, interval = interval_vx),
+            tag_map["k"]: Variable("k", interval = interval_k, precision = self.precision)
         }
         try:
             eval_error = gappacg.get_eval_error(opt_r, cg_eval_error_copy_map)
@@ -102,76 +126,82 @@ class ML_Exponential:
         except:
             print "gappa error evaluation failed"
 
-        print "building mathematical polynomial"
+        print "\033[33;1m building mathematical polynomial \033[0m"
         approx_interval = Interval(-log(2)/2, log(2)/2)
         poly_degree = sup(guessdegree(exp(x), approx_interval, S2**-(self.precision.get_field_size()+1))) 
-        poly_object = Polynomial.build_from_approximation(exp(x), poly_degree, [ML_Binary32]*(poly_degree+1), approx_interval, absolute)
+        poly_object = Polynomial.build_from_approximation(exp(x), poly_degree, [self.precision]*(poly_degree+1), approx_interval, absolute)
 
-        print "generating polynomial evaluation scheme"
-        poly = PolynomialSchemeEvaluator.generate_horner_scheme(poly_object, r, unified_precision = ML_Binary32)
+        print "\033[33;1m generating polynomial evaluation scheme \033[0m"
+        poly = PolynomialSchemeEvaluator.generate_horner_scheme(poly_object, r, unified_precision = self.precision)
         poly.set_tag("poly")
 
         debug_f = ML_Debug(display_format = "%f")
 
 
-        late_overflow_test = Comparison(ik, 127, specifier = Comparison.Greater, likely = False, debug = True, tag = "late_overflow_test")
-        diff_k = ik - 120
+        late_overflow_test = Comparison(ik, self.precision.get_emax(), specifier = Comparison.Greater, likely = False, debug = True, tag = "late_overflow_test")
+        overflow_exp_offset = (self.precision.get_emax() - self.precision.get_field_size() / 2)
+        diff_k = ik - overflow_exp_offset 
         diff_k.set_attributes(debug = ML_Debug(display_format = "%d"), tag = "diff_k")
-        late_overflow_result = (ExponentInsertion(diff_k) * poly) * ExponentInsertion(120)
+        late_overflow_result = (ExponentInsertion(diff_k) * poly) * ExponentInsertion(overflow_exp_offset)
         late_overflow_result.set_attributes(silent = False, tag = "late_overflow_result", debug = debug_f)
-        late_overflow_return = ConditionBlock(Test(late_overflow_result, specifier = Test.IsInfty, likely = False), ExpRaiseReturn(ML_FPE_Overflow, return_value = FP_PlusInfty(ML_Binary32)), Return(late_overflow_result))
+        late_overflow_return = ConditionBlock(Test(late_overflow_result, specifier = Test.IsInfty, likely = False), ExpRaiseReturn(ML_FPE_Overflow, return_value = FP_PlusInfty(self.precision)), Return(late_overflow_result))
 
-        late_underflow_test = Comparison(k, -126, specifier = Comparison.LessOrEqual, likely = False)
-        late_underflow_result = (ExponentInsertion(ik + 50) * poly) * ExponentInsertion(-50)
+        late_underflow_test = Comparison(k, self.precision.get_emin_normal(), specifier = Comparison.LessOrEqual, likely = False)
+        underflow_exp_offset = 2 * self.precision.get_field_size()
+        late_underflow_result = (ExponentInsertion(ik + underflow_exp_offset) * poly) * ExponentInsertion(-underflow_exp_offset)
         late_underflow_result.set_attributes(debug = ML_Debug(display_format = "%f"), tag = "late_underflow_result", silent = False)
         test_subnormal = Test(late_underflow_result, specifier = Test.IsSubnormal)
         late_underflow_return = Statement(ConditionBlock(test_subnormal, ExpRaiseReturn(ML_FPE_Underflow, return_value = late_underflow_result)), Return(late_underflow_result))
 
-        std_result = poly * ExponentInsertion(k, debug = ML_Debug(display_format = "%x"))
+        std_result = poly * ExponentInsertion(ik, debug = ML_Debug(display_format = "%x"))
         std_result.set_debug(ML_Debug(display_format = "%f"))
         result_scheme = ConditionBlock(late_overflow_test, late_overflow_return, ConditionBlock(late_underflow_test, late_underflow_return, Return(std_result)))
         std_return = ConditionBlock(early_overflow_test, early_overflow_return, ConditionBlock(early_underflow_test, early_underflow_return, result_scheme))
 
         # main scheme
-        print "MDL scheme"
+        print "\033[33;1m MDL scheme \033[0m"
         scheme = ConditionBlock(test_nan_or_inf, Statement(ClearException(), specific_return), std_return)
 
         #print scheme.get_str(depth = None, display_precision = True)
 
         # fusing FMA
         if fuse_fma: 
-            print "MDL fusing FMA"
+            print "\033[33;1m MDL fusing FMA \033[0m"
             scheme = opt_eng.fuse_multiply_add(scheme, silence = True)
 
-        print "MDL abstract scheme"
+        print "\033[33;1m MDL abstract scheme \033[0m"
         opt_eng.instantiate_abstract_precision(scheme, None)
 
-        print "MDL instantiated scheme"
-        opt_eng.instantiate_precision(scheme, default_precision = ML_Binary32)
+        print "\033[33;1m MDL instantiated scheme \033[0m"
+        opt_eng.instantiate_precision(scheme, default_precision = self.precision)
 
 
-        print "subexpression sharing"
+        print "\033[33;1m subexpression sharing \033[0m"
         opt_eng.subexpression_sharing(scheme)
 
-        print "silencing operation"
+        print "\033[33;1m silencing operation \033[0m"
         opt_eng.silence_fp_operations(scheme)
 
         # registering scheme as function implementation
         exp_implementation.set_scheme(scheme)
 
         # check processor support
+        print "\033[33;1m checking processor support \033[0m"
         opt_eng.check_processor_support(scheme)
 
         # factorizing fast path
         if fast_path_extract:
+            print "\033[33;1m factorizing fast path\033[0m"
             opt_eng.factorize_fast_path(scheme)
         
+        print "\033[33;1m generating source code \033[0m"
         cg = CCodeGenerator(processor, declare_cst = False, disable_debug = not debug_flag, libm_compliant = libm_compliant)
         self.result = exp_implementation.get_definition(cg, C_Code, static_cst = True)
         #self.result.add_header("support_lib/ml_types.h")
-        #self.result.add_header("support_lib/ml_special_values.h")
-        #self.result.add_header("stdio.h")
-        #self.result.add_header("inttypes.h")
+        self.result.add_header("support_lib/ml_special_values.h")
+        if debug_flag:
+            self.result.add_header("stdio.h")
+            self.result.add_header("inttypes.h")
         output_stream = open(output_file, "w")#"%s.c" % exp_implementation.get_name(), "w")
         output_stream.write(self.result.get(cg))
         output_stream.close()
