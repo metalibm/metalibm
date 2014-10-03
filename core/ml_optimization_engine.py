@@ -233,6 +233,8 @@ type_escalation = {
         lambda result_type: True: {
             lambda op_type: isinstance(op_type, ML_FP_Format): 
                 lambda op: {32: ML_Int32, 64: ML_Int64}[op.get_precision().get_bit_size()],
+            lambda op_type: isinstance(op_type, ML_Fixed_Format):
+                lambda op: ML_Int32,
         },
     },
 }
@@ -753,7 +755,8 @@ class OptimizationEngine:
                 pass
             elif not self.processor.is_supported_operation(optree):
                 # trying operand format escalation
-                if optree.__class__ in type_escalation:
+                while optree.__class__ in type_escalation:
+                    match_found = False
                     for result_type_cond in type_escalation[optree.__class__]:
                         if result_type_cond(optree.get_precision()): 
                             for op_index in xrange(len(optree.inputs)):
@@ -767,8 +770,11 @@ class OptimizationEngine:
                                             input_list = list(optree.inputs)
                                             input_list[op_index] = Conversion(op, precision = new_type)
                                             optree.inputs = tuple(input_list)
+                                            match_found = True
                                             break
                             break
+                    if not match_found:
+                        break
                 # checking final processor support
                 if not self.processor.is_supported_operation(optree):
                     # look for possible simplification

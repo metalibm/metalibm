@@ -90,6 +90,7 @@ class Polynomial:
 
     def build_from_approximation(function, poly_degree, coeff_formats, approx_interval, *modifiers):
         """ construct a polynomial object from a function approximation using sollya's fpminimax """
+        print "approx_interval: ", approx_interval
         sollya_poly = fpminimax(function, poly_degree, [c.sollya_object for c in coeff_formats], approx_interval, *modifiers)
         return Polynomial(sollya_poly)
 

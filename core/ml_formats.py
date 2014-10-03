@@ -99,6 +99,18 @@ class ML_Std_FP_Format(ML_FP_Format):
     def get_c_name(self):
         return self.c_name
 
+    def get_bias(self):
+        return - 2**(self.get_exponent_size() - 1) + 1
+
+    def get_emax(self):
+        return 2**self.get_exponent_size() - 2 + self.get_bias()
+
+    def get_emin_normal(self):
+        return 1 + self.get_bias()
+
+    def get_emin_subnormal(self):
+        return 1 - (self.get_field_size() + 1) + self.get_bias()
+
     def get_c_display_format(self):
         return self.c_display_format
 

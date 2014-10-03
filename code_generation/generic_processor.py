@@ -279,6 +279,9 @@ c_code_generation_table = {
             lambda optree: True: {
                 type_strict_match(ML_Int32, ML_Binary32): Libm_Function("nearbyintf", arity = 1),
                 type_strict_match(ML_Binary32, ML_Binary32): Libm_Function("rintf", arity = 1),
+                type_strict_match(ML_Int64, ML_Binary64): Libm_Function("nearbyint", arity = 1),
+                type_strict_match(ML_Int32, ML_Binary64): Libm_Function("nearbyint", arity = 1),
+                type_strict_match(ML_Binary64, ML_Binary64): Libm_Function("rint", arity = 1),
             },
         },
     },
@@ -321,6 +324,8 @@ c_code_generation_table = {
                 type_strict_match(ML_Binary32, ML_UInt32): IdentityOperator(),
                 type_strict_match(ML_Int32, ML_Binary32): IdentityOperator(),
                 type_strict_match(ML_Binary64, ML_Int32): IdentityOperator(),
+                type_strict_match(ML_Int32, ML_Int64):    IdentityOperator(),
+                type_strict_match(ML_Int64, ML_Int32):    IdentityOperator(),
             },
         },
     },
