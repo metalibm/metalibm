@@ -22,6 +22,8 @@ float ml_raise_libm_underflowf(float result, float arg, char* func_name) {
     } else {
         return return_value;
     }
+
+    return return_value;
 }
 
 
@@ -45,4 +47,6 @@ float ml_raise_libm_overflowf(float result, float arg, char* func_name) {
     } else {
         return return_value;
     }
+
+    return return_value;
 }
