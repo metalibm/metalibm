@@ -20,6 +20,9 @@ from metalibm_core.code_generation.gappa_code_generator import GappaCodeGenerato
 
 
 from metalibm_core.utility.ml_template import ML_ArgTemplate
+from metalibm_core.utility.log_report  import Log
+
+
 
 class ML_Exponential:
     def __init__(self, 
@@ -32,6 +35,7 @@ class ML_Exponential:
                  target = GenericProcessor(), 
                  output_file = "expf.c", 
                  function_name = "expf"):
+
         # declaring target and instantiating optimization engine
         processor = target
         self.precision = precision
@@ -44,7 +48,7 @@ class ML_Exponential:
         vx = exp_implementation.add_input_variable("x", self.precision) 
 
 
-        print "\033[33;1m generating implementation scheme \033[0m"
+        Log.report(Log.Info, "\033[33;1m generating implementation scheme \033[0m")
 
         # local overloading of RaiseReturn operation
         def ExpRaiseReturn(*args, **kwords):
@@ -95,7 +99,7 @@ class ML_Exponential:
 
 
         log2_hi_precision = self.precision.get_field_size() - (ceil(log2(sup(abs(interval_k)))) + 2)
-        print "log2_hi_precision: ", log2_hi_precision
+        Log.report(Log.Info, "log2_hi_precision: "), log2_hi_precision
         invlog2_cst = Constant(invlog2, precision = self.precision)
         log2_hi = round(log(2), log2_hi_precision, RN) 
         log2_lo = round(log(2) - log2_hi, sollya_prec_map[self.precision], RN)
@@ -122,16 +126,16 @@ class ML_Exponential:
         }
         try:
             eval_error = gappacg.get_eval_error(opt_r, cg_eval_error_copy_map)
-            print "eval error: ", eval_error
+            Log.report(Log.Info, "eval error: "), eval_error
         except:
-            print "gappa error evaluation failed"
+            Log.report(Log.Info, "gappa error evaluation failed")
 
-        print "\033[33;1m building mathematical polynomial \033[0m"
+        Log.report(Log.Info, "\033[33;1m building mathematical polynomial \033[0m")
         approx_interval = Interval(-log(2)/2, log(2)/2)
         poly_degree = sup(guessdegree(exp(x), approx_interval, S2**-(self.precision.get_field_size()+1))) 
         poly_object = Polynomial.build_from_approximation(exp(x), poly_degree, [self.precision]*(poly_degree+1), approx_interval, absolute)
 
-        print "\033[33;1m generating polynomial evaluation scheme \033[0m"
+        Log.report(Log.Info, "\033[33;1m generating polynomial evaluation scheme \033[0m")
         poly = PolynomialSchemeEvaluator.generate_horner_scheme(poly_object, r, unified_precision = self.precision)
         poly.set_tag("poly")
 
@@ -159,46 +163,48 @@ class ML_Exponential:
         std_return = ConditionBlock(early_overflow_test, early_overflow_return, ConditionBlock(early_underflow_test, early_underflow_return, result_scheme))
 
         # main scheme
-        print "\033[33;1m MDL scheme \033[0m"
+        Log.report(Log.Info, "\033[33;1m MDL scheme \033[0m")
         scheme = ConditionBlock(test_nan_or_inf, Statement(ClearException(), specific_return), std_return)
 
         #print scheme.get_str(depth = None, display_precision = True)
 
         # fusing FMA
         if fuse_fma: 
-            print "\033[33;1m MDL fusing FMA \033[0m"
+            Log.report(Log.Info, "\033[33;1m MDL fusing FMA \033[0m")
             scheme = opt_eng.fuse_multiply_add(scheme, silence = True)
 
-        print "\033[33;1m MDL abstract scheme \033[0m"
+        Log.report(Log.Info, "\033[33;1m MDL abstract scheme \033[0m")
         opt_eng.instantiate_abstract_precision(scheme, None)
 
-        print "\033[33;1m MDL instantiated scheme \033[0m"
+        Log.report(Log.Info, "\033[33;1m MDL instantiated scheme \033[0m")
         opt_eng.instantiate_precision(scheme, default_precision = self.precision)
 
 
-        print "\033[33;1m subexpression sharing \033[0m"
+        Log.report(Log.Info, "\033[33;1m subexpression sharing \033[0m")
         opt_eng.subexpression_sharing(scheme)
 
-        print "\033[33;1m silencing operation \033[0m"
+        Log.report(Log.Info, "\033[33;1m silencing operation \033[0m")
         opt_eng.silence_fp_operations(scheme)
 
         # registering scheme as function implementation
         exp_implementation.set_scheme(scheme)
 
         # check processor support
-        print "\033[33;1m checking processor support \033[0m"
+        Log.report(Log.Info, "\033[33;1m checking processor support \033[0m")
         opt_eng.check_processor_support(scheme)
 
         # factorizing fast path
         if fast_path_extract:
-            print "\033[33;1m factorizing fast path\033[0m"
+            Log.report(Log.Info, "\033[33;1m factorizing fast path\033[0m")
             opt_eng.factorize_fast_path(scheme)
         
-        print "\033[33;1m generating source code \033[0m"
+        Log.report(Log.Info, "\033[33;1m generating source code \033[0m")
         cg = CCodeGenerator(processor, declare_cst = False, disable_debug = not debug_flag, libm_compliant = libm_compliant)
         self.result = exp_implementation.get_definition(cg, C_Code, static_cst = True)
         #self.result.add_header("support_lib/ml_types.h")
         self.result.add_header("support_lib/ml_special_values.h")
+        self.result.add_header_comment("polynomial degree for exp(x): %d" % poly_degree)
+        self.result.add_header_comment("sollya polynomial for exp(x): %s" % poly_object.get_sollya_object())
         if debug_flag:
             self.result.add_header("stdio.h")
             self.result.add_header("inttypes.h")
