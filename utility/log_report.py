@@ -15,6 +15,7 @@ from common import Callable
 
 class Log:
     """ log report class """
+    log_stream = None
 
     class LogLevel(object): 
         """ log level builder """
@@ -29,11 +30,18 @@ class Log:
 
     def report(level, msg):
         """ report log message """
-        print "%s: %s" % (level.name, msg)
+        if Log.log_stream:
+            Log.log_stream.write(msg)
+        else:
+            print "%s: %s" % (level.name, msg)
         if level is Log.Error:
             raise Exception()
 
-    report = Callable(report)
+    def set_log_stream(log_stream):
+        Log.log_stream = log_stream
+
+    set_log_stream = Callable(set_log_stream)
+    report         = Callable(report)
 
 
 

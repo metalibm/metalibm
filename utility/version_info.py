@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 
-git_sha = "5af92bbd5c9d0a9e5e15e8d3fb87abde406e85f7"
+import commands, inspect, os
+
+script_dir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+git_sha = commands.getoutput("""pushd %s > /dev/null &&  git log -n 1 --pretty=format:"%%H" && popd > /dev/null """ % script_dir)
 version_num = "0.1"
 version_description = "alpha"
-notes = """ """
+notes = """ metalibm core """

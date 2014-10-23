@@ -20,6 +20,7 @@ def attr_init(attrs, attr_name, default_value = None, required = False):
         return attrs[attr_name]
     else:
         if not "__copy" in attrs and required:
+        :q
             Log.report(Log.Error, "required argument %s is absent" % attr_name) 
         else:
             return default_value

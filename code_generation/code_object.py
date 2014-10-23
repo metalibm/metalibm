@@ -182,6 +182,10 @@ class CodeObject:
         self.header_list = []
         self.symbol_table = MultiSymbolTable(shared_tables, parent_tables = parent_tables)
         self.language = language
+        self.header_comment = []
+
+    def add_header_comment(self, comment):
+        self.header_comment.append(comment)
 
     def get_symbol_table(self):
         return self.symbol_table
@@ -223,15 +227,23 @@ class CodeObject:
 
     def add_header(self, header_file):
         """ add a new header file """
+        print "adding header :", header_file
         if not header_file in self.header_list:
             self.header_list.append(header_file)
 
     def generate_header_code(self, git_tag = True):
         """ generate code for header file inclusion """
         result = ""
+        # generating git comment
         if git_tag:
-            #result += "/** function generated using metalibm git log:\n %s \n**/\n" % get_git_tag()
-            result += "/** generated using metalibm %s \n * sha1 git: %s **/\n" % (ml_version_info.version_num, ml_version_info.git_sha)
+            git_comment = "generated using metalibm %s \n sha1 git: %s \n" % (ml_version_info.version_num, ml_version_info.git_sha)
+            self.header_comment.insert(0, git_comment) 
+        # generating header comments
+        result += "/**\n"
+        for comment in self.header_comment:
+            result += " * " + comment.replace("\n", "\n * ") + "\n"
+        result += "**/\n"
+
         for header_file in self.header_list:
             result += """#include <%s>\n""" % (header_file)
         return result
@@ -376,6 +388,9 @@ class NestedCode:
 
         self.main_code = CodeObject(self.language, shared_tables) 
         self.code_list = [self.main_code]
+
+    def add_header_comment(self, comment):
+        self.main_code.add_header_comment(comment)
 
     def get_cst_table(self):
         if self.static_cst: return self.static_cst_table

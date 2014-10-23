@@ -827,28 +827,28 @@ class OptimizationEngine:
 
         # fusing FMA
         if fuse_fma:
-            print "fusing FMA"
+            Log.report(Log.Info, "fusing FMA")
         scheme_post_fma = scheme if not fuse_fma else self.fuse_multiply_add(scheme, silence = silence_fp_operations)
         
         # instantiating abstract precisions
-        print "instantiating abstract precisions"
+        Log.report(Log.Info, "instantiating abstract precisions")
         self.instantiate_abstract_precision(scheme_post_fma, None)
-        print "instantiating precisions"
+        Log.report(Log.Info, "instantiating precisions")
         self.instantiate_precision(scheme_post_fma, default_precision)
 
         if subexpression_sharing:
-            print "sharing sub-expressions"
+            Log.report(Log.Info, "sharing sub-expressions")
             self.subexpression_sharing(scheme_post_fma)
         if silence_fp_operations:
-            print "silencing fp operations"
+            Log.report(Log.Info, "silencing fp operations")
             self.silence_fp_operations(scheme_post_fma)
 
         # check processor support
-        print "checking processor support"
+        Log.report(Log.Info, "checking processor support")
         self.check_processor_support(scheme_post_fma)
 
         if factorize_fast_path:
-            print "factorizing fast path"
+            Log.report(Log.Info, "factorizing fast path")
             self.factorize_fast_path(scheme_post_fma)
 
         return scheme_post_fma

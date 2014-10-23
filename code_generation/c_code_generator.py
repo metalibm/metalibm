@@ -43,7 +43,6 @@ class CCodeGenerator:
             if old_fp_context.get_rounding_mode() == ML_GlobalRoundMode:
                 # TODO
                 pass
-        
 
 
     def get_unknown_precision(self):
