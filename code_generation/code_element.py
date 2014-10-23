@@ -53,10 +53,10 @@ class CodeExpression:
 
 class CodeFunction:
     """ function code object """
-    def __init__(self, name, arg_list = [], output_format = None, code_object = None):
+    def __init__(self, name, arg_list = None, output_format = None, code_object = None):
         """ code function initialization """
         self.name = name
-        self.arg_list = arg_list
+        self.arg_list = arg_list if arg_list else []
         self.code_object = code_object
         self.output_format = output_format 
 

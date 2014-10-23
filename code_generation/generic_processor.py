@@ -20,7 +20,7 @@ from ..utility.common import Callable
 
 def LibFunctionConstructor(require_header):
     def extend_kwords(kwords, ext_list):
-        require_header_arg = [] if not "require_header" in kwords else kwords["require_header"]
+        require_header_arg = [] if ((not "require_header" in kwords) or not kwords["require_header"]) else kwords["require_header"]
         require_header_arg += require_header
         kwords["require_header"] = require_header_arg
         return kwords

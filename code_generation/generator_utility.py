@@ -44,24 +44,21 @@ def ordered_generation(gen_function, gen_list):
 
 class ML_CG_Operator:
     """ parent class for all code generation operators """
-    def __init__(self, arity = 0, output_precision = None, pre_process = None, custom_generate_expr = None, force_folding = None, require_header = [], no_parenthesis = False, context_dependant = None, speed_measure = None):
+    def __init__(self, arity = 0, output_precision = None, pre_process = None, custom_generate_expr = None, force_folding = None, require_header = None, no_parenthesis = False, context_dependant = None, speed_measure = None):
         self.arity = arity
         self.compound = None
         self.output_precision = output_precision
         self.pre_process = pre_process
         self.custom_generate_expr = custom_generate_expr
         self.force_folding = force_folding
-        self.require_header = require_header
-        self.header_init = False
+        self.require_header = require_header if require_header else []
         self.no_parenthesis = no_parenthesis
         self.context_dependant = context_dependant
         self.speed_measure = speed_measure
 
     def register_headers(self, code_object):
-        if not self.header_init:
-            for header in self.require_header: 
-                code_object.add_header(header)
-            self.header_init = True
+        for header in self.require_header: 
+            code_object.add_header(header)
 
     def get_speed_measure(self):
         return self.speed_measure
@@ -250,11 +247,11 @@ class FO_Result:
 
 
 class FunctionOperator(ML_CG_Operator):
-    def __init__(self, function_name, arg_map = {}, pre_process = None, declare_prototype = None, **kwords):
+    def __init__(self, function_name, arg_map = None, pre_process = None, declare_prototype = None, **kwords):
         """ symbol operator initialization function """
         ML_CG_Operator.__init__(self, **kwords)
         self.function_name = function_name
-        self.arg_map = None if self.arity is ML_VarArity else dict([(i, FO_Arg(i)) for i in xrange(self.arity)]) if arg_map == {} else arg_map
+        self.arg_map = None if self.arity is ML_VarArity else dict([(i, FO_Arg(i)) for i in xrange(self.arity)]) if arg_map == None else (arg_map if arg_map else {})
         self.total_arity = None if self.arg_map == None else len(self.arg_map)
         self.pre_process = pre_process
         self.declare_prototype = declare_prototype
@@ -333,11 +330,11 @@ class TemplateOperator(FunctionOperator):
 
 
 class AsmInlineOperator(ML_CG_Operator):
-    def __init__(self, asm_template, arity = 2, arg_map = {}, output_num = 1):
+    def __init__(self, asm_template, arity = 2, arg_map = None, output_num = 1):
         """ symbol operator initialization function """
         ML_CG_Operator.__init__(self, arity)
         self.asm_template = asm_template
-        self.arg_map = dict([(0, FO_Result(0))] + [(i+1, FO_Arg(i)) for i in xrange(arity)]) if arg_map == {} else arg_map
+        self.arg_map = dict([(0, FO_Result(0))] + [(i+1, FO_Arg(i)) for i in xrange(arity)]) if arg_map == None else arg_map
         # total arity
         self.total_arity = arity + output_num
 

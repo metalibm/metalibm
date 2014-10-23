@@ -74,13 +74,15 @@ class MultiSymbolTable:
         if symbol_tag in shared_tables: return shared_tables[symbol_tag]
         else: return SymbolTable()
 
-    def __init__(self, shared_tables = {}, parent_tables = []): 
+    def __init__(self, shared_tables = None, parent_tables = None): 
         """ symbol table initialization 
             shared_tables is a map of pre-defined tables shared with other parent block 
             (and not created within this block)
             parent_tables is a list of pre-existing tables, which are used when
             checking whether a name is free or not
         """
+        shared_tables = shared_tables if shared_tables else {}
+        parent_tables = parent_tables if parent_tables else []
         self.constant_table = self.get_shared_table(MultiSymbolTable.ConstantSymbol, shared_tables)
         self.function_table = self.get_shared_table(MultiSymbolTable.FunctionSymbol, shared_tables)
         self.variable_table = self.get_shared_table(MultiSymbolTable.VariableSymbol, shared_tables)
@@ -175,12 +177,12 @@ def get_git_tag():
 
 class CodeObject:
     tab = "    "
-    def __init__(self, language, shared_tables = {}, parent_tables = [], rounding_mode = ML_GlobalRoundMode):
+    def __init__(self, language, shared_tables = None, parent_tables = None, rounding_mode = ML_GlobalRoundMode):
         """ code object initialization """
         self.expanded_code = ""
         self.tablevel = 0
         self.header_list = []
-        self.symbol_table = MultiSymbolTable(shared_tables, parent_tables = parent_tables)
+        self.symbol_table = MultiSymbolTable(shared_tables if shared_tables else {}, parent_tables = (parent_tables if parent_tables else []))
         self.language = language
         self.header_comment = []
 
@@ -227,7 +229,6 @@ class CodeObject:
 
     def add_header(self, header_file):
         """ add a new header file """
-        print "adding header :", header_file
         if not header_file in self.header_list:
             self.header_list.append(header_file)
 
