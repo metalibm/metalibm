@@ -36,6 +36,8 @@ class GappaCodeGenerator:
         self.libm_compliant = libm_compliant
         self.exact_mode = exact_mode
 
+        self.exact_hint_map = {False: {}, True: {}}
+
     def get_unknown_precision(self):
         """ return a default format when compound operator encounter
             an undefined precision """
@@ -183,6 +185,21 @@ class GappaCodeGenerator:
         else:
             result = self.processor.generate_expr(self, code_object, optree, optree.inputs, folded = folded, result_var = result_var, language = self.language)
 
+            if optree.get_exact():
+                key = optree.get_handle()
+                exact_flag = (optree.get_precision() == ML_Exact or self.get_exact_mode() == True)
+                print "encountered exact optree: ", optree.get_str()
+                print "   key is %s and exact_flag is %s" % (key, exact_flag)
+                if key in self.exact_hint_map[True] and key in self.exact_hint_map[False]:
+                    # already processed, skip
+                    print "   already processed: skip ! "
+                else:
+                    self.exact_hint_map[exact_flag][key] = optree
+                    if key in self.exact_hint_map[not exact_flag]:
+                        self.add_hint(code_object, self.exact_hint_map[False][key], self.exact_hint_map[True][key])
+            
+
+
         # registering result into memoization table
         self.add_memoization(optree, result)
 
@@ -231,7 +248,7 @@ class GappaCodeGenerator:
         return debug_msg
 
 
-    def get_eval_error(self, pre_optree, variable_copy_map = {}, goal_precision = ML_Binary32):
+    def get_eval_error(self, pre_optree, variable_copy_map = {}, goal_precision = ML_Binary32, gappa_filename = "gappa_tmp.g"):
         """ helper to compute the evaluation error of <pre_optree> bounded by tagged-node in variable_map, 
             assuming variable_map[v] is the liverange of node v """
         # registering initial bounds
@@ -248,7 +265,8 @@ class GappaCodeGenerator:
         for v in bound_list:
             self.add_hypothesis(gappa_code, variable_copy_map[v], variable_copy_map[v].get_interval())
 
-        return execute_gappa_script_extract(gappa_code.get(self))["goal"]
+        return execute_gappa_script_extract(gappa_code.get(self), gappa_filename = gappa_filename)["goal"]
+
 
     def get_eval_error_v2(self, opt_engine, pre_optree, variable_copy_map = {}, goal_precision = ML_Exact, gappa_filename = "gappa_tmp.g"):
         """ helper to compute the evaluation error of <pre_optree> bounded by tagged-node in variable_map, 

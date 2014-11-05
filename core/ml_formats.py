@@ -135,6 +135,10 @@ class ML_Std_FP_Format(ML_FP_Format):
             else:
                 return str(cst_value) + self.c_suffix
 
+    def get_precision(self):
+        """ return the bit-size of the mantissa """
+        return self.get_field_size()
+
     def get_gappa_cst(self, cst_value):
         """ C code for constante cst_value """
         if isinstance(cst_value, FP_SpecialValue): 

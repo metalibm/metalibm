@@ -53,6 +53,7 @@ class Attributes:
     default_precision     = [None]
     default_rounding_mode = [None]
     default_silent        = [None]
+    str_del               = "| "
 
     def __init__(self, **init_map):
         self.precision  = attr_init(init_map, "precision", Attributes.default_precision[0])
@@ -68,6 +69,16 @@ class Attributes:
         self.rounding_mode = attr_init(init_map, "rounding_mode", Attributes.default_rounding_mode[0])
         self.rounding_mode_dependant = None
         self.prevent_optimization = attr_init(init_map, "prevent_optimization")
+
+
+    def get_str(self, tab_level = 0):
+        """ string conversion for operation graph 
+            depth:                  number of level to be crossed (None: infty)
+            display_precision:      enable/display format display
+        """
+        tab_str   = Attributes.str_del * tab_level
+        debug_str = "T" if self.debug else "F"
+        return tab_str + "%s D[%s] E[%s] RND=%s[%s]" % (self.interval, debug_str, self.exact, self.rounding_mode, self.rounding_mode_dependant)
 
 
     def get_copy(self):
@@ -98,6 +109,13 @@ class Attributes:
     def get_precision(self):
         """ precision getter """
         return self.precision
+
+    def set_exact(self, new_exact):
+        """ exact setter """
+        self.exact = new_exact
+    def get_exact(self):
+        """ exact getter """
+        return self.exact
 
 
     def set_interval(self, interval):

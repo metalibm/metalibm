@@ -240,6 +240,7 @@ type_escalation = {
 }
 
 
+# Table of transformation rule to translate an operation into its exact (no rounding error) counterpart
 exactify_rule = {
     Addition: { 
         None: {
@@ -616,19 +617,22 @@ class OptimizationEngine:
 
 
     def fuse_multiply_add(self, optree, silence = False, memoization = {}):
-        """ whenever possible fuse a multiply and add into a FMA """
+        """ whenever possible fuse a multiply and add/sub into a FMA/FMS """
         if isinstance(optree, Addition) or isinstance(optree, Subtraction):
             if len(optree.inputs) != 2:
                 # more than 2-operand addition are not supported yet
                 optree.inputs = tuple(self.fuse_multiply_add(op, silence = silence, memoization = memoization) for op in optree.inputs)
                 return optree
+
             else:
                 if optree in memoization: 
                     return memoization[optree]
+
                 elif optree.get_prevent_optimization():
                     optree.inputs = tuple(self.fuse_multiply_add(op, silence = silence, memoization = memoization) for op in optree.inputs)
                     memoization[optree] = optree
                     return optree
+
                 elif self.get_dot_product_enabled() and isinstance(optree.inputs[0], Multiplication) and isinstance(optree.inputs[1], Multiplication) and not optree.inputs[0].get_prevent_optimization() and not optree.inputs[1].get_prevent_optimization():
                     specifier = FusedMultiplyAdd.DotProductNegate if isinstance(optree, Subtraction) else FusedMultiplyAdd.DotProduct 
                     mult0 = self.fuse_multiply_add(optree.inputs[0].inputs[0], silence = silence, memoization = memoization)
@@ -639,10 +643,14 @@ class OptimizationEngine:
                     new_op.attributes = optree.attributes.get_light_copy()
                     new_op.set_silent(silence)
                     new_op.set_index(optree.get_index())
+                    # propagating exact attribute
+                    if optree.inputs[0].get_exact() and optree.inputs[1].get_exact() and optree.get_exact():
+                        new_op.set_exact(True)
                     # modifying handle
                     if self.change_handle: optree.get_handle().set_node(new_op)
                     memoization[optree] = new_op
                     return new_op
+
                 elif isinstance(optree.inputs[0], Multiplication) and not optree.inputs[0].get_prevent_optimization():
                     specifier = FusedMultiplyAdd.Subtract if isinstance(optree, Subtraction) else FusedMultiplyAdd.Standard 
                     mult0 = self.fuse_multiply_add(optree.inputs[0].inputs[0], silence = silence, memoization = memoization)
@@ -655,6 +663,10 @@ class OptimizationEngine:
                     new_op.set_silent(silence)
                     new_op.set_index(optree.get_index())
                     #print "fusing fma label", mult0.get_interval(), mult1.get_interval(), addend.get_interval()
+
+                    # propagating exact attribute
+                    if optree.inputs[0].get_exact() and optree.get_exact():
+                        new_op.set_exact(True)
 
                     # modifying handle
                     if self.change_handle: optree.get_handle().set_node(new_op)
@@ -674,6 +686,9 @@ class OptimizationEngine:
                     memoization[optree] = new_op
 
                     new_op.set_index(optree.get_index())
+                    # propagating exact attribute
+                    if optree.inputs[1].get_exact() and optree.get_exact():
+                        new_op.set_exact(True)
 
                     # modifying handle
                     if self.change_handle: optree.get_handle().set_node(new_op)
@@ -801,6 +816,9 @@ class OptimizationEngine:
 
 
     def exactify(self, optree, exact_format = ML_Exact, memoization_map = {}):
+        """ recursively process <optree> according to table exactify_rule 
+            to translete each node into is exact counterpart (no rounding error)
+            , generally by setting its precision to <exact_format> """
         if optree in memoization_map:
             return memoization_map[optree]
         if not isinstance(optree, ML_LeafNode):

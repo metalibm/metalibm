@@ -28,10 +28,10 @@ class Log:
     Error = LogLevel("Error")
     Debug = LogLevel("Debug")
 
-    def report(level, msg):
+    def report(level, msg, eol = "\n"):
         """ report log message """
         if Log.log_stream:
-            Log.log_stream.write(msg)
+            Log.log_stream.write(msg + eol)
         else:
             print "%s: %s" % (level.name, msg)
         if level is Log.Error:
