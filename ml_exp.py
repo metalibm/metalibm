@@ -21,6 +21,8 @@ from metalibm_core.code_generation.gappa_code_generator import GappaCodeGenerato
 
 from metalibm_core.utility.ml_template import ML_ArgTemplate
 from metalibm_core.utility.log_report  import Log
+from metalibm_core.utility.debug_utils import *
+from metalibm_core.utility.num_utils   import ulp
 
 
 
@@ -86,7 +88,6 @@ class ML_Exponential:
         early_underflow_return = Statement(ClearException(), ExpRaiseReturn(ML_FPE_Inexact, ML_FPE_Underflow, return_value = FP_PlusZero(self.precision)))
 
 
-
         sollya_prec_map = {ML_Binary32: binary32, ML_Binary64: binary64}
 
 
@@ -111,7 +112,11 @@ class ML_Exponential:
         ik = NearestInteger(unround_k, precision = ML_Int32, debug = ML_Debug(display_format = "%d"), tag = "ik")
         ik.set_tag("ik")
         k.set_tag("k")
-        r = (vx - k * log2_hi) - k * log2_lo
+        exact_pre_mul = (k * log2_hi)
+        exact_pre_mul.set_attributes(exact= True)
+        exact_hi_part = vx - exact_pre_mul
+        exact_hi_part.set_attributes(exact = True)
+        r =  exact_hi_part - k * log2_lo
         r.set_tag("r")
         r.set_attributes(debug = ML_Debug(display_format = "%f"))
 
@@ -124,22 +129,67 @@ class ML_Exponential:
             vx: Variable("x", precision = self.precision, interval = interval_vx),
             tag_map["k"]: Variable("k", interval = interval_k, precision = self.precision)
         }
-        try:
-            eval_error = gappacg.get_eval_error(opt_r, cg_eval_error_copy_map)
-            Log.report(Log.Info, "eval error: "), eval_error
-        except:
-            Log.report(Log.Info, "gappa error evaluation failed")
+        #try:
+        if 1:
+            #eval_error = gappacg.get_eval_error(opt_r, cg_eval_error_copy_map, gappa_filename = "red_arg.g")
+            eval_error = gappacg.get_eval_error_v2(opt_eng, opt_r, cg_eval_error_copy_map, gappa_filename = "red_arg.g")
+            Log.report(Log.Info, "eval error: %s" % eval_error)
+        #except:
+        #    Log.report(Log.Info, "gappa error evaluation failed")
+        print r.get_str(depth = None, display_precision = True, display_attribute = True)
+        print opt_r.get_str(depth = None, display_precision = True, display_attribute = True)
 
-        Log.report(Log.Info, "\033[33;1m building mathematical polynomial \033[0m")
         approx_interval = Interval(-log(2)/2, log(2)/2)
-        poly_degree = sup(guessdegree(exp(x), approx_interval, S2**-(self.precision.get_field_size()+1))) 
-        poly_object = Polynomial.build_from_approximation(exp(x), poly_degree, [self.precision]*(poly_degree+1), approx_interval, absolute)
 
-        Log.report(Log.Info, "\033[33;1m generating polynomial evaluation scheme \033[0m")
-        poly = PolynomialSchemeEvaluator.generate_horner_scheme(poly_object, r, unified_precision = self.precision)
-        poly.set_tag("poly")
+        local_ulp = sup(ulp(exp(approx_interval), self.precision))
+        print "ulp: ", local_ulp 
+        error_goal = local_ulp #S2**-(self.precision.get_field_size()+1)
+        error_goal_approx = S2**-1 * error_goal
 
-        debug_f = ML_Debug(display_format = "%f")
+        Log.report(Log.Info, "\033[33;1m building mathematical polynomial \033[0m\n")
+        poly_degree = sup(guessdegree(exp(x), approx_interval, error_goal_approx)) #- 1
+        init_poly_degree = poly_degree
+
+        #return
+
+
+        #while 1: 
+        if 1:
+            Log.report(Log.Info, "attempting poly degree: %d" % poly_degree)
+            poly_object, poly_approx_error = Polynomial.build_from_approximation_with_error(exp(x), poly_degree, [self.precision]*(poly_degree+1), approx_interval, absolute)
+
+            Log.report(Log.Info, "poly approx error: %s" % poly_approx_error)
+
+            Log.report(Log.Info, "\033[33;1m generating polynomial evaluation scheme \033[0m")
+            poly = PolynomialSchemeEvaluator.generate_horner_scheme(poly_object, r, unified_precision = self.precision)
+            poly.set_tag("poly")
+
+            # optimizing poly before evaluation error computation
+            opt_poly = opt_eng.optimization_process(poly, self.precision)
+
+            #print "poly: ", poly.get_str(depth = None, display_precision = True)
+            #print "opt_poly: ", opt_poly.get_str(depth = None, display_precision = True)
+
+            # evaluating error of the polynomial approximation
+            r_gappa_var = Variable("r", precision = self.precision, interval = approx_interval)
+            poly_error_copy_map = {
+                r.get_handle().get_node(): r_gappa_var
+            }
+            gappacg = GappaCodeGenerator(target, declare_cst = False, disable_debug = True)
+            poly_eval_error = gappacg.get_eval_error_v2(opt_eng, poly.get_handle().get_node(), poly_error_copy_map, gappa_filename = "gappa_poly.g")
+            Log.report(Log.Info, "poly evaluation error: %s" % poly_eval_error)
+
+            global_poly_error = poly_eval_error + poly_approx_error
+            global_rel_poly_error = global_poly_error / exp(approx_interval)
+            print "global_poly_error: ", global_poly_error, global_rel_poly_error 
+            flag = local_ulp > sup(abs(global_rel_poly_error))
+            print "test: ", flag
+            #if flag: break
+            #else:
+            #    if poly_degree > init_poly_degree + 5:
+            #        Log.report(Log.Error, "poly degree search did not converge")
+            #    poly_degree += 1
+
 
 
         late_overflow_test = Comparison(ik, self.precision.get_emax(), specifier = Comparison.Greater, likely = False, debug = True, tag = "late_overflow_test")
@@ -147,18 +197,18 @@ class ML_Exponential:
         diff_k = ik - overflow_exp_offset 
         diff_k.set_attributes(debug = ML_Debug(display_format = "%d"), tag = "diff_k")
         late_overflow_result = (ExponentInsertion(diff_k) * poly) * ExponentInsertion(overflow_exp_offset)
-        late_overflow_result.set_attributes(silent = False, tag = "late_overflow_result", debug = debug_f)
+        late_overflow_result.set_attributes(silent = False, tag = "late_overflow_result", debug = debugf)
         late_overflow_return = ConditionBlock(Test(late_overflow_result, specifier = Test.IsInfty, likely = False), ExpRaiseReturn(ML_FPE_Overflow, return_value = FP_PlusInfty(self.precision)), Return(late_overflow_result))
 
         late_underflow_test = Comparison(k, self.precision.get_emin_normal(), specifier = Comparison.LessOrEqual, likely = False)
         underflow_exp_offset = 2 * self.precision.get_field_size()
         late_underflow_result = (ExponentInsertion(ik + underflow_exp_offset) * poly) * ExponentInsertion(-underflow_exp_offset)
-        late_underflow_result.set_attributes(debug = ML_Debug(display_format = "%f"), tag = "late_underflow_result", silent = False)
+        late_underflow_result.set_attributes(debug = ML_Debug(display_format = "%e"), tag = "late_underflow_result", silent = False)
         test_subnormal = Test(late_underflow_result, specifier = Test.IsSubnormal)
         late_underflow_return = Statement(ConditionBlock(test_subnormal, ExpRaiseReturn(ML_FPE_Underflow, return_value = late_underflow_result)), Return(late_underflow_result))
 
-        std_result = poly * ExponentInsertion(ik, debug = ML_Debug(display_format = "%x"))
-        std_result.set_debug(ML_Debug(display_format = "%f"))
+        std_result = poly * ExponentInsertion(ik, tag = "exp_ik", debug = debug_lftolx)
+        std_result.set_attributes(tag = "std_result", debug = debug_lftolx)
         result_scheme = ConditionBlock(late_overflow_test, late_overflow_return, ConditionBlock(late_underflow_test, late_underflow_return, Return(std_result)))
         std_return = ConditionBlock(early_overflow_test, early_overflow_return, ConditionBlock(early_underflow_test, early_underflow_return, result_scheme))
 
@@ -211,6 +261,7 @@ class ML_Exponential:
         output_stream = open(output_file, "w")#"%s.c" % exp_implementation.get_name(), "w")
         output_stream.write(self.result.get(cg))
         output_stream.close()
+
 
 
 if __name__ == "__main__":
