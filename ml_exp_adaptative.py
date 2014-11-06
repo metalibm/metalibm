@@ -51,8 +51,6 @@ class ML_Exponential:
 
 
         Log.report(Log.Info, "\033[33;1m generating implementation scheme \033[0m")
-        if debug_flag: 
-            Log.report(Log.Info, "\033[31;1m debug has been enabled \033[0;m")
 
         # local overloading of RaiseReturn operation
         def ExpRaiseReturn(*args, **kwords):
@@ -117,10 +115,8 @@ class ML_Exponential:
         exact_pre_mul = (k * log2_hi)
         exact_pre_mul.set_attributes(exact= True)
         exact_hi_part = vx - exact_pre_mul
-        exact_hi_part.set_attributes(exact = True, tag = "exact_hi", debug = debug_lftolx)
-        exact_lo_part = - k * log2_lo
-        exact_lo_part.set_attributes(tag = "exact_lo", debug = debug_lftolx)
-        r =  exact_hi_part + exact_lo_part 
+        exact_hi_part.set_attributes(exact = True)
+        r =  exact_hi_part - k * log2_lo
         r.set_tag("r")
         r.set_attributes(debug = ML_Debug(display_format = "%f"))
 
@@ -151,42 +147,47 @@ class ML_Exponential:
         error_goal_approx = S2**-1 * error_goal
 
         Log.report(Log.Info, "\033[33;1m building mathematical polynomial \033[0m\n")
-        poly_degree = sup(guessdegree(expm1(x)/x, approx_interval, error_goal_approx)) + 1
+        poly_degree = sup(guessdegree(exp(x), approx_interval, error_goal_approx)) #- 1
         init_poly_degree = poly_degree
 
+        return
 
-        error_function = lambda p, f, ai, mod, t: dirtyinfnorm(f - p, ai)
 
-        Log.report(Log.Info, "attempting poly degree: %d" % poly_degree)
-        poly_object, poly_approx_error = Polynomial.build_from_approximation_with_error(expm1(x)/x, poly_degree, [self.precision]*(poly_degree+1), approx_interval, absolute, error_function = error_function)
+        while 1: 
+            Log.report(Log.Info, "attempting poly degree: %d" % poly_degree)
+            poly_object, poly_approx_error = Polynomial.build_from_approximation_with_error(exp(x), poly_degree, [self.precision]*(poly_degree+1), approx_interval, absolute)
 
-        Log.report(Log.Info, "poly approx error: %s" % poly_approx_error)
+            Log.report(Log.Info, "poly approx error: %s" % poly_approx_error)
 
-        Log.report(Log.Info, "\033[33;1m generating polynomial evaluation scheme \033[0m")
-        pre_poly = PolynomialSchemeEvaluator.generate_horner_scheme(poly_object, r, unified_precision = self.precision)
-        poly = 1 + r * pre_poly
-        poly.set_tag("poly")
+            Log.report(Log.Info, "\033[33;1m generating polynomial evaluation scheme \033[0m")
+            poly = PolynomialSchemeEvaluator.generate_horner_scheme(poly_object, r, unified_precision = self.precision)
+            poly.set_tag("poly")
 
-        # optimizing poly before evaluation error computation
-        opt_poly = opt_eng.optimization_process(poly, self.precision)
+            # optimizing poly before evaluation error computation
+            opt_poly = opt_eng.optimization_process(poly, self.precision)
 
-        #print "poly: ", poly.get_str(depth = None, display_precision = True)
-        #print "opt_poly: ", opt_poly.get_str(depth = None, display_precision = True)
+            #print "poly: ", poly.get_str(depth = None, display_precision = True)
+            #print "opt_poly: ", opt_poly.get_str(depth = None, display_precision = True)
 
-        # evaluating error of the polynomial approximation
-        r_gappa_var = Variable("r", precision = self.precision, interval = approx_interval)
-        poly_error_copy_map = {
-            r.get_handle().get_node(): r_gappa_var
-        }
-        gappacg = GappaCodeGenerator(target, declare_cst = False, disable_debug = True)
-        poly_eval_error = gappacg.get_eval_error_v2(opt_eng, poly.get_handle().get_node(), poly_error_copy_map, gappa_filename = "gappa_poly.g")
-        Log.report(Log.Info, "poly evaluation error: %s" % poly_eval_error)
+            # evaluating error of the polynomial approximation
+            r_gappa_var = Variable("r", precision = self.precision, interval = approx_interval)
+            poly_error_copy_map = {
+                r.get_handle().get_node(): r_gappa_var
+            }
+            gappacg = GappaCodeGenerator(target, declare_cst = False, disable_debug = True)
+            poly_eval_error = gappacg.get_eval_error_v2(opt_eng, poly.get_handle().get_node(), poly_error_copy_map, gappa_filename = "gappa_poly.g")
+            Log.report(Log.Info, "poly evaluation error: %s" % poly_eval_error)
 
-        global_poly_error = poly_eval_error + poly_approx_error
-        global_rel_poly_error = global_poly_error / exp(approx_interval)
-        print "global_poly_error: ", global_poly_error, global_rel_poly_error 
-        flag = local_ulp > sup(abs(global_rel_poly_error))
-        print "test: ", flag
+            global_poly_error = poly_eval_error + poly_approx_error
+            global_rel_poly_error = global_poly_error / exp(approx_interval)
+            print "global_poly_error: ", global_poly_error, global_rel_poly_error 
+            flag = local_ulp > sup(abs(global_rel_poly_error))
+            print "test: ", flag
+            if flag: break
+            else:
+                if poly_degree > init_poly_degree + 5:
+                    Log.report(Log.Error, "poly degree search did not converge")
+                poly_degree += 1
 
 
 
@@ -205,8 +206,7 @@ class ML_Exponential:
         test_subnormal = Test(late_underflow_result, specifier = Test.IsSubnormal)
         late_underflow_return = Statement(ConditionBlock(test_subnormal, ExpRaiseReturn(ML_FPE_Underflow, return_value = late_underflow_result)), Return(late_underflow_result))
 
-        twok = ExponentInsertion(ik, tag = "exp_ik", debug = debug_lftolx)
-        std_result = twok * (1 + (exact_hi_part * pre_poly + exact_lo_part * pre_poly)) 
+        std_result = poly * ExponentInsertion(ik, tag = "exp_ik", debug = debug_lftolx)
         std_result.set_attributes(tag = "std_result", debug = debug_lftolx)
         result_scheme = ConditionBlock(late_overflow_test, late_overflow_return, ConditionBlock(late_underflow_test, late_underflow_return, Return(std_result)))
         std_return = ConditionBlock(early_overflow_test, early_overflow_return, ConditionBlock(early_underflow_test, early_underflow_return, result_scheme))
