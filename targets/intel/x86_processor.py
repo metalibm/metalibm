@@ -5,7 +5,7 @@
 # Copyright (2014)
 # All rights reserved
 # created:          Apr 11th,  2014
-# last-modified:    Apr 11th,  2014
+# last-modified:    Nov  6th,  2014
 #
 # author(s): Nicolas Brunie (nicolas.brunie@kalray.eu)
 ###############################################################################
@@ -57,7 +57,7 @@ class X86_SSE_Processor(GenericProcessor):
 
 class X86_FMA_Processor(X86_SSE_Processor):
     target_name = "x86_fma"
-    TargetRegister.register_new_target(target_name, lambda _: X86_SSE_Processor)
+    TargetRegister.register_new_target(target_name, lambda _: X86_FMA_Processor)
 
     code_generation_table = {
         C_Code: {
@@ -91,4 +91,4 @@ class X86_FMA_Processor(X86_SSE_Processor):
 
 
 # debug message
-print "initializing intel targets"
+print "initializing INTEL targets"

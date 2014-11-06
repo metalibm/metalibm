@@ -98,10 +98,12 @@ class Polynomial:
     def build_from_approximation_with_error(function, poly_degree, coeff_formats, approx_interval, *modifiers, **kwords): 
         """ construct a polynomial object from a function approximation using sollya's fpminimax """
         tightness = kwords["tightness"] if "tightness" in kwords else S2**-24
+        error_function = kwords["error_function"] if "error_function" in kwords else lambda p, f, ai, mod, t: supnorm(p, f, ai, mod, t)
         Log.report(Log.Info,  "approx_interval: %s" % approx_interval)
         sollya_poly = fpminimax(function, poly_degree, [c.sollya_object for c in coeff_formats], approx_interval, *modifiers)
         fpnorm_modifiers = absolute if absolute in modifiers else relative
-        approx_error = supnorm(sollya_poly, function, approx_interval, fpnorm_modifiers, tightness)
+        #approx_error = supnorm(sollya_poly, function, approx_interval, fpnorm_modifiers, tightness)
+        approx_error = error_function(sollya_poly, function, approx_interval, fpnorm_modifiers, tightness)
         return Polynomial(sollya_poly), approx_error
 
     build_from_approximation = Callable(build_from_approximation)
