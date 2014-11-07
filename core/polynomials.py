@@ -15,6 +15,7 @@ from pythonsollya import *
 from ..utility.common import Callable
 from ..utility.log_report import Log
 from .ml_operations import Constant, Variable, Multiplication, Addition
+from .ml_formats import ML_FP_Format
 
 class Polynomial:
     """ Mathematical polynomial object class """
@@ -89,6 +90,10 @@ class Polynomial:
         return coeff_list
 
 
+    def __str__(self):
+        return str(self.get_sollya_object())
+
+
     def build_from_approximation(function, poly_degree, coeff_formats, approx_interval, *modifiers):
         """ construct a polynomial object from a function approximation using sollya's fpminimax """
         Log.report(Log.Info,  "approx_interval: %s" % approx_interval)
@@ -100,7 +105,13 @@ class Polynomial:
         tightness = kwords["tightness"] if "tightness" in kwords else S2**-24
         error_function = kwords["error_function"] if "error_function" in kwords else lambda p, f, ai, mod, t: supnorm(p, f, ai, mod, t)
         Log.report(Log.Info,  "approx_interval: %s" % approx_interval)
-        sollya_poly = fpminimax(function, poly_degree, [c.sollya_object for c in coeff_formats], approx_interval, *modifiers)
+        precision_list = []
+        for c in coeff_formats:
+            if isinstance(c, ML_FP_Format):
+                precision_list.append(c.sollya_object)
+            else:
+                precision_list.append(c)
+        sollya_poly = fpminimax(function, poly_degree, precision_list, approx_interval, *modifiers)
         fpnorm_modifiers = absolute if absolute in modifiers else relative
         #approx_error = supnorm(sollya_poly, function, approx_interval, fpnorm_modifiers, tightness)
         approx_error = error_function(sollya_poly, function, approx_interval, fpnorm_modifiers, tightness)
