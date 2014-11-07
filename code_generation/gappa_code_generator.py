@@ -188,11 +188,9 @@ class GappaCodeGenerator:
             if optree.get_exact():
                 key = optree.get_handle()
                 exact_flag = (optree.get_precision() == ML_Exact or self.get_exact_mode() == True)
-                print "encountered exact optree: ", optree.get_str()
-                print "   key is %s and exact_flag is %s" % (key, exact_flag)
                 if key in self.exact_hint_map[True] and key in self.exact_hint_map[False]:
                     # already processed, skip
-                    print "   already processed: skip ! "
+                    pass
                 else:
                     self.exact_hint_map[exact_flag][key] = optree
                     if key in self.exact_hint_map[not exact_flag]:
