@@ -124,6 +124,12 @@ class ML_Exponential:
         r.set_tag("r")
         r.set_attributes(debug = ML_Debug(display_format = "%f"))
 
+        approx_interval = Interval(-log(2)/2, log(2)/2)
+
+        # TODO: should be computed automatically
+        exact_hi_interval = approx_interval
+        exact_lo_interval = - interval_k * log2_lo
+
         opt_r = opt_eng.optimization_process(r, self.precision, copy = True, fuse_fma = fuse_fma)
 
         tag_map = {}
@@ -143,7 +149,6 @@ class ML_Exponential:
         print r.get_str(depth = None, display_precision = True, display_attribute = True)
         print opt_r.get_str(depth = None, display_precision = True, display_attribute = True)
 
-        approx_interval = Interval(-log(2)/2, log(2)/2)
 
         local_ulp = sup(ulp(exp(approx_interval), self.precision))
         print "ulp: ", local_ulp 
@@ -158,25 +163,35 @@ class ML_Exponential:
         error_function = lambda p, f, ai, mod, t: dirtyinfnorm(f - p, ai)
 
         Log.report(Log.Info, "attempting poly degree: %d" % poly_degree)
-        poly_object, poly_approx_error = Polynomial.build_from_approximation_with_error(expm1(x)/x, poly_degree, [self.precision]*(poly_degree+1), approx_interval, absolute, error_function = error_function)
+        poly_object, poly_approx_error = Polynomial.build_from_approximation_with_error(expm1(x), poly_degree, [1] + [self.precision]*(poly_degree), approx_interval, absolute, error_function = error_function)
+        sub_poly = poly_object.sub_poly(start_index = 2)
+        Log.report(Log.Info, "polynomial: %s " % poly_object)
+        Log.report(Log.Info, "polynomial: %s " % sub_poly)
 
         Log.report(Log.Info, "poly approx error: %s" % poly_approx_error)
 
         Log.report(Log.Info, "\033[33;1m generating polynomial evaluation scheme \033[0m")
         pre_poly = PolynomialSchemeEvaluator.generate_horner_scheme(poly_object, r, unified_precision = self.precision)
-        poly = 1 + r * pre_poly
+
+        pre_sub_poly = PolynomialSchemeEvaluator.generate_horner_scheme(sub_poly, r, unified_precision = self.precision)
+        pre_poly.set_attributes(tag = "pre_poly", debug = debug_lftolx)
+        poly = 1 + (exact_hi_part + (exact_lo_part + pre_sub_poly))
         poly.set_tag("poly")
 
         # optimizing poly before evaluation error computation
-        opt_poly = opt_eng.optimization_process(poly, self.precision)
+        opt_poly = opt_eng.optimization_process(poly, self.precision, fuse_fma = fuse_fma)
 
         #print "poly: ", poly.get_str(depth = None, display_precision = True)
         #print "opt_poly: ", opt_poly.get_str(depth = None, display_precision = True)
 
         # evaluating error of the polynomial approximation
-        r_gappa_var = Variable("r", precision = self.precision, interval = approx_interval)
+        r_gappa_var        = Variable("r", precision = self.precision, interval = approx_interval)
+        exact_hi_gappa_var = Variable("exact_hi", precision = self.precision, interval = exact_hi_interval)
+        exact_lo_gappa_var = Variable("exact_lo", precision = self.precision, interval = exact_lo_interval)
         poly_error_copy_map = {
-            r.get_handle().get_node(): r_gappa_var
+            r.get_handle().get_node(): r_gappa_var,
+            exact_hi_part.get_handle().get_node(): exact_hi_gappa_var,
+            exact_lo_part.get_handle().get_node(): exact_lo_gappa_var,
         }
         gappacg = GappaCodeGenerator(target, declare_cst = False, disable_debug = True)
         poly_eval_error = gappacg.get_eval_error_v2(opt_eng, poly.get_handle().get_node(), poly_error_copy_map, gappa_filename = "gappa_poly.g")
@@ -206,7 +221,8 @@ class ML_Exponential:
         late_underflow_return = Statement(ConditionBlock(test_subnormal, ExpRaiseReturn(ML_FPE_Underflow, return_value = late_underflow_result)), Return(late_underflow_result))
 
         twok = ExponentInsertion(ik, tag = "exp_ik", debug = debug_lftolx)
-        std_result = twok * (1 + (exact_hi_part * pre_poly + exact_lo_part * pre_poly)) 
+        #std_result = twok * ((1 + exact_hi_part * pre_poly) + exact_lo_part * pre_poly) 
+        std_result = twok * poly
         std_result.set_attributes(tag = "std_result", debug = debug_lftolx)
         result_scheme = ConditionBlock(late_overflow_test, late_overflow_return, ConditionBlock(late_underflow_test, late_underflow_return, Return(std_result)))
         std_return = ConditionBlock(early_overflow_test, early_overflow_return, ConditionBlock(early_underflow_test, early_underflow_return, result_scheme))
@@ -252,8 +268,10 @@ class ML_Exponential:
         self.result = exp_implementation.get_definition(cg, C_Code, static_cst = True)
         #self.result.add_header("support_lib/ml_types.h")
         self.result.add_header("support_lib/ml_special_values.h")
-        self.result.add_header_comment("polynomial degree for exp(x): %d" % poly_degree)
-        self.result.add_header_comment("sollya polynomial for exp(x): %s" % poly_object.get_sollya_object())
+        self.result.add_header_comment("polynomial degree  for  exp(x): %d" % poly_degree)
+        self.result.add_header_comment("sollya polynomial  for  exp(x): %s" % poly_object.get_sollya_object())
+        self.result.add_header_comment("polynomial approximation error: %s" % poly_approx_error)
+        self.result.add_header_comment("polynomial evaluation    error: %s" % poly_eval_error)
         if debug_flag:
             self.result.add_header("stdio.h")
             self.result.add_header("inttypes.h")
@@ -267,7 +285,8 @@ if __name__ == "__main__":
     # auto-test
     arg_template = ML_ArgTemplate(default_function_name = "new_exp", default_output_file = "new_exp.c" )
     # argument extraction 
-    arg_template.sys_arg_extraction()
+    parse_arg_index_list = arg_template.sys_arg_extraction()
+    arg_template.check_args(parse_arg_index_list)
 
 
     ml_exp          = ML_Exponential(arg_template.precision, 
