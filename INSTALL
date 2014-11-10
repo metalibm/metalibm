@@ -20,7 +20,7 @@ cd $LOCAL_DIR || exit 0
 cd pythonsollya/ && LOCAL_INSTALL_DIR=$INSTALL_DIR python setup.py build && python setup.py install --prefix $INSTALL_DIR  || exit 0
 
 cd $LOCAL_DIR || exit 0
-echo "export PYTHONPATH=$LOCAL_DIR/metalibm-lugdunum/metalibm_core/:$LOCAL_DIR/metalibm-lugdunum/metalibm_functions/:$INSTALL_DIR/lib/python2.7/site-packages/:$PYTHONPATH" > metalibm_setup_env.bash
+echo "export PYTHONPATH=$LOCAL_DIR/metalibm-lugdunum/:$INSTALL_DIR/lib/python2.7/site-packages/:$PYTHONPATH" > metalibm_setup_env.bash
 
 
 
