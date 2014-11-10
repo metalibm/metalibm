@@ -37,6 +37,9 @@ _mm_cvtsd_f64 = FunctionOperator("_mm_cvtsd_f64", arity = 1, output_precision = 
 def x86_fma_intrinsic_builder(intr_name):
     return _mm_cvtss_f32(FunctionOperator(intr_name, arity = 3, output_precision = ML_SSE_m128, require_header = ["immintrin.h"])(_mm_set_ss(FO_Arg(0)), _mm_set_ss(FO_Arg(1)), _mm_set_ss(FO_Arg(2))))
 
+def x86_fmad_intrinsic_builder(intr_name):
+    return _mm_cvtsd_f64(FunctionOperator(intr_name, arity = 3, output_precision = ML_SSE_m128d, require_header = ["immintrin.h"])(_mm_set_sd(FO_Arg(0)), _mm_set_sd(FO_Arg(1)), _mm_set_sd(FO_Arg(2))))
+
 _mm_fmadd_ss = x86_fma_intrinsic_builder("_mm_fmadd_ss")
 
 sse_c_code_generation_table = {
@@ -116,21 +119,25 @@ class X86_FMA_Processor(X86_SSE41_Processor):
                 FusedMultiplyAdd.Standard: {
                     lambda optree: True: {
                         type_strict_match(ML_Binary32, ML_Binary32, ML_Binary32, ML_Binary32):x86_fma_intrinsic_builder(" _mm_fmadd_ss"),
+                        type_strict_match(ML_Binary64, ML_Binary64, ML_Binary64, ML_Binary64):x86_fmad_intrinsic_builder(" _mm_fmadd_sd"),
                     },
                 },
                 FusedMultiplyAdd.Subtract: {
                     lambda optree: True: {
-                        type_strict_match(ML_Binary32, ML_Binary32, ML_Binary32, ML_Binary32):x86_fma_intrinsic_builder(" _mm_fmsub"),
+                        type_strict_match(ML_Binary32, ML_Binary32, ML_Binary32, ML_Binary32):x86_fma_intrinsic_builder(" _mm_fmsub_ss"),
+                        type_strict_match(ML_Binary64, ML_Binary64, ML_Binary64, ML_Binary64):x86_fmad_intrinsic_builder(" _mm_fmsub_sd"),
                     },
                 },
                 FusedMultiplyAdd.SubtractNegate: {
                     lambda optree: True: {
                         type_strict_match(ML_Binary32, ML_Binary32, ML_Binary32, ML_Binary32):x86_fma_intrinsic_builder(" _mm_fnmadd_ss"),
+                        type_strict_match(ML_Binary64, ML_Binary64, ML_Binary64, ML_Binary64):x86_fmad_intrinsic_builder(" _mm_fnmadd_sd"),
                     },
                 },
                 FusedMultiplyAdd.Negate: {
                     lambda optree: True: {
                         type_strict_match(ML_Binary32, ML_Binary32, ML_Binary32, ML_Binary32):x86_fma_intrinsic_builder(" _mm_fnmsub_ss"),
+                        type_strict_match(ML_Binary64, ML_Binary64, ML_Binary64, ML_Binary64):x86_fmad_intrinsic_builder(" _mm_fnmsub_sd"),
                     },
                 },
             },
