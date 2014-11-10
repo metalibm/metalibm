@@ -11,6 +11,7 @@
 ###############################################################################
 
 
+import sys
 from common import Callable
 
 class Log:
@@ -35,7 +36,8 @@ class Log:
         else:
             print "%s: %s" % (level.name, msg)
         if level is Log.Error:
-            raise Exception()
+            sys.exit(1)
+            # raise Exception()
 
     def set_log_stream(log_stream):
         Log.log_stream = log_stream
