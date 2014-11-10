@@ -188,10 +188,13 @@ class ML_Exponential:
         r_gappa_var        = Variable("r", precision = self.precision, interval = approx_interval)
         exact_hi_gappa_var = Variable("exact_hi", precision = self.precision, interval = exact_hi_interval)
         exact_lo_gappa_var = Variable("exact_lo", precision = self.precision, interval = exact_lo_interval)
+        k_gappa_var = Variable("k", interval = interval_k, precision = self.precision)
         poly_error_copy_map = {
-            r.get_handle().get_node(): r_gappa_var,
+            #r.get_handle().get_node(): r_gappa_var,
+            vx.get_handle().get_node():  Variable("x", precision = self.precision, interval = interval_vx),
             exact_hi_part.get_handle().get_node(): exact_hi_gappa_var,
             exact_lo_part.get_handle().get_node(): exact_lo_gappa_var,
+            #k.get_handle().get_node(): k_gappa_var,
         }
         gappacg = GappaCodeGenerator(target, declare_cst = False, disable_debug = True)
         poly_eval_error = gappacg.get_eval_error_v2(opt_eng, poly.get_handle().get_node(), poly_error_copy_map, gappa_filename = "gappa_poly.g")
