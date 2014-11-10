@@ -471,6 +471,7 @@ gappa_code_generation_table = {
         None: {
             lambda optree: True: {
                 type_relax_match(ML_Binary32, ML_Binary32): RoundOperator(ML_Int32), 
+                type_relax_match(ML_Binary64, ML_Binary64): RoundOperator(ML_Int64), 
             },
         },
     },
