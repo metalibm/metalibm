@@ -2,30 +2,30 @@
 # You should therefore probably run it in a new empty directory.
 
 # INSTALLATION
-
+LOGIN?=$(whoami)
 LOCAL_DIR=$PWD
 
-git clone git+ssh://scm.gforge.inria.fr//gitroot/metalibm/pythonsollya.git
-git clone git+ssh://scm.gforge.inria.fr//gitroot/metalibm/metalibm-lugdunum.git
-cd metalibm-lugdunum && git submodule update --init --recursive
-cd $LOCAL_DIR
+git clone git+ssh://${LOGIN}@scm.gforge.inria.fr//gitroot/metalibm/pythonsollya.git || exit 0
+git clone git+ssh://${LOGIN}@scm.gforge.inria.fr//gitroot/metalibm/metalibm-lugdunum.git || exit 0
+cd metalibm-lugdunum && git submodule update --init --recursive || exit 0
+cd $LOCAL_DIR || exit 0
 
 INSTALL_DIR=$PWD/local_install
-mkdir $INSTALL_DIR
-wget https://gforge.inria.fr/frs/download.php/33151/sollya-4.1.tar.gz
-tar -xzf sollya-4.1.tar.gz
-cd sollya-4.1/ && ./configure --prefix=$INSTALL_DIR && make -j 4 && make install
+mkdir $INSTALL_DIR || exit 0
+wget https://gforge.inria.fr/frs/download.php/33151/sollya-4.1.tar.gz || exit 0
+tar -xzf sollya-4.1.tar.gz || exit 0
+cd sollya-4.1/ && ./configure --prefix=$INSTALL_DIR && make -j 4 && make install || exit 0
 
-cd $LOCAL_DIR
-cd pythonsollya/ && LOCAL_INSTALL_DIR=$INSTALL_DIR python setup.py build && python setup.py install --prefix $INSTALL_DIR 
+cd $LOCAL_DIR || exit 0
+cd pythonsollya/ && LOCAL_INSTALL_DIR=$INSTALL_DIR python setup.py build && python setup.py install --prefix $INSTALL_DIR  || exit 0
 
-cd $LOCAL_DIR
+cd $LOCAL_DIR || exit 0
 echo "export PYTHONPATH=$LOCAL_DIR/metalibm-lugdunum/metalibm_core/:$LOCAL_DIR/metalibm-lugdunum/metalibm_functions/:$INSTALL_DIR/lib/python2.7/site-packages/:$PYTHONPATH" > metalibm_setup_env.bash
 
 
 
 # USAGE EXAMPLE
 
-source metalibm_setup_env.bash
+source metalibm_setup_env.bash || exit 0
 
-python metalibm-lugdunum/metalibm_functions/ml_exp.py --disable-fma
+python metalibm-lugdunum/metalibm_functions/ml_exp.py --disable-fma || exit 0
