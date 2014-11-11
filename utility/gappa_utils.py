@@ -13,7 +13,7 @@
 from pythonsollya import *
 import commands
 import re
-
+import subprocess
 
 def parse_gappa_interval(interval_value):
     # search for middle ","
@@ -43,3 +43,7 @@ def execute_gappa_script_extract(gappa_code, gappa_filename = "gappa_tmp.g"):
     return result
     
 
+def is_gappa_installed():
+	""" check if gappa is present on the execution environement """
+	gappa_test = subprocess.call("gappa", shell=True)
+	return (gappa_test == 0)
