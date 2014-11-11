@@ -44,6 +44,7 @@ def execute_gappa_script_extract(gappa_code, gappa_filename = "gappa_tmp.g"):
     
 
 def is_gappa_installed():
-	""" check if gappa is present on the execution environement """
-	gappa_test = subprocess.call("gappa --help", shell=True)
-	return (gappa_test == 0)
+    """ check if gappa is present on the execution environement """
+    dev_null = open("/dev/null", "w")
+    gappa_test = subprocess.call("gappa --help 2> /dev/null", shell=True)
+    return (gappa_test == 0)
