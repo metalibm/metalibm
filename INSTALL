@@ -1,31 +1,28 @@
 # This script will download and install several things in the current directory.
 # You should therefore probably run it in a new empty directory.
+# Dependencies
+# sudo apt-get install python-dev libmpfr-dev libfplll-dev libmpfi-dev libgmp-dev libxml2-dev
+
 
 # INSTALLATION
-LOGIN?=$(whoami)
 LOCAL_DIR=$PWD
-
-git clone git+ssh://${LOGIN}@scm.gforge.inria.fr//gitroot/metalibm/pythonsollya.git || exit 0
-git clone git+ssh://${LOGIN}@scm.gforge.inria.fr//gitroot/metalibm/metalibm-lugdunum.git || exit 0
-cd metalibm-lugdunum && git submodule update --init --recursive || exit 0
-cd $LOCAL_DIR || exit 0
-
 INSTALL_DIR=$PWD/local_install
-mkdir $INSTALL_DIR || exit 0
-wget https://gforge.inria.fr/frs/download.php/33151/sollya-4.1.tar.gz || exit 0
-tar -xzf sollya-4.1.tar.gz || exit 0
-cd sollya-4.1/ && ./configure --prefix=$INSTALL_DIR && make -j 4 && make install || exit 0
 
-cd $LOCAL_DIR || exit 0
-cd pythonsollya/ && LOCAL_INSTALL_DIR=$INSTALL_DIR python setup.py build && python setup.py install --prefix $INSTALL_DIR  || exit 0
-
-cd $LOCAL_DIR || exit 0
-echo "export PYTHONPATH=$LOCAL_DIR/metalibm-lugdunum/:$INSTALL_DIR/lib/python2.7/site-packages/:$PYTHONPATH" > metalibm_setup_env.bash
-
-
-
+git clone git+ssh://${LOGIN}@scm.gforge.inria.fr//gitroot/metalibm/pythonsollya.git 
+git clone git+ssh://${LOGIN}@scm.gforge.inria.fr//gitroot/metalibm/metalibm-lugdunum.git 
+cd metalibm-lugdunum && git submodule update --init --recursive || $(sed -i -e "s/\(url = git+ssh:\/\/\)scm/\1"$LOGIN"@scm/" $LOCAL_DIR/metalibm-lugdunum/.git/config &&  git submodule update --init --recursive ) 
+cd $LOCAL_DIR 
+mkdir $INSTALL_DIR 
+wget https://gforge.inria.fr/frs/download.php/33151/sollya-4.1.tar.gz 
+tar -xzf sollya-4.1.tar.gz 
+cd sollya-4.1/ && ./configure --prefix=$INSTALL_DIR && make -j 4 && make install 
+cd $LOCAL_DIR 
+cd pythonsollya/ && LOCAL_INSTALL_DIR=$INSTALL_DIR python setup.py build && python setup.py install --prefix $INSTALL_DIR  
+cd $LOCAL_DIR 
+LOCAL_PYTHON_PATH=$(find $INSTALL_DIR -name pythonsollya | sed -e "s/pythonsollya//")
+echo "export PYTHONPATH=$LOCAL_DIR/metalibm-lugdunum/:$LOCAL_PYTHON_PATH:$PYTHONPATH" > $INSTALL_DIR/metalibm_setup_env.bash 
 # USAGE EXAMPLE
 
-source metalibm_setup_env.bash || exit 0
-
-python metalibm-lugdunum/metalibm_functions/ml_exp.py --disable-fma || exit 0
+source $INSTALL_DIR/metalibm_setup_env.bash 
+python metalibm-lugdunum/metalibm_functions/ml_exp.py --target x86_fma --output x86_fma_exp2d.c 
+python metalibm-lugdunum/metalibm_functions/ml_exp.py --disable-fma --target x86_sse41 --output x86_sse41_exp2d.c
