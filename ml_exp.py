@@ -144,9 +144,9 @@ class ML_Exponential:
         if is_gappa_installed():
             #eval_error = gappacg.get_eval_error(opt_r, cg_eval_error_copy_map, gappa_filename = "red_arg.g")
             eval_error = gappacg.get_eval_error_v2(opt_eng, opt_r, cg_eval_error_copy_map, gappa_filename = "red_arg.g")
-		else:
-			eval_error = 0.0
-			Log.report(Log.Warning, "gappa is not installed in this environnement")
+        else:
+            eval_error = 0.0
+            Log.report(Log.Warning, "gappa is not installed in this environnement")
         Log.report(Log.Info, "eval error: %s" % eval_error)
         #except:
         #    Log.report(Log.Info, "gappa error evaluation failed")
@@ -201,11 +201,11 @@ class ML_Exponential:
             #k.get_handle().get_node(): k_gappa_var,
         }
         gappacg = GappaCodeGenerator(target, declare_cst = False, disable_debug = True)
-		if is_gappa_installed():
-        	poly_eval_error = gappacg.get_eval_error_v2(opt_eng, poly.get_handle().get_node(), poly_error_copy_map, gappa_filename = "gappa_poly.g")
-		else:
-			poly_eval_error = 0.0
-			Log.report(Log.Warning, "gappa is not installed in this environnement")
+        if is_gappa_installed():
+            poly_eval_error = gappacg.get_eval_error_v2(opt_eng, poly.get_handle().get_node(), poly_error_copy_map, gappa_filename = "gappa_poly.g")
+        else:
+            poly_eval_error = 0.0
+            Log.report(Log.Warning, "gappa is not installed in this environnement")
         Log.report(Log.Info, "poly evaluation error: %s" % poly_eval_error)
 
         global_poly_error = poly_eval_error + poly_approx_error
