@@ -23,6 +23,7 @@ from metalibm_core.utility.ml_template import ML_ArgTemplate
 from metalibm_core.utility.log_report  import Log
 from metalibm_core.utility.debug_utils import *
 from metalibm_core.utility.num_utils   import ulp
+from metalibm_core.utility.gappa_utils import is_gappa_installed
 
 
 
@@ -140,10 +141,13 @@ class ML_Exponential:
             tag_map["k"]: Variable("k", interval = interval_k, precision = self.precision)
         }
         #try:
-        if 1:
+        if is_gappa_installed():
             #eval_error = gappacg.get_eval_error(opt_r, cg_eval_error_copy_map, gappa_filename = "red_arg.g")
             eval_error = gappacg.get_eval_error_v2(opt_eng, opt_r, cg_eval_error_copy_map, gappa_filename = "red_arg.g")
-            Log.report(Log.Info, "eval error: %s" % eval_error)
+		else:
+			eval_error = 0.0
+			Log.report(Log.Warning, "gappa is not installed in this environnement")
+        Log.report(Log.Info, "eval error: %s" % eval_error)
         #except:
         #    Log.report(Log.Info, "gappa error evaluation failed")
         print r.get_str(depth = None, display_precision = True, display_attribute = True)
@@ -197,7 +201,11 @@ class ML_Exponential:
             #k.get_handle().get_node(): k_gappa_var,
         }
         gappacg = GappaCodeGenerator(target, declare_cst = False, disable_debug = True)
-        poly_eval_error = gappacg.get_eval_error_v2(opt_eng, poly.get_handle().get_node(), poly_error_copy_map, gappa_filename = "gappa_poly.g")
+		if is_gappa_installed():
+        	poly_eval_error = gappacg.get_eval_error_v2(opt_eng, poly.get_handle().get_node(), poly_error_copy_map, gappa_filename = "gappa_poly.g")
+		else:
+			poly_eval_error = 0.0
+			Log.report(Log.Warning, "gappa is not installed in this environnement")
         Log.report(Log.Info, "poly evaluation error: %s" % poly_eval_error)
 
         global_poly_error = poly_eval_error + poly_approx_error
