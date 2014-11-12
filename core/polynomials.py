@@ -51,6 +51,10 @@ class Polynomial:
         # building sollya object
         for index in self.coeff_map:
             self.sollya_object += self.coeff_map[index] * x**index
+
+    def get_min_monomial_degree(self):
+        monomial_degrees = [index for index in self.coeff_map]
+        return min(monomial_degrees)
             
 
     def get_sollya_object(self):
@@ -69,6 +73,7 @@ class Polynomial:
         new_coeff_map = {}
         end_index = self.degree + 1 if stop_index == None else stop_index + 1
         for index in range(start_index, end_index):
+            if not index in self.coeff_map: continue
             new_coeff_map[index - offset] = self.coeff_map[index]
         return Polynomial(new_coeff_map)
 
@@ -170,7 +175,7 @@ class PolynomialSchemeEvaluator:
     def generate_estrin_scheme(polynomial_object, variable, unified_precision, power_map = {}):
         """ generate a Estrin evaluation scheme """
         if polynomial_object.get_coeff_num() == 1: 
-            index, coeff = polynomial_object.get_ordered_coeff_list()
+            index, coeff = polynomial_object.get_ordered_coeff_list()[0]
             coeff_node = Constant(coeff)
             if index == 0:
                 return coeff_node
@@ -178,11 +183,13 @@ class PolynomialSchemeEvaluator:
                 power_node = generate_power(variable, index, power_map, unified_precision)
                 return Multiplication(coeff_node, power_node, precision = unified_precision)
         else:
-            poly_degree = (polynomial_object.get_degree() + 1) / 2
+            min_degree = polynomial_object.get_min_monomial_degree()
+            max_degree = polynomial_object.get_degree()
+            poly_degree = (max_degree - min_degree + 2) / 2 + min_degree - 1
             sub_poly_lo = polynomial_object.sub_poly(stop_index = poly_degree) 
             sub_poly_hi = polynomial_object.sub_poly(start_index = poly_degree + 1)
-            lo_node = generate_estrin_scheme(sub_poly_lo, variable, unified_precision, power_map)
-            hi_node = generate_estrin_scheme(sub_poly_hi, variable, unified_precision, power_map)
+            lo_node = PolynomialSchemeEvaluator.generate_estrin_scheme(sub_poly_lo, variable, unified_precision, power_map)
+            hi_node = PolynomialSchemeEvaluator.generate_estrin_scheme(sub_poly_hi, variable, unified_precision, power_map)
             return Addition(lo_node, hi_node, precision = unified_precision)
 
 
