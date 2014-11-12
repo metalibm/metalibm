@@ -154,6 +154,15 @@ class PolynomialSchemeEvaluator:
             <unified_precision> if specified """
         power_map = {}
         coeff_list = polynomial_object.get_ordered_coeff_list()[::-1]
+        if len(coeff_list) == 0:
+            return Constant(0)
+        elif len(coeff_list) == 1:
+            index, coeff = coeff_list[0]
+            if index == 0:
+                return Constant(coeff)
+            else:
+                return Multiplication(generate_power(variable, index, {}, precision = unified_precision), Constant(coeff))
+            
         current_index = coeff_list[0][0]
         current_scheme = Constant(coeff_list[0][1])
         for index, coeff in coeff_list[1:]:

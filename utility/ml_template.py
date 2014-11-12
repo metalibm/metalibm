@@ -12,10 +12,12 @@
 
 import sys
 
+from pythonsollya import *
+
 from .arg_utils import extract_option_value, test_flag_option
 from .log_report import Log
 
-from ..core.ml_formats import ML_Binary64, ML_Binary32, ML_Int32, ML_Int64, ML_UInt32, ML_UInt64
+from ..core.ml_formats import *
 
 from ..code_generation.generic_processor import GenericProcessor
 from ..core.target import TargetRegister
@@ -45,6 +47,18 @@ precision_map = {
     "uint64": ML_UInt64,
 }
 
+accuracy_map = {
+    "faithful": ML_Faithful,
+    "cr"      : ML_CorrectlyRounded,
+}
+
+def accuracy_parser(accuracy_str):
+    if accuracy_str in accuracy_map:
+        return accuracy_map[accuracy_str]
+    else:
+        return eval(accuracy_str)
+
+
 
 
 class ML_ArgTemplate:
@@ -62,7 +76,8 @@ class ML_ArgTemplate:
         self.output_file     = extract_option_value("--output", self.default_output_file, parse_arg = parse_arg)
         self.function_name   = extract_option_value("--fname", self.default_function_name, parse_arg = parse_arg)
         precision_name  = extract_option_value("--precision", "binary32", parse_arg = parse_arg)
-        accuracy_value  = extract_option_value("--accuracy", "2^-23", parse_arg = parse_arg)
+        accuracy_value  = extract_option_value("--accuracy", "faithful", parse_arg = parse_arg, processing = accuracy_parser)
+        self.accuracy   = accuracy_value
         self.fast_path       = test_flag_option("--no-fpe", False, True, parse_arg = parse_arg)
         self.dot_product_enabled = test_flag_option("--dot-product", True, False, parse_arg = parse_arg)
 

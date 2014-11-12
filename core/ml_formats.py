@@ -330,3 +330,29 @@ class FP_Context:
 
     def get_silent(self):
         return self.silent
+
+class ML_FunctionPrecision:
+    pass
+
+class ML_Faithful(ML_FunctionPrecision):
+    pass
+
+class ML_CorrectlyRounded(ML_FunctionPrecision):
+    pass
+
+class ML_DegradedAccuracyAbsolute(ML_FunctionPrecision):
+    """ absolute error accuracy """
+    def __init__(self, absolute_goal):
+        self.goal = absolute_goal
+
+class ML_DegradedAccuracyRelative(ML_FunctionPrecision):
+    """ relative error accuracy """
+    def __init__(self, relative_goal):
+        self.goal = relative_goal
+
+
+# degraded accuracy shorcuts
+def daa(*args, **kwords):
+    return ML_DegradedAccuracyAbsolute(*args, **kwords)
+def dar(*args, **kwords):
+    return ML_DegradedAccuracyRelative(*args, **kwords)
