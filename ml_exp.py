@@ -30,7 +30,7 @@ from metalibm_core.utility.gappa_utils import is_gappa_installed
 class ML_Exponential:
     def __init__(self, 
                  precision = ML_Binary32, 
-                 abs_accuracy = S2**-24, 
+                 accuracy  = ML_Faithful,
                  libm_compliant = True, 
                  debug_flag = False, 
                  fuse_fma = True, 
@@ -160,18 +160,32 @@ class ML_Exponential:
 
         local_ulp = sup(ulp(exp(approx_interval), self.precision))
         print "ulp: ", local_ulp 
-        error_goal = local_ulp #S2**-(self.precision.get_field_size()+1)
+        Log.report(Log.Info, "accuracy: %s" % accuracy)
+        if accuracy is ML_Faithful:
+            error_goal = local_ulp
+        elif accuracy is ML_CorrectlyRounded:
+            error_goal = S2**-1 * local_ulp
+        elif isinstance(accuracy, ML_DegradedAccuracyAbsolute):
+            error_goal = accuracy.goal
+        elif isinstance(accuracy, ML_DegradedAccuracyRelative):
+            error_goal = accuracy.goal
+        else:
+            Log.report(Log.Error, "unknown accuracy: %s" % accuracy)
+
+            
+
+        # error_goal = local_ulp #S2**-(self.precision.get_field_size()+1)
         error_goal_approx = S2**-1 * error_goal
 
         Log.report(Log.Info, "\033[33;1m building mathematical polynomial \033[0m\n")
-        poly_degree = sup(guessdegree(expm1(x)/x, approx_interval, error_goal_approx)) - 1
+        poly_degree = max(sup(guessdegree(expm1(x)/x, approx_interval, error_goal_approx)) - 1, 2)
         init_poly_degree = poly_degree
 
 
         error_function = lambda p, f, ai, mod, t: dirtyinfnorm(f - p, ai)
 
-        polynomial_scheme_builder = PolynomialSchemeEvaluator.generate_estrin_scheme
-        #polynomial_scheme_builder = PolynomialSchemeEvaluator.generate_horner_scheme
+        #polynomial_scheme_builder = PolynomialSchemeEvaluator.generate_estrin_scheme
+        polynomial_scheme_builder = PolynomialSchemeEvaluator.generate_horner_scheme
 
         while 1:
             Log.report(Log.Info, "attempting poly degree: %d" % poly_degree)
@@ -261,7 +275,7 @@ class ML_Exponential:
                     global_rel_poly_error = rel_poly_error
                     global_poly_error = poly_error
             print "global_poly_error: ", global_poly_error, global_rel_poly_error 
-            flag = local_ulp > global_rel_poly_error
+            flag = error_goal > global_rel_poly_error
             print "test: ", flag
 
             if flag:
@@ -364,4 +378,5 @@ if __name__ == "__main__":
                                   fuse_fma                  = arg_template.fuse_fma, 
                                   fast_path_extract         = arg_template.fast_path,
                                   function_name             = arg_template.function_name,
+                                  accuracy                  = arg_template.accuracy,
                                   output_file               = arg_template.output_file)
