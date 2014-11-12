@@ -69,6 +69,7 @@ class Attributes:
         self.rounding_mode = attr_init(init_map, "rounding_mode", Attributes.default_rounding_mode[0])
         self.rounding_mode_dependant = None
         self.prevent_optimization = attr_init(init_map, "prevent_optimization")
+        self.unbreakable  = attr_init(init_map, "unbreakable", False)
 
 
     def get_str(self, tab_level = 0):
@@ -97,6 +98,13 @@ class Attributes:
         return self.prevent_optimization
     def set_prevent_optimization(self, prevent_optimization):
         self.prevent_optimization = prevent_optimization
+
+    def get_unbreakable(self):
+        """ unbreakable getter """
+        return self.unbreakable
+    def set_unbreakable(self, new_breakable):
+        """ unbreakable setter """
+        self.unbreakable = new_breakable
 
     def set_silent(self, new_silent):
         self.silent = new_silent

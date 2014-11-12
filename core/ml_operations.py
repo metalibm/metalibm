@@ -198,6 +198,11 @@ class AbstractOperation(ML_Operation):
     def set_clearprevious(self, new_clearprevious):
         return self.attributes.set_clearprevious(new_clearprevious)
 
+    def get_unbreakable(self):
+        return self.attributes.get_unbreakable()
+    def set_unbreakable(self, new_unbreakable):
+        return self.attributes.set_unbreakable(new_unbreakable)
+
     def set_attributes(self, **kwords):
         self.attributes.set_attr(**kwords)
 

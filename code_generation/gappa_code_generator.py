@@ -55,6 +55,8 @@ class GappaCodeGenerator:
     def close_memoization_level(self):
         self.memoization_map.pop(0)
 
+    def clear_memoization_map(self):
+        self.memoization_map = [{}]
 
     def has_memoization(self, optree):
         """ test if a optree has already been generated and memoized """
@@ -262,7 +264,7 @@ class GappaCodeGenerator:
         self.add_goal(gappa_code, goal)
         for v in bound_list:
             self.add_hypothesis(gappa_code, variable_copy_map[v], variable_copy_map[v].get_interval())
-
+        self.clear_memoization_map()
         return execute_gappa_script_extract(gappa_code.get(self), gappa_filename = gappa_filename)["goal"]
 
 
@@ -307,7 +309,36 @@ class GappaCodeGenerator:
         goal.set_attributes(precision = goal_precision, tag = "goal")
         self.add_goal(gappa_code, goal)
 
+        self.clear_memoization_map()
         return execute_gappa_script_extract(gappa_code.get(self), gappa_filename = gappa_filename)["goal"]
+
+    def get_eval_error_v3(self, opt_engine, pre_optree, variable_copy_map = {}, goal_precision = ML_Exact, gappa_filename = "gappa_tmp.g", dichotomy = []):
+        # storing initial interval values
+        init_interval = {}
+        for op in variable_copy_map:
+            init_interval[op] = variable_copy_map[op].get_interval()
+
+        eval_error_list = []
+        case_id = 0
+
+        # performing dichotomised search
+        for case in dichotomy: 
+            clean_copy_map = {}
+            for op in variable_copy_map:
+                clean_copy_map[op] = variable_copy_map[op]
+                if op in case:
+                    # if op interval is set in case, transmist interval information to copy map
+                    clean_copy_map[op].set_interval(case[op])
+                else:
+                    # else making sure initial interval is set
+                    clean_copy_map[op].set_interval(init_interval[op])
+                    
+            # computing evaluation error in local conditions
+            eval_error = self.get_eval_error_v2(opt_engine, pre_optree, clean_copy_map, goal_precision, ("c%d_" % case_id) + gappa_filename )
+            eval_error_list.append(eval_error)
+            case_id += 1
+
+        return eval_error_list
 
 
     def get_interval_code(self, pre_goal, variable_copy_map = {}, goal_precision = ML_Exact, update_handle = True):

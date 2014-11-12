@@ -618,7 +618,7 @@ class OptimizationEngine:
 
     def fuse_multiply_add(self, optree, silence = False, memoization = {}):
         """ whenever possible fuse a multiply and add/sub into a FMA/FMS """
-        if isinstance(optree, Addition) or isinstance(optree, Subtraction):
+        if (isinstance(optree, Addition) or isinstance(optree, Subtraction)) and not optree.get_unbreakable():
             if len(optree.inputs) != 2:
                 # more than 2-operand addition are not supported yet
                 optree.inputs = tuple(self.fuse_multiply_add(op, silence = silence, memoization = memoization) for op in optree.inputs)
@@ -628,7 +628,7 @@ class OptimizationEngine:
                 if optree in memoization: 
                     return memoization[optree]
 
-                elif optree.get_prevent_optimization():
+                elif optree.get_unbreakable():
                     optree.inputs = tuple(self.fuse_multiply_add(op, silence = silence, memoization = memoization) for op in optree.inputs)
                     memoization[optree] = optree
                     return optree
