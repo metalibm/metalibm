@@ -164,101 +164,110 @@ class ML_Exponential:
         error_goal_approx = S2**-1 * error_goal
 
         Log.report(Log.Info, "\033[33;1m building mathematical polynomial \033[0m\n")
-        poly_degree = sup(guessdegree(expm1(x)/x, approx_interval, error_goal_approx)) + 1
+        poly_degree = sup(guessdegree(expm1(x)/x, approx_interval, error_goal_approx)) - 1
         init_poly_degree = poly_degree
 
 
         error_function = lambda p, f, ai, mod, t: dirtyinfnorm(f - p, ai)
 
-        Log.report(Log.Info, "attempting poly degree: %d" % poly_degree)
-        poly_object, poly_approx_error = Polynomial.build_from_approximation_with_error(expm1(x), poly_degree, [1] + [self.precision]*(poly_degree), approx_interval, absolute, error_function = error_function)
-        sub_poly = poly_object.sub_poly(start_index = 2)
-        Log.report(Log.Info, "polynomial: %s " % poly_object)
-        Log.report(Log.Info, "polynomial: %s " % sub_poly)
+        polynomial_scheme_builder = PolynomialSchemeEvaluator.generate_estrin_scheme
+        #polynomial_scheme_builder = PolynomialSchemeEvaluator.generate_horner_scheme
 
-        Log.report(Log.Info, "poly approx error: %s" % poly_approx_error)
+        while 1:
+            Log.report(Log.Info, "attempting poly degree: %d" % poly_degree)
+            poly_object, poly_approx_error = Polynomial.build_from_approximation_with_error(expm1(x), poly_degree, [1] + [self.precision]*(poly_degree), approx_interval, absolute, error_function = error_function)
+            sub_poly = poly_object.sub_poly(start_index = 2)
+            Log.report(Log.Info, "polynomial: %s " % poly_object)
+            Log.report(Log.Info, "polynomial: %s " % sub_poly)
 
-        Log.report(Log.Info, "\033[33;1m generating polynomial evaluation scheme \033[0m")
-        pre_poly = PolynomialSchemeEvaluator.generate_horner_scheme(poly_object, r, unified_precision = self.precision)
-        pre_poly.set_attributes(tag = "pre_poly", debug = debug_lftolx)
+            Log.report(Log.Info, "poly approx error: %s" % poly_approx_error)
 
-        pre_sub_poly = PolynomialSchemeEvaluator.generate_horner_scheme(sub_poly, r, unified_precision = self.precision)
-        pre_sub_poly.set_attributes(tag = "pre_sub_poly", debug = debug_lftolx)
+            Log.report(Log.Info, "\033[33;1m generating polynomial evaluation scheme \033[0m")
+            pre_poly = polynomial_scheme_builder(poly_object, r, unified_precision = self.precision)
+            pre_poly.set_attributes(tag = "pre_poly", debug = debug_lftolx)
 
-        poly = 1 + (exact_hi_part + (exact_lo_part + pre_sub_poly))
-        poly.set_tag("poly")
+            pre_sub_poly = polynomial_scheme_builder(sub_poly, r, unified_precision = self.precision)
+            pre_sub_poly.set_attributes(tag = "pre_sub_poly", debug = debug_lftolx)
 
-        # optimizing poly before evaluation error computation
-        opt_poly = opt_eng.optimization_process(poly, self.precision, fuse_fma = fuse_fma)
-        opt_sub_poly = opt_eng.optimization_process(pre_sub_poly, self.precision, fuse_fma = fuse_fma)
+            poly = 1 + (exact_hi_part + (exact_lo_part + pre_sub_poly))
+            poly.set_tag("poly")
 
-        #print "poly: ", poly.get_str(depth = None, display_precision = True)
-        #print "opt_poly: ", opt_poly.get_str(depth = None, display_precision = True)
+            # optimizing poly before evaluation error computation
+            opt_poly = opt_eng.optimization_process(poly, self.precision, fuse_fma = fuse_fma)
+            opt_sub_poly = opt_eng.optimization_process(pre_sub_poly, self.precision, fuse_fma = fuse_fma)
 
-        # evaluating error of the polynomial approximation
-        r_gappa_var        = Variable("r", precision = self.precision, interval = approx_interval)
-        exact_hi_gappa_var = Variable("exact_hi", precision = self.precision, interval = exact_hi_interval)
-        exact_lo_gappa_var = Variable("exact_lo", precision = self.precision, interval = exact_lo_interval)
-        vx_gappa_var       = Variable("x", precision = self.precision, interval = interval_vx)
-        k_gappa_var        = Variable("k", interval = interval_k, precision = self.precision)
+            #print "poly: ", poly.get_str(depth = None, display_precision = True)
+            #print "opt_poly: ", opt_poly.get_str(depth = None, display_precision = True)
 
-
-        print "exact_hi interval: ", exact_hi_interval
-        print "exact_lo interval: ", exact_lo_interval
-
-        sub_poly_error_copy_map = {
-            #r.get_handle().get_node(): r_gappa_var,
-            #vx.get_handle().get_node():  vx_gappa_var,
-            exact_hi_part.get_handle().get_node(): exact_hi_gappa_var,
-            exact_lo_part.get_handle().get_node(): exact_lo_gappa_var,
-            #k.get_handle().get_node(): k_gappa_var,
-        }
-
-        poly_error_copy_map = {
-            exact_hi_part.get_handle().get_node(): exact_hi_gappa_var,
-            exact_lo_part.get_handle().get_node(): exact_lo_gappa_var,
-        }
+            # evaluating error of the polynomial approximation
+            r_gappa_var        = Variable("r", precision = self.precision, interval = approx_interval)
+            exact_hi_gappa_var = Variable("exact_hi", precision = self.precision, interval = exact_hi_interval)
+            exact_lo_gappa_var = Variable("exact_lo", precision = self.precision, interval = exact_lo_interval)
+            vx_gappa_var       = Variable("x", precision = self.precision, interval = interval_vx)
+            k_gappa_var        = Variable("k", interval = interval_k, precision = self.precision)
 
 
-        gappacg = GappaCodeGenerator(target, declare_cst = False, disable_debug = True)
-        if is_gappa_installed():
-            sub_poly_eval_error = -1.0
-            sub_poly_eval_error = gappacg.get_eval_error_v2(opt_eng, opt_sub_poly, sub_poly_error_copy_map, gappa_filename = "gappa_sub_poly.g")
-            #poly_eval_error     = gappacg.get_eval_error_v2(opt_eng, opt_poly, poly_error_copy_map, gappa_filename = "gappa_poly.g")
+            print "exact_hi interval: ", exact_hi_interval
+            print "exact_lo interval: ", exact_lo_interval
 
-            dichotomy_map = [
-                {
-                    exact_hi_part.get_handle().get_node(): approx_interval_split[0],
-                },
-                {
-                    exact_hi_part.get_handle().get_node(): approx_interval_split[1],
-                },
-                {
-                    exact_hi_part.get_handle().get_node(): approx_interval_split[2],
-                },
-            ]
-            poly_eval_error_dico = gappacg.get_eval_error_v3(opt_eng, opt_poly, poly_error_copy_map, gappa_filename = "gappa_poly.g", dichotomy = dichotomy_map)
-            print "poly_eval_error_dico: ", poly_eval_error_dico
+            sub_poly_error_copy_map = {
+                #r.get_handle().get_node(): r_gappa_var,
+                #vx.get_handle().get_node():  vx_gappa_var,
+                exact_hi_part.get_handle().get_node(): exact_hi_gappa_var,
+                exact_lo_part.get_handle().get_node(): exact_lo_gappa_var,
+                #k.get_handle().get_node(): k_gappa_var,
+            }
 
-            poly_eval_error = max([sup(abs(err)) for err in poly_eval_error_dico])
-        else:
-            poly_eval_error = 0.0
-            Log.report(Log.Warning, "gappa is not installed in this environnement")
-        Log.report(Log.Info, "poly evaluation error: %s" % poly_eval_error)
-        Log.report(Log.Info, "sub poly evaluation error: %s" % sub_poly_eval_error)
+            poly_error_copy_map = {
+                exact_hi_part.get_handle().get_node(): exact_hi_gappa_var,
+                exact_lo_part.get_handle().get_node(): exact_lo_gappa_var,
+            }
 
-        global_poly_error     = None
-        global_rel_poly_error = None
 
-        for case_index in xrange(3):
-            poly_error = poly_approx_error + poly_eval_error_dico[case_index]
-            rel_poly_error = sup(abs(poly_error / exp(approx_interval_split[case_index])))
-            if global_rel_poly_error == None or rel_poly_error > global_rel_poly_error:
-                global_rel_poly_error = rel_poly_error
-                global_poly_error = poly_error
-        print "global_poly_error: ", global_poly_error, global_rel_poly_error 
-        flag = local_ulp > global_rel_poly_error
-        print "test: ", flag
+            gappacg = GappaCodeGenerator(target, declare_cst = False, disable_debug = True)
+            if is_gappa_installed():
+                sub_poly_eval_error = -1.0
+                sub_poly_eval_error = gappacg.get_eval_error_v2(opt_eng, opt_sub_poly, sub_poly_error_copy_map, gappa_filename = "gappa_sub_poly.g")
+                #poly_eval_error     = gappacg.get_eval_error_v2(opt_eng, opt_poly, poly_error_copy_map, gappa_filename = "gappa_poly.g")
+
+                dichotomy_map = [
+                    {
+                        exact_hi_part.get_handle().get_node(): approx_interval_split[0],
+                    },
+                    {
+                        exact_hi_part.get_handle().get_node(): approx_interval_split[1],
+                    },
+                    {
+                        exact_hi_part.get_handle().get_node(): approx_interval_split[2],
+                    },
+                ]
+                poly_eval_error_dico = gappacg.get_eval_error_v3(opt_eng, opt_poly, poly_error_copy_map, gappa_filename = "gappa_poly.g", dichotomy = dichotomy_map)
+                print "poly_eval_error_dico: ", poly_eval_error_dico
+
+                poly_eval_error = max([sup(abs(err)) for err in poly_eval_error_dico])
+            else:
+                poly_eval_error = 0.0
+                Log.report(Log.Warning, "gappa is not installed in this environnement")
+            Log.report(Log.Info, "poly evaluation error: %s" % poly_eval_error)
+            Log.report(Log.Info, "sub poly evaluation error: %s" % sub_poly_eval_error)
+
+            global_poly_error     = None
+            global_rel_poly_error = None
+
+            for case_index in xrange(3):
+                poly_error = poly_approx_error + poly_eval_error_dico[case_index]
+                rel_poly_error = sup(abs(poly_error / exp(approx_interval_split[case_index])))
+                if global_rel_poly_error == None or rel_poly_error > global_rel_poly_error:
+                    global_rel_poly_error = rel_poly_error
+                    global_poly_error = poly_error
+            print "global_poly_error: ", global_poly_error, global_rel_poly_error 
+            flag = local_ulp > global_rel_poly_error
+            print "test: ", flag
+
+            if flag:
+                break
+            else:
+                poly_degree += 1
 
 
 
@@ -326,6 +335,7 @@ class ML_Exponential:
         self.result = exp_implementation.get_definition(cg, C_Code, static_cst = True)
         #self.result.add_header("support_lib/ml_types.h")
         self.result.add_header("support_lib/ml_special_values.h")
+        #display(decimal)
         self.result.add_header_comment("polynomial degree  for  exp(x): %d" % poly_degree)
         self.result.add_header_comment("sollya polynomial  for  exp(x): %s" % poly_object.get_sollya_object())
         self.result.add_header_comment("polynomial approximation error: %s" % poly_approx_error)
