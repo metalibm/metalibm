@@ -154,8 +154,6 @@ class ML_Exponential:
         Log.report(Log.Info, "eval error: %s" % eval_error)
         #except:
         #    Log.report(Log.Info, "gappa error evaluation failed")
-        print r.get_str(depth = None, display_precision = True, display_attribute = True)
-        print opt_r.get_str(depth = None, display_precision = True, display_attribute = True)
 
 
         local_ulp = sup(ulp(exp(approx_interval), self.precision))
@@ -184,8 +182,8 @@ class ML_Exponential:
 
         error_function = lambda p, f, ai, mod, t: dirtyinfnorm(f - p, ai)
 
-        #polynomial_scheme_builder = PolynomialSchemeEvaluator.generate_estrin_scheme
-        polynomial_scheme_builder = PolynomialSchemeEvaluator.generate_horner_scheme
+        polynomial_scheme_builder = PolynomialSchemeEvaluator.generate_estrin_scheme
+        #polynomial_scheme_builder = PolynomialSchemeEvaluator.generate_horner_scheme
 
         while 1:
             Log.report(Log.Info, "attempting poly degree: %d" % poly_degree)
@@ -221,8 +219,8 @@ class ML_Exponential:
             k_gappa_var        = Variable("k", interval = interval_k, precision = self.precision)
 
 
-            print "exact_hi interval: ", exact_hi_interval
-            print "exact_lo interval: ", exact_lo_interval
+            #print "exact_hi interval: ", exact_hi_interval
+            #print "exact_lo interval: ", exact_lo_interval
 
             sub_poly_error_copy_map = {
                 #r.get_handle().get_node(): r_gappa_var,
@@ -238,10 +236,14 @@ class ML_Exponential:
             }
 
 
-            gappacg = GappaCodeGenerator(target, declare_cst = False, disable_debug = True)
+            #gappacg = GappaCodeGenerator(target, declare_cst = False, disable_debug = True)
             if is_gappa_installed():
                 sub_poly_eval_error = -1.0
-                sub_poly_eval_error = gappacg.get_eval_error_v2(opt_eng, opt_sub_poly, sub_poly_error_copy_map, gappa_filename = "gappa_sub_poly.g")
+                #print "gappacg :", gappacg.memoization_map, gappacg.exact_hint_map 
+                #print exact_hi_part.get_handle().get_node().get_str(depth = 0, memoization_map = {}, display_id = True)
+                #print exact_lo_part.get_handle().get_node().get_str(depth = 0, memoization_map = {}, display_id = True)
+                #print opt_sub_poly.get_str(depth = None, memoization_map = {}, display_id = True)
+                sub_poly_eval_error = gappacg.get_eval_error_v2(opt_eng, opt_sub_poly, sub_poly_error_copy_map, gappa_filename = "%s_gappa_sub_poly.g" % function_name)
                 #poly_eval_error     = gappacg.get_eval_error_v2(opt_eng, opt_poly, poly_error_copy_map, gappa_filename = "gappa_poly.g")
 
                 dichotomy_map = [
@@ -256,7 +258,7 @@ class ML_Exponential:
                     },
                 ]
                 poly_eval_error_dico = gappacg.get_eval_error_v3(opt_eng, opt_poly, poly_error_copy_map, gappa_filename = "gappa_poly.g", dichotomy = dichotomy_map)
-                print "poly_eval_error_dico: ", poly_eval_error_dico
+                #print "poly_eval_error_dico: ", poly_eval_error_dico
 
                 poly_eval_error = max([sup(abs(err)) for err in poly_eval_error_dico])
             else:
