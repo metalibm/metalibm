@@ -181,8 +181,9 @@ class PolynomialSchemeEvaluator:
         return current_scheme
             
 
-    def generate_estrin_scheme(polynomial_object, variable, unified_precision, power_map = {}):
+    def generate_estrin_scheme(polynomial_object, variable, unified_precision, power_map_ = None):
         """ generate a Estrin evaluation scheme """
+        power_map = power_map_ if power_map_ != None else {}
         if polynomial_object.get_coeff_num() == 1: 
             index, coeff = polynomial_object.get_ordered_coeff_list()[0]
             coeff_node = Constant(coeff)

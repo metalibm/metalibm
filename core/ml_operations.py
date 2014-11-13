@@ -253,7 +253,7 @@ class AbstractOperation(ML_Operation):
             self.specifier = optree.specifier
 
 
-    def get_str(self, depth = 2, display_precision = False, tab_level = 0, memoization_map = {}, display_attribute = False):
+    def get_str(self, depth = 2, display_precision = False, tab_level = 0, memoization_map = {}, display_attribute = False, display_id = False):
         """ string conversion for operation graph 
             depth:                  number of level to be crossed (None: infty)
             display_precision:      enable/display format display
@@ -266,6 +266,7 @@ class AbstractOperation(ML_Operation):
             
         tab_str = AbstractOperation.str_del * tab_level
         silent_str = "[S]" if self.get_silent() else ""
+        id_str     = ("[id=%x]" % id(self)) if display_id else ""
         attribute_str = "" if not display_attribute else self.attributes.get_str(tab_level = tab_level)
         if self in memoization_map:
             return tab_str + "%s\n" % memoization_map[self]
@@ -273,11 +274,11 @@ class AbstractOperation(ML_Operation):
         if self.arity == 1:
             precision_str = "" if not display_precision else "[%s]" % str(self.get_precision())
             memoization_map[self] = str_tag
-            return tab_str + "%s%s%s%s -------> %s\n%s" % (self.get_name(), precision_str, silent_str, attribute_str, str_tag, "".join(inp.get_str(new_depth, display_precision, tab_level = tab_level + 1, memoization_map = memoization_map, display_attribute = display_attribute) for inp in self.inputs))
+            return tab_str + "%s%s%s%s%s -------> %s\n%s" % (self.get_name(), precision_str, silent_str, id_str, attribute_str, str_tag, "".join(inp.get_str(new_depth, display_precision, tab_level = tab_level + 1, memoization_map = memoization_map, display_attribute = display_attribute, display_id = display_id) for inp in self.inputs))
         else:
             memoization_map[self] = str_tag
             precision_str = "" if not display_precision else "[%s]" % str(self.get_precision())
-            return tab_str + "%s%s%s%s ------> %s\n%s" % (self.get_name(), precision_str, silent_str, attribute_str, str_tag, "".join(inp.get_str(new_depth, display_precision, tab_level = tab_level + 1, memoization_map = memoization_map, display_attribute = display_attribute) for inp in self.inputs))
+            return tab_str + "%s%s%s%s%s ------> %s\n%s" % (self.get_name(), precision_str, silent_str, id_str, attribute_str, str_tag, "".join(inp.get_str(new_depth, display_precision, tab_level = tab_level + 1, memoization_map = memoization_map, display_attribute = display_attribute, display_id = display_id) for inp in self.inputs))
 
 
     def finish_copy(self, new_copy, copy_map = {}):
@@ -307,10 +308,11 @@ class Constant(ML_LeafNode):
     def get_value(self):
         return self.value
 
-    def get_str(self, depth = None, display_precision = False, tab_level = 0, memoization_map = {}, display_attribute = False):
+    def get_str(self, depth = None, display_precision = False, tab_level = 0, memoization_map = {}, display_attribute = False, display_id = False):
         precision_str = "" if not display_precision else "[%s]" % str(self.get_precision())
         attribute_str = "" if not display_attribute else self.attributes.get_str(tab_level = tab_level)
-        return AbstractOperation.str_del * tab_level + "Cst(%s)%s%s\n" % (self.value, attribute_str, precision_str)
+        id_str        = ("[id=%x]" % id(self)) if display_id else ""
+        return AbstractOperation.str_del * tab_level + "Cst(%s)%s%s%s\n" % (self.value, attribute_str, precision_str, id_str)
 
 
     def copy(self, copy_map = {}):
@@ -338,10 +340,11 @@ class Variable(ML_LeafNode):
     def get_var_type(self):
         return self.var_type
 
-    def get_str(self, depth = None, display_precision = False, tab_level = 0, memoization_map = {}, display_attribute = False):
+    def get_str(self, depth = None, display_precision = False, tab_level = 0, memoization_map = {}, display_attribute = False, display_id = False):
         precision_str = "" if not display_precision else "[%s]" % str(self.get_precision())
         attribute_str = "" if not display_attribute else self.attributes.get_str(tab_level = tab_level)
-        return AbstractOperation.str_del * tab_level + "Var(%s)%s%s\n" % (self.get_tag(), precision_str, attribute_str)
+        id_str        = ("[id=%x]" % id(self)) if display_id else ""
+        return AbstractOperation.str_del * tab_level + "Var(%s)%s%s%s\n" % (self.get_tag(), precision_str, attribute_str, id_str)
 
 
     def copy(self, copy_map = {}):

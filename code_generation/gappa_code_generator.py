@@ -56,6 +56,7 @@ class GappaCodeGenerator:
         self.memoization_map.pop(0)
 
     def clear_memoization_map(self):
+        self.exact_hint_map = {False: {}, True: {}}
         self.memoization_map = [{}]
 
     def has_memoization(self, optree):
