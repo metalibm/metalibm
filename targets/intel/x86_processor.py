@@ -46,7 +46,7 @@ sse_c_code_generation_table = {
     NearestInteger: {
         None: {
             lambda optree: True: {
-                type_strict_match(ML_Binary32, ML_Binary32): _mm_cvtss_f32(_mm_round_ss_rn(_mm_set_ss(FO_Arg(0)))), 
+                # type_strict_match(ML_Binary32, ML_Binary32): _mm_cvtss_f32(_mm_set_ss(FO_Arg(0))), 
                 type_strict_match(ML_Int32, ML_Binary32):    _mm_cvt_ss2si(_mm_set_ss(FO_Arg(0))),
             },
         },
@@ -68,6 +68,7 @@ sse41_c_code_generation_table = {
     NearestInteger: {
         None: {
             lambda optree: True: {
+                type_strict_match(ML_Binary32, ML_Binary32): _mm_cvtss_f32(_mm_round_ss_rn(_mm_set_ss(FO_Arg(0)))), 
                 type_strict_match(ML_Binary64, ML_Binary64): _mm_cvtsd_f64(_mm_round_sd_rn(_mm_set_sd(FO_Arg(0)))), 
             },
         },
