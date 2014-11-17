@@ -10,8 +10,9 @@
 ###############################################################################
 
 
-from ml_operations import ML_LeafNode
+from ml_operations import ML_LeafNode, BitLogicAnd, BitLogicRightShift, TypeCast
 from attributes import Attributes, attr_init
+from ml_formats import ML_Int32
 
 def create_multi_dim_array(dimensions):
     """ create a multi dimension array """
@@ -42,14 +43,11 @@ class ML_Table(ML_LeafNode):
         self.dimensions = dimensions
         self.storage_precision = storage_precision
 
-
     def __setitem__(self, key, value):
         self.table[key] = value
 
-
     def __getitem__(self, key):
         return self.table[key]
-
 
     def get_storage_precision(self):
         return self.storage_precision
@@ -60,18 +58,28 @@ class ML_Table(ML_LeafNode):
     def get_tag(self):
         return self.attributes.get_tag()
 
-
     def get_c_definition(self, table_name, final = ";"):
         precision_c_name = self.get_storage_precision().get_c_name()
         return "%s %s[%s]" % (precision_c_name, table_name, "][".join([str(dim) for dim in self.dimensions]))
 
-
     def get_c_content_init(self):
         return get_table_c_content(self.table, self.dimensions, self.get_storage_precision())
-
 
     def get_str(self, depth = None, display_precision = False, tab_level = 0, memoization_map = {}):
         precision_str = "" if not display_precision else "[%s]" % str(self.get_storage_precision())
         return "  " * tab_level + "Table[%s]%s\n" % ("][".join([str(dim) for dim in self.dimensions]), precision_str)
         
+
+def generic_index_function(int_precision, index_size):
+    index_mask = (2**index_size) - 1
+    return lambda variable: BitLogicAnd(BitLogicRightShift(TypeCast(variable, precision = int_precision), variable.get_precision().get_field_size() - index_size), index_mask) 
         
+class ML_ApproxTable(ML_Table):
+    def __init__(self, **kwords):
+        ML_Table.__init__(self, **kwords)
+        index_size = attr_init(kwords, "index_size", [])
+        self.index_size = index_size
+        index_function = attr_init(kwords, "index_function", generic_index_function(ML_Int32, index_size))
+        self.index_function = index_function
+
+
