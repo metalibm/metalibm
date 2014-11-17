@@ -88,9 +88,17 @@ class ML_Logarithm:
         log_table = ML_Table(dimensions = [2**table_index_size, 2], storage_precision = self.precision)
         log_table[0][0] = 0.0
         log_table[0][1] = 0.0
+
+
+        # retrieving processor inverse approximation table
+        dummy_var = Variable("dummy", precision = self.precision)
+        dummy_div_seed = DivisionSeed(dummy_var, precision = self.precision)
+        inv_approx_table = self.processor.get_recursive_implementation(dummy_div_seed, language = None, table_getter = lambda self: self.approx_table_map)
+
+
         for i in xrange(1, 2**table_index_size):
             #inv_value = (1.0 + (self.processor.inv_approx_table[i] / S2**9) + S2**-52) * S2**-1
-            inv_value = (1.0 + (self.processor.inv_approx_table[i] / S2**9) ) * S2**-1
+            inv_value = (1.0 + (inv_approx_table[i][0] / S2**9) ) * S2**-1
             value_high = round(log(inv_value), self.precision.get_field_size() - (self.precision.get_exponent_size() + 1), RN)
             value_low = round(log(inv_value) - value_high, sollya_precision, RN)
             log_table[i][0] = value_high
