@@ -77,7 +77,7 @@ def generic_index_function(int_precision, index_size):
 class ML_ApproxTable(ML_Table):
     def __init__(self, **kwords):
         ML_Table.__init__(self, **kwords)
-        index_size = attr_init(kwords, "index_size", [])
+        index_size = attr_init(kwords, "index_size", 7)
         self.index_size = index_size
         index_function = attr_init(kwords, "index_function", generic_index_function(ML_Int32, index_size))
         self.index_function = index_function
