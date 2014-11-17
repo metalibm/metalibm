@@ -270,12 +270,19 @@ exactify_rule = {
 
 
 
-
 def simplify_inverse(optree, processor):
-    dummy_var = Variable(precision = optree.get_precision()
+    dummy_var = Variable("dummy_var_seed", precision = optree.get_precision())
     dummy_div_seed = DivisionSeed(dummy_var, precision = optree.get_precision())
     inv_approx_table = processor.get_recursive_implementation(dummy_div_seed, language = None, table_getter = lambda self: self.approx_table_map)
-    return TableLoad(inv_approx_table, inv_approx_table.get_index_function()(optree), precision = optree.get_precision) 
+
+    seed_input = optree.inputs[0]
+    c0 = Constant(0, precision = ML_Int32)
+
+    if optree.get_precision() == inv_approx_table.get_storage_precision():
+        return TableLoad(inv_approx_table, inv_approx_table.get_index_function()(seed_input), c0, precision = optree.get_precision()) 
+    else:
+        return Conversion(TableLoad(inv_approx_table, inv_approx_table.get_index_function()(seed_input), c0, precision = inv_approx_table.get_storage_precision()), precision = optree.get_precision()) 
+
 
 support_simplification = {
     FusedMultiplyAdd: {

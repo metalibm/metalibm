@@ -4,7 +4,10 @@
 import sys
 from .log_report import Log
 
-def test_flag_option(flag_name, flag_value, default_value, parse_arg = None):
+def test_flag_option(flag_name, flag_value, default_value, parse_arg = None, help_map = None, help_str = ""):
+    if help_map != None: 
+        help_map[flag_name] = "[yes=%s|no=%s] %s" % (flag_value, default_value, help_str)
+
     if flag_name in sys.argv and parse_arg: 
         parse_arg.append(sys.argv.index(flag_name)) 
     return flag_value if flag_name in sys.argv else default_value

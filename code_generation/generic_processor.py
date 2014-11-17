@@ -14,6 +14,7 @@ from ..utility.log_report import *
 from .generator_utility import SymbolOperator, FunctionOperator, TemplateOperator, C_Code, Gappa_Code, build_simplified_operator_generation, IdentityOperator, FO_Arg, RoundOperator, type_strict_match, type_relax_match, type_result_match, type_function_match, FunctionObjectOperator
 from .code_element import *
 from ..core.ml_formats import *
+from ..core.ml_table import ML_ApproxTable
 from ..core.ml_operations import *
 from ..utility.common import Callable
 
@@ -492,16 +493,16 @@ generic_approx_table_map = {
         SpecificOperation: {
             SpecificOperation.DivisionSeed: {
                 lambda optree: True: {
-                    type_strict_match(ML_Binary32, ML_Binary32, ML_Binary32): inv_approx_table,
-                    type_strict_match(ML_Binary64, ML_Binary64, ML_Binary64): inv_approx_table,
+                    type_strict_match(ML_Binary32, ML_Binary32, ML_Binary32): generic_inv_approx_table,
+                    type_strict_match(ML_Binary64, ML_Binary64, ML_Binary64): generic_inv_approx_table,
                 },
                 lambda optree: not optree.get_silent(): {
-                    type_strict_match(ML_Binary32, ML_Binary32): inv_approx_table,
-                    type_strict_match(ML_Binary64, ML_Binary64): inv_approx_table,
+                    type_strict_match(ML_Binary32, ML_Binary32): generic_inv_approx_table,
+                    type_strict_match(ML_Binary64, ML_Binary64): generic_inv_approx_table,
                 },
                 lambda optree: optree.get_silent(): {
-                    type_strict_match(ML_Binary32, ML_Binary32): inv_approx_table,
-                    type_strict_match(ML_Binary64, ML_Binary64): inv_approx_table,
+                    type_strict_match(ML_Binary32, ML_Binary32): generic_inv_approx_table,
+                    type_strict_match(ML_Binary64, ML_Binary64): generic_inv_approx_table,
                 },
             },
             #SpecificOperation.InverseSquareRootSeed: {

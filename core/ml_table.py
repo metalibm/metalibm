@@ -10,9 +10,9 @@
 ###############################################################################
 
 
-from ml_operations import ML_LeafNode, BitLogicAnd, BitLogicRightShift, TypeCast
+from ml_operations import ML_LeafNode, BitLogicAnd, BitLogicRightShift, TypeCast, Constant
 from attributes import Attributes, attr_init
-from ml_formats import ML_Int32
+from ml_formats import ML_Int32, ML_Int64, ML_UInt32, ML_UInt64
 
 def create_multi_dim_array(dimensions, init_data = None):
     """ create a multi dimension array """
@@ -72,22 +72,34 @@ class ML_Table(ML_LeafNode):
     def get_c_content_init(self):
         return get_table_c_content(self.table, self.dimensions, self.get_storage_precision())
 
-    def get_str(self, depth = None, display_precision = False, tab_level = 0, memoization_map = {}):
+    def get_str(self, depth = None, display_precision = False, tab_level = 0, memoization_map = {}, display_attribute = False, display_id = False):
+        id_str     = ("[id=%x]" % id(self)) if display_id else ""
+        attribute_str = "" if not display_attribute else self.attributes.get_str(tab_level = tab_level)
         precision_str = "" if not display_precision else "[%s]" % str(self.get_storage_precision())
-        return "  " * tab_level + "Table[%s]%s\n" % ("][".join([str(dim) for dim in self.dimensions]), precision_str)
+        return "  " * tab_level + "Table[%s]%s%s%s\n" % ("][".join([str(dim) for dim in self.dimensions]), precision_str, id_str, attribute_str)
         
 
-def generic_index_function(int_precision, index_size):
-    index_mask = (2**index_size) - 1
-    return lambda variable: BitLogicAnd(BitLogicRightShift(TypeCast(variable, precision = int_precision), variable.get_precision().get_field_size() - index_size), index_mask) 
+
+def generic_index_function(index_size, variable):
+    inter_precision = {32: ML_Int32, 64: ML_Int64}[variable.get_precision().get_bit_size()]
+
+    index_mask   = Constant(2**index_size - 1, precision = inter_precision)
+    shift_amount = Constant(variable.get_precision().get_field_size() - index_size, precision = ML_UInt32) 
+
+    return BitLogicAnd(BitLogicRightShift(TypeCast(variable, precision = inter_precision), shift_amount, precision = inter_precision), index_mask, precision = inter_precision) 
+
         
 class ML_ApproxTable(ML_Table):
     def __init__(self, **kwords):
         ML_Table.__init__(self, **kwords)
         index_size = attr_init(kwords, "index_size", 7)
         self.index_size = index_size
-        index_function = attr_init(kwords, "index_function", generic_index_function(ML_Int32, index_size))
+        index_function = attr_init(kwords, "index_function", lambda variable: generic_index_function(index_size, variable))
         self.index_function = index_function
+
+    def get_index_function(self):
+        """ <index_function> getter """
+        return self.index_function
 
 
 
