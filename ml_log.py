@@ -59,8 +59,11 @@ class ML_Logarithm:
         # constant computation
         invlog2 = round(1/log(2), sollya_precision, RN)
         invlog2_cst = Constant(invlog2, precision = self.precision)
-        log2_hi = round(log(2), 16, RN) 
-        log2_lo = round(log(2) - log2_hi, sollya_precision, RN)
+        #v_log2_hi = round(log(2), 16, RN) 
+        #v_log2_lo = round(log(2) - v_log2_hi, sollya_precision, RN)
+
+        #log2_hi = Constant(v_log2_hi, precision = self.precision, tag = "log2_hi")
+        #log2_lo = Constant(v_log2_lo, precision = self.precision, tag = "log2_lo")
 
         # local overloading of RaiseReturn operation
         def ExpRaiseReturn(*args, **kwords):
@@ -74,10 +77,12 @@ class ML_Logarithm:
         test_positive = Comparison(vx, 0, specifier = Comparison.GreaterOrEqual, debug = True, tag = "inf_sign")
 
         test_signaling_nan = Test(vx, specifier = Test.IsSignalingNaN, debug = True, tag = "is_signaling_nan")
-        return_snan = Statement(ExpRaiseReturn(ML_FPE_Invalid, return_value = FP_QNaN(ML_Binary32)))
+        return_snan = Statement(ExpRaiseReturn(ML_FPE_Invalid, return_value = FP_QNaN(self.precision)))
 
-        log2_hi = round(log(2), self.precision.get_field_size() - (self.precision.get_exponent_size() + 1), RN)
-        log2_lo = round(log(2) - log2_hi, self.precision.sollya_object, RN)
+        v_log2_hi = round(log(2), self.precision.get_field_size() - (self.precision.get_exponent_size() + 1), RN)
+        v_log2_lo = round(log(2) - v_log2_hi, self.precision.sollya_object, RN)
+        log2_hi = Constant(v_log2_hi, precision = self.precision, tag = "log2_hi")
+        log2_lo = Constant(v_log2_lo, precision = self.precision, tag = "log2_lo")
 
         vx_exp  = ExponentExtraction(vx, tag = "vx_exp", debug = debugd)
 
@@ -98,14 +103,14 @@ class ML_Logarithm:
 
         for i in xrange(1, 2**table_index_size):
             #inv_value = (1.0 + (self.processor.inv_approx_table[i] / S2**9) + S2**-52) * S2**-1
-            inv_value = (1.0 + (inv_approx_table[i][0] / S2**9) ) * S2**-1
+            inv_value = inv_approx_table[i][0] # (1.0 + (inv_approx_table[i][0] / S2**9) ) * S2**-1
             value_high = round(log(inv_value), self.precision.get_field_size() - (self.precision.get_exponent_size() + 1), RN)
             value_low = round(log(inv_value) - value_high, sollya_precision, RN)
             log_table[i][0] = value_high
             log_table[i][1] = value_low
 
         def compute_log(_vx, exp_corr_factor = None):
-            _vx_mant = MantissaExtraction(_vx, tag = "_vx_mant", debug = debug_lftolx)
+            _vx_mant = MantissaExtraction(_vx, tag = "_vx_mant", debug = debug_lftolx, precision = self.precision)
             _vx_exp  = ExponentExtraction(_vx, tag = "_vx_exp", debug = debugd)
 
             table_index = BitLogicAnd(BitLogicRightShift(TypeCast(_vx_mant, precision = int_precision, debug = debuglx), self.precision.get_field_size() - 7, debug = debuglx), 0x7f, tag = "table_index", debug = debuglx) 
@@ -260,8 +265,9 @@ class ML_Logarithm:
         opt_eng = OptimizationEngine(self.processor)
 
         # fusing FMA
-        print "MDL fusing FMA"
-        scheme = opt_eng.fuse_multiply_add(scheme, silence = True)
+        if fuse_fma:
+            print "MDL fusing FMA"
+            scheme = opt_eng.fuse_multiply_add(scheme, silence = True)
 
         print "MDL abstract scheme"
         opt_eng.instantiate_abstract_precision(scheme, None)
@@ -269,8 +275,9 @@ class ML_Logarithm:
         #print scheme.get_str(depth = None, display_precision = True)
 
         print "MDL instantiated scheme"
-        opt_eng.instantiate_precision(scheme, default_precision = ML_Binary32)
+        opt_eng.instantiate_precision(scheme, default_precision = self.precision)
 
+        print scheme.get_str(depth = None, display_precision = True)
 
         print "subexpression sharing"
         opt_eng.subexpression_sharing(scheme)
@@ -283,6 +290,8 @@ class ML_Logarithm:
 
         # check processor support
         opt_eng.check_processor_support(scheme)
+
+        #print scheme.get_str(depth = None, display_precision = True)
 
         # factorizing fast path
         opt_eng.factorize_fast_path(scheme)
