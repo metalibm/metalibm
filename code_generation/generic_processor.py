@@ -478,6 +478,40 @@ gappa_code_generation_table = {
 }
 
 
+generic_inv_approx_table = ML_ApproxTable(
+    dimensions = [2**7, 1], 
+    storage_precision = ML_Binary32,
+    init_data = [
+        [((1.0 + (t_value / S2**9) ) * S2**-1)] for t_value in 
+    [508, 500, 492, 485, 477, 470, 463, 455, 448, 441, 434, 428, 421, 414, 408, 401, 395, 389, 383, 377, 371, 365, 359, 353, 347, 342, 336, 331, 326, 320, 315, 310, 305, 300, 295, 290, 285, 280, 275, 271, 266, 261, 257, 252, 248, 243, 239, 235, 231, 226, 222, 218, 214, 210, 206, 202, 198, 195, 191, 187, 183, 180, 176, 172, 169, 165, 162, 158, 155, 152, 148, 145, 142, 138, 135, 132, 129, 126, 123, 120, 117, 114, 111, 108, 105, 102, 99, 96, 93, 91, 88, 85, 82, 80, 77, 74, 72, 69, 67, 64, 62, 59, 57, 54, 52, 49, 47, 45, 42, 40, 38, 35, 33, 31, 29, 26, 24, 22, 20, 18, 15, 13, 11, 9, 7, 5, 3, 0]
+    ]
+)
+
+generic_approx_table_map = {
+    None: { # language
+        SpecificOperation: {
+            SpecificOperation.DivisionSeed: {
+                lambda optree: True: {
+                    type_strict_match(ML_Binary32, ML_Binary32, ML_Binary32): inv_approx_table,
+                    type_strict_match(ML_Binary64, ML_Binary64, ML_Binary64): inv_approx_table,
+                },
+                lambda optree: not optree.get_silent(): {
+                    type_strict_match(ML_Binary32, ML_Binary32): inv_approx_table,
+                    type_strict_match(ML_Binary64, ML_Binary64): inv_approx_table,
+                },
+                lambda optree: optree.get_silent(): {
+                    type_strict_match(ML_Binary32, ML_Binary32): inv_approx_table,
+                    type_strict_match(ML_Binary64, ML_Binary64): inv_approx_table,
+                },
+            },
+            #SpecificOperation.InverseSquareRootSeed: {
+            #    lambda optree: True: {
+            #        type_strict_match(ML_Binary32, ML_Binary32): invsqrt_approx_table,
+            #    },
+            #},
+        },
+    },
+}
 
 class AbstractProcessor: 
     """ base abstract processor """
@@ -509,10 +543,17 @@ def create_proc_hierarchy(process_list, proc_class_list = []):
 class ML_FullySupported: pass
 
 class GenericProcessor(AbstractProcessor):
+    """ Generic class for instruction selection,
+        corresponds to a portable C-implementation """
+
+    # code generation table map
     code_generation_table = {
         C_Code: c_code_generation_table,
         Gappa_Code: gappa_code_generation_table,
     }
+
+    # approximation table map
+    approx_table_map = generic_approx_table_map
 
     def __init__(self, *args):
         """ processor class initialization """
@@ -538,19 +579,20 @@ class GenericProcessor(AbstractProcessor):
             # no implementation were found
             Log.report(Log.Error, "the following operation is not supported by %s: \n%s" % (self.__class__, optree.get_str(depth = 2, display_precision = True))) 
 
-    def generate_supported_op_map(self, language = C_Code):
+    def generate_supported_op_map(self, language = C_Code, table_getter = lambda self: self.code_generation_table):
         """ generate a map of every operations supported by the processor hierarchy,
             to be used in OptimizationEngine step """
         op_map = {}
         self.generate_local_op_map(language, op_map)
         for parent_proc in self.parent_architecture:
-            parent_proc.generate_local_op_map(language, op_map)
+            parent_proc.generate_local_op_map(language, op_map, table_getter = table_getter)
         return op_map
 
 
-    def generate_local_op_map(self, language = C_Code, op_map = {}):
+    def generate_local_op_map(self, language = C_Code, op_map = {}, table_getter = lambda self: self.code_generation_table):
         """ generate simplified map of locally supported operations """
-        local_map = self.code_generation_table[language]
+        table = table_getter(self)
+        local_map = table[language]
         for operation in local_map:
             if not operation in op_map: 
                 op_map[operation] = {}
@@ -565,15 +607,28 @@ class GenericProcessor(AbstractProcessor):
         return op_map
                     
 
-    def get_implementation(self, optree, language = C_Code):
+    def get_implementation(self, optree, language = C_Code, table_getter = lambda self: self.code_generation_table):
         """ return <self> implementation of operation performed by <optree> """
+        table = table_getter(self)
         op_class, interface, codegen_key = GenericProcessor.get_operation_keys(optree)
-        for condition in self.code_generation_table[language][op_class][codegen_key]:
+        for condition in table[language][op_class][codegen_key]:
             if condition(optree):
-                for interface_condition in self.code_generation_table[language][op_class][codegen_key][condition]:
+                for interface_condition in table[language][op_class][codegen_key][condition]:
                     if interface_condition(*interface, optree = optree):
-                        return self.code_generation_table[language][op_class][codegen_key][condition][interface_condition]
+                        return table[language][op_class][codegen_key][condition][interface_condition]
         return None
+
+    def get_recursive_implementation(self, optree, language = None, table_getter = lambda self: self.code_generation_table):
+        """ recursively search for an implementation of optree in the processor class hierarchy """
+        if self.is_local_supported_operation(optree, language = language, table_getter = table_getter):
+            local_implementation = self.get_implementation(optree, language, table_getter = table_getter)
+            return local_implementation
+        else:
+            for parent_proc in self.parent_architecture:
+                if parent_proc.is_local_supported_operation(optree, language = language, table_getter = table_getter):
+                    return parent_proc.get_implementation(optree, language, table_getter = table_getter)
+            # no implementation were found
+            Log.report(Log.Error, "the following operation is not supported by %s: \n%s" % (self.__class__, optree.get_str(depth = 2, display_precision = True))) 
         
 
     def is_map_supported_operation(self, op_map, optree, language = C_Code):
@@ -600,9 +655,10 @@ class GenericProcessor(AbstractProcessor):
                     return False
                         
 
-    def is_local_supported_operation(self, optree, language = C_Code):
+    def is_local_supported_operation(self, optree, language = C_Code, table_getter = lambda self: self.code_generation_table):
         """ return whether or not the operation performed by optree has a local implementation """
-        return self.is_map_supported_operation(self.code_generation_table, optree, language)
+        table = table_getter(self)
+        return self.is_map_supported_operation(table, optree, language)
 
 
     def is_supported_operation(self, optree, language = C_Code):
@@ -620,14 +676,15 @@ class GenericProcessor(AbstractProcessor):
         return op_class, interface, codegen_key
 
 
-    def get_local_implementation(proc_class, optree, language = C_Code):
+    def get_local_implementation(proc_class, optree, language = C_Code, table_getter = lambda c: c.code_generation_table):
         """ return the implementation provided by <proc_class> of the operation performed by <optree> """
         op_class, interface, codegen_key = proc_class.get_operation_keys(optree)
-        for condition in proc_class.code_generation_table[language][op_class][codegen_key]:
+        table = table_getter(proc_class)
+        for condition in table[language][op_class][codegen_key]:
             if condition(optree):
-                for interface_condition in proc_class.code_generation_table[language][op_class][codegen_key][condition]:
+                for interface_condition in table[language][op_class][codegen_key][condition]:
                     if interface_condition(*interface, optree = optree):
-                        return proc_class.code_generation_table[language][op_class][codegen_key][condition][interface_condition]
+                        return table[language][op_class][codegen_key][condition][interface_condition]
         raise Exception()
 
 

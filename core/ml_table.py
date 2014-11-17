@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 ###############################################################################
 # This file is part of Kalray's Metalibm tool
-# Copyright (2013)
+# Copyright (2014)
 # All rights reserved
 # created:          Mar 20th, 2014
-# last-modified:    Mar 20th, 2014
+# last-modified:    Nov 17th, 2014
 #
 # author(s): Nicolas Brunie (nicolas.brunie@kalray.eu)
 ###############################################################################
@@ -14,13 +14,19 @@ from ml_operations import ML_LeafNode, BitLogicAnd, BitLogicRightShift, TypeCast
 from attributes import Attributes, attr_init
 from ml_formats import ML_Int32
 
-def create_multi_dim_array(dimensions):
+def create_multi_dim_array(dimensions, init_data = None):
     """ create a multi dimension array """
     if len(dimensions) == 1:
-        return [None] * dimensions[0]
+        if init_data != None:
+            return [init_data[i] for i in xrange(dimensions[0])]
+        else:
+            return [None for i in xrange(dimensions[0])]
     else:
         dim = dimensions[0]
-        return [create_multi_dim_array(dimensions[1:]) for i in xrange(dim)]
+        if init_data != None:
+            return [create_multi_dim_array(dimensions[1:], init_data[i]) for i in xrange(dim)]
+        else:
+            return [create_multi_dim_array(dimensions[1:]) for i in xrange(dim)]
 
 
 def get_table_c_content(table, dimensions, storage_precision):
@@ -38,8 +44,9 @@ class ML_Table(ML_LeafNode):
         self.attributes = Attributes(**kwords)
         dimensions = attr_init(kwords, "dimensions", [])
         storage_precision = attr_init(kwords, "storage_precision", None)
+        init_data = attr_init(kwords, "init_data", None)
 
-        self.table = create_multi_dim_array(dimensions)
+        self.table = create_multi_dim_array(dimensions, init_data = init_data)
         self.dimensions = dimensions
         self.storage_precision = storage_precision
 
@@ -81,5 +88,6 @@ class ML_ApproxTable(ML_Table):
         self.index_size = index_size
         index_function = attr_init(kwords, "index_function", generic_index_function(ML_Int32, index_size))
         self.index_function = index_function
+
 
 
