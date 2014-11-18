@@ -119,11 +119,11 @@ class ML_Logarithm:
             # TODO: detect if single operand inverse seed is supported by the targeted architecture
             pre_arg_red_index = TypeCast(BitLogicAnd(TypeCast(DivisionSeed(_vx_mant, precision = self.precision, tag = "seed", debug = debug_lftolx, silent = True), precision = ML_UInt64), Constant(-2, precision = ML_UInt64), precision = ML_UInt64), precision = self.precision, tag = "pre_arg_red_index", debug = debug_lftolx)
             arg_red_index = Select(Equal(table_index, 0), 1.0, pre_arg_red_index)
-            #if not processor.is_supported_operation(arg_red_index):
-            #    if self.precision != ML_Binary32:
-            #        arg_red_index = DivisionSeed(Conversion(_vx_mant, precision = ML_Binary32), precision = ML_Binary32,  
-            _red_vx        = arg_red_index * _vx_mant - 1.0
+
+            #_red_vx        = arg_red_index * _vx_mant - 1.0
+            _red_vx = FusedMultiplyAdd(arg_red_index, _vx_mant, 1.0, specifier = FusedMultiplyAdd.Subtract)
             _red_vx.set_attributes(tag = "_red_vx", debug = debug_lftolx)
+
             inv_err = S2**-7
             red_interval = Interval(1 - inv_err, 1 + inv_err)
 
@@ -134,10 +134,11 @@ class ML_Logarithm:
             print "building mathematical polynomial"
             approx_interval = Interval(-inv_err, inv_err)
             poly_degree = sup(guessdegree(log(1+x)/x, approx_interval, S2**-(self.precision.get_field_size()+1))) + 1
-            global_poly_object = Polynomial.build_from_approximation(log(1+x)/x, poly_degree, [self.precision]*(poly_degree+1), approx_interval, absolute)
+            global_poly_object = Polynomial.build_from_approximation(log(1+x)/x, poly_degree, [1] + [self.precision]*(poly_degree), approx_interval, absolute)
             poly_object = global_poly_object.sub_poly(start_index = 1)
 
             print "generating polynomial evaluation scheme"
+            #_poly = PolynomialSchemeEvaluator.generate_horner_scheme(poly_object, _red_vx, unified_precision = self.precision)
             _poly = PolynomialSchemeEvaluator.generate_horner_scheme(poly_object, _red_vx, unified_precision = self.precision)
             _poly.set_attributes(tag = "poly", debug = debug_lftolx)
             print global_poly_object.get_sollya_object()
@@ -151,7 +152,7 @@ class ML_Logarithm:
             pre_result = -_log_inv_hi + (_red_vx + (_red_vx * _poly + (corr_exp * log2_lo - _log_inv_lo)))
             pre_result.set_attributes(tag = "pre_result", debug = debug_lftolx)
             exact_log2_hi_exp = corr_exp * log2_hi
-            exact_log2_hi_exp.set_attributes(tag = "exact_log2_hi_hex", debug = debug_lftolx)
+            exact_log2_hi_exp.set_attributes(tag = "exact_log2_hi_exp", debug = debug_lftolx)
             cancel_part = (corr_exp * log2_hi - _log_inv_hi)
             cancel_part.set_attributes(tag = "cancel_part", debug = debug_lftolx)
             sub_part = red_vx_hi + cancel_part
@@ -276,8 +277,6 @@ class ML_Logarithm:
 
         print "MDL instantiated scheme"
         opt_eng.instantiate_precision(scheme, default_precision = self.precision)
-
-        print scheme.get_str(depth = None, display_precision = True)
 
         print "subexpression sharing"
         opt_eng.subexpression_sharing(scheme)
