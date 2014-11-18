@@ -100,6 +100,8 @@ class ML_Logarithm:
         dummy_div_seed = DivisionSeed(dummy_var, precision = self.precision)
         inv_approx_table = self.processor.get_recursive_implementation(dummy_div_seed, language = None, table_getter = lambda self: self.approx_table_map)
 
+        integer_precision = {ML_Binary32: ML_UInt32, ML_Binary64: ML_UInt64}[self.precision]
+
 
         for i in xrange(1, 2**table_index_size):
             #inv_value = (1.0 + (self.processor.inv_approx_table[i] / S2**9) + S2**-52) * S2**-1
@@ -117,7 +119,7 @@ class ML_Logarithm:
 
             # argument reduction
             # TODO: detect if single operand inverse seed is supported by the targeted architecture
-            pre_arg_red_index = TypeCast(BitLogicAnd(TypeCast(DivisionSeed(_vx_mant, precision = self.precision, tag = "seed", debug = debug_lftolx, silent = True), precision = ML_UInt64), Constant(-2, precision = ML_UInt64), precision = ML_UInt64), precision = self.precision, tag = "pre_arg_red_index", debug = debug_lftolx)
+            pre_arg_red_index = TypeCast(BitLogicAnd(TypeCast(DivisionSeed(_vx_mant, precision = self.precision, tag = "seed", debug = debug_lftolx, silent = True), precision = integer_precision), Constant(-2, precision = integer_precision), precision = integer_precision), precision = self.precision, tag = "pre_arg_red_index", debug = debug_lftolx)
             arg_red_index = Select(Equal(table_index, 0), 1.0, pre_arg_red_index)
 
             #_red_vx        = arg_red_index * _vx_mant - 1.0
@@ -139,7 +141,7 @@ class ML_Logarithm:
 
             print "generating polynomial evaluation scheme"
             #_poly = PolynomialSchemeEvaluator.generate_horner_scheme(poly_object, _red_vx, unified_precision = self.precision)
-            _poly = PolynomialSchemeEvaluator.generate_horner_scheme(poly_object, _red_vx, unified_precision = self.precision)
+            _poly = PolynomialSchemeEvaluator.generate_estrin_scheme(poly_object, _red_vx, unified_precision = self.precision)
             _poly.set_attributes(tag = "poly", debug = debug_lftolx)
             print global_poly_object.get_sollya_object()
 
