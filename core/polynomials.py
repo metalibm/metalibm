@@ -15,7 +15,7 @@ from pythonsollya import *
 from ..utility.common import Callable
 from ..utility.log_report import Log
 from .ml_operations import Constant, Variable, Multiplication, Addition
-from .ml_formats import ML_FP_Format
+from .ml_formats import ML_FP_Format, ML_Format
 
 class Polynomial:
     """ Mathematical polynomial object class """
@@ -102,7 +102,8 @@ class Polynomial:
     def build_from_approximation(function, poly_degree, coeff_formats, approx_interval, *modifiers):
         """ construct a polynomial object from a function approximation using sollya's fpminimax """
         Log.report(Log.Info,  "approx_interval: %s" % approx_interval)
-        sollya_poly = fpminimax(function, poly_degree, [c.sollya_object for c in coeff_formats], approx_interval, *modifiers)
+        precision_list = [(c.sollya_object if isinstance(c, ML_Format) else c) for c in coeff_formats]
+        sollya_poly = fpminimax(function, poly_degree, precision_list, approx_interval, *modifiers)
         return Polynomial(sollya_poly)
 
     def build_from_approximation_with_error(function, poly_degree, coeff_formats, approx_interval, *modifiers, **kwords): 
