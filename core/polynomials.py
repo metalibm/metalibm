@@ -197,14 +197,25 @@ class PolynomialSchemeEvaluator:
                 power_node = generate_power(variable, index, power_map, unified_precision)
                 return Multiplication(coeff_node, power_node, precision = unified_precision)
         else:
+            #min_degree = polynomial_object.get_min_monomial_degree()
+            #max_degree = polynomial_object.get_degree()
+            #poly_degree = (max_degree - min_degree + 2) / 2 + min_degree - 1
+            #sub_poly_lo = polynomial_object.sub_poly(stop_index = poly_degree) 
+            #sub_poly_hi = polynomial_object.sub_poly(start_index = poly_degree + 1)
+            #lo_node = PolynomialSchemeEvaluator.generate_estrin_scheme(sub_poly_lo, variable, unified_precision, power_map)
+            #hi_node = PolynomialSchemeEvaluator.generate_estrin_scheme(sub_poly_hi, variable, unified_precision, power_map)
+            #return Addition(lo_node, hi_node, precision = unified_precision)
             min_degree = polynomial_object.get_min_monomial_degree()
             max_degree = polynomial_object.get_degree()
             poly_degree = (max_degree - min_degree + 2) / 2 + min_degree - 1
+            offset_degree = poly_degree + 1 - min_degree
             sub_poly_lo = polynomial_object.sub_poly(stop_index = poly_degree) 
-            sub_poly_hi = polynomial_object.sub_poly(start_index = poly_degree + 1)
+            sub_poly_hi = polynomial_object.sub_poly(start_index = poly_degree + 1, offset = offset_degree)
             lo_node = PolynomialSchemeEvaluator.generate_estrin_scheme(sub_poly_lo, variable, unified_precision, power_map)
             hi_node = PolynomialSchemeEvaluator.generate_estrin_scheme(sub_poly_hi, variable, unified_precision, power_map)
-            return Addition(lo_node, hi_node, precision = unified_precision)
+
+            offset_degree_monomial = generate_power(variable, offset_degree, power_map, unified_precision)
+            return Addition(lo_node, Multiplication(offset_degree_monomial, hi_node, precision = unified_precision), precision = unified_precision)
 
 
     # class function static binding
