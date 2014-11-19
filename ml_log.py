@@ -142,6 +142,7 @@ class ML_Logarithm:
             print "generating polynomial evaluation scheme"
             #_poly = PolynomialSchemeEvaluator.generate_horner_scheme(poly_object, _red_vx, unified_precision = self.precision)
             _poly = PolynomialSchemeEvaluator.generate_estrin_scheme(poly_object, _red_vx, unified_precision = self.precision)
+
             _poly.set_attributes(tag = "poly", debug = debug_lftolx)
             print global_poly_object.get_sollya_object()
 
