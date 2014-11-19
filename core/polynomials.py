@@ -137,11 +137,14 @@ def generate_power(variable, power, power_map = {}, precision = None):
         if power == 1:  
             result = variable
         else:
-            sub_power = generate_power(variable, power / 2, power_map, precision = precision)
-            sub_square = Multiplication(sub_power, sub_power, precision = precision)
             if power % 2 == 1:
-                result = Multiplication(variable, sub_square, precision = precision)
+                sub_square = generate_power(variable, power - 1, power_map, precision = precision)
+                result_tag = "%s%d_" % (variable.get_tag() if variable.get_tag() else "X", power)
+                result = Multiplication(variable, sub_square, precision = precision, tag = result_tag)
             else:
+                sub_power = generate_power(variable, power / 2, power_map, precision = precision)
+                sub_square_tag = "%s%d_" % (variable.get_tag() if variable.get_tag() else "X", (power / 2) * 2)
+                sub_square = Multiplication(sub_power, sub_power, precision = precision, tag = sub_square_tag)
                 result = sub_square
         power_map[power] = result
         return result
@@ -162,7 +165,7 @@ class PolynomialSchemeEvaluator:
             if index == 0:
                 return Constant(coeff)
             else:
-                return Multiplication(generate_power(variable, index, {}, precision = unified_precision), Constant(coeff))
+                return Multiplication(generate_power(variable, index, power_map, precision = unified_precision), Constant(coeff))
             
         current_index = coeff_list[0][0]
         current_scheme = Constant(coeff_list[0][1])
