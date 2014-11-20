@@ -43,17 +43,6 @@ class ML_Sine:
 
         sollya_precision = self.precision.sollya_object
 
-        # debug utilities
-        debugf        = ML_Debug(display_format = "%f")
-        debuglf       = ML_Debug(display_format = "%lf")
-        debugx        = ML_Debug(display_format = "%x")
-        debuglx       = ML_Debug(display_format = "%\"PRIx64\"", )
-        debugd        = ML_Debug(display_format = "%d", pre_process = lambda v: "(int) %s" % v)
-        debugld        = ML_Debug(display_format = "%ld")
-        #debug_lftolx  = ML_Debug(display_format = "%\"PRIx64\"", pre_process = lambda v: "double_to_64b_encoding(%s)" % v)
-        debug_lftolx  = ML_Debug(display_format = "%\"PRIx64\" ev=%x", pre_process = lambda v: "double_to_64b_encoding(%s), __k1_fpu_get_exceptions()" % v)
-        debug_ddtolx  = ML_Debug(display_format = "%\"PRIx64\" %\"PRIx64\"", pre_process = lambda v: "double_to_64b_encoding(%s.hi), double_to_64b_encoding(%s.lo)" % (v, v))
-        debug_dd      = ML_Debug(display_format = "{.hi=%lf, .lo=%lf}", pre_process = lambda v: "%s.hi, %s.lo" % (v, v))
 
 
         # local overloading of RaiseReturn operation
