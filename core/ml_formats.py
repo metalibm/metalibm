@@ -93,6 +93,9 @@ class ML_Std_FP_Format(ML_FP_Format):
         self.sollya_object = sollya_object
         self.c_display_format = c_display_format
 
+    def get_sollya_object(self):
+      return self.sollya_object
+
     def __str__(self):
         return self.c_name
 
