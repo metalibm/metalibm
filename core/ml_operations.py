@@ -664,6 +664,8 @@ class ConditionBlock(AbstractOperationConstructor("ConditionBlock", arity = 3)):
         new_copy.extra_inputs = [op.copy(copy_map) for op in self.extra_inputs]
         new_copy.parent_list = [op.copy(copy_map) for op in self.parent_list] 
 
+  
+
 class Conversion(AbstractOperationConstructor("Conversion", arity = 1)):
     """ abstract conversion operation """
     pass
@@ -1031,3 +1033,65 @@ class FunctionCall(AbstractOperationConstructor("FunctionCall")):
 
     # static binding
     propagate_format_to_cst = Callable(propagate_format_to_cst)
+
+class SwitchBlock(AbstractOperationConstructor("Switch", arity = 1)):
+    def __init__(self, switch_value, case_map, **kwords):
+        SwitchBlock.__base__.__init__(self, switch_value, **kwords)
+        self.extra_inputs = [case_map[case] for case in case_map]
+        self.parent_list = []
+        # statement being executed before the condition or either of the branch is executed 
+        self.pre_statement = Statement()
+        self.case_map = case_map
+
+    def finish_copy(self, new_copy, copy_map = {}):
+        new_copy.pre_statement = self.statement.copy(copy_map)
+        new_copy.extra_inputs = [op.copy(copy_map) for op in self.extra_inputs]
+        new_copy.parent_list = [op.copy(copy_map) for op in self.parent_list] 
+
+    def get_case_map(self):
+        return self.case_map
+
+    def set_extra_inputs(self, new_extra_inputs):
+        self.extra_inputs = new_extra_inputs
+
+    def set_parent_list(self, parent_list):
+        self.parent_list = parent_list
+
+    def get_parent_list(self):
+        return self.parent_list
+
+    def get_pre_statement(self):
+        return self.pre_statement
+
+    def add_to_pre_statement(self, optree):
+        self.pre_statement.add(optree)
+
+    def push_to_pre_statement(self, optree):
+        self.pre_statement.push(optree)
+
+    def get_str(self, depth = 2, display_precision = False, tab_level = 0, memoization_map = {}, display_attribute = False, display_id = False):
+        """ string conversion for operation graph 
+            depth:                  number of level to be crossed (None: infty)
+            display_precision:      enable/display format display
+        """
+        new_depth = None 
+        if depth != None:
+            if  depth < 0: 
+                return "" 
+        new_depth = (depth - 1) if depth != None else None
+            
+        tab_str = AbstractOperation.str_del * tab_level
+        silent_str = "[S]" if self.get_silent() else ""
+        id_str     = ("[id=%x]" % id(self)) if display_id else ""
+        attribute_str = "" if not display_attribute else self.attributes.get_str(tab_level = tab_level)
+        if self in memoization_map:
+            return tab_str + "%s\n" % memoization_map[self]
+        str_tag = self.get_tag() if self.get_tag() else ("tag_%d" % len(memoization_map))
+        if 1:
+            memoization_map[self] = str_tag
+            precision_str = "" if not display_precision else "[%s]" % str(self.get_precision())
+            pre_str = tab_str + "%s%s%s%s%s ------> %s\n%s" % (self.get_name(), precision_str, silent_str, id_str, attribute_str, str_tag, "".join(inp.get_str(new_depth, display_precision, tab_level = tab_level + 1, memoization_map = memoization_map, display_attribute = display_attribute, display_id = display_id) for inp in self.inputs))
+            for case in self.case_map:
+                pre_str += "Case: %s" %  case #.get_str(new_depth, display_precision, tab_level = 0, memoization_map = memoization_map, display_attribute = display_attribute, display_id = display_id)
+                pre_str += "%s" %  self.case_map[case].get_str(new_depth, display_precision, tab_level = tab_level + 2, memoization_map = memoization_map, display_attribute = display_attribute, display_id = display_id)
+            return pre_str

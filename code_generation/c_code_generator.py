@@ -12,7 +12,7 @@
 
 
 from ..utility.common import ML_NotImplemented
-from ..core.ml_operations import Variable, Constant, ConditionBlock, Return, TableLoad, Statement, SpecificOperation, ExceptionOperation, ClearException, NoResultOperation
+from ..core.ml_operations import Variable, Constant, ConditionBlock, Return, TableLoad, Statement, SpecificOperation, ExceptionOperation, ClearException, NoResultOperation, SwitchBlock
 from ..core.ml_table import ML_Table
 from ..core.ml_formats import *
 from ..core.attributes import ML_Debug
@@ -105,6 +105,28 @@ class CCodeGenerator:
             index_code = [self.generate_expr(code_object, index_op, folded = folded).get() for index_op in optree.inputs[1:]]
 
             result = CodeExpression("%s[%s]" % (table_name, "][".join(index_code)), optree.inputs[0].get_storage_precision())
+
+        elif isinstance(optree, SwitchBlock):
+            switch_value = optree.inputs[0]
+            
+            # generating pre_statement
+            self.generate_expr(code_object, optree.get_pre_statement(), folded = folded)
+
+            switch_value_code = self.generate_expr(code_object, switch_value, folded = folded)
+            case_map = optree.get_case_map()
+
+            code_object << "\nswitch(%s) {\n" % switch_value_code.get()
+            for case in case_map:
+              case_value = case
+              case_statement = case_map[case]
+              #case_value_code = self.generate_expr(code_object, case, folded = folded)
+              code_object << "case %s:\n" % case
+              code_object.open_level()
+              self.generate_expr(code_object, case_statement, folded = folded) 
+              code_object.close_level()
+            code_object << "}\n"
+
+            return None
 
         elif isinstance(optree, ConditionBlock):
             condition = optree.inputs[0]

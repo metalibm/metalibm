@@ -35,6 +35,8 @@ def merge_abstract_format(*args):
 abstract_typing_rule = {
     ConditionBlock: 
         lambda optree, *ops: None,
+    SwitchBlock: 
+        lambda optree, *ops: None,
     Abs:
         lambda optree, op0: merge_abstract_format(op0.get_precision()),
     Select:
@@ -480,6 +482,19 @@ class OptimizationEngine:
                 memoization_map[optree] = None
                 return None
 
+            elif isinstance(optree, SwitchBlock):
+                # pre statement
+                self.instantiate_abstract_precision(optree.get_pre_statement(), default_precision, memoization_map = memoization_map)
+
+                case_map = optree.get_case_map()
+                for inp in optree.inputs:
+                    self.instantiate_abstract_precision(inp, default_precision, memoization_map = memoization_map)
+                for inp in optree.get_extra_inputs():
+                    self.instantiate_abstract_precision(inp, default_precision, memoization_map = memoization_map)
+                memoization_map[optree] = None
+                return None
+              
+
             elif isinstance(optree, Statement):
                 for inp in optree.inputs:
                     self.instantiate_abstract_precision(inp, default_precision, memoization_map = memoization_map)
@@ -574,6 +589,17 @@ class OptimizationEngine:
             self.subexpression_sharing(optree.inputs[0], sharing_map, level_sharing_map, current_parent_list + [optree])
             # branches
             for op in optree.inputs[1:]:
+                self.subexpression_sharing(op, sharing_map, [{}] + level_sharing_map, current_parent_list + [optree])
+
+        elif isinstance(optree, SwitchBlock):
+            optree.set_parent_list(current_parent_list)
+
+            # switch value
+            self.subexpression_sharing(optree.inputs[0], sharing_map, level_sharing_map, current_parent_list + [optree])
+            # case_statement
+            case_map = optree.get_case_map()
+            for case in case_map:
+                op = case_map[case]
                 self.subexpression_sharing(op, sharing_map, [{}] + level_sharing_map, current_parent_list + [optree])
 
         elif isinstance(optree, Statement):
@@ -787,6 +813,12 @@ class OptimizationEngine:
                 pass
             elif isinstance(optree, Return):
                 pass
+            elif isinstance(optree, SwitchBlock):
+                self.check_processor_support(optree.get_pre_statement(), memoization_map)
+
+                for op in optree.get_extra_inputs():
+                  # TODO: assert case is integer constant
+                  self.check_processor_support(op, memoization_map)
             elif not self.processor.is_supported_operation(optree):
                 # trying operand format escalation
                 while optree.__class__ in type_escalation:
