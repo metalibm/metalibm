@@ -20,6 +20,10 @@ debugd        = ML_Debug(display_format = "%d", pre_process = lambda v: "(int) %
 # display long long/ long int integer
 debugld        = ML_Debug(display_format = "%ld")
 
+# display hexadecimal of single precision fp number
+debug_ftox  = ML_Debug(display_format = "%\"PRIx32\"", pre_process = lambda v: "float_to_32b_encoding(%s)" % v)
+debug_ftox_k1  = ML_Debug(display_format = "%\"PRIx32\" ev=%x", pre_process = lambda v: "float_to_32b_encoding(%s), __k1_fpu_get_exceptions()" % v)
+
 # display hexadecimal encoding of double precision fp number
 debug_lftolx  = ML_Debug(display_format = "%\"PRIx64\"", pre_process = lambda v: "double_to_64b_encoding(%s)" % v)
 debug_lftolx_k1  = ML_Debug(display_format = "%\"PRIx64\" ev=%x", pre_process = lambda v: "double_to_64b_encoding(%s), __k1_fpu_get_exceptions()" % v)
