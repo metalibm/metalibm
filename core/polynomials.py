@@ -72,8 +72,6 @@ class Polynomial:
         """ sub polynomial extraction """
         new_coeff_map = {}
         end_index = self.degree + 1 if stop_index == None else stop_index + 1
-        print "indexes: ", start_index, end_index, self.coeff_map
-        print start_index.__class__, end_index.__class__, [c.__class__ for c in self.coeff_map]
         for index in range(start_index, end_index):
             if not index in self.coeff_map: continue
             new_coeff_map[index - offset] = self.coeff_map[index]
@@ -190,9 +188,7 @@ class PolynomialSchemeEvaluator:
     def generate_estrin_scheme(polynomial_object, variable, unified_precision, power_map_ = None):
         """ generate a Estrin evaluation scheme """
         power_map = power_map_ if power_map_ != None else {}
-        print "ges poly_object: ", polynomial_object
         if polynomial_object.get_coeff_num() == 1: 
-            print "single coeff case"
             index, coeff = polynomial_object.get_ordered_coeff_list()[0]
             coeff_node = Constant(coeff)
             if index == 0:
@@ -201,15 +197,12 @@ class PolynomialSchemeEvaluator:
                 power_node = generate_power(variable, index, power_map, unified_precision)
                 return Multiplication(coeff_node, power_node, precision = unified_precision)
         else:
-            min_degree = polynomial_object.get_min_monomial_degree()
-            max_degree = polynomial_object.get_degree()
+            min_degree = int(polynomial_object.get_min_monomial_degree())
+            max_degree = int(polynomial_object.get_degree())
             poly_degree = (max_degree - min_degree + 2) / 2 + min_degree - 1
             offset_degree = poly_degree + 1 - min_degree
             sub_poly_lo = polynomial_object.sub_poly(stop_index = poly_degree) 
             sub_poly_hi = polynomial_object.sub_poly(start_index = poly_degree + 1, offset = offset_degree)
-            print "sub_poly: \033[31m", sub_poly_lo, "\033[32m", sub_poly_hi, "\033[0m"
-            print polynomial_object, polynomial_object.degree
-            print min_degree, max_degree, poly_degree, offset_degree
             lo_node = PolynomialSchemeEvaluator.generate_estrin_scheme(sub_poly_lo, variable, unified_precision, power_map)
             hi_node = PolynomialSchemeEvaluator.generate_estrin_scheme(sub_poly_hi, variable, unified_precision, power_map)
 
