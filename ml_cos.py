@@ -61,6 +61,8 @@ class ML_Cosine:
             kwords["function_name"] = self.function_name
             return RaiseReturn(*args, **kwords)
 
+        debug_precision = {ML_Binary32: debug_ftox, ML_Binary64: debug_lftolx}[self.precision]
+
 
         test_nan_or_inf = Test(vx, specifier = Test.IsInfOrNaN, likely = False, debug = True, tag = "nan_or_inf")
         test_nan        = Test(vx, specifier = Test.IsNaN, debug = True, tag = "is_nan_test")
@@ -81,21 +83,25 @@ class ML_Cosine:
         frac_pi_index = 2
         frac_pi     = round(S2**frac_pi_index / pi, sollya_precision, RN)
         inv_frac_pi = round(pi / S2**frac_pi_index, sollya_precision, RN)
+        inv_frac_pi_lo = round(pi / S2**frac_pi_index - inv_frac_pi, sollya_precision, RN)
         # computing k = E(x * frac_pi)
-        k = NearestInteger(vx * frac_pi)
+        vx_pi = Multiplication(vx, frac_pi, precision = self.precision)
+        k = NearestInteger(vx_pi, precision = ML_Int32)
 
-        inv_frac_pi_cst = Constant(inv_frac_pi)
+        inv_frac_pi_cst    = Constant(inv_frac_pi, tag = "inv_frac_pi")
+        inv_frac_pi_lo_cst = Constant(inv_frac_pi_lo, tag = "inv_frac_pi_lo")
 
-        red_x = vx - inv_frac_pi_cst * k 
+        red_x = (vx - inv_frac_pi_cst * k) - inv_frac_pi_lo_cst * k
 
         approx_interval = Interval(-pi/(S2**(frac_pi_index+1)), pi / S2**(frac_pi_index+1))
 
-        error_goal_approx = S2**-24
+        error_goal_approx = S2**-self.precision.get_precision()
 
 
         Log.report(Log.Info, "\033[33;1m building mathematical polynomial \033[0m\n")
-        poly_degree = int(sup(guessdegree(cos(x), approx_interval, error_goal_approx)))
-        Log.report(Log.Info, "poly degree is %d\n" % poly_degree)
+        poly_degree_cos = int(sup(guessdegree(cos(x), approx_interval, error_goal_approx)))
+        poly_degree_sin = int(sup(guessdegree(sin(x), approx_interval, error_goal_approx)))
+        Log.report(Log.Info, "poly degree is %d for cos and %d for sin\n" % (poly_degree_cos, poly_degree_sin))
 
 
         error_function = lambda p, f, ai, mod, t: dirtyinfnorm(f - p, ai)
@@ -104,26 +110,43 @@ class ML_Cosine:
         #polynomial_scheme_builder = PolynomialSchemeEvaluator.generate_horner_scheme
 
 
-        print poly_degree.__class__
 
-        format_list = [self.precision] * (poly_degree + 1)
+        format_list_cos = [self.precision] * (poly_degree_cos + 1)
+        format_list_sin = [self.precision] * (poly_degree_sin + 1)
 
-        poly_object, poly_approx_error = Polynomial.build_from_approximation_with_error(cos(x), poly_degree, format_list, approx_interval, absolute, error_function = error_function)
+        poly_object_cos, poly_approx_error_cos = Polynomial.build_from_approximation_with_error(cos(x), poly_degree_cos, format_list_cos, approx_interval, absolute, error_function = error_function)
+        poly_object_sin, poly_approx_error_sin = Polynomial.build_from_approximation_with_error(sin(x), poly_degree_sin, format_list_cos, approx_interval, absolute, error_function = error_function)
 
-        Log.report(Log.Info, "fpminimax polynomial is %s " % poly_object.get_sollya_object())
+        Log.report(Log.Info, "fpminimax polynomial for cos is %s " % poly_object_cos.get_sollya_object())
+        Log.report(Log.Info, "fpminimax polynomial for sin is %s " % poly_object_sin.get_sollya_object())
 
 
 
-        poly = polynomial_scheme_builder(poly_object, red_x, unified_precision = self.precision)
+        poly_cos = polynomial_scheme_builder(poly_object_cos, red_x, unified_precision = self.precision)
+        poly_sin = polynomial_scheme_builder(poly_object_sin, red_x, unified_precision = self.precision)
+        poly_cos.set_attributes(tag = "poly_cos", debug = debug_precision)
+        poly_sin.set_attributes(tag = "poly_sin", debug = debug_precision)
 
-        result = Return(poly)
+        sqrt2o2 = Constant(round(sqrt(S2)/2, sollya_precision, RN), precision = self.precision)
+
+        switch_map = {
+          0: Return(poly_cos),
+          1: Return(sqrt2o2 * (poly_cos - poly_sin)),
+          2: Return(poly_sin),
+          3: Return(-sqrt2o2*(poly_cos + poly_sin)),
+          4: Return(-poly_cos),
+          5: Return(sqrt2o2 * (poly_sin - poly_cos)),
+          6: Return(-poly_sin),
+          7: Return(sqrt2o2 * (poly_cos + poly_sin))
+        }
+        modk8 = Modulo(k, 8, precision = ML_Int32, tag = "switch_value", debug = True)
+        result = SwitchBlock(modk8, switch_map)
 
 
         # main scheme
         Log.report(Log.Info, "\033[33;1m MDL scheme \033[0m")
         scheme = Statement(result)
 
-        #print scheme.get_str(depth = None, display_precision = True)
 
         # fusing FMA
         if fuse_fma: 
@@ -133,9 +156,9 @@ class ML_Cosine:
         Log.report(Log.Info, "\033[33;1m MDL abstract scheme \033[0m")
         opt_eng.instantiate_abstract_precision(scheme, None)
 
+
         Log.report(Log.Info, "\033[33;1m MDL instantiated scheme \033[0m")
         opt_eng.instantiate_precision(scheme, default_precision = self.precision)
-
 
         Log.report(Log.Info, "\033[33;1m subexpression sharing \033[0m")
         opt_eng.subexpression_sharing(scheme)
@@ -161,10 +184,13 @@ class ML_Cosine:
         #self.result.add_header("support_lib/ml_types.h")
         self.result.add_header("support_lib/ml_special_values.h")
         #display(decimal)
-        self.result.add_header_comment("polynomial degree  for  exp(x): %d" % poly_degree)
-        self.result.add_header_comment("sollya polynomial  for  exp(x): %s" % poly_object.get_sollya_object())
-        self.result.add_header_comment("polynomial approximation error: %s" % poly_approx_error)
-        self.result.add_header_comment("polynomial evaluation    error: %s" % poly_eval_error)
+        self.result.add_header_comment("polynomial degree  for  cos(x): %d" % poly_degree_cos)
+        self.result.add_header_comment("polynomial degree  for  sin(x): %d" % poly_degree_sin)
+        self.result.add_header_comment("sollya polynomial  for  cos(x): %s" % poly_object_cos.get_sollya_object())
+        self.result.add_header_comment("sollya polynomial  for  sin(x): %s" % poly_object_sin.get_sollya_object())
+        self.result.add_header_comment("polynomial approximation error cos: %s" % poly_approx_error_cos)
+        self.result.add_header_comment("polynomial approximation error sin: %s" % poly_approx_error_sin)
+        #self.result.add_header_comment("polynomial evaluation    error: %s" % poly_eval_error)
         if debug_flag:
             self.result.add_header("stdio.h")
             self.result.add_header("inttypes.h")
