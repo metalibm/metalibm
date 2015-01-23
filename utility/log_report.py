@@ -17,6 +17,12 @@ from common import Callable
 class Log:
     """ log report class """
     log_stream = None
+    dump_stdout = False
+
+    @staticmethod
+    def set_dump_stdout(new_dump_stdout):
+      Log.dump_stdout = new_dump_stdout
+      
 
     class LogLevel(object): 
         """ log level builder """
@@ -33,6 +39,8 @@ class Log:
         """ report log message """
         if Log.log_stream:
             Log.log_stream.write(msg + eol)
+            if Log.dump_stdout: 
+              print "%s: %s" % (level.name, msg)
         else:
             print "%s: %s" % (level.name, msg)
         if level is Log.Error:

@@ -26,16 +26,20 @@ def attr_init(attrs, attr_name, default_value = None, required = False):
 
 class ML_Debug:
     """ Debug attributes class to adapt the debug display message properties """
-    def __init__(self, display_format = None, color = None, pre_process = lambda v: v):
+    def __init__(self, display_format = None, color = None, pre_process = lambda v: v, require_header = []):
         self.display_format = display_format
         self.color = color
         self.pre_process = pre_process
+        self.require_header = require_header
 
     def get_display_format(self, default = "%f"):
         return self.display_format if self.display_format else default
 
     def get_pre_process(self, value_to_display):
         return self.pre_process(value_to_display)
+
+    def get_require_header(self):
+        return self.require_header
 
 class Handle: 
     def __init__(self, node = None):

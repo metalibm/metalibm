@@ -216,7 +216,7 @@ class CCodeGenerator:
 
         # debug management
         if optree.get_debug() and not self.disable_debug:
-            code_object << self.generate_debug_msg(optree, result)
+            code_object << self.generate_debug_msg(optree, result, code_object)
             
 
         if initial and not isinstance(result, CodeVariable):
@@ -257,8 +257,12 @@ class CCodeGenerator:
             raise ML_NotImplemented()
 
 
-    def generate_debug_msg(self, optree, result):
+    def generate_debug_msg(self, optree, result, code_object):
         debug_object = optree.get_debug()
+        # adding required headers
+        if isinstance(debug_object, ML_Debug):
+            for header in debug_object.get_require_header():
+              code_object.add_header(header)
         precision = optree.get_precision()
         display_format = debug_object.get_display_format(precision.get_c_display_format()) if isinstance(debug_object, ML_Debug) else precision.get_c_display_format()
         display_result = debug_object.get_pre_process(result.get()) if isinstance(debug_object, ML_Debug) else result.get()

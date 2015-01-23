@@ -45,7 +45,9 @@ class Polynomial:
         elif isinstance(init_object, SollyaObject):
             self.degree = degree(init_object)
             for index in xrange(self.degree+1):
-                self.coeff_map[index] = coeff(init_object, index)
+                coeff_value = coeff(init_object, index)
+                if coeff_value != 0:
+                  self.coeff_map[index] = coeff_value
 
         self.sollya_object = 0
         # building sollya object
