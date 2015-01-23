@@ -48,7 +48,7 @@ class ML_Cosine:
         # declaring CodeFunction and retrieving input variable
         self.function_name = function_name
         exp_implementation = CodeFunction(self.function_name, output_format = self.precision)
-        vx = exp_implementation.add_input_variable("x", self.precision) 
+        vx = Abs(exp_implementation.add_input_variable("x", self.precision), tag = "vx") 
 
 
         Log.report(Log.Info, "\033[33;1m generating implementation scheme \033[0m")
@@ -86,60 +86,86 @@ class ML_Cosine:
         inv_frac_pi_lo = round(pi / S2**frac_pi_index - inv_frac_pi, sollya_precision, RN)
         # computing k = E(x * frac_pi)
         vx_pi = Multiplication(vx, frac_pi, precision = self.precision)
-        k = NearestInteger(vx_pi, precision = ML_Int32)
+        k = NearestInteger(vx_pi, precision = ML_Int32, tag = "k", debug = True)
 
         inv_frac_pi_cst    = Constant(inv_frac_pi, tag = "inv_frac_pi")
         inv_frac_pi_lo_cst = Constant(inv_frac_pi_lo, tag = "inv_frac_pi_lo")
 
-        red_x = (vx - inv_frac_pi_cst * k) - inv_frac_pi_lo_cst * k
+        red_vx = (vx - inv_frac_pi_cst * k) - inv_frac_pi_lo_cst * k
+        red_vx.set_attributes(tag = "red_vx", debug = debug_precision)
 
         approx_interval = Interval(-pi/(S2**(frac_pi_index+1)), pi / S2**(frac_pi_index+1))
+
+        Log.report(Log.Info, "approx interval: %s\n" % approx_interval)
 
         error_goal_approx = S2**-self.precision.get_precision()
 
 
         Log.report(Log.Info, "\033[33;1m building mathematical polynomial \033[0m\n")
-        poly_degree_cos = int(sup(guessdegree(cos(x), approx_interval, error_goal_approx)))
-        poly_degree_sin = int(sup(guessdegree(sin(x), approx_interval, error_goal_approx)))
+        poly_degree_cos = int(sup(guessdegree(cos(x), approx_interval, error_goal_approx))) 
+        poly_degree_sin = int(sup(guessdegree(sin(x), approx_interval, error_goal_approx))) + 1
         Log.report(Log.Info, "poly degree is %d for cos and %d for sin\n" % (poly_degree_cos, poly_degree_sin))
+
+        # adjusting degree according to parity
+        if poly_degree_cos % 2 == 1:
+          poly_degree_cos += 1
+        if poly_degree_sin % 2 == 0:
+          poly_degree_sin += 1
 
 
         error_function = lambda p, f, ai, mod, t: dirtyinfnorm(f - p, ai)
 
-        polynomial_scheme_builder = PolynomialSchemeEvaluator.generate_estrin_scheme
-        #polynomial_scheme_builder = PolynomialSchemeEvaluator.generate_horner_scheme
+        #polynomial_scheme_builder = PolynomialSchemeEvaluator.generate_estrin_scheme
+        polynomial_scheme_builder = PolynomialSchemeEvaluator.generate_horner_scheme
 
 
+        cos_degree_list = range(0, poly_degree_cos + 1, 2)
+        sin_degree_list = range(1, poly_degree_sin + 1, 2) 
+        cospi4_degree_list = range(0, poly_degree_cos + 1)
 
-        format_list_cos = [self.precision] * (poly_degree_cos + 1)
-        format_list_sin = [self.precision] * (poly_degree_sin + 1)
+        format_list_cos    = [1] + [self.precision] * (len(cos_degree_list) - 1)
+        format_list_sin    = [self.precision] * (len(sin_degree_list))
+        format_list_cospi4 = [self.precision] * len(cospi4_degree_list) 
 
-        poly_object_cos, poly_approx_error_cos = Polynomial.build_from_approximation_with_error(cos(x), poly_degree_cos, format_list_cos, approx_interval, absolute, error_function = error_function)
-        poly_object_sin, poly_approx_error_sin = Polynomial.build_from_approximation_with_error(sin(x), poly_degree_sin, format_list_cos, approx_interval, absolute, error_function = error_function)
-
-        Log.report(Log.Info, "fpminimax polynomial for cos is %s " % poly_object_cos.get_sollya_object())
-        Log.report(Log.Info, "fpminimax polynomial for sin is %s " % poly_object_sin.get_sollya_object())
-
+        poly_object_cos, poly_approx_error_cos = Polynomial.build_from_approximation_with_error(cos(x), cos_degree_list, format_list_cos, approx_interval, absolute, error_function = error_function)
+        display(hexadecimal)
+        poly_object_sin, poly_approx_error_sin = Polynomial.build_from_approximation_with_error(sin(x), sin_degree_list, format_list_sin, approx_interval, absolute, error_function = error_function)
+        poly_object_cospi4, poly_approx_error_cospi4 = Polynomial.build_from_approximation_with_error(cos(x+pi/4), cospi4_degree_list, format_list_cospi4, approx_interval, absolute, error_function = error_function)
 
 
-        poly_cos = polynomial_scheme_builder(poly_object_cos, red_x, unified_precision = self.precision)
-        poly_sin = polynomial_scheme_builder(poly_object_sin, red_x, unified_precision = self.precision)
+        Log.report(Log.Info, "fpminimax polynomial for cos(r) is %s " % poly_object_cos.get_sollya_object())
+        Log.report(Log.Info, "fpminimax polynomial for sin(r) is %s " % poly_object_sin.get_sollya_object())
+        Log.report(Log.Info, "fpminimax polynomial for cos(r+pi/4) is %s " % poly_object_cospi4.get_sollya_object())
+
+
+        modk8 = Modulo(k, 8, precision = ML_Int32, tag = "switch_value", debug = True)
+
+
+        # select reduced argument
+        select_cond = LogicalOr(Comparison(modk8, 3, specifier = Comparison.Equal),
+            Comparison(modk8, 7, specifier = Comparison.Equal))
+        red_sx = Select(select_cond, -red_vx, red_vx)  
+
+
+        poly_cos    = polynomial_scheme_builder(poly_object_cos, red_sx, unified_precision = self.precision)
+        poly_sin    = polynomial_scheme_builder(poly_object_sin, red_sx, unified_precision = self.precision)
+        poly_cospi4 = polynomial_scheme_builder(poly_object_cospi4, red_sx, unified_precision = self.precision)
+
         poly_cos.set_attributes(tag = "poly_cos", debug = debug_precision)
         poly_sin.set_attributes(tag = "poly_sin", debug = debug_precision)
+        poly_cospi4.set_attributes(tag = "poly_cospi4", debug = debug_precision)
 
-        sqrt2o2 = Constant(round(sqrt(S2)/2, sollya_precision, RN), precision = self.precision)
 
         switch_map = {
           0: Return(poly_cos),
-          1: Return(sqrt2o2 * (poly_cos - poly_sin)),
-          2: Return(poly_sin),
-          3: Return(-sqrt2o2*(poly_cos + poly_sin)),
+          1: Return(poly_cospi4),
+          2: Return(-poly_sin),
+          3: Return(-poly_cospi4),
           4: Return(-poly_cos),
-          5: Return(sqrt2o2 * (poly_sin - poly_cos)),
-          6: Return(-poly_sin),
-          7: Return(sqrt2o2 * (poly_cos + poly_sin))
+          5: Return(-poly_cospi4),
+          6: Return(poly_sin),
+          7: Return(poly_cospi4),
         }
-        modk8 = Modulo(k, 8, precision = ML_Int32, tag = "switch_value", debug = True)
         result = SwitchBlock(modk8, switch_map)
 
 
