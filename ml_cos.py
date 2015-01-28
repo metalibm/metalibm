@@ -26,6 +26,43 @@ from metalibm_core.utility.num_utils   import ulp
 from metalibm_core.utility.gappa_utils import is_gappa_installed
 
 
+# lambda_msb is a function to determine the Median msb index, it takes an exponent as operand
+# and returns a ML_Integer subtype value
+#def generate_payne_hanek(exact_constant, msb_index_dag, size, lsb, precision):
+#    cst_msb = int(ceil(log2(exact_constant))
+#    p = precision.get_field_size()
+#    tmp_lsb = cst_msb - p + 1 
+#
+#    array_size = int(ceil((lsb - cst_msb + 1) / p))
+#    cst_table = ML_Table(dimensions = [array_size, 0], storage_precision = precision)
+#
+#    # building value table
+#    tmp_cst = exact_constant
+#    for i in xrange(0, array_size):
+#      new_cst = round(tmp_cst, precision.get_sollya_object(), RN)
+#      tmp_cst = tmp_cst - new_cst
+#      cst_table[i][0] = tmp_cst
+#
+#    init_diff = cst_msb - msb_index_dag
+#
+#    msb_index = (init_diff) / p  
+#    nb_index = (size / p) + 1
+#    # number of valid bit in the first segment
+#    nvb = p - Modulo(init_diff, p)
+#    valid_mask = BitLogicRightShift(0xffffffff, 32 - nvb)
+#    Select(nvb == p, 0.0, TypeCast(BitLogic
+#
+#    # building median retrieval
+#    med_msb = TableLoad(cst_table, msb_index, 0)
+#    BitLogicRightShift(0xffffff, p - Modulo(init_diff, p) 
+
+
+
+
+
+
+
+
 
 class ML_Cosine:
     def __init__(self, 
@@ -78,21 +115,27 @@ class ML_Cosine:
         # return in case of standard (non-special) input
 
         sollya_precision = precision.get_sollya_object()
+        hi_precision = precision.get_field_size() - 3
 
         # argument reduction
-        frac_pi_index = 2
+        frac_pi_index = 3
         frac_pi     = round(S2**frac_pi_index / pi, sollya_precision, RN)
-        inv_frac_pi = round(pi / S2**frac_pi_index, sollya_precision, RN)
+        inv_frac_pi = round(pi / S2**frac_pi_index, hi_precision, RN)
         inv_frac_pi_lo = round(pi / S2**frac_pi_index - inv_frac_pi, sollya_precision, RN)
         # computing k = E(x * frac_pi)
         vx_pi = Multiplication(vx, frac_pi, precision = self.precision)
         k = NearestInteger(vx_pi, precision = ML_Int32, tag = "k", debug = True)
+        fk = Conversion(k, precision = self.precision, tag = "fk")
 
-        inv_frac_pi_cst    = Constant(inv_frac_pi, tag = "inv_frac_pi")
-        inv_frac_pi_lo_cst = Constant(inv_frac_pi_lo, tag = "inv_frac_pi_lo")
+        inv_frac_pi_cst    = Constant(inv_frac_pi, tag = "inv_frac_pi", precision = self.precision)
+        inv_frac_pi_lo_cst = Constant(inv_frac_pi_lo, tag = "inv_frac_pi_lo", precision = self.precision)
 
-        red_vx = (vx - inv_frac_pi_cst * k) - inv_frac_pi_lo_cst * k
-        red_vx.set_attributes(tag = "red_vx", debug = debug_precision)
+        red_vx_hi = (vx - inv_frac_pi_cst * fk)
+        red_vx_hi.set_attributes(tag = "red_vx_hi", debug = debug_precision, precision = self.precision)
+        red_vx_lo_sub = inv_frac_pi_lo_cst * fk
+        red_vx_lo_sub.set_attributes(tag = "red_vx_lo_sub", debug = debug_precision, unbreakable = True, precision = self.precision)
+        red_vx = red_vx_hi - inv_frac_pi_lo_cst * fk
+        red_vx.set_attributes(tag = "red_vx", debug = debug_precision, precision = self.precision)
 
         approx_interval = Interval(-pi/(S2**(frac_pi_index+1)), pi / S2**(frac_pi_index+1))
 
@@ -102,15 +145,8 @@ class ML_Cosine:
 
 
         Log.report(Log.Info, "\033[33;1m building mathematical polynomial \033[0m\n")
-        poly_degree_cos = int(sup(guessdegree(cos(x), approx_interval, error_goal_approx))) 
-        poly_degree_sin = int(sup(guessdegree(sin(x), approx_interval, error_goal_approx))) + 1
-        Log.report(Log.Info, "poly degree is %d for cos and %d for sin\n" % (poly_degree_cos, poly_degree_sin))
+        poly_degree_vector = [None] * 2**(frac_pi_index+1)
 
-        # adjusting degree according to parity
-        if poly_degree_cos % 2 == 1:
-          poly_degree_cos += 1
-        if poly_degree_sin % 2 == 0:
-          poly_degree_sin += 1
 
 
         error_function = lambda p, f, ai, mod, t: dirtyinfnorm(f - p, ai)
@@ -119,54 +155,37 @@ class ML_Cosine:
         polynomial_scheme_builder = PolynomialSchemeEvaluator.generate_horner_scheme
 
 
-        cos_degree_list = range(0, poly_degree_cos + 1, 2)
-        sin_degree_list = range(1, poly_degree_sin + 1, 2) 
-        cospi4_degree_list = range(0, poly_degree_cos + 1)
+        poly_object_vector = [None] * 2**(frac_pi_index+1)
+        for i in xrange(2**(frac_pi_index+1)):
+          sub_func = cos(x+i*pi/S2**frac_pi_index)
+          degree = int(sup(guessdegree(sub_func, approx_interval, error_goal_approx)))
 
-        format_list_cos    = [1] + [self.precision] * (len(cos_degree_list) - 1)
-        format_list_sin    = [self.precision] * (len(sin_degree_list))
-        format_list_cospi4 = [self.precision] * len(cospi4_degree_list) 
-
-        poly_object_cos, poly_approx_error_cos = Polynomial.build_from_approximation_with_error(cos(x), cos_degree_list, format_list_cos, approx_interval, absolute, error_function = error_function)
-        display(hexadecimal)
-        poly_object_sin, poly_approx_error_sin = Polynomial.build_from_approximation_with_error(sin(x), sin_degree_list, format_list_sin, approx_interval, absolute, error_function = error_function)
-        poly_object_cospi4, poly_approx_error_cospi4 = Polynomial.build_from_approximation_with_error(cos(x+pi/4), cospi4_degree_list, format_list_cospi4, approx_interval, absolute, error_function = error_function)
+          poly_degree_vector[i] = degree 
+          poly_object_vector[i], _ = Polynomial.build_from_approximation_with_error(sub_func, degree, [binary32]*(degree+1), approx_interval, absolute, error_function = error_function) 
 
 
-        Log.report(Log.Info, "fpminimax polynomial for cos(r) is %s " % poly_object_cos.get_sollya_object())
-        Log.report(Log.Info, "fpminimax polynomial for sin(r) is %s " % poly_object_sin.get_sollya_object())
-        Log.report(Log.Info, "fpminimax polynomial for cos(r+pi/4) is %s " % poly_object_cospi4.get_sollya_object())
+
+        modk = Modulo(k, 2**(frac_pi_index+1), precision = ML_Int32, tag = "switch_value", debug = True)
 
 
-        modk8 = Modulo(k, 8, precision = ML_Int32, tag = "switch_value", debug = True)
 
+        # unified power map for red_sx^n
+        upm = {}
 
-        # select reduced argument
-        select_cond = LogicalOr(Comparison(modk8, 3, specifier = Comparison.Equal),
-            Comparison(modk8, 7, specifier = Comparison.Equal))
-        red_sx = Select(select_cond, -red_vx, red_vx)  
+        poly_scheme_vector = [None] * (2**(frac_pi_index+1))
 
+        for i in xrange(2**(frac_pi_index+1)):
+          poly_object = poly_object_vector[i]
+          poly_scheme = polynomial_scheme_builder(poly_object, red_vx, unified_precision = self.precision, power_map_ = upm)
+          poly_scheme.set_attributes(tag = "poly_cos%dpi%d" % (i, 2**(frac_pi_index)))
+          poly_scheme_vector[i] = poly_scheme
 
-        poly_cos    = polynomial_scheme_builder(poly_object_cos, red_sx, unified_precision = self.precision)
-        poly_sin    = polynomial_scheme_builder(poly_object_sin, red_sx, unified_precision = self.precision)
-        poly_cospi4 = polynomial_scheme_builder(poly_object_cospi4, red_sx, unified_precision = self.precision)
+        switch_map = {}
+        for i in xrange(2**(frac_pi_index+1)):
+          switch_map[i] = Return(poly_scheme_vector[i])
+        
 
-        poly_cos.set_attributes(tag = "poly_cos", debug = debug_precision)
-        poly_sin.set_attributes(tag = "poly_sin", debug = debug_precision)
-        poly_cospi4.set_attributes(tag = "poly_cospi4", debug = debug_precision)
-
-
-        switch_map = {
-          0: Return(poly_cos),
-          1: Return(poly_cospi4),
-          2: Return(-poly_sin),
-          3: Return(-poly_cospi4),
-          4: Return(-poly_cos),
-          5: Return(-poly_cospi4),
-          6: Return(poly_sin),
-          7: Return(poly_cospi4),
-        }
-        result = SwitchBlock(modk8, switch_map)
+        result = SwitchBlock(modk, switch_map)
 
 
         # main scheme
@@ -185,6 +204,7 @@ class ML_Cosine:
 
         Log.report(Log.Info, "\033[33;1m MDL instantiated scheme \033[0m")
         opt_eng.instantiate_precision(scheme, default_precision = self.precision)
+
 
         Log.report(Log.Info, "\033[33;1m subexpression sharing \033[0m")
         opt_eng.subexpression_sharing(scheme)
@@ -210,12 +230,12 @@ class ML_Cosine:
         #self.result.add_header("support_lib/ml_types.h")
         self.result.add_header("support_lib/ml_special_values.h")
         #display(decimal)
-        self.result.add_header_comment("polynomial degree  for  cos(x): %d" % poly_degree_cos)
-        self.result.add_header_comment("polynomial degree  for  sin(x): %d" % poly_degree_sin)
-        self.result.add_header_comment("sollya polynomial  for  cos(x): %s" % poly_object_cos.get_sollya_object())
-        self.result.add_header_comment("sollya polynomial  for  sin(x): %s" % poly_object_sin.get_sollya_object())
-        self.result.add_header_comment("polynomial approximation error cos: %s" % poly_approx_error_cos)
-        self.result.add_header_comment("polynomial approximation error sin: %s" % poly_approx_error_sin)
+        #self.result.add_header_comment("polynomial degree  for  cos(x): %d" % poly_degree_cos)
+        #self.result.add_header_comment("polynomial degree  for  sin(x): %d" % poly_degree_sin)
+        #self.result.add_header_comment("sollya polynomial  for  cos(x): %s" % poly_object_cos.get_sollya_object())
+        #self.result.add_header_comment("sollya polynomial  for  sin(x): %s" % poly_object_sin.get_sollya_object())
+        #self.result.add_header_comment("polynomial approximation error cos: %s" % poly_approx_error_cos)
+        #self.result.add_header_comment("polynomial approximation error sin: %s" % poly_approx_error_sin)
         #self.result.add_header_comment("polynomial evaluation    error: %s" % poly_eval_error)
         if debug_flag:
             self.result.add_header("stdio.h")
