@@ -94,6 +94,16 @@ class AbstractOperation(ML_Operation):
         """ implicit add operation between AbstractOperation """
         return Addition(self, implicit_op(op))
 
+    def __pow__(self, n):
+        if n == 0: return Constant(1, precision = self.get_precision())
+        elif n == 1: return self
+        else:
+          tmp = self**(n/2)
+          if n % 2 == 1:
+            return tmp * tmp * self
+          else:
+            return tmp * tmp
+
     def __sub__(self, op):
         """ implicit add operation between AbstractOperation """
         return Subtraction(self, implicit_op(op))

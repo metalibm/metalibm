@@ -9,6 +9,7 @@
 # author(s): Nicolas Brunie (nicolas.brunie@kalray.eu)
 ###############################################################################
 
+import sys
 from ..utility.log_report import Log
 from .ml_operations import *
 from .ml_formats import *
@@ -490,6 +491,7 @@ class OptimizationEngine:
                 for inp in optree.inputs:
                     self.instantiate_abstract_precision(inp, default_precision, memoization_map = memoization_map)
                 for inp in optree.get_extra_inputs():
+                    print "instanciating abstract precision"
                     self.instantiate_abstract_precision(inp, default_precision, memoization_map = memoization_map)
                 memoization_map[optree] = None
                 return None
@@ -534,10 +536,13 @@ class OptimizationEngine:
             if the operation is not supported """
         result_precision = optree.get_precision()
 
+
         if optree in memoization_map:
             return memoization_map[optree]
 
+
         if not isinstance(optree, ML_LeafNode):
+
             for inp in optree.inputs: 
                 self.instantiate_precision(inp, default_precision, memoization_map = memoization_map)
 
@@ -814,7 +819,7 @@ class OptimizationEngine:
             elif isinstance(optree, Return):
                 pass
             elif isinstance(optree, SwitchBlock):
-                self.check_processor_support(optree.get_pre_statement(), memoization_map)
+                #self.check_processor_support(optree.get_pre_statement(), memoization_map)
 
                 for op in optree.get_extra_inputs():
                   # TODO: assert case is integer constant
@@ -822,6 +827,7 @@ class OptimizationEngine:
             elif not self.processor.is_supported_operation(optree):
                 # trying operand format escalation
                 while optree.__class__ in type_escalation:
+                    print optree.get_str(display_precision = True, memoization_map = {})
                     match_found = False
                     for result_type_cond in type_escalation[optree.__class__]:
                         if result_type_cond(optree.get_precision()): 
@@ -829,7 +835,7 @@ class OptimizationEngine:
                                 op = optree.inputs[op_index]
                                 for op_type_cond in type_escalation[optree.__class__][result_type_cond]:
                                     if op_type_cond(op.get_precision()): 
-                                        #Log.report(Log.Info, "type escalation for %s %s" % (op.get_str(depth = 1, display_precision = True), optree.get_str(depth = 1, display_precision = True)))
+                                        Log.report(Log.Info, "type escalation for %s %s" % (op.get_str(depth = 1, display_precision = True), optree.get_str(depth = 1, display_precision = True)))
                                         new_type = type_escalation[optree.__class__][result_type_cond][op_type_cond](optree) 
                                         if op.get_precision() != new_type:
                                             # conversion insertion
@@ -839,6 +845,7 @@ class OptimizationEngine:
                                             match_found = True
                                             break
                             break
+                    print optree.get_str(display_precision = True, memoization_map = {})
                     if not match_found:
                         break
                 # checking final processor support
@@ -846,8 +853,9 @@ class OptimizationEngine:
                     # look for possible simplification
                     if self.has_support_simplification(optree):
                         simplified_tree = self.get_support_simplification(optree)
-                        #Log.report(Log.Info, "simplifying %s" % optree.get_str(depth = 2, display_precision = True))
-                        #Log.report(Log.Info, "into %s" % simplified_tree.get_str(depth = 2, display_precision = True))
+                        Log.report(Log.Info, "simplifying %s" % optree.get_str(depth = 2, display_precision = True))
+                        Log.report(Log.Info, "into %s" % simplified_tree.get_str(depth = 2, display_precision = True))
+
                         optree.change_to(simplified_tree)
                         if self.processor.is_supported_operation(optree):
                             memoization_map[optree] = True

@@ -86,6 +86,18 @@ class Polynomial:
             new_coeff_map[index - offset] = self.coeff_map[index]
         return Polynomial(new_coeff_map)
 
+
+    def sub_poly_cond(self, monomial_cond = lambda i, c: True, offset = 0): 
+        """ sub polynomial extraction, each monomial C*x^i verifying monomial_cond(i, C)
+            is selected, others are discarded """
+        new_coeff_map = {}
+        for index in self.coeff_map:
+          coeff_value = self.coeff_map[index]
+          if monomial_cond(index, coeff_value):
+            new_coeff_map[index - offset] = coeff_value
+        return Polynomial(new_coeff_map)
+          
+
     def get_ordered_coeff_list(self):
         """ return the list of (index, coefficient) for the polynomial <self>
             ordered in increasing order """
@@ -154,11 +166,11 @@ def generate_power(variable, power, power_map = {}, precision = None):
 class PolynomialSchemeEvaluator:
     """ class for polynomial evaluation scheme generation """
 
-    def generate_horner_scheme(polynomial_object, variable, unified_precision = None):
+    def generate_horner_scheme(polynomial_object, variable, unified_precision = None, power_map_ = None):
         """ generate a Horner evaluation scheme for the polynomial <polynomial_object>
             on variable <variable>, arithmetic operation are performed in format 
             <unified_precision> if specified """
-        power_map = {}
+        power_map = power_map_ if power_map_ != None else {}
         coeff_list = polynomial_object.get_ordered_coeff_list()[::-1]
         if len(coeff_list) == 0:
             return Constant(0)
