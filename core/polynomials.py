@@ -14,7 +14,7 @@ from pythonsollya import *
 
 from ..utility.common import Callable
 from ..utility.log_report import Log
-from .ml_operations import Constant, Variable, Multiplication, Addition
+from .ml_operations import Constant, Variable, Multiplication, Addition, Subtraction
 from .ml_formats import ML_FP_Format, ML_Format
 
 class Polynomial:
@@ -183,7 +183,7 @@ class PolynomialSchemeEvaluator:
             
         current_index = coeff_list[0][0]
         current_scheme = Constant(coeff_list[0][1])
-        for index, coeff in coeff_list[1:]:
+        for index, coeff in coeff_list[1:-1]:
             current_coeff = Constant(coeff)
 
             index_diff = current_index - index
@@ -192,9 +192,37 @@ class PolynomialSchemeEvaluator:
             diff_power = generate_power(variable, index_diff, power_map, precision = unified_precision)
             mult_op = Multiplication(diff_power, current_scheme, precision = unified_precision)
             current_scheme = Addition(current_coeff, mult_op, precision = unified_precision)
-        if current_index > 0:
-            last_power = generate_power(variable, current_index, power_map, precision = unified_precision)
-            current_scheme = Multiplication(last_power, current_scheme, precision = unified_precision)
+        # last coefficient
+        index, coeff = coeff_list[-1]
+        current_coeff = Constant(coeff)
+        if (coeff == 1.0 or coeff == -1.0) and index <= 1:
+            # generating FMA
+            index_diff = current_index
+
+            diff_power = generate_power(variable, index_diff, power_map, precision = unified_precision)
+            mult_op = Multiplication(diff_power, current_scheme, precision = unified_precision)
+            if index == 0:
+              current_scheme = Addition(current_coeff, mult_op, precision = unified_precision)
+            elif index == 1:
+              if coeff == 1.0:
+                current_scheme = Addition(variable, mult_op, precision = unified_precision)
+              elif coeff == -1.0:
+                current_scheme = Subtraction(mult_op, variable, precision = unified_precision)
+
+            
+
+
+        else:
+            index_diff = current_index - index
+            current_index = index
+
+            diff_power = generate_power(variable, index_diff, power_map, precision = unified_precision)
+            mult_op = Multiplication(diff_power, current_scheme, precision = unified_precision)
+            current_scheme = Addition(current_coeff, mult_op, precision = unified_precision)
+
+            if current_index > 0:
+                last_power = generate_power(variable, current_index, power_map, precision = unified_precision)
+                current_scheme = Multiplication(last_power, current_scheme, precision = unified_precision)
 
         return current_scheme
             

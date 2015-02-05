@@ -1102,6 +1102,11 @@ class SwitchBlock(AbstractOperationConstructor("Switch", arity = 1)):
             precision_str = "" if not display_precision else "[%s]" % str(self.get_precision())
             pre_str = tab_str + "%s%s%s%s%s ------> %s\n%s" % (self.get_name(), precision_str, silent_str, id_str, attribute_str, str_tag, "".join(inp.get_str(new_depth, display_precision, tab_level = tab_level + 1, memoization_map = memoization_map, display_attribute = display_attribute, display_id = display_id) for inp in self.inputs))
             for case in self.case_map:
-                pre_str += "Case: %s" %  case #.get_str(new_depth, display_precision, tab_level = 0, memoization_map = memoization_map, display_attribute = display_attribute, display_id = display_id)
+                case_str = ""
+                if isinstance(case, tuple):
+                  case_str = ", ".join([str(sc) for sc in case])
+                else:
+                  case_str = "%s" % case
+                pre_str += "Case: %s" %  case_str #.get_str(new_depth, display_precision, tab_level = 0, memoization_map = memoization_map, display_attribute = display_attribute, display_id = display_id)
                 pre_str += "%s" %  self.case_map[case].get_str(new_depth, display_precision, tab_level = tab_level + 2, memoization_map = memoization_map, display_attribute = display_attribute, display_id = display_id)
             return pre_str

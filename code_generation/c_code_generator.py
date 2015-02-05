@@ -94,7 +94,11 @@ class CCodeGenerator:
                 cst_varname = code_object.declare_cst(optree)
                 result = CodeVariable(cst_varname, precision)
             else:
-                result = CodeExpression(precision.get_c_cst(optree.get_value()), precision)
+                try:
+                    result = CodeExpression(precision.get_c_cst(optree.get_value()), precision)
+                except:
+                  print optree.get_str(display_precision = True)
+                  raise Exception()
 
         elif isinstance(optree, TableLoad):
             # declaring table
@@ -119,8 +123,11 @@ class CCodeGenerator:
             for case in case_map:
               case_value = case
               case_statement = case_map[case]
-              #case_value_code = self.generate_expr(code_object, case, folded = folded)
-              code_object << "case %s:\n" % case
+              if isinstance(case_value, tuple):
+                for sub_case in case:
+                  code_object << "case %s:\n" % sub_case
+              else:
+                code_object << "case %s:\n" % case
               code_object.open_level()
               self.generate_expr(code_object, case_statement, folded = folded) 
               code_object.close_level()

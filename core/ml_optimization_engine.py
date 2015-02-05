@@ -491,7 +491,6 @@ class OptimizationEngine:
                 for inp in optree.inputs:
                     self.instantiate_abstract_precision(inp, default_precision, memoization_map = memoization_map)
                 for inp in optree.get_extra_inputs():
-                    print "instanciating abstract precision"
                     self.instantiate_abstract_precision(inp, default_precision, memoization_map = memoization_map)
                 memoization_map[optree] = None
                 return None
