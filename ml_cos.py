@@ -134,7 +134,13 @@ class ML_Cosine:
         red_vx_hi.set_attributes(tag = "red_vx_hi", debug = debug_precision, precision = self.precision)
         red_vx_lo_sub = inv_frac_pi_lo_cst * fk
         red_vx_lo_sub.set_attributes(tag = "red_vx_lo_sub", debug = debug_precision, unbreakable = True, precision = self.precision)
-        red_vx = red_vx_hi - inv_frac_pi_lo_cst * fk
+        pre_red_vx = red_vx_hi - inv_frac_pi_lo_cst * fk
+
+
+        modk = Modulo(k, 2**(frac_pi_index+1), precision = ML_Int32, tag = "switch_value", debug = True)
+
+        sel_c = Equal(BitLogicAnd(modk, 2**(frac_pi_index-1)), 2**(frac_pi_index-1))
+        red_vx = Select(sel_c, -pre_red_vx, pre_red_vx)
         red_vx.set_attributes(tag = "red_vx", debug = debug_precision, precision = self.precision)
 
         approx_interval = Interval(-pi/(S2**(frac_pi_index+1)), pi / S2**(frac_pi_index+1))
@@ -154,35 +160,127 @@ class ML_Cosine:
         #polynomial_scheme_builder = PolynomialSchemeEvaluator.generate_estrin_scheme
         polynomial_scheme_builder = PolynomialSchemeEvaluator.generate_horner_scheme
 
+        index_relative = []
 
         poly_object_vector = [None] * 2**(frac_pi_index+1)
         for i in xrange(2**(frac_pi_index+1)):
           sub_func = cos(x+i*pi/S2**frac_pi_index)
-          degree = int(sup(guessdegree(sub_func, approx_interval, error_goal_approx)))
+          degree = int(sup(guessdegree(sub_func, approx_interval, error_goal_approx))) + 1
+
+          degree_list = range(degree+1)
+          a_interval = approx_interval
+          if i == 0:
+            # ad-hoc, TODO: to be cleaned
+            degree = 6
+            degree_list = range(0, degree+1, 2)
+          elif i % 2**(frac_pi_index) == 2**(frac_pi_index-1):
+            degree_list = range(1, degree+1, 2)
 
           poly_degree_vector[i] = degree 
-          poly_object_vector[i], _ = Polynomial.build_from_approximation_with_error(sub_func, degree, [binary32]*(degree+1), approx_interval, absolute, error_function = error_function) 
+
+          constraint = absolute
+          delta = (2**(frac_pi_index - 3))
+          centered_i = (i % 2**(frac_pi_index)) - 2**(frac_pi_index-1)
+          if centered_i < delta and centered_i > -delta and centered_i != 0:
+            constraint = relative
+            index_relative.append(i)
+          Log.report(Log.Info, "generating approximation for %d/%d" % (i, 2**(frac_pi_index+1)))
+          poly_object_vector[i], _ = Polynomial.build_from_approximation_with_error(sub_func, degree_list, [binary32]*(degree+1), a_interval, constraint, error_function = error_function) 
 
 
 
-        modk = Modulo(k, 2**(frac_pi_index+1), precision = ML_Int32, tag = "switch_value", debug = True)
 
 
 
         # unified power map for red_sx^n
         upm = {}
+        rel_error_list = []
 
         poly_scheme_vector = [None] * (2**(frac_pi_index+1))
 
         for i in xrange(2**(frac_pi_index+1)):
           poly_object = poly_object_vector[i]
-          poly_scheme = polynomial_scheme_builder(poly_object, red_vx, unified_precision = self.precision, power_map_ = upm)
-          poly_scheme.set_attributes(tag = "poly_cos%dpi%d" % (i, 2**(frac_pi_index)))
+          poly_precision = self.precision
+          if i == 3 or i == 5 or i == 7 or i == 9: 
+              poly_precision = ML_Binary64
+              c0 = Constant(coeff(poly_object.get_sollya_object(), 0), precision = ML_Binary64)
+              c1 = Constant(coeff(poly_object.get_sollya_object(), 1), precision = ML_Binary64)
+              poly_hi = (c0 + c1 * red_vx)
+              poly_hi.set_precision(ML_Binary64)
+              poly_scheme = poly_hi + polynomial_scheme_builder(poly_object.sub_poly(start_index = 2), red_vx, unified_precision = self.precision, power_map_ = upm)
+          else:
+            poly_scheme = polynomial_scheme_builder(poly_object, red_vx, unified_precision = poly_precision, power_map_ = upm)
+          #if i == 3:
+          #  c0 = Constant(coeff(poly_object.get_sollya_object(), 0), precision = self.precision)
+          #  c1 = Constant(coeff(poly_object.get_sollya_object(), 1), precision = self.precision)
+          #  poly_scheme = (c0 + c1 * red_vx) + polynomial_scheme_builder(poly_object.sub_poly(start_index = 2), red_vx, unified_precision = self.precision, power_map_ = upm)
+
+          poly_scheme.set_attributes(tag = "poly_cos%dpi%d" % (i, 2**(frac_pi_index)), debug = debug_precision)
           poly_scheme_vector[i] = poly_scheme
 
+          opt_scheme = opt_eng.optimization_process(poly_scheme, self.precision, copy = True, fuse_fma = fuse_fma)
+
+          tag_map = {}
+          opt_eng.register_nodes_by_tag(opt_scheme, tag_map)
+
+          cg_eval_error_copy_map = {
+              tag_map["red_vx"]: Variable("red_vx", precision = self.precision, interval = approx_interval),
+          }
+
+
+          #try:
+          #if is_gappa_installed():
+          #    eval_error = gappacg.get_eval_error_v2(opt_eng, opt_scheme, cg_eval_error_copy_map, gappa_filename = "red_arg_%d.g" % i)
+          #    poly_range = cos(approx_interval+i*pi/S2**frac_pi_index)
+          #    rel_error_list.append(eval_error / poly_range)
+
+
+        #for rel_error in rel_error_list:
+        #  print sup(abs(rel_error))
+
+        #return 
+
+        # case 17
+        #poly17 = poly_object_vector[17]
+        #c0 = Constant(coeff(poly17.get_sollya_object(), 0), precision = self.precision)
+        #c1 = Constant(coeff(poly17.get_sollya_object(), 1), precision = self.precision)
+        #poly_scheme_vector[17] = FusedMultiplyAdd(c1, red_vx, c0, specifier = FusedMultiplyAdd.Standard) + polynomial_scheme_builder(poly17.sub_poly(start_index = 2), red_vx, unified_precision = self.precision, power_map_ = upm)
+
+        half = 2**frac_pi_index
+        sub_half = 2**(frac_pi_index - 1)
+
+        factor_cond = BitLogicXor(BitLogicRightShift(modk, frac_pi_index), BitLogicRightShift(modk, frac_pi_index-1))
+
+        CM1 = Constant(-1, precision = self.precision)
+        C1  = Constant(1, precision = self.precision)
+        factor = Select(factor_cond, CM1, C1)
+        factor2 = Select(Equal(modk, Constant(sub_half)), CM1, C1) 
+
+
         switch_map = {}
-        for i in xrange(2**(frac_pi_index+1)):
-          switch_map[i] = Return(poly_scheme_vector[i])
+        if 0:
+          for i in xrange(2**(frac_pi_index+1)):
+            switch_map[i] = Return(poly_scheme_vector[i])
+        else:
+          for i in xrange(2**(frac_pi_index-1)):
+            switch_case = (i, half - i)
+            #switch_map[i]      = Return(poly_scheme_vector[i])
+            #switch_map[half-i] = Return(-poly_scheme_vector[i])
+            if i!= 0:
+              switch_case = switch_case + (half+i, 2*half-i)
+              #switch_map[half+i] = Return(-poly_scheme_vector[i])
+              #switch_map[2*half-i] = Return(poly_scheme_vector[i])
+            if poly_scheme_vector[i].get_precision() != self.precision:
+              poly_result = Conversion(poly_scheme_vector[i], precision = self.precision)
+            else:
+              poly_result = poly_scheme_vector[i]
+            switch_map[switch_case] = Return(factor*poly_result)
+          #switch_map[sub_half] = Return(-poly_scheme_vector[sub_half])
+          #switch_map[half + sub_half] = Return(poly_scheme_vector[sub_half])
+          switch_map[(sub_half, half + sub_half)] = Return(factor2 * poly_scheme_vector[sub_half])
+
+
+
         
 
         result = SwitchBlock(modk, switch_map)
@@ -223,6 +321,9 @@ class ML_Cosine:
         if fast_path_extract:
             Log.report(Log.Info, "\033[33;1m factorizing fast path\033[0m")
             opt_eng.factorize_fast_path(scheme)
+
+        print "ml_cos DAG: "
+        print scheme.get_str(depth = None, display_precision = True)
         
         Log.report(Log.Info, "\033[33;1m generating source code \033[0m")
         cg = CCodeGenerator(processor, declare_cst = False, disable_debug = not debug_flag, libm_compliant = libm_compliant)
