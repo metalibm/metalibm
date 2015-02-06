@@ -28,35 +28,62 @@ from metalibm_core.utility.gappa_utils import is_gappa_installed
 
 # lambda_msb is a function to determine the Median msb index, it takes an exponent as operand
 # and returns a ML_Integer subtype value
-#def generate_payne_hanek(exact_constant, msb_index_dag, size, lsb, precision):
-#    cst_msb = int(ceil(log2(exact_constant))
-#    p = precision.get_field_size()
-#    tmp_lsb = cst_msb - p + 1 
-#
-#    array_size = int(ceil((lsb - cst_msb + 1) / p))
-#    cst_table = ML_Table(dimensions = [array_size, 0], storage_precision = precision)
-#
-#    # building value table
-#    tmp_cst = exact_constant
-#    for i in xrange(0, array_size):
-#      new_cst = round(tmp_cst, precision.get_sollya_object(), RN)
-#      tmp_cst = tmp_cst - new_cst
-#      cst_table[i][0] = tmp_cst
-#
-#    init_diff = cst_msb - msb_index_dag
-#
-#    msb_index = (init_diff) / p  
-#    nb_index = (size / p) + 1
-#    # number of valid bit in the first segment
-#    nvb = p - Modulo(init_diff, p)
-#    valid_mask = BitLogicRightShift(0xffffffff, 32 - nvb)
-#    Select(nvb == p, 0.0, TypeCast(BitLogic
-#
-#    # building median retrieval
-#    med_msb = TableLoad(cst_table, msb_index, 0)
-#    BitLogicRightShift(0xffffff, p - Modulo(init_diff, p) 
+def generate_payne_hanek(exact_constant, msb_index_dag, size, lsb, precision):
+    cst_msb = int(ceil(log2(exact_constant)))
+    p = precision.get_field_size()
+    tmp_lsb = cst_msb - p + 1 
+
+    array_size = int(ceil((lsb - cst_msb + 1) / p))
+    cst_table = ML_Table(dimensions = [array_size, 0], storage_precision = precision)
+
+    sollya_precision = precision.get_sollya_object()
+
+    # building value table
+    tmp_cst = exact_constant
+    for i in xrange(0, array_size):
+      new_cst = round(tmp_cst, sollya_precision, RN)
+      tmp_cst = tmp_cst - new_cst
+      cst_table[i][0] = tmp_cst
+
+    init_diff = cst_msb - msb_index_dag
+
+    msb_index = (init_diff) / p  
+    nb_index = (size / p) + 1
+    # number of valid bit in the first segment
+    nvb = p - Modulo(init_diff, p)
+    valid_mask = BitLogicRightShift(0xffffffff, 32 - nvb)
+    Select(nvb == p, 0.0, TypeCast(BitLogic
+
+    # building median retrieval
+    med_msb = TableLoad(cst_table, msb_index, 0)
+    BitLogicRightShift(0xffffff, p - Modulo(init_diff, p) 
 
 
+def generate_payne_hanek(exact_cst_formula, precision, vx, n, k):
+    cst_msb = int(ceil(log2(exact_constant)))
+    p = precision.get_field_size()
+    tmp_lsb = cst_msb - p + 1 
+
+    array_size = int(ceil((lsb - cst_msb + 1) / p))
+    cst_table = ML_Table(dimensions = [array_size, 0], storage_precision = precision)
+
+    sollya_precision = precision.get_sollya_object()
+
+    chunk_size = p
+
+    # building value table
+    tmp_cst = exact_constant
+    for i in xrange(0, array_size):
+      new_cst = round(tmp_cst, chunk_size, RN)
+      tmp_cst = tmp_cst - new_cst
+      cst_table[i][0] = tmp_cst
+
+    e = ExponentExtraction(vx)
+    msb_exp = - e + Constant(p - 1 - k)
+    msb_index = (Constant(cst_msb) - msb_exp) / Constant(chunk_size)
+
+    lsb_exp = - e + Constant(p - 1 - n)
+    lsb_index = (Constant(cst_msb) - lsb_exp) / Constant(chunk_size)
 
 
 
@@ -204,7 +231,7 @@ class ML_Cosine:
           if i == 3 or i == 5 or i == 7 or i == 9: 
               poly_precision = ML_Binary64
               c0 = Constant(coeff(poly_object.get_sollya_object(), 0), precision = ML_Binary64)
-              c1 = Constant(coeff(poly_object.get_sollya_object(), 1), precision = ML_Binary64)
+              c1 = Constant(coeff(poly_object.get_sollya_object(), 1), precision = self.precision)
               poly_hi = (c0 + c1 * red_vx)
               poly_hi.set_precision(ML_Binary64)
               poly_scheme = poly_hi + polynomial_scheme_builder(poly_object.sub_poly(start_index = 2), red_vx, unified_precision = self.precision, power_map_ = upm)
