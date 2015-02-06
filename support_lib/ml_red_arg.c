@@ -22,12 +22,12 @@ float half_scaling_table[12] = {
 
 float payne_hanek(ph_data_t* ph_data, float x, unsigned n) {
   // float mantissa size
-  const unsigned p = 24;
-  const unsigned k = ph_data->k;
-  const unsigned cst_msb = ph_data->cst_msb;
-  const unsigned chunk_size = ph_data->chunk_size;
+  const int p = 24;
+  const int k = ph_data->k;
+  const int cst_msb = ph_data->cst_msb;
+  const int chunk_size = ph_data->chunk_size;
 
-  unsigned e, msb_exp, msb_index, lsb_exp, lsb_index;
+  int e, msb_exp, msb_index, lsb_exp, lsb_index;
 
   e = ml_exp_extraction_dirty_fp32(x);
   printf("e(x)=%d\n", e);
@@ -55,32 +55,38 @@ float payne_hanek(ph_data_t* ph_data, float x, unsigned n) {
   float msb_chunk  = ph_data->cst_data[msb_index];
   printf("\nmsb_chunk: %x\n", float_to_32b_encoding(msb_chunk));
   // msb chunk
-  if (cst_msb < msb_exp) {
+  /*if (cst_msb < msb_exp) {
     corrected_msb_chunk = msb_chunk; 
   } else {
-    unsigned exp_msb = ml_exp_extraction_dirty_fp32(msb_chunk) - msb_index * 24;
-    unsigned sgn_msb = float_to_32b_encoding(x) & 0x80000000u; 
-    unsigned delta   = exp_msb - msb_exp;
+    int exp_msb = ml_exp_extraction_dirty_fp32(msb_chunk) - msb_index * 24;
+    int sgn_msb = float_to_32b_encoding(x) & 0x80000000u; 
+    int delta   = exp_msb - msb_exp;
 
     printf("exp_msb=%d, delta = %d\n", exp_msb, delta);
 
-    unsigned new_exp = exp_msb - (delta + 1); 
-    unsigned mant_msb = ((float_to_32b_encoding(x) & 0x7fffff) | 0x800000);
+    int new_exp = exp_msb - (delta + 1); 
+    int mant_msb = ((float_to_32b_encoding(x) & 0x7fffff) | 0x800000);
     mant_msb = (mant_msb << (delta +1)) & 0xffffff;
-    unsigned deltap = __builtin_clz(mant_msb) - 8;
+    int deltap = __builtin_clz(mant_msb) - 8;
     new_exp = new_exp - deltap;
     mant_msb = mant_msb << deltap;
 
     corrected_msb_chunk = float_from_32b_encoding(sgn_msb | ((new_exp + 127 + ph_data->exp_offset) << 23) | mant_msb);
-  }
+  }*/
+  corrected_msb_chunk = msb_chunk; 
 
   printf("\ncorrected msb_chunk: %x\n", float_to_32b_encoding(corrected_msb_chunk));
 
-  double red_arg_d;
+  /*double red_arg_d = 0.0;
   double dx = x;
   red_arg_d += ((dx * half_scaling_table[msb_index]) * corrected_msb_chunk) * half_scaling_table[msb_index];
   printf("red_arg_d %f/%"PRIx64"\n", red_arg_d, double_to_64b_encoding(red_arg_d));
-  red_arg_d -= (__builtin_k1_fixedd(_K1_FPU_NEAREST_EVEN, red_arg_d, 0) >> 3) << 3;
+  if (ml_exp_extraction_dirty_fp64(red_arg_d) > 52 + k) {
+    // multiple of 8
+    red_arg_d = 0.0;
+  } else {
+    red_arg_d -= (__builtin_k1_fixedd(_K1_FPU_NEAREST_EVEN, red_arg_d, 0) >> 3) << 3;
+  }
   //printf("red_arg %f/%x\n", red_arg, float_to_32b_encoding(red_arg));
   printf("red_arg_d %f/%"PRIx64"\n", red_arg_d, double_to_64b_encoding(red_arg_d));
   for (i = msb_index + 1; i <= lsb_index && i < ph_data->data_size; i++) {
@@ -88,8 +94,24 @@ float payne_hanek(ph_data_t* ph_data, float x, unsigned n) {
     red_arg_d += ((dx * scale_factor) * ph_data->cst_data[i]) * scale_factor;
     printf("i : %d\n", i);
     //printf("   red_arg %f/%x\n", red_arg, float_to_32b_encoding(red_arg));
-    printf("    red_arg_d %f/%lx\n", red_arg_d, double_to_64b_encoding(red_arg_d));
-  }
+    printf("    red_arg_d %f/%"PRIx64"\n", red_arg_d, double_to_64b_encoding(red_arg_d));
+  }*/
+  double red_arg_d = 0.0, dx = x;
+  for (i = msb_index; i <= lsb_index && i < ph_data->data_size; i++) {
+      red_arg_d += ((dx * half_scaling_table[i]) * ph_data->cst_data[i]) * half_scaling_table[i];
+      printf("red_arg_d %f/%"PRIx64"\n", red_arg_d, double_to_64b_encoding(red_arg_d));
+      int exp_red_arg_d = ml_exp_extraction_dirty_fp64(red_arg_d);
+      if (exp_red_arg_d > 52 + k) {
+        // multiple of 8
+        red_arg_d = 0.0;
+      } else if (exp_red_arg_d < 3) {
+      } else {
+        red_arg_d -= (__builtin_k1_fixedd(_K1_FPU_NEAREST_EVEN, red_arg_d, 0) >> 3) << 3;
+      }
+      printf("new red_arg_d %f/%"PRIx64"\n", red_arg_d, double_to_64b_encoding(red_arg_d));
+
+  };
+
 
 
   return (float) red_arg_d;
