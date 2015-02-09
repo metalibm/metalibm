@@ -12,7 +12,7 @@
 
 
 from ..utility.common import ML_NotImplemented
-from ..core.ml_operations import Variable, Constant, ConditionBlock, Return, TableLoad, Statement, SpecificOperation, ExceptionOperation, ClearException, NoResultOperation, SwitchBlock
+from ..core.ml_operations import Variable, Constant, ConditionBlock, Return, TableLoad, Statement, SpecificOperation, ExceptionOperation, ClearException, NoResultOperation, SwitchBlock, FunctionObject
 from ..core.ml_table import ML_Table
 from ..core.ml_formats import *
 from ..core.attributes import ML_Debug
@@ -260,7 +260,10 @@ class CCodeGenerator:
             return "%s = %s;\n" % (initial_symbol, table_content_init)
         elif isinstance(symbol_object, CodeFunction):
             return "%s\n" % symbol_object.get_declaration()
+        elif isinstance(symbol_object, FunctionObject):
+            return "%s\n" % symbol_object.get_declaration()
         else:
+            print symbol_object.__class__
             raise ML_NotImplemented()
 
 

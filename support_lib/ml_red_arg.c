@@ -19,6 +19,32 @@ float half_scaling_table[12] = {
   0x1p-132f
 };
 
+ph_data_t pio8 = {                                                       
+  .data_size = 12,                                                       
+  .cst_msb = 1,  
+  .k = 3, 
+  .chunk_size = 24, 
+  .exp_offset = 124,                                                     
+  .cst_data = {
+    0x5.17cc18p-1,
+    0x3.72722p-1,
+    0xa.94fe1p-5,                                                        
+    0x3.abe8fcp-5,
+    -0x1.65912p-5,                                                       
+    0x6.db14bp-9,
+    -0x3.361de4p-9,
+    0x8.20ff3p-13,
+    -0x7.4e2a1p-13,
+    -0xa.21d4fp-17,
+    -0x2.46ep-17,
+    0,
+  }
+};
+
+
+float payne_hanek_cosfp32(float x) {
+  return payne_hanek(&pio8, x, 50);
+}
 
 float payne_hanek(ph_data_t* ph_data, float x, unsigned n) {
   // float mantissa size

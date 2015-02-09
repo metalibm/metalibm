@@ -101,7 +101,7 @@ abstract_typing_rule = {
     ComponentSelection:
         lambda optree, *ops: ML_Float,
     FunctionCall:
-        lambda optree, *ops: None,
+        lambda optree, *ops: optree.get_function_object().get_precision(),
 }
 
 practical_typing_rule = {
@@ -804,7 +804,7 @@ class OptimizationEngine:
 
     def check_processor_support(self, optree, memoization_map = {}):
         """ check if all precision-instantiated operation are supported by the processor """
-        if optree in memoization_map:
+        if  optree in memoization_map:
             return True
         if not isinstance(optree, ML_LeafNode):
             for inp in optree.inputs:
@@ -921,7 +921,7 @@ class OptimizationEngine:
 
         # check processor support
         Log.report(Log.Info, "checking processor support")
-        self.check_processor_support(scheme_post_fma)
+        self.check_processor_support(scheme_post_fma, memoization_map = {})
 
         if factorize_fast_path:
             Log.report(Log.Info, "factorizing fast path")

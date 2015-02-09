@@ -1002,6 +1002,9 @@ class FunctionObject:
     def __call__(self, *args, **kwords):
         return FunctionCall(self, *args, **kwords)
 
+    def get_declaration(self):
+      return "%s %s(%s);" % (self.output_precision.get_c_name(), self.get_function_name(), ", ".join(arg.get_c_name() for arg in self.arg_list_precision))
+
     def get_precision(self):
         return self.output_precision
 
@@ -1017,6 +1020,9 @@ class FunctionObject:
     def get_generator_object(self):
         return self.generator_object
 
+    def get_function_name(self):
+        return self.name
+
 
 class FunctionCall(AbstractOperationConstructor("FunctionCall")):
     def __init__(self, function_object, *args, **kwords):
@@ -1030,6 +1036,9 @@ class FunctionCall(AbstractOperationConstructor("FunctionCall")):
     def get_function_object(self):
         return self.function_object
 
+    def get_name(self):
+      return "FunctionCall to %s" % self.get_function_object().get_function_name()
+
     def propagate_format_to_cst(optree):
         """ propagate new_optree_format to Constant operand of <optree> with abstract precision """
         index_list = xrange(len(optree.inputs)) 
@@ -1039,6 +1048,15 @@ class FunctionCall(AbstractOperationConstructor("FunctionCall")):
             if isinstance(inp, Constant) and isinstance(inp.get_precision(), ML_AbstractFormat):
                 inp.set_precision(new_optree_format)
 
+    def copy(self, copy_map = {}):
+        # test for previous definition in memoization map
+        if self in copy_map: return copy_map[self]
+        # else define a new and free copy
+        new_copy = self.__class__(self.function_object, *tuple(op.copy(copy_map) for op in self.inputs), __copy = True)
+        new_copy.attributes = self.attributes.get_copy()
+        self.finish_copy(new_copy, copy_map)
+        copy_map[self] = new_copy
+        return new_copy
 
 
     # static binding
