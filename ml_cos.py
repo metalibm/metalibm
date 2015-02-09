@@ -11,7 +11,7 @@ from metalibm_core.code_generation.c_code_generator import CCodeGenerator
 from metalibm_core.code_generation.generic_processor import GenericProcessor
 from metalibm_core.code_generation.code_object import CodeObject
 from metalibm_core.code_generation.code_element import CodeFunction
-from metalibm_core.code_generation.generator_utility import C_Code 
+from metalibm_core.code_generation.generator_utility import C_Code, FunctionOperator, FO_Arg 
 from metalibm_core.core.ml_optimization_engine import OptimizationEngine
 from metalibm_core.core.polynomials import *
 from metalibm_core.core.ml_table import ML_Table
@@ -26,72 +26,12 @@ from metalibm_core.utility.num_utils   import ulp
 from metalibm_core.utility.gappa_utils import is_gappa_installed
 
 
-# lambda_msb is a function to determine the Median msb index, it takes an exponent as operand
-# and returns a ML_Integer subtype value
-def generate_payne_hanek(exact_constant, msb_index_dag, size, lsb, precision):
-    cst_msb = int(ceil(log2(exact_constant)))
-    p = precision.get_field_size()
-    tmp_lsb = cst_msb - p + 1 
-
-    array_size = int(ceil((lsb - cst_msb + 1) / p))
-    cst_table = ML_Table(dimensions = [array_size, 0], storage_precision = precision)
-
-    sollya_precision = precision.get_sollya_object()
-
-    # building value table
-    tmp_cst = exact_constant
-    for i in xrange(0, array_size):
-      new_cst = round(tmp_cst, sollya_precision, RN)
-      tmp_cst = tmp_cst - new_cst
-      cst_table[i][0] = tmp_cst
-
-    init_diff = cst_msb - msb_index_dag
-
-    msb_index = (init_diff) / p  
-    nb_index = (size / p) + 1
-    # number of valid bit in the first segment
-    nvb = p - Modulo(init_diff, p)
-    valid_mask = BitLogicRightShift(0xffffffff, 32 - nvb)
-    Select(nvb == p, 0.0, TypeCast(BitLogic
-
-    # building median retrieval
-    med_msb = TableLoad(cst_table, msb_index, 0)
-    BitLogicRightShift(0xffffff, p - Modulo(init_diff, p) 
-
-
-def generate_payne_hanek(exact_cst_formula, precision, vx, n, k):
-    cst_msb = int(ceil(log2(exact_constant)))
-    p = precision.get_field_size()
-    tmp_lsb = cst_msb - p + 1 
-
-    array_size = int(ceil((lsb - cst_msb + 1) / p))
-    cst_table = ML_Table(dimensions = [array_size, 0], storage_precision = precision)
-
-    sollya_precision = precision.get_sollya_object()
-
-    chunk_size = p
-
-    # building value table
-    tmp_cst = exact_constant
-    for i in xrange(0, array_size):
-      new_cst = round(tmp_cst, chunk_size, RN)
-      tmp_cst = tmp_cst - new_cst
-      cst_table[i][0] = tmp_cst
-
-    e = ExponentExtraction(vx)
-    msb_exp = - e + Constant(p - 1 - k)
-    msb_index = (Constant(cst_msb) - msb_exp) / Constant(chunk_size)
-
-    lsb_exp = - e + Constant(p - 1 - n)
-    lsb_index = (Constant(cst_msb) - lsb_exp) / Constant(chunk_size)
-
-
-
 
 
 
 
 class ML_Cosine:
+    """ Implementation of cosinus function """
     def __init__(self, 
                  precision = ML_Binary32, 
                  accuracy  = ML_Faithful,
@@ -143,6 +83,9 @@ class ML_Cosine:
 
         sollya_precision = precision.get_sollya_object()
         hi_precision = precision.get_field_size() - 3
+
+
+        
 
         # argument reduction
         frac_pi_index = 3
@@ -307,16 +250,27 @@ class ML_Cosine:
           switch_map[(sub_half, half + sub_half)] = Return(factor2 * poly_scheme_vector[sub_half])
 
 
-
-        
-
         result = SwitchBlock(modk, switch_map)
+
+        #######################################################################
+        #                    LARGE ARGUMENT MANAGEMENT                        #
+        #######################################################################
+
+        # payne and hanek argument reduction for large arguments
+        payne_hanek_func_op = FunctionOperator("payne_hanek_cosfp32", arg_map = {0: FO_Arg(0)}, require_header = ["support_lib/ml_red_arg.h"]) 
+        payne_hanek_func   = FunctionObject("payne_hanek_cosfp32", [ML_Binary32], ML_Binary32, payne_hanek_func_op)
+        payne_hanek_func_op.declare_prototype = payne_hanek_func
+        #large_arg_red = FunctionCall(payne_hanek_func, vx)
+        large_arg_red = payne_hanek_func(vx)
+        red_bound     = S2**20
+        
+        cond = Abs(vx) >= red_bound
+        cond.set_attributes(tag = "cond", likely = False)
 
 
         # main scheme
         Log.report(Log.Info, "\033[33;1m MDL scheme \033[0m")
         scheme = Statement(result)
-
 
         # fusing FMA
         if fuse_fma: 
