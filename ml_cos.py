@@ -254,11 +254,12 @@ class ML_Cosine:
 
         #######################################################################
         #                    LARGE ARGUMENT MANAGEMENT                        #
+        #                 (lar: Large Argument Reduction)                     #
         #######################################################################
 
         # payne and hanek argument reduction for large arguments
         payne_hanek_func_op = FunctionOperator("payne_hanek_cosfp32", arg_map = {0: FO_Arg(0)}, require_header = ["support_lib/ml_red_arg.h"]) 
-        payne_hanek_func   = FunctionObject("payne_hanek_cosfp32", [ML_Binary32], ML_Binary32, payne_hanek_func_op)
+        payne_hanek_func   = FunctionObject("payne_hanek_cosfp32", [ML_Binary32], ML_Binary64, payne_hanek_func_op)
         payne_hanek_func_op.declare_prototype = payne_hanek_func
         #large_arg_red = FunctionCall(payne_hanek_func, vx)
         large_arg_red = payne_hanek_func(vx)
@@ -268,9 +269,36 @@ class ML_Cosine:
         cond.set_attributes(tag = "cond", likely = False)
 
 
+        
+        lar_modk = Modulo(Conversion(large_arg_red, precision = ML_Int64), Constant(16, precision = ML_Int64), tag = "lar_modk") 
+        pre_lar_red_vx = large_arg_red - Conversion(lar_modk, precision = ML_Binary64)
+        pre_lar_red_vx.set_attributes(precision = ML_Binary64)
+        lar_red_vx = Conversion(pre_lar_red_vx, precision = self.precision)
+
+        lar_k = 3
+        # large arg reduction Universal Power Map
+        lar_upm = {}
+        approx_interval = Interval(-0.5, 0.5)
+        for i in xrange(2**(lar_k-1)):
+          func = cos(pi/8 * i + pi/8* x)
+          degree = 6
+          poly_object = Polynomial.build_from_approximation_with_error(func, degree, [binary32]*(degree+1), approx_interval, absolute)
+          poly_scheme = polynomial_scheme_builder(poly_object, lar_red_vx, unified_precision = self.precision, power_map_ = lar_upm) 
+          poly_scheme.set_attributes(tag = "lar_poly_%d" % i, debug = debug_precision)
+        
+
+        lar_frac_index = 8
+
+
+
+
+
+        lar_result = large_arg_red
+
+
         # main scheme
         Log.report(Log.Info, "\033[33;1m MDL scheme \033[0m")
-        scheme = Statement(result)
+        scheme = Statement(ConditionBlock(cond, Return(lar_result), result))
 
         # fusing FMA
         if fuse_fma: 
