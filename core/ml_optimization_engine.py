@@ -388,7 +388,10 @@ class OptimizationEngine:
             try:
                 arg_bit_size = arg.get_precision().get_bit_size()
             except:
+                print "ERROR in get_bit_size during merge_abstract_format"
+                print "optree: "
                 print optree.get_precision(), optree.get_str()
+                print "arg: "
                 print arg.get_precision(), arg.get_str()
 
                 raise Exception()
