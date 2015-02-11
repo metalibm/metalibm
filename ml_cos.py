@@ -270,35 +270,55 @@ class ML_Cosine:
 
 
         
-        lar_modk = Modulo(Conversion(large_arg_red, precision = ML_Int64), Constant(16, precision = ML_Int64), tag = "lar_modk") 
+        lar_modk = Modulo(NearestInteger(large_arg_red, precision = ML_Int64), Constant(16, precision = ML_Int64), tag = "lar_modk", debug = True) 
         pre_lar_red_vx = large_arg_red - Conversion(lar_modk, precision = ML_Binary64)
-        pre_lar_red_vx.set_attributes(precision = ML_Binary64)
-        lar_red_vx = Conversion(pre_lar_red_vx, precision = self.precision)
+        pre_lar_red_vx.set_attributes(precision = ML_Binary64, debug = debug_lftolx, tag = "pre_lar_red_vx")
+        lar_red_vx = Conversion(pre_lar_red_vx, precision = self.precision, debug = debug_precision, tag = "lar_red_vx")
 
         lar_k = 3
         # large arg reduction Universal Power Map
         lar_upm = {}
+        lar_switch_map = {}
         approx_interval = Interval(-0.5, 0.5)
-        for i in xrange(2**(lar_k-1)):
-          func = cos(pi/8 * i + pi/8* x)
+        for i in xrange(2**(lar_k+1)):
+          frac_pi = pi / S2**lar_k
+          func = cos(frac_pi * i + frac_pi * x)
+          
           degree = 6
-          poly_object = Polynomial.build_from_approximation_with_error(func, degree, [binary32]*(degree+1), approx_interval, absolute)
-          poly_scheme = polynomial_scheme_builder(poly_object, lar_red_vx, unified_precision = self.precision, power_map_ = lar_upm) 
+          error_mode = absolute
+          if i % 2**(lar_k) == 2**(lar_k-1):
+            # close to sin(x) cases
+            func = -sin(frac_pi * x) if i == 2**(lar_k-1) else sin(frac_pi * x)
+            degree_list = range(0, degree+1, 2)
+            precision_list = [binary32] * len(degree_list)
+            poly_object, _ = Polynomial.build_from_approximation_with_error(func/x, degree_list, precision_list, approx_interval, error_mode)
+            poly_object = poly_object.sub_poly(offset = -1)
+          else:
+            degree_list = range(degree+1)
+            precision_list = [binary32] * len(degree_list)
+            poly_object, _ = Polynomial.build_from_approximation_with_error(func, degree_list, precision_list, approx_interval, error_mode)
+
+          if i == 3 or i == 5 or i == 7 or i == 9: 
+              poly_precision = ML_Binary64
+              c0 = Constant(coeff(poly_object.get_sollya_object(), 0), precision = ML_Binary64)
+              c1 = Constant(coeff(poly_object.get_sollya_object(), 1), precision = self.precision)
+              poly_hi = (c0 + c1 * red_vx)
+              poly_hi.set_precision(ML_Binary64)
+              pre_poly_scheme = poly_hi + polynomial_scheme_builder(poly_object.sub_poly(start_index = 2), lar_red_vx, unified_precision = self.precision, power_map_ = lar_upm)
+              pre_poly_scheme.set_attributes(precision = ML_Binary64)
+              poly_scheme = Conversion(pre_poly_scheme, precision = self.precision)
+          else:
+            poly_scheme = polynomial_scheme_builder(poly_object, lar_red_vx, unified_precision = self.precision, power_map_ = lar_upm)
+          # poly_scheme = polynomial_scheme_builder(poly_object, lar_red_vx, unified_precision = self.precision, power_map_ = lar_upm) 
           poly_scheme.set_attributes(tag = "lar_poly_%d" % i, debug = debug_precision)
+          lar_switch_map[(i,)] = Return(poly_scheme)
         
-
-        lar_frac_index = 8
-
-
-
-
-
-        lar_result = large_arg_red
+        lar_result = SwitchBlock(lar_modk, lar_switch_map)
 
 
         # main scheme
         Log.report(Log.Info, "\033[33;1m MDL scheme \033[0m")
-        scheme = Statement(ConditionBlock(cond, Return(lar_result), result))
+        scheme = Statement(ConditionBlock(cond, lar_result, result))
 
         # fusing FMA
         if fuse_fma: 
