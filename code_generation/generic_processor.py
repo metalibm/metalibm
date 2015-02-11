@@ -185,7 +185,7 @@ c_code_generation_table = {
         None: build_simplified_operator_generation([ML_Int32, ML_UInt32, ML_Binary32, ML_Binary64], 2, SymbolOperator("/", arity = 2)),
     },
     Modulo: {
-        None: build_simplified_operator_generation([ML_Int32, ML_UInt32], 2, SymbolOperator("%", arity = 2)),
+        None: build_simplified_operator_generation([ML_Int32, ML_UInt32, ML_Int64], 2, SymbolOperator("%", arity = 2)),
     },
     Comparison: {
         Comparison.Equal: 
@@ -325,6 +325,8 @@ c_code_generation_table = {
                 type_strict_match(ML_Binary32, ML_UInt32): IdentityOperator(),
                 type_strict_match(ML_Int32, ML_Binary32): IdentityOperator(),
                 type_strict_match(ML_Binary64, ML_Int32): IdentityOperator(),
+                type_strict_match(ML_Binary64, ML_Int64): IdentityOperator(),
+                type_strict_match(ML_Int64, ML_Binary64): IdentityOperator(),
                 type_strict_match(ML_Int32, ML_Int64):    IdentityOperator(),
                 type_strict_match(ML_Int64, ML_Int32):    IdentityOperator(),
             },
