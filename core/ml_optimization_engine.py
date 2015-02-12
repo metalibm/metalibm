@@ -222,6 +222,8 @@ type_escalation = {
         lambda result_type: isinstance(result_type, ML_FP_Format): {
             lambda op_type: isinstance(op_type, ML_Fixed_Format):
                 lambda op: op.get_precision(),
+            lambda op_type: isinstance(op_type, ML_FP_Format):
+                lambda op: op.get_precision(),
         },
     },
     FusedMultiplyAdd: {
