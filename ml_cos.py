@@ -270,10 +270,15 @@ class ML_Cosine:
 
 
         
-        lar_modk = Modulo(NearestInteger(large_arg_red, precision = ML_Int64), Constant(16, precision = ML_Int64), tag = "lar_modk", debug = True) 
-        pre_lar_red_vx = large_arg_red - Conversion(lar_modk, precision = ML_Binary64)
+        lar_neark = NearestInteger(large_arg_red, precision = ML_Int64)
+        lar_modk = Modulo(lar_neark, Constant(16, precision = ML_Int64), tag = "lar_modk", debug = True) 
+        # Modulo is supposed to be already performed (by payne_hanek_cosfp32)
+        #lar_modk = NearestInteger(large_arg_red, precision = ML_Int64)
+        pre_lar_red_vx = large_arg_red - Conversion(lar_neark, precision = ML_Binary64)
         pre_lar_red_vx.set_attributes(precision = ML_Binary64, debug = debug_lftolx, tag = "pre_lar_red_vx")
         lar_red_vx = Conversion(pre_lar_red_vx, precision = self.precision, debug = debug_precision, tag = "lar_red_vx")
+        lar_red_vx_lo = Conversion(pre_lar_red_vx - Conversion(lar_red_vx, precision = ML_Binary64), precision = self.precision)
+        lar_red_vx_lo.set_attributes(tag = "lar_red_vx_lo", precision = self.precision)
 
         lar_k = 3
         # large arg reduction Universal Power Map
@@ -298,15 +303,22 @@ class ML_Cosine:
             precision_list = [binary32] * len(degree_list)
             poly_object, _ = Polynomial.build_from_approximation_with_error(func, degree_list, precision_list, approx_interval, error_mode)
 
-          if i == 3 or i == 5 or i == 7 or i == 9: 
+          if i == 3 or i == 5 or i == 7 or i == 9 or i == 11 or i == 13: 
               poly_precision = ML_Binary64
               c0 = Constant(coeff(poly_object.get_sollya_object(), 0), precision = ML_Binary64)
               c1 = Constant(coeff(poly_object.get_sollya_object(), 1), precision = self.precision)
-              poly_hi = (c0 + c1 * red_vx)
+              poly_hi = (c0 + c1 * lar_red_vx)
               poly_hi.set_precision(ML_Binary64)
               pre_poly_scheme = poly_hi + polynomial_scheme_builder(poly_object.sub_poly(start_index = 2), lar_red_vx, unified_precision = self.precision, power_map_ = lar_upm)
               pre_poly_scheme.set_attributes(precision = ML_Binary64)
               poly_scheme = Conversion(pre_poly_scheme, precision = self.precision)
+          elif i == 4 or i == 12:
+            c1 = Constant(coeff(poly_object.get_sollya_object(), 1), precision = self.precision)
+            c3 = Constant(coeff(poly_object.get_sollya_object(), 3), precision = self.precision)
+            c5 = Constant(coeff(poly_object.get_sollya_object(), 5), precision = self.precision)
+            poly_hi = polynomial_scheme_builder(poly_object.sub_poly(start_index = 3), lar_red_vx, unified_precision = self.precision, power_map_ = lar_upm)
+            poly_hi.set_attributes(tag = "poly_lar_%d_hi" % i, precision = ML_Binary64)
+            poly_scheme = Conversion(FusedMultiplyAdd(c1, lar_red_vx, poly_hi, precision = ML_Binary64) + c1 * lar_red_vx_lo, precision = self.precision)
           else:
             poly_scheme = polynomial_scheme_builder(poly_object, lar_red_vx, unified_precision = self.precision, power_map_ = lar_upm)
           # poly_scheme = polynomial_scheme_builder(poly_object, lar_red_vx, unified_precision = self.precision, power_map_ = lar_upm) 
