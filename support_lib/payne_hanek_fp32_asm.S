@@ -45,25 +45,29 @@ global_array:
 .type	payne_hanek_fp32_asm, @function
 /* $r0 contains fp32 <x> input */
 payne_hanek_fp32_asm:
-  $r1 = extfz $r0, 30, 23
-  $r4 = and $r0, 0x80800000
+  extfz  $r1 = $r0, 30, 23  /* E = (e + 127) */
+  and $r4 = $r0, 0x807fffff
   ;;
-  $r2 = sbf $r1, (p-1+k)     /* msb_exp */
-  $r3 = sbf $r1, (p - 1 - n) /* lsb_exp */
-  $r4 = or $r4, 0x3f800000   /* $r4 = ml_mantissa_extraction_fp32(x) */
+  /* 1 - (-e +p - 1 + k) = 1 + (E - 127) - p + 1 - k = E + (2 - 127 - p - k) */
+  add $r2 = $r1, (2 - 127 -p - k)   /* delta = cst_msb - msb_exp */
+  sbf $r3 = $r1, (p - 1 - n + 127)  /* lsb_exp */
+  or $r4 = $r4, 0x3f800000          /* $r4 = ml_mantissa_extraction_fp32(x) */
   ;;
-  $r2 = srl $r2, 4           /* msb_index = msb_exp / 16 */
+  srl $r2 = $r2, 4                  /* msb_index = delta / 16 */
   make $r63 = global_array 
-  make $r62 = 0x38000000     /* 0x1p-120 */
+  make $r62 = 0x38000000            /* 0x1p-120 */
   ;;
   add $r62 = $r1, -120
   ;;
   sll $r62 = $r62, 23        /* scalingf */
   ;;
   ld.add.x4 $r32r33 = $r2[$r63] 
+  add $r2 = $r2, 2
   ;;
   ld.add.x4 $r34r35 = $r2[$r63] 
+  add $r2 = $r2, 2
   ;;
+  lw.add.x4 $r50 = $r2[$r63]
   fmul $r32 = $r32, $r62
   ;;
   fmul $r33 = $r33, $r62
@@ -71,6 +75,8 @@ payne_hanek_fp32_asm:
   fmul $r34 = $r34, $r62
   ;;
   fmul $r35 = $r35, $r62
+  ;;
+  fmul $r50 = $r50, $r62
   make $r44 = 0
   make $r45 = 0
   ;;
@@ -85,10 +91,10 @@ payne_hanek_fp32_asm:
   /* red_to_exp chunk[0] */
   extfz $r32 = $r37, 30, 20
   make  $r33 = 0xffffffff
+  ffmawd $r52r53 = $r44r45, $r4, $r50
   ;;
-  sbf $r32 = $r32, (53 + 3 + 127)
-  ;;
-  add $r44 = $r32, -52
+  sbf $r32 = $r32, (53 + 3 + 1023)
+  sbf $r44 = $r32, (1 + 3 + 1023)
   ;;
   cmove.gez $r32 = $r44, 64
   ;; 
@@ -99,15 +105,14 @@ payne_hanek_fp32_asm:
   fsbfd $r36r37 = $r34r35, $r36r37
   ;;
   /* red_to_exp chunk[1] */
-  extfz $r32 = $r39, 30, 20
+  extfz $r46 = $r39, 30, 20
   ;;
-  sbf $r32 = $r32, (53 + 3 + 127)
+  sbf $r46 = $r46, (53 + 3 + 1023)
+  sbf $r47 = $r46, (1 + 3 + 1023)
   ;;
-  add $r44 = $r32, -52
-  ;;
-  cmove.gez $r32 = $r44, 64
+  cmove.gez $r46 = $r47, 64
   ;; 
-  slld $r34:$r35 = $r33:$r33, $r32
+  slld $r34:$r35 = $r33:$r33, $r46
   ;;
   andd $r34:$r35 = $r38:$r39, $r34:$r35
   ;; 
@@ -116,10 +121,10 @@ payne_hanek_fp32_asm:
   /* red_to_exp chunk[2] */
   extfz $r32 = $r41, 30, 20
   ;;
-  sbf $r32 = $r32, (53 + 3 + 127)
+  sbf $r32 = $r32, (53 + 3 + 1023)
+  sbf $r44 = $r32, (1 + 3 + 1023)
   ;;
-  add $r44 = $r32, -52
-  ;;
+  faddd $r36r37 = $r36r37, $r38r39
   cmove.gez $r32 = $r44, 64
   ;; 
   slld $r34:$r35 = $r33:$r33, $r32
@@ -128,14 +133,18 @@ payne_hanek_fp32_asm:
   ;; 
   fsbfd $r40r41 = $r34r35, $r40r41
   ;;
+#if 1
+  faddd $r36r37 = $r36r37, $r40r41
+;;
+#else
   /* red_to_exp chunk[3] */
   extfz $r32 = $r43, 30, 20
   ;;
-  sbf $r32 = $r32, (53 + 3 + 127)
-  ;;
-  add $r44 = $r32, -52
+  sbf $r32 = $r32, (53 + 3 + 1023)
+  sbf $r44 = $r32, (1 + 3 + 1023)
   ;;
   cmove.gez $r32 = $r44, 64
+  faddd $r36r37 = $r36r37, $r40r41
   ;; 
   slld $r34:$r35 = $r33:$r33, $r32
   ;;
@@ -143,11 +152,10 @@ payne_hanek_fp32_asm:
   ;; 
   fsbfd $r42r43 = $r34r35, $r42r43
   ;;
-  faddd $r36r37 = $r36r37, $r38r39
-  ;;
-  faddd $r36r37 = $r36r37, $r40r41
-  ;;
+#endif
   faddd $r36r37 = $r36r37, $r42r43
+  ;;
+  faddd $r36r37 = $r36r37, $r52r53
   ;;
   fabsd $r0:$r1 = $r36:$r37
 	ret
