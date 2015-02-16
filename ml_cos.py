@@ -219,12 +219,14 @@ class ML_Cosine:
         half = 2**frac_pi_index
         sub_half = 2**(frac_pi_index - 1)
 
-        factor_cond = BitLogicXor(BitLogicRightShift(modk, frac_pi_index), BitLogicRightShift(modk, frac_pi_index-1))
+        # determine if the reduced input is within the second and third quarter (not first nor fourth)
+        # to negate the cosine output
+        factor_cond = BitLogicAnd(BitLogicXor(BitLogicRightShift(modk, frac_pi_index), BitLogicRightShift(modk, frac_pi_index-1)), 1, tag = "factor_cond", debug = True)
 
         CM1 = Constant(-1, precision = self.precision)
         C1  = Constant(1, precision = self.precision)
-        factor = Select(factor_cond, CM1, C1)
-        factor2 = Select(Equal(modk, Constant(sub_half)), CM1, C1) 
+        factor = Select(factor_cond, CM1, C1, tag = "factor", debug = debug_precision)
+        factor2 = Select(Equal(modk, Constant(sub_half)), CM1, C1, tag = "factor2", debug = debug_precision) 
 
 
         switch_map = {}
@@ -258,8 +260,10 @@ class ML_Cosine:
         #######################################################################
 
         # payne and hanek argument reduction for large arguments
-        payne_hanek_func_op = FunctionOperator("payne_hanek_cosfp32", arg_map = {0: FO_Arg(0)}, require_header = ["support_lib/ml_red_arg.h"]) 
-        payne_hanek_func   = FunctionObject("payne_hanek_cosfp32", [ML_Binary32], ML_Binary64, payne_hanek_func_op)
+        #red_func_name = "payne_hanek_cosfp32" # "payne_hanek_fp32_asm"
+        red_func_name = "payne_hanek_fp32_asm"
+        payne_hanek_func_op = FunctionOperator(red_func_name, arg_map = {0: FO_Arg(0)}, require_header = ["support_lib/ml_red_arg.h"]) 
+        payne_hanek_func   = FunctionObject(red_func_name, [ML_Binary32], ML_Binary64, payne_hanek_func_op)
         payne_hanek_func_op.declare_prototype = payne_hanek_func
         #large_arg_red = FunctionCall(payne_hanek_func, vx)
         large_arg_red = payne_hanek_func(vx)
