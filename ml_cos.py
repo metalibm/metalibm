@@ -104,7 +104,12 @@ class ML_Cosine:
         red_vx_hi.set_attributes(tag = "red_vx_hi", debug = debug_precision, precision = self.precision)
         red_vx_lo_sub = inv_frac_pi_lo_cst * fk
         red_vx_lo_sub.set_attributes(tag = "red_vx_lo_sub", debug = debug_precision, unbreakable = True, precision = self.precision)
+        vx_d = Conversion(vx, precision = ML_Binary64, tag = "vx_d")
         pre_red_vx = red_vx_hi - inv_frac_pi_lo_cst * fk
+        pre_red_vx_d_hi = (vx_d - inv_frac_pi_cst * fk)
+        pre_red_vx_d_hi.set_attributes(tag = "pre_red_vx_d_hi", precision = ML_Binary64, debug = debug_lftolx)
+        pre_red_vx_d = pre_red_vx_d_hi - inv_frac_pi_lo_cst * fk
+        pre_red_vx_d.set_attributes(tag = "pre_red_vx_d", debug = debug_lftolx, precision = ML_Binary64)
 
 
         modk = Modulo(k, 2**(frac_pi_index+1), precision = ML_Int32, tag = "switch_value", debug = True)
@@ -112,6 +117,9 @@ class ML_Cosine:
         sel_c = Equal(BitLogicAnd(modk, 2**(frac_pi_index-1)), 2**(frac_pi_index-1))
         red_vx = Select(sel_c, -pre_red_vx, pre_red_vx)
         red_vx.set_attributes(tag = "red_vx", debug = debug_precision, precision = self.precision)
+
+        red_vx_d = Select(sel_c, -pre_red_vx_d, pre_red_vx_d)
+        red_vx_d.set_attributes(tag = "red_vx_d", debug = debug_lftolx, precision = ML_Binary64)
 
         approx_interval = Interval(-pi/(S2**(frac_pi_index+1)), pi / S2**(frac_pi_index+1))
 
@@ -144,7 +152,14 @@ class ML_Cosine:
             degree = 6
             degree_list = range(0, degree+1, 2)
           elif i % 2**(frac_pi_index) == 2**(frac_pi_index-1):
+            # for pi/2 and 3pi/2, an approx to  sin=cos(pi/2+x) 
+            # must be generated
             degree_list = range(1, degree+1, 2)
+
+          if i == 3 or i == 5 or i == 7 or i == 9: 
+            precision_list =  [binary64] + [binary32] *(degree)
+          else:
+            precision_list = [binary32] * (degree+1)
 
           poly_degree_vector[i] = degree 
 
@@ -155,7 +170,7 @@ class ML_Cosine:
             constraint = relative
             index_relative.append(i)
           Log.report(Log.Info, "generating approximation for %d/%d" % (i, 2**(frac_pi_index+1)))
-          poly_object_vector[i], _ = Polynomial.build_from_approximation_with_error(sub_func, degree_list, [binary32]*(degree+1), a_interval, constraint, error_function = error_function) 
+          poly_object_vector[i], _ = Polynomial.build_from_approximation_with_error(sub_func, degree_list, precision_list, a_interval, constraint, error_function = error_function) 
 
 
 
@@ -178,8 +193,12 @@ class ML_Cosine:
               poly_hi = (c0 + c1 * red_vx)
               poly_hi.set_precision(ML_Binary64)
               poly_scheme = poly_hi + polynomial_scheme_builder(poly_object.sub_poly(start_index = 2), red_vx, unified_precision = self.precision, power_map_ = upm)
+          elif i == 4:
+              c1 = Constant(coeff(poly_object.get_sollya_object(), 1), precision = ML_Binary64)
+              poly_scheme = c1 * red_vx_d + polynomial_scheme_builder(poly_object.sub_poly(start_index = 2), red_vx, unified_precision = self.precision, power_map_ = upm)
+              poly_scheme.set_precision(ML_Binary64)
           else:
-            poly_scheme = polynomial_scheme_builder(poly_object, red_vx, unified_precision = poly_precision, power_map_ = upm)
+              poly_scheme = polynomial_scheme_builder(poly_object, red_vx, unified_precision = poly_precision, power_map_ = upm)
           #if i == 3:
           #  c0 = Constant(coeff(poly_object.get_sollya_object(), 0), precision = self.precision)
           #  c1 = Constant(coeff(poly_object.get_sollya_object(), 1), precision = self.precision)
@@ -334,7 +353,7 @@ class ML_Cosine:
 
         # main scheme
         Log.report(Log.Info, "\033[33;1m MDL scheme \033[0m")
-        scheme = Statement(ConditionBlock(cond, lar_result, result))
+        scheme = Statement(pre_red_vx_d, red_vx_lo_sub, ConditionBlock(cond, lar_result, result))
 
         # fusing FMA
         if fuse_fma: 
