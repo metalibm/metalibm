@@ -873,6 +873,7 @@ class OptimizationEngine:
         memoization_map[optree] = True
         return True
 
+
     def swap_format(self, optree, new_format):
         optree.set_precision(new_format)
         return optree

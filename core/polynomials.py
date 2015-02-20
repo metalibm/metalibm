@@ -166,25 +166,26 @@ def generate_power(variable, power, power_map = {}, precision = None):
 class PolynomialSchemeEvaluator:
     """ class for polynomial evaluation scheme generation """
 
-    def generate_horner_scheme(polynomial_object, variable, unified_precision = None, power_map_ = None):
+    def generate_horner_scheme(polynomial_object, variable, unified_precision = None, power_map_ = None, constant_precision = None):
         """ generate a Horner evaluation scheme for the polynomial <polynomial_object>
             on variable <variable>, arithmetic operation are performed in format 
             <unified_precision> if specified """
         power_map = power_map_ if power_map_ != None else {}
         coeff_list = polynomial_object.get_ordered_coeff_list()[::-1]
+        cst_precision = unified_precision if constant_precision == None else constant_precision
         if len(coeff_list) == 0:
             return Constant(0)
         elif len(coeff_list) == 1:
             index, coeff = coeff_list[0]
             if index == 0:
-                return Constant(coeff)
+                return Constant(coeff, precision = cst_precision)
             else:
-                return Multiplication(generate_power(variable, index, power_map, precision = unified_precision), Constant(coeff))
+                return Multiplication(generate_power(variable, index, power_map, precision = unified_precision), Constant(coeff, precision = cst_precision))
             
         current_index = coeff_list[0][0]
-        current_scheme = Constant(coeff_list[0][1])
+        current_scheme = Constant(coeff_list[0][1], precision = cst_precision)
         for index, coeff in coeff_list[1:-1]:
-            current_coeff = Constant(coeff)
+            current_coeff = Constant(coeff, precision = cst_precision)
 
             index_diff = current_index - index
             current_index = index
@@ -194,7 +195,7 @@ class PolynomialSchemeEvaluator:
             current_scheme = Addition(current_coeff, mult_op, precision = unified_precision)
         # last coefficient
         index, coeff = coeff_list[-1]
-        current_coeff = Constant(coeff)
+        current_coeff = Constant(coeff, precision = cst_precision)
         if (coeff == 1.0 or coeff == -1.0) and index <= 1:
             # generating FMA
             index_diff = current_index

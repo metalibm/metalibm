@@ -478,6 +478,14 @@ gappa_code_generation_table = {
             },
         },
     },
+    Conversion: {
+        None: {
+            lambda optree: True: {
+                type_relax_match(ML_Binary32, ML_Binary64): RoundOperator(ML_Binary32), 
+                type_relax_match(ML_Binary64, ML_Binary32): RoundOperator(ML_Binary64), 
+            },
+        },
+    },
 }
 
 
@@ -549,6 +557,8 @@ class GenericProcessor(AbstractProcessor):
     """ Generic class for instruction selection,
         corresponds to a portable C-implementation """
 
+    target_name = "generic"
+
     # code generation table map
     code_generation_table = {
         C_Code: c_code_generation_table,
@@ -557,6 +567,9 @@ class GenericProcessor(AbstractProcessor):
 
     # approximation table map
     approx_table_map = generic_approx_table_map
+
+    def get_target_name(sef):
+        return self.target_name
 
     def __init__(self, *args):
         """ processor class initialization """
