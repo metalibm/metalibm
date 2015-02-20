@@ -173,10 +173,6 @@ class ML_Cosine:
           poly_object_vector[i], _ = Polynomial.build_from_approximation_with_error(sub_func, degree_list, precision_list, a_interval, constraint, error_function = error_function) 
 
 
-
-
-
-
         # unified power map for red_sx^n
         upm = {}
         rel_error_list = []
@@ -192,7 +188,9 @@ class ML_Cosine:
               c1 = Constant(coeff(poly_object.get_sollya_object(), 1), precision = self.precision)
               poly_hi = (c0 + c1 * red_vx)
               poly_hi.set_precision(ML_Binary64)
-              poly_scheme = poly_hi + polynomial_scheme_builder(poly_object.sub_poly(start_index = 2), red_vx, unified_precision = self.precision, power_map_ = upm)
+              red_vx_d_2 = red_vx_d * red_vx_d
+              poly_scheme = poly_hi + red_vx_d_2 * polynomial_scheme_builder(poly_object.sub_poly(start_index = 2, offset = 2), red_vx, unified_precision = self.precision, power_map_ = upm)
+              poly_scheme.set_attributes(unbreakable = True)
           elif i == 4:
               c1 = Constant(coeff(poly_object.get_sollya_object(), 1), precision = ML_Binary64)
               poly_scheme = c1 * red_vx_d + polynomial_scheme_builder(poly_object.sub_poly(start_index = 2), red_vx, unified_precision = self.precision, power_map_ = upm)
@@ -207,21 +205,25 @@ class ML_Cosine:
           poly_scheme.set_attributes(tag = "poly_cos%dpi%d" % (i, 2**(frac_pi_index)), debug = debug_precision)
           poly_scheme_vector[i] = poly_scheme
 
-          opt_scheme = opt_eng.optimization_process(poly_scheme, self.precision, copy = True, fuse_fma = fuse_fma)
-
-          tag_map = {}
-          opt_eng.register_nodes_by_tag(opt_scheme, tag_map)
-
-          cg_eval_error_copy_map = {
-              tag_map["red_vx"]: Variable("red_vx", precision = self.precision, interval = approx_interval),
-          }
 
 
           #try:
-          #if is_gappa_installed():
-          #    eval_error = gappacg.get_eval_error_v2(opt_eng, opt_scheme, cg_eval_error_copy_map, gappa_filename = "red_arg_%d.g" % i)
-          #    poly_range = cos(approx_interval+i*pi/S2**frac_pi_index)
-          #    rel_error_list.append(eval_error / poly_range)
+          if is_gappa_installed() and i == 3:
+              opt_scheme = opt_eng.optimization_process(poly_scheme, self.precision, copy = True, fuse_fma = fuse_fma)
+
+              tag_map = {}
+              opt_eng.register_nodes_by_tag(opt_scheme, tag_map)
+
+              gappa_vx = Variable("red_vx", precision = self.precision, interval = approx_interval)
+
+              cg_eval_error_copy_map = {
+                  tag_map["red_vx"]:    gappa_vx, 
+                  tag_map["red_vx_d"]:  gappa_vx,
+              }
+
+              eval_error = gappacg.get_eval_error_v2(opt_eng, opt_scheme, cg_eval_error_copy_map, gappa_filename = "red_arg_%d.g" % i)
+              poly_range = cos(approx_interval+i*pi/S2**frac_pi_index)
+              rel_error_list.append(eval_error / poly_range)
 
 
         #for rel_error in rel_error_list:
@@ -353,7 +355,8 @@ class ML_Cosine:
 
         # main scheme
         Log.report(Log.Info, "\033[33;1m MDL scheme \033[0m")
-        scheme = Statement(pre_red_vx_d, red_vx_lo_sub, ConditionBlock(cond, lar_result, result))
+        scheme = Statement(ConditionBlock(cond, lar_result, result))
+
 
         # fusing FMA
         if fuse_fma: 
