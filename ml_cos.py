@@ -281,8 +281,8 @@ class ML_Cosine:
         #######################################################################
 
         # payne and hanek argument reduction for large arguments
-        #red_func_name = "payne_hanek_cosfp32" # "payne_hanek_fp32_asm"
-        red_func_name = "payne_hanek_fp32_asm"
+        red_func_name = "payne_hanek_cosfp32" # "payne_hanek_fp32_asm"
+        #red_func_name = "payne_hanek_fp32_asm"
         payne_hanek_func_op = FunctionOperator(red_func_name, arg_map = {0: FO_Arg(0)}, require_header = ["support_lib/ml_red_arg.h"]) 
         payne_hanek_func   = FunctionObject(red_func_name, [ML_Binary32], ML_Binary64, payne_hanek_func_op)
         payne_hanek_func_op.declare_prototype = payne_hanek_func
