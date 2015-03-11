@@ -258,7 +258,7 @@ static inline double red_to_exp(double x, uint64_t e) {
 
 double payne_hanek_cosfp32(float x) {
   ph_data_t* ph_data = &pio8;
-  const int n = 60;
+  const int n = 65;
   // float mantissa size
   const int p = 24;
   const int k = ph_data->k;
