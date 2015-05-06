@@ -1,0 +1,12 @@
+prec = 512!;
+display = hexadecimal!;
+f = log(1+dz);
+d = [2^-64, 22605821628121023b-66]; // see arg_reduction.gappa
+// note: on supprime zero de l'intervalle sinon sollya ne sait pas calculer, mais on a bien f(0)=0 à la fin
+p = fpminimax(f, 4, [|64...|], d, fixed, relative);
+
+display = hexadecimal!;
+print("precision obtenue:", sup(supnorm(p, f, d, relative, 2^-64)));
+print("absolute error:   ", sup(supnorm(p, f, d, absolute, 2^-64)));
+print("polynome obtenu (vérifier que p(0)=0):");
+p;

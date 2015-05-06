@@ -1,0 +1,35 @@
+
+prec = 512;
+print("") > "/tmp/logtables";
+
+
+// first argument reduction :
+// iterate from 1 to 1+(ARG_REDUC_1_TABLESIZE-1)*2^-ARG_REDUC_1_PREC  by  2^-ARG_REDUC_1_PREC
+
+print("static const ArgReduc1_t argReduc1[] = {") >> "/tmp/logtables";
+for i from 1 to 1+63*2^-6 by 2^-6 do {
+	d := ceil(1/i * 2^9);  // 9 because ARG_REDUC_1_SIZE==9
+	r := ceil(1/i * 2^9)/2^9;
+	u := - log(r);
+	hi := floor(u * 2^53);
+	mi := floor((u * 2^53 - hi) * 2^64);
+	lo := floor(((u * 2^53 - hi) * 2^64 - mi) * 2^64);
+	print("\t{", d, ", UINT64_C(", hi, "), UINT64_C(", mi, "), UINT64_C(", lo, ")}, ") >> "/tmp/logtables";
+};
+print("};") >> "/tmp/logtables";
+
+
+// second argument reduction :
+// iterate from 1 to 1+(ARG_REDUC_2_TABLESIZE-1)*2^-ARG_REDUC_2_PREC  by  2^-ARG_REDUC_2_PREC
+
+print("static const ArgReduc2_t argReduc2[] = {") >> "/tmp/logtables";
+for i from 1 to 1+79*2^-12 by 2^-12 do {
+	d := ceil(1/i * 2^14);  // 9 because ARG_REDUC_2_SIZE==9
+	r := ceil(1/i * 2^14)/2^14;
+	u := - log(r);
+	hi := floor(u * 2^53);
+	mi := floor((u * 2^53 - hi) * 2^64);
+	lo := floor(((u * 2^53 - hi) * 2^64 - mi) * 2^64);
+	print("\t{", d, ", UINT64_C(", hi, "), UINT64_C(", mi, "), UINT64_C(", lo, ")}, ") >> "/tmp/logtables";
+};
+print("};") >> "/tmp/logtables";
