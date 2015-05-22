@@ -19,9 +19,9 @@ cd $LOCAL_DIR && \
 cd pythonsollya/ && LOCAL_INSTALL_DIR=$INSTALL_DIR python setup.py build && python setup.py install --prefix $INSTALL_DIR  && \
 cd $LOCAL_DIR && \
 LOCAL_PYTHON_PATH=$(find $INSTALL_DIR -name pythonsollya | sed -e "s/pythonsollya//") && \
-echo "export PYTHONPATH=$LOCAL_DIR/metalibm-lugdunum/:$LOCAL_PYTHON_PATH:$PYTHONPATH" > $INSTALL_DIR/metalibm_setup_env.bash && \
-# USAGE EXAMPLE
+echo "export PYTHONPATH=$LOCAL_DIR/metalibm-lugdunum/:$LOCAL_PYTHON_PATH:$PYTHONPATH" > $INSTALL_DIR/metalibm_setup_env.bash 
 
-source $INSTALL_DIR/metalibm_setup_env.bash 
-python metalibm-lugdunum/metalibm_functions/ml_exp.py --target x86_fma --output x86_fma_exp2d.c && \
-python metalibm-lugdunum/metalibm_functions/ml_exp.py --disable-fma --target x86_sse41 --output x86_sse41_exp2d.c && \
+# USAGE EXAMPLE
+# source $INSTALL_DIR/metalibm_setup_env.bash 
+# python metalibm-lugdunum/metalibm_functions/ml_exp.py --target x86_fma --output x86_fma_exp2d.c && \
+# python metalibm-lugdunum/metalibm_functions/ml_exp.py --disable-fma --target x86_sse41 --output x86_sse41_exp2d.c && \
