@@ -8,9 +8,7 @@
 LOCAL_DIR=$PWD
 INSTALL_DIR=$PWD/local_install
 
-git clone git+ssh://${LOGIN}@scm.gforge.inria.fr//gitroot/metalibm/pythonsollya.git 
-git clone git+ssh://${LOGIN}@scm.gforge.inria.fr//gitroot/metalibm/metalibm-lugdunum.git 
-cd metalibm-lugdunum && git submodule update --init --recursive || $(sed -i -e "s/\(url = git+ssh:\/\/\)scm/\1"$LOGIN"@scm/" $LOCAL_DIR/metalibm-lugdunum/.git/config &&  git submodule update --init --recursive ) 
+git submodule update --init --recursive 
 cd $LOCAL_DIR 
 mkdir $INSTALL_DIR 
 wget https://gforge.inria.fr/frs/download.php/33151/sollya-4.1.tar.gz 
