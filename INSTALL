@@ -1,6 +1,6 @@
-# This script 
+# This script will 
 # -> clone pythonsollya from INRIA's gforge
-# -> populates submodules of metalibm-lugdunum
+# -> populate submodules of metalibm-lugdunum
 # -> download and install Sollya into $PWD/local_instqll
 # -> build pythonsollya python module and install into local_install
 # -> generate script to setup environement into $PWD/local_install/metalibm_setup_env.bash
@@ -11,7 +11,7 @@
 # For Developers: 
 # Before pushing for the first time into inria's gforge repo you must update your repository 
 # by running
-# LOGIN=<inria login> sh PATCH_INSTALL_DEVELOPPER
+# LOGIN=<inria gforge login> sh PATCH_INSTALL_DEVELOPPER
 
 
 # INSTALLATION DIRECTORIES
@@ -21,15 +21,23 @@ INSTALL_DIR=$PWD/local_install
 git clone https://gforge.inria.fr/git/metalibm/pythonsollya.git && \
 git submodule update --init --recursive && \ 
 cd $LOCAL_DIR && \
-mkdir $INSTALL_DIR && \
+mkdir $INSTALL_DIR 
+
+# if SOLLYA is already installed, change this variable to indicate the install 
+# containing both include and lib dirs where sollya can be found
+SOLLYA_INSTALL_DIR=$INSTALL_DIR
+# comment the following lines to use already installed sollya
 wget https://gforge.inria.fr/frs/download.php/33151/sollya-4.1.tar.gz && \
 tar -xzf sollya-4.1.tar.gz && \
-cd sollya-4.1/ && ./configure --prefix=$INSTALL_DIR && make -j 4 && make install && \
+cd sollya-4.1/ && ./configure --prefix=$INSTALL_DIR && make -j 4 && make install 
+
+# building and installing pythonsollya
 cd $LOCAL_DIR && \
-cd pythonsollya/ && LOCAL_INSTALL_DIR=$INSTALL_DIR python setup.py build && python setup.py install --prefix $INSTALL_DIR  && \
+cd pythonsollya/ && LOCAL_INSTALL_DIR=$SOLLYA_INSTALL_DIR python setup.py build && python setup.py install --prefix $INSTALL_DIR  && \
 cd $LOCAL_DIR && \
 LOCAL_PYTHON_PATH=$(find $INSTALL_DIR -name pythonsollya | sed -e "s/pythonsollya//") && \
-echo "export PYTHONPATH=$LOCAL_DIR/metalibm-lugdunum/:$LOCAL_PYTHON_PATH:$PYTHONPATH" > $INSTALL_DIR/metalibm_setup_env.bash 
+echo "DIR=\$( cd \"\$( dirname \"\${BASH_SOURCE[0]}\" )\" && pwd )" > $LOCAL_DIR/metalibm_setup_env.bash 
+echo "export PYTHONPATH=\$DIR:$LOCAL_PYTHON_PATH:$PYTHONPATH" >> $LOCAL_DIR/metalibm_setup_env.bash 
 
 # USAGE EXAMPLE
 # source $INSTALL_DIR/metalibm_setup_env.bash 
