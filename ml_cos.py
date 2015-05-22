@@ -55,9 +55,9 @@ class ML_Cosine:
         vx = Abs(exp_implementation.add_input_variable("x", self.precision), tag = "vx") 
 
 
-        Log.report(Log.Info, "\033[33;1m generating implementation scheme \033[0m")
+        Log.report(Log.Info, "generating implementation scheme")
         if debug_flag: 
-            Log.report(Log.Info, "\033[31;1m debug has been enabled \033[0;m")
+            Log.report(Log.Info, "debug has been enabled")
 
         # local overloading of RaiseReturn operation
         def ExpRaiseReturn(*args, **kwords):
@@ -128,7 +128,7 @@ class ML_Cosine:
         error_goal_approx = S2**-self.precision.get_precision()
 
 
-        Log.report(Log.Info, "\033[33;1m building mathematical polynomial \033[0m\n")
+        Log.report(Log.Info, "building mathematical polynomial")
         poly_degree_vector = [None] * 2**(frac_pi_index+1)
 
 
@@ -352,26 +352,26 @@ class ML_Cosine:
 
 
         # main scheme
-        Log.report(Log.Info, "\033[33;1m MDL scheme \033[0m")
+        Log.report(Log.Info, "Construction of the initial MDL scheme")
         scheme = Statement(pre_red_vx_d, red_vx_lo_sub, ConditionBlock(cond, lar_result, result))
 
         # fusing FMA
         if fuse_fma: 
-            Log.report(Log.Info, "\033[33;1m MDL fusing FMA \033[0m")
+            Log.report(Log.Info, "Fusing FMAs")
             scheme = opt_eng.fuse_multiply_add(scheme, silence = True)
 
-        Log.report(Log.Info, "\033[33;1m MDL abstract scheme \033[0m")
+        Log.report(Log.Info, "Infering types")
         opt_eng.instantiate_abstract_precision(scheme, None)
 
 
-        Log.report(Log.Info, "\033[33;1m MDL instantiated scheme \033[0m")
+        Log.report(Log.Info, "Instantiating precisions")
         opt_eng.instantiate_precision(scheme, default_precision = self.precision)
 
 
-        Log.report(Log.Info, "\033[33;1m subexpression sharing \033[0m")
+        Log.report(Log.Info, "Subexpression sharing")
         opt_eng.subexpression_sharing(scheme)
 
-        Log.report(Log.Info, "\033[33;1m silencing operation \033[0m")
+        Log.report(Log.Info, "Silencing exceptions in internal operations")
         opt_eng.silence_fp_operations(scheme)
 
         # registering scheme as function implementation
@@ -383,13 +383,13 @@ class ML_Cosine:
 
         # factorizing fast path
         if fast_path_extract:
-            Log.report(Log.Info, "\033[33;1m factorizing fast path\033[0m")
+            Log.report(Log.Info, "Factorizing fast path")
             opt_eng.factorize_fast_path(scheme)
 
         print "ml_cos DAG: "
         print scheme.get_str(depth = None, display_precision = True)
         
-        Log.report(Log.Info, "\033[33;1m generating source code \033[0m")
+        Log.report(Log.Info, "Generating source code")
         cg = CCodeGenerator(processor, declare_cst = False, disable_debug = not debug_flag, libm_compliant = libm_compliant)
         self.result = exp_implementation.get_definition(cg, C_Code, static_cst = True)
         #self.result.add_header("support_lib/ml_types.h")
