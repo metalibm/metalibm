@@ -123,7 +123,7 @@ static inline uint64_t highmul (uint64_t a, uint64_t b) {
 	} ArgReduc1_t;
 	typedef struct {
 		uint16_t val : 16;
-		uint64_t log_hi : 53;
+		uint64_t log_hi : 48;
 		uint64_t log_mid;
 		uint64_t log_lo;
 	} ArgReduc2_t;
@@ -144,7 +144,7 @@ static inline uint64_t highmul (uint64_t a, uint64_t b) {
 #endif/*COMPACT_LOGTABLES*/
 
 
-double log_rn_extended (uint128_t cstpart, uint64_t dz, int xe, uint64_t ri_low, uint64_t si_low)
+double log_rn_accurate (uint128_t cstpart, uint64_t dz, int xe, uint64_t ri_low, uint64_t si_low)
 {
 	if (dz == 0 && xe == 0)
 		return 0.0;
@@ -280,7 +280,13 @@ double log_rn (const double x)
 	#else
 	
 	/* Polynomial approximation of log(1+Z)/Z ~= P(Z), and evaluate Z*P(Z) */
-	p = (UINT64_C(0xffffffffffffffa4) - (highmul(dz, UINT64_C(0x7ffffffffeabf9c5) - (highmul(dz, UINT64_C(0x555554f70538f907) - (highmul(dz, UINT64_C(0x3ff8278711338aba)) >> IMPLICIT_ZEROS)) >> IMPLICIT_ZEROS)) >> IMPLICIT_ZEROS));
+	p = (UINT64_C(0xffffffffffffffa4)
+	     - (highmul(dz, UINT64_C(0x7ffffffffeabf9c5)
+	                    - (highmul(dz, UINT64_C(0x555554f70538f907)
+	                                   - (highmul(dz, UINT64_C(0x3ff8278711338aba)) >> IMPLICIT_ZEROS)
+	                      ) >> IMPLICIT_ZEROS)
+	       ) >> IMPLICIT_ZEROS)
+	    );
 	zpzpart = fullmul(dz, p);
 	
 	/* Assemble the two parts, compute the sign, mantissa and exponent */
@@ -304,7 +310,7 @@ double log_rn (const double x)
 		#if EVAL_PERF
 		  crlibm_second_step_taken++;
 		#endif
-		return log_rn_extended (cstpart, dz, xe, argReduc1[ri].log_lo, argReduc2[si].log_lo);
+		return log_rn_accurate (cstpart, dz, xe, argReduc1[ri].log_lo, argReduc2[si].log_lo);
 	}
 	
 	/* Assemble the computed result */
