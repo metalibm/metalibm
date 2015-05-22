@@ -64,6 +64,12 @@ abstract_typing_rule = {
         lambda *ops: ML_Integer,
     MantissaExtraction: 
         lambda *ops: ML_Float,
+    RawSignExpExtraction: 
+        lambda *ops: ML_Integer,
+    RawMantissaExtraction: 
+        lambda *ops: ML_Integer,
+    CountLeadingZeros: 
+        lambda *ops: ML_Integer,
     Comparison: 
         lambda *ops: ML_Bool,
     Test: 
@@ -129,6 +135,12 @@ practical_typing_rule = {
         lambda backend, op, dprec: backend.get_integer_format(op),  
     MantissaExtraction: 
         lambda backend, op, dprec: backend.merge_abstract_format(op, op.inputs),
+    RawSignExpExtraction:
+        lambda backend, op, dprec: backend.get_integer_format(op),
+    RawMantissaExtraction:
+        lambda backend, op, dprec: backend.get_integer_format(op),
+    CountLeadingZeros:
+        lambda backend, op, dprec: backend.get_integer_format(op),
     Return:
         lambda backend, op, dprec: dprec,  
     NearestInteger: 
