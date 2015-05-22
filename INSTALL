@@ -8,6 +8,7 @@
 LOCAL_DIR=$PWD
 INSTALL_DIR=$PWD/local_install
 
+git clone git+ssh://gforge.inria.fr/git/metalibm/pythonsollya.git && \
 git submodule update --init --recursive && \ 
 cd $LOCAL_DIR && \
 mkdir $INSTALL_DIR && \
