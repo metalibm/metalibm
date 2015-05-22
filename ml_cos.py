@@ -378,7 +378,7 @@ class ML_Cosine:
         exp_implementation.set_scheme(scheme)
 
         # check processor support
-        Log.report(Log.Info, "\033[33;1m checking processor support \033[0m")
+        Log.report(Log.Info, "Checking processor support")
         opt_eng.check_processor_support(scheme)
 
         # factorizing fast path
