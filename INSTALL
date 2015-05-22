@@ -1,10 +1,20 @@
-# This script will download and install several things in the current directory.
-# You should therefore probably run it in a new empty directory.
-# Dependencies
+# This script 
+# -> clone pythonsollya from INRIA's gforge
+# -> populates submodules of metalibm-lugdunum
+# -> download and install Sollya into $PWD/local_instqll
+# -> build pythonsollya python module and install into local_install
+# -> generate script to setup environement into $PWD/local_install/metalibm_setup_env.bash
+
+# Installing Requirements (On apt-able systems)
 # sudo apt-get install python-dev libmpfr-dev libfplll-dev libmpfi-dev libgmp-dev libxml2-dev
 
+# For Developers: 
+# Before pushing for the first time into inria's gforge repo you must update your repository 
+# by running
+# LOGIN=<inria login> sh PATCH_INSTALL_DEVELOPPER
 
-# INSTALLATION
+
+# INSTALLATION DIRECTORIES
 LOCAL_DIR=$PWD
 INSTALL_DIR=$PWD/local_install
 
