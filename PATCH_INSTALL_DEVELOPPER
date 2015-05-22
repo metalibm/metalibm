@@ -1,0 +1,2 @@
+git config submodule.metalibm-lugdunum-core.url git+ssh://${LOGIN}@scm.gforge.inria.fr//gitroot/metalibm/metalibm-lugdunum-core.git
+git config submodule.metalibm-lugdunum-functions.url git+ssh://${LOGIN}@gforge.inria.fr//gitroot/metalibm/metalibm-lugdunum-functions.git
