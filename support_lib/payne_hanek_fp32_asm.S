@@ -61,14 +61,14 @@ payne_hanek_fp32_asm:
   ;;
   sll $r62 = $r62, 23        /* scalingf */
   ;;
-  ld.add.x4 $r32r33 = $r2[$r63] 
+  ld.add.x4 $r32r33 = $r2[$r63] /* loading useful chunks of pi fraction */ 
   add $r2 = $r2, 2
   ;;
   ld.add.x4 $r34r35 = $r2[$r63] 
   add $r2 = $r2, 2
   ;;
-  lw.add.x4 $r50 = $r2[$r63]
-  fmul $r32 = $r32, $r62
+  ld.add.x4 $r50r51 = $r2[$r63]
+  fmul $r32 = $r32, $r62        /* scaling chunk with scalingf */
   ;;
   fmul $r33 = $r33, $r62
   ;;
@@ -77,6 +77,8 @@ payne_hanek_fp32_asm:
   fmul $r35 = $r35, $r62
   ;;
   fmul $r50 = $r50, $r62
+  ;;
+  fmul $r51 = $r51, $r62
   make $r44 = 0
   make $r45 = 0
   ;;
@@ -93,6 +95,7 @@ payne_hanek_fp32_asm:
   make  $r33 = 0xffffffff
   ffmawd $r52r53 = $r44r45, $r4, $r50
   ;;
+  ffmawd $r54r55 = $r44r45, $r4, $r51 
   sbf $r32 = $r32, (53 + 3 + 1023)
   sbf $r44 = $r32, (1 + 3 + 1023)
   ;;
@@ -156,6 +159,8 @@ payne_hanek_fp32_asm:
   faddd $r36r37 = $r36r37, $r42r43
   ;;
   faddd $r36r37 = $r36r37, $r52r53
+  ;;
+  faddd $r36r37 = $r36r37, $r54r55
   ;;
   fabsd $r0:$r1 = $r36:$r37
 	ret
