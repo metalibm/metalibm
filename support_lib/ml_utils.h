@@ -59,6 +59,45 @@ static inline float ml_fmaf(float x, float y, float z) {
     return result;
 }
 
+/** count leading zeroes */
+#if defined(__GNUC__)
+static inline ml_count_leading_zeros_32b (uint32_t x) {
+    return (x == 0) ? 0 : __builtin_clzl (x);
+}
+static inline ml_count_leading_zeros_64b (uint64_t x) {
+	return (x == 0) ? 0 : __builtin_clzll(x);
+}
+#else
+static const uint8_t ml_clz_lkup[256] = {
+    64, 63, 62, 62, 61, 61, 61, 61, 60, 60, 60, 60, 60, 60, 60, 60,
+    59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59,
+    58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58,
+    58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58,
+    57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57,
+    57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57,
+    57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57,
+    57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57,
+    56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56,
+    56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56,
+    56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56,
+    56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56,
+    56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56,
+    56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56,
+    56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56,
+    56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56
+};
+static inline int ml_count_leading_zeros_32b (uint32_t x) {
+    int n = ((x)   >= (UINT32_C(1) << 16)) * 16;
+    n += ((x >> n) >= (UINT32_C(1) <<  8)) *  8;
+    return clz_lkup[x >> n] - n;
+}
+static inline int ml_count_leading_zeros_64b (uint64_t x) {
+    int n = ((x)   >= (UINT64_C(1) << 32)) * 32;
+    n += ((x >> n) >= (UINT64_C(1) << 16)) * 16;
+    n += ((x >> n) >= (UINT64_C(1) <<  8)) *  8;
+    return clz_lkup[x >> n] - n;
+}
+#endif
 
 
 
@@ -77,6 +116,12 @@ static inline float ml_fmaf(float x, float y, float z) {
 
 #define ml_mantissa_extraction_fp32(x)  (float_from_32b_encoding((float_to_32b_encoding(x) & 0x807fffff) | 0x3f800000))
 #define ml_mantissa_extraction_fp64(x)  (double_from_64b_encoding((double_to_64b_encoding(x) & 0x800fffffffffffffull) | 0x3ff0000000000000ull))
+
+#define ml_raw_sign_exp_extraction_fp32(x) ((int32_t)float_to_32b_encoding(x) >> 9) 
+#define ml_raw_sign_exp_extraction_fp64(x) ((int64_t)double_to_64b_encoding(x) >> 12) 
+
+#define ml_raw_mantissa_extraction_fp32(x) ((float_to_32b_encoding(x) & 0x007FFFFF) + 0x007FFFFF+1) 
+#define ml_raw_mantissa_extraction_fp64(x) ((double_to_64b_encoding(x) & 0x000fffffffffffffull) + 0x000fffffffffffffull+1) 
 
 #define ml_is_nan_or_inff(x) ((float_to_32b_encoding(x) & 0x7f800000u) == 0x7f800000)
 #define ml_is_nan_or_inf(x) ((double_to_64b_encoding(x) & 0x7ff0000000000000ull) == 0x7ff0000000000000ull)

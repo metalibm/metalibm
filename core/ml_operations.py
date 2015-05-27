@@ -702,6 +702,15 @@ class MantissaExtraction(AbstractOperationConstructor("MantissaExtraction", arit
 class ExponentExtraction(AbstractOperationConstructor("ExponentExtraction", arity = 1)):
     pass
 
+class RawSignExpExtraction(AbstractOperationConstructor("RawSignExpExtraction", arity = 1)):
+    pass
+
+class RawMantissaExtraction(AbstractOperationConstructor("RawMantissaExtraction", arity = 1)):
+    pass
+
+class CountLeadingZeros(AbstractOperationConstructor("CountLeadingZeros", arity = 1)):
+    pass
+
 class TestSpecifier(object): 
     """ Common parent to all Test specifiers """
     pass

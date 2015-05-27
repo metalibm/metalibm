@@ -64,6 +64,12 @@ abstract_typing_rule = {
         lambda *ops: ML_Integer,
     MantissaExtraction: 
         lambda *ops: ML_Float,
+    RawSignExpExtraction: 
+        lambda *ops: ML_Integer,
+    RawMantissaExtraction: 
+        lambda *ops: ML_Integer,
+    CountLeadingZeros: 
+        lambda *ops: ML_Integer,
     Comparison: 
         lambda *ops: ML_Bool,
     Test: 
@@ -129,6 +135,12 @@ practical_typing_rule = {
         lambda backend, op, dprec: backend.get_integer_format(op),  
     MantissaExtraction: 
         lambda backend, op, dprec: backend.merge_abstract_format(op, op.inputs),
+    RawSignExpExtraction:
+        lambda backend, op, dprec: backend.get_integer_format(op),
+    RawMantissaExtraction:
+        lambda backend, op, dprec: backend.get_integer_format(op),
+    CountLeadingZeros:
+        lambda backend, op, dprec: backend.get_integer_format(op),
     Return:
         lambda backend, op, dprec: dprec,  
     NearestInteger: 
@@ -907,30 +919,28 @@ class OptimizationEngine:
         # copying when required
         scheme = pre_scheme if not copy else pre_scheme.copy({})
 
-        # fusing FMA
         if fuse_fma:
-            Log.report(Log.Info, "fusing FMA")
+            Log.report(Log.Info, "Fusing FMA")
         scheme_post_fma = scheme if not fuse_fma else self.fuse_multiply_add(scheme, silence = silence_fp_operations)
         
-        # instantiating abstract precisions
-        Log.report(Log.Info, "instantiating abstract precisions")
+        Log.report(Log.Info, "Infering types")
         self.instantiate_abstract_precision(scheme_post_fma, None)
-        Log.report(Log.Info, "instantiating precisions")
+        Log.report(Log.Info, "Instantiating precisions")
         self.instantiate_precision(scheme_post_fma, default_precision)
 
         if subexpression_sharing:
-            Log.report(Log.Info, "sharing sub-expressions")
+            Log.report(Log.Info, "Sharing sub-expressions")
             self.subexpression_sharing(scheme_post_fma)
+
         if silence_fp_operations:
-            Log.report(Log.Info, "silencing fp operations")
+            Log.report(Log.Info, "Silencing exceptions in internal fp operations")
             self.silence_fp_operations(scheme_post_fma)
 
-        # check processor support
-        Log.report(Log.Info, "checking processor support")
+        Log.report(Log.Info, "Checking processor support")
         self.check_processor_support(scheme_post_fma, memoization_map = {})
 
         if factorize_fast_path:
-            Log.report(Log.Info, "factorizing fast path")
+            Log.report(Log.Info, "Factorizing fast path")
             self.factorize_fast_path(scheme_post_fma)
 
         return scheme_post_fma

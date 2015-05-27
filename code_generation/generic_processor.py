@@ -316,19 +316,46 @@ c_code_generation_table = {
             },
         },
     },
+    RawSignExpExtraction: {
+        None: {
+            lambda optree: True: {
+                type_strict_match(ML_Int32, ML_Binary32): FunctionOperator("ml_raw_sign_exp_extraction_fp32", arity = 1), 
+                type_strict_match(ML_Int32, ML_Binary64): FunctionOperator("ml_raw_sign_exp_extraction_fp64", arity = 1), 
+            },
+        },
+    },
+    RawMantissaExtraction: {
+        None: {
+            lambda optree: True: {
+                type_strict_match(ML_UInt32, ML_Binary32): FunctionOperator("ml_raw_mantissa_extraction_fp32", arity = 1), 
+                type_strict_match(ML_UInt64, ML_Binary64): FunctionOperator("ml_raw_mantissa_extraction_fp64", arity = 1), 
+            },
+        },
+    },
+    CountLeadingZeros: {
+        None: {
+            lambda optree: True: {
+                type_strict_match(ML_UInt32, ML_UInt32): FunctionOperator("ml_count_leading_zeros_32b", arity = 1), 
+                type_strict_match(ML_UInt64, ML_UInt64): FunctionOperator("ml_count_leading_zeros_64b", arity = 1), 
+            },
+        },
+    },
     Conversion: {
         None: {
             lambda optree: True: {
                 type_strict_match(ML_Binary32, ML_Binary64): IdentityOperator(),
                 type_strict_match(ML_Binary64, ML_Binary32): IdentityOperator(),
                 type_strict_match(ML_Binary32, ML_Int32): IdentityOperator(),
-                type_strict_match(ML_Binary32, ML_UInt32): IdentityOperator(),
                 type_strict_match(ML_Int32, ML_Binary32): IdentityOperator(),
                 type_strict_match(ML_Binary64, ML_Int32): IdentityOperator(),
                 type_strict_match(ML_Binary64, ML_Int64): IdentityOperator(),
                 type_strict_match(ML_Int64, ML_Binary64): IdentityOperator(),
                 type_strict_match(ML_Int32, ML_Int64):    IdentityOperator(),
                 type_strict_match(ML_Int64, ML_Int32):    IdentityOperator(),
+                type_strict_match(ML_Int64, ML_UInt64):   IdentityOperator(),
+                type_strict_match(ML_UInt64, ML_Int64):   IdentityOperator(),
+                type_strict_match(ML_UInt32, ML_Int32):   IdentityOperator(),
+                type_strict_match(ML_Int32, ML_UInt32):   IdentityOperator(),
             },
         },
     },
