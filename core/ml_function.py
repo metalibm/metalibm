@@ -174,5 +174,5 @@ class ML_FunctionBasis(object):
         
 def ML_Function(name):
   new_class = type(name, (ML_FunctionBasis,), {"function_name": name})
-  new_class.get_name = staticmethod(lambda: new_class.name) 
+  new_class.get_name = staticmethod(lambda: name) 
   return new_class
