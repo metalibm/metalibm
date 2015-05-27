@@ -4,6 +4,8 @@ import sys
 
 from pythonsollya import *
 
+from metalibm_core.core.ml_function import ML_Function
+
 from metalibm_core.core.attributes import ML_Debug
 from metalibm_core.core.ml_operations import *
 from metalibm_core.core.ml_formats import *
