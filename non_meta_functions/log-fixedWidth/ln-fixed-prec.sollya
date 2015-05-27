@@ -1,0 +1,14 @@
+prec = 512!;
+display = hexadecimal!;
+f = log(1+dz);
+d = [2^-64, 40602627951558399b-68];
+p = fpminimax(f, 8, [|128...|], d, fixed, relative);
+p := p - p(0);
+//p := p + (1 - (p/z)(0))*z;
+u = sup(supnorm(p, f, d, relative, 2^-64));
+display = decimal!;
+v := ceil(log(u)/log(2));
+print("precision obtenue:", v, "   p(0):", p(0));
+display = hexadecimal!;
+print(u);
+p;

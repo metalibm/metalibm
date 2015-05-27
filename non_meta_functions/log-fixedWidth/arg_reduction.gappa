@@ -1,0 +1,55 @@
+# Entry = 2^xe * x
+#   such that 1 <= x < 2, @FIX(x,-52) 
+# We do two argument reductions:
+#   x = (1/r) * y
+#   y = (1/s) * z
+#   with r an approximation of 1/x (parametrized by ARG_REDUC_1_PREC and ARG_REDUC_1_SIZE)
+#   and  s an approximation of 1/y (parametrized by ARG_REDUC_2_PREC and ARG_REDUC_2_SIZE)
+# This result in dz being much closer to 0 than dx:
+#   we can approximate log(1+dz) by a polynomial much more easily
+
+dx = x - 1;                   # 0 <= dx < 1, @FIX(dx,-52)
+
+### First range reduction   ###
+xm = fixed<-6,dn>(x);         # ARG_REDUC_1_PREC := 6
+sizeTableX = (xm - 1) * 1b6;  # defines ARG_REDUC_1_TABLESIZE
+rm = 1/xm;
+r = fixed<-9,up>(rm);         # ARG_REDUC_1_SIZE := 9
+y = x * r;
+dy = y - 1;                   # 0 <= dy < 1, @FIX(dy,-52-ARG_REDUC_1_SIZE)
+
+### Second range reduction  ###
+ym = fixed<-12,dn>(y);        # ARG_REDUC_2_PREC := 12
+sizeTableY = (ym - 1) * 1b12; # defines ARG_REDUC_2_TABLESIZE
+sm = 1/ym;
+s = fixed<-14,up>(sm);        # ARG_REDUC_2_PREC := 14
+z = y * s;
+dz = z - 1;                   # 0 <= dz < 1, @FIX(dz,-52-ARG_REDUC_1_SIZE-ARG_REDUC_2_SIZE)
+
+# We define IMPLICIT_ZEROS as  (52 + ARG_REDUC_1_SIZE + ARG_REDUC_2_SIZE - 64)
+# It represent the number of leading zeros that are implicit when representing dz as a @FIX(-64-IMPLICIT_ZEROS) in a uint64_t
+# We (gappa) need to prove that  dz is always in [0, 2^-IMPLICIT_ZEROS[
+# (so the first IMPLICIT_ZEROS bits of dz as a @FIX(-64-IMPLICIT_ZEROS) are indeed 0)
+
+{
+	@FIX(x,-52) /\ x in [0x1.0000000000000p0, 0x1.FFFFFFFFFFFFFp0]  # 2 - 2^53, car x est un fixed<-52>
+	
+	/\ x - xm in [0, 0x3.fffffffffffp-8]   # (1b-6  - 1b-52), because @FIX(x,-52) and @FIX(xm,-6), and gappa don't guess that
+	/\ y - ym in [0, 0xf.fffffffffffp-16]  # (1b-12 - 1b-60), because @FIX(y,-60) and @FIX(ym,-12), and gappa don't guess that
+	
+	 ->
+	     dx  in ?
+	/\   dy  in ?
+	/\   dz  in ?  # vérifier que dz <= 2^-IMPLICIT_ZEROS
+	
+	# vérifier la taille des tables de log:
+	/\ sizeTableX in ?  /\ sizeTableY in ?
+}
+
+xm ~ x;
+rm ~ r;
+xm * rm -> 1 { xm <> 0 };
+
+ym ~ y;
+sm ~ s;
+ym * sm -> 1 { ym <> 0 };

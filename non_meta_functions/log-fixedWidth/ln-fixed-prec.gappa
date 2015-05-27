@@ -1,0 +1,71 @@
+dx = x - 1;             # in [0, 1[, fixed<-52>
+
+### First range reduction ###
+xm = fixed<-7,dn>(x);   # 2^7 = taille de la première table. 
+um = 1/xm;
+u = fixed<-8,up>(um);   # sur 8 bits, pour faire tenir dy sur un fixed<-60>
+y = x * u;
+dy = y - 1;             # in [0, 6729399744411789b-59], fixed<-60>
+
+### Second range reduction ###
+ym = fixed<-13,dn>(y);  # 2^7/191b-14 = taille de la seconde table
+vm = 1/ym;
+v = fixed<-16,up>(vm);  # v sur 16 bits, pour faire tenir dz sur un fixed<-76>, mais avec les 12 premiers bits après la virgule égals à 0
+z = y * v;
+dz = z - 1;             # can prove to be in [0, 295171b-31], fixed<-76>
+
+### Polynomial approx of log(1 + dz) ~= dz * P(dz):
+# polynomial approx of log(1+dz): proche en erreur relative à ~ 0x1.3caccdp-121 près
+# Note: La dernièree multiplication par dz doit être fait exactement pour avoir
+# assez de chiffres significatifs lorsque z est proche de zéro.
+# (ak: on a une erreur absolue de 2^-64, mais l'erreur relative est ~= 2^-64/M)
+
+Pdz = 0xf.fffffffffffffffffffffffffffffcdp-4 - dz * (0x7.ffffffffffffffffffffffff95d2eddp-4 - dz * (0x5.5555555555555555555441a272f4617p-4 - dz * (0x3.ffffffffffffffff008fd9c53b98d52p-4 - dz * (0x3.333333333332c146ef40a305d92ecdbp-4 - dz * (0x2.aaaaaaaa8f50afb4b3747e8df1787bcp-4 - dz * (0x2.49248eaa18529443fa0804867361e8ap-4 - dz * (0x1.ffc04207b251a522ec1d8cc930ba858p-4)))))));
+P = dz * Pdz;
+
+# evaluation du polynome en virgule fixe:
+# les multiplications renvoient un fixed<-76> car dz est un fixed<-76> dont les 12 premiers bits sont à 0
+EPdz = fixed<-128,up>(0xf.fffffffffffffffffffffffffffffcdp-4
+        - fixed<-140,dn>(dz * fixed<-128,up>(0x7.ffffffffffffffffffffffff95d2eddp-4
+           - fixed<-140,dn>(dz * fixed<-128,up>(0x5.5555555555555555555441a272f4617p-4
+             - fixed<-140,dn>(dz * fixed<-128,up>(0x3.ffffffffffffffff008fd9c53b98d52p-4
+               - fixed<-140,dn>(dz * fixed<-128,up>(0x3.333333333332c146ef40a305d92ecdbp-4
+                 - fixed<-140,dn>(dz * fixed<-128,up>(0x2.aaaaaaaa8f50afb4b3747e8df1787bcp-4
+                   - fixed<-140,dn>(dz * fixed<-128,up>(0x2.49248eaa18529443fa0804867361e8ap-4
+                     - fixed<-140,dn>(dz * fixed<-64,up>(0x1.ffc04207b251a522ec1d8cc930ba858p-4)))))))))))))));
+EP = dz * EPdz;
+
+{
+	@FIX(x,-52) /\ x in [1, 0x3FFFFFFFFFFFFFp-53]  # 2 - 2^53, car x est un fixed<-52>
+	
+	/\ x - xm in [0, 0x1.fffffffffffp-8]   # (1b-6  - 1b-52), because @FIX(x,-52) and @FIX(xm,-7), and gappa don't guess that
+	/\ y - ym in [0, 0x7.fffffffffffp-16]  # (1b-13 - 1b-60), because @FIX(y,-60) and @FIX(ym,-13), and gappa don't guess that
+	
+	# S est la solution. l'interval exacte est prouvé par sollya
+	/\ S -/ P in [-0x9.e5666de3a9467da05c163a748bfc49aa0fac28p-124, 0x9.e5666de3a9467da05c163a748bfc49aa0fac28p-124]
+	
+	 ->
+	     dx  in ?
+	/\   dy  in ?
+	/\   dz  in ?
+	
+	# vérifier la taille des tables de log:  /\ xm in ?  /\ ym in ?
+	
+	/\    EPdz -/ Pdz in ?
+	/\       S -/ P   in ?
+	/\       S -/ EP  in ?
+}
+
+### Ranges reductions ###
+#$ dx in 256;  # optionel: dans une version précédente de la preuve, ça reduisait l'interval de dz prouvé par gappa
+xm ~ x;
+um ~ u;
+xm * um -> 1 { xm <> 0 };
+
+ym ~ y;
+vm ~ v;
+ym * vm -> 1 { ym <> 0 };
+
+P ~ S;
+Pdz ~ EPdz;
+P ~ EP;
