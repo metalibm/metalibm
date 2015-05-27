@@ -51,7 +51,7 @@ step_list = [
 
   ("launching INSTALL", "cd %s && BRANCH=%s LOGIN=%s sh INSTALL" % (root_dir, branch, gforge_login)),
 
-  ("testing metalibm install", "bash -c \"cd %s && source %s/metalibm_setup_env.bash; python %s/metalibm_functions/ml_log.py\"" % (install_dir, root_dir, root_dir)),
+  ("testing metalibm install", "bash -c \"cd %s && source %s/metalibm_setup_env.bash; python %s/valid/non_regression.py\"" % (install_dir, root_dir, root_dir)),
 ]
 
 if "--help" in sys.argv:
