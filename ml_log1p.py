@@ -4,27 +4,27 @@ import sys
 
 from pythonsollya import *
 
-from core.attributes import ML_Debug
-from core.ml_operations import *
-from core.ml_formats import *
-from code_generation.c_code_generator import CCodeGenerator
-from code_generation.generic_processor import GenericProcessor
-from code_generation.code_object import CodeObject
-from code_generation.code_element import CodeFunction
-from code_generation.generator_utility import C_Code, FunctionOperator 
-from core.ml_optimization_engine import OptimizationEngine
-from core.polynomials import *
-from core.ml_table import ML_Table
+from metalibm_core.core.attributes import ML_Debug
+from metalibm_core.core.ml_operations import *
+from metalibm_core.core.ml_formats import *
+from metalibm_core.code_generation.c_code_generator import CCodeGenerator
+from metalibm_core.code_generation.generic_processor import GenericProcessor
+from metalibm_core.code_generation.code_object import CodeObject
+from metalibm_core.code_generation.code_element import CodeFunction
+from metalibm_core.code_generation.code_constant import C_Code 
+from metalibm_core.core.ml_optimization_engine import OptimizationEngine
+from metalibm_core.core.polynomials import *
+from metalibm_core.core.ml_table import ML_Table
+from metalibm_core.code_generation.generator_utility import FunctionOperator
 
 from kalray_proprietary.k1a_processor import K1A_Processor
 from kalray_proprietary.k1b_processor import K1B_Processor
-from code_generation.x86_processor import X86_FMA_Processor, X86_SSE_Processor
-from code_generation.gappa_code_generator import GappaCodeGenerator
+from metalibm_core.code_generation.gappa_code_generator import GappaCodeGenerator
 
-from utility.gappa_utils import execute_gappa_script_extract
-from ml_functions.ml_template import ML_ArgTemplate
+from metalibm_core.utility.gappa_utils import execute_gappa_script_extract
+from metalibm_core.utility.ml_template import ML_ArgTemplate
 
-from utility.common import test_flag_option, extract_option_value  
+from metalibm_core.utility.arg_utils import test_flag_option, extract_option_value  
 
 class ML_Logarithm:
     def __init__(self, 
@@ -76,6 +76,11 @@ class ML_Logarithm:
 
         int_precision = ML_Int64 if self.precision is ML_Binary64 else ML_Int32
 
+        # retrieving processor inverse approximation table
+        dummy_var = Variable("dummy", precision = self.precision)
+        dummy_div_seed = DivisionSeed(dummy_var, precision = self.precision)
+        inv_approx_table = self.processor.get_recursive_implementation(dummy_div_seed, language = None, table_getter = lambda self: self.approx_table_map)
+
         # table creation
         table_index_size = 7
         log_table = ML_Table(dimensions = [2**table_index_size, 2], storage_precision = self.precision)
@@ -83,7 +88,7 @@ class ML_Logarithm:
         log_table[0][1] = 0.0
         for i in xrange(1, 2**table_index_size):
             #inv_value = (1.0 + (self.processor.inv_approx_table[i] / S2**9) + S2**-52) * S2**-1
-            inv_value = (1.0 + (self.processor.inv_approx_table[i] / S2**9) ) * S2**-1
+            inv_value = (1.0 + (inv_approx_table[i][0] / S2**9) ) * S2**-1
             value_high = round(log(inv_value), self.precision.get_field_size() - (self.precision.get_exponent_size() + 1), RN)
             value_low = round(log(inv_value) - value_high, sollya_precision, RN)
             log_table[i][0] = value_high
