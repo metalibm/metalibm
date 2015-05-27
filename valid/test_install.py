@@ -13,10 +13,11 @@ def extract_option(opt_name, default_value):
     return default_value
 
 
-install_dir = extract_option("--install-dir", "/tmp")
+install_dir    = extract_option("--install-dir", "/tmp")
 install_script = extract_option("--install-script", "/tmp/metalibm-lugdunum/INSTALL")
-clone_url = extract_option("--clone-url", clone_url_default)
-gforge_login = extract_option("--gforge-login", "")
+clone_url      = extract_option("--clone-url", clone_url_default)
+gforge_login   = extract_option("--gforge-login", "")
+branch         = extract_option("--branch", "master")
 
 enable_step_opt = extract_option("--enable-steps", "")
 if enable_step_opt == "":
@@ -45,7 +46,7 @@ step_list = [
 
   ("moving INSTALL script", "cp %s %s" % (install_script, root_dir)),
 
-  ("launching INSTALL", "cd %s && LOGIN=%s sh INSTALL" % (root_dir, gforge_login)),
+  ("launching INSTALL", "cd %s && BRANCH=%s LOGIN=%s sh INSTALL" % (root_dir, branch, gforge_login)),
 
   ("testing metalibm install", "bash -c \"cd %s && source %s/metalibm_setup_env.bash; python %s/metalibm_functions/ml_log.py\"" % (install_dir, root_dir, root_dir)),
 ]
