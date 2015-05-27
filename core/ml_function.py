@@ -65,6 +65,9 @@ class ML_FunctionBasis(object):
       self.opt_engine = OptimizationEngine(self.processor)
 
 
+  def generate_scheme(self):
+    """ generate MDL scheme for function implementation """
+    return self.evalScheme
 
 
   def generate_C(self):
