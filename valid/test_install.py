@@ -5,6 +5,7 @@ import commands
 import os
 
 clone_url_default = "https://gforge.inria.fr/git/metalibm/metalibm-lugdunum.git"
+default_install_script = "/tmp/metalibm-lugdunum/INSTALL"
 
 def extract_option(opt_name, default_value):
   if opt_name in sys.argv:
@@ -14,7 +15,7 @@ def extract_option(opt_name, default_value):
 
 
 install_dir    = extract_option("--install-dir", "/tmp")
-install_script = extract_option("--install-script", "/tmp/metalibm-lugdunum/INSTALL")
+install_script = extract_option("--install-script", default_install_script)
 clone_url      = extract_option("--clone-url", clone_url_default)
 gforge_login   = extract_option("--gforge-login", "")
 branch         = extract_option("--branch", "master")
@@ -39,12 +40,14 @@ def execute_cmd(title, cmd):
   else:
     print "   SUCCESS"
 
+move_step_cmd = ("cp -f %s %s" % (install_script, root_dir)) if install_script != default_install_script else "echo \"   nothing to do\""
+
 step_list = [ 
   ("cleaning install dir", "rm -rf %s/metalibm-lugdunum/" % install_dir),
 
   ("cloning metalibm-lugdunum", "cd %s && git clone %s" % (install_dir, clone_url)),
 
-  ("moving INSTALL script", "cp %s %s" % (install_script, root_dir)),
+  ("moving INSTALL script", move_step_cmd),
 
   ("launching INSTALL", "cd %s && BRANCH=%s LOGIN=%s sh INSTALL" % (root_dir, branch, gforge_login)),
 
