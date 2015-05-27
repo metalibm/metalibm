@@ -21,15 +21,21 @@
 # INSTALLATION DIRECTORIES
 LOCAL_DIR=$PWD
 INSTALL_DIR=$PWD/local_install
-BRANCH=master
 
+# testing if LOGIN is set, if so patch the repo to allow future pushes
 if [ -n "$LOGIN" ];
 then
   git remote set-url origin git+ssh://${LOGIN}@scm.gforge.inria.fr//gitroot/metalibm/metalibm-lugdunum.git && 
   git config submodule.metalibm-lugdunum-core.url git+ssh://${LOGIN}@scm.gforge.inria.fr//gitroot/metalibm/metalibm-lugdunum-core.git && 
   git config submodule.metalibm-lugdunum-functions.url git+ssh://${LOGIN}@scm.gforge.inria.fr//gitroot/metalibm/metalibm-lugdunum-functions.git || exit 1
 fi;
-git checkout $BRANCH && \
+
+# testing if branch is set, if so checkout a specific branch before populating the repo
+if [ -n "$BRANCH" ];
+then
+  git checkout $BRANCH;
+fi;
+
 git submodule update --init --recursive && \ 
 cd $LOCAL_DIR && \
 mkdir $INSTALL_DIR || exit 1
