@@ -8,14 +8,19 @@ import metalibm_functions.ml_log1p
 import metalibm_functions.ml_log2
 import metalibm_functions.ml_log
 
-function_list = [
+# old scheme
+old_scheme_function_list = [
   metalibm_functions.ml_log2.ML_Log2,
-  metalibm_functions.ml_log10.ML_Log10,
   metalibm_functions.ml_log1p.ML_Log1p,
   metalibm_functions.ml_log.ML_Log,
 ]
 
-def test_function(function_ctor, options = []):
+# new scheme (ML_Function)
+new_scheme_function_list = [
+  metalibm_functions.ml_log10.ML_Log10,
+]
+
+def old_scheme_test(function_ctor, options = []):
   function_name = function_ctor.get_name()
   try: 
     fct = function_ctor()
@@ -23,11 +28,26 @@ def test_function(function_ctor, options = []):
     return False
   return True
 
+def new_scheme_test(function_ctor, options = []):
+  function_name = function_ctor.get_name()
+  try: 
+    fct = function_ctor()
+    fct.gen_implementation()
+  except:
+    return False
+  return True
+
+
+test_list = [(function, old_scheme_test) for function in old_scheme_function_list]
+test_list += [(function, new_scheme_test) for function in new_scheme_function_list]
+
+
 
 
 success = True
 result_map = {}
-for function in function_list:
+
+for function, test_function in test_list:
   test_result = test_function(function)
   result_map[function] = test_result 
   success &= test_result
