@@ -123,21 +123,21 @@ class ML_FunctionBasis(object):
     return scheme
 
   def generate_C(self, scheme):
-      """ Final C generation, once the evaluation scheme has been optimized"""
-      # registering scheme as function implementation
-      self.implementation.set_scheme(scheme)
-      self.C_code_generator = CCodeGenerator(self.processor, declare_cst = False, disable_debug = not self.debug_flag, libm_compliant = self.libm_compliant)
-      self.result = self.implementation.get_definition(self.C_code_generator, C_Code, static_cst = True)
-      #self.result.add_header("support_lib/ml_special_values.h")
-      self.result.add_header("math.h")
-      self.result.add_header("stdio.h")
-      self.result.add_header("inttypes.h")
-      #print self.result.get(self.C_code_generator)
+    """ Final C generation, once the evaluation scheme has been optimized"""
+    # registering scheme as function implementation
+    self.implementation.set_scheme(scheme)
+    self.C_code_generator = CCodeGenerator(self.processor, declare_cst = False, disable_debug = not self.debug_flag, libm_compliant = self.libm_compliant)
+    self.result = self.implementation.get_definition(self.C_code_generator, C_Code, static_cst = True)
+    #self.result.add_header("support_lib/ml_special_values.h")
+    self.result.add_header("math.h")
+    self.result.add_header("stdio.h")
+    self.result.add_header("inttypes.h")
+    #print self.result.get(self.C_code_generator)
 
-      Log.report(Log.Info, "Generating C code in " + self.implementation.get_name() + ".c")
-      output_stream = open("%s.c" % self.implementation.get_name(), "w")
-      output_stream.write(self.result.get(self.C_code_generator))
-      output_stream.close()
+    Log.report(Log.Info, "Generating C code in " + self.implementation.get_name() + ".c")
+    output_stream = open("%s.c" % self.implementation.get_name(), "w")
+    output_stream.write(self.result.get(self.C_code_generator))
+    output_stream.close()
 
   def gen_implementation(self):
     # generate scheme
@@ -152,19 +152,18 @@ class ML_FunctionBasis(object):
 
   # Currently mostly empty, to be populated someday
   def gen_emulation_code(self, precode, code, postcode):
-      """generate C code that emulates the function, typically using MPFR.
-      precode is declaration code (before the test loop)
-      postcode is clean-up code (after the test loop)
-      Takes the input and output names from input_list and output_list.
-      Must postfix output names with "ref_", "ref_ru_", "ref_rd_"
+    """generate C code that emulates the function, typically using MPFR.
+    precode is declaration code (before the test loop)
+    postcode is clean-up code (after the test loop)
+    Takes the input and output names from input_list and output_list.
+    Must postfix output names with "ref_", "ref_ru_", "ref_rd_"
 
+    This class method performs commonly used initializations. 
+    It initializes the MPFR versions of the inputs and outputs, 
+    with the same names prefixed with "mp" and possibly postfixed with "rd" and "ru".
 
-      This class method performs commonly used initializations. 
-      It initializes the MPFR versions of the inputs and outputs, 
-      with the same names prefixed with "mp" and possibly postfixed with "rd" and "ru".
-
-      It should be overloaded by actual metafunctions, and called by the overloading function. 
-      """
+    It should be overloaded by actual metafunctions, and called by the overloading function. 
+    """
 
   @staticmethod
   def get_name():
