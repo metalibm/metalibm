@@ -21,6 +21,7 @@
 # INSTALLATION DIRECTORIES
 LOCAL_DIR=$PWD
 INSTALL_DIR=$PWD/local_install
+BRANCH=master
 
 if [ -n "$LOGIN" ];
 then
@@ -28,6 +29,7 @@ then
   git config submodule.metalibm-lugdunum-core.url git+ssh://${LOGIN}@scm.gforge.inria.fr//gitroot/metalibm/metalibm-lugdunum-core.git && 
   git config submodule.metalibm-lugdunum-functions.url git+ssh://${LOGIN}@scm.gforge.inria.fr//gitroot/metalibm/metalibm-lugdunum-functions.git || exit 1
 fi;
+git checkout $BRANCH && \
 git submodule update --init --recursive && \ 
 cd $LOCAL_DIR && \
 mkdir $INSTALL_DIR || exit 1
