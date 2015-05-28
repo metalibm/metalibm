@@ -38,7 +38,7 @@ fi;
 
 git submodule update --init --recursive && \ 
 cd $LOCAL_DIR && \
-mkdir $INSTALL_DIR || exit 1
+mkdir -p $INSTALL_DIR || exit 1
 
 # if SOLLYA is already installed, change this variable to indicate the install 
 # containing both include and lib dirs where sollya can be found
