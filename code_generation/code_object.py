@@ -311,6 +311,7 @@ class CodeObject:
         declaration_exclusion_list += [MultiSymbolTable.TableSymbol] if static_table else []
         declaration_exclusion_list += [MultiSymbolTable.FunctionSymbol] if skip_function else []
         result += self.symbol_table.generate_declarations(code_generator, exclusion_list = declaration_exclusion_list)
+        result += self.symbol_table.generate_initialization(code_generator, exclusion_list = declaration_exclusion_list)
         result += "\n" if result != "" else ""
         result += self.expanded_code
         return result
@@ -374,6 +375,7 @@ class GappaCodeObject(CodeObject):
 
         # declaration generation
         result += self.symbol_table.generate_declarations(code_generator, exclusion_list = declaration_exclusion_list)
+        result += self.symbol_table.generate_initializations(code_generator, exclusion_list = declaration_exclusion_list)
         result += "\n" if result != "" else ""
         result += self.expanded_code
         result += "\n\n"
