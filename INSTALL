@@ -56,7 +56,8 @@ cd $LOCAL_DIR && \
 LOCAL_PYTHON_PATH=$(find $INSTALL_DIR -name pythonsollya | sed -e "s/pythonsollya//") && \
 echo "DIR=\$( cd \"\$( dirname \"\${BASH_SOURCE[0]}\" )\" && pwd ) \n export PYTHONPATH=\$DIR:$LOCAL_PYTHON_PATH:$PYTHONPATH" >> $LOCAL_DIR/metalibm_setup_env.bash  || exit 1
 
-# USAGE EXAMPLE
-# source $INSTALL_DIR/metalibm_setup_env.bash 
-# python metalibm-lugdunum/metalibm_functions/ml_exp.py --target x86_fma --output x86_fma_exp2d.c && \
-# python metalibm-lugdunum/metalibm_functions/ml_exp.py --disable-fma --target x86_sse41 --output x86_sse41_exp2d.c && \
+# USAGE EXAMPLE from the metalibm-lugdunum directory
+# source metalibm_setup_env.bash
+# python metalibm_functions/ml_exp.py --target x86_fma --output x86_fma_exp2d.c
+# python metalibm_functions/ml_exp.py --disable-fma --target x86_sse41 --output x86_sse41_exp2d.c
+
