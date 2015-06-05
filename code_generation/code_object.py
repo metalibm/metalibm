@@ -61,6 +61,16 @@ class SymbolTable:
             code_object += code_generator.generate_declaration(symbol, symbol_object)
         return code_object
 
+    def generate_initialization(self, code_generator):
+        """ generate symbol initialization, only necessary
+            if symbols require a specific initialization procedure
+            after declaration (e.g. mpfr_t variable) """
+        code_object = ""
+        for symbol in self.table:
+            symbol_object = self.table[symbol]
+            code_object += code_generator.generate_initialization(symbol, symbol_object)
+        return code_object
+
 
 class MultiSymbolTable:
     """ symbol table object """
@@ -165,6 +175,12 @@ class MultiSymbolTable:
             if table_tag in exclusion_list:
                 continue
             code_object += self.table_list[table_tag].generate_declaration(code_generator) 
+        return code_object
+
+    def generate_initializations(self, code_generator, init_required_list = []):
+        code_object = ""
+        for table_tag in init_required_list:
+            code_object += self.table_list[table_tag].generate_initialization(code_generator)
         return code_object
         
 
@@ -295,6 +311,7 @@ class CodeObject:
         declaration_exclusion_list += [MultiSymbolTable.TableSymbol] if static_table else []
         declaration_exclusion_list += [MultiSymbolTable.FunctionSymbol] if skip_function else []
         result += self.symbol_table.generate_declarations(code_generator, exclusion_list = declaration_exclusion_list)
+        result += self.symbol_table.generate_initialization(code_generator, exclusion_list = declaration_exclusion_list)
         result += "\n" if result != "" else ""
         result += self.expanded_code
         return result
@@ -358,6 +375,7 @@ class GappaCodeObject(CodeObject):
 
         # declaration generation
         result += self.symbol_table.generate_declarations(code_generator, exclusion_list = declaration_exclusion_list)
+        result += self.symbol_table.generate_initializations(code_generator, exclusion_list = declaration_exclusion_list)
         result += "\n" if result != "" else ""
         result += self.expanded_code
         result += "\n\n"

@@ -250,21 +250,32 @@ class CCodeGenerator:
             initial_symbol = (symbol_object.get_precision().get_c_name() + " ") if initial else ""
             final_symbol = ";\n" if final else ""
             return "%s%s = %s%s" % (initial_symbol, symbol, symbol_object.get_precision().get_c_cst(symbol_object.get_value()), final_symbol) 
+
         elif isinstance(symbol_object, Variable):
             initial_symbol = (symbol_object.get_precision().get_c_name() + " ") if initial else ""
             final_symbol = ";\n" if final else ""
             return "%s%s%s" % (initial_symbol, symbol, final_symbol) 
+
         elif isinstance(symbol_object, ML_Table):
             initial_symbol = (symbol_object.get_c_definition(symbol, final = "") + " ") if initial else ""
             table_content_init = symbol_object.get_c_content_init()
             return "%s = %s;\n" % (initial_symbol, table_content_init)
+
         elif isinstance(symbol_object, CodeFunction):
             return "%s\n" % symbol_object.get_declaration()
+
         elif isinstance(symbol_object, FunctionObject):
             return "%s\n" % symbol_object.get_declaration()
+
         else:
             print symbol_object.__class__
             raise ML_NotImplemented()
+
+	def generate_initialization(self, symbol, symbol_object, initial = True, final = True):
+		if isinstance(symbol_object, Constant) or isinstance(symbol_object, Variable):
+			return symbol_object.precision.generate_c_initialization(symbol, symbol_object)
+		else:
+			return ""
 
 
     def generate_debug_msg(self, optree, result, code_object):
