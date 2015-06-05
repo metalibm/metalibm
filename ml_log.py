@@ -4,6 +4,7 @@ import sys
 
 from pythonsollya import *
 
+from metalibm_core.core.ml_function import ML_Function
 
 from metalibm_core.core.attributes import ML_Debug
 from metalibm_core.core.ml_operations import *
@@ -24,7 +25,7 @@ from metalibm_core.utility.ml_template import ML_ArgTemplate
 
 from metalibm_core.utility.arg_utils import test_flag_option, extract_option_value  
 
-class ML_Logarithm:
+class ML_Log(ML_Function("ml_log")):
     def __init__(self, 
                  precision = ML_Binary32, 
                  abs_accuracy = S2**-24, 
@@ -317,7 +318,7 @@ if __name__ == "__main__":
     arg_template.sys_arg_extraction()
 
 
-    ml_log          = ML_Logarithm(arg_template.precision, 
+    ml_log          = ML_Log(arg_template.precision, 
                                   libm_compliant            = arg_template.libm_compliant, 
                                   debug_flag                = arg_template.debug_flag, 
                                   target                    = arg_template.target, 
