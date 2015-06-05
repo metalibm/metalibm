@@ -8,9 +8,13 @@ from metalibm_core.core.ml_function import ML_Function, ML_FunctionBasis
 
 from metalibm_core.core.attributes import ML_Debug
 from metalibm_core.core.ml_operations import *
+
 from metalibm_core.core.ml_formats import *
+from metalibm_core.core.ml_complex_formats import ML_Mpfr_t 
+
 from metalibm_core.code_generation.c_code_generator import CCodeGenerator
 from metalibm_core.code_generation.generic_processor import GenericProcessor
+from metalibm_core.code_generation.mpfr_backend import MPFRProcessor
 from metalibm_core.code_generation.code_object import CodeObject
 from metalibm_core.code_generation.code_element import CodeFunction
 from metalibm_core.code_generation.code_constant import C_Code 
@@ -35,7 +39,7 @@ class ML_UT_FunctionFormat(ML_Function("ml_ut_function_format")):
                  debug_flag = False, 
                  fuse_fma = True, 
                  fast_path_extract = True,
-                 target = GenericProcessor(), 
+                 target = MPFRProcessor(), 
                  output_file = "ut_function_format.c", 
                  function_name = "ut_function_format"):
     io_precisions = [precision] * 2
@@ -64,7 +68,11 @@ class ML_UT_FunctionFormat(ML_Function("ml_ut_function_format")):
     #func_implementation = CodeFunction(self.function_name, output_format = self.precision)
     vx = self.implementation.add_input_variable("x", self.get_input_precision()) 
 
-    scheme = Statement(Return(vx))
+    mpfr_x = Conversion(vx, precision = ML_Mpfr_t)
+    result = mpfr_x + mpfr_x
+    result.set_precision(ML_Mpfr_t)
+
+    scheme = Statement(Return(Conversion(result, precision = self.precision)))
 
     return scheme
 
