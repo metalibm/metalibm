@@ -103,7 +103,7 @@ class ML_Exponential:
 
 
         log2_hi_precision = self.precision.get_field_size() - (ceil(log2(sup(abs(interval_k)))) + 2)
-        Log.report(Log.Info, "log2_hi_precision: "), log2_hi_precision
+        Log.report(Log.Info, "log2_hi_precision: %d" % log2_hi_precision)
         invlog2_cst = Constant(invlog2, precision = self.precision)
         log2_hi = round(log(2), log2_hi_precision, RN) 
         log2_lo = round(log(2) - log2_hi, sollya_prec_map[self.precision], RN)
@@ -133,6 +133,7 @@ class ML_Exponential:
         # TODO: should be computed automatically
         exact_hi_interval = approx_interval
         exact_lo_interval = - interval_k * log2_lo
+
 
         opt_r = opt_eng.optimization_process(r, self.precision, copy = True, fuse_fma = fuse_fma)
 
@@ -220,7 +221,6 @@ class ML_Exponential:
 
 
             #print "exact_hi interval: ", exact_hi_interval
-            #print "exact_lo interval: ", exact_lo_interval
 
             sub_poly_error_copy_map = {
                 #r.get_handle().get_node(): r_gappa_var,
@@ -277,8 +277,10 @@ class ML_Exponential:
                     global_rel_poly_error = rel_poly_error
                     global_poly_error = poly_error
             print "global_poly_error: ", global_poly_error, global_rel_poly_error 
+            print "error_goal: ", error_goal
             flag = error_goal > global_rel_poly_error
             print "test: ", flag
+
 
             if flag:
                 break
