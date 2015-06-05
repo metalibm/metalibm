@@ -45,14 +45,23 @@ def ordered_generation(gen_function, gen_list):
 class ML_CG_Operator:
     """ parent class for all code generation operators """
     def __init__(self, arity = 0, output_precision = None, pre_process = None, custom_generate_expr = None, force_folding = None, require_header = None, no_parenthesis = False, context_dependant = None, speed_measure = None):
+        # number of inputs expected for the operator
         self.arity = arity
+        # is the operator part of the composition
         self.compound = None
+        # output precision
         self.output_precision = output_precision
+        # pre process function 
         self.pre_process = pre_process
+        # custom implementation of the generated_expr function
         self.custom_generate_expr = custom_generate_expr
+        # flag for force folding
         self.force_folding = force_folding
+        # list of required header associated to the operator
         self.require_header = require_header if require_header else []
+        # flag to enable/disable parenthesis generation
         self.no_parenthesis = no_parenthesis
+        # 
         self.context_dependant = context_dependant
         self.speed_measure = speed_measure
 

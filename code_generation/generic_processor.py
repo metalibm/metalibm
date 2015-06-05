@@ -578,7 +578,9 @@ def create_proc_hierarchy(process_list, proc_class_list = []):
         else:
             proc_class_list.append(proc_class)
             new_process_list += get_parent_proc_class_list(proc_class)
-    return create_proc_hierarchy(new_process_list, proc_class_list)
+    result = create_proc_hierarchy(new_process_list, proc_class_list)
+    print "result: ", result
+    return result
     
 class ML_FullySupported: pass
 

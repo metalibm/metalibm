@@ -49,8 +49,8 @@ class ML_Format(object):
         print self
         raise ML_NotImplemented()
 
-	def generate_c_initialization(self, *args):
-		return ""
+    def generate_c_initialization(self, *args):
+      return ""
 
 class ML_AbstractFormat(ML_Format): 
     def __init__(self, c_name): 
@@ -156,23 +156,6 @@ class ML_Std_FP_Format(ML_FP_Format):
             else:
                 return str(cst_value) 
 
-class ML_Complex_Format(ML_FP_Format):
-	""" Complex format with initizalition and set function """
-	def __init__(self, c_name, init_function, set_function):
-		self.c_name = c_name
-		self.init_function = init_function
-		self.set_function = set_function
-
-	def get_c_name(self):
-		return self.c_name
-
-	def generate_c_initialization(self, symbol, symbol_object):
-		return self.init_function(symbol, symbol_object)
-
-# TODO : finish mpfr
-mpfr_init = None
-mpfr_set = None
-ML_Mpfr_t = ML_Complex_Format("mpfr_t", mpfr_init, mpfr_set)
 
 class ML_Compound_FP_Format(ML_FP_Format):
     def __init__(self, c_name, c_field_list, field_format_list, ml_support_prefix, c_display_format, sollya_object):

@@ -238,6 +238,9 @@ class GappaCodeGenerator:
         else:
             raise ML_NotImplemented()
 
+    def generate_initialization(self, symbol, symbol_object, initial = True, final = True):
+        return ""
+
 
     def generate_debug_msg(self, optree, result):
         debug_object = optree.get_debug()

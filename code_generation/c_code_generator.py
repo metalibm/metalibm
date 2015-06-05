@@ -271,11 +271,11 @@ class CCodeGenerator:
             print symbol_object.__class__
             raise ML_NotImplemented()
 
-	def generate_initialization(self, symbol, symbol_object, initial = True, final = True):
-		if isinstance(symbol_object, Constant) or isinstance(symbol_object, Variable):
-			return symbol_object.precision.generate_c_initialization(symbol, symbol_object)
-		else:
-			return ""
+    def generate_initialization(self, symbol, symbol_object, initial = True, final = True):
+      if isinstance(symbol_object, Constant) or isinstance(symbol_object, Variable):
+        return symbol_object.get_precision().generate_c_initialization(symbol, symbol_object)
+      else:
+        return ""
 
 
     def generate_debug_msg(self, optree, result, code_object):

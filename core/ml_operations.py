@@ -52,7 +52,7 @@ def implicit_op(op):
     elif isinstance(op, ML_FloatingPoint_RoundingMode):
         return Constant(op, precision = ML_FPRM_Type)
     else:
-        print "ERROR: unsupport operand in implicit_op conversion ", op
+        print "ERROR: unsupport operand in implicit_op conversion ", op, op.__class__
         raise Exception()
 
 
@@ -673,7 +673,6 @@ class ConditionBlock(AbstractOperationConstructor("ConditionBlock", arity = 3)):
         new_copy.pre_statement = self.statement.copy(copy_map)
         new_copy.extra_inputs = [op.copy(copy_map) for op in self.extra_inputs]
         new_copy.parent_list = [op.copy(copy_map) for op in self.parent_list] 
-
   
 
 class Conversion(AbstractOperationConstructor("Conversion", arity = 1)):
