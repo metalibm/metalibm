@@ -61,10 +61,10 @@ static inline float ml_fmaf(float x, float y, float z) {
 
 /** count leading zeroes */
 #if defined(__GNUC__)
-static inline ml_count_leading_zeros_32b (uint32_t x) {
+static inline int ml_count_leading_zeros_32b (uint32_t x) {
     return (x == 0) ? 0 : __builtin_clzl (x);
 }
-static inline ml_count_leading_zeros_64b (uint64_t x) {
+static inline int ml_count_leading_zeros_64b (uint64_t x) {
 	return (x == 0) ? 0 : __builtin_clzll(x);
 }
 #else
