@@ -299,8 +299,7 @@ class GappaCodeGenerator:
         pre_exact_optree = pre_optree.copy(var_error_copy_map)
         exact_optree = opt_engine.exactify(pre_exact_optree.copy())
 
-        #print "optree:", optree.get_str(depth = None, display_precision = True)
-        #print "exact optree:", exact_optree.get_str(depth = None, display_precision = True)
+
 
         gappa_result_exact  = self.generate_expr(gappa_code, exact_optree, initial = True)
         #print "gappa_code: ", gappa_code.get(self)
