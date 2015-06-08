@@ -345,7 +345,6 @@ class FunctionOperator(ML_CG_Operator):
         # is their result passed by reference
         result_in_args = False
         result_args_map = {}
-        print "self.arg_map: ", self.arg_map
         for arg_index in self.arg_map:
           arg = self.arg_map[arg_index]
           if isinstance(arg, FO_Result):
