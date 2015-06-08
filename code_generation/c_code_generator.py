@@ -244,6 +244,10 @@ class CCodeGenerator:
         final_symbol = ";\n" if final else ""
         return "%s = %s%s" % (result_var, expression_code, final_symbol) 
 
+    def generate_untied_statement(self, expression_code, final = True):
+      final_symbol = ";\n" if final else ""
+      return "%s%s" % (expression_code, final_symbol) 
+
 
     def generate_declaration(self, symbol, symbol_object, initial = True, final = True):
         if isinstance(symbol_object, Constant):

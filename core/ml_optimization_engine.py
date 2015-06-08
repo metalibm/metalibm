@@ -819,16 +819,18 @@ class OptimizationEngine:
         Log.report(Log.Error, "support simplification mapping not found")
 
 
-    def check_processor_support(self, optree, memoization_map = {}):
+    def check_processor_support(self, optree, memoization_map = {}, debug = False):
         """ check if all precision-instantiated operation are supported by the processor """
+        if debug:
+          print "checking processor support: ", self.processor.__class__
         if  optree in memoization_map:
             return True
         if not isinstance(optree, ML_LeafNode):
             for inp in optree.inputs:
-                self.check_processor_support(inp, memoization_map)
+                self.check_processor_support(inp, memoization_map, debug = debug)
 
             if isinstance(optree, ConditionBlock):
-                self.check_processor_support(optree.get_pre_statement(), memoization_map)
+                self.check_processor_support(optree.get_pre_statement(), memoization_map, debug = debug)
                 pass
             elif isinstance(optree, Statement):
                 pass
@@ -839,8 +841,8 @@ class OptimizationEngine:
 
                 for op in optree.get_extra_inputs():
                   # TODO: assert case is integer constant
-                  self.check_processor_support(op, memoization_map)
-            elif not self.processor.is_supported_operation(optree):
+                  self.check_processor_support(op, memoization_map, debug = debug)
+            elif not self.processor.is_supported_operation(optree, debug = debug):
                 # trying operand format escalation
                 while optree.__class__ in type_escalation:
                     match_found = False

@@ -678,19 +678,22 @@ class GenericProcessor(AbstractProcessor):
             Log.report(Log.Error, "the following operation is not supported by %s: \n%s" % (self.__class__, optree.get_str(depth = 2, display_precision = True))) 
         
 
-    def is_map_supported_operation(self, op_map, optree, language = C_Code):
+    def is_map_supported_operation(self, op_map, optree, language = C_Code, debug = False):
         """ return wheter or not the operation performed by optree has a local implementation """
         op_class, interface, codegen_key = self.get_operation_keys(optree)
 
         if not language in op_map: 
             # unsupported language
+            if debug: Log.Report(Log.Info, "unsupported language for %s" % optree.get_str())
             return False
         else:
             if not op_class in op_map[language]:
                 # unsupported operation
+                if debug: Log.Report(Log.Info, "unsupported operation class for %s" % optree.get_str())
                 return False
             else:
                 if not codegen_key in op_map[language][op_class]:
+                    if debug: Log.Report(Log.Info, "unsupported codegen key for %s" % optree.get_str())
                     # unsupported codegen key
                     return False
                 else:
@@ -699,18 +702,30 @@ class GenericProcessor(AbstractProcessor):
                             for interface_condition in op_map[language][op_class][codegen_key][condition]:
                                 if interface_condition(*interface, optree = optree): return True
                     # unsupported condition or interface type
+                    if debug: 
+                      Log.report(Log.Info, "unsupported condition key for %s" % optree.get_str(display_precision = True))
+                      for condition in op_map[language][op_class][codegen_key]:
+                          if condition(optree):
+                            print "verified by condition ", condition
+                            for interface_condition in op_map[language][op_class][codegen_key][condition]:
+                                print "ic: ", interface_condition.type_tuple, 
+                                if interface_condition(*interface, optree = optree): 
+                                  print "True"
+                                else:
+                                  print "False"
+                      print op_map[language][op_class][codegen_key].keys()
                     return False
                         
 
-    def is_local_supported_operation(self, optree, language = C_Code, table_getter = lambda self: self.code_generation_table):
+    def is_local_supported_operation(self, optree, language = C_Code, table_getter = lambda self: self.code_generation_table, debug = False):
         """ return whether or not the operation performed by optree has a local implementation """
         table = table_getter(self)
-        return self.is_map_supported_operation(table, optree, language)
+        return self.is_map_supported_operation(table, optree, language, debug = debug)
 
 
-    def is_supported_operation(self, optree, language = C_Code):
+    def is_supported_operation(self, optree, language = C_Code, debug = False):
         """ return whether or not the operation performed by optree is supported by any level of the processor hierarchy """
-        return self.is_map_supported_operation(self.simplified_rec_op_map, optree, language)
+        return self.is_map_supported_operation(self.simplified_rec_op_map, optree, language, debug = debug)
 
 
     def get_operation_keys(optree):

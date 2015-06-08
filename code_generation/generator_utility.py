@@ -118,10 +118,20 @@ class CompoundOperator(ML_CG_Operator):
         compound_arg = []
         #pre_arg_value = [code_generator.generate_expr(code_object, arg, **kwords) for arg in arg_tuple]
         pre_arg_value = ordered_generation(lambda arg: code_generator.generate_expr(code_object, arg, **kwords), arg_tuple)
+        # does a result appears as an argument (passed by reference)
+        result_in_args = False
         for arg_function in self.args:
             if isinstance(arg_function, FO_Arg):
                 compound_arg.append(pre_arg_value[arg_function.get_index()])
+
+            elif isinstance(arg_function, FO_Result):
+                # TODO: improve for multiple output nodes
+                output_precision = optree.get_precision()
+                compound_arg.append(FO_Result(arg_function.get_index(), output_precision))
+                result_in_args = True
+
             else:
+                # other compound operator ?
                 dummy_precision = arg_function.get_output_precision()
                 if dummy_precision == None:
                     dummy_precision = code_generator.get_unknown_precision()
@@ -142,7 +152,7 @@ class CompoundOperator(ML_CG_Operator):
         folded = kwords["folded"]
         folded_arg = folded if self.get_force_folding() == None else self.get_force_folding()
         kwords["folded"] = folded_arg
-        return self.parent.assemble_code(code_generator, code_object, optree, compound_arg, generate_pre_process = generate_pre_process, **kwords)
+        return self.parent.assemble_code(code_generator, code_object, optree, compound_arg, generate_pre_process = generate_pre_process, result_in_args = result_in_args, **kwords)
             
 
 class IdentityOperator(ML_CG_Operator):
@@ -166,7 +176,7 @@ class IdentityOperator(ML_CG_Operator):
             # assembling parent operator code
             return self.assemble_code(code_generator, code_object, optree, arg_result, generate_pre_process = generate_pre_process, **kwords)
 
-    def assemble_code(self, code_generator, code_object, optree, var_arg_list, generate_pre_process = None, **kwords):
+    def assemble_code(self, code_generator, code_object, optree, var_arg_list, generate_pre_process = None, result_in_args = False, **kwords):
         """ base code assembly function """
         # registering headers
         self.register_headers(code_object)
@@ -251,8 +261,24 @@ class ML_VarArity:
     pass
 
 class FO_Result: 
-    def __init__(self, index = 0):
-        self.index = 0
+  """ PlaceHolder for a function Operator result
+      can be used to allocate result passed by reference
+      as an operator arguments.
+      output_precision should be determined by the generate expression
+      function """
+  def __init__(self, index = 0, output_precision = None):
+    self.index = 0
+    self.output_precision = output_precision
+
+  def get_index(self):
+    return self.index
+
+  def get_output_precision(self):
+    return self.output_precision
+
+  
+        
+
 
 
 class FunctionOperator(ML_CG_Operator):
@@ -271,13 +297,18 @@ class FunctionOperator(ML_CG_Operator):
             code_object.declare_function(self.function_name, self.declare_prototype)
 
 
-    def get_arg_from_index(self, index, arg_result_list, arg_map):
+    def get_arg_from_index(self, index, arg_result_list, arg_map, result_args_map):
         """ return the function argument at position <index> """
         arg_index = arg_map[index]
         if isinstance(arg_index, FO_Arg):
-            return arg_result_list[arg_index.index]
+          return arg_result_list[arg_index.index]
+
+        elif isinstance(arg_index, FO_Result):
+          return result_args_map[arg_index.get_index()]
+          # return FO_Result(arg_index.get_index(), arg_index.get_output_precision()) 
+
         else:
-            return CodeExpression(arg_map[index], None)
+          return CodeExpression(arg_map[index], None)
 
     def generate_expr(self, code_generator, code_object, optree, arg_tuple, generate_pre_process = None, **kwords):
         """ generate expression function """
@@ -304,26 +335,48 @@ class FunctionOperator(ML_CG_Operator):
         # registering headers
         self.register_headers(code_object)
 
+        # extracting extra generation parameters
+        folded = kwords["folded"]
+        result_var = kwords["result_var"]
+
         arg_map = dict([(i, FO_Arg(i)) for i in xrange(len(optree.inputs))]) if self.arity is ML_VarArity else self.arg_map
         total_arity = len(optree.inputs) if self.arity is ML_VarArity else self.total_arity
+        
+        # is their result passed by reference
+        result_in_args = False
+        result_args_map = {}
+        print "self.arg_map: ", self.arg_map
+        for arg_index in self.arg_map:
+          arg = self.arg_map[arg_index]
+          if isinstance(arg, FO_Result):
+            prefix = optree.get_tag(default = "tmp")
+            result_varname = result_var if result_var != None else code_object.get_free_var_name(optree.get_precision(), prefix = prefix)
+            result_in_args = CodeVariable(result_varname, optree.get_precision())
+            result_args_map[arg.get_index()] = result_in_args 
+
+
         # generating result code
-        result_arg_list = [self.get_arg_from_index(index, var_arg_list, arg_map = arg_map) for index in xrange(total_arity)]
+        result_arg_list = [self.get_arg_from_index(index, var_arg_list, arg_map = arg_map, result_args_map = result_args_map) for index in xrange(total_arity)]
         #result_code = None
         #result_code = "%s(%s)" % (self.function_name, ", ".join([var_arg.get() for var_arg in result_arg_list]))
         result_code = self.generate_call_code(result_arg_list)
 
-        # generating assignation if required
-        folded = kwords["folded"]
-        result_var = kwords["result_var"]
-        if (folded and self.get_force_folding() != False) or generate_pre_process != None:
-            prefix = optree.get_tag(default = "tmp")
-            result_varname = result_var if result_var != None else code_object.get_free_var_name(optree.get_precision(), prefix = prefix)
-            if generate_pre_process != None:
-                generate_pre_process(code_generator, code_object, optree, var_arg_list, **kwords)
-            code_object << code_generator.generate_assignation(result_varname, result_code) 
-            return CodeVariable(result_varname, optree.get_precision())
+
+        if result_in_args:
+          code_object << code_generator.generate_untied_statement(result_code)
+          return result_in_args
+
         else:
-            return CodeExpression("%s" % result_code, optree.get_precision())
+          # generating assignation if required
+          if (folded and self.get_force_folding() != False) or generate_pre_process != None:
+              prefix = optree.get_tag(default = "tmp")
+              result_varname = result_var if result_var != None else code_object.get_free_var_name(optree.get_precision(), prefix = prefix)
+              if generate_pre_process != None:
+                  generate_pre_process(code_generator, code_object, optree, var_arg_list, **kwords)
+              code_object << code_generator.generate_assignation(result_varname, result_code) 
+              return CodeVariable(result_varname, optree.get_precision())
+          else:
+              return CodeExpression("%s" % result_code, optree.get_precision())
 
 class FunctionObjectOperator:
     """ meta generator for FunctionObject """
