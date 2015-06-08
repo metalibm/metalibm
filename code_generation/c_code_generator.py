@@ -277,7 +277,9 @@ class CCodeGenerator:
 
     def generate_initialization(self, symbol, symbol_object, initial = True, final = True):
       if isinstance(symbol_object, Constant) or isinstance(symbol_object, Variable):
-        return symbol_object.get_precision().generate_c_initialization(symbol, symbol_object)
+        final_symbol = ";\n" if final else ""
+        init_code = symbol_object.get_precision().generate_c_initialization(symbol, symbol_object)
+        return "%s%s" % (init_code, final_symbol)
       else:
         return ""
 
