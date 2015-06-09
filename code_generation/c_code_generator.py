@@ -136,13 +136,14 @@ class CCodeGenerator:
             return None
 
         elif isinstance(optree, ReferenceAssign):
-            result_var = optree.inputs[0]
+            output_var = optree.inputs[0]
             result_value = optree.inputs[1]
 
-            result_var_code   = self.generate_expr(code_object, result_var, folded = False)
-            result_value_code = self.generate_expr(code_object, result_value, folded = folded)
+            output_var_code   = self.generate_expr(code_object, output_var, folded = False)
+            result_value_code = self.generate_expr(code_object, result_value, result_var = output_var_code.get(), folded = folded)
 
-            code_object << self.generate_assignation(result_var_code.get(), result_value_code.get())
+            #code_object << self.generate_assignation(output_var_code.get(), result_value_code.get())
+            #code_object << output_var.get_precision().generate_c_assignation(output_var_code, result_value_code)
             
             return None
 

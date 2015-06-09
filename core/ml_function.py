@@ -92,11 +92,8 @@ class ML_FunctionBasis(object):
     raise ML_NotImplemented()
 
 
-  def generate_emulate_wrapper(self):
-    mpfr_x   = Variable("vx", precision = ML_Mpfr_t)
-    mpfr_rnd = Variable("rnd", precision = ML_Int32)
-    mpfr_result = Variable("result", precision = ML_Mpfr_t)
-    scheme = self.generate_emulate(mpfr_x, mpfr_rnd)
+  def generate_emulate_wrapper(self, test_input   = Variable("vx", precision = ML_Mpfr_t), mpfr_rnd = Variable("rnd", precision = ML_Int32), test_output = Variable("result", precision = ML_Mpfr_t)):
+    scheme = self.generate_emulate(test_output, test_input, mpfr_rnd)
 
     wrapper_processor = MPFRProcessor()
 
@@ -154,7 +151,7 @@ class ML_FunctionBasis(object):
     self.implementation.set_scheme(scheme)
     self.C_code_generator = CCodeGenerator(self.processor, declare_cst = False, disable_debug = not self.debug_flag, libm_compliant = self.libm_compliant)
     self.result = self.implementation.get_definition(self.C_code_generator, C_Code, static_cst = True)
-    #self.result.add_header("support_lib/ml_special_values.h")
+    self.result.add_header("support_lib/ml_special_values.h")
     self.result.add_header("math.h")
     self.result.add_header("stdio.h")
     self.result.add_header("inttypes.h")

@@ -52,6 +52,10 @@ class ML_Format(object):
     def generate_c_initialization(self, *args):
       return ""
 
+    def generate_c_assignation(self, var, value, final = True):
+      final_symbol = ";\n" if final else ""
+      return "%s = %s" % (var, value)
+
 class ML_AbstractFormat(ML_Format): 
     def __init__(self, c_name): 
         self.c_name = c_name

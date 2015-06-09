@@ -459,7 +459,7 @@ class NestedCode:
     def declare_function(self, function_name, function_object):
         return self.code_list[0].declare_function(function_name, function_object)
 
-    def get(self, code_generator):
-        return self.code_list[0].get(code_generator, headers = True)
+    def get(self, code_generator, static_cst = False, static_table = False, headers = True, skip_function = False):
+        return self.code_list[0].get(code_generator, static_cst = static_cst, static_table = static_table, headers = headers, skip_function = skip_function)
 
 

@@ -277,9 +277,6 @@ class FO_Result:
     return self.output_precision
 
   
-        
-
-
 
 class FunctionOperator(ML_CG_Operator):
     def __init__(self, function_name, arg_map = None, pre_process = None, declare_prototype = None, **kwords):
@@ -345,7 +342,6 @@ class FunctionOperator(ML_CG_Operator):
         # is their result passed by reference
         result_in_args = False
         result_args_map = {}
-        print "self.arg_map: ", self.arg_map
         for arg_index in self.arg_map:
           arg = self.arg_map[arg_index]
           if isinstance(arg, FO_Result):

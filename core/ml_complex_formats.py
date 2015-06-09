@@ -28,6 +28,10 @@ class ML_Complex_Format(ML_FP_Format):
   def generate_c_initialization(self, symbol, symbol_object):
     return self.init_function(self, symbol, symbol_object)
 
+  def generate_c_assignation(self, var, result, final = True):
+    final_symbol = ";\n" if final else ""
+    return self.set_function(self, var, result) + final_symbol
+
   def get_bit_size(self):
     return self.bit_size
 
@@ -54,7 +58,7 @@ def is_pointer(_format):
 # TODO : finish mpfr
 
 mpfr_init = lambda self, symbol, symbol_object: "mpfr_init2(%s, %d)" % (symbol, self.get_bit_size())
-mpfr_set = lambda *args: ""
+mpfr_set = lambda self, var, result: "mpfr_set(%s, %s, MPFR_RNDN)" % (var.get(), result.get())
 ML_Mpfr_t = ML_Complex_Format("mpfr_t", mpfr_init, mpfr_set)
 
 # definition of standard pointer types
