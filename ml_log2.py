@@ -59,7 +59,8 @@ class ML_Log2(ML_Function("ml_log2")):
 
     self.precision = precision
 
-  def generate_emulate(self, mpfr_x, mpfr_rnd):
+
+  def generate_emulate(self, result, mpfr_x, mpfr_rnd):
     """ generate the emulation code for ML_Log2 functions
         mpfr_x is a mpfr_t variable which should have the right precision
         mpfr_rnd is the rounding mode
@@ -71,7 +72,7 @@ class ML_Log2(ML_Function("ml_log2")):
     emulate_func_op = FunctionOperator(emulate_func_name, arg_map = {0: FO_Result(0), 1: FO_Arg(0), 2: FO_Arg(1)}, require_header = ["mpfr.h"]) 
     emulate_func   = FunctionObject(emulate_func_name, [ML_Mpfr_t, ML_Int32], ML_Mpfr_t, emulate_func_op)
     #emulate_func_op.declare_prototype = emulate_func
-    mpfr_call = emulate_func(mpfr_x, mpfr_rnd)
+    mpfr_call = Statement(ReferenceAssign(result, emulate_func(mpfr_x, mpfr_rnd)))
 
     return mpfr_call
 
@@ -297,7 +298,5 @@ if __name__ == "__main__":
                                 function_name             = arg_template.function_name,
                                 output_file               = arg_template.output_file)
 
-  # ml_log.gen_implementation()
+  ml_log.gen_implementation()
 
-  emulate_code, emulate_generator = ml_log.generate_emulate_wrapper()
-  print emulate_code.get(emulate_generator)
