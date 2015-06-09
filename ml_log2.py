@@ -9,22 +9,22 @@ from metalibm_core.core.ml_function import ML_Function, ML_FunctionBasis
 from metalibm_core.core.attributes import ML_Debug
 from metalibm_core.core.ml_operations import *
 from metalibm_core.core.ml_formats import *
+from metalibm_core.core.ml_complex_formats import ML_Mpfr_t
+from metalibm_core.core.ml_optimization_engine import OptimizationEngine
+from metalibm_core.core.polynomials import *
+from metalibm_core.core.ml_table import ML_Table
+
 from metalibm_core.code_generation.c_code_generator import CCodeGenerator
 from metalibm_core.code_generation.generic_processor import GenericProcessor
 from metalibm_core.code_generation.code_object import CodeObject
 from metalibm_core.code_generation.code_element import CodeFunction
 from metalibm_core.code_generation.code_constant import C_Code 
-from metalibm_core.core.ml_optimization_engine import OptimizationEngine
-from metalibm_core.core.polynomials import *
-from metalibm_core.core.ml_table import ML_Table
-
 from metalibm_core.code_generation.gappa_code_generator import GappaCodeGenerator
+from metalibm_core.code_generation.generator_utility import FunctionOperator, FO_Result, FO_Arg
 
 from metalibm_core.utility.gappa_utils import execute_gappa_script_extract
 from metalibm_core.utility.ml_template import ML_ArgTemplate
-
 from metalibm_core.utility.arg_utils import test_flag_option, extract_option_value  
-
 from metalibm_core.utility.debug_utils import * 
 
 class ML_Log2(ML_Function("ml_log2")):
@@ -58,6 +58,23 @@ class ML_Log2(ML_Function("ml_log2")):
     )
 
     self.precision = precision
+
+  def generate_emulate(self, mpfr_x, mpfr_rnd):
+    """ generate the emulation code for ML_Log2 functions
+        mpfr_x is a mpfr_t variable which should have the right precision
+        mpfr_rnd is the rounding mode
+    """
+    #emulate_implementation = CodeFunction(self.function_name + "_emulate", output_format = ML_Mpfr_t)
+    #mpfr_x = emulate_implementation.add_input_variable("x", ML_Mpfr_t)
+    #mpfr_rnd = emulate_implementation.add_input_variable("rnd", ML_Int32)
+    emulate_func_name = "mpfr_log2"
+    emulate_func_op = FunctionOperator(emulate_func_name, arg_map = {0: FO_Result(0), 1: FO_Arg(0), 2: FO_Arg(1)}, require_header = ["mpfr.h"]) 
+    emulate_func   = FunctionObject(emulate_func_name, [ML_Mpfr_t, ML_Int32], ML_Mpfr_t, emulate_func_op)
+    #emulate_func_op.declare_prototype = emulate_func
+    mpfr_call = emulate_func(mpfr_x, mpfr_rnd)
+
+    return mpfr_call
+
 
 
   def generate_scheme(self):
@@ -280,4 +297,7 @@ if __name__ == "__main__":
                                 function_name             = arg_template.function_name,
                                 output_file               = arg_template.output_file)
 
-  ml_log.gen_implementation()
+  # ml_log.gen_implementation()
+
+  emulate_code, emulate_generator = ml_log.generate_emulate_wrapper()
+  print emulate_code.get(emulate_generator)
