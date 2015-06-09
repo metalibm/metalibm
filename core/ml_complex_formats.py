@@ -4,14 +4,14 @@
 # This file is part of Kalray's Metalibm tool
 # Copyright (2013-2015)
 # All rights reserved
-# created:          Jun  5th, 2016
-# last-modified:    Jun  5th, 2016
+# created:          Jun  5th, 2015
+# last-modified:    Jun  9th, 2015
 #
 # author(s): Nicolas Brunie (nicolas.brunie@kalray.eu)
 ###############################################################################
 
 from pythonsollya import *
-from .ml_formats import ML_FP_Format
+from .ml_formats import *
 
 
 class ML_Complex_Format(ML_FP_Format):
@@ -34,8 +34,28 @@ class ML_Complex_Format(ML_FP_Format):
   def __str__(self):
     return self.c_name
 
+
+class ML_Pointer_Format(ML_Format):
+  """ wrapper for address/pointer format """
+  def __init__(self, data_precision):
+    self.data_precision = data_precision
+
+  def get_c_name(self):
+    return "%s*" % self.get_data_precision().get_c_name()
+
+  def get_data_precision(self):
+    return self.data_precision
+
+def is_pointer(_format):
+  """ boolean test to check whether _format is a pointer _format """
+  return isinstance(_format, ML_Pointer_Format)
+
+
 # TODO : finish mpfr
 
 mpfr_init = lambda self, symbol, symbol_object: "mpfr_init2(%s, %d)" % (symbol, self.get_bit_size())
 mpfr_set = lambda *args: ""
 ML_Mpfr_t = ML_Complex_Format("mpfr_t", mpfr_init, mpfr_set)
+
+# definition of standard pointer types
+ML_Binary32_p = ML_Pointer_Format(ML_Binary32)

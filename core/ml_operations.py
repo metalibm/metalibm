@@ -10,6 +10,8 @@
 # author(s): Nicolas Brunie (nicolas.brunie@kalray.eu)
 ###############################################################################
 
+import sys, inspect
+
 from pythonsollya import Interval, SollyaObject, PSI_is_range, nearestint
 
 from ..utility.log_report import Log
@@ -337,8 +339,10 @@ class Constant(ML_LeafNode):
 
 
 class Variable(ML_LeafNode):
+    """ class to hold an (input) Variable, defined outside the scope
+        of the program """
     class Input: pass
-    class Intermediay: pass
+    class Intermediary: pass
     """ Variable operator class """
     def __init__(self, tag, **init_map):
         AbstractOperation.__init__(self, **init_map)
@@ -374,29 +378,34 @@ class Variable(ML_LeafNode):
 
 
 class InstanciatedOperation(ML_Operation):
-    """ parent to Metalibm's type-instanciated operation """
-    pass
+  """ parent to Metalibm's type-instanciated operation """
+  pass
 
 
 def AbstractOperation_init(self, *ops, **init_map):
-    """ init function for abstract operation """
-    AbstractOperation.__init__(self, **init_map)
-    self.inputs = tuple(implicit_op(op) for op in ops)
-    if self.get_interval() == None:
-        self.set_interval(self.range_function(self.inputs))
+  """ init function for abstract operation """
+  AbstractOperation.__init__(self, **init_map)
+  self.inputs = tuple(implicit_op(op) for op in ops)
+  if self.get_interval() == None:
+      self.set_interval(self.range_function(self.inputs))
 
 def AbstractOperation_copy(self, copy_map = {}):
-    # test for previous definition in memoization map
-    if self in copy_map: return copy_map[self]
-    # else define a new and free copy
-    new_copy = self.__class__(*tuple(op.copy(copy_map) for op in self.inputs), __copy = True)
-    new_copy.attributes = self.attributes.get_copy()
-    self.finish_copy(new_copy, copy_map)
-    copy_map[self] = new_copy
-    return new_copy
+  """ base function to copy an abstract operation object,
+      copy_map is a memoization hashtable which can be use to factorize
+      copies """
+  # test for previous definition in memoization map
+  if self in copy_map: return copy_map[self]
+  # else define a new and free copy
+  new_copy = self.__class__(*tuple(op.copy(copy_map) for op in self.inputs), __copy = True)
+  new_copy.attributes = self.attributes.get_copy()
+  self.finish_copy(new_copy, copy_map)
+  copy_map[self] = new_copy
+  return new_copy
 
 
-class InvalidInterval(Exception): pass
+class InvalidInterval(Exception): 
+  """ Invalid interval exception """
+  pass
 
 def interval_check(lrange):
     """ check if the argument <lrange> is a valid interval,
@@ -676,30 +685,41 @@ class ConditionBlock(AbstractOperationConstructor("ConditionBlock", arity = 3)):
   
 
 class Conversion(AbstractOperationConstructor("Conversion", arity = 1)):
-    """ abstract conversion operation """
-    pass
+  """ abstract conversion operation """
+  pass
 
 class TypeCast(AbstractOperationConstructor("TypeCast", arity = 1)):
-    """ abstract conversion operation """
-    pass
+  """ abstract conversion operation """
+  pass
+    
+class Dereference(AbstractOperationConstructor("Dereference", arity = 1)):
+  """ abstract pointer derefence operation """
+  pass
+
+class ReferenceAssign(AbstractOperationConstructor("ReferenceAssign", arity = 1)):
+  """ abstract assignation to reference operation """
+  pass
 
 class ExponentInsertion(AbstractOperationConstructor("ExponentInsertion", arity = 1, inheritance = [SpecifierOperation])):
-    class Default: pass
-    class NoOffset: pass
+  """ insertion of a number in the exponent field of a floating-point value """ 
+  class Default: pass
+  class NoOffset: pass
 
-    def __init__(self, *args, **kwords):
-        self.__class__.__base__.__init__(self, *args, **kwords)
-        self.specifier = attr_init(kwords, "specifier", default_value = ExponentInsertion.Default)
+  def __init__(self, *args, **kwords):
+    self.__class__.__base__.__init__(self, *args, **kwords)
+    self.specifier = attr_init(kwords, "specifier", default_value = ExponentInsertion.Default)
 
-    def get_codegen_key(self):
-        """ return code generation specific key """
-        return self.specifier
+  def get_codegen_key(self):
+    """ return code generation specific key """
+    return self.specifier
 
 class MantissaExtraction(AbstractOperationConstructor("MantissaExtraction", arity = 1)):
-    pass
+  """ extraction of the mantissa field of a floating-point value """
+  pass
 
 class ExponentExtraction(AbstractOperationConstructor("ExponentExtraction", arity = 1)):
-    pass
+  """ extraction of the exponent field of a floating-point value """
+  pass
 
 class RawSignExpExtraction(AbstractOperationConstructor("RawSignExpExtraction", arity = 1)):
     pass
@@ -1136,3 +1156,10 @@ class SwitchBlock(AbstractOperationConstructor("Switch", arity = 1)):
                 pre_str += "Case: %s" %  case_str #.get_str(new_depth, display_precision, tab_level = 0, memoization_map = memoization_map, display_attribute = display_attribute, display_id = display_id)
                 pre_str += "%s" %  self.case_map[case].get_str(new_depth, display_precision, tab_level = tab_level + 2, memoization_map = memoization_map, display_attribute = display_attribute, display_id = display_id)
             return pre_str
+
+if __name__ == "__main__":
+  # auto doc
+  # TODO: to be fixed
+  for name, obj in inspect.getmembers(sys.modules[__name__]):
+    if inspect.isclass(obj) and isinstance(obj, ML_Operation):
+      print "operation class: ", obj

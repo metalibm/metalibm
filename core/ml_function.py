@@ -1,10 +1,18 @@
 from metalibm_core.core.ml_formats import *
+from metalibm_core.core.ml_optimization_engine import OptimizationEngine
+from metalibm_core.core.ml_operations import Variable
+from metalibm_core.core.ml_complex_formats import ML_Mpfr_t
+
+from metalibm_core.code_generation.code_object import NestedCode
 from metalibm_core.code_generation.code_element import CodeFunction
 from metalibm_core.code_generation.generic_processor import GenericProcessor
-from metalibm_core.core.ml_optimization_engine import OptimizationEngine
+from metalibm_core.code_generation.mpfr_backend import MPFRProcessor
 from metalibm_core.code_generation.c_code_generator import CCodeGenerator
 from metalibm_core.code_generation.code_constant import C_Code
+from metalibm_core.code_generation.generator_utility import FunctionOperator
+
 from metalibm_core.utility.log_report import Log
+from metalibm_core.utility.common import ML_NotImplemented
 
 
 def libc_naming(base_name, io_precisions, in_arity = 1, out_arity = 1):
@@ -79,6 +87,24 @@ class ML_FunctionBasis(object):
 
     self.implementation = CodeFunction(self.function_name, output_format = self.get_output_precision())
     self.opt_engine = OptimizationEngine(self.processor)
+  
+  def generate_emulate(self):
+    raise ML_NotImplemented()
+
+
+  def generate_emulate_wrapper(self):
+    mpfr_x   = Variable("vx", precision = ML_Mpfr_t)
+    mpfr_rnd = Variable("rnd", precision = ML_Int32)
+    mpfr_result = Variable("result", precision = ML_Mpfr_t)
+    scheme = self.generate_emulate(mpfr_x, mpfr_rnd)
+
+    wrapper_processor = MPFRProcessor()
+
+    code_generator = CCodeGenerator(wrapper_processor, declare_cst = False, disable_debug = True, libm_compliant = self.libm_compliant)
+    code_object = NestedCode(code_generator, static_cst = True)
+    code_generator.generate_expr(code_object, scheme, folded = False, initial = False)
+    return code_object, code_generator
+
 
   def get_output_precision(self):
     return self.io_precisions[0]

@@ -12,7 +12,7 @@
 
 
 from ..utility.common import ML_NotImplemented
-from ..core.ml_operations import Variable, Constant, ConditionBlock, Return, TableLoad, Statement, SpecificOperation, ExceptionOperation, ClearException, NoResultOperation, SwitchBlock, FunctionObject
+from ..core.ml_operations import Variable, Constant, ConditionBlock, Return, TableLoad, Statement, SpecificOperation, ExceptionOperation, ClearException, NoResultOperation, SwitchBlock, FunctionObject, ReferenceAssign
 from ..core.ml_table import ML_Table
 from ..core.ml_formats import *
 from ..core.attributes import ML_Debug
@@ -133,6 +133,17 @@ class CCodeGenerator:
               code_object.close_level()
             code_object << "}\n"
 
+            return None
+
+        elif isinstance(optree, ReferenceAssign):
+            result_var = optree.inputs[0]
+            result_value = optree.inputs[1]
+
+            result_var_code   = self.generate_expr(code_object, result_var, folded = False)
+            result_value_code = self.generate_expr(code_object, result_value, folded = folded)
+
+            code_object << self.generate_assignation(result_var_code.get(), result_value_code.get())
+            
             return None
 
         elif isinstance(optree, ConditionBlock):

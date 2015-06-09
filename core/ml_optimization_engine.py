@@ -519,6 +519,13 @@ class OptimizationEngine:
 
                 memoization_map[optree] = None
                 return None
+
+            elif isinstance(optree, ReferenceAssign):
+                var = optree.inputs[0]
+                value = optree.inputs[1]
+                var_type = self.instantiate_abstract_precision(var, default_precision, memoization_map = memoization_map)
+                value_type = self.instantiate_abstract_precision(value, var_type, memoization_map = memoization_map)
+                return None
                         
             else:
                 # all other operations
@@ -836,6 +843,8 @@ class OptimizationEngine:
                 pass
             elif isinstance(optree, Return):
                 pass
+            elif isinstance(optree, ReferenceAssign):
+                pass 
             elif isinstance(optree, SwitchBlock):
                 #self.check_processor_support(optree.get_pre_statement(), memoization_map)
 

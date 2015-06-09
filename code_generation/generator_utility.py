@@ -497,6 +497,9 @@ class RoundOperator(FunctionOperator):
         else:
            return FunctionOperator.assemble_code(self, code_generator, code_object, optree, var_arg_list, generate_pre_process = generate_pre_process, **kwords) 
         
+def type_all_match(*args, **kwords):
+  """ match any type parameters """
+  return True
 
 class type_strict_match:
     def __init__(self, *type_tuple):
