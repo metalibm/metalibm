@@ -11,6 +11,8 @@ from metalibm_core.code_generation.c_code_generator import CCodeGenerator
 from metalibm_core.code_generation.code_constant import C_Code
 from metalibm_core.code_generation.generator_utility import FunctionOperator
 
+from metalibm_core.code_generation.gappa_code_generator import GappaCodeGenerator
+
 from metalibm_core.utility.log_report import Log
 from metalibm_core.utility.common import ML_NotImplemented
 
@@ -87,6 +89,11 @@ class ML_FunctionBasis(object):
 
     self.implementation = CodeFunction(self.function_name, output_format = self.get_output_precision())
     self.opt_engine = OptimizationEngine(self.processor)
+    self.gappa_engine = GappaCodeGenerator(self.processor, declare_cst = True, disable_debug = True)
+
+  def get_eval_error(self, optree, variable_copy_map = {}, goal_precision = ML_Exact, gappa_filename = "gappa_eval_error.g"):
+    """ wrapper for GappaCodeGenerator get_eval_error_v2 function """
+    return self.gappa_engine.get_eval_error_v2(self.opt_engine, optree, variable_copy_map if variable_copy_map != None else {}, goal_precision, gappa_filename)
 
   def uniquify_name(self, base_name):
     """ return a unique identifier, combining base_name + function_name """
