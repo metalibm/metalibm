@@ -44,13 +44,14 @@ ML_FPE_DivideByZero = ML_FloatingPointException()
 
 class ML_Format(object): 
     """ parent to every Metalibm's format class """
+
     def get_bit_size(self):
         """ <abstract> return the bit size of the format (if it exists) """
         print self
         raise ML_NotImplemented()
 
     def generate_c_initialization(self, *args):
-      return ""
+      return None
 
     def generate_c_assignation(self, var, value, final = True):
       final_symbol = ";\n" if final else ""
