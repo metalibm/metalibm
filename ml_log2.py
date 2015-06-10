@@ -10,21 +10,15 @@ from metalibm_core.core.attributes import ML_Debug
 from metalibm_core.core.ml_operations import *
 from metalibm_core.core.ml_formats import *
 from metalibm_core.core.ml_complex_formats import ML_Mpfr_t
-from metalibm_core.core.ml_optimization_engine import OptimizationEngine
 from metalibm_core.core.polynomials import *
 from metalibm_core.core.ml_table import ML_Table
 
-from metalibm_core.code_generation.c_code_generator import CCodeGenerator
 from metalibm_core.code_generation.generic_processor import GenericProcessor
-from metalibm_core.code_generation.code_object import CodeObject
-from metalibm_core.code_generation.code_element import CodeFunction
-from metalibm_core.code_generation.code_constant import C_Code 
 from metalibm_core.code_generation.gappa_code_generator import GappaCodeGenerator
 from metalibm_core.code_generation.generator_utility import FunctionOperator, FO_Result, FO_Arg
 
 from metalibm_core.utility.gappa_utils import execute_gappa_script_extract
 from metalibm_core.utility.ml_template import ML_ArgTemplate
-from metalibm_core.utility.arg_utils import test_flag_option, extract_option_value  
 from metalibm_core.utility.debug_utils import * 
 
 class ML_Log2(ML_Function("ml_log2")):
@@ -65,7 +59,6 @@ class ML_Log2(ML_Function("ml_log2")):
         mpfr_x is a mpfr_t variable which should have the right precision
         mpfr_rnd is the rounding mode
     """
-    #emulate_implementation = CodeFunction(self.function_name + "_emulate", output_format = ML_Mpfr_t)
     #mpfr_x = emulate_implementation.add_input_variable("x", ML_Mpfr_t)
     #mpfr_rnd = emulate_implementation.add_input_variable("rnd", ML_Int32)
     emulate_func_name = "mpfr_log2"
@@ -79,7 +72,6 @@ class ML_Log2(ML_Function("ml_log2")):
 
 
   def generate_scheme(self):
-    #func_implementation = CodeFunction(self.function_name, output_format = self.precision)
     vx = self.implementation.add_input_variable("x", self.get_input_precision()) 
 
     sollya_precision = self.get_sollya_precision()
