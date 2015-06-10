@@ -87,6 +87,11 @@ class ML_FunctionBasis(object):
 
     self.implementation = CodeFunction(self.function_name, output_format = self.get_output_precision())
     self.opt_engine = OptimizationEngine(self.processor)
+
+  def uniquify_name(self, base_name):
+    """ return a unique identifier, combining base_name + function_name """
+    return "%s_%s" % (self.function_name, base_name)
+
   
   def generate_emulate(self):
     raise ML_NotImplemented()
@@ -122,8 +127,9 @@ class ML_FunctionBasis(object):
   def optimise_scheme(self, scheme):
     """ default scheme optimization """
     # fusing FMA
-    print "MDL fusing FMA"
-    scheme = self.opt_engine.fuse_multiply_add(scheme, silence = True)
+    if self.fuse_fma:
+      print "MDL fusing FMA"
+      scheme = self.opt_engine.fuse_multiply_add(scheme, silence = True)
 
     print "MDL abstract scheme"
     self.opt_engine.instantiate_abstract_precision(scheme, None)

@@ -20,6 +20,8 @@ debugd        = ML_Debug(display_format = "%d", pre_process = lambda v: "(int) %
 # display long long/ long int integer
 debugld        = ML_Debug(display_format = "%ld")
 
+debuglld        = ML_Debug(display_format = "%lld")
+
 # display hexadecimal of single precision fp number
 debug_ftox  = ML_Debug(display_format = "%e, %\"PRIx32\"", pre_process = lambda v: "%s, float_to_32b_encoding(%s)" % (v, v), require_header = ["support_lib/ml_utils.h"])
 debug_ftox_k1  = ML_Debug(display_format = "%\"PRIx32\" ev=%x", pre_process = lambda v: "float_to_32b_encoding(%s), __k1_fpu_get_exceptions()" % v, require_header = ["support_lib/ml_utils.h"])
