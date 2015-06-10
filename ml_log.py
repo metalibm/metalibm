@@ -11,9 +11,11 @@ from metalibm_core.core.ml_operations import *
 from metalibm_core.core.ml_formats import *
 from metalibm_core.core.polynomials import *
 from metalibm_core.core.ml_table import ML_Table
+from metalibm_core.core.ml_complex_formats import ML_Mpfr_t
 
 from metalibm_core.code_generation.gappa_code_generator import GappaCodeGenerator
 from metalibm_core.code_generation.generic_processor import GenericProcessor
+from metalibm_core.code_generation.generator_utility import FunctionOperator, FO_Result, FO_Arg
 
 from metalibm_core.utility.gappa_utils import execute_gappa_script_extract
 from metalibm_core.utility.ml_template import ML_ArgTemplate
