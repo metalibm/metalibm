@@ -135,9 +135,9 @@ class ML_Log10(ML_Function("log10")):
         #    if self.precision != ML_Binary32:
         #        arg_red_index = DivisionSeed(Conversion(_vx_mant, precision = ML_Binary32), precision = ML_Binary32,  
         _red_vx        = arg_red_index * _vx_mant - 1.0
-        _red_vx.set_attributes(tag = "_red_vx", debug = debug_lftolx)
         inv_err = S2**-7
         red_interval = Interval(1 - inv_err, 1 + inv_err)
+        _red_vx.set_attributes(tag = "_red_vx", debug = debug_lftolx, interval = red_interval)
 
         # return in case of standard (non-special) input
         _log_inv_lo = TableLoad(log_table, table_index, 1, tag = "log_inv_lo", debug = debug_lftolx) 
@@ -179,8 +179,13 @@ class ML_Log10(ML_Function("log10")):
     result.set_attributes(tag = "result", debug = debug_lftolx)
     new_result_one.set_attributes(tag = "new_result_one", debug = debug_lftolx)
 
+    # building eval error map
+    eval_error_map = {
+      red_vx: Variable("red_vx", precision = self.precision, interval = red_vx.get_interval()),
+
+    }
     # computing gappa error
-    poly_eval_error = self.get_eval_error(poly, {red_vx: red_vx.get_interval()}) 
+    poly_eval_error = self.get_eval_error(poly, eval_error_map)
     print "poly_eval_error: ", poly_eval_error
     raise Exception()
 
