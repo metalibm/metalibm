@@ -107,7 +107,9 @@ class ML_Log2(ML_Function("ml_log2")):
     log_table[0][1] = 0.0
     for i in xrange(1, 2**table_index_size):
         #inv_value = (1.0 + (self.processor.inv_approx_table[i] / S2**9) + S2**-52) * S2**-1
-        inv_value = (1.0 + (inv_approx_table[i][0] / S2**9) ) * S2**-1
+        #inv_value = (1.0 + (inv_approx_table[i][0] / S2**9) ) * S2**-1
+        #print inv_approx_table[i][0], inv_value
+        inv_value = inv_approx_table[i][0]
         value_high = round(log2(inv_value), self.precision.get_field_size() - (self.precision.get_exponent_size() + 1), RN)
         value_low = round(log2(inv_value) - value_high, sollya_precision, RN)
         log_table[i][0] = value_high
@@ -117,7 +119,7 @@ class ML_Log2(ML_Function("ml_log2")):
         _vx_mant = MantissaExtraction(_vx, tag = "_vx_mant", debug = debug_lftolx)
         _vx_exp  = ExponentExtraction(_vx, tag = "_vx_exp", debug = debugd)
 
-        table_index = BitLogicAnd(BitLogicRightShift(TypeCast(_vx_mant, precision = int_precision, debug = debuglx), self.precision.get_field_size() - 7, debug = debuglx), 0x7f, tag = "table_index", debug = debuglx) 
+        table_index = BitLogicAnd(BitLogicRightShift(TypeCast(_vx_mant, precision = int_precision, debug = debuglx), self.precision.get_field_size() - 7, debug = debuglx), 0x7f, tag = "table_index", debug = debuglld) 
 
         # argument reduction
         # TODO: detect if single operand inverse seed is supported by the targeted architecture
