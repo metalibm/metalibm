@@ -125,7 +125,7 @@ class ML_Log10(ML_Function("log10")):
         _vx_mant = MantissaExtraction(_vx, tag = "_vx_mant", debug = debug_lftolx)
         _vx_exp  = ExponentExtraction(_vx, tag = "_vx_exp", debug = debugd)
 
-        table_index = BitLogicAnd(BitLogicRightShift(TypeCast(_vx_mant, precision = int_precision, debug = debuglx), self.precision.get_field_size() - 7, debug = debuglx), 0x7f, tag = "table_index", debug = debuglx) 
+        table_index = BitLogicAnd(BitLogicRightShift(TypeCast(_vx_mant, precision = int_precision, debug = debuglx), self.precision.get_field_size() - 7, debug = debuglx), 0x7f, tag = "table_index", debug = debuglld) 
 
         # argument reduction
         # TODO: detect if single operand inverse seed is supported by the targeted architecture
@@ -178,6 +178,12 @@ class ML_Log10(ML_Function("log10")):
     result, poly, log_inv_lo, log_inv_hi, red_vx, new_result_one = compute_log(vx)
     result.set_attributes(tag = "result", debug = debug_lftolx)
     new_result_one.set_attributes(tag = "new_result_one", debug = debug_lftolx)
+
+    # computing gappa error
+    poly_eval_error = self.get_eval_error(poly, {red_vx: red_vx.get_interval()}) 
+    print "poly_eval_error: ", poly_eval_error
+    raise Exception()
+
 
     neg_input = Comparison(vx, 0, likely = False, specifier = Comparison.Less, debug = debugd, tag = "neg_input")
     vx_nan_or_inf = Test(vx, specifier = Test.IsInfOrNaN, likely = False, debug = debugd, tag = "nan_or_inf")
