@@ -9,6 +9,7 @@
 # author(s): Nicolas Brunie (nicolas.brunie@kalray.eu)
 ###############################################################################
 
+from pythonsollya import Interval
 
 from ml_operations import ML_LeafNode, BitLogicAnd, BitLogicRightShift, TypeCast, Constant
 from attributes import Attributes, attr_init
@@ -64,6 +65,19 @@ class ML_Table(ML_LeafNode):
 
     def get_tag(self):
         return self.attributes.get_tag()
+
+    def get_subset_interval(self, index_function, range_set):
+        # init bound values
+        low_bound  = None
+        high_bound = None
+        # going through the selected valued list
+        # to build the range interval
+        for indexes in range_set: 
+          value = index_function(self, indexes)
+          if low_bound is None or low_bound > value: low_bound = value
+          if high_bound is None or high_bound < value: high_bound = value
+        return Interval(low_bound, high_bound)
+
 
     def get_c_definition(self, table_name, final = ";"):
         precision_c_name = self.get_storage_precision().get_c_name()

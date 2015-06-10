@@ -131,8 +131,10 @@ class ML_FunctionBasis(object):
     """ generate MDL scheme for function implementation """
     Log.report(Log.Error, "generate_scheme must be overloaded by ML_FunctionBasis child")
 
-  def optimise_scheme(self, scheme):
+  def optimise_scheme(self, pre_scheme, copy = False):
     """ default scheme optimization """
+    # copying when required
+    scheme = pre_scheme if not copy else pre_scheme.copy({})
     # fusing FMA
     if self.fuse_fma:
       print "MDL fusing FMA"
@@ -141,11 +143,8 @@ class ML_FunctionBasis(object):
     print "MDL abstract scheme"
     self.opt_engine.instantiate_abstract_precision(scheme, None)
 
-    #print scheme.get_str(depth = None, display_precision = True)
-
     print "MDL instantiated scheme"
     self.opt_engine.instantiate_precision(scheme, default_precision = ML_Binary32)
-
 
     print "subexpression sharing"
     self.opt_engine.subexpression_sharing(scheme)

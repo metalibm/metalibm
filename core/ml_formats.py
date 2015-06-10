@@ -57,6 +57,7 @@ class ML_Format(object):
       final_symbol = ";\n" if final else ""
       return "%s = %s" % (var, value)
 
+
 class ML_AbstractFormat(ML_Format): 
     def __init__(self, c_name): 
         self.c_name = c_name
@@ -131,6 +132,11 @@ class ML_Std_FP_Format(ML_FP_Format):
 
     def get_exponent_size(self):
         return self.exponent_size
+
+    def get_exponent_interval(self):
+        low_bound  = self.get_emin_normal()
+        high_bound = self.get_emax()
+        return Interval(low_bound, high_bound)
 
     def get_field_size(self):
         return self.field_size
