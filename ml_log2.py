@@ -36,7 +36,7 @@ class ML_Log2(ML_Function("ml_log2")):
 
     # initializing base class
     ML_FunctionBasis.__init__(self, 
-      base_name = "log10",
+      base_name = "log2",
       function_name = function_name,
       output_file = output_file,
 
@@ -70,7 +70,6 @@ class ML_Log2(ML_Function("ml_log2")):
     return mpfr_call
 
 
-
   def generate_scheme(self):
     vx = self.implementation.add_input_variable("x", self.get_input_precision()) 
 
@@ -102,7 +101,7 @@ class ML_Log2(ML_Function("ml_log2")):
 
     # table creation
     table_index_size = 7
-    log_table = ML_Table(dimensions = [2**table_index_size, 2], storage_precision = self.precision)
+    log_table = ML_Table(dimensions = [2**table_index_size, 2], storage_precision = self.precision, tag = self.uniquify_name("inv_table"))
     log_table[0][0] = 0.0
     log_table[0][1] = 0.0
     for i in xrange(1, 2**table_index_size):

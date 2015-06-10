@@ -9,16 +9,13 @@ from metalibm_core.core.ml_function import ML_Function, ML_FunctionBasis
 from metalibm_core.core.attributes import ML_Debug
 from metalibm_core.core.ml_operations import *
 from metalibm_core.core.ml_formats import *
-from metalibm_core.code_generation.c_code_generator import CCodeGenerator
 from metalibm_core.code_generation.generic_processor import GenericProcessor
-from metalibm_core.code_generation.code_object import CodeObject
-from metalibm_core.code_generation.code_element import CodeFunction
-from metalibm_core.code_generation.code_constant import C_Code 
-from metalibm_core.core.ml_optimization_engine import OptimizationEngine
 from metalibm_core.core.polynomials import *
 from metalibm_core.core.ml_table import ML_Table
+from metalibm_core.core.ml_complex_formats import ML_Mpfr_t
 
 from metalibm_core.code_generation.gappa_code_generator import GappaCodeGenerator
+from metalibm_core.code_generation.generator_utility import FunctionOperator, FO_Result, FO_Arg
 
 from metalibm_core.utility.gappa_utils import execute_gappa_script_extract
 from metalibm_core.utility.ml_template import ML_ArgTemplate
@@ -59,6 +56,20 @@ class ML_Log10(ML_Function("log10")):
 
     self.precision = precision
 
+  def generate_emulate(self, result, mpfr_x, mpfr_rnd):
+    """ generate the emulation code for ML_Log2 functions
+        mpfr_x is a mpfr_t variable which should have the right precision
+        mpfr_rnd is the rounding mode
+    """
+    #mpfr_x = emulate_implementation.add_input_variable("x", ML_Mpfr_t)
+    #mpfr_rnd = emulate_implementation.add_input_variable("rnd", ML_Int32)
+    emulate_func_name = "mpfr_log10"
+    emulate_func_op = FunctionOperator(emulate_func_name, arg_map = {0: FO_Result(0), 1: FO_Arg(0), 2: FO_Arg(1)}, require_header = ["mpfr.h"]) 
+    emulate_func   = FunctionObject(emulate_func_name, [ML_Mpfr_t, ML_Int32], ML_Mpfr_t, emulate_func_op)
+    #emulate_func_op.declare_prototype = emulate_func
+    mpfr_call = Statement(ReferenceAssign(result, emulate_func(mpfr_x, mpfr_rnd)))
+
+    return mpfr_call
 
 
   def generate_scheme(self):
@@ -79,10 +90,13 @@ class ML_Log10(ML_Function("log10")):
     test_positive = Comparison(vx, 0, specifier = Comparison.GreaterOrEqual, debug = True, tag = "inf_sign")
 
     test_signaling_nan = Test(vx, specifier = Test.IsSignalingNaN, debug = True, tag = "is_signaling_nan")
-    return_snan = Statement(ExpRaiseReturn(ML_FPE_Invalid, return_value = FP_QNaN(ML_Binary32)))
+    return_snan = Statement(ExpRaiseReturn(ML_FPE_Invalid, return_value = FP_QNaN(self.precision)))
 
-    log2_hi = round(log10(2), self.precision.get_field_size() - (self.precision.get_exponent_size() + 1), RN)
-    log2_lo = round(log10(2) - log2_hi, self.precision.sollya_object, RN)
+    log2_hi_value = round(log10(2), self.precision.get_field_size() - (self.precision.get_exponent_size() + 1), RN)
+    log2_lo_value = round(log10(2) - log2_hi_value, self.precision.sollya_object, RN)
+
+    log2_hi = Constant(log2_hi_value, precision = self.precision)
+    log2_lo = Constant(log2_lo_value, precision = self.precision)
 
     vx_exp  = ExponentExtraction(vx, tag = "vx_exp", debug = debugd)
 
@@ -100,7 +114,8 @@ class ML_Log10(ML_Function("log10")):
     log_table[0][1] = 0.0
     for i in xrange(1, 2**table_index_size):
         #inv_value = (1.0 + (self.processor.inv_approx_table[i] / S2**9) + S2**-52) * S2**-1
-        inv_value = (1.0 + (inv_approx_table[i][0] / S2**9) ) * S2**-1
+        #inv_value = (1.0 + (inv_approx_table[i][0] / S2**9) ) * S2**-1
+        inv_value = inv_approx_table[i][0]
         value_high = round(log10(inv_value), self.precision.get_field_size() - (self.precision.get_exponent_size() + 1), RN)
         value_low = round(log10(inv_value) - value_high, sollya_precision, RN)
         log_table[i][0] = value_high

@@ -106,7 +106,7 @@ class ML_Log(ML_Function("ml_log")):
 
     # table creation
     table_index_size = 7
-    log_table = ML_Table(dimensions = [2**table_index_size, 2], storage_precision = self.precision)
+    log_table = ML_Table(dimensions = [2**table_index_size, 2], storage_precision = self.precision, tag = self.uniquify_name("inv_table"))
     log_table[0][0] = 0.0
     log_table[0][1] = 0.0
 
