@@ -109,10 +109,11 @@ class ML_Log10(ML_Function("log10")):
 
     # table creation
     table_index_size = 7
+    table_index_range = range(1, 2**table_index_size)
     log_table = ML_Table(dimensions = [2**table_index_size, 2], storage_precision = self.precision)
     log_table[0][0] = 0.0
     log_table[0][1] = 0.0
-    for i in xrange(1, 2**table_index_size):
+    for i in table_index_range:
         #inv_value = (1.0 + (self.processor.inv_approx_table[i] / S2**9) + S2**-52) * S2**-1
         #inv_value = (1.0 + (inv_approx_table[i][0] / S2**9) ) * S2**-1
         inv_value = inv_approx_table[i][0]
@@ -120,6 +121,12 @@ class ML_Log10(ML_Function("log10")):
         value_low = round(log10(inv_value) - value_high, sollya_precision, RN)
         log_table[i][0] = value_high
         log_table[i][1] = value_low
+
+    # determining log_table range
+    high_index_function = lambda table, i: table[i][0]
+    low_index_function  = lambda table, i: table[i][1]
+    table_high_interval = log_table.get_subset_interval(high_index_function, table_index_range)
+    table_low_interval  = log_table.get_subset_interval(low_index_function,  table_index_range)
 
     def compute_log(_vx, exp_corr_factor = None):
         _vx_mant = MantissaExtraction(_vx, tag = "_vx_mant", debug = debug_lftolx)
@@ -173,19 +180,21 @@ class ML_Log10(ML_Function("log10")):
         result_one_low_part.set_attributes(tag = "result_one_low_part", debug = debug_lftolx)
         _result_one = ((sub_part) + red_vx_hi * _poly) + result_one_low_part 
         _result = exact_log2_hi_exp + pre_result
-        return _result, _poly, _log_inv_lo, _log_inv_hi, _red_vx, _result_one 
+        return _result, _poly, _log_inv_lo, _log_inv_hi, _red_vx, _result_one, corr_exp 
 
-    result, poly, log_inv_lo, log_inv_hi, red_vx, new_result_one = compute_log(vx)
+    result, poly, log_inv_lo, log_inv_hi, red_vx, new_result_one, corr_exp = compute_log(vx)
     result.set_attributes(tag = "result", debug = debug_lftolx)
     new_result_one.set_attributes(tag = "new_result_one", debug = debug_lftolx)
 
     # building eval error map
     eval_error_map = {
       red_vx: Variable("red_vx", precision = self.precision, interval = red_vx.get_interval()),
-
+      log_inv_hi: Variable("log_inv_hi", precision = self.precision, interval = table_high_interval),
+      log_inv_lo: Variable("log_inv_lo", precision = self.precision, interval = table_low_interval),
+      corr_exp: Variable("corr_exp", precision = ML_Int64, interval = self.precision.get_exponent_interval()), 
     }
     # computing gappa error
-    poly_eval_error = self.get_eval_error(poly, eval_error_map)
+    poly_eval_error = self.get_eval_error(result, eval_error_map)
     print "poly_eval_error: ", poly_eval_error
     raise Exception()
 
