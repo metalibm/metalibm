@@ -191,7 +191,7 @@ class ML_Log10(ML_Function("log10")):
       red_vx: Variable("red_vx", precision = self.precision, interval = red_vx.get_interval()),
       log_inv_hi: Variable("log_inv_hi", precision = self.precision, interval = table_high_interval),
       log_inv_lo: Variable("log_inv_lo", precision = self.precision, interval = table_low_interval),
-      corr_exp: Variable("corr_exp", precision = ML_Int64, interval = self.precision.get_exponent_interval()), 
+      corr_exp: Variable("corr_exp_g", precision = self.precision, interval = self.precision.get_exponent_interval()), 
     }
     # computing gappa error
     poly_eval_error = self.get_eval_error(result, eval_error_map)
