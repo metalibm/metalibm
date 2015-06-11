@@ -91,9 +91,18 @@ class ML_FunctionBasis(object):
     self.opt_engine = OptimizationEngine(self.processor)
     self.gappa_engine = GappaCodeGenerator(self.processor, declare_cst = True, disable_debug = True)
 
-  def get_eval_error(self, optree, variable_copy_map = {}, goal_precision = ML_Exact, gappa_filename = "gappa_eval_error.g"):
+  def get_eval_error(self, optree, variable_copy_map = {}, goal_precision = ML_Exact, gappa_filename = "gappa_eval_error.g", relative_error = False):
     """ wrapper for GappaCodeGenerator get_eval_error_v2 function """
-    return self.gappa_engine.get_eval_error_v2(self.opt_engine, optree, variable_copy_map if variable_copy_map != None else {}, goal_precision, gappa_filename)
+    copy_map = {}
+    for leaf in variable_copy_map: 
+      copy_map[leaf] = variable_copy_map[leaf]
+    opt_optree = self.optimise_scheme(optree, copy = copy_map)
+    new_variable_copy_map = {}
+    for leaf in variable_copy_map:
+      new_variable_copy_map[leaf.get_handle().get_node()] = variable_copy_map[leaf]
+    # debug print
+    print opt_optree.get_str(depth = None, display_precision = True)
+    return self.gappa_engine.get_eval_error_v2(self.opt_engine, opt_optree, new_variable_copy_map if variable_copy_map != None else {}, goal_precision, gappa_filename, relative_error = relative_error)
 
   def uniquify_name(self, base_name):
     """ return a unique identifier, combining base_name + function_name """
@@ -131,10 +140,10 @@ class ML_FunctionBasis(object):
     """ generate MDL scheme for function implementation """
     Log.report(Log.Error, "generate_scheme must be overloaded by ML_FunctionBasis child")
 
-  def optimise_scheme(self, pre_scheme, copy = False):
+  def optimise_scheme(self, pre_scheme, copy = None):
     """ default scheme optimization """
     # copying when required
-    scheme = pre_scheme if not copy else pre_scheme.copy({})
+    scheme = pre_scheme if copy is None else pre_scheme.copy(copy)
     # fusing FMA
     if self.fuse_fma:
       print "MDL fusing FMA"
