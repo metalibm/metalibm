@@ -80,7 +80,7 @@ class ML_Acos(ML_Function("acos")):
     #dummy_div_seed = DivisionSeed(dummy_var, precision = self.precision)
     #inv_approx_table = self.processor.get_recursive_implementation(dummy_div_seed, language = None, table_getter = lambda self: self.approx_table_map)
     lo_bound_global = SollyaObject(0.0)
-    hi_bound_global = SollyaObject(1.0)
+    hi_bound_global = SollyaObject(0.75)
     approx_interval = Interval(lo_bound_global, hi_bound_global)
     approx_interval_size = hi_bound_global - lo_bound_global
 
@@ -92,29 +92,29 @@ class ML_Acos(ML_Function("acos")):
     table_size = 2**table_index_size
     table_index_range = range(table_size)
 
-    coeff_table = ML_Table(dimensions = [table_size, 2], storage_precision = self.precision)
-    local_interval_size = approx_interval_size / SollyaObject(table_size)
-    for i in table_index_range:
-      degree = 6
-      lo_bound = lo_bound_global + i * local_interval_size
-      hi_bound = lo_bound_global + (i+1) * local_interval_size
-      approx_interval = Interval(lo_bound, hi_bound)
-      local_poly_object, local_error = Polynomial.build_from_approximation_with_error(acos(x), degree, [self.precision] * (degree+1), approx_interval, absolute)
-      local_error = int(log2(sup(abs(local_error))))
-      print approx_interval, local_error
+    local_degree = 9
+    coeff_table = ML_Table(dimensions = [table_size, local_degree], storage_precision = self.precision)
 
-    # table creation
-    #table_index_size = 7
-    #table_index_range = range(1, 2**table_index_size)
-    #log_table = ML_Table(dimensions = [2**table_index_size, 2], storage_precision = self.precision)
-    #log_table[0][0] = 0.0
-    #log_table[0][1] = 0.0
+    #local_interval_size = approx_interval_size / SollyaObject(table_size)
     #for i in table_index_range:
-    #    inv_value = inv_approx_table[i][0]
-    #    value_high = round(log10(inv_value), self.precision.get_field_size() - (self.precision.get_exponent_size() + 1), RN)
-    #    value_low = round(log10(inv_value) - value_high, sollya_precision, RN)
-    #    log_table[i][0] = value_high
-    #    log_table[i][1] = value_low
+    #  degree = 6
+    #  lo_bound = lo_bound_global + i * local_interval_size
+    #  hi_bound = lo_bound_global + (i+1) * local_interval_size
+    #  approx_interval = Interval(lo_bound, hi_bound)
+    #  local_poly_object, local_error = Polynomial.build_from_approximation_with_error(acos(x), degree, [self.precision] * (degree+1), approx_interval, absolute)
+    #  local_error = int(log2(sup(abs(local_error / acos(approx_interval)))))
+    #  print approx_interval, local_error
+
+    exp_lo = 2**exp_index_size
+    for i in table_index_range:
+      lo_bound = (1.0 + (i % 2**field_index_size) * S2**-field_index_size) * S2**(i / 2**field_index_size - exp_lo)
+      hi_bound = (1.0 + ((i % 2**field_index_size) + 1) * S2**-field_index_size) * S2**(i / 2**field_index_size - exp_lo)
+      local_approx_interval = Interval(lo_bound, hi_bound)
+      local_poly_object, local_error = Polynomial.build_from_approximation_with_error(acos(1 - x), local_degree, [self.precision] * (local_degree+1), local_approx_interval, absolute)
+      local_error = int(log2(sup(abs(local_error / acos(1 - local_approx_interval)))))
+      coeff_table
+      print local_approx_interval, local_error
+
 
     # determining log_table range
     #high_index_function = lambda table, i: table[i][0]
