@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
 
+## @package ml_operations
+#  Metalibm Description Language basic Operation 
+
 ###############################################################################
 # This file is part of Kalray's Metalibm tool
 # Copyright (2013)
@@ -9,6 +12,7 @@
 #
 # author(s): Nicolas Brunie (nicolas.brunie@kalray.eu)
 ###############################################################################
+
 
 import sys, inspect
 
@@ -20,9 +24,9 @@ from .attributes import Attributes, attr_init
 from .ml_formats import * # FP_SpecialValue, ML_FloatingPointException, ML_FloatingPoint_RoundingMode, ML_FPRM_Type, ML_FPE_Type
 
 
+## merge abstract format function
+#  @return most generic abstract format to unify args formats 
 def std_merge_abstract_format(*args):
-    """ return the most generic abstract format
-        to unify args formats """
     has_float = False
     has_integer = False
     has_bool = False
@@ -38,13 +42,17 @@ def std_merge_abstract_format(*args):
         Log.report(Log.Error, "unknown formats while merging abstract format tuple")
 
 
+## parent to Metalibm's operation 
+#  @brief Every operation class must inherit from this class
 class ML_Operation(object):
-    """ parent to Metalibm's operation """
     pass
 
 
+## implicit operation conversion (from number to Constant when required) 
+#  @brief This function is called on every operations arguments
+#         to legalize them
 def implicit_op(op):
-    """ implicit operation conversion (from number to Constant when required) """
+
     if isinstance(op, ML_Operation):
         return op
     elif isinstance(op, SollyaObject) or isinstance(op, int) or isinstance(op, float) or isinstance(op, FP_SpecialValue):
@@ -58,44 +66,52 @@ def implicit_op(op):
         raise Exception()
 
 
+## Parent for abstract operations 
+#  @brief parent to Metalibm's abstrat operation 
 class AbstractOperation(ML_Operation):
-    """ parent to Metalibm's abstrat operation """
     name = "AbstractOperation"
     extra_inputs = []
     global_index = 0
     str_del = "| "
 
+    ## init operation handle
     def __init__(self, **init_map):
-        # init operation handle
         self.attributes = Attributes(**init_map)
         self.index = AbstractOperation.global_index; AbstractOperation.global_index += 1
         self.get_handle().set_node(self)
 
+    ## extract the High part of the Node
     @property
     def hi(self):
         return ComponentSelection(self, specifier = ComponentSelection.Hi)
 
+    ## extract the Low part of the Node
     @property
     def lo(self):
         return ComponentSelection(self, specifier = ComponentSelection.Lo)
 
 
+    ## Operator for boolean negation of operands 
     def __not__(self):
         return LogicalNot(self)
 
+    ## Operator for boolean AND of operands 
     def __and__(self, op):
         return LogicalAnd(self, op)
 
+    ## Operator for boolean OR of operands 
     def __or__(self, op):
         return LogicalOr(self, op)
 
+    ## Unary operator for arithmetic negation 
     def __neg__(self):
         return Negation(self)
 
+    ## implicit add operation between AbstractOperation 
     def __add__(self, op):
-        """ implicit add operation between AbstractOperation """
         return Addition(self, implicit_op(op))
 
+    ## 2-Operand operator for arithmetic power 
     def __pow__(self, n):
         if n == 0: return Constant(1, precision = self.get_precision())
         elif n == 1: return self
@@ -106,139 +122,176 @@ class AbstractOperation(ML_Operation):
           else:
             return tmp * tmp
 
+    ## 2-Operand implicit subtraction operator
     def __sub__(self, op):
         """ implicit add operation between AbstractOperation """
         return Subtraction(self, implicit_op(op))
 
+    ## 2-Operand implicit commuted addition operator
     def __radd__(self, op):
         """ implicit reflexive add operation between AbstractOperation """
         return Addition(implicit_op(op), self)
 
+    ## 2-Operand implicit multiplication operator
     def __mul__(self, op):
         """ implicit multiply operation between AbstractOperation """
         return Multiplication(self, implicit_op(op))
 
+    ## 2-Operand implicit commuted subtraction operator
     def __rsub__(self, op):
+        """ Commutation operator for 2-operand subtraction """
         return Subtraction(implicit_op(op), self)
 
+    ## 2-Operand implicit commuted multiplication operator
     def __rmul__(self, op):
         """ implicit reflexive multiply operation between AbstractOperation """
         return Multiplication(implicit_op(op), self)
 
+    ## 2-Operand implicit division operator
     def __div__(self, op):
         """ implicit division operation between AbstractOperation """
         return Division(self, implicit_op(op))
         
+    ## 2-Operand implicit commuted division operator
     def __rdiv__(self, op):
         """ implicit reflexive division operation between AbstractOperation """
         return Division(implicit_op(op), self)
         
+    ## 2-Operand implicit modulo operator
     def __mod__(self, op):
         """ implicit modulo operation between AbstractOperation """
         return Modulo(self, implicit_op(op))
         
+    ## 2-Operand implicit commuted modulo operator
     def __rmod__(self, op):
         """ implicit reflexive modulo operation between AbstractOperation """
         return Modulo(self, implicit_op(op))
 
+    ## implicit less than operation "
     def __lt__(self, op):
-        """ implicit less than operation """
         return Comparison(self, implicit_op(op), specifier = Comparison.Less)
 
+    ## implicit less or equal operation
     def __le__(self, op):
-        """ implicit less or egual operation """
         return Comparison(self, implicit_op(op), specifier = Comparison.LessOrEqual)
 
+    ## implicit greater or equal operation 
     def __ge__(self, op):
-        """ implicit greater or equal operation """
         return Comparison(self, implicit_op(op), specifier = Comparison.GreaterOrEqual)
 
+    ## implicit greater than operation
     def __gt__(self, op):
-        """ implciit greater than operation """
         return Comparison(self, implicit_op(op), specifier = Comparison.Greater)
 
+    ## precision getter
+    #  @return the node output precision
     def get_precision(self):
-        """ precision getter (transmit to self.attributes field) """
         return self.attributes.get_precision()
+
+    ## set the node output precision
     def set_precision(self, new_precision):
-        """ precision setter (transmit to self.attributes field) """
         self.attributes.set_precision(new_precision)
 
+    ##
+    #  @return the node evaluated live-range (when available) 
     def get_interval(self):
-        """ interval getter (transmit to self.attributes field) """
         return self.attributes.get_interval()
+    ## set the node live-range interval
     def set_interval(self, new_interval):
-        """ interval setter (transmit to self.attributes field) """
         return self.attributes.set_interval(new_interval)
 
+    ## wrapper for getting the exact field of node's attributes
+    #  @return the node exact flag value
     def get_exact(self):
-        """ exact attribute getter (transmit to self.attributes field) """
         return self.attributes.get_exact()
 
+    ## wrapper for setting the exact field of node's attributes
     def set_exact(self, new_exact_value):
-        """ exact attribute setter (transmit to self.attributes field) """
         self.attributes.set_exact(new_exact_value)
 
+    ## wrapper for getting the tag value within node's attributes
+    #  @return the node's tag 
     def get_tag(self, default = None):
         """ tag getter (transmit to self.attributes field) """
         op_tag = self.attributes.get_tag()
         return default if op_tag == None else op_tag
 
+    ## wrapper for setting the tag value within node's attributes
     def set_tag(self, new_tag):
         """ tag setter (transmit to self.attributes field) """
         return self.attributes.set_tag(new_tag)
 
+    ## wrapper for getting the value of debug field from node's attributes
     def get_debug(self):
-        """ debug getter (transmit to self.attributes field) """
         return self.attributes.get_debug()
+    ## wrapper for setting the debug field value within node's attributes
     def set_debug(self, new_debug):
-        """ debug setter (transmit to self.attributes field) """
         return self.attributes.set_debug(new_debug)
 
+    ## wrapper for getting the value of silent field from node's attributes
     def get_silent(self):
+    ## wrapper for setting the value of silent field within node's attributes
         return self.attributes.get_silent()
     def set_silent(self, silent_value):
         return self.attributes.set_silent(silent_value)
 
+    ## wrapper for retrieving the handle field from node's attributes
     def get_handle(self):
         return self.attributes.get_handle()
+    ## wrapper for changing the handle within node's attributes
     def set_handle(self, new_handle):
         self.attributes.set_handle(new_handle)
 
+    ##  wrapper for getting the value of clearprevious field from node's attributes
     def get_clearprevious(self):
         return self.attributes.get_clearprevious()
+    ## wrapper for setting the value of clearprevious field within node's attributes
     def set_clearprevious(self, new_clearprevious):
         return self.attributes.set_clearprevious(new_clearprevious)
 
+    ##  wrapper for getting the value of unbreakable field from node's attributes
     def get_unbreakable(self):
         return self.attributes.get_unbreakable()
+    ## wrapper for setting the value of unbreakable field within node's attributes
     def set_unbreakable(self, new_unbreakable):
         return self.attributes.set_unbreakable(new_unbreakable)
 
+    ## wrapper to change some attributes values using dictionnary arguments
     def set_attributes(self, **kwords):
         self.attributes.set_attr(**kwords)
 
+    ## modify the values of some node's attributes and return the current node
+    #  @return current node
     def modify_attributes(self, **kwords):
         self.attributes.set_attr(**kwords)
         return self
 
+    ## 
+    #  @return the node index
     def get_index(self):
         """ index getter function """
         return self.index
+    ## set the node's index value
+    #  
     def set_index(self, new_index):
         """ index setter function """
         self.index = new_index 
 
+    ## wrapper for getting the rounding_mode field from node's attributes
+    #  @return the node rounding mode field
     def get_rounding_mode(self):
         """ rounding mode getter function (attributes)"""
         return self.attributes.get_rounding_mode()
+    ## wrapper for setting the rounding field within node's attributes
     def set_rounding_mode(self, new_rounding_mode):
         """ rounding mode setter function (attributes) """
         self.attributes.set_rounding_mode(new_rounding_mode)
 
-
+    ## wrapper for getting the max_abs_error field of node's attributes
+    #  @return the node's max_abs_error attribute value
     def get_max_abs_error(self):
         return self.attributes.get_max_abs_error()
+    ## wrapper for setting the max_abs_error field value within node's attributes
     def set_max_abs_error(self, new_max_abs_error):
         self.attributes.set_max_abs_error(new_max_abs_error)
 
@@ -247,14 +300,20 @@ class AbstractOperation(ML_Operation):
     def set_prevent_optimization(self, prevent_optimization):
         self.attributes.set_prevent_optimization(prevent_optimization)
 
+    ## wrapper to access the class name field
+    #  @return the node's name (generally node's class name)
     def get_name(self):
         """ return operation name (by default class name) """
         return self.name
 
+    ##
+    #  @return the list of node's extra inputs
     def get_extra_inputs(self):
         """ return list of non-standard inputs """
         return self.extra_inputs
 
+    ## change the node to mirror optree
+    # by copying class, attributes, arity and inputs from optree to self
     def change_to(self, optree):
         """ change <self> operation to match optree """
         self.__class__ = optree.__class__
@@ -265,6 +324,9 @@ class AbstractOperation(ML_Operation):
             self.specifier = optree.specifier
 
 
+    ## string conversion 
+    #
+    #  @return a string describing the node
     def get_str(self, depth = 2, display_precision = False, tab_level = 0, memoization_map = {}, display_attribute = False, display_id = False):
         """ string conversion for operation graph 
             depth:                  number of level to be crossed (None: infty)
