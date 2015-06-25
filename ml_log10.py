@@ -196,7 +196,6 @@ class ML_Log10(ML_Function("log10")):
     # computing gappa error
     poly_eval_error = self.get_eval_error(result, eval_error_map)
     print "poly_eval_error: ", poly_eval_error
-    raise Exception()
 
 
     neg_input = Comparison(vx, 0, likely = False, specifier = Comparison.Less, debug = debugd, tag = "neg_input")
@@ -227,7 +226,7 @@ class ML_Log10(ML_Function("log10")):
 
     m100 = -100
     S2100 = Constant(S2**100, precision = self.precision)
-    result_subnormal, _, _, _, _, _ = compute_log(vx * S2100, exp_corr_factor = m100)
+    result_subnormal, _, _, _, _, _, _ = compute_log(vx * S2100, exp_corr_factor = m100)
 
     print "managing close to 1.0 cases"
     one_err = S2**-7

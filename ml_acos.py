@@ -114,23 +114,13 @@ class ML_Acos(ML_Function("acos")):
       local_error = int(log2(sup(abs(local_error / acos(1 - local_approx_interval)))))
       coeff_table
       print local_approx_interval, local_error
+      for d in xrange(local_degree):
+        coeff_table[i][d] = coeff(local_poly_object.get_sollya_object(), d) 
+
+    table_index = BitLogicRightShift(vx, vx.get_precision().get_field_size() - field_index_size) - (exp_lo << field_index_size)
 
 
-    # determining log_table range
-    #high_index_function = lambda table, i: table[i][0]
-    #low_index_function  = lambda table, i: table[i][1]
-    #table_high_interval = log_table.get_subset_interval(high_index_function, table_index_range)
-    #table_low_interval  = log_table.get_subset_interval(low_index_function,  table_index_range)
 
-
-    #table_index = BitLogicAnd(BitLogicRightShift(TypeCast(_vx_mant, precision = int_precision, debug = debuglx), self.precision.get_field_size() - 7, debug = debuglx), 0x7f, tag = "table_index", debug = debuglld) 
-
-    # argument reduction
-    #arg_red_index = Select(Equal(table_index, 0), 1.0, pre_arg_red_index, tag = "arg_red_index", debug = debug_lftolx)
-
-    # return in case of standard (non-special) input
-    #_log_inv_lo = TableLoad(log_table, table_index, 1, tag = "log_inv_lo", debug = debug_lftolx) 
-    #_log_inv_hi = TableLoad(log_table, table_index, 0, tag = "log_inv_hi", debug = debug_lftolx)
 
     print "building mathematical polynomial"
     poly_degree = sup(guessdegree(acos(x), approx_interval, S2**-(self.precision.get_field_size()))) 
