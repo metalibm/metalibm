@@ -19,7 +19,7 @@ import sys, inspect
 from pythonsollya import Interval, SollyaObject, PSI_is_range, nearestint
 
 from ..utility.log_report import Log
-from ..utility.common import Callable
+from ..utility.common import Callable, ML_NotImplemented
 from .attributes import Attributes, attr_init
 from .ml_formats import * # FP_SpecialValue, ML_FloatingPointException, ML_FloatingPoint_RoundingMode, ML_FPRM_Type, ML_FPE_Type
 
@@ -325,13 +325,14 @@ class AbstractOperation(ML_Operation):
 
 
     ## string conversion 
-    #
+    #  @param  depth [integer/None] node depth where the display recursion stops
+    #  @param  display_precision [boolean] enable/display node's precision display
+    #  @param  tab_level number of tab to be inserted left to node's description
+    #  @param  memoization_map [dict] hastable to store previously described node (already generated node tag will be use rather than copying the full description)
+    #  @param  display_attribute [boolean] enable/disable display of node's attributes
+    #  @param  display_id [boolean]  enable/disbale display of unique node identified
     #  @return a string describing the node
     def get_str(self, depth = 2, display_precision = False, tab_level = 0, memoization_map = {}, display_attribute = False, display_id = False):
-        """ string conversion for operation graph 
-            depth:                  number of level to be crossed (None: infty)
-            display_precision:      enable/display format display
-        """
         new_depth = None 
         if depth != None:
             if  depth < 0: 
@@ -355,21 +356,33 @@ class AbstractOperation(ML_Operation):
             return tab_str + "%s%s%s%s%s ------> %s\n%s" % (self.get_name(), precision_str, silent_str, id_str, attribute_str, str_tag, "".join(inp.get_str(new_depth, display_precision, tab_level = tab_level + 1, memoization_map = memoization_map, display_attribute = display_attribute, display_id = display_id) for inp in self.inputs))
 
 
+    ## virtual function, called after a node's copy
+    #  overleaded by inheriter of AbstractOperation
     def finish_copy(self, new_copy, copy_map = {}):
         pass
 
 
+    ## pure virtual copy  node function
+    #  @param copy_map dictionnary of previously built copy, if a node is found within this table, table's value is returned as copy result
+    #  @return node's copy (newly generated or memoized)
+    def copy(self, copy_map = {}):
+        raise ML_NotImplemented()
+
+
+## base class for all arithmetic operation that may depend
+#  on floating-point context (rounding mode for example) 
 class ML_ArithmeticOperation(AbstractOperation):
-    """ base class for all arithmetic operation that may depend
-        on floating-point context (rounding mode for example) """
     pass
 
+## Parent for AbstractOperation with no expected input
 class ML_LeafNode(AbstractOperation): 
-    """ AbstractOperation with no expected input """
     pass
 
+## Constant node class
 class Constant(ML_LeafNode):
-    """ Constant operation class """
+    ## Initializer
+    #  @param value numerical value of the constant
+    #  @param init_map dictionnary for attributes initialization
     def __init__(self, value, **init_map):
         # value initialization
         AbstractOperation.__init__(self, **init_map)
@@ -379,6 +392,8 @@ class Constant(ML_LeafNode):
             self.attributes.set_interval(Interval(value))
 
 
+    ## accessor to the constat value
+    #  @return the numerical constant value
     def get_value(self):
         return self.value
 
@@ -400,12 +415,16 @@ class Constant(ML_LeafNode):
         return new_copy
 
 
+## class for Variable node, which contains a temporary state of the operation DAG
+##  which may have been defined outside the scope of the implementation (input variable)
 class Variable(ML_LeafNode):
-    """ class to hold an (input) Variable, defined outside the scope
-        of the program """
+    ## Input type for Variable Node
+    #  such node is not defined as an input to the function description
     class Input: pass
+    ## Intermediary type for Variable Node
+    #  such node is defined within the function description.
+    #  It holds an intermediary state
     class Intermediary: pass
-    """ Variable operator class """
     def __init__(self, tag, **init_map):
         AbstractOperation.__init__(self, **init_map)
         self.attributes.set_tag(tag)
@@ -413,6 +432,7 @@ class Variable(ML_LeafNode):
         # and intermediary variables 
         self.var_type = attr_init(init_map, "var_type", default_value = Variable.Input)  
 
+    ## @return the type (Input or Intermediary0 of the Variable node
     def get_var_type(self):
         return self.var_type
 
