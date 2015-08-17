@@ -32,11 +32,12 @@ class ML_Log(ML_Function("ml_log")):
                target = GenericProcessor(), 
                output_file = "logf.c", 
                function_name = "logf"):
+    # initializing I/O precision
     io_precisions = [precision] * 2
 
     # initializing base class
     ML_FunctionBasis.__init__(self, 
-      base_name = "log10",
+      base_name = "log",
       function_name = function_name,
       output_file = output_file,
 
