@@ -147,10 +147,13 @@ class ML_Std_FP_Format(ML_FP_Format):
             return cst_value.get_c_cst()
         else:
             display(hexadecimal)
-            if isinstance(cst_value, int):
-                return str(float(cst_value)) + self.c_suffix
+            if cst_value == 0:
+                conv_result = "0.0" + self.c_suffix
+            elif isinstance(cst_value, int):
+                conv_result = str(float(cst_value)) + self.c_suffix
             else:
-                return str(cst_value) + self.c_suffix
+                conv_result  = str(cst_value) + self.c_suffix
+            return conv_result
 
     def get_precision(self):
         """ return the bit-size of the mantissa """
