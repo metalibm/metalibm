@@ -73,7 +73,7 @@ class ML_FunctionBasis(object):
 
     self.output_file = output_file if output_file else self.function_name + ".c"
 
-    self.debug_flag=debug_flag
+    self.debug_flag = debug_flag
 
     # TODO: FIX which i/o precision to select
     self.sollya_precision = self.get_output_precision().sollya_object
