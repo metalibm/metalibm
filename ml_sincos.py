@@ -139,7 +139,8 @@ class ML_SinCos(ML_Function("ml_cos")):
     modk = Modulo(k, 2**(frac_pi_index+1), precision = ML_Int32, tag = "switch_value", debug = True)
 
     sel_c = Equal(BitLogicAnd(modk, 2**(frac_pi_index-1)), 2**(frac_pi_index-1))
-    red_vx = Select(sel_c, -pre_red_vx, pre_red_vx)
+    sel_c.set_attributes(tag = "sel_c", debug = debugd)
+    red_vx = pre_red_vx # Select(sel_c, -pre_red_vx, pre_red_vx)
     red_vx.set_attributes(tag = "red_vx", debug = debug_precision, precision = self.precision)
 
     red_vx_d = Select(sel_c, -pre_red_vx_d, pre_red_vx_d)
@@ -156,13 +157,10 @@ class ML_SinCos(ML_Function("ml_cos")):
     poly_degree_vector = [None] * 2**(frac_pi_index+1)
 
 
-
     error_function = lambda p, f, ai, mod, t: dirtyinfnorm(f - p, ai)
 
     #polynomial_scheme_builder = PolynomialSchemeEvaluator.generate_estrin_scheme
     polynomial_scheme_builder = PolynomialSchemeEvaluator.generate_horner_scheme
-
-    index_relative = []
 
     table_index_size = frac_pi_index+1
     cos_table = ML_Table(dimensions = [2**table_index_size, 1], storage_precision = self.precision, tag = self.uniquify_name("cos_table"))
@@ -174,21 +172,28 @@ class ML_SinCos(ML_Function("ml_cos")):
       sin_table[i][0] = round(sin(local_x), self.precision.get_sollya_object(), RN)
 
 
-    tabulated_cos = TableLoad(cos_table, modk) 
-    tabulated_sin = TableLoad(sin_table, modk) 
+    tabulated_cos = TableLoad(cos_table, modk, 0, tag = "tab_cos", debug = debug_precision) 
+    tabulated_sin = TableLoad(sin_table, modk, 0, tag = "tab_sin", debug = debug_precision) 
 
     Log.report(Log.Info, "building mathematical polynomials for sin and cos")
-    poly_degree_cos   = sup(guessdegree(cos(x), approx_interval, S2**(self.precision.get_field_size()+1)))
-    poly_degree_sin   = sup(guessdegree(sin(x)/x, approx_interval, S2**(self.precision.get_field_size()+1)))
+    poly_degree_cos   = sup(guessdegree(cos(x), approx_interval, S2**-(self.precision.get_field_size()+1)) ) + 1
+    poly_degree_sin   = sup(guessdegree(sin(x)/x, approx_interval, S2**-(self.precision.get_field_size()+1))) +1
 
-    poly_object_cos = Polynomial.build_from_approximation(cos(x), poly_degree_cos, [1, 1] + [self.precision] * (poly_degree_cos - 1), approx_interval, absolute)
-    poly_object_sin = Polynomial.build_from_approximation(sin(x)/x, poly_degree_sin, [1] + [self.precision] * (poly_degree_sin), approx_interval, absolute)
+    poly_object_cos, poly_error_cos = Polynomial.build_from_approximation_with_error(cos(x), poly_degree_cos, [1, 1] + [self.precision] * (poly_degree_cos - 1), approx_interval, absolute)
+    poly_object_sin, poly_error_sin = Polynomial.build_from_approximation_with_error(sin(x)/x, poly_degree_sin, [1] + [self.precision] * (poly_degree_sin), approx_interval, absolute)
 
-    poly_cos = polynomial_scheme_builder(poly_object_cos, red_vx, unified_precision = self.precision)
+    poly_cos = polynomial_scheme_builder(poly_object_cos.sub_poly(start_index = 1), red_vx, unified_precision = self.precision)
     poly_sin = polynomial_scheme_builder(poly_object_sin, red_vx, unified_precision = self.precision)
+    poly_cos.set_attributes(tag = "poly_cos", debug = debug_precision)
+    poly_sin.set_attributes(tag = "poly_sin", debug = debug_precision)
+
+    print "poly_error: ", poly_error_cos, poly_error_sin
 
 
-    result = poly_cos * tabulated_cos - poly_sin * red_vx * tabulated_sin 
+    cos_eval = poly_cos * tabulated_cos + tabulated_cos - poly_sin * red_vx * tabulated_sin
+    cos_eval.set_attributes(tag = "cos_eval", debug = debug_precision)
+    result = Return(cos_eval) 
+    #result = Return(tabulated_cos)
 
     #######################################################################
     #                    LARGE ARGUMENT MANAGEMENT                        #
