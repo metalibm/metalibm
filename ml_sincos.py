@@ -112,7 +112,7 @@ class ML_SinCos(ML_Function("ml_cos")):
 
 
     # argument reduction
-    frac_pi_index = 6
+    frac_pi_index = 5
     frac_pi     = round(S2**frac_pi_index / pi, sollya_precision, RN)
     inv_frac_pi = round(pi / S2**frac_pi_index, hi_precision, RN)
     inv_frac_pi_lo = round(pi / S2**frac_pi_index - inv_frac_pi, sollya_precision, RN)
@@ -213,13 +213,33 @@ class ML_SinCos(ML_Function("ml_cos")):
     poly_sin.set_attributes(tag = "poly_sin", debug = debug_precision)
 
 
-    cos_eval_d = tabulated_cos_hi - red_vx * (tabulated_sin + tabulated_cos_hi * red_vx * 0.5 + tabulated_sin * poly_sin - tabulated_cos_hi * poly_cos)
+    cos_eval_d = tabulated_cos_hi + (- red_vx * (tabulated_sin + (tabulated_cos_hi * red_vx * 0.5 + (tabulated_sin * poly_sin + (- tabulated_cos_hi * poly_cos)))) + tabulated_cos_lo)
     cos_eval_d.set_attributes(tag = "cos_eval_d", debug = debug_precision, precision = self.precision)
+    
+    exact_sub = (tabulated_cos_hi - red_vx)
+    exact_sub.set_attributes(tag = "exact_sub", debug = debug_precision, unbreakable = True, prevent_optimization = True)
 
-    cos_eval_2 = (tabulated_cos_hi - red_vx) + - red_vx * ((tabulated_sin - 1) + tabulated_cos_hi * red_vx * 0.5 + tabulated_sin * poly_sin - tabulated_cos_hi * poly_cos)
+    cos_eval_2 = exact_sub + ((- red_vx * ((tabulated_sin - 1) + (tabulated_cos_hi * red_vx * 0.5 + (tabulated_sin * poly_sin + (- tabulated_cos_hi * poly_cos))))) + tabulated_cos_lo)
     cos_eval_2.set_attributes(tag = "cos_eval_2", precision = self.precision, debug = debug_precision)
 
+    cos_eval_3 = (tabulated_cos_hi + (- red_vx - red_vx * ((tabulated_sin - 1) + tabulated_cos_hi * red_vx * 0.5 + tabulated_sin * poly_sin - tabulated_cos_hi * poly_cos))) + tabulated_cos_lo 
+    cos_eval_3.set_attributes(tag = "cos_eval_3", precision = self.precision, debug = debug_precision)
 
+    # selecting int precision for cast corresponding to precision width
+    cast_int_precision = {ML_Binary64: ML_Int64, ML_Binary32: ML_Int32}[self.precision]
+
+    cond_3 = LogicalAnd(
+                Comparison(Abs(red_vx), Constant(cos_table_hi[2**(frac_pi_index-1)-1][0] / S2, precision = self.precision), specifier = Comparison.GreaterOrEqual, tag = "comp_bound", debug = True),
+                Equal(
+                  BitLogicXor(
+                    TypeCast(red_vx, precision = cast_int_precision),
+                    TypeCast(tabulated_cos_hi, precision = cast_int_precision)
+                  ),
+                  Constant(1, precision = cast_int_precision)
+                )
+              )
+
+    
 
     result_sel_c = LogicalOr(
                     LogicalOr(
@@ -232,11 +252,19 @@ class ML_SinCos(ML_Function("ml_cos")):
                   )
 
     result = Statement(
-              cos_eval_2,
-            Return(
-                cos_eval_d
-              )
-            )
+        cos_eval_3,
+        cos_eval_2,
+        cos_eval_d,
+        ConditionBlock(
+          result_sel_c,
+          ConditionBlock(
+            cond_3,
+            Return(cos_eval_2),
+            Return(cos_eval_3)
+          ), 
+          Return(cos_eval_d)
+        )
+      )
 
 
     Log.report(Log.Info, "Construction of the initial MDL scheme")
