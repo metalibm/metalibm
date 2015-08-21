@@ -112,7 +112,8 @@ class ML_SinCos(ML_Function("ml_cos")):
 
 
     # argument reduction
-    frac_pi_index = 5
+    frac_pi_index = {ML_Binary32: 5, ML_Binary64: 6}[self.precision]
+
     frac_pi     = round(S2**frac_pi_index / pi, sollya_precision, RN)
     inv_frac_pi = round(pi / S2**frac_pi_index, hi_precision, RN)
     inv_frac_pi_lo = round(pi / S2**frac_pi_index - inv_frac_pi, sollya_precision, RN)
@@ -192,11 +193,16 @@ class ML_SinCos(ML_Function("ml_cos")):
     poly_degree_cos_list = range(0, poly_degree_cos + 1, 2)
     poly_degree_sin_list = range(0, poly_degree_sin + 1, 2)
 
-    poly_degree_cos_list = [0, 2, 4, 6]
-    poly_cos_prec_list = [1, 1] + [self.precision] * 2
+    if self.precision is ML_Binary32:
+      poly_degree_cos_list = [0, 2, 4, 6]
+      poly_degree_sin_list = [0, 2, 4, 6]
 
-    poly_degree_sin_list = [0, 2, 4, 6]
-    poly_sin_prec_list = [1] + [self.precision] * 3
+    else:
+      poly_degree_cos_list = [0, 2, 4, 6]
+      poly_degree_sin_list = [0, 2, 4, 6]
+
+    poly_cos_prec_list = [1, 1] + [self.precision] * (len(poly_degree_cos_list) - 2)
+    poly_sin_prec_list = [1] + [self.precision] * (len(poly_degree_sin_list) - 1)
 
     error_function = lambda p, f, ai, mod, t: dirtyinfnorm(f - p, ai)
 
@@ -214,6 +220,8 @@ class ML_SinCos(ML_Function("ml_cos")):
 
 
     cos_eval_d = tabulated_cos_hi + (- red_vx * (tabulated_sin + (tabulated_cos_hi * red_vx * 0.5 + (tabulated_sin * poly_sin + (- tabulated_cos_hi * poly_cos)))) + tabulated_cos_lo)
+    # cos_eval_d = tabulated_cos_hi + FusedMultiplyAdd(- red_vx, (tabulated_sin + (tabulated_cos_hi * red_vx * 0.5 + (tabulated_sin * poly_sin + (- tabulated_cos_hi * poly_cos)))), tabulated_cos_lo)
+
     cos_eval_d.set_attributes(tag = "cos_eval_d", debug = debug_precision, precision = self.precision)
     
     exact_sub = (tabulated_cos_hi - red_vx)
@@ -236,10 +244,10 @@ class ML_SinCos(ML_Function("ml_cos")):
                     TypeCast(tabulated_cos_hi, precision = cast_int_precision)
                   ),
                   Constant(1, precision = cast_int_precision)
-                )
-              )
-
-    
+                ),
+              tag = "cond3",
+              debug = True
+            )
 
     result_sel_c = LogicalOr(
                     LogicalOr(
@@ -265,6 +273,82 @@ class ML_SinCos(ML_Function("ml_cos")):
           Return(cos_eval_d)
         )
       )
+
+    #######################################################################
+    #                    LARGE ARGUMENT MANAGEMENT                        #
+    #                 (lar: Large Argument Reduction)                     #
+    #######################################################################
+
+    # payne and hanek argument reduction for large arguments
+    #red_func_name = "payne_hanek_cosfp32" # "payne_hanek_fp32_asm"
+    red_func_name = "payne_hanek_fp32_asm"
+    payne_hanek_func_op = FunctionOperator(red_func_name, arg_map = {0: FO_Arg(0)}, require_header = ["support_lib/ml_red_arg.h"]) 
+    payne_hanek_func   = FunctionObject(red_func_name, [ML_Binary32], ML_Binary64, payne_hanek_func_op)
+    payne_hanek_func_op.declare_prototype = payne_hanek_func
+    #large_arg_red = FunctionCall(payne_hanek_func, vx)
+    large_arg_red = payne_hanek_func(vx)
+    red_bound     = S2**20
+    
+    cond = Abs(vx) >= red_bound
+    cond.set_attributes(tag = "cond", likely = False)
+
+    
+    lar_neark = NearestInteger(large_arg_red, precision = ML_Int64)
+    lar_modk = Modulo(lar_neark, Constant(16, precision = ML_Int64), tag = "lar_modk", debug = True) 
+    # Modulo is supposed to be already performed (by payne_hanek_cosfp32)
+    #lar_modk = NearestInteger(large_arg_red, precision = ML_Int64)
+    pre_lar_red_vx = large_arg_red - Conversion(lar_neark, precision = ML_Binary64)
+    pre_lar_red_vx.set_attributes(precision = ML_Binary64, debug = debug_lftolx, tag = "pre_lar_red_vx")
+    lar_red_vx = Conversion(pre_lar_red_vx, precision = self.precision, debug = debug_precision, tag = "lar_red_vx")
+    lar_red_vx_lo = Conversion(pre_lar_red_vx - Conversion(lar_red_vx, precision = ML_Binary64), precision = self.precision)
+    lar_red_vx_lo.set_attributes(tag = "lar_red_vx_lo", precision = self.precision)
+
+    lar_k = 3
+    # large arg reduction Universal Power Map
+    lar_upm = {}
+    lar_switch_map = {}
+    approx_interval = Interval(-0.5, 0.5)
+    for i in xrange(2**(lar_k+1)):
+      frac_pi = pi / S2**lar_k
+      func = cos(frac_pi * i + frac_pi * x)
+      
+      degree = 6
+      error_mode = absolute
+      if i % 2**(lar_k) == 2**(lar_k-1):
+        # close to sin(x) cases
+        func = -sin(frac_pi * x) if i == 2**(lar_k-1) else sin(frac_pi * x)
+        degree_list = range(0, degree+1, 2)
+        precision_list = [binary32] * len(degree_list)
+        poly_object, _ = Polynomial.build_from_approximation_with_error(func/x, degree_list, precision_list, approx_interval, error_mode)
+        poly_object = poly_object.sub_poly(offset = -1)
+      else:
+        degree_list = range(degree+1)
+        precision_list = [binary32] * len(degree_list)
+        poly_object, _ = Polynomial.build_from_approximation_with_error(func, degree_list, precision_list, approx_interval, error_mode)
+
+      if i == 3 or i == 5 or i == 7 or i == 9 or i == 11 or i == 13: 
+          poly_precision = ML_Binary64
+          c0 = Constant(coeff(poly_object.get_sollya_object(), 0), precision = ML_Binary64)
+          c1 = Constant(coeff(poly_object.get_sollya_object(), 1), precision = self.precision)
+          poly_hi = (c0 + c1 * lar_red_vx)
+          poly_hi.set_precision(ML_Binary64)
+          pre_poly_scheme = poly_hi + polynomial_scheme_builder(poly_object.sub_poly(start_index = 2), lar_red_vx, unified_precision = self.precision, power_map_ = lar_upm)
+          pre_poly_scheme.set_attributes(precision = ML_Binary64)
+          poly_scheme = Conversion(pre_poly_scheme, precision = self.precision)
+      elif i == 4 or i == 12:
+        c1 = Constant(coeff(poly_object.get_sollya_object(), 1), precision = self.precision)
+        c3 = Constant(coeff(poly_object.get_sollya_object(), 3), precision = self.precision)
+        c5 = Constant(coeff(poly_object.get_sollya_object(), 5), precision = self.precision)
+        poly_hi = polynomial_scheme_builder(poly_object.sub_poly(start_index = 3), lar_red_vx, unified_precision = self.precision, power_map_ = lar_upm)
+        poly_hi.set_attributes(tag = "poly_lar_%d_hi" % i, precision = ML_Binary64)
+        poly_scheme = Conversion(FusedMultiplyAdd(c1, lar_red_vx, poly_hi, precision = ML_Binary64) + c1 * lar_red_vx_lo, precision = self.precision)
+      else:
+        poly_scheme = polynomial_scheme_builder(poly_object, lar_red_vx, unified_precision = self.precision, power_map_ = lar_upm)
+      # poly_scheme = polynomial_scheme_builder(poly_object, lar_red_vx, unified_precision = self.precision, power_map_ = lar_upm) 
+      poly_scheme.set_attributes(tag = "lar_poly_%d" % i, debug = debug_precision)
+      lar_switch_map[(i,)] = Return(poly_scheme)
+    
+    lar_result = SwitchBlock(lar_modk, lar_switch_map)
 
 
     Log.report(Log.Info, "Construction of the initial MDL scheme")
