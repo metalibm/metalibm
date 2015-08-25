@@ -183,12 +183,16 @@ class ML_FunctionBasis(object):
     output_stream.write(self.result.get(self.C_code_generator))
     output_stream.close()
 
-  def gen_implementation(self):
+  def gen_implementation(self, display_after_gen = False, display_after_opt = False):
     # generate scheme
     scheme = self.generate_scheme()
+    if display_after_gen:
+      print scheme.get_str(depth = None, display_precision = True, memoization_map = {})
 
     # optimize scheme
     opt_scheme = self.optimise_scheme(scheme)
+    if display_after_opt:
+      print scheme.get_str(depth = None, display_precision = True, memoization_map = {})
 
     # generate C code to implement scheme
     self.generate_C(scheme)

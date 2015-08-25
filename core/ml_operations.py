@@ -62,7 +62,7 @@ def implicit_op(op):
     elif isinstance(op, ML_FloatingPoint_RoundingMode):
         return Constant(op, precision = ML_FPRM_Type)
     else:
-        print "ERROR: unsupport operand in implicit_op conversion ", op, op.__class__
+        print "ERROR: unsupported operand in implicit_op conversion ", op, op.__class__
         raise Exception()
 
 
@@ -421,6 +421,8 @@ class Variable(ML_LeafNode):
     ## Input type for Variable Node
     #  such node is not defined as an input to the function description
     class Input: pass
+    class Local: pass
+
     ## Intermediary type for Variable Node
     #  such node is defined within the function description.
     #  It holds an intermediary state
@@ -729,6 +731,11 @@ def Max(op0, op1, **kwords):
 
 def Min(op0, op1, **kwords):
     return Select(Comparison(op0, op1, specifier = Comparison.Less), op0, op1, **kwords)
+
+class Loop(AbstractOperationConstructor("Loop", arity = 3)):
+  """ abstract loop constructor 
+      loop (init_statement, exit_condition, loop_body)
+  """
 
 
 class ConditionBlock(AbstractOperationConstructor("ConditionBlock", arity = 3)):

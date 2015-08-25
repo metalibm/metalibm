@@ -468,14 +468,17 @@ class OptimizationEngine:
                     memoization_map[optree] = optree.get_precision()
                     return optree.get_precision()
                 else:
-                    new_precision = ML_Integer if isinstance(optree.get_value(), int) else ML_Float
+                    if default_precision:
+                      new_precision = default_precision
+                    else:
+                      new_precision = ML_Integer if isinstance(optree.get_value(), int) else ML_Float
                     optree.set_precision(new_precision)
                     memoization_map[optree] = new_precision
                     return new_precision
 
             elif isinstance(optree, Variable):
-                if optree.get_var_type() is Variable.Input:
-                    Log.report(Log.Error, "Input Variable %s has no defined precision" % optree.get_tag())
+                if optree.get_var_type() in [Variable.Input, Variable.Local]:
+                    Log.report(Log.Error, "%s Variable %s has no defined precision" % (optree.get_var_type(), optree.get_tag()))
                 else:
                     Log.report(Log.Error, "Variable %s error: only Input Variables are supported in instantiate_abstract_precision" % optree.get_tag())
 
@@ -511,9 +514,15 @@ class OptimizationEngine:
                     self.instantiate_abstract_precision(inp, default_precision, memoization_map = memoization_map)
                 memoization_map[optree] = None
                 return None
-              
 
             elif isinstance(optree, Statement):
+                for inp in optree.inputs:
+                    self.instantiate_abstract_precision(inp, default_precision, memoization_map = memoization_map)
+
+                memoization_map[optree] = None
+                return None
+
+            elif isinstance(optree, Loop):
                 for inp in optree.inputs:
                     self.instantiate_abstract_precision(inp, default_precision, memoization_map = memoization_map)
 
@@ -525,6 +534,7 @@ class OptimizationEngine:
                 value = optree.inputs[1]
                 var_type = self.instantiate_abstract_precision(var, default_precision, memoization_map = memoization_map)
                 value_type = self.instantiate_abstract_precision(value, var_type, memoization_map = memoization_map)
+                print "iap: ", var_type, value_type
                 return None
                         
             else:
@@ -634,6 +644,10 @@ class OptimizationEngine:
             for op in optree.inputs:
                 self.subexpression_sharing(op, sharing_map, [{}] + level_sharing_map, current_parent_list)
 
+        elif isinstance(optree, Loop):
+            for op in optree.inputs:
+                self.subexpression_sharing(op, sharing_map, [{}] + level_sharing_map, current_parent_list)
+
         elif isinstance(optree, ML_LeafNode):
             pass
         else:
@@ -702,6 +716,12 @@ class OptimizationEngine:
                     return memoization[optree]
 
                 elif optree.get_unbreakable():
+                    optree.inputs = tuple(self.fuse_multiply_add(op, silence = silence, memoization = memoization) for op in optree.inputs)
+                    memoization[optree] = optree
+                    return optree
+
+                elif True in [(op.get_debug() != None) for op in optree.inputs]:
+                    # exclude node with debug operands
                     optree.inputs = tuple(self.fuse_multiply_add(op, silence = silence, memoization = memoization) for op in optree.inputs)
                     memoization[optree] = optree
                     return optree
@@ -840,6 +860,8 @@ class OptimizationEngine:
                 self.check_processor_support(optree.get_pre_statement(), memoization_map, debug = debug)
                 pass
             elif isinstance(optree, Statement):
+                pass
+            elif isinstance(optree, Loop):
                 pass
             elif isinstance(optree, Return):
                 pass
