@@ -24,12 +24,31 @@ from metalibm_core.utility.debug_utils import *
 from metalibm_core.utility.num_utils   import ulp
 from metalibm_core.utility.gappa_utils import is_gappa_installed
 
+def get_remainder(vx, precision, k, debug = None, tag = ""):
+  """ get in floating-point format <precision>
+      the integer part of vx with the k least
+      significant bits zeroed """
+  int_precision = {
+    ML_Binary64: ML_Int64,
+    ML_Binary32: ML_Int32
+  }[precision]
+  result  = Conversion(
+                BitLogicAnd(
+                    NearestInteger(
+                      vx, precision = int_precision), 
+                    Constant(~(2**(k+1)-1), precision = int_precision),
+                    tag = tag, 
+                    debug = debug
+                  ), 
+                precision = precision
+              )
+  return result
 
 def generate_payne_hanek(vx, frac_pi, precision, chunk_num, n = 100, k = 4, ):
   """ generate payne and hanek argument reduction for frac_pi * variable """
   cst_msb = ceil(log2(abs(frac_pi)))
   cst_exp_range = cst_msb - precision.get_emin_subnormal() + 1
-  chunk_size = precision.get_field_size() / 2
+  chunk_size = 24 # precision.get_field_size() / 2 - 2
   chunk_number = int(ceil((cst_exp_range + chunk_size - 1) / chunk_size)) 
   scaling_factor = S2**-(chunk_size/2)
 
@@ -47,12 +66,14 @@ def generate_payne_hanek(vx, frac_pi, precision, chunk_num, n = 100, k = 4, ):
   old_global_prec = get_prec()
   prec(cst_exp_range + 100)
 
+  print "sollya precision: ", get_prec()
+
   cst_table = ML_Table(dimensions = [chunk_number, 1], storage_precision = precision, tag = "PH_cst_table")
   scale_table =  ML_Table(dimensions = [chunk_number, 1], storage_precision = precision, tag = "PH_scale_table")
   tmp_cst = frac_pi
   
   for i in xrange(chunk_number):
-    local_cst = round(tmp_cst, chunk_size, RN)
+    local_cst = round(tmp_cst, chunk_size, RZ)
     local_scale = (scaling_factor**i)
     # storing scaled constant chunks
     cst_table[i][0] = local_cst / (local_scale**2)
@@ -86,16 +107,8 @@ def generate_payne_hanek(vx, frac_pi, precision, chunk_num, n = 100, k = 4, ):
   sca_load_0 = TableLoad(scale_table, msb_index, 0, tag = "sca_load_0", debug = debug_precision)
   acc_expr_0 = (vx_hi * sca_load_0) * (cst_load_0 * sca_load_0)
   acc_expr_0.set_attributes(tag = "acc_expr_0", debug = debug_precision)
-  acc_mod_0 = Conversion(
-                BitLogicAnd(
-                    NearestInteger(
-                      acc_expr_0, precision = ML_Int64), 
-                    Constant(~(2**(k+1)-1), precision = ML_Int64),
-                    tag = "acc_mod_0", 
-                    debug = debuglld
-                  ), 
-                precision = precision
-              )
+  acc_mod_0 = get_remainder(acc_expr_0, precision, k, debuglld, tag = "acc_mod_0")
+
   i1 = Constant(1, precision = ML_Int32)
   pre_exclude_0 = ((cst_msb_node - (msb_index + i1) * chunk_size + i1) + (vx_exp + Constant(- chunk_size + 1, precision = ML_Int32)))
   pre_exclude_0.set_attributes(tag = "pre_exclude_0", debug = debugd)
@@ -106,16 +119,8 @@ def generate_payne_hanek(vx, frac_pi, precision, chunk_num, n = 100, k = 4, ):
 
   acc_expr_1 = (vx_lo * sca_load_0) * (cst_load_0 * sca_load_0)
   acc_expr_1.set_attributes(tag = "acc_expr_1", debug = debug_precision)
-  acc_mod_1 = Conversion( 
-                BitLogicAnd(
-                    NearestInteger(
-                      acc_expr_1, precision = ML_Int64), 
-                    Constant(~(2**(k+1)-1), precision = ML_Int64),
-                    tag = "acc_mod_1", 
-                    debug = debuglld
-                  ),
-                precision = precision
-              )
+  acc_mod_1 = get_remainder(acc_expr_1, precision, k, debuglld, tag = "acc_mod_1")
+
   acc_1 = acc_expr_1 - acc_mod_1
   acc_1.set_attributes(tag = "acc1", debug = debug_precision)
 
@@ -128,20 +133,14 @@ def generate_payne_hanek(vx, frac_pi, precision, chunk_num, n = 100, k = 4, ):
   cst_load = TableLoad(cst_table, vi, 0, tag = "cst_load", debug = debug_precision)
   sca_load = TableLoad(scale_table, vi, 0, tag = "sca_load", debug = debug_precision)
   acc_expr = acc + (vx * sca_load) * (cst_load * sca_load)
-  acc_modulo = BitLogicAnd(
-                  NearestInteger(
-                    acc_expr, precision = ML_Int64), 
-                  Constant(~(2**(k+1)-1), precision = ML_Int64),
-                  tag = "acc_modulo", 
-                  debug = debuglld
-                )
   acc_expr.set_attributes(tag = "acc_expr", debug = debug_precision)
+  acc_modulo = get_remainder(acc_expr, precision, k, debuglld, tag = "acc_modulo")
 
   red_loop = Loop(init_loop,
       vi <= lsb_index,
        Statement(
           ReferenceAssign(acc, 
-            acc_expr - Conversion(acc_modulo, precision = precision),
+            (acc_expr - acc_modulo).modify_attributes(tag = "diff", debug = debug_precision),
           ),
           ReferenceAssign(vi, vi + 1)
         )
