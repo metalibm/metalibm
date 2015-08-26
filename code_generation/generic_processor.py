@@ -64,6 +64,9 @@ c_code_generation_table = {
             lambda optree: True: {
                 type_strict_match(ML_Int32, ML_Int32, ML_Int32, ML_Int32): TemplateOperator("%s ? %s : %s", arity = 3),
                 type_strict_match(ML_UInt32, ML_Int32, ML_UInt32, ML_UInt32): TemplateOperator("%s ? %s : %s", arity = 3),
+                type_strict_match(ML_Int64, ML_Int32, ML_Int64, ML_Int64): TemplateOperator("%s ? %s : %s", arity = 3),
+                type_strict_match(ML_UInt64, ML_Int32, ML_UInt64, ML_UInt64): TemplateOperator("%s ? %s : %s", arity = 3),
+                type_strict_match(ML_UInt32, ML_Int32, ML_UInt32, ML_UInt32): TemplateOperator("%s ? %s : %s", arity = 3),
                 type_strict_match(ML_Binary32, ML_Int32, ML_Binary32, ML_Binary32): TemplateOperator("%s ? %s : %s", arity = 3),
                 type_strict_match(ML_Binary64, ML_Int32, ML_Binary64, ML_Binary64): TemplateOperator("%s ? %s : %s", arity = 3),
             },
@@ -146,7 +149,7 @@ c_code_generation_table = {
         None: build_simplified_operator_generation([ML_Int32, ML_UInt32, ML_Binary32, ML_Binary64], 1, SymbolOperator("-", arity = 1)),
     },
     Addition: {
-        None: build_simplified_operator_generation([ML_Int32, ML_UInt32, ML_Binary32, ML_Binary64], 2, SymbolOperator("+", arity = 2), cond = fp_std_cond),
+        None: build_simplified_operator_generation([ML_Int32, ML_UInt32, ML_Int64, ML_Binary32, ML_Binary64], 2, SymbolOperator("+", arity = 2), cond = fp_std_cond),
     },
     Subtraction: {
         None: build_simplified_operator_generation([ML_Int32, ML_UInt32, ML_Binary32, ML_Binary64], 2, SymbolOperator("-", arity = 2), cond = fp_std_cond),

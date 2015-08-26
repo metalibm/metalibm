@@ -63,3 +63,7 @@ ML_Mpfr_t = ML_Complex_Format("mpfr_t", mpfr_init, mpfr_set)
 
 # definition of standard pointer types
 ML_Binary32_p = ML_Pointer_Format(ML_Binary32)
+ML_Binary64_p = ML_Pointer_Format(ML_Binary64)
+
+ML_Int32_p    = ML_Pointer_Format(ML_Int32)
+ML_Int64_p    = ML_Pointer_Format(ML_Int64)
