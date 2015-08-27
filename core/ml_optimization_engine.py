@@ -645,8 +645,9 @@ class OptimizationEngine:
                 self.subexpression_sharing(op, sharing_map, [{}] + level_sharing_map, current_parent_list)
 
         elif isinstance(optree, Loop):
-            for op in optree.inputs:
-                self.subexpression_sharing(op, sharing_map, [{}] + level_sharing_map, current_parent_list)
+            pass
+            #for op in optree.inputs:
+            #    self.subexpression_sharing(op, sharing_map, [{}] + level_sharing_map, current_parent_list)
 
         elif isinstance(optree, ML_LeafNode):
             pass

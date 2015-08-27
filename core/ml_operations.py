@@ -368,6 +368,16 @@ class AbstractOperation(ML_Operation):
     def copy(self, copy_map = {}):
         raise ML_NotImplemented()
 
+    ## propagate given precision
+    #  @param precision
+    #  @return None
+    def propagate_precision(self, precision, boundary_list = []):
+      self.set_precision(precision)
+      if not isinstance(self, ML_LeafNode):
+        for op in self.inputs:
+          if op.get_precision() is None and not op in boundary_list: 
+            op.propagate_precision(precision, boundary_list)
+
 
 ## base class for all arithmetic operation that may depend
 #  on floating-point context (rounding mode for example) 

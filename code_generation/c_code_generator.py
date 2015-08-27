@@ -151,9 +151,9 @@ class CCodeGenerator:
               code_object << self.generate_assignation(output_var_code.get(), result_value_code.get())
             else:
               result_value_code = self.generate_expr(code_object, result_value, folded = folded)
-              if optree.get_debug() and not self.disable_debug:
-                code_object << self.generate_debug_msg(result_value, result_value_code, code_object)
               code_object << self.generate_assignation(output_var_code.get(), result_value_code.get())
+              if optree.get_debug() and not self.disable_debug:
+                code_object << self.generate_debug_msg(result_value, result_value_code, code_object, debug_object = optree.get_debug())
 
             #code_object << self.generate_assignation(output_var_code.get(), result_value_code.get())
             #code_object << output_var.get_precision().generate_c_assignation(output_var_code, result_value_code)
@@ -325,8 +325,8 @@ class CCodeGenerator:
         return ""
 
 
-    def generate_debug_msg(self, optree, result, code_object):
-        debug_object = optree.get_debug()
+    def generate_debug_msg(self, optree, result, code_object, debug_object = None):
+        debug_object = optree.get_debug() if debug_object is None else debug_object
         # adding required headers
         if isinstance(debug_object, ML_Debug):
             for header in debug_object.get_require_header():

@@ -1,6 +1,6 @@
 from metalibm_core.core.ml_formats import *
 from metalibm_core.core.ml_optimization_engine import OptimizationEngine
-from metalibm_core.core.ml_operations import Variable
+from metalibm_core.core.ml_operations import Variable, ReferenceAssign
 from metalibm_core.core.ml_complex_formats import ML_Mpfr_t
 
 from metalibm_core.code_generation.code_object import NestedCode
@@ -113,8 +113,8 @@ class ML_FunctionBasis(object):
     raise ML_NotImplemented()
 
 
-  def generate_emulate_wrapper(self, test_input   = Variable("vx", precision = ML_Mpfr_t), mpfr_rnd = Variable("rnd", precision = ML_Int32), test_output = Variable("result", precision = ML_Mpfr_t)):
-    scheme = self.generate_emulate(test_output, test_input, mpfr_rnd)
+  def generate_emulate_wrapper(self, test_input   = Variable("vx", precision = ML_Mpfr_t), mpfr_rnd = Variable("rnd", precision = ML_Int32), test_output = Variable("result", precision = ML_Mpfr_t, var_type = Variable.Local), test_ternary = Variable("ternary", precision = ML_Int32, var_type = Variable.Local)):
+    scheme = self.generate_emulate(test_ternary, test_output, test_input, mpfr_rnd)
 
     wrapper_processor = MPFRProcessor()
 
@@ -153,7 +153,7 @@ class ML_FunctionBasis(object):
     self.opt_engine.instantiate_abstract_precision(scheme, None)
 
     print "MDL instantiated scheme"
-    self.opt_engine.instantiate_precision(scheme, default_precision = ML_Binary32)
+    self.opt_engine.instantiate_precision(scheme, default_precision = None)
 
     print "subexpression sharing"
     self.opt_engine.subexpression_sharing(scheme)
