@@ -35,21 +35,17 @@ double expected[TEST_NUM] = {
 };
 
 int main(int argc, char** argv) {
-  double input = atof(argv[1]);
-  double result = new_ut_payne_hanek(input);
 
   unsigned i;
   for (i = 0; i < TEST_NUM; i++) {
     double result = new_ut_payne_hanek(test_input[i]);
     if (result != expected[i]) {
       printf("ERROR test %d: %"PRIx64" vs %"PRIx64"[exp]\n", i, double_to_64b_encoding(result), double_to_64b_encoding(expected[i]));
-      //return 1;
+      return 1;
     }
   }
 
   printf("TEST SUCCESS\n");
-  /*printf("red(%e/%"PRIx64") = %f/%e/%"PRIx64"\n", input, *(uint64_t*)&input, result, result, *(uint64_t*)&result);
-   * */
 
   return 0;
 }
