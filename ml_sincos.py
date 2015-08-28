@@ -239,10 +239,14 @@ class ML_SinCos(ML_Function("ml_cos")):
 
     cond_3 = LogicalAnd(
                 Comparison(Abs(red_vx), Constant(cos_table_hi[2**(frac_pi_index-1)-1][0] / S2, precision = self.precision), specifier = Comparison.GreaterOrEqual, tag = "comp_bound", debug = True),
+                # opposite sign
                 Equal(
-                  BitLogicXor(
-                    TypeCast(red_vx, precision = cast_int_precision),
-                    TypeCast(tabulated_cos_hi, precision = cast_int_precision)
+                  BitLogicRightShift(
+                    BitLogicXor(
+                      TypeCast(red_vx, precision = cast_int_precision),
+                      TypeCast(tabulated_cos_hi, precision = cast_int_precision)
+                    ),
+                    Constant(cast_int_precision.get_bit_size() - 1)
                   ),
                   Constant(1, precision = cast_int_precision)
                 ),
@@ -290,6 +294,9 @@ class ML_SinCos(ML_Function("ml_cos")):
     lar_vx = Variable("lar_vx", precision = self.precision, var_type = Variable.Local)
     lar_tab_index = Variable("lar_tab_index", precision = ML_Int32, var_type = Variable.Local)
 
+    lar_red_vx = lar_vx * Constant(ph_inv_frac_pi, precision = self.precision)
+    lar_red_vx.set_attributes(tag = "lar_red_vx", debug = debug_precision)
+
     red_bound     = S2**20
     lar_cond = Abs(vx) >= red_bound
     lar_cond.set_attributes(tag = "lar_cond", likely = False)
@@ -301,72 +308,97 @@ class ML_SinCos(ML_Function("ml_cos")):
 
     lar_approx_interval = Interval(-1, 1)
 
-    lar_cos = cos(x * ph_inv_frac_pi)
-    lar_sin = sin(x * ph_inv_frac_pi)/x
-
-    Log.report(Log.Info, "building mathematical polynomials for sin and cos")
-    lar_poly_degree_cos   = sup(guessdegree(lar_cos, lar_approx_interval, S2**-(self.precision.get_field_size()+1)) ) + 2
-    lar_poly_degree_sin   = sup(guessdegree(lar_sin, lar_approx_interval, S2**-(self.precision.get_field_size()+1))) + 2
-
-    print "lar poly degree: ", lar_poly_degree_cos, lar_poly_degree_sin
-
-    lar_poly_degree_cos_list = range(0, lar_poly_degree_cos + 1, 2)
-    lar_poly_degree_sin_list = range(0, lar_poly_degree_sin + 1, 2)
-
-    if self.precision is ML_Binary32:
-      lar_poly_degree_cos_list = [0, 2, 4, 6]
-      lar_poly_degree_sin_list = [0, 2, 4, 6]
-    else:
-      # ML_Binary64
-      lar_poly_degree_cos_list = [0, 2, 4, 6]
-      lar_poly_degree_sin_list = [0, 2, 4, 6]
-
-    lar_poly_cos_prec_list = [1] + [self.precision] * (len(lar_poly_degree_cos_list) - 1)
-    lar_poly_sin_prec_list = []  + [self.precision] * (len(lar_poly_degree_sin_list) - 0)
-
-
-    lar_poly_object_cos, lar_poly_error_cos = Polynomial.build_from_approximation_with_error(lar_cos, lar_poly_degree_cos_list, lar_poly_cos_prec_list, lar_approx_interval, absolute, error_function = error_function)
-    lar_poly_object_sin, lar_poly_error_sin = Polynomial.build_from_approximation_with_error(lar_sin, lar_poly_degree_sin_list, lar_poly_sin_prec_list, lar_approx_interval, absolute, error_function = error_function)
-  
-    print lar_poly_object_cos.get_sollya_object()
-    print lar_poly_object_sin.get_sollya_object()
-    print "lar_poly_error: ", lar_poly_error_cos, lar_poly_error_sin
-
-
-
-    lar_poly_cos = polynomial_scheme_builder(lar_poly_object_cos.sub_poly(start_index = 1, offset = 0), lar_vx, unified_precision = self.precision)
-    lar_poly_sin = polynomial_scheme_builder(lar_poly_object_sin.sub_poly(start_index = 0), lar_vx, unified_precision = self.precision)
+    lar_poly_cos = polynomial_scheme_builder(poly_object_cos.sub_poly(start_index = 4, offset = 1), lar_red_vx, unified_precision = self.precision)
+    lar_poly_sin = polynomial_scheme_builder(poly_object_sin.sub_poly(start_index = 2), lar_red_vx, unified_precision = self.precision)
     lar_poly_cos.set_attributes(tag = "lar_poly_cos", debug = debug_precision)
     lar_poly_sin.set_attributes(tag = "lar_poly_sin", debug = debug_precision)
 
 
-    #lar_cos_eval = lar_tabulated_cos_hi + lar_poly_cos * lar_tabulated_cos_hi - lar_tabulated_sin * lar_poly_sin * lar_vx
-    lar_cos_eval = lar_tabulated_cos_hi + lar_poly_cos * lar_tabulated_cos_hi - lar_tabulated_sin * lar_poly_sin * lar_vx
+    lar_cos_eval_d = lar_tabulated_cos_hi + (- lar_red_vx * (lar_tabulated_sin + (lar_tabulated_cos_hi * lar_red_vx * 0.5 + (lar_tabulated_sin * lar_poly_sin + (- lar_tabulated_cos_hi * lar_poly_cos)))) + lar_tabulated_cos_lo)
+
+    lar_cos_eval_d.set_attributes(tag = "lar_cos_eval_d", debug = debug_precision, precision = self.precision)
+    
+    lar_exact_sub = (lar_tabulated_cos_hi - lar_red_vx)
+    lar_exact_sub.set_attributes(tag = "lar_exact_sub", debug = debug_precision, unbreakable = True, prevent_optimization = True)
+
+    lar_cos_eval_2 = lar_exact_sub + ((- lar_red_vx * ((lar_tabulated_sin - 1) + (lar_tabulated_cos_hi * lar_red_vx * 0.5 + (lar_tabulated_sin * lar_poly_sin + (- lar_tabulated_cos_hi * lar_poly_cos))))) + lar_tabulated_cos_lo)
+    lar_cos_eval_2.set_attributes(tag = "lar_cos_eval_2", precision = self.precision, debug = debug_precision)
+
+    #lar_cos_eval_4 = - lar_red_vx - lar_red_vx * (lar_poly_sin)
+    lar_cos_eval_4 = lar_tabulated_sin * FusedMultiplyAdd(-lar_vx, Constant(ph_inv_frac_pi, precision = self.precision), -lar_red_vx * lar_poly_sin)
+    lar_cos_eval_4.set_attributes(tag = "lar_cos_eval_4", debug = debug_precision)
+
+    lar_cos_eval_3 = (lar_tabulated_cos_hi + (- lar_red_vx - lar_red_vx * ((lar_tabulated_sin - 1) + lar_tabulated_cos_hi * lar_red_vx * 0.5 + lar_tabulated_sin * lar_poly_sin - lar_tabulated_cos_hi * lar_poly_cos))) + lar_tabulated_cos_lo 
+    lar_cos_eval_3.set_attributes(tag = "lar_cos_eval_3", precision = self.precision, debug = debug_precision)
+
+    # selecting int precision for cast corresponding to precision width
+    cast_int_precision = {ML_Binary64: ML_Int64, ML_Binary32: ML_Int32}[self.precision]
+
+    lar_cond_3 = LogicalAnd(
+                Comparison(Abs(lar_red_vx), Constant(cos_table_hi[2**(frac_pi_index-1)-1][0] / S2, precision = self.precision), specifier = Comparison.GreaterOrEqual, tag = "lar_comp_bound", debug = True),
+                Equal(
+                  BitLogicRightShift(
+                    BitLogicXor(
+                      TypeCast(lar_red_vx, precision = cast_int_precision),
+                      TypeCast(lar_tabulated_cos_hi, precision = cast_int_precision)
+                    ),
+                    Constant(cast_int_precision.get_bit_size() - 1)
+                  ),
+                  Constant(1, precision = cast_int_precision)
+                ),
+              tag = "lar_cond3",
+              debug = True
+            )
+
+    lar_result_sel_c = (Equal(lar_tab_index, Constant(2**(frac_pi_index-1)-1), precision = ML_Int32) |
+                        Equal(lar_tab_index, Constant(2**(frac_pi_index-1)+1), precision = ML_Int32) # |
+                        # Equal(lar_tab_index, Constant(3 * 2**(frac_pi_index-1)+1), precision = ML_Int32) |
+                        # Equal(lar_tab_index, Constant(3 * 2**(frac_pi_index-1)-1), precision = ML_Int32)
+                        ).modify_attributes(
+                            tag = "lar_result_sel_c",
+                            debug = debugd
+                        )
+
+    lar_result_sel_mid_c = (Equal(lar_tab_index, Constant(2**(frac_pi_index-1)), precision = ML_Int32) | 
+                            Equal(lar_tab_index, Constant(3 * 2**(frac_pi_index-1)), precision = ML_Int32) 
+                          ).modify_attributes(tag = "lar_result_sel_mid_c", debug = debugd)
+    #LogicalOr(
+    #                LogicalOr(
+    #                  Equal(lar_tab_index, Constant(2**(frac_pi_index-1)-1), precision = ML_Int32),
+    #                  Equal(lar_tab_index, Constant(2**(frac_pi_index-1)), precision = ML_Int32)
+    #                ),
+    #                Equal(lar_tab_index, Constant(2**(frac_pi_index-1)+1), precision = ML_Int32),
+    #                tag = "result_sel_c",
+    #                debug = debugd
+    #              )
 
     int_precision = ML_Int64
     C32 = Constant(2**(ph_k+1), precision = int_precision)
     ph_acc_int_red = Conversion(Select(ph_acc_int < Constant(0, precision = int_precision), ph_acc_int + C32, ph_acc_int), precision = self.precision)
 
-    lar_result_sel_c = (
-                      Equal(lar_tab_index, Constant(2**(ph_k-1)-1), precision = ML_Int32) or
-                      Equal(lar_tab_index, Constant(2**(ph_k-1)), precision = ML_Int32) or 
-                      Equal(lar_tab_index, Constant(2**(ph_k-1)+1), precision = ML_Int32) or
-
-                      Equal(lar_tab_index, Constant(3 * 2**(ph_k-1)-1), precision = ML_Int32) or
-                      Equal(lar_tab_index, Constant(3 * 2**(ph_k-1)), precision = ML_Int32) or
-                      Equal(lar_tab_index, Constant(3 * 2**(ph_k-1)+1), precision = ML_Int32) 
-                    ).modify_attributes(tag = "lar_result_sel_c", debug = debugd)
-
     lar_result = Statement(
-      ph_statement,
-      ReferenceAssign(lar_vx, ph_acc, debug = debug_precision),
-      ReferenceAssign(lar_tab_index, ph_acc_int_red, debug = debugd),
-      lar_result_sel_c,
-      Return(lar_cos_eval)
-    )
-
-
-    Log.report(Log.Info, "Construction of the initial MDL scheme")
+        ph_statement,
+        ReferenceAssign(lar_vx, ph_acc, debug = debug_precision),
+        ReferenceAssign(lar_tab_index, ph_acc_int_red, debug = debugd),
+        lar_cos_eval_4,
+        lar_cos_eval_3,
+        lar_cos_eval_2,
+        lar_cos_eval_d,
+        ConditionBlock(
+          lar_result_sel_c,
+          ConditionBlock(
+            lar_cond_3,
+            Return(lar_cos_eval_2),
+            Return(lar_cos_eval_3)
+          ), 
+          ConditionBlock(
+            lar_result_sel_mid_c,
+            Return(lar_cos_eval_4),
+            Return(lar_cos_eval_d)
+          )
+        ),
+        prevent_optimization = True
+      )
 
     scheme = Statement(
       ConditionBlock(
@@ -378,6 +410,7 @@ class ML_SinCos(ML_Function("ml_cos")):
 
 
     return scheme
+
 
 
 
@@ -402,4 +435,4 @@ if __name__ == "__main__":
                      accuracy                  = arg_template.accuracy,
                      output_file               = arg_template.output_file,
                      cos_output                = cos_output)
-  ml_sincos.gen_implementation(display_after_opt = True)
+  ml_sincos.gen_implementation(display_after_opt = True, enable_subexpr_sharing = False)
