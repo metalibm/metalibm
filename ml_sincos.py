@@ -334,23 +334,34 @@ class ML_SinCos(ML_Function("ml_cos")):
 
 
 
-    lar_poly_cos = polynomial_scheme_builder(lar_poly_object_cos.sub_poly(start_index = 0, offset = 0), lar_vx, unified_precision = self.precision)
+    lar_poly_cos = polynomial_scheme_builder(lar_poly_object_cos.sub_poly(start_index = 1, offset = 0), lar_vx, unified_precision = self.precision)
     lar_poly_sin = polynomial_scheme_builder(lar_poly_object_sin.sub_poly(start_index = 0), lar_vx, unified_precision = self.precision)
     lar_poly_cos.set_attributes(tag = "lar_poly_cos", debug = debug_precision)
     lar_poly_sin.set_attributes(tag = "lar_poly_sin", debug = debug_precision)
 
 
-    lar_cos_eval = lar_poly_cos * lar_tabulated_cos_hi - lar_tabulated_sin * lar_poly_sin * lar_vx
+    #lar_cos_eval = lar_tabulated_cos_hi + lar_poly_cos * lar_tabulated_cos_hi - lar_tabulated_sin * lar_poly_sin * lar_vx
+    lar_cos_eval = lar_tabulated_cos_hi + lar_poly_cos * lar_tabulated_cos_hi - lar_tabulated_sin * lar_poly_sin * lar_vx
 
     int_precision = ML_Int64
     C32 = Constant(2**(ph_k+1), precision = int_precision)
     ph_acc_int_red = Conversion(Select(ph_acc_int < Constant(0, precision = int_precision), ph_acc_int + C32, ph_acc_int), precision = self.precision)
 
+    lar_result_sel_c = (
+                      Equal(lar_tab_index, Constant(2**(ph_k-1)-1), precision = ML_Int32) or
+                      Equal(lar_tab_index, Constant(2**(ph_k-1)), precision = ML_Int32) or 
+                      Equal(lar_tab_index, Constant(2**(ph_k-1)+1), precision = ML_Int32) or
+
+                      Equal(lar_tab_index, Constant(3 * 2**(ph_k-1)-1), precision = ML_Int32) or
+                      Equal(lar_tab_index, Constant(3 * 2**(ph_k-1)), precision = ML_Int32) or
+                      Equal(lar_tab_index, Constant(3 * 2**(ph_k-1)+1), precision = ML_Int32) 
+                    ).modify_attributes(tag = "lar_result_sel_c", debug = debugd)
 
     lar_result = Statement(
       ph_statement,
       ReferenceAssign(lar_vx, ph_acc, debug = debug_precision),
       ReferenceAssign(lar_tab_index, ph_acc_int_red, debug = debugd),
+      lar_result_sel_c,
       Return(lar_cos_eval)
     )
 
