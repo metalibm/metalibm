@@ -616,6 +616,8 @@ class OptimizationEngine:
             return False
 
         def common_ancestor(parent_list_0, parent_list_1):
+            """ search the closest node of parent_list_0, 
+                also registered in parent_list_1 """
             for b in parent_list_0[::-1]:
                 if b in parent_list_1:
                     return b
@@ -641,8 +643,9 @@ class OptimizationEngine:
                 self.subexpression_sharing(op, sharing_map, [{}] + level_sharing_map, current_parent_list + [optree])
 
         elif isinstance(optree, Statement):
-            for op in optree.inputs:
-                self.subexpression_sharing(op, sharing_map, [{}] + level_sharing_map, current_parent_list)
+            if not optree.get_prevent_optimization(): 
+              for op in optree.inputs:
+                  self.subexpression_sharing(op, sharing_map, [{}] + level_sharing_map, current_parent_list)
 
         elif isinstance(optree, Loop):
             pass

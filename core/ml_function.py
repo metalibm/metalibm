@@ -140,7 +140,7 @@ class ML_FunctionBasis(object):
     """ generate MDL scheme for function implementation """
     Log.report(Log.Error, "generate_scheme must be overloaded by ML_FunctionBasis child")
 
-  def optimise_scheme(self, pre_scheme, copy = None):
+  def optimise_scheme(self, pre_scheme, copy = None, enable_subexpr_sharing = True):
     """ default scheme optimization """
     # copying when required
     scheme = pre_scheme if copy is None else pre_scheme.copy(copy)
@@ -155,8 +155,9 @@ class ML_FunctionBasis(object):
     print "MDL instantiated scheme"
     self.opt_engine.instantiate_precision(scheme, default_precision = None)
 
-    print "subexpression sharing"
-    self.opt_engine.subexpression_sharing(scheme)
+    if enable_subexpr_sharing:
+      print "subexpression sharing"
+      self.opt_engine.subexpression_sharing(scheme)
 
     print "silencing operation"
     self.opt_engine.silence_fp_operations(scheme)
@@ -183,14 +184,15 @@ class ML_FunctionBasis(object):
     output_stream.write(self.result.get(self.C_code_generator))
     output_stream.close()
 
-  def gen_implementation(self, display_after_gen = False, display_after_opt = False):
+  def gen_implementation(self, display_after_gen = False, display_after_opt = False, enable_subexpr_sharing = True):
     # generate scheme
     scheme = self.generate_scheme()
     if display_after_gen:
       print scheme.get_str(depth = None, display_precision = True, memoization_map = {})
 
     # optimize scheme
-    opt_scheme = self.optimise_scheme(scheme)
+    opt_scheme = self.optimise_scheme(scheme, enable_subexpr_sharing = enable_subexpr_sharing)
+
     if display_after_opt:
       print scheme.get_str(depth = None, display_precision = True, memoization_map = {})
 

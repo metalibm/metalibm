@@ -141,6 +141,7 @@ def generate_payne_hanek(vx, frac_pi, precision, n = 100, k = 4, chunk_num = Non
   pre_hi_mult_int   = NearestInteger(hi_mult, precision = int_precision, tag = "hi_mult_int", debug = (debuglld if debug else None))
   hi_mult_int_f = Conversion(pre_hi_mult_int, precision = precision, tag = "hi_mult_int_f", debug = debug_precision)
   pre_hi_mult_red = (hi_mult - hi_mult_int_f).modify_attributes(tag = "hi_mult_red", debug = debug_precision)
+
   # for the first chunks (vx_hi * <constant chunk>) exceeds 2**k+1 and may be 
   # discard (whereas it may lead to overflow during integer conversion
   pre_exclude_hi = ((cst_msb_node - (vi + i1) * chunk_size + i1) + (vx_exp + Constant(- half_size + 1, precision = ML_Int32))).modify_attributes(tag = "pre_exclude_hi", debug = (debugd if debug else None)) 
@@ -161,14 +162,28 @@ def generate_payne_hanek(vx, frac_pi, precision, n = 100, k = 4, chunk_num = Non
   acc_expr = (acc + hi_mult_red) + lo_mult_red
   int_expr = ((acc_int + hi_mult_int) + lo_mult_int) % 2**(k+1) 
 
+  CF1 = Constant(1, precision = precision)
+  CI1 = Constant(1, precision = int_precision)
+
+  acc_expr_int = NearestInteger(acc_expr, precision = int_precision)
+
+  normalization = Statement(
+      ReferenceAssign(acc, acc_expr - Conversion(acc_expr_int, precision = precision)),
+      ReferenceAssign(acc_int, int_expr + acc_expr_int),
+  )
+
+
   acc_expr.set_attributes(tag = "acc_expr", debug = debug_precision)
   int_expr.set_attributes(tag = "int_expr", debug = (debuglld if debug else None))
 
   red_loop = Loop(init_loop,
       vi <= lsb_index,
        Statement(
-          ReferenceAssign(acc, acc_expr), 
-          ReferenceAssign(acc_int, int_expr),
+          acc_expr, 
+          int_expr,
+          normalization,
+          #ReferenceAssign(acc, acc_expr), 
+          #ReferenceAssign(acc_int, int_expr),
           ReferenceAssign(vi, vi + 1)
         )
       )
