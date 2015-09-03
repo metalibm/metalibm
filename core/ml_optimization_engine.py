@@ -534,7 +534,6 @@ class OptimizationEngine:
                 value = optree.inputs[1]
                 var_type = self.instantiate_abstract_precision(var, default_precision, memoization_map = memoization_map)
                 value_type = self.instantiate_abstract_precision(value, var_type, memoization_map = memoization_map)
-                print "iap: ", var_type, value_type
                 return None
                         
             else:
@@ -724,7 +723,7 @@ class OptimizationEngine:
                     memoization[optree] = optree
                     return optree
 
-                elif True in [(op.get_debug() != None) for op in optree.inputs]:
+                elif True in [(op.get_debug() != None and isinstance(op, Multiplication)) for op in optree.inputs]:
                     # exclude node with debug operands
                     optree.inputs = tuple(self.fuse_multiply_add(op, silence = silence, memoization = memoization) for op in optree.inputs)
                     memoization[optree] = optree
@@ -754,12 +753,10 @@ class OptimizationEngine:
                     mult1 = self.fuse_multiply_add(optree.inputs[0].inputs[1], silence = silence, memoization = memoization)
                     addend = self.fuse_multiply_add(optree.inputs[1], silence = silence, memoization = memoization)
 
-                    #print "fusing fma label", optree.get_interval()
                     new_op = FusedMultiplyAdd(mult0, mult1, addend, specifier = specifier)
                     new_op.attributes = optree.attributes.get_light_copy()
                     new_op.set_silent(silence)
                     new_op.set_index(optree.get_index())
-                    #print "fusing fma label", mult0.get_interval(), mult1.get_interval(), addend.get_interval()
 
                     # propagating exact attribute
                     if optree.inputs[0].get_exact() and optree.get_exact():

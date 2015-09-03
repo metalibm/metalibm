@@ -341,6 +341,7 @@ class AbstractOperation(ML_Operation):
             
         tab_str = AbstractOperation.str_del * tab_level
         silent_str = "[S]" if self.get_silent() else ""
+        dbg_str = "[DBG]" if self.get_debug() else ""
         id_str     = ("[id=%x]" % id(self)) if display_id else ""
         attribute_str = "" if not display_attribute else self.attributes.get_str(tab_level = tab_level)
         if self in memoization_map:
@@ -349,11 +350,11 @@ class AbstractOperation(ML_Operation):
         if self.arity == 1:
             precision_str = "" if not display_precision else "[%s]" % str(self.get_precision())
             memoization_map[self] = str_tag
-            return tab_str + "%s%s%s%s%s -------> %s\n%s" % (self.get_name(), precision_str, silent_str, id_str, attribute_str, str_tag, "".join(inp.get_str(new_depth, display_precision, tab_level = tab_level + 1, memoization_map = memoization_map, display_attribute = display_attribute, display_id = display_id) for inp in self.inputs))
+            return tab_str + "%s%s%s%s%s%s -------> %s\n%s" % (self.get_name(), precision_str, dbg_str, silent_str, id_str, attribute_str, str_tag, "".join(inp.get_str(new_depth, display_precision, tab_level = tab_level + 1, memoization_map = memoization_map, display_attribute = display_attribute, display_id = display_id) for inp in self.inputs))
         else:
             memoization_map[self] = str_tag
             precision_str = "" if not display_precision else "[%s]" % str(self.get_precision())
-            return tab_str + "%s%s%s%s%s ------> %s\n%s" % (self.get_name(), precision_str, silent_str, id_str, attribute_str, str_tag, "".join(inp.get_str(new_depth, display_precision, tab_level = tab_level + 1, memoization_map = memoization_map, display_attribute = display_attribute, display_id = display_id) for inp in self.inputs))
+            return tab_str + "%s%s%s%s%s%s ------> %s\n%s" % (self.get_name(), precision_str, dbg_str, silent_str, id_str, attribute_str, str_tag, "".join(inp.get_str(new_depth, display_precision, tab_level = tab_level + 1, memoization_map = memoization_map, display_attribute = display_attribute, display_id = display_id) for inp in self.inputs))
 
 
     ## virtual function, called after a node's copy
