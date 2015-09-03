@@ -70,7 +70,7 @@ class ML_ArgTemplate:
 
   def sys_arg_extraction(self, parse_arg = None, exit_on_info = True, check = True):
     # argument extraction 
-    parse_arg = [0] if parse_arg is None else parse_arg
+    parse_arg = self.parse_arg if parse_arg is None else parse_arg
     self.libm_compliant  = test_flag_option("--libm", True, False, parse_arg = parse_arg, help_map = self.help_map, help_str = "enable libm compliance") 
     self.debug_flag      = test_flag_option("--debug", True, False, parse_arg = parse_arg, help_map = self.help_map, help_str = "enable debug display in generated code")
     target_name     = extract_option_value("--target", "none", parse_arg = parse_arg, help_map = self.help_map, help_str = "select target")
@@ -81,6 +81,7 @@ class ML_ArgTemplate:
     accuracy_value  = extract_option_value("--accuracy", "faithful", parse_arg = parse_arg, processing = accuracy_parser, help_map = self.help_map, help_str = "select accuracy")
     self.fast_path       = test_flag_option("--no-fpe", False, True, parse_arg = parse_arg, help_map = self.help_map, help_str = "disable Fast Path Extraction")
     self.dot_product_enabled = test_flag_option("--dot-product", True, False, parse_arg = parse_arg, help_map = self.help_map, help_str = "enable Dot Product fusion")
+    self.display_after_opt = test_flag_option("--display-after-opt", True, False, parse_arg = parse_arg, help_map = self.help_map, help_str = "display MDL IR after optimization")
 
     self.accuracy   = accuracy_value
     self.target          = target_map[target_name]()
