@@ -258,6 +258,9 @@ class AbstractOperation(ML_Operation):
 
     ## wrapper to change some attributes values using dictionnary arguments
     def set_attributes(self, **kwords):
+        if "likely" in kwords:
+            self.set_likely(kwords["likely"])
+            kwords.pop("likely")
         self.attributes.set_attr(**kwords)
 
     ## modify the values of some node's attributes and return the current node
@@ -863,6 +866,7 @@ class BooleanOperation:
     def finish_copy(self, new_copy, copy_map = {}):
         new_copy.likely = self.likely
 
+
 def logic_operation_init(self, *args, **kwords):
     self.__class__.__base__.__init__(self, *args, **kwords)
     BooleanOperation.__init__(self, attr_init(kwords, "likely"))
@@ -1256,6 +1260,16 @@ class SwitchBlock(AbstractOperationConstructor("Switch", arity = 1)):
                 pre_str += "Case: %s" %  case_str #.get_str(new_depth, display_precision, tab_level = 0, memoization_map = memoization_map, display_attribute = display_attribute, display_id = display_id)
                 pre_str += "%s" %  self.case_map[case].get_str(new_depth, display_precision, tab_level = tab_level + 2, memoization_map = memoization_map, display_attribute = display_attribute, display_id = display_id)
             return pre_str
+
+
+def AdditionN(*args, **kwords):
+  """ multiple-operand addition wrapper """
+  op_list = [op for op in args]
+  while len(op_list) > 1:
+    op0 = op_list.pop(0)
+    op1 = op_list.pop(0)
+    op_list.append(Addition(op0, op1, **kwords))
+  return op_list[0]
 
 if __name__ == "__main__":
   # auto doc

@@ -19,6 +19,8 @@ ml_dd_t ml_add_dd_d2_fast(double x, double y);
 
 ml_dd_t ml_add_dd_d_dd(double x, ml_dd_t y);
 
+/** dummy implementation , TBD */
+ml_dd_t ml_add_dd_dd2(ml_dd_t x, ml_dd_t y);
 
 double ml_fma(double x, double y, double z); 
 

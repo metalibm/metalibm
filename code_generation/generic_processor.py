@@ -11,7 +11,7 @@
 ###############################################################################
 
 from ..utility.log_report import *
-from .generator_utility import SymbolOperator, FunctionOperator, TemplateOperator, C_Code, Gappa_Code, build_simplified_operator_generation, IdentityOperator, FO_Arg, RoundOperator, type_strict_match, type_relax_match, type_result_match, type_function_match, FunctionObjectOperator, type_all_match
+from .generator_utility import SymbolOperator, FunctionOperator, TemplateOperator, C_Code, Gappa_Code, build_simplified_operator_generation, IdentityOperator, FO_Arg, RoundOperator, type_strict_match, type_relax_match, type_result_match, type_function_match, FunctionObjectOperator, type_all_match, build_simplified_operator_generation_nomap
 from .code_element import *
 from ..core.ml_formats import *
 from ..core.ml_table import ML_ApproxTable
@@ -39,6 +39,12 @@ def std_cond(optree):
     # standard condition for operator mapping validity
     return (not optree.get_silent()) and (optree.get_rounding_mode() == ML_GlobalRoundMode or optree.get_rounding_mode() == None)
 
+
+def exclude_compound(optree):
+    return optree.get_precision() != ML_DoubleDouble
+
+def include_compound(optree):
+    return optree.get_precision() is ML_DoubleDouble
 
 def fp_std_cond(optree):    
     return True
@@ -149,13 +155,26 @@ c_code_generation_table = {
         None: build_simplified_operator_generation([ML_Int32, ML_UInt32, ML_Binary32, ML_Binary64], 1, SymbolOperator("-", arity = 1)),
     },
     Addition: {
-        None: build_simplified_operator_generation([ML_Int32, ML_UInt32, ML_Int64, ML_Binary32, ML_Binary64], 2, SymbolOperator("+", arity = 2), cond = fp_std_cond),
+        None: {
+          exclude_compound: build_simplified_operator_generation_nomap([ML_Int32, ML_UInt32, ML_Int64, ML_Binary32, ML_Binary64], 2, SymbolOperator("+", arity = 2), cond = fp_std_cond),
+          include_compound: { 
+            type_strict_match(ML_DoubleDouble, ML_Binary64, ML_Binary64): ML_Multi_Prec_Lib_Function("ml_add_dd_d2", arity = 2, output_precision = ML_DoubleDouble),
+            type_strict_match(ML_DoubleDouble, ML_Binary64, ML_DoubleDouble): ML_Multi_Prec_Lib_Function("ml_add_dd_d_dd", arity = 2, output_precision = ML_DoubleDouble),
+            type_strict_match(ML_DoubleDouble, ML_DoubleDouble, ML_Binary64): ML_Multi_Prec_Lib_Function("ml_add_dd_d_dd", arity = 2, arg_map = {0: FO_Arg(1), 1: FO_Arg(0)}, output_precision = ML_DoubleDouble),
+            type_strict_match(ML_DoubleDouble, ML_DoubleDouble, ML_DoubleDouble): ML_Multi_Prec_Lib_Function("ml_add_dd_dd2", arity = 2, output_precision = ML_DoubleDouble),
+          },
+        },
     },
     Subtraction: {
         None: build_simplified_operator_generation([ML_Int32, ML_UInt32, ML_Int64, ML_UInt64, ML_Binary32, ML_Binary64], 2, SymbolOperator("-", arity = 2), cond = fp_std_cond),
     },
     Multiplication: {
-        None: build_simplified_operator_generation([ML_Int32, ML_UInt32, ML_Binary32, ML_Binary64], 2, SymbolOperator("*", arity = 2), cond = fp_std_cond),
+        None: {
+          exclude_compound: build_simplified_operator_generation_nomap([ML_Int32, ML_UInt32, ML_Binary32, ML_Binary64], 2, SymbolOperator("*", arity = 2), cond = exclude_compound),
+          include_compound: {
+            type_strict_match(ML_DoubleDouble, ML_Binary64, ML_Binary64): ML_Multi_Prec_Lib_Function("ml_mult_dd_d2", arity = 2, output_precision = ML_DoubleDouble),
+        }
+      }
     },
     FusedMultiplyAdd: {
         FusedMultiplyAdd.Standard: {

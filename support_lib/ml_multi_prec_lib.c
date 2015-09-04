@@ -83,6 +83,18 @@ ml_dd_t ml_add_dd_d_dd(double x, ml_dd_t y) {
 }
 
 
+/** dummy implementation , TBD */
+ml_dd_t ml_add_dd_dd2(ml_dd_t x, ml_dd_t y) {
+    /** ml_dd_t + ml_dd_t -> ml_dd_t 
+     *
+     * */
+    ml_dd_t t1  = ml_add_dd_d2(x.hi, y.hi);
+    ml_dd_t t2   = ml_add_dd_d_dd(x.lo, t1);
+
+    return ml_add_dd_d_dd(y.lo, t2);
+}
+
+
 double ml_fma(double x, double y, double z) {
     /** Implementend using Muller's Handbook of floating-point arithmetic, Dekker product, p135 */
     ml_dd_t mult_result = ml_mult_dd_d2(x, y);

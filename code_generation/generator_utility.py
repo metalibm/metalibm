@@ -529,7 +529,7 @@ def type_function_match(*arg_tuple, **kwords): #optree = None):
     return type_strict_match(*arg_tuple)
 
 
-def build_simplified_operator_generation(precision_list, arity, operator, result_precision = None, explicit_rounding = False, match_function = type_strict_match, extend_exact = False, cond = lambda optree: True):
+def build_simplified_operator_generation_nomap(precision_list, arity, operator, result_precision = None, explicit_rounding = False, match_function = type_strict_match, extend_exact = False, cond = lambda optree: True):
     """ generate a code generation table for the interfaces describes in precision_list """
     result_map = {}
     for precision_hint in precision_list:
@@ -543,4 +543,7 @@ def build_simplified_operator_generation(precision_list, arity, operator, result
         # extending with exact version of the expression
         if extend_exact:
             result_map[type_result_match(ML_Exact)] = operator
-    return {cond: result_map}
+    return result_map
+
+def build_simplified_operator_generation(precision_list, arity, operator, result_precision = None, explicit_rounding = False, match_function = type_strict_match, extend_exact = False, cond = lambda optree: True):
+  return {cond: build_simplified_operator_generation_nomap(precision_list, arity, operator, result_precision, explicit_rounding, match_function, extend_exact, cond)}

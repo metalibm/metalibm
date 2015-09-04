@@ -328,6 +328,12 @@ support_simplification = {
                 lambda optree, processor: Subtraction(Multiplication(optree.inputs[0], optree.inputs[1], precision = optree.get_precision()), Multiplication(optree.inputs[2], optree.inputs[3], precision = optree.get_precision()), precision = optree.get_precision()), 
         },
     },
+    Subtraction: {
+      None: {
+        lambda optree: True: 
+          lambda optree, processor: Addition(optree.inputs[0], Negate(optree.inputs[1], precision = optree.inputs[1].get_precision()), precision = optree.get_precision())
+      },
+    },
     SpecificOperation: {
         SpecificOperation.DivisionSeed: {
             lambda optree: True:
@@ -876,6 +882,8 @@ class OptimizationEngine:
                   self.check_processor_support(op, memoization_map, debug = debug)
             elif not self.processor.is_supported_operation(optree, debug = debug):
                 # trying operand format escalation
+                init_optree = optree
+                old_list = optree.inputs
                 while optree.__class__ in type_escalation:
                     match_found = False
                     for result_type_cond in type_escalation[optree.__class__]:
@@ -909,8 +917,9 @@ class OptimizationEngine:
                             return True
                         
                     print optree
+                    print "pre escalation: ", old_list
                     print self.processor.get_operation_keys(optree)
-                    print optree.get_str(display_precision = True, memoization_map = {})
+                    print optree.get_str(display_precision = True, display_id = True, memoization_map = {})
                     Log.report(Log.Error, "unsupported operation\n")
         # memoization
         memoization_map[optree] = True
