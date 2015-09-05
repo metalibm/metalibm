@@ -114,6 +114,13 @@ class CCodeGenerator:
 
             result = CodeExpression("%s[%s]" % (table_name, "][".join(index_code)), optree.inputs[0].get_storage_precision())
 
+            # manually enforcing folding
+            if folded:
+                prefix = optree.get_tag(default = "tmp")
+                result_varname = result_var if result_var != None else code_object.get_free_var_name(optree.get_precision(), prefix = prefix)
+                code_object << self.generate_assignation(result_varname, result.get()) 
+                result = CodeVariable(result_varname, optree.get_precision())
+
         elif isinstance(optree, SwitchBlock):
             switch_value = optree.inputs[0]
             
