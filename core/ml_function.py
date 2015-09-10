@@ -53,6 +53,7 @@ class ML_FunctionBasis(object):
              # Specification
              io_precisions = [ML_Binary32], 
              abs_accuracy = None,
+             accuracy = ML_Faithful,
              libm_compliant = True,
              # Optimization parameters
              processor = GenericProcessor(),
@@ -77,6 +78,9 @@ class ML_FunctionBasis(object):
 
     # TODO: FIX which i/o precision to select
     self.sollya_precision = self.get_output_precision().sollya_object
+
+    # accuracy goal for the implementation (e.g. ML_Faithful)
+    self.accuracy = accuracy
 
     self.abs_accuracy = abs_accuracy if abs_accuracy else S2**(-self.get_output_precision().get_precision())
 
