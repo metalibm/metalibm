@@ -370,6 +370,8 @@ class AbstractOperation(ML_Operation):
     #  @param copy_map dictionnary of previously built copy, if a node is found within this table, table's value is returned as copy result
     #  @return node's copy (newly generated or memoized)
     def copy(self, copy_map = {}):
+        print "Error: copy not implemented"
+        print self, self.__class__
         raise ML_NotImplemented()
 
     ## propagate given precision

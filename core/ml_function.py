@@ -96,12 +96,12 @@ class ML_FunctionBasis(object):
     copy_map = {}
     for leaf in variable_copy_map: 
       copy_map[leaf] = variable_copy_map[leaf]
-    opt_optree = self.optimise_scheme(optree, copy = copy_map)
+    opt_optree = self.optimise_scheme(optree, copy = copy_map, verbose = False)
     new_variable_copy_map = {}
     for leaf in variable_copy_map:
       new_variable_copy_map[leaf.get_handle().get_node()] = variable_copy_map[leaf]
     # debug print
-    print opt_optree.get_str(depth = None, display_precision = True)
+    # print opt_optree.get_str(depth = None, display_precision = True)
     return self.gappa_engine.get_eval_error_v2(self.opt_engine, opt_optree, new_variable_copy_map if variable_copy_map != None else {}, goal_precision, gappa_filename, relative_error = relative_error)
 
   def uniquify_name(self, base_name):
@@ -140,29 +140,29 @@ class ML_FunctionBasis(object):
     """ generate MDL scheme for function implementation """
     Log.report(Log.Error, "generate_scheme must be overloaded by ML_FunctionBasis child")
 
-  def optimise_scheme(self, pre_scheme, copy = None, enable_subexpr_sharing = True):
+  def optimise_scheme(self, pre_scheme, copy = None, enable_subexpr_sharing = True, verbose = True):
     """ default scheme optimization """
     # copying when required
     scheme = pre_scheme if copy is None else pre_scheme.copy(copy)
     # fusing FMA
     if self.fuse_fma:
-      print "MDL fusing FMA"
+      if verbose: print "MDL fusing FMA"
       scheme = self.opt_engine.fuse_multiply_add(scheme, silence = True)
 
-    print "MDL abstract scheme"
+    if verbose: print "MDL abstract scheme"
     self.opt_engine.instantiate_abstract_precision(scheme, None)
 
-    print "MDL instantiated scheme"
+    if verbose: print "MDL instantiated scheme"
     self.opt_engine.instantiate_precision(scheme, default_precision = None)
 
     if enable_subexpr_sharing:
-      print "subexpression sharing"
+      if verbose: print "subexpression sharing"
       self.opt_engine.subexpression_sharing(scheme)
 
-    print "silencing operation"
+    if verbose: print "silencing operation"
     self.opt_engine.silence_fp_operations(scheme)
 
-    print "checking processor support"
+    if verbose: print "checking processor support"
     self.opt_engine.check_processor_support(scheme)
 
     return scheme

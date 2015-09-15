@@ -130,7 +130,9 @@ class Polynomial:
                 precision_list.append(c.sollya_object)
             else:
                 precision_list.append(c)
+        print "sollya_poly", function, poly_degree, precision_list, approx_interval, modifiers
         sollya_poly = fpminimax(function, poly_degree, precision_list, approx_interval, *modifiers)
+        print "done"
         fpnorm_modifiers = absolute if absolute in modifiers else relative
         #approx_error = supnorm(sollya_poly, function, approx_interval, fpnorm_modifiers, tightness)
         approx_error = error_function(sollya_poly, function, approx_interval, fpnorm_modifiers, tightness)
