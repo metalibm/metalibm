@@ -258,7 +258,8 @@ class ML_Exponential:
                     },
                 ]
                 poly_eval_error_dico = gappacg.get_eval_error_v3(opt_eng, opt_poly, poly_error_copy_map, gappa_filename = "gappa_poly.g", dichotomy = dichotomy_map)
-                #print "poly_eval_error_dico: ", poly_eval_error_dico
+                print "poly_eval_error_dico: ", poly_eval_error_dico
+                #sys.exit(1)
 
                 poly_eval_error = max([sup(abs(err)) for err in poly_eval_error_dico])
             else:
@@ -276,10 +277,12 @@ class ML_Exponential:
                 if global_rel_poly_error == None or rel_poly_error > global_rel_poly_error:
                     global_rel_poly_error = rel_poly_error
                     global_poly_error = poly_error
-            print "global_poly_error: ", global_poly_error, global_rel_poly_error 
-            print "error_goal: ", error_goal
+            print "global_poly_error: ", global_poly_error
+            print "global_rel_poly_error: ", global_rel_poly_error, global_rel_poly_error.__class__
+            print "error_goal: ", error_goal, error_goal.__class__
             flag = error_goal > global_rel_poly_error
-            print "test: ", flag
+            print "test: ", flag, flag.__class__, global_rel_poly_error < error_goal
+            print error_goal - global_rel_poly_error
 
 
             if flag:

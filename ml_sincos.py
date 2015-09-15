@@ -224,27 +224,34 @@ class ML_SinCos(ML_Function("ml_cos")):
 
     cos_eval_d = (tabulated_cos_hi - red_vx * (tabulated_sin + (tabulated_cos_hi * red_vx * 0.5 + (tabulated_sin * poly_sin + (- tabulated_cos_hi * poly_cos))))) + tabulated_cos_lo
 
+
     tab_cos_dd = (tabulated_cos_hi + tabulated_cos_lo).modify_attributes(precision = ML_DoubleDouble, tag = "tab_cos_dd")
 
-    cos_eval_lo_dd_op0 = tab_cos_dd
+    #cos_eval_lo_dd_op0 = tab_cos_dd
     cos_eval_lo_dd_op1 = ((-red_vx) * (tabulated_sin)).modify_attributes(precision = ML_DoubleDouble)
     cos_eval_lo_dd_op2 = ((-tabulated_cos_hi) * ((red_vx * red_vx) * 0.5)).modify_attributes(precision = self.precision)
     cos_eval_lo_dd_op3 = ((-tabulated_sin) * (poly_sin * red_vx)).modify_attributes(precision = self.precision)
     cos_eval_lo_dd_op4 = (tabulated_cos_hi * (red_vx * poly_cos)).modify_attributes(precision = self.precision)
 
     cos_eval_d2_add = AdditionN(
-                        cos_eval_lo_dd_op0, 
-                        cos_eval_lo_dd_op1, 
+                        tabulated_cos_hi,
                         AdditionN(
-                          cos_eval_lo_dd_op2,
-                          cos_eval_lo_dd_op3,
-                          cos_eval_lo_dd_op4,
-                          unbreakable = True,
-                          precision = self.precision
+                          cos_eval_lo_dd_op1, 
+                          AdditionN(
+                            cos_eval_lo_dd_op2,
+                            cos_eval_lo_dd_op3,
+                            cos_eval_lo_dd_op4,
+                            tabulated_cos_lo,
+                            unbreakable = True,
+                            precision = self.precision
+                          ),
+                          precision = ML_DoubleDouble,
+                          unbreakable = True
                         ),
                         precision = ML_DoubleDouble,
                         unbreakable = True
                       )
+
 
 
 
@@ -267,6 +274,47 @@ class ML_SinCos(ML_Function("ml_cos")):
 
     cos_eval_3 = (tabulated_cos_hi + (- red_vx - red_vx * ((tabulated_sin - 1) + tabulated_cos_hi * red_vx * 0.5 + tabulated_sin * poly_sin - tabulated_cos_hi * poly_cos))) + tabulated_cos_lo 
     cos_eval_3.set_attributes(tag = "cos_eval_3", precision = self.precision, debug = debug_precision)
+
+    # computing evaluation error for cos_eval_d
+    cos_eval_d_eerror = []
+    for i in xrange(0, 2**(frac_pi_index-1)-3):
+      copy_map = {
+        #tabulated_cos_hi : Constant(cos_table_hi[i][0], tag = "tabulated_cos_hi", precision = ML_Binary64), 
+        #tabulated_sin    : Constant(sin_table[i][0], tag = "tabulated_sin", precision = ML_Binary64),
+        tabulated_cos_hi : Variable("tabulated_cos_hi", interval = Interval(cos_table_hi[i][0]), precision = ML_Binary64), 
+        tabulated_cos_lo : Variable("tabulated_cos_lo", interval = Interval(cos_table_lo[i][0]), precision = ML_Binary64), 
+        tabulated_sin    : Variable("tabulated_sin", interval = Interval(sin_table[i][0]), precision = ML_Binary64),
+        red_vx           : Variable("red_vx", precision = ML_Binary64, interval = approx_interval),
+      }
+
+      cos_eval_d_eerror_local = sup(abs(self.get_eval_error(cos_eval_d, variable_copy_map = copy_map, relative_error = True)))
+      cos_eval_d_eerror.append(cos_eval_d_eerror_local)
+      if cos_eval_d_eerror_local > S2**-52:
+        print "cos_eval_d_eerror_local: ", i, cos_eval_d_eerror_local
+
+    for i in xrange(2**(frac_pi_index-1)-3, 2**(frac_pi_index-1)-1):
+      copy_map = {
+        #tabulated_cos_hi : Constant(cos_table_hi[i][0], tag = "tabulated_cos_hi", precision = ML_Binary64), 
+        #tabulated_sin    : Constant(sin_table[i][0], tag = "tabulated_sin", precision = ML_Binary64),
+        tabulated_cos_hi : Variable("tabulated_cos_hi", interval = Interval(cos_table_hi[i][0]), precision = ML_Binary64), 
+        tabulated_cos_lo : Variable("tabulated_cos_lo", interval = Interval(cos_table_lo[i][0]), precision = ML_Binary64), 
+        tabulated_sin    : Variable("tabulated_sin", interval = Interval(sin_table[i][0]), precision = ML_Binary64),
+        red_vx           : Variable("red_vx", precision = ML_Binary64, interval = approx_interval),
+      }
+
+      cos_eval_d_eerror_local = sup(abs(self.get_eval_error(cos_eval_2, variable_copy_map = copy_map, relative_error = True)))
+      cos_eval_d_eerror.append(cos_eval_d_eerror_local)
+      if cos_eval_d_eerror_local > S2**-52:
+        print "cos_eval_d_eerror_local_2: ", i, cos_eval_d_eerror_local
+
+      cos_eval_d_eerror_local = sup(abs(self.get_eval_error(cos_eval_3, variable_copy_map = copy_map, relative_error = True)))
+      cos_eval_d_eerror.append(cos_eval_d_eerror_local)
+      if cos_eval_d_eerror_local > S2**-52:
+        print "cos_eval_d_eerror_local_3: ", i, cos_eval_d_eerror_local
+
+    print "max error: ", max(cos_eval_d_eerror)
+
+    # sys.exit(1)
 
     # selecting int precision for cast corresponding to precision width
     cast_int_precision = {ML_Binary64: ML_Int64, ML_Binary32: ML_Int32}[self.precision]
