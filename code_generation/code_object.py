@@ -332,8 +332,8 @@ class GappaCodeObject(CodeObject):
         self.hypothesis_table = []
         self.goal_table = []
 
-    def add_hint(self, hypoth_code, goal_code):
-        self.hint_table.append((hypoth_code, goal_code))
+    def add_hint(self, hypoth_code, goal_code, annotation_code):
+        self.hint_table.append((hypoth_code, goal_code, annotation_code))
 
     def add_hypothesis(self, hypoth_code, hypoth_value):
         self.hypothesis_table.append((hypoth_code, hypoth_value))
@@ -343,8 +343,9 @@ class GappaCodeObject(CodeObject):
 
     def gen_hint(self):
         result = "#hints\n"
-        for hypoth_code, goal_code in self.hint_table:
-            result += "%s -> %s;\n\n" % (hypoth_code.get(), goal_code.get())
+        for hypoth_code, goal_code, annotation_code in self.hint_table:
+            annotation_code = "{%s}" % annotation_code.get() if annotation_code is not None else ""
+            result += "%s -> %s %s;\n\n" % (hypoth_code.get(), goal_code.get(), annotation_code)
         return result
 
     def gen_complete_goal(self):

@@ -38,6 +38,10 @@ class CodeExpression:
     def get(self):
         return self.expression
 
+    def strip_outer_parenthesis(self):
+        if self.expression[0] == "(" and self.expression[-1] == ")":
+          self.expression = self.expression[1:-1]
+
     def get_stored(self, code_object):
         storage_var = code_object.get_free_var_name(self.precision)
         self.store_variable = storage_var

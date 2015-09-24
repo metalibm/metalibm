@@ -536,6 +536,13 @@ gappa_code_generation_table = {
             },
         },
     },
+    Comparison: {
+      Comparison.NotEqual: {
+        lambda optree: True: {
+          type_relax_match(ML_Bool, ML_Exact, ML_Integer): SymbolOperator("<>", arity = 2, force_folding = False),
+        },
+      },
+    },
     Conversion: {
         None: {
             lambda optree: True: {

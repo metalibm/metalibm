@@ -86,13 +86,20 @@ class GappaCodeGenerator:
         goal_code = self.generate_expr(code_object, goal_optree, initial = True, language = Gappa_Code)
         code_object.add_goal(goal_code, goal_value)
 
-    def add_hint(self, code_object, hint_hypoth, hint_goal):
+    def add_hint(self, code_object, hint_hypoth, hint_goal, hint_annotation = None):
         hypoth_code = self.generate_expr(code_object, hint_hypoth, initial = False, folded = False, language = Gappa_Code)
         goal_code = self.generate_expr(code_object, hint_goal, initial = False, folded = False, language = Gappa_Code)
-        code_object.add_hint(hypoth_code, goal_code)
+        if hint_annotation is not None:
+          declare_cst = self.declare_cst
+          self.declare_cst = False
+          annotation_code = self.generate_expr(code_object, hint_annotation, initial = False, folded = False, language = Gappa_Code, strip_outer_parenthesis = True)
+          self.declare_cst = declare_cst
+        else:
+          annotation_code = None
+        code_object.add_hint(hypoth_code, goal_code, annotation_code)
 
 
-    def generate_expr(self, code_object, optree, folded = True, result_var = None, initial = False, __exact = None, language = None):
+    def generate_expr(self, code_object, optree, folded = True, result_var = None, initial = False, __exact = None, language = None, strip_outer_parenthesis = False):
         """ code generation function """
         #exact_value = exact or self.get_exact_mode()
 
@@ -215,6 +222,8 @@ class GappaCodeGenerator:
             code_object << self.generate_assignation(final_var, result.get())
             return CodeVariable(final_var, optree.get_precision())
 
+        if strip_outer_parenthesis and isinstance(result, CodeExpression):
+          result.strip_outer_parenthesis()
         return result
 
 

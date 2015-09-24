@@ -259,6 +259,18 @@ type_escalation = {
 
 # Table of transformation rule to translate an operation into its exact (no rounding error) counterpart
 exactify_rule = {
+    Constant: {
+      None: {
+        lambda optree, exact_format: optree.get_precision() is None: 
+          lambda opt_eng, optree, exact_format: opt_eng.swap_format(optree, exact_format),
+      },
+    },
+    Division: { 
+        None: {
+            lambda optree, exact_format: True: 
+                lambda opt_eng, optree, exact_format: opt_eng.swap_format(optree, exact_format),
+        },
+    },
     Addition: { 
         None: {
             lambda optree, exact_format: True: 
