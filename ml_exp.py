@@ -50,6 +50,7 @@ class ML_Exponential:
         exp_implementation = CodeFunction(self.function_name, output_format = self.precision)
         vx = exp_implementation.add_input_variable("x", self.precision) 
 
+        Log.set_dump_stdout(True)
 
         Log.report(Log.Info, "\033[33;1m generating implementation scheme \033[0m")
         if debug_flag: 
@@ -188,9 +189,10 @@ class ML_Exponential:
 
         while 1:
             Log.report(Log.Info, "attempting poly degree: %d" % poly_degree)
-            poly_object, poly_approx_error = Polynomial.build_from_approximation_with_error(expm1(x), poly_degree, [1] + [self.precision]*(poly_degree), approx_interval, absolute, error_function = error_function)
-            sub_poly = poly_object.sub_poly(start_index = 2)
+            precision_list = [1] + [self.precision] * (poly_degree)
+            poly_object, poly_approx_error = Polynomial.build_from_approximation_with_error(expm1(x), poly_degree, precision_list, approx_interval, absolute, error_function = error_function)
             Log.report(Log.Info, "polynomial: %s " % poly_object)
+            sub_poly = poly_object.sub_poly(start_index = 2)
             Log.report(Log.Info, "polynomial: %s " % sub_poly)
 
             Log.report(Log.Info, "poly approx error: %s" % poly_approx_error)
@@ -208,9 +210,6 @@ class ML_Exponential:
             # optimizing poly before evaluation error computation
             opt_poly = opt_eng.optimization_process(poly, self.precision, fuse_fma = fuse_fma)
             opt_sub_poly = opt_eng.optimization_process(pre_sub_poly, self.precision, fuse_fma = fuse_fma)
-
-            #print "poly: ", poly.get_str(depth = None, display_precision = True)
-            #print "opt_poly: ", opt_poly.get_str(depth = None, display_precision = True)
 
             # evaluating error of the polynomial approximation
             r_gappa_var        = Variable("r", precision = self.precision, interval = approx_interval)
@@ -277,12 +276,8 @@ class ML_Exponential:
                 if global_rel_poly_error == None or rel_poly_error > global_rel_poly_error:
                     global_rel_poly_error = rel_poly_error
                     global_poly_error = poly_error
-            print "global_poly_error: ", global_poly_error
             print "global_rel_poly_error: ", global_rel_poly_error, global_rel_poly_error.__class__
-            print "error_goal: ", error_goal, error_goal.__class__
             flag = error_goal > global_rel_poly_error
-            print "test: ", flag, flag.__class__, global_rel_poly_error < error_goal
-            print error_goal - global_rel_poly_error
 
 
             if flag:
