@@ -47,7 +47,7 @@ class ML_Format(object):
 
     def get_bit_size(self):
         """ <abstract> return the bit size of the format (if it exists) """
-        print self
+        print self # Exception ML_NotImplemented print
         raise ML_NotImplemented()
 
     def generate_c_initialization(self, *args):

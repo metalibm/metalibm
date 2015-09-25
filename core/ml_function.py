@@ -100,8 +100,6 @@ class ML_FunctionBasis(object):
     new_variable_copy_map = {}
     for leaf in variable_copy_map:
       new_variable_copy_map[leaf.get_handle().get_node()] = variable_copy_map[leaf]
-    # debug print
-    # print opt_optree.get_str(depth = None, display_precision = True)
     return self.gappa_engine.get_eval_error_v2(self.opt_engine, opt_optree, new_variable_copy_map if variable_copy_map != None else {}, goal_precision, gappa_filename, relative_error = relative_error)
 
   def uniquify_name(self, base_name):
@@ -177,7 +175,6 @@ class ML_FunctionBasis(object):
     self.result.add_header("math.h")
     self.result.add_header("stdio.h")
     self.result.add_header("inttypes.h")
-    #print self.result.get(self.C_code_generator)
 
     Log.report(Log.Info, "Generating C code in " + self.implementation.get_name() + ".c")
     output_stream = open("%s.c" % self.implementation.get_name(), "w")

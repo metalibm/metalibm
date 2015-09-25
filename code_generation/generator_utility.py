@@ -136,7 +136,7 @@ class CompoundOperator(ML_CG_Operator):
                 if dummy_precision == None:
                     dummy_precision = code_generator.get_unknown_precision()
                     if dummy_precision == None:
-                        print optree.get_str(depth = 2, display_precision = True)
+                        print optree.get_str(depth = 2, display_precision = True) # Error display
                         Log.report(Log.Error, "unknown output precision in compound operator")
             
                 dummy_optree = DummyTree("carg", dummy_precision)

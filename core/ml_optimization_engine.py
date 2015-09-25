@@ -422,9 +422,9 @@ class OptimizationEngine:
             except:
                 print "ERROR in get_bit_size during merge_abstract_format"
                 print "optree: "
-                print optree.get_precision(), optree.get_str()
+                print optree.get_precision(), optree.get_str() # Exception print
                 print "arg: "
-                print arg.get_precision(), arg.get_str()
+                print arg.get_precision(), arg.get_str() # Exception print
 
                 raise Exception()
             if arg_bit_size > max_binary_size:
@@ -868,7 +868,7 @@ class OptimizationEngine:
     def check_processor_support(self, optree, memoization_map = {}, debug = False):
         """ check if all precision-instantiated operation are supported by the processor """
         if debug:
-          print "checking processor support: ", self.processor.__class__
+          print "checking processor support: ", self.processor.__class__ # Debug print
         if  optree in memoization_map:
             return True
         if not isinstance(optree, ML_LeafNode):
@@ -928,10 +928,10 @@ class OptimizationEngine:
                             memoization_map[optree] = True
                             return True
                         
-                    print optree
-                    print "pre escalation: ", old_list
-                    print self.processor.get_operation_keys(optree)
-                    print optree.get_str(display_precision = True, display_id = True, memoization_map = {})
+                    print optree # Error print
+                    print "pre escalation: ", old_list # Error print
+                    print self.processor.get_operation_keys(optree) # Error print
+                    print optree.get_str(display_precision = True, display_id = True, memoization_map = {}) # Error print
                     Log.report(Log.Error, "unsupported operation\n")
         # memoization
         memoization_map[optree] = True

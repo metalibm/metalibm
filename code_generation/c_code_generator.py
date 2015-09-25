@@ -101,7 +101,7 @@ class CCodeGenerator:
                 try:
                     result = CodeExpression(precision.get_c_cst(optree.get_value()), precision)
                 except:
-                  print optree.get_str(display_precision = True)
+                  print optree.get_str(display_precision = True) # Exception print
                   raise Exception()
 
         elif isinstance(optree, TableLoad):
