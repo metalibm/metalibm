@@ -65,29 +65,63 @@ class ML_UT_GappaCode(ML_Function("ml_ut_gappa_code")):
 
 
   def generate_scheme(self):
-    #func_implementation = CodeFunction(self.function_name, output_format = self.precision)
+    # declaring function input variable
     vx = self.implementation.add_input_variable("x", ML_Binary32)
+    # declaring specific interval for input variable <x>
     vx.set_interval(Interval(-1, 1))
 
+    # declaring free Variable y
     vy = Variable("y", precision = ML_Exact)
 
+    # declaring expression with vx variable
     expr = vx * vx - vx * 2
+    # declaring second expression with vx variable
+    expr2 = vx * vx - vx
 
+    # optimizing expressions (defining every unknown precision as the
+    # default one + some optimization as FMA merging if enabled)
     opt_expr = self.optimise_scheme(expr)
+    opt_expr2 = self.optimise_scheme(expr2)
+
+    # setting specific tag name for optimized expression (to be extracted 
+    # from gappa script )
+    opt_expr.set_tag("goal")
+    opt_expr2.set_tag("new_goal")
     
+    # defining default goal to gappa execution
     gappa_goal = opt_expr 
 
+    # declaring EXACT expression to be used as hint in Gappa's script
     annotation = self.opt_engine.exactify(vy * (1 / vy))
 
-    print annotation.get_str(depth = True, display_precision = True)
+    # the dict var_bound is used to limit the DAG part to be explored when
+    # generating the gappa script, each pair (key, value), indicate a node to stop at <key>
+    # and a node to replace it with during the generation: <node>,
+    # <node> must be a Variable instance with defined interval
+    # vx.get_handle().get_node() is used to retrieve the node instanciating the abstract node <vx>
+    # after the call to self.optimise_scheme
+    var_bound = {
+      vx.get_handle().get_node(): Variable("x", precision = ML_Binary32, interval = vx.get_interval())
+    } 
+    # generating gappa code to determine interval for <opt_expr>
+    gappa_code = self.gappa_engine.get_interval_code(opt_expr, var_bound)
 
-    gappa_code = self.gappa_engine.get_interval_code(opt_expr, {vx.get_handle().get_node(): Variable("x", precision = ML_Binary32, interval = vx.get_interval())})
+    # add a manual hint to the gappa code
+    # which state thtat vy * (1 / vy) -> 1 { vy <> 0 };
     self.gappa_engine.add_hint(gappa_code, annotation, Constant(1, precision = ML_Exact), Comparison(vy, Constant(0, precision = ML_Integer), specifier = Comparison.NotEqual, precision = ML_Bool))
+    
+    # adding the expression <opt_expr2> as an extra goal in the gappa script
+    self.gappa_engine.add_goal(gappa_code, opt_expr2)
 
-    eval_error = execute_gappa_script_extract(gappa_code.get(self.gappa_engine))["goal"]
+    # executing gappa on the script generated from <gappa_code>
+    # extract the result and store them into <gappa_result>
+    # which is a dict indexed by the goals' tag
+    gappa_result = execute_gappa_script_extract(gappa_code.get(self.gappa_engine))
 
-    print "eval error: ", eval_error
 
+    print "eval error: ", gappa_result["goal"], gappa_result["new_goal"]
+
+    # dummy scheme to make functionnal code generation
     scheme = Statement(Return(vx))
 
     return scheme
@@ -107,5 +141,5 @@ if __name__ == "__main__":
                                 function_name             = arg_template.function_name,
                                 output_file               = arg_template.output_file)
 
-  ml_ut_gappa_code.gen_implementation(display_after_gen = True, display_after_opt = True)
+  ml_ut_gappa_code.gen_implementation(display_after_gen = False, display_after_opt = False)
 
