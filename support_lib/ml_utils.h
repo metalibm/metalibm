@@ -123,6 +123,9 @@ static inline int ml_count_leading_zeros_64b (uint64_t x) {
 #define ml_raw_mantissa_extraction_fp32(x) ((float_to_32b_encoding(x) & 0x007FFFFF) + 0x007FFFFF+1) 
 #define ml_raw_mantissa_extraction_fp64(x) ((double_to_64b_encoding(x) & 0x000fffffffffffffull) + 0x000fffffffffffffull+1) 
 
+#define ml_is_normal_positive_fp64(x) ((uint64_t)(double_to_64b_encoding(x) >> 52) - 1u < 0x7FEu)
+#define ml_is_normal_positive_fp32(x) ((uint64_t)(double_to_32b_encoding(x) >> 23) - 1u < 0x0FEu)
+
 #define ml_is_nan_or_inff(x) ((float_to_32b_encoding(x) & 0x7f800000u) == 0x7f800000)
 #define ml_is_nan_or_inf(x) ((double_to_64b_encoding(x) & 0x7ff0000000000000ull) == 0x7ff0000000000000ull)
 
