@@ -224,6 +224,12 @@ c_code_generation_table = {
             build_simplified_operator_generation([ML_Int32, ML_Int64, ML_UInt64, ML_UInt32, ML_Binary32, ML_Binary64], 2, SymbolOperator("<=", arity = 2), result_precision = ML_Int32),
     },
     Test: {
+        Test.IsIEEENormalPositive: {
+            lambda optree: True: {
+                type_strict_match(ML_Int32, ML_Binary32): ML_Utils_Function("ml_is_normal_positive_fp32", arity = 1),
+                type_strict_match(ML_Int32, ML_Binary64): ML_Utils_Function("ml_is_normal_positive_fp64", arity = 1),
+            },
+        },
         Test.IsInfOrNaN: {
             lambda optree: True: {
                 type_strict_match(ML_Int32, ML_Binary32): ML_Utils_Function("ml_is_nan_or_inff", arity = 1), 

@@ -900,6 +900,7 @@ class Test(AbstractOperationConstructor("Test", inheritance = [BooleanOperation,
     class IsInfty(TestSpecifier_Builder("IsInfty", 1)): pass
     class IsPositiveInfty(TestSpecifier_Builder("IsPositiveInfty", 1)): pass
     class IsNegativeInfty(TestSpecifier_Builder("IsNegativeInfty", 1)): pass
+    class IsIEEENormalPositive(TestSpecifier_Builder("IsIEEENormalPositive", 1)): pass
     class IsInfOrNaN(TestSpecifier_Builder("IsInfOrNaN", 1)): pass
     class IsZero(TestSpecifier_Builder("IsZero", 1)): pass
     class IsPositiveZero(TestSpecifier_Builder("IsPositiveZero", 1)): pass
