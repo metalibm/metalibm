@@ -222,14 +222,21 @@ class ML_Fixed_Format(ML_Format):
 
 class ML_Std_FixedPoint_Format(ML_Fixed_Format):
     """ base class for standard integer format """
-    def __init__(self, integer_size, frac_size, c_name, c_display_format, signed = True):
+    def __init__(self, integer_size, frac_size, signed = True):
         """ standard fixed-point format object initialization function """
-        self.c_display_format = c_display_format
+        
         self.integer_size = integer_size
         self.frac_size = frac_size
         self.signed = signed
-        self.c_name = c_name
-
+        
+        # guess the minimal bit_size required in the c repesentation
+        bit_size = integer_size + frac_size
+        if bit_size < 1 or bit_size > 128:
+            raise ValueError("integer_size+frac_size must be between 1 and 128")
+        possible_c_bit_sizes = [8, 16, 32, 64, 128]
+        self.c_bit_size = next(n for n in possible_c_bit_sizes if n >= bit_size)
+        self.c_name = ("" if self.signed else "u") + "int" + str(self.c_bit_size) + "_t"
+        self.c_display_format = "%\"PRIx" + str(self.c_bit_size) + "\""
 
     def __str__(self):
         return self.c_name
@@ -246,14 +253,7 @@ class ML_Std_FixedPoint_Format(ML_Fixed_Format):
     def get_c_cst(self, cst_value):
         """ C-language constant generation """
         encoded_value = int(cst_value * S2**self.frac_size)
-        if encoded_value > 2**63-1: 
-            return str(encoded_value) + "ull"
-        if encoded_value > 2**31-1:
-            return str(encoded_value) + "ll" 
-        if encoded_value < -2**31:
-            return str(encoded_value) + "ll"
-        else:
-            return str(encoded_value)
+        return ("" if self.signed else "U") + "INT" + str(self.c_bit_size) + "_C(" + str(encoded_value) + ")"
 
     def get_gappa_cst(self, cst_value):
         """ Gappa-language constant generation """
@@ -273,10 +273,10 @@ ML_DoubleDouble = ML_Compound_FP_Format("ml_dd_t", ["hi", "lo"], [ML_Binary64, M
 ML_TripleDouble = ML_Compound_FP_Format("ml_td_t", ["hi", "me", "lo"], [ML_Binary64, ML_Binary64, ML_Binary64], "", "", tripledouble)
 
 # Standard integer format declarations
-ML_Int32    = ML_Std_FixedPoint_Format(32, 0, "int32_t", "%\"PRIx32\"",   True)
-ML_UInt32   = ML_Std_FixedPoint_Format(32, 0, "uint32_t", "%\"PRIx32\"",   False)
-ML_Int64    = ML_Std_FixedPoint_Format(64, 0, "int64_t",  "%\"PRIx64\"",  True)
-ML_UInt64   = ML_Std_FixedPoint_Format(64, 0, "uint64_t", "%\"PRIx64\"",  False)
+ML_Int32    = ML_Std_FixedPoint_Format(32, 0, True)
+ML_UInt32   = ML_Std_FixedPoint_Format(32, 0, False)
+ML_Int64    = ML_Std_FixedPoint_Format(64, 0, True)
+ML_UInt64   = ML_Std_FixedPoint_Format(64, 0, False)
 
 # abstract formats
 ML_Integer  = AbstractFormat_Builder("ML_Integer",  (ML_Fixed_Format,))("ML_Integer")
