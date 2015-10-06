@@ -192,6 +192,13 @@ class AbstractOperation(ML_Operation):
     def set_precision(self, new_precision):
         self.attributes.set_precision(new_precision)
 
+
+    def get_inputs(self):
+        return self.inputs
+
+    def get_input(self, index):
+        return self.inputs[index]
+
     ##
     #  @return the node evaluated live-range (when available) 
     def get_interval(self):

@@ -2,10 +2,10 @@
 
 ###############################################################################
 # This file is part of Kalray's Metalibm tool
-# Copyright (2013)
+# Copyright (2013-2015)
 # All rights reserved
 # created:          Dec 24th, 2013
-# last-modified:    Apr  4th, 2014
+# last-modified:    Oct  6th, 2015
 #
 # author(s): Nicolas Brunie (nicolas.brunie@kalray.eu)
 ###############################################################################
@@ -497,6 +497,25 @@ def type_all_match(*args, **kwords):
   """ match any type parameters """
   return True
 
+# Type Class Match
+class TCM:
+  """ Type Class Match """
+  def __init__(self, format_class):
+    self.format_class = format_class
+
+  def __call__(self, arg_format):
+    return isinstance(arg_format, self.format_class)
+
+
+class FSM:
+  """ Format Strict Match """
+  def __init__(self, format_obj):
+    self.format_obj = format_obj
+
+  def __call__(self, arg_format):
+    return self.format_obj == arg_format
+
+
 class type_strict_match:
     def __init__(self, *type_tuple):
         """ check that argument and constrain type match strictly """
@@ -505,6 +524,23 @@ class type_strict_match:
     def __call__(self, *arg_tuple, **kwords):
         return self.type_tuple == arg_tuple
 
+class type_fixed_match: 
+    """ type_strict_match + match any instance of ML_Fixed_Format to 
+        ML_Fixed_Format descriptor """
+    def __init__(self, *type_tuple):
+        self.type_tuple = type_tuple
+
+    def __call__(self, *arg_tuple, **kwords):
+        return reduce(lambda acc, v: acc and (v[0] == v[1] or (v[0] == ML_Fixed_Format)) and isinstance(v[1], ML_Fixed_Format), zip(self.type_tuple, arg_tuple))
+
+class type_custom_match: 
+    """ type_strict_match + match any instance of ML_Fixed_Format to 
+        ML_Fixed_Format descriptor """
+    def __init__(self, *type_tuple):
+        self.type_tuple = type_tuple
+
+    def __call__(self, *arg_tuple, **kwords):
+        return reduce(lambda acc, v: acc and (v[0](v[1])), zip(self.type_tuple, arg_tuple))
 
 class type_relax_match:
     """ implement a relaxed type comparison including ML_Exact as possible true answer """

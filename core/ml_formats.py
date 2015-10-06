@@ -2,10 +2,10 @@
 
 ###############################################################################
 # This file is part of Kalray's Metalibm tool
-# Copyright (2013)
+# Copyright (2013-2015)
 # All rights reserved
 # created:          Dec 23rd, 2013
-# last-modified:    Apr  1st, 2014
+# last-modified:    Oct  6th, 2015
 #
 # author(s): Nicolas Brunie (nicolas.brunie@kalray.eu)
 ###############################################################################
@@ -220,7 +220,7 @@ class ML_Fixed_Format(ML_Format):
     pass
 
 
-class ML_Std_FixedPoint_Format(ML_Fixed_Format):
+class ML_Base_FixedPoint_Format(ML_Fixed_Format):
     """ base class for standard integer format """
     def __init__(self, integer_size, frac_size, signed = True):
         """ standard fixed-point format object initialization function """
@@ -238,8 +238,29 @@ class ML_Std_FixedPoint_Format(ML_Fixed_Format):
         self.c_name = ("" if self.signed else "u") + "int" + str(self.c_bit_size) + "_t"
         self.c_display_format = "%\"PRIx" + str(self.c_bit_size) + "\""
 
+    def get_integer_size(self):
+        return self.integer_size
+
+    def get_c_bit_size(self):
+        return self.c_bit_size
+
+    def get_frac_size(self):
+        return self.frac_size
+
+    def get_precision(self):
+        """ return the number of digits after the point """
+        return self.frac_size
+
+    def get_signed(self):
+        return self.signed
+
     def __str__(self):
-        return self.c_name
+        if self.frac_size == 0:
+          return self.c_name
+        elif self.signed:
+          return "FS%d.%d" % (self.integer_size, self.frac_size)
+        else:
+          return "FU%d.%d" % (self.integer_size, self.frac_size)
 
     def get_c_name(self):
         return self.c_name
@@ -259,6 +280,12 @@ class ML_Std_FixedPoint_Format(ML_Fixed_Format):
         """ Gappa-language constant generation """
         return str(cst_value)
 
+class ML_Standard_FixedPoint_Format(ML_Base_FixedPoint_Format):
+  pass
+
+class ML_Custom_FixedPoint_Format(ML_Base_FixedPoint_Format):
+  pass
+
 class ML_Bool_Format: 
     """ abstract Boolean format """
     pass
@@ -273,10 +300,20 @@ ML_DoubleDouble = ML_Compound_FP_Format("ml_dd_t", ["hi", "lo"], [ML_Binary64, M
 ML_TripleDouble = ML_Compound_FP_Format("ml_td_t", ["hi", "me", "lo"], [ML_Binary64, ML_Binary64, ML_Binary64], "", "", tripledouble)
 
 # Standard integer format declarations
-ML_Int32    = ML_Std_FixedPoint_Format(32, 0, True)
-ML_UInt32   = ML_Std_FixedPoint_Format(32, 0, False)
-ML_Int64    = ML_Std_FixedPoint_Format(64, 0, True)
-ML_UInt64   = ML_Std_FixedPoint_Format(64, 0, False)
+ML_Int8    = ML_Standard_FixedPoint_Format(8, 0, True)
+ML_UInt8   = ML_Standard_FixedPoint_Format(8, 0, False)
+
+ML_Int16    = ML_Standard_FixedPoint_Format(16, 0, True)
+ML_UInt16   = ML_Standard_FixedPoint_Format(16, 0, False)
+
+ML_Int32    = ML_Standard_FixedPoint_Format(32, 0, True)
+ML_UInt32   = ML_Standard_FixedPoint_Format(32, 0, False)
+
+ML_Int64    = ML_Standard_FixedPoint_Format(64, 0, True)
+ML_UInt64   = ML_Standard_FixedPoint_Format(64, 0, False)
+
+ML_Int128    = ML_Standard_FixedPoint_Format(128, 0, True)
+ML_UInt128   = ML_Standard_FixedPoint_Format(128, 0, False)
 
 # abstract formats
 ML_Integer  = AbstractFormat_Builder("ML_Integer",  (ML_Fixed_Format,))("ML_Integer")
