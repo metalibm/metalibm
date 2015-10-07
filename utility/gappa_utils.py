@@ -15,6 +15,11 @@ import commands
 import re
 import subprocess
 
+try:
+  from pythonsollya import parse as pythonsollya_parse_number
+except ImportError:
+  from pythonsollya import SollyaObject as pythonsollya_parse_number
+
 def parse_gappa_interval(interval_value):
     # search for middle ","
     end_index = len(interval_value)
@@ -24,7 +29,7 @@ def parse_gappa_interval(interval_value):
         end = tmp_str.index("}")
         tmp_str = tmp_str[:start] + tmp_str[end+1:]
     v0, v1 = tmp_str.split(",")
-    return pythonsollya.Interval(pythonsollya.parse(v0), pythonsollya.parse(v1))
+    return pythonsollya.Interval(pythonsollya_parse_number(v0), pythonsollya_parse_number(v1))
 
 
 def execute_gappa_script_extract(gappa_code, gappa_filename = "gappa_tmp.g"):
