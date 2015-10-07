@@ -16,6 +16,7 @@ from metalibm_core.core.ml_complex_formats import ML_Mpfr_t
 from metalibm_core.code_generation.gappa_code_generator import GappaCodeGenerator
 from metalibm_core.code_generation.generic_processor import GenericProcessor
 from metalibm_core.code_generation.generator_utility import FunctionOperator, FO_Result, FO_Arg
+from metalibm_core.code_generation.fixed_point_backend import FixedPointBackend
 
 from metalibm_core.utility.gappa_utils import execute_gappa_script_extract
 from metalibm_core.utility.ml_template import ML_ArgTemplate
@@ -86,13 +87,13 @@ class ML_Log(ML_Function("ml_log")):
     prec2 = 15
     
     #vx = Variable("gappa_x", precision = ML_Custom_FixedPoint_Format(0, 52, False), interval = Interval(1,2-2**-52))
-    vx.set_interval(Interval(1, 1.00001))
+    vx.set_interval(Interval(1, 2-S2**-52))
     
     #vx  = self.implementation.add_input_variable("gappa_x", ML_Custom_FixedPoint_Format(0,52,False))
-    vx1 = Conversion(vx, precision = ML_Custom_FixedPoint_Format(0,size1,False))
-    vinv_x1 = Division(Constant(1, precision = ML_Exact), vx1, precision = ML_Exact)
-    vinv_x = Conversion(vinv_x1, precision = ML_Custom_FixedPoint_Format(0, prec1))
-    vy = Multiplication(vx, vinv_x, precision = ML_Custom_FixedPoint_Format(0, 52+prec1))
+    vx1 = Conversion(vx, precision = ML_Custom_FixedPoint_Format(0,size1,False), tag = "x1")
+    vinv_x1 = Division(Constant(1, precision = ML_Exact), vx1, precision = ML_Exact, tag = "inv_x1")
+    vinv_x = Conversion(vinv_x1, precision = ML_Custom_FixedPoint_Format(0, prec1), tage = "inv_x")
+    vy = Multiplication(vx, vinv_x, precision = ML_Exact) - Constant(1, precision = ML_Exact)#ML_Custom_FixedPoint_Format(0, 52+prec1))
     
     #self.precison = ML_Binary64
     #opt_expr = self.optimise_scheme(vy)
@@ -112,12 +113,16 @@ class ML_Log(ML_Function("ml_log")):
     print annotation.get_str(depth = None, display_precision = True)
     print "annotation_hint: ", 
     print annotation_hint.get_str(depth = None, display_precision = True)
+    print "Gappa engine: ", dir(self.gappa_engine)
+    #self.gappa_engine.add_hint(gappa_code, 
     self.gappa_engine.add_hint(gappa_code, annotation_hint, Constant(1, precision = ML_Exact),
                                Comparison(swap_map[vinv_x1], Constant(0, precision = ML_Exact), specifier = Comparison.NotEqual, precision = ML_Bool))
 
     #print gappa_code.get_str()
     eval_error = execute_gappa_script_extract(gappa_code.get(self.gappa_engine))
+    print "vy_goal: ", vy_goal.get_str(depth = None, display_precision = True, memoization_map = {})
     print "eval error: ", eval_error
+    sys.exit(1)
     return {
       'size1': 7, 'prec1': 9, 'size2': 14, 'prec2': 15,
       'prec_inv1': ML_Custom_FixedPoint_Format(1, 9, False),
