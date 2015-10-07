@@ -85,10 +85,10 @@ class ML_Log(ML_Function("ml_log")):
     size2 = 14
     prec2 = 15
     
-    #vx = Variable("gappa_x", precision = ML_Std_FixedPoint_Format(0, 52, False), interval = Interval(1,2-2**-52))
+    #vx = Variable("gappa_x", precision = ML_Custom_FixedPoint_Format(0, 52, False), interval = Interval(1,2-2**-52))
     vx.set_interval(Interval(1, 1.00001))
     
-    #vx  = self.implementation.add_input_variable("gappa_x", ML_Std_FixedPoint_Format(0,52,False))
+    #vx  = self.implementation.add_input_variable("gappa_x", ML_Custom_FixedPoint_Format(0,52,False))
     vx1 = Conversion(vx, precision = ML_Custom_FixedPoint_Format(0,size1,False))
     vinv_x1 = Division(Constant(1, precision = ML_Exact), vx1, precision = ML_Exact)
     vinv_x = Conversion(vinv_x1, precision = ML_Custom_FixedPoint_Format(0, prec1))
@@ -97,20 +97,31 @@ class ML_Log(ML_Function("ml_log")):
     #self.precison = ML_Binary64
     #opt_expr = self.optimise_scheme(vy)
     
-    annotation = self.opt_engine.exactify(vx1 * vinv_x1)
+    annotation = Multiplication(vx1, vinv_x1, precision = ML_Exact)
     #print annotation.get_str(depth = True, display_precision = True)
+
+    vx_me = Variable("me", interval = vx.get_interval(), precision = ML_Binary64)
+    swap_map = {vx: vx_me }
+    vy_goal = vy.copy(swap_map)
+
+    annotation_hint = annotation.copy(swap_map)
+
     
-    gappa_code = self.gappa_engine.get_interval_code(vy, {vx.get_handle().get_node(): Variable("x", interval = vx.get_interval()) })
-    self.gappa_engine.add_hint(gappa_code, annotation, Constant(1, precision = ML_Exact),
-      Comparison(vinv_x1, Constant(0, precision = ML_Exact), specifier = Comparison.NotEqual, precision = ML_Bool))
+    gappa_code = self.gappa_engine.get_interval_code_no_copy(vy_goal, bound_list = [vx_me])
+    print "annotation: ", 
+    print annotation.get_str(depth = None, display_precision = True)
+    print "annotation_hint: ", 
+    print annotation_hint.get_str(depth = None, display_precision = True)
+    self.gappa_engine.add_hint(gappa_code, annotation_hint, Constant(1, precision = ML_Exact),
+                               Comparison(swap_map[vinv_x1], Constant(0, precision = ML_Exact), specifier = Comparison.NotEqual, precision = ML_Bool))
 
     #print gappa_code.get_str()
     eval_error = execute_gappa_script_extract(gappa_code.get(self.gappa_engine))
     print "eval error: ", eval_error
     return {
       'size1': 7, 'prec1': 9, 'size2': 14, 'prec2': 15,
-      'prec_inv1': ML_Std_FixedPoint_Format(1, 9, False),
-      'prec_inv2': ML_Std_FixedPoint_Format(1, 15, False),
+      'prec_inv1': ML_Custom_FixedPoint_Format(1, 9, False),
+      'prec_inv2': ML_Custom_FixedPoint_Format(1, 15, False),
       'tableSize1': 128,      'tableSize2': 192,
       'outinterval': Interval(0, 197375.0*2**-31)}
 
@@ -153,14 +164,14 @@ class ML_Log(ML_Function("ml_log")):
                            storage_precision = arg_reduc['prec_inv1'],
                            tag = self.uniquify_name("inv_table_1"))
     log_table_1 = ML_Table(dimensions = [arg_reduc['tableSize1'], 1],
-                           storage_precision = ML_Std_FixedPoint_Format(11, 128-11, False),
+                           storage_precision = ML_Custom_FixedPoint_Format(11, 128-11, False),
                            tag = self.uniquify_name("inv_table_1"))
     for i in xrange(0, arg_reduc['tableSize1']-1):
       x1 = 1 + i/2**arg_reduc['size1']
       inv_x1 = Division(Constant(1, precision = ML_Exact), x1,
                         precision = arg_reduc['prec_inv1'],
                         rounding_mode = ML_RoundTowardPlusInfty)
-      log_x1 = Constant(log(x1), precision = ML_Std_FixedPoint_Format(11, 128-11, False))
+      log_x1 = Constant(log(x1), precision = ML_Custom_FixedPoint_Format(11, 128-11, False))
       inv_table_1[i][0] = inv_x1
       log_table_1[i][0] = log_x1
 
@@ -169,14 +180,14 @@ class ML_Log(ML_Function("ml_log")):
                            storage_precision = arg_reduc['prec_inv2'],
                            tag = self.uniquify_name("inv_table_1"))
     log_table_2 = ML_Table(dimensions = [arg_reduc['tableSize2'], 1],
-                           storage_precision = ML_Std_FixedPoint_Format(11, 128-11, False),
+                           storage_precision = ML_Custom_FixedPoint_Format(11, 128-11, False),
                            tag = self.uniquify_name("inv_table_2"))
     for i in xrange(0, arg_reduc['tableSize2']-1):
       x1 = 1 + i/2**arg_reduc['size2']
       inv_x1 = Division(Constant(1, precision = ML_Exact), x1,
                         precision = arg_reduc['prec_inv2'],
                         rounding_mode = ML_RoundTowardPlusInfty)
-      log_x1 = Constant(log(x1), precision = ML_Std_FixedPoint_Format(11, 128-11, False))
+      log_x1 = Constant(log(x1), precision = ML_Custom_FixedPoint_Format(11, 128-11, False))
       inv_table_2[i][0] = inv_x1
       log_table_2[i][0] = log_x1
 
@@ -188,18 +199,18 @@ class ML_Log(ML_Function("ml_log")):
     print "First argument reduction: "
     _binary_mantissa = TypeCast(_vx_mant, precision = ML_UInt64, debug = debuglx)
     _vx_mantissa = TypeCast(BitLogicAnd(_binary_mantissa, Constant(1, precision = ML_UInt64)**52-1),
-                            precision = ML_Std_FixedPoint_Format(0,52,False))
+                            precision = ML_Custom_FixedPoint_Format(0,52,False))
     
     table_1_idx = TypeCast(Conversion(_vx_mantissa,
-                                      precision = ML_Std_FixedPoint_Format(0,arg_reduc['size1'],False)),
+                                      precision = ML_Custom_FixedPoint_Format(0,arg_reduc['size1'],False)),
                            precision = ML_Integer)
 
     #table_1_idx = BitLogicRightShift(TypeCast(_vx_mantissa, precision = ML_UInt64), 52 - arg_reduc['size1'])
     print "index for first table: ", table_1_idx
     # TableLoad is of type FixedPoint(1,9,False)
-    _red_vx = Multiplication(Addition(1,_vx_mantissa, precision = ML_Std_FixedPoint_Format(1,52,False)),
+    _red_vx = Multiplication(Addition(1,_vx_mantissa, precision = ML_Custom_FixedPoint_Format(1,52,False)),
                              TableLoad(inv_table_1, table_1_idx, 0),
-                             tag = "_vy", debug=debug_lftolx, precision = ML_Std_FixedPoint_Format(2, 52+9, False))
+                             tag = "_vy", debug=debug_lftolx, precision = ML_Custom_FixedPoint_Format(2, 52+9, False))
     _red_log = TableLoad(log_table_1, table_1_idx, 0, tag = "red_log_1");
     
 
