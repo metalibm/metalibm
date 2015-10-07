@@ -450,26 +450,28 @@ class RoundOperator(FunctionOperator):
     """ Rounding operator """
 
     def __init__(self, precision, direction = ML_RoundToNearest, **kwords): 
-        round_name = {
-            ML_Binary32: {
-                ML_RoundToNearest: "float<ieee_32, ne>",
-            },
-            ML_Binary64: {
-                ML_RoundToNearest: "float<ieee_64, ne>",
-            },
-            ML_Int32: {
-                ML_RoundToNearest: "int<ne>",
-            },
-            ML_UInt32: {
-                ML_RoundToNearest: "int<ne>",
-            },
-            ML_Int64: {
-                ML_RoundToNearest: "int<ne>",
-            },
-        }[precision][direction]
+        directions_strings = {
+          ML_RoundToNearest: "ne",
+          #ML_RoundTowardZero: "zr",
+          #ML_RoundTowardPlusInfty: "dn",
+          #ML_RoundTowardMinusInfty: "up",
+        }
+        round_name = ""
+        if isinstance(precision, ML_FP_Format):
+          if precision == ML_Binary64:
+            round_name = "float<ieee_64, " + directions_strings[direction] + ">"
+          elif precision == ML_Binary32:
+            round_name = "float<ieee_32, " + directions_strings[direction] + ">"
+          else:
+            raise ValueError("Unknow floating point precision: ", precision)
+        elif isinstance(precision, ML_Fixed_Format):
+          round_name = "fixed<" + str(-precision.get_frac_size()) + ", " + directions_strings[direction] + ">"
+        else:
+          raise ValueError("Unknow precision type (is neither Fixed of Floating): ", precision)
+        print "toto: ", precision, round_name
         FunctionOperator.__init__(self, round_name, arity = 1, **kwords)
 
-        
+
     def assemble_code(self, code_generator, code_object, optree, var_arg_list, generate_pre_process = None, **kwords):
         # registering headers
         self.register_headers(code_object)

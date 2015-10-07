@@ -162,10 +162,21 @@ fixed_c_code_generation_table = {
   },
 }
 
-class FixedPointBasckend(GenericProcessor):
+fixed_gappa_code_generation_table = {
+  Conversion: {
+    None: {
+      round_down_check: {
+        type_custom_match(MCFIPF, FSM(ML_Binary64)) : RoundOperator(ML_Int32), 
+      },
+    },
+  },
+}
+
+class FixedPointBackend(GenericProcessor):
   target_name = "fixed_point"
-  TargetRegister.register_new_target(target_name, lambda _: FixedPointBasckend)
+  TargetRegister.register_new_target(target_name, lambda _: FixedPointBackend)
 
   code_generation_table = {
-    C_Code: fixed_c_code_generation_table
+    C_Code: fixed_c_code_generation_table, 
+    Gappa_Code: fixed_gappa_code_generation_table,
   }

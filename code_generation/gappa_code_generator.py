@@ -14,10 +14,10 @@ import sys
 
 from ..utility.common import ML_NotImplemented
 from .code_element import CodeVariable, CodeExpression
-from ..core.ml_operations import Variable, Constant, ConditionBlock, Return, TableLoad, Statement, SpecificOperation
+from ..core.ml_operations import Variable, Constant, ConditionBlock, Return, TableLoad, Statement, SpecificOperation, Conversion
 from ..core.ml_table import ML_Table
 from ..core.ml_formats import *
-from .generator_utility import C_Code, Gappa_Code
+from .generator_utility import C_Code, Gappa_Code, RoundOperator
 from ..core.attributes import ML_Debug
 from .code_object import Gappa_Unknown, GappaCodeObject
 
@@ -136,6 +136,11 @@ class GappaCodeGenerator:
                 result = CodeVariable(cst_varname, precision)
             else:
                 result = CodeExpression(precision.get_gappa_cst(optree.get_value()), precision)
+
+        elif isinstance(optree, Conversion):
+            local_implementation = RoundOperator(optree.get_precision())
+            return local_implementation.generate_expr(self, code_object, optree, optree.inputs, folded = folded, result_var = result_var)
+            
 
         elif isinstance(optree, TableLoad):
             # declaring table
