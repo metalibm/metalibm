@@ -109,6 +109,25 @@ def round_down_check(optree):
   return optree.get_rounding_mode() in [None, ML_RoundTowardMinusInfty] 
 
 
+def fixed_cast_modifier(optree):
+  """ lower the Conversion optree to std integer formats """
+  op0 = optree.get_input(0)
+
+  in_format = op0.get_precision()
+  out_format = optree.get_precision()
+
+
+  # support format
+  in_sformat = get_fixed_support_format(in_format)
+  out_sformat = get_fixed_support_format(out_format)
+  if out_sformat == in_sformat:
+    return op0
+  else:
+    return None
+
+FixedCastOperator = ComplexOperator(optree_modifier = fixed_cast_modifier, backup_operator = IdentityOperator())
+
+
 # class Match custom fixed point format
 MCFIPF = TCM(ML_Custom_FixedPoint_Format)
 
@@ -130,14 +149,14 @@ fixed_c_code_generation_table = {
   TypeCast: {
       None: {
           lambda optree: True: {
-              type_custom_match(MCFIPF, FSM(ML_Int64)):    IdentityOperator(),
-              type_custom_match(MCFIPF, FSM(ML_Int32)):    IdentityOperator(),
-              type_custom_match(MCFIPF, FSM(ML_UInt64)):   IdentityOperator(),
-              type_custom_match(MCFIPF, FSM(ML_UInt32)):   IdentityOperator(),
-              type_custom_match(FSM(ML_Int32), MCFIPF):    IdentityOperator(),
-              type_custom_match(FSM(ML_UInt32), MCFIPF):    IdentityOperator(),
-              type_custom_match(FSM(ML_Int64), MCFIPF):    IdentityOperator(),
-              type_custom_match(FSM(ML_UInt64), MCFIPF):    IdentityOperator(),
+              type_custom_match(MCFIPF, FSM(ML_Int64)):    FixedCastOperator,
+              type_custom_match(MCFIPF, FSM(ML_Int32)):    FixedCastOperator,
+              type_custom_match(MCFIPF, FSM(ML_UInt64)):   FixedCastOperator,
+              type_custom_match(MCFIPF, FSM(ML_UInt32)):   FixedCastOperator,
+              type_custom_match(FSM(ML_Int32), MCFIPF):    FixedCastOperator,
+              type_custom_match(FSM(ML_UInt32), MCFIPF):    FixedCastOperator,
+              type_custom_match(FSM(ML_Int64), MCFIPF):    FixedCastOperator,
+              type_custom_match(FSM(ML_UInt64), MCFIPF):    FixedCastOperator,
           },
       },
   },

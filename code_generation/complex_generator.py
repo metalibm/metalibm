@@ -26,11 +26,15 @@ class ComplexOperator(ML_CG_Operator):
       code_generator.generate_expr
       """
 
-  def __init__(self, optree_modifier, **kwords):
+  def __init__(self, optree_modifier, backup_operator = None, **kwords):
     ML_CG_Operator.__init__(self, **kwords)
     self.optree_modifier = optree_modifier
+    self.backup_operator = backup_operator
 
   def generate_expr(self, code_generator, code_object, optree, arg_tuple, generate_pre_process = None, **kwords):
     new_optree = self.optree_modifier(optree)
-    return code_generator.generate_expr(code_object, new_optree, **kwords)
+    if new_optree is None and self.backup_operator != None:
+      return self.backup_operator.generate_expr(code_generator, code_object, optree, arg_tuple, generate_pre_process = generate_pre_process, **kwords)
+    else:
+      return code_generator.generate_expr(code_object, new_optree, **kwords)
 
