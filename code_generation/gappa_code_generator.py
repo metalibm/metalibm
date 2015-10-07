@@ -371,8 +371,8 @@ class GappaCodeGenerator:
         # copying pre-operation tree
         goal = pre_goal.copy(variable_copy_map)
         goal.set_attributes(precision = goal_precision, tag = "goal")
-        #print "goal: "
-        #print goal.get_str(depth = 3, display_precision = True)
+        print "goal: "
+        print goal.get_str(depth = 3, display_precision = True)
 
         # updating handle
         if update_handle:
@@ -390,6 +390,19 @@ class GappaCodeGenerator:
         return gappa_code
 
 
+    def get_interval_code_no_copy(self, goal, goal_precision = ML_Exact, update_handle = True, bound_list = []):
+
+        # copying pre-operation tree
+        goal.set_attributes(precision = goal_precision, tag = "goal")
+
+        gappa_code = GappaCodeObject()
+
+        #gappa_result_approx = self.generate_expr(gappa_code, goal, initial = False, exact = False)
+        self.add_goal(gappa_code, goal)
+        for v in bound_list:
+            self.add_hypothesis(gappa_code, v, v.get_interval())
+
+        return gappa_code
 
 
 
