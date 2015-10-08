@@ -452,11 +452,10 @@ class RoundOperator(FunctionOperator):
     def __init__(self, precision, direction = ML_RoundToNearest, **kwords): 
         directions_strings = {
           ML_RoundToNearest: "ne",
-          #ML_RoundTowardZero: "zr",
-          #ML_RoundTowardPlusInfty: "dn",
-          #ML_RoundTowardMinusInfty: "up",
+          ML_RoundTowardZero: "zr",
+          ML_RoundTowardPlusInfty: "up",
+          ML_RoundTowardMinusInfty: "dn",
         }
-        round_name = ""
         if isinstance(precision, ML_FP_Format):
           if precision == ML_Binary64:
             round_name = "float<ieee_64, " + directions_strings[direction] + ">"
@@ -468,7 +467,6 @@ class RoundOperator(FunctionOperator):
           round_name = "fixed<" + str(-precision.get_frac_size()) + ", " + directions_strings[direction] + ">"
         else:
           raise ValueError("Unknow precision type (is neither Fixed of Floating): ", precision)
-        print "toto: ", precision, round_name
         FunctionOperator.__init__(self, round_name, arity = 1, **kwords)
 
 

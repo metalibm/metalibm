@@ -86,7 +86,7 @@ class GappaCodeGenerator:
         goal_code = self.generate_expr(code_object, goal_optree, initial = True, language = Gappa_Code)
         code_object.add_goal(goal_code, goal_value)
 
-    def add_hint(self, code_object, hint_hypoth, hint_goal, hint_annotation = None):
+    def add_hint(self, code_object, hint_hypoth, hint_goal, hint_annotation = None, isApprox = False):
         hypoth_code = self.generate_expr(code_object, hint_hypoth, initial = False, folded = False, language = Gappa_Code)
         goal_code = self.generate_expr(code_object, hint_goal, initial = False, folded = False, language = Gappa_Code)
         if hint_annotation is not None:
@@ -96,7 +96,7 @@ class GappaCodeGenerator:
           self.declare_cst = declare_cst
         else:
           annotation_code = None
-        code_object.add_hint(hypoth_code, goal_code, annotation_code)
+        code_object.add_hint(hypoth_code, goal_code, annotation_code, isApprox)
 
 
     def generate_expr(self, code_object, optree, folded = True, result_var = None, initial = False, __exact = None, language = None, strip_outer_parenthesis = False):
@@ -138,7 +138,10 @@ class GappaCodeGenerator:
                 result = CodeExpression(precision.get_gappa_cst(optree.get_value()), precision)
 
         elif isinstance(optree, Conversion):
-            local_implementation = RoundOperator(optree.get_precision())
+            if optree.get_rounding_mode() is not None:
+              local_implementation = RoundOperator(optree.get_precision(), direction = optree.get_rounding_mode())
+            else:
+              local_implementation = RoundOperator(optree.get_precision())
             return local_implementation.generate_expr(self, code_object, optree, optree.inputs, folded = folded, result_var = result_var)
             
 
