@@ -16,7 +16,7 @@ from pythonsollya import *
 
 from ..core.ml_operations import Variable
 from .code_constant import C_Code, Gappa_Code
-from ..core.ml_formats import ML_GlobalRoundMode
+from ..core.ml_formats import ML_GlobalRoundMode, ML_Fixed_Format, ML_FP_Format
 
 from ..utility import version_info as ml_version_info
 
@@ -350,10 +350,16 @@ class GappaCodeObject(CodeObject):
         return result
 
     def gen_complete_goal(self):
-        result = "# goal\n"
-        hypothesis = " /\ ".join(["%s in %s" % (hc.get(), self.get_value_str(hv)) for hc, hv in self.hypothesis_table])
-        goal = " /\ ".join(["%s in %s" % (hc.get(), self.get_value_str(hv)) for hc, hv in self.goal_table])
-        result += "{ %s -> %s }\n\n" % (hypothesis, goal)
+        result = "# goalee\n"
+        hypothesis = []
+        for hc, hv in self.hypothesis_table:
+          hypothesis.append("%s in %s" % (hc.get(), self.get_value_str(hv)))
+          if isinstance(hc.precision, ML_Fixed_Format):
+            hypothesis.append("@FIX(%s,%s)" % (hc.get(), str(- hc.precision.get_frac_size())))
+          if isinstance(hc.precision, ML_FP_Format):
+            hypothesis.append("@FLT(%s,%s)" % (hc.get(), str(hc.precision.get_field_size()+1)))
+        goal = ["%s in %s" % (hc.get(), self.get_value_str(hv)) for hc, hv in self.goal_table]
+        result += "{ %s -> %s }\n\n" % (" /\ ".join(hypothesis), " /\ ".join(goal))
         return result
 
 
