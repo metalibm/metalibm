@@ -342,7 +342,6 @@ class ML_Log(ML_Function("ml_log")):
 
   def generate_scheme(self):
     memory_limit = 2500
-    sollya_precision = self.precision.sollya_object
 
     # local overloading of RaiseReturn operation
     def ExpRaiseReturn(*args, **kwords):
@@ -363,89 +362,102 @@ class ML_Log(ML_Function("ml_log")):
     print "\n\033[1mArgument reduction found:\033[0m [({},{}),({},{})] -> polynomials of degree {},{}, using {} bytes of memory".format(arg_reduc['size1'],arg_reduc['prec1'],arg_reduc['size2'],arg_reduc['prec2'],arg_reduc['degree_poly1'],arg_reduc['degree_poly2'],arg_reduc['sizeof_tables']) 
     
     print "\n\033[1mGenerate the first logarithm table:\033[0m containing {} elements, using {} bytes of memory".format(arg_reduc['length_table1'], arg_reduc['sizeof_table1'])
-    inv_table_1 = ML_Table(dimensions = [arg_reduc['length_table1'], 1],
+    inv_table_1 = ML_Table(dimensions = [arg_reduc['length_table1']],
                            storage_precision = ML_Custom_FixedPoint_Format(1, arg_reduc['prec1'], False),
                            tag = self.uniquify_name("inv_table_1"))
-    log_table_1 = ML_Table(dimensions = [arg_reduc['length_table1'], 1],
+    log_table_1 = ML_Table(dimensions = [arg_reduc['length_table1']],
                            storage_precision = ML_Custom_FixedPoint_Format(11, 128-11, False),
                            tag = self.uniquify_name("log_table_1"))
     for i in xrange(0, arg_reduc['length_table1']-1):
-      x1 = 1 + i/2**arg_reduc['size1']
-      inv_x1 = Division(Constant(1, precision = ML_Exact), x1,
-                        precision = ML_Custom_FixedPoint_Format(1, arg_reduc['prec1'], False),
-                        rounding_mode = ML_RoundTowardPlusInfty)
-      log_x1 = Constant(log(x1), precision = ML_Custom_FixedPoint_Format(11, 128-11, False))
-      inv_table_1[i][0] = inv_x1
-      log_table_1[i][0] = log_x1
-    
+      x1 = 1 + i/S2*arg_reduc['size1']
+      inv_x1 = ceil(S2**arg_reduc['prec1']/x1)*S2**arg_reduc['prec1']
+      log_x1 = floor(log(x1) * S2**(128-11))*S2**(11-128)
+      inv_table_1[i] = inv_x1 #Constant(inv_x1, precision = ML_Custom_FixedPoint_Format(1, arg_reduc['prec1'], False))
+      log_table_1[i] = log_x1 #Constant(log_x1, precision = ML_Custom_FixedPoint_Format(11, 128-11, False))
+
     print "\n\033[1mGenerate the second logarithm table:\033[0m containing {} elements, using {} bytes of memory".format(arg_reduc['length_table2'], arg_reduc['sizeof_table2'])
-    inv_table_2 = ML_Table(dimensions = [arg_reduc['length_table2'], 1],
+    inv_table_2 = ML_Table(dimensions = [arg_reduc['length_table2']],
                            storage_precision = ML_Custom_FixedPoint_Format(1, arg_reduc['prec2'], False),
                            tag = self.uniquify_name("inv_table_2"))
-    log_table_2 = ML_Table(dimensions = [arg_reduc['length_table2'], 1],
+    log_table_2 = ML_Table(dimensions = [arg_reduc['length_table2']],
                            storage_precision = ML_Custom_FixedPoint_Format(11, 128-11, False),
                            tag = self.uniquify_name("log_table_2"))
     for i in xrange(0, arg_reduc['length_table2']-1):
-      x1 = 1 + i/2**arg_reduc['size2']
-      inv_x1 = Division(Constant(1, precision = ML_Exact), x1,
-                        precision = ML_Custom_FixedPoint_Format(1, arg_reduc['prec2'], False),
-                        rounding_mode = ML_RoundTowardPlusInfty)
-      log_x1 = Constant(log(x1), precision = ML_Custom_FixedPoint_Format(11, 128-11, False))
-      inv_table_2[i][0] = inv_x1
-      log_table_2[i][0] = log_x1
+      y1 = 1 + i/S2**arg_reduc['size2']
+      inv_y1 = ceil(S2**arg_reduc['prec2']/x1) * S2**arg_reduc['prec2']
+      log_y1 = floor(log(inv_y1) * S2**(128-11))*S2**(11-128)
+      inv_table_2[i] = inv_y1 #Constant(inv_y1, precision = ML_Custom_FixedPoint_Format(1, arg_reduc['prec2'], False))
+      log_table_2[i] = log_y1 #Constant(log_y1, precision = ML_Custom_FixedPoint_Format(11, 128-11, False))
     
     ### Evaluation Scheme ###
     
     print "\n\033[1mGenerate the evaluation scheme:\033[0m"
     input_var = self.implementation.add_input_variable("input_var", self.precision) 
     ve = ExponentExtraction(input_var, tag = "x_exponent", debug = debugd)
-    vx = MantissaExtraction(input_var, tag = "x_mantissa", precision = ML_Custom_FixedPoint_Format(1,52,False), debug = debug_lftolx)
+    vx = MantissaExtraction(input_var, tag = "x_mantissa", precision = ML_Custom_FixedPoint_Format(0,52,False), debug = debug_lftolx)
+    #vx = MantissaExtraction(input_var, tag = "x_mantissa", precision = self.precision, debug = debug_lftolx)
 
-    print "First argument reduction: "
-    _binary_mantissa = TypeCast(vx, precision = ML_UInt64, debug = debuglx)
-    _vx_mantissa = TypeCast(BitLogicAnd(_binary_mantissa, Constant(1, precision = ML_UInt64)**52-1),
-                            precision = ML_Custom_FixedPoint_Format(0,52,False))
-    
-    table_1_idx = TypeCast(Conversion(_vx_mantissa,
-                                      precision = ML_Custom_FixedPoint_Format(0,arg_reduc['size1'],False)),
-                           precision = ML_Integer)
-
-    #table_1_idx = BitLogicRightShift(TypeCast(_vx_mantissa, precision = ML_UInt64), 52 - arg_reduc['size1'])
-    print "index for first table: ", table_1_idx
-    # TableLoad is of type FixedPoint(1,9,False)
-    _red_vx = Multiplication(Addition(1,_vx_mantissa, precision = ML_Custom_FixedPoint_Format(1,52,False)),
-                             TableLoad(inv_table_1, table_1_idx, 0),
-                             tag = "_vy", debug=debug_lftolx, precision = ML_Custom_FixedPoint_Format(2, 52+9, False))
-    _red_log = TableLoad(log_table_1, table_1_idx, 0, tag = "red_log_1");
-    
-
-    approx_interval = Interval(0, 27021597764222975*S2**-61)
-    
-    print "Second argument reduction: not yet implemented"
-    print "Polynomials generation"
-    poly_degree = 1+sup(guessdegree(log(1+x)/x, approx_interval, S2**-(self.precision.get_field_size())))
-    print "degree required: ", poly_degree
-    global_poly_object = Polynomial.build_from_approximation(log(1+x)/x, poly_degree, [1] + [self.precision]*(poly_degree), approx_interval, absolute)
-    poly_object = global_poly_object.sub_poly(start_index = 1)
-    print "generate polynomial evaluation scheme"
-    _poly = PolynomialSchemeEvaluator.generate_horner_scheme(poly_object, _red_vx, unified_precision = self.precision)
-    _poly.set_attributes(tag = "poly", debug = debug_lftolx)
-    print "generated polynomial: ", global_poly_object.get_sollya_object()
-
-    print "pre result: "
-    pre_result = ve * log(2) + _red_log + _poly * _red_vx
-
-    # handling special cases
-    test_nan_or_inf = Test(input_var, specifier = Test.IsInfOrNaN, likely = False, debug = True, tag = "nan_or_inf")
-    test_nan =        Test(input_var, specifier = Test.IsNaN, debug = True, tag = "is_nan_test")
-    test_positive   = Comparison(input_var, 0, specifier = Comparison.GreaterOrEqual, debug = True, tag = "inf_sign")
-    test_signaling_nan = Test(input_var, specifier = Test.IsSignalingNaN, debug = True, tag = "is_signaling_nan")
-    return_snan = Statement(ExpRaiseReturn(ML_FPE_Invalid, return_value = FP_QNaN(self.precision)))
-    vx_is_not_normal_positive = LogicalNot(Test(input_var, specifier = Test.IsIEEENormalPositive, likely = True, debug = debugd, tag = "is_special_cases"))
-    return ConditionBlock(vx_is_not_normal_positive,
-      Return(FP_QNaN(self.precision)),
-      Return(pre_result)
+    print "filtering and handling special cases"
+    test_is_special_cases = LogicalNot(Test(input_var, specifier = Test.IsIEEENormalPositive, likely = True, debug = debugd, tag = "is_special_cases"))
+    handling_special_cases = Statement(
+      ConditionBlock(
+        Test(input_var, specifier = Test.IsSignalingNaN, debug = True),
+        ExpRaiseReturn(ML_FPE_Invalid, return_value = FP_QNaN(self.precision))
+      ),
+      ConditionBlock(
+        Test(input_var, specifier = Test.IsNaN, debug = True),
+        Return(input_var)
+      )#,
+      # TODO: add tests for x == 0 (raise DivideByZero, return -Inf), x < 0 (raise InvalidOperation, return qNaN)
+      # all that remains is x is a subnormal positive
+      #Statement(
+      #  ReferenceAssign(Dereference(ve), Subtraction(ve, Subtraction(CountLeadingZeros(input_var, tag = 'subnormal_clz', precision = ve.get_precision()), Constant(12, precision = ve.get_precision())))),
+      #  ReferenceAssign(Dereference(vx), BitLogicLeftShift(vx, Addition(CountLeadingZeros(input_var, tag = 'subnormal_clz', precision = ve.get_precision()), Constant(1, precision = ve.get_precision()))))
+      #)
     )
+    
+    print "doing the argument reduction"
+    v_dx = vx
+    v_x1 = Conversion(v_dx, tag = 'x1',
+                      precision = ML_Custom_FixedPoint_Format(0,arg_reduc['size1'],False),
+                      rounding_mode = ML_RoundTowardMinusInfty)
+    v_index_x = TypeCast(v_x1, tag = 'index_x',
+                        precision = ML_Int32) #ML_Custom_FixedPoint_Format(v_x1.get_precision().get_c_bit_size(), 0, False))
+    v_inv_x = TableLoad(inv_table_1, v_index_x, tag = 'inv_x')
+    v_x = Addition(v_dx, 1, tag = 'x',
+                   precision = ML_Custom_FixedPoint_Format(1,52,False))
+    v_dy = Multiplication(v_x, v_inv_x, tag = 'dy',
+                          precision = ML_Custom_FixedPoint_Format(0,52+arg_reduc['prec1'],False))
+    v_y1 = Conversion(v_dy, tag = 'y1',
+                      precision = ML_Custom_FixedPoint_Format(0,arg_reduc['size2'],False),
+                      rounding_mode = ML_RoundTowardMinusInfty)
+    v_index_y = TypeCast(v_y1, tag = 'index_y',
+                        precision = ML_Int32) #ML_Custom_FixedPoint_Format(v_y1.get_precision().get_c_bit_size(), 0, False))
+    v_inv_y = TableLoad(inv_table_2, v_index_y, tag = 'inv_y')
+    v_y = Addition(v_dy, 1, tag = 'y',
+                   precision = ML_Custom_FixedPoint_Format(1,52+arg_reduc['prec2'],False))
+    # note that we limit the number of bits used to represent dz to 64.
+    # we proved during the arg reduction that we can do that (sup(out_interval) < 2^(64-52-prec1-prec2))
+    v_dz = Multiplication(v_y, v_inv_y, tag = 'z',
+                          precision = ML_Custom_FixedPoint_Format(64-52-arg_reduc['prec1']-arg_reduc['prec2'],52+arg_reduc['prec1']+arg_reduc['prec2'],False))
+    # reduce the number of bits used to represent dz. we can do that
+    
+    print "doing the first polynomial evaluation"
+    global_poly1_object = Polynomial.build_from_approximation(log(1+x)/x, arg_reduc['degree_poly1']-1, [64] * (arg_reduc['degree_poly1']), arg_reduc['out_interval'], fixed, absolute)
+    poly1_object = global_poly1_object.sub_poly(start_index = 1)
+    print global_poly1_object
+    print poly1_object
+    poly1 = PolynomialSchemeEvaluator.generate_horner_scheme(poly1_object, v_dz, unified_precision = v_dz.get_precision())
+    return ConditionBlock(test_is_special_cases, handling_special_cases, Return(poly1))
+
+    #approx_interval = Interval(0, 27021597764222975*S2**-61)
+    
+    #poly_degree = 1+sup(guessdegree(log(1+x)/x, approx_interval, S2**-(self.precision.get_field_size())))
+    #global_poly_object = Polynomial.build_from_approximation(log(1+x)/x, poly_degree, [1] + [self.precision]*(poly_degree), approx_interval, absolute)
+    #poly_object = global_poly_object.sub_poly(start_index = 1)
+    #_poly = PolynomialSchemeEvaluator.generate_horner_scheme(poly_object, _red_vx, unified_precision = self.precision)
+    #_poly.set_attributes(tag = "poly", debug = debug_lftolx)
+
     """
 
     int_precision = ML_Int64
