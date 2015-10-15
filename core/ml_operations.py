@@ -836,9 +836,6 @@ class ExponentExtraction(AbstractOperationConstructor("ExponentExtraction", arit
 class RawSignExpExtraction(AbstractOperationConstructor("RawSignExpExtraction", arity = 1)):
     pass
 
-class RawMantissaExtraction(AbstractOperationConstructor("RawMantissaExtraction", arity = 1)):
-    pass
-
 class CountLeadingZeros(AbstractOperationConstructor("CountLeadingZeros", arity = 1)):
     pass
 

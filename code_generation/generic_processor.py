@@ -340,7 +340,9 @@ c_code_generation_table = {
         None: {
             lambda optree: True: {
                 type_strict_match(ML_Binary32, ML_Binary32): ML_Utils_Function("ml_mantissa_extraction_fp32", arity = 1), 
-                type_strict_match(ML_Binary64, ML_Binary64): ML_Utils_Function("ml_mantissa_extraction_fp64", arity = 1), 
+                type_strict_match(ML_Binary64, ML_Binary64): ML_Utils_Function("ml_mantissa_extraction_fp64", arity = 1),
+                type_strict_match(ML_Custom_FixedPoint_Format(0,52,False), ML_Binary64): ML_Utils_Function("ml_raw_mantissa_extraction_fp64", arity = 1),
+                type_strict_match(ML_Custom_FixedPoint_Format(0,23,False), ML_Binary32): ML_Utils_Function("ml_raw_mantissa_extraction_fp32", arity = 1),
             },
         },
     },
@@ -349,14 +351,6 @@ c_code_generation_table = {
             lambda optree: True: {
                 type_strict_match(ML_Int32, ML_Binary32): FunctionOperator("ml_raw_sign_exp_extraction_fp32", arity = 1), 
                 type_strict_match(ML_Int32, ML_Binary64): FunctionOperator("ml_raw_sign_exp_extraction_fp64", arity = 1), 
-            },
-        },
-    },
-    RawMantissaExtraction: {
-        None: {
-            lambda optree: True: {
-                type_strict_match(ML_UInt32, ML_Binary32): FunctionOperator("ml_raw_mantissa_extraction_fp32", arity = 1), 
-                type_strict_match(ML_UInt64, ML_Binary64): FunctionOperator("ml_raw_mantissa_extraction_fp64", arity = 1), 
             },
         },
     },
