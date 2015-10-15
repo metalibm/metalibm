@@ -22,29 +22,6 @@ from .generic_processor import GenericProcessor
 from metalibm_core.core.target import TargetRegister
 
 
-def get_fixed_support_format(precision):
-  """ return the ML's integer format to contains
-      the fixed-point format precision """
-  format_map = {
-    # signed
-    True: {
-      8: ML_Int8, 
-      16: ML_Int16, 
-      32: ML_Int32, 
-      64: ML_Int64, 
-      128: ML_Int128, 
-    },
-    # unsigned
-    False: {
-      8: ML_UInt8, 
-      16: ML_UInt16, 
-      32: ML_UInt32, 
-      64: ML_UInt64, 
-      128: ML_UInt128, 
-    },
-  }
-  return format_map[precision.get_signed()][precision.get_c_bit_size()]
-
 def add_modifier(optree):
   """ modify addition optree to be mapped on standard integer format 
       every operand is assumed to be in fixed-point precision """
@@ -62,12 +39,35 @@ def add_modifier(optree):
   rf_is = optree_format.get_integer_size()
 
   tmp_format = ML_Custom_FixedPoint_Format(rf_is, rf_fs)
-  support_format = get_fixed_support_format(tmp_format) 
+  support_format = get_std_integer_support_format(tmp_format) 
   op0_conv = TypeCast(Conversion(op0, precision = tmp_format), precision = support_format)
   op1_conv = TypeCast(Conversion(op1, precision = tmp_format), precision = support_format)
 
   tmp_result = TypeCast(Addition(op0_conv, op1_conv, precision = support_format), precision = tmp_format)
   return Conversion(tmp_result, precision = optree.get_precision())
+
+def mul_modifier(optree):
+  """ modify addition optree to be mapped on standard integer format 
+      every operand is assumed to be in fixed-point precision """
+  op0, op1 = optree.get_inputs()
+  op0_format = op0.get_precision()
+  op1_format = op1.get_precision()
+  optree_format = optree.get_precision()
+
+  # make sure formats are as assumed
+  assert (isinstance(op0_format, ML_Fixed_Format) and isinstance(op1_format, ML_Fixed_Format) and isinstance(optree_format, ML_Fixed_Format)), "operands format must be fixed-point in add_modifier"
+  
+  tmp_format = ML_Custom_FixedPoint_Format(
+    min(optree_format.get_integer_size(), op0_format.get_integer_size() + op1_format.get_integer_size()),
+    op0_format.get_frac_size() + op1_format.get_frac_size(),
+    op0_format.get_signed() or op1_format.get_signed()
+  )
+  
+  op0_conv = TypeCast(op0, precision = get_std_integer_support_format(op0_format))
+  op1_conv = TypeCast(op1, precision = get_std_integer_support_format(op1_format))
+  tmp_conv = Multiplication(op0_conv, op1_conv, precision = get_std_integer_support_format(tmp_format))
+  tmp = TypeCast(tmp_conv, precision = tmp_format)
+  return Conversion(tmp, precision = optree_format)
 
 
 def CI(value):
@@ -81,8 +81,8 @@ def conv_modifier(optree):
   out_format = optree.get_precision()
 
   # support format
-  in_sformat = get_fixed_support_format(in_format)
-  out_sformat = get_fixed_support_format(out_format)
+  in_sformat = get_std_integer_support_format(in_format)
+  out_sformat = get_std_integer_support_format(out_format)
 
   # conversion when the output format is large than the input format
   if out_sformat.get_bit_size() >= in_sformat.get_bit_size():
@@ -115,11 +115,9 @@ def fixed_cast_modifier(optree):
 
   in_format = op0.get_precision()
   out_format = optree.get_precision()
-
-
   # support format
-  in_sformat = get_fixed_support_format(in_format)
-  out_sformat = get_fixed_support_format(out_format)
+  in_sformat = get_std_integer_support_format(in_format)
+  out_sformat = get_std_integer_support_format(out_format)
   if out_sformat == in_sformat:
     return op0
   else:
@@ -139,6 +137,13 @@ fixed_c_code_generation_table = {
       },
     },
   },
+  Multiplication: {
+    None: {
+      round_down_check: {
+        type_custom_match(MCFIPF, MCFIPF, MCFIPF) : ComplexOperator(optree_modifier = mul_modifier),
+      },
+    },
+  },
   Conversion: {
     None: {
       round_down_check: {
@@ -149,14 +154,10 @@ fixed_c_code_generation_table = {
   TypeCast: {
       None: {
           lambda optree: True: {
-              type_custom_match(MCFIPF, FSM(ML_Int64)):    FixedCastOperator,
-              type_custom_match(MCFIPF, FSM(ML_Int32)):    FixedCastOperator,
-              type_custom_match(MCFIPF, FSM(ML_UInt64)):   FixedCastOperator,
-              type_custom_match(MCFIPF, FSM(ML_UInt32)):   FixedCastOperator,
-              type_custom_match(FSM(ML_Int32), MCFIPF):    FixedCastOperator,
-              type_custom_match(FSM(ML_UInt32), MCFIPF):    FixedCastOperator,
-              type_custom_match(FSM(ML_Int64), MCFIPF):    FixedCastOperator,
-              type_custom_match(FSM(ML_UInt64), MCFIPF):    FixedCastOperator,
+              # type cast between two FixedPoint is the same as TypeCast between the support type
+              (lambda dst_type,src_type,**kwords:
+                  isinstance(dst_type, ML_Fixed_Format) and isinstance(src_type, ML_Fixed_Format)
+              ) : IdentityOperator(),
           },
       },
   },

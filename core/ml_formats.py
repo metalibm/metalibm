@@ -232,7 +232,7 @@ class ML_Base_FixedPoint_Format(ML_Fixed_Format):
         # guess the minimal bit_size required in the c repesentation
         bit_size = integer_size + frac_size
         if bit_size < 1 or bit_size > 128:
-            raise ValueError("integer_size+frac_size must be between 1 and 128")
+            raise ValueError("integer_size+frac_size must be between 1 and 128 (is "+str(bit_size)+")")
         possible_c_bit_sizes = [8, 16, 32, 64, 128]
         self.c_bit_size = next(n for n in possible_c_bit_sizes if n >= bit_size)
         self.c_name = ("" if self.signed else "u") + "int" + str(self.c_bit_size) + "_t"
@@ -318,6 +318,36 @@ ML_UInt64   = ML_Standard_FixedPoint_Format(64, 0, False)
 
 ML_Int128    = ML_Standard_FixedPoint_Format(128, 0, True)
 ML_UInt128   = ML_Standard_FixedPoint_Format(128, 0, False)
+
+
+def is_std_integer_format(precision):
+  return precision in [ML_Int8,ML_UInt8,ML_Int16,ML_UInt16,ML_Int32,ML_UInt32,ML_Int64,ML_UInt64,ML_Int128,ML_UInt128]
+
+def get_std_integer_support_format(precision):
+  """ return the ML's integer format to contains
+      the fixed-point format precision """
+  assert(isinstance(precision, ML_Fixed_Format))
+  format_map = {
+    # signed
+    True: {
+      8: ML_Int8,
+      16: ML_Int16,
+      32: ML_Int32,
+      64: ML_Int64,
+      128: ML_Int128,
+    },
+    # unsigned
+    False: {
+      8: ML_UInt8,
+      16: ML_UInt16,
+      32: ML_UInt32,
+      64: ML_UInt64,
+      128: ML_UInt128,
+    },
+  }
+  return format_map[precision.get_signed()][precision.get_c_bit_size()]
+
+
 
 # abstract formats
 ML_Integer  = AbstractFormat_Builder("ML_Integer",  (ML_Fixed_Format,))("ML_Integer")
