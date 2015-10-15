@@ -281,10 +281,14 @@ class ML_Base_FixedPoint_Format(ML_Fixed_Format):
         return str(cst_value)
 
 class ML_Standard_FixedPoint_Format(ML_Base_FixedPoint_Format):
-  pass
+    pass
 
 class ML_Custom_FixedPoint_Format(ML_Base_FixedPoint_Format):
-  pass
+    def __eq__(self, other):
+        return (type(self) == type(other)) and (self.__dict__ == other.__dict__)
+    
+    def __ne__(self, other):
+        return not (self == other)
 
 class ML_Bool_Format: 
     """ abstract Boolean format """
