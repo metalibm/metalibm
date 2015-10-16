@@ -217,13 +217,31 @@ class ML_FormatConstructor(ML_Format):
 
 class ML_Fixed_Format(ML_Format):
     """ parent to every Metalibm's fixed-point class """
-    pass
+    def __init__(self, support_format = None, align = 0):
+      # integer format used to contain the fixed-point value 
+      self.support_format = support_format
+
+      # offset between the support LSB and the actual value LSB 
+      self.support_right_align = align
+
+    def set_support_format(self, _format):
+      self.support_format = _format
+
+    def get_support_format(self):
+      return self.support_format
+
+    def set_support_right_align(self, align):
+      self.support_right_align = align
+
+    def get_support_right_align(self):
+      return self.support_right_align
 
 
 class ML_Base_FixedPoint_Format(ML_Fixed_Format):
     """ base class for standard integer format """
-    def __init__(self, integer_size, frac_size, signed = True):
+    def __init__(self, integer_size, frac_size, signed = True, support_format = None, align = 0):
         """ standard fixed-point format object initialization function """
+        ML_Fixed_Format.__init__(self, support_format, align)
         
         self.integer_size = integer_size
         self.frac_size = frac_size
@@ -281,7 +299,8 @@ class ML_Base_FixedPoint_Format(ML_Fixed_Format):
         return str(cst_value)
 
 class ML_Standard_FixedPoint_Format(ML_Base_FixedPoint_Format):
-  pass
+  def __init__(self, integer_size, frac_size, signed = True):
+    ML_Base_FixedPoint_Format.__init__(self, integer_size, frac_size, signed = signed, support_format = self, align = 0)
 
 class ML_Custom_FixedPoint_Format(ML_Base_FixedPoint_Format):
   pass
