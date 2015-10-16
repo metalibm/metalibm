@@ -66,8 +66,6 @@ abstract_typing_rule = {
         lambda *ops: ML_Float,
     RawSignExpExtraction: 
         lambda *ops: ML_Integer,
-    RawMantissaExtraction: 
-        lambda *ops: ML_Integer,
     CountLeadingZeros: 
         lambda *ops: ML_Integer,
     Comparison: 
@@ -136,8 +134,6 @@ practical_typing_rule = {
     MantissaExtraction: 
         lambda backend, op, dprec: backend.merge_abstract_format(op, op.inputs),
     RawSignExpExtraction:
-        lambda backend, op, dprec: backend.get_integer_format(op),
-    RawMantissaExtraction:
         lambda backend, op, dprec: backend.get_integer_format(op),
     CountLeadingZeros:
         lambda backend, op, dprec: backend.get_integer_format(op),
@@ -854,7 +850,7 @@ class OptimizationEngine:
             code_gen_key = optree.get_codegen_key()
             if code_gen_key in support_simplification[optree.__class__]:
                 for cond in support_simplification[optree.__class__][code_gen_key]:
-                    if cond(optree): return True
+                  if cond(optree): return True
         return False
 
     def get_support_simplification(self, optree):
@@ -920,9 +916,8 @@ class OptimizationEngine:
                     # look for possible simplification
                     if self.has_support_simplification(optree):
                         simplified_tree = self.get_support_simplification(optree)
-                        #Log.report(Log.Info, "simplifying %s" % optree.get_str(depth = 2, display_precision = True))
-                        #Log.report(Log.Info, "into %s" % simplified_tree.get_str(depth = 2, display_precision = True))
-
+                        Log.report(Log.Info, "simplifying %s" % optree.get_str(depth = 2, display_precision = True))
+                        Log.report(Log.Info, "into %s" % simplified_tree.get_str(depth = 2, display_precision = True))
                         optree.change_to(simplified_tree)
                         if self.processor.is_supported_operation(optree):
                             memoization_map[optree] = True

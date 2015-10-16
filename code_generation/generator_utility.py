@@ -497,6 +497,10 @@ def type_all_match(*args, **kwords):
   """ match any type parameters """
   return True
 
+def type_std_integer_match(*arg, **kwords):
+  """ check that argument are all integers """
+  return all(map(is_std_integer_format, arg))
+
 # Type Class Match
 class TCM:
   """ Type Class Match """
