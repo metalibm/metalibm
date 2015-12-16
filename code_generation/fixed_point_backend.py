@@ -22,7 +22,7 @@ from .generic_processor import GenericProcessor
 from metalibm_core.core.target import TargetRegister
 
 
-def add_modifier(optree):
+def fixed_modifier(optree, op_class = Addition):
   """ modify addition optree to be mapped on standard integer format 
       every operand is assumed to be in fixed-point precision """
   op0, op1 = optree.get_inputs()
@@ -31,7 +31,7 @@ def add_modifier(optree):
   optree_format = optree.get_precision()
 
   # make sure formats are as assumed
-  assert (isinstance(op0_format, ML_Fixed_Format) and isinstance(op1_format, ML_Fixed_Format) and isinstance(optree_format, ML_Fixed_Format)), "operands format must be fixed-point in add_modifier"
+  assert (isinstance(op0_format, ML_Fixed_Format) and isinstance(op1_format, ML_Fixed_Format) and isinstance(optree_format, ML_Fixed_Format)), "operands format must be fixed-point in fixed_modifier"
 
   # result format frac_size
   rf_fs = max(min(op0_format.get_frac_size(), op1_format.get_frac_size()), optree.get_precision().get_frac_size())
@@ -45,6 +45,13 @@ def add_modifier(optree):
 
   tmp_result = TypeCast(Addition(op0_conv, op1_conv, precision = support_format), precision = tmp_format)
   return Conversion(tmp_result, precision = optree.get_precision())
+
+
+def add_modifier(optree):
+  return fixed_modifier(optree, op_class = Addition)
+
+def sub_modifier(optree):
+  return fixed_modifier(optree, op_class = Subtraction)
 
 def mul_modifier(optree):
   """ modify addition optree to be mapped on standard integer format 
@@ -123,7 +130,7 @@ def fixed_cast_modifier(optree):
   else:
     return None
 
-FixedCastOperator = ComplexOperator(optree_modifier = fixed_cast_modifier, backup_operator = IdentityOperator())
+FixedCastOperator = ComplexOperator(optree_modifier = fixed_cast_modifier, backup_operator = IdentityOperator(force_folding = False, no_parenthesis = True))
 
 
 # class Match custom fixed point format
@@ -134,6 +141,13 @@ fixed_c_code_generation_table = {
     None: {
       round_down_check: {
         type_custom_match(MCFIPF, MCFIPF, MCFIPF) : ComplexOperator(optree_modifier = add_modifier), 
+      },
+    },
+  },
+  Subtraction: {
+    None: {
+      round_down_check: {
+        type_custom_match(MCFIPF, MCFIPF, MCFIPF) : ComplexOperator(optree_modifier = sub_modifier), 
       },
     },
   },
@@ -157,7 +171,7 @@ fixed_c_code_generation_table = {
               # type cast between two FixedPoint is the same as TypeCast between the support type
               (lambda dst_type,src_type,**kwords:
                   isinstance(dst_type, ML_Fixed_Format) and isinstance(src_type, ML_Fixed_Format)
-              ) : IdentityOperator(),
+              ) : IdentityOperator(force_folding = False, no_parenthesis = True),
           },
       },
   },

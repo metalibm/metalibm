@@ -656,7 +656,7 @@ class GenericProcessor(AbstractProcessor):
                 if parent_proc.is_local_supported_operation(optree, language = language):
                     return parent_proc.get_implementation(optree, language).generate_expr(code_generator, code_object, optree, arg_tuple, **kwords)#folded = folded, result_var = result_var)
             # no implementation were found
-            Log.report(Log.Error, "the following operation is not supported by %s/%s: \n%s" % (self.__class__, language, optree.get_str(depth = 2, display_precision = True))) 
+            Log.report(Log.Error, "the following operation is not supported by %s/%s: \n%s" % (self.__class__, language, optree.get_str(depth = 2, display_precision = True, memoization_map = {}))) 
 
     def generate_supported_op_map(self, language = C_Code, table_getter = lambda self: self.code_generation_table):
         """ generate a map of every operations supported by the processor hierarchy,

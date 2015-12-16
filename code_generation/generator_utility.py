@@ -195,7 +195,10 @@ class IdentityOperator(ML_CG_Operator):
             code_object << code_generator.generate_assignation(result_varname, result_code) 
             return CodeVariable(result_varname, optree.get_precision())
         else:
-            return CodeExpression("(%s)" % result_code, optree.get_precision())
+            if self.no_parenthesis:
+                return CodeExpression("%s" % result_code, optree.get_precision())
+            else:
+                return CodeExpression("(%s)" % result_code, optree.get_precision())
 
 
 class SymbolOperator(ML_CG_Operator):
@@ -501,7 +504,8 @@ def type_std_integer_match(*arg, **kwords):
   """ check that argument are all integers """
   return all(map(is_std_integer_format, arg))
 
-# Type Class Match
+## Type Class Match, used to described match-test function
+#  based on the class of the precision rather than the format itself
 class TCM:
   """ Type Class Match """
   def __init__(self, format_class):
@@ -511,6 +515,9 @@ class TCM:
     return isinstance(arg_format, self.format_class)
 
 
+## Format Strict match, used to described match-test function
+#  based on the strict comparison of argument formats against
+#  expected formats
 class FSM:
   """ Format Strict Match """
   def __init__(self, format_obj):

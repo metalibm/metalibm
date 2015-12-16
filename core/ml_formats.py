@@ -12,52 +12,77 @@
 
 from pythonsollya import *
 
+## Class of rounding mode type
 class ML_FloatingPoint_RoundingMode_Type:
     def get_c_name(self):
         return "ml_rnd_mode_t"
 
+## Class of floating-point rounding mode
 class ML_FloatingPoint_RoundingMode:
     pass
 
+## ML type object for rounding modes
 ML_FPRM_Type = ML_FloatingPoint_RoundingMode_Type()
 
+## ML object for rounding to nearest mode
 ML_RoundToNearest        = ML_FloatingPoint_RoundingMode()
+## ML object for rounding toward zero mode
 ML_RoundTowardZero       = ML_FloatingPoint_RoundingMode()
+## ML object for rouding towards plus infinity mode
 ML_RoundTowardPlusInfty  = ML_FloatingPoint_RoundingMode()
+## ML object for rounding forwards minus infinity
 ML_RoundTowardMinusInfty = ML_FloatingPoint_RoundingMode()
+## ML object for current global rounding mode
 ML_GlobalRoundMode       = ML_FloatingPoint_RoundingMode()
 
-
+## class for floating-point exception
 class ML_FloatingPointException: pass
 
+## class for type of floating-point exceptions
 class ML_FloatingPointException_Type: 
-    def get_c_cst(self, value):
-        return "NONE"
+  ## dummy placeholder to generate C constant for FP exception (should raise error) 
+  def get_c_cst(self, value):
+    return "NONE"
 
+## ML object for floating-point exception type
 ML_FPE_Type = ML_FloatingPointException_Type()
 
+## ML object for floating-point underflow exception
 ML_FPE_Underflow    = ML_FloatingPointException()
+## ML object for floating-point overflow exception
 ML_FPE_Overflow     = ML_FloatingPointException()
+## ML object for floatingè-point inexact exception
 ML_FPE_Inexact      = ML_FloatingPointException()
+## ML object for floating-point invalid exception
 ML_FPE_Invalid      = ML_FloatingPointException()
+## ML object for floating-point divide by zero exception
 ML_FPE_DivideByZero = ML_FloatingPointException()
 
+
+## Ancestor class for Metalibm's format classes
 class ML_Format(object): 
     """ parent to every Metalibm's format class """
 
+    ## return the format's bit-size 
     def get_bit_size(self):
         """ <abstract> return the bit size of the format (if it exists) """
         print self # Exception ML_NotImplemented print
         raise ML_NotImplemented()
 
+    ## return the C code for args initialization
     def generate_c_initialization(self, *args):
       return None
 
+    ## return the C code for value assignation to var
+    # @param var variable assigned
+    # @param value value being assigned
+    # @param final boolean flag indicating if this assignation is the last in an assignation list
     def generate_c_assignation(self, var, value, final = True):
       final_symbol = ";\n" if final else ""
       return "%s = %s" % (var, value)
 
 
+## Ancestor class for abstract format
 class ML_AbstractFormat(ML_Format): 
     def __init__(self, c_name): 
         self.c_name = c_name
@@ -65,6 +90,8 @@ class ML_AbstractFormat(ML_Format):
     def __str__(self):
         return self.c_name
 
+    ## return the gappa constant corresponding to parameter
+    #  @param cst_value constant value being translated
     def get_gappa_cst(self, cst_value):
         """ C code for constante cst_value """
         display(hexadecimal)
@@ -73,8 +100,11 @@ class ML_AbstractFormat(ML_Format):
         else:
             return str(cst_value) 
 
+## ML object for exact format (no rounding involved)
 ML_Exact = ML_AbstractFormat("ML_Exact")
 
+
+## functor for abstract format construction
 def AbstractFormat_Builder(name, inheritance):
     field_map = {
         "name": name,
@@ -82,13 +112,16 @@ def AbstractFormat_Builder(name, inheritance):
     }
     return type(name, (ML_AbstractFormat,) + inheritance, field_map)
 
+
+## Ancestor class for instanciated formats
 class ML_InstanciatedFormat(ML_Format): pass
 
+## Ancestor class for all Floating-point formats
 class ML_FP_Format(ML_Format): 
     """ parent to every Metalibm's floating-point class """
     pass
 
-
+## Ancestor class for standard (as defined in IEEE-754) floating-point formats
 class ML_Std_FP_Format(ML_FP_Format):
     """ standard floating-point format base class """
 
@@ -102,6 +135,7 @@ class ML_Std_FP_Format(ML_FP_Format):
         self.sollya_object = sollya_object
         self.c_display_format = c_display_format
 
+    ## return the sollya object encoding the format precision
     def get_sollya_object(self):
       return self.sollya_object
 
