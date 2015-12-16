@@ -451,19 +451,35 @@ class ML_Faithful(ML_FunctionPrecision):
 class ML_CorrectlyRounded(ML_FunctionPrecision):
     pass
 
-class ML_DegradedAccuracyAbsolute(ML_FunctionPrecision):
-    """ absolute error accuracy """
-    def __init__(self, absolute_goal):
-        self.goal = absolute_goal
+class ML_DegradedAccuracy(ML_FunctionPrecision):
+  def __init__(self, goal):
+    self.goal = goal
 
-class ML_DegradedAccuracyRelative(ML_FunctionPrecision):
-    """ relative error accuracy """
-    def __init__(self, relative_goal):
-        self.goal = relative_goal
+  ## return the absolute or relative goal assocaited
+  #  with the accuracy object
+  def get_goal(self):
+    return self.goal
+
+class ML_DegradedAccuracyAbsolute(ML_DegradedAccuracy):
+  """ absolute error accuracy """
+  def __init__(self, absolute_goal):
+    ML_DegradedAccuracy.__init__(self, absolute_goal)
+
+  def __str__(self):
+    return "ML_DegradedAccuracyAbsolute(%s)" % self.goal
+
+class ML_DegradedAccuracyRelative(ML_DegradedAccuracy):
+  """ relative error accuracy """
+  def __init__(self, relative_goal):
+    ML_DegradedAccuracy.__init__(self, relative_goal)
+
+  def __str__(self):
+    return "ML_DegradedAccuracyRelative(%s)" % self.goal
 
 
-# degraded accuracy shorcuts
+## degraded absolute accuracy alias
 def daa(*args, **kwords):
     return ML_DegradedAccuracyAbsolute(*args, **kwords)
+## degraded relative accuracy alias
 def dar(*args, **kwords):
     return ML_DegradedAccuracyRelative(*args, **kwords)

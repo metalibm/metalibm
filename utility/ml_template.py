@@ -58,6 +58,9 @@ def accuracy_parser(accuracy_str):
     else:
         return eval(accuracy_str)
 
+def interval_parser(interval_str):
+  return eval(interval_str)
+
 
 
 
@@ -82,10 +85,12 @@ class ML_ArgTemplate:
     self.fast_path       = test_flag_option("--no-fpe", False, True, parse_arg = parse_arg, help_map = self.help_map, help_str = "disable Fast Path Extraction")
     self.dot_product_enabled = test_flag_option("--dot-product", True, False, parse_arg = parse_arg, help_map = self.help_map, help_str = "enable Dot Product fusion")
     self.display_after_opt = test_flag_option("--display-after-opt", True, False, parse_arg = parse_arg, help_map = self.help_map, help_str = "display MDL IR after optimization")
+    input_interval = extract_option_value("--input-interval", "Interval(0,1)", parse_arg = parse_arg, processing = interval_parser, help_map = self.help_map, help_str = "select input range")
 
-    self.accuracy   = accuracy_value
+    self.accuracy        = accuracy_value
     self.target          = target_map[target_name]()
     self.precision       = precision_map[precision_name]
+    self.input_interval  = input_interval
   
     if check:
       self.check_args(parse_arg, exit_on_info)
