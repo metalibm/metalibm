@@ -34,6 +34,9 @@ from metalibm_core.utility.gappa_utils import is_gappa_installed
     
 
 
+## Fast implementation of trigonometric function sine and cosine
+#  Focuses on speed rather than on accuracy. Accepts --accuracy
+#  and --input-interval options
 class ML_FastSinCos(ML_Function("ml_fast_cos")):
   """ Implementation of cosinus function """
   def __init__(self, 
@@ -99,14 +102,9 @@ class ML_FastSinCos(ML_Function("ml_fast_cos")):
     Log.report(Log.Info, "input interval: %s " % self.input_interval)
 
     accuracy_goal = self.accuracy.get_goal()
+    Log.report(Log.Verbose, "accuracy_goal=%f" % accuracy_goal)
     computation_precision = self.precision
 
-    # polynomial approximation
-    approx_interval = self.input_interval
-    poly_degree = sup(guessdegree(cos(x), approx_interval, accuracy_goal))
-    Log.report(Log.Info, "poly degree: %d" % poly_degree)
-
-    poly_object = Polynomial.build_from_approximation(cos(x), poly_degree, [computation_precision] * (poly_degree+1), approx_interval, absolute)
 
     table_size_log = 8
     integer_size = 31
@@ -114,17 +112,24 @@ class ML_FastSinCos(ML_Function("ml_fast_cos")):
 
     max_bound = sup(abs(self.input_interval))
     max_bound_log = int(ceil(log2(max_bound)))
+    Log.report(Log.Verbose, "max_bound_log=%s " % max_bound_log)
     scaling_power = integer_size - max_bound_log
 
     storage_precision = ML_Custom_FixedPoint_Format(3, 29)
 
+    Log.report(Log.Info, "tabulating cosine and sine")
     # cosine table
     cos_table = ML_Table(dimensions = [2**table_size_log, 1], storage_precision = ML_Int32, tag = self.uniquify_name("cos_table"))
+    sin_table = ML_Table(dimensions = [2**table_size_log, 1], storage_precision = ML_Int32, tag = self.uniquify_name("sin_table"))
     # filling table
     for i in xrange(2**table_size_log):
       local_x   = i / S2**table_size_log * S2**max_bound_log
+
       cos_local = nearestint(cos(local_x) * S2**storage_precision.get_frac_size())
       cos_table[i][0] = cos_local
+
+      sin_local = nearestint(sin(local_x) * S2**storage_precision.get_frac_size())
+      sin_table[i][0] = sin_local
 
     # argument reduction evaluation scheme
     scaling_factor = Constant(S2**scaling_power, precision = self.precision)
@@ -141,16 +146,43 @@ class ML_FastSinCos(ML_Function("ml_fast_cos")):
     table_index = BitLogicRightShift(TypeCast(red_vx, precision = ML_Int32), 32 - table_size_log)
 
     tabulated_cos = TableLoad(cos_table, table_index, 0, tag = "tab_cos")
+    tabulated_sin = TableLoad(cos_table, table_index, 0, tag = "tab_sin")
 
-    result = red_vx_lo # Conversion(red_vx_lo, precision = self.precision)
+    Log.report(Log.Info, "building polynomial approximation for cosine")
+    # cosine polynomial approximation
+    poly_interval = Interval(0, S2**(max_bound_log - table_size_log))
+    Log.report(Log.Verbose, "poly_interval=%s " % poly_interval)
+    cos_poly_degree = int(sup(guessdegree(cos(x), poly_interval, accuracy_goal)))
+    Log.report(Log.Verbose, "cos_poly_degree=%s" % cos_poly_degree)
+    if cos_poly_degree == 0:
+      Log.report(Log.Verbose, "0-degree cosine approximation")
+      cos_eval_scheme = Constant(1, precision = computation_precision)
+
+    else: 
+      Log.report(Log.Verbose, "cosine polynomial approximation")
+      cos_poly_object = Polynomial.build_from_approximation(cos(x), cos_poly_degree, [computation_precision.get_bit_size()] * (cos_poly_degree+1), poly_interval, absolute)
+      cos_eval_scheme = PolynomialSchemeEvaluator.generate_horner_scheme(cos_poly_object, red_vx_lo, unified_precision = computation_precision)
+
+    Log.report(Log.Info, "building polynomial approximation for sine")
+    # sine polynomial approximation
+    sin_poly_degree = int(sup(guessdegree(sin(x), poly_interval, accuracy_goal)))
+    Log.report(Log.Info, "sine poly degree: %d" % sin_poly_degree)
+    if sin_poly_degree == 0:
+      Log.report(Log.Verbose, "0-degree sine approximation")
+      sin_eval_scheme = red_vx_lo
+
+    else:
+      Log.report(Log.Verbose, "sine polynomial approximation")
+      sin_poly_object = Polynomial.build_from_approximation(sin(x)/x, sin_poly_degree, [computation_precision.get_bit_size()] * (sin_poly_degree+1), poly_interval, absolute)
+      sin_eval_scheme = PolynomialSchemeEvaluator.generate_horner_scheme(sin_poly_object, red_vx_lo, unified_precision = computation_precision)
 
     # polynomial evaluation scheme
     Log.report(Log.Info, "generating implementation scheme")
     if self.debug_flag: 
         Log.report(Log.Info, "debug has been enabled")
 
-    #poly_scheme = PolynomialSchemeEvaluator.generate_horner_scheme(poly_object, vx, unified_precision = computation_precision)
 
+    result = cos_eval_scheme * tabulated_cos - sin_eval_scheme * tabulated_sin
 
 
     scheme = Statement(
