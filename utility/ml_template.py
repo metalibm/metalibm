@@ -87,6 +87,10 @@ class ML_ArgTemplate:
     self.display_after_opt = test_flag_option("--display-after-opt", True, False, parse_arg = parse_arg, help_map = self.help_map, help_str = "display MDL IR after optimization")
     input_interval = extract_option_value("--input-interval", "Interval(0,1)", parse_arg = parse_arg, processing = interval_parser, help_map = self.help_map, help_str = "select input range")
 
+    verbose_enable = test_flag_option("--verbose", True, False, parse_arg = parse_arg, help_map = self.help_map, help_str = "enable Verbose log level")
+    if verbose_enable:
+      Log.enable_level(Log.Verbose)
+
     self.accuracy        = accuracy_value
     self.target          = target_map[target_name]()
     self.precision       = precision_map[precision_name]

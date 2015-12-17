@@ -34,6 +34,10 @@ class Log:
     Info = LogLevel("Info")
     Error = LogLevel("Error")
     Debug = LogLevel("Debug")
+    Verbose = LogLevel("Verbose")
+
+    # list of enabled log levels
+    enabled_levels = [Warning, Info, Error]
 
     def report(level, msg, eol = "\n"):
         """ report log message """
@@ -41,11 +45,23 @@ class Log:
             Log.log_stream.write(msg + eol)
             if Log.dump_stdout: 
               print "%s: %s" % (level.name, msg)
-        else:
+        elif level in Log.enabled_levels:
             print "%s: %s" % (level.name, msg)
         if level is Log.Error:
             sys.exit(1)
             # raise Exception()
+
+    ## enable display of the specific log level
+    #  @param level log-level to be enabled
+    @staticmethod
+    def enable_level(level):
+      Log.enabled_levels.append(level)
+
+    ## disable display of the specific log level
+    #  @param level log-level to be disabled
+    @staticmethod
+    def disable_level(level):
+      Log.enabled_levels.remove(level)
 
     def set_log_stream(log_stream):
         Log.log_stream = log_stream
