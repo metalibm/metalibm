@@ -112,6 +112,22 @@ def conv_modifier(optree):
       return TypeCast(Conversion(in_s, precision = out_sformat), precision = out_format)
 
 
+def conv_from_fp_modifier(optree):
+  """ lower the Conversion optree to from floaint-point to std integer formats """
+  op0 = optree.get_input(0)
+
+  in_format = op0.get_precision()
+  out_format = optree.get_precision()
+
+  # support format
+  out_sformat = get_std_integer_support_format(out_format)
+
+  scaling_factor = Constant(S2**out_format.get_frac_size(), precision = in_format)
+  scaling_input = NearestInteger(Multiplication(scaling_factor, optree, precision = in_format), precision = out_sformat)
+  result = TypeCast(scaling_input, precision = out_format)
+  return result
+
+
 def round_down_check(optree):
   return optree.get_rounding_mode() in [None, ML_RoundTowardMinusInfty] 
 
@@ -162,7 +178,9 @@ fixed_c_code_generation_table = {
     None: {
       round_down_check: {
         type_custom_match(MCFIPF, MCFIPF) : ComplexOperator(optree_modifier = conv_modifier), 
+        type_custom_match(MCFIPF, FSM(ML_Binary32)) : ComplexOperator(optree_modifier = conv_from_fp_modifier), 
       },
+
     },
   },
   TypeCast: {
