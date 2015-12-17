@@ -3,6 +3,8 @@
 # Description: fast and low accuracy sine and cosine implementation
 #
 # Author(s): Nicolas Brunie (nicolas.brunie@kalray.eu)
+# Created:       December 16th, 2015
+# Last-modified: December 17th, 2015
 
 import sys
 
@@ -27,11 +29,6 @@ from metalibm_core.utility.log_report  import Log
 from metalibm_core.utility.debug_utils import *
 from metalibm_core.utility.num_utils   import ulp
 from metalibm_core.utility.gappa_utils import is_gappa_installed
-
-
-
-
-    
 
 
 ## Fast implementation of trigonometric function sine and cosine
@@ -103,7 +100,6 @@ class ML_FastSinCos(ML_Function("ml_fast_cos")):
 
     accuracy_goal = self.accuracy.get_goal()
     Log.report(Log.Verbose, "accuracy_goal=%f" % accuracy_goal)
-    computation_precision = self.precision
 
 
     table_size_log = 8
@@ -119,8 +115,8 @@ class ML_FastSinCos(ML_Function("ml_fast_cos")):
 
     Log.report(Log.Info, "tabulating cosine and sine")
     # cosine table
-    cos_table = ML_Table(dimensions = [2**table_size_log, 1], storage_precision = ML_Int32, tag = self.uniquify_name("cos_table"))
-    sin_table = ML_Table(dimensions = [2**table_size_log, 1], storage_precision = ML_Int32, tag = self.uniquify_name("sin_table"))
+    cos_table = ML_Table(dimensions = [2**table_size_log, 1], storage_precision = storage_precision, tag = self.uniquify_name("cos_table"))
+    sin_table = ML_Table(dimensions = [2**table_size_log, 1], storage_precision = storage_precision, tag = self.uniquify_name("sin_table"))
     # filling table
     for i in xrange(2**table_size_log):
       local_x   = i / S2**table_size_log * S2**max_bound_log
@@ -132,11 +128,13 @@ class ML_FastSinCos(ML_Function("ml_fast_cos")):
       sin_table[i][0] = sin_local
 
     # argument reduction evaluation scheme
-    scaling_factor = Constant(S2**scaling_power, precision = self.precision)
+    # scaling_factor = Constant(S2**scaling_power, precision = self.precision)
 
     red_vx_precision = ML_Custom_FixedPoint_Format(32 - scaling_power, scaling_power)
     # red_vx = NearestInteger(vx * scaling_factor, precision = integer_precision)
-    red_vx = Conversion(vx, precision = red_vx_precision)
+    red_vx = Conversion(vx, precision = red_vx_precision, tag = "red_vx")
+
+    computation_precision = red_vx_precision # self.precision
 
     hi_mask = 2**32 - 2**(32-table_size_log)
     red_vx_hi_int = BitLogicAnd(TypeCast(red_vx, precision = ML_Int32), hi_mask)
@@ -182,7 +180,10 @@ class ML_FastSinCos(ML_Function("ml_fast_cos")):
         Log.report(Log.Info, "debug has been enabled")
 
 
-    result = cos_eval_scheme * tabulated_cos - sin_eval_scheme * tabulated_sin
+    result_fixed = cos_eval_scheme * tabulated_cos - sin_eval_scheme * tabulated_sin
+    result_fixed.set_precision(ML_Custom_FixedPoint_Format(2,30))
+
+    result = Conversion(result_fixed, precision = self.precision)
 
 
     scheme = Statement(
