@@ -551,7 +551,11 @@ class type_custom_match:
         self.type_tuple = type_tuple
 
     def __call__(self, *arg_tuple, **kwords):
-        return reduce(lambda acc, v: acc and (v[0](v[1])), zip(self.type_tuple, arg_tuple))
+        acc = True
+        for match_func, t in zip(self.type_tuple, arg_tuple):
+          acc = acc and match_func(t)
+        return acc
+        #return reduce((lambda acc, v: acc and (v[0](v[1]))), zip(self.type_tuple, arg_tuple))
 
 class type_relax_match:
     """ implement a relaxed type comparison including ML_Exact as possible true answer """
