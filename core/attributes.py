@@ -45,11 +45,15 @@ class ML_Debug:
     def get_display_format(self, default = "%f"):
         return self.display_format if self.display_format else default
 
-    def get_pre_process(self, value_to_display):
+    def get_pre_process(self, value_to_display, optree):
         return self.pre_process(value_to_display)
 
     def get_require_header(self):
         return self.require_header
+
+class ML_AdvancedDebug(ML_Debug):
+  def get_pre_process(self, value_to_display, optree):
+    return self.pre_process(value_to_display, optree)
 
 
 ## Object to keep track of ML's node accross the several optimizations passes

@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
-from metalibm_core.core.attributes import ML_Debug
+from metalibm_core.core.attributes import ML_Debug, ML_AdvancedDebug
+from pythonsollya import *
 
 # debug utilities
 # display single precision and double precision numbers
@@ -21,6 +22,14 @@ debugd        = ML_Debug(display_format = "%d", pre_process = lambda v: "(int) %
 debugld        = ML_Debug(display_format = "%ld")
 
 debuglld        = ML_Debug(display_format = "%lld")
+
+
+def fixed_point_pre_process(value, optree):
+  scaling_factor = S2**-optree.get_precision().get_frac_size()
+  return "(%e * (double)%s), %s" % (scaling_factor, value, value)
+
+debug_fixed32 = ML_AdvancedDebug(display_format = "%e(%d)", pre_process = fixed_point_pre_process)
+debug_fixed64 = ML_AdvancedDebug(display_format = "%e(%lld)", pre_process = fixed_point_pre_process)
 
 # display hexadecimal of single precision fp number
 debug_ftox  = ML_Debug(display_format = "%e, %\"PRIx32\"", pre_process = lambda v: "%s, float_to_32b_encoding(%s)" % (v, v), require_header = ["support_lib/ml_utils.h"])
