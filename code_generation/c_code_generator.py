@@ -340,7 +340,7 @@ class CCodeGenerator:
               code_object.add_header(header)
         precision = optree.get_precision()
         display_format = debug_object.get_display_format(precision.get_c_display_format()) if isinstance(debug_object, ML_Debug) else precision.get_c_display_format()
-        display_result = debug_object.get_pre_process(result.get()) if isinstance(debug_object, ML_Debug) else result.get()
+        display_result = debug_object.get_pre_process(result.get(), optree) if isinstance(debug_object, ML_Debug) else result.get()
         debug_msg = "#ifdef ML_DEBUG\n"
         debug_msg += """printf("%s: %s\\n", %s);\n""" % (optree.get_tag(), display_format, display_result)
         debug_msg += "#endif\n"
