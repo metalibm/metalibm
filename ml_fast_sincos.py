@@ -30,6 +30,8 @@ from metalibm_core.utility.debug_utils import *
 from metalibm_core.utility.num_utils   import ulp
 from metalibm_core.utility.gappa_utils import is_gappa_installed
 
+# set sollya verbosity level to 0
+verbosity(0)
 
 ## Fast implementation of trigonometric function sine and cosine
 #  Focuses on speed rather than on accuracy. Accepts --accuracy
@@ -91,7 +93,6 @@ class ML_FastSinCos(ML_Function("ml_fast_cos")):
     # declaring CodeFunction and retrieving input variable
     vx = self.implementation.add_input_variable("x", self.precision)
 
-
     Log.report(Log.Info, "target: %s " % self.processor.target_name)
 
     # display parameter information
@@ -108,10 +109,11 @@ class ML_FastSinCos(ML_Function("ml_fast_cos")):
 
     max_bound = sup(abs(self.input_interval))
     max_bound_log = int(ceil(log2(max_bound)))
-    Log.report(Log.Verbose, "max_bound_log=%s " % max_bound_log)
+    Log.report(Log.Info, "max_bound_log=%s " % max_bound_log)
     scaling_power = integer_size - max_bound_log
+    Log.report(Log.Info, "scaling power: %s " % scaling_power)
 
-    storage_precision = ML_Custom_FixedPoint_Format(3, 29)
+    storage_precision = ML_Custom_FixedPoint_Format(2, 29, signed = True)
 
     Log.report(Log.Info, "tabulating cosine and sine")
     # cosine table
@@ -119,40 +121,41 @@ class ML_FastSinCos(ML_Function("ml_fast_cos")):
     sin_table = ML_Table(dimensions = [2**table_size_log, 1], storage_precision = storage_precision, tag = self.uniquify_name("sin_table"))
     # filling table
     for i in xrange(2**table_size_log):
-      local_x   = i / S2**table_size_log * S2**max_bound_log
+      local_x = i / S2**table_size_log * S2**max_bound_log
 
-      cos_local = nearestint(cos(local_x) * S2**storage_precision.get_frac_size())
+      cos_local = cos(local_x) # nearestint(cos(local_x) * S2**storage_precision.get_frac_size())
       cos_table[i][0] = cos_local
 
-      sin_local = nearestint(sin(local_x) * S2**storage_precision.get_frac_size())
+      sin_local = sin(local_x) # nearestint(sin(local_x) * S2**storage_precision.get_frac_size())
       sin_table[i][0] = sin_local
 
     # argument reduction evaluation scheme
     # scaling_factor = Constant(S2**scaling_power, precision = self.precision)
 
-    red_vx_precision = ML_Custom_FixedPoint_Format(32 - scaling_power, scaling_power)
+    red_vx_precision = ML_Custom_FixedPoint_Format(31 - scaling_power, scaling_power, signed = True)
+    Log.report(Log.Verbose, "red_vx_precision.get_c_bit_size()=%d" % red_vx_precision.get_c_bit_size())
     # red_vx = NearestInteger(vx * scaling_factor, precision = integer_precision)
-    red_vx = Conversion(vx, precision = red_vx_precision, tag = "red_vx")
+    red_vx = Conversion(vx, precision = red_vx_precision, tag = "red_vx", debug = debug_fixed32)
 
     computation_precision = red_vx_precision # self.precision
 
-    hi_mask = 2**32 - 2**(32-table_size_log)
-    red_vx_hi_int = BitLogicAnd(TypeCast(red_vx, precision = ML_Int32), hi_mask)
+    hi_mask = Constant(2**32 - 2**(32-table_size_log), precision = ML_Int32)
+    red_vx_hi_int = BitLogicAnd(TypeCast(red_vx, precision = ML_Int32), hi_mask, precision = ML_Int32)
     red_vx_hi = TypeCast(red_vx_hi_int, precision = red_vx_precision)
     red_vx_lo = red_vx - red_vx_hi
-    red_vx_lo.set_precision(red_vx_precision)
-    table_index = BitLogicRightShift(TypeCast(red_vx, precision = ML_Int32), 32 - table_size_log)
+    red_vx_lo.set_attributes(precision = red_vx_precision, tag = "red_vx_lo")
+    table_index = BitLogicRightShift(TypeCast(red_vx, precision = ML_Int32), scaling_power - (table_size_log - max_bound_log), precision = ML_Int32, tag = "table_index", debug = debugd)
 
-    tabulated_cos = TableLoad(cos_table, table_index, 0, tag = "tab_cos")
-    tabulated_sin = TableLoad(cos_table, table_index, 0, tag = "tab_sin")
+    tabulated_cos = TableLoad(cos_table, table_index, 0, tag = "tab_cos", precision = storage_precision, debug = debug_fixed32)
+    tabulated_sin = TableLoad(sin_table, table_index, 0, tag = "tab_sin", precision = storage_precision, debug = debug_fixed32)
 
     Log.report(Log.Info, "building polynomial approximation for cosine")
     # cosine polynomial approximation
     poly_interval = Interval(0, S2**(max_bound_log - table_size_log))
     Log.report(Log.Verbose, "poly_interval=%s " % poly_interval)
-    cos_poly_degree = int(sup(guessdegree(cos(x), poly_interval, accuracy_goal)))
+    cos_poly_degree = 2 # int(sup(guessdegree(cos(x), poly_interval, accuracy_goal)))
     Log.report(Log.Verbose, "cos_poly_degree=%s" % cos_poly_degree)
-    if cos_poly_degree == 0:
+    if cos_poly_degree == None:
       Log.report(Log.Verbose, "0-degree cosine approximation")
       cos_eval_scheme = Constant(1, precision = computation_precision)
 
@@ -163,27 +166,35 @@ class ML_FastSinCos(ML_Function("ml_fast_cos")):
 
     Log.report(Log.Info, "building polynomial approximation for sine")
     # sine polynomial approximation
-    sin_poly_degree = int(sup(guessdegree(sin(x), poly_interval, accuracy_goal)))
+    sin_poly_degree = 2 # int(sup(guessdegree(sin(x), poly_interval, accuracy_goal)))
     Log.report(Log.Info, "sine poly degree: %d" % sin_poly_degree)
-    if sin_poly_degree == 0:
+    if sin_poly_degree == None:
       Log.report(Log.Verbose, "0-degree sine approximation")
       sin_eval_scheme = red_vx_lo
 
     else:
       Log.report(Log.Verbose, "sine polynomial approximation")
       sin_poly_object = Polynomial.build_from_approximation(sin(x)/x, sin_poly_degree, [computation_precision.get_bit_size()] * (sin_poly_degree+1), poly_interval, absolute)
-      sin_eval_scheme = PolynomialSchemeEvaluator.generate_horner_scheme(sin_poly_object, red_vx_lo, unified_precision = computation_precision)
+      pre_sin_eval_scheme = PolynomialSchemeEvaluator.generate_horner_scheme(sin_poly_object, red_vx_lo, unified_precision = computation_precision)
+      sin_eval_scheme = Multiplication(pre_sin_eval_scheme, red_vx_lo, precision = computation_precision)
+
 
     # polynomial evaluation scheme
     Log.report(Log.Info, "generating implementation scheme")
     if self.debug_flag: 
         Log.report(Log.Info, "debug has been enabled")
 
+    sin_eval_scheme.set_attributes(debug = debug_fixed32)
+    cos_eval_scheme.set_attributes(debug = debug_fixed32)
 
-    result_fixed = cos_eval_scheme * tabulated_cos - sin_eval_scheme * tabulated_sin
-    result_fixed.set_precision(ML_Custom_FixedPoint_Format(2,30))
+    cos_mult = Multiplication(cos_eval_scheme, tabulated_cos, precision = computation_precision, tag = "cos_mult", debug = debug_fixed32)
+    sin_mult = Multiplication(sin_eval_scheme, tabulated_sin, precision = computation_precision, tag = "sin_mult", debug = debug_fixed32)
+    result_fixed = Subtraction(cos_mult, sin_mult, precision = computation_precision, tag = "result_fixed", debug = debug_fixed32)
 
     result = Conversion(result_fixed, precision = self.precision)
+
+
+    Log.report(Log.Verbose, "result operation tree :\n %s " % result.get_str(display_precision = True, depth = None, memoization_map = {}))
 
 
     scheme = Statement(
