@@ -249,6 +249,7 @@ class ML_FormatConstructor(ML_Format):
     def get_bit_size(self):
         return self.bit_size
 
+## Ancestor to fixed-point format
 class ML_Fixed_Format(ML_Format):
     """ parent to every Metalibm's fixed-point class """
     def __init__(self, support_format = None, align = 0):
@@ -332,6 +333,7 @@ class ML_Base_FixedPoint_Format(ML_Fixed_Format):
         """ Gappa-language constant generation """
         return str(cst_value)
 
+## Ancestor to standard (meaning integers)  fixed-point format
 class ML_Standard_FixedPoint_Format(ML_Base_FixedPoint_Format):
   def __init__(self, integer_size, frac_size, signed = True):
     ML_Base_FixedPoint_Format.__init__(self, integer_size, frac_size, signed = signed, support_format = self, align = 0)
