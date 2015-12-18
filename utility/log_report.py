@@ -16,8 +16,9 @@ from common import Callable
 
 class Log:
     """ log report class """
-    log_stream = None
-    dump_stdout = False
+    log_stream    = None
+    dump_stdout   = False
+    exit_on_error = True
 
     @staticmethod
     def set_dump_stdout(new_dump_stdout):
@@ -48,8 +49,10 @@ class Log:
         elif level in Log.enabled_levels:
             print "%s: %s" % (level.name, msg)
         if level is Log.Error:
-            sys.exit(1)
-            # raise Exception()
+            if Log.exit_on_error:
+              sys.exit(1)
+            else:
+              raise Exception()
 
     ## enable display of the specific log level
     #  @param level log-level to be enabled
