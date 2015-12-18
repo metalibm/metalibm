@@ -88,6 +88,11 @@ class ML_ArgTemplate:
     input_interval = extract_option_value("--input-interval", "Interval(0,1)", parse_arg = parse_arg, processing = interval_parser, help_map = self.help_map, help_str = "select input range")
 
     verbose_enable = test_flag_option("--verbose", True, False, parse_arg = parse_arg, help_map = self.help_map, help_str = "enable Verbose log level")
+
+    exception_on_error = test_flag_option("--exception-error", True, False, parse_arg = parse_arg, help_map = self.help_map, help_str = "convert Fatal error to python Exception rather than straight sys exit")
+
+    if exception_on_error:
+      Log.exit_on_error = False
     if verbose_enable:
       Log.enable_level(Log.Verbose)
 
@@ -107,6 +112,11 @@ class ML_ArgTemplate:
   def extract_option_value(self, *args, **kwords):
     return extract_option_value(*args, help_map = self.help_map, **kwords)
 
+  def display_help(self):
+    spacew = max(len(o) for o in self.help_map)
+    print "option list:"
+    for option_name in self.help_map:
+      print "  %s %s %s" % (option_name, " " * (spacew - len(option_name)), self.help_map[option_name])
 
   def check_args(self, parse_arg, exit_on_info = True):
     """ check that all options on command line have been parse
@@ -115,12 +125,10 @@ class ML_ArgTemplate:
     target_info_flag = test_flag_option("--target-info", True, False, parse_arg = parse_arg, help_map = self.help_map, help_str = "display the list of supported targets")
     for i in xrange(1, len(sys.argv)):
       if not i in parse_arg:
+        self.display_help()
         Log.report(Log.Error, "unknown command line argument: %s" % sys.argv[i])
     if help_flag:
-      spacew = max(len(o) for o in self.help_map)
-      print "option list:"
-      for option_name in self.help_map:
-        print "  %s %s %s" % (option_name, " " * (spacew - len(option_name)), self.help_map[option_name])
+      self.display_help()
       if exit_on_info: 
         sys.exit(0)
         return None
