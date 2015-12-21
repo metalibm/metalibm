@@ -49,6 +49,7 @@ class ML_FastSinCos(ML_Function("ml_fast_cos")):
                output_file = "cosf.c", 
                function_name = "cosf", 
                input_interval = Interval(0, 1),
+               table_size_log = 8,
                cos_output = True):
     # initializing I/O precision
     io_precisions = [precision] * 2
@@ -73,6 +74,7 @@ class ML_FastSinCos(ML_Function("ml_fast_cos")):
     self.cos_output = cos_output
     self.accuracy   = accuracy 
     self.input_interval = input_interval
+    self.table_size_log = table_size_log
 
 
 
@@ -103,7 +105,7 @@ class ML_FastSinCos(ML_Function("ml_fast_cos")):
     Log.report(Log.Verbose, "accuracy_goal=%f" % accuracy_goal)
 
 
-    table_size_log = 8
+    table_size_log = self.table_size_log
     integer_size = 31
     integer_precision = ML_Int32
 
@@ -153,9 +155,9 @@ class ML_FastSinCos(ML_Function("ml_fast_cos")):
     # cosine polynomial approximation
     poly_interval = Interval(0, S2**(max_bound_log - table_size_log))
     Log.report(Log.Verbose, "poly_interval=%s " % poly_interval)
-    cos_poly_degree = 2 # int(sup(guessdegree(cos(x), poly_interval, accuracy_goal)))
+    cos_poly_degree = int(sup(guessdegree(cos(x), poly_interval, accuracy_goal)))
     Log.report(Log.Verbose, "cos_poly_degree=%s" % cos_poly_degree)
-    if cos_poly_degree == None:
+    if cos_poly_degree == 0:
       Log.report(Log.Verbose, "0-degree cosine approximation")
       cos_eval_scheme = Constant(1, precision = computation_precision)
 
@@ -166,9 +168,9 @@ class ML_FastSinCos(ML_Function("ml_fast_cos")):
 
     Log.report(Log.Info, "building polynomial approximation for sine")
     # sine polynomial approximation
-    sin_poly_degree = 2 # int(sup(guessdegree(sin(x), poly_interval, accuracy_goal)))
+    sin_poly_degree = int(sup(guessdegree(sin(x), poly_interval, accuracy_goal)))
     Log.report(Log.Info, "sine poly degree: %d" % sin_poly_degree)
-    if sin_poly_degree == None:
+    if sin_poly_degree == 0:
       Log.report(Log.Verbose, "0-degree sine approximation")
       sin_eval_scheme = red_vx_lo
 
@@ -214,6 +216,7 @@ if __name__ == "__main__":
   # argument extraction 
   cos_output = arg_template.test_flag_option("--cos", True, False, parse_arg = arg_template.parse_arg, help_str = "select cos output") 
   enable_subexpr_sharing = arg_template.test_flag_option("--enable-subexpr-sharing", True, False, parse_arg = arg_template.parse_arg, help_str = "force subexpression sharing")
+  table_size_log = arg_template.extract_option_value("--table-size-log", 8, parse_arg = arg_template.parse_arg, help_str = "logarithm of the table size to be used", processing = lambda x: int(x))
 
   parse_arg_index_list = arg_template.sys_arg_extraction()
   arg_template.check_args(parse_arg_index_list)
@@ -229,5 +232,6 @@ if __name__ == "__main__":
                      accuracy                  = arg_template.accuracy,
                      output_file               = arg_template.output_file,
                      input_interval            = arg_template.input_interval,
+                     table_size_log            = table_size_log,
                      cos_output                = cos_output)
   ml_fastsincos.gen_implementation(display_after_opt = arg_template.display_after_opt, enable_subexpr_sharing = enable_subexpr_sharing)
