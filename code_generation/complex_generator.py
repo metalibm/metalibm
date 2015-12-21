@@ -48,3 +48,25 @@ class ComplexOperator(ML_CG_Operator):
     else:
       return code_generator.generate_expr(code_object, new_optree, **kwords)
 
+
+
+## Dynamic operator which adapts some of its parameters according
+#  to the optree being generated
+class DynamicOperator(ML_CG_Operator):
+  def __init__(self, dynamic_function, **kwords):
+    self.dynamic_function = dynamic_function
+
+  ## generate expression for operator
+  # @param self current operator
+  # @param code_generator CodeGenerator object used has helper for code generation services
+  # @param code_object    CobeObject receiving generated code
+  # @param optree         Operation object being generated
+  # @param arg_tuple      tuple of optree's arguments
+  # @param generate_pre_process  lambda function (None by default) used in preprocessing
+  # @param kwords         generic keywords dictionnary (see ML_CG_Operator() class for list of supported arguments)
+  def generate_expr(self, code_generator, code_object, optree, arg_tuple, generate_pre_process = None, **kwords):
+    generated_operator = self.dynamic_function(optree)
+    return generated_operator.generate_expr(code_generator, code_object, optree, arg_tuple, generate_pre_process = generate_pre_process, **kwords)
+
+
+
