@@ -140,11 +140,11 @@ class ML_FastSinCos(ML_Function("ml_fast_cos")):
     computation_precision = red_vx_precision # self.precision
 
     hi_mask = Constant(2**32 - 2**(32-table_size_log), precision = ML_Int32)
-    red_vx_hi_int = BitLogicAnd(TypeCast(red_vx, precision = ML_Int32), hi_mask, precision = ML_Int32)
-    red_vx_hi = TypeCast(red_vx_hi_int, precision = red_vx_precision)
+    red_vx_hi_int = BitLogicAnd(TypeCast(red_vx, precision = ML_Int32), hi_mask, precision = ML_Int32, tag = "red_vx_hi_int", debug = debugd)
+    red_vx_hi = TypeCast(red_vx_hi_int, precision = red_vx_precision, tag = "red_vx_hi", debug = debug_fixed32)
     red_vx_lo = red_vx - red_vx_hi
-    red_vx_lo.set_attributes(precision = red_vx_precision, tag = "red_vx_lo")
-    table_index = BitLogicRightShift(TypeCast(red_vx, precision = ML_Int32), scaling_power - (table_size_log - max_bound_log), precision = ML_Int32, tag = "table_index", debug = debugd)
+    red_vx_lo.set_attributes(precision = red_vx_precision, tag = "red_vx_lo", debug = debug_fixed32)
+    table_index = BitLogicRightShift(TypeCast(red_vx_hi, precision = ML_Int32), scaling_power - (table_size_log - max_bound_log), precision = ML_Int32, tag = "table_index", debug = debugd)
 
     tabulated_cos = TableLoad(cos_table, table_index, 0, tag = "tab_cos", precision = storage_precision, debug = debug_fixed32)
     tabulated_sin = TableLoad(sin_table, table_index, 0, tag = "tab_sin", precision = storage_precision, debug = debug_fixed32)
@@ -184,8 +184,8 @@ class ML_FastSinCos(ML_Function("ml_fast_cos")):
     if self.debug_flag: 
         Log.report(Log.Info, "debug has been enabled")
 
-    sin_eval_scheme.set_attributes(debug = debug_fixed32)
-    cos_eval_scheme.set_attributes(debug = debug_fixed32)
+    sin_eval_scheme.set_attributes(debug = debug_fixed32, tag = "sin_eval_scheme")
+    cos_eval_scheme.set_attributes(debug = debug_fixed32, tag = "cos_eval_scheme")
 
     cos_mult = Multiplication(cos_eval_scheme, tabulated_cos, precision = computation_precision, tag = "cos_mult", debug = debug_fixed32)
     sin_mult = Multiplication(sin_eval_scheme, tabulated_sin, precision = computation_precision, tag = "sin_mult", debug = debug_fixed32)
