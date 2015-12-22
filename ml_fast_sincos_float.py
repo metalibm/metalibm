@@ -115,13 +115,12 @@ class ML_FastSinCos(ML_Function("ml_fast_cos")):
     scaling_power = integer_size - max_bound_log
     Log.report(Log.Info, "scaling power: %s " % scaling_power)
 
-    storage_precision = ML_Custom_FixedPoint_Format(1, 30, signed = True)
+    storage_precision = ML_Binary32
 
     Log.report(Log.Info, "tabulating cosine and sine")
     # cosine table
     cos_table = ML_Table(dimensions = [2**table_size_log, 1], storage_precision = storage_precision, tag = self.uniquify_name("cos_table"))
     sin_table = ML_Table(dimensions = [2**table_size_log, 1], storage_precision = storage_precision, tag = self.uniquify_name("sin_table"))
-    fused_table = ML_Table(dimensions = [2**table_size_log, 2], storage_precision = storage_precision, tag = self.uniquify_name("cossin_table"))
     # filling table
     for i in xrange(2**table_size_log):
       local_x = i / S2**table_size_log * S2**max_bound_log
@@ -131,9 +130,6 @@ class ML_FastSinCos(ML_Function("ml_fast_cos")):
 
       sin_local = sin(local_x) # nearestint(sin(local_x) * S2**storage_precision.get_frac_size())
       sin_table[i][0] = sin_local
-
-      fused_table[i][0] = cos_local
-      fused_table[i][1] = sin_local
 
     # argument reduction evaluation scheme
     # scaling_factor = Constant(S2**scaling_power, precision = self.precision)
@@ -156,8 +152,8 @@ class ML_FastSinCos(ML_Function("ml_fast_cos")):
     red_vx_lo.set_attributes(precision = red_vx_precision, tag = "red_vx_lo", debug = debug_fixed32)
     table_index = BitLogicRightShift(TypeCast(red_vx, precision = ML_Int32), scaling_power - (table_size_log - max_bound_log), precision = ML_Int32, tag = "table_index", debug = debugd)
 
-    tabulated_cos = TableLoad(fused_table, table_index, 0, tag = "tab_cos", precision = storage_precision, debug = debug_fixed32)
-    tabulated_sin = TableLoad(fused_table, table_index, 1, tag = "tab_sin", precision = storage_precision, debug = debug_fixed32)
+    tabulated_cos = TableLoad(cos_table, table_index, 0, tag = "tab_cos", precision = storage_precision, debug = debug_fixed32)
+    tabulated_sin = TableLoad(sin_table, table_index, 0, tag = "tab_sin", precision = storage_precision, debug = debug_fixed32)
 
     error_function = lambda p, f, ai, mod, t: dirtyinfnorm(f - p, ai)
 
@@ -173,7 +169,7 @@ class ML_FastSinCos(ML_Function("ml_fast_cos")):
     Log.report(Log.Info, "cos_approx_error=%e" % cos_approx_error)
     cos_coeff_list = cos_poly_object.get_ordered_coeff_list()
     cos_C0 = cos_coeff_list[0][1]
-    cos_C2 = Constant(cos_coeff_list[1][1], precision = ML_Custom_FixedPoint_Format(-1, 32, signed = True))
+    cos_C2 = cos_coeff_list[1][1]
 
     Log.report(Log.Info, "building polynomial approximation for sine")
 
@@ -184,71 +180,34 @@ class ML_FastSinCos(ML_Function("ml_fast_cos")):
     sin_poly_object, sin_approx_error = Polynomial.build_from_approximation_with_error(sin(x)/x, [0, 2], [0] + [computation_precision.get_bit_size()] * (sin_poly_degree+1), poly_interval, absolute, error_function = error_function)
     sin_coeff_list = sin_poly_object.get_ordered_coeff_list()
     sin_C0 = sin_coeff_list[0][1]
-    sin_C2 = Constant(sin_coeff_list[1][1], precision = ML_Custom_FixedPoint_Format(-1, 32, signed = True))
+    sin_C2 = sin_coeff_list[1][1]
 
     cos_C2 = Multiplication(
               tabulated_cos,
               cos_C2,
-              precision = ML_Custom_FixedPoint_Format(-1, 32, signed = True)
-            )
+              precision = ML_Custom_FixedPoint_Format(,, signe = True)
+            ),
     u2 = Multiplication(
           red_vx_lo,
           red_vx_lo,
-          precision = computation_precision # ML_Custom_FixedPoint_Format(5, 26, signed = True)
+          precision = ML_Custom_FixedPoint_Format(,,signed = True)
         )
     sin_u = Multiplication(
-              tabulated_sin,
-              red_vx_lo,
-              precision = computation_precision, # ML_Custom_FixedPoint_Format(1, 30, signed = True)
-              tag = "sin_u"
-            )
+      
 
-    cos_C2_u2 = Multiplication(
-                  cos_C2,
-                  u2,
-                  precision = computation_precision, # ML_Custom_FixedPoint_Format(1, 30,signed = True)
-                  tag = "cos_C2_u2"
-                )
+    scheme = Addition(
+              tabulated_cos
 
-    S2_u2 = Multiplication(
-              sin_C2, 
-              u2,
-              precision = ML_Custom_FixedPoint_Format(-1, 32, signed = True),
-              tag = "S2_u2"
-            )
 
-    S2_u3_sin = Multiplication(
-                  S2_u2,
-                  sin_u,
-                  precision = computation_precision, # ML_Custom_FixedPoint_Format(5,26, signed = True)
-                  tag = "S2_u3_sin"
-                )
-
-    cos_C2_u2_P_cos = Addition(
-                        tabulated_cos,
-                        cos_C2_u2,
-                        precision = computation_precision, # ML_Custom_FixedPoint_Format(5, 26, signed = True)
-                        tag = "cos_C2_u2_P_cos"
-                      )
-
-    cos_C2_u2_P_cos_M_sin_u = Subtraction(
-                                cos_C2_u2_P_cos,
-                                sin_u,
-                                precision = computation_precision # ML_Custom_FixedPoint_Format(5, 26, signed = True)
-                              )
-
-    scheme = Subtraction(
-                cos_C2_u2_P_cos_M_sin_u,
-                S2_u3_sin,
-                precision = computation_precision # ML_Custom_FixedPoint_Format(5, 26, signed = True)
-              )
 
     final_precision = ML_Custom_FixedPoint_Format(5, 26, signed = True)
 
 
 
 
-    result_fixed = scheme
+    cos_mult = Multiplication(cos_eval_scheme, tabulated_cos, precision = final_precision, tag = "cos_mult", debug = debug_fixed32)
+    sin_mult = Multiplication(sin_eval_scheme, tabulated_sin, precision = final_precision, tag = "sin_mult", debug = debug_fixed32)
+    result_fixed = Subtraction(cos_mult, sin_mult, precision = final_precision, tag = "result_fixed", debug = debug_fixed32)
 
     result = Conversion(result_fixed, precision = self.precision)
 
