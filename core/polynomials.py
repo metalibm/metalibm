@@ -128,6 +128,20 @@ class Polynomial:
         return Polynomial(sollya_poly)
 
 
+    ## Approximation computation with built-in approximation error computation
+    #  @return a tuple poly_object, error: poly_object is a Polynomial 
+    #          approximating the given function on the given interval, 
+    #          according to parameter indications, error is the approximation
+    #          error on the interval
+    #  @param function mathematical function (pythonsollya object) describing the function to be approximated
+    #  @param poly_degree the degree of the approximation polynomial request
+    #  @param coeff_formats list of coefficient format (as expected by
+    #         (python)sollya fpminimax function, which describes the format
+    #         of each coefficient of the polynomial approximation
+    #  @param approx_interval the interval where the approximation applies
+    #  @param modifiers tuple of extra arguments (see (python)sollya's fpminimax documentation for more information, e.g absolute)
+    #  @param kwords dictionnary of extra arguments for the approximation computation (e.g tightness, error_function)
+    @staticmethod
     def build_from_approximation_with_error(function, poly_degree, coeff_formats, approx_interval, *modifiers, **kwords): 
         """ construct a polynomial object from a function approximation using sollya's fpminimax """
         tightness = kwords["tightness"] if "tightness" in kwords else S2**-24
@@ -145,7 +159,7 @@ class Polynomial:
         return Polynomial(sollya_poly), approx_error
 
     build_from_approximation = Callable(build_from_approximation)
-    build_from_approximation_with_error = Callable(build_from_approximation_with_error)
+    #build_from_approximation_with_error = Callable(build_from_approximation_with_error)
 
 
 def generate_power(variable, power, power_map = {}, precision = None):
