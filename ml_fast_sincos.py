@@ -118,19 +118,15 @@ class ML_FastSinCos(ML_Function("ml_fast_cos")):
     storage_precision = ML_Custom_FixedPoint_Format(1, 30, signed = True)
 
     Log.report(Log.Info, "tabulating cosine and sine")
-    # cosine table
-    cos_table = ML_Table(dimensions = [2**table_size_log, 1], storage_precision = storage_precision, tag = self.uniquify_name("cos_table"))
-    sin_table = ML_Table(dimensions = [2**table_size_log, 1], storage_precision = storage_precision, tag = self.uniquify_name("sin_table"))
+    # cosine and sine fused table
     fused_table = ML_Table(dimensions = [2**table_size_log, 2], storage_precision = storage_precision, tag = self.uniquify_name("cossin_table"))
     # filling table
     for i in xrange(2**table_size_log):
       local_x = i / S2**table_size_log * S2**max_bound_log
 
       cos_local = cos(local_x) # nearestint(cos(local_x) * S2**storage_precision.get_frac_size())
-      cos_table[i][0] = cos_local
 
       sin_local = sin(local_x) # nearestint(sin(local_x) * S2**storage_precision.get_frac_size())
-      sin_table[i][0] = sin_local
 
       fused_table[i][0] = cos_local
       fused_table[i][1] = sin_local
