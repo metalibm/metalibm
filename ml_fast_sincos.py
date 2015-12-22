@@ -77,7 +77,6 @@ class ML_FastSinCos(ML_Function("ml_fast_cos")):
     self.table_size_log = table_size_log
 
 
-
   def generate_emulate(self, result_ternary, result, mpfr_x, mpfr_rnd):
     """ generate the emulation code for ML_FastSinCos functions
         mpfr_x is a mpfr_t variable which should have the right precision
@@ -168,8 +167,8 @@ class ML_FastSinCos(ML_Function("ml_fast_cos")):
     #cos_eval_scheme = PolynomialSchemeEvaluator.generate_horner_scheme(cos_poly_object, red_vx_lo, unified_precision = computation_precision)
     Log.report(Log.Info, "cos_approx_error=%e" % cos_approx_error)
     cos_coeff_list = cos_poly_object.get_ordered_coeff_list()
-    cos_C0 = cos_coeff_list[0][1]
-    cos_C2 = Constant(cos_coeff_list[1][1], precision = ML_Custom_FixedPoint_Format(-1, 32, signed = True))
+    coeff_C0 = cos_coeff_list[0][1]
+    coeff_C2 = Constant(cos_coeff_list[1][1], precision = ML_Custom_FixedPoint_Format(-1, 32, signed = True))
 
     Log.report(Log.Info, "building polynomial approximation for sine")
 
@@ -179,18 +178,44 @@ class ML_FastSinCos(ML_Function("ml_fast_cos")):
     Log.report(Log.Verbose, "sine polynomial approximation")
     sin_poly_object, sin_approx_error = Polynomial.build_from_approximation_with_error(sin(x)/x, [0, 2], [0] + [computation_precision.get_bit_size()] * (sin_poly_degree+1), poly_interval, absolute, error_function = error_function)
     sin_coeff_list = sin_poly_object.get_ordered_coeff_list()
-    sin_C0 = sin_coeff_list[0][1]
-    sin_C2 = Constant(sin_coeff_list[1][1], precision = ML_Custom_FixedPoint_Format(-1, 32, signed = True))
+    coeff_S0 = sin_coeff_list[0][1]
+    coeff_S2 = Constant(sin_coeff_list[1][1], precision = ML_Custom_FixedPoint_Format(-1, 32, signed = True))
 
+    # scheme selection between sine and cosine
+    if self.cos_output:
+      scheme = self.generate_cos_scheme(computation_precision, tabulated_cos, tabulated_sin, coeff_S2, coeff_C2, red_vx_lo)
+    else:
+      scheme = self.generate_sin_scheme(computation_precision, tabulated_cos, tabulated_sin, coeff_S2, coeff_C2, red_vx_lo)
+
+    result = Conversion(scheme, precision = self.precision)
+
+    Log.report(Log.Verbose, "result operation tree :\n %s " % result.get_str(display_precision = True, depth = None, memoization_map = {}))
+    scheme = Statement(
+      Return(result)
+    )
+
+    return scheme
+
+
+  ## generate scheme for cosine approximation of cos(X = x + u)
+  #  @param computation_precision ML_Format used as default precision for scheme evaluation
+  #  @param tabulated_cos tabulated value of cosine(high part of vx)
+  #  @param tabulated_sin tabulated value of   sine(high part of vx)
+  #  @param sin_C2 polynomial coefficient of sine approximation for u^3 
+  #  @param cos_C2 polynomial coefficient of cosine approximation for u^2
+  #  @param red_vx_lo low part of the reduced input variable (i.e. u)
+  def generate_cos_scheme(self, computation_precision, tabulated_cos, tabulated_sin, sin_C2, cos_C2, red_vx_lo):
     cos_C2 = Multiplication(
               tabulated_cos,
               cos_C2,
-              precision = ML_Custom_FixedPoint_Format(-1, 32, signed = True)
+              precision = ML_Custom_FixedPoint_Format(-1, 32, signed = True),
+              tag = "cos_C2"
             )
     u2 = Multiplication(
           red_vx_lo,
           red_vx_lo,
-          precision = computation_precision # ML_Custom_FixedPoint_Format(5, 26, signed = True)
+          precision = computation_precision, # ML_Custom_FixedPoint_Format(5, 26, signed = True)
+          tag = "u2"
         )
     sin_u = Multiplication(
               tabulated_sin,
@@ -239,35 +264,85 @@ class ML_FastSinCos(ML_Function("ml_fast_cos")):
                 precision = computation_precision # ML_Custom_FixedPoint_Format(5, 26, signed = True)
               )
 
-    final_precision = ML_Custom_FixedPoint_Format(5, 26, signed = True)
-
-
-
-
-    result_fixed = scheme
-
-    result = Conversion(result_fixed, precision = self.precision)
-
-
-    Log.report(Log.Verbose, "result operation tree :\n %s " % result.get_str(display_precision = True, depth = None, memoization_map = {}))
-
-
-    scheme = Statement(
-      Return(result)
-    )
-
-
     return scheme
 
 
+  ## generate scheme for sine approximation of sin(X = x + u)
+  #  @param computation_precision ML_Format used as default precision for scheme evaluation
+  #  @param tabulated_cos tabulated value of cosine(high part of vx)
+  #  @param tabulated_sin tabulated value of   sine(high part of vx)
+  #  @param sin_C2 polynomial coefficient of sine approximation for u^3 
+  #  @param cos_C2 polynomial coefficient of cosine approximation for u^2
+  #  @param red_vx_lo low part of the reduced input variable (i.e. u)
+  def generate_sin_scheme(self, computation_precision, tabulated_cos, tabulated_sin, coeff_S2, coeff_C2, red_vx_lo):
+    sin_C2 = Multiplication(
+              tabulated_sin,
+              coeff_C2,
+              precision = ML_Custom_FixedPoint_Format(-1, 32, signed = True),
+              tag = "sin_C2"
+            )
+    u2 = Multiplication(
+          red_vx_lo,
+          red_vx_lo,
+          precision = computation_precision, # ML_Custom_FixedPoint_Format(5, 26, signed = True)
+          tag = "u2"
+        )
+    cos_u = Multiplication(
+              tabulated_cos,
+              red_vx_lo,
+              precision = computation_precision, # ML_Custom_FixedPoint_Format(1, 30, signed = True)
+              tag = "cos_u"
+            )
 
+    S2_u2 = Multiplication(
+                  coeff_S2,
+                  u2,
+                  precision = ML_Custom_FixedPoint_Format(-1, 32,signed = True),
+                  tag = "S2_u2"
+                )
+
+    sin_C2_u2 = Multiplication(
+              sin_C2, 
+              u2,
+              precision = computation_precision,
+              tag = "sin_C2_u2"
+            )
+
+    S2_u3_cos = Multiplication(
+                  S2_u2,
+                  cos_u,
+                  precision = computation_precision, # ML_Custom_FixedPoint_Format(5,26, signed = True)
+                  tag = "S2_u3_cos"
+                )
+
+    sin_P_cos_u = Addition(
+                        tabulated_sin,
+                        cos_u,
+                        precision = computation_precision, # ML_Custom_FixedPoint_Format(5, 26, signed = True)
+                        tag = "sin_P_cos_u"
+                      )
+
+    sin_P_cos_u_P_C2_u2_sin = Addition(
+                                sin_P_cos_u,
+                                sin_C2_u2,
+                                precision = computation_precision, # ML_Custom_FixedPoint_Format(5, 26, signed = True)
+                                tag = "sin_P_cos_u_P_C2_u2_sin"
+                              )
+
+    scheme = Addition(
+                sin_P_cos_u_P_C2_u2_sin,
+                S2_u3_cos,
+                precision = computation_precision # ML_Custom_FixedPoint_Format(5, 26, signed = True)
+              )
+
+    return scheme
 
 
 if __name__ == "__main__":
   # auto-test
   arg_template = ML_ArgTemplate(default_function_name = "new_fastsincos", default_output_file = "new_fastsincos.c" )
   # argument extraction 
-  cos_output = arg_template.test_flag_option("--cos", True, False, parse_arg = arg_template.parse_arg, help_str = "select cos output") 
+  cos_output = arg_template.test_flag_option("--sin", False, True, parse_arg = arg_template.parse_arg, help_str = "select cos output") 
   enable_subexpr_sharing = arg_template.test_flag_option("--enable-subexpr-sharing", True, False, parse_arg = arg_template.parse_arg, help_str = "force subexpression sharing")
   table_size_log = arg_template.extract_option_value("--table-size-log", 8, parse_arg = arg_template.parse_arg, help_str = "logarithm of the table size to be used", processing = lambda x: int(x))
 
