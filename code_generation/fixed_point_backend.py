@@ -38,12 +38,12 @@ def fixed_modifier(optree, op_class = Addition):
   # result format integer size
   rf_is = optree_format.get_integer_size()
 
-  tmp_format = ML_Custom_FixedPoint_Format(rf_is, rf_fs)
+  tmp_format = ML_Custom_FixedPoint_Format(rf_is, rf_fs, signed = optree_format.get_signed())
   support_format = get_std_integer_support_format(tmp_format) 
   op0_conv = TypeCast(Conversion(op0, precision = tmp_format), precision = support_format)
   op1_conv = TypeCast(Conversion(op1, precision = tmp_format), precision = support_format)
 
-  tmp_result = TypeCast(op_class(op0_conv, op1_conv, precision = support_format), precision = tmp_format)
+  tmp_result = TypeCast(op_class(op0_conv, op1_conv, precision = support_format, tag = optree.get_tag()), precision = tmp_format, tag = optree.get_tag())
   return Conversion(tmp_result, precision = optree.get_precision())
 
 
@@ -74,7 +74,7 @@ def mul_modifier(optree):
   
   op0_conv = TypeCast(op0, precision = get_std_integer_support_format(op0_format))
   op1_conv = TypeCast(op1, precision = get_std_integer_support_format(op1_format))
-  tmp_conv = Multiplication(op0_conv, op1_conv, precision = get_std_integer_support_format(tmp_format))
+  tmp_conv = Multiplication(op0_conv, op1_conv, precision = get_std_integer_support_format(tmp_format), tag = optree.get_tag())
   tmp = TypeCast(tmp_conv, precision = tmp_format)
   result = Conversion(tmp, precision = optree_format)
   Log.report(Log.Verbose, "result of mul_modifier on\n%s IS\n %s" % (optree.get_str(depth = 2, display_precision = True, memoization_map = {}), result.get_str(depth = 4, display_precision = True)))
@@ -98,8 +98,8 @@ def conv_modifier(optree):
 
   result = None
 
-  Log.report(Log.Verbose, "in_sformat: %s" % in_sformat)
-  Log.report(Log.Verbose, "out_sformat: %s" % out_sformat)
+  Log.report(Log.Verbose, "in_format is %s | in_sformat is %s" % (in_format, in_sformat))
+  Log.report(Log.Verbose, "out_format is %s | out_sformat is %s" % (out_format, out_sformat))
   # conversion when the output format is large than the input format
   if in_format == out_format:
     result = optree
@@ -122,6 +122,7 @@ def conv_modifier(optree):
     else:
       result = TypeCast(Conversion(in_s, precision = out_sformat), precision = out_format)
 
+  result.set_tag(optree.get_tag())
   Log.report(Log.Verbose, "result of conv_modifier on \n %s IS: \n  %s " % (optree.get_str(display_precision = True, depth = 3, memoization_map = {}), result.get_str(display_precision = True, depth = 4)))
   return result
 
