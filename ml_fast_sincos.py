@@ -155,6 +155,8 @@ class ML_FastSinCos(ML_Function("ml_fast_cos")):
     tabulated_cos = TableLoad(cos_table, table_index, 0, tag = "tab_cos", precision = storage_precision, debug = debug_fixed32)
     tabulated_sin = TableLoad(sin_table, table_index, 0, tag = "tab_sin", precision = storage_precision, debug = debug_fixed32)
 
+    error_function = lambda p, f, ai, mod, t: dirtyinfnorm(f - p, ai)
+
     Log.report(Log.Info, "building polynomial approximation for cosine")
     # cosine polynomial approximation
     poly_interval = Interval(0, S2**(max_bound_log - table_size_log))
@@ -167,9 +169,26 @@ class ML_FastSinCos(ML_Function("ml_fast_cos")):
 
     else: 
       Log.report(Log.Verbose, "cosine polynomial approximation")
-      cos_poly_object, cos_approx_error = Polynomial.build_from_approximation_with_error(cos(x), [0, 2] , [0] + [computation_precision.get_bit_size()], poly_interval, absolute)
-      cos_eval_scheme = PolynomialSchemeEvaluator.generate_horner_scheme(cos_poly_object, red_vx_lo, unified_precision = computation_precision)
+      cos_poly_object, cos_approx_error = Polynomial.build_from_approximation_with_error(cos(x), [0, 2] , [0] + [computation_precision.get_bit_size()], poly_interval, absolute, error_function = error_function)
+      #cos_eval_scheme = PolynomialSchemeEvaluator.generate_horner_scheme(cos_poly_object, red_vx_lo, unified_precision = computation_precision)
       Log.report(Log.Info, "cos_approx_error=%e" % cos_approx_error)
+      cos_coeff_list = cos_poly_object.get_ordered_coeff_list()
+      cos_C0 = cos_coeff_list[0][1]
+      cos_C2 = cos_coeff_list[1][1]
+      pre_cos_eval_scheme = Multiplication(
+                              Constant(cos_C2, precision = ML_Custom_FixedPoint_Format(0,31, signed = True)),
+                              Multiplication(
+                                red_vx_lo,
+                                red_vx_lo,
+                                precision = ML_Custom_FixedPoint_Format(0, 31, signed = True)
+                              ),
+                              precision = ML_Custom_FixedPoint_Format(1, 30, signed = True),
+                            )
+      cos_eval_scheme = Addition(
+                          Constant(cos_C0, precision = ML_Custom_FixedPoint_Format(1, 30, signed = True)),
+                          pre_cos_eval_scheme,
+                          precision = ML_Custom_FixedPoint_Format(1, 30, signed = True)
+                        )
 
     Log.report(Log.Info, "building polynomial approximation for sine")
     # sine polynomial approximation
@@ -181,7 +200,7 @@ class ML_FastSinCos(ML_Function("ml_fast_cos")):
 
     else:
       Log.report(Log.Verbose, "sine polynomial approximation")
-      sin_poly_object, sin_approx_error = Polynomial.build_from_approximation_with_error(sin(x)/x, [0, 2], [0] + [computation_precision.get_bit_size()] * (sin_poly_degree+1), poly_interval, absolute)
+      sin_poly_object, sin_approx_error = Polynomial.build_from_approximation_with_error(sin(x)/x, [0, 2], [0] + [computation_precision.get_bit_size()] * (sin_poly_degree+1), poly_interval, absolute, error_function = error_function)
       sin_coeff_list = sin_poly_object.get_ordered_coeff_list()
       sin_C0 = sin_coeff_list[0][1]
       sin_C2 = sin_coeff_list[1][1]
@@ -214,6 +233,7 @@ class ML_FastSinCos(ML_Function("ml_fast_cos")):
     cos_eval_scheme.set_attributes(debug = debug_fixed32, tag = "cos_eval_scheme")
 
     final_precision = ML_Custom_FixedPoint_Format(5, 26, signed = True)
+
 
     cos_mult = Multiplication(cos_eval_scheme, tabulated_cos, precision = final_precision, tag = "cos_mult", debug = debug_fixed32)
     sin_mult = Multiplication(sin_eval_scheme, tabulated_sin, precision = final_precision, tag = "sin_mult", debug = debug_fixed32)
