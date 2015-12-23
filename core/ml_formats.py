@@ -11,6 +11,7 @@
 ###############################################################################
 
 from pythonsollya import *
+import re
 
 ## Class of rounding mode type
 class ML_FloatingPoint_RoundingMode_Type:
@@ -333,6 +334,8 @@ class ML_Base_FixedPoint_Format(ML_Fixed_Format):
         """ Gappa-language constant generation """
         return str(cst_value)
 
+      
+
 ## Ancestor to standard (meaning integers)  fixed-point format
 class ML_Standard_FixedPoint_Format(ML_Base_FixedPoint_Format):
   def __init__(self, integer_size, frac_size, signed = True):
@@ -344,6 +347,21 @@ class ML_Custom_FixedPoint_Format(ML_Base_FixedPoint_Format):
     
     def __ne__(self, other):
         return not (self == other)
+
+    ## parse a string describing a ML_Custom_FixedPoint_Format object
+    #  @param format_str string describing the format object
+    #  @return the format instance converted from the string
+    @staticmethod
+    def parse_from_string(format_str):
+      format_match = re.match("(?P<name>F[US])\((?P<integer>-?[\d]+),(?P<frac>-?[\d]+)\)",format_str)
+      if format_match is None: 
+        return None
+      else:
+        name = format_match.group("name")
+        signed = (name == "FS")
+        if not name in ["FS", "FU"]:
+          return None
+        return ML_Custom_FixedPoint_Format(int(format_match.group("integer")), int(format_match.group("frac")), signed = signed) 
 
 class ML_Bool_Format: 
     """ abstract Boolean format """
