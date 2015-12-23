@@ -24,7 +24,7 @@ from metalibm_core.code_generation.fixed_point_backend import FixedPointBackend
 
 from metalibm_core.core.payne_hanek import generate_payne_hanek
 
-from metalibm_core.utility.ml_template import ML_ArgTemplate
+from metalibm_core.utility.ml_template import ML_ArgTemplate, precision_parser
 from metalibm_core.utility.log_report  import Log
 from metalibm_core.utility.debug_utils import *
 from metalibm_core.utility.num_utils   import ulp
@@ -49,10 +49,11 @@ class ML_FastSinCos(ML_Function("ml_fast_cos")):
                output_file = "cosf.c", 
                function_name = "cosf", 
                input_interval = Interval(0, 1),
+               result_precision = ML_Binary32,
                table_size_log = 8,
                cos_output = True):
     # initializing I/O precision
-    io_precisions = [precision] * 2
+    io_precisions = [result_precision, precision] 
 
     # initializing base class
     ML_FunctionBasis.__init__(self, 
@@ -118,7 +119,7 @@ class ML_FastSinCos(ML_Function("ml_fast_cos")):
 
     Log.report(Log.Info, "tabulating cosine and sine")
     # cosine and sine fused table
-    fused_table = ML_Table(dimensions = [2**table_size_log, 2], storage_precision = storage_precision, tag = self.uniquify_name("cossin_table"))
+    fused_table = ML_Table(dimensions = [2**table_size_log, 2], storage_precision = storage_precision, tag = "fast_lib_shared_table") # self.uniquify_name("cossin_table"))
     # filling table
     for i in xrange(2**table_size_log):
       local_x = i / S2**table_size_log * S2**max_bound_log
@@ -139,7 +140,10 @@ class ML_FastSinCos(ML_Function("ml_fast_cos")):
     red_vx = Conversion(vx, precision = red_vx_precision, tag = "red_vx", debug = debug_fixed32)
 
     computation_precision = red_vx_precision # self.precision
+    output_precision      = self.io_precisions[0]
     Log.report(Log.Info, "computation_precision is %s" % computation_precision)
+    Log.report(Log.Info, "storage_precision     is %s" % storage_precision)
+    Log.report(Log.Info, "output_precision      is %s" % output_precision)
 
     hi_mask_value = 2**32 - 2**(32-table_size_log - 1)
     hi_mask = Constant(hi_mask_value, precision = ML_Int32)
@@ -187,7 +191,7 @@ class ML_FastSinCos(ML_Function("ml_fast_cos")):
     else:
       scheme = self.generate_sin_scheme(computation_precision, tabulated_cos, tabulated_sin, coeff_S2, coeff_C2, red_vx_lo)
 
-    result = Conversion(scheme, precision = self.precision)
+    result = Conversion(scheme, precision = self.io_precisions[0])
 
     Log.report(Log.Verbose, "result operation tree :\n %s " % result.get_str(display_precision = True, depth = None, memoization_map = {}))
     scheme = Statement(
@@ -346,6 +350,9 @@ if __name__ == "__main__":
   enable_subexpr_sharing = arg_template.test_flag_option("--enable-subexpr-sharing", True, False, parse_arg = arg_template.parse_arg, help_str = "force subexpression sharing")
   table_size_log = arg_template.extract_option_value("--table-size-log", 8, parse_arg = arg_template.parse_arg, help_str = "logarithm of the table size to be used", processing = lambda x: int(x))
 
+  result_precision = arg_template.extract_option_value("--result-precision", ML_Binary32, parse_arg = arg_template.parse_arg, help_str = "result precision", processing = precision_parser)
+  Log.report(Log.Info, "result_precision is %s " % result_precision)
+
   parse_arg_index_list = arg_template.sys_arg_extraction()
   arg_template.check_args(parse_arg_index_list)
 
@@ -361,5 +368,6 @@ if __name__ == "__main__":
                      output_file               = arg_template.output_file,
                      input_interval            = arg_template.input_interval,
                      table_size_log            = table_size_log,
+                     result_precision          = result_precision,
                      cos_output                = cos_output)
   ml_fastsincos.gen_implementation(display_after_opt = arg_template.display_after_opt, enable_subexpr_sharing = enable_subexpr_sharing)
