@@ -10,7 +10,7 @@ from core.ml_formats import *
 from code_generation.c_code_generator import CCodeGenerator
 from code_generation.generic_processor import GenericProcessor
 from code_generation.code_object import CodeObject
-from code_generation.code_element import CodeFunction
+from code_generation.code_function import CodeFunction
 from code_generation.code_constant import C_Code 
 from core.ml_optimization_engine import OptimizationEngine
 from core.polynomials import *

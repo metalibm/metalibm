@@ -253,9 +253,6 @@ class ML_SinCos(ML_Function("ml_cos")):
                       )
 
 
-
-
-
     cos_eval_d2_add.set_attributes(unbreakable = True, precision = ML_DoubleDouble, tag = "cos_eval_d2_add", debug = debug_ddtolx)
     cos_eval_d2 = cos_eval_d2_add.hi + cos_eval_d2_add.lo
     cos_eval_d2.set_attributes(tag = "cos_eval_d2", debug = debug_precision, precision = self.precision)
