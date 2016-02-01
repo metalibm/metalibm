@@ -139,6 +139,12 @@ class ML_FunctionBasis(object):
     """ generate MDL scheme for function implementation """
     Log.report(Log.Error, "generate_scheme must be overloaded by ML_FunctionBasis child")
 
+  ## 
+  # @return main_scheme, [list of sub-CodeFunction object]
+  def generate_function_list(self):
+    self.implementation.set_scheme(self.generate_scheme())
+    return [self.implementation]
+
   def optimise_scheme(self, pre_scheme, copy = None, enable_subexpr_sharing = True, verbose = True):
     """ default scheme optimization """
     # copying when required
@@ -166,12 +172,18 @@ class ML_FunctionBasis(object):
 
     return scheme
 
-  def generate_C(self, scheme):
+  def generate_C(self, code_function_list):
     """ Final C generation, once the evaluation scheme has been optimized"""
     # registering scheme as function implementation
-    self.implementation.set_scheme(scheme)
+    #self.implementation.set_scheme(scheme)
     self.C_code_generator = CCodeGenerator(self.processor, declare_cst = False, disable_debug = not self.debug_flag, libm_compliant = self.libm_compliant)
-    self.result = self.implementation.get_definition(self.C_code_generator, C_Code, static_cst = True)
+    # main code object
+    code_object = NestedCode(self.C_code_generator, static_cst = True)
+    self.result = code_object
+    for code_function in code_function_list:
+      self.result = code_function.add_definition(self.C_code_generator, C_Code, code_object, static_cst = True)
+
+    # adding headers
     self.result.add_header("support_lib/ml_special_values.h")
     self.result.add_header("math.h")
     self.result.add_header("stdio.h")
@@ -184,18 +196,21 @@ class ML_FunctionBasis(object):
 
   def gen_implementation(self, display_after_gen = False, display_after_opt = False, enable_subexpr_sharing = True):
     # generate scheme
-    scheme = self.generate_scheme()
-    if display_after_gen:
-      print scheme.get_str(depth = None, display_precision = True, memoization_map = {})
+    code_function_list = self.generate_function_list()
 
-    # optimize scheme
-    opt_scheme = self.optimise_scheme(scheme, enable_subexpr_sharing = enable_subexpr_sharing)
+    for code_function in code_function_list:
+      scheme = code_function.get_scheme()
+      if display_after_gen:
+        print scheme.get_str(depth = None, display_precision = True, memoization_map = {})
 
-    if display_after_opt:
-      print scheme.get_str(depth = None, display_precision = True, memoization_map = {})
+      # optimize scheme
+      opt_scheme = self.optimise_scheme(scheme, enable_subexpr_sharing = enable_subexpr_sharing)
+
+      if display_after_opt:
+        print scheme.get_str(depth = None, display_precision = True, memoization_map = {})
 
     # generate C code to implement scheme
-    self.generate_C(scheme)
+    self.generate_C(code_function_list)
 
 
   # Currently mostly empty, to be populated someday

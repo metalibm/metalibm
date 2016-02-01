@@ -56,34 +56,47 @@ class CodeExpression:
 
 
 class CodeFunction:
-    """ function code object """
-    def __init__(self, name, arg_list = None, output_format = None, code_object = None):
-        """ code function initialization """
-        self.name = name
-        self.arg_list = arg_list if arg_list else []
-        self.code_object = code_object
-        self.output_format = output_format 
+  """ function code object """
+  def __init__(self, name, arg_list = None, output_format = None, code_object = None):
+    """ code function initialization """
+    self.name = name
+    self.arg_list = arg_list if arg_list else []
+    self.code_object = code_object
+    self.output_format = output_format 
 
-    def get_name(self):
-        return self.name
+  def get_name(self):
+    return self.name
 
-    def add_input_variable(self, name, vartype):
-        input_var = Variable(name, precision = vartype) 
-        self.arg_list.append(input_var)
-        return input_var
+  def add_input_variable(self, name, vartype):
+    input_var = Variable(name, precision = vartype) 
+    self.arg_list.append(input_var)
+    return input_var
 
-    def get_declaration(self, final = True):
-        arg_format_list = ", ".join("%s %s" % (inp.get_precision().get_c_name(), inp.get_tag()) for inp in self.arg_list)
-        final_symbol = ";" if final else ""
-        return "%s %s(%s)%s" % (self.output_format.get_c_name(), self.name, arg_format_list, final_symbol)
+  def get_declaration(self, final = True):
+    arg_format_list = ", ".join("%s %s" % (inp.get_precision().get_c_name(), inp.get_tag()) for inp in self.arg_list)
+    final_symbol = ";" if final else ""
+    return "%s %s(%s)%s" % (self.output_format.get_c_name(), self.name, arg_format_list, final_symbol)
 
-    def set_scheme(self, scheme):
-        self.scheme = scheme
+  ## define function implementation
+  #  @param scheme ML_Operation object to be defined as function implementation
+  def set_scheme(self, scheme):
+    self.scheme = scheme
+  ## @return function implementation (ML_Operation DAG)
+  def get_scheme(self):
+    return self.scheme
 
-    def get_definition(self, code_generator, language, folded = True, static_cst = False):
-        code_object = NestedCode(code_generator, static_cst = static_cst)
-        code_object << self.get_declaration(final = False)
-        code_object.open_level()
-        code_generator.generate_expr(code_object, self.scheme, folded = folded, initial = False)
-        code_object.close_level()
-        return code_object
+  def get_definition(self, code_generator, language, folded = True, static_cst = False):
+    code_object = NestedCode(code_generator, static_cst = static_cst)
+    code_object << self.get_declaration(final = False)
+    code_object.open_level()
+    code_generator.generate_expr(code_object, self.scheme, folded = folded, initial = False)
+    code_object.close_level()
+    return code_object
+
+  def add_definition(self, code_generator, language, code_object, folded = True, static_cst = False):
+    code_object << self.get_declaration(final = False)
+    code_object.open_level()
+    code_generator.generate_expr(code_object, self.scheme, folded = folded, initial = False)
+    code_object.close_level()
+    return code_object
+        
