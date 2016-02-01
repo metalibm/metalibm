@@ -36,6 +36,17 @@ ML_Utils_Function   = LibFunctionConstructor(["support_lib/ml_utils.h"])
 ML_Multi_Prec_Lib_Function   = LibFunctionConstructor(["support_lib/ml_multi_prec_lib.h"])
 
 
+## Generate a unary symbol operator for integer to integer conversion
+#  @param optree input DAG for the operator generator
+#  @return code generation operator for generating optree implementation
+def dynamic_integer_conversion(optree):
+  in_format = optree.get_input(0).get_precision()
+  out_format = optree.get_precision()
+  if in_format == out_format:
+    return IdentityOperator(force_folding = False, no_parenthesis = True, output_precision = out_format)
+  else:
+    return SymbolOperator("(%s)" % out_format.get_c_name(), arity = 1, force_folding = False, output_precision = out_format)
+
 def std_cond(optree):
     # standard condition for operator mapping validity
     return (not optree.get_silent()) and (optree.get_rounding_mode() == ML_GlobalRoundMode or optree.get_rounding_mode() == None)
@@ -371,9 +382,10 @@ c_code_generation_table = {
         None: {
             lambda optree: True: {
                 # implicit conversion from and to any integer,Binary64,Binary32 type
+                (lambda dst_type, src_type, **kwords: (is_std_integer_format(dst_type) and is_std_integer_format(src_type)))
+                : DynamicOperator(dynamic_function = dynamic_integer_conversion),
                 (lambda dst_type,src_type,**kwords:
-                    (is_std_integer_format(dst_type) or dst_type == ML_Binary64 or dst_type == ML_Binary32) and
-                    (is_std_integer_format(src_type) or src_type == ML_Binary64 or src_type == ML_Binary32)
+                    ((is_std_integer_format(dst_type) or is_std_integer_format(src_type)) and (dst_type == ML_Binary64 or dst_type == ML_Binary32 or src_type == ML_Binary64 or src_type == ML_Binary32)) or (dst_type in [ML_Binary32, ML_Binary64] and src_type in [ML_Binary64, ML_Binary32])
                 ) :  IdentityOperator(),
             },
         },

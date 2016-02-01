@@ -52,6 +52,21 @@ accuracy_map = {
     "cr"      : ML_CorrectlyRounded,
 }
 
+
+## parse a string of character and convert it into
+#  the corresponding ML_Format instance
+#  @param precision_str string to convert
+#  @return ML_Format intsance corresponding to the input string
+def precision_parser(precision_str):
+  if precision_str in precision_map:
+    return precision_map[precision_str]
+  else:
+    fixed_format = ML_Custom_FixedPoint_Format.parse_from_string(precision_str)
+    if fixed_format is None:
+      return eval(precision_str)
+    else:
+      return fixed_format
+
 def accuracy_parser(accuracy_str):
     if accuracy_str in accuracy_map:
         return accuracy_map[accuracy_str]
