@@ -15,7 +15,7 @@ from metalibm_core.core.ml_complex_formats import *
 from metalibm_core.code_generation.c_code_generator import CCodeGenerator
 from metalibm_core.code_generation.generic_processor import GenericProcessor
 from metalibm_core.code_generation.mpfr_backend import MPFRProcessor
-from metalibm_core.code_generation.fixed_point_backend import FixedPointBasckend
+from metalibm_core.code_generation.fixed_point_backend import FixedPointBackend
 from metalibm_core.code_generation.code_object import CodeObject
 from metalibm_core.code_generation.code_element import CodeFunction
 from metalibm_core.code_generation.code_constant import C_Code 
@@ -37,7 +37,7 @@ class ML_UT_FixedPoint(ML_Function("ml_ut_fixed_point")):
                  debug_flag = False, 
                  fuse_fma = True, 
                  fast_path_extract = True,
-                 target = FixedPointBasckend(), 
+                 target = FixedPointBackend(), 
                  output_file = "ut_fixed_point.c", 
                  function_name = "ut_fixed_point"):
     io_precisions = [precision] * 2
@@ -69,14 +69,22 @@ class ML_UT_FixedPoint(ML_Function("ml_ut_fixed_point")):
     vx.set_interval(Interval(-1, 1))
 
     fixed_format = ML_Custom_FixedPoint_Format(3, 29, False)
-    fixed_format2 = ML_Custom_FixedPoint_Format(4, 28, False)
+
+
+    acc_format = ML_Custom_FixedPoint_Format(6, 58, False)
+
+    c = Constant(2, precision = acc_format)
 
     ivx = TypeCast(vx, precision = fixed_format)
-    add_ivx = Addition(ivx, ivx, precision = fixed_format2)
-    result = TypeCast(add_ivx, precision = self.precision)
+    add_ivx = Addition(
+                c, 
+                Multiplication(ivx, ivx, precision = acc_format),
+                precision = acc_format
+              )
+    result = add_ivx # Conversion(add_ivx, precision = self.precision)
 
     # dummy scheme to make functionnal code generation
-    scheme = Statement(result)
+    scheme = Statement(Return(result))
 
     return scheme
 
