@@ -273,6 +273,8 @@ class CodeObject:
 
         return free_var_name
 
+    def get_free_name(self, var_type, prefix = "tmp"):
+        return self.symbol_table.get_free_name(var_type, prefix)
 
     def table_has_definition(self, table_object):
         return self.symbol_table.table_has_definition(table_object)
@@ -430,7 +432,6 @@ class NestedCode:
     def get_function_table(self):
         return self.static_function_table
         
-
     def add_header(self, header_file):
         self.main_code.add_header(header_file)
         
@@ -454,6 +455,14 @@ class NestedCode:
         level_code = self.code_list.pop(0)
         self << level_code.get(self.code_generator, static_cst = self.static_cst, static_table = self.static_table, skip_function = True) 
         self.code_list[0].close_level(cr = cr)
+
+    # @param function_object possible dummy FunctionObject associated with new function_name
+    def declare_free_function_name(self, prefix = "foo", function_object = None):
+        function_name = self.code_list[0].get_free_name(None, prefix = prefix) 
+        print "function_name: ", function_name
+        self.code_list[0].declare_function(function_name, function_object)
+        return function_name
+      
 
     def get_free_var_name(self, var_type, prefix = "tmp", declare = True):
         return self.code_list[0].get_free_var_name(var_type, prefix, declare)

@@ -12,7 +12,7 @@
 ###############################################################################
 
 from ..utility.log_report import *
-from .generator_utility import SymbolOperator, FunctionOperator, TemplateOperator, C_Code, Gappa_Code, build_simplified_operator_generation, IdentityOperator, FO_Arg, RoundOperator, type_strict_match, type_relax_match, type_result_match, type_function_match, FunctionObjectOperator, type_all_match, build_simplified_operator_generation_nomap
+from .generator_utility import *
 from .complex_generator import *
 from ..core.ml_formats import *
 from ..core.ml_operations import *

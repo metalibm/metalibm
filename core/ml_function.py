@@ -1,10 +1,10 @@
 from metalibm_core.core.ml_formats import *
 from metalibm_core.core.ml_optimization_engine import OptimizationEngine
-from metalibm_core.core.ml_operations import Variable, ReferenceAssign
+from metalibm_core.core.ml_operations import Variable, ReferenceAssign, Statement, Return 
 from metalibm_core.core.ml_complex_formats import ML_Mpfr_t
 
 from metalibm_core.code_generation.code_object import NestedCode
-from metalibm_core.code_generation.code_element import CodeFunction
+from metalibm_core.code_generation.code_function import CodeFunction
 from metalibm_core.code_generation.generic_processor import GenericProcessor
 from metalibm_core.code_generation.mpfr_backend import MPFRProcessor
 from metalibm_core.code_generation.c_code_generator import CCodeGenerator
@@ -92,6 +92,9 @@ class ML_FunctionBasis(object):
     self.opt_engine = OptimizationEngine(self.processor)
     self.gappa_engine = GappaCodeGenerator(self.processor, declare_cst = True, disable_debug = True)
 
+    self.C_code_generator = CCodeGenerator(self.processor, declare_cst = False, disable_debug = not self.debug_flag, libm_compliant = self.libm_compliant)
+    self.main_code_object = NestedCode(self.C_code_generator, static_cst = True)
+
   def get_eval_error(self, optree, variable_copy_map = {}, goal_precision = ML_Exact, gappa_filename = "gappa_eval_error.g", relative_error = False):
     """ wrapper for GappaCodeGenerator get_eval_error_v2 function """
     copy_map = {}
@@ -172,13 +175,15 @@ class ML_FunctionBasis(object):
 
     return scheme
 
+  def get_main_code_object(self):
+    return self.main_code_object
+
   def generate_C(self, code_function_list):
     """ Final C generation, once the evaluation scheme has been optimized"""
     # registering scheme as function implementation
     #self.implementation.set_scheme(scheme)
-    self.C_code_generator = CCodeGenerator(self.processor, declare_cst = False, disable_debug = not self.debug_flag, libm_compliant = self.libm_compliant)
     # main code object
-    code_object = NestedCode(self.C_code_generator, static_cst = True)
+    code_object = self.get_main_code_object()
     self.result = code_object
     for code_function in code_function_list:
       self.result = code_function.add_definition(self.C_code_generator, C_Code, code_object, static_cst = True)
@@ -211,6 +216,32 @@ class ML_FunctionBasis(object):
 
     # generate C code to implement scheme
     self.generate_C(code_function_list)
+
+  ## 
+  # @param optree ML_Operation object to be externalized
+  # @param arg_list list of ML_Operation objects to be used as arguments
+  # @return pair ML_Operation, ML_Funct
+  def externalize_call(self, optree, arg_list, tag = "foo"):
+    # determining return format
+    return_format = optree.get_precision()
+    function_name = self.main_code_object.declare_free_function_name(tag)
+
+    ext_function = CodeFunction(function_name, output_format = return_format)
+
+    # creating argument copy
+    arg_map = {}
+    arg_index = 0
+    for arg in arg_list:
+      arg_tag = arg.get_tag(default = "arg_%d" % arg_index)
+      arg_index += 1
+      arg_map[arg] = ext_function.add_input_variable(arg_tag, arg.get_precision())
+
+    # copying optree while swapping argument for variables
+    function_optree = Statement(Return(optree.copy(copy_map = arg_map)))
+    ext_function.set_scheme(function_optree)
+    ext_function_object = ext_function.get_function_object()
+    self.main_code_object.declare_function(function_name, ext_function_object)
+    return ext_function_object(*arg_list), ext_function
 
 
   # Currently mostly empty, to be populated someday

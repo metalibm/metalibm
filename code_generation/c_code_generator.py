@@ -17,7 +17,8 @@ from ..core.ml_table import ML_Table
 from ..core.ml_formats import *
 from ..core.attributes import ML_Debug
 from .code_constant import C_Code
-from .code_element import CodeFunction, CodeVariable, CodeExpression
+from .code_element import CodeVariable, CodeExpression
+from .code_function import CodeFunction
 
 
 class CCodeGenerator: 

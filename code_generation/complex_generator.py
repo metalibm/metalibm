@@ -12,11 +12,7 @@
 
 from ..utility.log_report import Log
 from ..utility.common import ML_NotImplemented, zip_index
-from ..core.ml_formats import *
-from .code_element import CodeVariable, CodeExpression, CodeFunction
-from .code_constant import C_Code, Gappa_Code
-from ..core.ml_operations import *
-from .generator_utility import *
+from .generator_utility import ML_CG_Operator
 
 
 ## complex generator for symbol-like operators, 
