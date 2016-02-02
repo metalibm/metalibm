@@ -571,25 +571,25 @@ def ArithmeticOperationConstructor(name, arity = 2, range_function = None, error
     return GeneralOperationConstructor(name, arity = arity, range_function = range_function, error_function = error_function, inheritance = inheritance, base_class = ML_ArithmeticOperation)
 
 
-class BitLogicAnd(AbstractOperationConstructor("BitLogicAnd")):
+class BitLogicAnd(ArithmeticOperationConstructor("BitLogicAnd")):
     pass
-class BitLogicOr(AbstractOperationConstructor("BitLogicOr")):
+class BitLogicOr(ArithmeticOperationConstructor("BitLogicOr")):
     pass
-class BitLogicXor(AbstractOperationConstructor("BitLogicXor")):
+class BitLogicXor(ArithmeticOperationConstructor("BitLogicXor")):
     pass
-class BitLogicNegate(AbstractOperationConstructor("BitLogicNegate", arity = 1)):
+class BitLogicNegate(ArithmeticOperationConstructor("BitLogicNegate", arity = 1)):
     pass
-class BitLogicRightShift(AbstractOperationConstructor("BitLogicRightShift", arity = 2)):
+class BitLogicRightShift(ArithmeticOperationConstructor("BitLogicRightShift", arity = 2)):
     pass
-class BitLogicLeftShift(AbstractOperationConstructor("BitLogicLeftShift", arity = 2)):
+class BitLogicLeftShift(ArithmeticOperationConstructor("BitLogicLeftShift", arity = 2)):
     pass
 
 
-class Abs(AbstractOperationConstructor("Abs", range_function = lambda self, ops: abs(ops[0]))):
+class Abs(ArithmeticOperationConstructor("Abs", range_function = lambda self, ops: abs(ops[0]))):
     """ abstract absolute value operation """
     pass
 
-class Negation(AbstractOperationConstructor("Negation", range_function = lambda self, ops: - ops[0])): 
+class Negation(ArithmeticOperationConstructor("Negation", range_function = lambda self, ops: - ops[0])): 
     """ abstract negation """
     pass
 
@@ -597,7 +597,7 @@ class Addition(ArithmeticOperationConstructor("Addition", range_function = lambd
     """ abstract addition """
     pass
 
-class Negate(AbstractOperationConstructor("Negate", range_function = lambda self, ops: -ops[0])): 
+class Negate(ArithmeticOperationConstructor("Negate", range_function = lambda self, ops: -ops[0])): 
     """ abstract negation """
     pass
 
@@ -609,9 +609,9 @@ class SpecifierOperation:
 
 class ComponentSelectionSpecifier: pass
 
-class Split(AbstractOperationConstructor("Split", arity = 1)):
+class Split(ArithmeticOperationConstructor("Split", arity = 1)):
     pass
-class ComponentSelection(AbstractOperationConstructor("ComponentSelection", inheritance = [SpecifierOperation], arity = 1)):
+class ComponentSelection(ArithmeticOperationConstructor("ComponentSelection", inheritance = [SpecifierOperation], arity = 1)):
     class Hi(ComponentSelectionSpecifier): pass
     class Lo(ComponentSelectionSpecifier): pass
 
@@ -719,7 +719,7 @@ class Division(ArithmeticOperationConstructor("Division", range_function = lambd
     pass
 
 
-class Modulo(AbstractOperationConstructor("Modulo", range_function = lambda self, ops: ops[0] % ops[1])):
+class Modulo(ArithmeticOperationConstructor("Modulo", range_function = lambda self, ops: ops[0] % ops[1])):
     """ abstract modulo operation """
     pass
 
@@ -729,7 +729,7 @@ class NearestInteger(ArithmeticOperationConstructor("NearestInteger", arity = 1,
     pass
 
 
-class PowerOf2(AbstractOperationConstructor("PowerOf2", arity = 1, range_function = lambda self, ops: S2**ops[0])):
+class PowerOf2(ArithmeticOperationConstructor("PowerOf2", arity = 1, range_function = lambda self, ops: S2**ops[0])):
     """ abstract power of 2 operation """
     pass
 
@@ -737,7 +737,7 @@ class Return(AbstractOperationConstructor("Return", arity = 1, range_function = 
     """ abstract return value operation """
     pass
 
-class TableLoad(AbstractOperationConstructor("TableLoad", arity = 2, range_function = lambda self, ops: None)):
+class TableLoad(ArithmeticOperationConstructor("TableLoad", arity = 2, range_function = lambda self, ops: None)):
     """ abstract load from a table operation """
     pass
 
@@ -745,7 +745,7 @@ class TableLoad(AbstractOperationConstructor("TableLoad", arity = 2, range_funct
 def interval_union(int0, int1):
     return Interval(min(inf(int0), inf(int1)), max(sup(int0), sup(int1)))
 
-class Select(AbstractOperationConstructor("Select", arity = 3, range_function = lambda self, ops: interval_union(ops[1], ops[2]))):
+class Select(ArithmeticOperationConstructor("Select", arity = 3, range_function = lambda self, ops: interval_union(ops[1], ops[2]))):
     pass
 
 
@@ -791,20 +791,20 @@ class ConditionBlock(AbstractOperationConstructor("ConditionBlock", arity = 3)):
         self.pre_statement.push(optree)
 
     def finish_copy(self, new_copy, copy_map = {}):
-        new_copy.pre_statement = self.statement.copy(copy_map)
+        new_copy.pre_statement = self.pre_statement.copy(copy_map)
         new_copy.extra_inputs = [op.copy(copy_map) for op in self.extra_inputs]
         new_copy.parent_list = [op.copy(copy_map) for op in self.parent_list] 
   
 
-class Conversion(AbstractOperationConstructor("Conversion", arity = 1)):
+class Conversion(ArithmeticOperationConstructor("Conversion", arity = 1)):
   """ abstract conversion operation """
   pass
 
-class TypeCast(AbstractOperationConstructor("TypeCast", arity = 1)):
+class TypeCast(ArithmeticOperationConstructor("TypeCast", arity = 1)):
   """ abstract conversion operation """
   pass
     
-class Dereference(AbstractOperationConstructor("Dereference", arity = 1)):
+class Dereference(ArithmeticOperationConstructor("Dereference", arity = 1)):
   """ abstract pointer derefence operation """
   pass
 
@@ -812,7 +812,7 @@ class ReferenceAssign(AbstractOperationConstructor("ReferenceAssign", arity = 1)
   """ abstract assignation to reference operation """
   pass
 
-class ExponentInsertion(AbstractOperationConstructor("ExponentInsertion", arity = 1, inheritance = [SpecifierOperation])):
+class ExponentInsertion(ArithmeticOperationConstructor("ExponentInsertion", arity = 1, inheritance = [SpecifierOperation])):
   """ insertion of a number in the exponent field of a floating-point value """ 
   class Default: pass
   class NoOffset: pass
@@ -825,18 +825,18 @@ class ExponentInsertion(AbstractOperationConstructor("ExponentInsertion", arity 
     """ return code generation specific key """
     return self.specifier
 
-class MantissaExtraction(AbstractOperationConstructor("MantissaExtraction", arity = 1)):
+class MantissaExtraction(ArithmeticOperationConstructor("MantissaExtraction", arity = 1)):
   """ extraction of the mantissa field of a floating-point value """
   pass
 
-class ExponentExtraction(AbstractOperationConstructor("ExponentExtraction", arity = 1)):
+class ExponentExtraction(ArithmeticOperationConstructor("ExponentExtraction", arity = 1)):
   """ extraction of the exponent field of a floating-point value """
   pass
 
-class RawSignExpExtraction(AbstractOperationConstructor("RawSignExpExtraction", arity = 1)):
+class RawSignExpExtraction(ArithmeticOperationConstructor("RawSignExpExtraction", arity = 1)):
     pass
 
-class CountLeadingZeros(AbstractOperationConstructor("CountLeadingZeros", arity = 1)):
+class CountLeadingZeros(ArithmeticOperationConstructor("CountLeadingZeros", arity = 1)):
     pass
 
 class TestSpecifier(object): 
@@ -886,7 +886,7 @@ def LogicOperationBuilder(op_name, arity = 2, likely_function = lambda self, *op
         "__init__": logic_operation_init,
         "likely_function": likely_function,
     }
-    return type(op_name, (AbstractOperationConstructor(op_name, inheritance = [BooleanOperation]),), field_map)
+    return type(op_name, (ArithmeticOperationConstructor(op_name, inheritance = [BooleanOperation]),), field_map)
 
 
 
@@ -896,7 +896,7 @@ LogicalNot = LogicOperationBuilder("LogicalNot", arity = 1, likely_function = la
 
         
 
-class Test(AbstractOperationConstructor("Test", inheritance = [BooleanOperation, SpecifierOperation])):
+class Test(ArithmeticOperationConstructor("Test", inheritance = [BooleanOperation, SpecifierOperation])):
     """ Abstract Test operation class """
     class IsNaN(TestSpecifier_Builder("IsNaN", 1)): pass
     class IsQuietNaN(TestSpecifier_Builder("IsQuietNaN", 1)): pass
@@ -918,7 +918,7 @@ class Test(AbstractOperationConstructor("Test", inheritance = [BooleanOperation,
         self.__class__.__base__.__init__(self, *args, **kwords)
         BooleanOperation.__init__(self, attr_init(kwords, "likely"))
         self.specifier = attr_init(kwords, "specifier", required = True)
-        self.arity = self.specifier.arity
+        self.arity = self.specifier.arity if not self.specifier is None else 1
 
 
     def get_name(self):
@@ -936,7 +936,7 @@ class Test(AbstractOperationConstructor("Test", inheritance = [BooleanOperation,
         new_copy.arity = self.arity
 
 
-class Comparison(AbstractOperationConstructor("Comparison", arity = 2, inheritance = [BooleanOperation, SpecifierOperation])):
+class Comparison(ArithmeticOperationConstructor("Comparison", arity = 2, inheritance = [BooleanOperation, SpecifierOperation])):
     """ Abstract Comparison operation """
     class Equal: pass
     class Less: pass
@@ -998,7 +998,7 @@ class Statement(AbstractOperationConstructor("Statement")):
         new_copy.arity = self.arity
 
 
-class FieldExtraction(AbstractOperationConstructor("FieldExtraction")):
+class FieldExtraction(ArithmeticOperationConstructor("FieldExtraction")):
     def __init__(self, *args, **kwords):
         self.__class__.__base__.__init__(self, *args, **kwords)
         self.arity = len(args)
