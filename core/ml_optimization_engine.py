@@ -682,7 +682,8 @@ class OptimizationEngine:
 
 
     def extract_fast_path(self, optree):
-        """ extracting fast path (most likely execution) from <optree> """
+        """ extracting fast path (most likely execution path leading 
+            to a Return operation) from <optree> """
         if isinstance(optree, ConditionBlock):
             cond = optree.inputs[0]
             likely = cond.get_likely()
@@ -705,6 +706,54 @@ class OptimizationEngine:
             return optree.inputs[0]
         else:
             return None
+
+
+    ## extract a linear execution path from optree by chosing
+    #  most likely side on each conditional branch
+    #  @param optree operation tree to extract fast path from
+    #  @param fallback_policy lambda function cond, cond_block, if_branch, else_branch: branch_to_consider, validity_mask_list
+    #  @return tuple linearized optree, validity mask list
+    def extract_vectorizable_path(self, optree, fallback_policy):
+        """ look for the most likely Return statement """
+        if isinstance(optree, ConditionBlock):
+            cond   = optree.inputs[0]
+            likely = cond.get_likely()
+            linearized_optree, validity_mask_list = self.extract_vectorizable_path(optree.get_pre_statement(), fallback_policy)
+            if not linearized_optree is None:
+              return linearized_optree, validity_mask_list
+            else:
+              if likely:
+                  if_branch = optree.inputs[1]
+                  linearized_optree, validity_mask_list = self.extract_vectorizable_path(if_branch, fallback_policy)
+                  return  linearized_optree, (validity_mask_list + [cond])
+              elif likely == False:
+                  if len(optree.inputs) >= 3:
+                    # else branch exists
+                    else_branch = optree.inputs[2]
+                    linearized_optree, validity_mask_list = self.extract_vectorizable_path(else_branch, fallback_policy)
+                    return  linearized_optree, (validity_mask_list + [LogicalNot(cond)])
+                  else:
+                    # else branch does not exists
+                    return None, []
+              elif len(optree.inputs) >= 2:
+                  # using fallback policy
+                  if_branch = optree.inputs[1]
+                  else_branch = optree.inputs[2]
+                  selected_branch, cond_mask_list = fallback_policy(cond, optree, if_branch, else_branch)
+                  linearized_optree, validity_mask_list = self.extract_vectorizable_path(selected_branch, fallback_policy)
+                  return  linearized_optree, (cond_mask_list + validity_mask_list)
+              else:
+                  return None, []
+        elif isinstance(optree, Statement):
+            for sub_stat in optree.inputs:
+                linearized_optree, validity_mask_list = self.extract_vectorizable_path(sub_stat, fallback_policy)
+                if not linearized_optree is None: 
+                  return linearized_optree, validity_mask_list
+            return None, []
+        elif isinstance(optree, Return):
+            return optree.inputs[0], []
+        else:
+            return None, []
 
     def factorize_fast_path(self, optree):
         """ extract <optree>'s fast path and add it to be pre-computed at 
@@ -959,6 +1008,10 @@ class OptimizationEngine:
 
         memoization_map[optree] = optree
         return optree
+
+
+    def static_vectorization(self, optree):
+      pass
         
 
 
