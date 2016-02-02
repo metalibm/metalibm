@@ -1,0 +1,14 @@
+
+
+
+Fixed-Point formats are assumed to be left aligned
+
+
+pre-statement:
+  This Operation Node's field is used to factorize Code Blocks between Conditional branches.
+  For example, it is used by subexpression_sharing pass in OptimizationEngine to store common expression between two branch sides, thus common code will be generated first and shared between the two branches.
+  It avoids code duplication.
+
+
+  It is also used during fast path factorization as a container for the extracted, linearezd most likely execution path. Which will then be executed before any other code (without condition consideration).
+
