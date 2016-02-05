@@ -99,11 +99,14 @@ class CCodeGenerator:
                 cst_varname = code_object.declare_cst(optree)
                 result = CodeVariable(cst_varname, precision)
             else:
-                try:
-                    result = CodeExpression(precision.get_c_cst(optree.get_value()), precision)
-                except:
-                  print optree.get_str(display_precision = True) # Exception print
-                  raise Exception()
+                if precision is ML_Integer:
+                  result = CodeExpression("%d" % optree.get_value(), precision)
+                else:
+                  try:
+                      result = CodeExpression(precision.get_c_cst(optree.get_value()), precision)
+                  except:
+                    print optree.get_str(display_precision = True) # Exception print
+                    raise Exception()
 
         elif isinstance(optree, TableLoad):
             # declaring table
@@ -121,6 +124,7 @@ class CCodeGenerator:
                 result_varname = result_var if result_var != None else code_object.get_free_var_name(optree.get_precision(), prefix = prefix)
                 code_object << self.generate_assignation(result_varname, result.get()) 
                 result = CodeVariable(result_varname, optree.get_precision())
+
 
         elif isinstance(optree, SwitchBlock):
             switch_value = optree.inputs[0]
