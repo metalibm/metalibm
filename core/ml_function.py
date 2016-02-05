@@ -1,7 +1,19 @@
+# -*- coding: utf-8 -*-
+
+###############################################################################
+# This file is part of Kalray's Metalibm tool
+# Copyright (2016)
+# All rights reserved
+# created:          
+# last-modified:    Feb  5th, 2016
+#
+# author(s): Nicolas Brunie (nicolas.brunie@kalray.eu)
+###############################################################################
 from metalibm_core.core.ml_formats import *
 from metalibm_core.core.ml_optimization_engine import OptimizationEngine
 from metalibm_core.core.ml_operations import Variable, ReferenceAssign, Statement, Return, ML_ArithmeticOperation, ConditionBlock, LogicalAnd 
 from metalibm_core.core.ml_complex_formats import ML_Mpfr_t
+from metalibm_core.core.ml_call_externalizer import CallExternalizer
 
 from metalibm_core.code_generation.code_object import NestedCode
 from metalibm_core.code_generation.code_function import CodeFunction
@@ -94,6 +106,8 @@ class ML_FunctionBasis(object):
 
     self.C_code_generator = CCodeGenerator(self.processor, declare_cst = False, disable_debug = not self.debug_flag, libm_compliant = self.libm_compliant)
     self.main_code_object = NestedCode(self.C_code_generator, static_cst = True)
+
+    self.call_externalizer = CallExternalizer(self.main_code_object)
 
   def get_eval_error(self, optree, variable_copy_map = {}, goal_precision = ML_Exact, gappa_filename = "gappa_eval_error.g", relative_error = False):
     """ wrapper for GappaCodeGenerator get_eval_error_v2 function """
@@ -219,66 +233,14 @@ class ML_FunctionBasis(object):
     # generate C code to implement scheme
     self.generate_C(code_function_list)
 
+
   ## 
   # @param optree ML_Operation object to be externalized
   # @param arg_list list of ML_Operation objects to be used as arguments
   # @return pair ML_Operation, ML_Funct
-  def externalize_call(self, optree, arg_list, tag = "foo", result_format = None):
-    # determining return format
-    return_format = optree.get_precision() if result_format is None else result_format
-    assert(not result_format is None and "external call result format must be defined")
-    function_name = self.main_code_object.declare_free_function_name(tag)
-
-    ext_function = CodeFunction(function_name, output_format = return_format)
-
-    # creating argument copy
-    arg_map = {}
-    arg_index = 0
-    for arg in arg_list:
-      arg_tag = arg.get_tag(default = "arg_%d" % arg_index)
-      arg_index += 1
-      arg_map[arg] = ext_function.add_input_variable(arg_tag, arg.get_precision())
-
-    # copying optree while swapping argument for variables
-    optree_copy = optree.copy(copy_map = arg_map)
-    # instanciating external function scheme
-    if isinstance(optree, ML_ArithmeticOperation):
-      function_optree = Statement(Return(optree_copy))
-    else:
-      function_optree = Statement(optree_copy)
-    ext_function.set_scheme(function_optree)
-    ext_function_object = ext_function.get_function_object()
-    self.main_code_object.declare_function(function_name, ext_function_object)
-    return ext_function_object(*arg_list), ext_function
-
-  def vectorize_scheme(self, optree, arg_list):
-    def fallback_policy(cond, cond_block, if_branch, else_branch):
-      return if_branch, [cond]
-    def and_merge_conditions(condition_list):
-      assert(len(condition_list) >= 1)
-      if len(condition_list) == 1:
-        return condition_list[0]
-      else:
-        half_size = len(condition_list) / 2
-        first_half  = and_merge_conditions(condition_list[:half_size])
-        second_half = and_merge_conditions(condition_list[half_size:])
-        return LogicalAnd(first_half, second_half)
-
-    linearized_most_likely_path, validity_list = self.opt_engine.extract_vectorizable_path(optree, fallback_policy)
-
-    assert(isinstance(linearized_most_likely_path, ML_ArithmeticOperation))
-    likely_result = linearized_most_likely_path
-
-    callback, callback_function = self.externalize_call(optree, arg_list, tag = "scalar_callback", result_format = self.get_output_precision())
-
-    vectorized_scheme = Statement(
-      likely_result,
-      ConditionBlock(and_merge_conditions(validity_list),
-        Return(likely_result),
-        Return(callback)
-      )
-    )
-    return vectorized_scheme, callback_function
+  def externalize_call(self, optree, arg_list, tag = "foo", result_format = None, name_factory = None):
+    ext_function = self.call_externalizer.externalize_call(optree, arg_list, tag, result_format)
+    return ext_function.get_function_object()(*arg_list), ext_function
 
 
   # Currently mostly empty, to be populated someday
