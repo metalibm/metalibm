@@ -1,5 +1,17 @@
 # -*- coding: utf-8 -*-
 
+###############################################################################
+# This file is part of Kalray's Metalibm tool
+# Copyright (2016)
+# All rights reserved
+# created:          Feb  3rd, 2016
+# last-modified:    Feb  5th, 2016
+#
+# author(s): Nicolas Brunie (nicolas.brunie@kalray.eu)
+# description: unit test for ML static vectorization 
+###############################################################################
+
+
 import sys
 
 from pythonsollya import *
@@ -16,12 +28,13 @@ from metalibm_core.code_generation.c_code_generator import CCodeGenerator
 from metalibm_core.code_generation.generic_processor import GenericProcessor
 from metalibm_core.code_generation.mpfr_backend import MPFRProcessor
 from metalibm_core.code_generation.fixed_point_backend import FixedPointBackend
+from metalibm_core.code_generation.vector_backend import VectorBackend
 from metalibm_core.code_generation.code_object import CodeObject
 from metalibm_core.code_generation.code_function import CodeFunction
 from metalibm_core.code_generation.code_constant import C_Code 
 from metalibm_core.core.ml_optimization_engine import OptimizationEngine
-from metalibm_core.core.polynomials import *
-from metalibm_core.core.ml_table import ML_Table
+
+from metalibm_core.core.ml_vectorizer import StaticVectorizer
 
 from metalibm_core.utility.ml_template import ML_ArgTemplate
 
@@ -66,8 +79,12 @@ class ML_UT_StaticVectorization(ML_Function("ml_ut_static_vectorization")):
 
 
   def generate_function_list(self):
+    # declaring optimizer
+    self.vectorizer = StaticVectorizer(self.opt_engine)
+
     # declaring function input variable
-    vx = self.implementation.add_input_variable("x", self.precision)
+    #vx = self.implementation.add_input_variable("x", self.precision)
+    vx = Variable("x", precision = self.precision) 
     # declaring specific interval for input variable <x>
     vx.set_interval(Interval(-1, 1))
 
@@ -86,7 +103,13 @@ class ML_UT_StaticVectorization(ML_Function("ml_ut_static_vectorization")):
         )
       )
     )
-    scheme, scalar_function = self.vectorize_scheme(scheme, [vx])
+    vec_arg_list, vector_scheme, vector_mask = self.vectorizer.vectorize_scheme(scheme, [vx], 2, self.call_externalizer, self.get_output_precision())
+
+    function_scheme = Statement(
+      ConditionBlock(
+        Test(vector_mask, Specifier = Test.
+
+    )
 
     # dummy scheme to make functionnal code generation
     self.implementation.set_scheme(scheme)
