@@ -90,6 +90,11 @@ class AbstractOperation(ML_Operation):
     def lo(self):
         return ComponentSelection(self, specifier = ComponentSelection.Lo)
 
+    def __getitem__(self, index):
+        return VectorElementSelection(self, index)
+    def __setitem__(self, index, value):
+        return ReferenceAssign(VectorElementSelection(self, index), value, precision = value.get_precision())
+
 
     ## Operator for boolean negation of operands 
     def __not__(self):
@@ -913,6 +918,8 @@ class Test(ArithmeticOperationConstructor("Test", inheritance = [BooleanOperatio
     class CompSign(TestSpecifier_Builder("CompSign", 2)): pass
     class SpecialCases(TestSpecifier_Builder("SpecialCases", 1)): pass
     class IsInvalidInput(TestSpecifier_Builder("IsInvalidInput", 1)): pass
+    class IsMaskAllZero(TestSpecifier_Builder("IsMaskAllZero", 1)): pass
+    class IsMaskNotAllZero(TestSpecifier_Builder("IsMaskNotAllZero", 1)): pass
 
     def __init__(self, *args, **kwords):
         self.__class__.__base__.__init__(self, *args, **kwords)
@@ -935,15 +942,26 @@ class Test(ArithmeticOperationConstructor("Test", inheritance = [BooleanOperatio
         BooleanOperation.finish_copy(self, new_copy, copy_map)
         new_copy.arity = self.arity
 
+class ComparisonSpecifier(object): pass
+def CompSpecBuilder(name, opcode):
+    field_map = {
+        # operation copy
+        "opcode": opcode,
+        # operation name
+        "get_opcode": (lambda self: self.opcode),
+    }
+    return type(name, (ComparisonSpecifier,), field_map)
+
+  
 
 class Comparison(ArithmeticOperationConstructor("Comparison", arity = 2, inheritance = [BooleanOperation, SpecifierOperation])):
     """ Abstract Comparison operation """
-    class Equal: pass
-    class Less: pass
-    class LessOrEqual: pass
-    class Greater: pass
-    class GreaterOrEqual: pass
-    class NotEqual: pass
+    Equal          = CompSpecBuilder("Equal", "eq")
+    NotEqual       = CompSpecBuilder("NotEqual", "ne")
+    Less           = CompSpecBuilder("Less",  "lt")
+    LessOrEqual    = CompSpecBuilder("LessOrEqual", "le")
+    Greater        = CompSpecBuilder("Greater", "gt")
+    GreaterOrEqual = CompSpecBuilder("GreaterOrEqual", "ge")
 
 
     def __init__(self, *args, **kwords):
@@ -982,12 +1000,14 @@ class Statement(AbstractOperationConstructor("Statement")):
         self.arity = len(args)
 
 
+    # add a new statement at the end of the inputs list 
+    # @param optree ML_Operation object added at the end of inputs list
     def add(self, optree):
-        """ add a new unary statement at the end of the input list """
         self.inputs = self.inputs + (optree,)
         self.arity += 1
 
-
+    # push a new statement at the end of the inputs list 
+    # @param optree ML_Operation object added at the end of inputs list
     def push(self, optree):
         """ add a new unary statement at the beginning of the input list """
         self.inputs = (optree,) + self.inputs
@@ -1267,6 +1287,42 @@ class SwitchBlock(AbstractOperationConstructor("Switch", arity = 1)):
                 pre_str += "Case: %s" %  case_str #.get_str(new_depth, display_precision, tab_level = 0, memoization_map = memoization_map, display_attribute = display_attribute, display_id = display_id)
                 pre_str += "%s" %  self.case_map[case].get_str(new_depth, display_precision, tab_level = tab_level + 2, memoization_map = memoization_map, display_attribute = display_attribute, display_id = display_id)
             return pre_str
+
+class VectorElementSelection(ArithmeticOperationConstructor("VectorElementSelection", arity = 2)):
+    implicit_arg_precision = {
+        ML_Float2: ML_Binary32,
+        ML_Float4: ML_Binary32,
+        ML_Float8: ML_Binary32,
+
+        ML_Double2: ML_Binary64,
+        ML_Double4: ML_Binary64,
+        ML_Double8: ML_Binary64,
+
+        ML_Int2: ML_Int32,
+        ML_Int4: ML_Int32,
+        ML_Int8: ML_Int32,
+
+        ML_UInt2: ML_UInt32,
+        ML_UInt4: ML_UInt32,
+        ML_UInt8: ML_UInt32,
+    }
+
+    def get_codegen_key(self):
+        """ return code generation specific key """
+        return None
+
+    def __init__(self, vector, elt_index, **kwords):
+        self.__class__.__base__.__init__(self, vector, elt_index, **kwords)
+        self.elt_index = elt_index
+
+        # setting implicit precision
+        if self.get_precision() == None and  vector.get_precision() != None:
+            arg_precision = vector.get_precision()
+            if arg_precision in VectorElementSelection.implicit_arg_precision:
+                self.set_precision(VectorElementSelection.implicit_arg_precision[arg_precision])
+
+    def get_elt_index(self):
+        return self.elt_index
 
 
 def AdditionN(*args, **kwords):
