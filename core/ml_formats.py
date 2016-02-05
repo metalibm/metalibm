@@ -206,29 +206,6 @@ class ML_Std_FP_Format(ML_FP_Format):
                 return str(cst_value) 
 
 
-class ML_Compound_FP_Format(ML_FP_Format):
-    def __init__(self, c_name, c_field_list, field_format_list, ml_support_prefix, c_display_format, sollya_object):
-        self.c_name = c_name
-        self.ml_support_prefix = ml_support_prefix
-        self.sollya_object = sollya_object
-        self.c_display_format = c_display_format
-        self.c_display_format = "undefined"
-
-    def get_c_name(self):
-        return self.c_name
-
-    def get_c_cst(self, cst_value):
-        tmp_cst = cst_value
-        field_str_list = []
-        for field_name, field_format in zip(c_field_list, field_format_list):
-            field_value = round(tmp_cst, field_format.sollya_object, RN)
-            tmp_cst = cst_value - field_value
-            field_str_list.append(".%s = %s" % (field_name, field_format.get_c_cst(field_value)))
-        return "{%s}" % (", ".join(field_str_list))
-
-
-    def get_c_display_format(self):
-        return self.c_display_format
 
 
 class ML_FormatConstructor(ML_Format):
@@ -372,9 +349,6 @@ ML_Binary32 = ML_Std_FP_Format(32, 8, 23, "f", "float", "fp32", "%a", binary32)
 ML_Binary64 = ML_Std_FP_Format(64, 11, 52, "", "double", "fp64", "%la", binary64)
 ML_Binary80 = ML_Std_FP_Format(80, 15, 64, "L", "long double", "fp80", "%la", binary80)
 
-# compound binary floating-point format declaration
-ML_DoubleDouble = ML_Compound_FP_Format("ml_dd_t", ["hi", "lo"], [ML_Binary64, ML_Binary64], "", "", doubledouble)
-ML_TripleDouble = ML_Compound_FP_Format("ml_td_t", ["hi", "me", "lo"], [ML_Binary64, ML_Binary64, ML_Binary64], "", "", tripledouble)
 
 # Standard integer format declarations
 ML_Int8    = ML_Standard_FixedPoint_Format(8, 0, True)
@@ -427,6 +401,85 @@ ML_Integer  = AbstractFormat_Builder("ML_Integer",  (ML_Fixed_Format,))("ML_Inte
 ML_Float    = AbstractFormat_Builder("ML_Float",    (ML_FP_Format,))("ML_Float")
 ML_Bool     = AbstractFormat_Builder("ML_Bool",     (ML_Bool_Format,))("ML_Bool")
 
+
+###############################################################################
+#                     COMPOUNT FORMAT
+###############################################################################
+
+class ML_Compound_Format(ML_Format):
+    def __init__(self, c_name, c_field_list, field_format_list, ml_support_prefix, c_display_format, sollya_object):
+        self.c_name = c_name
+        self.ml_support_prefix = ml_support_prefix
+        self.sollya_object = sollya_object
+        self.c_display_format = c_display_format
+        self.c_display_format = "undefined"
+
+    def get_c_name(self):
+        return self.c_name
+
+    def get_c_cst(self, cst_value):
+        tmp_cst = cst_value
+        field_str_list = []
+        for field_name, field_format in zip(c_field_list, field_format_list):
+            field_value = round(tmp_cst, field_format.sollya_object, RN)
+            tmp_cst = cst_value - field_value
+            field_str_list.append(".%s = %s" % (field_name, field_format.get_c_cst(field_value)))
+        return "{%s}" % (", ".join(field_str_list))
+
+
+    def get_c_display_format(self):
+        return self.c_display_format
+
+class ML_Compound_FP_Format(ML_Compound_Format, ML_FP_Format):
+  pass
+class ML_Compound_Integer_Format(ML_Compound_Format, ML_Fixed_Format):
+  pass
+
+# compound binary floating-point format declaration
+ML_DoubleDouble = ML_Compound_FP_Format("ml_dd_t", ["hi", "lo"], [ML_Binary64, ML_Binary64], "", "", doubledouble)
+ML_TripleDouble = ML_Compound_FP_Format("ml_td_t", ["hi", "me", "lo"], [ML_Binary64, ML_Binary64, ML_Binary64], "", "", tripledouble)
+
+###############################################################################
+#                     VECTOR FORMAT
+###############################################################################
+
+## common ancestor to every vector format
+class ML_VectorFormat: 
+  pass
+class ML_IntegerVectorFormat(ML_Compound_Integer_Format, ML_VectorFormat):
+  pass
+class ML_FloatingPointVectorFormat(ML_Compound_FP_Format, ML_VectorFormat):
+  pass
+
+## helper function to generate a vector format
+#  @param format_name string name of the result format
+#  @param vector_size integer number of element in the vector
+#  @param scalar_format ML_Format object, format of a vector's element
+#  @param sollya_precision pythonsollya object, sollya precision to be used for computation
+#  @param compound_constructor ML_Compound_Format child class used to build the result format 
+def vector_format_builder(format_name, vector_size, scalar_format, sollya_precision = None, compound_constructor = ML_FloatingPointVectorFormat):
+  return compound_constructor(format_name, ["_[%d]" % i for i in xrange(vector_size)], [scalar_format for i in xrange(vector_size)], "", "", sollya_precision)
+
+
+ML_Float2 = vector_format_builder("ml_float2_t", 2, ML_Binary32)
+ML_Float4 = vector_format_builder("ml_float4_t", 4, ML_Binary32)
+ML_Float8 = vector_format_builder("ml_float8_t", 8, ML_Binary32)
+
+ML_Double2 = vector_format_builder("ml_double2_t", 2, ML_Binary64)
+ML_Double4 = vector_format_builder("ml_double4_t", 4, ML_Binary64)
+ML_Double8 = vector_format_builder("ml_double8_t", 8, ML_Binary64)
+
+ML_Bool2  = vector_format_builder("ml_bool2_t", 2, ML_Bool, compound_constructor = ML_IntegerVectorFormat)
+ML_Bool4  = vector_format_builder("ml_bool4_t", 4, ML_Bool, compound_constructor = ML_IntegerVectorFormat)
+ML_Bool8  = vector_format_builder("ml_bool8_t", 8, ML_Bool, compound_constructor = ML_IntegerVectorFormat)
+
+ML_Int2  = vector_format_builder("ml_int2_t", 2, ML_Int32, compound_constructor = ML_IntegerVectorFormat)
+ML_Int4  = vector_format_builder("ml_int4_t", 4, ML_Int32, compound_constructor = ML_IntegerVectorFormat)
+ML_Int8  = vector_format_builder("ml_int8_t", 8, ML_Int32, compound_constructor = ML_IntegerVectorFormat)
+
+ML_UInt2 = vector_format_builder("ml_uint2_t", 2, ML_UInt32, compound_constructor = ML_IntegerVectorFormat)
+ML_UInt4 = vector_format_builder("ml_uint4_t", 4, ML_UInt32, compound_constructor = ML_IntegerVectorFormat)
+ML_UInt8 = vector_format_builder("ml_uint8_t", 8, ML_UInt32, compound_constructor = ML_IntegerVectorFormat)
 
 ###############################################################################
 #                     FLOATING-POINT SPECIAL VALUES
