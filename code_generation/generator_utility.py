@@ -279,6 +279,21 @@ class FO_Result:
   def get_output_precision(self):
     return self.output_precision
 
+class FO_ResultRef: 
+  """ PlaceHolder for a function Operator result
+      can be used to allocate result passed by reference
+      as an operator arguments.
+      output_precision should be determined by the generate expression
+      function """
+  def __init__(self, index = 0, output_precision = None):
+    self.index = 0
+    self.output_precision = output_precision
+
+  def get_index(self):
+    return self.index
+
+  def get_output_precision(self):
+    return self.output_precision
   
 
 class FunctionOperator(ML_CG_Operator):
@@ -306,6 +321,9 @@ class FunctionOperator(ML_CG_Operator):
         elif isinstance(arg_index, FO_Result):
           return result_args_map[arg_index.get_index()]
           # return FO_Result(arg_index.get_index(), arg_index.get_output_precision()) 
+
+        elif isinstance(arg_index, FO_ResultRef):
+          return CodeExpression("&%s" % result_args_map[arg_index.get_index()].get(), None)
 
         else:
           return CodeExpression(arg_map[index], None)
@@ -347,7 +365,7 @@ class FunctionOperator(ML_CG_Operator):
         result_args_map = {}
         for arg_index in self.arg_map:
           arg = self.arg_map[arg_index]
-          if isinstance(arg, FO_Result):
+          if isinstance(arg, FO_Result) or isinstance(arg, FO_ResultRef):
             prefix = optree.get_tag(default = "tmp")
             result_varname = result_var if result_var != None else code_object.get_free_var_name(optree.get_precision(), prefix = prefix)
             result_in_args = CodeVariable(result_varname, optree.get_precision())
