@@ -11,7 +11,7 @@
 ###############################################################################
 
 from ..utility.log_report import *
-from .generator_utility import SymbolOperator, FunctionOperator, TemplateOperator, C_Code, Gappa_Code, build_simplified_operator_generation, IdentityOperator, FO_Arg, RoundOperator, type_strict_match, type_relax_match, type_result_match, type_function_match, FunctionObjectOperator, type_all_match, build_simplified_operator_generation_nomap, type_std_integer_match
+from .generator_utility import *
 from .code_element import *
 from .complex_generator import *
 from ..core.ml_formats import *
@@ -232,8 +232,16 @@ c_code_generation_table = {
             build_simplified_operator_generation([ML_Int32, ML_UInt32, ML_Int64, ML_UInt64, ML_Binary32, ML_Binary64], 2, SymbolOperator("!=", arity = 2), result_precision = ML_Int32),
         Comparison.Greater: 
             build_simplified_operator_generation([ML_Int32, ML_Int64, ML_UInt64, ML_UInt32, ML_Binary32, ML_Binary64], 2, SymbolOperator(">", arity = 2), result_precision = ML_Int32),
-        Comparison.GreaterOrEqual: 
-            build_simplified_operator_generation([ML_Int32, ML_Int64, ML_UInt64, ML_UInt32, ML_Binary32, ML_Binary64], 2, SymbolOperator(">=", arity = 2), result_precision = ML_Int32),
+        Comparison.GreaterOrEqual: { 
+            lambda _: True: 
+            dict(
+              (
+                type_strict_match_list([ML_Int32, ML_Bool], [op_type]),
+                SymbolOperator(">=", arity = 2)
+              ) for op_type in [ML_Int32, ML_Int64, ML_UInt64, ML_UInt32, ML_Binary32, ML_Binary64]
+            ),
+            #build_simplified_operator_generation([ML_Int32, ML_Int64, ML_UInt64, ML_UInt32, ML_Binary32, ML_Binary64], 2, SymbolOperator(">=", arity = 2), result_precision = ML_Int32),
+        },
         Comparison.Less: 
             build_simplified_operator_generation([ML_Int32, ML_Int64, ML_UInt64, ML_UInt32, ML_Binary32, ML_Binary64], 2, SymbolOperator("<", arity = 2), result_precision = ML_Int32),
         Comparison.LessOrEqual: 
@@ -242,80 +250,80 @@ c_code_generation_table = {
     Test: {
         Test.IsIEEENormalPositive: {
             lambda optree: True: {
-                type_strict_match(ML_Int32, ML_Binary32): ML_Utils_Function("ml_is_normal_positive_fp32", arity = 1),
-                type_strict_match(ML_Int32, ML_Binary64): ML_Utils_Function("ml_is_normal_positive_fp64", arity = 1),
+                type_strict_match_list([ML_Int32, ML_Bool], [ML_Binary32]): ML_Utils_Function("ml_is_normal_positive_fp32", arity = 1),
+                type_strict_match_list([ML_Int32, ML_Bool], [ML_Binary64]): ML_Utils_Function("ml_is_normal_positive_fp64", arity = 1),
             },
         },
         Test.IsInfOrNaN: {
             lambda optree: True: {
-                type_strict_match(ML_Int32, ML_Binary32): ML_Utils_Function("ml_is_nan_or_inff", arity = 1), 
-                type_strict_match(ML_Int32, ML_Binary64): ML_Utils_Function("ml_is_nan_or_inf", arity = 1), 
+                type_strict_match_list([ML_Int32, ML_Bool], [ML_Binary32]): ML_Utils_Function("ml_is_nan_or_inff", arity = 1), 
+                type_strict_match_list([ML_Int32, ML_Bool], [ML_Binary64]): ML_Utils_Function("ml_is_nan_or_inf", arity = 1), 
             },
         },
         Test.IsNaN: {
             lambda optree: True: {
-                type_strict_match(ML_Int32, ML_Binary32): ML_Utils_Function("ml_is_nanf", arity = 1), 
-                type_strict_match(ML_Int32, ML_Binary64): ML_Utils_Function("ml_is_nan", arity = 1), 
+                type_strict_match_list([ML_Int32, ML_Bool], [ML_Binary32]): ML_Utils_Function("ml_is_nanf", arity = 1), 
+                type_strict_match_list([ML_Int32, ML_Bool], [ML_Binary64]): ML_Utils_Function("ml_is_nan", arity = 1), 
             },
         },
         Test.IsSignalingNaN: {
             lambda optree: True: {
-                type_strict_match(ML_Int32, ML_Binary32): ML_Utils_Function("ml_is_signaling_nanf", arity = 1), 
-                type_strict_match(ML_Int32, ML_Binary64): ML_Utils_Function("ml_is_signaling_nan", arity = 1), 
+                type_strict_match_list([ML_Int32, ML_Bool], [ML_Binary32]): ML_Utils_Function("ml_is_signaling_nanf", arity = 1), 
+                type_strict_match_list([ML_Int32, ML_Bool], [ML_Binary64]): ML_Utils_Function("ml_is_signaling_nan", arity = 1), 
             },
         },
         Test.IsQuietNaN: {
             lambda optree: True: {
-                type_strict_match(ML_Int32, ML_Binary32): ML_Utils_Function("ml_is_quiet_nanf", arity = 1), 
-                type_strict_match(ML_Int32, ML_Binary64): ML_Utils_Function("ml_is_quiet_nan", arity = 1), 
+                type_strict_match_list([ML_Int32, ML_Bool], [ML_Binary32]): ML_Utils_Function("ml_is_quiet_nanf", arity = 1), 
+                type_strict_match_list([ML_Int32, ML_Bool], [ML_Binary64]): ML_Utils_Function("ml_is_quiet_nan", arity = 1), 
             },
         },
         Test.IsSubnormal: {
             lambda optree: True: {
-                type_strict_match(ML_Int32, ML_Binary32): ML_Utils_Function("ml_is_subnormalf", arity = 1), 
-                type_strict_match(ML_Int32, ML_Binary64): ML_Utils_Function("ml_is_subnormal", arity = 1), 
+                type_strict_match_list([ML_Int32, ML_Bool], [ML_Binary32]): ML_Utils_Function("ml_is_subnormalf", arity = 1), 
+                type_strict_match_list([ML_Int32, ML_Bool], [ML_Binary64]): ML_Utils_Function("ml_is_subnormal", arity = 1), 
             },
         },
         Test.IsInfty: {
             lambda optree: True: {
-                type_strict_match(ML_Int32, ML_Binary32): ML_Utils_Function("ml_is_inff", arity = 1), 
-                type_strict_match(ML_Int32, ML_Binary64): ML_Utils_Function("ml_is_inf", arity = 1), 
+                type_strict_match_list([ML_Int32, ML_Bool], [ML_Binary32]): ML_Utils_Function("ml_is_inff", arity = 1), 
+                type_strict_match_list([ML_Int32, ML_Bool], [ML_Binary64]): ML_Utils_Function("ml_is_inf", arity = 1), 
             },
         },
         Test.IsPositiveInfty: {
             lambda optree: True: {
-                type_strict_match(ML_Int32, ML_Binary32): ML_Utils_Function("ml_is_plus_inff", arity = 1), 
-                type_strict_match(ML_Int32, ML_Binary64): ML_Utils_Function("ml_is_plus_inf", arity = 1), 
+                type_strict_match_list([ML_Int32, ML_Bool], [ML_Binary32]): ML_Utils_Function("ml_is_plus_inff", arity = 1), 
+                type_strict_match_list([ML_Int32, ML_Bool], [ML_Binary64]): ML_Utils_Function("ml_is_plus_inf", arity = 1), 
             },
         },
         Test.IsNegativeInfty: {
             lambda optree: True: {
-                type_strict_match(ML_Int32, ML_Binary32): ML_Utils_Function("ml_is_minus_inff", arity = 1), 
-                type_strict_match(ML_Int32, ML_Binary64): ML_Utils_Function("ml_is_minus_inf", arity = 1), 
+                type_strict_match_list([ML_Int32, ML_Bool], [ML_Binary32]): ML_Utils_Function("ml_is_minus_inff", arity = 1), 
+                type_strict_match_list([ML_Int32, ML_Bool], [ML_Binary64]): ML_Utils_Function("ml_is_minus_inf", arity = 1), 
             },
         },
         Test.IsZero: {
             lambda optree: True: {
-                type_strict_match(ML_Int32, ML_Binary32): ML_Utils_Function("ml_is_zerof", arity = 1), 
-                type_strict_match(ML_Int32, ML_Binary64): ML_Utils_Function("ml_is_zero", arity = 1), 
+                type_strict_match_list([ML_Int32, ML_Bool], [ML_Binary32]): ML_Utils_Function("ml_is_zerof", arity = 1), 
+                type_strict_match_list([ML_Int32, ML_Bool], [ML_Binary64]): ML_Utils_Function("ml_is_zero", arity = 1), 
             },
         },
         Test.IsPositiveZero: {
             lambda optree: True: {
-                type_strict_match(ML_Int32, ML_Binary32): ML_Utils_Function("ml_is_positivezerof", arity = 1), 
-                type_strict_match(ML_Int32, ML_Binary64): ML_Utils_Function("ml_is_positivezero", arity = 1), 
+                type_strict_match_list([ML_Int32, ML_Bool], [ML_Binary32]): ML_Utils_Function("ml_is_positivezerof", arity = 1), 
+                type_strict_match_list([ML_Int32, ML_Bool], [ML_Binary64]): ML_Utils_Function("ml_is_positivezero", arity = 1), 
             },
         },
         Test.IsNegativeZero: {
             lambda optree: True: {
-                type_strict_match(ML_Int32, ML_Binary32): ML_Utils_Function("ml_is_negativezerof", arity = 1), 
-                type_strict_match(ML_Int32, ML_Binary64): ML_Utils_Function("ml_is_negativezero", arity = 1), 
+                type_strict_match_list([ML_Int32, ML_Bool], [ML_Binary32]): ML_Utils_Function("ml_is_negativezerof", arity = 1), 
+                type_strict_match_list([ML_Int32, ML_Bool], [ML_Binary64]): ML_Utils_Function("ml_is_negativezero", arity = 1), 
             },
         },
         Test.CompSign: {
             lambda optree: True: {
-                type_strict_match(ML_Int32, ML_Binary32, ML_Binary32): ML_Utils_Function("ml_comp_signf", arity = 2), 
-                type_strict_match(ML_Int32, ML_Binary64, ML_Binary64): ML_Utils_Function("ml_comp_sign", arity = 2), 
+                type_strict_match_list([ML_Int32, ML_Bool], [ML_Binary32], [ML_Binary32]): ML_Utils_Function("ml_comp_signf", arity = 2), 
+                type_strict_match_list([ML_Int32, ML_Bool], [ML_Binary64], [ML_Binary64]): ML_Utils_Function("ml_comp_sign", arity = 2), 
             },
         },
     },

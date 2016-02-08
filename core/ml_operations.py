@@ -23,6 +23,9 @@ from ..utility.common import Callable, ML_NotImplemented
 from .attributes import Attributes, attr_init
 from .ml_formats import * # FP_SpecialValue, ML_FloatingPointException, ML_FloatingPoint_RoundingMode, ML_FPRM_Type, ML_FPE_Type
 
+## \defgroup ml_operations ml_operations
+#  @{
+
 
 ## merge abstract format function
 #  @return most generic abstract format to unify args formats 
@@ -424,6 +427,8 @@ class Constant(ML_LeafNode):
     #  @return the numerical constant value
     def get_value(self):
         return self.value
+    def set_value(self, new_value):
+        self.value = new_value
 
     def get_str(self, depth = None, display_precision = False, tab_level = 0, memoization_map = {}, display_attribute = False, display_id = False):
         precision_str = "" if not display_precision else "[%s]" % str(self.get_precision())
@@ -455,6 +460,10 @@ class Variable(ML_LeafNode):
     #  such node is defined within the function description.
     #  It holds an intermediary state
     class Intermediary: pass
+
+    ## constructor
+    #  @param tag string name of the Variable object
+    #  @param init_map standard ML_Operation attribute dictionnary initialization 
     def __init__(self, tag, **init_map):
         AbstractOperation.__init__(self, **init_map)
         self.attributes.set_tag(tag)
@@ -466,6 +475,7 @@ class Variable(ML_LeafNode):
     def get_var_type(self):
         return self.var_type
 
+    ## generate string description of the Variable node
     def get_str(self, depth = None, display_precision = False, tab_level = 0, memoization_map = {}, display_attribute = False, display_id = False):
         precision_str = "" if not display_precision else "[%s]" % str(self.get_precision())
         attribute_str = "" if not display_attribute else self.attributes.get_str(tab_level = tab_level)
@@ -1333,6 +1343,11 @@ def AdditionN(*args, **kwords):
     op1 = op_list.pop(0)
     op_list.append(Addition(op0, op1, **kwords))
   return op_list[0]
+
+# end of doxygen group ml_operations
+## @}
+
+
 
 if __name__ == "__main__":
   # auto doc

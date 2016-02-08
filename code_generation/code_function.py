@@ -34,6 +34,9 @@ class CodeFunction:
     self.arg_list.append(input_var)
     return input_var
 
+  def register_new_input_variable(self, new_input):
+    self.arg_list.append(new_input)
+
   def get_function_object(self):
     # if None, build it
     if self.function_object is None:
@@ -52,6 +55,15 @@ class CodeFunction:
     for i in xrange(len(self.arg_list)):
       function_arg_map[i] = FO_Arg(i)
     return FunctionOperator(self.name, arg_map = function_arg_map)
+
+  ## retrieve format of the result(s) returned by the function
+  #  @return ML_Format object
+  def get_output_format(self):
+    return self.output_format
+  ## define a new format for the function return value(s)
+  #  @param new_output_format ML_Format object indicated which format is returned by the function
+  def set_output_format(self, new_output_format):
+    self.output_format = new_output_format
     
 
   def get_declaration(self, final = True):

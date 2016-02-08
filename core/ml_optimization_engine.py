@@ -28,8 +28,9 @@ def merge_abstract_format(*args):
 
     if has_float: return ML_Float
     if has_integer: return ML_Integer
-    if has_bool: return ML_Bool
+    if has_bool: return ML_AbstractBool
     else:
+        print args
         Log.report(Log.Error, "unknown formats while merging abstract format tuple")
 
 
@@ -69,15 +70,15 @@ abstract_typing_rule = {
     CountLeadingZeros: 
         lambda *ops: ML_Integer,
     Comparison: 
-        lambda *ops: ML_Bool,
+        lambda *ops: ML_AbstractBool,
     Test: 
-        lambda *ops: ML_Bool,
+        lambda *ops: ML_AbstractBool,
     LogicalAnd: 
-        lambda *ops: ML_Bool,
+        lambda *ops: ML_AbstractBool,
     LogicalOr: 
-        lambda *ops: ML_Bool,
+        lambda *ops: ML_AbstractBool,
     LogicalNot: 
-        lambda *ops: ML_Bool,
+        lambda *ops: ML_AbstractBool,
     BitLogicAnd:
         lambda *ops: ML_Integer,
     BitLogicOr:
@@ -354,12 +355,13 @@ support_simplification = {
 
 class OptimizationEngine:
     """ backend (precision instanciation and optimization passes) class """
-    def __init__(self, processor, default_integer_format = ML_Int32, default_fp_precision = ML_Binary32, change_handle = True, dot_product_enabled = True):
+    def __init__(self, processor, default_integer_format = ML_Int32, default_fp_precision = ML_Binary32, change_handle = True, dot_product_enabled = True, default_boolean_precision = ML_Int32):
         self.processor = processor
         self.default_integer_format = default_integer_format
         self.default_fp_precision = default_fp_precision
         self.change_handle = change_handle
         self.dot_product_enabled = dot_product_enabled
+        self.default_boolean_precision = default_boolean_precision
 
     def set_dot_product_enabled(self, dot_product_enabled):
         self.dot_product_enabled = dot_product_enabled
@@ -396,7 +398,9 @@ class OptimizationEngine:
 
     def get_boolean_format(self, optree):
         """ return boolean format to use for optree """
-        return ML_Int32
+        return self.default_boolean_precision
+    def set_boolean_format(self, new_boolean_format):
+        self.default_boolean_precision = new_boolean_format
 
 
     def propagate_format_to_cst(self, optree, new_optree_format, index_list = []):
@@ -713,7 +717,7 @@ class OptimizationEngine:
     #  @param optree operation tree to extract fast path from
     #  @param fallback_policy lambda function cond, cond_block, if_branch, else_branch: branch_to_consider, validity_mask_list
     #  @return tuple linearized optree, validity mask list
-    def extract_vectorizable_path(self, optree, fallback_policy):
+    def extract_vectorizable_path(self, optree, fallback_policy, bool_precision = ML_Bool):
         """ look for the most likely Return statement """
         if isinstance(optree, ConditionBlock):
             cond   = optree.inputs[0]
@@ -731,7 +735,7 @@ class OptimizationEngine:
                     # else branch exists
                     else_branch = optree.inputs[2]
                     linearized_optree, validity_mask_list = self.extract_vectorizable_path(else_branch, fallback_policy)
-                    return  linearized_optree, (validity_mask_list + [LogicalNot(cond)])
+                    return  linearized_optree, (validity_mask_list + [LogicalNot(cond, precision = bool_precision)])
                   else:
                     # else branch does not exists
                     return None, []
@@ -908,6 +912,19 @@ class OptimizationEngine:
             if cond(optree):
                 return support_simplification[optree.__class__][code_gen_key][cond](optree, self.processor)
         Log.report(Log.Error, "support simplification mapping not found")
+
+    def recursive_swap_format(self, optree, old_format, new_format, memoization_map = None):
+      memoization_map = {} if memoization_map is None else memoization_map
+      if optree in memoization_map:
+        return
+      else:
+        if optree.get_precision() is old_format:
+          optree.set_precision(new_format)
+        memoization_map[optree] = optree
+        for node in optree.get_inputs() + optree.get_extra_inputs():
+          self.recursive_swap_format(node, old_format, new_format)
+
+      
 
 
     def check_processor_support(self, optree, memoization_map = {}, debug = False):

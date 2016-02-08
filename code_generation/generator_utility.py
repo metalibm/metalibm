@@ -553,6 +553,17 @@ class type_strict_match:
     def __call__(self, *arg_tuple, **kwords):
         return self.type_tuple == arg_tuple
 
+class type_strict_match_list:
+    def __init__(self, *type_tuple_list):
+        """ check that argument and constrain type match strictly """
+        self.type_tuple_list = type_tuple_list
+
+    def __call__(self, *arg_tuple, **kwords):
+        for constraint_list, arg_format in zip(self.type_tuple_list, arg_tuple):
+          if not arg_format in constraint_list:
+            return False
+        return True
+
 class type_fixed_match: 
     """ type_strict_match + match any instance of ML_Fixed_Format to 
         ML_Fixed_Format descriptor """

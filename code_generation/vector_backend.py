@@ -107,6 +107,20 @@ vector_c_code_generation_table = {
       },
     },
   },
+  LogicalNot: {
+    None: {
+      lambda _: True: {
+        type_strict_match(ML_Bool2, ML_Bool2): ML_VectorLib_Function("ml_vnotb2", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)}, arity = 1, output_precision = ML_Int2)
+      },
+    },
+  },
+  LogicalAnd: {
+    None: {
+      lambda _: True: {
+        type_strict_match(ML_Bool2, ML_Bool2, ML_Bool2): ML_VectorLib_Function("ml_vandb2", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = ML_Int2)
+      },
+    },
+  },
   Comparison: 
     #specifier -> 
     dict ((comp_specifier, 
@@ -118,7 +132,19 @@ vector_c_code_generation_table = {
                 [
                   [
                     (
-                      type_strict_match(ML_Bool2, vector_type[scalar_type][vector_size], vector_type[scalar_type][vector_size]), 
+                      type_strict_match_list(
+                        [
+                          #vector_type[ML_Int32][vector_size], 
+                          vector_type[ML_Bool][vector_size]
+                        ],
+                        [
+                          vector_type[scalar_type][vector_size]
+                        ],
+                        [
+                          vector_type[scalar_type][vector_size]
+                        ]
+                      )
+                      , 
                       ML_VectorLib_Function("ml_comp_%s_%s%d" % (comp_specifier.opcode, scalar_type_letter[scalar_type], vector_size), arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = vector_type[ML_Bool][vector_size])
                     )  for scalar_type in [ML_Binary32, ML_Binary64, ML_Int32, ML_UInt32]
                   ] for vector_size in [2, 4, 8]
@@ -128,22 +154,29 @@ vector_c_code_generation_table = {
           )
       }
     ) for comp_specifier in [Comparison.Equal, Comparison.NotEqual, Comparison.Greater, Comparison.GreaterOrEqual, Comparison.Less, Comparison.LessOrEqual]
-  )  ,
+  ),
   Test: {
     Test.IsMaskAllZero: {
-      lambda _: True {
-        type_strict_match(ML_Int32, ML_Bool2): ML_VectorLib_Function("ml_is_vmask2_zero", arity = 1, output_precision = ML_Int32), 
-        type_strict_match(ML_Int32, ML_Bool4): ML_VectorLib_Function("ml_is_vmask4_zero", arity = 1, output_precision = ML_Int32), 
-        type_strict_match(ML_Int32, ML_Bool8): ML_VectorLib_Function("ml_is_vmask8_zero", arity = 1, output_precision = ML_Int32), 
+      lambda _: True: {
+        type_strict_match_list([ML_Bool, ML_Int32], [ML_Bool2]): ML_VectorLib_Function("ml_is_vmask2_zero", arity = 1, output_precision = ML_Int32), 
+        type_strict_match_list([ML_Bool, ML_Int32], [ML_Bool4]): ML_VectorLib_Function("ml_is_vmask4_zero", arity = 1, output_precision = ML_Int32), 
+        type_strict_match_list([ML_Bool, ML_Int32], [ML_Bool8]): ML_VectorLib_Function("ml_is_vmask8_zero", arity = 1, output_precision = ML_Int32), 
       },
     },
     Test.IsMaskNotAllZero: {
-      lambda _: True {
-        type_strict_match(ML_Int32, ML_Bool2): ML_VectorLib_Function("ml_is_vmask2_non_zero", arity = 1, output_precision = ML_Int32), 
-        type_strict_match(ML_Int32, ML_Bool4): ML_VectorLib_Function("ml_is_vmask4_non_zero", arity = 1, output_precision = ML_Int32), 
-        type_strict_match(ML_Int32, ML_Bool8): ML_VectorLib_Function("ml_is_vmask8_non_zero", arity = 1, output_precision = ML_Int32), 
+      lambda _: True: {
+        type_strict_match_list([ML_Bool, ML_Int32], [ML_Bool2]): ML_VectorLib_Function("ml_is_vmask2_non_zero", arity = 1, output_precision = ML_Int32), 
+        type_strict_match_list([ML_Bool, ML_Int32], [ML_Bool4]): ML_VectorLib_Function("ml_is_vmask4_non_zero", arity = 1, output_precision = ML_Int32), 
+        type_strict_match_list([ML_Bool, ML_Int32], [ML_Bool8]): ML_VectorLib_Function("ml_is_vmask8_non_zero", arity = 1, output_precision = ML_Int32), 
       },
     },
+    Test.IsInfOrNaN: {
+      lambda _: True: {
+        type_strict_match(ML_Bool2, ML_Float2): ML_VectorLib_Function("ml_vtestf2_is_nan_or_inf", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)}, arity = 1, output_precision = ML_Int2),
+        type_strict_match(ML_Bool4, ML_Float4): ML_VectorLib_Function("ml_vtestf4_is_nan_or_inf", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)}, arity = 1, output_precision = ML_Int4),
+        type_strict_match(ML_Bool8, ML_Float8): ML_VectorLib_Function("ml_vtestf8_is_nan_or_inf", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)}, arity = 1, output_precision = ML_Int8),
+      },
+    }
   },
 }
 

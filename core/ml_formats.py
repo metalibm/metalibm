@@ -11,6 +11,7 @@
 ###############################################################################
 
 from pythonsollya import *
+from ..utility.common import ML_NotImplemented
 import re
 
 ## Class of rounding mode type
@@ -69,6 +70,9 @@ class ML_Format(object):
         """ <abstract> return the bit size of the format (if it exists) """
         print self # Exception ML_NotImplemented print
         raise ML_NotImplemented()
+
+    def is_cst_decl_required(self):
+        return False
 
     ## return the C code for args initialization
     def generate_c_initialization(self, *args):
@@ -204,8 +208,6 @@ class ML_Std_FP_Format(ML_FP_Format):
                 return str(float(cst_value)) 
             else:
                 return str(cst_value) 
-
-
 
 
 class ML_FormatConstructor(ML_Format):
@@ -367,6 +369,15 @@ ML_Int128    = ML_Standard_FixedPoint_Format(128, 0, True)
 ML_UInt128   = ML_Standard_FixedPoint_Format(128, 0, False)
 
 
+def bool_get_c_cst(self, cst_value):
+  if cst_value: 
+    return "ML_TRUE"
+  else:
+    return "ML_FALSE"
+
+ML_Bool      = ML_FormatConstructor(32, "int", "%d", bool_get_c_cst)
+
+
 def is_std_integer_format(precision):
   return precision in [ML_Int8,ML_UInt8,ML_Int16,ML_UInt16,ML_Int32,ML_UInt32,ML_Int64,ML_UInt64,ML_Int128,ML_UInt128]
 
@@ -397,9 +408,10 @@ def get_std_integer_support_format(precision):
 
 
 # abstract formats
-ML_Integer  = AbstractFormat_Builder("ML_Integer",  (ML_Fixed_Format,))("ML_Integer")
-ML_Float    = AbstractFormat_Builder("ML_Float",    (ML_FP_Format,))("ML_Float")
-ML_Bool     = AbstractFormat_Builder("ML_Bool",     (ML_Bool_Format,))("ML_Bool")
+ML_Integer          = AbstractFormat_Builder("ML_Integer",  (ML_Fixed_Format,))("ML_Integer")
+ML_Float            = AbstractFormat_Builder("ML_Float",    (ML_FP_Format,))("ML_Float")
+ML_AbstractBool     = AbstractFormat_Builder("MLAbstractBool",     (ML_Bool_Format,))("ML_AbstractBool")
+
 
 
 ###############################################################################
@@ -413,14 +425,20 @@ class ML_Compound_Format(ML_Format):
         self.sollya_object = sollya_object
         self.c_display_format = c_display_format
         self.c_display_format = "undefined"
+        self.c_field_list = c_field_list
+        self.field_format_list = field_format_list
 
     def get_c_name(self):
         return self.c_name
 
+    ## forces constant declaration during code generation
+    def is_cst_decl_required(self):
+        return True
+
     def get_c_cst(self, cst_value):
         tmp_cst = cst_value
         field_str_list = []
-        for field_name, field_format in zip(c_field_list, field_format_list):
+        for field_name, field_format in zip(self.c_field_list, self.field_format_list):
             field_value = round(tmp_cst, field_format.sollya_object, RN)
             tmp_cst = cst_value - field_value
             field_str_list.append(".%s = %s" % (field_name, field_format.get_c_cst(field_value)))
@@ -445,10 +463,43 @@ ML_TripleDouble = ML_Compound_FP_Format("ml_td_t", ["hi", "me", "lo"], [ML_Binar
 
 ## common ancestor to every vector format
 class ML_VectorFormat: 
+  def __init__(self, scalar_format, vector_size):
+    self.scalar_format = scalar_format
+    self.vector_size   = vector_size 
+
+  def get_bit_size(self):
+    return self.vector_size * self.scalar_format.get_bit_size()
+
+  def __str__(self):
+    return "VEC_%s[%d]" % (self.scalar_format, self.vector_size)
+
+  def get_scalar_format(self):
+    return self.scalar_format
+  def set_scalar_format(self, new_scalar_format):
+    self.scalar_format = new_scalar_format
+
+  def get_vector_size(self):
+    return self.vector_size
+  def set_vector_size(self, new_vector_size):
+    self.vector_size = new_vector_size
+
+class ML_CompoundVectorFormat(ML_VectorFormat, ML_Compound_Format):
+  def __init__(self, format_name, vector_size, scalar_format, sollya_precision = None):
+    ML_VectorFormat.__init__(self, scalar_format, vector_size)
+    ML_Compound_Format.__init__(self, format_name, ["_[%d]" % i for i in xrange(vector_size)], [scalar_format for i in xrange(vector_size)], "", "", sollya_precision)
+
+
+  def get_c_cst(self, cst_value):
+    tmp_cst = cst_value
+    field_str_list = []
+    elt_value_list = [self.scalar_format.get_c_cst(round(cst_value[i], self.scalar_format.sollya_object, RN)) for i in xrange(self.vector_size)]
+    return "{._ = {%s}}" % (", ".join(elt_value_list))
+
+
+class ML_IntegerVectorFormat(ML_CompoundVectorFormat, ML_Fixed_Format):
   pass
-class ML_IntegerVectorFormat(ML_Compound_Integer_Format, ML_VectorFormat):
-  pass
-class ML_FloatingPointVectorFormat(ML_Compound_FP_Format, ML_VectorFormat):
+
+class ML_FloatingPointVectorFormat(ML_CompoundVectorFormat, ML_FP_Format):
   pass
 
 ## helper function to generate a vector format
@@ -458,8 +509,7 @@ class ML_FloatingPointVectorFormat(ML_Compound_FP_Format, ML_VectorFormat):
 #  @param sollya_precision pythonsollya object, sollya precision to be used for computation
 #  @param compound_constructor ML_Compound_Format child class used to build the result format 
 def vector_format_builder(format_name, vector_size, scalar_format, sollya_precision = None, compound_constructor = ML_FloatingPointVectorFormat):
-  return compound_constructor(format_name, ["_[%d]" % i for i in xrange(vector_size)], [scalar_format for i in xrange(vector_size)], "", "", sollya_precision)
-
+  return compound_constructor(format_name, vector_size, scalar_format, sollya_precision)
 
 ML_Float2 = vector_format_builder("ml_float2_t", 2, ML_Binary32)
 ML_Float4 = vector_format_builder("ml_float4_t", 4, ML_Binary32)

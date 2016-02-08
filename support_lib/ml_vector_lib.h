@@ -111,6 +111,7 @@ DEF_ML_VECTOR_PRIMITIVES_OP1(ml_vnegu2, ml_uint2_t, uint32_t, 2, -)
 DEF_ML_VECTOR_PRIMITIVES_OP1(ml_vnegu4, ml_uint4_t, uint32_t, 4, -)
 DEF_ML_VECTOR_PRIMITIVES_OP1(ml_vnegu8, ml_uint8_t, uint32_t, 8, -)
 
+
 /** Vector logical negation */
 DEF_ML_VECTOR_PRIMITIVES_OP1(ml_vnoti2, ml_int2_t, int32_t, 2, !)
 DEF_ML_VECTOR_PRIMITIVES_OP1(ml_vnoti4, ml_int4_t, int32_t, 4, !)
@@ -120,6 +121,23 @@ DEF_ML_VECTOR_PRIMITIVES_OP1(ml_vnotu2, ml_uint2_t, uint32_t, 2, !)
 DEF_ML_VECTOR_PRIMITIVES_OP1(ml_vnotu4, ml_uint4_t, uint32_t, 4, !)
 DEF_ML_VECTOR_PRIMITIVES_OP1(ml_vnotu8, ml_uint8_t, uint32_t, 8, !)
 
+DEF_ML_VECTOR_PRIMITIVES_OP1(ml_vnotb2, ml_bool2_t, uint32_t, 2, !)
+DEF_ML_VECTOR_PRIMITIVES_OP1(ml_vnotb4, ml_bool4_t, uint32_t, 4, !)
+DEF_ML_VECTOR_PRIMITIVES_OP1(ml_vnotb8, ml_bool8_t, uint32_t, 8, !)
+
+
+/** Vector logical and */
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vandi2, ml_int2_t, int32_t, 2, &&)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vandi4, ml_int4_t, int32_t, 4, &&)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vandi8, ml_int8_t, int32_t, 8, &&)
+
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vandu2, ml_uint2_t, int32_t, 2, &&)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vandu4, ml_uint4_t, int32_t, 4, &&)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vandu8, ml_uint8_t, int32_t, 8, &&)
+
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vandb2, ml_bool2_t, int32_t, 2, &&)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vandb4, ml_bool4_t, int32_t, 4, &&)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vandb8, ml_bool8_t, int32_t, 8, &&)
 
 /** Comparison operations */
 #define DEF_ML_VECTOR_COMPARATOR_OP2(FUNC_NAME, RESULT_FORMAT, VECTOR_FORMAT, VECTOR_SIZE, COMP_OP) \

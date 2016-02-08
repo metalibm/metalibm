@@ -12,6 +12,8 @@
 
 
 from ..utility.common import ML_NotImplemented
+from ..utility.log_report import Log
+
 from ..core.ml_operations import Variable, Constant, ConditionBlock, Return, TableLoad, Statement, Loop, SpecificOperation, ExceptionOperation, ClearException, NoResultOperation, SwitchBlock, FunctionObject, ReferenceAssign
 from ..core.ml_table import ML_Table
 from ..core.ml_formats import *
@@ -95,7 +97,7 @@ class CCodeGenerator:
 
         elif isinstance(optree, Constant):
             precision = optree.get_precision()
-            if self.declare_cst:
+            if self.declare_cst or optree.get_precision().is_cst_decl_required():
                 cst_varname = code_object.declare_cst(optree)
                 result = CodeVariable(cst_varname, precision)
             else:
@@ -105,8 +107,7 @@ class CCodeGenerator:
                   try:
                       result = CodeExpression(precision.get_c_cst(optree.get_value()), precision)
                   except:
-                    print optree.get_str(display_precision = True) # Exception print
-                    raise Exception()
+                    Log.report(Log.Error, "Error during get_c_cst call for Constant: %s " % optree.get_str(display_precision = True)) # Exception print
 
         elif isinstance(optree, TableLoad):
             # declaring table
