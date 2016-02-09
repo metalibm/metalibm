@@ -15,6 +15,7 @@ from metalibm_core.code_generation.generator_utility import C_Code
 from metalibm_core.core.ml_optimization_engine import OptimizationEngine
 from metalibm_core.core.polynomials import *
 from metalibm_core.core.ml_table import ML_Table
+from metalibm_core.core.ml_function import ML_Function, ML_FunctionBasis
 
 from metalibm_core.code_generation.gappa_code_generator import GappaCodeGenerator
 
@@ -27,7 +28,7 @@ from metalibm_core.utility.gappa_utils import is_gappa_installed
 
 
 
-class ML_Exponential:
+class ML_Exponential(ML_Function("ml_exp")):
     def __init__(self, 
                  precision = ML_Binary32, 
                  accuracy  = ML_Faithful,
@@ -38,22 +39,40 @@ class ML_Exponential:
                  target = GenericProcessor(), 
                  output_file = "expf.c", 
                  function_name = "expf"):
+        # initializing I/O precision
+        io_precisions = [precision] * 2
 
-        # declaring target and instantiating optimization engine
-        processor = target
+        # initializing base class
+        ML_FunctionBasis.__init__(self, 
+          base_name = "exp",
+          function_name = function_name,
+          output_file = output_file,
+
+          io_precisions = io_precisions,
+          abs_accuracy = None,
+          libm_compliant = libm_compliant,
+
+          processor = target,
+          fuse_fma = fuse_fma,
+          fast_path_extract = fast_path_extract,
+
+          debug_flag = debug_flag
+        )
+
+        self.accuracy  = accuracy
         self.precision = precision
-        opt_eng = OptimizationEngine(processor)
-        gappacg = GappaCodeGenerator(processor, declare_cst = True, disable_debug = True)
+
+    def generate_scheme(self):
+        # declaring target and instantiating optimization engine
 
         # declaring CodeFunction and retrieving input variable
-        self.function_name = function_name
-        exp_implementation = CodeFunction(self.function_name, output_format = self.precision)
-        vx = exp_implementation.add_input_variable("x", self.precision) 
+        #self.function_name = function_name
+        vx = self.implementation.add_input_variable("x", self.precision) 
 
         Log.set_dump_stdout(True)
 
         Log.report(Log.Info, "\033[33;1m generating implementation scheme \033[0m")
-        if debug_flag: 
+        if self.debug_flag: 
             Log.report(Log.Info, "\033[31;1m debug has been enabled \033[0;m")
 
         # local overloading of RaiseReturn operation
@@ -136,10 +155,11 @@ class ML_Exponential:
         exact_lo_interval = - interval_k * log2_lo
 
 
-        opt_r = opt_eng.optimization_process(r, self.precision, copy = True, fuse_fma = fuse_fma)
+        # opt_r = self.opt_engine.optimization_process(r, self.precision, copy = True, fuse_fma = fuse_fma)
+        opt_r = self.optimise_scheme(r, copy = {})
 
         tag_map = {}
-        opt_eng.register_nodes_by_tag(opt_r, tag_map)
+        self.opt_engine.register_nodes_by_tag(opt_r, tag_map)
 
         cg_eval_error_copy_map = {
             vx: Variable("x", precision = self.precision, interval = interval_vx),
@@ -149,7 +169,7 @@ class ML_Exponential:
         #try:
         if is_gappa_installed():
             #eval_error = gappacg.get_eval_error(opt_r, cg_eval_error_copy_map, gappa_filename = "red_arg.g")
-            eval_error = gappacg.get_eval_error_v2(opt_eng, opt_r, cg_eval_error_copy_map, gappa_filename = "red_arg.g")
+            eval_error = self.gappa_engine.get_eval_error_v2(self.opt_engine, opt_r, cg_eval_error_copy_map, gappa_filename = "red_arg.g")
         else:
             eval_error = 0.0
             Log.report(Log.Warning, "gappa is not installed in this environnement")
@@ -160,17 +180,17 @@ class ML_Exponential:
 
         local_ulp = sup(ulp(exp(approx_interval), self.precision))
         print "ulp: ", local_ulp 
-        Log.report(Log.Info, "accuracy: %s" % accuracy)
-        if accuracy is ML_Faithful:
+        Log.report(Log.Info, "accuracy: %s" % self.accuracy)
+        if self.accuracy is ML_Faithful:
             error_goal = local_ulp
-        elif accuracy is ML_CorrectlyRounded:
+        elif self.accuracy is ML_CorrectlyRounded:
             error_goal = S2**-1 * local_ulp
-        elif isinstance(accuracy, ML_DegradedAccuracyAbsolute):
-            error_goal = accuracy.goal
-        elif isinstance(accuracy, ML_DegradedAccuracyRelative):
-            error_goal = accuracy.goal
+        elif isinstance(self.accuracy, ML_DegradedAccuracyAbsolute):
+            error_goal = self.accuracy.goal
+        elif isinstance(self.accuracy, ML_DegradedAccuracyRelative):
+            error_goal = self.accuracy.goal
         else:
-            Log.report(Log.Error, "unknown accuracy: %s" % accuracy)
+            Log.report(Log.Error, "unknown accuracy: %s" % self.accuracy)
 
             
 
@@ -208,8 +228,10 @@ class ML_Exponential:
             poly.set_tag("poly")
 
             # optimizing poly before evaluation error computation
-            opt_poly = opt_eng.optimization_process(poly, self.precision, fuse_fma = fuse_fma)
-            opt_sub_poly = opt_eng.optimization_process(pre_sub_poly, self.precision, fuse_fma = fuse_fma)
+            #opt_poly = self.opt_engine.optimization_process(poly, self.precision, fuse_fma = fuse_fma)
+            #opt_sub_poly = self.opt_engine.optimization_process(pre_sub_poly, self.precision, fuse_fma = fuse_fma)
+            opt_poly = self.optimise_scheme(poly)
+            opt_sub_poly = self.optimise_scheme(pre_sub_poly)
 
             # evaluating error of the polynomial approximation
             r_gappa_var        = Variable("r", precision = self.precision, interval = approx_interval)
@@ -242,7 +264,7 @@ class ML_Exponential:
                 #print exact_hi_part.get_handle().get_node().get_str(depth = 0, memoization_map = {}, display_id = True)
                 #print exact_lo_part.get_handle().get_node().get_str(depth = 0, memoization_map = {}, display_id = True)
                 #print opt_sub_poly.get_str(depth = None, memoization_map = {}, display_id = True)
-                sub_poly_eval_error = gappacg.get_eval_error_v2(opt_eng, opt_sub_poly, sub_poly_error_copy_map, gappa_filename = "%s_gappa_sub_poly.g" % function_name)
+                sub_poly_eval_error = self.gappa_engine.get_eval_error_v2(self.opt_engine, opt_sub_poly, sub_poly_error_copy_map, gappa_filename = "%s_gappa_sub_poly.g" % self.function_name)
                 #poly_eval_error     = gappacg.get_eval_error_v2(opt_eng, opt_poly, poly_error_copy_map, gappa_filename = "gappa_poly.g")
 
                 dichotomy_map = [
@@ -256,7 +278,7 @@ class ML_Exponential:
                         exact_hi_part.get_handle().get_node(): approx_interval_split[2],
                     },
                 ]
-                poly_eval_error_dico = gappacg.get_eval_error_v3(opt_eng, opt_poly, poly_error_copy_map, gappa_filename = "gappa_poly.g", dichotomy = dichotomy_map)
+                poly_eval_error_dico = self.gappa_engine.get_eval_error_v3(self.opt_engine, opt_poly, poly_error_copy_map, gappa_filename = "gappa_poly.g", dichotomy = dichotomy_map)
                 print "poly_eval_error_dico: ", poly_eval_error_dico
                 #sys.exit(1)
 
@@ -292,18 +314,18 @@ class ML_Exponential:
         overflow_exp_offset = (self.precision.get_emax() - self.precision.get_field_size() / 2)
         diff_k = ik - overflow_exp_offset 
         diff_k.set_attributes(debug = ML_Debug(display_format = "%d"), tag = "diff_k")
-        late_overflow_result = (ExponentInsertion(diff_k) * poly) * ExponentInsertion(overflow_exp_offset)
-        late_overflow_result.set_attributes(silent = False, tag = "late_overflow_result", debug = debugf)
+        late_overflow_result = (ExponentInsertion(diff_k, precision = self.precision) * poly) * ExponentInsertion(overflow_exp_offset, precision = self.precision)
+        late_overflow_result.set_attributes(silent = False, tag = "late_overflow_result", debug = debugf, precision = self.precision)
         late_overflow_return = ConditionBlock(Test(late_overflow_result, specifier = Test.IsInfty, likely = False), ExpRaiseReturn(ML_FPE_Overflow, return_value = FP_PlusInfty(self.precision)), Return(late_overflow_result))
 
         late_underflow_test = Comparison(k, self.precision.get_emin_normal(), specifier = Comparison.LessOrEqual, likely = False)
         underflow_exp_offset = 2 * self.precision.get_field_size()
-        late_underflow_result = (ExponentInsertion(ik + underflow_exp_offset) * poly) * ExponentInsertion(-underflow_exp_offset)
+        late_underflow_result = (ExponentInsertion(ik + underflow_exp_offset, precision = self.precision) * poly) * ExponentInsertion(-underflow_exp_offset, precision = self.precision)
         late_underflow_result.set_attributes(debug = ML_Debug(display_format = "%e"), tag = "late_underflow_result", silent = False)
         test_subnormal = Test(late_underflow_result, specifier = Test.IsSubnormal)
         late_underflow_return = Statement(ConditionBlock(test_subnormal, ExpRaiseReturn(ML_FPE_Underflow, return_value = late_underflow_result)), Return(late_underflow_result))
 
-        twok = ExponentInsertion(ik, tag = "exp_ik", debug = debug_lftolx)
+        twok = ExponentInsertion(ik, tag = "exp_ik", debug = debug_lftolx, precision = self.precision)
         #std_result = twok * ((1 + exact_hi_part * pre_poly) + exact_lo_part * pre_poly) 
         std_result = twok * poly
         std_result.set_attributes(tag = "std_result", debug = debug_lftolx)
@@ -314,55 +336,7 @@ class ML_Exponential:
         Log.report(Log.Info, "\033[33;1m MDL scheme \033[0m")
         scheme = ConditionBlock(test_nan_or_inf, Statement(ClearException(), specific_return), std_return)
 
-        #print scheme.get_str(depth = None, display_precision = True)
-
-        # fusing FMA
-        if fuse_fma: 
-            Log.report(Log.Info, "Fusing FMAs")
-            scheme = opt_eng.fuse_multiply_add(scheme, silence = True)
-
-        Log.report(Log.Info, "Infering types")
-        opt_eng.instantiate_abstract_precision(scheme, None)
-
-        Log.report(Log.Info, "Instantiating precisions")
-        opt_eng.instantiate_precision(scheme, default_precision = self.precision)
-
-
-        Log.report(Log.Info, "Subexpression sharing")
-        opt_eng.subexpression_sharing(scheme)
-
-        Log.report(Log.Info, "Silencing exceptions in internal operations")
-        opt_eng.silence_fp_operations(scheme)
-
-        # registering scheme as function implementation
-        exp_implementation.set_scheme(scheme)
-
-        # check processor support
-        Log.report(Log.Info, "Checking processor support")
-        opt_eng.check_processor_support(scheme)
-
-        # factorizing fast path
-        if fast_path_extract:
-            Log.report(Log.Info, "Factorizing fast path")
-            opt_eng.factorize_fast_path(scheme)
-        
-        Log.report(Log.Info, "Generating source code")
-        cg = CCodeGenerator(processor, declare_cst = False, disable_debug = not debug_flag, libm_compliant = libm_compliant)
-        self.result = exp_implementation.get_definition(cg, C_Code, static_cst = True)
-        #self.result.add_header("support_lib/ml_types.h")
-        self.result.add_header("support_lib/ml_special_values.h")
-        #display(decimal)
-        self.result.add_header_comment("polynomial degree  for  exp(x): %d" % poly_degree)
-        self.result.add_header_comment("sollya polynomial  for  exp(x): %s" % poly_object.get_sollya_object())
-        self.result.add_header_comment("polynomial approximation error: %s" % poly_approx_error)
-        self.result.add_header_comment("polynomial evaluation    error: %s" % poly_eval_error)
-        if debug_flag:
-            self.result.add_header("stdio.h")
-            self.result.add_header("inttypes.h")
-        output_stream = open(output_file, "w")#"%s.c" % exp_implementation.get_name(), "w")
-        output_stream.write(self.result.get(cg))
-        output_stream.close()
-
+        return scheme
 
 
 if __name__ == "__main__":
@@ -382,3 +356,5 @@ if __name__ == "__main__":
                                   function_name             = arg_template.function_name,
                                   accuracy                  = arg_template.accuracy,
                                   output_file               = arg_template.output_file)
+
+    ml_exp.gen_implementation()
