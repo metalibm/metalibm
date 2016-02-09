@@ -80,7 +80,9 @@ class ML_UT_StaticVectorization(ML_Function("ml_ut_static_vectorization")):
 
   def generate_function_list(self):
     # declaring optimizer
+    self.opt_engine.set_boolean_format(ML_Bool)
     self.vectorizer = StaticVectorizer(self.opt_engine)
+    vector_size = 2
 
     # declaring function input variable
     #vx = self.implementation.add_input_variable("x", self.precision)
@@ -103,18 +105,59 @@ class ML_UT_StaticVectorization(ML_Function("ml_ut_static_vectorization")):
         )
       )
     )
-    vec_arg_list, vector_scheme, vector_mask = self.vectorizer.vectorize_scheme(scheme, [vx], 2, self.call_externalizer, self.get_output_precision())
+    scalar_callback_function = self.call_externalizer.externalize_call(scheme, [vx], "scalar_callback", self.precision)
 
+    print "[SV] optimizing Scalar scheme"
+    scheme = self.optimise_scheme(scheme)
+
+    scalar_callback          = scalar_callback_function.get_function_object()
+
+    print "[SV] vectorizing scheme"
+    vec_arg_list, vector_scheme, vector_mask = self.vectorizer.vectorize_scheme(scheme, [vx], vector_size, self.call_externalizer, self.get_output_precision())
+
+    vector_output_format = self.vectorizer.vectorize_format(self.precision, vector_size)
+
+
+    vi = Variable("i", precision = ML_Int32, var_type = Variable.Local)
+    vec_res = Variable("vec_res", precision = vector_output_format, var_type = Variable.Local)
+    vec_x = vec_arg_list[0]
+
+    print "[SV] building vectorized main statement"
     function_scheme = Statement(
+      vector_scheme,
       ConditionBlock(
-        Test(vector_mask, Specifier = Test.
-
+        Test(vector_mask, specifier = Test.IsMaskAllZero, precision = ML_Bool, likely = True),
+        Return(vector_scheme),
+        Statement(
+          ReferenceAssign(vec_res, vector_scheme),
+          Loop(
+            ReferenceAssign(vi, Constant(0, precision = ML_Int32)),
+            vi < Constant(vector_size, precision = ML_Int32),
+            Statement(
+              ConditionBlock(
+                Likely(VectorElementSelection(vector_mask, vi, precision = ML_Bool), None),
+                ReferenceAssign(VectorElementSelection(vec_res, vi, precision = self.precision), scalar_callback(VectorElementSelection(vec_x, vi, precision = self.precision)))
+              ),
+              ReferenceAssign(vi, vi + 1)
+            ),
+          ),
+          Return(vec_res)
+        )
+      )
     )
 
-    # dummy scheme to make functionnal code generation
-    self.implementation.set_scheme(scheme)
+    print "function_scheme: ", function_scheme.get_str(depth = None, display_precision = True, memoization_map = {})
 
-    return [scalar_function, self.implementation]
+
+    for vec_arg in vec_arg_list:
+      self.implementation.register_new_input_variable(vec_arg)
+    self.implementation.set_output_format(vector_output_format)
+
+    # dummy scheme to make functionnal code generation
+    self.implementation.set_scheme(function_scheme)
+
+    print "[SV] end of generate_function_list"
+    return [scalar_callback_function, self.implementation]
 
 if __name__ == "__main__":
   # auto-test
