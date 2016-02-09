@@ -91,6 +91,17 @@ def full_mul_modifier(optree):
     op1_conv = Conversion(op1, precision = optree_type) if optree_type != op1.get_precision() else op0
     return Multiplication(op0_conv, op1_conv, precision = optree_type)
 
+
+## hash map of Comparison specifier -> C symbol relation
+c_comp_symbol = {
+  Comparison.Equal: "==", 
+  Comparison.NotEqual: "!=",
+  Comparison.Less: "<",
+  Comparison.LessOrEqual: "<=",
+  Comparison.GreaterOrEqual: ">=",
+  Comparison.Greater: ">"
+}
+
 c_code_generation_table = {
     Select: {
         None: {
@@ -225,28 +236,20 @@ c_code_generation_table = {
     Modulo: {
         None: build_simplified_operator_generation([ML_Int32, ML_UInt32, ML_Int64], 2, SymbolOperator("%", arity = 2)),
     },
-    Comparison: {
-        Comparison.Equal: 
-            build_simplified_operator_generation([ML_Int32, ML_Int64, ML_UInt64, ML_UInt32, ML_Binary32, ML_Binary64], 2, SymbolOperator("==", arity = 2), result_precision = ML_Int32),
-        Comparison.NotEqual: 
-            build_simplified_operator_generation([ML_Int32, ML_UInt32, ML_Int64, ML_UInt64, ML_Binary32, ML_Binary64], 2, SymbolOperator("!=", arity = 2), result_precision = ML_Int32),
-        Comparison.Greater: 
-            build_simplified_operator_generation([ML_Int32, ML_Int64, ML_UInt64, ML_UInt32, ML_Binary32, ML_Binary64], 2, SymbolOperator(">", arity = 2), result_precision = ML_Int32),
-        Comparison.GreaterOrEqual: { 
-            lambda _: True: 
-            dict(
-              (
-                type_strict_match_list([ML_Int32, ML_Bool], [op_type]),
-                SymbolOperator(">=", arity = 2)
-              ) for op_type in [ML_Int32, ML_Int64, ML_UInt64, ML_UInt32, ML_Binary32, ML_Binary64]
-            ),
-            #build_simplified_operator_generation([ML_Int32, ML_Int64, ML_UInt64, ML_UInt32, ML_Binary32, ML_Binary64], 2, SymbolOperator(">=", arity = 2), result_precision = ML_Int32),
-        },
-        Comparison.Less: 
-            build_simplified_operator_generation([ML_Int32, ML_Int64, ML_UInt64, ML_UInt32, ML_Binary32, ML_Binary64], 2, SymbolOperator("<", arity = 2), result_precision = ML_Int32),
-        Comparison.LessOrEqual: 
-            build_simplified_operator_generation([ML_Int32, ML_Int64, ML_UInt64, ML_UInt32, ML_Binary32, ML_Binary64], 2, SymbolOperator("<=", arity = 2), result_precision = ML_Int32),
-    },
+    Comparison: 
+        dict (
+          (specifier,
+            { 
+                lambda _: True: 
+                dict(
+                  (
+                    type_strict_match_list([ML_Int32, ML_Bool], [op_type]),
+                    SymbolOperator(c_comp_symbol[specifier], arity = 2)
+                  ) for op_type in [ML_Int32, ML_Int64, ML_UInt64, ML_UInt32, ML_Binary32, ML_Binary64]
+                ),
+                #build_simplified_operator_generation([ML_Int32, ML_Int64, ML_UInt64, ML_UInt32, ML_Binary32, ML_Binary64], 2, SymbolOperator(">=", arity = 2), result_precision = ML_Int32),
+            }) for specifier in [Comparison.Equal, Comparison.NotEqual, Comparison.Greater, Comparison.GreaterOrEqual, Comparison.Less, Comparison.LessOrEqual]
+    ),
     Test: {
         Test.IsIEEENormalPositive: {
             lambda optree: True: {

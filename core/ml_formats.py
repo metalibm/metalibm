@@ -45,6 +45,8 @@ class ML_FloatingPointException_Type:
   ## dummy placeholder to generate C constant for FP exception (should raise error) 
   def get_c_cst(self, value):
     return "NONE"
+  def is_cst_decl_required(self):
+    return False
 
 ## ML object for floating-point exception type
 ML_FPE_Type = ML_FloatingPointException_Type()
@@ -342,7 +344,7 @@ class ML_Custom_FixedPoint_Format(ML_Base_FixedPoint_Format):
           return None
         return ML_Custom_FixedPoint_Format(int(format_match.group("integer")), int(format_match.group("frac")), signed = signed) 
 
-class ML_Bool_Format: 
+class ML_Bool_Format(object): 
     """ abstract Boolean format """
     pass
 
@@ -375,7 +377,11 @@ def bool_get_c_cst(self, cst_value):
   else:
     return "ML_FALSE"
 
-ML_Bool      = ML_FormatConstructor(32, "int", "%d", bool_get_c_cst)
+class ML_BoolClass(ML_FormatConstructor, ML_Bool_Format): 
+  def __str__(self):
+    return "ML_Bool"
+
+ML_Bool      = ML_BoolClass(32, "int", "%d", bool_get_c_cst)
 
 
 def is_std_integer_format(precision):

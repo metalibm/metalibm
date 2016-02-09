@@ -1344,6 +1344,11 @@ def AdditionN(*args, **kwords):
     op_list.append(Addition(op0, op1, **kwords))
   return op_list[0]
 
+
+def Likely(optree, likely_value):
+  optree.get_likely = lambda: likely_value
+  return optree
+
 # end of doxygen group ml_operations
 ## @}
 

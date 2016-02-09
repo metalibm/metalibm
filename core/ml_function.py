@@ -28,7 +28,15 @@ from metalibm_core.code_generation.gappa_code_generator import GappaCodeGenerato
 from metalibm_core.utility.log_report import Log
 from metalibm_core.utility.common import ML_NotImplemented
 
+## \defgroup ml_function ml_function
+## @{
 
+
+## standardized function name geneation
+#  @param base_name string name of the mathematical function
+#  @param io_precisions list of output, input formats (outputs followed by inputs)
+#  @param in_arity integer number of input arguments
+#  @param out_arity integer number of function results
 def libc_naming(base_name, io_precisions, in_arity = 1, out_arity = 1):
   precision_map = {
     ML_Binary32: "sf",
@@ -53,10 +61,21 @@ def libc_naming(base_name, io_precisions, in_arity = 1, out_arity = 1):
   
 
 
+## Base class for all metalibm function (metafunction)
 class ML_FunctionBasis(object):
-  """A class from which all metafunction inherit"""
   name = "function_basis"
 
+  ## constructor
+  #  @param base_name string function name (without precision considerations)
+  #  @param function_name 
+  #  @param output_file string name of source code output file
+  #  @param io_precisions input/output ML_Format list
+  #  @param abs_accuracy absolute accuracy
+  #  @param libm_compliant boolean flag indicating whether or not the function should be compliant with standard libm specification (wrt exception, error ...)
+  #  @param processor GenericProcessor instance, target of the implementation
+  #  @param fuse_fma boolean flag indicating whether or not fusing Multiply+Add optimization must be applied
+  #  @param fast_path_extract boolean flag indicating whether or not fast path extraction optimization must be applied
+  #  @param debug_flag boolean flag, indicating whether or not debug code must be generated 
   def __init__(self,
              # Naming
              base_name = "unknown_function",
@@ -109,6 +128,12 @@ class ML_FunctionBasis(object):
 
     self.call_externalizer = CallExternalizer(self.main_code_object)
 
+  ## compute the evaluation error of an ML_Operation node
+  #  @param optree ML_Operation object whose evaluation error is computed
+  #  @param variable_copy_map dict(optree -> optree) used to delimit the bound of optree
+  #  @param goal_precision ML_Format object, precision used for evaluation goal
+  #  @param gappa_filename string, name of the file where the gappa proof of the evaluation error will be dumped
+  #  @return numerical value of the evaluation error
   def get_eval_error(self, optree, variable_copy_map = {}, goal_precision = ML_Exact, gappa_filename = "gappa_eval_error.g", relative_error = False):
     """ wrapper for GappaCodeGenerator get_eval_error_v2 function """
     copy_map = {}
@@ -120,15 +145,23 @@ class ML_FunctionBasis(object):
       new_variable_copy_map[leaf.get_handle().get_node()] = variable_copy_map[leaf]
     return self.gappa_engine.get_eval_error_v2(self.opt_engine, opt_optree, new_variable_copy_map if variable_copy_map != None else {}, goal_precision, gappa_filename, relative_error = relative_error)
 
+  ## name generation
+  #  @param base_name string, name to be extended for unifiquation
   def uniquify_name(self, base_name):
     """ return a unique identifier, combining base_name + function_name """
     return "%s_%s" % (self.function_name, base_name)
 
-  
+  ## emulation code generation
   def generate_emulate(self):
     raise ML_NotImplemented()
 
 
+  ## generation the wrapper to the emulation code
+  #  @param test_input Variable where the test input is read from
+  #  @param mpfr_rnd Variable object used as precision paramater for mpfr calls
+  #  @param test_output Variable where emulation result is copied to
+  #  @param test_ternary Variable where mpfr ternary status is copied to
+  #  @return tuple code_object, code_generator 
   def generate_emulate_wrapper(self, test_input   = Variable("vx", precision = ML_Mpfr_t), mpfr_rnd = Variable("rnd", precision = ML_Int32), test_output = Variable("result", precision = ML_Mpfr_t, var_type = Variable.Local), test_ternary = Variable("ternary", precision = ML_Int32, var_type = Variable.Local)):
     scheme = self.generate_emulate(test_ternary, test_output, test_input, mpfr_rnd)
 
@@ -162,6 +195,12 @@ class ML_FunctionBasis(object):
     self.implementation.set_scheme(self.generate_scheme())
     return [self.implementation]
 
+  ## submit operation node to a standard optimization procedure
+  #  @param pre_scheme ML_Operation object to be optimized
+  #  @param copy  dict(optree -> optree) copy map to be used while duplicating pre_scheme (if None disable copy)
+  #  @param enable_subexpr_sharing boolean flag, enables sub-expression sharing optimization
+  #  @param verbose boolean flag, enable verbose mode
+  #  @return optimizated scheme 
   def optimise_scheme(self, pre_scheme, copy = None, enable_subexpr_sharing = True, verbose = True):
     """ default scheme optimization """
     # copying when required
@@ -189,9 +228,17 @@ class ML_FunctionBasis(object):
 
     return scheme
 
+
+  ## 
+  #  @return main code object associted with function implementation
   def get_main_code_object(self):
     return self.main_code_object
 
+  ## generate C code for function implenetation 
+  #  Code is generated within the main code object
+  #  and dumped to a file named after implementation's name
+  #  @param code_function_list list of CodeFunction to be generated (as sub-function )
+  #  @return void
   def generate_C(self, code_function_list):
     """ Final C generation, once the evaluation scheme has been optimized"""
     # registering scheme as function implementation
@@ -234,10 +281,11 @@ class ML_FunctionBasis(object):
     self.generate_C(code_function_list)
 
 
-  ## 
+  ## externalized an optree: generate a CodeFunction which compute the 
+  #  given optree inside a sub-function and returns it as a result
   # @param optree ML_Operation object to be externalized
   # @param arg_list list of ML_Operation objects to be used as arguments
-  # @return pair ML_Operation, ML_Funct
+  # @return pair ML_Operation, CodeFunction
   def externalize_call(self, optree, arg_list, tag = "foo", result_format = None, name_factory = None):
     ext_function = self.call_externalizer.externalize_call(optree, arg_list, tag, result_format)
     return ext_function.get_function_object()(*arg_list), ext_function
@@ -268,3 +316,7 @@ def ML_Function(name):
   new_class = type(name, (ML_FunctionBasis,), {"function_name": name})
   new_class.get_name = staticmethod(lambda: name) 
   return new_class
+
+# end of Doxygen's ml_function group
+## @}
+

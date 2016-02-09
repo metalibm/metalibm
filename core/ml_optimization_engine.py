@@ -30,7 +30,7 @@ def merge_abstract_format(*args):
     if has_integer: return ML_Integer
     if has_bool: return ML_AbstractBool
     else:
-        print args
+        print [str(arg) for arg in args]
         Log.report(Log.Error, "unknown formats while merging abstract format tuple")
 
 
@@ -422,9 +422,9 @@ class OptimizationEngine:
             except:
                 print "ERROR in get_bit_size during merge_abstract_format"
                 print "optree: "
-                print optree.get_precision(), optree.get_str() # Exception print
+                print optree.get_precision(), optree.get_str(display_precision = True, memoization_map = {}) # Exception print
                 print "arg: "
-                print arg.get_precision(), arg.get_str() # Exception print
+                print arg.get_precision(), arg.get_str(display_precision = True, memoization_map = {}) # Exception print
 
                 raise Exception()
             if arg_bit_size > max_binary_size:
@@ -461,6 +461,10 @@ class OptimizationEngine:
                 32: ML_Int32,
                 64: ML_Int64,
             },
+            ML_AbstractBool: {
+              32: ML_Bool,
+  
+            }
         }
         
         result_format = merge_table[merge_abstract_format(*args)][max_binary_size]
