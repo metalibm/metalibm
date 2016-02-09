@@ -7,17 +7,13 @@ from pythonsollya import *
 from metalibm_core.core.attributes import ML_Debug
 from metalibm_core.core.ml_operations import *
 from metalibm_core.core.ml_formats import *
-from metalibm_core.code_generation.c_code_generator import CCodeGenerator
 from metalibm_core.code_generation.generic_processor import GenericProcessor
-from metalibm_core.code_generation.code_object import CodeObject
-from metalibm_core.code_generation.code_function import CodeFunction
-from metalibm_core.code_generation.generator_utility import C_Code 
-from metalibm_core.core.ml_optimization_engine import OptimizationEngine
+from metalibm_core.code_generation.vector_backend import VectorBackend
 from metalibm_core.core.polynomials import *
 from metalibm_core.core.ml_table import ML_Table
 from metalibm_core.core.ml_function import ML_Function, ML_FunctionBasis
-
-from metalibm_core.code_generation.gappa_code_generator import GappaCodeGenerator
+from metalibm_core.code_generation.generator_utility import FunctionOperator, FO_Result, FO_Arg
+from metalibm_core.core.ml_complex_formats import ML_Mpfr_t
 
 
 from metalibm_core.utility.ml_template import ML_ArgTemplate
@@ -38,7 +34,8 @@ class ML_Exponential(ML_Function("ml_exp")):
                  fast_path_extract = True,
                  target = GenericProcessor(), 
                  output_file = "expf.c", 
-                 function_name = "expf"):
+                 function_name = "expf",
+                 vector_size = 1):
         # initializing I/O precision
         io_precisions = [precision] * 2
 
@@ -56,7 +53,8 @@ class ML_Exponential(ML_Function("ml_exp")):
           fuse_fma = fuse_fma,
           fast_path_extract = fast_path_extract,
 
-          debug_flag = debug_flag
+          debug_flag = debug_flag,
+          vector_size = vector_size
         )
 
         self.accuracy  = accuracy
@@ -65,8 +63,6 @@ class ML_Exponential(ML_Function("ml_exp")):
     def generate_scheme(self):
         # declaring target and instantiating optimization engine
 
-        # declaring CodeFunction and retrieving input variable
-        #self.function_name = function_name
         vx = self.implementation.add_input_variable("x", self.precision) 
 
         Log.set_dump_stdout(True)
@@ -257,7 +253,6 @@ class ML_Exponential(ML_Function("ml_exp")):
             }
 
 
-            #gappacg = GappaCodeGenerator(target, declare_cst = False, disable_debug = True)
             if is_gappa_installed():
                 sub_poly_eval_error = -1.0
                 #print "gappacg :", gappacg.memoization_map, gappacg.exact_hint_map 
@@ -338,6 +333,18 @@ class ML_Exponential(ML_Function("ml_exp")):
 
         return scheme
 
+    def generate_emulate(self, result_ternary, result, mpfr_x, mpfr_rnd):
+        """ generate the emulation code for ML_Log2 functions
+            mpfr_x is a mpfr_t variable which should have the right precision
+            mpfr_rnd is the rounding mode
+        """
+        emulate_func_name = "mpfr_exp"
+        emulate_func_op = FunctionOperator(emulate_func_name, arg_map = {0: FO_Arg(0), 1: FO_Arg(1), 2: FO_Arg(2)}, require_header = ["mpfr.h"]) 
+        emulate_func   = FunctionObject(emulate_func_name, [ML_Mpfr_t, ML_Mpfr_t, ML_Int32], ML_Int32, emulate_func_op)
+        mpfr_call = Statement(ReferenceAssign(result_ternary, emulate_func(result, mpfr_x, mpfr_rnd)))
+
+        return mpfr_call
+
 
 if __name__ == "__main__":
     # auto-test
@@ -355,6 +362,7 @@ if __name__ == "__main__":
                                   fast_path_extract         = arg_template.fast_path,
                                   function_name             = arg_template.function_name,
                                   accuracy                  = arg_template.accuracy,
-                                  output_file               = arg_template.output_file)
+                                  output_file               = arg_template.output_file, 
+                                  vector_size               = arg_template.vector_size)
 
     ml_exp.gen_implementation()
