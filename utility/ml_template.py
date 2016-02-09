@@ -102,6 +102,7 @@ class ML_ArgTemplate:
     self.display_after_opt = test_flag_option("--display-after-opt", True, False, parse_arg = parse_arg, help_map = self.help_map, help_str = "display MDL IR after optimization")
     self.display_after_gen = test_flag_option("--display-after-gen", True, False, parse_arg = parse_arg, help_map = self.help_map, help_str = "display MDL IR after implementation generation")
     input_interval = extract_option_value("--input-interval", "Interval(0,1)", parse_arg = parse_arg, processing = interval_parser, help_map = self.help_map, help_str = "select input range")
+    self.vector_size = extract_option_value("--vector-size", "1", parse_arg = parse_arg, processing = lambda v: int(v), help_map = self.help_map, help_str = "define size of vector (1: scalar implemenation)")
 
     verbose_enable = test_flag_option("--verbose", True, False, parse_arg = parse_arg, help_map = self.help_map, help_str = "enable Verbose log level")
 

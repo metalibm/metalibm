@@ -37,6 +37,11 @@ class CodeFunction:
   def register_new_input_variable(self, new_input):
     self.arg_list.append(new_input)
 
+  def get_arg_list(self):
+    return self.arg_list
+  def clear_arg_list(self):
+    self.arg_list = []
+
   def get_function_object(self):
     # if None, build it
     if self.function_object is None:

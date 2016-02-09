@@ -244,7 +244,7 @@ type_escalation = {
         },
     },
     ExponentInsertion: {
-        lambda result_type: True: {
+        lambda result_type: not isinstance(result_type, ML_VectorFormat) : {
             lambda op_type: isinstance(op_type, ML_FP_Format): 
                 lambda op: {32: ML_Int32, 64: ML_Int64}[op.get_precision().get_bit_size()],
             lambda op_type: isinstance(op_type, ML_Fixed_Format):
@@ -467,7 +467,11 @@ class OptimizationEngine:
             }
         }
         
-        result_format = merge_table[merge_abstract_format(*args)][max_binary_size]
+        try:
+          result_format = merge_table[merge_abstract_format(*args)][max_binary_size]
+        except KeyError:
+          Log.report(Log.Info, "KeyError in merge_format")
+          return None
         return result_format
 
 

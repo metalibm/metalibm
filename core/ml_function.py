@@ -11,9 +11,10 @@
 ###############################################################################
 from metalibm_core.core.ml_formats import *
 from metalibm_core.core.ml_optimization_engine import OptimizationEngine
-from metalibm_core.core.ml_operations import Variable, ReferenceAssign, Statement, Return, ML_ArithmeticOperation, ConditionBlock, LogicalAnd 
+from metalibm_core.core.ml_operations import *  
 from metalibm_core.core.ml_complex_formats import ML_Mpfr_t
 from metalibm_core.core.ml_call_externalizer import CallExternalizer
+from metalibm_core.core.ml_vectorizer import StaticVectorizer
 
 from metalibm_core.code_generation.code_object import NestedCode
 from metalibm_core.code_generation.code_function import CodeFunction
@@ -90,7 +91,8 @@ class ML_FunctionBasis(object):
              fuse_fma = True, 
              fast_path_extract = True,
              # Debug verbosity
-             debug_flag = False
+             debug_flag = False,
+             vector_size = 1
          ):
     # io_precisions must be a list
     #     -> with a single element
@@ -105,6 +107,8 @@ class ML_FunctionBasis(object):
     self.output_file = output_file if output_file else self.function_name + ".c"
 
     self.debug_flag = debug_flag
+
+    self.vector_size = vector_size
 
     # TODO: FIX which i/o precision to select
     # TODO: incompatible with fixed-point formats
@@ -127,6 +131,9 @@ class ML_FunctionBasis(object):
     self.main_code_object = NestedCode(self.C_code_generator, static_cst = True)
 
     self.call_externalizer = CallExternalizer(self.main_code_object)
+
+  def get_vector_size(self):
+    return self.vector_size
 
   ## compute the evaluation error of an ML_Operation node
   #  @param optree ML_Operation object whose evaluation error is computed
@@ -262,7 +269,18 @@ class ML_FunctionBasis(object):
 
   def gen_implementation(self, display_after_gen = False, display_after_opt = False, enable_subexpr_sharing = True):
     # generate scheme
-    code_function_list = self.generate_function_list()
+    if self.get_vector_size() == 1:
+      # scalar implementation
+      code_function_list = self.generate_function_list()
+    else:
+      # generating scalar scheme
+      code_function_list = self.generate_function_list()
+      scalar_scheme = self.implementation.get_scheme()
+      scalar_arg_list = self.implementation.get_arg_list()
+      self.implementation.clear_arg_list()
+
+      code_function_list = self.generate_vector_implementation(scalar_scheme, scalar_arg_list, self.get_vector_size())
+      
 
     for code_function in code_function_list:
       scheme = code_function.get_scheme()
@@ -289,6 +307,66 @@ class ML_FunctionBasis(object):
   def externalize_call(self, optree, arg_list, tag = "foo", result_format = None, name_factory = None):
     ext_function = self.call_externalizer.externalize_call(optree, arg_list, tag, result_format)
     return ext_function.get_function_object()(*arg_list), ext_function
+
+
+  def generate_vector_implementation(self, scalar_scheme, scalar_arg_list, vector_size = 2):
+    # declaring optimizer
+    self.opt_engine.set_boolean_format(ML_Bool)
+    self.vectorizer = StaticVectorizer(self.opt_engine)
+
+    scalar_callback_function = self.call_externalizer.externalize_call(scalar_scheme, scalar_arg_list, "scalar_callback", self.precision)
+
+    print "[SV] optimizing Scalar scheme"
+    scalar_scheme = self.optimise_scheme(scalar_scheme)
+
+    scalar_callback          = scalar_callback_function.get_function_object()
+
+    print "[SV] vectorizing scheme"
+    vec_arg_list, vector_scheme, vector_mask = self.vectorizer.vectorize_scheme(scalar_scheme, scalar_arg_list, vector_size, self.call_externalizer, self.get_output_precision())
+
+    vector_output_format = self.vectorizer.vectorize_format(self.precision, vector_size)
+
+
+    vi = Variable("i", precision = ML_Int32, var_type = Variable.Local)
+    vec_res = Variable("vec_res", precision = vector_output_format, var_type = Variable.Local)
+
+    vec_elt_arg_tuple = tuple(VectorElementSelection(vec_arg, vi, precision = self.precision) for vec_arg in vec_arg_list)
+
+    print "[SV] building vectorized main statement"
+    function_scheme = Statement(
+      vector_scheme,
+      ConditionBlock(
+        Test(vector_mask, specifier = Test.IsMaskAllZero, precision = ML_Bool, likely = True),
+        Return(vector_scheme),
+        Statement(
+          ReferenceAssign(vec_res, vector_scheme),
+          Loop(
+            ReferenceAssign(vi, Constant(0, precision = ML_Int32)),
+            vi < Constant(vector_size, precision = ML_Int32),
+            Statement(
+              ConditionBlock(
+                Likely(VectorElementSelection(vector_mask, vi, precision = ML_Bool), None),
+                ReferenceAssign(VectorElementSelection(vec_res, vi, precision = self.precision), scalar_callback(*vec_elt_arg_tuple))
+              ),
+              ReferenceAssign(vi, vi + 1)
+            ),
+          ),
+          Return(vec_res)
+        )
+      )
+    )
+
+    print "vectorized_scheme: ", function_scheme.get_str(depth = None, display_precision = True, memoization_map = {})
+
+    for vec_arg in vec_arg_list:
+      self.implementation.register_new_input_variable(vec_arg)
+    self.implementation.set_output_format(vector_output_format)
+
+    # dummy scheme to make functionnal code generation
+    self.implementation.set_scheme(function_scheme)
+
+    print "[SV] end of generate_function_list"
+    return [scalar_callback_function, self.implementation]
 
 
   # Currently mostly empty, to be populated someday

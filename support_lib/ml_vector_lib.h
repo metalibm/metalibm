@@ -300,3 +300,34 @@ static inline int ml_is_vmask8_non_zero(ml_bool8_t vop) {
          (vop._[6] != 0) || 
          (vop._[7] != 0);
 }
+
+
+/** Single Argument function with non-uniform formats */
+#define DEF_ML_VECTOR_NONUN_FUNC_OP1(FUNC_NAME, RESULT_FORMAT, VECTOR_FORMAT, VECTOR_SIZE, SCALAR_TEST_FUNC) \
+static inline void FUNC_NAME(RESULT_FORMAT *r, VECTOR_FORMAT vop) {\
+  unsigned i;\
+  for (i = 0; i < VECTOR_SIZE; ++i) {\
+    (*r)._[i] = SCALAR_TEST_FUNC(vop._[i]);\
+  };\
+}
+
+DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vnearbyintf2, ml_int2_t, ml_float2_t, 2, nearbyintf)
+DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vnearbyintf4, ml_int4_t, ml_float4_t, 4, nearbyintf)
+DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vnearbyintf8, ml_int8_t, ml_float8_t, 8, nearbyintf)
+
+DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vnearbyintd2, ml_long2_t, ml_double2_t, 2, nearbyint)
+DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vnearbyintd4, ml_long4_t, ml_double4_t, 4, nearbyint)
+DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vnearbyintd8, ml_long8_t, ml_double8_t, 8, nearbyint)
+
+DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vrintf2, ml_float2_t, ml_float2_t, 2, rintf)
+DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vrintf4, ml_float4_t, ml_float4_t, 4, rintf)
+DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vrintf8, ml_float8_t, ml_float8_t, 8, rintf)
+
+DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vrintd2, ml_double2_t, ml_double2_t, 2, rint)
+DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vrintd4, ml_double4_t, ml_double4_t, 4, rint)
+DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vrintd8, ml_double8_t, ml_double8_t, 8, rint)
+
+/** Exponent insertion */
+DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vexp_insertion_f2, ml_float2_t, ml_int2_t, 2, ml_exp_insertion_fp32)
+DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vexp_insertion_f4, ml_float4_t, ml_int4_t, 4, ml_exp_insertion_fp32)
+DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vexp_insertion_f8, ml_float8_t, ml_int8_t, 8, ml_exp_insertion_fp32)

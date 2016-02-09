@@ -445,6 +445,7 @@ class ML_Compound_Format(ML_Format):
         tmp_cst = cst_value
         field_str_list = []
         for field_name, field_format in zip(self.c_field_list, self.field_format_list):
+            # FIXME, round is only valid for double_double or triple_double stype format
             field_value = round(tmp_cst, field_format.sollya_object, RN)
             tmp_cst = cst_value - field_value
             field_str_list.append(".%s = %s" % (field_name, field_format.get_c_cst(field_value)))
@@ -498,7 +499,7 @@ class ML_CompoundVectorFormat(ML_VectorFormat, ML_Compound_Format):
   def get_c_cst(self, cst_value):
     tmp_cst = cst_value
     field_str_list = []
-    elt_value_list = [self.scalar_format.get_c_cst(round(cst_value[i], self.scalar_format.sollya_object, RN)) for i in xrange(self.vector_size)]
+    elt_value_list = [self.scalar_format.get_c_cst(cst_value[i]) for i in xrange(self.vector_size)]
     return "{._ = {%s}}" % (", ".join(elt_value_list))
 
 

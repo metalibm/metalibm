@@ -37,6 +37,16 @@ DEC_ML_FORMAT(ml_uint2_t, uint32_t, 2)
 DEC_ML_FORMAT(ml_uint4_t, uint32_t, 4)
 DEC_ML_FORMAT(ml_uint8_t, uint32_t, 8)
 
+// 32-b integer vector format
+DEC_ML_FORMAT(ml_long2_t, int64_t, 2)
+DEC_ML_FORMAT(ml_long4_t, int64_t, 4)
+DEC_ML_FORMAT(ml_long8_t, int64_t, 8)
+
+// 32-b unsigned integer vector format
+DEC_ML_FORMAT(ml_ulong2_t, uint64_t, 2)
+DEC_ML_FORMAT(ml_ulong4_t, uint64_t, 4)
+DEC_ML_FORMAT(ml_ulong8_t, uint64_t, 8)
+
 // boolean vector formats
 DEC_ML_FORMAT(ml_bool2_t, int, 2)
 DEC_ML_FORMAT(ml_bool4_t, int, 4)
