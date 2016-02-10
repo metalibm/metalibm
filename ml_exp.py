@@ -78,11 +78,11 @@ class ML_Exponential(ML_Function("ml_exp")):
             return RaiseReturn(*args, **kwords)
 
 
-        test_nan_or_inf = Test(vx, specifier = Test.IsInfOrNaN, likely = False, debug = True, tag = "nan_or_inf")
-        test_nan = Test(vx, specifier = Test.IsNaN, debug = True, tag = "is_nan_test")
-        test_positive = Comparison(vx, 0, specifier = Comparison.GreaterOrEqual, debug = True, tag = "inf_sign")
+        test_nan_or_inf = Test(vx, specifier = Test.IsInfOrNaN, likely = False, debug = debug_multi, tag = "nan_or_inf")
+        test_nan = Test(vx, specifier = Test.IsNaN, debug = debug_multi, tag = "is_nan_test")
+        test_positive = Comparison(vx, 0, specifier = Comparison.GreaterOrEqual, debug = debug_multi, tag = "inf_sign")
 
-        test_signaling_nan = Test(vx, specifier = Test.IsSignalingNaN, debug = True, tag = "is_signaling_nan")
+        test_signaling_nan = Test(vx, specifier = Test.IsSignalingNaN, debug = debug_multi, tag = "is_signaling_nan")
         return_snan = Statement(ExpRaiseReturn(ML_FPE_Invalid, return_value = FP_QNaN(self.precision)))
 
         # return in case of infinity input
@@ -126,20 +126,20 @@ class ML_Exponential(ML_Function("ml_exp")):
 
         # argument reduction
         unround_k = vx * invlog2
-        unround_k.set_attributes(tag = "unround_k", debug = ML_Debug(display_format = "%f"))
-        k = NearestInteger(unround_k, precision = self.precision, debug = ML_Debug(display_format = "%f"))
-        ik = NearestInteger(unround_k, precision = ML_Int32, debug = ML_Debug(display_format = "%d"), tag = "ik")
+        unround_k.set_attributes(tag = "unround_k", debug = debug_multi)
+        k = NearestInteger(unround_k, precision = self.precision, debug = debug_multi)
+        ik = NearestInteger(unround_k, precision = ML_Int32, debug = debug_multi, tag = "ik")
         ik.set_tag("ik")
         k.set_tag("k")
         exact_pre_mul = (k * log2_hi)
         exact_pre_mul.set_attributes(exact= True)
         exact_hi_part = vx - exact_pre_mul
-        exact_hi_part.set_attributes(exact = True, tag = "exact_hi", debug = debug_lftolx, prevent_optimization = True)
+        exact_hi_part.set_attributes(exact = True, tag = "exact_hi", debug = debug_multi, prevent_optimization = True)
         exact_lo_part = - k * log2_lo
-        exact_lo_part.set_attributes(tag = "exact_lo", debug = debug_lftolx, prevent_optimization = True)
+        exact_lo_part.set_attributes(tag = "exact_lo", debug = debug_multi, prevent_optimization = True)
         r =  exact_hi_part + exact_lo_part 
         r.set_tag("r")
-        r.set_attributes(debug = ML_Debug(display_format = "%f"))
+        r.set_attributes(debug = debug_multi)
 
         approx_interval = Interval(-log(2)/2, log(2)/2)
 
@@ -215,10 +215,10 @@ class ML_Exponential(ML_Function("ml_exp")):
 
             Log.report(Log.Info, "\033[33;1m generating polynomial evaluation scheme \033[0m")
             pre_poly = polynomial_scheme_builder(poly_object, r, unified_precision = self.precision)
-            pre_poly.set_attributes(tag = "pre_poly", debug = debug_lftolx)
+            pre_poly.set_attributes(tag = "pre_poly", debug = debug_multi)
 
             pre_sub_poly = polynomial_scheme_builder(sub_poly, r, unified_precision = self.precision)
-            pre_sub_poly.set_attributes(tag = "pre_sub_poly", debug = debug_lftolx)
+            pre_sub_poly.set_attributes(tag = "pre_sub_poly", debug = debug_multi)
 
             poly = 1 + (exact_hi_part + (exact_lo_part + pre_sub_poly))
             poly.set_tag("poly")
@@ -305,25 +305,25 @@ class ML_Exponential(ML_Function("ml_exp")):
 
 
 
-        late_overflow_test = Comparison(ik, self.precision.get_emax(), specifier = Comparison.Greater, likely = False, debug = True, tag = "late_overflow_test")
+        late_overflow_test = Comparison(ik, self.precision.get_emax(), specifier = Comparison.Greater, likely = False, debug = debug_multi, tag = "late_overflow_test")
         overflow_exp_offset = (self.precision.get_emax() - self.precision.get_field_size() / 2)
         diff_k = ik - overflow_exp_offset 
-        diff_k.set_attributes(debug = ML_Debug(display_format = "%d"), tag = "diff_k")
+        diff_k.set_attributes(debug = debug_multi, tag = "diff_k")
         late_overflow_result = (ExponentInsertion(diff_k, precision = self.precision) * poly) * ExponentInsertion(overflow_exp_offset, precision = self.precision)
-        late_overflow_result.set_attributes(silent = False, tag = "late_overflow_result", debug = debugf, precision = self.precision)
+        late_overflow_result.set_attributes(silent = False, tag = "late_overflow_result", debug = debug_multi, precision = self.precision)
         late_overflow_return = ConditionBlock(Test(late_overflow_result, specifier = Test.IsInfty, likely = False), ExpRaiseReturn(ML_FPE_Overflow, return_value = FP_PlusInfty(self.precision)), Return(late_overflow_result))
 
         late_underflow_test = Comparison(k, self.precision.get_emin_normal(), specifier = Comparison.LessOrEqual, likely = False)
         underflow_exp_offset = 2 * self.precision.get_field_size()
         late_underflow_result = (ExponentInsertion(ik + underflow_exp_offset, precision = self.precision) * poly) * ExponentInsertion(-underflow_exp_offset, precision = self.precision)
-        late_underflow_result.set_attributes(debug = ML_Debug(display_format = "%e"), tag = "late_underflow_result", silent = False)
+        late_underflow_result.set_attributes(debug = debug_multi, tag = "late_underflow_result", silent = False)
         test_subnormal = Test(late_underflow_result, specifier = Test.IsSubnormal)
         late_underflow_return = Statement(ConditionBlock(test_subnormal, ExpRaiseReturn(ML_FPE_Underflow, return_value = late_underflow_result)), Return(late_underflow_result))
 
-        twok = ExponentInsertion(ik, tag = "exp_ik", debug = debug_lftolx, precision = self.precision)
+        twok = ExponentInsertion(ik, tag = "exp_ik", debug = debug_multi, precision = self.precision)
         #std_result = twok * ((1 + exact_hi_part * pre_poly) + exact_lo_part * pre_poly) 
         std_result = twok * poly
-        std_result.set_attributes(tag = "std_result", debug = debug_lftolx)
+        std_result.set_attributes(tag = "std_result", debug = debug_multi)
         result_scheme = ConditionBlock(late_overflow_test, late_overflow_return, ConditionBlock(late_underflow_test, late_underflow_return, Return(std_result)))
         std_return = ConditionBlock(early_overflow_test, early_overflow_return, ConditionBlock(early_underflow_test, early_underflow_return, result_scheme))
 
