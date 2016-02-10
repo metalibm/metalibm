@@ -314,7 +314,9 @@ class ML_FunctionBasis(object):
     self.opt_engine.set_boolean_format(ML_Bool)
     self.vectorizer = StaticVectorizer(self.opt_engine)
 
-    scalar_callback_function = self.call_externalizer.externalize_call(scalar_scheme, scalar_arg_list, "scalar_callback", self.precision)
+    callback_name = self.uniquify_name("scalar_callback")
+
+    scalar_callback_function = self.call_externalizer.externalize_call(scalar_scheme, scalar_arg_list, callback_name, self.precision)
 
     print "[SV] optimizing Scalar scheme"
     scalar_scheme = self.optimise_scheme(scalar_scheme)

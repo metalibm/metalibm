@@ -1,5 +1,7 @@
+#include "math.h"
 #include "ml_vector_format.h"
 #include "ml_utils.h"
+
 
 
 #define DEF_ML_VECTOR_PRIMITIVES_OP3(FUNC_NAME, VECTOR_FORMAT, SCALAR_FORMAT, VECTOR_SIZE, SCALAR_OP0, SCALAR_OP1) \
@@ -264,7 +266,7 @@ DEF_ML_VECTOR_TEST_FUNC_OP1(ml_vtestd8_is_nan, ml_bool8_t, ml_double8_t, 8, ml_i
 static inline int ml_is_vmask2_zero(ml_bool2_t vop) {
   return (vop._[0] == 0) && (vop._[1] == 0);
 }
-static inline int is_vmask4_zero(ml_bool4_t vop) {
+static inline int ml_is_vmask4_zero(ml_bool4_t vop) {
   return (vop._[0] == 0) && 
          (vop._[1] == 0) && 
          (vop._[2] == 0) && 
@@ -311,17 +313,59 @@ static inline void FUNC_NAME(RESULT_FORMAT *r, VECTOR_FORMAT vop) {\
   };\
 }
 
-DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vnearbyintf2, ml_int2_t, ml_float2_t, 2, nearbyintf)
-DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vnearbyintf4, ml_int4_t, ml_float4_t, 4, nearbyintf)
-DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vnearbyintf8, ml_int8_t, ml_float8_t, 8, nearbyintf)
 
 DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vnearbyintd2, ml_long2_t, ml_double2_t, 2, nearbyint)
 DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vnearbyintd4, ml_long4_t, ml_double4_t, 4, nearbyint)
 DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vnearbyintd8, ml_long8_t, ml_double8_t, 8, nearbyint)
 
+#ifdef __k1__
+static inline void ml_vnearbyintf2(ml_int2_t *r, ml_float2_t vop) {
+  unsigned i;
+  for (i = 0; i < 2; ++i) {
+    (*r)._[i] = __builtin_k1_fixed(_K1_FPU_NEAREST_EVEN, vop._[i], 0);
+  };
+}
+static inline void ml_vnearbyintf4(ml_int4_t *r, ml_float4_t vop) {
+  unsigned i;
+  for (i = 0; i < 4; ++i) {
+    (*r)._[i] = __builtin_k1_fixed(_K1_FPU_NEAREST_EVEN, vop._[i], 0);
+  };
+}
+static inline void ml_vnearbyintf8(ml_int8_t *r, ml_float8_t vop) {
+  unsigned i;
+  for (i = 0; i < 8; ++i) {
+    (*r)._[i] = __builtin_k1_fixed(_K1_FPU_NEAREST_EVEN, vop._[i], 0);
+  };
+}
+
+static inline void ml_vrintf2(ml_float2_t *r, ml_float2_t vop) {
+  unsigned i;
+  for (i = 0; i < 2; ++i) {
+    (*r)._[i] = __builtin_k1_float(_K1_FPU_NEAREST_EVEN, __builtin_k1_fixed(_K1_FPU_NEAREST_EVEN, vop._[i], 0), 0);
+  };
+}
+static inline void ml_vrintf4(ml_float4_t *r, ml_float4_t vop) {
+  unsigned i;
+  for (i = 0; i < 4; ++i) {
+    (*r)._[i] = __builtin_k1_float(_K1_FPU_NEAREST_EVEN, __builtin_k1_fixed(_K1_FPU_NEAREST_EVEN, vop._[i], 0), 0);
+  };
+}
+static inline void ml_vrintf8(ml_float8_t *r, ml_float8_t vop) {
+  unsigned i;
+  for (i = 0; i < 8; ++i) {
+    (*r)._[i] = __builtin_k1_float(_K1_FPU_NEAREST_EVEN, __builtin_k1_fixed(_K1_FPU_NEAREST_EVEN, vop._[i], 0), 0);
+  };
+}
+
+#else
+DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vnearbyintf2, ml_int2_t, ml_float2_t, 2, nearbyintf)
+DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vnearbyintf4, ml_int4_t, ml_float4_t, 4, nearbyintf)
+DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vnearbyintf8, ml_int8_t, ml_float8_t, 8, nearbyintf)
+
 DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vrintf2, ml_float2_t, ml_float2_t, 2, rintf)
 DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vrintf4, ml_float4_t, ml_float4_t, 4, rintf)
 DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vrintf8, ml_float8_t, ml_float8_t, 8, rintf)
+#endif
 
 DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vrintd2, ml_double2_t, ml_double2_t, 2, rint)
 DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vrintd4, ml_double4_t, ml_double4_t, 4, rint)
