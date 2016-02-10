@@ -216,11 +216,25 @@ vector_c_code_generation_table = {
         type_strict_match_list([ML_Bool, ML_Int32], [ML_Bool8]): ML_VectorLib_Function("ml_is_vmask8_zero", arity = 1, output_precision = ML_Int32), 
       },
     },
+    Test.IsMaskAnyZero: {
+      lambda _: True: {
+        type_strict_match_list([ML_Bool, ML_Int32], [ML_Bool2]): ML_VectorLib_Function("ml_is_vmask2_any_zero", arity = 1, output_precision = ML_Int32), 
+        type_strict_match_list([ML_Bool, ML_Int32], [ML_Bool4]): ML_VectorLib_Function("ml_is_vmask4_any_zero", arity = 1, output_precision = ML_Int32), 
+        type_strict_match_list([ML_Bool, ML_Int32], [ML_Bool8]): ML_VectorLib_Function("ml_is_vmask8_any_zero", arity = 1, output_precision = ML_Int32), 
+      },
+    },
+    Test.IsMaskNotAnyZero: {
+      lambda _: True: {
+        type_strict_match_list([ML_Bool, ML_Int32], [ML_Bool2]): ML_VectorLib_Function("ml_is_vmask2_not_any_zero", arity = 1, output_precision = ML_Int32), 
+        type_strict_match_list([ML_Bool, ML_Int32], [ML_Bool4]): ML_VectorLib_Function("ml_is_vmask4_not_any_zero", arity = 1, output_precision = ML_Int32), 
+        type_strict_match_list([ML_Bool, ML_Int32], [ML_Bool8]): ML_VectorLib_Function("ml_is_vmask8_not_any_zero", arity = 1, output_precision = ML_Int32), 
+      },
+    },
     Test.IsMaskNotAllZero: {
       lambda _: True: {
-        type_strict_match_list([ML_Bool, ML_Int32], [ML_Bool2]): ML_VectorLib_Function("ml_is_vmask2_non_zero", arity = 1, output_precision = ML_Int32), 
-        type_strict_match_list([ML_Bool, ML_Int32], [ML_Bool4]): ML_VectorLib_Function("ml_is_vmask4_non_zero", arity = 1, output_precision = ML_Int32), 
-        type_strict_match_list([ML_Bool, ML_Int32], [ML_Bool8]): ML_VectorLib_Function("ml_is_vmask8_non_zero", arity = 1, output_precision = ML_Int32), 
+        type_strict_match_list([ML_Bool, ML_Int32], [ML_Bool2]): ML_VectorLib_Function("ml_is_vmask2_not_all_zero", arity = 1, output_precision = ML_Int32), 
+        type_strict_match_list([ML_Bool, ML_Int32], [ML_Bool4]): ML_VectorLib_Function("ml_is_vmask4_not_all_zero", arity = 1, output_precision = ML_Int32), 
+        type_strict_match_list([ML_Bool, ML_Int32], [ML_Bool8]): ML_VectorLib_Function("ml_is_vmask8_not_all_zero", arity = 1, output_precision = ML_Int32), 
       },
     },
     Test.IsInfOrNaN: {

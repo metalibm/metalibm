@@ -51,6 +51,18 @@ class ML_Debug:
     def get_require_header(self):
         return self.require_header
 
+    def select_object(self, optree):
+        return self
+
+## debug object which automatically adapt to input parameters 
+class ML_MultiDebug(ML_Debug):
+  def __init__(self, debug_object_map, key_function = lambda optree: optree.get_precision()):
+    self.debug_object_map = debug_object_map
+    self.key_function = key_function
+
+  def select_object(self, optree): 
+    return self.debug_object_map[self.key_function(optree)]
+
 class ML_AdvancedDebug(ML_Debug):
   def get_pre_process(self, value_to_display, optree):
     return self.pre_process(value_to_display, optree)

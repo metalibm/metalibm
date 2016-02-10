@@ -28,6 +28,7 @@ from metalibm_core.code_generation.gappa_code_generator import GappaCodeGenerato
 
 from metalibm_core.utility.log_report import Log
 from metalibm_core.utility.common import ML_NotImplemented
+from metalibm_core.utility.debug_utils import *
 
 ## \defgroup ml_function ml_function
 ## @{
@@ -334,11 +335,13 @@ class ML_FunctionBasis(object):
 
     vec_elt_arg_tuple = tuple(VectorElementSelection(vec_arg, vi, precision = self.precision) for vec_arg in vec_arg_list)
 
+    vector_mask.set_attributes(tag = "vector_mask", debug = debug_multi)
+
     print "[SV] building vectorized main statement"
     function_scheme = Statement(
       vector_scheme,
       ConditionBlock(
-        Test(vector_mask, specifier = Test.IsMaskAllZero, precision = ML_Bool, likely = True),
+        Test(vector_mask, specifier = Test.IsMaskNotAnyZero, precision = ML_Bool, likely = True, debug = debug_multi),
         Return(vector_scheme),
         Statement(
           ReferenceAssign(vec_res, vector_scheme),

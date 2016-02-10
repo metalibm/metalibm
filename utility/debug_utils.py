@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
-from metalibm_core.core.attributes import ML_Debug, ML_AdvancedDebug
+from metalibm_core.core.attributes import ML_Debug, ML_AdvancedDebug, ML_MultiDebug
+from metalibm_core.core.ml_formats import *
 from pythonsollya import *
 
 # debug utilities
@@ -44,3 +45,30 @@ debug_ddtolx    = ML_Debug(display_format = "%\"PRIx64\" %\"PRIx64\"", pre_proce
 
 # display floating-point value of double double fp number
 debug_dd      = ML_Debug(display_format = "{.hi=%lf, .lo=%lf}", pre_process = lambda v: "%s.hi, %s.lo" % (v, v))
+
+debug_float2  = ML_Debug(display_format = "{%.3f, %.3f}", pre_process = lambda v: "%s._[0], %s._[1]" % (v, v))
+debug_float4  = ML_Debug(display_format = "{%.3f, %.3f, %.3f, %.3f}", pre_process = lambda v: "%s._[0], %s._[1], %s._[2], %s._[3]" % (v, v, v, v))
+debug_float8  = ML_Debug(display_format = "{%.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f}", pre_process = lambda v: "%s._[0], %s._[1], %s._[2], %s._[3], %s._[4], %s._[5], %s._[6], %s._[7]" % (v, v, v, v, v, v, v, v))
+
+debug_int2  = ML_Debug(display_format = "{%d, %d}", pre_process = lambda v: "%s._[0], %s._[1]" % (v, v))
+debug_int4  = ML_Debug(display_format = "{%d, %d, %d, %d}", pre_process = lambda v: "%s._[0], %s._[1], %s._[2], %s._[3]" % (v, v, v, v))
+debug_int8  = ML_Debug(display_format = "{%d, %d, %d, %d, %d, %d, %d, %d}", pre_process = lambda v: "%s._[0], %s._[1], %s._[2], %s._[3], %s._[4], %s._[5], %s._[6], %s._[7]" % (v, v, v, v, v, v, v, v))
+
+debug_multi = ML_MultiDebug({
+  ML_Binary32: debug_ftox,
+  ML_Binary64: debug_lftolx,
+  ML_Float2: debug_float2,
+  ML_Float4: debug_float4,
+  ML_Float8: debug_float8,
+  ML_Int32: debugd,
+  ML_UInt32: debugd,
+  ML_Int64: debuglld,
+  ML_UInt64: debuglld,
+  ML_Int2: debug_int2,
+  ML_Int4: debug_int4,
+  ML_Int8: debug_int8,
+  ML_Bool2: debug_int2,
+  ML_Bool4: debug_int4,
+  ML_Bool8: debug_int8,
+  ML_Bool:  debugd
+})

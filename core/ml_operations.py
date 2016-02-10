@@ -930,6 +930,8 @@ class Test(ArithmeticOperationConstructor("Test", inheritance = [BooleanOperatio
     class IsInvalidInput(TestSpecifier_Builder("IsInvalidInput", 1)): pass
     class IsMaskAllZero(TestSpecifier_Builder("IsMaskAllZero", 1)): pass
     class IsMaskNotAllZero(TestSpecifier_Builder("IsMaskNotAllZero", 1)): pass
+    class IsMaskAnyZero(TestSpecifier_Builder("IsMaskAnyZero", 1)): pass
+    class IsMaskNotAnyZero(TestSpecifier_Builder("IsMaskNotAnyZero", 1)): pass
 
     def __init__(self, *args, **kwords):
         self.__class__.__base__.__init__(self, *args, **kwords)

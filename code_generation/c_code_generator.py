@@ -340,6 +340,7 @@ class CCodeGenerator:
 
     def generate_debug_msg(self, optree, result, code_object, debug_object = None):
         debug_object = optree.get_debug() if debug_object is None else debug_object
+        debug_object = debug_object.select_object(optree) if isinstance(debug_object, ML_Debug) else debug_object
         # adding required headers
         if isinstance(debug_object, ML_Debug):
             for header in debug_object.get_require_header():
