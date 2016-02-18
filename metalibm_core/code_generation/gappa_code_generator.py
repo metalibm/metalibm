@@ -12,7 +12,6 @@
 
 import sys
 
-from ..utility.common import ML_NotImplemented
 from .code_element import CodeVariable, CodeExpression
 from ..core.ml_operations import Variable, Constant, ConditionBlock, Return, TableLoad, Statement, SpecificOperation, Conversion
 from ..core.ml_table import ML_Table
@@ -252,9 +251,9 @@ class GappaCodeGenerator:
             final_symbol = ";\n" if final else ""
             return "%s%s%s" % (initial_symbol, symbol, final_symbol) 
         elif isinstance(symbol_object, ML_Table):
-            raise ML_NotImplemented()
+            raise NotImplementedError
         else:
-            raise ML_NotImplemented()
+            raise NotImplementedError
 
     def generate_initialization(self, symbol, symbol_object, initial = True, final = True):
         return ""

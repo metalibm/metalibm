@@ -14,7 +14,3 @@
 import sys
 
 
-class ML_NotImplemented(Exception):
-    """ not-implemented exception """
-    pass
-

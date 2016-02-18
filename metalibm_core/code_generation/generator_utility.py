@@ -91,11 +91,11 @@ class ML_CG_Operator:
 
     def generate_expr(self, code_generator, code_object, optree, arg_tuple, **kwords):
         """ base code generation function """
-        raise ML_NotImplemented() 
+        raise NotImplementedError 
 
     def assemble_code(self, code_generator, code_object, optree, var_arg_list, **kwords):
         """ base code assembly function """
-        raise ML_NotImplemented()
+        raise NotImplementedError
 
 
 class CompoundOperator(ML_CG_Operator):

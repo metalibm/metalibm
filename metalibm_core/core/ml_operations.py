@@ -19,7 +19,6 @@ import sys, inspect
 from pythonsollya import Interval, SollyaObject, PSI_is_range, nearestint
 
 from ..utility.log_report import Log
-from ..utility.common import ML_NotImplemented
 from .attributes import Attributes, attr_init
 from .ml_formats import * # FP_SpecialValue, ML_FloatingPointException, ML_FloatingPoint_RoundingMode, ML_FPRM_Type, ML_FPE_Type
 
@@ -387,7 +386,7 @@ class AbstractOperation(ML_Operation):
     def copy(self, copy_map = {}):
         print "Error: copy not implemented"
         print self, self.__class__
-        raise ML_NotImplemented()
+        raise NotImplementedError
 
     ## propagate given precision
     #  @param precision

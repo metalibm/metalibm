@@ -27,7 +27,6 @@ from metalibm_core.code_generation.generator_utility import FunctionOperator
 from metalibm_core.code_generation.gappa_code_generator import GappaCodeGenerator
 
 from metalibm_core.utility.log_report import Log
-from metalibm_core.utility.common import ML_NotImplemented
 from metalibm_core.utility.debug_utils import *
 
 ## \defgroup ml_function ml_function
@@ -164,7 +163,7 @@ class ML_FunctionBasis(object):
 
   ## emulation code generation
   def generate_emulate(self):
-    raise ML_NotImplemented()
+    raise NotImplementedError
 
 
   ## generation the wrapper to the emulation code

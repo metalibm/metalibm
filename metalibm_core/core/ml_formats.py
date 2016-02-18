@@ -11,7 +11,6 @@
 ###############################################################################
 
 from pythonsollya import *
-from ..utility.common import ML_NotImplemented
 from ..utility.log_report import Log
 from ..code_generation.code_constant import *
 import re
@@ -86,7 +85,7 @@ class ML_Format(object):
     def get_bit_size(self):
         """ <abstract> return the bit size of the format (if it exists) """
         print self # Exception ML_NotImplemented print
-        raise ML_NotImplemented()
+        raise NotImplementedError
 
     def is_cst_decl_required(self):
         return False
