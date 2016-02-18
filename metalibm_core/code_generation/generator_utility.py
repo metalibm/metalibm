@@ -11,7 +11,6 @@
 ###############################################################################
 
 from ..utility.log_report import Log
-from ..utility.common import ML_NotImplemented, zip_index
 from ..core.ml_formats import *
 from .code_element import CodeVariable, CodeExpression
 from .code_constant import C_Code, Gappa_Code
@@ -33,7 +32,7 @@ def ordered_generation(gen_function, gen_list):
     # return results with gen_list equivalent order
     index_map = {}
     ordered_arg_list = []
-    for arg, index in zip_index(gen_list):
+    for index, arg in enumerate(gen_list):
         index_map[index] = arg
         ordered_arg_list.append((index, arg))
     ordered_arg_list.sort(key = (lambda (index, arg): arg.get_index()))

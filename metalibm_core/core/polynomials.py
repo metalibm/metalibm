@@ -32,7 +32,7 @@ class Polynomial:
 
         if isinstance(init_object, list):
             self.degree = len(init_object)
-            for coeff_value, index in zip_index(init_object):
+            for index, coeff_value in enumerate(init_object):
                 self.coeff_map[index] = coeff_value
 
         elif isinstance(init_object, dict):

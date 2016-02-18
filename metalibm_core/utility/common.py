@@ -18,6 +18,3 @@ class ML_NotImplemented(Exception):
     """ not-implemented exception """
     pass
 
-def zip_index(list_):
-    return zip(list_, range(len(list_)))
-

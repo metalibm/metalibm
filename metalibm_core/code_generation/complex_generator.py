@@ -11,7 +11,6 @@
 ###############################################################################
 
 from ..utility.log_report import Log
-from ..utility.common import ML_NotImplemented, zip_index
 from .generator_utility import ML_CG_Operator
 
 
