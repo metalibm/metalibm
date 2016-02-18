@@ -69,7 +69,7 @@ def implicit_op(op):
 
 
 ## Parent for abstract operations 
-#  @brief parent to Metalibm's abstrat operation 
+#  @brief parent to Metalibm's abstract operation
 class AbstractOperation(ML_Operation):
     name = "AbstractOperation"
     extra_inputs = []
@@ -872,7 +872,7 @@ class BooleanOperation:
             #  -> to be True (likely = True)
             #  -> to be False (likely = False)
             #  -> to be either True or False (likely = LikelyPossible)
-            #  -> undertermined (likely = None)"""
+            #  -> undetermined (likely = None)"""
         self.likely = likely
 
     def get_likely(self):

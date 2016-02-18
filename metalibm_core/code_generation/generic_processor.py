@@ -134,7 +134,7 @@ c_code_generation_table = {
     TableLoad: {
         None: {
             lambda optree: True: {
-                # multidimentional tables, with integer indices:  first two types should be equals, and all the other should be integers
+                # multidimensional tables, with integer indices:  first two types should be equal, and all the other should be integers
                 (lambda *type_tuple,**kwords:
                     len(type_tuple) >= 3 and type_strict_match(type_tuple[0])(type_tuple[1]) and type_std_integer_match(*type_tuple[2:])
                 ) : True,
@@ -663,7 +663,6 @@ class GenericProcessor(AbstractProcessor):
         return self.target_name
 
     def __init__(self, *args):
-        """ processor class initialization """
         # create ordered list of parent architecture instances
         parent_class_list = get_parent_proc_class_list(self.__class__)
         self.parent_architecture = [parent(*args) for parent in create_proc_hierarchy(parent_class_list, [])]

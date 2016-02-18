@@ -15,7 +15,7 @@ from .ml_formats import *
 
 
 class ML_Complex_Format(ML_FP_Format):
-  """ Complex format with initizalition and set function """
+  """ Complex format with initialization and set function """
   def __init__(self, c_name, init_function, set_function, bit_size = 53):
     self.name = {C_Code: c_name}
     self.init_function = init_function
