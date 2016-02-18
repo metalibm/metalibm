@@ -11,7 +11,6 @@
 ###############################################################################
 
 from ..utility.log_report import Log
-from ..utility.common import Callable
 
 ## attribute initialization function (with default value when not initialized) 
 #  @param attrs is an attribute dictionnary
@@ -207,31 +206,26 @@ class Attributes:
 
 
     # static method definition
+    @staticmethod
     def set_default_precision(new_precision):
         Attributes.default_precision.insert(0, new_precision)
+    @staticmethod
     def unset_default_precision():
         Attributes.default_precision.pop(0)
         if len(Attributes.default_precision) < 1: raise Exception()
 
+    @staticmethod
     def set_default_rounding_mode(new_rounding_mode):
         Attributes.default_rounding_mode.insert(0, new_rounding_mode)
-    def unset_default_rounding_mode():  
+    @staticmethod
+    def unset_default_rounding_mode():
         Attributes.default_rounding_mode.pop(0)
         if len(Attributes.default_rounding_mode) < 1: raise Exception()
 
+    @staticmethod
     def set_default_silent(new_silent_value):
         Attributes.default_silent.insert(0, new_silent_value)
+    @staticmethod
     def unset_default_silent():
         Attributes.default_silent.pop(0)
         if len(Attributes.default_silent) < 1: raise Exception()
-
-    # static method bindings
-    set_default_precision = Callable(set_default_precision)
-    unset_default_precision = Callable(unset_default_precision)
-
-    set_default_rounding_mode = Callable(set_default_rounding_mode)
-    unset_default_rounding_mode = Callable(unset_default_rounding_mode)
-
-    set_default_silent = Callable(set_default_silent)
-    unset_default_silent = Callable(unset_default_silent)
-

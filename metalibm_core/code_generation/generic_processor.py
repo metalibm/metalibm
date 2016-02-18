@@ -17,7 +17,6 @@ from .complex_generator import *
 from ..core.ml_formats import *
 from ..core.ml_table import ML_ApproxTable
 from ..core.ml_operations import *
-from ..utility.common import Callable
 
 
 def LibFunctionConstructor(require_header):
@@ -775,7 +774,6 @@ class GenericProcessor(AbstractProcessor):
                                   print "False"
                       print op_map[language][op_class][codegen_key].keys()
                     return False
-                        
 
     def is_local_supported_operation(self, optree, language = C_Code, table_getter = lambda self: self.code_generation_table, debug = False):
         """ return whether or not the operation performed by optree has a local implementation """
@@ -788,6 +786,7 @@ class GenericProcessor(AbstractProcessor):
         return self.is_map_supported_operation(self.simplified_rec_op_map, optree, language, debug = debug)
 
 
+    @staticmethod
     def get_operation_keys(optree):
         """ return code_generation_table key corresponding to the operation performed by <optree> """
         op_class = optree.__class__
@@ -798,6 +797,7 @@ class GenericProcessor(AbstractProcessor):
         return op_class, interface, codegen_key
 
 
+    @staticmethod
     def get_local_implementation(proc_class, optree, language = C_Code, table_getter = lambda c: c.code_generation_table):
         """ return the implementation provided by <proc_class> of the operation performed by <optree> """
         op_class, interface, codegen_key = proc_class.get_operation_keys(optree)
@@ -808,12 +808,6 @@ class GenericProcessor(AbstractProcessor):
                     if interface_condition(*interface, optree = optree):
                         return table[language][op_class][codegen_key][condition][interface_condition]
         raise Exception()
-
-
-    # static member function binding
-    get_operation_keys          = Callable(get_operation_keys) 
-    get_local_implementation    = Callable(get_local_implementation)
-
 
 
 if __name__ == "__main__":

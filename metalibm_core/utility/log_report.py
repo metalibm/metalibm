@@ -12,7 +12,6 @@
 
 
 import sys
-from common import Callable
 
 class Log:
     """ log report class """
@@ -40,6 +39,7 @@ class Log:
     # list of enabled log levels
     enabled_levels = [Warning, Info, Error]
 
+    @staticmethod
     def report(level, msg, eol = "\n"):
         """ report log message """
         if Log.log_stream:
@@ -66,11 +66,7 @@ class Log:
     def disable_level(level):
       Log.enabled_levels.remove(level)
 
+    @staticmethod
     def set_log_stream(log_stream):
         Log.log_stream = log_stream
-
-    set_log_stream = Callable(set_log_stream)
-    report         = Callable(report)
-
-
 

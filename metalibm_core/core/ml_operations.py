@@ -19,7 +19,7 @@ import sys, inspect
 from pythonsollya import Interval, SollyaObject, PSI_is_range, nearestint
 
 from ..utility.log_report import Log
-from ..utility.common import Callable, ML_NotImplemented
+from ..utility.common import ML_NotImplemented
 from .attributes import Attributes, attr_init
 from .ml_formats import * # FP_SpecialValue, ML_FloatingPointException, ML_FloatingPoint_RoundingMode, ML_FPRM_Type, ML_FPE_Type
 
@@ -656,7 +656,7 @@ class FMASpecifier(object):
 
 def FMASpecifier_Builder(name, arity, range_function = None): 
     """ Test Specifier constructor """
-    return type(name, (FMASpecifier,), {"arity": arity, "name": name, "range_function": Callable(range_function)})
+    return type(name, (FMASpecifier,), {"arity": arity, "name": name, "range_function": staticmethod(range_function)})
 
 class FusedMultiplyAdd(ArithmeticOperationConstructor("FusedMultiplyAdd", inheritance = [SpecifierOperation], range_function = lambda optree, ops: optree.specifier.range_function(optree, ops))):
     """ abstract fused multiply and add operation op0 * op1 + op2 """
@@ -1047,9 +1047,9 @@ class SO_Specifier_Type(object):
 def SO_Specifier_Builder(name, abstract_type_rule, instantiated_type_rule, arity_func = None):
     field_map = {
         "name": name,
-        "abstract_type_rule": Callable(abstract_type_rule),
-        "instantiated_type_rule": Callable(instantiated_type_rule),
-        "arity_func": Callable(arity_func),
+        "abstract_type_rule": staticmethod(abstract_type_rule),
+        "instantiated_type_rule": staticmethod(instantiated_type_rule),
+        "arity_func": staticmethod(arity_func),
     }
     return type(name, (SO_Specifier_Type,), field_map)
 
@@ -1212,6 +1212,7 @@ class FunctionCall(AbstractOperationConstructor("FunctionCall")):
     def get_name(self):
       return "FunctionCall to %s" % self.get_function_object().get_function_name()
 
+    @staticmethod
     def propagate_format_to_cst(optree):
         """ propagate new_optree_format to Constant operand of <optree> with abstract precision """
         index_list = xrange(len(optree.inputs)) 
@@ -1231,9 +1232,6 @@ class FunctionCall(AbstractOperationConstructor("FunctionCall")):
         copy_map[self] = new_copy
         return new_copy
 
-
-    # static binding
-    propagate_format_to_cst = Callable(propagate_format_to_cst)
 
 class SwitchBlock(AbstractOperationConstructor("Switch", arity = 1)):
     def __init__(self, switch_value, case_map, **kwords):

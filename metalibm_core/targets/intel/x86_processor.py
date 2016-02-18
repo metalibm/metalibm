@@ -14,7 +14,6 @@ from ...utility.log_report import *
 from ...code_generation.generator_utility import *
 from ...core.ml_formats import *
 from ...core.ml_operations import *
-from ...utility.common import Callable
 from ...code_generation.generic_processor import GenericProcessor
 from ...core.target import TargetRegister
 

@@ -18,13 +18,6 @@ class ML_NotImplemented(Exception):
     """ not-implemented exception """
     pass
 
-
-class Callable:
-    """ wrapper for static class function member """ 
-    def __init__(self, anycallable):
-        self.__call__ = anycallable
-
-
 def zip_index(list_):
     return zip(list_, range(len(list_)))
 
