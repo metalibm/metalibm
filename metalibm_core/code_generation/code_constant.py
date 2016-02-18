@@ -11,7 +11,7 @@
 ###############################################################################
 
 ## Standard C class Code
-class C_Code:
+class C_Code(object):
   def __str__(self):
     return "C_Code"
 

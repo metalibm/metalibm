@@ -616,7 +616,7 @@ class Negate(ArithmeticOperationConstructor("Negate", range_function = lambda se
     pass
 
 
-class SpecifierOperation: 
+class SpecifierOperation(object):
     def get_codegen_key(self):
         """ return code generation specific key """
         return self.specifier
@@ -861,11 +861,11 @@ def TestSpecifier_Builder(name, arity):
     """ Test Specifier constructor """
     return type(name, (TestSpecifier,), {"arity": arity, "name": name})
 
-class LikelyPossible: 
+class LikelyPossible(object):
     """ likely true or false """
     pass
 
-class BooleanOperation:
+class BooleanOperation(object):
     """ Boolean operation parent """
     def __init__(self, likely):
         """ # likely indicate if the boolean operation is likely
@@ -1163,7 +1163,7 @@ def RoundedSignedOverflow(*args, **kwords):
     return SpecificOperation(*args, **kwords)
 
 
-class FunctionObject:
+class FunctionObject(object):
     def __init__(self, name, arg_list_precision, output_precision, generator_object):
         self.name = name
         self.arg_list_precision = arg_list_precision

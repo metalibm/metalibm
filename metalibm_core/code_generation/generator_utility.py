@@ -16,7 +16,7 @@ from .code_element import CodeVariable, CodeExpression
 from .code_constant import C_Code, Gappa_Code
 
 
-class DummyTree:
+class DummyTree(object):
     def __init__(self, tag = "tmp", precision = None):
         self.tag = tag
         self.precision = precision
@@ -41,7 +41,7 @@ def ordered_generation(gen_function, gen_list):
         result_list[index] = gen_function(arg)
     return result_list
 
-class ML_CG_Operator:
+class ML_CG_Operator(object):
     """ parent class for all code generation operators """
     def __init__(self, arity = 0, output_precision = None, pre_process = None, custom_generate_expr = None, force_folding = None, require_header = None, no_parenthesis = False, context_dependant = None, speed_measure = None):
         # number of inputs expected for the operator
@@ -251,18 +251,18 @@ class SymbolOperator(ML_CG_Operator):
                 return CodeExpression("(%s)" % result_code, optree.get_precision())
 
 
-class FO_Arg:
+class FO_Arg(object):
     def __init__(self, index):
         self.index = index
 
     def get_index(self):
         return self.index
 
-class ML_VarArity: 
+class ML_VarArity(object):
     """ variable arity """
     pass
 
-class FO_Result: 
+class FO_Result(object):
   """ PlaceHolder for a function Operator result
       can be used to allocate result passed by reference
       as an operator arguments.
@@ -278,7 +278,7 @@ class FO_Result:
   def get_output_precision(self):
     return self.output_precision
 
-class FO_ResultRef: 
+class FO_ResultRef(object):
   """ PlaceHolder for a function Operator result
       can be used to allocate result passed by reference
       as an operator arguments.
@@ -394,7 +394,7 @@ class FunctionOperator(ML_CG_Operator):
           else:
               return CodeExpression("%s" % result_code, optree.get_precision())
 
-class FunctionObjectOperator:
+class FunctionObjectOperator(object):
     """ meta generator for FunctionObject """
     def generate_expr(self, code_generator, code_object, optree, arg_tuple, generate_pre_process = None, **kwords):
         return optree.get_function_object().get_generator_object().generate_expr(code_generator, code_object, optree, arg_tuple, generate_pre_process = None, **kwords)
@@ -523,7 +523,7 @@ def type_std_integer_match(*arg, **kwords):
 
 ## Type Class Match, used to described match-test function
 #  based on the class of the precision rather than the format itself
-class TCM:
+class TCM(object):
   """ Type Class Match """
   def __init__(self, format_class):
     self.format_class = format_class
@@ -535,7 +535,7 @@ class TCM:
 ## Format Strict match, used to described match-test function
 #  based on the strict comparison of argument formats against
 #  expected formats
-class FSM:
+class FSM(object):
   """ Format Strict Match """
   def __init__(self, format_obj):
     self.format_obj = format_obj
@@ -544,7 +544,7 @@ class FSM:
     return self.format_obj == arg_format
 
 
-class type_strict_match:
+class type_strict_match(object):
     def __init__(self, *type_tuple):
         """ check that argument and constrain type match strictly """
         self.type_tuple = type_tuple
@@ -552,7 +552,7 @@ class type_strict_match:
     def __call__(self, *arg_tuple, **kwords):
         return self.type_tuple == arg_tuple
 
-class type_strict_match_list:
+class type_strict_match_list(object):
     def __init__(self, *type_tuple_list):
         """ check that argument and constrain type match strictly """
         self.type_tuple_list = type_tuple_list
@@ -563,7 +563,7 @@ class type_strict_match_list:
             return False
         return True
 
-class type_fixed_match: 
+class type_fixed_match(object):
     """ type_strict_match + match any instance of ML_Fixed_Format to 
         ML_Fixed_Format descriptor """
     def __init__(self, *type_tuple):
@@ -572,7 +572,7 @@ class type_fixed_match:
     def __call__(self, *arg_tuple, **kwords):
         return reduce(lambda acc, v: acc and (v[0] == v[1] or (v[0] == ML_Fixed_Format)) and isinstance(v[1], ML_Fixed_Format), zip(self.type_tuple, arg_tuple))
 
-class type_custom_match: 
+class type_custom_match(object):
     """ type_strict_match + match any instance of ML_Fixed_Format to 
         ML_Fixed_Format descriptor """
     def __init__(self, *type_tuple):
@@ -585,7 +585,7 @@ class type_custom_match:
         return acc
         #return reduce((lambda acc, v: acc and (v[0](v[1]))), zip(self.type_tuple, arg_tuple))
 
-class type_relax_match:
+class type_relax_match(object):
     """ implement a relaxed type comparison including ML_Exact as possible true answer """
     def __init__(self, *type_tuple):
         self.type_tuple = type_tuple
@@ -593,7 +593,7 @@ class type_relax_match:
     def __call__(self, *arg_tuple, **kwords):
         return reduce(lambda acc, v: acc and (v[0] == v[1] or v[1] == ML_Exact), zip(self.type_tuple, arg_tuple))
 
-class type_result_match:
+class type_result_match(object):
     def __init__(self, result_type):
         self.result_type = result_type
 

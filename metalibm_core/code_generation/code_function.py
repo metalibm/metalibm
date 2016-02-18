@@ -16,7 +16,7 @@ from .generator_utility import FunctionOperator, FO_Arg
 from .code_constant import *
 
 
-class CodeFunction:
+class CodeFunction(object):
   """ function code object """
   def __init__(self, name, arg_list = None, output_format = None, code_object = None, language = C_Code):
     """ code function initialization """

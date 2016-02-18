@@ -86,7 +86,7 @@ def interval_parser(interval_str):
 
 
 
-class ML_ArgTemplate:
+class ML_ArgTemplate(object):
   def __init__(self, default_output_file, default_function_name):
     self.default_output_file = default_output_file
     self.default_function_name = default_function_name

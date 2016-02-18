@@ -30,7 +30,7 @@ from ml_functions.ml_template import ML_ArgTemplate
 
 
 
-class ML_Sqrt:
+class ML_Sqrt(object):
     def __init__(self, 
                  precision = ML_Binary32, 
                  abs_accuracy = S2**-24, 
@@ -61,7 +61,7 @@ class ML_Sqrt:
             kwords["function_name"] = self.function_name
             return RaiseReturn(*args, **kwords)
 
-        class NR_Iteration: 
+        class NR_Iteration(object):
             def __init__(self, value, approx, half_value):
                 self.square = approx * approx
                 error_mult = self.square * half_value

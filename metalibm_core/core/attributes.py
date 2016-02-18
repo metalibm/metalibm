@@ -32,7 +32,7 @@ def attr_init(attrs, attr_name, default_value = None, required = False):
 #  @param color of the debug message
 #  @param pre_process  pre_process function to be applied to the Node before display
 #  @param require_header list of headers required to generate the debug message
-class ML_Debug:
+class ML_Debug(object):
     
     ## initialization of a new ML_Debug object
     def __init__(self, display_format = None, color = None, pre_process = lambda v: v, require_header = []):
@@ -68,7 +68,7 @@ class ML_AdvancedDebug(ML_Debug):
 
 
 ## Object to keep track of ML's node accross the several optimizations passes
-class Handle: 
+class Handle(object):
     def __init__(self, node = None):
         self.node = node
 
@@ -80,7 +80,7 @@ class Handle:
 
 
 ## Base class to store Node's attributes
-class Attributes: 
+class Attributes(object):
     """ Attribute management class for Metalibm's Operation """
     default_precision     = [None]
     default_rounding_mode = [None]

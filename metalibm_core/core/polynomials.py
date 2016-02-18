@@ -16,7 +16,7 @@ from ..utility.log_report import Log
 from .ml_operations import Constant, Variable, Multiplication, Addition, Subtraction
 from .ml_formats import ML_Format, ML_FP_Format, ML_Fixed_Format
 
-class Polynomial:
+class Polynomial(object):
     """ Mathematical polynomial object class """
 
     def __init__(self, init_object = None):
@@ -180,7 +180,7 @@ def generate_power(variable, power, power_map = {}, precision = None):
         power_map[power] = result
         return result
 
-class PolynomialSchemeEvaluator:
+class PolynomialSchemeEvaluator(object):
     """ class for polynomial evaluation scheme generation """
 
     @staticmethod

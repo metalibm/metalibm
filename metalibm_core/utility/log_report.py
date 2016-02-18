@@ -13,7 +13,7 @@
 
 import sys
 
-class Log:
+class Log(object):
     """ log report class """
     log_stream    = None
     dump_stdout   = False

@@ -23,7 +23,7 @@ from .code_object import Gappa_Unknown, GappaCodeObject
 from ..utility.gappa_utils import execute_gappa_script_extract
 
 
-class GappaCodeGenerator: 
+class GappaCodeGenerator(object):
     language = Gappa_Code
 
     """ C language code generator """

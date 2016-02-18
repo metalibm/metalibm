@@ -10,7 +10,7 @@
 # author(s): Nicolas Brunie (nicolas.brunie@kalray.eu)
 ###############################################################################
 
-class TargetRegister:
+class TargetRegister(object):
     target_map = {}
 
     @staticmethod

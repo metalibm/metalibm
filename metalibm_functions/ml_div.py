@@ -27,7 +27,7 @@ from ml_functions.ml_template import ML_ArgTemplate
 from utility.common import test_flag_option, extract_option_value  
 
 
-class ML_Division:
+class ML_Division(object):
     def __init__(self, 
                  precision = ML_Binary32, 
                  abs_accuracy = S2**-24, 
@@ -46,7 +46,7 @@ class ML_Division:
         vx = exp_implementation.add_input_variable("x", precision) 
         vy = exp_implementation.add_input_variable("y", precision) 
 
-        class NR_Iteration: 
+        class NR_Iteration(object):
             def __init__(self, approx, divisor, force_fma = False):
                 self.approx = approx
                 self.divisor = divisor

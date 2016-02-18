@@ -22,7 +22,7 @@ from .code_element import CodeVariable, CodeExpression
 from .code_function import CodeFunction
 
 
-class CCodeGenerator: 
+class CCodeGenerator(object):
     language = C_Code
 
     """ C language code generator """

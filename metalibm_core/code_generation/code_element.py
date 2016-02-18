@@ -14,7 +14,7 @@ from ..core.ml_operations import Variable, FunctionObject
 from .code_object import NestedCode
 
 
-class CodeVariable: 
+class CodeVariable(object):
     def __init__(self, name, precision):
         self.name = name
         self.precision = precision
@@ -29,7 +29,7 @@ class CodeVariable:
         return Variable(self.name, precision = self.precision)
 
 
-class CodeExpression:
+class CodeExpression(object):
     def __init__(self, expression, vartype):
         self.expression = expression
         self.precision = vartype
