@@ -21,7 +21,3 @@ class ML_NotImplemented(Exception):
 def zip_index(list_):
     return zip(list_, range(len(list_)))
 
-def tupelize(single_elt):
-    return (single_elt,) 
-
-
