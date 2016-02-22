@@ -27,13 +27,14 @@ class CCodeGenerator:
     language = C_Code
 
     """ C language code generator """
-    def __init__(self, processor, declare_cst = True, disable_debug = False, libm_compliant = False, default_rounding_mode = ML_GlobalRoundMode, default_silent = None):
+    def __init__(self, processor, declare_cst = True, disable_debug = False, libm_compliant = False, default_rounding_mode = ML_GlobalRoundMode, default_silent = None, language = C_Code):
         self.memoization_map = [{}]
         self.processor = processor
         self.declare_cst = declare_cst
         self.disable_debug = disable_debug
         self.libm_compliant = libm_compliant
         self.fp_context = FP_Context(rounding_mode = default_rounding_mode, silent = default_silent)
+        self.language = language
 
 
     def check_fp_context(self, fp_context, rounding_mode, silent):
@@ -105,9 +106,10 @@ class CCodeGenerator:
                   result = CodeExpression("%d" % optree.get_value(), precision)
                 else:
                   try:
-                      result = CodeExpression(precision.get_c_cst(optree.get_value()), precision)
+                      result = CodeExpression(precision.get_cst(optree.get_value(), language = self.language), precision)
                   except:
-                    Log.report(Log.Error, "Error during get_c_cst call for Constant: %s " % optree.get_str(display_precision = True)) # Exception print
+                    result = CodeExpression(precision.get_cst(optree.get_value(), language = self.language), precision)
+                    Log.report(Log.Error, "Error during get_cst call for Constant: %s " % optree.get_str(display_precision = True)) # Exception print
 
         elif isinstance(optree, TableLoad):
             # declaring table
@@ -302,18 +304,18 @@ class CCodeGenerator:
 
     def generate_declaration(self, symbol, symbol_object, initial = True, final = True):
         if isinstance(symbol_object, Constant):
-            initial_symbol = (symbol_object.get_precision().get_c_name() + " ") if initial else ""
+            initial_symbol = (symbol_object.get_precision().get_name(language = self.language) + " ") if initial else ""
             final_symbol = ";\n" if final else ""
-            return "%s%s = %s%s" % (initial_symbol, symbol, symbol_object.get_precision().get_c_cst(symbol_object.get_value()), final_symbol) 
+            return "%s%s = %s%s" % (initial_symbol, symbol, symbol_object.get_precision().get_cst(symbol_object.get_value(), language = self.language), final_symbol) 
 
         elif isinstance(symbol_object, Variable):
-            initial_symbol = (symbol_object.get_precision().get_c_name() + " ") if initial else ""
+            initial_symbol = (symbol_object.get_precision().get_name(language = self.language) + " ") if initial else ""
             final_symbol = ";\n" if final else ""
             return "%s%s%s" % (initial_symbol, symbol, final_symbol) 
 
         elif isinstance(symbol_object, ML_Table):
-            initial_symbol = (symbol_object.get_c_definition(symbol, final = "") + " ") if initial else ""
-            table_content_init = symbol_object.get_c_content_init()
+            initial_symbol = (symbol_object.get_definition(symbol, final = "", language = self.language) + " ") if initial else ""
+            table_content_init = symbol_object.get_content_init(language = self.language)
             return "%s = %s;\n" % (initial_symbol, table_content_init)
 
         elif isinstance(symbol_object, CodeFunction):
@@ -329,7 +331,7 @@ class CCodeGenerator:
     def generate_initialization(self, symbol, symbol_object, initial = True, final = True):
       if isinstance(symbol_object, Constant) or isinstance(symbol_object, Variable):
         final_symbol = ";\n" if final else ""
-        init_code = symbol_object.get_precision().generate_c_initialization(symbol, symbol_object)
+        init_code = symbol_object.get_precision().generate_initialization(symbol, symbol_object, language = self.language)
         if init_code != None:
           return "%s%s" % (init_code, final_symbol)
         else:
@@ -346,7 +348,7 @@ class CCodeGenerator:
             for header in debug_object.get_require_header():
               code_object.add_header(header)
         precision = optree.get_precision()
-        display_format = debug_object.get_display_format(precision.get_c_display_format()) if isinstance(debug_object, ML_Debug) else precision.get_c_display_format()
+        display_format = debug_object.get_display_format(precision.get_display_format(language = self.language)) if isinstance(debug_object, ML_Debug) else precision.get_display_format(language = self.language)
         display_result = debug_object.get_pre_process(result.get(), optree) if isinstance(debug_object, ML_Debug) else result.get()
         debug_msg = "#ifdef ML_DEBUG\n"
         debug_msg += """printf("%s: %s\\n", %s);\n""" % (optree.get_tag(), display_format, display_result)

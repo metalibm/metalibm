@@ -1173,8 +1173,8 @@ class FunctionObject:
     def __call__(self, *args, **kwords):
         return FunctionCall(self, *args, **kwords)
 
-    def get_declaration(self):
-      return "%s %s(%s);" % (self.output_precision.get_c_name(), self.get_function_name(), ", ".join(arg.get_c_name() for arg in self.arg_list_precision))
+    def get_declaration(self, language = C_Code):
+      return "%s %s(%s);" % (self.output_precision.get_name(language = language), self.get_function_name(), ", ".join(arg.get_name(language = language) for arg in self.arg_list_precision))
 
     def get_precision(self):
         return self.output_precision

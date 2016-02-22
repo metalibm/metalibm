@@ -12,6 +12,7 @@
 
 from pythonsollya import *
 from ..utility.common import ML_NotImplemented
+from ..code_generation.code_constant import *
 import re
 
 ## Class of rounding mode type
@@ -43,7 +44,7 @@ class ML_FloatingPointException: pass
 ## class for type of floating-point exceptions
 class ML_FloatingPointException_Type: 
   ## dummy placeholder to generate C constant for FP exception (should raise error) 
-  def get_c_cst(self, value):
+  def get_cst(self, value, language = C_Code):
     return "NONE"
   def is_cst_decl_required(self):
     return False
@@ -66,6 +67,14 @@ ML_FPE_DivideByZero = ML_FloatingPointException()
 ## Ancestor class for Metalibm's format classes
 class ML_Format(object): 
     """ parent to every Metalibm's format class """
+    def __init__(self):
+      self.name = {}
+      self.display_format = {}
+
+    def get_name(self, language = C_Code):
+        return self.name[language]
+    def get_c_display_format(self, language = C_Code):
+        return self.display_format[language]
 
     ## return the format's bit-size 
     def get_bit_size(self):
@@ -77,14 +86,14 @@ class ML_Format(object):
         return False
 
     ## return the C code for args initialization
-    def generate_c_initialization(self, *args):
+    def generate_initialization(self, *args, **kwords):
       return None
 
     ## return the C code for value assignation to var
     # @param var variable assigned
     # @param value value being assigned
     # @param final boolean flag indicating if this assignation is the last in an assignation list
-    def generate_c_assignation(self, var, value, final = True):
+    def generate_assignation(self, var, value, final = True, language = C_Code):
       final_symbol = ";\n" if final else ""
       return "%s = %s" % (var, value)
 
@@ -92,10 +101,11 @@ class ML_Format(object):
 ## Ancestor class for abstract format
 class ML_AbstractFormat(ML_Format): 
     def __init__(self, c_name): 
-        self.c_name = c_name
+        ML_Format.__init__(self)
+        self.name[C_Code] = c_name
 
     def __str__(self):
-        return self.c_name
+        return self.name[C_Code]
 
     ## return the gappa constant corresponding to parameter
     #  @param cst_value constant value being translated
@@ -133,24 +143,27 @@ class ML_Std_FP_Format(ML_FP_Format):
     """ standard floating-point format base class """
 
     def __init__(self, bit_size, exponent_size, field_size, c_suffix, c_name, ml_support_prefix, c_display_format, sollya_object):
+        ML_Format.__init__(self)
+        self.name[C_Code] = c_name
+        self.display_format[C_Code] = c_display_format
+
+
         self.bit_size = bit_size
         self.exponent_size = exponent_size
         self.field_size = field_size
         self.c_suffix = c_suffix
-        self.c_name = c_name
         self.ml_support_prefix = ml_support_prefix
         self.sollya_object = sollya_object
-        self.c_display_format = c_display_format
 
     ## return the sollya object encoding the format precision
     def get_sollya_object(self):
       return self.sollya_object
 
     def __str__(self):
-        return self.c_name
+        return self.name[C_Code]
 
-    def get_c_name(self):
-        return self.c_name
+    def get_name(self, language = C_Code):
+        return self.name[C_Code]
 
     def get_bias(self):
         return - 2**(self.get_exponent_size() - 1) + 1
@@ -164,8 +177,8 @@ class ML_Std_FP_Format(ML_FP_Format):
     def get_emin_subnormal(self):
         return 1 - (self.get_field_size() + 1) + self.get_bias()
 
-    def get_c_display_format(self):
-        return self.c_display_format
+    def get_display_format(self, language = C_Code):
+        return self.display_format[language]
 
     def get_bit_size(self):
         """ return the format bit size """ 
@@ -181,6 +194,15 @@ class ML_Std_FP_Format(ML_FP_Format):
 
     def get_field_size(self):
         return self.field_size
+
+    def get_cst(self, cst_value, language = C_Code):
+      if language is C_Code:
+        return self.get_c_cst(cst_value)
+      elif language is Gappa_Code:
+        return self.get_gappa_cst(cst_value)
+      else:
+        # default case
+        return self.get_c_cst(cst_value)
 
     def get_c_cst(self, cst_value):
         """ C code for constante cst_value """
@@ -214,19 +236,20 @@ class ML_Std_FP_Format(ML_FP_Format):
 
 class ML_FormatConstructor(ML_Format):
     def __init__(self, bit_size, c_name, c_display_format, get_c_cst):
+        ML_Format.__init__(self)
         self.bit_size = bit_size
-        self.c_name = c_name
-        self.c_display_format = c_display_format
-        self.get_c_cst = get_c_cst
+        self.name[C_Code] = c_name
+        self.display_format[C_Code] = c_display_format
+        self.get_cst = {C_Code: get_c_cst}
 
     def __str__(self):
-        return self.c_name
+        return self.name[C_Code]
 
-    def get_c_name(self):
-        return self.c_name
+    def get_name(self, language = C_Code):
+        return self.name[language]
 
-    def get_c_display_format(self):
-        return self.c_display_format
+    def get_display_format(self, language = C_Code):
+        return self.display_format[language]
 
     def get_bit_size(self):
         return self.bit_size
@@ -235,6 +258,7 @@ class ML_FormatConstructor(ML_Format):
 class ML_Fixed_Format(ML_Format):
     """ parent to every Metalibm's fixed-point class """
     def __init__(self, support_format = None, align = 0):
+      ML_Format.__init__(self)
       # integer format used to contain the fixed-point value 
       self.support_format = support_format
 
@@ -270,8 +294,10 @@ class ML_Base_FixedPoint_Format(ML_Fixed_Format):
             raise ValueError("integer_size+frac_size must be between 1 and 128 (is "+str(bit_size)+")")
         possible_c_bit_sizes = [8, 16, 32, 64, 128]
         self.c_bit_size = next(n for n in possible_c_bit_sizes if n >= bit_size)
-        self.c_name = ("" if self.signed else "u") + "int" + str(self.c_bit_size) + "_t"
-        self.c_display_format = "%\"PRIx" + str(self.c_bit_size) + "\""
+        c_name = ("" if self.signed else "u") + "int" + str(self.c_bit_size) + "_t"
+        c_display_format = "%\"PRIx" + str(self.c_bit_size) + "\""
+        self.name[C_Code] = c_name
+        self.display_format[C_Code] = c_display_format
 
     def get_integer_size(self):
         return self.integer_size
@@ -291,20 +317,28 @@ class ML_Base_FixedPoint_Format(ML_Fixed_Format):
 
     def __str__(self):
         if self.frac_size == 0:
-          return self.c_name
+          return self.name[C_Code]
         elif self.signed:
           return "FS%d.%d" % (self.integer_size, self.frac_size)
         else:
           return "FU%d.%d" % (self.integer_size, self.frac_size)
 
-    def get_c_name(self):
-        return self.c_name
+    def get_name(self, language = C_Code):
+        return self.name[language]
 
-    def get_c_display_format(self):
-        return self.c_display_format
+    def get_display_format(self, language = C_Code):
+        return self.display_format[language]
 
     def get_bit_size(self):
         return self.integer_size + self.frac_size
+
+    def get_cst(self, cst_value, language = C_Code):
+        if language is C_Code:
+            return self.get_c_cst(cst_value)
+        elif language is Gappa_Code:
+            return self.get_gappa_cst(cst_value)
+        else:
+            return self.get_c_cst(cst_value)
 
     def get_c_cst(self, cst_value):
         """ C-language constant generation """
@@ -426,22 +460,21 @@ ML_AbstractBool     = AbstractFormat_Builder("MLAbstractBool",     (ML_Bool_Form
 
 class ML_Compound_Format(ML_Format):
     def __init__(self, c_name, c_field_list, field_format_list, ml_support_prefix, c_display_format, sollya_object):
-        self.c_name = c_name
+        ML_Format.__init__(self)
+        self.name[C_Code] = c_name
+        self.display_format[C_Code] = c_display_format
+
         self.ml_support_prefix = ml_support_prefix
         self.sollya_object = sollya_object
-        self.c_display_format = c_display_format
-        self.c_display_format = "undefined"
         self.c_field_list = c_field_list
         self.field_format_list = field_format_list
 
-    def get_c_name(self):
-        return self.c_name
 
     ## forces constant declaration during code generation
     def is_cst_decl_required(self):
         return True
 
-    def get_c_cst(self, cst_value):
+    def get_cst(self, cst_value, language = C_Code):
         tmp_cst = cst_value
         field_str_list = []
         for field_name, field_format in zip(self.c_field_list, self.field_format_list):
@@ -452,8 +485,6 @@ class ML_Compound_Format(ML_Format):
         return "{%s}" % (", ".join(field_str_list))
 
 
-    def get_c_display_format(self):
-        return self.c_display_format
 
 class ML_Compound_FP_Format(ML_Compound_Format, ML_FP_Format):
   pass
@@ -496,11 +527,14 @@ class ML_CompoundVectorFormat(ML_VectorFormat, ML_Compound_Format):
     ML_Compound_Format.__init__(self, format_name, ["_[%d]" % i for i in xrange(vector_size)], [scalar_format for i in xrange(vector_size)], "", "", sollya_precision)
 
 
-  def get_c_cst(self, cst_value):
-    tmp_cst = cst_value
-    field_str_list = []
-    elt_value_list = [self.scalar_format.get_c_cst(cst_value[i]) for i in xrange(self.vector_size)]
-    return "{._ = {%s}}" % (", ".join(elt_value_list))
+  def get_cst(self, cst_value, language = C_Code):
+    if language is C_Code:
+      tmp_cst = cst_value
+      field_str_list = []
+      elt_value_list = [self.scalar_format.get_c_cst(cst_value[i]) for i in xrange(self.vector_size)]
+      return "{._ = {%s}}" % (", ".join(elt_value_list))
+    else:
+      Log.report(Log.Error, "unsupported language in ML_CompoundVectorFormat.get_cst: %s" % (language))
 
 
 class ML_IntegerVectorFormat(ML_CompoundVectorFormat, ML_Fixed_Format):

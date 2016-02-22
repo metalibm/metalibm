@@ -13,11 +13,12 @@
 from ..core.ml_operations import Variable, FunctionObject
 from .code_object import NestedCode
 from .generator_utility import FunctionOperator, FO_Arg
+from .code_constant import *
 
 
 class CodeFunction:
   """ function code object """
-  def __init__(self, name, arg_list = None, output_format = None, code_object = None):
+  def __init__(self, name, arg_list = None, output_format = None, code_object = None, language = C_Code):
     """ code function initialization """
     self.name = name
     self.arg_list = arg_list if arg_list else []
@@ -25,6 +26,7 @@ class CodeFunction:
     self.output_format = output_format 
     self.function_object   = None
     self.function_operator = None
+    self.language = language
 
   def get_name(self):
     return self.name
@@ -71,10 +73,11 @@ class CodeFunction:
     self.output_format = new_output_format
     
 
-  def get_declaration(self, final = True):
-    arg_format_list = ", ".join("%s %s" % (inp.get_precision().get_c_name(), inp.get_tag()) for inp in self.arg_list)
+  def get_declaration(self, final = True, language = None):
+    language = self.language if language is None else language
+    arg_format_list = ", ".join("%s %s" % (inp.get_precision().get_name(language = language), inp.get_tag()) for inp in self.arg_list)
     final_symbol = ";" if final else ""
-    return "%s %s(%s)%s" % (self.output_format.get_c_name(), self.name, arg_format_list, final_symbol)
+    return "%s %s(%s)%s" % (self.output_format.get_name(language = language), self.name, arg_format_list, final_symbol)
 
   ## define function implementation
   #  @param scheme ML_Operation object to be defined as function implementation

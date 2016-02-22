@@ -14,6 +14,7 @@ from pythonsollya import Interval
 from ml_operations import ML_LeafNode, BitLogicAnd, BitLogicRightShift, TypeCast, Constant
 from attributes import Attributes, attr_init
 from ml_formats import ML_Int32, ML_Int64, ML_UInt32, ML_UInt64
+from ..code_generation.code_constant import *
 
 def create_multi_dim_array(dimensions, init_data = None):
     """ create a multi dimension array """
@@ -30,12 +31,12 @@ def create_multi_dim_array(dimensions, init_data = None):
             return [create_multi_dim_array(dimensions[1:]) for i in xrange(dim)]
 
 
-def get_table_c_content(table, dimensions, storage_precision):
+def get_table_content(table, dimensions, storage_precision, language = C_Code):
     if len(dimensions) == 1:
-        return "{" + ", ".join([storage_precision.get_c_cst(value) for value in table]) + "}"
+        return "{" + ", ".join([storage_precision.get_cst(value, language = language) for value in table]) + "}"
     else:
         code = "{\n  "
-        code += ",\n  ".join(get_table_c_content(line, dimensions[1:], storage_precision) for line in table)
+        code += ",\n  ".join(get_table_content(line, dimensions[1:], storage_precision, language = language) for line in table)
         code += "\n}"
         return code
 
@@ -79,12 +80,12 @@ class ML_Table(ML_LeafNode):
         return Interval(low_bound, high_bound)
 
 
-    def get_c_definition(self, table_name, final = ";"):
-        precision_c_name = self.get_storage_precision().get_c_name()
-        return "%s %s[%s]" % (precision_c_name, table_name, "][".join([str(dim) for dim in self.dimensions]))
+    def get_definition(self, table_name, final = ";", language = C_Code):
+        precision_name = self.get_storage_precision().get_name(language = language)
+        return "%s %s[%s]" % (precision_name, table_name, "][".join([str(dim) for dim in self.dimensions]))
 
-    def get_c_content_init(self):
-        return get_table_c_content(self.table, self.dimensions, self.get_storage_precision())
+    def get_content_init(self, language = C_Code):
+        return get_table_content(self.table, self.dimensions, self.get_storage_precision(), language = language)
 
     def get_str(self, depth = None, display_precision = False, tab_level = 0, memoization_map = {}, display_attribute = False, display_id = False):
         id_str     = ("[id=%x]" % id(self)) if display_id else ""
