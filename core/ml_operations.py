@@ -955,12 +955,14 @@ class Test(ArithmeticOperationConstructor("Test", inheritance = [BooleanOperatio
         new_copy.arity = self.arity
 
 class ComparisonSpecifier(object): pass
-def CompSpecBuilder(name, opcode):
+def CompSpecBuilder(name, opcode, symbol):
     field_map = {
         # operation copy
         "opcode": opcode,
+        "symbol": symbol,
         # operation name
         "get_opcode": (lambda self: self.opcode),
+        "get_symbol": (lambda self: self.symbol),
     }
     return type(name, (ComparisonSpecifier,), field_map)
 
@@ -968,12 +970,12 @@ def CompSpecBuilder(name, opcode):
 
 class Comparison(ArithmeticOperationConstructor("Comparison", arity = 2, inheritance = [BooleanOperation, SpecifierOperation])):
     """ Abstract Comparison operation """
-    Equal          = CompSpecBuilder("Equal", "eq")
-    NotEqual       = CompSpecBuilder("NotEqual", "ne")
-    Less           = CompSpecBuilder("Less",  "lt")
-    LessOrEqual    = CompSpecBuilder("LessOrEqual", "le")
-    Greater        = CompSpecBuilder("Greater", "gt")
-    GreaterOrEqual = CompSpecBuilder("GreaterOrEqual", "ge")
+    Equal          = CompSpecBuilder("Equal", "eq", "==")
+    NotEqual       = CompSpecBuilder("NotEqual", "ne", "!=")
+    Less           = CompSpecBuilder("Less",  "lt", "<")
+    LessOrEqual    = CompSpecBuilder("LessOrEqual", "le", "<=")
+    Greater        = CompSpecBuilder("Greater", "gt", ">")
+    GreaterOrEqual = CompSpecBuilder("GreaterOrEqual", "ge", ">=")
 
 
     def __init__(self, *args, **kwords):

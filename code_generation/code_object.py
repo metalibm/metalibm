@@ -395,7 +395,8 @@ class GappaCodeObject(CodeObject):
 
 
 
-
+## Nested code object
+#  language is derived from code_generator's language
 class NestedCode:
     """ object to support multiple levels of nested code with local and global variable management """
     def __init__(self, code_generator, static_cst = False, static_table = True):

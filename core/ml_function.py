@@ -93,12 +93,15 @@ class ML_FunctionBasis(object):
              fast_path_extract = True,
              # Debug verbosity
              debug_flag = False,
-             vector_size = 1
+             vector_size = 1,
+             language = C_Code
          ):
     # io_precisions must be a list
     #     -> with a single element
     # XOR -> with as many elements as function arity (input + output arities)
     self.io_precisions = io_precisions
+
+    self.language = language
 
     # Naming logic, using provided information if available, otherwise deriving from base_name
     # base_name is e.g. exp
@@ -128,7 +131,7 @@ class ML_FunctionBasis(object):
     self.opt_engine = OptimizationEngine(self.processor)
     self.gappa_engine = GappaCodeGenerator(self.processor, declare_cst = True, disable_debug = True)
 
-    self.C_code_generator = CCodeGenerator(self.processor, declare_cst = False, disable_debug = not self.debug_flag, libm_compliant = self.libm_compliant)
+    self.C_code_generator = CCodeGenerator(self.processor, declare_cst = False, disable_debug = not self.debug_flag, libm_compliant = self.libm_compliant, language = self.language)
     self.main_code_object = NestedCode(self.C_code_generator, static_cst = True)
 
     self.call_externalizer = CallExternalizer(self.main_code_object)
@@ -242,12 +245,16 @@ class ML_FunctionBasis(object):
   def get_main_code_object(self):
     return self.main_code_object
 
+
+  def generate_C(self, code_function_list):
+    return self.generate_code(code_function_list, language = C_Code)
+
   ## generate C code for function implenetation 
   #  Code is generated within the main code object
   #  and dumped to a file named after implementation's name
   #  @param code_function_list list of CodeFunction to be generated (as sub-function )
   #  @return void
-  def generate_C(self, code_function_list):
+  def generate_code(self, code_function_list, language = C_Code):
     """ Final C generation, once the evaluation scheme has been optimized"""
     # registering scheme as function implementation
     #self.implementation.set_scheme(scheme)
@@ -255,7 +262,7 @@ class ML_FunctionBasis(object):
     code_object = self.get_main_code_object()
     self.result = code_object
     for code_function in code_function_list:
-      self.result = code_function.add_definition(self.C_code_generator, C_Code, code_object, static_cst = True)
+      self.result = code_function.add_definition(self.C_code_generator, language, code_object, static_cst = True)
 
     # adding headers
     self.result.add_header("support_lib/ml_special_values.h")
@@ -297,7 +304,7 @@ class ML_FunctionBasis(object):
         print scheme.get_str(depth = None, display_precision = True, memoization_map = {})
 
     # generate C code to implement scheme
-    self.generate_C(code_function_list)
+    self.generate_code(code_function_list, language = self.language)
 
 
   ## externalized an optree: generate a CodeFunction which compute the 
@@ -338,28 +345,53 @@ class ML_FunctionBasis(object):
     vector_mask.set_attributes(tag = "vector_mask", debug = debug_multi)
 
     print "[SV] building vectorized main statement"
-    function_scheme = Statement(
-      vector_scheme,
-      ConditionBlock(
-        Test(vector_mask, specifier = Test.IsMaskNotAnyZero, precision = ML_Bool, likely = True, debug = debug_multi),
-        Return(vector_scheme),
-        Statement(
-          ReferenceAssign(vec_res, vector_scheme),
-          Loop(
-            ReferenceAssign(vi, Constant(0, precision = ML_Int32)),
-            vi < Constant(vector_size, precision = ML_Int32),
-            Statement(
-              ConditionBlock(
-                Likely(VectorElementSelection(vector_mask, vi, precision = ML_Bool), None),
-                ReferenceAssign(VectorElementSelection(vec_res, vi, precision = self.precision), scalar_callback(*vec_elt_arg_tuple))
-              ),
-              ReferenceAssign(vi, vi + 1)
-            ),
-          ),
-          Return(vec_res)
+    if self.language is OpenCL_Code:
+      unrolled_cond_allocation = Statement()
+      for i in xrange(vector_size):
+        vec_elt_arg_tuple = tuple(VectorElementSelection(vec_arg, i, precision = self.precision) for vec_arg in vec_arg_list)
+        unrolled_cond_allocation.add(
+          ConditionBlock(
+            Likely(VectorElementSelection(vector_mask, i, precision = ML_Bool), None),
+            ReferenceAssign(VectorElementSelection(vec_res, i, precision = self.precision), scalar_callback(*vec_elt_arg_tuple))
+          )
+        ) 
+
+
+      function_scheme = Statement(
+        vector_scheme,
+        ConditionBlock(
+          Test(vector_mask, specifier = Test.IsMaskNotAnyZero, precision = ML_Bool, likely = True, debug = debug_multi),
+          Return(vector_scheme),
+          Statement(
+            unrolled_cond_allocation,
+            Return(vec_res)
+          )
         )
       )
-    )
+
+    else:
+      function_scheme = Statement(
+        vector_scheme,
+        ConditionBlock(
+          Test(vector_mask, specifier = Test.IsMaskNotAnyZero, precision = ML_Bool, likely = True, debug = debug_multi),
+          Return(vector_scheme),
+          Statement(
+            ReferenceAssign(vec_res, vector_scheme),
+            Loop(
+              ReferenceAssign(vi, Constant(0, precision = ML_Int32)),
+              vi < Constant(vector_size, precision = ML_Int32),
+              Statement(
+                ConditionBlock(
+                  Likely(VectorElementSelection(vector_mask, vi, precision = ML_Bool), None),
+                  ReferenceAssign(VectorElementSelection(vec_res, vi, precision = self.precision), scalar_callback(*vec_elt_arg_tuple))
+                ),
+                ReferenceAssign(vi, vi + 1)
+              ),
+            ),
+            Return(vec_res)
+          )
+        )
+      )
 
     print "vectorized_scheme: ", function_scheme.get_str(depth = None, display_precision = True, memoization_map = {})
 

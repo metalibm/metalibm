@@ -12,6 +12,7 @@
 
 from pythonsollya import *
 from ..utility.common import ML_NotImplemented
+from ..utility.log_report import Log
 from ..code_generation.code_constant import *
 import re
 
@@ -72,9 +73,14 @@ class ML_Format(object):
       self.display_format = {}
 
     def get_name(self, language = C_Code):
-        return self.name[language]
-    def get_c_display_format(self, language = C_Code):
-        return self.display_format[language]
+        if language in self.name:
+            return self.name[language]
+        else: return self.name[C_Code]
+
+    def get_display_format(self, language = C_Code):
+        if language in self.display_format:
+            return self.display_format[language]
+        else: return self.display_format[C_Code]
 
     ## return the format's bit-size 
     def get_bit_size(self):
@@ -245,12 +251,6 @@ class ML_FormatConstructor(ML_Format):
     def __str__(self):
         return self.name[C_Code]
 
-    def get_name(self, language = C_Code):
-        return self.name[language]
-
-    def get_display_format(self, language = C_Code):
-        return self.display_format[language]
-
     def get_bit_size(self):
         return self.bit_size
 
@@ -322,12 +322,6 @@ class ML_Base_FixedPoint_Format(ML_Fixed_Format):
           return "FS%d.%d" % (self.integer_size, self.frac_size)
         else:
           return "FU%d.%d" % (self.integer_size, self.frac_size)
-
-    def get_name(self, language = C_Code):
-        return self.name[language]
-
-    def get_display_format(self, language = C_Code):
-        return self.display_format[language]
 
     def get_bit_size(self):
         return self.integer_size + self.frac_size
@@ -522,17 +516,20 @@ class ML_VectorFormat:
     self.vector_size = new_vector_size
 
 class ML_CompoundVectorFormat(ML_VectorFormat, ML_Compound_Format):
-  def __init__(self, format_name, vector_size, scalar_format, sollya_precision = None):
+  def __init__(self, c_format_name, opencl_format_name, vector_size, scalar_format, sollya_precision = None):
     ML_VectorFormat.__init__(self, scalar_format, vector_size)
-    ML_Compound_Format.__init__(self, format_name, ["_[%d]" % i for i in xrange(vector_size)], [scalar_format for i in xrange(vector_size)], "", "", sollya_precision)
+    ML_Compound_Format.__init__(self, c_format_name, ["_[%d]" % i for i in xrange(vector_size)], [scalar_format for i in xrange(vector_size)], "", "", sollya_precision)
+    # registering OpenCL-C format name
+    self.name[OpenCL_Code] = opencl_format_name
 
 
   def get_cst(self, cst_value, language = C_Code):
     if language is C_Code:
-      tmp_cst = cst_value
-      field_str_list = []
       elt_value_list = [self.scalar_format.get_c_cst(cst_value[i]) for i in xrange(self.vector_size)]
       return "{._ = {%s}}" % (", ".join(elt_value_list))
+    elif language is OpenCL_Code:
+      elt_value_list = [self.scalar_format.get_c_cst(cst_value[i]) for i in xrange(self.vector_size)]
+      return "(%s)(%s)" % (self.get_name(language = OpenCL_Code), (", ".join(elt_value_list)))
     else:
       Log.report(Log.Error, "unsupported language in ML_CompoundVectorFormat.get_cst: %s" % (language))
 
@@ -549,28 +546,28 @@ class ML_FloatingPointVectorFormat(ML_CompoundVectorFormat, ML_FP_Format):
 #  @param scalar_format ML_Format object, format of a vector's element
 #  @param sollya_precision pythonsollya object, sollya precision to be used for computation
 #  @param compound_constructor ML_Compound_Format child class used to build the result format 
-def vector_format_builder(format_name, vector_size, scalar_format, sollya_precision = None, compound_constructor = ML_FloatingPointVectorFormat):
-  return compound_constructor(format_name, vector_size, scalar_format, sollya_precision)
+def vector_format_builder(c_format_name, opencl_format_name, vector_size, scalar_format, sollya_precision = None, compound_constructor = ML_FloatingPointVectorFormat):
+  return compound_constructor(c_format_name, opencl_format_name, vector_size, scalar_format, sollya_precision)
 
-ML_Float2 = vector_format_builder("ml_float2_t", 2, ML_Binary32)
-ML_Float4 = vector_format_builder("ml_float4_t", 4, ML_Binary32)
-ML_Float8 = vector_format_builder("ml_float8_t", 8, ML_Binary32)
+ML_Float2 = vector_format_builder("ml_float2_t", "float2", 2, ML_Binary32)
+ML_Float4 = vector_format_builder("ml_float4_t", "float4", 4, ML_Binary32)
+ML_Float8 = vector_format_builder("ml_float8_t", "float8", 8, ML_Binary32)
 
-ML_Double2 = vector_format_builder("ml_double2_t", 2, ML_Binary64)
-ML_Double4 = vector_format_builder("ml_double4_t", 4, ML_Binary64)
-ML_Double8 = vector_format_builder("ml_double8_t", 8, ML_Binary64)
+ML_Double2 = vector_format_builder("ml_double2_t", "double2", 2, ML_Binary64)
+ML_Double4 = vector_format_builder("ml_double4_t", "double4", 4, ML_Binary64)
+ML_Double8 = vector_format_builder("ml_double8_t", "double8", 8, ML_Binary64)
 
-ML_Bool2  = vector_format_builder("ml_bool2_t", 2, ML_Bool, compound_constructor = ML_IntegerVectorFormat)
-ML_Bool4  = vector_format_builder("ml_bool4_t", 4, ML_Bool, compound_constructor = ML_IntegerVectorFormat)
-ML_Bool8  = vector_format_builder("ml_bool8_t", 8, ML_Bool, compound_constructor = ML_IntegerVectorFormat)
+ML_Bool2  = vector_format_builder("ml_bool2_t", "int2", 2, ML_Bool, compound_constructor = ML_IntegerVectorFormat)
+ML_Bool4  = vector_format_builder("ml_bool4_t", "int4", 4, ML_Bool, compound_constructor = ML_IntegerVectorFormat)
+ML_Bool8  = vector_format_builder("ml_bool8_t", "int8", 8, ML_Bool, compound_constructor = ML_IntegerVectorFormat)
 
-ML_Int2  = vector_format_builder("ml_int2_t", 2, ML_Int32, compound_constructor = ML_IntegerVectorFormat)
-ML_Int4  = vector_format_builder("ml_int4_t", 4, ML_Int32, compound_constructor = ML_IntegerVectorFormat)
-ML_Int8  = vector_format_builder("ml_int8_t", 8, ML_Int32, compound_constructor = ML_IntegerVectorFormat)
-
-ML_UInt2 = vector_format_builder("ml_uint2_t", 2, ML_UInt32, compound_constructor = ML_IntegerVectorFormat)
-ML_UInt4 = vector_format_builder("ml_uint4_t", 4, ML_UInt32, compound_constructor = ML_IntegerVectorFormat)
-ML_UInt8 = vector_format_builder("ml_uint8_t", 8, ML_UInt32, compound_constructor = ML_IntegerVectorFormat)
+ML_Int2  = vector_format_builder("ml_int2_t", "int2", 2,  ML_Int32, compound_constructor = ML_IntegerVectorFormat)
+ML_Int4  = vector_format_builder("ml_int4_t", "int4", 4, ML_Int32, compound_constructor = ML_IntegerVectorFormat)
+ML_Int8  = vector_format_builder("ml_int8_t", "int8", 8, ML_Int32, compound_constructor = ML_IntegerVectorFormat)
+                                                         
+ML_UInt2 = vector_format_builder("ml_uint2_t", "uint2", 2, ML_UInt32, compound_constructor = ML_IntegerVectorFormat)
+ML_UInt4 = vector_format_builder("ml_uint4_t", "uint4", 4, ML_UInt32, compound_constructor = ML_IntegerVectorFormat)
+ML_UInt8 = vector_format_builder("ml_uint8_t", "uint8", 8, ML_UInt32, compound_constructor = ML_IntegerVectorFormat)
 
 ###############################################################################
 #                     FLOATING-POINT SPECIAL VALUES

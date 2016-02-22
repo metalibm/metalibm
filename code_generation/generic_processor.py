@@ -671,19 +671,8 @@ class GenericProcessor(AbstractProcessor):
     def generate_expr(self, code_generator, code_object, optree, arg_tuple, **kwords): #folded = True, language = C_Code, result_var = None):
         """ processor generate expression """
         language = kwords["language"] if "language" in kwords else C_Code
-        if self.is_local_supported_operation(optree, language = language):
-            local_implementation = self.get_implementation(optree, language)
-            return local_implementation.generate_expr(code_generator, code_object, optree, arg_tuple, **kwords)#folded = folded, result_var = result_var)
-        else:
-            for parent_proc in self.parent_architecture:
-                if parent_proc.is_local_supported_operation(optree, language = language):
-                    return parent_proc.get_implementation(optree, language).generate_expr(code_generator, code_object, optree, arg_tuple, **kwords)#folded = folded, result_var = result_var)
-            # no implementation were found
-            Log.report(Log.Verbose, "Tested architecture(s):")
-            for parent_proc in self.parent_architecture:
-              Log.report(Log.Verbose, "  %s " % parent_proc)
-
-            Log.report(Log.Error, "the following operation is not supported by %s/%s: \n%s" % (self.__class__, language, optree.get_str(depth = 2, display_precision = True, memoization_map = {}))) 
+        implementation = self.get_recursive_implementation(optree, language)
+        return implementation.generate_expr(code_generator, code_object, optree, arg_tuple, **kwords)#folded = folded, result_var = result_var)
 
     def generate_supported_op_map(self, language = C_Code, table_getter = lambda self: self.code_generation_table):
         """ generate a map of every operations supported by the processor hierarchy,
@@ -698,19 +687,22 @@ class GenericProcessor(AbstractProcessor):
     def generate_local_op_map(self, language = C_Code, op_map = {}, table_getter = lambda self: self.code_generation_table):
         """ generate simplified map of locally supported operations """
         table = table_getter(self)
-        local_map = table[language]
-        for operation in local_map:
-            if not operation in op_map: 
-                op_map[operation] = {}
-            for specifier in local_map[operation]:
-                if not specifier in op_map[operation]: 
-                    op_map[operation][specifier] = {}
-                for condition in local_map[operation][specifier]:
-                    if not condition in op_map[operation][specifier]:
-                        op_map[operation][specifier][condition] = {}
-                    for interface_format in local_map[operation][specifier][condition]:
-                        op_map[operation][specifier][condition][interface_format] = ML_FullySupported
-        return op_map
+        if not language in table:
+          return op_map
+        else:
+          local_map = table[language]
+          for operation in local_map:
+              if not operation in op_map: 
+                  op_map[operation] = {}
+              for specifier in local_map[operation]:
+                  if not specifier in op_map[operation]: 
+                      op_map[operation][specifier] = {}
+                  for condition in local_map[operation][specifier]:
+                      if not condition in op_map[operation][specifier]:
+                          op_map[operation][specifier][condition] = {}
+                      for interface_format in local_map[operation][specifier][condition]:
+                          op_map[operation][specifier][condition][interface_format] = ML_FullySupported
+          return op_map
                     
 
     def get_implementation(self, optree, language = C_Code, table_getter = lambda self: self.code_generation_table):
@@ -734,6 +726,9 @@ class GenericProcessor(AbstractProcessor):
                 if parent_proc.is_local_supported_operation(optree, language = language, table_getter = table_getter):
                     return parent_proc.get_implementation(optree, language, table_getter = table_getter)
             # no implementation were found
+            Log.report(Log.Verbose, "Tested architecture(s):")
+            for parent_proc in self.parent_architecture:
+              Log.report(Log.Verbose, "  %s " % parent_proc)
             Log.report(Log.Error, "the following operation is not supported by %s: \n%s" % (self.__class__, optree.get_str(depth = 2, display_precision = True))) 
         
 

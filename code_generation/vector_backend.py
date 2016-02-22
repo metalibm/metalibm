@@ -24,6 +24,8 @@ from metalibm_core.core.target import TargetRegister
 
 ML_VectorLib_Function = LibFunctionConstructor(["support_lib/ml_vector_lib.h"])
 
+OpenCL_Builtin = LibFunctionConstructor([])
+
 vector_type = {
   ML_Binary32: {
     2: ML_Float2,
@@ -56,6 +58,183 @@ scalar_type_letter = {
   ML_Binary64: "d",
   ML_UInt32:   "u",
   ML_Int32:    "i",
+}
+
+vector_opencl_code_generation_table = {
+
+  Addition: {
+    None: {
+      lambda _: True: 
+        dict(
+          sum(
+          [
+            [
+              (type_strict_match(
+                  vector_type[scalar_type][vector_size], 
+                  vector_type[scalar_type][vector_size],
+                  vector_type[scalar_type][vector_size]
+                ), SymbolOperator("+", arity = 2)
+              ) for vector_size in [2, 4, 8]
+            ] for scalar_type in [ML_Binary32, ML_Binary64, ML_Int32, ML_UInt32]
+          ], [])
+        )
+     }
+  },
+  Subtraction: {
+    None: {
+      lambda _: True: 
+        dict(
+          sum(
+          [
+            [
+              (type_strict_match(
+                  vector_type[scalar_type][vector_size], 
+                  vector_type[scalar_type][vector_size],
+                  vector_type[scalar_type][vector_size]
+                ), SymbolOperator("+", arity = 2)
+              ) for vector_size in [2, 4, 8]
+            ] for scalar_type in [ML_Binary32, ML_Binary64, ML_Int32, ML_UInt32]
+          ], [])
+        )
+     }
+  },
+  Multiplication: {
+    None: {
+      lambda _: True: 
+        dict(
+          sum(
+          [
+            [
+              (type_strict_match(
+                  vector_type[scalar_type][vector_size], 
+                  vector_type[scalar_type][vector_size],
+                  vector_type[scalar_type][vector_size]
+                ), SymbolOperator("+", arity = 2)
+              ) for vector_size in [2, 4, 8]
+            ] for scalar_type in [ML_Binary32, ML_Binary64, ML_Int32, ML_UInt32]
+          ], [])
+        )
+     }
+  },
+  Negation: {
+    None: {
+      lambda _: True: 
+        dict(
+          sum(
+          [
+            [
+              (type_strict_match(
+                  vector_type[scalar_type][vector_size],
+                  vector_type[scalar_type][vector_size]
+                ), SymbolOperator("-", arity = 2)
+              ) for vector_size in [2, 4, 8]
+            ] for scalar_type in [ML_Binary32, ML_Binary64, ML_Int32, ML_UInt32]
+          ], [])
+        )
+     }
+  },
+  FusedMultiplyAdd: {
+    FusedMultiplyAdd.Standard: {
+      lambda _: True: 
+        dict(
+          sum(
+          [
+            [
+              (type_strict_match(
+                  vector_type[scalar_type][vector_size],
+                  vector_type[scalar_type][vector_size],
+                  vector_type[scalar_type][vector_size],
+                  vector_type[scalar_type][vector_size]
+                ), OpenCL_Builtin("fma", arity = 3),
+              ) for vector_size in [2, 4, 8]
+            ] for scalar_type in [ML_Binary32, ML_Binary64, ML_Int32, ML_UInt32]
+          ], [])
+        )
+     }
+  },
+  NearestInteger: {
+    None: {
+      lambda _: True : {
+        type_strict_match(ML_Int2, ML_Float2): OpenCL_Builtin("nearbyint", arity = 1, output_precision = ML_Int2),
+        type_strict_match(ML_Int4, ML_Float4): OpenCL_Builtin("nearbyint", arity = 1, output_precision = ML_Int4),
+        type_strict_match(ML_Int8, ML_Float8): OpenCL_Builtin("nearbyint", arity = 1, output_precision = ML_Int8),
+
+        type_strict_match(ML_Float2, ML_Float2): OpenCL_Builtin("rint", arity = 1, output_precision = ML_Float2),
+        type_strict_match(ML_Float4, ML_Float4): OpenCL_Builtin("rint", arity = 1, output_precision = ML_Float4),
+        type_strict_match(ML_Float8, ML_Float8): OpenCL_Builtin("rint", arity = 1, output_precision = ML_Float8),
+      }
+    }
+  },
+  VectorElementSelection: {
+    None: {
+        # make sure index accessor is a Constant (or fallback to C implementation)
+       lambda optree: isinstance(optree.get_input(1), Constant):  {
+        lambda rformat, opformat, indexformat, optree: True: TemplateOperator("%s.%s", arity = 2),
+      },
+    },
+  },
+  LogicalNot: {
+    None: {
+      lambda _: True: {
+        type_strict_match(ML_Bool2, ML_Bool2): SymbolOperator("!", arity = 1),
+        type_strict_match(ML_Bool4, ML_Bool4): SymbolOperator("!", arity = 1),
+        type_strict_match(ML_Bool8, ML_Bool8): SymbolOperator("!", arity = 1),
+      },
+    },
+  },
+  LogicalAnd: {
+    None: {
+      lambda _: True: {
+        type_strict_match(ML_Bool2, ML_Bool2, ML_Bool2): SymbolOperator("&&", arity = 2),
+        type_strict_match(ML_Bool4, ML_Bool4, ML_Bool4): SymbolOperator("&&", arity = 2),
+        type_strict_match(ML_Bool8, ML_Bool8, ML_Bool8): SymbolOperator("&&", arity = 2),
+      },
+    },
+  },
+  LogicalOr: {
+    None: {
+      lambda _: True: {
+        type_strict_match(ML_Bool2, ML_Bool2, ML_Bool2): SymbolOperator("||", arity = 2),
+        type_strict_match(ML_Bool4, ML_Bool4, ML_Bool4): SymbolOperator("||", arity = 2),
+        type_strict_match(ML_Bool8, ML_Bool8, ML_Bool8): SymbolOperator("||", arity = 2),
+      },
+    },
+  },
+  Comparison: 
+    #specifier -> 
+    dict ((comp_specifier, 
+      {
+        lambda _: True: 
+          dict(
+            ( 
+              sum(
+                [
+                  [
+                    (
+                      type_strict_match_list(
+                        [
+                          #vector_type[ML_Int32][vector_size], 
+                          vector_type[ML_Bool][vector_size]
+                        ],
+                        [
+                          vector_type[scalar_type][vector_size]
+                        ],
+                        [
+                          vector_type[scalar_type][vector_size]
+                        ]
+                      )
+                      , 
+                      SymbolOperator(comp_specifier.symbol, arity = 2),
+                    )  for scalar_type in [ML_Binary32, ML_Binary64, ML_Int32, ML_UInt32]
+                  ] for vector_size in [2, 4, 8]
+                ], []
+              )
+            )
+          )
+      }
+    ) for comp_specifier in [Comparison.Equal, Comparison.NotEqual, Comparison.Greater, Comparison.GreaterOrEqual, Comparison.Less, Comparison.LessOrEqual]
+  ),
+
 }
 
 vector_c_code_generation_table = {
@@ -256,4 +435,41 @@ class VectorBackend(GenericProcessor):
 
   code_generation_table = {
     C_Code: vector_c_code_generation_table, 
+    OpenCL_Code: vector_opencl_code_generation_table, 
   }
+
+  def __init__(self, *args):
+    GenericProcessor.__init__(self, *args)
+    self.simplified_rec_op_map[OpenCL_Code] = self.generate_supported_op_map(language = OpenCL_Code)
+
+
+  def is_supported_operation(self, optree, language = C_Code, debug = False, fallback = True):
+    """ return whether or not the operation performed by optree is supported by any level of the processor hierarchy """
+    language_supported =  self.is_map_supported_operation(self.simplified_rec_op_map, optree, language, debug = debug)
+    # fallback to C_Code
+    if language is OpenCL_Code and fallback: 
+      return language_supported or self.is_map_supported_operation(self.simplified_rec_op_map, optree, language = C_Code, debug = debug)
+    else:
+      return language_supported
+
+  def get_recursive_implementation(self, optree, language = None, table_getter = lambda self: self.code_generation_table):
+    if self.is_local_supported_operation(optree, language = language, table_getter = table_getter):
+      local_implementation = self.get_implementation(optree, language, table_getter = table_getter)
+      return local_implementation
+    else:
+      for parent_proc in self.parent_architecture:
+        if parent_proc.is_local_supported_operation(optree, language = language, table_getter = table_getter):
+          return parent_proc.get_implementation(optree, language, table_getter = table_getter)
+
+    ## fallback to C_Code when no OpenCL_Code implementation is found
+    if language is OpenCL_Code:
+      return self.get_recursive_implementation(optree, C_Code, table_getter)
+
+    # no implementation were found
+    Log.report(Log.Verbose, "Tested architecture(s):")
+    for parent_proc in self.parent_architecture:
+      Log.report(Log.Verbose, "  %s " % parent_proc)
+    Log.report(Log.Error, "the following operation is not supported by %s: \n%s" % (self.__class__, optree.get_str(depth = 2, display_precision = True))) 
+
+      
+
