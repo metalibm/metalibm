@@ -12,11 +12,14 @@
 
 ## Standard C class Code
 class C_Code:
-    pass
+  def __str__(self):
+    return "C_Code"
 
 class Gappa_Code:
-    pass
+  def __str__(self):
+    return "Gappa_Code"
 
 ## OpenCL-C class Code
 class OpenCL_Code:
-  pass
+  def __str__(self):
+    return "OpenCL_Code"
