@@ -3,6 +3,17 @@
 #include "ml_utils.h"
 
 
+#define VECTORIZE_OP1(OP, r, x, size) {\
+  unsigned i;\
+  for (i = 0; i < size; ++i) r[i] = OP(x[i]);\
+}
+
+#define VECTORIZE_OP2(OP, r, x, y, size) {\
+  unsigned i;\
+  for (i = 0; i < size; ++i) r[i] = OP(x[i], y[i]);\
+}
+  
+
 
 #define DEF_ML_VECTOR_PRIMITIVES_OP3(FUNC_NAME, VECTOR_FORMAT, SCALAR_FORMAT, VECTOR_SIZE, SCALAR_OP0, SCALAR_OP1) \
 static inline void FUNC_NAME(VECTOR_FORMAT *r, VECTOR_FORMAT vop0, VECTOR_FORMAT vop1, VECTOR_FORMAT vop2) {\
@@ -140,6 +151,33 @@ DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vandu8, ml_uint8_t, int32_t, 8, &&)
 DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vandb2, ml_bool2_t, int32_t, 2, &&)
 DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vandb4, ml_bool4_t, int32_t, 4, &&)
 DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vandb8, ml_bool8_t, int32_t, 8, &&)
+
+/** Vector bitwise and */
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vbwandi2, ml_int2_t, int32_t, 2, &)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vbwandi4, ml_int4_t, int32_t, 4, &)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vbwandi8, ml_int8_t, int32_t, 8, &)
+
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vbwandu2, ml_uint2_t, int32_t, 2, &)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vbwandu4, ml_uint4_t, int32_t, 4, &)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vbwandu8, ml_uint8_t, int32_t, 8, &)
+
+/** Vector bitwise or */
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vbwori2, ml_int2_t, int32_t, 2, |)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vbwori4, ml_int4_t, int32_t, 4, |)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vbwori8, ml_int8_t, int32_t, 8, |)
+
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vbworu2, ml_uint2_t, int32_t, 2,|)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vbworu4, ml_uint4_t, int32_t, 4,|)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vbworu8, ml_uint8_t, int32_t, 8,|)
+
+/** Vector bitwise not */
+DEF_ML_VECTOR_PRIMITIVES_OP1(ml_vbwnoti2, ml_int2_t, int32_t, 2, ~)
+DEF_ML_VECTOR_PRIMITIVES_OP1(ml_vbwnoti4, ml_int4_t, int32_t, 4, ~)
+DEF_ML_VECTOR_PRIMITIVES_OP1(ml_vbwnoti8, ml_int8_t, int32_t, 8, ~)
+
+DEF_ML_VECTOR_PRIMITIVES_OP1(ml_vbwnotu2, ml_uint2_t, int32_t, 2,~)
+DEF_ML_VECTOR_PRIMITIVES_OP1(ml_vbwnotu4, ml_uint4_t, int32_t, 4,~)
+DEF_ML_VECTOR_PRIMITIVES_OP1(ml_vbwnotu8, ml_uint8_t, int32_t, 8,~)
 
 /** Comparison operations */
 #define DEF_ML_VECTOR_COMPARATOR_OP2(FUNC_NAME, RESULT_FORMAT, VECTOR_FORMAT, VECTOR_SIZE, COMP_OP) \
