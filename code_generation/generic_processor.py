@@ -105,15 +105,21 @@ c_comp_symbol = {
 c_code_generation_table = {
     Select: {
         None: {
-            lambda optree: True: {
-                type_strict_match(ML_Int32, ML_Int32, ML_Int32, ML_Int32): TemplateOperator("%s ? %s : %s", arity = 3),
-                type_strict_match(ML_UInt32, ML_Int32, ML_UInt32, ML_UInt32): TemplateOperator("%s ? %s : %s", arity = 3),
-                type_strict_match(ML_Int64, ML_Int32, ML_Int64, ML_Int64): TemplateOperator("%s ? %s : %s", arity = 3),
-                type_strict_match(ML_UInt64, ML_Int32, ML_UInt64, ML_UInt64): TemplateOperator("%s ? %s : %s", arity = 3),
-                type_strict_match(ML_UInt32, ML_Int32, ML_UInt32, ML_UInt32): TemplateOperator("%s ? %s : %s", arity = 3),
-                type_strict_match(ML_Binary32, ML_Int32, ML_Binary32, ML_Binary32): TemplateOperator("%s ? %s : %s", arity = 3),
-                type_strict_match(ML_Binary64, ML_Int32, ML_Binary64, ML_Binary64): TemplateOperator("%s ? %s : %s", arity = 3),
-            },
+            lambda optree: True: 
+              dict(
+                sum(
+                  [[(type_strict_match(ML_Int32, bool_precision, ML_Int32, ML_Int32), TemplateOperator("%s ? %s : %s", arity = 3)),
+                   (type_strict_match(ML_UInt32, bool_precision, ML_UInt32, ML_UInt32), TemplateOperator("%s ? %s : %s", arity = 3)),
+                   (type_strict_match(ML_Int64, bool_precision, ML_Int64, ML_Int64), TemplateOperator("%s ? %s : %s", arity = 3)),
+                   (type_strict_match(ML_UInt64, bool_precision, ML_UInt64, ML_UInt64), TemplateOperator("%s ? %s : %s", arity = 3)),
+                   (type_strict_match(ML_UInt32, bool_precision, ML_UInt32, ML_UInt32), TemplateOperator("%s ? %s : %s", arity = 3)),
+                   (type_strict_match(ML_Binary32, bool_precision, ML_Binary32, ML_Binary32), TemplateOperator("%s ? %s : %s", arity = 3)),
+                   (type_strict_match(ML_Binary64, bool_precision, ML_Binary64, ML_Binary64), TemplateOperator("%s ? %s : %s", arity = 3))
+                  ] for bool_precision in [ML_Bool, ML_Int32]],
+                  []
+                )
+              ),
+            
         },  
     },
     Abs: {
@@ -726,10 +732,10 @@ class GenericProcessor(AbstractProcessor):
                 if parent_proc.is_local_supported_operation(optree, language = language, table_getter = table_getter):
                     return parent_proc.get_implementation(optree, language, table_getter = table_getter)
             # no implementation were found
-            Log.report(Log.Verbose, "Tested architecture(s):")
+            Log.report(Log.Verbose, "Tested architecture(s) for language %s:" % language)
             for parent_proc in self.parent_architecture:
               Log.report(Log.Verbose, "  %s " % parent_proc)
-            Log.report(Log.Error, "the following operation is not supported by %s: \n%s" % (self.__class__, optree.get_str(depth = 2, display_precision = True))) 
+            Log.report(Log.Error, "the following operation is not supported by %s: \n%s" % (self.__class__, optree.get_str(depth = 2, display_precision = True, memoization_map = {}))) 
         
 
     def is_map_supported_operation(self, op_map, optree, language = C_Code, debug = False):
