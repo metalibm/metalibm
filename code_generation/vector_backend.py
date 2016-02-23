@@ -238,6 +238,15 @@ vector_opencl_code_generation_table = {
 }
 
 vector_c_code_generation_table = {
+  BitLogicAnd: {
+    None: {
+       lambda _: True: {
+        type_strict_match(ML_Int2, ML_Int2, ML_Int2): ML_VectorLib_Function("ml_vbwandi2", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2),
+        type_strict_match(ML_Int4, ML_Int4, ML_Int4): ML_VectorLib_Function("ml_vbwandi4", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = ML_Int4),
+        type_strict_match(ML_Int8, ML_Int8, ML_Int8): ML_VectorLib_Function("ml_vbwandi8", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = ML_Int8),
+        },
+      },
+  },
   Addition: {
     None: {
        lambda _: True: {
@@ -318,6 +327,24 @@ vector_c_code_generation_table = {
           )
         )
      }
+  },
+  TypeCast: {
+      None: {
+          lambda optree: True: {
+              #type_strict_match(ML_Binary64, ML_Int64) : ML_Utils_Function("double_from_64b_encoding", arity = 1),
+              #type_strict_match(ML_Binary64, ML_UInt64): ML_Utils_Function("double_from_64b_encoding", arity = 1),
+              #type_strict_match(ML_Int64, ML_Binary64) : ML_Utils_Function("double_to_64b_encoding", arity = 1),
+              #type_strict_match(ML_UInt64, ML_Binary64): ML_Utils_Function("double_to_64b_encoding", arity = 1),
+              type_strict_match(ML_Float4, ML_Int4) : ML_VectorLib_Function("VECTORIZE_OP1", arg_map = {0: "float_from_32b_encoding", 1: FO_ResultRef(0), 2: FO_Arg(0), 3: "4"}, arity = 1, output_precision = ML_Float4),
+              type_strict_match(ML_Int4, ML_Float4) : ML_VectorLib_Function("VECTORIZE_OP1", arg_map = {0: "float_to_32b_encoding", 1: FO_ResultRef(0), 2: FO_Arg(0), 3: "4"}, arity = 1, output_precision = ML_Int4),
+              #ML_Utils_Function("float_from_32b_encoding", arity = 1),
+              #type_strict_match(ML_Binary32, ML_UInt32): ML_Utils_Function("float_from_32b_encoding", arity = 1),
+              #type_strict_match(ML_Int32, ML_Binary32) : ML_Utils_Function("float_to_32b_encoding", arity = 1),
+              #type_strict_match(ML_UInt32, ML_Binary32): ML_Utils_Function("float_to_32b_encoding", arity = 1),
+              #type_strict_match(ML_UInt64, ML_Binary32): ML_Utils_Function("(uint64_t) float_to_32b_encoding", arity = 1),
+              #type_strict_match(ML_Binary32, ML_UInt64): ML_Utils_Function("float_from_32b_encoding", arity = 1),
+          },
+      },
   },
 
 
@@ -466,10 +493,10 @@ class VectorBackend(GenericProcessor):
       return self.get_recursive_implementation(optree, C_Code, table_getter)
 
     # no implementation were found
-    Log.report(Log.Verbose, "Tested architecture(s):")
+    Log.report(Log.Verbose, "[VectorBackend] Tested architecture(s) for language %s:" % str(language))
     for parent_proc in self.parent_architecture:
       Log.report(Log.Verbose, "  %s " % parent_proc)
-    Log.report(Log.Error, "the following operation is not supported by %s: \n%s" % (self.__class__, optree.get_str(depth = 2, display_precision = True))) 
+    Log.report(Log.Error, "the following operation is not supported by %s: \n%s" % (self.__class__, optree.get_str(depth = 2, display_precision = True, memoization_map = {}))) 
 
       
 
