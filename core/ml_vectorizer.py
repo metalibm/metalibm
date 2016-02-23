@@ -102,7 +102,14 @@ class StaticVectorizer(object):
     }[scalar_format][vector_size]
 
   def is_vectorizable(self, optree):
-    return isinstance(optree, ML_ArithmeticOperation) or isinstance(optree, Constant) or isinstance(optree, Variable)
+    arith_flag = isinstance(optree, ML_ArithmeticOperation)
+    cst_flag   = isinstance(optree, Constant) 
+    var_flag   = isinstance(optree, Variable)
+    if arith_flag or cst_flag or var_flag:
+      return True
+    elif isinstance(optree, SpecificOperation) and optree.get_specifier() in [SpecificOperation.DivisionSeed, SpecificOperation.InverseSquareRootSeed]:
+      return True
+    return False
 
   def vector_replicate_scheme_in_place(self, optree, vector_size, _memoization_map = None):
     memoization_map = {} if _memoization_map is None else _memoization_map
