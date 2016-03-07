@@ -17,7 +17,7 @@ from metalibm_core.code_generation.generic_processor import GenericProcessor
 from metalibm_core.code_generation.mpfr_backend import MPFRProcessor
 from metalibm_core.code_generation.fixed_point_backend import FixedPointBackend
 from metalibm_core.code_generation.code_object import CodeObject
-from metalibm_core.code_generation.code_element import CodeFunction
+from metalibm_core.code_generation.code_function import CodeFunction
 from metalibm_core.code_generation.code_constant import C_Code 
 from metalibm_core.core.ml_optimization_engine import OptimizationEngine
 from metalibm_core.core.polynomials import *
@@ -87,6 +87,7 @@ class ML_UT_FixedPoint(ML_Function("ml_ut_fixed_point")):
     scheme = Statement(Return(result))
 
     return scheme
+
 
 if __name__ == "__main__":
   # auto-test

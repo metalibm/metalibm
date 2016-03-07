@@ -17,7 +17,7 @@ from metalibm_core.code_generation.generic_processor import GenericProcessor
 from metalibm_core.code_generation.generator_utility import FunctionOperator, FO_Arg, FO_Result
 from metalibm_core.code_generation.mpfr_backend import MPFRProcessor
 from metalibm_core.code_generation.code_object import CodeObject
-from metalibm_core.code_generation.code_element import CodeFunction
+from metalibm_core.code_generation.code_function import CodeFunction
 from metalibm_core.code_generation.code_constant import C_Code 
 from metalibm_core.core.ml_table import ML_Table
 
