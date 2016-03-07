@@ -45,7 +45,7 @@ def dynamic_integer_conversion(optree):
   if in_format == out_format:
     return IdentityOperator(force_folding = False, no_parenthesis = True, output_precision = out_format)
   else:
-    return SymbolOperator("(%s)" % out_format.get_c_name(), arity = 1, force_folding = False, output_precision = out_format)
+    return SymbolOperator("(%s)" % out_format.get_name(language = C_Code), arity = 1, force_folding = False, output_precision = out_format)
 
 def std_cond(optree):
     # standard condition for operator mapping validity

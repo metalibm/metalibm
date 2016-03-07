@@ -32,7 +32,7 @@ class CallExternalizer(object):
   def externalize_call(self, optree, arg_list, tag = "foo", result_format = None):
     # determining return format
     return_format = optree.get_precision() if result_format is None else result_format
-    assert(not result_format is None and "external call result format must be defined")
+    assert(not return_format is None and "external call result format must be defined")
     # function_name = self.main_code_object.declare_free_function_name(tag)
     function_name = self.name_factory.declare_free_function_name(tag)
 

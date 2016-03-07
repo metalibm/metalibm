@@ -17,13 +17,13 @@ from .ml_formats import *
 class ML_Complex_Format(ML_FP_Format):
   """ Complex format with initizalition and set function """
   def __init__(self, c_name, init_function, set_function, bit_size = 53):
-    self.c_name = c_name
+    self.name = {C_Code: c_name}
     self.init_function = init_function
     self.set_function = set_function
     self.bit_size = bit_size
 
   def get_c_name(self):
-    return self.c_name
+    return self.name[C_Code]
 
   def generate_c_initialization(self, symbol, symbol_object):
     return self.init_function(self, symbol, symbol_object)
@@ -36,7 +36,7 @@ class ML_Complex_Format(ML_FP_Format):
     return self.bit_size
 
   def __str__(self):
-    return self.c_name
+    return self.name[C_Code]
 
 
 class ML_Pointer_Format(ML_Format):
@@ -44,8 +44,8 @@ class ML_Pointer_Format(ML_Format):
   def __init__(self, data_precision):
     self.data_precision = data_precision
 
-  def get_c_name(self):
-    return "%s*" % self.get_data_precision().get_c_name()
+  def get_name(self, language = C_Code):
+    return "%s*" % self.get_data_precision().get_name(language)
 
   def get_data_precision(self):
     return self.data_precision
