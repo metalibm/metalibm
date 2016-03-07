@@ -35,6 +35,7 @@ class ML_Exponential(ML_Function("ml_exp")):
                  target = GenericProcessor(), 
                  output_file = "expf.c", 
                  function_name = "expf",
+                 language = C_Code,
                  vector_size = 1):
         # initializing I/O precision
         io_precisions = [precision] * 2
@@ -54,6 +55,7 @@ class ML_Exponential(ML_Function("ml_exp")):
           fast_path_extract = fast_path_extract,
 
           debug_flag = debug_flag,
+          language = language,
           vector_size = vector_size
         )
 
@@ -363,6 +365,7 @@ if __name__ == "__main__":
                                   function_name             = arg_template.function_name,
                                   accuracy                  = arg_template.accuracy,
                                   output_file               = arg_template.output_file, 
+                                  language                  = arg_template.language,
                                   vector_size               = arg_template.vector_size)
 
     ml_exp.gen_implementation()

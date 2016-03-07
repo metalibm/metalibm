@@ -219,9 +219,9 @@ class ML_Sqrt(ML_Function("ml_sqrt")):
 
     x_qnan = Test(pre_vx, specifier = Test.IsQuietNaN, likely = False, tag = "x_qnan", debug = debug_multi)
     if isinstance(self.processor, K1B_Processor):
-        x_zero = Likely(bit_match(init_approx, 1), False)
-        x_plus_inf = Likely(bit_match(init_approx, 2), False)
-        x_nan_or_neg  = Likely(bit_match(init_approx, 3), False)
+        x_zero = NotEqual(bit_match(init_approx, 1), 0, likely = False)
+        x_plus_inf = NotEqual(bit_match(init_approx, 2), 0, likely = False)
+        x_nan_or_neg  = NotEqual(bit_match(init_approx, 3), 0, likely = False)
     else:
         x_zero = Test(pre_vx, specifier = Test.IsZero, likely = False, tag = "x_zero", debug = debug_multi)
         x_neg = Comparison(pre_vx, 0, specifier = Comparison.Less, likely = False)
