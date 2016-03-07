@@ -422,7 +422,9 @@ class OptimizationEngine:
             except:
                 print "ERROR in get_bit_size during merge_abstract_format"
                 print "optree: "
-                print optree.get_precision(), optree.get_str(display_precision = True, memoization_map = {}) # Exception print
+                print optree.get_inputs()
+                print optree.get_precision()
+                print optree.get_str(display_precision = True, memoization_map = {}) # Exception print
                 print "arg: "
                 print arg.get_precision(), arg.get_str(display_precision = True, memoization_map = {}) # Exception print
 

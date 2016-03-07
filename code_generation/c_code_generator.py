@@ -199,7 +199,11 @@ class CCodeGenerator:
             self.generate_expr(code_object, optree.get_pre_statement(), folded = folded, language = language)
 
             cond_code = self.generate_expr(code_object, condition, folded = folded, language = language)
-            if condition.get_likely() in [True, False]:
+            try:
+              cond_likely = condition.get_likely()
+            except AttributeError:
+              Log.report(Log.Error, " the following condition has no (usable) likely attribute: %s" % (condition.get_str(depth = 1, display_precision = True, memoization_map = {}))) 
+            if cond_likely in [True, False]:
                 code_object << "\nif (__builtin_expect(%s, %d)) " % (cond_code.get(), {True: 1, False: 0}[condition.get_likely()])
             else:
                 code_object << "\nif (%s) " % cond_code.get()
