@@ -253,6 +253,7 @@ class ML_FormatConstructor(ML_Format):
     def get_bit_size(self):
         return self.bit_size
 
+
 ## Ancestor to fixed-point format
 class ML_Fixed_Format(ML_Format):
     """ parent to every Metalibm's fixed-point class """
@@ -567,6 +568,13 @@ ML_Int8  = vector_format_builder("ml_int8_t", "int8", 8, ML_Int32, compound_cons
 ML_UInt2 = vector_format_builder("ml_uint2_t", "uint2", 2, ML_UInt32, compound_constructor = ML_IntegerVectorFormat)
 ML_UInt4 = vector_format_builder("ml_uint4_t", "uint4", 4, ML_UInt32, compound_constructor = ML_IntegerVectorFormat)
 ML_UInt8 = vector_format_builder("ml_uint8_t", "uint8", 8, ML_UInt32, compound_constructor = ML_IntegerVectorFormat)
+
+
+###############################################################################
+#                         GENERIC, NON NUMERICAL FORMATS
+###############################################################################
+
+ML_Void = ML_FormatConstructor(0, "void", "ERROR", lambda _: None)
 
 ###############################################################################
 #                     FLOATING-POINT SPECIAL VALUES
