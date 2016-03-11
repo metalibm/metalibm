@@ -25,7 +25,7 @@ INSTALL_DIR=$PWD/local_install
 # testing if LOGIN is set, if so patch the repo to allow future pushes
 if [ -n "$LOGIN" ];
 then
-  git remote set-url origin git+ssh://${LOGIN}@scm.gforge.inria.fr//gitroot/metalibm/metalibm-lugdunum.git && 
+  git remote set-url origin git+ssh://${LOGIN}@scm.gforge.inria.fr//gitroot/metalibm/metalibm-lugdunum.git 
 fi;
 
 # testing if branch is set, if so checkout a specific branch before populating the repo
@@ -40,9 +40,12 @@ mkdir -p $INSTALL_DIR || exit 1
 # if SOLLYA is already installed, change this variable to indicate the install 
 # containing both include and lib dirs where sollya can be found
 if [ -n "$SKIP_SOLLYA_INSTALL" ];
+then
   echo "skipping sollya install"
   if [ -z "$SOLLYA_INSTALL_DIR" ];
+  then 
     echo "ERROR: SOLLYA_INSTALL_DIR must be defined when skipping sollya install."
+    exit 1
   fi;
 else
   SOLLYA_INSTALL_DIR=$INSTALL_DIR
@@ -54,10 +57,10 @@ fi;
 # building and installing pythonsollya
 cd $LOCAL_DIR && \
 git clone https://gforge.inria.fr/git/metalibm/pythonsollya.git -b cythonsollya && \
-cd pythonsollya/ && LOCAL_INSTALL_DIR=$SOLLYA_INSTALL_DIR python2 setup.py build && python2 setup.py install --prefix $INSTALL_DIR  && \
+cd pythonsollya/cythonsollya && SOLLYA_INSTALL_DIR=$SOLLYA_INSTALL_DIR INSTALL_DIR=$INSTALL_DIR sh INSTALL  && \
 cd $LOCAL_DIR && \
 LOCAL_PYTHON_PATH=$(find $INSTALL_DIR -name pythonsollya | sed -e "s/pythonsollya//") && \
-echo "DIR=\$( cd \"\$( dirname \"\${BASH_SOURCE[0]}\" )\" && pwd ) \n export PYTHONPATH=\$DIR:$LOCAL_PYTHON_PATH:$PYTHONPATH" >> $LOCAL_DIR/metalibm_setup_env.bash  || exit 1
+echo "export LD_LIBRARY_PATH=$INSTALL_DIR/lib && DIR=\$( cd \"\$( dirname \"\${BASH_SOURCE[0]}\" )\" && pwd ) \n export PYTHONPATH=\$DIR:$LOCAL_PYTHON_PATH:$PYTHONPATH" >> $LOCAL_DIR/metalibm_setup_env.bash  || exit 1
 
 # USAGE EXAMPLE from the metalibm-lugdunum directory
 # sourcemetalibm_setup_env.bash
