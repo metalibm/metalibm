@@ -12,12 +12,11 @@
 
 from pythonsollya import *
 
-from ..utility.common import Callable
 from ..utility.log_report import Log
 from .ml_operations import Constant, Variable, Multiplication, Addition, Subtraction
 from .ml_formats import ML_Format, ML_FP_Format, ML_Fixed_Format
 
-class Polynomial:
+class Polynomial(object):
     """ Mathematical polynomial object class """
 
     def __init__(self, init_object = None):
@@ -33,7 +32,7 @@ class Polynomial:
 
         if isinstance(init_object, list):
             self.degree = len(init_object)
-            for coeff_value, index in zip_index(init_object):
+            for index, coeff_value in enumerate(init_object):
                 self.coeff_map[index] = coeff_value
 
         elif isinstance(init_object, dict):
@@ -113,6 +112,7 @@ class Polynomial:
         return str(self.get_sollya_object())
 
 
+    @staticmethod
     def build_from_approximation(function, poly_degree, coeff_formats, approx_interval, *modifiers):
         """ construct a polynomial object from a function approximation using sollya's fpminimax """
         Log.report(Log.Info,  "approx_interval: %s" % approx_interval)
@@ -158,10 +158,6 @@ class Polynomial:
         approx_error = error_function(sollya_poly, function, approx_interval, fpnorm_modifiers, tightness)
         return Polynomial(sollya_poly), approx_error
 
-    build_from_approximation = Callable(build_from_approximation)
-    #build_from_approximation_with_error = Callable(build_from_approximation_with_error)
-
-
 def generate_power(variable, power, power_map = {}, precision = None):
     """ generate variable^power, using power_map for memoization 
         if precision is defined, every created operation is assigned that format """
@@ -184,9 +180,10 @@ def generate_power(variable, power, power_map = {}, precision = None):
         power_map[power] = result
         return result
 
-class PolynomialSchemeEvaluator:
+class PolynomialSchemeEvaluator(object):
     """ class for polynomial evaluation scheme generation """
 
+    @staticmethod
     def generate_horner_scheme(polynomial_object, variable, unified_precision = None, power_map_ = None, constant_precision = None):
         """ generate a Horner evaluation scheme for the polynomial <polynomial_object>
             on variable <variable>, arithmetic operation are performed in format 
@@ -247,8 +244,8 @@ class PolynomialSchemeEvaluator:
                 current_scheme = Multiplication(last_power, current_scheme, precision = unified_precision)
 
         return current_scheme
-            
 
+    @staticmethod
     def generate_estrin_scheme(polynomial_object, variable, unified_precision, power_map_ = None):
         """ generate a Estrin evaluation scheme """
         power_map = power_map_ if power_map_ != None else {}
@@ -272,8 +269,3 @@ class PolynomialSchemeEvaluator:
 
             offset_degree_monomial = generate_power(variable, offset_degree, power_map, unified_precision)
             return Addition(lo_node, Multiplication(offset_degree_monomial, hi_node, precision = unified_precision), precision = unified_precision)
-
-
-    # class function static binding
-    generate_horner_scheme = Callable(generate_horner_scheme)
-    generate_estrin_scheme = Callable(generate_estrin_scheme)

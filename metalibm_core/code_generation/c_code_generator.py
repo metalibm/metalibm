@@ -11,7 +11,6 @@
 ###############################################################################
 
 
-from ..utility.common import ML_NotImplemented
 from ..utility.log_report import Log
 
 from ..core.ml_operations import Variable, Constant, ConditionBlock, Return, TableLoad, Statement, Loop, SpecificOperation, ExceptionOperation, ClearException, NoResultOperation, SwitchBlock, FunctionObject, ReferenceAssign
@@ -23,7 +22,7 @@ from .code_element import CodeVariable, CodeExpression
 from .code_function import CodeFunction
 
 
-class CCodeGenerator: 
+class CCodeGenerator(object):
     language = C_Code
 
     """ C language code generator """
@@ -247,7 +246,7 @@ class CCodeGenerator:
                             exception_list.remove(ML_FPE_Inexact)
 
                         if len(exception_list) > 1:
-                            raise ML_NotImplemented()
+                            raise NotImplementedError
                         if ML_FPE_Overflow in exception_list:
                             code_object << "return ml_raise_libm_overflowf(%s, %s, \"%s\");\n" % (return_value.get(), arg_value.get(), function_name)
                         elif ML_FPE_Underflow in exception_list:
@@ -332,7 +331,7 @@ class CCodeGenerator:
 
         else:
             print symbol_object.__class__
-            raise ML_NotImplemented()
+            raise NotImplementedError
 
     def generate_initialization(self, symbol, symbol_object, initial = True, final = True):
       if isinstance(symbol_object, Constant) or isinstance(symbol_object, Variable):

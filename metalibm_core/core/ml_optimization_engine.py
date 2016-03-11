@@ -353,7 +353,7 @@ support_simplification = {
 
 
 
-class OptimizationEngine:
+class OptimizationEngine(object):
     """ backend (precision instanciation and optimization passes) class """
     def __init__(self, processor, default_integer_format = ML_Int32, default_fp_precision = ML_Binary32, change_handle = True, dot_product_enabled = True, default_boolean_precision = ML_Int32):
         self.processor = processor

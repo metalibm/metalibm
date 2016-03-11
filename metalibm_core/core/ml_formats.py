@@ -11,18 +11,17 @@
 ###############################################################################
 
 from pythonsollya import *
-from ..utility.common import ML_NotImplemented
 from ..utility.log_report import Log
 from ..code_generation.code_constant import *
 import re
 
 ## Class of rounding mode type
-class ML_FloatingPoint_RoundingMode_Type:
+class ML_FloatingPoint_RoundingMode_Type(object):
     def get_c_name(self):
         return "ml_rnd_mode_t"
 
 ## Class of floating-point rounding mode
-class ML_FloatingPoint_RoundingMode:
+class ML_FloatingPoint_RoundingMode(object):
     pass
 
 ## ML type object for rounding modes
@@ -43,7 +42,7 @@ ML_GlobalRoundMode       = ML_FloatingPoint_RoundingMode()
 class ML_FloatingPointException: pass
 
 ## class for type of floating-point exceptions
-class ML_FloatingPointException_Type: 
+class ML_FloatingPointException_Type(object):
   ## dummy placeholder to generate C constant for FP exception (should raise error) 
   def get_cst(self, value, language = C_Code):
     return "NONE"
@@ -86,7 +85,7 @@ class ML_Format(object):
     def get_bit_size(self):
         """ <abstract> return the bit size of the format (if it exists) """
         print self # Exception ML_NotImplemented print
-        raise ML_NotImplemented()
+        raise NotImplementedError
 
     def is_cst_decl_required(self):
         return False
@@ -494,7 +493,7 @@ ML_TripleDouble = ML_Compound_FP_Format("ml_td_t", ["hi", "me", "lo"], [ML_Binar
 ###############################################################################
 
 ## common ancestor to every vector format
-class ML_VectorFormat: 
+class ML_VectorFormat(object):
   def __init__(self, scalar_format, vector_size):
     self.scalar_format = scalar_format
     self.vector_size   = vector_size 
@@ -623,7 +622,7 @@ class FP_SNaN(FP_SpecialValueBuilder("_sv_SNaN")):
     pass
 
 
-class FP_Context:
+class FP_Context(object):
     """ Floating-Point context """
     def __init__(self, rounding_mode = ML_GlobalRoundMode, silent = None):
         self.rounding_mode       = rounding_mode
@@ -637,7 +636,7 @@ class FP_Context:
     def get_silent(self):
         return self.silent
 
-class ML_FunctionPrecision:
+class ML_FunctionPrecision(object):
     pass
 
 class ML_Faithful(ML_FunctionPrecision):

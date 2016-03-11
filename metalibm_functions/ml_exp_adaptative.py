@@ -26,7 +26,7 @@ from metalibm_core.utility.num_utils   import ulp
 
 
 
-class ML_Exponential:
+class ML_Exponential(object):
     def __init__(self, 
                  precision = ML_Binary32, 
                  abs_accuracy = S2**-24, 

@@ -26,7 +26,7 @@ from ml_functions.ml_template import ML_ArgTemplate, precision_map
 
 from utility.common import test_flag_option, extract_option_value  
 
-class ML_FastExpi:
+class ML_FastExpi(object):
     def __init__(self, 
                  input_precision = ML_Int32, 
                  output_precision = ML_Binary32,

@@ -16,7 +16,6 @@ from .generator_utility import *
 from .complex_generator import *
 from ..core.ml_formats import *
 from ..core.ml_operations import *
-from ..utility.common import Callable
 from .generic_processor import GenericProcessor
 
 from metalibm_core.core.target import TargetRegister

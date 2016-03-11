@@ -21,11 +21,11 @@ from ..core.ml_formats import ML_GlobalRoundMode, ML_Fixed_Format, ML_FP_Format
 from ..utility import version_info as ml_version_info
 
 
-class DataLayout:
+class DataLayout(object):
     def __init__(self):
         pass
 
-class SymbolTable:
+class SymbolTable(object):
     def __init__(self):
         self.table = {}
         self.prefix_index = {}
@@ -72,7 +72,7 @@ class SymbolTable:
         return code_object
 
 
-class MultiSymbolTable:
+class MultiSymbolTable(object):
     """ symbol table object """
     class ConstantSymbol: pass
     class FunctionSymbol: pass
@@ -191,7 +191,7 @@ def get_git_tag():
     return git_tag
 
 
-class CodeObject:
+class CodeObject(object):
     tab = "    "
     def __init__(self, language, shared_tables = None, parent_tables = None, rounding_mode = ML_GlobalRoundMode):
         """ code object initialization """
@@ -322,7 +322,7 @@ class CodeObject:
         """ add a full line comment """
         self << ("/* %s */\n" % comment)
 
-class Gappa_Unknown: 
+class Gappa_Unknown(object):
     def __str__(self):
         return "?"
 
@@ -397,7 +397,7 @@ class GappaCodeObject(CodeObject):
 
 ## Nested code object
 #  language is derived from code_generator's language
-class NestedCode:
+class NestedCode(object):
     """ object to support multiple levels of nested code with local and global variable management """
     def __init__(self, code_generator, static_cst = False, static_table = True):
         self.language = code_generator.language

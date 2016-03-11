@@ -23,7 +23,7 @@ from metalibm_core.utility.ml_template import ML_ArgTemplate
 
 from metalibm_core.utility.common import test_flag_option, extract_option_value  
 
-class ML_Sine:
+class ML_Sine(object):
     def __init__(self, 
                  precision = ML_Binary32, 
                  abs_accuracy = S2**-24, 

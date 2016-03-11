@@ -11,7 +11,6 @@
 ###############################################################################
 
 from ..utility.log_report import Log
-from ..utility.common import Callable
 
 ## attribute initialization function (with default value when not initialized) 
 #  @param attrs is an attribute dictionnary
@@ -33,7 +32,7 @@ def attr_init(attrs, attr_name, default_value = None, required = False):
 #  @param color of the debug message
 #  @param pre_process  pre_process function to be applied to the Node before display
 #  @param require_header list of headers required to generate the debug message
-class ML_Debug:
+class ML_Debug(object):
     
     ## initialization of a new ML_Debug object
     def __init__(self, display_format = None, color = None, pre_process = lambda v: v, require_header = []):
@@ -69,7 +68,7 @@ class ML_AdvancedDebug(ML_Debug):
 
 
 ## Object to keep track of ML's node accross the several optimizations passes
-class Handle: 
+class Handle(object):
     def __init__(self, node = None):
         self.node = node
 
@@ -81,7 +80,7 @@ class Handle:
 
 
 ## Base class to store Node's attributes
-class Attributes: 
+class Attributes(object):
     """ Attribute management class for Metalibm's Operation """
     default_precision     = [None]
     default_rounding_mode = [None]
@@ -207,31 +206,26 @@ class Attributes:
 
 
     # static method definition
+    @staticmethod
     def set_default_precision(new_precision):
         Attributes.default_precision.insert(0, new_precision)
+    @staticmethod
     def unset_default_precision():
         Attributes.default_precision.pop(0)
         if len(Attributes.default_precision) < 1: raise Exception()
 
+    @staticmethod
     def set_default_rounding_mode(new_rounding_mode):
         Attributes.default_rounding_mode.insert(0, new_rounding_mode)
-    def unset_default_rounding_mode():  
+    @staticmethod
+    def unset_default_rounding_mode():
         Attributes.default_rounding_mode.pop(0)
         if len(Attributes.default_rounding_mode) < 1: raise Exception()
 
+    @staticmethod
     def set_default_silent(new_silent_value):
         Attributes.default_silent.insert(0, new_silent_value)
+    @staticmethod
     def unset_default_silent():
         Attributes.default_silent.pop(0)
         if len(Attributes.default_silent) < 1: raise Exception()
-
-    # static method bindings
-    set_default_precision = Callable(set_default_precision)
-    unset_default_precision = Callable(unset_default_precision)
-
-    set_default_rounding_mode = Callable(set_default_rounding_mode)
-    unset_default_rounding_mode = Callable(unset_default_rounding_mode)
-
-    set_default_silent = Callable(set_default_silent)
-    unset_default_silent = Callable(unset_default_silent)
-

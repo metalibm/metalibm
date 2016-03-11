@@ -17,7 +17,6 @@ from ..core.ml_formats import *
 from ..core.ml_complex_formats import ML_Mpfr_t
 from ..core.ml_table import ML_ApproxTable
 from ..core.ml_operations import *
-from ..utility.common import Callable
 from metalibm_core.core.target import TargetRegister
 
 
