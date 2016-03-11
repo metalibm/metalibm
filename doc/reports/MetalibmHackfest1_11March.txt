@@ -1,0 +1,33 @@
+
+Ordre du jour:
+-> presentation des derniers developpements de ML
+    -> support de la virgule fixe (Julien)
+    -> exploration et generation des fonctions en virgule fixe (Julien)
+    -> vectorisation statique (Nicolas)
+
+-> presentation des branches de Marc
+  -> cythonsollya (Marc)
+  -> metalibm (Marc)
+
+-> discussion sur l architecture du code (sous-modules et branche) (Nicolas)
+   -> une branche master, avec obligation de valider une regression avant d integrer
+-> discussion sur l architecture des tests
+  -> presentation de l architecture actuelle
+    -> tests unitaires
+    -> tests de regression
+
+-> integration de la generation des preuves formelles
+-> gestion/determination de la precision des calculs
+  -> enlever la gestion automatique de la precision pour une gestion manuelle
+  -> OU regle de typage statique a fixer
+
+Backlog
+  -> suppression de la bibliotheque de support pour une generation inline
+  -> changement dans la manipulation du DAG, preferer la manipulation d une foret avec entrees/sorties explicites par
+     rapport a un DAG complet et des handles dynamiques
+
+
+
+Resume:
+-> implementer la generation inline des fonctions/primitives support
+  -> but: pouvoir generer des implementations single file self sufficient
