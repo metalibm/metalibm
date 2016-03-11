@@ -5,18 +5,6 @@
 # -> build pythonsollya python module and install into local_install
 # -> generate script to setup environement into $PWD/local_install/metalibm_setup_env.bash
 
-# Installing Requirements (On apt-able systems)
-# sudo apt-get install python-dev libmpfr-dev libfplll-dev libmpfi-dev libgmp-dev libxml2-dev cython
-
-# For standard users
-# execute:
-# sh INSTALL
-
-# For Developers:
-# execut:e
-# LOGIN=<inria gforge login> sh INSTALL
-# to populate the repository and its submodule with push capabilities enabled
-
 
 # INSTALLATION DIRECTORIES
 LOCAL_DIR=$PWD
@@ -61,9 +49,3 @@ cd pythonsollya/cythonsollya && SOLLYA_INSTALL_DIR=$SOLLYA_INSTALL_DIR INSTALL_D
 cd $LOCAL_DIR && \
 LOCAL_PYTHON_PATH=$(find $INSTALL_DIR -name pythonsollya | sed -e "s/pythonsollya//") && \
 echo "export LD_LIBRARY_PATH=$INSTALL_DIR/lib && DIR=\$( cd \"\$( dirname \"\${BASH_SOURCE[0]}\" )\" && pwd ) \n export PYTHONPATH=\$DIR:$LOCAL_PYTHON_PATH:$PYTHONPATH" >> $LOCAL_DIR/metalibm_setup_env.bash  || exit 1
-
-# USAGE EXAMPLE from the metalibm-lugdunum directory
-# source metalibm_setup_env.bash
-# python2 metalibm_functions/ml_exp.py --target x86_fma --output x86_fma_exp2d.c
-# python2 metalibm_functions/ml_exp.py --disable-fma --target x86_sse41 --output x86_sse41_exp2d.c
-
