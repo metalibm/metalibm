@@ -54,13 +54,13 @@ fi;
 # building and installing pythonsollya
 cd $LOCAL_DIR && \
 git clone https://gforge.inria.fr/git/metalibm/pythonsollya.git -b cythonsollya && \
-cd pythonsollya/ && LOCAL_INSTALL_DIR=$SOLLYA_INSTALL_DIR python setup.py build && python setup.py install --prefix $INSTALL_DIR  && \
+cd pythonsollya/ && LOCAL_INSTALL_DIR=$SOLLYA_INSTALL_DIR python2 setup.py build && python2 setup.py install --prefix $INSTALL_DIR  && \
 cd $LOCAL_DIR && \
 LOCAL_PYTHON_PATH=$(find $INSTALL_DIR -name pythonsollya | sed -e "s/pythonsollya//") && \
 echo "DIR=\$( cd \"\$( dirname \"\${BASH_SOURCE[0]}\" )\" && pwd ) \n export PYTHONPATH=\$DIR:$LOCAL_PYTHON_PATH:$PYTHONPATH" >> $LOCAL_DIR/metalibm_setup_env.bash  || exit 1
 
 # USAGE EXAMPLE from the metalibm-lugdunum directory
-# source metalibm_setup_env.bash
-# python metalibm_functions/ml_exp.py --target x86_fma --output x86_fma_exp2d.c
-# python metalibm_functions/ml_exp.py --disable-fma --target x86_sse41 --output x86_sse41_exp2d.c
+# sourcemetalibm_setup_env.bash
+# python2 metalibm_functions/ml_exp.py --target x86_fma --output x86_fma_exp2d.c
+# python2 metalibm_functions/ml_exp.py --disable-fma --target x86_sse41 --output x86_sse41_exp2d.c
 
