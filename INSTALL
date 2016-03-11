@@ -48,4 +48,4 @@ git clone https://gforge.inria.fr/git/metalibm/pythonsollya.git -b cythonsollya 
 cd pythonsollya/cythonsollya && SOLLYA_INSTALL_DIR=$SOLLYA_INSTALL_DIR INSTALL_DIR=$INSTALL_DIR sh INSTALL  && \
 cd $LOCAL_DIR && \
 LOCAL_PYTHON_PATH=$(find $INSTALL_DIR -name pythonsollya | sed -e "s/pythonsollya//") && \
-echo "export LD_LIBRARY_PATH=$INSTALL_DIR/lib && DIR=\$( cd \"\$( dirname \"\${BASH_SOURCE[0]}\" )\" && pwd ) \n export PYTHONPATH=\$DIR:$LOCAL_PYTHON_PATH:$PYTHONPATH" >> $LOCAL_DIR/metalibm_setup_env.bash  || exit 1
+echo -e "export LD_LIBRARY_PATH=$INSTALL_DIR/lib:$SOLLYA_INSTALL_DIR/lib:$LD_LIBRARY_INSTALL && DIR=\$( cd \"\$( dirname \"\${BASH_SOURCE[0]}\" )\" && pwd ) \n export PYTHONPATH=\$DIR:$LOCAL_PYTHON_PATH:$PYTHONPATH" >> $LOCAL_DIR/metalibm_setup_env.bash  || exit 1
