@@ -1,6 +1,6 @@
 [submodule "metalibm-lugdunum-functions"]
 	path = metalibm_functions
-	url = https://gforge.inria.fr/git/metalibm/metalibm-lugdunum-functions.git
+	url = git+ssh://gforge.inria.fr/gitroot/metalibm/metalibm-lugdunum-functions.git
 [submodule "metalibm-lugdunum-core"]
 	path = metalibm_core
-	url = https://gforge.inria.fr/git/metalibm/metalibm-lugdunum-core.git
+	url = git+ssh://scm.gforge.inria.fr/gitroot/metalibm/metalibm-lugdunum-core.git
