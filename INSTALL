@@ -25,9 +25,7 @@ INSTALL_DIR=$PWD/local_install
 # testing if LOGIN is set, if so patch the repo to allow future pushes
 if [ -n "$LOGIN" ];
 then
-  git remote set-url origin git+ssh://${LOGIN}@scm.gforge.inria.fr//gitroot/metalibm/metalibm-lugdunum.git && 
-  git config submodule.metalibm-lugdunum-core.url git+ssh://${LOGIN}@scm.gforge.inria.fr//gitroot/metalibm/metalibm-lugdunum-core.git && 
-  git config submodule.metalibm-lugdunum-functions.url git+ssh://${LOGIN}@scm.gforge.inria.fr//gitroot/metalibm/metalibm-lugdunum-functions.git || exit 1
+  git remote set-url origin git+ssh://${LOGIN}@scm.gforge.inria.fr//gitroot/metalibm/metalibm-lugdunum.git 
 fi;
 
 # testing if branch is set, if so checkout a specific branch before populating the repo
@@ -36,30 +34,36 @@ then
   git checkout $BRANCH;
 fi;
 
-git submodule update --init --recursive && \ 
 cd $LOCAL_DIR && \
 mkdir -p $INSTALL_DIR || exit 1
 
 # if SOLLYA is already installed, change this variable to indicate the install 
 # containing both include and lib dirs where sollya can be found
-SOLLYA_INSTALL_DIR=$INSTALL_DIR
-# comment the following lines to use already installed sollya
-wget https://gforge.inria.fr/frs/download.php/33151/sollya-4.1.tar.gz && \
-tar -xzf sollya-4.1.tar.gz && \
-cd sollya-4.1/ && ./configure --prefix=$INSTALL_DIR && make -j 4 && make install  || exit 1
-
+if [ -n "$SKIP_SOLLYA_INSTALL" ];
+then
+  echo "skipping sollya install"
+  if [ -z "$SOLLYA_INSTALL_DIR" ];
+  then 
+    echo "ERROR: SOLLYA_INSTALL_DIR must be defined when skipping sollya install."
+    exit 1
+  fi;
+else
+  SOLLYA_INSTALL_DIR=$INSTALL_DIR
+  # comment the following lines to use already installed sollya
+  wget https://gforge.inria.fr/frs/download.php/33151/sollya-4.1.tar.gz && \
+  tar -xzf sollya-4.1.tar.gz && \
+  cd sollya-4.1/ && ./configure --prefix=$INSTALL_DIR && make -j 4 && make install  || exit 1
+fi;
 # building and installing pythonsollya
 cd $LOCAL_DIR && \
-git clone https://gforge.inria.fr/git/metalibm/pythonsollya.git && \
-cd pythonsollya/ && \
-LOCAL_INSTALL_DIR=$SOLLYA_INSTALL_DIR python2 setup.py build && \
-python2 setup.py install --prefix $INSTALL_DIR  && \
+git clone https://gforge.inria.fr/git/metalibm/pythonsollya.git -b cythonsollya && \
+cd pythonsollya/cythonsollya && SOLLYA_INSTALL_DIR=$SOLLYA_INSTALL_DIR INSTALL_DIR=$INSTALL_DIR sh INSTALL  && \
 cd $LOCAL_DIR && \
 LOCAL_PYTHON_PATH=$(find $INSTALL_DIR -name pythonsollya | sed -e "s/pythonsollya//") && \
-echo -e "DIR=\$( cd \"\$( dirname \"\${BASH_SOURCE[0]}\" )\" && pwd ) \nexport PYTHONPATH=\$DIR:$LOCAL_PYTHON_PATH:$PYTHONPATH" >> $LOCAL_DIR/metalibm_setup_env.bash  || exit 1
+echo "export LD_LIBRARY_PATH=$INSTALL_DIR/lib && DIR=\$( cd \"\$( dirname \"\${BASH_SOURCE[0]}\" )\" && pwd ) \n export PYTHONPATH=\$DIR:$LOCAL_PYTHON_PATH:$PYTHONPATH" >> $LOCAL_DIR/metalibm_setup_env.bash  || exit 1
 
 # USAGE EXAMPLE from the metalibm-lugdunum directory
-# source metalibm_setup_env.bash
-# python metalibm_functions/ml_exp.py --target x86_fma --output x86_fma_exp2d.c
-# python metalibm_functions/ml_exp.py --disable-fma --target x86_sse41 --output x86_sse41_exp2d.c
+# sourcemetalibm_setup_env.bash
+# python2 metalibm_functions/ml_exp.py --target x86_fma --output x86_fma_exp2d.c
+# python2 metalibm_functions/ml_exp.py --disable-fma --target x86_sse41 --output x86_sse41_exp2d.c
 
