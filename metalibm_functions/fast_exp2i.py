@@ -2,7 +2,7 @@
 
 import sys
 
-from pythonsollya import *
+from sollya import *
 
 from core.attributes import ML_Debug
 from core.ml_operations import *

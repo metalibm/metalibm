@@ -2,7 +2,7 @@
 
 import sys
 
-from pythonsollya import *
+from sollya import *
 
 from metalibm_core.core.attributes import ML_Debug
 from metalibm_core.core.ml_operations import *
@@ -279,7 +279,7 @@ class ML_Exponential(ML_Function("ml_exp")):
                 print "poly_eval_error_dico: ", poly_eval_error_dico
                 #sys.exit(1)
 
-                poly_eval_error = max([sup(abs(err)) for err in poly_eval_error_dico])
+                poly_eval_error = max(*[sup(abs(err)) for err in poly_eval_error_dico])
             else:
                 poly_eval_error = 0.0
                 Log.report(Log.Warning, "gappa is not installed in this environnement")

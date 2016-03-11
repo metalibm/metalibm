@@ -16,7 +16,7 @@
 
 import sys, inspect
 
-from pythonsollya import Interval, SollyaObject, PSI_is_range, nearestint
+from sollya import Interval, SollyaObject, nearestint
 
 from ..utility.log_report import Log
 from .attributes import Attributes, attr_init
@@ -532,7 +532,7 @@ def interval_check(lrange):
     """ check if the argument <lrange> is a valid interval,
         if it is, returns it, else raises an InvalidInterval 
         exception """
-    if isinstance(lrange, SollyaObject) and PSI_is_range(lrange):
+    if isinstance(lrange, SollyaObject) and lrange.is_range():
         return lrange
     else:
         raise InvalidInterval()

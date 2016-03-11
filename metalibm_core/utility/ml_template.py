@@ -12,7 +12,7 @@
 
 import sys
 
-from pythonsollya import *
+from sollya import *
 
 from .arg_utils import extract_option_value, test_flag_option
 from .log_report import Log

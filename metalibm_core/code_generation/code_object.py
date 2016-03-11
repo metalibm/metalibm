@@ -12,7 +12,7 @@
 
 import re
 import commands
-from pythonsollya import *
+from sollya import *
 
 from ..core.ml_operations import Variable
 from .code_constant import C_Code, Gappa_Code
@@ -368,7 +368,7 @@ class GappaCodeObject(CodeObject):
     def get_value_str(self, value):
         if value is Gappa_Unknown:
             return "?"
-        elif isinstance(value, SollyaObject) and PSI_is_range(value):
+        elif isinstance(value, SollyaObject) and value.is_range():
             return "[%s, %s]" % (inf(value), sup(value))
         else:
             return str(value)

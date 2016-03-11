@@ -10,7 +10,8 @@
 # author(s): Nicolas Brunie (nicolas.brunie@kalray.eu)
 ###############################################################################
 
-from pythonsollya import *
+from sollya import *
+import __builtin__
 
 from ..utility.log_report import Log
 from .ml_operations import Constant, Variable, Multiplication, Addition, Subtraction
@@ -55,7 +56,7 @@ class Polynomial(object):
 
     def get_min_monomial_degree(self):
         monomial_degrees = [index for index in self.coeff_map]
-        return min(monomial_degrees)
+        return __builtin__.min(monomial_degrees)
             
 
     def get_sollya_object(self):

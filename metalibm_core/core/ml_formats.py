@@ -10,7 +10,8 @@
 # author(s): Nicolas Brunie (nicolas.brunie@kalray.eu)
 ###############################################################################
 
-from pythonsollya import *
+import sollya
+from sollya import *
 from ..utility.log_report import Log
 from ..code_generation.code_constant import *
 import re
@@ -116,7 +117,7 @@ class ML_AbstractFormat(ML_Format):
     #  @param cst_value constant value being translated
     def get_gappa_cst(self, cst_value):
         """ C code for constante cst_value """
-        display(hexadecimal)
+        sollya.settings.display = hexadecimal
         if isinstance(cst_value, int):
             return str(float(cst_value)) 
         else:
@@ -214,7 +215,7 @@ class ML_Std_FP_Format(ML_FP_Format):
         if isinstance(cst_value, FP_SpecialValue): 
             return cst_value.get_c_cst()
         else:
-            display(hexadecimal)
+            sollya.settings.display = hexadecimal
             if cst_value == 0:
                 conv_result = "0.0" + self.c_suffix
             elif isinstance(cst_value, int):
@@ -232,7 +233,7 @@ class ML_Std_FP_Format(ML_FP_Format):
         if isinstance(cst_value, FP_SpecialValue): 
             return cst_value.get_gappa_cst()
         else:
-            display(hexadecimal)
+            sollya.settings.display = hexadecimal
             if isinstance(cst_value, int):
                 return str(float(cst_value)) 
             else:

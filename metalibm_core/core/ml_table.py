@@ -9,7 +9,7 @@
 # author(s): Nicolas Brunie (nicolas.brunie@kalray.eu)
 ###############################################################################
 
-from pythonsollya import Interval
+from sollya import Interval
 
 from ml_operations import ML_LeafNode, BitLogicAnd, BitLogicRightShift, TypeCast, Constant
 from attributes import Attributes, attr_init

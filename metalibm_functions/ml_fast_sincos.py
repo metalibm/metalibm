@@ -8,7 +8,7 @@
 
 import sys
 
-from pythonsollya import *
+from sollya import *
 
 from metalibm_core.core.ml_function import ML_Function, ML_FunctionBasis
 
