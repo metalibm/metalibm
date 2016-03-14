@@ -8,7 +8,7 @@ INSTALLATION
 * Installation procedure for standard users
 
  The following downloads and install Sollya and CythonSollya
-    sh INSTALL
+    bash INSTALL
  See inside the INSTALL script to skip some of these steps
 
 * Installation procedure for developers (enabling push capabilities)
