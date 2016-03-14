@@ -10,6 +10,9 @@
 ###############################################################################
 
 import sys
+
+from sollya import inf, sup
+
 from ..utility.log_report import Log
 from .ml_operations import *
 from .ml_formats import *

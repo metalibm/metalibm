@@ -11,7 +11,6 @@
 ###############################################################################
 
 import sollya
-from sollya import *
 from ..utility.log_report import Log
 from ..code_generation.code_constant import *
 import re
@@ -117,7 +116,7 @@ class ML_AbstractFormat(ML_Format):
     #  @param cst_value constant value being translated
     def get_gappa_cst(self, cst_value):
         """ C code for constante cst_value """
-        sollya.settings.display = hexadecimal
+        sollya.settings.display = sollya.hexadecimal
         if isinstance(cst_value, int):
             return str(float(cst_value)) 
         else:
@@ -196,7 +195,7 @@ class ML_Std_FP_Format(ML_FP_Format):
     def get_exponent_interval(self):
         low_bound  = self.get_emin_normal()
         high_bound = self.get_emax()
-        return Interval(low_bound, high_bound)
+        return sollya.Interval(low_bound, high_bound)
 
     def get_field_size(self):
         return self.field_size
@@ -215,7 +214,7 @@ class ML_Std_FP_Format(ML_FP_Format):
         if isinstance(cst_value, FP_SpecialValue): 
             return cst_value.get_c_cst()
         else:
-            sollya.settings.display = hexadecimal
+            sollya.settings.display = sollya.hexadecimal
             if cst_value == 0:
                 conv_result = "0.0" + self.c_suffix
             elif isinstance(cst_value, int):
@@ -233,7 +232,7 @@ class ML_Std_FP_Format(ML_FP_Format):
         if isinstance(cst_value, FP_SpecialValue): 
             return cst_value.get_gappa_cst()
         else:
-            sollya.settings.display = hexadecimal
+            sollya.settings.display = sollya.hexadecimal
             if isinstance(cst_value, int):
                 return str(float(cst_value)) 
             else:
@@ -336,7 +335,7 @@ class ML_Base_FixedPoint_Format(ML_Fixed_Format):
 
     def get_c_cst(self, cst_value):
         """ C-language constant generation """
-        encoded_value = int(cst_value * S2**self.frac_size)
+        encoded_value = int(cst_value * sollya.S2**self.frac_size)
         return ("" if self.signed else "U") + "INT" + str(self.c_bit_size) + "_C(" + str(encoded_value) + ")"
 
     def get_gappa_cst(self, cst_value):
@@ -377,9 +376,9 @@ class ML_Bool_Format(object):
     pass
 
 # Standard binary floating-point format declarations
-ML_Binary32 = ML_Std_FP_Format(32, 8, 23, "f", "float", "fp32", "%a", binary32)
-ML_Binary64 = ML_Std_FP_Format(64, 11, 52, "", "double", "fp64", "%la", binary64)
-ML_Binary80 = ML_Std_FP_Format(80, 15, 64, "L", "long double", "fp80", "%la", binary80)
+ML_Binary32 = ML_Std_FP_Format(32, 8, 23, "f", "float", "fp32", "%a", sollya.binary32)
+ML_Binary64 = ML_Std_FP_Format(64, 11, 52, "", "double", "fp64", "%la", sollya.binary64)
+ML_Binary80 = ML_Std_FP_Format(80, 15, 64, "L", "long double", "fp80", "%la", sollya.binary80)
 
 
 # Standard integer format declarations
@@ -473,7 +472,7 @@ class ML_Compound_Format(ML_Format):
         field_str_list = []
         for field_name, field_format in zip(self.c_field_list, self.field_format_list):
             # FIXME, round is only valid for double_double or triple_double stype format
-            field_value = round(tmp_cst, field_format.sollya_object, RN)
+            field_value = sollya.round(tmp_cst, field_format.sollya_object, RN)
             tmp_cst = cst_value - field_value
             field_str_list.append(".%s = %s" % (field_name, field_format.get_c_cst(field_value)))
         return "{%s}" % (", ".join(field_str_list))
@@ -486,8 +485,8 @@ class ML_Compound_Integer_Format(ML_Compound_Format, ML_Fixed_Format):
   pass
 
 # compound binary floating-point format declaration
-ML_DoubleDouble = ML_Compound_FP_Format("ml_dd_t", ["hi", "lo"], [ML_Binary64, ML_Binary64], "", "", doubledouble)
-ML_TripleDouble = ML_Compound_FP_Format("ml_td_t", ["hi", "me", "lo"], [ML_Binary64, ML_Binary64, ML_Binary64], "", "", tripledouble)
+ML_DoubleDouble = ML_Compound_FP_Format("ml_dd_t", ["hi", "lo"], [ML_Binary64, ML_Binary64], "", "", sollya.doubledouble)
+ML_TripleDouble = ML_Compound_FP_Format("ml_td_t", ["hi", "me", "lo"], [ML_Binary64, ML_Binary64, ML_Binary64], "", "", sollya.tripledouble)
 
 ###############################################################################
 #                     VECTOR FORMAT

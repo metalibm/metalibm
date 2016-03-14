@@ -5,7 +5,7 @@
 # last modified:  August 26th, 2015
 
 
-from sollya import *
+from sollya import floor, ceil, log2, abs, S2
 
 from metalibm_core.core.ml_function import ML_Function, ML_FunctionBasis
 

@@ -10,8 +10,9 @@
 # author(s): Nicolas Brunie (nicolas.brunie@kalray.eu)
 ###############################################################################
 
-from sollya import *
-import __builtin__
+import sollya
+
+from sollya import S2, SollyaObject, coeff
 
 from ..utility.log_report import Log
 from .ml_operations import Constant, Variable, Multiplication, Addition, Subtraction
@@ -43,7 +44,7 @@ class Polynomial(object):
                 self.coeff_map[index] = init_object[index]
 
         elif isinstance(init_object, SollyaObject):
-            self.degree = degree(init_object)
+            self.degree = sollya.degree(init_object)
             for index in xrange(self.degree+1):
                 coeff_value = coeff(init_object, index)
                 if coeff_value != 0:
@@ -52,12 +53,11 @@ class Polynomial(object):
         self.sollya_object = 0
         # building sollya object
         for index in self.coeff_map:
-            self.sollya_object += self.coeff_map[index] * x**index
+            self.sollya_object += self.coeff_map[index] * sollya.x**index
 
     def get_min_monomial_degree(self):
         monomial_degrees = [index for index in self.coeff_map]
-        return __builtin__.min(monomial_degrees)
-            
+        return min(monomial_degrees)
 
     def get_sollya_object(self):
         return self.sollya_object
@@ -125,7 +125,7 @@ class Polynomial(object):
             precision_list.append(c.get_bit_size())
           else:
             precision_list.append(c)
-        sollya_poly = fpminimax(function, poly_degree, precision_list, approx_interval, *modifiers)
+        sollya_poly = sollya.fpminimax(function, poly_degree, precision_list, approx_interval, *modifiers)
         return Polynomial(sollya_poly)
 
 
@@ -146,16 +146,16 @@ class Polynomial(object):
     def build_from_approximation_with_error(function, poly_degree, coeff_formats, approx_interval, *modifiers, **kwords): 
         """ construct a polynomial object from a function approximation using sollya's fpminimax """
         tightness = kwords["tightness"] if "tightness" in kwords else S2**-24
-        error_function = kwords["error_function"] if "error_function" in kwords else lambda p, f, ai, mod, t: supnorm(p, f, ai, mod, t)
+        error_function = kwords["error_function"] if "error_function" in kwords else lambda p, f, ai, mod, t: sollya.supnorm(p, f, ai, mod, t)
         precision_list = []
         for c in coeff_formats:
             if isinstance(c, ML_FP_Format):
                 precision_list.append(c.get_sollya_object())
             else:
                 precision_list.append(c)
-        sollya_poly = fpminimax(function, poly_degree, precision_list, approx_interval, *modifiers)
-        fpnorm_modifiers = absolute if absolute in modifiers else relative
-        #approx_error = supnorm(sollya_poly, function, approx_interval, fpnorm_modifiers, tightness)
+        sollya_poly = sollya.fpminimax(function, poly_degree, precision_list, approx_interval, *modifiers)
+        fpnorm_modifiers = sollya.absolute if sollya.absolute in modifiers else sollya.relative
+        #approx_error = sollya.supnorm(sollya_poly, function, approx_interval, fpnorm_modifiers, tightness)
         approx_error = error_function(sollya_poly, function, approx_interval, fpnorm_modifiers, tightness)
         return Polynomial(sollya_poly), approx_error
 

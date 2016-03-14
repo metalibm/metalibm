@@ -10,7 +10,6 @@
 # author(s): Nicolas Brunie (nicolas.brunie@kalray.eu)
 ###############################################################################
 
-from sollya import *
 from .ml_formats import *
 
 
