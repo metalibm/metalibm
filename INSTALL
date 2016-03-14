@@ -39,15 +39,13 @@ else
   SOLLYA_INSTALL_DIR=$INSTALL_DIR
   # comment the following lines to use already installed sollya
   git clone https://scm.gforge.inria.fr/anonscm/git/sollya/sollya.git sollya_git && \
-  cd sollya_git/ && ./configure --prefix=$INSTALL_DIR && make -j 4 && make install  || exit 1
+  cd sollya_git/ && ./autogen.sh && ./configure --prefix=$INSTALL_DIR && make -j 4 && make install  || exit 1
 fi;
 # building and installing pythonsollya
 set -e
 cd $LOCAL_DIR
 git clone https://gforge.inria.fr/git/metalibm/pythonsollya.git -b cythonsollya-mm
-export SOLLYA_INSTALL_DIR INSTALL_DIR
-cd pythonsollya/cythonsollya
-sh INSTALL
+cd pythonsollya/cythonsollya && PATH=$SOLLYA_INSTALL_DIR/bin:$PATH SOLLYA_INSTALL_DIR=$SOLLYA_INSTALL_DIR INSTALL_DIR=$INSTALL_DIR sh INSTALL
 cd $LOCAL_DIR
 LOCAL_PYTHON_PATH=$(find $INSTALL_DIR -name sollya.so | sed -e "s/sollya.so//")
-echo -e "export LD_LIBRARY_PATH=\"$SOLLYA_INSTALL_DIR/lib:\$LD_LIBRARY_PATH\"\nDIR=\$( cd \"\$( dirname \"\${BASH_SOURCE[0]}\" )\" && pwd )\nexport PYTHONPATH=\"\$DIR:$LOCAL_PYTHON_PATH:\$PYTHONPATH\"" > $LOCAL_DIR/metalibm_setup_env.bash
+echo "export LD_LIBRARY_PATH=\"$SOLLYA_INSTALL_DIR/lib:\$LD_LIBRARY_PATH\"\nDIR=\$( cd \"\$( dirname \"\${BASH_SOURCE[0]}\" )\" && pwd )\nexport PYTHONPATH=\"\$DIR:$LOCAL_PYTHON_PATH:\$PYTHONPATH\"" > $LOCAL_DIR/metalibm_setup_env.bash
