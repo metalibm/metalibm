@@ -15,6 +15,7 @@ from sollya import S2
 from metalibm_core.core.ml_formats import *
 from metalibm_core.core.ml_optimization_engine import OptimizationEngine
 from metalibm_core.core.ml_operations import *  
+from metalibm_core.core.ml_table import ML_Table
 from metalibm_core.core.ml_complex_formats import ML_Mpfr_t
 from metalibm_core.core.ml_call_externalizer import CallExternalizer
 from metalibm_core.core.ml_vectorizer import StaticVectorizer
@@ -25,12 +26,14 @@ from metalibm_core.code_generation.generic_processor import GenericProcessor
 from metalibm_core.code_generation.mpfr_backend import MPFRProcessor
 from metalibm_core.code_generation.c_code_generator import CCodeGenerator
 from metalibm_core.code_generation.code_constant import C_Code
-from metalibm_core.code_generation.generator_utility import FunctionOperator
+from metalibm_core.code_generation.generator_utility import *
 
 from metalibm_core.code_generation.gappa_code_generator import GappaCodeGenerator
 
 from metalibm_core.utility.log_report import Log
 from metalibm_core.utility.debug_utils import *
+
+import random
 
 ## \defgroup ml_function ml_function
 ## @{
@@ -96,12 +99,16 @@ class ML_FunctionBasis(object):
              # Debug verbosity
              debug_flag = False,
              vector_size = 1,
-             language = C_Code
+             language = C_Code,
+             auto_test = False
          ):
     # io_precisions must be a list
     #     -> with a single element
     # XOR -> with as many elements as function arity (input + output arities)
     self.io_precisions = io_precisions
+
+    ## enable the generation of numeric/functionnal auto-test
+    self.auto_test_enable = auto_test
 
     self.language = language
 
@@ -290,6 +297,9 @@ class ML_FunctionBasis(object):
       self.implementation.clear_arg_list()
 
       code_function_list = self.generate_vector_implementation(scalar_scheme, scalar_arg_list, self.get_vector_size())
+
+    if self.auto_test_enable:
+      code_function_list += self.generate_auto_test()
       
 
     for code_function in code_function_list:
@@ -422,6 +432,64 @@ class ML_FunctionBasis(object):
 
     It should be overloaded by actual metafunctions, and called by the overloading function. 
     """
+
+  ## provide numeric evaluation of the main function on @p input_value
+  def numeric_emulate(self, input_value):
+    raise ImplementationError()
+
+  def generate_auto_test(self, test_num = 10, low_input = -1.0, high_input = 1.0):
+    auto_test = CodeFunction("main", output_format = ML_Int32)
+
+    test_num_cst = Constant(test_num, precision = ML_Int32)
+
+    tested_function    = self.implementation.get_function_object()
+
+    failure_report_op       = FunctionOperator("report_failure")
+    failure_report_function = FunctionObject("report_failure", [], ML_Void, failure_report_op)
+
+    sollya_precision = self.precision.get_sollya_object()
+    interval_size = high_input - low_input 
+
+    input_table = ML_Table(dimensions = [test_num], storage_precision = self.precision, tag = self.uniquify_name("input_table"))
+    ## (low, high) are store in output table
+    output_table = ML_Table(dimensions = [test_num, 2], storage_precision = self.precision, tag = self.uniquify_name("output_table"))
+    for i in range(test_num):
+      input_value = round(low_input + (random.randrange(2**32 + 1) / float(2**32)) * interval_size, sollya_precision, RN) 
+      input_table[i] = input_value
+      # FIXME only valid for faithful evaluation
+      output_table[i][0] = round(self.numeric_emulate(input_value), sollya_precision, RD)
+      output_table[i][1] = round(self.numeric_emulate(input_value), sollya_precision, RU)
+
+    vi = Variable("i", precision = ML_Int32, var_type = Variable.Local)
+
+    local_input  = TableLoad(input_table, vi)
+    local_result = tested_function(local_input)
+    low_bound    = TableLoad(output_table, vi, 0)
+    high_bound   = TableLoad(output_table, vi, 1)
+
+    failure_test = LogicalOr(
+      Comparison(local_result, low_bound, specifier = Comparison.Less),
+      Comparison(local_result, high_bound, specifier = Comparison.Greater)
+    )
+
+
+    test_loop = Loop(
+      ReferenceAssign(vi, Constant(0, precision = ML_Int32)),
+      vi < test_num_cst,
+      Statement(
+        ConditionBlock(
+          failure_test,
+          Return(Constant(1, precision = ML_Int32))
+        ),
+        ReferenceAssign(vi, vi + 1)
+      ),
+    )
+    test_scheme = Statement(
+      test_loop,
+      Return(Constant(0, precision = ML_Int32))
+    )
+    auto_test.set_scheme(test_scheme)
+    return [auto_test]
 
   @staticmethod
   def get_name():

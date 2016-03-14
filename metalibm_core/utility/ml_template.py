@@ -93,6 +93,8 @@ class ML_ArgTemplate(object):
     self.help_map = {}
     self.parse_arg = [0]
 
+  ## standard argument extraction from command line and storing, 
+  #  Plus standard argument help and default value declaration
   def sys_arg_extraction(self, parse_arg = None, exit_on_info = True, check = True):
     # argument extraction 
     parse_arg = self.parse_arg if parse_arg is None else parse_arg
@@ -111,6 +113,8 @@ class ML_ArgTemplate(object):
     input_interval = extract_option_value("--input-interval", "Interval(0,1)", parse_arg = parse_arg, processing = interval_parser, help_map = self.help_map, help_str = "select input range")
     self.vector_size = extract_option_value("--vector-size", "1", parse_arg = parse_arg, processing = lambda v: int(v), help_map = self.help_map, help_str = "define size of vector (1: scalar implemenation)")
     self.language = extract_option_value("--language", "c", parse_arg = parse_arg, processing = lambda v: language_map[v], help_map = self.help_map, help_str = "select language for generated source code") 
+
+    self.auto_test = test_flag_option("--auto-test", True, False, parse_arg = parse_arg, help_map = self.help_map, help_str = "enable the generation of a self-testing numerical/functionnal bench")
 
     verbose_enable = test_flag_option("--verbose", True, False, parse_arg = parse_arg, help_map = self.help_map, help_str = "enable Verbose log level")
 
