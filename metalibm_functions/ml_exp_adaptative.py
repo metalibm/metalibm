@@ -2,7 +2,9 @@
 
 import sys
 
-from sollya import *
+import sollya
+
+from sollya import S2, Interval, ceil, floor, round, inf, sup, abs, log, exp, guessdegree 
 
 from metalibm_core.core.attributes import ML_Debug
 from metalibm_core.core.ml_operations import *
@@ -88,7 +90,7 @@ class ML_Exponential(object):
         early_underflow_return = Statement(ClearException(), ExpRaiseReturn(ML_FPE_Inexact, ML_FPE_Underflow, return_value = FP_PlusZero(self.precision)))
 
 
-        sollya_prec_map = {ML_Binary32: binary32, ML_Binary64: binary64}
+        sollya_prec_map = {ML_Binary32: sollya.binary32, ML_Binary64: sollya.binary64}
 
 
         # constant computation
@@ -102,8 +104,8 @@ class ML_Exponential(object):
         log2_hi_precision = self.precision.get_field_size() - (ceil(log2(sup(abs(interval_k)))) + 2)
         Log.report(Log.Info, "log2_hi_precision: "), log2_hi_precision
         invlog2_cst = Constant(invlog2, precision = self.precision)
-        log2_hi = round(log(2), log2_hi_precision, RN) 
-        log2_lo = round(log(2) - log2_hi, sollya_prec_map[self.precision], RN)
+        log2_hi = round(log(2), log2_hi_precision, sollya.RN) 
+        log2_lo = round(log(2) - log2_hi, sollya_prec_map[self.precision], sollya.RN)
 
         # argument reduction
         unround_k = vx * invlog2

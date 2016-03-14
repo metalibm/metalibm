@@ -2,7 +2,9 @@
 
 import sys
 
-from sollya import *
+import sollya
+
+from sollya import S2, Interval, ceil, floor, round, inf, sup, abs, log, exp, log10, guessdegree 
 
 from metalibm_core.core.ml_function import ML_Function, ML_FunctionBasis
 
@@ -73,10 +75,10 @@ class ML_Log(ML_Function("ml_log")):
     sollya_precision = self.precision.sollya_object
 
     # constant computation
-    invlog2 = round(1/log(2), sollya_precision, RN)
+    invlog2 = round(1/log(2), sollya_precision, sollya.RN)
     invlog2_cst = Constant(invlog2, precision = self.precision)
-    #v_log2_hi = round(log(2), 16, RN) 
-    #v_log2_lo = round(log(2) - v_log2_hi, sollya_precision, RN)
+    #v_log2_hi = round(log(2), 16, sollya.RN) 
+    #v_log2_lo = round(log(2) - v_log2_hi, sollya_precision, sollya.RN)
 
     #log2_hi = Constant(v_log2_hi, precision = self.precision, tag = "log2_hi")
     #log2_lo = Constant(v_log2_lo, precision = self.precision, tag = "log2_lo")
@@ -95,8 +97,8 @@ class ML_Log(ML_Function("ml_log")):
     test_signaling_nan = Test(vx, specifier = Test.IsSignalingNaN, debug = True, tag = "is_signaling_nan")
     return_snan = Statement(ExpRaiseReturn(ML_FPE_Invalid, return_value = FP_QNaN(self.precision)))
 
-    v_log2_hi = round(log(2), self.precision.get_field_size() - (self.precision.get_exponent_size() + 1), RN)
-    v_log2_lo = round(log(2) - v_log2_hi, self.precision.sollya_object, RN)
+    v_log2_hi = round(log(2), self.precision.get_field_size() - (self.precision.get_exponent_size() + 1), sollya.RN)
+    v_log2_lo = round(log(2) - v_log2_hi, self.precision.sollya_object, sollya.RN)
     log2_hi = Constant(v_log2_hi, precision = self.precision, tag = "log2_hi")
     log2_lo = Constant(v_log2_lo, precision = self.precision, tag = "log2_lo")
 
@@ -122,8 +124,8 @@ class ML_Log(ML_Function("ml_log")):
     for i in xrange(1, 2**table_index_size):
         #inv_value = (1.0 + (self.processor.inv_approx_table[i] / S2**9) + S2**-52) * S2**-1
         inv_value = inv_approx_table[i][0] # (1.0 + (inv_approx_table[i][0] / S2**9) ) * S2**-1
-        value_high = round(log(inv_value), self.precision.get_field_size() - (self.precision.get_exponent_size() + 1), RN)
-        value_low = round(log(inv_value) - value_high, sollya_precision, RN)
+        value_high = round(log(inv_value), self.precision.get_field_size() - (self.precision.get_exponent_size() + 1), sollya.RN)
+        value_low = round(log(inv_value) - value_high, sollya_precision, sollya.RN)
         log_table[i][0] = value_high
         log_table[i][1] = value_low
 
@@ -151,8 +153,8 @@ class ML_Log(ML_Function("ml_log")):
 
         print "building mathematical polynomial"
         approx_interval = Interval(-inv_err, inv_err)
-        poly_degree = sup(guessdegree(log(1+x)/x, approx_interval, S2**-(self.precision.get_field_size()+1))) + 1
-        global_poly_object = Polynomial.build_from_approximation(log(1+x)/x, poly_degree, [1] + [self.precision]*(poly_degree), approx_interval, absolute)
+        poly_degree = sup(guessdegree(log(1+sollya.x)/sollya.x, approx_interval, S2**-(self.precision.get_field_size()+1))) + 1
+        global_poly_object = Polynomial.build_from_approximation(log(1+sollya.x)/sollya.x, poly_degree, [1] + [self.precision]*(poly_degree), approx_interval, sollya.absolute)
         poly_object = global_poly_object.sub_poly(start_index = 1)
 
         print "generating polynomial evaluation scheme"
@@ -218,8 +220,8 @@ class ML_Log(ML_Function("ml_log")):
     one_err = S2**-7
     approx_interval_one = Interval(-one_err, one_err)
     red_vx_one = vx - 1.0
-    poly_degree_one = sup(guessdegree(log(1+x)/x, approx_interval_one, S2**-(self.precision.get_field_size()+1))) + 1
-    poly_object_one = Polynomial.build_from_approximation(log(1+x)/x, poly_degree_one, [self.precision]*(poly_degree_one+1), approx_interval_one, absolute).sub_poly(start_index = 1)
+    poly_degree_one = sup(guessdegree(log(1+sollya.x)/sollya.x, approx_interval_one, S2**-(self.precision.get_field_size()+1))) + 1
+    poly_object_one = Polynomial.build_from_approximation(log(1+sollya.x)/sollya.x, poly_degree_one, [self.precision]*(poly_degree_one+1), approx_interval_one, sollya.absolute).sub_poly(start_index = 1)
     poly_one = PolynomialSchemeEvaluator.generate_horner_scheme(poly_object_one, red_vx_one, unified_precision = self.precision)
     poly_one.set_attributes(tag = "poly_one", debug = debug_lftolx)
     result_one = red_vx_one + red_vx_one * poly_one

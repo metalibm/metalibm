@@ -2,7 +2,9 @@
 
 import sys
 
-from sollya import *
+import sollya
+
+from sollya import S2, Interval, ceil, floor, round, inf, sup, pi, abs, log, exp, cos, sin, guessdegree
 
 from metalibm_core.core.attributes import ML_Debug
 from metalibm_core.core.ml_operations import *

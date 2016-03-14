@@ -2,7 +2,12 @@
 
 import sys
 
-from sollya import *
+import sollya
+
+from sollya import (
+        S2, SollyaObject, Interval,
+        log2, log10, acos, sup, abs
+)
 
 from metalibm_core.core.ml_function import ML_Function, ML_FunctionBasis
 
@@ -110,12 +115,12 @@ class ML_Acos(ML_Function("acos")):
       lo_bound = (1.0 + (i % 2**field_index_size) * S2**-field_index_size) * S2**(i / 2**field_index_size - exp_lo)
       hi_bound = (1.0 + ((i % 2**field_index_size) + 1) * S2**-field_index_size) * S2**(i / 2**field_index_size - exp_lo)
       local_approx_interval = Interval(lo_bound, hi_bound)
-      local_poly_object, local_error = Polynomial.build_from_approximation_with_error(acos(1 - x), local_degree, [self.precision] * (local_degree+1), local_approx_interval, absolute)
+      local_poly_object, local_error = Polynomial.build_from_approximation_with_error(acos(1 - x), local_degree, [self.precision] * (local_degree+1), local_approx_interval, sollya.absolute)
       local_error = int(log2(sup(abs(local_error / acos(1 - local_approx_interval)))))
       coeff_table
       print local_approx_interval, local_error
       for d in xrange(local_degree):
-        coeff_table[i][d] = coeff(local_poly_object.get_sollya_object(), d) 
+        coeff_table[i][d] = sollya.coeff(local_poly_object.get_sollya_object(), d) 
 
     table_index = BitLogicRightShift(vx, vx.get_precision().get_field_size() - field_index_size) - (exp_lo << field_index_size)
 
@@ -123,7 +128,7 @@ class ML_Acos(ML_Function("acos")):
 
 
     print "building mathematical polynomial"
-    poly_degree = sup(guessdegree(acos(x), approx_interval, S2**-(self.precision.get_field_size()))) 
+    poly_degree = sup(sollya.guessdegree(acos(x), approx_interval, S2**-(self.precision.get_field_size()))) 
     print "guessed polynomial degree: ", int(poly_degree)
     #global_poly_object = Polynomial.build_from_approximation(log10(1+x)/x, poly_degree, [self.precision]*(poly_degree+1), approx_interval, absolute)
 

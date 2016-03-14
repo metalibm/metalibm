@@ -2,7 +2,9 @@
 
 import sys
 
-from sollya import *
+import sollya
+
+from sollya import S2, Interval, ceil, floor, round, inf, sup, pi, abs, log, exp, cos, sin, guessdegree
 
 from metalibm_core.core.attributes import ML_Debug
 from metalibm_core.core.ml_operations import *
@@ -71,8 +73,8 @@ class ML_Sine(object):
         approx_interval = Interval(0, pi/2)
 
 
-        poly_degree = sup(guessdegree(sin(x)/x, approx_interval, S2**-(self.precision.get_field_size()+1))) + 1
-        global_poly_object = Polynomial.build_from_approximation(sin(x)/x, poly_degree, [self.precision]*(poly_degree+1), approx_interval, absolute)
+        poly_degree = sup(guessdegree(sin(sollya.x)/sollya.x, approx_interval, S2**-(self.precision.get_field_size()+1))) + 1
+        global_poly_object = Polynomial.build_from_approximation(sin(sollya.x)/sollya.x, poly_degree, [self.precision]*(poly_degree+1), approx_interval, sollya.absolute)
         poly_object = global_poly_object#.sub_poly(start_index = 1)
 
         print "generating polynomial evaluation scheme"

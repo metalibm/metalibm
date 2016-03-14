@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 
 import sys
+import sollya
 
-from sollya import *
+from sollya import S2, Interval, ceil, floor, round, inf, sup, abs, log, exp, cos, pi, guessdegree, dirtyinfnorm
 
 from metalibm_core.core.ml_function import ML_Function, ML_FunctionBasis
 
@@ -113,9 +114,9 @@ class ML_Cosine(ML_Function("ml_cos")):
 
     # argument reduction
     frac_pi_index = 3
-    frac_pi     = round(S2**frac_pi_index / pi, sollya_precision, RN)
-    inv_frac_pi = round(pi / S2**frac_pi_index, hi_precision, RN)
-    inv_frac_pi_lo = round(pi / S2**frac_pi_index - inv_frac_pi, sollya_precision, RN)
+    frac_pi     = round(S2**frac_pi_index / pi, sollya_precision, sollya.RN)
+    inv_frac_pi = round(pi / S2**frac_pi_index, hi_precision, sollya.RN)
+    inv_frac_pi_lo = round(pi / S2**frac_pi_index - inv_frac_pi, sollya_precision, sollya.RN)
     # computing k = E(x * frac_pi)
     vx_pi = Multiplication(vx, frac_pi, precision = self.precision)
     k = NearestInteger(vx_pi, precision = ML_Int32, tag = "k", debug = True)
@@ -166,7 +167,7 @@ class ML_Cosine(ML_Function("ml_cos")):
 
     poly_object_vector = [None] * 2**(frac_pi_index+1)
     for i in xrange(2**(frac_pi_index+1)):
-      sub_func = cos(x+i*pi/S2**frac_pi_index)
+      sub_func = cos(sollya.x+i*pi/S2**frac_pi_index)
       degree = int(sup(guessdegree(sub_func, approx_interval, error_goal_approx))) + 1
 
       degree_list = range(degree+1)
@@ -181,17 +182,17 @@ class ML_Cosine(ML_Function("ml_cos")):
         degree_list = range(1, degree+1, 2)
 
       if i == 3 or i == 5 or i == 7 or i == 9: 
-        precision_list =  [binary64] + [binary32] *(degree)
+        precision_list =  [sollya.binary64] + [sollya.binary32] *(degree)
       else:
-        precision_list = [binary32] * (degree+1)
+        precision_list = [sollya.binary32] * (degree+1)
 
       poly_degree_vector[i] = degree 
 
-      constraint = absolute
+      constraint = sollya.absolute
       delta = (2**(frac_pi_index - 3))
       centered_i = (i % 2**(frac_pi_index)) - 2**(frac_pi_index-1)
       if centered_i < delta and centered_i > -delta and centered_i != 0:
-        constraint = relative
+        constraint = sollya.relative
         index_relative.append(i)
       Log.report(Log.Info, "generating approximation for %d/%d" % (i, 2**(frac_pi_index+1)))
       poly_object_vector[i], _ = Polynomial.build_from_approximation_with_error(sub_func, degree_list, precision_list, a_interval, constraint, error_function = error_function) 
@@ -339,17 +340,17 @@ class ML_Cosine(ML_Function("ml_cos")):
       func = cos(frac_pi * i + frac_pi * x)
       
       degree = 6
-      error_mode = absolute
+      error_mode = sollya.absolute
       if i % 2**(lar_k) == 2**(lar_k-1):
         # close to sin(x) cases
         func = -sin(frac_pi * x) if i == 2**(lar_k-1) else sin(frac_pi * x)
         degree_list = range(0, degree+1, 2)
-        precision_list = [binary32] * len(degree_list)
+        precision_list = [sollya.binary32] * len(degree_list)
         poly_object, _ = Polynomial.build_from_approximation_with_error(func/x, degree_list, precision_list, approx_interval, error_mode)
         poly_object = poly_object.sub_poly(offset = -1)
       else:
         degree_list = range(degree+1)
-        precision_list = [binary32] * len(degree_list)
+        precision_list = [sollya.binary32] * len(degree_list)
         poly_object, _ = Polynomial.build_from_approximation_with_error(func, degree_list, precision_list, approx_interval, error_mode)
 
       if i == 3 or i == 5 or i == 7 or i == 9 or i == 11 or i == 13: 

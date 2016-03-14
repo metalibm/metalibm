@@ -2,7 +2,7 @@
 
 import sys
 
-from sollya import *
+from sollya import S2, Interval
 
 from core.attributes import ML_Debug
 from core.ml_operations import *

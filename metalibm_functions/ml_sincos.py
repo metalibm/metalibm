@@ -2,7 +2,9 @@
 
 import sys
 
-from sollya import *
+import sollya
+
+from sollya import S2, Interval, ceil, floor, round, inf, sup, abs, pi, log, exp, cos, sin, guessdegree, dirtyinfnorm
 
 from metalibm_core.core.ml_function import ML_Function, ML_FunctionBasis
 
@@ -116,9 +118,9 @@ class ML_SinCos(ML_Function("ml_cos")):
     # argument reduction
     frac_pi_index = {ML_Binary32: 5, ML_Binary64: 6}[self.precision]
 
-    frac_pi     = round(S2**frac_pi_index / pi, sollya_precision, RN)
-    inv_frac_pi = round(pi / S2**frac_pi_index, hi_precision, RN)
-    inv_frac_pi_lo = round(pi / S2**frac_pi_index - inv_frac_pi, sollya_precision, RN)
+    frac_pi     = round(S2**frac_pi_index / pi, sollya_precision, sollya.RN)
+    inv_frac_pi = round(pi / S2**frac_pi_index, hi_precision, sollya.RN)
+    inv_frac_pi_lo = round(pi / S2**frac_pi_index - inv_frac_pi, sollya_precision, sollya.RN)
     # computing k = E(x * frac_pi)
     vx_pi = Multiplication(vx, frac_pi, precision = self.precision)
     k = NearestInteger(vx_pi, precision = ML_Int32, tag = "k", debug = debugd)
@@ -175,12 +177,12 @@ class ML_SinCos(ML_Function("ml_cos")):
 
     for i in xrange(2**(frac_pi_index+1)):
       local_x = i*pi/S2**frac_pi_index
-      cos_local_hi = round(cos(local_x), cos_hi_prec, RN)
+      cos_local_hi = round(cos(local_x), cos_hi_prec, sollya.RN)
       cos_table_hi[i][0] = cos_local_hi 
-      cos_table_lo[i][0] = round(cos(local_x) - cos_local_hi, self.precision.get_sollya_object(), RN)
-      #cos_table_d[i][0] = round(cos(local_x), ML_Binary64.get_sollya_object(), RN)
+      cos_table_lo[i][0] = round(cos(local_x) - cos_local_hi, self.precision.get_sollya_object(), sollya.RN)
+      #cos_table_d[i][0] = round(cos(local_x), ML_Binary64.get_sollya_object(), sollya.RN)
 
-      sin_table[i][0] = round(sin(local_x), self.precision.get_sollya_object(), RN)
+      sin_table[i][0] = round(sin(local_x), self.precision.get_sollya_object(), sollya.RN)
 
 
     tabulated_cos_hi = TableLoad(cos_table_hi, modk, 0, tag = "tab_cos_hi", debug = debug_precision) 
@@ -188,8 +190,8 @@ class ML_SinCos(ML_Function("ml_cos")):
     tabulated_sin  = TableLoad(sin_table, modk, 0, tag = "tab_sin", debug = debug_precision) 
 
     Log.report(Log.Info, "building mathematical polynomials for sin and cos")
-    poly_degree_cos   = sup(guessdegree(cos(x), approx_interval, S2**-(self.precision.get_field_size()+1)) ) + 2
-    poly_degree_sin   = sup(guessdegree(sin(x)/x, approx_interval, S2**-(self.precision.get_field_size()+1))) + 2
+    poly_degree_cos   = sup(guessdegree(cos(sollya.x), approx_interval, S2**-(self.precision.get_field_size()+1)) ) + 2
+    poly_degree_sin   = sup(guessdegree(sin(sollya.x)/sollya.x, approx_interval, S2**-(self.precision.get_field_size()+1))) + 2
 
     print poly_degree_cos, poly_degree_sin
 
@@ -209,8 +211,8 @@ class ML_SinCos(ML_Function("ml_cos")):
 
     error_function = lambda p, f, ai, mod, t: dirtyinfnorm(f - p, ai)
 
-    poly_object_cos, poly_error_cos = Polynomial.build_from_approximation_with_error(cos(x), poly_degree_cos_list, poly_cos_prec_list, approx_interval, absolute, error_function = error_function)
-    poly_object_sin, poly_error_sin = Polynomial.build_from_approximation_with_error(sin(x)/x, poly_degree_sin_list, poly_sin_prec_list, approx_interval, absolute, error_function = error_function)
+    poly_object_cos, poly_error_cos = Polynomial.build_from_approximation_with_error(cos(sollya.x), poly_degree_cos_list, poly_cos_prec_list, approx_interval, sollya.absolute, error_function = error_function)
+    poly_object_sin, poly_error_sin = Polynomial.build_from_approximation_with_error(sin(sollya.x)/sollya.x, poly_degree_sin_list, poly_sin_prec_list, approx_interval, sollya.absolute, error_function = error_function)
   
     print poly_object_cos.get_sollya_object()
     print poly_object_sin.get_sollya_object()

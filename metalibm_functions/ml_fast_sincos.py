@@ -8,7 +8,9 @@
 
 import sys
 
-from sollya import *
+import sollya
+
+from sollya import S2, Interval, ceil, floor, round, inf, sup, abs, log, exp, cos, sin, guessdegree 
 
 from metalibm_core.core.ml_function import ML_Function, ML_FunctionBasis
 
@@ -167,7 +169,7 @@ class ML_FastSinCos(ML_Function("ml_fast_cos")):
     cos_poly_degree = 2 # int(sup(guessdegree(cos(x), poly_interval, accuracy_goal)))
 
     Log.report(Log.Verbose, "cosine polynomial approximation")
-    cos_poly_object, cos_approx_error = Polynomial.build_from_approximation_with_error(cos(x), [0, 2] , [0] + [computation_precision.get_bit_size()], poly_interval, absolute, error_function = error_function)
+    cos_poly_object, cos_approx_error = Polynomial.build_from_approximation_with_error(cos(x), [0, 2] , [0] + [computation_precision.get_bit_size()], poly_interval, sollya.absolute, error_function = error_function)
     #cos_eval_scheme = PolynomialSchemeEvaluator.generate_horner_scheme(cos_poly_object, red_vx_lo, unified_precision = computation_precision)
     Log.report(Log.Info, "cos_approx_error=%e" % cos_approx_error)
     cos_coeff_list = cos_poly_object.get_ordered_coeff_list()
@@ -180,7 +182,7 @@ class ML_FastSinCos(ML_Function("ml_fast_cos")):
     sin_poly_degree = 2 # int(sup(guessdegree(sin(x)/x, poly_interval, accuracy_goal)))
     Log.report(Log.Info, "sine poly degree: %e" % sin_poly_degree)
     Log.report(Log.Verbose, "sine polynomial approximation")
-    sin_poly_object, sin_approx_error = Polynomial.build_from_approximation_with_error(sin(x)/x, [0, 2], [0] + [computation_precision.get_bit_size()] * (sin_poly_degree+1), poly_interval, absolute, error_function = error_function)
+    sin_poly_object, sin_approx_error = Polynomial.build_from_approximation_with_error(sin(sollya.x)/sollya.x, [0, 2], [0] + [computation_precision.get_bit_size()] * (sin_poly_degree+1), poly_interval, sollya.absolute, error_function = error_function)
     sin_coeff_list = sin_poly_object.get_ordered_coeff_list()
     coeff_S0 = sin_coeff_list[0][1]
     coeff_S2 = Constant(sin_coeff_list[1][1], precision = ML_Custom_FixedPoint_Format(-1, 32, signed = True))

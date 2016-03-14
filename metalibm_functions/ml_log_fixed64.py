@@ -2,8 +2,9 @@
 
 import sys
 
-from sollya import *
+import sollya
 
+from sollya import S2, Interval, ceil, floor, round, inf, sup, abs, log, exp, guessdegree, nearestint
 from metalibm_core.core.ml_function import ML_Function, ML_FunctionBasis
 
 from metalibm_core.core.attributes import ML_Debug
@@ -312,8 +313,8 @@ class ML_Log(ML_Function("ml_log")):
             # guess the degree of the two polynomials (relative error <= 2^-52 and absolute error <= 2^-120)
             # note: we exclude zero from out_interval to not perturb sollya (log(1+x)/x is not well defined on 0)
             sollya_out_interval = Interval(S2**(-52-prec1-prec2), sup(out_interval))
-            guess_degree_poly1 = guessdegree(log(1+x)/x, sollya_out_interval, S2**-52)
-            guess_degree_poly2 = guessdegree(log(1+x), sollya_out_interval, S2**-120)
+            guess_degree_poly1 = guessdegree(log(1+sollya.x)/sollya.x, sollya_out_interval, S2**-52)
+            guess_degree_poly2 = guessdegree(log(1+sollya.x), sollya_out_interval, S2**-120)
             # TODO: detect when guessdegree return multiple possible degree, and find the right one
             if False and inf(guess_degree_poly1) <> sup(guess_degree_poly1):
               print "improvable guess_degree_poly1:", guess_degree_poly1
@@ -352,7 +353,7 @@ class ML_Log(ML_Function("ml_log")):
     ### Constants computations ###
 
     v_log2_hi = nearestint(log(2) * 2**-52) * 2**52
-    v_log2_lo = round(log(2) - v_log2_hi, 64+53, RN)
+    v_log2_lo = round(log(2) - v_log2_hi, 64+53, sollya.RN)
     log2_hi = Constant(v_log2_hi, precision = self.precision, tag = "log2_hi")
     log2_lo = Constant(v_log2_lo, precision = self.precision, tag = "log2_lo")
    
@@ -443,7 +444,7 @@ class ML_Log(ML_Function("ml_log")):
     # reduce the number of bits used to represent dz. we can do that
     
     print "doing the first polynomial evaluation"
-    global_poly1_object = Polynomial.build_from_approximation(log(1+x)/x, arg_reduc['degree_poly1']-1, [64] * (arg_reduc['degree_poly1']), arg_reduc['out_interval'], fixed, absolute)
+    global_poly1_object = Polynomial.build_from_approximation(log(1+sollya.x)/sollya.x, arg_reduc['degree_poly1']-1, [64] * (arg_reduc['degree_poly1']), arg_reduc['out_interval'], fixed, sollya.absolute)
     poly1_object = global_poly1_object.sub_poly(start_index = 1)
     print global_poly1_object
     print poly1_object
@@ -453,7 +454,7 @@ class ML_Log(ML_Function("ml_log")):
     #approx_interval = Interval(0, 27021597764222975*S2**-61)
     
     #poly_degree = 1+sup(guessdegree(log(1+x)/x, approx_interval, S2**-(self.precision.get_field_size())))
-    #global_poly_object = Polynomial.build_from_approximation(log(1+x)/x, poly_degree, [1] + [self.precision]*(poly_degree), approx_interval, absolute)
+    #global_poly_object = Polynomial.build_from_approximation(log(1+x)/x, poly_degree, [1] + [self.precision]*(poly_degree), approx_interval, sollya.absolute)
     #poly_object = global_poly_object.sub_poly(start_index = 1)
     #_poly = PolynomialSchemeEvaluator.generate_horner_scheme(poly_object, _red_vx, unified_precision = self.precision)
     #_poly.set_attributes(tag = "poly", debug = debug_lftolx)
@@ -485,7 +486,7 @@ class ML_Log(ML_Function("ml_log")):
     #red_vx_2 = arg_red_index * vx_mant * 0.5
     #approx_interval2 = Interval(0.5 - inv_err, 0.5 + inv_err)
     #poly_degree2 = sup(guessdegree(log(x), approx_interval2, S2**-(self.precision.get_field_size()+1))) + 1
-    #poly_object2 = Polynomial.build_from_approximation(log(x), poly_degree, [self.precision]*(poly_degree+1), approx_interval2, absolute)
+    #poly_object2 = Polynomial.build_from_approximation(log(sollya.x), poly_degree, [self.precision]*(poly_degree+1), approx_interval2, sollya.absolute)
     #print "poly_object2: ", poly_object2.get_sollya_object()
     #poly2 = PolynomialSchemeEvaluator.generate_horner_scheme(poly_object2, red_vx_2, unified_precision = self.precision)
     #poly2.set_attributes(tag = "poly2", debug = debug_lftolx)
