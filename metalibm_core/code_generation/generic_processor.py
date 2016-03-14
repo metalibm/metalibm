@@ -10,6 +10,8 @@
 # author(s): Nicolas Brunie (nicolas.brunie@kalray.eu)
 ###############################################################################
 
+from sollya import S2
+
 from ..utility.log_report import *
 from .generator_utility import *
 from .code_element import *
