@@ -2,7 +2,6 @@
 
 from metalibm_core.core.attributes import ML_Debug, ML_AdvancedDebug, ML_MultiDebug
 from metalibm_core.core.ml_formats import *
-from sollya import *
 
 # debug utilities
 # display single precision and double precision numbers

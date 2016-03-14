@@ -12,7 +12,7 @@
 
 import sys
 
-from sollya import *
+from sollya import Interval
 
 from .arg_utils import extract_option_value, test_flag_option
 from .log_report import Log
