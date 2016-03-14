@@ -38,9 +38,8 @@ then
 else
   SOLLYA_INSTALL_DIR=$INSTALL_DIR
   # comment the following lines to use already installed sollya
-  wget https://gforge.inria.fr/frs/download.php/33151/sollya-4.1.tar.gz && \
-  tar -xzf sollya-4.1.tar.gz && \
-  cd sollya-4.1/ && ./configure --prefix=$INSTALL_DIR && make -j 4 && make install  || exit 1
+  git clone https://scm.gforge.inria.fr/anonscm/git/sollya/sollya.git sollya_git && \
+  cd sollya_git/ && ./configure --prefix=$INSTALL_DIR && make -j 4 && make install  || exit 1
 fi;
 # building and installing pythonsollya
 set -e
