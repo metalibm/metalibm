@@ -32,6 +32,7 @@ from metalibm_core.code_generation.gappa_code_generator import GappaCodeGenerato
 
 from metalibm_core.utility.log_report import Log
 from metalibm_core.utility.debug_utils import *
+from metalibm_core.utility.ml_template import ArgDefault
 
 import random
 
@@ -66,7 +67,23 @@ def libc_naming(base_name, io_precisions, in_arity = 1, out_arity = 1):
     counter += 1
   return base_name + format_suffix
   
-
+class DefaultArgTemplate:
+  base_name = "unknown_function"
+  function_name = None
+  output_file = None
+  # Specification
+  io_precisions = [ML_Binary32]
+  abs_accuracy = None
+  libm_compliant = True
+  # Optimization parameters
+  target = GenericProcessor()
+  fuse_fma = True
+  fast_path_extract = True
+  # Debug verbosity
+  debug = False
+  vector_size = 1
+  language = C_Code
+  auto_test = False
 
 ## Base class for all metalibm function (metafunction)
 class ML_FunctionBasis(object):
@@ -85,23 +102,43 @@ class ML_FunctionBasis(object):
   #  @param debug_flag boolean flag, indicating whether or not debug code must be generated 
   def __init__(self,
              # Naming
-             base_name = "unknown_function",
-             function_name=None,
-             output_file = None,
+             base_name = ArgDefault("unknown_function", 2),
+             function_name= ArgDefault(None, 2),
+             output_file = ArgDefault(None, 2),
              # Specification
-             io_precisions = [ML_Binary32], 
-             abs_accuracy = None,
-             libm_compliant = True,
+             io_precisions = ArgDefault([ML_Binary32], 2), 
+             abs_accuracy = ArgDefault(None, 2),
+             libm_compliant = ArgDefault(True, 2),
              # Optimization parameters
-             processor = GenericProcessor(),
-             fuse_fma = True, 
-             fast_path_extract = True,
+             processor = ArgDefault(GenericProcessor(), 2),
+             fuse_fma = ArgDefault(True, 2), 
+             fast_path_extract = ArgDefault(True, 2),
              # Debug verbosity
-             debug_flag = False,
-             vector_size = 1,
-             language = C_Code,
-             auto_test = False
+             debug_flag = ArgDefault(False, 2),
+             vector_size = ArgDefault(1, 2),
+             language = ArgDefault(C_Code, 2),
+             auto_test = ArgDefault(False, 2),
+             arg_template = DefaultArgTemplate 
          ):
+    # selecting argument values among defaults
+    base_name = ArgDefault.select_value([base_name])
+    function_name = ArgDefault.select_value([function_name])
+    output_file = ArgDefault.select_value([output_file])
+    # Specification
+    io_precisions = ArgDefault.select_value([io_precisions])
+    abs_accuracy = ArgDefault.select_value([abs_accuracy])
+    libm_compliant = ArgDefault.select_value([libm_compliant, arg_template.libm_compliant])
+    # Optimization parameters
+    processor = ArgDefault.select_value([processor, arg_template.target])
+    fuse_fma = ArgDefault.select_value([fuse_fma])
+    fast_path_extract = ArgDefault.select_value([fast_path_extract])
+    # Debug verbosity
+    debug_flag = ArgDefault.select_value([debug_flag, arg_template.debug])
+    vector_size = ArgDefault.select_value([vector_size])
+    language = ArgDefault.select_value([language])
+    auto_test = ArgDefault.select_value([auto_test])
+
+
     # io_precisions must be a list
     #     -> with a single element
     # XOR -> with as many elements as function arity (input + output arities)

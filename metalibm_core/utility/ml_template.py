@@ -11,6 +11,7 @@
 ###############################################################################
 
 import sys
+import argparse
 
 from sollya import Interval
 
@@ -75,15 +76,41 @@ def accuracy_parser(accuracy_str):
 def interval_parser(interval_str):
   return eval(interval_str)
 
+class ArgDefault(object):
+  def __init__(self, default_value, level = 0):
+    self.default_value = default_value
+    self.level = level
+
+  def get_pair(self):
+    return self.default_value, self.level
+  def get_value(self):
+    return self.default_value
+  def get_level(self):
+    return self.level
+
+  @staticmethod
+  def select(arg_list):
+    arg_list = [ArgDefault(arg, -1) if not isinstance(arg, ArgDefault) else arg for arg in arg_list]
+    return min(arg_list, key = lambda v: v.get_level())
+
+  @staticmethod
+  def select_value(arg_list):
+    return ArgDefault.select(arg_list).get_value()
+
+
 
 ## new argument template based on argparse module
 class ML_NewArgTemplate(object):
   def __init__(self, function_name):
-    self.parser = argparse.ArgumentParser(" Metalibm %s function generation script" %s function_name)
-    self.parser.add_argument("--libm", dest = "libm", action = "store_const", const = True, default = ArgDefault(False), help = "generate libm compliante code")
+    self.parser = argparse.ArgumentParser(" Metalibm %s function generation script" % function_name)
+    self.parser.add_argument("--libm", dest = "libm_compliant", action = "store_const", const = True, default = ArgDefault(False), help = "generate libm compliante code")
     self.parser.add_argument("--debug", dest = "debug", action = "store_const", const = True, default = ArgDefault(False), help = "enable debug display in generated code")
-    self.parser.add_argument("--target", dest = "target", action = "store", default = ArgDefault(False), help = "select generation target")
+    self.parser.add_argument("--target", dest = "target_name", action = "store", default = "none", help = "select generation target")
 
+  def arg_extraction(self):
+    self.args = self.parser.parse_args(sys.argv[1:])
+    self.args.target = target_map[self.args.target_name]
+    return self.args
 
 
 class ML_ArgTemplate(object):
