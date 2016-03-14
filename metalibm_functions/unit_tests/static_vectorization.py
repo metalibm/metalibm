@@ -14,7 +14,7 @@
 
 import sys
 
-from sollya import *
+from sollya import S2, Interval
 
 from metalibm_core.core.ml_function import ML_Function, ML_FunctionBasis
 

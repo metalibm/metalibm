@@ -2,7 +2,7 @@
 
 import sys
 
-from sollya import *
+from sollya import S2
 
 from metalibm_core.core.ml_function import ML_Function, ML_FunctionBasis
 
