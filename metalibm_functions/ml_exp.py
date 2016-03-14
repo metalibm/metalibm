@@ -24,7 +24,7 @@ from metalibm_core.utility.gappa_utils import is_gappa_installed
 
 
 class ML_Exponential(ML_Function("ml_exp")):
-  def __init__(self, 
+  def __init__(self, arg_template = None, 
              precision = ML_Binary32, 
              accuracy  = ML_Faithful,
              libm_compliant = True, 
@@ -359,7 +359,9 @@ if __name__ == "__main__":
     arg_template.check_args(parse_arg_index_list)
 
 
-    ml_exp          = ML_Exponential(arg_template.precision, 
+    ml_exp          = ML_Exponential(arg_template = arg_template)
+    """ 
+                                  .precision, 
                                   libm_compliant            = arg_template.libm_compliant, 
                                   debug_flag                = arg_template.debug_flag, 
                                   target                    = arg_template.target, 
@@ -370,5 +372,6 @@ if __name__ == "__main__":
                                   output_file               = arg_template.output_file, 
                                   language                  = arg_template.language,
                                   vector_size               = arg_template.vector_size)
+    """
 
     ml_exp.gen_implementation()

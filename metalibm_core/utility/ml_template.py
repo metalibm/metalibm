@@ -31,14 +31,6 @@ for target_name in TargetRegister.target_map:
     target_map[target_name] = TargetRegister.get_target_by_name(target_name)(None)
 
 
-#target_map = {
-    # "k1a": K1A_Processor, 
-    # "k1b": K1B_Processor,
-    # "sse": X86_SSE_Processor, 
-    # "x86_fma": X86_FMA_Processor,
-#    "none": GenericProcessor
-#}
-
 precision_map = {
     "binary32": ML_Binary32, 
     "binary64": ML_Binary64, 
@@ -83,6 +75,14 @@ def accuracy_parser(accuracy_str):
 def interval_parser(interval_str):
   return eval(interval_str)
 
+
+## new argument template based on argparse module
+class ML_NewArgTemplate(object):
+  def __init__(self, function_name):
+    self.parser = argparse.ArgumentParser(" Metalibm %s function generation script" %s function_name)
+    self.parser.add_argument("--libm", dest = "libm", action = "store_const", const = True, default = ArgDefault(False), help = "generate libm compliante code")
+    self.parser.add_argument("--debug", dest = "debug", action = "store_const", const = True, default = ArgDefault(False), help = "enable debug display in generated code")
+    self.parser.add_argument("--target", dest = "target", action = "store", default = ArgDefault(False), help = "select generation target")
 
 
 
