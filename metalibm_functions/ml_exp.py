@@ -2,7 +2,9 @@
 
 import sys
 
-from sollya import *
+import sollya
+
+from sollya import S2, Interval, ceil, floor, round, inf, sup, abs, log, exp, expm1, log2, guessdegree, dirtyinfnorm
 
 from metalibm_core.core.attributes import ML_Debug
 from metalibm_core.core.ml_operations import *
@@ -108,11 +110,11 @@ class ML_Exponential(ML_Function("ml_exp")):
     early_underflow_return = Statement(ClearException(), ExpRaiseReturn(ML_FPE_Inexact, ML_FPE_Underflow, return_value = FP_PlusZero(self.precision)))
 
 
-    sollya_prec_map = {ML_Binary32: binary32, ML_Binary64: binary64}
+    sollya_prec_map = {ML_Binary32: sollya.binary32, ML_Binary64: sollya.binary64}
 
 
     # constant computation
-    invlog2 = round(1/log(2), sollya_prec_map[self.precision], RN)
+    invlog2 = round(1/log(2), sollya_prec_map[self.precision], sollya.RN)
 
     interval_vx = Interval(exp_underflow_bound, exp_overflow_bound)
     interval_fk = interval_vx * invlog2
@@ -122,8 +124,8 @@ class ML_Exponential(ML_Function("ml_exp")):
     log2_hi_precision = self.precision.get_field_size() - (ceil(log2(sup(abs(interval_k)))) + 2)
     Log.report(Log.Info, "log2_hi_precision: %d" % log2_hi_precision)
     invlog2_cst = Constant(invlog2, precision = self.precision)
-    log2_hi = round(log(2), log2_hi_precision, RN) 
-    log2_lo = round(log(2) - log2_hi, sollya_prec_map[self.precision], RN)
+    log2_hi = round(log(2), log2_hi_precision, sollya.RN)
+    log2_lo = round(log(2) - log2_hi, sollya_prec_map[self.precision], sollya.RN)
 
     # argument reduction
     unround_k = vx * invlog2
@@ -195,7 +197,7 @@ class ML_Exponential(ML_Function("ml_exp")):
     error_goal_approx = S2**-1 * error_goal
 
     Log.report(Log.Info, "\033[33;1m building mathematical polynomial \033[0m\n")
-    poly_degree = max(sup(guessdegree(expm1(x)/x, approx_interval, error_goal_approx)) - 1, 2)
+    poly_degree = max(sup(guessdegree(expm1(sollya.x)/sollya.x, approx_interval, error_goal_approx)) - 1, 2)
     init_poly_degree = poly_degree
 
 
@@ -207,7 +209,7 @@ class ML_Exponential(ML_Function("ml_exp")):
     while 1:
         Log.report(Log.Info, "attempting poly degree: %d" % poly_degree)
         precision_list = [1] + [self.precision] * (poly_degree)
-        poly_object, poly_approx_error = Polynomial.build_from_approximation_with_error(expm1(x), poly_degree, precision_list, approx_interval, absolute, error_function = error_function)
+        poly_object, poly_approx_error = Polynomial.build_from_approximation_with_error(expm1(sollya.x), poly_degree, precision_list, approx_interval, sollya.absolute, error_function = error_function)
         Log.report(Log.Info, "polynomial: %s " % poly_object)
         sub_poly = poly_object.sub_poly(start_index = 2)
         Log.report(Log.Info, "polynomial: %s " % sub_poly)
