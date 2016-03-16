@@ -101,11 +101,11 @@ class ArgDefault(object):
 
 ## new argument template based on argparse module
 class ML_NewArgTemplate(object):
-  def __init__(self, function_name, default_output_file = "ml_func_gen.c"):
+  def __init__(self, default_function_name, default_output_file = "ml_func_gen.c"):
     self.default_output_file = default_output_file
-    self.default_function_name = function_name
+    self.default_function_name = default_function_name
 
-    self.parser = argparse.ArgumentParser(" Metalibm %s function generation script" % function_name)
+    self.parser = argparse.ArgumentParser(" Metalibm %s function generation script" % self.default_function_name)
     self.parser.add_argument("--libm", dest = "libm_compliant", action = "store_const", const = True, default = ArgDefault(False), help = "generate libm compliante code")
     self.parser.add_argument("--debug", dest = "debug", action = "store_const", const = True, default = ArgDefault(False), help = "enable debug display in generated code")
     self.parser.add_argument("--target", dest = "target_name", action = "store", default = "none", help = "select generation target")
@@ -114,7 +114,7 @@ class ML_NewArgTemplate(object):
     self.parser.add_argument("--fname", dest = "function_name", default = ArgDefault(self.default_function_name), help = "set function name")
     self.parser.add_argument("--precision", dest = "precision_name", default = ArgDefault("binary32"), help = "select main precision")
     self.parser.add_argument("--accuracy", dest = "accuracy_value", default = ArgDefault("faithful"), help = "select accuracy")
-    self.parser.add_argument("--no-fpe", dest = "fast_path", action = "store_const", const = False, default = ArgDefault(True), help = "disable Fast Path Extraction")
+    self.parser.add_argument("--no-fpe", dest = "fast_path_extract", action = "store_const", const = False, default = ArgDefault(True), help = "disable Fast Path Extraction")
     self.parser.add_argument("--dot-product", dest = "dot_product_enabled", action = "store_const", const = True, default = ArgDefault(False), help = "enable Dot Product fusion")
     self.parser.add_argument ("--display-after-opt", dest = "display_after_opt", action = "store_const", const = True, default = ArgDefault(False), help = "display MDL IR after optimization")
     self.parser.add_argument ("--display-after-gen", dest = "display_after_gen", action = "store_const", const = True, default = ArgDefault(False), help = "display MDL IR after implementation generation")
@@ -130,6 +130,8 @@ class ML_NewArgTemplate(object):
     self.parser.add_argument("--exception-error", dest = "exception_on_error", action = "store_const", const = True, default = ArgDefault(False), help = "convert Fatal error to python Exception rather than straight sys exit")
 
 
+  ## parse command line arguments
+  #  @p exit_on_info trigger early exit when info options is encountered
   def arg_extraction(self, exit_on_info = True):
     self.args = self.parser.parse_args(sys.argv[1:])
     if self.args.exception_on_error:
@@ -155,6 +157,9 @@ class ML_NewArgTemplate(object):
 
     return self.args
 
+  ## process argument to return overloadable arg_value
+  #  @p arg_value argument value (bare or encapsulated within an ArgDefault object)
+  #  @p processing function to pre-process argument value
   def process_arg(self, arg_value, processing = lambda v: v):
     if isinstance(arg_value, ArgDefault):
       value = arg_value.get_value()

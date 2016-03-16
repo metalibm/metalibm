@@ -36,7 +36,7 @@ from metalibm_core.core.ml_optimization_engine import OptimizationEngine
 
 from metalibm_core.core.ml_vectorizer import StaticVectorizer
 
-from metalibm_core.utility.ml_template import ML_ArgTemplate
+from metalibm_core.utility.ml_template import *
 
 from metalibm_core.utility.arg_utils import test_flag_option, extract_option_value  
 
@@ -47,6 +47,7 @@ from metalibm_core.utility.debug_utils import *
 
 class ML_UT_StaticVectorization(ML_Function("ml_ut_static_vectorization")):
   def __init__(self, 
+                 arg_template,
                  precision = ML_Binary32, 
                  abs_accuracy = S2**-24, 
                  libm_compliant = True, 
@@ -56,6 +57,8 @@ class ML_UT_StaticVectorization(ML_Function("ml_ut_static_vectorization")):
                  target = FixedPointBackend(), 
                  output_file = "ut_static_vectorization.c", 
                  function_name = "ut_static_vectorization"):
+    # precision argument extraction
+    precision = ArgDefault.select_value([arg_template.precision, precision])
     io_precisions = [precision] * 2
 
     # initializing base class
@@ -72,7 +75,8 @@ class ML_UT_StaticVectorization(ML_Function("ml_ut_static_vectorization")):
       fuse_fma = fuse_fma,
       fast_path_extract = fast_path_extract,
 
-      debug_flag = debug_flag
+      debug_flag = debug_flag,
+      arg_template = arg_template
     )
 
     self.precision = precision
@@ -107,19 +111,13 @@ class ML_UT_StaticVectorization(ML_Function("ml_ut_static_vectorization")):
 
 if __name__ == "__main__":
   # auto-test
-  arg_template = ML_ArgTemplate(default_function_name = "new_ut_static_vectorization", default_output_file = "new_ut_static_vectorization.c" )
-  arg_template.sys_arg_extraction()
+  arg_template = ML_NewArgTemplate(default_function_name = "new_ut_static_vectorization", default_output_file = "new_ut_static_vectorization.c" )
+  args = arg_template.arg_extraction()
 
+  ml_ut_static_vectorization = ML_UT_StaticVectorization(args)
 
-  ml_ut_static_vectorization = ML_UT_StaticVectorization(arg_template.precision, 
-                                libm_compliant            = arg_template.libm_compliant, 
-                                debug_flag                = arg_template.debug_flag, 
-                                target                    = arg_template.target, 
-                                fuse_fma                  = arg_template.fuse_fma, 
-                                fast_path_extract         = arg_template.fast_path,
-                                function_name             = arg_template.function_name,
-                                output_file               = arg_template.output_file)
-
-  ml_ut_static_vectorization.gen_implementation(display_after_gen = arg_template.display_after_gen, display_after_opt = arg_template.display_after_opt)
+  display_after_gen = ArgDefault.select_value([args.display_after_gen])
+  display_after_opt = ArgDefault.select_value([args.display_after_opt])
+  ml_ut_static_vectorization.gen_implementation(display_after_gen = display_after_gen, display_after_opt = display_after_opt)
 
 

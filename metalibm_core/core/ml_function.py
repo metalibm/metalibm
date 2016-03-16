@@ -10,7 +10,7 @@
 # author(s): Nicolas Brunie (nicolas.brunie@kalray.eu)
 ###############################################################################
 
-from sollya import S2
+from sollya import *
 
 from metalibm_core.core.ml_formats import *
 from metalibm_core.core.ml_optimization_engine import OptimizationEngine
@@ -133,7 +133,7 @@ class ML_FunctionBasis(object):
     # Optimization parameters
     processor = ArgDefault.select_value([arg_template.target, processor])
     fuse_fma = ArgDefault.select_value([arg_template.fuse_fma, fuse_fma])
-    fast_path_extract = ArgDefault.select_value([arg_template.fast_path, fast_path_extract])
+    fast_path_extract = ArgDefault.select_value([arg_template.fast_path_extract, fast_path_extract])
     # Debug verbosity
     debug_flag = ArgDefault.select_value([arg_template.debug, debug_flag])
     vector_size = ArgDefault.select_value([arg_template.vector_size, vector_size])
