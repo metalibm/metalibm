@@ -44,6 +44,7 @@ class ML_UT_NewArgTemplate(ML_Function("ml_ut_new_arg_template")):
                  output_file = "ut_new_arg_template.c", 
                  function_name = "ut_new_arg_template",
                  auto_test = False):
+    precision = ArgDefault.select_value([arg_template.precision, precision])
     io_precisions = [precision] * 2
     print "arg_template: ", arg_template
 
@@ -69,14 +70,14 @@ class ML_UT_NewArgTemplate(ML_Function("ml_ut_new_arg_template")):
     self.precision = precision
 
   def numeric_emulate(self, input_value):
-    return 2 * input_value
+    return input_value + input_value * input_value
 
 
   def generate_scheme(self):
     #func_implementation = CodeFunction(self.function_name, output_format = self.precision)
-    vx = self.implementation.add_input_variable("x", ML_Binary32)
+    vx = self.implementation.add_input_variable("x", self.precision)
 
-    scheme = Statement(Return(vx + vx))
+    scheme = Statement(Return(vx + vx * vx ))
 
     return scheme
 

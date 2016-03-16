@@ -122,21 +122,23 @@ class ML_FunctionBasis(object):
          ):
     # selecting argument values among defaults
     base_name = ArgDefault.select_value([base_name])
-    function_name = ArgDefault.select_value([function_name])
-    output_file = ArgDefault.select_value([output_file])
+    print "pre function_name: ", function_name, arg_template.function_name
+    function_name = ArgDefault.select_value([arg_template.function_name, function_name])
+    print "function_name: ", function_name
+    output_file = ArgDefault.select_value([arg_template.output_file, output_file])
     # Specification
     io_precisions = ArgDefault.select_value([io_precisions])
     abs_accuracy = ArgDefault.select_value([abs_accuracy])
-    libm_compliant = ArgDefault.select_value([libm_compliant, arg_template.libm_compliant])
+    libm_compliant = ArgDefault.select_value([arg_template.libm_compliant, libm_compliant])
     # Optimization parameters
-    processor = ArgDefault.select_value([processor, arg_template.target])
-    fuse_fma = ArgDefault.select_value([fuse_fma])
-    fast_path_extract = ArgDefault.select_value([fast_path_extract])
+    processor = ArgDefault.select_value([arg_template.target, processor])
+    fuse_fma = ArgDefault.select_value([arg_template.fuse_fma, fuse_fma])
+    fast_path_extract = ArgDefault.select_value([arg_template.fast_path, fast_path_extract])
     # Debug verbosity
-    debug_flag = ArgDefault.select_value([debug_flag, arg_template.debug])
-    vector_size = ArgDefault.select_value([vector_size])
-    language = ArgDefault.select_value([language])
-    auto_test = ArgDefault.select_value([auto_test])
+    debug_flag = ArgDefault.select_value([arg_template.debug, debug_flag])
+    vector_size = ArgDefault.select_value([arg_template.vector_size, vector_size])
+    language = ArgDefault.select_value([arg_template.language, language])
+    auto_test = ArgDefault.select_value([arg_template.auto_test, auto_test])
 
 
     # io_precisions must be a list

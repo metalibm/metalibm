@@ -5,7 +5,7 @@
 # Copyright (2014)
 # All rights reserved
 # created:          Apr 23th,  2014
-# last-modified:    Apr 23th,  2014
+# last-modified:    Mar 16th, 2016
 #
 # author(s): Nicolas Brunie (nicolas.brunie@kalray.eu)
 ###############################################################################
@@ -101,16 +101,68 @@ class ArgDefault(object):
 
 ## new argument template based on argparse module
 class ML_NewArgTemplate(object):
-  def __init__(self, function_name):
+  def __init__(self, function_name, default_output_file = "ml_func_gen.c"):
+    self.default_output_file = default_output_file
+    self.default_function_name = function_name
+
     self.parser = argparse.ArgumentParser(" Metalibm %s function generation script" % function_name)
     self.parser.add_argument("--libm", dest = "libm_compliant", action = "store_const", const = True, default = ArgDefault(False), help = "generate libm compliante code")
     self.parser.add_argument("--debug", dest = "debug", action = "store_const", const = True, default = ArgDefault(False), help = "enable debug display in generated code")
     self.parser.add_argument("--target", dest = "target_name", action = "store", default = "none", help = "select generation target")
+    self.parser.add_argument("--disable-fma", dest = "fuse_fma", action = "store_const", const = False, default = ArgDefault(True), help = "disable FMA-like operation fusion")
+    self.parser.add_argument("--output", action = "store", dest = "output_file", default = ArgDefault(self.default_output_file), help = "set output file")
+    self.parser.add_argument("--fname", dest = "function_name", default = ArgDefault(self.default_function_name), help = "set function name")
+    self.parser.add_argument("--precision", dest = "precision_name", default = ArgDefault("binary32"), help = "select main precision")
+    self.parser.add_argument("--accuracy", dest = "accuracy_value", default = ArgDefault("faithful"), help = "select accuracy")
+    self.parser.add_argument("--no-fpe", dest = "fast_path", action = "store_const", const = False, default = ArgDefault(True), help = "disable Fast Path Extraction")
+    self.parser.add_argument("--dot-product", dest = "dot_product_enabled", action = "store_const", const = True, default = ArgDefault(False), help = "enable Dot Product fusion")
+    self.parser.add_argument ("--display-after-opt", dest = "display_after_opt", action = "store_const", const = True, default = ArgDefault(False), help = "display MDL IR after optimization")
+    self.parser.add_argument ("--display-after-gen", dest = "display_after_gen", action = "store_const", const = True, default = ArgDefault(False), help = "display MDL IR after implementation generation")
+    self.parser.add_argument("--input-interval", dest = "input_interval_str", default = ArgDefault("Interval(0,1)"), help = "select input range")
+    self.parser.add_argument("--vector-size", dest = "vector_size" , default = ArgDefault("1"), help = "define size of vector (1: scalar implemenation)")
+    self.parser.add_argument("--language", dest = "language_name", default = ArgDefault("c"), help = "select language for generated source code") 
 
-  def arg_extraction(self):
+    self.parser.add_argument("--auto-test", dest = "auto_test", action = "store_const", const = True, default = ArgDefault(False), help = "enable the generation of a self-testing numerical/functionnal bench")
+
+    self.parser.add_argument("--verbose", dest = "verbose_enable", action = "store_const", const = True, default = ArgDefault(False), help = "enable Verbose log level")
+    self.parser.add_argument("--target-info", dest = "target_info_flag", action = "store_const", const = True, default = ArgDefault(False), help = "display list of supported targets")
+
+    self.parser.add_argument("--exception-error", dest = "exception_on_error", action = "store_const", const = True, default = ArgDefault(False), help = "convert Fatal error to python Exception rather than straight sys exit")
+
+
+  def arg_extraction(self, exit_on_info = True):
     self.args = self.parser.parse_args(sys.argv[1:])
-    self.args.target = target_map[self.args.target_name]
+    if self.args.exception_on_error:
+      Log.exit_on_error = False
+    if self.args.verbose_enable:
+      Log.enable_level(Log.Verbose)
+
+    if self.args.target_info_flag is True:
+      spacew = max(len(v) for v in target_map)
+      for target_name in target_map:
+        print "%s: %s %s " % (target_name, " " * (spacew - len(target_name)), target_map[target_name])
+      if exit_on_info: 
+        sys.exit(0)
+        return None
+
+    ## specific argument post-processing
+    self.args.accuracy        = self.process_arg(self.args.accuracy_value , accuracy_parser)
+    self.args.target          = self.process_arg(self.args.target_name, lambda v: target_map[v]())
+    self.args.precision       = self.process_arg(self.args.precision_name, lambda v: precision_map[v])
+    self.args.input_interval  = self.process_arg(self.args.input_interval_str, interval_parser)
+    self.args.language        = self.process_arg(self.args.language_name, lambda v: language_map[v])
+    self.args.vector_size     = self.process_arg(self.args.vector_size, int)
+
     return self.args
+
+  def process_arg(self, arg_value, processing = lambda v: v):
+    if isinstance(arg_value, ArgDefault):
+      value = arg_value.get_value()
+      level = arg_value.get_level()
+    else:
+      value = arg_value
+      level = -1
+    return ArgDefault(processing(value), level)
 
 
 class ML_ArgTemplate(object):
