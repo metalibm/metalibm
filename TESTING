@@ -1,0 +1,11 @@
+## How to test metalibm 
+
+# Unit-testing
+# this set of tests located into metalibm_functions/unit_tests aims at testing the basic functionnalities of metalibm
+# IT MUST BE RUN AFTER EACH INTEGRATIONS INTO master
+# WARNING: ML_SRC_DIR must be set to metalibm path
+
+sh ../metalibm_functions/unit_tests/exec_unit_tests.sh 
+
+
+# Functionnal testing
