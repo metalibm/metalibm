@@ -136,7 +136,7 @@ class ML_NewArgTemplate(object):
     self.args = self.parser.parse_args(sys.argv[1:])
     if self.args.exception_on_error:
       Log.exit_on_error = False
-    if self.args.verbose_enable:
+    if self.args.verbose_enable is True:
       Log.enable_level(Log.Verbose)
 
     if self.args.target_info_flag is True:

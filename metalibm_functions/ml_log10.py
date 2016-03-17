@@ -4,9 +4,9 @@ import sys
 
 import sollya
 
-from sollya import S2, Interval, ceil, floor, round, inf, sup, abs, log, exp, log10, guessdegree 
+from sollya import S2, Interval, ceil, floor, round, inf, sup, abs, log, exp, log10, guessdegree, RN, x
 
-from metalibm_core.core.ml_function import ML_Function, ML_FunctionBasis
+from metalibm_core.core.ml_function import ML_Function, ML_FunctionBasis, DefaultArgTemplate
 
 from metalibm_core.core.attributes import ML_Debug
 from metalibm_core.core.ml_operations import *
@@ -20,13 +20,14 @@ from metalibm_core.code_generation.gappa_code_generator import GappaCodeGenerato
 from metalibm_core.code_generation.generator_utility import FunctionOperator, FO_Result, FO_Arg
 
 from metalibm_core.utility.gappa_utils import execute_gappa_script_extract
-from metalibm_core.utility.ml_template import ML_ArgTemplate
+from metalibm_core.utility.ml_template import *
 
 from metalibm_core.utility.arg_utils import test_flag_option, extract_option_value  
 from metalibm_core.utility.debug_utils import *
 
 class ML_Log10(ML_Function("log10")):
   def __init__(self, 
+             arg_template = DefaultArgTemplate,
              precision = ML_Binary32, 
              abs_accuracy = S2**-24, 
              libm_compliant = True, 
@@ -37,6 +38,8 @@ class ML_Log10(ML_Function("log10")):
              output_file = None, 
              function_name = None):
 
+    # extracting precision argument from command line
+    precision = ArgDefault.select_value([arg_template.precision, precision])
     io_precisions = [precision] * 2
 
     # initializing base class
@@ -53,7 +56,8 @@ class ML_Log10(ML_Function("log10")):
       fuse_fma = fuse_fma,
       fast_path_extract = fast_path_extract,
 
-      debug_flag = debug_flag
+      debug_flag = debug_flag,
+      arg_template = arg_template
     )
 
     self.precision = precision
@@ -78,7 +82,7 @@ class ML_Log10(ML_Function("log10")):
     #func_implementation = CodeFunction(self.function_name, output_format = self.precision)
     vx = self.implementation.add_input_variable("x", self.get_input_precision()) 
 
-    sollya_precision = self.get_sollya_precision()
+    sollya_precision = self.get_input_precision().get_sollya_object()
 
     # local overloading of RaiseReturn operation
     def ExpRaiseReturn(*args, **kwords):
@@ -297,20 +301,15 @@ class ML_Log10(ML_Function("log10")):
     scheme = pre_scheme
     return scheme
 
+  def numeric_emulate(self, input_value):
+    return log10(input_value)
 
 
 if __name__ == "__main__":
   # auto-test
-  arg_template = ML_ArgTemplate(default_function_name = "new_log", default_output_file = "new_log.c" )
-  arg_template.sys_arg_extraction()
+  arg_template = ML_NewArgTemplate(default_function_name = "new_log", default_output_file = "new_log.c" )
+  args = arg_template.arg_extraction()
 
 
-  ml_log          = ML_Log10(arg_template.precision, 
-                                libm_compliant            = arg_template.libm_compliant, 
-                                debug_flag                = arg_template.debug_flag, 
-                                target                    = arg_template.target, 
-                                fuse_fma                  = arg_template.fuse_fma, 
-                                fast_path_extract         = arg_template.fast_path,
-                                function_name             = arg_template.function_name,
-                                output_file               = arg_template.output_file)
-  ml_log.gen_implementation()
+  ml_log10 = ML_Log10(args)
+  ml_log10.gen_implementation()

@@ -296,7 +296,7 @@ class FO_ResultRef(object):
   
 
 class FunctionOperator(ML_CG_Operator):
-    def __init__(self, function_name, arg_map = None, pre_process = None, declare_prototype = None, **kwords):
+    def __init__(self, function_name, arg_map = None, pre_process = None, declare_prototype = None, void_function = False, **kwords):
         """ symbol operator initialization function """
         ML_CG_Operator.__init__(self, **kwords)
         self.function_name = function_name
@@ -304,6 +304,7 @@ class FunctionOperator(ML_CG_Operator):
         self.total_arity = None if self.arg_map == None else len(self.arg_map)
         self.pre_process = pre_process
         self.declare_prototype = declare_prototype
+        self.void_function = void_function
 
 
     def register_prototype(self, optree, code_object):
@@ -381,6 +382,10 @@ class FunctionOperator(ML_CG_Operator):
         if result_in_args:
           code_object << code_generator.generate_untied_statement(result_code)
           return result_in_args
+
+        elif self.void_function:
+          code_object << code_generator.generate_untied_statement(result_code)
+          return None
 
         else:
           # generating assignation if required

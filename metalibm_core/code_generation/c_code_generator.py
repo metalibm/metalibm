@@ -284,7 +284,7 @@ class CCodeGenerator(object):
             code_object << self.generate_debug_msg(optree, result, code_object)
             
 
-        if initial and not isinstance(result, CodeVariable):
+        if initial and not isinstance(result, CodeVariable) and not result is None:
             final_var = result_var if result_var else code_object.get_free_var_name(optree.get_precision(), prefix = "result", declare = True)
             code_object << self.generate_assignation(final_var, result.get())
             return CodeVariable(final_var, optree.get_precision())

@@ -47,7 +47,6 @@ class ML_UT_NewArgTemplate(ML_Function("ml_ut_new_arg_template")):
     # extracting precision argument from command line
     precision = ArgDefault.select_value([arg_template.precision, precision])
     io_precisions = [precision] * 2
-    print "arg_template: ", arg_template
 
     # initializing base class
     ML_FunctionBasis.__init__(self, 

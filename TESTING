@@ -1,11 +1,24 @@
-## How to test metalibm 
-
-# Unit-testing
-# this set of tests located into metalibm_functions/unit_tests aims at testing the basic functionnalities of metalibm
-# IT MUST BE RUN AFTER EACH INTEGRATIONS INTO master
-# WARNING: ML_SRC_DIR must be set to metalibm path
-
-sh ../metalibm_functions/unit_tests/exec_unit_tests.sh 
+# Testing metalibm
 
 
-# Functionnal testing
+# Unit tests:
+#   Those tests validate the basic internal functionnality of metalibm core
+# They are also used as simple examples for metalibm features
+#
+#   Each time is a new feature is added to metalibm, the corresponding unit test
+# should be implemented and added to the exec_unit_tests.sh to make sure the
+# feature is validated continuously against metalibm future developments
+#
+###############################################################################
+# ALL UNIT TESTS MUST PASS BEFORE INTEGRATING INTO master BRANCH
+###############################################################################
+
+ML_SRC_DIR=./ sh ./metalibm_functions/unit_tests/exec_unit_tests.sh 
+
+# Non-regression:
+# Those test make sure meta functions are generated succesfully with the default arguments
+###############################################################################
+# ALL NON REGRESSION TESTS MUST PASS BEFORE INTEGRATING INTO master BRANCH
+###############################################################################
+
+python2 valid/non_regression.py

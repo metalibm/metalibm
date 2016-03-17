@@ -72,6 +72,7 @@ class DefaultArgTemplate:
   function_name = None
   output_file = None
   # Specification
+  precision = ML_Binary32
   io_precisions = [ML_Binary32]
   abs_accuracy = None
   libm_compliant = True
@@ -125,7 +126,9 @@ class ML_FunctionBasis(object):
     print "pre function_name: ", function_name, arg_template.function_name
     function_name = ArgDefault.select_value([arg_template.function_name, function_name])
     print "function_name: ", function_name
+    print "output_file: ", arg_template.output_file, output_file 
     output_file = ArgDefault.select_value([arg_template.output_file, output_file])
+    print output_file
     # Specification
     io_precisions = ArgDefault.select_value([io_precisions])
     abs_accuracy = ArgDefault.select_value([abs_accuracy])
@@ -318,8 +321,8 @@ class ML_FunctionBasis(object):
     self.result.add_header("stdio.h")
     self.result.add_header("inttypes.h")
 
-    Log.report(Log.Info, "Generating C code in " + self.implementation.get_name() + ".c")
-    output_stream = open("%s.c" % self.implementation.get_name(), "w")
+    Log.report(Log.Info, "Generating C code in " + self.output_file)
+    output_stream = open(self.output_file, "w")
     output_stream.write(self.result.get(self.C_code_generator))
     output_stream.close()
 
@@ -474,17 +477,21 @@ class ML_FunctionBasis(object):
 
   ## provide numeric evaluation of the main function on @p input_value
   def numeric_emulate(self, input_value):
-    raise ImplementationError()
+    raise NotImplementedError
 
-  def generate_auto_test(self, test_num = 10, low_input = -1.0, high_input = 1.0):
+  def generate_auto_test(self, test_num = 10, low_input = -1.0, high_input = 1.0, debug = False):
     auto_test = CodeFunction("main", output_format = ML_Int32)
 
     test_num_cst = Constant(test_num, precision = ML_Int32)
 
     tested_function    = self.implementation.get_function_object()
+    function_name      = self.implementation.get_name()
 
     failure_report_op       = FunctionOperator("report_failure")
     failure_report_function = FunctionObject("report_failure", [], ML_Void, failure_report_op)
+
+    printf_op = FunctionOperator("printf", arg_map = {0: "\"error: %s(%%.3f)=%%.3f vs expected = %%.3f \\n\"" % function_name, 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2)}, void_function = True) 
+    printf_function = FunctionObject("printf", [self.precision] * 3, ML_Void, printf_op)
 
     sollya_precision = self.precision.get_sollya_object()
     interval_size = high_input - low_input 
@@ -518,7 +525,10 @@ class ML_FunctionBasis(object):
       Statement(
         ConditionBlock(
           failure_test,
-          Return(Constant(1, precision = ML_Int32))
+          Statement(
+            printf_function(local_input, local_result, high_bound), 
+            Return(Constant(1, precision = ML_Int32))
+          ),
         ),
         ReferenceAssign(vi, vi + 1)
       ),

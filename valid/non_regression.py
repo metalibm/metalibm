@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import commands
+import argparse
 
 
 import metalibm_functions.ml_log10
@@ -30,11 +31,11 @@ def old_scheme_test(function_ctor, options = []):
 
 def new_scheme_test(function_ctor, options = []):
   function_name = function_ctor.get_name()
-  try: 
-    fct = function_ctor()
-    fct.gen_implementation()
-  except:
-    return False
+  fct = function_ctor()
+  fct.gen_implementation()
+  #try: 
+  #except:
+  #  return False
   return True
 
 

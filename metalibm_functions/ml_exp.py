@@ -17,7 +17,7 @@ from metalibm_core.code_generation.generator_utility import FunctionOperator, FO
 from metalibm_core.core.ml_complex_formats import ML_Mpfr_t
 
 
-from metalibm_core.utility.ml_template import ML_ArgTemplate
+from metalibm_core.utility.ml_template import *
 from metalibm_core.utility.log_report  import Log
 from metalibm_core.utility.debug_utils import *
 from metalibm_core.utility.num_utils   import ulp
@@ -26,7 +26,7 @@ from metalibm_core.utility.gappa_utils import is_gappa_installed
 
 
 class ML_Exponential(ML_Function("ml_exp")):
-  def __init__(self, arg_template = None, 
+  def __init__(self, arg_template, 
              precision = ML_Binary32, 
              accuracy  = ML_Faithful,
              libm_compliant = True, 
@@ -39,6 +39,7 @@ class ML_Exponential(ML_Function("ml_exp")):
              language = C_Code,
              vector_size = 1):
     # initializing I/O precision
+    precision = ArgDefault.select_value([arg_template.precision, precision])
     io_precisions = [precision] * 2
 
     # initializing base class
@@ -57,7 +58,8 @@ class ML_Exponential(ML_Function("ml_exp")):
 
       debug_flag = debug_flag,
       language = language,
-      vector_size = vector_size
+      vector_size = vector_size,
+      arg_template = arg_template
     )
 
     self.accuracy  = accuracy
@@ -348,32 +350,16 @@ class ML_Exponential(ML_Function("ml_exp")):
 
     return mpfr_call
 
-
-
-
+  def numeric_emulate(self, input_value):
+    return exp(input_value)
 
 
 if __name__ == "__main__":
     # auto-test
-    arg_template = ML_ArgTemplate(default_function_name = "new_exp", default_output_file = "new_exp.c" )
+    arg_template = ML_NewArgTemplate(default_function_name = "new_exp", default_output_file = "new_exp.c" )
     # argument extraction 
-    parse_arg_index_list = arg_template.sys_arg_extraction()
-    arg_template.check_args(parse_arg_index_list)
+    args = parse_arg_index_list = arg_template.arg_extraction()
 
-
-    ml_exp          = ML_Exponential(arg_template = arg_template)
-    """ 
-                                  .precision, 
-                                  libm_compliant            = arg_template.libm_compliant, 
-                                  debug_flag                = arg_template.debug_flag, 
-                                  target                    = arg_template.target, 
-                                  fuse_fma                  = arg_template.fuse_fma, 
-                                  fast_path_extract         = arg_template.fast_path,
-                                  function_name             = arg_template.function_name,
-                                  accuracy                  = arg_template.accuracy,
-                                  output_file               = arg_template.output_file, 
-                                  language                  = arg_template.language,
-                                  vector_size               = arg_template.vector_size)
-    """
+    ml_exp          = ML_Exponential(args)
 
     ml_exp.gen_implementation()

@@ -995,8 +995,8 @@ class OptimizationEngine(object):
                     # look for possible simplification
                     if self.has_support_simplification(optree):
                         simplified_tree = self.get_support_simplification(optree)
-                        Log.report(Log.Info, "simplifying %s" % optree.get_str(depth = 2, display_precision = True))
-                        Log.report(Log.Info, "into %s" % simplified_tree.get_str(depth = 2, display_precision = True))
+                        Log.report(Log.Verbose, "simplifying %s" % optree.get_str(depth = 2, display_precision = True))
+                        Log.report(Log.Verbose, "into %s" % simplified_tree.get_str(depth = 2, display_precision = True))
                         optree.change_to(simplified_tree)
                         if self.processor.is_supported_operation(optree):
                             memoization_map[optree] = True
