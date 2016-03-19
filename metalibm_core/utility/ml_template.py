@@ -122,7 +122,9 @@ class ML_NewArgTemplate(object):
     self.parser.add_argument("--vector-size", dest = "vector_size" , default = ArgDefault("1"), help = "define size of vector (1: scalar implemenation)")
     self.parser.add_argument("--language", dest = "language_name", default = ArgDefault("c"), help = "select language for generated source code") 
 
-    self.parser.add_argument("--auto-test", dest = "auto_test", action = "store_const", const = True, default = ArgDefault(False), help = "enable the generation of a self-testing numerical/functionnal bench")
+    self.parser.add_argument("--auto-test", dest = "auto_test", action = "store", nargs = '?', const=10, type=int, default = ArgDefault(False), help = "enable the generation of a self-testing numerical/functionnal bench")
+    self.parser.add_argument("--auto-test-execute", dest = "auto_test_execute", action = "store", nargs = '?', const=10, type=int, default = ArgDefault(False), help = "enable the generation of a self-testing numerical/functionnal bench")
+    self.parser.add_argument("--auto-test-range", dest = "auto_test_range", action = "store", type=interval_parser, default = ArgDefault(Interval(-1,1)), help = "enable the generation of a self-testing numerical/functionnal bench")
 
     self.parser.add_argument("--verbose", dest = "verbose_enable", action = "store_const", const = True, default = ArgDefault(False), help = "enable Verbose log level")
     self.parser.add_argument("--target-info", dest = "target_info_flag", action = "store_const", const = True, default = ArgDefault(False), help = "display list of supported targets")

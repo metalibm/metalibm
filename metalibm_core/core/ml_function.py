@@ -35,6 +35,7 @@ from metalibm_core.utility.debug_utils import *
 from metalibm_core.utility.ml_template import ArgDefault
 
 import random
+import subprocess
 
 ## \defgroup ml_function ml_function
 ## @{
@@ -85,6 +86,8 @@ class DefaultArgTemplate:
   vector_size = 1
   language = C_Code
   auto_test = False
+  auto_test_execute = False
+  auto_test_range = None
 
 ## Base class for all metalibm function (metafunction)
 class ML_FunctionBasis(object):
@@ -119,6 +122,7 @@ class ML_FunctionBasis(object):
              vector_size = ArgDefault(1, 2),
              language = ArgDefault(C_Code, 2),
              auto_test = ArgDefault(False, 2),
+             auto_test_range = ArgDefault(Interval(-1, 1), 2),
              arg_template = DefaultArgTemplate 
          ):
     # selecting argument values among defaults
@@ -141,7 +145,7 @@ class ML_FunctionBasis(object):
     debug_flag = ArgDefault.select_value([arg_template.debug, debug_flag])
     vector_size = ArgDefault.select_value([arg_template.vector_size, vector_size])
     language = ArgDefault.select_value([arg_template.language, language])
-    auto_test = ArgDefault.select_value([arg_template.auto_test, auto_test])
+    auto_test = ArgDefault.select_value([arg_template.auto_test, arg_template.auto_test_execute, auto_test])
 
 
     # io_precisions must be a list
@@ -150,7 +154,10 @@ class ML_FunctionBasis(object):
     self.io_precisions = io_precisions
 
     ## enable the generation of numeric/functionnal auto-test
-    self.auto_test_enable = auto_test
+    self.auto_test_enable = (auto_test != False)
+    self.auto_test_number = auto_test
+    self.auto_test_execute = ArgDefault.select_value([arg_template.auto_test_execute])
+    self.auto_test_range = ArgDefault.select_value([arg_template.auto_test_range, auto_test_range])
 
     self.language = language
 
@@ -341,7 +348,7 @@ class ML_FunctionBasis(object):
       code_function_list = self.generate_vector_implementation(scalar_scheme, scalar_arg_list, self.get_vector_size())
 
     if self.auto_test_enable:
-      code_function_list += self.generate_auto_test()
+      code_function_list += self.generate_auto_test(test_num = self.auto_test_number, test_range = self.auto_test_range)
       
 
     for code_function in code_function_list:
@@ -359,6 +366,24 @@ class ML_FunctionBasis(object):
 
     # generate C code to implement scheme
     self.generate_code(code_function_list, language = self.language)
+
+    if self.auto_test_enable:
+      compiler = "gcc"
+      test_file = "./test_%s.bin" % self.function_name
+      test_command =  "%s -O2 -I $ML_SRC_DIR/metalibm_core $ML_SRC_DIR/metalibm_core/support_lib/ml_libm_compatibility.c %s -o %s -lm && %s" % (compiler, self.output_file, test_file, test_file) 
+      if self.auto_test_execute:
+        print "VALIDATION %s " % self.get_name()
+        print test_command
+        test_result = subprocess.call(test_command, shell = True)
+        if not test_result:
+          print "VALIDATION SUCCESS"
+        else:
+          print "VALIDATION FAILURE"
+          sys.exit(1)
+      else:
+        print "VALIDATION %s command line:" % self.get_name()
+        print test_command
+
 
 
   ## externalized an optree: generate a CodeFunction which compute the 
@@ -479,7 +504,9 @@ class ML_FunctionBasis(object):
   def numeric_emulate(self, input_value):
     raise NotImplementedError
 
-  def generate_auto_test(self, test_num = 10, low_input = -1.0, high_input = 1.0, debug = False):
+  def generate_auto_test(self, test_num = 10, test_range = Interval(-1.0, 1.0), debug = False):
+    low_input = inf(test_range)
+    high_input = sup(test_range)
     auto_test = CodeFunction("main", output_format = ML_Int32)
 
     test_num_cst = Constant(test_num, precision = ML_Int32)
@@ -490,8 +517,13 @@ class ML_FunctionBasis(object):
     failure_report_op       = FunctionOperator("report_failure")
     failure_report_function = FunctionObject("report_failure", [], ML_Void, failure_report_op)
 
-    printf_op = FunctionOperator("printf", arg_map = {0: "\"error: %s(%%.3f)=%%.3f vs expected = %%.3f \\n\"" % function_name, 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2)}, void_function = True) 
+    printf_op = FunctionOperator("printf", arg_map = {0: "\"error: %s(%%f)=%%a vs expected = %%a \\n\"" % function_name, 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2)}, void_function = True) 
     printf_function = FunctionObject("printf", [self.precision] * 3, ML_Void, printf_op)
+
+    printf_success_op = FunctionOperator("printf", arg_map = {0: "\"test successful %s\\n\"" % function_name}, void_function = True) 
+    printf_success_function = FunctionObject("printf", [], ML_Void, printf_success_op)
+
+
 
     sollya_precision = self.precision.get_sollya_object()
     interval_size = high_input - low_input 
@@ -535,6 +567,7 @@ class ML_FunctionBasis(object):
     )
     test_scheme = Statement(
       test_loop,
+      printf_success_function(),
       Return(Constant(0, precision = ML_Int32))
     )
     auto_test.set_scheme(test_scheme)

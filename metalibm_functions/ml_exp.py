@@ -12,7 +12,7 @@ from metalibm_core.core.ml_formats import *
 from metalibm_core.code_generation.generic_processor import GenericProcessor
 from metalibm_core.code_generation.vector_backend import VectorBackend
 from metalibm_core.core.polynomials import *
-from metalibm_core.core.ml_function import ML_Function, ML_FunctionBasis
+from metalibm_core.core.ml_function import ML_Function, ML_FunctionBasis, DefaultArgTemplate
 from metalibm_core.code_generation.generator_utility import FunctionOperator, FO_Result, FO_Arg
 from metalibm_core.core.ml_complex_formats import ML_Mpfr_t
 
@@ -26,7 +26,8 @@ from metalibm_core.utility.gappa_utils import is_gappa_installed
 
 
 class ML_Exponential(ML_Function("ml_exp")):
-  def __init__(self, arg_template, 
+  def __init__(self, 
+             arg_template = DefaultArgTemplate, 
              precision = ML_Binary32, 
              accuracy  = ML_Faithful,
              libm_compliant = True, 
@@ -34,8 +35,8 @@ class ML_Exponential(ML_Function("ml_exp")):
              fuse_fma = True, 
              fast_path_extract = True,
              target = GenericProcessor(), 
-             output_file = "expf.c", 
-             function_name = "expf",
+             output_file = "my_exp.c", 
+             function_name = "my_exp",
              language = C_Code,
              vector_size = 1):
     # initializing I/O precision

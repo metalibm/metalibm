@@ -277,8 +277,11 @@ class ML_Log2(ML_Function("ml_log2")):
         )
     )
     scheme = Statement(result, pre_scheme)
-
     return scheme
+
+
+  def numeric_emulate(self, input_value):
+    return log2(input_value)
 
 
 

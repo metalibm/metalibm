@@ -6,7 +6,7 @@ import sollya
 
 from sollya import S2, Interval, ceil, floor, round, inf, sup, abs, log, exp, log10, guessdegree 
 
-from metalibm_core.core.ml_function import ML_Function, ML_FunctionBasis
+from metalibm_core.core.ml_function import ML_Function, ML_FunctionBasis, DefaultArgTemplate
 
 from metalibm_core.core.attributes import ML_Debug
 from metalibm_core.core.ml_operations import *
@@ -19,11 +19,12 @@ from metalibm_core.code_generation.generic_processor import GenericProcessor
 from metalibm_core.code_generation.generator_utility import FunctionOperator, FO_Result, FO_Arg
 
 from metalibm_core.utility.gappa_utils import execute_gappa_script_extract
-from metalibm_core.utility.ml_template import ML_ArgTemplate
+from metalibm_core.utility.ml_template import *
 from metalibm_core.utility.debug_utils import * 
 
 class ML_Log(ML_Function("ml_log")):
   def __init__(self, 
+               arg_template = DefaultArgTemplate,
                precision = ML_Binary32, 
                abs_accuracy = S2**-24, 
                libm_compliant = True, 
@@ -31,9 +32,10 @@ class ML_Log(ML_Function("ml_log")):
                fuse_fma = True, 
                fast_path_extract = True,
                target = GenericProcessor(), 
-               output_file = "logf.c", 
-               function_name = "logf"):
+               output_file = "my_log.c", 
+               function_name = "my_log"):
     # initializing I/O precision
+    precision = ArgDefault.select_value([arg_template.precision, precision])
     io_precisions = [precision] * 2
 
     # initializing base class
@@ -50,7 +52,8 @@ class ML_Log(ML_Function("ml_log")):
       fuse_fma = fuse_fma,
       fast_path_extract = fast_path_extract,
 
-      debug_flag = debug_flag
+      debug_flag = debug_flag,
+      arg_template = arg_template
     )
 
     self.precision = precision
@@ -284,20 +287,15 @@ class ML_Log(ML_Function("ml_log")):
 
     return scheme
 
+  def numeric_emulate(self, input_value):
+    return log(input_value)
 
 if __name__ == "__main__":
   # auto-test
-  arg_template = ML_ArgTemplate(default_function_name = "new_log", default_output_file = "new_log.c" )
-  arg_template.sys_arg_extraction()
+  arg_template = ML_NewArgTemplate(default_function_name = "new_log", default_output_file = "new_log.c" )
+  args = arg_template.arg_extraction()
 
 
-  ml_log          = ML_Log(arg_template.precision, 
-                                libm_compliant            = arg_template.libm_compliant, 
-                                debug_flag                = arg_template.debug_flag, 
-                                target                    = arg_template.target, 
-                                fuse_fma                  = arg_template.fuse_fma, 
-                                fast_path_extract         = arg_template.fast_path,
-                                function_name             = arg_template.function_name,
-                                output_file               = arg_template.output_file)
+  ml_log          = ML_Log(args)
 
   ml_log.gen_implementation()
