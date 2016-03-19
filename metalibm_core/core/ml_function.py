@@ -68,6 +68,8 @@ def libc_naming(base_name, io_precisions, in_arity = 1, out_arity = 1):
     counter += 1
   return base_name + format_suffix
   
+## default argument template to be used when no specific value
+#  are given for a specific parameter
 class DefaultArgTemplate:
   base_name = "unknown_function"
   function_name = None

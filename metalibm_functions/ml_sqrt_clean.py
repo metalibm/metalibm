@@ -18,8 +18,6 @@ from metalibm_core.core.ml_optimization_engine import OptimizationEngine
 from metalibm_core.core.polynomials import *
 from metalibm_core.core.ml_table import ML_Table
 
-from metalibm_core.targets.kalray.k1a_processor import K1A_Processor
-from metalibm_core.targets.kalray.k1b_processor import K1B_Processor
 
 from metalibm_core.code_generation.gappa_code_generator import GappaCodeGenerator
 
@@ -30,16 +28,6 @@ from metalibm_core.utility.arg_utils import extract_option_value
 from metalibm_core.utility.ml_template import ML_ArgTemplate
 from metalibm_core.utility.debug_utils import *
 from metalibm_core.core.ml_function import ML_Function, ML_FunctionBasis
-
-
-"""debugf = ML_Debug(display_format = "%f")
-debuglf = ML_Debug(display_format = "%lf")
-debugx = ML_Debug(display_format = "%x")
-debuglx = ML_Debug(display_format = "%lx")
-debugd = ML_Debug(display_format = "%d")
-debug_ftox_fp64 = ML_Debug(display_format = "%\"PRIx64\"", pre_process = lambda v: "double_to_64b_encoding(%s)" % v)
-debug_ftox_fp32 = ML_Debug(display_format = "%\"PRIx32\"", pre_process = lambda v: "float_to_32b_encoding(%s)" % v)
-"""
 
 
 ## Newton-Raphson iteration object
@@ -182,12 +170,8 @@ class ML_Sqrt(ML_Function("ml_sqrt")):
     slow_vx.set_attributes(tag = "vx", silent = True, rounding_mode = ML_RoundToNearest, debug = debug_multi, precision = self.precision)
     slow_scale_factor = ExponentInsertion(even_ex / 2, tag = "scale_factor", debug = debug_multi, precision = self.precision)
 
-    if isinstance(self.processor, K1B_Processor):
-        vx = pre_vx
-        scale_factor = 1.0
-    else:
-        vx = slow_vx
-        scale_factor = slow_scale_factor
+    vx = slow_vx
+    scale_factor = slow_scale_factor
 
     # computing the inverse square root
     init_approx = None
@@ -207,11 +191,7 @@ class ML_Sqrt(ML_Function("ml_sqrt")):
     else:
         init_approx = init_approx_precision
 
-    if isinstance(self.processor, K1B_Processor):
-        result = compute_sqrt(vx, init_approx, self.precision)
-        slow_result = compute_sqrt(slow_vx, InverseSquareRootSeed(slow_vx, precision = self.precision, tag = "slow_seed", debug = debug_multi), self.precision) * slow_scale_factor
-    else:
-        result = compute_sqrt(vx, init_approx, self.precision) * scale_factor
+    result = compute_sqrt(vx, init_approx, self.precision) * scale_factor
     result.set_attributes(tag = "result", debug = debug_multi, clearprevious = True)
 
 
@@ -220,16 +200,11 @@ class ML_Sqrt(ML_Function("ml_sqrt")):
         return BitLogicAnd(TypeCast(fp_optree, precision = self.integer_precision), 1 << bit_id)
 
     x_qnan = Test(pre_vx, specifier = Test.IsQuietNaN, likely = False, tag = "x_qnan", debug = debug_multi)
-    if isinstance(self.processor, K1B_Processor):
-        x_zero = NotEqual(bit_match(init_approx, 1), 0, likely = False)
-        x_plus_inf = NotEqual(bit_match(init_approx, 2), 0, likely = False)
-        x_nan_or_neg  = NotEqual(bit_match(init_approx, 3), 0, likely = False)
-    else:
-        x_zero = Test(pre_vx, specifier = Test.IsZero, likely = False, tag = "x_zero", debug = debug_multi)
-        x_neg = Comparison(pre_vx, 0, specifier = Comparison.Less, likely = False)
-        x_nan = Test(pre_vx, specifier = Test.IsNaN, likely = False, tag = "x_nan", debug = debug_multi)
-        x_nan_or_neg = x_nan | x_neg
-        x_plus_inf = Test(pre_vx, specifier = Test.IsPositiveInfty, likely = False, tag = "x_plus_inf", debug = debug_multi)
+    x_zero = Test(pre_vx, specifier = Test.IsZero, likely = False, tag = "x_zero", debug = debug_multi)
+    x_neg = Comparison(pre_vx, 0, specifier = Comparison.Less, likely = False)
+    x_nan = Test(pre_vx, specifier = Test.IsNaN, likely = False, tag = "x_nan", debug = debug_multi)
+    x_nan_or_neg = x_nan | x_neg
+    x_plus_inf = Test(pre_vx, specifier = Test.IsPositiveInfty, likely = False, tag = "x_plus_inf", debug = debug_multi)
 
     return_neg = Statement(ClearException(), SqrtRaiseReturn(ML_FPE_Invalid, return_value = FP_QNaN(self.precision)))
 
@@ -251,19 +226,15 @@ class ML_Sqrt(ML_Function("ml_sqrt")):
                         #ConditionBlock(Comparison(d_last, 0, specifier = Comparison.NotEqual, likely = True),
                         #    Raise(ML_FPE_Inexact)
                         #),
-                        Return(slow_result if isinstance(self.processor, K1B_Processor) else result)
+                        Return(result)
                     )
                 )
             )
         )
     )
     scheme = None
-    if isinstance(self.processor, K1B_Processor):
-        result.set_clearprevious(False)
-        scheme = Statement(result, pre_scheme)
-    else:
-        rnd_mode = GetRndMode()
-        scheme = Statement(rnd_mode, SetRndMode(ML_RoundToNearest), S1, H1, d1, SetRndMode(rnd_mode), result, pre_scheme)
+    rnd_mode = GetRndMode()
+    scheme = Statement(rnd_mode, SetRndMode(ML_RoundToNearest), S1, H1, d1, SetRndMode(rnd_mode), result, pre_scheme)
 
     return scheme
 
