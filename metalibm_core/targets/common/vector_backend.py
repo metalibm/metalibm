@@ -165,6 +165,36 @@ vector_opencl_code_generation_table = {
       }
     }
   },
+  Ceil: {
+    None: {
+      lambda _: True : {
+        type_strict_match(ML_Binary32, ML_Binary32): OpenCL_Builtin("ceil", arity = 1, output_precision = ML_Int32),
+        type_strict_match(ML_Binary64, ML_Binary64): OpenCL_Builtin("ceil", arity = 1, output_precision = ML_Int32),
+      }
+    }
+  },
+  Floor: {
+    None: {
+      lambda _: True : {
+        type_strict_match(ML_Binary32, ML_Binary32): OpenCL_Builtin("floor", arity = 1, output_precision = ML_Int32),
+        type_strict_match(ML_Binary64, ML_Binary64): OpenCL_Builtin("floor", arity = 1, output_precision = ML_Int32),
+      }
+    }
+  },
+  Test: {
+    Test.IsNaN: {
+        lambda optree: True: {
+            type_strict_match_list([ML_Int32, ML_Bool], [ML_Binary32]): OpenCL_Builtin("isnan", arity = 1), 
+            type_strict_match_list([ML_Int32, ML_Bool], [ML_Binary64]): OpenCL_Builtin("isnan", arity = 1), 
+        },
+    },
+    Test.IsInfty: {
+        lambda optree: True: {
+            type_strict_match_list([ML_Int32, ML_Bool], [ML_Binary32]): OpenCL_Builtin("isinf", arity = 1), 
+            type_strict_match_list([ML_Int32, ML_Bool], [ML_Binary64]): OpenCL_Builtin("isinf", arity = 1), 
+        },
+    },
+  },
   VectorElementSelection: {
     None: {
         # make sure index accessor is a Constant (or fallback to C implementation)

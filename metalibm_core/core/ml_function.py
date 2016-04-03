@@ -372,7 +372,7 @@ class ML_FunctionBasis(object):
     if self.auto_test_enable:
       compiler = "gcc"
       test_file = "./test_%s.bin" % self.function_name
-      test_command =  "%s -O2 -I $ML_SRC_DIR/metalibm_core $ML_SRC_DIR/metalibm_core/support_lib/ml_libm_compatibility.c %s -o %s -lm && %s" % (compiler, self.output_file, test_file, test_file) 
+      test_command =  "%s -O2 -DML_DEBUG -I $ML_SRC_DIR/metalibm_core $ML_SRC_DIR/metalibm_core/support_lib/ml_libm_compatibility.c %s -o %s -lm && %s" % (compiler, self.output_file, test_file, test_file) 
       if self.auto_test_execute:
         print "VALIDATION %s " % self.get_name()
         print test_command

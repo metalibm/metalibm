@@ -24,6 +24,11 @@ class ML_FloatingPoint_RoundingMode_Type(object):
 class ML_FloatingPoint_RoundingMode(object):
     pass
 
+
+# numerical floating-point constants
+ml_nan   = sollya.parse("nan")
+ml_infty = sollya.parse("infty")
+
 ## ML type object for rounding modes
 ML_FPRM_Type = ML_FloatingPoint_RoundingMode_Type()
 
@@ -217,6 +222,10 @@ class ML_Std_FP_Format(ML_FP_Format):
             sollya.settings.display = sollya.hexadecimal
             if cst_value == 0:
                 conv_result = "0.0" + self.c_suffix
+            if cst_value == ml_infty:
+                conv_result = "INFINITY"
+            elif cst_value == ml_nan:
+                conv_result = "NAN"
             elif isinstance(cst_value, int):
                 conv_result = str(float(cst_value)) + self.c_suffix
             else:

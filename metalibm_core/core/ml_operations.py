@@ -16,7 +16,7 @@
 
 import sys, inspect
 
-from sollya import Interval, SollyaObject, nearestint
+from sollya import Interval, SollyaObject, nearestint, floor, ceil
 
 from ..utility.log_report import Log
 from .attributes import Attributes, attr_init
@@ -402,7 +402,18 @@ class AbstractOperation(ML_Operation):
 ## base class for all arithmetic operation that may depend
 #  on floating-point context (rounding mode for example) 
 class ML_ArithmeticOperation(AbstractOperation):
-    pass
+  error_function = None
+  def copy(self, copy_map = None):
+    return AbstractOperation_copy(self, copy_map)
+
+  def get_codegen_key(self):
+    return None
+  def __init__(self, *ops, **init_map):
+    """ init function for abstract operation """
+    AbstractOperation.__init__(self, **init_map)
+    self.inputs = tuple(implicit_op(op) for op in ops)
+    if self.get_interval() == None:
+        self.set_interval(self.range_function(self.inputs))
 
 ## Parent for AbstractOperation with no expected input
 class ML_LeafNode(AbstractOperation): 
@@ -741,6 +752,19 @@ class Modulo(ArithmeticOperationConstructor("Modulo", range_function = lambda se
 class NearestInteger(ArithmeticOperationConstructor("NearestInteger", arity = 1, range_function = lambda self, ops: nearestint(ops[0]))): 
     """ abstract addition """
     pass
+
+class Ceil(ML_ArithmeticOperation):
+  """ Round to integer upward """
+  arity = 1
+  name = "Ceil"
+  def range_function(self, ops):
+    return ceil(ops[0])
+
+class Floor(ML_ArithmeticOperation):
+  """ Round to integer downward """
+  arity = 1
+  name = "Floor"
+  range_function = interval_func(lambda self, ops: ops[0])
 
 
 class PowerOf2(ArithmeticOperationConstructor("PowerOf2", arity = 1, range_function = lambda self, ops: S2**ops[0])):
