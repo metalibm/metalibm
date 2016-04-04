@@ -4,7 +4,7 @@ import sys
 
 import sollya
 
-from sollya import S2, Interval, ceil, floor, round, inf, sup, abs, log, exp, expm1, log2, guessdegree, dirtyinfnorm, RN
+from sollya import S2, Interval, ceil, floor, round, inf, sup, log, exp, expm1, log2, guessdegree, dirtyinfnorm, RN
 
 from metalibm_core.core.attributes import ML_Debug
 from metalibm_core.core.ml_operations import *
@@ -90,7 +90,7 @@ class ML_Exp2(ML_Function("ml_exp2")):
     int_precision = {ML_Binary32: ML_Int32, ML_Binary64: ML_Int64}[self.precision]
 
 
-    vx_int = Floor(vx * 2**index_size, precision = self.precision)
+    vx_int = Floor(vx * 2**index_size, precision = self.precision, tag = "vx_int", debug = debug_multi)
     vx_frac = vx - (vx_int * 2**-index_size)
     vx_frac.set_attributes(tag = "vx_frac", debug = debug_multi, unbreakable = True)
     poly_degree = sup(guessdegree(2**(sollya.x), approx_interval, error_goal_approx)) + 1
@@ -101,9 +101,10 @@ class ML_Exp2(ML_Function("ml_exp2")):
     vx_int_lo = Modulo(vx_integer, 2**index_size, tag = "vx_int_lo", debug = debug_multi)
     pow_exp = ExponentInsertion(Conversion(vx_int_hi, precision = int_precision), precision = self.precision, tag = "pow_exp", debug = debug_multi)
 
-    exp2_table = ML_Table(dimensions = [2**index_size, 2], storage_precision = self.precision, tag = self.uniquify_name("exp2_table"))
-    for i in range(2**index_size):
-      exp2_value = SollyaObject(2)**(i * 2**-index_size)
+    exp2_table = ML_Table(dimensions = [2 * 2**index_size, 2], storage_precision = self.precision, tag = self.uniquify_name("exp2_table"))
+    for i in range(2 * 2**index_size):
+      input_value = i - 2**index_size if i >= 2**index_size else i 
+      exp2_value = SollyaObject(2)**((input_value)* 2**-index_size)
       hi_value = round(exp2_value, self.precision.get_sollya_object(), RN)
       lo_value = round(exp2_value - hi_value, self.precision.get_sollya_object(), RN)
       exp2_table[i][0] = lo_value
@@ -119,8 +120,10 @@ class ML_Exp2(ML_Function("ml_exp2")):
     poly = polynomial_scheme_builder(poly_object.sub_poly(start_index = 1), vx_frac, unified_precision = self.precision)
     poly.set_attributes(tag = "poly", debug = debug_multi)
 
-    lo_value_load = TableLoad(exp2_table, vx_int_lo, 0, tag = "lo_value_load", debug = debug_multi)
-    hi_value_load = TableLoad(exp2_table, vx_int_lo, 1, tag = "hi_value_load", debug = debug_multi)
+    table_index = Addition(vx_int_lo, Constant(2**index_size, precision = int_precision), precision = int_precision, tag = "table_index", debug = debug_multi)
+
+    lo_value_load = TableLoad(exp2_table, table_index, 0, tag = "lo_value_load", debug = debug_multi)
+    hi_value_load = TableLoad(exp2_table, table_index, 1, tag = "hi_value_load", debug = debug_multi)
 
     result = (hi_value_load + (hi_value_load * poly + (lo_value_load + lo_value_load * poly))) * pow_exp
     ov_flag = Comparison(vx_int_hi, Constant(self.precision.get_emax(), precision = self.precision), specifier = Comparison.Greater)
