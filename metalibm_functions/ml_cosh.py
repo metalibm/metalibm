@@ -87,42 +87,45 @@ class ML_HyperbolicCosine(ML_Function("ml_cosh")):
 
 
     # argument reduction
-    inv_log2_value = round(1/log(2), self.precision.get_sollya_object(), RN)
+    arg_reg_value = log(2)/2**index_size
+    inv_log2_value = round(1/arg_reg_value, self.precision.get_sollya_object(), RN)
     inv_log2_cst = Constant(inv_log2_value, precision = self.precision)
 
-    log2_hi_value = round(log(2), self.precision.get_sollya_object(), RN)
-    log2_lo_value = round(log(2) - log2_hi_value, self.precision.get_sollya_object(), RN)
+    log2_hi_value = round(arg_reg_value, self.precision.get_sollya_object(), RN)
+    log2_lo_value = round(arg_reg_value - log2_hi_value, self.precision.get_sollya_object(), RN)
+    log2_hi_value_cst = Constant(log2_hi_value, tag = "log2_hi_value", precision = self.precision)
+    log2_lo_value_cst = Constant(log2_lo_value, tag = "log2_lo_value", precision = self.precision)
 
     k = NearestInteger(Multiplication(inv_log2_cst, vx), precision = self.precision)
+    r_hi = vx - k * log2_hi_value_cst
+    r_lo = -k * log2_lo_value_cst
+    # reduced argument
+    r = r_hi + r_lo
 
-    approx_interval = Interval(0.0, 2**-index_size)
+    approx_interval = Interval(-arg_reg_value/2, arg_reg_value/2)
     error_goal_approx = 2**-(self.precision.get_precision())
     int_precision = {ML_Binary32: ML_Int32, ML_Binary64: ML_Int64}[self.precision]
 
-
-    vx_int = Floor(vx * 2**index_size, precision = self.precision, tag = "vx_int", debug = debug_multi)
-    vx_frac = vx - (vx_int * 2**-index_size)
-    vx_frac.set_attributes(tag = "vx_frac", debug = debug_multi, unbreakable = True)
-    poly_degree = sup(guessdegree(2**(sollya.x), approx_interval, error_goal_approx)) + 1
+    poly_degree = sup(guessdegree(exp(x), approx_interval, error_goal_approx)) + 1
     precision_list = [1] + [self.precision] * (poly_degree)
 
-    vx_integer = Conversion(vx_int, precision = int_precision, tag = "vx_integer", debug = debug_multi)
-    vx_int_hi = BitLogicRightShift(vx_integer, Constant(index_size), tag = "vx_int_hi", debug = debug_multi)
-    vx_int_lo = Modulo(vx_integer, 2**index_size, tag = "vx_int_lo", debug = debug_multi)
-    pow_exp = ExponentInsertion(Conversion(vx_int_hi, precision = int_precision), precision = self.precision, tag = "pow_exp", debug = debug_multi)
+    k_integer = Conversion(vx_int, precision = int_precision, tag = "k_integer", debug = debug_multi)
+    k_hi = BitLogicRightShift(k_integer, Constant(index_size), tag = "k_int_hi", debug = debug_multi)
+    k_lo = Modulo(k_integer, 2**index_size, tag = "k_int_lo", debug = debug_multi)
+    pow_exp = ExponentInsertion(Conversion(k_hi, precision = int_precision), precision = self.precision, tag = "pow_exp", debug = debug_multi)
 
-    exp2_table = ML_Table(dimensions = [2 * 2**index_size, 2], storage_precision = self.precision, tag = self.uniquify_name("exp2_table"))
+    exp_table = ML_Table(dimensions = [2 * 2**index_size, 2], storage_precision = self.precision, tag = self.uniquify_name("exp2_table"))
     for i in range(2 * 2**index_size):
       input_value = i - 2**index_size if i >= 2**index_size else i 
-      exp2_value = SollyaObject(2)**((input_value)* 2**-index_size)
-      hi_value = round(exp2_value, self.precision.get_sollya_object(), RN)
-      lo_value = round(exp2_value - hi_value, self.precision.get_sollya_object(), RN)
-      exp2_table[i][0] = lo_value
-      exp2_table[i][1] = hi_value
+      exp_value = exp((input_value)* 2**-index_size)
+      hi_value = round(exp_value, self.precision.get_sollya_object(), RN)
+      lo_value = round(exp_value - hi_value, self.precision.get_sollya_object(), RN)
+      exp_table[i][0] = lo_value
+      exp_table[i][1] = hi_value
 
     error_function = lambda p, f, ai, mod, t: dirtyinfnorm(f - p, ai)
 
-    poly_object, poly_approx_error = Polynomial.build_from_approximation_with_error(2**(sollya.x), poly_degree, precision_list, approx_interval, sollya.absolute, error_function = error_function)
+    poly_object, poly_approx_error = Polynomial.build_from_approximation_with_error(exp(sollya.x), poly_degree, precision_list, approx_interval, sollya.absolute, error_function = error_function)
 
     print "poly_approx_error: ", poly_approx_error, float(log2(poly_approx_error))
 
@@ -132,8 +135,8 @@ class ML_HyperbolicCosine(ML_Function("ml_cosh")):
 
     table_index = Addition(vx_int_lo, Constant(2**index_size, precision = int_precision), precision = int_precision, tag = "table_index", debug = debug_multi)
 
-    lo_value_load = TableLoad(exp2_table, table_index, 0, tag = "lo_value_load", debug = debug_multi)
-    hi_value_load = TableLoad(exp2_table, table_index, 1, tag = "hi_value_load", debug = debug_multi)
+    lo_value_load = TableLoad(exp_table, table_index, 0, tag = "lo_value_load", debug = debug_multi)
+    hi_value_load = TableLoad(exp_table, table_index, 1, tag = "hi_value_load", debug = debug_multi)
 
     result = (hi_value_load + (hi_value_load * poly + (lo_value_load + lo_value_load * poly))) * pow_exp
     ov_flag = Comparison(vx_int_hi, Constant(self.precision.get_emax(), precision = self.precision), specifier = Comparison.Greater)
