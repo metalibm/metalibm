@@ -4,7 +4,7 @@ import sys
 
 import sollya
 
-from sollya import S2, Interval, ceil, floor, round, inf, sup, log, exp, expm1, log2, guessdegree, dirtyinfnorm, RN
+from sollya import S2, Interval, ceil, floor, round, inf, sup, log, exp, expm1, log2, cosh, guessdegree, dirtyinfnorm, RN
 
 from metalibm_core.core.attributes import ML_Debug
 from metalibm_core.core.ml_operations import *
@@ -101,28 +101,42 @@ class ML_HyperbolicCosine(ML_Function("ml_cosh")):
     r_lo = -k * log2_lo_value_cst
     # reduced argument
     r = r_hi + r_lo
+    r.set_attributes(tag = "r", debug = debug_multi)
 
     approx_interval = Interval(-arg_reg_value/2, arg_reg_value/2)
     error_goal_approx = 2**-(self.precision.get_precision())
     int_precision = {ML_Binary32: ML_Int32, ML_Binary64: ML_Int64}[self.precision]
 
-    poly_degree = sup(guessdegree(exp(x), approx_interval, error_goal_approx)) + 1
+    poly_degree = sup(guessdegree(exp(sollya.x), approx_interval, error_goal_approx)) + 1
     precision_list = [1] + [self.precision] * (poly_degree)
 
-    k_integer = Conversion(vx_int, precision = int_precision, tag = "k_integer", debug = debug_multi)
-    k_hi = BitLogicRightShift(k_integer, Constant(index_size), tag = "k_int_hi", debug = debug_multi)
-    k_lo = Modulo(k_integer, 2**index_size, tag = "k_int_lo", debug = debug_multi)
+    k_integer = Conversion(k, precision = int_precision, tag = "k_integer", debug = debug_multi)
+    k_hi = BitLogicRightShift(k_integer, Constant(index_size), tag = "k_int_hi", precision = int_precision, debug = debug_multi)
+    k_lo = Modulo(k_integer, 2**index_size, tag = "k_int_lo", precision = int_precision, debug = debug_multi)
     pow_exp = ExponentInsertion(Conversion(k_hi, precision = int_precision), precision = self.precision, tag = "pow_exp", debug = debug_multi)
 
     exp_table = ML_Table(dimensions = [2 * 2**index_size, 2], storage_precision = self.precision, tag = self.uniquify_name("exp2_table"))
     for i in range(2 * 2**index_size):
       input_value = i - 2**index_size if i >= 2**index_size else i 
-      exp_value = exp((input_value)* 2**-index_size)
-      hi_value = round(exp_value, self.precision.get_sollya_object(), RN)
-      lo_value = round(exp_value - hi_value, self.precision.get_sollya_object(), RN)
-      exp_table[i][0] = lo_value
-      exp_table[i][1] = hi_value
+      exp_value  = 2**((input_value)* 2**-index_size)
+      mexp_value = 2**((-input_value)* 2**-index_size)
+      pos_value = round(exp_value, self.precision.get_sollya_object(), RN)
+      neg_value = round(mexp_value, self.precision.get_sollya_object(), RN)
+      exp_table[i][0] = neg_value
+      exp_table[i][1] = pos_value
 
+    # log2_value = log(2) / 2^index_size
+    # cosh(x) = 1/2 * (exp(x) + exp(-x))
+    # exp(x) = exp(x - k * log2_value + k * log2_value
+    #  
+    # r = x - k * log2_value
+    # exp(x) = exp(r) * 2 ^ (k / 2^index_size)
+    #
+    # k / 2^index_size = h + l * 2^-index_size
+    # exp(x) = exp(r) * 2^h * 2^(l *2^-index_size)
+    #
+    # cosh(x) = exp(r) * 2^(h-1) 2^(l *2^-index_size) + exp(-r) * 2^(-h-1) * 2^(-l *2^-index_size)
+    #
     error_function = lambda p, f, ai, mod, t: dirtyinfnorm(f - p, ai)
 
     poly_object, poly_approx_error = Polynomial.build_from_approximation_with_error(exp(sollya.x), poly_degree, precision_list, approx_interval, sollya.absolute, error_function = error_function)
@@ -130,26 +144,36 @@ class ML_HyperbolicCosine(ML_Function("ml_cosh")):
     print "poly_approx_error: ", poly_approx_error, float(log2(poly_approx_error))
 
     polynomial_scheme_builder = PolynomialSchemeEvaluator.generate_horner_scheme
-    poly = polynomial_scheme_builder(poly_object.sub_poly(start_index = 1), vx_frac, unified_precision = self.precision)
-    poly.set_attributes(tag = "poly", debug = debug_multi)
+    poly_pos = polynomial_scheme_builder(poly_object.sub_poly(start_index = 0), r, unified_precision = self.precision)
+    poly_pos.set_attributes(tag = "poly_pos", debug = debug_multi)
 
-    table_index = Addition(vx_int_lo, Constant(2**index_size, precision = int_precision), precision = int_precision, tag = "table_index", debug = debug_multi)
+    poly_neg = polynomial_scheme_builder(poly_object.sub_poly(start_index = 0), -r, unified_precision = self.precision)
+    poly_neg.set_attributes(tag = "poly_neg", debug = debug_multi)
 
-    lo_value_load = TableLoad(exp_table, table_index, 0, tag = "lo_value_load", debug = debug_multi)
-    hi_value_load = TableLoad(exp_table, table_index, 1, tag = "hi_value_load", debug = debug_multi)
+    table_index = Addition(k_lo, Constant(2**index_size, precision = int_precision), precision = int_precision, tag = "table_index", debug = debug_multi)
 
-    result = (hi_value_load + (hi_value_load * poly + (lo_value_load + lo_value_load * poly))) * pow_exp
-    ov_flag = Comparison(vx_int_hi, Constant(self.precision.get_emax(), precision = self.precision), specifier = Comparison.Greater)
+    neg_value_load = TableLoad(exp_table, table_index, 0, tag = "lo_value_load", debug = debug_multi)
+    pos_value_load = TableLoad(exp_table, table_index, 1, tag = "hi_value_load", debug = debug_multi)
+
+    k_plus = Subtraction(k_hi, Constant(1, precision = int_precision), precision = int_precision, tag = "k_plus", debug = debug_multi)
+    k_neg = Subtraction(-k_hi, Constant(1, precision = int_precision), precision = int_precision, tag = "k_neg", debug = debug_multi)
+
+    result = Addition(
+                poly_pos * ExponentInsertion(k_plus, precision = self.precision) * pos_value_load, 
+                poly_neg * ExponentInsertion(k_neg, precision = self.precision) * neg_value_load, 
+                precision = self.precision,
+                tag = "result",
+                debug = debug_multi
+              )
+
+    # ov_flag = Comparison(vx_int_hi, Constant(self.precision.get_emax(), precision = self.precision), specifier = Comparison.Greater)
 
     # main scheme
     Log.report(Log.Info, "\033[33;1m MDL scheme \033[0m")
     scheme = Statement(
                 Return(
-                  Select(
-                    ov_flag,
-                    FP_PlusInfty(self.precision),
                     result
-                  )))
+                  ))
 
     return scheme
 

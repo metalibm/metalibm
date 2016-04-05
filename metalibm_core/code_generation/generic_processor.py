@@ -185,7 +185,7 @@ c_code_generation_table = {
         None: build_simplified_operator_generation([ML_Int32, ML_UInt32], 1, SymbolOperator("!", arity = 1)),
     },
     Negation: {
-        None: build_simplified_operator_generation([ML_Int32, ML_UInt32, ML_Binary32, ML_Binary64], 1, SymbolOperator("-", arity = 1)),
+        None: build_simplified_operator_generation([ML_Int32, ML_UInt32, ML_UInt64, ML_Int64, ML_Binary32, ML_Binary64], 1, SymbolOperator("-", arity = 1)),
     },
     Addition: {
         None: {
