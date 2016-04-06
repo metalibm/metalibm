@@ -24,6 +24,7 @@ class ML_FloatingPoint_RoundingMode_Type(object):
 class ML_FloatingPoint_RoundingMode(object):
     pass
 
+S2 = sollya.SollyaObject(2)
 
 # numerical floating-point constants
 ml_nan   = sollya.parse("nan")
@@ -107,6 +108,11 @@ class ML_Format(object):
       final_symbol = ";\n" if final else ""
       return "%s = %s" % (var, value)
 
+    # return the format maximal value 
+    def get_max_value(self):
+      raise NotImplementedError
+
+
 
 ## Ancestor class for abstract format
 class ML_AbstractFormat(ML_Format): 
@@ -176,10 +182,18 @@ class ML_Std_FP_Format(ML_FP_Format):
         return self.name[C_Code]
 
     def get_bias(self):
-        return - 2**(self.get_exponent_size() - 1) + 1
+        return - S2**(self.get_exponent_size() - 1) + 1
 
     def get_emax(self):
         return 2**self.get_exponent_size() - 2 + self.get_bias()
+
+    # @return<SollyaObject> the format omega value, the maximal normal value
+    def get_omega(self):
+        return S2**self.get_emax() * (2 - S2**-self.get_field_size())
+
+    # @return<SollyaObject> the format maximal value
+    def get_max_value(self):
+        return self.get_omega()
 
     def get_emin_normal(self):
         return 1 + self.get_bias()
