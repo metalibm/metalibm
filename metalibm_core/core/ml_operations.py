@@ -757,8 +757,13 @@ class Ceil(ML_ArithmeticOperation):
   """ Round to integer upward """
   arity = 1
   name = "Ceil"
-  def range_function(self, ops):
-    return ceil(ops[0])
+  range_function = interval_func(lambda self, ops: ops[0])
+
+class Trunc(ML_ArithmeticOperation):
+  """ Round to integer towards zero """
+  arity = 1
+  name = "Trunc"
+  range_function = interval_func(lambda self, ops: ops[0])
 
 class Floor(ML_ArithmeticOperation):
   """ Round to integer downward """

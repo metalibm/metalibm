@@ -356,6 +356,14 @@ c_code_generation_table = {
             },
         },
     },
+    Trunc: {
+        None: {
+            lambda optree: True: {
+                type_strict_match(ML_Binary32, ML_Binary32): Libm_Function("truncf", arity = 1),
+                type_strict_match(ML_Binary64, ML_Binary64): Libm_Function("trunc", arity = 1),
+            },
+        },
+    },
     Floor: {
         None: {
             lambda optree: True: {
