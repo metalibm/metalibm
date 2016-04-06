@@ -91,7 +91,18 @@ class ML_HyperbolicCosine(ML_Function("ml_cosh")):
     inv_log2_value = round(1/arg_reg_value, self.precision.get_sollya_object(), RN)
     inv_log2_cst = Constant(inv_log2_value, precision = self.precision)
 
-    log2_hi_value = round(arg_reg_value, self.precision.get_sollya_object(), RN)
+    # for r_hi to be accurate we ensure k * log2_hi_value_cst is exact
+    # by limiting the number of non-zero bits in log2_hi_value_cst
+    # cosh(x) ~ exp(abs(x))/2  for a big enough x
+    # cosh(x) > 2^1023 <=> exp(x) > 2^1024 <=> x > log(2^21024)
+    # k = inv_log2_value * x 
+    # -1 for guard
+    max_k_approx = inv_log2_value * log(sollya.SollyaObject(2)**1024)
+    max_k_bitsize = int(ceil(log2(max_k_approx)))
+    Log.report(Log.Info, "max_k_bitsize: %d" % max_k_bitsize)
+    log2_hi_value_precision = self.precision.get_precision() - max_k_bitsize - 1 
+
+    log2_hi_value = round(arg_reg_value, log2_hi_value_precision, RN)
     log2_lo_value = round(arg_reg_value - log2_hi_value, self.precision.get_sollya_object(), RN)
     log2_hi_value_cst = Constant(log2_hi_value, tag = "log2_hi_value", precision = self.precision)
     log2_lo_value_cst = Constant(log2_lo_value, tag = "log2_lo_value", precision = self.precision)
@@ -107,7 +118,7 @@ class ML_HyperbolicCosine(ML_Function("ml_cosh")):
     error_goal_approx = 2**-(self.precision.get_precision())
     int_precision = {ML_Binary32: ML_Int32, ML_Binary64: ML_Int64}[self.precision]
 
-    poly_degree = sup(guessdegree(exp(sollya.x), approx_interval, error_goal_approx)) + 1
+    poly_degree = sup(guessdegree(exp(sollya.x), approx_interval, error_goal_approx)) 
     precision_list = [1] + [self.precision] * (poly_degree)
 
     k_integer = Conversion(k, precision = int_precision, tag = "k_integer", debug = debug_multi)
@@ -115,15 +126,21 @@ class ML_HyperbolicCosine(ML_Function("ml_cosh")):
     k_lo = Modulo(k_integer, 2**index_size, tag = "k_int_lo", precision = int_precision, debug = debug_multi)
     pow_exp = ExponentInsertion(Conversion(k_hi, precision = int_precision), precision = self.precision, tag = "pow_exp", debug = debug_multi)
 
-    exp_table = ML_Table(dimensions = [2 * 2**index_size, 2], storage_precision = self.precision, tag = self.uniquify_name("exp2_table"))
+    exp_table = ML_Table(dimensions = [2 * 2**index_size, 4], storage_precision = self.precision, tag = self.uniquify_name("exp2_table"))
     for i in range(2 * 2**index_size):
       input_value = i - 2**index_size if i >= 2**index_size else i 
-      exp_value  = 2**((input_value)* 2**-index_size)
-      mexp_value = 2**((-input_value)* 2**-index_size)
-      pos_value = round(exp_value, self.precision.get_sollya_object(), RN)
-      neg_value = round(mexp_value, self.precision.get_sollya_object(), RN)
-      exp_table[i][0] = neg_value
-      exp_table[i][1] = pos_value
+      # using SollyaObject wrapper to force evaluation by sollya
+      # with higher precision
+      exp_value  = sollya.SollyaObject(2)**((input_value)* 2**-index_size)
+      mexp_value = sollya.SollyaObject(2)**((-input_value)* 2**-index_size)
+      pos_value_hi = round(exp_value, self.precision.get_sollya_object(), RN)
+      pos_value_lo = round(exp_value - pos_value_hi, self.precision.get_sollya_object(), RN)
+      neg_value_hi = round(mexp_value, self.precision.get_sollya_object(), RN)
+      neg_value_lo = round(mexp_value - neg_value_hi, self.precision.get_sollya_object(), RN)
+      exp_table[i][0] = neg_value_hi
+      exp_table[i][1] = neg_value_lo
+      exp_table[i][2] = pos_value_hi
+      exp_table[i][3] = pos_value_lo
 
     # log2_value = log(2) / 2^index_size
     # cosh(x) = 1/2 * (exp(x) + exp(-x))
@@ -144,23 +161,34 @@ class ML_HyperbolicCosine(ML_Function("ml_cosh")):
     print "poly_approx_error: ", poly_approx_error, float(log2(poly_approx_error))
 
     polynomial_scheme_builder = PolynomialSchemeEvaluator.generate_horner_scheme
-    poly_pos = polynomial_scheme_builder(poly_object.sub_poly(start_index = 0), r, unified_precision = self.precision)
+    poly_pos = polynomial_scheme_builder(poly_object.sub_poly(start_index = 1), r, unified_precision = self.precision)
     poly_pos.set_attributes(tag = "poly_pos", debug = debug_multi)
 
-    poly_neg = polynomial_scheme_builder(poly_object.sub_poly(start_index = 0), -r, unified_precision = self.precision)
+    poly_neg = polynomial_scheme_builder(poly_object.sub_poly(start_index = 1), -r, unified_precision = self.precision)
     poly_neg.set_attributes(tag = "poly_neg", debug = debug_multi)
 
     table_index = Addition(k_lo, Constant(2**index_size, precision = int_precision), precision = int_precision, tag = "table_index", debug = debug_multi)
 
-    neg_value_load = TableLoad(exp_table, table_index, 0, tag = "lo_value_load", debug = debug_multi)
-    pos_value_load = TableLoad(exp_table, table_index, 1, tag = "hi_value_load", debug = debug_multi)
+    neg_value_load_hi = TableLoad(exp_table, table_index, 0, tag = "neg_value_load_hi", debug = debug_multi)
+    neg_value_load_lo = TableLoad(exp_table, table_index, 1, tag = "neg_value_load_lo", debug = debug_multi)
+    pos_value_load_hi = TableLoad(exp_table, table_index, 2, tag = "pos_value_load_hi", debug = debug_multi)
+    pos_value_load_lo = TableLoad(exp_table, table_index, 3, tag = "pos_value_load_lo", debug = debug_multi)
 
     k_plus = Subtraction(k_hi, Constant(1, precision = int_precision), precision = int_precision, tag = "k_plus", debug = debug_multi)
     k_neg = Subtraction(-k_hi, Constant(1, precision = int_precision), precision = int_precision, tag = "k_neg", debug = debug_multi)
 
+    pow_exp_pos = ExponentInsertion(k_plus, precision = self.precision)
+    pow_exp_neg = ExponentInsertion(k_neg, precision = self.precision)
+
+    pos_exp = (pos_value_load_hi + (pos_value_load_hi * poly_pos + (pos_value_load_lo + pos_value_load_lo * poly_pos))) * pow_exp_pos 
+    pos_exp.set_attributes(tag = "pos_exp", debug = debug_multi)
+
+    neg_exp = (neg_value_load_hi + (neg_value_load_hi * poly_neg + (neg_value_load_lo + neg_value_load_lo * poly_neg))) * pow_exp_neg 
+    neg_exp.set_attributes(tag = "neg_exp", debug = debug_multi)
+
     result = Addition(
-                poly_pos * ExponentInsertion(k_plus, precision = self.precision) * pos_value_load, 
-                poly_neg * ExponentInsertion(k_neg, precision = self.precision) * neg_value_load, 
+                pos_exp,
+                neg_exp,
                 precision = self.precision,
                 tag = "result",
                 debug = debug_multi
