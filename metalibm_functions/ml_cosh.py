@@ -4,7 +4,7 @@ import sys
 
 import sollya
 
-from sollya import S2, Interval, ceil, floor, round, inf, sup, log, exp, expm1, log2, cosh, guessdegree, dirtyinfnorm, RN
+from sollya import S2, Interval, ceil, floor, round, inf, sup, log, exp, expm1, log2, cosh, guessdegree, dirtyinfnorm, RN, acosh
 
 from metalibm_core.core.attributes import ML_Debug
 from metalibm_core.core.ml_operations import *
@@ -85,6 +85,7 @@ class ML_HyperbolicCosine(ML_Function("ml_cosh")):
 
     index_size = 3
 
+    vx = Abs(vx)
 
     # argument reduction
     arg_reg_value = log(2)/2**index_size
@@ -97,7 +98,7 @@ class ML_HyperbolicCosine(ML_Function("ml_cosh")):
     # cosh(x) > 2^1023 <=> exp(x) > 2^1024 <=> x > log(2^21024)
     # k = inv_log2_value * x 
     # -1 for guard
-    max_k_approx = inv_log2_value * log(sollya.SollyaObject(2)**1024)
+    max_k_approx  = inv_log2_value * log(sollya.SollyaObject(2)**1024)
     max_k_bitsize = int(ceil(log2(max_k_approx)))
     Log.report(Log.Info, "max_k_bitsize: %d" % max_k_bitsize)
     log2_hi_value_precision = self.precision.get_precision() - max_k_bitsize - 1 
@@ -107,14 +108,15 @@ class ML_HyperbolicCosine(ML_Function("ml_cosh")):
     log2_hi_value_cst = Constant(log2_hi_value, tag = "log2_hi_value", precision = self.precision)
     log2_lo_value_cst = Constant(log2_lo_value, tag = "log2_lo_value", precision = self.precision)
 
-    k = NearestInteger(Multiplication(inv_log2_cst, vx), precision = self.precision)
+    k = Trunc(Multiplication(inv_log2_cst, vx), precision = self.precision)
     r_hi = vx - k * log2_hi_value_cst
+    r_hi.set_attributes(tag = "r_hi", debug = debug_multi, unbreakable = True)
     r_lo = -k * log2_lo_value_cst
     # reduced argument
     r = r_hi + r_lo
     r.set_attributes(tag = "r", debug = debug_multi)
 
-    approx_interval = Interval(-arg_reg_value/2, arg_reg_value/2)
+    approx_interval = Interval(-arg_reg_value, arg_reg_value)
     error_goal_approx = 2**-(self.precision.get_precision())
     int_precision = {ML_Binary32: ML_Int32, ML_Binary64: ML_Int64}[self.precision]
 
@@ -174,8 +176,8 @@ class ML_HyperbolicCosine(ML_Function("ml_cosh")):
     pos_value_load_hi = TableLoad(exp_table, table_index, 2, tag = "pos_value_load_hi", debug = debug_multi)
     pos_value_load_lo = TableLoad(exp_table, table_index, 3, tag = "pos_value_load_lo", debug = debug_multi)
 
-    k_plus = Subtraction(k_hi, Constant(1, precision = int_precision), precision = int_precision, tag = "k_plus", debug = debug_multi)
-    k_neg = Subtraction(-k_hi, Constant(1, precision = int_precision), precision = int_precision, tag = "k_neg", debug = debug_multi)
+    k_plus = Max(Subtraction(k_hi, Constant(1, precision = int_precision), precision = int_precision, tag = "k_plus", debug = debug_multi), Constant(self.precision.get_emin_normal(), precision = int_precision))
+    k_neg = Max(Subtraction(-k_hi, Constant(1, precision = int_precision), precision = int_precision, tag = "k_neg", debug = debug_multi), Constant(self.precision.get_emin_normal(), precision = int_precision))
 
     pow_exp_pos = ExponentInsertion(k_plus, precision = self.precision)
     pow_exp_neg = ExponentInsertion(k_neg, precision = self.precision)
@@ -194,14 +196,19 @@ class ML_HyperbolicCosine(ML_Function("ml_cosh")):
                 debug = debug_multi
               )
 
-    # ov_flag = Comparison(vx_int_hi, Constant(self.precision.get_emax(), precision = self.precision), specifier = Comparison.Greater)
+    # ov_value 
+    ov_value = acosh(self.precision.get_max_value())
+    ov_flag = Comparison(Abs(vx), Constant(ov_value, precision = self.precision), specifier = Comparison.Greater)
 
     # main scheme
     Log.report(Log.Info, "\033[33;1m MDL scheme \033[0m")
     scheme = Statement(
                 Return(
+                  Select(
+                    ov_flag,
+                    FP_PlusInfty(self.precision),
                     result
-                  ))
+                  )))
 
     return scheme
 
