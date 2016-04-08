@@ -234,7 +234,7 @@ class ML_Std_FP_Format(ML_FP_Format):
             return cst_value.get_c_cst()
         else:
             sollya.settings.display = sollya.hexadecimal
-            if cst_value == 0:
+            if cst_value == sollya.SollyaObject(0):
                 conv_result = "0.0" + self.c_suffix
             if cst_value == ml_infty:
                 conv_result = "INFINITY"
@@ -244,6 +244,8 @@ class ML_Std_FP_Format(ML_FP_Format):
                 conv_result = str(float(cst_value)) + self.c_suffix
             else:
                 conv_result  = str(cst_value) + self.c_suffix
+            if conv_result == "0f":
+                conv_result = "0.0f"
             return conv_result
 
     def get_precision(self):
