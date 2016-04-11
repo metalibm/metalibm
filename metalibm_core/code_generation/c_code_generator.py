@@ -100,7 +100,8 @@ class CCodeGenerator(object):
         elif isinstance(optree, Constant):
             precision = optree.get_precision()
             if self.declare_cst or optree.get_precision().is_cst_decl_required():
-                cst_varname = code_object.declare_cst(optree)
+                cst_prefix = "cst" if optree.get_tag() is None else optree.get_tag()
+                cst_varname = code_object.declare_cst(optree, prefix = cst_prefix)
                 result = CodeVariable(cst_varname, precision)
             else:
                 if precision is ML_Integer:

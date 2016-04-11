@@ -281,6 +281,10 @@ class CodeObject(object):
         return self.symbol_table.table_has_definition(table_object)
 
 
+    ## Declare a new constant object whose name is build
+    #  from @p prefix
+    #  @param cst_objet Constant constant object to be declared
+    #  @para, prefix str constant name prefix
     def declare_cst(self, cst_object, prefix = "cst"):
         """ declare a new constant object and return the registered name """
         free_var_name = self.symbol_table.get_free_name(cst_object.get_precision(), prefix)

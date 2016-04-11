@@ -90,7 +90,7 @@ class ML_HyperbolicCosine(ML_Function("ml_cosh")):
     # argument reduction
     arg_reg_value = log(2)/2**index_size
     inv_log2_value = round(1/arg_reg_value, self.precision.get_sollya_object(), RN)
-    inv_log2_cst = Constant(inv_log2_value, precision = self.precision)
+    inv_log2_cst = Constant(inv_log2_value, precision = self.precision, tag = "inv_log2")
 
     # for r_hi to be accurate we ensure k * log2_hi_value_cst is exact
     # by limiting the number of non-zero bits in log2_hi_value_cst
@@ -109,12 +109,16 @@ class ML_HyperbolicCosine(ML_Function("ml_cosh")):
     log2_lo_value_cst = Constant(log2_lo_value, tag = "log2_lo_value", precision = self.precision)
 
     k = Trunc(Multiplication(inv_log2_cst, vx), precision = self.precision)
-    r_hi = vx - k * log2_hi_value_cst
+    k_log2 = Multiplication(k, log2_hi_value_cst, precision = self.precision, exact = True, tag = "k_log2", unbreakable = True)
+    r_hi = vx - k_log2
     r_hi.set_attributes(tag = "r_hi", debug = debug_multi, unbreakable = True)
     r_lo = -k * log2_lo_value_cst
     # reduced argument
     r = r_hi + r_lo
     r.set_attributes(tag = "r", debug = debug_multi)
+
+    r_eval_error = self.get_eval_error(r, variable_copy_map = {vx: Variable("vx", interval = Interval(0, 715), precision = self.precision)})
+    print "r_eval_error: ", r_eval_error
 
     approx_interval = Interval(-arg_reg_value, arg_reg_value)
     error_goal_approx = 2**-(self.precision.get_precision())

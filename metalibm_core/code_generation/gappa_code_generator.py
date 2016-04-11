@@ -131,7 +131,8 @@ class GappaCodeGenerator(object):
         elif isinstance(optree, Constant):
             precision = optree.get_precision()
             if self.declare_cst:
-                cst_varname = code_object.declare_cst(optree)
+                cst_prefix = "cst" if optree.get_tag() is None else optree.get_tag()
+                cst_varname = code_object.declare_cst(optree, prefix = cst_prefix)
                 result = CodeVariable(cst_varname, precision)
             else:
                 result = CodeExpression(precision.get_gappa_cst(optree.get_value()), precision)

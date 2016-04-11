@@ -579,6 +579,30 @@ gappa_code_generation_table = {
             },
         },
     },
+    Ceil: {
+        None: {
+            lambda optree: True: {
+                type_relax_match(ML_Binary32, ML_Binary32): RoundOperator(ML_Int32, direction = ML_RoundTowardPlusInfty), 
+                type_relax_match(ML_Binary64, ML_Binary64): RoundOperator(ML_Int64, direction = ML_RoundTowardPlusInfty), 
+            },
+        },
+    },
+    Floor: {
+        None: {
+            lambda optree: True: {
+                type_relax_match(ML_Binary32, ML_Binary32): RoundOperator(ML_Int32, direction = ML_RoundTowardMinusInfty), 
+                type_relax_match(ML_Binary64, ML_Binary64): RoundOperator(ML_Int64, direction = ML_RoundTowardMinusInfty), 
+            },
+        },
+    },
+    Trunc: {
+        None: {
+            lambda optree: True: {
+                type_relax_match(ML_Binary32, ML_Binary32): RoundOperator(ML_Int32, direction = ML_RoundTowardZero), 
+                type_relax_match(ML_Binary64, ML_Binary64): RoundOperator(ML_Int64, direction = ML_RoundTowardZero), 
+            },
+        },
+    },
     NearestInteger: {
         None: {
             lambda optree: True: {
