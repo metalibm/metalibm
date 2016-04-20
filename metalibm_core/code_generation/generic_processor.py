@@ -521,16 +521,16 @@ c_code_generation_table = {
 
 gappa_code_generation_table = {
     Negation: {
-        None: build_simplified_operator_generation([ML_Int32, ML_UInt32, ML_Binary32, ML_Binary64], 1, SymbolOperator("-", arity = 1), explicit_rounding = True, match_function = type_relax_match, extend_exact = True),
+        None: build_simplified_operator_generation([ML_Int64, ML_UInt64, ML_Int32, ML_UInt32, ML_Binary32, ML_Binary64], 1, SymbolOperator("-", arity = 1), explicit_rounding = True, match_function = type_relax_match, extend_exact = True),
     },
     Addition: {
-        None: build_simplified_operator_generation([ML_Int32, ML_UInt32, ML_Binary32, ML_Binary64], 2, SymbolOperator("+", arity = 2), explicit_rounding = True, match_function = type_relax_match, extend_exact = True),
+        None: build_simplified_operator_generation([ML_Int64, ML_UInt64, ML_Int32, ML_UInt32, ML_Binary32, ML_Binary64], 2, SymbolOperator("+", arity = 2), explicit_rounding = True, match_function = type_relax_match, extend_exact = True),
     },
     Subtraction: {
-        None: build_simplified_operator_generation([ML_Int32, ML_UInt32, ML_Binary32, ML_Binary64], 2, SymbolOperator("-", arity = 2), explicit_rounding = True, match_function = type_relax_match, extend_exact = True),
+        None: build_simplified_operator_generation([ML_Int64, ML_UInt64, ML_Int32, ML_UInt32, ML_Binary32, ML_Binary64], 2, SymbolOperator("-", arity = 2), explicit_rounding = True, match_function = type_relax_match, extend_exact = True),
     },
     Multiplication: {
-        None: build_simplified_operator_generation([ML_Int32, ML_UInt32, ML_Binary32, ML_Binary64], 2, SymbolOperator("*", arity = 2, no_parenthesis = True), explicit_rounding = True, match_function = type_relax_match, extend_exact = True),
+        None: build_simplified_operator_generation([ML_Int64, ML_UInt64, ML_Int32, ML_UInt32, ML_Binary32, ML_Binary64], 2, SymbolOperator("*", arity = 2, no_parenthesis = True), explicit_rounding = True, match_function = type_relax_match, extend_exact = True),
     },
     Division: {
         None: {
