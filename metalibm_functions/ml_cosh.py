@@ -4,7 +4,8 @@ import sys
 
 import sollya
 
-from sollya import S2, Interval, ceil, floor, round, inf, sup, log, exp, expm1, log2, cosh, guessdegree, dirtyinfnorm, RN, acosh
+from sollya import S2, Interval, ceil, floor, round, inf, sup, log, exp, expm1, log2, cosh, guessdegree, dirtyinfnorm, RN, acosh, RD
+from sollya import parse as sollya_parse
 
 from metalibm_core.core.attributes import ML_Debug
 from metalibm_core.core.ml_operations import *
@@ -86,6 +87,7 @@ class ML_HyperbolicCosine(ML_Function("ml_cosh")):
     index_size = 3
 
     vx = Abs(vx)
+    int_precision = {ML_Binary32: ML_Int32, ML_Binary64: ML_Int64}[self.precision]
 
     # argument reduction
     arg_reg_value = log(2)/2**index_size
@@ -117,12 +119,15 @@ class ML_HyperbolicCosine(ML_Function("ml_cosh")):
     r = r_hi + r_lo
     r.set_attributes(tag = "r", debug = debug_multi)
 
-    r_eval_error = self.get_eval_error(r, variable_copy_map = {vx: Variable("vx", interval = Interval(0, 715), precision = self.precision)})
+    r_eval_error = self.get_eval_error(r_hi, variable_copy_map = 
+      {
+        vx: Variable("vx", interval = Interval(0, 715), precision = self.precision),
+        k: Variable("k", interval = Interval(0, 1024), precision = int_precision)
+      })
     print "r_eval_error: ", r_eval_error
 
     approx_interval = Interval(-arg_reg_value, arg_reg_value)
     error_goal_approx = 2**-(self.precision.get_precision())
-    int_precision = {ML_Binary32: ML_Int32, ML_Binary64: ML_Int64}[self.precision]
 
     poly_degree = sup(guessdegree(exp(sollya.x), approx_interval, error_goal_approx)) 
     precision_list = [1] + [self.precision] * (poly_degree)
@@ -201,7 +206,7 @@ class ML_HyperbolicCosine(ML_Function("ml_cosh")):
               )
 
     # ov_value 
-    ov_value = acosh(self.precision.get_max_value())
+    ov_value = round(acosh(self.precision.get_max_value()), self.precision.get_sollya_object(), RD)
     ov_flag = Comparison(Abs(vx), Constant(ov_value, precision = self.precision), specifier = Comparison.Greater)
 
     # main scheme
@@ -231,6 +236,8 @@ class ML_HyperbolicCosine(ML_Function("ml_cosh")):
   def numeric_emulate(self, input_value):
     return cosh(input_value)
 
+  standard_test_cases =[sollya_parse(x) for x in  ["1.705527","0.935715", "-0x1.e45322ap-1", "0x1.b8ef9f54p-1", "-0x1.b8ef9f54p-1", "0x1.b6fdb8a8p-1"]]
+
 
 if __name__ == "__main__":
     # auto-test
@@ -238,6 +245,6 @@ if __name__ == "__main__":
     # argument extraction 
     args = parse_arg_index_list = arg_template.arg_extraction()
 
-    ml_exp2          = ML_HyperbolicCosine(args)
+    ml_cosh          = ML_HyperbolicCosine(args)
 
-    ml_exp2.gen_implementation()
+    ml_cosh.gen_implementation()
