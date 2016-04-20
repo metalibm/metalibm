@@ -90,6 +90,7 @@ class DefaultArgTemplate:
   auto_test = False
   auto_test_execute = False
   auto_test_range = None
+  auto_test_std   = False
 
 ## Base class for all metalibm function (metafunction)
 class ML_FunctionBasis(object):
@@ -125,6 +126,7 @@ class ML_FunctionBasis(object):
              language = ArgDefault(C_Code, 2),
              auto_test = ArgDefault(False, 2),
              auto_test_range = ArgDefault(Interval(-1, 1), 2),
+             auto_test_std = ArgDefault(False, 2),
              arg_template = DefaultArgTemplate 
          ):
     # selecting argument values among defaults
@@ -144,10 +146,11 @@ class ML_FunctionBasis(object):
     fuse_fma = ArgDefault.select_value([arg_template.fuse_fma, fuse_fma])
     fast_path_extract = ArgDefault.select_value([arg_template.fast_path_extract, fast_path_extract])
     # Debug verbosity
-    debug_flag = ArgDefault.select_value([arg_template.debug, debug_flag])
-    vector_size = ArgDefault.select_value([arg_template.vector_size, vector_size])
-    language = ArgDefault.select_value([arg_template.language, language])
-    auto_test = ArgDefault.select_value([arg_template.auto_test, arg_template.auto_test_execute, auto_test])
+    debug_flag    = ArgDefault.select_value([arg_template.debug, debug_flag])
+    vector_size   = ArgDefault.select_value([arg_template.vector_size, vector_size])
+    language      = ArgDefault.select_value([arg_template.language, language])
+    auto_test     = ArgDefault.select_value([arg_template.auto_test, arg_template.auto_test_execute, auto_test])
+    auto_test_std = ArgDefault.select_value([arg_template.auto_test_std, auto_test_std])
 
 
     # io_precisions must be a list
@@ -156,10 +159,11 @@ class ML_FunctionBasis(object):
     self.io_precisions = io_precisions
 
     ## enable the generation of numeric/functionnal auto-test
-    self.auto_test_enable = (auto_test != False)
+    self.auto_test_enable = (auto_test != False or auto_test_std != False)
     self.auto_test_number = auto_test
     self.auto_test_execute = ArgDefault.select_value([arg_template.auto_test_execute])
     self.auto_test_range = ArgDefault.select_value([arg_template.auto_test_range, auto_test_range])
+    self.auto_test_std   = auto_test_std 
 
     self.language = language
 
@@ -350,7 +354,7 @@ class ML_FunctionBasis(object):
       code_function_list = self.generate_vector_implementation(scalar_scheme, scalar_arg_list, self.get_vector_size())
 
     if self.auto_test_enable:
-      code_function_list += self.generate_auto_test(test_num = self.auto_test_number, test_range = self.auto_test_range)
+      code_function_list += self.generate_auto_test(test_num = self.auto_test_number if self.auto_test_number else 0, test_range = self.auto_test_range)
       
 
     for code_function in code_function_list:
@@ -519,26 +523,46 @@ class ML_FunctionBasis(object):
     failure_report_op       = FunctionOperator("report_failure")
     failure_report_function = FunctionObject("report_failure", [], ML_Void, failure_report_op)
 
-    printf_op = FunctionOperator("printf", arg_map = {0: "\"error: %s(%%f)=%%a vs expected = %%a \\n\"" % function_name, 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2)}, void_function = True) 
-    printf_function = FunctionObject("printf", [self.precision] * 3, ML_Void, printf_op)
+    printf_op = FunctionOperator("printf", arg_map = {0: "\"error[%%d]: %s(%%f/%%a)=%%a vs expected = %%a \\n\"" % function_name, 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2), 4: FO_Arg(3), 5: FO_Arg(4)}, void_function = True) 
+    printf_function = FunctionObject("printf", [ML_Int32] + [self.precision] * 4, ML_Void, printf_op)
 
     printf_success_op = FunctionOperator("printf", arg_map = {0: "\"test successful %s\\n\"" % function_name}, void_function = True) 
     printf_success_function = FunctionObject("printf", [], ML_Void, printf_success_op)
 
 
+    num_std_case = len(self.standard_test_cases)
+    test_total   = test_num + num_std_case
 
     sollya_precision = self.precision.get_sollya_object()
     interval_size = high_input - low_input 
 
-    input_table = ML_Table(dimensions = [test_num], storage_precision = self.precision, tag = self.uniquify_name("input_table"))
+    input_table = ML_Table(dimensions = [test_total], storage_precision = self.precision, tag = self.uniquify_name("input_table"))
     ## (low, high) are store in output table
-    output_table = ML_Table(dimensions = [test_num, 2], storage_precision = self.precision, tag = self.uniquify_name("output_table"))
+    output_table = ML_Table(dimensions = [test_total, 2], storage_precision = self.precision, tag = self.uniquify_name("output_table"))
+
+    # general index for input/output tables
+    table_index = 0
+
+    # standard test cases
+    for i in range(num_std_case):
+      input_value = round(self.standard_test_cases[i], sollya_precision, RN)
+
+      input_table[table_index] = input_value
+      # FIXME only valid for faithful evaluation
+      output_table[table_index][0] = round(self.numeric_emulate(input_value), sollya_precision, RD)
+      output_table[table_index][1] = round(self.numeric_emulate(input_value), sollya_precision, RU)
+
+      table_index += 1
+
+    # random test cases
     for i in range(test_num):
       input_value = round(low_input + (random.randrange(2**32 + 1) / float(2**32)) * interval_size, sollya_precision, RN) 
-      input_table[i] = input_value
+      input_table[table_index] = input_value
       # FIXME only valid for faithful evaluation
-      output_table[i][0] = round(self.numeric_emulate(input_value), sollya_precision, RD)
-      output_table[i][1] = round(self.numeric_emulate(input_value), sollya_precision, RU)
+      output_table[table_index][0] = round(self.numeric_emulate(input_value), sollya_precision, RD)
+      output_table[table_index][1] = round(self.numeric_emulate(input_value), sollya_precision, RU)
+      table_index += 1
+
 
     vi = Variable("i", precision = ML_Int32, var_type = Variable.Local)
 
@@ -560,7 +584,7 @@ class ML_FunctionBasis(object):
         ConditionBlock(
           failure_test,
           Statement(
-            printf_function(local_input, local_result, high_bound), 
+            printf_function(vi, local_input, local_input, local_result, high_bound), 
             Return(Constant(1, precision = ML_Int32))
           ),
         ),

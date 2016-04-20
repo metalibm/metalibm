@@ -130,6 +130,7 @@ class ML_NewArgTemplate(object):
     self.parser.add_argument("--target-info", dest = "target_info_flag", action = "store_const", const = True, default = ArgDefault(False), help = "display list of supported targets")
 
     self.parser.add_argument("--exception-error", dest = "exception_on_error", action = "store_const", const = True, default = ArgDefault(False), help = "convert Fatal error to python Exception rather than straight sys exit")
+    self.parser.add_argument("--auto-test-std", dest = "auto_test_std", action = "store_const", const = True, default = ArgDefault(False), help = "enabling function test on standard test case list")
 
 
   ## parse command line arguments
