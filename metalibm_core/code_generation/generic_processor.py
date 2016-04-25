@@ -699,6 +699,8 @@ class GenericProcessor(AbstractProcessor):
         corresponds to a portable C-implementation """
 
     target_name = "generic"
+    default_compiler = "gcc"
+
 
     # code generation table map
     code_generation_table = {
@@ -720,6 +722,14 @@ class GenericProcessor(AbstractProcessor):
         # create simplified of operation supported by the processor hierarchy
         self.simplified_rec_op_map = {}
         self.simplified_rec_op_map[C_Code] = self.generate_supported_op_map(language = C_Code)
+
+    ## return the compiler command line program to use to build
+    #  test programs
+    def get_compiler(self):
+      return GenericProcessor.default_compiler
+
+    def get_execution_command(self, test_file):
+      return "./%s" % test_file
 
 
     def generate_expr(self, code_generator, code_object, optree, arg_tuple, **kwords): #folded = True, language = C_Code, result_var = None):
