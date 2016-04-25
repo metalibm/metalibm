@@ -869,7 +869,7 @@ class ExponentInsertion(ArithmeticOperationConstructor("ExponentInsertion", arit
     return self.specifier
 
 class MantissaExtraction(ArithmeticOperationConstructor("MantissaExtraction", arity = 1)):
-  """ extraction of the mantissa field of a floating-point value """
+  """ return the input's mantissa as a floating-point value, whose absolute value lies between 1 (included) and 2 (excluded), input sign is kept unmodified  """
   pass
 
 class ExponentExtraction(ArithmeticOperationConstructor("ExponentExtraction", arity = 1)):
