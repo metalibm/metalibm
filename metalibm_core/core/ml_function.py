@@ -374,9 +374,10 @@ class ML_FunctionBasis(object):
     self.generate_code(code_function_list, language = self.language)
 
     if self.auto_test_enable:
-      compiler = "gcc"
+      compiler = self.processor.get_compiler()
       test_file = "./test_%s.bin" % self.function_name
-      test_command =  "%s -O2 -DML_DEBUG -I $ML_SRC_DIR/metalibm_core $ML_SRC_DIR/metalibm_core/support_lib/ml_libm_compatibility.c %s -o %s -lm && %s" % (compiler, self.output_file, test_file, test_file) 
+      test_command =  "%s -O2 -DML_DEBUG -I $ML_SRC_DIR/metalibm_core $ML_SRC_DIR/metalibm_core/support_lib/ml_libm_compatibility.c %s -o %s -lm " % (compiler, self.output_file, test_file) 
+      test_command += " && %s " % self.processor.get_execution_command(test_file)
       if self.auto_test_execute:
         print "VALIDATION %s " % self.get_name()
         print test_command
@@ -433,11 +434,12 @@ class ML_FunctionBasis(object):
     if self.language is OpenCL_Code:
       unrolled_cond_allocation = Statement()
       for i in xrange(vector_size):
-        vec_elt_arg_tuple = tuple(VectorElementSelection(vec_arg, i, precision = self.precision) for vec_arg in vec_arg_list)
+        elt_index = Constant(i)
+        vec_elt_arg_tuple = tuple(VectorElementSelection(vec_arg, elt_index, precision = self.precision) for vec_arg in vec_arg_list)
         unrolled_cond_allocation.add(
           ConditionBlock(
-            Likely(VectorElementSelection(vector_mask, i, precision = ML_Bool), None),
-            ReferenceAssign(VectorElementSelection(vec_res, i, precision = self.precision), scalar_callback(*vec_elt_arg_tuple))
+            Likely(VectorElementSelection(vector_mask, elt_index, precision = ML_Bool), None),
+            ReferenceAssign(VectorElementSelection(vec_res, elt_index, precision = self.precision), scalar_callback(*vec_elt_arg_tuple))
           )
         ) 
 
@@ -606,6 +608,9 @@ class ML_FunctionBasis(object):
   @staticmethod
   def get_name():
     return ML_FunctionBasis.function_name
+
+  # list of input to be used for standard test validation
+  standard_test_cases = []
 
 
         
