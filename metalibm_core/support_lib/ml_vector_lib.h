@@ -453,3 +453,8 @@ DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vrintd8, ml_double8_t, ml_double8_t, 8, rint)
 DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vexp_insertion_f2, ml_float2_t, ml_int2_t, 2, ml_exp_insertion_fp32)
 DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vexp_insertion_f4, ml_float4_t, ml_int4_t, 4, ml_exp_insertion_fp32)
 DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vexp_insertion_f8, ml_float8_t, ml_int8_t, 8, ml_exp_insertion_fp32)
+
+/** Exponent extraction */
+DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vexp_extraction_f2, ml_int2_t, ml_float2_t, 2, ml_exp_extraction_dirty_fp32)
+DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vexp_extraction_f4, ml_int4_t, ml_float4_t, 4, ml_exp_extraction_dirty_fp32)
+DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vexp_extraction_f8, ml_int8_t, ml_float8_t, 8, ml_exp_extraction_dirty_fp32)
