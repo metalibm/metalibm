@@ -15,34 +15,12 @@ from ..utility.log_report import Log
 from ..code_generation.code_constant import *
 import re
 
-## Class of rounding mode type
-class ML_FloatingPoint_RoundingMode_Type(object):
-    def get_c_name(self):
-        return "ml_rnd_mode_t"
-
-## Class of floating-point rounding mode
-class ML_FloatingPoint_RoundingMode(object):
-    pass
 
 S2 = sollya.SollyaObject(2)
 
 # numerical floating-point constants
 ml_nan   = sollya.parse("nan")
 ml_infty = sollya.parse("infty")
-
-## ML type object for rounding modes
-ML_FPRM_Type = ML_FloatingPoint_RoundingMode_Type()
-
-## ML object for rounding to nearest mode
-ML_RoundToNearest        = ML_FloatingPoint_RoundingMode()
-## ML object for rounding toward zero mode
-ML_RoundTowardZero       = ML_FloatingPoint_RoundingMode()
-## ML object for rouding towards plus infinity mode
-ML_RoundTowardPlusInfty  = ML_FloatingPoint_RoundingMode()
-## ML object for rounding forwards minus infinity
-ML_RoundTowardMinusInfty = ML_FloatingPoint_RoundingMode()
-## ML object for current global rounding mode
-ML_GlobalRoundMode       = ML_FloatingPoint_RoundingMode()
 
 ## class for floating-point exception
 class ML_FloatingPointException: pass
@@ -112,6 +90,33 @@ class ML_Format(object):
     def get_max_value(self):
       raise NotImplementedError
 
+
+## Class of rounding mode type
+class ML_FloatingPoint_RoundingMode_Type(ML_Format):
+    name_map = {None: "ml_rnd_mode_t", C_Code: "ml_rnd_mode_t", OpenCL_Code: "ml_rnd_mode_t"}
+    def get_c_name(self):
+        return "ml_rnd_mode_t"
+
+    def get_name(self, language = C_Code):
+      return ML_FloatingPoint_RoundingMode_Type.name_map[language]
+
+## Class of floating-point rounding mode
+class ML_FloatingPoint_RoundingMode(object):
+    pass
+
+## ML type object for rounding modes
+ML_FPRM_Type = ML_FloatingPoint_RoundingMode_Type()
+
+## ML object for rounding to nearest mode
+ML_RoundToNearest        = ML_FloatingPoint_RoundingMode()
+## ML object for rounding toward zero mode
+ML_RoundTowardZero       = ML_FloatingPoint_RoundingMode()
+## ML object for rouding towards plus infinity mode
+ML_RoundTowardPlusInfty  = ML_FloatingPoint_RoundingMode()
+## ML object for rounding forwards minus infinity
+ML_RoundTowardMinusInfty = ML_FloatingPoint_RoundingMode()
+## ML object for current global rounding mode
+ML_GlobalRoundMode       = ML_FloatingPoint_RoundingMode()
 
 
 ## Ancestor class for abstract format
