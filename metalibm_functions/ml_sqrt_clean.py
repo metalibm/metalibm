@@ -4,7 +4,7 @@ import sys
 
 import sollya
 
-from sollya import S2, Interval, ceil, floor, round, inf, sup, pi, abs, log, exp, cos, sin, guessdegree
+# from sollya import S2, Interval, inf, sup, pi, abs, log, exp, cos, sin, guessdegree
 
 from metalibm_core.core.attributes import ML_Debug
 from metalibm_core.core.ml_operations import *
@@ -25,34 +25,34 @@ from metalibm_core.utility.gappa_utils import execute_gappa_script_extract
 from metalibm_core.utility.log_report import Log
 from metalibm_core.utility.arg_utils import extract_option_value  
 
-from metalibm_core.utility.ml_template import ML_ArgTemplate
+from metalibm_core.utility.ml_template import *
 from metalibm_core.utility.debug_utils import *
-from metalibm_core.core.ml_function import ML_Function, ML_FunctionBasis
+from metalibm_core.core.ml_function import ML_Function, ML_FunctionBasis, DefaultArgTemplate
 
 
 ## Newton-Raphson iteration object
 class NR_Iteration: 
-    def __init__(self, value, approx, half_value):
-        Attributes.set_default_rounding_mode(ML_RoundToNearest)
-        Attributes.set_default_silent(True)
+  def __init__(self, value, approx, half_value):
+    Attributes.set_default_rounding_mode(ML_RoundToNearest)
+    Attributes.set_default_silent(True)
 
-        self.square = approx * approx
-        error_mult = self.square * half_value
-        self.error = 0.5 - error_mult
-        approx_mult = self.error * approx
-        self.new_approx = approx + approx_mult 
+    self.square = approx * approx
+    error_mult = self.square * half_value
+    self.error = 0.5 - error_mult
+    approx_mult = self.error * approx
+    self.new_approx = approx + approx_mult 
 
-        Attributes.unset_default_rounding_mode()
-        Attributes.unset_default_silent()
+    Attributes.unset_default_rounding_mode()
+    Attributes.unset_default_silent()
 
 
-    def get_new_approx(self):
-        return self.new_approx
+  def get_new_approx(self):
+    return self.new_approx
 
-    def get_hint_rules(self, gcg, gappa_code, exact):
-        pass
+  def get_hint_rules(self, gcg, gappa_code, exact):
+    pass
 
-def compute_sqrt(vx, init_approx, debug_lftolx = None, precision = ML_Binary64):
+def compute_sqrt(vx, init_approx, num_iter, debug_lftolx = None, precision = ML_Binary64):
 
     h = 0.5 * vx
     h.set_attributes(tag = "h", debug = debug_multi, silent = True, rounding_mode = ML_RoundToNearest)
@@ -106,11 +106,12 @@ def compute_sqrt(vx, init_approx, debug_lftolx = None, precision = ML_Binary64):
 
     #R = FMA(d1, H1, S1, rounding_mode = ML_GlobalRoundMode)
     R = FMA(d_last, H1, pR, rounding_mode = ML_GlobalRoundMode)
-    return R
+    return R, S1, H1, d1
 
 
 class ML_Sqrt(ML_Function("ml_sqrt")):
   def __init__(self, 
+               arg_template = DefaultArgTemplate,
                precision = ML_Binary32, 
                accuracy = ML_CorrectlyRounded, 
                libm_compliant = True, 
@@ -125,6 +126,8 @@ class ML_Sqrt(ML_Function("ml_sqrt")):
                vector_size = 1, 
                language = C_Code):
     # initializing I/O precision
+    precision = ArgDefault.select_value([arg_template.precision, precision])
+    num_iter  = ArgDefault.select_value([arg_template.num_iter, num_iter])
     io_precisions = [precision] * 2
 
     # initializing base class
@@ -143,12 +146,14 @@ class ML_Sqrt(ML_Function("ml_sqrt")):
 
       debug_flag = debug_flag,
       vector_size = vector_size,
-      language = language
+      language = language,
+      arg_template = arg_template
     )
 
     self.accuracy  = accuracy
     self.precision = precision
     self.integer_precision = {ML_Binary32: ML_Int32, ML_Binary64: ML_Int64}[self.precision]
+    self.num_iter = num_iter
 
   def generate_scheme(self):
     pre_vx = self.implementation.add_input_variable("x", self.precision) 
@@ -191,7 +196,8 @@ class ML_Sqrt(ML_Function("ml_sqrt")):
     else:
         init_approx = init_approx_precision
 
-    result = compute_sqrt(vx, init_approx, self.precision) * scale_factor
+    result, S1, H1, d1 = compute_sqrt(vx, init_approx, self.num_iter, precision = self.precision)
+    result = result * scale_factor
     result.set_attributes(tag = "result", debug = debug_multi, clearprevious = True)
 
 
@@ -238,39 +244,32 @@ class ML_Sqrt(ML_Function("ml_sqrt")):
 
     return scheme
 
-    def generate_emulate(self, result_ternary, result, mpfr_x, mpfr_rnd):
-        """ generate the emulation code for ML_Log2 functions
-            mpfr_x is a mpfr_t variable which should have the right precision
-            mpfr_rnd is the rounding mode
-        """
-        emulate_func_name = "mpfr_sqrt"
-        emulate_func_op = FunctionOperator(emulate_func_name, arg_map = {0: FO_Arg(0), 1: FO_Arg(1), 2: FO_Arg(2)}, require_header = ["mpfr.h"]) 
-        emulate_func   = FunctionObject(emulate_func_name, [ML_Mpfr_t, ML_Mpfr_t, ML_Int32], ML_Int32, emulate_func_op)
-        mpfr_call = Statement(ReferenceAssign(result_ternary, emulate_func(result, mpfr_x, mpfr_rnd)))
+  def generate_emulate(self, result_ternary, result, mpfr_x, mpfr_rnd):
+      """ generate the emulation code for ML_Log2 functions
+          mpfr_x is a mpfr_t variable which should have the right precision
+          mpfr_rnd is the rounding mode
+      """
+      emulate_func_name = "mpfr_sqrt"
+      emulate_func_op = FunctionOperator(emulate_func_name, arg_map = {0: FO_Arg(0), 1: FO_Arg(1), 2: FO_Arg(2)}, require_header = ["mpfr.h"]) 
+      emulate_func   = FunctionObject(emulate_func_name, [ML_Mpfr_t, ML_Mpfr_t, ML_Int32], ML_Int32, emulate_func_op)
+      mpfr_call = Statement(ReferenceAssign(result_ternary, emulate_func(result, mpfr_x, mpfr_rnd)))
 
-        return mpfr_call
+      return mpfr_call
+
+  def numeric_emulate(self, input):
+        return sollya.sqrt(input)
 
 
 
 if __name__ == "__main__":
   # auto-test
-  num_iter        = int(extract_option_value("--num-iter", "3"))
+  # num_iter        = int(extract_option_value("--num-iter", "3"))
 
-  arg_template = ML_ArgTemplate(default_function_name = "sqrt", default_output_file = "sqrt.c")
-  arg_template.sys_arg_extraction()
+  arg_template = ML_NewArgTemplate(default_function_name = "new_sqrt", default_output_file = "new_sqrt.c")
+  arg_template.parser.add_argument("--num-iter", dest = "num_iter", action = "store", default = ArgDefault(3), help = "number of Newton-Raphson iterations")
+  args = parse_arg_index_list = arg_template.arg_extraction()
 
 
-  ml_sqrt  = ML_Sqrt(arg_template.precision, 
-                     libm_compliant            = arg_template.libm_compliant, 
-                     debug_flag                = arg_template.debug_flag, 
-                     target                    = arg_template.target, 
-                     fuse_fma                  = arg_template.fuse_fma, 
-                     fast_path_extract         = arg_template.fast_path,
-                     num_iter                  = num_iter,
-                     function_name             = arg_template.function_name,
-                     output_file               = arg_template.output_file,
-                     dot_product_enabled       = arg_template.dot_product_enabled,
-                     vector_size               = arg_template.vector_size, 
-                     language                  = arg_template.language)
-
+  ml_sqrt  = ML_Sqrt(args)
   ml_sqrt.gen_implementation()
+  
