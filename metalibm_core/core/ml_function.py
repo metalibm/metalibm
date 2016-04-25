@@ -531,7 +531,9 @@ class ML_FunctionBasis(object):
 
 
     num_std_case = len(self.standard_test_cases)
-    test_total   = test_num + num_std_case
+    test_total   = test_num 
+    if self.auto_test_std:
+      test_total += num_std_case
 
     sollya_precision = self.precision.get_sollya_object()
     interval_size = high_input - low_input 
@@ -543,16 +545,18 @@ class ML_FunctionBasis(object):
     # general index for input/output tables
     table_index = 0
 
-    # standard test cases
-    for i in range(num_std_case):
-      input_value = round(self.standard_test_cases[i], sollya_precision, RN)
 
-      input_table[table_index] = input_value
-      # FIXME only valid for faithful evaluation
-      output_table[table_index][0] = round(self.numeric_emulate(input_value), sollya_precision, RD)
-      output_table[table_index][1] = round(self.numeric_emulate(input_value), sollya_precision, RU)
+    if self.auto_test_std:
+      # standard test cases
+      for i in range(num_std_case):
+        input_value = round(self.standard_test_cases[i], sollya_precision, RN)
 
-      table_index += 1
+        input_table[table_index] = input_value
+        # FIXME only valid for faithful evaluation
+        output_table[table_index][0] = round(self.numeric_emulate(input_value), sollya_precision, RD)
+        output_table[table_index][1] = round(self.numeric_emulate(input_value), sollya_precision, RU)
+
+        table_index += 1
 
     # random test cases
     for i in range(test_num):
