@@ -98,6 +98,114 @@ vector_opencl_code_generation_table = {
         )
      }
   },
+  BitLogicAnd: {
+    None: {
+      lambda _: True: 
+        dict(
+          sum(
+          [
+            [
+              (type_strict_match(
+                  vector_type[scalar_type][vector_size], 
+                  vector_type[scalar_type][vector_size],
+                  vector_type[scalar_type][vector_size]
+                ), SymbolOperator("&", arity = 2)
+              ) for vector_size in [2, 4, 8]
+            ] for scalar_type in [ML_Binary32, ML_Binary64, ML_Int32, ML_UInt32]
+          ], [])
+        )
+     }
+  },
+  BitLogicOr: {
+    None: {
+      lambda _: True: 
+        dict(
+          sum(
+          [
+            [
+              (type_strict_match(
+                  vector_type[scalar_type][vector_size], 
+                  vector_type[scalar_type][vector_size],
+                  vector_type[scalar_type][vector_size]
+                ), SymbolOperator("|", arity = 2)
+              ) for vector_size in [2, 4, 8]
+            ] for scalar_type in [ML_Binary32, ML_Binary64, ML_Int32, ML_UInt32]
+          ], [])
+        )
+     }
+  },
+  Division: {
+    None: {
+      lambda _: True: 
+        dict(
+          sum(
+          [
+            [
+              (type_strict_match(
+                  vector_type[scalar_type][vector_size], 
+                  vector_type[scalar_type][vector_size],
+                  vector_type[scalar_type][vector_size]
+                ), SymbolOperator("/", arity = 2)
+              ) for vector_size in [2, 4, 8]
+            ] for scalar_type in [ML_Binary32, ML_Binary64, ML_Int32, ML_UInt32]
+          ], [])
+        )
+     }
+  },
+  Negate: {
+    None: {
+      lambda _: True: 
+        dict(
+          sum(
+          [
+            [
+              (type_strict_match(
+                  vector_type[scalar_type][vector_size], 
+                  vector_type[scalar_type][vector_size]
+                ), SymbolOperator("-", arity = 1)
+              ) for vector_size in [2, 4, 8]
+            ] for scalar_type in [ML_Binary32, ML_Binary64, ML_Int32, ML_UInt32]
+          ], [])
+        )
+     }
+  },
+  Modulo: {
+    None: {
+      lambda _: True: 
+        dict(
+          sum(
+          [
+            [
+              (type_strict_match(
+                  vector_type[scalar_type][vector_size], 
+                  vector_type[scalar_type][vector_size],
+                  vector_type[scalar_type][vector_size]
+                ), SymbolOperator("%", arity = 2)
+              ) for vector_size in [2, 4, 8]
+            ] for scalar_type in [ML_Binary32, ML_Binary64, ML_Int32, ML_UInt32]
+          ], [])
+        )
+     }
+  },
+  Select: {
+    None: {
+      lambda _: True: 
+        dict(
+          sum(
+          [
+            [
+              (type_strict_match(
+                  vector_type[scalar_type][vector_size], 
+                  vector_type[ML_Bool][vector_size], 
+                  vector_type[scalar_type][vector_size],
+                  vector_type[scalar_type][vector_size]
+                ), TemplateOperator("%s ? %s : %s", arity = 3)
+              ) for vector_size in [2, 4, 8]
+            ] for scalar_type in [ML_Binary32, ML_Binary64, ML_Int32, ML_UInt32]
+          ], [])
+        )
+     }
+  },
   Multiplication: {
     None: {
       lambda _: True: 
@@ -288,9 +396,9 @@ vector_c_code_generation_table = {
   Select: {
     None: {
        lambda _: True: {
-        type_strict_match(ML_Int2, ML_Bool2, ML_Int2, ML_Int2): ML_VectorLib_Function("ml_vselecti2", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2),
-        type_strict_match(ML_Int4, ML_Bool4, ML_Int4, ML_Int4): ML_VectorLib_Function("ml_vselecti4", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = ML_Int4),
-        type_strict_match(ML_Int8, ML_Bool8, ML_Int8, ML_Int8): ML_VectorLib_Function("ml_vselecti8", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = ML_Int8),
+        type_strict_match(ML_Int2, ML_Bool2, ML_Int2, ML_Int2): ML_VectorLib_Function("ml_vselecti2", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2)}, arity = 3),
+        type_strict_match(ML_Int4, ML_Bool4, ML_Int4, ML_Int4): ML_VectorLib_Function("ml_vselecti4", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2)}, arity = 3, output_precision = ML_Int4),
+        type_strict_match(ML_Int8, ML_Bool8, ML_Int8, ML_Int8): ML_VectorLib_Function("ml_vselecti8", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2)}, arity = 3, output_precision = ML_Int8),
       },
     },
   },
