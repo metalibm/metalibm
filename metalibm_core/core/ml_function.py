@@ -537,7 +537,9 @@ class ML_FunctionBasis(object):
     if self.auto_test_std:
       test_total += num_std_case
 
-    test_total += self.get_vector_size() - (test_total % self.get_vector_size())
+    diff = self.get_vector_size() - (test_total % self.get_vector_size())
+    test_total += diff
+    test_num   += diff
 
     sollya_precision = self.precision.get_sollya_object()
     interval_size = high_input - low_input 
