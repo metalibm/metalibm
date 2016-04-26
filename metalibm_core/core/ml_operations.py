@@ -459,7 +459,8 @@ class Constant(ML_LeafNode):
 
 
 ## class for Variable node, which contains a temporary state of the operation DAG
-##  which may have been defined outside the scope of the implementation (input variable)
+#  which may have been defined outside the scope of the implementation (input variable)
+#  @param var_type = (Variable.Input | Variable.Local)
 class Variable(ML_LeafNode):
     ## Input type for Variable Node
     #  such node is not defined as an input to the function description

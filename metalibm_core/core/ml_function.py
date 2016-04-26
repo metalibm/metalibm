@@ -537,6 +537,8 @@ class ML_FunctionBasis(object):
     if self.auto_test_std:
       test_total += num_std_case
 
+    test_total += self.get_vector_size() - (test_total % self.get_vector_size())
+
     sollya_precision = self.precision.get_sollya_object()
     interval_size = high_input - low_input 
 
@@ -572,31 +574,85 @@ class ML_FunctionBasis(object):
 
     vi = Variable("i", precision = ML_Int32, var_type = Variable.Local)
 
-    local_input  = TableLoad(input_table, vi)
-    local_result = tested_function(local_input)
-    low_bound    = TableLoad(output_table, vi, 0)
-    high_bound   = TableLoad(output_table, vi, 1)
+    assignation_statement = Statement()
 
-    failure_test = LogicalOr(
-      Comparison(local_result, low_bound, specifier = Comparison.Less),
-      Comparison(local_result, high_bound, specifier = Comparison.Greater)
-    )
+    if self.implementation.get_output_format().is_vector_format():
+      # vector implementation
+      vector_format = self.implementation.get_output_format()
+
+      # building inputs
+      local_input = Variable("vec_x", precision = vector_format, var_type = Variable.Local) 
+      assignation_statement.push(local_input)
+      for k in xrange(self.get_vector_size()):
+        elt_assign = ReferenceAssign(VectorElementSelection(local_input, k), TableLoad(input_table, vi + k))
+        assignation_statement.push(elt_assign)
+
+      # computing results
+      local_result = tested_function(local_input)
+      loop_increment = self.get_vector_size()
+
+      comp_statement = Statement()
+
+      # comparison with expected
+      for k in xrange(self.get_vector_size()):
+        elt_input  = VectorElementSelection(local_input, k)
+        elt_result = VectorElementSelection(local_result, k)
+        low_bound    = TableLoad(output_table, vi + k, 0)
+        high_bound   = TableLoad(output_table, vi + k, 1)
+
+        failure_test = LogicalOr(
+          Comparison(elt_result, low_bound, specifier = Comparison.Less),
+          Comparison(elt_result, high_bound, specifier = Comparison.Greater)
+        )
+
+        comp_statement.push(
+          ConditionBlock(
+            failure_test,
+            Statement(
+              printf_function(vi + k, elt_input, elt_input, elt_result, high_bound), 
+              Return(Constant(1, precision = ML_Int32))
+         )))
 
 
-    test_loop = Loop(
-      ReferenceAssign(vi, Constant(0, precision = ML_Int32)),
-      vi < test_num_cst,
-      Statement(
-        ConditionBlock(
-          failure_test,
-          Statement(
-            printf_function(vi, local_input, local_input, local_result, high_bound), 
-            Return(Constant(1, precision = ML_Int32))
-          ),
+      test_loop = Loop(
+        ReferenceAssign(vi, Constant(0, precision = ML_Int32)),
+        vi < test_num_cst,
+        Statement(
+          assignation_statement,
+          comp_statement,
+          ReferenceAssign(vi, vi + loop_increment)
         ),
-        ReferenceAssign(vi, vi + 1)
-      ),
-    )
+      )
+    else: 
+      # scalar function
+      local_input  = TableLoad(input_table, vi)
+      local_result = tested_function(local_input)
+      low_bound    = TableLoad(output_table, vi, 0)
+      high_bound   = TableLoad(output_table, vi, 1)
+
+      failure_test = LogicalOr(
+        Comparison(local_result, low_bound, specifier = Comparison.Less),
+        Comparison(local_result, high_bound, specifier = Comparison.Greater)
+      )
+
+      loop_increment = self.get_vector_size()
+
+      test_loop = Loop(
+        ReferenceAssign(vi, Constant(0, precision = ML_Int32)),
+        vi < test_num_cst,
+        Statement(
+          assignation_statement,
+          ConditionBlock(
+            failure_test,
+            Statement(
+              printf_function(vi, local_input, local_input, local_result, high_bound), 
+              Return(Constant(1, precision = ML_Int32))
+            ),
+          ),
+          ReferenceAssign(vi, vi + loop_increment)
+        ),
+      )
+    # common test scheme between scalar and vector functions
     test_scheme = Statement(
       test_loop,
       printf_success_function(),

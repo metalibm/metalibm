@@ -90,6 +90,9 @@ class ML_Format(object):
     def get_max_value(self):
       raise NotImplementedError
 
+    def is_vector_format(self):
+      return False
+
 
 ## Class of rounding mode type
 class ML_FloatingPoint_RoundingMode_Type(ML_Format):
@@ -528,6 +531,9 @@ class ML_VectorFormat(object):
   def __init__(self, scalar_format, vector_size):
     self.scalar_format = scalar_format
     self.vector_size   = vector_size 
+
+  def is_vector_format(self):
+    return True
 
   def get_bit_size(self):
     return self.vector_size * self.scalar_format.get_bit_size()
