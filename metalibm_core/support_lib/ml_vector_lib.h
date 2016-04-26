@@ -5,7 +5,7 @@
 
 #define VECTORIZE_OP1(OP, r, x, size) {\
   unsigned i;\
-  for (i = 0; i < size; ++i) r[i] = OP(x[i]);\
+  for (i = 0; i < size; ++i) (r)->_[i] = OP((x)._[i]);\
 }
 
 #define VECTORIZE_OP2(OP, r, x, y, size) {\
