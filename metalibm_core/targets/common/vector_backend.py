@@ -369,22 +369,29 @@ vector_opencl_code_generation_table = {
   TypeCast: {
       None: {
           lambda optree: True: {
+              type_strict_match(ML_Binary32, ML_Int32) : ML_VectorLib_Function("as_float", arg_map = {0: FO_Arg(0)}, arity = 1, output_precision = ML_Binary32),
+              type_strict_match(ML_Int32, ML_Binary32) : ML_VectorLib_Function("as_int", arg_map = {0: FO_Arg(0)}, arity = 1, output_precision = ML_Int32),
+
+              type_strict_match(ML_Float2, ML_Int2) : ML_VectorLib_Function("as_float2", arg_map = {0: FO_Arg(0)}, arity = 1, output_precision = ML_Float2),
+              type_strict_match(ML_Int2, ML_Float2) : ML_VectorLib_Function("as_int2", arg_map = {0: FO_Arg(0)}, arity = 1, output_precision = ML_Int2),
+
               type_strict_match(ML_Float4, ML_Int4) : ML_VectorLib_Function("as_float4", arg_map = {0: FO_Arg(0)}, arity = 1, output_precision = ML_Float4),
               type_strict_match(ML_Int4, ML_Float4) : ML_VectorLib_Function("as_int4", arg_map = {0: FO_Arg(0)}, arity = 1, output_precision = ML_Int4),
+
   }}},
   ExponentExtraction: {
       None: {
           lambda optree: True: {
-              type_strict_match(ML_Int2, ML_Float2) : ML_OCL_VectorLib_Function("ml_ocl_exp_extraction_vf4", arg_map = {0: FO_Arg(0)}, arity = 1, output_precision = ML_Int4),
+              type_strict_match(ML_Int2, ML_Float2) : ML_OCL_VectorLib_Function("ml_ocl_exp_extraction_vf2", arg_map = {0: FO_Arg(0)}, arity = 1, output_precision = ML_Int4),
               type_strict_match(ML_Int4, ML_Float4) : ML_OCL_VectorLib_Function("ml_ocl_exp_extraction_vf4", arg_map = {0: FO_Arg(0)}, arity = 1, output_precision = ML_Int4),
-              type_strict_match(ML_Int8, ML_Float8) : ML_OCL_VectorLib_Function("ml_ocl_exp_extraction_vf4", arg_map = {0: FO_Arg(0)}, arity = 1, output_precision = ML_Int4),
+              type_strict_match(ML_Int8, ML_Float8) : ML_OCL_VectorLib_Function("ml_ocl_exp_extraction_vf8", arg_map = {0: FO_Arg(0)}, arity = 1, output_precision = ML_Int4),
   }}},
   ExponentInsertion: {
     ExponentInsertion.Default: {
           lambda optree: True: {
-              type_strict_match(ML_Float2, ML_Int2) : ML_OCL_VectorLib_Function("ml_ocl_exp_insertion_vf4", arg_map = {0: FO_Arg(0)}, arity = 1, output_precision = ML_Int4),
+              type_strict_match(ML_Float2, ML_Int2) : ML_OCL_VectorLib_Function("ml_ocl_exp_insertion_vf2", arg_map = {0: FO_Arg(0)}, arity = 1, output_precision = ML_Int4),
               type_strict_match(ML_Float4, ML_Int4) : ML_OCL_VectorLib_Function("ml_ocl_exp_insertion_vf4", arg_map = {0: FO_Arg(0)}, arity = 1, output_precision = ML_Int4),
-              type_strict_match(ML_Float8, ML_Int8) : ML_OCL_VectorLib_Function("ml_ocl_exp_insertion_vf4", arg_map = {0: FO_Arg(0)}, arity = 1, output_precision = ML_Int4),
+              type_strict_match(ML_Float8, ML_Int8) : ML_OCL_VectorLib_Function("ml_ocl_exp_insertion_vf8", arg_map = {0: FO_Arg(0)}, arity = 1, output_precision = ML_Int4),
   }}},
 
   Test: {
@@ -575,6 +582,9 @@ vector_c_code_generation_table = {
               #type_strict_match(ML_UInt64, ML_Binary64): ML_Utils_Function("double_to_64b_encoding", arity = 1),
               type_strict_match(ML_Float4, ML_Int4) : ML_VectorLib_Function("VECTORIZE_OP1", arg_map = {0: "float_from_32b_encoding", 1: FO_ResultRef(0), 2: FO_Arg(0), 3: "4"}, arity = 1, output_precision = ML_Float4),
               type_strict_match(ML_Int4, ML_Float4) : ML_VectorLib_Function("VECTORIZE_OP1", arg_map = {0: "float_to_32b_encoding", 1: FO_ResultRef(0), 2: FO_Arg(0), 3: "4"}, arity = 1, output_precision = ML_Int4),
+
+              type_strict_match(ML_Float2, ML_Int2) : ML_VectorLib_Function("VECTORIZE_OP1", arg_map = {0: "float_from_32b_encoding", 1: FO_ResultRef(0), 2: FO_Arg(0), 3: "2"}, arity = 1, output_precision = ML_Float2),
+              type_strict_match(ML_Int2, ML_Float2) : ML_VectorLib_Function("VECTORIZE_OP1", arg_map = {0: "float_to_32b_encoding", 1: FO_ResultRef(0), 2: FO_Arg(0), 3: "2"}, arity = 1, output_precision = ML_Int2),
 
               #ML_Utils_Function("float_from_32b_encoding", arity = 1),
               #type_strict_match(ML_Binary32, ML_UInt32): ML_Utils_Function("float_from_32b_encoding", arity = 1),
