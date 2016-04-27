@@ -343,7 +343,7 @@ support_simplification = {
     Subtraction: {
       None: {
         lambda optree: True: 
-          lambda optree, processor: Addition(optree.inputs[0], Negate(optree.inputs[1], precision = optree.inputs[1].get_precision()), precision = optree.get_precision())
+          lambda optree, processor: Addition(optree.inputs[0], Negation(optree.inputs[1], precision = optree.inputs[1].get_precision()), precision = optree.get_precision())
       },
     },
     SpecificOperation: {

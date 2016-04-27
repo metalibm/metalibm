@@ -623,9 +623,9 @@ class Addition(ArithmeticOperationConstructor("Addition", range_function = lambd
     """ abstract addition """
     pass
 
-class Negate(ArithmeticOperationConstructor("Negate", range_function = lambda self, ops: -ops[0])): 
-    """ abstract negation """
-    pass
+#class Negate(ArithmeticOperationConstructor("Negate", range_function = lambda self, ops: -ops[0])): 
+#    """ abstract negation """
+#    pass
 
 
 class SpecifierOperation(object):
