@@ -196,7 +196,8 @@ class ML_FunctionBasis(object):
     self.gappa_engine = GappaCodeGenerator(self.processor, declare_cst = True, disable_debug = True)
 
     self.C_code_generator = CCodeGenerator(self.processor, declare_cst = False, disable_debug = not self.debug_flag, libm_compliant = self.libm_compliant, language = self.language)
-    self.main_code_object = NestedCode(self.C_code_generator, static_cst = True)
+    uniquifier = self.function_name
+    self.main_code_object = NestedCode(self.C_code_generator, static_cst = True, uniquifier = "{0}_".format(self.function_name))
 
     self.call_externalizer = CallExternalizer(self.main_code_object)
 
@@ -439,7 +440,8 @@ class ML_FunctionBasis(object):
         unrolled_cond_allocation.add(
           ConditionBlock(
             Likely(VectorElementSelection(vector_mask, elt_index, precision = ML_Bool), None),
-            ReferenceAssign(VectorElementSelection(vec_res, elt_index, precision = self.precision), scalar_callback(*vec_elt_arg_tuple))
+            ReferenceAssign(VectorElementSelection(vec_res, elt_index, precision = self.precision), scalar_callback(*vec_elt_arg_tuple)),
+            # ReferenceAssign(VectorElementSelection(vec_res, elt_index, precision = self.precision), VectorElementSelection(vector_scheme, elt_index, precision = self.precision))
           )
         ) 
 
@@ -481,7 +483,7 @@ class ML_FunctionBasis(object):
         )
       )
 
-    print "vectorized_scheme: ", function_scheme.get_str(depth = None, display_precision = True, memoization_map = {})
+    # print "vectorized_scheme: ", function_scheme.get_str(depth = None, display_precision = True, memoization_map = {})
 
     for vec_arg in vec_arg_list:
       self.implementation.register_new_input_variable(vec_arg)
