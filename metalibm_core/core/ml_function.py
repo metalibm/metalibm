@@ -450,6 +450,7 @@ class ML_FunctionBasis(object):
           Test(vector_mask, specifier = Test.IsMaskNotAnyZero, precision = ML_Bool, likely = True, debug = debug_multi),
           Return(vector_scheme),
           Statement(
+            ReferenceAssign(vec_res, vector_scheme),
             unrolled_cond_allocation,
             Return(vec_res)
           )
