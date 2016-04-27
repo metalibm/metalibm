@@ -89,6 +89,32 @@ DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vmulu2, ml_uint2_t, uint32_t, 2, *)
 DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vmulu4, ml_uint4_t, uint32_t, 4, *)
 DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vmulu8, ml_uint8_t, uint32_t, 8, *)
 
+/** Vector Division */
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vdivf2, ml_float2_t, float, 2, /)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vdivf4, ml_float4_t, float, 4, /)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vdivf8, ml_float8_t, float, 8, /)
+
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vdivd2, ml_double2_t, double, 2, /)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vdivd4, ml_double4_t, double, 4, /)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vdivd8, ml_double8_t, double, 8, /)
+
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vdivi2, ml_int2_t, int32_t, 2, /)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vdivi4, ml_int4_t, int32_t, 4, /)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vdivi8, ml_int8_t, int32_t, 8, /)
+
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vdivu2, ml_uint2_t, uint32_t, 2, /)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vdivu4, ml_uint4_t, uint32_t, 4, /)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vdivu8, ml_uint8_t, uint32_t, 8, /)
+
+/** Vector Modulo */
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vmodi2, ml_int2_t, int32_t, 2, %)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vmodi4, ml_int4_t, int32_t, 4, %)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vmodi8, ml_int8_t, int32_t, 8, %)
+
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vmodu2, ml_uint2_t, uint32_t, 2, %)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vmodu4, ml_uint4_t, uint32_t, 4, %)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vmodu8, ml_uint8_t, uint32_t, 8, %)
+
 /** Vector Fused Multiply and Add */
 DEF_ML_VECTOR_PRIMITIVES_OP3(ml_vfmaf2, ml_float2_t, float, 2, *, +)
 DEF_ML_VECTOR_PRIMITIVES_OP3(ml_vfmaf4, ml_float4_t, float, 4, *, +)
@@ -458,3 +484,8 @@ DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vexp_insertion_f8, ml_float8_t, ml_int8_t, 8, ml
 DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vexp_extraction_f2, ml_int2_t, ml_float2_t, 2, ml_exp_extraction_dirty_fp32)
 DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vexp_extraction_f4, ml_int4_t, ml_float4_t, 4, ml_exp_extraction_dirty_fp32)
 DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vexp_extraction_f8, ml_int8_t, ml_float8_t, 8, ml_exp_extraction_dirty_fp32)
+
+
+/** Vector element-wise selection */
+#define ML_VSELECT(result,test,op0,op1,size) {\
+  unsigned k; for (k = 0; k < size; ++k) (result)->_[k] = (test)._[k] ? (op0)._[k] : (op1)._[k]; };
