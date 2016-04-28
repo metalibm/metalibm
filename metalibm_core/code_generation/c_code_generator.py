@@ -292,7 +292,7 @@ class CCodeGenerator(object):
 
         return result
 
-    def generate_clear_exception(self, code_generator, code_object, optree, var_arg_list, **kwords): 
+    def generate_clear_exception(self, code_generator, code_object, optree, var_arg_list, language = None, **kwords): 
         #generate_pre_process(code_generator, code_object, optree, var_arg_list, **kwords)
         self.generate_expr(code_object, ClearException(), language = language)
 

@@ -196,7 +196,8 @@ class ML_FunctionBasis(object):
     self.gappa_engine = GappaCodeGenerator(self.processor, declare_cst = True, disable_debug = True)
 
     self.C_code_generator = CCodeGenerator(self.processor, declare_cst = False, disable_debug = not self.debug_flag, libm_compliant = self.libm_compliant, language = self.language)
-    self.main_code_object = NestedCode(self.C_code_generator, static_cst = True)
+    uniquifier = self.function_name
+    self.main_code_object = NestedCode(self.C_code_generator, static_cst = True, uniquifier = "{0}_".format(self.function_name))
 
     self.call_externalizer = CallExternalizer(self.main_code_object)
 
@@ -374,9 +375,10 @@ class ML_FunctionBasis(object):
     self.generate_code(code_function_list, language = self.language)
 
     if self.auto_test_enable:
-      compiler = "gcc"
+      compiler = self.processor.get_compiler()
       test_file = "./test_%s.bin" % self.function_name
-      test_command =  "%s -O2 -DML_DEBUG -I $ML_SRC_DIR/metalibm_core $ML_SRC_DIR/metalibm_core/support_lib/ml_libm_compatibility.c %s -o %s -lm && %s" % (compiler, self.output_file, test_file, test_file) 
+      test_command =  "%s -O2 -DML_DEBUG -I $ML_SRC_DIR/metalibm_core $ML_SRC_DIR/metalibm_core/support_lib/ml_libm_compatibility.c %s -o %s -lm " % (compiler, self.output_file, test_file) 
+      test_command += " && %s " % self.processor.get_execution_command(test_file)
       if self.auto_test_execute:
         print "VALIDATION %s " % self.get_name()
         print test_command
@@ -433,11 +435,13 @@ class ML_FunctionBasis(object):
     if self.language is OpenCL_Code:
       unrolled_cond_allocation = Statement()
       for i in xrange(vector_size):
-        vec_elt_arg_tuple = tuple(VectorElementSelection(vec_arg, i, precision = self.precision) for vec_arg in vec_arg_list)
+        elt_index = Constant(i)
+        vec_elt_arg_tuple = tuple(VectorElementSelection(vec_arg, elt_index, precision = self.precision) for vec_arg in vec_arg_list)
         unrolled_cond_allocation.add(
           ConditionBlock(
-            Likely(VectorElementSelection(vector_mask, i, precision = ML_Bool), None),
-            ReferenceAssign(VectorElementSelection(vec_res, i, precision = self.precision), scalar_callback(*vec_elt_arg_tuple))
+            Likely(VectorElementSelection(vector_mask, elt_index, precision = ML_Bool), None),
+            ReferenceAssign(VectorElementSelection(vec_res, elt_index, precision = self.precision), scalar_callback(*vec_elt_arg_tuple)),
+            # ReferenceAssign(VectorElementSelection(vec_res, elt_index, precision = self.precision), VectorElementSelection(vector_scheme, elt_index, precision = self.precision))
           )
         ) 
 
@@ -448,6 +452,7 @@ class ML_FunctionBasis(object):
           Test(vector_mask, specifier = Test.IsMaskNotAnyZero, precision = ML_Bool, likely = True, debug = debug_multi),
           Return(vector_scheme),
           Statement(
+            ReferenceAssign(vec_res, vector_scheme),
             unrolled_cond_allocation,
             Return(vec_res)
           )
@@ -478,7 +483,7 @@ class ML_FunctionBasis(object):
         )
       )
 
-    print "vectorized_scheme: ", function_scheme.get_str(depth = None, display_precision = True, memoization_map = {})
+    # print "vectorized_scheme: ", function_scheme.get_str(depth = None, display_precision = True, memoization_map = {})
 
     for vec_arg in vec_arg_list:
       self.implementation.register_new_input_variable(vec_arg)
@@ -535,6 +540,10 @@ class ML_FunctionBasis(object):
     if self.auto_test_std:
       test_total += num_std_case
 
+    diff = self.get_vector_size() - (test_total % self.get_vector_size())
+    test_total += diff
+    test_num   += diff
+
     sollya_precision = self.precision.get_sollya_object()
     interval_size = high_input - low_input 
 
@@ -570,31 +579,85 @@ class ML_FunctionBasis(object):
 
     vi = Variable("i", precision = ML_Int32, var_type = Variable.Local)
 
-    local_input  = TableLoad(input_table, vi)
-    local_result = tested_function(local_input)
-    low_bound    = TableLoad(output_table, vi, 0)
-    high_bound   = TableLoad(output_table, vi, 1)
+    assignation_statement = Statement()
 
-    failure_test = LogicalOr(
-      Comparison(local_result, low_bound, specifier = Comparison.Less),
-      Comparison(local_result, high_bound, specifier = Comparison.Greater)
-    )
+    if self.implementation.get_output_format().is_vector_format():
+      # vector implementation
+      vector_format = self.implementation.get_output_format()
+
+      # building inputs
+      local_input = Variable("vec_x", precision = vector_format, var_type = Variable.Local) 
+      assignation_statement.push(local_input)
+      for k in xrange(self.get_vector_size()):
+        elt_assign = ReferenceAssign(VectorElementSelection(local_input, k), TableLoad(input_table, vi + k))
+        assignation_statement.push(elt_assign)
+
+      # computing results
+      local_result = tested_function(local_input)
+      loop_increment = self.get_vector_size()
+
+      comp_statement = Statement()
+
+      # comparison with expected
+      for k in xrange(self.get_vector_size()):
+        elt_input  = VectorElementSelection(local_input, k)
+        elt_result = VectorElementSelection(local_result, k)
+        low_bound    = TableLoad(output_table, vi + k, 0)
+        high_bound   = TableLoad(output_table, vi + k, 1)
+
+        failure_test = LogicalOr(
+          Comparison(elt_result, low_bound, specifier = Comparison.Less),
+          Comparison(elt_result, high_bound, specifier = Comparison.Greater)
+        )
+
+        comp_statement.push(
+          ConditionBlock(
+            failure_test,
+            Statement(
+              printf_function(vi + k, elt_input, elt_input, elt_result, high_bound), 
+              Return(Constant(1, precision = ML_Int32))
+         )))
 
 
-    test_loop = Loop(
-      ReferenceAssign(vi, Constant(0, precision = ML_Int32)),
-      vi < test_num_cst,
-      Statement(
-        ConditionBlock(
-          failure_test,
-          Statement(
-            printf_function(vi, local_input, local_input, local_result, high_bound), 
-            Return(Constant(1, precision = ML_Int32))
-          ),
+      test_loop = Loop(
+        ReferenceAssign(vi, Constant(0, precision = ML_Int32)),
+        vi < test_num_cst,
+        Statement(
+          assignation_statement,
+          comp_statement,
+          ReferenceAssign(vi, vi + loop_increment)
         ),
-        ReferenceAssign(vi, vi + 1)
-      ),
-    )
+      )
+    else: 
+      # scalar function
+      local_input  = TableLoad(input_table, vi)
+      local_result = tested_function(local_input)
+      low_bound    = TableLoad(output_table, vi, 0)
+      high_bound   = TableLoad(output_table, vi, 1)
+
+      failure_test = LogicalOr(
+        Comparison(local_result, low_bound, specifier = Comparison.Less),
+        Comparison(local_result, high_bound, specifier = Comparison.Greater)
+      )
+
+      loop_increment = self.get_vector_size()
+
+      test_loop = Loop(
+        ReferenceAssign(vi, Constant(0, precision = ML_Int32)),
+        vi < test_num_cst,
+        Statement(
+          assignation_statement,
+          ConditionBlock(
+            failure_test,
+            Statement(
+              printf_function(vi, local_input, local_input, local_result, high_bound), 
+              Return(Constant(1, precision = ML_Int32))
+            ),
+          ),
+          ReferenceAssign(vi, vi + loop_increment)
+        ),
+      )
+    # common test scheme between scalar and vector functions
     test_scheme = Statement(
       test_loop,
       printf_success_function(),
@@ -606,6 +669,9 @@ class ML_FunctionBasis(object):
   @staticmethod
   def get_name():
     return ML_FunctionBasis.function_name
+
+  # list of input to be used for standard test validation
+  standard_test_cases = []
 
 
         

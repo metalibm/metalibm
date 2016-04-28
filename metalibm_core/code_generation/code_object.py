@@ -12,6 +12,8 @@
 
 import re
 import commands
+import sys
+import pdb
 
 import sollya
 
@@ -27,25 +29,31 @@ class DataLayout(object):
         pass
 
 class SymbolTable(object):
-    def __init__(self):
+    def __init__(self, uniquifier = ""):
         self.table = {}
         self.prefix_index = {}
+        self.uniquifier = uniquifier
 
     def is_free_name(self, name):
         return not name in self.table
 
-    def get_free_name(self, var_type, prefix = "tmp"):
-        if self.is_free_name(prefix):
-            self.prefix_index[prefix] = 0
-            return prefix
+    def uniquify(self, name):
+        return self.uniquifier + name 
+
+    def get_free_name(self, var_type, prefix = "tmp", update_index = True):
+        _prefix = self.uniquify(prefix)
+        if self.is_free_name(_prefix):
+            self.prefix_index[_prefix] = 0
+            return _prefix
         else:
             new_index = 0
-            if prefix in self.prefix_index:
-                new_index = self.prefix_index[prefix] + 1
-            while not self.is_free_name("%s%d" % (prefix, new_index)):
+            if _prefix in self.prefix_index:
+                new_index = self.prefix_index[_prefix] + 1
+            while not self.is_free_name("%s%d" % (_prefix, new_index)):
                 new_index += 1
-            self.prefix_index[prefix] = new_index
-            return "%s%d" % (prefix, new_index)
+            if update_index:
+              self.prefix_index[_prefix] = new_index
+            return "%s%d" % (_prefix, new_index)
 
     def has_definition(self, symbol_object):
         for key in self.table:
@@ -83,15 +91,17 @@ class MultiSymbolTable(object):
 
     def get_shared_table(self, symbol_tag, shared_tables):
         if symbol_tag in shared_tables: return shared_tables[symbol_tag]
-        else: return SymbolTable()
+        else: return SymbolTable(uniquifier = self.uniquifier)
 
-    def __init__(self, shared_tables = None, parent_tables = None): 
+    def __init__(self, shared_tables = None, parent_tables = None, uniquifier = ""): 
         """ symbol table initialization 
             shared_tables is a map of pre-defined tables shared with other parent block 
             (and not created within this block)
             parent_tables is a list of pre-existing tables, which are used when
             checking whether a name is free or not
         """
+        self.uniquifier = uniquifier
+
         shared_tables = shared_tables if shared_tables else {}
         parent_tables = parent_tables if parent_tables else []
         self.constant_table = self.get_shared_table(MultiSymbolTable.ConstantSymbol, shared_tables)
@@ -101,6 +111,7 @@ class MultiSymbolTable(object):
         self.table_table = self.get_shared_table(MultiSymbolTable.TableSymbol, shared_tables)
 
         self.parent_tables = parent_tables
+
 
         self.table_list = {
             MultiSymbolTable.ConstantSymbol: self.constant_table, 
@@ -151,6 +162,14 @@ class MultiSymbolTable(object):
             self.prefix_index[prefix] = new_index
             return "%s%d" % (prefix, new_index)
 
+    ## return a free name for a constant
+    def get_free_cst_name(self, var_type, prefix = "cst"):
+        cst_free_name = self.constant_table.get_free_name(var_type, prefix, update_index = True)
+        while not self.is_free_name(cst_free_name):
+          cst_free_name = self.constant_table.get_free_name(var_type, prefix, update_index = True)
+        return cst_free_name
+
+
     def is_empty(self):
         return reduce(lambda acc, v: acc + len(v), self.table_list) == 0
 
@@ -194,12 +213,13 @@ def get_git_tag():
 
 class CodeObject(object):
     tab = "    "
-    def __init__(self, language, shared_tables = None, parent_tables = None, rounding_mode = ML_GlobalRoundMode):
+    def __init__(self, language, shared_tables = None, parent_tables = None, rounding_mode = ML_GlobalRoundMode, uniquifier = ""):
         """ code object initialization """
         self.expanded_code = ""
+        self.uniquifier = uniquifier
         self.tablevel = 0
         self.header_list = []
-        self.symbol_table = MultiSymbolTable(shared_tables if shared_tables else {}, parent_tables = (parent_tables if parent_tables else []))
+        self.symbol_table = MultiSymbolTable(shared_tables if shared_tables else {}, parent_tables = (parent_tables if parent_tables else []), uniquifier = self.uniquifier)
         self.language = language
         self.header_comment = []
 
@@ -287,7 +307,7 @@ class CodeObject(object):
     #  @para, prefix str constant name prefix
     def declare_cst(self, cst_object, prefix = "cst"):
         """ declare a new constant object and return the registered name """
-        free_var_name = self.symbol_table.get_free_name(cst_object.get_precision(), prefix)
+        free_var_name = self.symbol_table.get_free_cst_name(cst_object.get_precision(), prefix)
         self.symbol_table.declare_cst_name(free_var_name, cst_object)
         return free_var_name
 
@@ -404,16 +424,21 @@ class GappaCodeObject(CodeObject):
 #  language is derived from code_generator's language
 class NestedCode(object):
     """ object to support multiple levels of nested code with local and global variable management """
-    def __init__(self, code_generator, static_cst = False, static_table = True):
+    ##
+    #  @param uniquifier <str> unifiquation prefix for name generation
+    def __init__(self, code_generator, static_cst = False, static_table = True, uniquifier = ""):
         self.language = code_generator.language
         self.code_generator = code_generator
 
-        self.static_cst_table = SymbolTable()
-        self.static_table_table = SymbolTable()
+        self.static_cst_table   = SymbolTable(uniquifier = uniquifier)
+        print "static_cst_table: ", self.static_cst_table
+        self.static_table_table = SymbolTable(uniquifier = uniquifier)
         self.static_cst = static_cst
         self.static_table = static_table
 
-        self.static_function_table = SymbolTable()
+        self.uniquifier = uniquifier
+
+        self.static_function_table = SymbolTable(uniquifier = self.uniquifier)
         
         shared_tables = {
             MultiSymbolTable.ConstantSymbol: self.get_cst_table(), 
@@ -421,7 +446,7 @@ class NestedCode(object):
             MultiSymbolTable.FunctionSymbol: self.get_function_table(),   
         }
 
-        self.main_code = CodeObject(self.language, shared_tables) 
+        self.main_code = CodeObject(self.language, shared_tables, uniquifier = self.uniquifier) 
         self.code_list = [self.main_code]
 
     def add_header_comment(self, comment):
@@ -429,11 +454,11 @@ class NestedCode(object):
 
     def get_cst_table(self):
         if self.static_cst: return self.static_cst_table
-        else: return SymbolTable()
+        else: return SymbolTable(self.uniquifier)
 
     def get_table_table(self):
         if self.static_table: return self.static_table_table
-        else: return SymbolTable()
+        else: return SymbolTable(self.uniquifier)
 
     def get_function_table(self):
         return self.static_function_table
