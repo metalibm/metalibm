@@ -93,23 +93,19 @@ class ML_Cbrt(ML_Function("ml_cbrt")):
       # Cubic root of A is approximated by a Newton-Raphson iteration
       # on f(x) = 1 - A / x^3
       # x_n+1 = 4/3 * x_n - x_n^4 / (3 * A)
-      square_approx = Multiplication(current_approx, current_approx, precision = self.precision)
-      quad_approx = Multiplication(square_approx, square_approx, precision = self.precision)
-      factor2 = Multiplication(
-                Constant(1/3.0, precision = self.precision),
-                input_inverse,
-                precision = self.precision
-        )
-      factor =  Constant(4/3.0, precision = self.precision)
+      # x_n+1 = 1/3 * (x_n * (1 - x_n^3/A) + x_n)
 
+      approx_triple = Multiplication(current_approx, Multiplication(current_approx, current_approx))
 
-      new_approx = Subtraction(
-        # 4/3 * x_n
-        Multiplication(factor, current_approx, precision = self.precision),
-        # - x_n^4 / (3*a)
-        Multiplication(factor2, quad_approx, precision = self.precision),
-        precision = self.precision
-      )
+      diff      = FMSN(approx_triple, input_inverse, Constant(1, precision = self.precision))
+      injection = FMA(
+        Multiplication(
+          current_approx, 
+          Constant(1/3.0, precision = self.precision),
+        ),
+        diff, current_approx)
+
+      new_approx = injection
 
       return new_approx
 
