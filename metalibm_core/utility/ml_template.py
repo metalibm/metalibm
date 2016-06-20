@@ -132,6 +132,8 @@ class ML_NewArgTemplate(object):
     self.parser.add_argument("--exception-error", dest = "exception_on_error", action = "store_const", const = True, default = ArgDefault(False), help = "convert Fatal error to python Exception rather than straight sys exit")
     self.parser.add_argument("--auto-test-std", dest = "auto_test_std", action = "store_const", const = True, default = ArgDefault(False), help = "enabling function test on standard test case list")
 
+    self.parser.add_argument("--ml-debug", dest = "ml_debug", action = "store_const", const = True, default = False, help = "enable metalibm debug")
+
 
   ## parse command line arguments
   #  @p exit_on_info trigger early exit when info options is encountered
@@ -149,6 +151,8 @@ class ML_NewArgTemplate(object):
       if exit_on_info: 
         sys.exit(0)
         return None
+
+    Log.set_break_on_error(self.args.ml_debug)
 
     ## specific argument post-processing
     self.args.accuracy        = self.process_arg(self.args.accuracy_value , accuracy_parser)
