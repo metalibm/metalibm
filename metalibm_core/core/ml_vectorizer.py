@@ -76,26 +76,31 @@ class StaticVectorizer(object):
     return {
       ML_Binary32: {
         2: ML_Float2,
+        3: ML_Float3,
         4: ML_Float4,
         8: ML_Float8
       },
       ML_Binary64: {
         2: ML_Double2,
+        3: ML_Double3,
         4: ML_Double4,
         8: ML_Double8
       },
       ML_UInt32: {
         2: ML_UInt2,
+        3: ML_UInt3,
         4: ML_UInt4,
         8: ML_UInt8
       },
       ML_Int32: {
         2: ML_Int2,
+        3: ML_Int3,
         4: ML_Int4,
         8: ML_Int8
       },
       ML_Bool: {
         2: ML_Bool2,
+        3: ML_Bool3,
         4: ML_Bool4,
         8: ML_Bool8
       },

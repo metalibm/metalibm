@@ -586,22 +586,27 @@ def vector_format_builder(c_format_name, opencl_format_name, vector_size, scalar
   return compound_constructor(c_format_name, opencl_format_name, vector_size, scalar_format, sollya_precision)
 
 ML_Float2 = vector_format_builder("ml_float2_t", "float2", 2, ML_Binary32)
+ML_Float3 = vector_format_builder("ml_float3_t", "float3", 3, ML_Binary32)
 ML_Float4 = vector_format_builder("ml_float4_t", "float4", 4, ML_Binary32)
 ML_Float8 = vector_format_builder("ml_float8_t", "float8", 8, ML_Binary32)
 
 ML_Double2 = vector_format_builder("ml_double2_t", "double2", 2, ML_Binary64)
+ML_Double3 = vector_format_builder("ml_double3_t", "double3", 3, ML_Binary64)
 ML_Double4 = vector_format_builder("ml_double4_t", "double4", 4, ML_Binary64)
 ML_Double8 = vector_format_builder("ml_double8_t", "double8", 8, ML_Binary64)
 
 ML_Bool2  = vector_format_builder("ml_bool2_t", "int2", 2, ML_Bool, compound_constructor = ML_IntegerVectorFormat)
+ML_Bool3  = vector_format_builder("ml_bool3_t", "int3", 3, ML_Bool, compound_constructor = ML_IntegerVectorFormat)
 ML_Bool4  = vector_format_builder("ml_bool4_t", "int4", 4, ML_Bool, compound_constructor = ML_IntegerVectorFormat)
 ML_Bool8  = vector_format_builder("ml_bool8_t", "int8", 8, ML_Bool, compound_constructor = ML_IntegerVectorFormat)
 
 ML_Int2  = vector_format_builder("ml_int2_t", "int2", 2,  ML_Int32, compound_constructor = ML_IntegerVectorFormat)
+ML_Int3  = vector_format_builder("ml_int3_t", "int3", 3,  ML_Int32, compound_constructor = ML_IntegerVectorFormat)
 ML_Int4  = vector_format_builder("ml_int4_t", "int4", 4, ML_Int32, compound_constructor = ML_IntegerVectorFormat)
 ML_Int8  = vector_format_builder("ml_int8_t", "int8", 8, ML_Int32, compound_constructor = ML_IntegerVectorFormat)
                                                          
 ML_UInt2 = vector_format_builder("ml_uint2_t", "uint2", 2, ML_UInt32, compound_constructor = ML_IntegerVectorFormat)
+ML_UInt3 = vector_format_builder("ml_uint3_t", "uint3", 3, ML_UInt32, compound_constructor = ML_IntegerVectorFormat)
 ML_UInt4 = vector_format_builder("ml_uint4_t", "uint4", 4, ML_UInt32, compound_constructor = ML_IntegerVectorFormat)
 ML_UInt8 = vector_format_builder("ml_uint8_t", "uint8", 8, ML_UInt32, compound_constructor = ML_IntegerVectorFormat)
 
