@@ -19,22 +19,9 @@ from .complex_generator import *
 from ..core.ml_formats import *
 from ..core.ml_table import ML_ApproxTable
 from ..core.ml_operations import *
+from .generator_helper import *
 
 
-def LibFunctionConstructor(require_header):
-    def extend_kwords(kwords, ext_list):
-        require_header_arg = [] if ((not "require_header" in kwords) or not kwords["require_header"]) else kwords["require_header"]
-        require_header_arg += require_header
-        kwords["require_header"] = require_header_arg
-        return kwords
-        
-    return lambda *args, **kwords: FunctionOperator(*args, **extend_kwords(kwords, require_header))
-
-Libm_Function       = LibFunctionConstructor(["math.h"])
-Std_Function        = LibFunctionConstructor(["stdlib.h"])
-Fenv_Function       = LibFunctionConstructor(["fenv.h"])
-ML_Utils_Function   = LibFunctionConstructor(["support_lib/ml_utils.h"])
-ML_Multi_Prec_Lib_Function   = LibFunctionConstructor(["support_lib/ml_multi_prec_lib.h"])
 
 
 ## Generate a unary symbol operator for integer to integer conversion
