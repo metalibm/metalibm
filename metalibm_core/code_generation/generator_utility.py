@@ -129,6 +129,10 @@ class CompoundOperator(ML_CG_Operator):
                 compound_arg.append(FO_Result(arg_function.get_index(), output_precision))
                 result_in_args = True
 
+            elif isinstance(arg_function, FO_Value):
+                output_precision = arg_function.get_output_precision()
+                compound_arg.append(arg_function.get_value())
+
             else:
                 # other compound operator ?
                 dummy_precision = arg_function.get_output_precision()
@@ -261,6 +265,19 @@ class FO_Arg(object):
 class ML_VarArity(object):
     """ variable arity """
     pass
+
+
+class FO_Value(object):
+  """ Immediate value to be transmitted as is during code generation """
+  def __init__(self, value, precision):
+    self.value = value
+    self.precision = precision
+
+  def get_value(self):
+    return CodeExpression(self.value, self.precision)
+
+  def get_output_precision(self):
+    return self.precision
 
 class FO_Result(object):
   """ PlaceHolder for a function Operator result
