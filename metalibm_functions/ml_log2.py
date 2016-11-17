@@ -4,7 +4,7 @@ import sys
 
 import sollya
 
-from sollya import S2, Interval, ceil, floor, round, inf, sup, abs, log, exp, log2, guessdegree, x, RN, absolute 
+from sollya import S2, Interval, ceil, floor, round, inf, sup, log, exp, log2, guessdegree, x, RN, absolute 
 
 from metalibm_core.core.ml_function import ML_Function, ML_FunctionBasis, DefaultArgTemplate
 

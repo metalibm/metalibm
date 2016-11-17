@@ -4,7 +4,7 @@ import sys
 
 import sollya
 
-from sollya import S2, Interval, ceil, floor, round, inf, sup, abs, log, exp, expm1, log2, guessdegree, dirtyinfnorm
+from sollya import S2, Interval, ceil, floor, round, inf, sup, log, exp, expm1, log2, guessdegree, dirtyinfnorm
 
 from metalibm_core.core.attributes import ML_Debug
 from metalibm_core.core.ml_operations import *
