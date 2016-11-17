@@ -3,9 +3,9 @@
 import sys
 import sollya
 
-from sollya import S2, Interval, ceil, floor, round, inf, sup, abs, log, exp, cos, pi, guessdegree, dirtyinfnorm
+from sollya import S2, Interval, ceil, floor, round, inf, sup, log, exp, cos, pi, guessdegree, dirtyinfnorm, sin, x
 
-from metalibm_core.core.ml_function import ML_Function, ML_FunctionBasis
+from metalibm_core.core.ml_function import ML_Function, ML_FunctionBasis, DefaultArgTemplate
 
 from metalibm_core.core.attributes import ML_Debug
 from metalibm_core.core.ml_operations import *
@@ -16,7 +16,7 @@ from metalibm_core.core.ml_table import ML_Table
 from metalibm_core.core.ml_complex_formats import ML_Mpfr_t
 from metalibm_core.code_generation.generator_utility import FunctionOperator, FO_Result, FO_Arg
 
-from metalibm_core.utility.ml_template import ML_ArgTemplate
+from metalibm_core.utility.ml_template import *
 from metalibm_core.utility.log_report  import Log
 from metalibm_core.utility.debug_utils import *
 from metalibm_core.utility.num_utils   import ulp
@@ -30,6 +30,7 @@ from metalibm_core.utility.gappa_utils import is_gappa_installed
 class ML_Cosine(ML_Function("ml_cos")):
   """ Implementation of cosinus function """
   def __init__(self, 
+               arg_template = DefaultArgTemplate,
                precision = ML_Binary32, 
                accuracy  = ML_Faithful,
                libm_compliant = True, 
@@ -38,8 +39,11 @@ class ML_Cosine(ML_Function("ml_cos")):
                fast_path_extract = True,
                target = GenericProcessor(), 
                output_file = "cosf.c", 
-               function_name = "cosf"):
+               function_name = "cosf", 
+               language = C_Code,
+               vector_size = 1):
     # initializing I/O precision
+    precision = ArgDefault.select_value([arg_template.precision, precision])
     io_precisions = [precision] * 2
 
     # initializing base class
@@ -56,10 +60,13 @@ class ML_Cosine(ML_Function("ml_cos")):
       fuse_fma = fuse_fma,
       fast_path_extract = fast_path_extract,
 
-      debug_flag = debug_flag
+      debug_flag = debug_flag,
+      language = language,
+      vector_size = vector_size,
+      arg_template = arg_template
     )
+    self.accuracy  = accuracy
     self.precision = precision
-
 
 
   def generate_emulate(self, result, mpfr_x, mpfr_rnd):
@@ -246,6 +253,9 @@ class ML_Cosine(ML_Function("ml_cos")):
               tag_map["red_vx_d"]:  gappa_vx,
           }
 
+          print "opt_scheme"
+          print opt_scheme.get_str(depth = None, display_precision = True, memoization_map = {})
+
           eval_error = self.gappa_engine.get_eval_error_v2(self.opt_engine, opt_scheme, cg_eval_error_copy_map, gappa_filename = "red_arg_%d.g" % i)
           poly_range = cos(approx_interval+i*pi/S2**frac_pi_index)
           rel_error_list.append(eval_error / poly_range)
@@ -337,7 +347,7 @@ class ML_Cosine(ML_Function("ml_cos")):
     approx_interval = Interval(-0.5, 0.5)
     for i in xrange(2**(lar_k+1)):
       frac_pi = pi / S2**lar_k
-      func = cos(frac_pi * i + frac_pi * x)
+      func = cos(frac_pi * i + frac_pi * sollya.x)
       
       degree = 6
       error_mode = sollya.absolute
@@ -392,19 +402,10 @@ class ML_Cosine(ML_Function("ml_cos")):
 
 if __name__ == "__main__":
   # auto-test
-  arg_template = ML_ArgTemplate(default_function_name = "new_cos", default_output_file = "new_cos.c" )
+  arg_template = ML_NewArgTemplate(default_function_name = "new_cos", default_output_file = "new_cos.c" )
   # argument extraction 
-  parse_arg_index_list = arg_template.sys_arg_extraction()
-  arg_template.check_args(parse_arg_index_list)
+  args = arg_template.arg_extraction()
 
+  ml_cos = ML_Cosine(args) 
 
-  ml_cos = ML_Cosine(arg_template.precision, 
-                     libm_compliant            = arg_template.libm_compliant, 
-                     debug_flag                = arg_template.debug_flag, 
-                     target                    = arg_template.target, 
-                     fuse_fma                  = arg_template.fuse_fma, 
-                     fast_path_extract         = arg_template.fast_path,
-                     function_name             = arg_template.function_name,
-                     accuracy                  = arg_template.accuracy,
-                     output_file               = arg_template.output_file)
   ml_cos.gen_implementation()
