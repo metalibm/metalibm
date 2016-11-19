@@ -15,11 +15,16 @@ class C_Code(object):
   def __str__(self):
     return "C_Code"
 
-class Gappa_Code:
+class Gappa_Code(object):
   def __str__(self):
     return "Gappa_Code"
 
 ## OpenCL-C class Code
-class OpenCL_Code:
+class OpenCL_Code(object):
   def __str__(self):
     return "OpenCL_Code"
+
+## VHDL (HW) class Code
+class VHDL_Code(object):
+  def __str__(self):
+    return "VHDL_Code"

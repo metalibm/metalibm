@@ -419,6 +419,142 @@ class GappaCodeObject(CodeObject):
         return result
 
 
+class VHDLCodeObject(object):
+    tab = "    "
+    def __init__(self, language, shared_tables = None, parent_tables = None, rounding_mode = ML_GlobalRoundMode, uniquifier = ""):
+        """ code object initialization """
+        self.expanded_code = ""
+        self.uniquifier = uniquifier
+        self.tablevel = 0
+        self.header_list = []
+        self.symbol_table = MultiSymbolTable(shared_tables if shared_tables else {}, parent_tables = (parent_tables if parent_tables else []), uniquifier = self.uniquifier)
+        self.language = language
+        self.header_comment = []
+
+    def add_header_comment(self, comment):
+        self.header_comment.append(comment)
+
+    def get_symbol_table(self):
+        return self.symbol_table
+
+    def __lshift__(self, added_code):
+        """ implicit code insertion through << operator """
+        self.expanded_code += re.sub("\n", lambda _: ("\n" + self.tablevel * CodeObject.tab), added_code)
+
+    def inc_level(self):
+        """ increase indentation level """
+        self.tablevel += 1
+        self.expanded_code += CodeObject.tab
+
+    def dec_level(self):
+        """ decrease indentation level """
+        self.tablevel -= 1
+        # deleting last inserted tab
+        if self.expanded_code[-len(CodeObject.tab):] == CodeObject.tab:
+            self.expanded_code = self.expanded_code[:-len(CodeObject.tab)]
+
+
+
+    def open_level(self):
+        """ open nested block """
+        self << "{\n"
+        self.inc_level()
+
+    def close_level(self, cr = "\n"):
+        """ close nested block """
+        self.dec_level()
+        self << "}%s" % cr
+
+    def link_level(self, transition = ""):
+        """ close nested block """
+        self.dec_level()
+        self << "} %s {" % transition
+        self.inc_level()
+
+
+    def add_header(self, header_file):
+        """ add a new header file """
+        if not header_file in self.header_list:
+            self.header_list.append(header_file)
+
+    def generate_header_code(self, git_tag = True):
+        """ generate code for header file inclusion """
+        result = ""
+        # generating git comment
+        if git_tag:
+            git_comment = "generated using metalibm %s \n sha1 git: %s \n" % (ml_version_info.version_num, ml_version_info.git_sha)
+            self.header_comment.insert(0, git_comment) 
+        # generating header comments
+        result += "/**\n"
+        for comment in self.header_comment:
+            result += " * " + comment.replace("\n", "\n * ") + "\n"
+        result += "**/\n"
+
+        for header_file in self.header_list:
+            result += """#include <%s>\n""" % (header_file)
+        return result
+
+    def get_free_var_name(self, var_type, prefix = "tmp", declare = True):
+        free_var_name = self.symbol_table.get_free_name(var_type, prefix)
+        # declare free var if required 
+        if declare:
+            self.symbol_table.declare_var_name(free_var_name, Variable(free_var_name, precision = var_type))
+
+        return free_var_name
+
+    def get_free_name(self, var_type, prefix = "tmp"):
+        return self.symbol_table.get_free_name(var_type, prefix)
+
+    def table_has_definition(self, table_object):
+        return self.symbol_table.table_has_definition(table_object)
+
+
+    ## Declare a new constant object whose name is build
+    #  from @p prefix
+    #  @param cst_objet Constant constant object to be declared
+    #  @para, prefix str constant name prefix
+    def declare_cst(self, cst_object, prefix = "cst"):
+        """ declare a new constant object and return the registered name """
+        free_var_name = self.symbol_table.get_free_cst_name(cst_object.get_precision(), prefix)
+        self.symbol_table.declare_cst_name(free_var_name, cst_object)
+        return free_var_name
+
+    def declare_table(self, table_object, prefix):
+        table_name = self.table_has_definition(table_object)
+        if table_name != None:
+            return table_name
+        else:
+            free_var_name = self.symbol_table.get_free_name(table_object.get_storage_precision(), prefix)
+            self.symbol_table.declare_table_name(free_var_name, table_object)
+            return free_var_name
+
+
+    def declare_function(self, function_name, function_object):
+        self.symbol_table.declare_function_name(function_name, function_object)
+        return function_name
+
+
+    def get(self, code_generator, static_cst = False, static_table = False, headers = False, skip_function = False):
+        """ generate unrolled code content """
+        result = ""
+
+        if headers: 
+            result += self.generate_header_code()
+            result += "\n\n"
+
+        declaration_exclusion_list = [MultiSymbolTable.ConstantSymbol] if static_cst else []
+        declaration_exclusion_list += [MultiSymbolTable.TableSymbol] if static_table else []
+        declaration_exclusion_list += [MultiSymbolTable.FunctionSymbol] if skip_function else []
+        result += self.symbol_table.generate_declarations(code_generator, exclusion_list = declaration_exclusion_list)
+        result += self.symbol_table.generate_initializations(code_generator, init_required_list = [MultiSymbolTable.ConstantSymbol, MultiSymbolTable.VariableSymbol])
+        result += "\n" if result != "" else ""
+        result += self.expanded_code
+        return result
+
+    def add_comment(self, comment):
+        """ add a full line comment """
+        self << ("-- %s \n" % comment)
+
 
 ## Nested code object
 #  language is derived from code_generator's language
