@@ -79,6 +79,8 @@ def interval_parser(interval_str):
 
 def target_parser(target_name):
   return target_map[target_name]
+def target_instanciate(target_name):
+  return target_parser(target_name)()
 
 def language_parser(language_str):
   return language_map[language_str]
@@ -105,13 +107,14 @@ class TargetInfoAction(argparse.Action):
     def __init__(self, option_strings, dest, nargs=None, **kwargs):
         if nargs is not None:
             raise ValueError("nargs not allowed")
-        super(TargetInfoAction, self).__init__(option_strings, dest, **kwargs)
+        super(TargetInfoAction, self).__init__(option_strings, dest, nargs = 0, **kwargs)
     def __call__(self, parser, namespace, values, option_string=None):
-        print('TargetInfoAction %r %r %r' % (namespace, values, option_string))
+        #print('TargetInfoAction %r %r %r' % (namespace, values, option_string))
         spacew = max(len(v) for v in target_map)
         for target_name in target_map:
           print "%s: %s %s " % (target_name, " " * (spacew - len(target_name)), target_map[target_name])
-        setattr(namespace, "early_exit", True)
+        exit(0)
+        #setattr(namespace, "early_exit", True)
 
 class MLDebugAction(argparse.Action):
     def __init__(self, option_strings, dest, nargs=None, **kwargs):
@@ -176,8 +179,8 @@ class ML_CommonArgTemplate(object):
 
 
   def arg_extraction(self):
-     self.args = self.parser.parse_args(sys.argv[1:])
-     return self.args
+    self.args = self.parser.parse_args(sys.argv[1:])
+    return self.args
 
 
   ## process argument to return overloadable arg_value
@@ -203,7 +206,7 @@ class ML_EntityArgTemplate(ML_CommonArgTemplate):
     ML_CommonArgTemplate.__init__(self, parser)
 
     self.parser.add_argument("--entityname", dest = "entity_name", default = ArgDefault(self.default_entity_name), help = "set entity name")
-    self.parser.add_argument("--backend", dest = "backend", action = "store", type = target_parser, default = "none", help = "select generation backend")
+    self.parser.add_argument("--backend", dest = "backend", action = "store", type = target_instanciate, default = "none", help = "select generation backend")
 
 
 ## new argument template based on argparse module
@@ -216,7 +219,7 @@ class ML_NewArgTemplate(ML_CommonArgTemplate):
     ML_CommonArgTemplate.__init__(self, parser)
     self.parser.add_argument("--libm", dest = "libm_compliant", action = "store_const", const = True, default = ArgDefault(False), help = "generate libm compliante code")
     self.parser.add_argument("--fname", dest = "function_name", default = ArgDefault(self.default_function_name), help = "set function name")
-    self.parser.add_argument("--target", dest = "target", action = "store", type = target_parser, default = "none", help = "select generation target")
+    self.parser.add_argument("--target", dest = "target", action = "store", type = target_instanciate, default = "none", help = "select generation target")
 
 
 
