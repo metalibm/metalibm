@@ -14,6 +14,7 @@
 from ..utility.log_report import Log
 
 from ..core.ml_operations import Variable, Constant, ConditionBlock, Return, TableLoad, Statement, Loop, SpecificOperation, ExceptionOperation, ClearException, NoResultOperation, SwitchBlock, FunctionObject, ReferenceAssign
+from ..core.ml_hdl_operations import *
 from ..core.ml_table import ML_Table
 from ..core.ml_formats import *
 from ..core.attributes import ML_Debug
@@ -190,6 +191,19 @@ class VHDLCodeGenerator(object):
 
             return None
 
+        elif isinstance(optree, Process):
+            sensibility_list = optree.get_sensibility_list()
+            code_object << "process(%s)\n"
+            self.open_memoization_level()
+            code_object.open_level()
+            for process_stat in optree.inputs:
+              self.generate_expr(code_object, process_stat, folded = folded, initial = True, language = language)
+
+            code_object.close_level()
+            self.close_memoization_level()
+            code_object << "end process;\n"
+            return None
+
         elif isinstance(optree, ConditionBlock):
             condition = optree.inputs[0]
             if_branch = optree.inputs[1]
@@ -203,10 +217,7 @@ class VHDLCodeGenerator(object):
               cond_likely = condition.get_likely()
             except AttributeError:
               Log.report(Log.Error, " the following condition has no (usable) likely attribute: %s" % (condition.get_str(depth = 1, display_precision = True, memoization_map = {}))) 
-            if cond_likely in [True, False]:
-                code_object << "\nif (__builtin_expect(%s, %d)) " % (cond_code.get(), {True: 1, False: 0}[condition.get_likely()])
-            else:
-                code_object << "\nif (%s) " % cond_code.get()
+            code_object << "\nif %s then " % cond_code.get()
             self.open_memoization_level()
             code_object.open_level()
             #if_branch_code = self.processor.generate_expr(self, code_object, if_branch, if_branch.inputs, folded)
@@ -222,6 +233,7 @@ class VHDLCodeGenerator(object):
                 self.close_memoization_level()
             else:
                 code_object << "\n"
+            code_object << "end if;\n"
 
             return None
 
@@ -316,7 +328,7 @@ class VHDLCodeGenerator(object):
 
         elif isinstance(symbol_object, Variable):
             precision_symbol = (symbol_object.get_precision().get_name(language = self.language) + " ")
-            return "variable %s : %s;\n" % (symbol, precision_symbol) 
+            return "signal %s : %s;\n" % (symbol, precision_symbol) 
 
         elif isinstance(symbol_object, Signal):
             precision_symbol = (symbol_object.get_precision().get_name(language = self.language) + " ") if initial else ""

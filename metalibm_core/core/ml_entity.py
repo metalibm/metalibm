@@ -22,7 +22,7 @@ from metalibm_core.core.ml_complex_formats import ML_Mpfr_t
 from metalibm_core.core.ml_call_externalizer import CallExternalizer
 from metalibm_core.core.ml_vectorizer import StaticVectorizer
 
-from metalibm_core.code_generation.code_object import NestedCode
+from metalibm_core.code_generation.code_object import NestedCode, VHDLCodeObject
 from metalibm_core.code_generation.code_entity import CodeEntity
 from metalibm_core.code_generation.vhdl_backend import VHDLBackend
 from metalibm_core.code_generation.vhdl_code_generator import VHDLCodeGenerator
@@ -96,7 +96,7 @@ class ML_EntityBasis(object):
              fast_path_extract = ArgDefault(True, 2),
              # Debug verbosity
              debug_flag = ArgDefault(False, 2),
-             language = ArgDefault(C_Code, 2),
+             language = ArgDefault(VHDL_Code, 2),
              auto_test = ArgDefault(False, 2),
              auto_test_range = ArgDefault(Interval(-1, 1), 2),
              auto_test_std = ArgDefault(False, 2),
@@ -162,7 +162,7 @@ class ML_EntityBasis(object):
 
     self.vhdl_code_generator = VHDLCodeGenerator(self.backend, declare_cst = False, disable_debug = not self.debug_flag, language = self.language)
     uniquifier = self.entity_name
-    self.main_code_object = NestedCode(self.vhdl_code_generator, static_cst = True, uniquifier = "{0}_".format(self.entity_name))
+    self.main_code_object = NestedCode(self.vhdl_code_generator, static_cst = True, uniquifier = "{0}_".format(self.entity_name), code_ctor = VHDLCodeObject)
 
   ## name generation
   #  @param base_name string, name to be extended for unifiquation

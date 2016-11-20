@@ -24,6 +24,8 @@ from metalibm_core.utility.num_utils   import ulp
 from metalibm_core.utility.gappa_utils import is_gappa_installed
 
 
+from metalibm_core.core.ml_hdl_format import *
+from metalibm_core.core.ml_hdl_operations import *
 
 class ML_HW_Adder(ML_Entity("ml_hw_adder")):
   def __init__(self, 
@@ -65,13 +67,25 @@ class ML_HW_Adder(ML_Entity("ml_hw_adder")):
     self.precision = precision
 
   def generate_scheme(self):
+    precision = ML_StdLogicVectorFormat(32)
     # declaring main input variable
-    vx = self.implementation.add_input_variable("x", self.precision) 
-    vy = self.implementation.add_input_variable("y", self.precision) 
+    vx = self.implementation.add_input_variable("x", precision) 
+    vy = self.implementation.add_input_variable("y", precision) 
 
-    vr = Addition(vx, vy, precision = self.precision)
 
-    self.implementation.add_output_variable("r", vr)
+    clk = self.implementation.add_input_variable("clk", ML_StdLogic)
+    reset = self.implementation.add_input_variable("reset", ML_StdLogic)
+
+    vr = Addition(vx, vy, precision = precision)
+    vr_d = Variable("vr_d", precision = vr.get_precision())
+
+    process_statement = Statement(
+      ConditionBlock(LogicalAnd(Event(clk), Comparison(clk, Constant(1, precision = ML_StdLogic), specifier = Comparison.Equal)), ReferenceAssign(vr_d, vr))
+    )
+    process = Process(process_statement, sensibility_list = [clk, reset])
+    self.implementation.add_process(process)
+
+    self.implementation.add_output_variable("r", vr_d)
 
     return [self.implementation]
 

@@ -13,7 +13,7 @@
 #              entity
 ###############################################################################
 
-from ..core.ml_operations import Variable, FunctionObject, Statement
+from ..core.ml_operations import Variable, FunctionObject, Statement, ReferenceAssign
 from .code_object import NestedCode
 from .generator_utility import FunctionOperator, FO_Arg
 from .code_constant import *
@@ -30,6 +30,7 @@ class CodeEntity(object):
     self.entity_object   = None
     self.entity_operator = None
     self.language = language
+    self.process_list = []
 
   def get_name(self):
     return self.name
@@ -40,7 +41,12 @@ class CodeEntity(object):
     return input_var
 
   def add_output_variable(self, name, output_node):
-    self.output_list.append(output_node)
+    output_var = Variable(name, precision = output_node.get_precision(), var_type = Variable.Output)
+    output_assign = ReferenceAssign(output_var, output_node)
+    self.output_list.append(output_assign)
+
+  def add_process(self, new_process):
+    self.process_list.append(new_process)
 
   def register_new_input_variable(self, new_input):
     self.arg_list.append(new_input)
@@ -74,17 +80,17 @@ class CodeEntity(object):
     language = self.language if language is None else language
     # input signal declaration
     input_port_list = ["%s : in %s" % (inp.get_tag(), inp.get_precision().get_name(language = language)) for inp in self.arg_list]
-    output_port_list = ["%s : out %s" % (inp.get_tag(), inp.get_precision().get_name(language = language)) for inp in self.output_list]
+    output_port_list = ["%s : out %s" % (out.get_input(0).get_tag(), out.get_input(0).get_precision().get_name(language = language)) for out in self.output_list]
     port_format_list = ";\n ".join(input_port_list + output_port_list)
     # FIXME: add suport for inout and generic
     return "entity {entity_name} is \n port ({port_list});\nend {entity_name};\n".format(entity_name = self.name, port_list = port_format_list)
 
   ## @return function implementation (ML_Operation DAG)
   def get_scheme(self):
-    return Statement(*tuple(self.output_list))
+    return Statement(*tuple(self.process_list + self.output_list))
 
   def get_definition(self, code_generator, language, folded = True, static_cst = False):
-    code_object = NestedCode(code_generator, static_cst = static_cst)
+    code_object = NestedCode(code_generator, static_cst = static_cst, code_ctor = VHDLCodeObject)
     code_object << self.get_declaration(final = False, language = language)
     code_object.open_level()
     code_generator.generate_expr(code_object, self.scheme, folded = folded, initial = False, language = language)

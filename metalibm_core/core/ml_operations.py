@@ -466,6 +466,7 @@ class Variable(ML_LeafNode):
     #  such node is not defined as an input to the function description
     class Input: pass
     class Local: pass
+    class Output: pass
 
     ## Intermediary type for Variable Node
     #  such node is defined within the function description.
@@ -1042,7 +1043,6 @@ class Statement(AbstractOperationConstructor("Statement")):
         self.__class__.__base__.__init__(self, *args, **kwords)
         self.arity = len(args)
 
-
     # add a new statement at the end of the inputs list 
     # @param optree ML_Operation object added at the end of inputs list
     def add(self, optree):
@@ -1055,7 +1055,6 @@ class Statement(AbstractOperationConstructor("Statement")):
         """ add a new unary statement at the beginning of the input list """
         self.inputs = (optree,) + self.inputs
         self.arity += 1
-
 
     def finish_copy(self, new_copy, copy_map = {}):
         new_copy.arity = self.arity

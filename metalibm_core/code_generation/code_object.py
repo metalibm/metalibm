@@ -453,17 +453,15 @@ class VHDLCodeObject(object):
         if self.expanded_code[-len(CodeObject.tab):] == CodeObject.tab:
             self.expanded_code = self.expanded_code[:-len(CodeObject.tab)]
 
-
-
     def open_level(self):
         """ open nested block """
-        self << "{\n"
+        self << " -- new code level \n"
         self.inc_level()
 
     def close_level(self, cr = "\n"):
         """ close nested block """
         self.dec_level()
-        self << "}%s" % cr
+        self << "-- end of code level %s" % cr
 
     def link_level(self, transition = ""):
         """ close nested block """
@@ -547,6 +545,7 @@ class VHDLCodeObject(object):
         declaration_exclusion_list += [MultiSymbolTable.FunctionSymbol] if skip_function else []
         result += self.symbol_table.generate_declarations(code_generator, exclusion_list = declaration_exclusion_list)
         result += self.symbol_table.generate_initializations(code_generator, init_required_list = [MultiSymbolTable.ConstantSymbol, MultiSymbolTable.VariableSymbol])
+        result += "begin\n"
         result += "\n" if result != "" else ""
         result += self.expanded_code
         return result
@@ -562,7 +561,7 @@ class NestedCode(object):
     """ object to support multiple levels of nested code with local and global variable management """
     ##
     #  @param uniquifier <str> unifiquation prefix for name generation
-    def __init__(self, code_generator, static_cst = False, static_table = True, uniquifier = ""):
+    def __init__(self, code_generator, static_cst = False, static_table = True, uniquifier = "", code_ctor = CodeObject):
         self.language = code_generator.language
         self.code_generator = code_generator
 
@@ -574,6 +573,9 @@ class NestedCode(object):
 
         self.uniquifier = uniquifier
 
+        # constructor function for code levels
+        self.code_ctor = code_ctor
+
         self.static_function_table = SymbolTable(uniquifier = self.uniquifier)
         
         shared_tables = {
@@ -582,7 +584,7 @@ class NestedCode(object):
             MultiSymbolTable.FunctionSymbol: self.get_function_table(),   
         }
 
-        self.main_code = CodeObject(self.language, shared_tables, uniquifier = self.uniquifier) 
+        self.main_code = self.code_ctor(self.language, shared_tables, uniquifier = self.uniquifier) 
         self.code_list = [self.main_code]
 
     def add_header_comment(self, comment):
@@ -616,7 +618,7 @@ class NestedCode(object):
             MultiSymbolTable.TableSymbol: self.get_table_table(),
             MultiSymbolTable.FunctionSymbol: self.get_function_table(),    
         }
-        self.code_list.insert(0, CodeObject(self.language, shared_tables, parent_tables = parent_tables))
+        self.code_list.insert(0, self.code_ctor(self.language, shared_tables, parent_tables = parent_tables))
 
     def close_level(self, cr = "\n"):
         level_code = self.code_list.pop(0)
