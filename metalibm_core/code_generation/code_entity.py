@@ -14,6 +14,7 @@
 ###############################################################################
 
 from ..core.ml_operations import Variable, FunctionObject, Statement, ReferenceAssign
+from ..core.ml_hdl_operations import Signal
 from .code_object import NestedCode
 from .generator_utility import FunctionOperator, FO_Arg
 from .code_constant import *
@@ -39,9 +40,17 @@ class CodeEntity(object):
     input_var = Variable(name, precision = vartype) 
     self.arg_list.append(input_var)
     return input_var
-
   def add_output_variable(self, name, output_node):
     output_var = Variable(name, precision = output_node.get_precision(), var_type = Variable.Output)
+    output_assign = ReferenceAssign(output_var, output_node)
+    self.output_list.append(output_assign)
+
+  def add_input_signal(self, name, signaltype):
+    input_signal = Signal(name, precision = signaltype) 
+    self.arg_list.append(input_signal)
+    return input_signal
+  def add_output_signal(self, name, output_node):
+    output_var = Signal(name, precision = output_node.get_precision(), var_type = Signal.Output)
     output_assign = ReferenceAssign(output_var, output_node)
     self.output_list.append(output_assign)
 
@@ -81,9 +90,9 @@ class CodeEntity(object):
     # input signal declaration
     input_port_list = ["%s : in %s" % (inp.get_tag(), inp.get_precision().get_name(language = language)) for inp in self.arg_list]
     output_port_list = ["%s : out %s" % (out.get_input(0).get_tag(), out.get_input(0).get_precision().get_name(language = language)) for out in self.output_list]
-    port_format_list = ";\n ".join(input_port_list + output_port_list)
+    port_format_list = ";\n  ".join(input_port_list + output_port_list)
     # FIXME: add suport for inout and generic
-    return "entity {entity_name} is \n port ({port_list});\nend {entity_name};\n".format(entity_name = self.name, port_list = port_format_list)
+    return "entity {entity_name} is \nport (\n  {port_list}\n);\nend {entity_name};\n\n".format(entity_name = self.name, port_list = port_format_list)
 
   ## @return function implementation (ML_Operation DAG)
   def get_scheme(self):
