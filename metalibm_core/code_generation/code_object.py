@@ -18,6 +18,7 @@ import pdb
 import sollya
 
 from ..core.ml_operations import Variable
+from ..core.ml_hdl_operations import Signal
 from .code_constant import C_Code, Gappa_Code
 from ..core.ml_formats import ML_GlobalRoundMode, ML_Fixed_Format, ML_FP_Format
 
@@ -86,6 +87,7 @@ class MultiSymbolTable(object):
     class ConstantSymbol: pass
     class FunctionSymbol: pass
     class VariableSymbol: pass
+    class SignalSymbol:  pass
     class ProtectedSymbol: pass
     class TableSymbol: pass
 
@@ -107,6 +109,7 @@ class MultiSymbolTable(object):
         self.constant_table = self.get_shared_table(MultiSymbolTable.ConstantSymbol, shared_tables)
         self.function_table = self.get_shared_table(MultiSymbolTable.FunctionSymbol, shared_tables)
         self.variable_table = self.get_shared_table(MultiSymbolTable.VariableSymbol, shared_tables)
+        self.signal_table   = self.get_shared_table(MultiSymbolTable.SignalSymbol, shared_tables)
         self.protected_table = self.get_shared_table(MultiSymbolTable.ProtectedSymbol, shared_tables)
         self.table_table = self.get_shared_table(MultiSymbolTable.TableSymbol, shared_tables)
 
@@ -117,6 +120,7 @@ class MultiSymbolTable(object):
             MultiSymbolTable.ConstantSymbol: self.constant_table, 
             MultiSymbolTable.FunctionSymbol: self.function_table, 
             MultiSymbolTable.VariableSymbol: self.variable_table, 
+            MultiSymbolTable.SignalSymbol:   self.signal_table, 
             MultiSymbolTable.ProtectedSymbol: self.protected_table, 
             MultiSymbolTable.TableSymbol: self.table_table,
         }
@@ -180,6 +184,8 @@ class MultiSymbolTable(object):
     def declare_var_name(self, var_name, var_object):
         self.variable_table.declare_symbol(var_name, var_object)
 
+    def declare_signal_name(self, signal_name, signal_object):
+        self.signal_table.declare_symbol(signal_name, signal_object)
 
     def declare_cst_name(self, cst_name, cst_object):
         self.constant_table.declare_symbol(cst_name, cst_object)
@@ -245,8 +251,6 @@ class CodeObject(object):
         if self.expanded_code[-len(CodeObject.tab):] == CodeObject.tab:
             self.expanded_code = self.expanded_code[:-len(CodeObject.tab)]
 
-
-
     def open_level(self):
         """ open nested block """
         self << "{\n"
@@ -291,7 +295,6 @@ class CodeObject(object):
         # declare free var if required 
         if declare:
             self.symbol_table.declare_var_name(free_var_name, Variable(free_var_name, precision = var_type))
-
         return free_var_name
 
     def get_free_name(self, var_type, prefix = "tmp"):
@@ -342,6 +345,19 @@ class CodeObject(object):
         result += "\n" if result != "" else ""
         result += self.expanded_code
         return result
+
+    def push_into_parent_code(self, parent_code, static_cst = False, header = False, skip_function = False):
+        if headers: 
+            parent_code << self.generate_header_code()
+            parent_code << "\n\n"
+
+        declaration_exclusion_list = [MultiSymbolTable.ConstantSymbol] if static_cst else []
+        declaration_exclusion_list += [MultiSymbolTable.TableSymbol] if static_table else []
+        declaration_exclusion_list += [MultiSymbolTable.FunctionSymbol] if skip_function else []
+        parent_code << self.symbol_table.generate_declarations(code_generator, exclusion_list = declaration_exclusion_list)
+        parent_code << self.symbol_table.generate_initializations(code_generator, init_required_list = [MultiSymbolTable.ConstantSymbol, MultiSymbolTable.VariableSymbol])
+        parent_code << "\n" 
+        parent_code << self.expanded_code
 
     def add_comment(self, comment):
         """ add a full line comment """
@@ -418,6 +434,22 @@ class GappaCodeObject(CodeObject):
         result += self.gen_hint()
         return result
 
+    def push_into_parent_code(self, parent_code, static_cst = False, header = False, skip_function = False):
+        # symbol exclusion list
+        declaration_exclusion_list = [MultiSymbolTable.ConstantSymbol] if static_cst else []
+        declaration_exclusion_list += [MultiSymbolTable.TableSymbol] if static_table else []
+        declaration_exclusion_list += [MultiSymbolTable.VariableSymbol]
+        declaration_exclusion_list += [MultiSymbolTable.FunctionSymbol] if skip_function else []
+
+        # declaration generation
+        parent_code << self.symbol_table.generate_declarations(code_generator, exclusion_list = declaration_exclusion_list)
+        parent_code << self.symbol_table.generate_initializations(code_generator, init_required_list = [MultiSymbolTable.ConstantSymbol, MultiSymbolTable.VariableSymbol])
+        parent_code << "\n" 
+        parent_code << self.expanded_code
+        parent_code << "\n\n"
+        parent_code << self.gen_complete_goal()
+        parent_code << self.gen_hint()
+
 
 class VHDLCodeObject(object):
     tab = "    "
@@ -492,13 +524,24 @@ class VHDLCodeObject(object):
             result += """#include <%s>\n""" % (header_file)
         return result
 
-    def get_free_var_name(self, var_type, prefix = "tmp", declare = True):
+    def get_free_var_name(self, var_type, prefix = "stmp", declare = True, var_ctor = Signal):
         free_var_name = self.symbol_table.get_free_name(var_type, prefix)
         # declare free var if required 
         if declare:
-            self.symbol_table.declare_var_name(free_var_name, Variable(free_var_name, precision = var_type))
-
+            if var_ctor is Variable:
+                self.symbol_table.declare_var_name(free_var_name, var_ctor(free_var_name, precision = var_type))
+            elif var_ctor is Signal:
+                self.symbol_table.declare_signal_name(free_var_name, var_ctor(free_var_name, precision = var_type))
+            else:
+                Log.report(Log.Error, "unsupported var constructor in get_free_var_name")
         return free_var_name
+
+    def get_free_signal_name(self, signal_type, prefix = "stmp", declare = True):
+        free_signal_name = self.symbol_table.get_free_name(signal_type, prefix)
+        # declare free var if required 
+        if declare:
+            self.symbol_table.declare_signal_name(free_signal_name, Signal(free_signal_name, precision = signal_type))
+        return free_signal_name
 
     def get_free_name(self, var_type, prefix = "tmp"):
         return self.symbol_table.get_free_name(var_type, prefix)
@@ -549,6 +592,24 @@ class VHDLCodeObject(object):
         result += "\n" if result != "" else ""
         result += self.expanded_code
         return result
+
+    def push_into_parent_code(self, parent_code, code_generator, static_cst = False, static_table = False, headers = False, skip_function = False):
+        """ generate unrolled code content """
+
+        if headers: 
+            parent_code << self.generate_header_code()
+            parent_code << "\n\n"
+
+        declaration_exclusion_list = [MultiSymbolTable.ConstantSymbol] if static_cst else []
+        declaration_exclusion_list += [MultiSymbolTable.TableSymbol] if static_table else []
+        declaration_exclusion_list += [MultiSymbolTable.FunctionSymbol] if skip_function else []
+        parent_code << self.symbol_table.generate_declarations(code_generator, exclusion_list = declaration_exclusion_list)
+        parent_code << self.symbol_table.generate_initializations(code_generator, init_required_list = [MultiSymbolTable.ConstantSymbol, MultiSymbolTable.VariableSymbol])
+        parent_code.dec_level()
+        parent_code << "begin\n"
+        parent_code.inc_level()
+        parent_code << "\n" 
+        parent_code << self.expanded_code
 
     def add_comment(self, comment):
         """ add a full line comment """
@@ -622,8 +683,17 @@ class NestedCode(object):
 
     def close_level(self, cr = "\n"):
         level_code = self.code_list.pop(0)
-        self << level_code.get(self.code_generator, static_cst = self.static_cst, static_table = self.static_table, skip_function = True) 
+        level_code.push_into_parent_code(self, self.code_generator, static_cst = self.static_cst, static_table = self.static_table, skip_function = True) 
         self.code_list[0].close_level(cr = cr)
+
+    def inc_level(self):
+        """ increase indentation level """
+        self.code_list[0].inc_level()
+
+    def dec_level(self):
+        """ decrease indentation level """
+        self.code_list[0].dec_level()
+
 
     # @param function_object possible dummy FunctionObject associated with new function_name
     def declare_free_function_name(self, prefix = "foo", function_object = None):
@@ -635,6 +705,9 @@ class NestedCode(object):
 
     def get_free_var_name(self, var_type, prefix = "tmp", declare = True):
         return self.code_list[0].get_free_var_name(var_type, prefix, declare)
+
+    def get_free_signal_name(self, signal_type, prefix = "tmp", declare = True):
+        return self.code_list[0].get_free_signal_name(signal_type, prefix, declare)
 
     def declare_cst(self, cst_object, prefix = "cst"):
         return self.code_list[0].declare_cst(cst_object, prefix)
