@@ -69,23 +69,45 @@ class ML_HW_Adder(ML_Entity("ml_hw_adder")):
   def generate_scheme(self):
     precision = ML_StdLogicVectorFormat(32)
     # declaring main input variable
-    vx = self.implementation.add_input_variable("x", precision) 
-    vy = self.implementation.add_input_variable("y", precision) 
+    vx = self.implementation.add_input_signal("x", precision) 
+    vy = self.implementation.add_input_signal("y", precision) 
 
+    clk = self.implementation.add_input_signal("clk", ML_StdLogic)
+    reset = self.implementation.add_input_signal("reset", ML_StdLogic)
 
-    clk = self.implementation.add_input_variable("clk", ML_StdLogic)
-    reset = self.implementation.add_input_variable("reset", ML_StdLogic)
+    self.implementation.start_new_stage()
 
-    vr = Addition(vx, vy, precision = precision)
-    vr_d = Variable("vr_d", precision = vr.get_precision())
+    vr_add = Addition(vx, vy, tag = "vr", precision = precision)
+    vr_sub = Subtraction(vx, vy, tag = "vr_sub", precision = precision)
+    print "vr_add: ", vr_add.attributes.init_stage
 
-    process_statement = Statement(
-      ConditionBlock(LogicalAnd(Event(clk), Comparison(clk, Constant(1, precision = ML_StdLogic), specifier = Comparison.Equal)), ReferenceAssign(vr_d, vr))
+    self.implementation.start_new_stage()
+
+    vr_out = Select(
+      Comparison(vx, Constant(1, precision = precision), precision = ML_Bool, specifier = Comparison.Equal),
+      vr_add,
+      Select(
+        Comparison(vx, Constant(1, precision = precision), precision = ML_Bool, specifier = Comparison.LessOrEqual),
+        vr_sub,
+        vx
+      ),
+      precision = precision,
+      tag = "vr_out"
     )
-    process = Process(process_statement, sensibility_list = [clk, reset])
-    self.implementation.add_process(process)
 
-    self.implementation.add_output_variable("r", vr_d)
+    for sig in [vx, vy, vr_add, vr_sub, vr_out]:
+      print "%s, stage=%d" % (sig.get_tag(), sig.attributes.init_stage)
+    #vr_d = Signal("vr_d", precision = vr.get_precision())
+
+    #process_statement = Statement(
+    #  ConditionBlock(LogicalAnd(Event(clk, precision = ML_Bool), Comparison(clk, Constant(1, precision = ML_StdLogic), specifier = Comparison.Equal, precision = ML_Bool), precision = ML_Bool), ReferenceAssign(vr_d, vr))
+    #)
+    #process = Process(process_statement, sensibility_list = [clk, reset])
+    #self.implementation.add_process(process)
+
+    #self.implementation.add_output_signal("r_d", vr_d)
+    #self.implementation.add_output_signal("r", vr)
+    self.implementation.add_output_signal("vr_out", vr_out)
 
     return [self.implementation]
 

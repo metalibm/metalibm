@@ -18,6 +18,7 @@ from ..core.ml_hdl_operations import Signal
 from .code_object import NestedCode
 from .generator_utility import FunctionOperator, FO_Arg
 from .code_constant import *
+from ..core.attributes import Attributes, AttributeCtor
 
 
 class CodeEntity(object):
@@ -32,6 +33,9 @@ class CodeEntity(object):
     self.entity_operator = None
     self.language = language
     self.process_list = []
+    self.current_stage = 0
+    self.init_stage_attribute = AttributeCtor("init_stage", default_value = 0)
+    Attributes.add_dyn_attribute(self.init_stage_attribute)
 
   def get_name(self):
     return self.name
@@ -54,9 +58,16 @@ class CodeEntity(object):
     output_assign = ReferenceAssign(output_var, output_node)
     self.output_list.append(output_assign)
 
+  def start_new_stage(self):
+    self.set_current_stage(self.current_stage + 1)
+
+  def set_current_stage(self, stage_id = 0):
+    self.current_stage = stage_id
+    self.init_stage_attribute.default_value = self.current_stage
+    print "current_stage: ", self.current_stage, self.init_stage_attribute, self.init_stage_attribute.default_value
+
   def add_process(self, new_process):
     self.process_list.append(new_process)
-
   def register_new_input_variable(self, new_input):
     self.arg_list.append(new_input)
 
