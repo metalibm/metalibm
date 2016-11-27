@@ -24,7 +24,6 @@ from .ml_formats import *
 from .ml_operations import *
 
 
-
 class Process(AbstractOperationConstructor("Process")):
   def __init__(self, *args, **kwords):
     self.__class__.__base__.__init__(self, *args, **kwords)
@@ -39,6 +38,11 @@ class Process(AbstractOperationConstructor("Process")):
     return self.sensibility_list
 
 class Event(AbstractOperationConstructor("Event", arity = 1)):
+  def __init__(self, *args, **kwords):
+    self.__class__.__base__.__init__(self, *args, **kwords)
+    arg_precision = None if not "precision" in kwords else kwords["precision"]
+    self.precision = ML_Bool if arg_precision is None else arg_precision
   def get_likely(self):
     return False
 
+class Signal(AbstractVariable): pass 

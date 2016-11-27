@@ -27,6 +27,7 @@ class CodeEntity(object):
     """ code function initialization """
     self.name = name
     self.arg_list = arg_list if arg_list else []
+    self.arg_map = dict((arg.get_tag(), arg) for arg in self.arg_list)
     self.output_list = output_list if output_list else []
     self.code_object = code_object
     self.entity_object   = None
@@ -34,8 +35,13 @@ class CodeEntity(object):
     self.language = language
     self.process_list = []
     self.current_stage = 0
+    # attribute to contain thestage where the pipelined
+    # signal was originally created
     self.init_stage_attribute = AttributeCtor("init_stage", default_value = 0)
+    # attribute to contain the original operation for the pipelined signals
+    self.init_op_attribute    = AttributeCtor("init_op", default_value = None) 
     Attributes.add_dyn_attribute(self.init_stage_attribute)
+    Attributes.add_dyn_attribute(self.init_op_attribute)
 
   def get_name(self):
     return self.name
@@ -43,6 +49,7 @@ class CodeEntity(object):
   def add_input_variable(self, name, vartype):
     input_var = Variable(name, precision = vartype) 
     self.arg_list.append(input_var)
+    self.arg_map[name] = input_var
     return input_var
   def add_output_variable(self, name, output_node):
     output_var = Variable(name, precision = output_node.get_precision(), var_type = Variable.Output)
@@ -52,11 +59,21 @@ class CodeEntity(object):
   def add_input_signal(self, name, signaltype):
     input_signal = Signal(name, precision = signaltype) 
     self.arg_list.append(input_signal)
+    self.arg_map[name] = input_signal
     return input_signal
   def add_output_signal(self, name, output_node):
     output_var = Signal(name, precision = output_node.get_precision(), var_type = Signal.Output)
     output_assign = ReferenceAssign(output_var, output_node)
     self.output_list.append(output_assign)
+
+  def get_input_by_tag(self, tag):
+    if tag in self.arg_map:
+      return self.arg_map[tag]
+    else:
+      return None
+
+  def get_output_list(self):
+    return [op.get_input(1) for op in self.output_list]
 
   def start_new_stage(self):
     self.set_current_stage(self.current_stage + 1)

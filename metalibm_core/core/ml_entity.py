@@ -17,6 +17,7 @@ from sollya import *
 from metalibm_core.core.ml_formats import *
 from metalibm_core.core.ml_optimization_engine import OptimizationEngine
 from metalibm_core.core.ml_operations import *  
+from metalibm_core.core.ml_hdl_operations import *  
 from metalibm_core.core.ml_table import ML_Table
 from metalibm_core.core.ml_complex_formats import ML_Mpfr_t
 from metalibm_core.core.ml_call_externalizer import CallExternalizer
@@ -65,6 +66,43 @@ class DefaultEntityArgTemplate:
   auto_test_execute = False
   auto_test_range = None
   auto_test_std   = False
+
+class RetimeMap:
+  def __init__(self):
+    # map (op_key, stage) -> stage's op
+    self.stage_map = {}
+    # map of stage_index -> list of pipelined forward 
+    # from <stage_index> -> <stage_index + 1>
+    self.stage_forward = {}
+    # list of nodes already retimed
+    self.processed = []
+
+  def get_op_key(self, op):
+    op_key = op.attributes.init_op if not op.attributes.init_op is None else op
+    return op_key
+
+  def hasBeenProcessed(self, op):
+    return self.get_op_key(op)  in self.processed
+  def addToProcessed(self, op):
+    op_key = self.get_op_key(op)
+    return self.processed.append(op_key)
+
+  def contains(self, op, stage):
+    return (self.get_op_key(op), stage) in self.stage_map
+
+  def get(self, op, stage):
+    return self.stage_map[(self.get_op_key(op), stage)]
+  def set(self, op, stage):
+    op_key = self.get_op_key(op)
+    self.stage_map[(op_key, stage)] = op
+
+  def add_stage_forward(self, op_dst, op_src, stage):
+    Log.report(Log.Info, " adding stage forward {op_src} to {op_dst} @ stage {stage}".format(op_src = op_src, op_dst = op_dst, stage = stage))
+    if not stage in self.stage_forward:
+      self.stage_forward[stage] = []
+    self.stage_forward[stage].append(
+      ReferenceAssign(op_dst, op_src)
+    )
 
 ## Base class for all metalibm function (metafunction)
 class ML_EntityBasis(object):
@@ -175,6 +213,83 @@ class ML_EntityBasis(object):
     raise NotImplementedError
 
 
+  ## propagate forward @p op until it is defined
+  #  in @p stage
+  def propagate_op(self, op, stage, retime_map):
+    op_key = retime_map.get_op_key(op)
+    Log.report(Log.Info, " propagating {op} (key={op_key}) to stage {stage}".format(op = op, op_key = op_key, stage = stage))
+    # look for the latest stage where op is defined
+    current_stage = op_key.attributes.init_stage
+    while retime_map.contains(op_key, current_stage + 1):
+      current_stage += 1
+    op_src = retime_map.get(op_key, current_stage)
+    while current_stage != stage:  
+      # create op instance for <current_stage+1>
+      op_dst = Signal(tag = "{tag}_S{stage}".format(tag = op_key.get_tag(), stage = (current_stage + 1)), init_stage = current_stage + 1, init_op = op_key, precision = op_key.get_precision()) 
+      retime_map.add_stage_forward(op_dst, op_src, current_stage)
+      retime_map.set(op_dst, current_stage + 1)
+      # update values for next iteration
+      current_stage += 1
+      op_src = op_dst
+      
+      
+
+  # process op's inputs and if necessary
+  # propagate them to op's stage
+  def retime_op(self, op, retime_map):
+    Log.report(Log.Info, "retiming op %s " % (op))
+    if retime_map.hasBeenProcessed(op):
+      return
+    op_stage = op.attributes.init_stage
+    if not isinstance(op, ML_LeafNode):
+      for in_id in range(op.get_input_num()):
+        in_op = op.get_input(in_id)
+        in_stage = in_op.attributes.init_stage
+        Log.report(Log.Info, "retiming input {inp} of {op} stage {in_stage} -> {op_stage}".format(inp = in_op, op = op, in_stage = in_stage, op_stage = op_stage))
+        if not retime_map.hasBeenProcessed(in_op):
+          self.retime_op(in_op, retime_map)
+        if in_stage < op_stage:
+          if not retime_map.contains(in_op, op_stage):
+            self.propagate_op(in_op, op_stage, retime_map)
+          new_in = retime_map.get(in_op, op_stage)
+          Log.report(Log.Info, "new version of input {inp} for {op} is {new_in}".format(inp = in_op, op = op, new_in = new_in))
+          op.set_input(in_id, new_in)
+        elif in_stage > op_stage:
+          Log.report(Log.Error, "input {inp} of {op} is defined at a later stage".format(inp = in_op, op = op))
+    retime_map.set(op, op_stage)
+    retime_map.addToProcessed(op)
+        
+  # try to extract 'clk' input or create it if 
+  # it does not exist
+  def get_clk_input(self):
+    clk_in = self.implementation.get_input_by_tag("clk")
+    if not clk_in is None:
+      return clk_in
+    else:
+      return self.implementation.add_input_signal('clk', ML_StdLogic)
+
+
+  def generate_pipeline_stage(self):
+    retiming_map = {}
+    retime_map = RetimeMap()
+    output_list = self.implementation.get_output_list()
+    for output in output_list:
+      Log.report(Log.Info, "generating pipeline from output %s " % (output))
+      self.retime_op(output, retime_map)
+    process_statement = Statement()
+
+    # adding stage forward process
+    clk = self.get_clk_input()
+    for stage_id in sorted(retime_map.stage_forward.keys()):
+      stage_block = ConditionBlock(
+        Event(clk, precision = ML_Bool),
+        Statement(*tuple(assign for assign in retime_map.stage_forward[stage_id]))
+      )
+      process_statement.add(stage_block)
+    pipeline_process = Process(process_statement, sensibility_list = [clk])
+    self.implementation.add_process(pipeline_process)
+      
+
   def get_output_precision(self):
     return self.io_precisions[0]
 
@@ -235,12 +350,10 @@ class ML_EntityBasis(object):
       self.result = code_entity.add_definition(self.vhdl_code_generator, language, code_object, static_cst = True)
 
     # adding headers
-    self.result.add_header("support_lib/ml_special_values.h")
-    self.result.add_header("math.h")
-    self.result.add_header("stdio.h")
-    self.result.add_header("inttypes.h")
+    self.result.add_header("ieee.std_logic_1164.all")
+    self.result.add_header("ieee.std_logic_arith.all")
 
-    Log.report(Log.Info, "Generating C code in " + self.output_file)
+    Log.report(Log.Info, "Generating VHDL code in " + self.output_file)
     output_stream = open(self.output_file, "w")
     output_stream.write(self.result.get(self.vhdl_code_generator))
     output_stream.close()
@@ -265,6 +378,8 @@ class ML_EntityBasis(object):
       if display_after_opt:
         print "function %s, after opt " % code_function.get_name()
         print scheme.get_str(depth = None, display_precision = True, memoization_map = {})
+
+    self.generate_pipeline_stage()
 
     # generate VHDL code to implement scheme
     self.generate_code(code_entity_list, language = self.language)

@@ -202,9 +202,15 @@ class AbstractOperation(ML_Operation):
 
     def get_inputs(self):
         return self.inputs
-
+    def get_input_num(self):
+        return len(self.inputs)
     def get_input(self, index):
         return self.inputs[index]
+    def set_input(self, index, new_input):
+        # FIXME: discard tuple -> list -> tuple 
+        input_list = list(self.inputs) 
+        input_list[index] = new_input
+        self.inputs = tuple(input_list)
 
     ##
     #  @return the node evaluated live-range (when available) 
@@ -461,7 +467,7 @@ class Constant(ML_LeafNode):
 ## class for Variable node, which contains a temporary state of the operation DAG
 #  which may have been defined outside the scope of the implementation (input variable)
 #  @param var_type = (Variable.Input | Variable.Local)
-class Variable(ML_LeafNode):
+class AbstractVariable(ML_LeafNode):
     ## Input type for Variable Node
     #  such node is not defined as an input to the function description
     class Input: pass
@@ -510,6 +516,7 @@ class Variable(ML_LeafNode):
         copy_map[self] = new_copy
         return new_copy
 
+class Variable(AbstractVariable): pass
 
 class InstanciatedOperation(ML_Operation):
   """ parent to Metalibm's type-instanciated operation """
@@ -1049,7 +1056,7 @@ class Statement(AbstractOperationConstructor("Statement")):
         self.inputs = self.inputs + (optree,)
         self.arity += 1
 
-    # push a new statement at the end of the inputs list 
+    # push a new statement at the beginning of the inputs list 
     # @param optree ML_Operation object added at the end of inputs list
     def push(self, optree):
         """ add a new unary statement at the beginning of the input list """
