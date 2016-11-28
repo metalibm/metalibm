@@ -81,7 +81,6 @@ class CodeEntity(object):
   def set_current_stage(self, stage_id = 0):
     self.current_stage = stage_id
     self.init_stage_attribute.default_value = self.current_stage
-    print "current_stage: ", self.current_stage, self.init_stage_attribute, self.init_stage_attribute.default_value
 
   def add_process(self, new_process):
     self.process_list.append(new_process)

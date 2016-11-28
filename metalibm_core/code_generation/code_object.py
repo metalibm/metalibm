@@ -41,7 +41,7 @@ class SymbolTable(object):
     def uniquify(self, name):
         return self.uniquifier + name 
 
-    def get_free_name(self, var_type, prefix = "tmp", update_index = True):
+    def get_free_name(self, var_type, prefix = "sttmp", update_index = True):
         _prefix = self.uniquify(prefix)
         if self.is_free_name(_prefix):
             self.prefix_index[_prefix] = 0
@@ -153,7 +153,7 @@ class MultiSymbolTable(object):
             if not table.is_free_name(name): return False
         return True
 
-    def get_free_name(self, var_type, prefix = "tmp"):
+    def get_free_name(self, var_type, prefix = "mstmp"):
         if self.is_free_name(prefix):
             self.prefix_index[prefix] = 0
             return prefix
@@ -290,14 +290,14 @@ class CodeObject(object):
             result += """#include <%s>\n""" % (header_file)
         return result
 
-    def get_free_var_name(self, var_type, prefix = "tmp", declare = True):
+    def get_free_var_name(self, var_type, prefix = "cotmp", declare = True):
         free_var_name = self.symbol_table.get_free_name(var_type, prefix)
         # declare free var if required 
         if declare:
             self.symbol_table.declare_var_name(free_var_name, Variable(free_var_name, precision = var_type))
         return free_var_name
 
-    def get_free_name(self, var_type, prefix = "tmp"):
+    def get_free_name(self, var_type, prefix = "cotmp"):
         return self.symbol_table.get_free_name(var_type, prefix)
 
     def table_has_definition(self, table_object):
@@ -487,13 +487,11 @@ class VHDLCodeObject(object):
 
     def open_level(self):
         """ open nested block """
-        self << " -- new code level \n"
         self.inc_level()
 
     def close_level(self, cr = "\n"):
         """ close nested block """
         self.dec_level()
-        self << "-- end of code level %s" % cr
 
     def link_level(self, transition = ""):
         """ close nested block """
@@ -515,16 +513,16 @@ class VHDLCodeObject(object):
             git_comment = "generated using metalibm %s \n sha1 git: %s \n" % (ml_version_info.version_num, ml_version_info.git_sha)
             self.header_comment.insert(0, git_comment) 
         # generating header comments
-        result += "/**\n"
+        result += "--\n"
         for comment in self.header_comment:
-            result += " * " + comment.replace("\n", "\n * ") + "\n"
-        result += "**/\n"
+            result += "-- " + comment.replace("\n", "\n-- ") + "\n"
+        result += "--\n"
 
         for header_file in self.header_list:
-            result += """#include <%s>\n""" % (header_file)
+            result += """use %s;\n""" % (header_file)
         return result
 
-    def get_free_var_name(self, var_type, prefix = "stmp", declare = True, var_ctor = Signal):
+    def get_free_var_name(self, var_type, prefix = "tmps", declare = True, var_ctor = Signal):
         free_var_name = self.symbol_table.get_free_name(var_type, prefix)
         # declare free var if required 
         if declare:
@@ -543,7 +541,7 @@ class VHDLCodeObject(object):
             self.symbol_table.declare_signal_name(free_signal_name, Signal(free_signal_name, precision = signal_type))
         return free_signal_name
 
-    def get_free_name(self, var_type, prefix = "tmp"):
+    def get_free_name(self, var_type, prefix = "svtmp"):
         return self.symbol_table.get_free_name(var_type, prefix)
 
     def table_has_definition(self, table_object):
@@ -627,7 +625,6 @@ class NestedCode(object):
         self.code_generator = code_generator
 
         self.static_cst_table   = SymbolTable(uniquifier = uniquifier)
-        print "static_cst_table: ", self.static_cst_table
         self.static_table_table = SymbolTable(uniquifier = uniquifier)
         self.static_cst = static_cst
         self.static_table = static_table
@@ -694,19 +691,16 @@ class NestedCode(object):
         """ decrease indentation level """
         self.code_list[0].dec_level()
 
-
     # @param function_object possible dummy FunctionObject associated with new function_name
     def declare_free_function_name(self, prefix = "foo", function_object = None):
         function_name = self.code_list[0].get_free_name(None, prefix = prefix) 
-        print "function_name: ", function_name
         self.code_list[0].declare_function(function_name, function_object)
         return function_name
-      
 
-    def get_free_var_name(self, var_type, prefix = "tmp", declare = True):
+    def get_free_var_name(self, var_type, prefix = "tmpv", declare = True):
         return self.code_list[0].get_free_var_name(var_type, prefix, declare)
 
-    def get_free_signal_name(self, signal_type, prefix = "tmp", declare = True):
+    def get_free_signal_name(self, signal_type, prefix = "stmp", declare = True):
         return self.code_list[0].get_free_signal_name(signal_type, prefix, declare)
 
     def declare_cst(self, cst_object, prefix = "cst"):
