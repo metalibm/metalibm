@@ -511,7 +511,7 @@ class AbstractVariable(ML_LeafNode):
             copy_map[self] = self
             return self
         # else define a new and free copy
-        new_copy = Variable(tag = self.get_tag(), var_type = self.var_type)
+        new_copy = self.__class__(tag = self.get_tag(), var_type = self.var_type)
         new_copy.attributes = self.attributes.get_copy()
         copy_map[self] = new_copy
         return new_copy
