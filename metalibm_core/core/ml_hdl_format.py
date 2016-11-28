@@ -36,6 +36,17 @@ class ML_StdLogicVectorFormat(ML_Format):
   def get_name(self, language = VHDL_Code):
     return self.name[language]
 
+  def get_cst(self, cst_value, language = C_Code):
+    if language is VHDL_Code:
+      return self.get_vhdl_cst(cst_value)
+    else:
+      # default case
+      return self.get_vhdl_cst(cst_value)
+
+  def get_vhdl_cst(self, value):
+    #return "\"%s\"" % bin(value)[2:].zfill(self.bit_size)
+    return "X\"%s\"" % hex(value)[2:].zfill(self.bit_size / 4)
+
 class ML_StdLogicClass(ML_Format):
   def __init__(self):
     ML_Format.__init__(self)
@@ -45,6 +56,8 @@ class ML_StdLogicClass(ML_Format):
     return self.name[VHDL_Code]
   def get_name(self, language = VHDL_Code):
     return self.name[language]
+  def get_cst(self, value, language = VHDL_Code):
+    return "'%d'" % value
 
 # std_logic type singleton
 ML_StdLogic = ML_StdLogicClass()
