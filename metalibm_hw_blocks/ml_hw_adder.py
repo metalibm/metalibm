@@ -79,7 +79,6 @@ class ML_HW_Adder(ML_Entity("ml_hw_adder")):
 
     vr_add = Addition(vx, vy, tag = "vr", precision = precision)
     vr_sub = Subtraction(vx, vy, tag = "vr_sub", precision = precision)
-    print "vr_add: ", vr_add.attributes.init_stage
 
     self.implementation.start_new_stage()
 
@@ -89,14 +88,16 @@ class ML_HW_Adder(ML_Entity("ml_hw_adder")):
       Select(
         Comparison(vx, Constant(1, precision = precision), precision = ML_Bool, specifier = Comparison.LessOrEqual),
         vr_sub,
-        vx
+        vx,
+        precision = precision
       ),
       precision = precision,
-      tag = "vr_out"
+      tag = "vr_res"
     )
 
-    for sig in [vx, vy, vr_add, vr_sub, vr_out]:
-      print "%s, stage=%d" % (sig.get_tag(), sig.attributes.init_stage)
+    #for sig in [vx, vy, vr_add, vr_sub, vr_out]:
+    #  print "%s, stage=%d" % (sig.get_tag(), sig.attributes.init_stage)
+
     #vr_d = Signal("vr_d", precision = vr.get_precision())
 
     #process_statement = Statement(
