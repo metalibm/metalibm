@@ -78,7 +78,7 @@ class VHDLCodeGenerator(object):
         self.memoization_map[0][optree] = code_value
 
 
-    def generate_expr(self, code_object, optree, folded = True, result_var = None, initial = False, language = None):
+    def generate_expr(self, code_object, optree, folded = False, result_var = None, initial = False, language = None):
         """ code generation function """
         language = self.language if language is None else language
 
@@ -97,6 +97,15 @@ class VHDLCodeGenerator(object):
               result = CodeVariable(final_var, optree.get_precision())
             else:
               result = CodeVariable(optree.get_tag(), optree.get_precision())
+
+        elif isinstance(optree, Signal):
+            if optree.get_var_type() is Variable.Local:
+              print "sig: ",  optree.get_precision()
+              final_var =  code_object.get_free_signal_name(optree.get_precision(), prefix = optree.get_tag(), declare = True)
+              result = CodeVariable(final_var, optree.get_precision())
+            else:
+              result = CodeVariable(optree.get_tag(), optree.get_precision())
+
 
         elif isinstance(optree, Constant):
             precision = optree.get_precision()
@@ -126,11 +135,10 @@ class VHDLCodeGenerator(object):
 
             # manually enforcing folding
             if folded:
-                prefix = optree.get_tag(default = "tmp")
+                prefix = optree.get_tag(default = "tltmp")
                 result_varname = result_var if result_var != None else code_object.get_free_var_name(optree.get_precision(), prefix = prefix)
                 code_object << self.generate_assignation(result_varname, result.get()) 
                 result = CodeVariable(result_varname, optree.get_precision())
-
 
         elif isinstance(optree, SwitchBlock):
             switch_value = optree.inputs[0]
@@ -168,7 +176,7 @@ class VHDLCodeGenerator(object):
               result_value_code = self.generate_expr(code_object, result_value, folded = folded, language = language)
               code_object << self.generate_assignation(output_var_code.get(), result_value_code.get())
             else:
-              result_value_code = self.generate_expr(code_object, result_value, folded = folded, language = language)
+              result_value_code = self.generate_expr(code_object, result_value, folded = False, language = language)
               code_object << self.generate_assignation(output_var_code.get(), result_value_code.get())
               if optree.get_debug() and not self.disable_debug:
                 code_object << self.generate_debug_msg(result_value, result_value_code, code_object, debug_object = optree.get_debug())
@@ -192,16 +200,20 @@ class VHDLCodeGenerator(object):
             return None
 
         elif isinstance(optree, Process):
-            sensibility_list = optree.get_sensibility_list()
-            code_object << "process(%s)\n"
+            # generating pre_statement for process
+            pre_statement = optree.get_pre_statement()
+            self.generate_expr(code_object, optree.get_pre_statement(), folded = folded, language = language)
+
+            sensibility_list = [self.generate_expr(code_object, op, folded = True, language = language).get() for op in optree.get_sensibility_list()]
+            code_object << "process(%s)\n" % ", ".join(sensibility_list)
             self.open_memoization_level()
             code_object.open_level()
             for process_stat in optree.inputs:
-              self.generate_expr(code_object, process_stat, folded = folded, initial = True, language = language)
+              self.generate_expr(code_object, process_stat, folded = folded, initial = False, language = language)
 
             code_object.close_level()
             self.close_memoization_level()
-            code_object << "end process;\n"
+            code_object << "end process;\n\n"
             return None
 
         elif isinstance(optree, ConditionBlock):
@@ -212,30 +224,66 @@ class VHDLCodeGenerator(object):
             # generating pre_statement
             self.generate_expr(code_object, optree.get_pre_statement(), folded = folded, language = language)
 
-            cond_code = self.generate_expr(code_object, condition, folded = folded, language = language)
+            cond_code = self.generate_expr(code_object, condition, folded = False, language = language)
             try:
               cond_likely = condition.get_likely()
             except AttributeError:
               Log.report(Log.Error, " the following condition has no (usable) likely attribute: %s" % (condition.get_str(depth = 1, display_precision = True, memoization_map = {}))) 
-            code_object << "\nif %s then " % cond_code.get()
-            self.open_memoization_level()
-            code_object.open_level()
-            #if_branch_code = self.processor.generate_expr(self, code_object, if_branch, if_branch.inputs, folded)
-            if_branch_code = self.generate_expr(code_object, if_branch, folded = folded, language = language)
-            code_object.close_level(cr = "")
-            self.close_memoization_level()
+            code_object << "if %s then\n " % cond_code.get()
+            #self.open_memoization_level()
+            #code_object.open_level()
+            code_object.inc_level()
+            if_branch_code = self.generate_expr(code_object, if_branch, folded = False, language = language)
+            code_object.dec_level()
+            #code_object.close_level(cr = "")
+            #self.close_memoization_level()
             if else_branch:
                 code_object << " else "
-                code_object.open_level()
-                self.open_memoization_level()
-                else_branch_code = self.generate_expr(code_object, else_branch, folded = folded, language = language)
-                code_object.close_level()
-                self.close_memoization_level()
+                #code_object.open_level()
+                #self.open_memoization_level()
+                else_branch_code = self.generate_expr(code_object, else_branch, folded = True, language = language)
+                #code_object.close_level()
+                #self.close_memoization_level()
             else:
-                code_object << "\n"
+               #  code_object << "\n"
+               pass
             code_object << "end if;\n"
 
             return None
+
+        elif isinstance(optree, Select):
+             # we go through all of select operands to
+             # flatten the select tree
+             def flatten_select(op, cond = None):
+               if not isinstance(op, Select): return [(op, cond)]
+               lcond = op.inputs[0] if cond is None else LogicalAnd(op.inputs[0], cond)
+               return flatten_select(op.inputs[1], lcond) + flatten_select(op.inputs[2], cond)
+
+             prefix = optree.get_tag(default = "setmp")
+             print "select precision: ", optree.get_precision()
+             result_varname = result_var if result_var != None else code_object.get_free_var_name(optree.get_precision(), prefix = prefix)
+             result = CodeVariable(result_varname, optree.get_precision())
+             select_opcond_list = flatten_select(optree);
+             if not select_opcond_list[-1][1] is None:
+                Log.report(Log.Error, "last condition in flatten select differs from None")
+
+             gen_list = []
+             for op, cond in select_opcond_list: 
+               op_code = self.generate_expr(code_object, op, folded = folded, language = language)
+               if not cond is None:
+                 cond_code = self.generate_expr(code_object, cond, folded = False, language = language)
+                 gen_list.append((op_code, cond_code))
+               else:
+                 gen_list.append((op_code, None))
+
+             code_object << "{result} <= \n".format(result = result.get())
+             code_object.inc_level()
+             for op_code, cond_code in gen_list:
+               if not cond_code is None:
+                 code_object << "{op_code} when {cond_code} else\n".format(op_code = op_code.get(), cond_code = cond_code.get())
+               else:
+                 code_object << "{op_code};\n".format(op_code = op_code.get())
+             code_object.dec_level()
 
         elif isinstance(optree, Return):
             return_result = optree.inputs[0]
@@ -328,7 +376,7 @@ class VHDLCodeGenerator(object):
 
         elif isinstance(symbol_object, Variable):
             precision_symbol = (symbol_object.get_precision().get_name(language = self.language) + " ")
-            return "signal %s : %s;\n" % (symbol, precision_symbol) 
+            return "variable %s : %s;\n" % (symbol, precision_symbol) 
 
         elif isinstance(symbol_object, Signal):
             precision_symbol = (symbol_object.get_precision().get_name(language = self.language) + " ") if initial else ""
