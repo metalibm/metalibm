@@ -206,10 +206,11 @@ class IdentityOperator(ML_CG_Operator):
 
 class SymbolOperator(ML_CG_Operator):
     """ symbol operator generator """
-    def __init__(self, symbol, **kwords):
+    def __init__(self, symbol, lspace = " ", rspace = " ", inverse = False, **kwords):
         """ symbol operator initialization function """
         ML_CG_Operator.__init__(self, **kwords)
-        self.symbol = " %s " % symbol
+        self.symbol = "%s%s%s" % (lspace, symbol, rspace)
+        self.inverse = inverse
 
 
     def generate_expr(self, code_generator, code_object, optree, arg_tuple, generate_pre_process = None, **kwords):
@@ -235,7 +236,10 @@ class SymbolOperator(ML_CG_Operator):
         # generating result code
         result_code = None
         if self.arity == 1:
-            result_code = "%s%s" % (self.symbol, var_arg_list[0].get())
+            if not self.inverse:
+                result_code = "%s%s" % (self.symbol, var_arg_list[0].get())
+            else:
+                result_code = "%s%s" % (var_arg_list[0].get(),self.symbol)
         else:
             result_code = self.symbol.join([var_arg.get() for var_arg in var_arg_list])
 
