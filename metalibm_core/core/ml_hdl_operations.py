@@ -30,12 +30,26 @@ class Process(AbstractOperationConstructor("Process")):
     self.arity = len(args)
     # list of variables which trigger the process
     self.sensibility_list = attr_init(kwords, "sensibility_list", [])
+    self.pre_statement = Statement()
   
   def finish_copy(self, new_copy, copy_map = {}):
     new_copy.arity = self.arity
 
   def get_sensibility_list(self):
     return self.sensibility_list
+
+  def finish_copy(self, new_copy, copy_map = {}):
+    new_copy.pre_statement = self.pre_statement.copy(copy_map)
+    new_copy.extra_inputs = [op.copy(copy_map) for op in self.extra_inputs]
+
+  def get_pre_statement(self):
+    return self.pre_statement
+
+  def add_to_pre_statement(self, optree):
+    self.pre_statement.add(optree)
+
+  def push_to_pre_statement(self, optree):
+    self.pre_statement.push(optree)
 
 class Event(AbstractOperationConstructor("Event", arity = 1)):
   def __init__(self, *args, **kwords):
