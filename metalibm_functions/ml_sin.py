@@ -4,7 +4,7 @@ import sys
 
 import sollya
 
-from sollya import S2, Interval, ceil, floor, round, inf, sup, pi, abs, log, exp, cos, sin, guessdegree
+from sollya import S2, Interval, ceil, floor, round, inf, sup, pi, log, exp, cos, sin, guessdegree
 
 from metalibm_core.core.attributes import ML_Debug
 from metalibm_core.core.ml_operations import *
@@ -13,7 +13,7 @@ from metalibm_core.code_generation.c_code_generator import CCodeGenerator
 from metalibm_core.code_generation.generic_processor import GenericProcessor
 from metalibm_core.code_generation.code_object import CodeObject
 from metalibm_core.code_generation.code_function import CodeFunction
-from metalibm_core.code_generation.code_constant import C_Code 
+from metalibm_core.code_generation.code_constant import C_Code
 from metalibm_core.core.ml_optimization_engine import OptimizationEngine
 from metalibm_core.core.polynomials import *
 from metalibm_core.core.ml_table import ML_Table
@@ -24,22 +24,22 @@ from metalibm_core.utility.gappa_utils import execute_gappa_script_extract
 from metalibm_core.utility.ml_template import ML_ArgTemplate
 
 class ML_Sine(object):
-    def __init__(self, 
-                 precision = ML_Binary32, 
-                 abs_accuracy = S2**-24, 
-                 libm_compliant = True, 
-                 debug_flag = False, 
-                 fuse_fma = True, 
+    def __init__(self,
+                 precision = ML_Binary32,
+                 abs_accuracy = S2**-24,
+                 libm_compliant = True,
+                 debug_flag = False,
+                 fuse_fma = True,
                  fast_path_extract = True,
-                 target = GenericProcessor(), 
-                 output_file = "sinf.c", 
+                 target = GenericProcessor(),
+                 output_file = "sinf.c",
                  function_name = "sinf"):
         # declaring CodeFunction and retrieving input variable
         self.function_name  = function_name
         self.precision      = precision
         self.processor      = target
         func_implementation = CodeFunction(self.function_name, output_format = self.precision)
-        vx = func_implementation.add_input_variable("x", self.precision) 
+        vx = func_implementation.add_input_variable("x", self.precision)
 
         sollya_precision = self.precision.sollya_object
 
@@ -61,7 +61,7 @@ class ML_Sine(object):
 
         int_precision = ML_Int64 if self.precision is ML_Binary64 else ML_Int32
 
-        inv_pi_value = 1 / pi 
+        inv_pi_value = 1 / pi
 
         # argument reduction
         mod_pi_x = NearestInteger(vx * inv_pi_value)
@@ -121,7 +121,7 @@ class ML_Sine(object):
         # factorizing fast path
         opt_eng.factorize_fast_path(scheme)
         #print scheme.get_str(depth = None, display_precision = True)
-        
+
         cg = CCodeGenerator(self.processor, declare_cst = False, disable_debug = not debug_flag, libm_compliant = libm_compliant)
         self.result = func_implementation.get_definition(cg, C_Code, static_cst = True)
         #print self.result.get(cg)
@@ -136,11 +136,11 @@ if __name__ == "__main__":
     arg_template.sys_arg_extraction()
 
 
-    ml_sin          = ML_Sine(arg_template.precision, 
-                                  libm_compliant            = arg_template.libm_compliant, 
-                                  debug_flag                = arg_template.debug_flag, 
-                                  target                    = arg_template.target, 
-                                  fuse_fma                  = arg_template.fuse_fma, 
+    ml_sin          = ML_Sine(arg_template.precision,
+                                  libm_compliant            = arg_template.libm_compliant,
+                                  debug_flag                = arg_template.debug_flag,
+                                  target                    = arg_template.target,
+                                  fuse_fma                  = arg_template.fuse_fma,
                                   fast_path_extract         = arg_template.fast_path,
                                   function_name             = arg_template.function_name,
                                   output_file               = arg_template.output_file)
