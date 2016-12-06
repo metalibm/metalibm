@@ -1,9 +1,9 @@
-# This script will 
+# This script will
 # -> clone pythonsollya from INRIA's gforge
 # -> populate submodules of metalibm-lugdunum
-# -> download and install Sollya into $PWD/local_instqll
+# -> download and install Sollya into $PWD/local_install
 # -> build pythonsollya python module and install into local_install
-# -> generate script to setup environement into $PWD/local_install/metalibm_setup_env.bash
+# -> generate script to setup environment into $PWD/local_install/metalibm_setup_env.bash
 
 
 # INSTALLATION DIRECTORIES
@@ -13,39 +13,71 @@ INSTALL_DIR=$PWD/local_install
 # testing if LOGIN is set, if so patch the repo to allow future pushes
 if [ -n "$LOGIN" ];
 then
-  git remote set-url origin git+ssh://${LOGIN}@scm.gforge.inria.fr//gitroot/metalibm/metalibm-lugdunum.git 
-fi;
+  git remote set-url origin \
+    git+ssh://${LOGIN}@scm.gforge.inria.fr//gitroot/metalibm/metalibm-lugdunum.git
+fi
 
 # testing if branch is set, if so checkout a specific branch before populating the repo
 if [ -n "$BRANCH" ];
 then
-  git checkout $BRANCH;
-fi;
+  git checkout $BRANCH
+fi
 
-cd $LOCAL_DIR && \
-mkdir -p $INSTALL_DIR || exit 1
+cd $LOCAL_DIR && mkdir -p $INSTALL_DIR || exit 1
 
-# if SOLLYA is already installed, change this variable to indicate the install 
-# containing both include and lib dirs where sollya can be found
+# If Sollya is already installed, set or uncomment these variables to indicate
+# the install containing both include and lib dirs where Sollya can be
+# found.
+# SKIP_SOLLYA_INSTALL='yes'
+# SOLLYA_INSTALL_DIR='/path/to/sollya/install/'
 if [ -n "$SKIP_SOLLYA_INSTALL" ];
 then
   echo "skipping sollya install"
   if [ -z "$SOLLYA_INSTALL_DIR" ];
-  then 
+  then
     echo "ERROR: SOLLYA_INSTALL_DIR must be defined when skipping sollya install."
     exit 1
-  fi;
+  fi
 else
+  echo 'downloading, building and installing sollya'
   SOLLYA_INSTALL_DIR=$INSTALL_DIR
-  # comment the following lines to use already installed sollya
-  git clone https://scm.gforge.inria.fr/anonscm/git/sollya/sollya.git sollya_git && \
-  cd sollya_git/ && ./autogen.sh && ./configure --prefix=$INSTALL_DIR && make -j 4 && make install  || exit 1
-fi;
+  # Locally install the latest Sollya git-devel version.
+  git clone https://scm.gforge.inria.fr/anonscm/git/sollya/sollya.git sollya_git &&
+    cd sollya_git/ && ./autogen.sh && ./configure --prefix=$INSTALL_DIR &&
+    make -j 4 && make install || exit 1
+  cd $LOCAL_DIR
+fi
+
 # building and installing pythonsollya
 set -e
-cd $LOCAL_DIR
-git clone https://gforge.inria.fr/git/metalibm/pythonsollya.git -b cythonsollya-mm
-cd pythonsollya/cythonsollya && PATH=$SOLLYA_INSTALL_DIR/bin:$PATH SOLLYA_INSTALL_DIR=$SOLLYA_INSTALL_DIR INSTALL_DIR=$INSTALL_DIR sh INSTALL
-cd $LOCAL_DIR
-LOCAL_PYTHON_PATH=$(find $INSTALL_DIR -name sollya.so | sed -e "s/sollya.so//")
-echo "export ML_SRC_DIR=$LOCAL_DIR; export LD_LIBRARY_PATH=\"$SOLLYA_INSTALL_DIR/lib:\$LD_LIBRARY_PATH\"\nDIR=\$( cd \"\$( dirname \"\${BASH_SOURCE[0]}\" )\" && pwd )\nexport PYTHONPATH=\"\$DIR:$LOCAL_PYTHON_PATH:\$PYTHONPATH\"" > $LOCAL_DIR/metalibm_setup_env.bash
+# If Pythonsollya is already installed, set or uncomment these variables to
+# indicate the directory where Pythonsollya can be found.
+# SKIP_PYTHONSOLLYA_INSTALL='yes'
+# PYTHONSOLLYA_INSTALL_DIR='/path/to/pythonsollya/'
+if [ -n "$SKIP_PYTHONSOLLYA_INSTALL" ];
+then
+  echo 'skipping pythonsollya install'
+  if [ -z "$PYTHONSOLLYA_INSTALL_DIR" ];
+  then
+    echo "ERROR: PYTHONSOLLYA_INSTALL_DIR must be defined when skipping" \
+      "pythonsollya install."
+    exit 1
+  fi
+else
+  echo 'downloading, building and installing pythonsollya'
+  PYTHONSOLLYA_INSTALL_DIR=$INSTALL_DIR
+  git clone https://gforge.inria.fr/git/metalibm/pythonsollya.git -b cythonsollya-mm &&
+    cd pythonsollya/cythonsollya &&
+    make SOLLYA_DIR=$SOLLYA_INSTALL_DIR &&
+    make install PREFIX=$PYTHONSOLLYA_INSTALL_DIR || exit 1
+  cd $LOCAL_DIR
+fi
+LOCAL_PYTHON_PATH=$(find $PYTHONSOLLYA_INSTALL_DIR -name sollya.so |
+sed -e "s/sollya.so//")
+
+echo 'creating metalibm_setup_env.bash'
+echo -e "export ML_SRC_DIR=$LOCAL_DIR
+export LD_LIBRARY_PATH=\"$SOLLYA_INSTALL_DIR/lib:\$LD_LIBRARY_PATH\"
+DIR=\$( cd \"\$( dirname \"\${BASH_SOURCE[0]}\" )\" && pwd )
+export PYTHONPATH=\"\$DIR:$LOCAL_PYTHON_PATH:\$PYTHONPATH\"" \
+  > $LOCAL_DIR/metalibm_setup_env.bash
