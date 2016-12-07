@@ -35,7 +35,8 @@ then
   echo "skipping sollya install"
   if [ -z "$SOLLYA_INSTALL_DIR" ];
   then
-    echo "ERROR: SOLLYA_INSTALL_DIR must be defined when skipping sollya install."
+    echo "ERROR: SOLLYA_INSTALL_DIR must be defined when skipping sollya" \
+      "install." >&2
     exit 1
   fi
 else
@@ -60,7 +61,7 @@ then
   if [ -z "$PYTHONSOLLYA_INSTALL_DIR" ];
   then
     echo "ERROR: PYTHONSOLLYA_INSTALL_DIR must be defined when skipping" \
-      "pythonsollya install."
+      "pythonsollya install." >&2
     exit 1
   fi
 else
@@ -69,11 +70,16 @@ else
   git clone https://gforge.inria.fr/git/metalibm/pythonsollya.git -b cythonsollya-mm &&
     cd pythonsollya/cythonsollya &&
     make SOLLYA_DIR=$SOLLYA_INSTALL_DIR &&
-    make install PREFIX=$PYTHONSOLLYA_INSTALL_DIR || exit 1
+    make install SOLLYA_DIR=$SOLLYA_INSTALL_DIR \
+    PREFIX=$PYTHONSOLLYA_INSTALL_DIR || exit 1
   cd $LOCAL_DIR
 fi
-LOCAL_PYTHON_PATH=$(find $PYTHONSOLLYA_INSTALL_DIR -name sollya.so |
-sed -e "s/sollya.so//")
+LOCAL_PYTHON_PATH=$(find $PYTHONSOLLYA_INSTALL_DIR -type f \
+  -name 'sollya*.egg' | sed 's|/[^/]*$||')
+if [ -z $LOCAL_PYTHON_PATH ]; then
+  echo 'ERROR: pythonsollya not found.' >&2
+  exit 1
+fi
 
 echo 'creating metalibm_setup_env.bash'
 echo -e "export ML_SRC_DIR=$LOCAL_DIR
