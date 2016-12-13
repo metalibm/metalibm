@@ -106,7 +106,7 @@ class ML_NewArgTemplate(object):
     self.default_function_name = default_function_name
 
     self.parser = argparse.ArgumentParser(" Metalibm %s function generation script" % self.default_function_name)
-    self.parser.add_argument("--libm", dest = "libm_compliant", action = "store_const", const = True, default = ArgDefault(False), help = "generate libm compliante code")
+    self.parser.add_argument("--libm", dest = "libm_compliant", action = "store_const", const = True, default = ArgDefault(False), help = "generate libm compliant code")
     self.parser.add_argument("--debug", dest = "debug", action = "store_const", const = True, default = ArgDefault(False), help = "enable debug display in generated code")
     self.parser.add_argument("--target", dest = "target_name", action = "store", default = "none", help = "select generation target")
     self.parser.add_argument("--disable-fma", dest = "fuse_fma", action = "store_const", const = False, default = ArgDefault(True), help = "disable FMA-like operation fusion")
