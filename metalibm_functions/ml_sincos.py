@@ -4,7 +4,10 @@ import sys
 
 import sollya
 
-from sollya import S2, Interval, ceil, floor, round, inf, sup, abs, pi, log, exp, cos, sin, guessdegree, dirtyinfnorm
+from sollya import (
+        S2, Interval, ceil, floor, round, inf, sup, pi, log, exp, cos, sin,
+        guessdegree, dirtyinfnorm
+)
 
 from metalibm_core.core.ml_function import ML_Function, ML_FunctionBasis
 

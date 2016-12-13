@@ -4,10 +4,7 @@ import sys
 
 import sollya
 
-from sollya import (
-        S2, SollyaObject, Interval,
-        log2, log10, acos, sup, abs
-)
+from sollya import S2, SollyaObject, Interval, log2, log10, acos, sup
 
 from metalibm_core.core.ml_function import ML_Function, ML_FunctionBasis
 
