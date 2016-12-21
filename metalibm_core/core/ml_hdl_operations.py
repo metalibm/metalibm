@@ -59,4 +59,13 @@ class Event(AbstractOperationConstructor("Event", arity = 1)):
   def get_likely(self):
     return False
 
+class ZeroExt(AbstractOperationConstructor("ZeroExt", arity = 1)):
+  def __init__(self, op, ext_size, **kwords):
+    self.__class__.__base__.__init__(self, op, **kwords)
+    self.ext_size = ext_size
+
+class Concatenation(AbstractOperationConstructor("Concatenation", arity = 2)): pass
+
+class Replication(AbstractOperationConstructor("Replication", arity = 2)): pass
+
 class Signal(AbstractVariable): pass 
