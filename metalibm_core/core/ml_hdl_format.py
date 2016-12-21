@@ -42,10 +42,15 @@ class ML_StdLogicVectorFormat(ML_Format):
     else:
       # default case
       return self.get_vhdl_cst(cst_value)
+  def get_bit_size(self):
+    return self.bit_size
 
   def get_vhdl_cst(self, value):
     #return "\"%s\"" % bin(value)[2:].zfill(self.bit_size)
-    return "X\"%s\"" % hex(value)[2:].zfill(self.bit_size / 4)
+    if self.bit_size % 4 == 0:
+      return "X\"%s\"" % hex(value)[2:].zfill(self.bit_size / 4)
+    else:
+      return "\"%s\"" % bin(value)[2:].zfill(self.bit_size)
 
 class ML_StdLogicClass(ML_Format):
   def __init__(self):
@@ -58,6 +63,8 @@ class ML_StdLogicClass(ML_Format):
     return self.name[language]
   def get_cst(self, value, language = VHDL_Code):
     return "'%d'" % value
+  def get_bit_size(self):
+    return self.bit_size
 
 # std_logic type singleton
 ML_StdLogic = ML_StdLogicClass()
