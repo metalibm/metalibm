@@ -14,6 +14,7 @@
 
 from ..utility.log_report import *
 from .generator_utility import *
+from .complex_generator import *
 from .code_element import *
 from ..core.ml_formats import *
 from ..core.ml_hdl_format import *
@@ -29,6 +30,22 @@ def exclude_std_logic(optree):
   return not isinstance(optree.get_precision(), ML_StdLogicVectorFormat)
 def include_std_logic(optree):
   return isinstance(optree.get_precision(), ML_StdLogicVectorFormat)
+
+def zext_modifier(optree):
+  ext_input = optree.get_input(0)
+  ext_size = optree.ext_size
+  precision = ML_StdLogicVectorFormat(ext_size)
+  ext_precision = ML_StdLogicVectorFormat(ext_size + ext_input.get_precision().get_bit_size())
+  return Concatenation(Constant(0, precision = precision), ext_input, precision = ext_precision)
+
+def sext_modifier(optree):
+  ext_size = optree.ext_size
+  ext_precision = ML_StdLogicVectorFormat(ext_size + ext_input.get_precision().get_bit_size())
+  ext_input = optree.get_input(0)
+  op_size = ext_input.get_precision().get_bit_size()
+  sign_digit = VectorElementSelection(ext_input, Constant(op_size -1, precision = ML_Integer), precision = ML_StdLogic)
+  precision = ML_StdLogicVectorFormat(ext_size)
+  return Concatenation(Replication(sign_digit, precision = precision), optree, precision = ext_precision)
 
 vhdl_comp_symbol = {
   Comparison.Equal: "=", 
@@ -51,7 +68,6 @@ vhdl_code_generation_table = {
       {
         type_custom_match(MCSTDLOGICV, MCSTDLOGICV, MCSTDLOGICV):  SymbolOperator("+", arity = 2),
       }
-      
     }
   },
   Subtraction: {
@@ -70,7 +86,7 @@ vhdl_code_generation_table = {
       lambda _: True : {
         type_strict_match(ML_Bool, ML_Bool, ML_Bool): SymbolOperator("and", arity = 2, force_folding = True),
       },
-    }
+   }, 
   },
   Event: {
     None: {
@@ -92,6 +108,46 @@ vhdl_code_generation_table = {
               #build_simplified_operator_generation([ML_Int32, ML_Int64, ML_UInt64, ML_UInt32, ML_Binary32, ML_Binary64], 2, SymbolOperator(">=", arity = 2), result_precision = ML_Int32),
           }) for specifier in [Comparison.Equal, Comparison.NotEqual, Comparison.Greater, Comparison.GreaterOrEqual, Comparison.Less, Comparison.LessOrEqual]
   ),
+  ExponentExtraction: {
+    None: {
+      lambda _: True: {
+        type_custom_match(TCM(ML_StdLogicVectorFormat), FSM(ML_Binary32)): SymbolOperator("(30 downto 23)", lspace = "", inverse = True, arity = 1), 
+      },
+    },
+  },
+  ZeroExt: {
+    None: {
+      lambda _: True: {
+        type_custom_match(TCM(ML_StdLogicVectorFormat), TCM(ML_StdLogicVectorFormat)): ComplexOperator(optree_modifier = zext_modifier), 
+      },
+    }
+  },
+  Concatenation: {
+    None: {
+      lambda _: True: {
+        type_custom_match(TCM(ML_StdLogicVectorFormat), TCM(ML_StdLogicVectorFormat), TCM(ML_StdLogicVectorFormat)): SymbolOperator("&", arity = 2),
+        type_custom_match(TCM(ML_StdLogicVectorFormat), FSM(ML_StdLogic), TCM(ML_StdLogicVectorFormat)): SymbolOperator("&", arity = 2),
+        type_custom_match(TCM(ML_StdLogicVectorFormat), TCM(ML_StdLogicVectorFormat), FSM(ML_StdLogic)): SymbolOperator("&", arity = 2),
+      },
+    },
+  },
+  VectorElementSelection: {
+    None: {
+        # make sure index accessor is a Constant (or fallback to C implementation)
+       lambda optree: isinstance(optree.get_input(1), Constant):  {
+        type_custom_match(FSM(ML_StdLogic), TCM(ML_StdLogicVectorFormat), FSM(ML_Integer)): TemplateOperator("%s(%s)", arity = 2),
+      },
+    },
+  },
+  Replication: {
+    None: {
+        # make sure index accessor is a Constant (or fallback to C implementation)
+       lambda optree: True:  {
+        type_custom_match(FSM(ML_StdLogic), FSM(ML_StdLogic)): IdentityOperator(),
+        type_custom_match(TCM(ML_StdLogicVectorFormat), FSM(ML_StdLogic), FSM(ML_Integer)): TemplateOperatorFormat("({1!d} - 1 downto 0 => {0:s}"),
+      },
+    },
+  },
 }
  
 
