@@ -432,6 +432,12 @@ class TemplateOperator(FunctionOperator):
         """ overloading of FunctionOperator generate_call_code for template operator object """
         return self.function_name % tuple(var_arg.get() for var_arg in result_arg_list)
 
+class TemplateOperatorFormat(FunctionOperator):
+    """ template operator class """
+    def generate_call_code(self, result_arg_list):
+        """ overloading of FunctionOperator generate_call_code for template operator object """
+        return self.function_name.format(*tuple(var_arg.get() for var_arg in result_arg_list))
+
 
 class AsmInlineOperator(ML_CG_Operator):
     def __init__(self, asm_template, arity = 2, arg_map = None, output_num = 1):
