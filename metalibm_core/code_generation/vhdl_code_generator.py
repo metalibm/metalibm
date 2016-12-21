@@ -370,16 +370,16 @@ class VHDLCodeGenerator(object):
 
     def generate_declaration(self, symbol, symbol_object, initial = True, final = True):
         if isinstance(symbol_object, Constant):
-            precision_symbol = (symbol_object.get_precision().get_name(language = self.language) + " ") 
+            precision_symbol = (symbol_object.get_precision().get_code_name(language = self.language) + " ") 
             final_symbol = ";\n" 
             return "constant %s : %s := %s%s" % (symbol, precision_symbol, symbol_object.get_precision().get_cst(symbol_object.get_value(), language = self.language), final_symbol) 
 
         elif isinstance(symbol_object, Variable):
-            precision_symbol = (symbol_object.get_precision().get_name(language = self.language) + " ")
+            precision_symbol = (symbol_object.get_precision().get_code_name(language = self.language) + " ")
             return "variable %s : %s;\n" % (symbol, precision_symbol) 
 
         elif isinstance(symbol_object, Signal):
-            precision_symbol = (symbol_object.get_precision().get_name(language = self.language) + " ") if initial else ""
+            precision_symbol = (symbol_object.get_precision().get_code_name(language = self.language) + " ") if initial else ""
             return "signal %s : %s;\n" % (symbol, precision_symbol) 
 
         elif isinstance(symbol_object, ML_Table):
