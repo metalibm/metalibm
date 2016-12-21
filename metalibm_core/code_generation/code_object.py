@@ -346,7 +346,7 @@ class CodeObject(object):
         result += self.expanded_code
         return result
 
-    def push_into_parent_code(self, parent_code, static_cst = False, header = False, skip_function = False):
+    def push_into_parent_code(self, parent_code, code_generator, static_cst = False, static_table = False, headers = False, skip_function = False):
         if headers: 
             parent_code << self.generate_header_code()
             parent_code << "\n\n"
@@ -434,7 +434,7 @@ class GappaCodeObject(CodeObject):
         result += self.gen_hint()
         return result
 
-    def push_into_parent_code(self, parent_code, static_cst = False, header = False, skip_function = False):
+    def push_into_parent_code(self, parent_code, code_generator, static_cst = False, static_table = False, headers = False, skip_function = False):
         # symbol exclusion list
         declaration_exclusion_list = [MultiSymbolTable.ConstantSymbol] if static_cst else []
         declaration_exclusion_list += [MultiSymbolTable.TableSymbol] if static_table else []
