@@ -55,10 +55,18 @@ class ML_Format(object):
       self.name = {}
       self.display_format = {}
 
+    ## return format name
     def get_name(self, language = C_Code):
         if language in self.name:
             return self.name[language]
         else: return self.name[C_Code]
+
+    ## return source code name for the format
+    def get_code_name(self, language = C_Code):
+        return self.get_name(language = language)
+
+    def get_match_format(self):
+        return self
 
     def get_display_format(self, language = C_Code):
         if language in self.display_format:
@@ -286,23 +294,51 @@ class ML_FormatConstructor(ML_Format):
     def get_bit_size(self):
         return self.bit_size
 
+## a virtual format is a format which is internal to Metalibm
+#  representation and relies on an other non-virtual format
+#  for support in generated code
+class VirtualFormat(ML_Format):
+  def __init__(self, base_format = None, support_format = None):
+    ML_Format.__init__(self)
+    self.support_format = support_format
+    self.base_format    = base_format
+
+  ## return name for the format
+  def get_name(self, language = C_Code):
+    return self.base_format.get_name(language = language)
+
+  ## return source code name for the format
+  def get_code_name(self, language = C_Code):
+    return self.support_format.get_name(language = language)
+
+  def set_support_format(self, _format):
+    self.support_format = _format
+
+  def get_match_format(self):
+    return self.base_format
+
+  def get_support_format(self):
+    return self.support_format
+
 
 ## Ancestor to fixed-point format
-class ML_Fixed_Format(ML_Format):
+class ML_Fixed_Format(VirtualFormat):
     """ parent to every Metalibm's fixed-point class """
     def __init__(self, support_format = None, align = 0):
-      ML_Format.__init__(self)
-      # integer format used to contain the fixed-point value 
-      self.support_format = support_format
+      VirtualFormat.__init__(self, support_format = support_format)
+      # self.support_format must be an integer format 
+      # used to contain the fixed-point value 
 
       # offset between the support LSB and the actual value LSB 
       self.support_right_align = align
 
-    def set_support_format(self, _format):
-      self.support_format = _format
+    def get_match_format(self):
+      return self
 
-    def get_support_format(self):
-      return self.support_format
+    def get_name(self, language = C_Code):
+      return ML_Format.get_name(self, language = language)
+    def get_code_name(self, language = C_Code):
+      return ML_Format.get_code_name(self, language = language)
 
     def set_support_right_align(self, align):
       self.support_right_align = align

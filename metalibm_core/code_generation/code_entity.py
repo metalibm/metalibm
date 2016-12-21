@@ -115,8 +115,8 @@ class CodeEntity(object):
   def get_declaration(self, final = True, language = None):
     language = self.language if language is None else language
     # input signal declaration
-    input_port_list = ["%s : in %s" % (inp.get_tag(), inp.get_precision().get_name(language = language)) for inp in self.arg_list]
-    output_port_list = ["%s : out %s" % (out.get_input(0).get_tag(), out.get_input(0).get_precision().get_name(language = language)) for out in self.output_list]
+    input_port_list = ["%s : in %s" % (inp.get_tag(), inp.get_precision().get_code_name(language = language)) for inp in self.arg_list]
+    output_port_list = ["%s : out %s" % (out.get_input(0).get_tag(), out.get_input(0).get_precision().get_code_name(language = language)) for out in self.output_list]
     port_format_list = ";\n  ".join(input_port_list + output_port_list)
     # FIXME: add suport for inout and generic
     return "entity {entity_name} is \nport (\n  {port_list}\n);\nend {entity_name};\n\n".format(entity_name = self.name, port_list = port_format_list)
