@@ -21,6 +21,7 @@ from sollya import Interval, SollyaObject, nearestint, floor, ceil
 from ..utility.log_report import Log
 from .attributes import Attributes, attr_init
 from .ml_formats import *
+from .ml_hdl_format import *
 from .ml_operations import *
 
 
@@ -64,9 +65,14 @@ class ZeroExt(AbstractOperationConstructor("ZeroExt", arity = 1)):
     self.__class__.__base__.__init__(self, op, **kwords)
     self.ext_size = ext_size
 
+## Build a larger value by concatenating two smaller values
+# The first operand (Left hand side) is positioned as the new Value most significant bits
+# and the second operand (Right hand side) is positionned
 class Concatenation(AbstractOperationConstructor("Concatenation", arity = 2)): pass
 
-class Replication(AbstractOperationConstructor("Replication", arity = 2)): pass
+## This operation replicates its operand as to completely 
+#  populate its output format
+class Replication(AbstractOperationConstructor("Replication", arity = 1)): pass
 
 class Signal(AbstractVariable): pass 
 
@@ -74,3 +80,35 @@ class Signal(AbstractVariable): pass
 #  truncate parameters are derived from input and output format
 class Truncate(AbstractOperationConstructor("Truncate", arity = 1)): pass
 
+def force_size(optree, size):
+  op_size = optree.get_precision().get_bit_size()
+  out_precision = ML_StdLogicVectorFormat(size)
+  if op_size == size:
+    return optree
+  elif op_size < size:
+    return ZeroExt(optree, size - op_size, precision = out_precision)
+  else:
+    return Truncate(optree, precision = out_precision)
+
+## Operation to assemble a float point value from
+#  a sign, exponent, mantissa
+#  the result = sign * 2^(exponent - bias) * (1.0 + mantissae * 2^(-precision))
+def FloatBuild(sign_bit, exp_field, mantissa_field, precision = ML_Binary32):
+  # assert exp_field has the right output format
+  exp_field = force_size(exp_field, precision.get_exponent_size())
+  # assert mantissa_field has the right output format
+  mantissa_field = force_size(mantissa_field, precision.get_field_size())
+  # build cast concatenation of operands
+  result = TypeCast(
+    Concatenation(
+      Concatenation(
+        sign_bit, 
+        exp_field, 
+        precision = ML_StdLogicVectorFormat(1 + precision.get_exponent_size())
+      ),
+      mantissa_field,
+      precision = ML_StdLogicVectorFormat(precision.get_bit_size())
+    ),
+    precision = precision
+  )
+  return result
