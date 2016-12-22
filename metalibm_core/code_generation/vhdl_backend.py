@@ -158,10 +158,68 @@ vhdl_code_generation_table = {
       },
     },
   },
+  MantissaExtraction: {
+    None: {
+      lambda optree: True: {
+        type_custom_match(MCSTDLOGICV, FSM(ML_Binary32)): TemplateOperator("%s(22 downto 0)", arity = 1), 
+      },
+    },
+  },
+  CopySign: {
+    None: {
+      lambda optree: True: {
+        type_custom_match(FSM(ML_StdLogic), ML_Binary32): TemplateOperator("%s(31)", arity = 1),
+        type_custom_match(FSM(ML_StdLogic), ML_Binary64): TemplateOperator("%s(63)", arity = 1),
+      },
+    },
+  },
+  BitLogicXor: {
+    None: {
+      lambda optree: True: {
+        type_strict_match(ML_StdLogic, ML_StdLogic, ML_StdLogic): SymbolOperator("xor", arity = 2),
+        type_custom_match(TCM(ML_StdLogicVectorFormat), TCM(ML_StdLogicVectorFormat), TCM(ML_StdLogicVectorFormat)): SymbolOperator("xor", arity = 2),
+      },
+    },
+  },
   Truncate: {
     None: {
       lambda optree: True: {
         type_custom_match(TCM(ML_StdLogicVectorFormat), TCM(ML_StdLogicVectorFormat), TCM(ML_StdLogicVectorFormat)): DynamicOperator(truncate_generator),
+      },
+    },
+  },
+  #FloatBuild: {
+  #  None: {
+  #    lambda optree: {
+  #      type_custom_match(FSM(Binary32), FSM(ML_StdLogic), TCM(ML_StdLogicVectorFormat), TCM(ML_StdLogicVectorFormat)): ComplexOperator 
+  #    },
+  #  },
+  #},
+  TypeCast: {
+    None: {
+      lambda optree: True: {
+        type_custom_match(FSM(ML_Binary32), TCM(ML_StdLogicVectorFormat)): IdentityOperator(output_precision = ML_Binary32)
+      },
+    },
+  },
+  BitLogicRightShift: {
+    None: {
+      lambda optree: True: {
+        type_custom_match(MCSTDLOGICV, MCSTDLOGICV, MCSTDLOGICV): FunctionOperator("shift_right", arity = 2),
+      },
+    },
+  },
+  BitLogicLeftShift: {
+    None: {
+      lambda optree: True: {
+        type_custom_match(MCSTDLOGICV, MCSTDLOGICV, MCSTDLOGICV): FunctionOperator("shift_left", arity = 2),
+      },
+    },
+  },
+  CountLeadingZeros: {
+    None: {
+      lambda optree: True: {
+        type_custom_match(MCSTDLOGICV, MCSTDLOGICV): FunctionOperator("count_leading_zeros", arity = 1),
       },
     },
   },
