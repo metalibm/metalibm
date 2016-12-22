@@ -69,3 +69,8 @@ class Concatenation(AbstractOperationConstructor("Concatenation", arity = 2)): p
 class Replication(AbstractOperationConstructor("Replication", arity = 2)): pass
 
 class Signal(AbstractVariable): pass 
+
+## Truncate the operand to a smaller format
+#  truncate parameters are derived from input and output format
+class Truncate(AbstractOperationConstructor("Truncate", arity = 1)): pass
+

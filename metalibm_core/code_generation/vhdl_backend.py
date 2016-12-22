@@ -38,6 +38,16 @@ def zext_modifier(optree):
   ext_precision = ML_StdLogicVectorFormat(ext_size + ext_input.get_precision().get_bit_size())
   return Concatenation(Constant(0, precision = precision), ext_input, precision = ext_precision)
 
+def truncate_generator(optree):
+  truncate_input = optree.get_input(0)
+  result_size = optree.get_precision().get_bit_size()
+  return TemplateOperator("%%s(%d downto 0)" % (result_size - 1), arity = 1)
+
+def copy_sign_generator(optree):
+  sign_input = optree.get_input(0)
+  sign_index = sign_input.get_precision().get_bit_size() - 1
+  return TemplateOperator("%%s(%d)" % (sign_index), arity = 1)
+
 def sext_modifier(optree):
   ext_size = optree.ext_size
   ext_precision = ML_StdLogicVectorFormat(ext_size + ext_input.get_precision().get_bit_size())
@@ -145,6 +155,20 @@ vhdl_code_generation_table = {
        lambda optree: True:  {
         type_custom_match(FSM(ML_StdLogic), FSM(ML_StdLogic)): IdentityOperator(),
         type_custom_match(TCM(ML_StdLogicVectorFormat), FSM(ML_StdLogic), FSM(ML_Integer)): TemplateOperatorFormat("({1!d} - 1 downto 0 => {0:s}"),
+      },
+    },
+  },
+  Truncate: {
+    None: {
+      lambda optree: True: {
+        type_custom_match(TCM(ML_StdLogicVectorFormat), TCM(ML_StdLogicVectorFormat), TCM(ML_StdLogicVectorFormat)): DynamicOperator(truncate_generator),
+      },
+    },
+  },
+  SpecificOperation: {
+    SpecificOperation.CopySign: {
+      lambda optree: True: {
+        type_custom_match(FSM(ML_StdLogic), MCSTDLOGICV): DynamicOperator(copy_sign_generator),
       },
     },
   },
