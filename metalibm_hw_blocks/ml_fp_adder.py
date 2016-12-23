@@ -123,7 +123,10 @@ class FP_Adder(ML_Entity("fp_adder")):
                   Constant(exp_bias, precision = exp_precision_ext),
                   precision = exp_precision_ext
                 ),
-                zext(exp_vy, 1), precision = exp_precision_ext)
+                zext(exp_vy, 1), 
+                precision = exp_precision_ext,
+                tag = "exp_diff"
+    )
     exp_diff_lt_0 = Comparison(exp_diff, Constant(0, precision = exp_precision_ext), specifier = Comparison.Less, precision = ML_Bool)
     exp_diff_gt_2bias = Comparison(exp_diff, Constant(2*exp_bias, precision = exp_precision_ext), specifier = Comparison.Greater, precision = ML_Bool)
 
@@ -138,7 +141,8 @@ class FP_Adder(ML_Entity("fp_adder")):
         Truncate(exp_diff, precision = shift_amount_prec),
         precision = shift_amount_prec
       ),
-      precision = shift_amount_prec
+      precision = shift_amount_prec,
+      tag = "mant_shift"
     )
 
     mant_ext_size = self.precision.get_field_size()
@@ -171,59 +175,6 @@ class FP_Adder(ML_Entity("fp_adder")):
 
     self.implementation.add_output_signal("vr_out", vr_out)
 
-    #exp_vx = SignExtenstion(vx, exp_precision_ext)
-    #exp_vy = SignExtenstion(vy, exp_precision_ext)
-
-    #exp_diff = Subtraction(exp_vx, exp_vy, precision = exp_precision_ext)
-    #exp_diff = Addition(exp_diff, Constant(shift_bias, precision = exp_precision_ext), precision = exp_precision_ext)
-
-
-    #mant_precision = ML_StdLogicVectorFormat(self.precision.get_field_size())
-    #mant_vx = MantissaExtraction(vx, precision = mant_precision)
-    #mant_vy = MantissaExtraction(vy, precision = mant_precision)
-
-    #mant_ext_precision = ML_StdLogicVectorFormat(self.precision.get_field_size() + shift_amount)
-    #mant_vx = ZeroExtenstion
-    #Shift(vx, exp_diff, 
-
-    #self.implementation.start_new_stage()
-
-    #shifted_mant = LogicalShift(mant_vy, exp_diff, precision = shift_precision)
-
-
-
-    #vr_add = Addition(vx, vy, tag = "vr", precision = precision)
-    #vr_sub = Subtraction(vx, vy, tag = "vr_sub", precision = precision)
-
-    #self.implementation.start_new_stage()
-
-    #vr_out = Select(
-      #Comparison(exp_vx, exp_vy, precision = ML_Bool, specifier = Comparison.Greater),
-      #vr_add,
-      #Select(
-        #Comparison(vx, Constant(1, precision = precision), precision = ML_Bool, specifier = Comparison.LessOrEqual),
-        #vr_sub,
-        #vx,
-        #precision = precision
-      #),
-      #precision = precision,
-      #tag = "vr_res"
-    #)
-
-    #for sig in [vx, vy, vr_add, vr_sub, vr_out]:
-    #  print "%s, stage=%d" % (sig.get_tag(), sig.attributes.init_stage)
-
-    #vr_d = Signal("vr_d", precision = vr.get_precision())
-
-    #process_statement = Statement(
-    #  ConditionBlock(LogicalAnd(Event(clk, precision = ML_Bool), Comparison(clk, Constant(1, precision = ML_StdLogic), specifier = Comparison.Equal, precision = ML_Bool), precision = ML_Bool), ReferenceAssign(vr_d, vr))
-    #)
-    #process = Process(process_statement, sensibility_list = [clk, reset])
-    #self.implementation.add_process(process)
-
-    #self.implementation.add_output_signal("r_d", vr_d)
-    #self.implementation.add_output_signal("r", vr)
-    #self.implementation.add_output_signal("vr_out", vr_out)
 
     return [self.implementation]
 

@@ -189,7 +189,7 @@ class IdentityOperator(ML_CG_Operator):
 
         # generating assignation if required
         folded = kwords["folded"]
-        if (folded and self.get_force_folding() != False) or generate_pre_process != None: 
+        if self.get_force_folding() or (folded and self.get_force_folding() != False) or generate_pre_process != None: 
             prefix = optree.get_tag(default = "tmp")
             result_var = kwords["result_var"]
             result_varname = result_var if result_var != None else code_object.get_free_var_name(optree.get_precision(), prefix = prefix)
@@ -244,7 +244,7 @@ class SymbolOperator(ML_CG_Operator):
             result_code = self.symbol.join([var_arg.get() for var_arg in var_arg_list])
 
         # generating assignation if required
-        if (kwords["folded"] and self.get_force_folding() != False) or generate_pre_process != None: 
+        if self.get_force_folding() or (kwords["folded"] and self.get_force_folding() != False) or generate_pre_process != None: 
             prefix = optree.get_tag(default = "tmp")
             result_var = kwords["result_var"]
             result_varname = result_var if result_var != None else code_object.get_free_var_name(optree.get_precision(), prefix = prefix)
@@ -410,7 +410,7 @@ class FunctionOperator(ML_CG_Operator):
 
         else:
           # generating assignation if required
-          if (folded and self.get_force_folding() != False) or generate_pre_process != None:
+          if self.get_force_folding() or (folded and self.get_force_folding() != False) or generate_pre_process != None:
               prefix = optree.get_tag(default = "tmp")
               result_varname = result_var if result_var != None else code_object.get_free_var_name(optree.get_precision(), prefix = prefix)
               if generate_pre_process != None:
@@ -533,7 +533,7 @@ class RoundOperator(FunctionOperator):
             # generating assignation if required
             folded = kwords["folded"]
             result_var = kwords["result_var"]
-            if (folded and self.get_force_folding() != False) or generate_pre_process != None: 
+            if self.get_force_folding() or (folded and self.get_force_folding() != False) or generate_pre_process != None: 
                 prefix = optree.get_tag(default = "tmp")
                 result_varname = result_var if result_var != None else code_object.get_free_var_name(optree.get_precision(), prefix = prefix)
                 if generate_pre_process != None:

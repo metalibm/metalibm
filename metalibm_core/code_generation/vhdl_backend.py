@@ -73,20 +73,20 @@ vhdl_code_generation_table = {
   Addition: {
     None: {
       exclude_std_logic: 
-          build_simplified_operator_generation_nomap([ML_Int8, ML_UInt8, ML_Int16, ML_UInt16, ML_Int32, ML_UInt32, ML_Int64, ML_UInt64, ML_Int128,ML_UInt128], 2, SymbolOperator("+", arity = 2), cond = (lambda _: True)),
+          build_simplified_operator_generation_nomap([ML_Int8, ML_UInt8, ML_Int16, ML_UInt16, ML_Int32, ML_UInt32, ML_Int64, ML_UInt64, ML_Int128,ML_UInt128], 2, SymbolOperator("+", arity = 2, force_folding = True), cond = (lambda _: True)),
       include_std_logic:
       {
-        type_custom_match(MCSTDLOGICV, MCSTDLOGICV, MCSTDLOGICV):  SymbolOperator("+", arity = 2),
+        type_custom_match(MCSTDLOGICV, MCSTDLOGICV, MCSTDLOGICV):  SymbolOperator("+", arity = 2, force_folding = True),
       }
     }
   },
   Subtraction: {
     None: {
       exclude_std_logic: 
-          build_simplified_operator_generation_nomap([ML_Int8, ML_UInt8, ML_Int16, ML_UInt16, ML_Int32, ML_UInt32, ML_Int64, ML_UInt64, ML_Int128,ML_UInt128], 2, SymbolOperator("-", arity = 2), cond = (lambda _: True)),
+          build_simplified_operator_generation_nomap([ML_Int8, ML_UInt8, ML_Int16, ML_UInt16, ML_Int32, ML_UInt32, ML_Int64, ML_UInt64, ML_Int128,ML_UInt128], 2, SymbolOperator("-", arity = 2, force_folding = True), cond = (lambda _: True)),
       include_std_logic:
       {
-        type_custom_match(MCSTDLOGICV, MCSTDLOGICV, MCSTDLOGICV):  SymbolOperator("-", arity = 2),
+        type_custom_match(MCSTDLOGICV, MCSTDLOGICV, MCSTDLOGICV):  SymbolOperator("-", arity = 2, force_folding = True),
       }
       
     }
@@ -111,9 +111,9 @@ vhdl_code_generation_table = {
           { 
               lambda _: True: {
                   type_custom_match(FSM(ML_Bool), TCM(ML_StdLogicVectorFormat), TCM(ML_StdLogicVectorFormat)): 
-                    SymbolOperator(vhdl_comp_symbol[specifier], arity = 2, force_folding = True),
+                    SymbolOperator(vhdl_comp_symbol[specifier], arity = 2, force_folding = False),
                   type_strict_match(ML_Bool, ML_StdLogic, ML_StdLogic):
-                    SymbolOperator(vhdl_comp_symbol[specifier], arity = 2, force_folding = True),
+                    SymbolOperator(vhdl_comp_symbol[specifier], arity = 2, force_folding = False),
               },
               #build_simplified_operator_generation([ML_Int32, ML_Int64, ML_UInt64, ML_UInt32, ML_Binary32, ML_Binary64], 2, SymbolOperator(">=", arity = 2), result_precision = ML_Int32),
           }) for specifier in [Comparison.Equal, Comparison.NotEqual, Comparison.Greater, Comparison.GreaterOrEqual, Comparison.Less, Comparison.LessOrEqual]
@@ -205,14 +205,14 @@ vhdl_code_generation_table = {
   BitLogicRightShift: {
     None: {
       lambda optree: True: {
-        type_custom_match(MCSTDLOGICV, MCSTDLOGICV, MCSTDLOGICV): FunctionOperator("shift_right", arity = 2),
+        type_custom_match(MCSTDLOGICV, MCSTDLOGICV, MCSTDLOGICV): FunctionOperator("shift_right", arity = 2, force_folding = True),
       },
     },
   },
   BitLogicLeftShift: {
     None: {
       lambda optree: True: {
-        type_custom_match(MCSTDLOGICV, MCSTDLOGICV, MCSTDLOGICV): FunctionOperator("shift_left", arity = 2),
+        type_custom_match(MCSTDLOGICV, MCSTDLOGICV, MCSTDLOGICV): FunctionOperator("shift_left", arity = 2, force_folding = True),
       },
     },
   },

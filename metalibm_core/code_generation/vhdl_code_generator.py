@@ -53,19 +53,16 @@ class VHDLCodeGenerator(object):
     def get_unknown_precision(self):
         return None
 
-
     def open_memoization_level(self):
         self.memoization_map.insert(0, {})
     def close_memoization_level(self):
         self.memoization_map.pop(0)
-
 
     def has_memoization(self, optree):
         """ test if a optree has already been generated and memoized """
         for memoization_level in self.memoization_map:
             if optree in memoization_level: return True
         return False
-
 
     def get_memoization(self, optree):
         """ retrieve pre-existing memoization entry """
@@ -105,7 +102,6 @@ class VHDLCodeGenerator(object):
               result = CodeVariable(final_var, optree.get_precision())
             else:
               result = CodeVariable(optree.get_tag(), optree.get_precision())
-
 
         elif isinstance(optree, Constant):
             precision = optree.get_precision()
