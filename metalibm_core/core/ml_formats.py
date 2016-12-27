@@ -157,7 +157,7 @@ ML_Exact = ML_AbstractFormat("ML_Exact")
 def AbstractFormat_Builder(name, inheritance):
     field_map = {
         "name": name,
-        "__str__": lambda self: self.name,
+        "__str__": lambda self: self.name[C_Code],
     }
     return type(name, (ML_AbstractFormat,) + inheritance, field_map)
 
