@@ -335,6 +335,11 @@ class AbstractOperation(ML_Operation):
         """ return list of non-standard inputs """
         return self.extra_inputs
 
+    ## Add an extra (hidden) input to the operand's standard input
+    def add_to_extra_inputs(self, extra_input):
+        self.extra_inputs.append(extra_input)
+        
+
     ## change the node to mirror optree
     # by copying class, attributes, arity and inputs from optree to self
     def change_to(self, optree):
