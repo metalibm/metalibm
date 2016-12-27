@@ -66,8 +66,35 @@ vhdl_comp_symbol = {
   Comparison.Greater: ">"
 }
 
+## Updating standard format name for VHDL Code
+ML_Integer.name[VHDL_Code] = "integer"
+
 # class Match custom std logic vector format
 MCSTDLOGICV = TCM(ML_StdLogicVectorFormat)
+
+formal_generation_table = {
+  Addition: {
+    None: {
+      lambda optree: True: {
+        type_strict_match(ML_Integer, ML_Integer, ML_Integer): SymbolOperator("+", arity = 2, force_folding = False),
+      },
+    },
+  },
+  Subtraction: {
+    None: {
+      lambda optree: True: {
+        type_strict_match(ML_Integer, ML_Integer, ML_Integer): SymbolOperator("-", arity = 2, force_folding = False),
+      },
+    },
+  },
+  Multiplication: {
+    None: {
+      lambda optree: True: {
+        type_strict_match(ML_Integer, ML_Integer, ML_Integer): SymbolOperator("*", arity = 2, force_folding = False),
+      },
+    },
+  },
+}
 
 vhdl_code_generation_table = {
   Addition: {
@@ -144,7 +171,7 @@ vhdl_code_generation_table = {
   VectorElementSelection: {
     None: {
         # make sure index accessor is a Constant (or fallback to C implementation)
-       lambda optree: isinstance(optree.get_input(1), Constant):  {
+       lambda optree: True:  {
         type_custom_match(FSM(ML_StdLogic), TCM(ML_StdLogicVectorFormat), FSM(ML_Integer)): TemplateOperator("%s(%s)", arity = 2),
       },
     },
@@ -156,6 +183,13 @@ vhdl_code_generation_table = {
         type_custom_match(FSM(ML_StdLogic), FSM(ML_StdLogic)): IdentityOperator(),
         type_custom_match(TCM(ML_StdLogicVectorFormat), FSM(ML_StdLogic), FSM(ML_Integer)): TemplateOperatorFormat("({1!d} - 1 downto 0 => {0:s}"),
       },
+    },
+  },
+  Conversion: {
+    None: {
+      lambda optree: True: {
+        type_custom_match(TCM(ML_StdLogicVectorFormat), FSM(ML_Integer)): FunctionOperator("std_logic_vector", arity = 1),
+      }
     },
   },
   MantissaExtraction: {
@@ -205,14 +239,14 @@ vhdl_code_generation_table = {
   BitLogicRightShift: {
     None: {
       lambda optree: True: {
-        type_custom_match(MCSTDLOGICV, MCSTDLOGICV, MCSTDLOGICV): FunctionOperator("shift_right", arity = 2, force_folding = True),
+        type_custom_match(MCSTDLOGICV, MCSTDLOGICV, MCSTDLOGICV): TemplateOperator("std_logic_vector(shift_right(unsigned(%s), to_integer(unsigned(%s))))", arity = 2, force_folding = True),
       },
     },
   },
   BitLogicLeftShift: {
     None: {
       lambda optree: True: {
-        type_custom_match(MCSTDLOGICV, MCSTDLOGICV, MCSTDLOGICV): FunctionOperator("shift_left", arity = 2, force_folding = True),
+        type_custom_match(MCSTDLOGICV, MCSTDLOGICV, MCSTDLOGICV): TemplateOperator("std_logic_vector(shift_left(unsigned(%s), to_integer(unsigned(%s))))", arity = 2, force_folding = True),
       },
     },
   },
@@ -231,10 +265,25 @@ vhdl_code_generation_table = {
     },
   },
 }
+
+class FormalBackend(AbstractBackend):
+  """ description of VHDL's Backend """
+  target_name = "formal_backend"
+  TargetRegister.register_new_target(target_name, lambda _: FormalBackend)
+
+  code_generation_table = {
+    VHDL_Code: formal_generation_table,
+    C_Code: formal_generation_table,
+    Gappa_Code: {}
+  }
+
+  def __init__(self):
+    AbstractBackend.__init__(self)
+    print "initializing Formal target"
  
 
-class VHDLBackend(AbstractBackend):
-  """ description of MPFR's Backend """
+class VHDLBackend(FormalBackend):
+  """ description of VHDL's Backend """
   target_name = "vhdl_backend"
   TargetRegister.register_new_target(target_name, lambda _: VHDLBackend)
 
@@ -246,5 +295,5 @@ class VHDLBackend(AbstractBackend):
 
   def __init__(self):
     AbstractBackend.__init__(self)
-    print "initializing MPFR target"
+    print "initializing VHDL target"
       
