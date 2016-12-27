@@ -28,6 +28,7 @@ from metalibm_core.core.ml_hdl_format import *
 from metalibm_core.core.ml_hdl_operations import *
 
 
+from metalibm_hw_blocks.lzc import ML_LeadingZeroCounter
 
 
 class FP_Adder(ML_Entity("fp_adder")):
@@ -156,8 +157,20 @@ class FP_Adder(ML_Entity("fp_adder")):
 
     res_sign = CopySign(mant_add, precision = ML_StdLogic) 
 
+    # Precision for leading zero count
     lzc_prec = shift_amount_prec
-    add_lzc = CountLeadingZeros(mant_add, precision = lzc_prec)
+
+    lzc_args = ML_LeadingZeroCounter.get_default_args(width = mant_add.get_precision().get_bit_size())
+    LZC_entity = ML_LeadingZeroCounter(lzc_args)
+    lzc_entity_list = LZC_entity.generate_scheme()
+    lzc_implementation = LZC_entity.get_implementation()
+
+    lzc_component = lzc_implementation.get_component_object()
+
+    add_lzc = Signal("add_lzc", precision = lzc_prec, var_type = Signal.Local)
+    add_lzc = PlaceHolder(add_lzc, lzc_component(io_map = {"x": mant_add, "vr_out": add_lzc}))
+
+    #add_lzc = CountLeadingZeros(mant_add, precision = lzc_prec)
     norm_add = BitLogicLeftShift(mant_add, add_lzc, precision = shift_prec)
 
     res_exp = Addition(
@@ -176,7 +189,7 @@ class FP_Adder(ML_Entity("fp_adder")):
     self.implementation.add_output_signal("vr_out", vr_out)
 
 
-    return [self.implementation]
+    return lzc_entity_list + [self.implementation]
 
   standard_test_cases =[sollya_parse(x) for x in  ["1.1", "1.5"]]
 
