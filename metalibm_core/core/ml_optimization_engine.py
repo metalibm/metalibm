@@ -15,6 +15,7 @@ from sollya import inf, sup
 
 from ..utility.log_report import Log
 from .ml_operations import *
+from .ml_hdl_operations import *
 from .ml_formats import *
 
 
@@ -961,6 +962,8 @@ class OptimizationEngine(object):
                 pass
             elif isinstance(optree, ReferenceAssign):
                 pass 
+            elif isinstance(optree, PlaceHolder):
+                pass
             elif isinstance(optree, SwitchBlock):
                 #self.check_processor_support(optree.get_pre_statement(), memoization_map)
 
