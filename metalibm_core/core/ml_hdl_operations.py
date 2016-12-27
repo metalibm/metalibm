@@ -112,3 +112,28 @@ def FloatBuild(sign_bit, exp_field, mantissa_field, precision = ML_Binary32):
     precision = precision
   )
   return result
+
+## Specific sub-class of loop, 
+#  A single iterator is used to go through
+#  the input interval 
+class RangeLoop(Loop):
+  ## Loop is iterating through its input interval 
+  #  from lower bound to upper bound 
+  class Increasing: pass
+  ## Loop is iterating through its input interval 
+  #  from upper bound down to lower bound 
+  class Decreasing: pass
+
+  def __init__(self, iterator, loop_range, loop_body, specifier = None, **kw):
+    Loop.__init__(self, iterator, loop_body)
+    self.specifier = specifier
+    self.loop_range = loop_range
+
+  def get_codegen_key(self):
+    return self.specifier
+
+  def get_specifier(self):
+    return self.specifier
+
+  def get_loop_range(self):
+    return self.loop_range
