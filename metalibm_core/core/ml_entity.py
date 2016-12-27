@@ -47,25 +47,53 @@ import subprocess
 ## default argument template to be used when no specific value
 #  are given for a specific parameter
 class DefaultEntityArgTemplate:
-  base_name = "unknown_entity"
-  entity_name = None
-  output_file = None
-  # Specification
-  precision = ML_Binary32
-  io_precisions = [ML_Binary32]
-  abs_accuracy   = None
-  libm_compliant = True
-  # Optimization parameters
-  backend = VHDLBackend()
-  fuse_fma = True
-  fast_path_extract = True
-  # Debug verbosity
-  debug = False
-  language = VHDL_Code
-  auto_test = False
-  auto_test_execute = False
-  auto_test_range = None
-  auto_test_std   = False
+  def __init__(self, 
+                base_name = "unknown_entity",
+                entity_name = None,
+                output_file = None,
+                # Specification,
+                precision = ML_Binary32,
+                accuracy = ML_Faithful,
+                io_precisions = [ML_Binary32],
+                abs_accuracy   = None,
+                libm_compliant = True,
+                # Optimization parameters,
+                backend = VHDLBackend(),
+                fuse_fma = True,
+                fast_path_extract = True,
+                # Debug verbosity,
+                debug= False,
+                language = VHDL_Code,
+                auto_test = False,
+                auto_test_execute = False,
+                auto_test_range = None,
+                auto_test_std   = False,
+                **kw # extra arguments
+              ):
+    self.base_name  = base_name
+    self.entity_name  = entity_name
+    self.output_file  = output_file
+    # Specification,
+    self.precision  = precision
+    self.io_precisions  = io_precisions
+    self.abs_accuracy  = abs_accuracy
+    self.accuracy      = accuracy
+    self.libm_compliant  = libm_compliant
+    # Optimization parameters,
+    self.backend  = backend
+    self.fuse_fma  = fuse_fma
+    self.fast_path_extract  = fast_path_extract
+    # Debug verbosity,
+    self.debug = debug
+    self.language  = language
+    self.auto_test  = auto_test
+    self.auto_test_execute  = auto_test_execute
+    self.auto_test_range  = auto_test_range
+    self.auto_test_std  = auto_test_std
+    # registering extra arguments
+    for attr in kw:
+      print "initializing: ", attr, kw[attr]
+      setattr(self, attr, kw[attr])
 
 class RetimeMap:
   def __init__(self):
