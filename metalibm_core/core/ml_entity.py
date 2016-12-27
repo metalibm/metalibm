@@ -233,6 +233,9 @@ class ML_EntityBasis(object):
     uniquifier = self.entity_name
     self.main_code_object = NestedCode(self.vhdl_code_generator, static_cst = True, uniquifier = "{0}_".format(self.entity_name), code_ctor = VHDLCodeObject)
 
+  def get_implementation(self):
+    return self.implementation
+
   ## name generation
   #  @param base_name string, name to be extended for unifiquation
   def uniquify_name(self, base_name):
