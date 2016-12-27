@@ -50,6 +50,8 @@ class ML_StdLogicVectorFormat(ML_Format):
     if self.bit_size % 4 == 0:
       return "X\"%s\"" % hex(value)[2:].zfill(self.bit_size / 4)
     else:
+      if value < 0:
+        return "\"ERROR_NEG(%s)\"" % bin(value)[3:].zfill(self.bit_size)
       return "\"%s\"" % bin(value)[2:].zfill(self.bit_size)
 
 class ML_StdLogicClass(ML_Format):
