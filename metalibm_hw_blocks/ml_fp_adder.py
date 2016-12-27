@@ -116,9 +116,9 @@ class FP_Adder(ML_Entity("fp_adder")):
       return Concatenation(optree, Constant(0, precision = ext_format), precision = out_format)
 
     exp_bias = self.precision.get_field_size() - 1
-
+    # exp_diff = exp_x - exp_y
     exp_diff = Subtraction(
-                Addition(
+                 Addition(
                   zext(exp_vx, 1), 
                   Constant(exp_bias, precision = exp_precision_ext),
                   precision = exp_precision_ext
@@ -162,9 +162,9 @@ class FP_Adder(ML_Entity("fp_adder")):
 
     res_exp = Addition(
                 add_lzc, 
-                Addition(
-                  exp_vx,
-                  Constant(-2*exp_bias, precision = shift_amount_prec),
+                Subtraction(
+                  Truncate(exp_vx, precision = shift_amount_prec),
+                  Constant(2*exp_bias, precision = shift_amount_prec),
                   precision = shift_amount_prec
                 ),
                 precision = shift_amount_prec
