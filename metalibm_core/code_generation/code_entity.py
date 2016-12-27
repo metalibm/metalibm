@@ -13,8 +13,8 @@
 #              entity
 ###############################################################################
 
-from ..core.ml_operations import Variable, FunctionObject, Statement, ReferenceAssign
-from ..core.ml_hdl_operations import Signal
+from ..core.ml_operations import AbstractVariable, Variable, FunctionObject, Statement, ReferenceAssign
+from ..core.ml_hdl_operations import Signal, ComponentObject
 from .code_object import NestedCode
 from .generator_utility import FunctionOperator, FO_Arg
 from .code_constant import *
@@ -35,6 +35,8 @@ class CodeEntity(object):
     self.language = language
     self.process_list = []
     self.current_stage = 0
+    # component object to generate external instance of entity
+    self.component_object = None
     # attribute to contain thestage where the pipelined
     # signal was originally created
     self.init_stage_attribute = AttributeCtor("init_stage", default_value = 0)
@@ -92,25 +94,18 @@ class CodeEntity(object):
   def clear_arg_list(self):
     self.arg_list = []
 
-  def get_function_object(self):
-    # if None, build it
-    if self.function_object is None:
-      self.function_object = self.build_function_object()
-    return self.function_object
+  def get_component_object(self):
+    if self.component_object is None:
+      self.component_object = self.build_component_object()
+    return self.component_object
 
-  def build_function_object(self):
-    arg_list_precision = [arg.get_precision() for arg in self.arg_list]
-    return FunctionObject(self.name, arg_list_precision, self.output_format, self.get_function_operator())
-
-  def get_function_operator(self):
-    return self.build_function_operator()
-
-  def build_function_operator(self):
-    function_arg_map = {}
-    for i in xrange(len(self.arg_list)):
-      function_arg_map[i] = FO_Arg(i)
-    return FunctionOperator(self.name, arg_map = function_arg_map)
-
+  def build_component_object(self):
+    io_map = {}
+    for arg_input in self.arg_list:
+      io_map[arg_input] = AbstractVariable.Input 
+    for arg_output in self.get_output_list():
+      io_map[arg_output] = AbstractVariable.Output 
+    return ComponentObject(self.name, io_map, self)
     
   def get_declaration(self, final = True, language = None):
     language = self.language if language is None else language
@@ -120,6 +115,15 @@ class CodeEntity(object):
     port_format_list = ";\n  ".join(input_port_list + output_port_list)
     # FIXME: add suport for inout and generic
     return "entity {entity_name} is \nport (\n  {port_list}\n);\nend {entity_name};\n\n".format(entity_name = self.name, port_list = port_format_list)
+
+  def get_component_declaration(self, final = True, language = None):
+    language = self.language if language is None else language
+    # input signal declaration
+    input_port_list = ["%s : in %s" % (inp.get_tag(), inp.get_precision().get_code_name(language = language)) for inp in self.arg_list]
+    output_port_list = ["%s : out %s" % (out.get_input(0).get_tag(), out.get_input(0).get_precision().get_code_name(language = language)) for out in self.output_list]
+    port_format_list = ";\n  ".join(input_port_list + output_port_list)
+    # FIXME: add suport for inout and generic
+    return "component {entity_name} \nport (\n  {port_list}\n);\nend component;\n\n".format(entity_name = self.name, port_list = port_format_list)
 
   ## @return function implementation (ML_Operation DAG)
   def get_scheme(self):

@@ -137,3 +137,53 @@ class RangeLoop(Loop):
 
   def get_loop_range(self):
     return self.loop_range
+
+class ComponentInstance(AbstractOperationConstructor("ComponentInstance")):
+  def __init__(self, component_object, *args, **kwords):
+    ComponentInstance.__base__.__init__(self, *args, **kwords)
+    self.component_object = component_object
+    self.instance_id = self.component_object.get_new_instance_id()
+    self.io_map = kwords["io_map"]
+
+  def get_instance_id(self):
+    return self.instance_id
+
+  def get_component_object(self):
+    return self.component_object
+
+  def get_io_map(self):
+    return self.io_map
+
+class ComponentObject(object):
+  ##
+  # @param io_map is a dict <Signal, Signal.Specifier>
+  def __init__(self, name, io_map, generator_object):
+    self.name = name
+    self.io_map = io_map
+    self.generator_object = generator_object
+    self.instance_id = -1
+
+  def get_new_instance_id(self):
+    self.instance_id += 1
+    return self.instance_id
+
+  def get_name(self):
+    return self.name
+
+  def __call__(self, *args, **kw):
+    return ComponentInstance(self, *args, **kw)
+
+  def get_declaration(self):
+    return self.generator_object.get_component_declaration()
+
+## This operation gets several inputs while only one is used
+#  as effective output
+class PlaceHolder(AbstractOperationConstructor("AbstractOperation")):
+  def __init__(self, *args, **kw):
+    PlaceHolder.__base__.__init__(self, *args, **kw)
+
+  def get_main_input(self):
+    return self.get_input(0)
+
+  def get_precision(self):
+    return self.get_main_input().get_precision()

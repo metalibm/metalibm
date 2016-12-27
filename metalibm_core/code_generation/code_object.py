@@ -92,6 +92,7 @@ class MultiSymbolTable(object):
     """ symbol table object """
     class ConstantSymbol: pass
     class FunctionSymbol: pass
+    class ComponentSymbol: pass
     class VariableSymbol: pass
     class SignalSymbol:  pass
     class ProtectedSymbol: pass
@@ -118,6 +119,7 @@ class MultiSymbolTable(object):
         self.signal_table   = self.get_shared_table(MultiSymbolTable.SignalSymbol, shared_tables)
         self.protected_table = self.get_shared_table(MultiSymbolTable.ProtectedSymbol, shared_tables)
         self.table_table = self.get_shared_table(MultiSymbolTable.TableSymbol, shared_tables)
+        self.component_table = self.get_shared_table(MultiSymbolTable.ComponentSymbol, shared_tables)
 
         self.parent_tables = parent_tables
 
@@ -129,6 +131,7 @@ class MultiSymbolTable(object):
             MultiSymbolTable.SignalSymbol:   self.signal_table, 
             MultiSymbolTable.ProtectedSymbol: self.protected_table, 
             MultiSymbolTable.TableSymbol: self.table_table,
+            MultiSymbolTable.ComponentSymbol: self.component_table,
         }
 
         self.prefix_index = {}
@@ -188,6 +191,9 @@ class MultiSymbolTable(object):
 
     def declare_function_name(self, function_name, function_object):
         self.function_table.declare_symbol(function_name, function_object)
+
+    def declare_component_name(self, component_name, component_object):
+        self.component_table.declare_symbol(component_name, component_object)
 
     def declare_var_name(self, var_name, var_object):
         self.variable_table.declare_symbol(var_name, var_object)
@@ -334,10 +340,13 @@ class CodeObject(object):
             self.symbol_table.declare_table_name(free_var_name, table_object)
             return free_var_name
 
-
     def declare_function(self, function_name, function_object):
         self.symbol_table.declare_function_name(function_name, function_object)
         return function_name
+
+    def declare_component(self, component_name, component_object):
+        self.symbol_table.declare_component_name(component_name, component_object)
+        return component_name
 
 
     def get(self, code_generator, static_cst = False, static_table = False, headers = False, skip_function = False):
@@ -593,6 +602,10 @@ class VHDLCodeObject(object):
         self.symbol_table.declare_function_name(function_name, function_object)
         return function_name
 
+    def declare_component(self, component_name, component_object):
+        self.symbol_table.declare_component_name(component_name, component_object)
+        return component_name
+
 
     def get(self, code_generator, static_cst = False, static_table = False, headers = False, skip_function = False):
         """ generate unrolled code content """
@@ -741,6 +754,9 @@ class NestedCode(object):
 
     def declare_function(self, function_name, function_object):
         return self.code_list[0].declare_function(function_name, function_object)
+
+    def declare_component(self, component_name, component_object):
+        return self.code_list[0].declare_component(component_name, component_object)
 
     def get(self, code_generator, static_cst = False, static_table = False, headers = True, skip_function = False):
         return self.code_list[0].get(code_generator, static_cst = static_cst, static_table = static_table, headers = headers, skip_function = skip_function)
