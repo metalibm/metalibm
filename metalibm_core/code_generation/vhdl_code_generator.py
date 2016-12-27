@@ -13,6 +13,8 @@
 
 from ..utility.log_report import Log
 
+import sollya
+
 from ..core.ml_operations import Variable, Constant, ConditionBlock, Return, TableLoad, Statement, Loop, SpecificOperation, ExceptionOperation, ClearException, NoResultOperation, SwitchBlock, FunctionObject, ReferenceAssign
 from ..core.ml_hdl_operations import *
 from ..core.ml_table import ML_Table
@@ -21,6 +23,7 @@ from ..core.attributes import ML_Debug
 from .code_constant import VHDL_Code
 from .code_element import CodeVariable, CodeExpression
 from .code_function import CodeFunction
+from .code_object import MultiSymbolTable
 
 
 class VHDLCodeGenerator(object):
@@ -36,7 +39,6 @@ class VHDLCodeGenerator(object):
         self.fp_context = FP_Context(rounding_mode = default_rounding_mode, silent = default_silent)
         self.language = language
         Log.report(Log.Info, "VHDLCodeGenerator initialized with language: %s" % self.language)
-
 
     def check_fp_context(self, fp_context, rounding_mode, silent):
         """ check required fp_context compatibility with
@@ -90,7 +92,7 @@ class VHDLCodeGenerator(object):
 
         elif isinstance(optree, Variable):
             if optree.get_var_type() is Variable.Local:
-              final_var =  code_object.get_free_var_name(optree.get_precision(), prefix = optree.get_tag(), declare = True)
+              final_var =  code_object.get_free_var_name(optree.get_precision(), prefix = optree.get_tag(), declare = True, var_ctor = Variable)
               result = CodeVariable(final_var, optree.get_precision())
             else:
               result = CodeVariable(optree.get_tag(), optree.get_precision())
@@ -98,7 +100,7 @@ class VHDLCodeGenerator(object):
         elif isinstance(optree, Signal):
             if optree.get_var_type() is Variable.Local:
               print "sig: ",  optree.get_precision()
-              final_var =  code_object.get_free_signal_name(optree.get_precision(), prefix = optree.get_tag(), declare = True)
+              final_var =  code_object.declare_signal(optree, optree.get_precision(), prefix = optree.get_tag())
               result = CodeVariable(final_var, optree.get_precision())
             else:
               result = CodeVariable(optree.get_tag(), optree.get_precision())
@@ -182,6 +184,26 @@ class VHDLCodeGenerator(object):
             
             return None
 
+        elif isinstance(optree, RangeLoop):
+            iterator  = optree.get_input(0)
+            loop_body = optree.get_input(1)
+            loop_range = optree.get_loop_range()
+            specifier  = optree.get_specifier()
+
+            range_pattern = "{lower} to {upper}" if specifier is RangeLoop.Increasing else "{upper} dowto {lower}"
+            range_code = range_pattern.format(lower = sollya.inf(loop_range), upper = sollya.sup(loop_range))
+
+            iterator_code = self.generate_expr(code_object, iterator, folded = folded, language = language)
+
+            code_object << "\n for {iterator} in {loop_range} loop\n".format(iterator = iterator_code.get(), loop_range = range_code)
+            code_object.inc_level()
+            body_code = self.generate_expr(code_object, loop_body, folded = folded, language = language)
+            assert body_code is None
+            code_object.dec_level()
+            code_object<< "end loop;\n"
+
+            return None
+
         elif isinstance(optree, Loop):
             init_statement = optree.inputs[0]
             exit_condition = optree.inputs[1]
@@ -195,6 +217,7 @@ class VHDLCodeGenerator(object):
 
             return None
 
+
         elif isinstance(optree, Process):
             # generating pre_statement for process
             pre_statement = optree.get_pre_statement()
@@ -203,7 +226,7 @@ class VHDLCodeGenerator(object):
             sensibility_list = [self.generate_expr(code_object, op, folded = True, language = language).get() for op in optree.get_sensibility_list()]
             code_object << "process(%s)\n" % ", ".join(sensibility_list)
             self.open_memoization_level()
-            code_object.open_level()
+            code_object.open_level(extra_shared_tables = [MultiSymbolTable.SignalSymbol])
             for process_stat in optree.inputs:
               self.generate_expr(code_object, process_stat, folded = folded, initial = False, language = language)
 
