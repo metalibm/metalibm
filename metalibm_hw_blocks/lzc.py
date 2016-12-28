@@ -59,7 +59,7 @@ class ML_LeadingZeroCounter(ML_Entity("ml_lzc")):
     self.precision = arg_template.precision
 
   def generate_scheme(self):
-    lzc_width = int(ceil(log2(self.width)))
+    lzc_width = int(floor(log2(self.width))) + 1
     Log.report(Log.Info, "width of lzc out is {}".format(lzc_width))
     input_precision = ML_StdLogicVectorFormat(self.width)
     precision = ML_StdLogicVectorFormat(lzc_width)
@@ -111,7 +111,7 @@ class ML_LeadingZeroCounter(ML_Entity("ml_lzc")):
 if __name__ == "__main__":
     # auto-test
     arg_template = ML_EntityArgTemplate(default_entity_name = "new_lzc", default_output_file = "ml_lzc.vhd")
-    arg_template.parser.add_argument("--width", dest = "width", type=int, default = ArgDefault(32), help = "set input width value (in bits)")
+    arg_template.parser.add_argument("--width", dest = "width", type=int, default = 32, help = "set input width value (in bits)")
     # argument extraction 
     args = parse_arg_index_list = arg_template.arg_extraction()
 
