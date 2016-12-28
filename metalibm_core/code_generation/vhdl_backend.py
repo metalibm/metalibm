@@ -43,6 +43,10 @@ def truncate_generator(optree):
   result_size = optree.get_precision().get_bit_size()
   return TemplateOperator("%%s(%d downto 0)" % (result_size - 1), arity = 1)
 
+def conversion_generator(optree):
+  output_size = optree.get_precision().get_bit_size()
+  return TemplateOperator("std_logic_vector(to_unsigned(%s, {output_size}))".format(output_size = output_size), arity = 1)
+
 def copy_sign_generator(optree):
   sign_input = optree.get_input(0)
   sign_index = sign_input.get_precision().get_bit_size() - 1
@@ -188,7 +192,7 @@ vhdl_code_generation_table = {
   Conversion: {
     None: {
       lambda optree: True: {
-        type_custom_match(TCM(ML_StdLogicVectorFormat), FSM(ML_Integer)): FunctionOperator("std_logic_vector", arity = 1),
+        type_custom_match(TCM(ML_StdLogicVectorFormat), FSM(ML_Integer)): DynamicOperator(conversion_generator),
       }
     },
   },
