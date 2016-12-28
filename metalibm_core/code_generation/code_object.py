@@ -770,8 +770,12 @@ class NestedCode(object):
         self.code_list[0].declare_function(function_name, function_object)
         return function_name
 
-    def get_free_var_name(self, var_type, prefix = "tmpv", declare = True, var_ctor = Variable):
-        return self.code_list[0].get_free_var_name(var_type, prefix, declare, var_ctor)
+    def get_free_var_name(self, var_type, prefix = "tmpv", declare = True, var_ctor = None):
+        # trying not to override code_list[0] default var_ctor
+        if var_ctor is None:
+          return self.code_list[0].get_free_var_name(var_type, prefix, declare)
+        else:
+          return self.code_list[0].get_free_var_name(var_type, prefix, declare, var_ctor)
 
     def get_free_signal_name(self, signal_type, prefix = "stmp", declare = True):
         return self.code_list[0].get_free_signal_name(signal_type, prefix, declare)
