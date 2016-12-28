@@ -240,7 +240,8 @@ class VHDLCodeGenerator(object):
             self.generate_expr(code_object, optree.get_pre_statement(), folded = folded, language = language)
 
             sensibility_list = [self.generate_expr(code_object, op, folded = True, language = language).get() for op in optree.get_sensibility_list()]
-            code_object << "process(%s)\n" % ", ".join(sensibility_list)
+            sensibility_list = "({})".format(", ".join(sensibility_list)) if len(sensibility_list) != 0 else ""
+            code_object << "process{}\n".format(sensibility_list)
             self.open_memoization_level()
             code_object.open_level(extra_shared_tables = [MultiSymbolTable.SignalSymbol])
             for process_stat in optree.inputs:
