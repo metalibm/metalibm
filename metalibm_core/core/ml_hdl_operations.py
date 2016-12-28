@@ -187,3 +187,26 @@ class PlaceHolder(AbstractOperationConstructor("AbstractOperation")):
 
   def get_precision(self):
     return self.get_main_input().get_precision()
+
+class Assert(AbstractOperationConstructor("Assert")):
+  class Failure: 
+    descriptor = "failure"
+  class Warning: 
+    descriptor = "warning"
+  def __init__(self, cond, error_msg, severity, **kw):
+    Assert.__base__.__init__(self, cond, **kw)
+    self.severity = severity
+    self.error_msg = error_msg
+
+  def get_severity(self):
+    return self.severity
+  def get_error_msg(self):
+    return self.error_msg
+
+class Wait(AbstractOperationConstructor("Wait")):
+  def __init__(self, time_ns, **kw):
+    Wait.__base__.__init__(self, **kw)
+    self.time_ns = time_ns
+
+  def get_time_ns(self):
+    return self.time_ns

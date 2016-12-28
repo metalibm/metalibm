@@ -58,6 +58,18 @@ class ML_LeadingZeroCounter(ML_Entity("ml_lzc")):
     self.accuracy  = arg_template.accuracy
     self.precision = arg_template.precision
 
+  def numeric_emulate(self, io_map):
+    def count_leading_zero(v, w):
+      tmp = v
+      lzc = -1
+      for i in xrange(w):
+        if tmp & 2**(w - 1 - i):
+          return i
+      return w
+    result = {}
+    result["vr_out"] = count_leading_zero(io_map["x"], self.width)
+    return result
+
   def generate_scheme(self):
     lzc_width = int(floor(log2(self.width))) + 1
     Log.report(Log.Info, "width of lzc out is {}".format(lzc_width))

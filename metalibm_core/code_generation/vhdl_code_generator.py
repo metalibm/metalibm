@@ -138,6 +138,22 @@ class VHDLCodeGenerator(object):
                 code_object << self.generate_assignation(result_varname, result.get()) 
                 result = CodeVariable(result_varname, optree.get_precision())
 
+        elif isinstance(optree, Assert):
+            cond = optree.get_input(0)
+            error_msg = optree.get_error_msg()
+            severity = optree.get_severity()
+
+            cond_code = self.generate_expr(code_object, cond, folded = False, language = language)
+
+            code_object << " assert {cond} report \"{error_msg}\" severity {severity};\n".format(cond = cond_code.get(), error_msg = error_msg, severity = severity.descriptor)
+
+            return None
+
+        elif isinstance(optree, Wait):
+            time_ns = optree.get_time_ns()
+            code_object << "wait for {time_ns} ns;\n".format(time_ns = time_ns)
+            return None
+
         elif isinstance(optree, SwitchBlock):
             switch_value = optree.inputs[0]
             

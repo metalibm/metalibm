@@ -76,6 +76,8 @@ class CodeEntity(object):
 
   def get_output_list(self):
     return [op.get_input(1) for op in self.output_list]
+  def get_output_port(self):
+    return [op.get_input(0) for op in self.output_list]
 
   def start_new_stage(self):
     self.set_current_stage(self.current_stage + 1)
@@ -114,7 +116,10 @@ class CodeEntity(object):
     output_port_list = ["%s : out %s" % (out.get_input(0).get_tag(), out.get_input(0).get_precision().get_code_name(language = language)) for out in self.output_list]
     port_format_list = ";\n  ".join(input_port_list + output_port_list)
     # FIXME: add suport for inout and generic
-    return "entity {entity_name} is \nport (\n  {port_list}\n);\nend {entity_name};\n\n".format(entity_name = self.name, port_list = port_format_list)
+    port_desc = "port (\n  {port_list}\n);".format(port_list = port_format_list)
+    if len(port_format_list) == 0:
+      port_desc = ""
+    return "entity {entity_name} is \n{port_desc}\nend {entity_name};\n\n".format(entity_name = self.name, port_desc = port_desc)
 
   def get_component_declaration(self, final = True, language = None):
     language = self.language if language is None else language
@@ -122,8 +127,11 @@ class CodeEntity(object):
     input_port_list = ["%s : in %s" % (inp.get_tag(), inp.get_precision().get_code_name(language = language)) for inp in self.arg_list]
     output_port_list = ["%s : out %s" % (out.get_input(0).get_tag(), out.get_input(0).get_precision().get_code_name(language = language)) for out in self.output_list]
     port_format_list = ";\n  ".join(input_port_list + output_port_list)
+    port_desc = "port (\n  {port_list}\n);".format(port_list = port_format_list)
+    if len(port_format_list) == 0:
+      port_desc = ""
     # FIXME: add suport for inout and generic
-    return "component {entity_name} \nport (\n  {port_list}\n);\nend component;\n\n".format(entity_name = self.name, port_list = port_format_list)
+    return "component {entity_name} \n{port_desc}\nend component;\n\n".format(entity_name = self.name, port_desc = port_desc)
 
   ## @return function implementation (ML_Operation DAG)
   def get_scheme(self):
@@ -136,7 +144,7 @@ class CodeEntity(object):
     code_object.add_local_header("ieee.numeric_std.all")
     code_object << self.get_declaration(final = False, language = language)
     code_object.open_level(inc = False)
-    code_generator.generate_expr(code_object, self.scheme, folded = folded, initial = False, language = language)
+    code_generator.generate_expr(code_object, self.get_scheme(), folded = folded, initial = False, language = language)
     code_object.close_level(inc = False)
     return code_object
 

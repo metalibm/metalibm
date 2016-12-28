@@ -266,7 +266,6 @@ class ML_EntityBasis(object):
       current_stage += 1
       op_src = op_dst
       
-      
 
   # process op's inputs and if necessary
   # propagate them to op's stage
@@ -357,7 +356,6 @@ class ML_EntityBasis(object):
     """ default scheme optimization """
     # copying when required
     scheme = pre_scheme if copy is None else pre_scheme.copy(copy)
-
     return scheme
 
 
@@ -367,10 +365,7 @@ class ML_EntityBasis(object):
     return self.main_code_object
 
 
-  def generate_C(self, code_function_list):
-    return self.generate_code(code_function_list, language = C_Code)
-
-  ## generate C code for function implenetation 
+  ## generate VHDL code for entity implenetation 
   #  Code is generated within the main code object
   #  and dumped to a file named after implementation's name
   #  @param code_function_list list of CodeFunction to be generated (as sub-function )
@@ -407,11 +402,12 @@ class ML_EntityBasis(object):
   def gen_implementation(self, display_after_gen = False, display_after_opt = False, enable_subexpr_sharing = True):
     # generate scheme
     code_entity_list = self.generate_entity_list()
+    
+    self.generate_pipeline_stage()
 
     if self.auto_test_enable:
       code_entity_list += self.generate_auto_test(test_num = self.auto_test_number if self.auto_test_number else 0, test_range = self.auto_test_range)
       
-    self.generate_pipeline_stage()
 
     for code_entity in code_entity_list:
       scheme = code_entity.get_scheme()
@@ -454,155 +450,67 @@ class ML_EntityBasis(object):
     raise NotImplementedError
 
   def generate_auto_test(self, test_num = 10, test_range = Interval(-1.0, 1.0), debug = False):
-    low_input = inf(test_range)
-    high_input = sup(test_range)
-    auto_test = CodeFunction("main", output_format = ML_Int32)
+    # instanciating tested component
+    io_map = {}
+    input_signals = {}
+    output_signals = {}
+    for input_port in self.implementation.get_arg_list():
+      input_tag = input_port.get_tag()
+      input_signal = Signal(input_tag + "_i", precision = input_port.get_precision(), var_type = Signal.Local)
+      io_map[input_tag] = input_signal
+      input_signals[input_tag] = input_signal
+    for output_port in self.implementation.get_output_port():
+      output_tag = output_port.get_tag()
+      output_signal = Signal(output_tag + "_o", precision = output_port.get_precision(), var_type = Signal.Local)
+      io_map[output_tag] = output_signal
+      output_signals[output_tag] = output_signal
 
-    test_num_cst = Constant(test_num, precision = ML_Int32)
+    self_component = self.implementation.get_component_object()
+    self_instance = self_component(io_map = io_map)
 
-    tested_function    = self.implementation.get_function_object()
-    function_name      = self.implementation.get_name()
+    test_statement = Statement()
 
-    failure_report_op       = FunctionOperator("report_failure")
-    failure_report_function = FunctionObject("report_failure", [], ML_Void, failure_report_op)
-
-    printf_op = FunctionOperator("printf", arg_map = {0: "\"error[%%d]: %s(%%f/%%a)=%%a vs expected = %%a \\n\"" % function_name, 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2), 4: FO_Arg(3), 5: FO_Arg(4)}, void_function = True) 
-    printf_function = FunctionObject("printf", [ML_Int32] + [self.precision] * 4, ML_Void, printf_op)
-
-    printf_success_op = FunctionOperator("printf", arg_map = {0: "\"test successful %s\\n\"" % function_name}, void_function = True) 
-    printf_success_function = FunctionObject("printf", [], ML_Void, printf_success_op)
-
-
-    num_std_case = len(self.standard_test_cases)
-    test_total   = test_num 
-    if self.auto_test_std:
-      test_total += num_std_case
-
-    diff = self.get_vector_size() - (test_total % self.get_vector_size())
-    test_total += diff
-    test_num   += diff
-
-    sollya_precision = self.precision.get_sollya_object()
-    interval_size = high_input - low_input 
-
-    input_table = ML_Table(dimensions = [test_total], storage_precision = self.precision, tag = self.uniquify_name("input_table"))
-    ## (low, high) are store in output table
-    output_table = ML_Table(dimensions = [test_total, 2], storage_precision = self.precision, tag = self.uniquify_name("output_table"))
-
-    # general index for input/output tables
-    table_index = 0
-
-
-    if self.auto_test_std:
-      # standard test cases
-      for i in range(num_std_case):
-        input_value = round(self.standard_test_cases[i], sollya_precision, RN)
-
-        input_table[table_index] = input_value
-        # FIXME only valid for faithful evaluation
-        output_table[table_index][0] = round(self.numeric_emulate(input_value), sollya_precision, RD)
-        output_table[table_index][1] = round(self.numeric_emulate(input_value), sollya_precision, RU)
-
-        table_index += 1
-
-    # random test cases
     for i in range(test_num):
-      input_value = round(low_input + (random.randrange(2**32 + 1) / float(2**32)) * interval_size, sollya_precision, RN) 
-      input_table[table_index] = input_value
-      # FIXME only valid for faithful evaluation
-      output_table[table_index][0] = round(self.numeric_emulate(input_value), sollya_precision, RD)
-      output_table[table_index][1] = round(self.numeric_emulate(input_value), sollya_precision, RU)
-      table_index += 1
-
-
-    vi = Variable("i", precision = ML_Int32, var_type = Variable.Local)
-
-    assignation_statement = Statement()
-
-    if self.implementation.get_output_format().is_vector_format():
-      # vector implementation
-      vector_format = self.implementation.get_output_format()
-
-      # building inputs
-      local_input = Variable("vec_x", precision = vector_format, var_type = Variable.Local) 
-      assignation_statement.push(local_input)
-      for k in xrange(self.get_vector_size()):
-        elt_assign = ReferenceAssign(VectorElementSelection(local_input, k), TableLoad(input_table, vi + k))
-        assignation_statement.push(elt_assign)
-
-      # computing results
-      local_result = tested_function(local_input)
-      loop_increment = self.get_vector_size()
-
-      comp_statement = Statement()
-
-      # comparison with expected
-      for k in xrange(self.get_vector_size()):
-        elt_input  = VectorElementSelection(local_input, k)
-        elt_result = VectorElementSelection(local_result, k)
-        low_bound    = TableLoad(output_table, vi + k, 0)
-        high_bound   = TableLoad(output_table, vi + k, 1)
-
-        failure_test = LogicalOr(
-          Comparison(elt_result, low_bound, specifier = Comparison.Less),
-          Comparison(elt_result, high_bound, specifier = Comparison.Greater)
+      input_values = {}
+      for input_tag in input_signals:
+        input_signal = io_map[input_tag]
+        # FIXME: correct value generation depending on signal precision
+        input_size = input_signal.get_precision().get_bit_size()
+        input_value = random.randrange(2**input_size)
+        input_values[input_tag] = input_value
+        test_statement.add(ReferenceAssign(input_signal, Constant(input_value, precision = input_signal.get_precision())))
+      test_statement.add(Wait(10))
+      output_values = self.numeric_emulate(input_values)
+      for output_tag in output_signals:
+        output_signal = output_signals[output_tag]
+        output_value  = Constant(output_values[output_tag], precision = output_signal.get_precision())
+        test_statement.add(
+          Assert(
+            Comparison(
+              output_signal, 
+              output_value, 
+              specifier = Comparison.Equal, 
+              precision = ML_Bool
+            ),
+            "unexpected value for output %s " % output_tag,
+            severity = Assert.Failure
+          )
         )
 
-        comp_statement.push(
-          ConditionBlock(
-            failure_test,
-            Statement(
-              printf_function(vi + k, elt_input, elt_input, elt_result, high_bound), 
-              Return(Constant(1, precision = ML_Int32))
-         )))
 
-
-      test_loop = Loop(
-        ReferenceAssign(vi, Constant(0, precision = ML_Int32)),
-        vi < test_num_cst,
-        Statement(
-          assignation_statement,
-          comp_statement,
-          ReferenceAssign(vi, vi + loop_increment)
-        ),
-      )
-    else: 
-      # scalar function
-      local_input  = TableLoad(input_table, vi)
-      local_result = tested_function(local_input)
-      low_bound    = TableLoad(output_table, vi, 0)
-      high_bound   = TableLoad(output_table, vi, 1)
-
-      failure_test = LogicalOr(
-        Comparison(local_result, low_bound, specifier = Comparison.Less),
-        Comparison(local_result, high_bound, specifier = Comparison.Greater)
-      )
-
-      loop_increment = self.get_vector_size()
-
-      test_loop = Loop(
-        ReferenceAssign(vi, Constant(0, precision = ML_Int32)),
-        vi < test_num_cst,
-        Statement(
-          assignation_statement,
-          ConditionBlock(
-            failure_test,
-            Statement(
-              printf_function(vi, local_input, local_input, local_result, high_bound), 
-              Return(Constant(1, precision = ML_Int32))
-            ),
-          ),
-          ReferenceAssign(vi, vi + loop_increment)
-        ),
-      )
-    # common test scheme between scalar and vector functions
-    test_scheme = Statement(
-      test_loop,
-      printf_success_function(),
-      Return(Constant(0, precision = ML_Int32))
+    testbench = CodeEntity("testbench") 
+    test_process = Process(
+      test_statement
     )
-    auto_test.set_scheme(test_scheme)
-    return [auto_test]
+
+    testbench_scheme = Statement(
+      self_instance,
+      test_process
+    )
+
+    testbench.add_process(testbench_scheme)
+
+    return [testbench]
 
   @staticmethod
   def get_name():
