@@ -152,7 +152,7 @@ vhdl_code_generation_table = {
   ExponentExtraction: {
     None: {
       lambda _: True: {
-        type_custom_match(TCM(ML_StdLogicVectorFormat), FSM(ML_Binary32)): SymbolOperator("(30 downto 23)", lspace = "", inverse = True, arity = 1), 
+        type_custom_match(TCM(ML_StdLogicVectorFormat), FSM(ML_Binary32)): SymbolOperator("(30 downto 23)", lspace = "", inverse = True, arity = 1, force_folding = True), 
       },
     },
   },
@@ -236,7 +236,8 @@ vhdl_code_generation_table = {
   TypeCast: {
     None: {
       lambda optree: True: {
-        type_custom_match(FSM(ML_Binary32), TCM(ML_StdLogicVectorFormat)): IdentityOperator(output_precision = ML_Binary32)
+        type_custom_match(FSM(ML_Binary32), TCM(ML_StdLogicVectorFormat)): IdentityOperator(output_precision = ML_Binary32),
+        type_custom_match(FSM(ML_Binary32), FSM(ML_Binary32)): IdentityOperator(output_precision = ML_Binary32),
       },
     },
   },
