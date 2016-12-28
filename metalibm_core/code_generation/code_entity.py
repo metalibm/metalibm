@@ -131,10 +131,13 @@ class CodeEntity(object):
 
   def get_definition(self, code_generator, language, folded = True, static_cst = False):
     code_object = NestedCode(code_generator, static_cst = static_cst, code_ctor = VHDLCodeObject)
+    code_object.add_local_header("ieee.std_logic_1164.all")
+    code_object.add_local_header("ieee.std_logic_unsigned.all")
+    code_object.add_local_header("ieee.numeric_std.all")
     code_object << self.get_declaration(final = False, language = language)
-    code_object.open_level()
+    code_object.open_level(inc = False)
     code_generator.generate_expr(code_object, self.scheme, folded = folded, initial = False, language = language)
-    code_object.close_level()
+    code_object.close_level(inc = False)
     return code_object
 
   def add_definition(self, code_generator, language, code_object, folded = True, static_cst = False):
@@ -144,4 +147,5 @@ class CodeEntity(object):
     code_generator.generate_expr(code_object, self.get_scheme(), folded = folded, initial = False, language = language)
     code_object.close_level()
     code_object << "end architecture;\n"
+    #code_object.close_level(inc = False)
     return code_object

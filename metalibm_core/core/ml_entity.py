@@ -382,16 +382,26 @@ class ML_EntityBasis(object):
     # main code object
     code_object = self.get_main_code_object()
     self.result = code_object
+    code_str = ""
     for code_entity in code_entity_list:
-      self.result = code_entity.add_definition(self.vhdl_code_generator, language, code_object, static_cst = True)
+      entity_code_object = NestedCode(self.vhdl_code_generator, static_cst = True, uniquifier = "{0}_".format(self.entity_name), code_ctor = VHDLCodeObject)
+      result = code_entity.add_definition(self.vhdl_code_generator, language, entity_code_object, static_cst = True)
+      result.add_library("ieee")
+      result.add_header("ieee.std_logic_1164.all")
+      result.add_header("ieee.std_logic_unsigned.all")
+      result.add_header("ieee.numeric_std.all")
+      #result.push_into_parent_code(self.result, self.vhdl_code_generator, headers = True)
+      code_str += result.get(self.vhdl_code_generator, headers = True)
 
     # adding headers
-    self.result.add_header("ieee.std_logic_1164.all")
-    self.result.add_header("ieee.std_logic_arith.all")
+    #self.result.add_header("ieee.std_logic_1164.all")
+    #self.result.add_header("ieee.std_logic_unsigned.all")
+    #self.result.add_header("ieee.numeric_std.all")
 
     Log.report(Log.Verbose, "Generating VHDL code in " + self.output_file)
     output_stream = open(self.output_file, "w")
-    output_stream.write(self.result.get(self.vhdl_code_generator))
+    #output_stream.write(self.result.get(self.vhdl_code_generator))
+    output_stream.write(code_str)
     output_stream.close()
 
   def gen_implementation(self, display_after_gen = False, display_after_opt = False, enable_subexpr_sharing = True):
@@ -602,7 +612,6 @@ class ML_EntityBasis(object):
   standard_test_cases = []
 
 
-        
 def ML_Entity(name):
   new_class = type(name, (ML_EntityBasis,), {"entity_name": name})
   new_class.get_name = staticmethod(lambda: name) 

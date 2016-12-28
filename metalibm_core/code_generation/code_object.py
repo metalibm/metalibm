@@ -42,6 +42,9 @@ class SymbolTable(object):
     def uniquify(self, name):
         return self.uniquifier + name 
 
+    def is_empty(self):
+        return len(self.table) == 0
+
     def get_free_name(self, var_type, prefix = "sttmp", update_index = True):
         _prefix = self.uniquify(prefix)
         if self.is_free_name(_prefix):
@@ -136,6 +139,10 @@ class MultiSymbolTable(object):
 
         self.prefix_index = {}
 
+    def is_empty(self):
+      for table_tag in self.table_list:
+        if not self.table_list[table_tag].is_empty(): return False
+      return True
 
     def table_has_definition(self, table_object):
         """ search for a previous definition of ML_Table <table_object>
@@ -185,8 +192,8 @@ class MultiSymbolTable(object):
         return cst_free_name
 
 
-    def is_empty(self):
-        return reduce(lambda acc, v: acc + len(v), self.table_list) == 0
+    #def is_empty(self):
+    #    return reduce(lambda acc, v: acc + len(v), self.table_list) == 0
 
 
     def declare_function_name(self, function_name, function_object):
@@ -242,12 +249,16 @@ class CodeObject(object):
         self.uniquifier = uniquifier
         self.tablevel = 0
         self.header_list = []
+        self.library_list = []
         self.symbol_table = MultiSymbolTable(shared_tables if shared_tables else {}, parent_tables = (parent_tables if parent_tables else []), uniquifier = self.uniquifier)
         self.language = language
         self.header_comment = []
 
     def add_header_comment(self, comment):
         self.header_comment.append(comment)
+
+    def is_empty(self):
+        return len(self.header_list) == 0 and len(self.library_list) == 0 and self.symbol_table.is_empty() and len(self.header_comment) == 0 and len(self.expanded_code) == 0
 
     def get_symbol_table(self):
         return self.symbol_table
@@ -268,14 +279,14 @@ class CodeObject(object):
         if self.expanded_code[-len(CodeObject.tab):] == CodeObject.tab:
             self.expanded_code = self.expanded_code[:-len(CodeObject.tab)]
 
-    def open_level(self):
+    def open_level(self, inc = True):
         """ open nested block """
         self << "{\n"
-        self.inc_level()
+        if inc: self.inc_level()
 
-    def close_level(self, cr = "\n"):
+    def close_level(self, cr = "\n", inc = True):
         """ close nested block """
-        self.dec_level()
+        if inc: self.dec_level()
         self << "}%s" % cr
 
     def link_level(self, transition = ""):
@@ -289,6 +300,11 @@ class CodeObject(object):
         """ add a new header file """
         if not header_file in self.header_list:
             self.header_list.append(header_file)
+
+    def add_library(self, library_file):
+        """ add a new library file """
+        if not library_file in self.library_list:
+            self.library_list.append(library_file)
 
     def generate_header_code(self, git_tag = True):
         """ generate code for header file inclusion """
@@ -473,20 +489,24 @@ class GappaCodeObject(CodeObject):
 
 class VHDLCodeObject(object):
     tab = "    "
-    def __init__(self, language, shared_tables = None, parent_tables = None, rounding_mode = ML_GlobalRoundMode, uniquifier = ""):
+    def __init__(self, language, shared_tables = None, parent_tables = None, rounding_mode = ML_GlobalRoundMode, uniquifier = "", main_code_level = False):
         """ code object initialization """
         self.expanded_code = ""
         self.uniquifier = uniquifier
         self.tablevel = 0
         self.header_list = []
+        self.library_list = []
         self.symbol_table = MultiSymbolTable(shared_tables if shared_tables else {}, parent_tables = (parent_tables if parent_tables else []), uniquifier = self.uniquifier)
         self.language = language
         self.header_comment = []
         self.shared_symbol_table_f = MultiSymbolTable.SignalSymbol in shared_tables 
-        print "init shared_symbol_table_f: ", self.shared_symbol_table_f
+        self.main_code_level = main_code_level
 
     def add_header_comment(self, comment):
         self.header_comment.append(comment)
+
+    def is_empty(self):
+        return len(self.header_list) == 0 and len(self.library_list) == 0 and self.symbol_table.is_empty() and len(self.header_comment) == 0 and len(self.expanded_code) == 0
 
     def get_symbol_table(self):
         return self.symbol_table
@@ -507,24 +527,27 @@ class VHDLCodeObject(object):
         if self.expanded_code[-len(CodeObject.tab):] == CodeObject.tab:
             self.expanded_code = self.expanded_code[:-len(CodeObject.tab)]
 
-    def open_level(self):
+    def open_level(self, inc = True):
         """ open nested block """
-        self.inc_level()
+        if inc: self.inc_level()
 
-    def close_level(self, cr = "\n"):
+    def close_level(self, cr = "\n", inc = True):
         """ close nested block """
-        self.dec_level()
+        if inc: self.dec_level()
 
     def link_level(self, transition = ""):
         """ close nested block """
-        self.dec_level()
-        self << "} %s {" % transition
-        self.inc_level()
+        raise NotImplemented
 
     def add_header(self, header_file):
         """ add a new header file """
         if not header_file in self.header_list:
             self.header_list.append(header_file)
+
+    def add_library(self, library_file):
+        """ add a new library file """
+        if not library_file in self.library_list:
+            self.library_list.append(library_file)
 
     def generate_header_code(self, git_tag = True):
         """ generate code for header file inclusion """
@@ -538,6 +561,9 @@ class VHDLCodeObject(object):
         for comment in self.header_comment:
             result += "-- " + comment.replace("\n", "\n-- ") + "\n"
         result += "--\n"
+
+        for library_file in self.library_list:
+            result += "library {lib};\n".format(lib = library_file)
 
         for header_file in self.header_list:
             result += """use %s;\n""" % (header_file)
@@ -622,7 +648,7 @@ class VHDLCodeObject(object):
         print "shared_symbol_table_f: ", self.shared_symbol_table_f
         result += self.symbol_table.generate_declarations(code_generator, exclusion_list = declaration_exclusion_list)
         result += self.symbol_table.generate_initializations(code_generator, init_required_list = [MultiSymbolTable.ConstantSymbol, MultiSymbolTable.VariableSymbol])
-        result += "begin\n"
+        result += "begin\n" if not self.main_code_level else ""
         result += "\n" if result != "" else ""
         result += self.expanded_code
         return result
@@ -641,7 +667,8 @@ class VHDLCodeObject(object):
         parent_code << self.symbol_table.generate_declarations(code_generator, exclusion_list = declaration_exclusion_list)
         parent_code << self.symbol_table.generate_initializations(code_generator, init_required_list = [MultiSymbolTable.ConstantSymbol, MultiSymbolTable.VariableSymbol])
         parent_code.dec_level()
-        parent_code << "begin\n"
+        parent_code << "\n"
+        parent_code << ("begin\n" if not self.main_code_level else "")
         parent_code.inc_level()
         parent_code << "\n" 
         parent_code << self.expanded_code
@@ -679,7 +706,7 @@ class NestedCode(object):
             MultiSymbolTable.FunctionSymbol: self.get_function_table(),   
         }
 
-        self.main_code = self.code_ctor(self.language, shared_tables, uniquifier = self.uniquifier) 
+        self.main_code = self.code_ctor(self.language, shared_tables, uniquifier = self.uniquifier, main_code_level = True) 
         self.code_list = [self.main_code]
 
     def add_header_comment(self, comment):
@@ -698,6 +725,12 @@ class NestedCode(object):
         
     def add_header(self, header_file):
         self.main_code.add_header(header_file)
+
+    def add_library(self, library_file):
+        self.main_code.add_library(library_file)
+
+    def add_local_header(self, header_file):
+        self.code_list[0].add_header(header_file)
         
     def __lshift__(self, added_code):
         self.code_list[0] << added_code
@@ -705,8 +738,8 @@ class NestedCode(object):
     def add_comment(self, comment):
         self.code_list[0].add_comment(comment)
 
-    def open_level(self, extra_shared_tables = None):
-        self.code_list[0].open_level()
+    def open_level(self, extra_shared_tables = None, inc = True):
+        self.code_list[0].open_level(inc = inc)
         parent_tables = self.code_list[0].get_symbol_table().get_extended_dependency_table()
         shared_tables = {
             MultiSymbolTable.ConstantSymbol: self.get_cst_table(), 
@@ -718,10 +751,10 @@ class NestedCode(object):
             shared_tables[table_key] = self.code_list[0].get_symbol_table().get_table(table_key)
         self.code_list.insert(0, self.code_ctor(self.language, shared_tables, parent_tables = parent_tables))
 
-    def close_level(self, cr = "\n"):
+    def close_level(self, cr = "\n", inc = True):
         level_code = self.code_list.pop(0)
         level_code.push_into_parent_code(self, self.code_generator, static_cst = self.static_cst, static_table = self.static_table, skip_function = True) 
-        self.code_list[0].close_level(cr = cr)
+        self.code_list[0].close_level(cr = cr, inc = inc)
 
     def inc_level(self):
         """ increase indentation level """
@@ -760,5 +793,8 @@ class NestedCode(object):
 
     def get(self, code_generator, static_cst = False, static_table = False, headers = True, skip_function = False):
         return self.code_list[0].get(code_generator, static_cst = static_cst, static_table = static_table, headers = headers, skip_function = skip_function)
+
+    def push_into_parent_code(self, parent_code, code_generator, static_cst = False, static_table = False, headers = False, skip_function = False):
+        return self.code_list[0].push_into_parent_code(parent_code, code_generator, static_cst, static_table, headers, skip_function)
 
 
