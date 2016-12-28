@@ -183,7 +183,10 @@ class FP_Adder(ML_Entity("fp_adder")):
                 precision = shift_amount_prec
               )
 
-    vr_out = FloatBuild(res_sign, res_exp, mant_add, precision = self.precision)
+    vr_out = TypeCast(
+      FloatBuild(res_sign, res_exp, mant_add, precision = self.precision),
+      precision = io_precision
+    )
 
 
     self.implementation.add_output_signal("vr_out", vr_out)
