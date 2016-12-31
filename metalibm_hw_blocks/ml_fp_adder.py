@@ -79,18 +79,18 @@ class FP_Adder(ML_Entity("fp_adder")):
     vx = self.implementation.add_input_signal("x", io_precision) 
     vy = self.implementation.add_input_signal("y", io_precision) 
 
+    p = self.precision.get_mantissa_size()
+
     # vx must be aligned with vy
     # the largest shit amount (in absolute value) is precision + 2
     # (1 guard bit and 1 rounding bit)
     exp_precision     = ML_StdLogicVectorFormat(self.precision.get_exponent_size())
-    exp_precision_ext = ML_StdLogicVectorFormat(self.precision.get_exponent_size() + 1)
 
     mant_precision    = ML_StdLogicVectorFormat(self.precision.get_field_size())
 
     mant_vx = MantissaExtraction(vx, precision = mant_precision)
     mant_vy = MantissaExtraction(vy, precision = mant_precision)
     
-
     exp_vx = ExponentExtraction(vx, precision = exp_precision)
     exp_vy = ExponentExtraction(vy, precision = exp_precision)
 
@@ -116,29 +116,34 @@ class FP_Adder(ML_Entity("fp_adder")):
       out_format = ML_StdLogicVectorFormat(op_size + ext_size)
       return Concatenation(optree, Constant(0, precision = ext_format), precision = out_format)
 
-    exp_bias = self.precision.get_field_size() - 1
-    # exp_diff = exp_x - exp_y
+    exp_bias = p + 2
+    exp_precision_ext = ML_StdLogicVectorFormat(self.precision.get_exponent_size() + 2)
+    # Y is first aligned p+2 bit to the left of x 
+    # and then shifted right by 
+    # exp_diff = exp_x - exp_y + precision + 2
+    # exp_vx in [emin, emax]
+    # exp_vx - exp_vx + p +2 in [emin-emax + p + 2, emax - emin + p + 2]
     exp_diff = Subtraction(
-                 Addition(
-                  zext(exp_vx, 1), 
+                Addition(
+                  zext(exp_vx, 2), 
                   Constant(exp_bias, precision = exp_precision_ext),
                   precision = exp_precision_ext
                 ),
-                zext(exp_vy, 1), 
+                zext(exp_vy, 2), 
                 precision = exp_precision_ext,
                 tag = "exp_diff"
     )
     exp_diff_lt_0 = Comparison(exp_diff, Constant(0, precision = exp_precision_ext), specifier = Comparison.Less, precision = ML_Bool)
-    exp_diff_gt_2bias = Comparison(exp_diff, Constant(2*exp_bias, precision = exp_precision_ext), specifier = Comparison.Greater, precision = ML_Bool)
+    exp_diff_gt_2pp4 = Comparison(exp_diff, Constant(2*p+4, precision = exp_precision_ext), specifier = Comparison.Greater, precision = ML_Bool)
 
-    shift_amount_prec = ML_StdLogicVectorFormat(int(log2(2*exp_bias)))
+    shift_amount_prec = ML_StdLogicVectorFormat(int(floor(log2(2*p+4))+1))
 
     mant_shift = Select(
       exp_diff_lt_0,
       Constant(0, precision = shift_amount_prec),
       Select(
-        exp_diff_gt_2bias,
-        Constant(2*exp_bias, precision = shift_amount_prec),
+        exp_diff_gt_2pp4,
+        Constant(2*p+4, precision = shift_amount_prec),
         Truncate(exp_diff, precision = shift_amount_prec),
         precision = shift_amount_prec
       ),
@@ -146,45 +151,94 @@ class FP_Adder(ML_Entity("fp_adder")):
       tag = "mant_shift"
     )
 
-    mant_ext_size = self.precision.get_field_size()
-    shift_prec = ML_StdLogicVectorFormat(self.precision.get_field_size() * 2)
+    mant_ext_size = 2*p+4
+    shift_prec = ML_StdLogicVectorFormat(3*p+4)
     shifted_mant_vy = BitLogicRightShift(rzext(mant_vy, mant_ext_size), mant_shift, precision = shift_prec)
-    mant_vx_rext = rzext(mant_vx, mant_ext_size)
+    mant_vx_ext = zext(rzext(mant_vx, mant_ext_size), 1)
+
+    add_prec = ML_StdLogicVectorFormat(3*p+5)
+
+    mant_vx_add_op = Select(
+      Comparison(
+        effective_op,
+        Constant(1, precision = ML_StdLogic),
+        precision = ML_Bool,
+        specifier = Comparison.Equal
+      ),
+      Negation(mant_vx_ext, precision = add_prec, tag = "neg_mant_vx"),
+      mant_vx_ext,
+      precision = add_prec,
+      tag = "mant_vx_add_op"
+    )
+      
+
 
     mant_add = Addition(
-                shifted_mant_vy, mant_vx_rext,
-                precision = shift_prec)
+                 zext(shifted_mant_vy, 1),
+                 mant_vx_add_op,
+                 precision = add_prec
+              )
 
-    res_sign = CopySign(mant_add, precision = ML_StdLogic) 
+    # if the addition overflows, then it meant vx has been negated and
+    # the 2's complement addition cancelled the negative MSB, thus
+    # the addition result is positive, and the result is of the sign of Y
+    # else the result is of opposite sign to Y
+    add_is_negative = BitLogicNegate(CopySign(mant_add, precision = ML_StdLogic), precision = ML_StdLogic, tag = "add_is_negative")
+    # Negate mantissa addition result if it is negative
+    mant_add_abs = Select(
+      Comparison(
+        add_is_negative,
+        Constant(1, precision = ML_StdLogic),
+        specifier = Comparison.Equal,
+        precision = ML_Bool
+      ),
+      Negation(mant_add, precision = add_prec, tag = "neg_mant_add"),
+      mant_add,
+      precision = add_prec,
+      tag = "mant_add_abs"
+    )
+
+    res_sign = BitLogicXor(add_is_negative, sign_vy, precision = ML_StdLogic)
 
     # Precision for leading zero count
-    lzc_prec = shift_amount_prec
+    lzc_width = int(floor(log2(3*p+4)) + 1)
+    lzc_prec = ML_StdLogicVectorFormat(lzc_width)
 
-    lzc_args = ML_LeadingZeroCounter.get_default_args(width = mant_add.get_precision().get_bit_size())
+    lzc_args = ML_LeadingZeroCounter.get_default_args(width = (3*p+4))
     LZC_entity = ML_LeadingZeroCounter(lzc_args)
     lzc_entity_list = LZC_entity.generate_scheme()
     lzc_implementation = LZC_entity.get_implementation()
 
     lzc_component = lzc_implementation.get_component_object()
 
+    #lzc_in = SubSignalSelection(mant_add, p+1, 2*p+3)
+    lzc_in = SubSignalSelection(mant_add_abs, 0, 3*p+3, precision = ML_StdLogicVectorFormat(3*p+4))
+
     add_lzc = Signal("add_lzc", precision = lzc_prec, var_type = Signal.Local)
-    add_lzc = PlaceHolder(add_lzc, lzc_component(io_map = {"x": mant_add, "vr_out": add_lzc}))
+    add_lzc = PlaceHolder(add_lzc, lzc_component(io_map = {"x": lzc_in, "vr_out": add_lzc}))
 
     #add_lzc = CountLeadingZeros(mant_add, precision = lzc_prec)
-    norm_add = BitLogicLeftShift(mant_add, add_lzc, precision = shift_prec)
+    # CP stands for close path, the data path where X and Y are within 1 exp diff
+    res_normed_mant = BitLogicLeftShift(mant_add, add_lzc, precision = add_prec, tag = "res_normed_mant")
+    res_mant_field = SubSignalSelection(res_normed_mant, 2*p+5, 3*p+4, precision = ML_StdLogicVectorFormat(p))
 
-    res_exp = Addition(
-                add_lzc, 
-                Subtraction(
-                  Truncate(exp_vx, precision = shift_amount_prec),
-                  Constant(2*exp_bias, precision = shift_amount_prec),
-                  precision = shift_amount_prec
+    res_exp_prec_size = self.precision.get_exponent_size() + 2
+    res_exp_prec = ML_StdLogicVectorFormat(res_exp_prec_size)
+
+    res_exp_ext = Subtraction(
+                Addition(
+                  zext(exp_vx, 2),
+                  Constant(2+p, precision = res_exp_prec),
+                  precision = res_exp_prec
                 ),
-                precision = shift_amount_prec
+                zext(add_lzc, res_exp_prec_size - lzc_width), 
+                precision = res_exp_prec
               )
 
+    res_exp = Truncate(res_exp_ext, precision = ML_StdLogicVectorFormat(self.precision.get_exponent_size()))
+
     vr_out = TypeCast(
-      FloatBuild(res_sign, res_exp, mant_add, precision = self.precision),
+      FloatBuild(res_sign, res_exp, res_mant_field, precision = self.precision),
       precision = io_precision
     )
 
