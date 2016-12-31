@@ -36,7 +36,56 @@ def zext_modifier(optree):
   ext_size = optree.ext_size
   precision = ML_StdLogicVectorFormat(ext_size)
   ext_precision = ML_StdLogicVectorFormat(ext_size + ext_input.get_precision().get_bit_size())
-  return Concatenation(Constant(0, precision = precision), ext_input, precision = ext_precision)
+  return Concatenation(Constant(0, precision = precision), ext_input, precision = ext_precision, tag = optree.get_tag())
+
+def negation_modifer(optree):
+  neg_input = optree.get_input(0)
+  precision = optree.get_precision()
+  return Addition(
+    BitLogicNegate(neg_input, precision = precision),
+    Constant(1, precision = ML_StdLogic),
+    precision = precision,
+    tag = optree.get_tag()
+  )
+
+def mantissa_extraction_modifier(optree):
+  op = optree.get_input(0)
+
+  op_precision = op.get_precision().get_base_format()
+  exp_prec = ML_StdLogicVectorFormat(op_precision.get_exponent_size())
+  field_prec = ML_StdLogicVectorFormat(op_precision.get_field_size())
+
+  exp_op   = ExponentExtraction(op, precision = exp_prec)
+  field_op = SubSignalSelection(
+    TypeCast(
+      op,
+      precision = op.get_precision().get_support_format()
+    )
+    , 0, op_precision.get_field_size() - 1, precision = field_prec) 
+
+  implicit_digit = Select(
+    Comparison(
+      exp_op,
+      Constant(
+        op_precision.get_zero_exponent_value(),
+        precision = exp_prec
+      ),
+      precision = ML_Bool,
+      specifier = Comparison.Equal
+    ),
+    Constant(0, precision = ML_StdLogic),
+    Constant(1, precision = ML_StdLogic),
+    precision = ML_StdLogic,
+    tag = "implicit_digit"
+  )
+  return Concatenation(
+    implicit_digit,
+    field_op,
+    precision = ML_StdLogicVectorFormat(op_precision.get_mantissa_size()),
+    tag = optree.get_tag()
+  )
+
+      
 
 def truncate_generator(optree):
   truncate_input = optree.get_input(0)
@@ -52,6 +101,12 @@ def copy_sign_generator(optree):
   sign_index = sign_input.get_precision().get_bit_size() - 1
   return TemplateOperator("%%s(%d)" % (sign_index), arity = 1)
 
+def sub_signal_generator(optree):
+  sign_input = optree.get_input(0)
+  inf_index = optree.get_inf_index()
+  sup_index = optree.get_sup_index()
+  return TemplateOperator("%s({sup_index} downto {inf_index})".format(inf_index = inf_index, sup_index = sup_index), arity = 1, force_folding = True)
+
 def sext_modifier(optree):
   ext_size = optree.ext_size
   ext_precision = ML_StdLogicVectorFormat(ext_size + ext_input.get_precision().get_bit_size())
@@ -59,7 +114,7 @@ def sext_modifier(optree):
   op_size = ext_input.get_precision().get_bit_size()
   sign_digit = VectorElementSelection(ext_input, Constant(op_size -1, precision = ML_Integer), precision = ML_StdLogic)
   precision = ML_StdLogicVectorFormat(ext_size)
-  return Concatenation(Replication(sign_digit, precision = precision), optree, precision = ext_precision)
+  return Concatenation(Replication(sign_digit, precision = precision), optree, precision = ext_precision, tag = optree.get_tag())
 
 vhdl_comp_symbol = {
   Comparison.Equal: "=", 
@@ -108,6 +163,8 @@ vhdl_code_generation_table = {
       include_std_logic:
       {
         type_custom_match(MCSTDLOGICV, MCSTDLOGICV, MCSTDLOGICV):  SymbolOperator("+", arity = 2, force_folding = True),
+        type_custom_match(MCSTDLOGICV, MCSTDLOGICV, FSM(ML_StdLogic)):  SymbolOperator("+", arity = 2, force_folding = True),
+        type_custom_match(MCSTDLOGICV, FSM(ML_StdLogic), MCSTDLOGICV):  SymbolOperator("+", arity = 2, force_folding = True),
       }
     }
   },
@@ -121,6 +178,21 @@ vhdl_code_generation_table = {
       }
       
     }
+  },
+  BitLogicNegate: {
+    None: {
+      lambda optree: True: {
+        type_strict_match(ML_StdLogic, ML_StdLogic): FunctionOperator("not", arity=1),
+        type_custom_match(MCSTDLOGICV, MCSTDLOGICV): FunctionOperator("not", arity=1), 
+      },
+    },
+  },
+  Negation: {
+    None: {
+      lambda optree: True: {
+        type_custom_match(MCSTDLOGICV, MCSTDLOGICV): ComplexOperator(optree_modifier = negation_modifer), 
+      },
+    },
   },
   LogicalAnd: {
     None: {
@@ -199,7 +271,7 @@ vhdl_code_generation_table = {
   MantissaExtraction: {
     None: {
       lambda optree: True: {
-        type_custom_match(MCSTDLOGICV, FSM(ML_Binary32)): TemplateOperator("%s(22 downto 0)", arity = 1), 
+        type_custom_match(MCSTDLOGICV, FSM(ML_Binary32)): ComplexOperator(optree_modifier = mantissa_extraction_modifier), # TemplateOperator("%s(22 downto 0)", arity = 1), 
       },
     },
   },
@@ -208,6 +280,7 @@ vhdl_code_generation_table = {
       lambda optree: True: {
         type_custom_match(FSM(ML_StdLogic), ML_Binary32): TemplateOperator("%s(31)", arity = 1),
         type_custom_match(FSM(ML_StdLogic), ML_Binary64): TemplateOperator("%s(63)", arity = 1),
+        type_custom_match(FSM(ML_StdLogic), MCSTDLOGICV): DynamicOperator(copy_sign_generator),
       },
     },
   },
@@ -236,8 +309,9 @@ vhdl_code_generation_table = {
   TypeCast: {
     None: {
       lambda optree: True: {
-        type_custom_match(FSM(ML_Binary32), TCM(ML_StdLogicVectorFormat)): IdentityOperator(output_precision = ML_Binary32),
-        type_custom_match(FSM(ML_Binary32), FSM(ML_Binary32)): IdentityOperator(output_precision = ML_Binary32),
+        type_custom_match(FSM(ML_Binary32), TCM(ML_StdLogicVectorFormat)): IdentityOperator(output_precision = ML_Binary32, no_parenthesis = True),
+        type_custom_match(FSM(ML_Binary32), FSM(ML_Binary32)): IdentityOperator(output_precision = ML_Binary32, no_parenthesis = True),
+        type_custom_match(MCSTDLOGICV, FSM(ML_Binary32)): IdentityOperator(no_parenthesis = True),
       },
     },
   },
@@ -265,7 +339,16 @@ vhdl_code_generation_table = {
   SpecificOperation: {
     SpecificOperation.CopySign: {
       lambda optree: True: {
+        type_custom_match(FSM(ML_StdLogic), FSM(ML_Binary32)): TemplateOperator("%s(31)", arity = 1),
+        type_custom_match(FSM(ML_StdLogic), FSM(ML_Binary64)): TemplateOperator("%s(63)", arity = 1),
         type_custom_match(FSM(ML_StdLogic), MCSTDLOGICV): DynamicOperator(copy_sign_generator),
+      },
+    },
+  },
+  SubSignalSelection: {
+    None: {
+      lambda optree: True: {
+        type_custom_match(MCSTDLOGICV, MCSTDLOGICV): DynamicOperator(sub_signal_generator),
       },
     },
   },

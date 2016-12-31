@@ -203,6 +203,10 @@ class Assert(AbstractOperationConstructor("Assert")):
   def get_error_msg(self):
     return self.error_msg
 
+  def finish_copy(self, new_copy, copy_map = {}):
+    new_copy.error_msg = self.error_msg
+    new_copy.severity = severity
+
 class Wait(AbstractOperationConstructor("Wait")):
   def __init__(self, time_ns, **kw):
     Wait.__base__.__init__(self, **kw)
@@ -210,3 +214,21 @@ class Wait(AbstractOperationConstructor("Wait")):
 
   def get_time_ns(self):
     return self.time_ns
+
+  def finish_copy(self, new_copy, copy_map = {}):
+    new_copy.time_ns = self.time_ns
+
+class SubSignalSelection(AbstractOperationConstructor("SubSignalSelection")):
+  def __init__(self, arg, inf_index, sup_index, **kw):
+    SubSignalSelection.__base__.__init__(self, arg, **kw)
+    self.inf_index = inf_index
+    self.sup_index = sup_index
+
+  def get_inf_index(self):
+    return self.inf_index
+  def get_sup_index(self):
+    return self.sup_index
+
+  def finish_copy(self, new_copy, copy_map = {}):
+    new_copy.inf_index = self.inf_index
+    new_copy.sup_index = self.sup_index
