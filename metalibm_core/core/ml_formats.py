@@ -68,6 +68,9 @@ class ML_Format(object):
     def get_match_format(self):
         return self
 
+    def get_base_format(self):
+        return self
+
     def get_display_format(self, language = C_Code):
         if language in self.display_format:
             return self.display_format[language]
@@ -224,6 +227,12 @@ class ML_Std_FP_Format(ML_FP_Format):
         """ return the format bit size """ 
         return self.bit_size
 
+    def get_zero_exponent_value(self):
+        return 0
+
+    def get_special_exponent_value(self):
+        return 2**self.get_exponent_size() - 1
+
     def get_exponent_size(self):
         return self.exponent_size
 
@@ -234,6 +243,10 @@ class ML_Std_FP_Format(ML_FP_Format):
 
     def get_field_size(self):
         return self.field_size
+
+    ## Return the complete mantissa size
+    def get_mantissa_size(self):
+        return self.field_size + 1
 
     def get_cst(self, cst_value, language = C_Code):
       if language is C_Code:
@@ -315,6 +328,9 @@ class VirtualFormat(ML_Format):
     self.support_format = _format
 
   def get_match_format(self):
+    return self.base_format
+
+  def get_base_format(self):
     return self.base_format
 
   def get_support_format(self):
