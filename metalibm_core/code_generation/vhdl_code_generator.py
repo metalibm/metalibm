@@ -258,7 +258,7 @@ class VHDLCodeGenerator(object):
             for op in optree.get_inputs()[1:]:
               _ = self.generate_expr(code_object, op, folded = folded, language = language)
 
-            return first_input_code
+            result = first_input_code
 
         elif isinstance(optree, ComponentInstance):
             component_object = optree.get_component_object()
