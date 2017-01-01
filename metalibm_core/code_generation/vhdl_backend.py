@@ -225,6 +225,7 @@ vhdl_code_generation_table = {
     None: {
       lambda _: True: {
         type_custom_match(TCM(ML_StdLogicVectorFormat), FSM(ML_Binary32)): SymbolOperator("(30 downto 23)", lspace = "", inverse = True, arity = 1, force_folding = True), 
+        type_custom_match(TCM(ML_StdLogicVectorFormat), FSM(ML_Binary16)): SymbolOperator("(14 downto 10)", lspace = "", inverse = True, arity = 1, force_folding = True), 
       },
     },
   },
@@ -271,6 +272,7 @@ vhdl_code_generation_table = {
   MantissaExtraction: {
     None: {
       lambda optree: True: {
+        type_custom_match(MCSTDLOGICV, FSM(ML_Binary16)): ComplexOperator(optree_modifier = mantissa_extraction_modifier), # TemplateOperator("%s(22 downto 0)", arity = 1), 
         type_custom_match(MCSTDLOGICV, FSM(ML_Binary32)): ComplexOperator(optree_modifier = mantissa_extraction_modifier), # TemplateOperator("%s(22 downto 0)", arity = 1), 
       },
     },
@@ -278,6 +280,7 @@ vhdl_code_generation_table = {
   CopySign: {
     None: {
       lambda optree: True: {
+        type_custom_match(FSM(ML_StdLogic), ML_Binary16): TemplateOperator("%s(15)", arity = 1),
         type_custom_match(FSM(ML_StdLogic), ML_Binary32): TemplateOperator("%s(31)", arity = 1),
         type_custom_match(FSM(ML_StdLogic), ML_Binary64): TemplateOperator("%s(63)", arity = 1),
         type_custom_match(FSM(ML_StdLogic), MCSTDLOGICV): DynamicOperator(copy_sign_generator),
@@ -309,6 +312,10 @@ vhdl_code_generation_table = {
   TypeCast: {
     None: {
       lambda optree: True: {
+        type_custom_match(FSM(ML_Binary16), TCM(ML_StdLogicVectorFormat)): IdentityOperator(output_precision = ML_Binary16, no_parenthesis = True),
+        type_custom_match(FSM(ML_Binary16), FSM(ML_Binary16)): IdentityOperator(output_precision = ML_Binary16, no_parenthesis = True),
+        type_custom_match(MCSTDLOGICV, FSM(ML_Binary16)): IdentityOperator(no_parenthesis = True),
+
         type_custom_match(FSM(ML_Binary32), TCM(ML_StdLogicVectorFormat)): IdentityOperator(output_precision = ML_Binary32, no_parenthesis = True),
         type_custom_match(FSM(ML_Binary32), FSM(ML_Binary32)): IdentityOperator(output_precision = ML_Binary32, no_parenthesis = True),
         type_custom_match(MCSTDLOGICV, FSM(ML_Binary32)): IdentityOperator(no_parenthesis = True),
@@ -339,6 +346,7 @@ vhdl_code_generation_table = {
   SpecificOperation: {
     SpecificOperation.CopySign: {
       lambda optree: True: {
+        type_custom_match(FSM(ML_StdLogic), FSM(ML_Binary16)): TemplateOperator("%s(15)", arity = 1),
         type_custom_match(FSM(ML_StdLogic), FSM(ML_Binary32)): TemplateOperator("%s(31)", arity = 1),
         type_custom_match(FSM(ML_StdLogic), FSM(ML_Binary64)): TemplateOperator("%s(63)", arity = 1),
         type_custom_match(FSM(ML_StdLogic), MCSTDLOGICV): DynamicOperator(copy_sign_generator),
