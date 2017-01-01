@@ -33,6 +33,7 @@ for target_name in TargetRegister.target_map:
 
 
 precision_map = {
+    "binary16": ML_Binary16,
     "binary32": ML_Binary32, 
     "binary64": ML_Binary64, 
     "int32": ML_Int32, 
