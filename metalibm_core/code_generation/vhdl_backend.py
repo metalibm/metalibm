@@ -299,6 +299,22 @@ vhdl_code_generation_table = {
       },
     },
   },
+  BitLogicAnd: {
+    None: {
+      lambda optree: True: {
+        type_strict_match(ML_StdLogic, ML_StdLogic, ML_StdLogic): SymbolOperator("and", arity = 2),
+        type_custom_match(TCM(ML_StdLogicVectorFormat), TCM(ML_StdLogicVectorFormat), TCM(ML_StdLogicVectorFormat)): SymbolOperator("and", arity = 2),
+      },
+    },
+  },
+  BitLogicOr: {
+    None: {
+      lambda optree: True: {
+        type_strict_match(ML_StdLogic, ML_StdLogic, ML_StdLogic): SymbolOperator("or", arity = 2),
+        type_custom_match(TCM(ML_StdLogicVectorFormat), TCM(ML_StdLogicVectorFormat), TCM(ML_StdLogicVectorFormat)): SymbolOperator("or", arity = 2),
+      },
+    },
+  },
   Truncate: {
     None: {
       lambda optree: True: {
