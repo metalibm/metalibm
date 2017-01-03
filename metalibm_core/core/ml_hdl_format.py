@@ -48,6 +48,8 @@ class ML_StdLogicVectorFormat(ML_Format):
   def get_vhdl_cst(self, value):
     #return "\"%s\"" % bin(value)[2:].zfill(self.bit_size)
     if self.bit_size % 4 == 0:
+      if value < 0:
+        return "X\"ERROR_NEG(%s)\"" % hex(value)[2:].zfill(self.bit_size / 4)
       return "X\"%s\"" % hex(value)[2:].zfill(self.bit_size / 4)
     else:
       if value < 0:
