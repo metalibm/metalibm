@@ -326,10 +326,18 @@ class ML_FormatConstructor(ML_Format):
 #  representation and relies on an other non-virtual format
 #  for support in generated code
 class VirtualFormat(ML_Format):
-  def __init__(self, base_format = None, support_format = None):
+  def __init__(self, 
+                base_format = None, 
+                support_format = None, 
+                get_cst = lambda self, value, language: self.base_format.get_cst(value, language)
+        ):
     ML_Format.__init__(self)
     self.support_format = support_format
     self.base_format    = base_format
+    self.internal_get_cst = get_cst
+
+  def get_cst(self, cst_value, language = C_Code):
+    return self.internal_get_cst(self, cst_value, language)
 
   ## return name for the format
   def get_name(self, language = C_Code):
