@@ -208,6 +208,7 @@ class ML_EntityArgTemplate(ML_CommonArgTemplate):
 
     self.parser.add_argument("--entityname", dest = "entity_name", default = ArgDefault(self.default_entity_name), help = "set entity name")
     self.parser.add_argument("--backend", dest = "backend", action = "store", type = target_instanciate, default = "none", help = "select generation backend")
+    self.parser.add_argument("--debug-file", dest = "debug_file", action="store", help = "help define output file for debug script")
 
 
 ## new argument template based on argparse module
