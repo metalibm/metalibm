@@ -71,10 +71,16 @@ class FP_Adder(ML_Entity("fp_adder")):
     self.precision = precision
 
   def generate_scheme(self):
-    io_precision = VirtualFormat(base_format = self.precision, support_format = ML_StdLogicVectorFormat(self.precision.get_bit_size()))
+
+    def get_virtual_cst(prec, value, language):
+      return prec.get_support_format().get_cst(
+        prec.get_base_format().get_integer_coding(value, language))
+    ## convert @p value from an input floating-point precision
+    #  @p in_precision to an output support format @p out_precision
+    io_precision = VirtualFormat(base_format = self.precision, support_format = ML_StdLogicVectorFormat(self.precision.get_bit_size()), get_cst = get_virtual_cst)
     # declaring standard clock and reset input signal
-    clk = self.implementation.add_input_signal("clk", ML_StdLogic)
-    reset = self.implementation.add_input_signal("reset", ML_StdLogic)
+    #clk = self.implementation.add_input_signal("clk", ML_StdLogic)
+    #reset = self.implementation.add_input_signal("reset", ML_StdLogic)
     # declaring main input variable
     vx = self.implementation.add_input_signal("x", io_precision) 
     vy = self.implementation.add_input_signal("y", io_precision) 
@@ -248,7 +254,14 @@ class FP_Adder(ML_Entity("fp_adder")):
 
     return lzc_entity_list + [self.implementation]
 
-  standard_test_cases =[sollya_parse(x) for x in  ["1.1", "1.5"]]
+  def numeric_emulate(self, io_map):
+    vx = io_map["x"]
+    vy = io_map["y"]
+    result = {}
+    result["vr_out"] = sollya.round(vx + vy, sollya.binary16, sollya.RN)
+    return result
+
+  standard_test_cases = [({"x": 1.0, "y": 1.0}, None)]
 
 
 if __name__ == "__main__":
