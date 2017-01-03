@@ -470,17 +470,34 @@ class ML_EntityBasis(object):
 
     test_statement = Statement()
 
+    # building list of test cases
+    tc_list = []
     for i in range(test_num):
       input_values = {}
       for input_tag in input_signals:
         input_signal = io_map[input_tag]
         # FIXME: correct value generation depending on signal precision
-        input_size = input_signal.get_precision().get_bit_size()
+        input_size = input_signal.get_precision().get_base_format().get_bit_size()
         input_value = random.randrange(2**input_size)
         input_values[input_tag] = input_value
+      tc_list.append((input_values,None))
+
+    # Appending standard test cases if required
+    if self.auto_test_std:
+      tc_list += self.standard_test_cases 
+
+    for input_values, output_values in tc_list:
+      # Adding input setting
+      for input_tag in input_values:
+        input_signal = io_map[input_tag]
+        # FIXME: correct value generation depending on signal precision
+        input_value = input_values[input_tag]
         test_statement.add(ReferenceAssign(input_signal, Constant(input_value, precision = input_signal.get_precision())))
       test_statement.add(Wait(10))
-      output_values = self.numeric_emulate(input_values)
+      # Computin output values when necessary
+      if output_values is None:
+        output_values = self.numeric_emulate(input_values)
+      # Adding output value comparison
       for output_tag in output_signals:
         output_signal = output_signals[output_tag]
         output_value  = Constant(output_values[output_tag], precision = output_signal.get_precision())
