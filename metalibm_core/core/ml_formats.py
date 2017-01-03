@@ -373,6 +373,8 @@ class ML_Fixed_Format(VirtualFormat):
 
     def get_match_format(self):
       return self
+    def get_base_format(self):
+      return self
 
     def get_name(self, language = C_Code):
       return ML_Format.get_name(self, language = language)
@@ -489,7 +491,7 @@ ML_Binary32 = ML_Std_FP_Format(32, 8, 23, "f", "float", "fp32", "%a", sollya.bin
 ML_Binary64 = ML_Std_FP_Format(64, 11, 52, "", "double", "fp64", "%la", sollya.binary64)
 ML_Binary80 = ML_Std_FP_Format(80, 15, 64, "L", "long double", "fp80", "%la", sollya.binary80)
 # Half precision format
-ML_Binary16 = ML_Std_FP_Format(16, 5, 10, "__ERROR__", "half", "fp16", "%a", sollya.halfprecision)
+ML_Binary16 = ML_Std_FP_Format(16, 5, 10, "__ERROR__", "half", "fp16", "%a", sollya.binary16)
 
 
 # Standard integer format declarations
