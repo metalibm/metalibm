@@ -93,7 +93,7 @@ def force_size(optree, size):
 ## Operation to assemble a float point value from
 #  a sign, exponent, mantissa
 #  the result = sign * 2^(exponent - bias) * (1.0 + mantissae * 2^(-precision))
-def FloatBuild(sign_bit, exp_field, mantissa_field, precision = ML_Binary32):
+def FloatBuild(sign_bit, exp_field, mantissa_field, precision = ML_Binary32, **kw):
   # assert exp_field has the right output format
   exp_field = force_size(exp_field, precision.get_exponent_size())
   # assert mantissa_field has the right output format
@@ -109,7 +109,8 @@ def FloatBuild(sign_bit, exp_field, mantissa_field, precision = ML_Binary32):
       mantissa_field,
       precision = ML_StdLogicVectorFormat(precision.get_bit_size())
     ),
-    precision = precision
+    precision = precision,
+    **kw
   )
   return result
 

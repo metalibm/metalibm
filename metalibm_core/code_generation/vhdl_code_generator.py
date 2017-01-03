@@ -265,11 +265,14 @@ class VHDLCodeGenerator(object):
             component_name = component_object.get_name()
             code_object.declare_component(component_name, component_object)
             io_map           = optree.get_io_map()
+            component_tag = optree.get_tag()
+            if component_tag is None:
+              component_tag = "{component_name}_i{instance_id}".format(component_name = component_name, instance_id = optree.get_instance_id())
             mapped_io = {}
             for io_tag in io_map:
               mapped_io[io_tag] = self.generate_expr(code_object, io_map[io_tag], folded = True, language = language)
 
-            code_object << "\n{component_name}_i{instance_id} : {component_name}\n".format(component_name = component_name, instance_id = optree.get_instance_id())
+            code_object << "\n{component_tag} : {component_name}\n".format(component_name = component_name, component_tag = component_tag)
             code_object << "  port map (\n"
             code_object << "  " + ", ".join("{} => {}".format(io_tag, mapped_io[io_tag].get()) for io_tag in mapped_io) 
             code_object << "\n);\n"
