@@ -213,6 +213,10 @@ vhdl_code_generation_table = {
         (specifier,
           { 
               lambda _: True: {
+                  type_custom_match(FSM(ML_Bool), FSM(ML_Binary32), FSM(ML_Binary32)): 
+                    SymbolOperator(vhdl_comp_symbol[specifier], arity = 2, force_folding = False),
+                  type_custom_match(FSM(ML_Bool), FSM(ML_Binary16), FSM(ML_Binary16)): 
+                    SymbolOperator(vhdl_comp_symbol[specifier], arity = 2, force_folding = False),
                   type_custom_match(FSM(ML_Bool), TCM(ML_StdLogicVectorFormat), TCM(ML_StdLogicVectorFormat)): 
                     SymbolOperator(vhdl_comp_symbol[specifier], arity = 2, force_folding = False),
                   type_strict_match(ML_Bool, ML_StdLogic, ML_StdLogic):
