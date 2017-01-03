@@ -30,6 +30,7 @@ class ML_StdLogicVectorFormat(ML_Format):
     ML_Format.__init__(self)
     self.bit_size = bit_size
     self.name[VHDL_Code] = "std_logic_vector({direction_descriptor})".format(direction_descriptor = direction.get_descriptor(offset, offset + self.bit_size - 1))
+    self.display_format[VHDL_Code] = "%s"
 
   def __str__(self):
     return self.name[VHDL_Code]
@@ -61,6 +62,8 @@ class ML_StdLogicClass(ML_Format):
     ML_Format.__init__(self)
     self.bit_size = 1
     self.name[VHDL_Code] = "std_logic"
+    self.display_format[VHDL_Code] = "%s"
+
   def __str__(self):
     return self.name[VHDL_Code]
   def get_name(self, language = VHDL_Code):
@@ -69,6 +72,8 @@ class ML_StdLogicClass(ML_Format):
     return "'%d'" % value
   def get_bit_size(self):
     return self.bit_size
+  def get_support_format(self):
+    return self
 
 # std_logic type singleton
 ML_StdLogic = ML_StdLogicClass()

@@ -70,6 +70,8 @@ class ML_Format(object):
 
     def get_base_format(self):
         return self
+    def get_support_format(self):
+        return self
 
     def get_display_format(self, language = C_Code):
         if language in self.display_format:
