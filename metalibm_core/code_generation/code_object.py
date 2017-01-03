@@ -234,7 +234,6 @@ class MultiSymbolTable(object):
         return code_object
         
 
-
 def get_git_tag():
     """ extract git commit tag """
     git_tag = commands.getoutput("git log -n 1")

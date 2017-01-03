@@ -193,7 +193,7 @@ class VHDLCodeGenerator(object):
               result_value_code = self.generate_expr(code_object, result_value, folded = False, language = language)
               code_object << self.generate_assignation(output_var_code.get(), result_value_code.get())
               if optree.get_debug() and not self.disable_debug:
-                code_object << self.generate_debug_msg(result_value, result_value_code, code_object, debug_object = optree.get_debug())
+                self.generate_debug_msg(result_value, result_value_code, code_object, debug_object = optree.get_debug())
 
             #code_object << self.generate_assignation(output_var_code.get(), result_value_code.get())
             #code_object << output_var.get_precision().generate_c_assignation(output_var_code, result_value_code)
@@ -405,7 +405,7 @@ class VHDLCodeGenerator(object):
 
         # debug management
         if optree.get_debug() and not self.disable_debug:
-            code_object << self.generate_debug_msg(optree, result, code_object)
+            self.generate_debug_msg(optree, result, code_object)
             
 
         if initial and not isinstance(result, CodeVariable) and not result is None:
@@ -482,10 +482,19 @@ class VHDLCodeGenerator(object):
         if isinstance(debug_object, ML_Debug):
             for header in debug_object.get_require_header():
               code_object.add_header(header)
-        precision = optree.get_precision()
+        precision = optree.get_precision().get_support_format()
         display_format = debug_object.get_display_format(precision.get_display_format(language = self.language)) if isinstance(debug_object, ML_Debug) else precision.get_display_format(language = self.language)
+        if not isinstance(result, CodeVariable):
+          final_var = code_object.get_free_signal_name(optree.get_precision(), prefix = "dbg_"+ optree.get_tag())
+          code_object << "{} <= {};\n".format(final_var, result.get())
+          result = CodeVariable(final_var, optree.get_precision())
         display_result = debug_object.get_pre_process(result.get(), optree) if isinstance(debug_object, ML_Debug) else result.get()
-        debug_msg = "#ifdef ML_DEBUG\n"
-        debug_msg += """printf("%s: %s\\n", %s);\n""" % (optree.get_tag(), display_format, display_result)
-        debug_msg += "#endif\n"
-        return debug_msg
+        debug_msg = "echo \"{tag}\"; examine {display_format} testbench.tested_entity.{display_result};\n".format(tag = optree.get_tag(), display_format = display_format, display_result = display_result)
+        self.get_debug_code_object() << debug_msg
+
+    ## define the code object for debug 
+    def set_debug_code_object(self, debug_code_object):
+        self.debug_code_object = debug_code_object
+    ## retrieve the code object for debug
+    def get_debug_code_object(self):
+        return self.debug_code_object
