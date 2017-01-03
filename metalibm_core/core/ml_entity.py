@@ -23,7 +23,7 @@ from metalibm_core.core.ml_complex_formats import ML_Mpfr_t
 from metalibm_core.core.ml_call_externalizer import CallExternalizer
 from metalibm_core.core.ml_vectorizer import StaticVectorizer
 
-from metalibm_core.code_generation.code_object import NestedCode, VHDLCodeObject
+from metalibm_core.code_generation.code_object import NestedCode, VHDLCodeObject, CodeObject
 from metalibm_core.code_generation.code_entity import CodeEntity
 from metalibm_core.code_generation.vhdl_backend import VHDLBackend
 from metalibm_core.code_generation.vhdl_code_generator import VHDLCodeGenerator
@@ -51,6 +51,7 @@ class DefaultEntityArgTemplate:
                 base_name = "unknown_entity",
                 entity_name = None,
                 output_file = None,
+                debug_file  = None,
                 # Specification,
                 precision = ML_Binary32,
                 accuracy = ML_Faithful,
@@ -73,6 +74,7 @@ class DefaultEntityArgTemplate:
     self.base_name  = base_name
     self.entity_name  = entity_name
     self.output_file  = output_file
+    self.debug_file   = debug_file
     # Specification,
     self.precision  = precision
     self.io_precisions  = io_precisions
@@ -143,6 +145,7 @@ class ML_EntityBasis(object):
   #  @param base_name string function name (without precision considerations)
   #  @param function_name 
   #  @param output_file string name of source code output file
+  #  @param debug_file string name of debug script output file
   #  @param io_precisions input/output ML_Format list
   #  @param abs_accuracy absolute accuracy
   #  @param libm_compliant boolean flag indicating whether or not the function should be compliant with standard libm specification (wrt exception, error ...)
@@ -155,6 +158,7 @@ class ML_EntityBasis(object):
              base_name = ArgDefault("unknown_entity", 2),
              entity_name= ArgDefault(None, 2),
              output_file = ArgDefault(None, 2),
+             debug_file  = ArgDefault(None, 2),
              # Specification
              io_precisions = ArgDefault([ML_Binary32], 2), 
              abs_accuracy = ArgDefault(None, 2),
@@ -177,8 +181,9 @@ class ML_EntityBasis(object):
     entity_name = ArgDefault.select_value([arg_template.entity_name, entity_name])
     print "entity_name: ", entity_name
     print "output_file: ", arg_template.output_file, output_file 
+    print "debug_file:  ", arg_template.debug_file, debug_file 
     output_file = ArgDefault.select_value([arg_template.output_file, output_file])
-    print output_file
+    debug_file  = ArgDefault.select_value([arg_template.debug_file, debug_file])
     # Specification
     io_precisions = ArgDefault.select_value([io_precisions])
     abs_accuracy = ArgDefault.select_value([abs_accuracy])
@@ -213,6 +218,7 @@ class ML_EntityBasis(object):
     self.entity_name = entity_name if entity_name else generic_naming(base_name, self.io_precisions)
 
     self.output_file = output_file if output_file else self.entity_name + ".vhd"
+    self.debug_file  = debug_file  if debug_file  else "{}_dbg.do".format(self.entity_name)
 
     self.debug_flag = debug_flag
 
@@ -232,6 +238,10 @@ class ML_EntityBasis(object):
     self.vhdl_code_generator = VHDLCodeGenerator(self.backend, declare_cst = False, disable_debug = not self.debug_flag, language = self.language)
     uniquifier = self.entity_name
     self.main_code_object = NestedCode(self.vhdl_code_generator, static_cst = True, uniquifier = "{0}_".format(self.entity_name), code_ctor = VHDLCodeObject)
+    if self.debug_flag:
+      self.debug_code_object = CodeObject(self.language)
+      self.vhdl_code_generator.set_debug_code_object(self.debug_code_object)
+
 
   def get_implementation(self):
     return self.implementation
@@ -395,9 +405,15 @@ class ML_EntityBasis(object):
 
     Log.report(Log.Verbose, "Generating VHDL code in " + self.output_file)
     output_stream = open(self.output_file, "w")
-    #output_stream.write(self.result.get(self.vhdl_code_generator))
     output_stream.write(code_str)
     output_stream.close()
+    if self.debug_flag:
+      Log.report(Log.Verbose, "Generating Debug code in {}".format(self.debug_file))
+      debug_code_str = self.debug_code_object.get(None)
+      debug_stream = open(self.debug_file, "w")
+      debug_stream.write(debug_code_str)
+      debug_stream.close()
+
 
   def gen_implementation(self, display_after_gen = False, display_after_opt = False, enable_subexpr_sharing = True):
     # generate scheme
@@ -466,7 +482,7 @@ class ML_EntityBasis(object):
       output_signals[output_tag] = output_signal
 
     self_component = self.implementation.get_component_object()
-    self_instance = self_component(io_map = io_map)
+    self_instance = self_component(io_map = io_map, tag = "tested_entity")
 
     test_statement = Statement()
 
