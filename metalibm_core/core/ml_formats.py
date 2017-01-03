@@ -206,6 +206,21 @@ class ML_Std_FP_Format(ML_FP_Format):
     def get_emax(self):
         return 2**self.get_exponent_size() - 2 + self.get_bias()
 
+    ## return the integer coding of @p value
+    #  @param value numeric value to be converted
+    #  @return value encoding (as an integer number)
+    def get_integer_coding(self, value, language = C_Code):
+        # FIXME: manage subnormal and special values
+        value = sollya.round(value, self.get_sollya_object(), sollya.RN)
+        # FIXME: managing negative zero
+        sign = int(1 if value < 0 else 0)
+        value = abs(value)
+        exp   = int(sollya.floor(sollya.log2(value)))
+        exp_biased = int(exp - self.get_bias())
+        mant = int((value / S2**exp - 1.0) / (S2**-self.get_field_size()))
+        print("converting {} to {},{},{}".format(value, sign, exp_biased, mant))
+        return mant | (exp_biased << self.get_field_size()) | (sign << (self.get_field_size() + self.get_exponent_size()))
+
     # @return<SollyaObject> the format omega value, the maximal normal value
     def get_omega(self):
         return S2**self.get_emax() * (2 - S2**-self.get_field_size())
