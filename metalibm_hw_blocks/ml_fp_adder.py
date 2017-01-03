@@ -30,6 +30,8 @@ from metalibm_core.core.ml_hdl_operations import *
 
 from metalibm_hw_blocks.lzc import ML_LeadingZeroCounter
 
+debug_std = ML_Debug(display_format = " -radix 2 ")
+debug_dec = ML_Debug(display_format = " -radix 10 ")
 
 class FP_Adder(ML_Entity("fp_adder")):
   def __init__(self, 
@@ -105,7 +107,7 @@ class FP_Adder(ML_Entity("fp_adder")):
 
     # determining if the operation is an addition (effective_op = '0')
     # or a subtraction (effective_op = '1')
-    effective_op = BitLogicXor(sign_vx, sign_vy, precision = ML_StdLogic)
+    effective_op = BitLogicXor(sign_vx, sign_vy, precision = ML_StdLogic, tag = "effective_op", debug = ML_Debug(display_format = "-radix 2"))
 
     ## Wrapper for zero extension
     # @param op the input operation tree
@@ -154,13 +156,14 @@ class FP_Adder(ML_Entity("fp_adder")):
         precision = shift_amount_prec
       ),
       precision = shift_amount_prec,
-      tag = "mant_shift"
+      tag = "mant_shift",
+      debug = ML_Debug(display_format = "-radix 10")
     )
 
     mant_ext_size = 2*p+4
     shift_prec = ML_StdLogicVectorFormat(3*p+4)
-    shifted_mant_vy = BitLogicRightShift(rzext(mant_vy, mant_ext_size), mant_shift, precision = shift_prec)
-    mant_vx_ext = zext(rzext(mant_vx, mant_ext_size), 1)
+    shifted_mant_vy = BitLogicRightShift(rzext(mant_vy, mant_ext_size), mant_shift, precision = shift_prec, tag = "shifted_mant_vy")
+    mant_vx_ext = zext(rzext(mant_vx, p+2), p+2+1)
 
     add_prec = ML_StdLogicVectorFormat(3*p+5)
 
@@ -174,22 +177,30 @@ class FP_Adder(ML_Entity("fp_adder")):
       Negation(mant_vx_ext, precision = add_prec, tag = "neg_mant_vx"),
       mant_vx_ext,
       precision = add_prec,
-      tag = "mant_vx_add_op"
+      tag = "mant_vx_add_op",
+      debug = ML_Debug(display_format = " ")
     )
       
-
 
     mant_add = Addition(
                  zext(shifted_mant_vy, 1),
                  mant_vx_add_op,
-                 precision = add_prec
+                 precision = add_prec,
+                 tag = "mant_add",
+                 debug = ML_Debug(display_format = " -radix 2")
               )
 
     # if the addition overflows, then it meant vx has been negated and
     # the 2's complement addition cancelled the negative MSB, thus
     # the addition result is positive, and the result is of the sign of Y
     # else the result is of opposite sign to Y
-    add_is_negative = BitLogicNegate(CopySign(mant_add, precision = ML_StdLogic), precision = ML_StdLogic, tag = "add_is_negative")
+    add_is_negative = BitLogicAnd(
+        CopySign(mant_add, precision = ML_StdLogic),
+        effective_op,
+        precision = ML_StdLogic,
+        tag = "add_is_negative",
+        debug = ML_Debug(" -radix 2")
+      )
     # Negate mantissa addition result if it is negative
     mant_add_abs = Select(
       Comparison(
@@ -204,13 +215,13 @@ class FP_Adder(ML_Entity("fp_adder")):
       tag = "mant_add_abs"
     )
 
-    res_sign = BitLogicXor(add_is_negative, sign_vy, precision = ML_StdLogic)
+    res_sign = BitLogicXor(add_is_negative, sign_vy, precision = ML_StdLogic, tag = "res_sign")
 
     # Precision for leading zero count
-    lzc_width = int(floor(log2(3*p+4)) + 1)
+    lzc_width = int(floor(log2(3*p+5)) + 1)
     lzc_prec = ML_StdLogicVectorFormat(lzc_width)
 
-    lzc_args = ML_LeadingZeroCounter.get_default_args(width = (3*p+4))
+    lzc_args = ML_LeadingZeroCounter.get_default_args(width = (3*p+5))
     LZC_entity = ML_LeadingZeroCounter(lzc_args)
     lzc_entity_list = LZC_entity.generate_scheme()
     lzc_implementation = LZC_entity.get_implementation()
@@ -218,15 +229,34 @@ class FP_Adder(ML_Entity("fp_adder")):
     lzc_component = lzc_implementation.get_component_object()
 
     #lzc_in = SubSignalSelection(mant_add, p+1, 2*p+3)
-    lzc_in = SubSignalSelection(mant_add_abs, 0, 3*p+3, precision = ML_StdLogicVectorFormat(3*p+4))
+    lzc_in = mant_add_abs # SubSignalSelection(mant_add_abs, 0, 3*p+3, precision = ML_StdLogicVectorFormat(3*p+4))
 
-    add_lzc = Signal("add_lzc", precision = lzc_prec, var_type = Signal.Local)
+    add_lzc = Signal("add_lzc", precision = lzc_prec, var_type = Signal.Local, debug = debug_dec)
     add_lzc = PlaceHolder(add_lzc, lzc_component(io_map = {"x": lzc_in, "vr_out": add_lzc}))
 
     #add_lzc = CountLeadingZeros(mant_add, precision = lzc_prec)
     # CP stands for close path, the data path where X and Y are within 1 exp diff
-    res_normed_mant = BitLogicLeftShift(mant_add, add_lzc, precision = add_prec, tag = "res_normed_mant")
+    res_normed_mant = BitLogicLeftShift(mant_add, add_lzc, precision = add_prec, tag = "res_normed_mant", debug = debug_std)
     res_mant_field = SubSignalSelection(res_normed_mant, 2*p+5, 3*p+4, precision = ML_StdLogicVectorFormat(p))
+    round_bit = res_normed_mant[2*p+4]
+    sticky_prec = ML_StdLogicVectorFormat(2*p+4)
+    sticky_input = SubSignalSelection(
+      res_normed_mant, 0, 2*p+3, 
+      precision =  sticky_prec
+    )
+    sticky_bit = Select(
+      Comparison(
+        sticky_input,
+        Constant(0, precision = sticky_prec),
+        specifier = Comparison.NotEqual,
+        precision = ML_Bool
+      ),
+      Constant(1, precision = ML_StdLogic),
+      Constant(0, precision = ML_StdLogic),
+      precision = ML_StdLogic,
+      tag = "sticky_bit",
+      debug = debug_std
+    )
 
     res_exp_prec_size = self.precision.get_exponent_size() + 2
     res_exp_prec = ML_StdLogicVectorFormat(res_exp_prec_size)
@@ -234,18 +264,25 @@ class FP_Adder(ML_Entity("fp_adder")):
     res_exp_ext = Subtraction(
                 Addition(
                   zext(exp_vx, 2),
-                  Constant(2+p, precision = res_exp_prec),
+                  Constant(3+p, precision = res_exp_prec),
                   precision = res_exp_prec
                 ),
                 zext(add_lzc, res_exp_prec_size - lzc_width), 
                 precision = res_exp_prec
               )
 
-    res_exp = Truncate(res_exp_ext, precision = ML_StdLogicVectorFormat(self.precision.get_exponent_size()))
+    res_exp = Truncate(res_exp_ext, precision = ML_StdLogicVectorFormat(self.precision.get_exponent_size()), tag = "res_exp", debug = debug_dec)
 
     vr_out = TypeCast(
-      FloatBuild(res_sign, res_exp, res_mant_field, precision = self.precision),
-      precision = io_precision
+      FloatBuild(
+        res_sign, 
+        res_exp, 
+        res_mant_field, 
+        precision = self.precision,
+      ),
+      precision = io_precision,
+      tag = "result",
+      debug = debug_std
     )
 
 
@@ -261,7 +298,7 @@ class FP_Adder(ML_Entity("fp_adder")):
     result["vr_out"] = sollya.round(vx + vy, sollya.binary16, sollya.RN)
     return result
 
-  standard_test_cases = [({"x": 1.0, "y": 1.0}, None)]
+  standard_test_cases = [({"x": 1.0, "y": S2**-11}, None)]
 
 
 if __name__ == "__main__":
