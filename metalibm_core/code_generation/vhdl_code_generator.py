@@ -106,7 +106,7 @@ class VHDLCodeGenerator(object):
               result = CodeVariable(optree.get_tag(), optree.get_precision())
 
         elif isinstance(optree, Constant):
-            precision = optree.get_precision()
+            precision = optree.get_precision() # .get_base_format()
             if self.declare_cst or optree.get_precision().is_cst_decl_required():
                 cst_prefix = "cst" if optree.get_tag() is None else optree.get_tag()
                 cst_varname = code_object.declare_cst(optree, prefix = cst_prefix)
