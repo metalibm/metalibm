@@ -213,6 +213,8 @@ vhdl_code_generation_table = {
         (specifier,
           { 
               lambda _: True: {
+                  type_custom_match(FSM(ML_Bool), FSM(ML_Binary64), FSM(ML_Binary64)): 
+                    SymbolOperator(vhdl_comp_symbol[specifier], arity = 2, force_folding = False),
                   type_custom_match(FSM(ML_Bool), FSM(ML_Binary32), FSM(ML_Binary32)): 
                     SymbolOperator(vhdl_comp_symbol[specifier], arity = 2, force_folding = False),
                   type_custom_match(FSM(ML_Bool), FSM(ML_Binary16), FSM(ML_Binary16)): 
@@ -228,6 +230,7 @@ vhdl_code_generation_table = {
   ExponentExtraction: {
     None: {
       lambda _: True: {
+        type_custom_match(TCM(ML_StdLogicVectorFormat), FSM(ML_Binary64)): SymbolOperator("(62 downto 52)", lspace = "", inverse = True, arity = 1, force_folding = True), 
         type_custom_match(TCM(ML_StdLogicVectorFormat), FSM(ML_Binary32)): SymbolOperator("(30 downto 23)", lspace = "", inverse = True, arity = 1, force_folding = True), 
         type_custom_match(TCM(ML_StdLogicVectorFormat), FSM(ML_Binary16)): SymbolOperator("(14 downto 10)", lspace = "", inverse = True, arity = 1, force_folding = True), 
       },
@@ -278,6 +281,7 @@ vhdl_code_generation_table = {
       lambda optree: True: {
         type_custom_match(MCSTDLOGICV, FSM(ML_Binary16)): ComplexOperator(optree_modifier = mantissa_extraction_modifier), # TemplateOperator("%s(22 downto 0)", arity = 1), 
         type_custom_match(MCSTDLOGICV, FSM(ML_Binary32)): ComplexOperator(optree_modifier = mantissa_extraction_modifier), # TemplateOperator("%s(22 downto 0)", arity = 1), 
+        type_custom_match(MCSTDLOGICV, FSM(ML_Binary64)): ComplexOperator(optree_modifier = mantissa_extraction_modifier), # TemplateOperator("%s(22 downto 0)", arity = 1), 
       },
     },
   },
@@ -339,6 +343,10 @@ vhdl_code_generation_table = {
         type_custom_match(FSM(ML_Binary32), TCM(ML_StdLogicVectorFormat)): IdentityOperator(output_precision = ML_Binary32, no_parenthesis = True),
         type_custom_match(FSM(ML_Binary32), FSM(ML_Binary32)): IdentityOperator(output_precision = ML_Binary32, no_parenthesis = True),
         type_custom_match(MCSTDLOGICV, FSM(ML_Binary32)): IdentityOperator(no_parenthesis = True),
+
+        type_custom_match(FSM(ML_Binary64), TCM(ML_StdLogicVectorFormat)): IdentityOperator(output_precision = ML_Binary64, no_parenthesis = True),
+        type_custom_match(FSM(ML_Binary64), FSM(ML_Binary64)): IdentityOperator(output_precision = ML_Binary64, no_parenthesis = True),
+        type_custom_match(MCSTDLOGICV, FSM(ML_Binary64)): IdentityOperator(no_parenthesis = True),
       },
     },
   },

@@ -82,7 +82,7 @@ class FP_Adder(ML_Entity("fp_adder")):
     io_precision = VirtualFormat(base_format = self.precision, support_format = ML_StdLogicVectorFormat(self.precision.get_bit_size()), get_cst = get_virtual_cst)
     # declaring standard clock and reset input signal
     #clk = self.implementation.add_input_signal("clk", ML_StdLogic)
-    #reset = self.implementation.add_input_signal("reset", ML_StdLogic)
+    reset = self.implementation.add_input_signal("reset", ML_StdLogic)
     # declaring main input variable
     vx = self.implementation.add_input_signal("x", io_precision) 
     vy = self.implementation.add_input_signal("y", io_precision) 
@@ -162,7 +162,7 @@ class FP_Adder(ML_Entity("fp_adder")):
 
     mant_ext_size = 2*p+4
     shift_prec = ML_StdLogicVectorFormat(3*p+4)
-    shifted_mant_vy = BitLogicRightShift(rzext(mant_vy, mant_ext_size), mant_shift, precision = shift_prec, tag = "shifted_mant_vy")
+    shifted_mant_vy = BitLogicRightShift(rzext(mant_vy, mant_ext_size), mant_shift, precision = shift_prec, tag = "shifted_mant_vy", debug = debug_std)
     mant_vx_ext = zext(rzext(mant_vx, p+2), p+2+1)
 
     add_prec = ML_StdLogicVectorFormat(3*p+5)
@@ -350,7 +350,7 @@ class FP_Adder(ML_Entity("fp_adder")):
     vx = io_map["x"]
     vy = io_map["y"]
     result = {}
-    result["vr_out"] = sollya.round(vx + vy, sollya.binary16, sollya.RN)
+    result["vr_out"] = sollya.round(vx + vy, self.precision.get_sollya_object(), sollya.RN)
     return result
 
   standard_test_cases = [({"x": 1.0, "y": (S2**-11 + S2**-17)}, None)]
