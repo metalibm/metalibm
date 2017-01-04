@@ -237,8 +237,17 @@ class FP_Adder(ML_Entity("fp_adder")):
     #add_lzc = CountLeadingZeros(mant_add, precision = lzc_prec)
     # CP stands for close path, the data path where X and Y are within 1 exp diff
     res_normed_mant = BitLogicLeftShift(mant_add, add_lzc, precision = add_prec, tag = "res_normed_mant", debug = debug_std)
-    res_mant_field = SubSignalSelection(res_normed_mant, 2*p+5, 3*p+4, precision = ML_StdLogicVectorFormat(p))
-    round_bit = res_normed_mant[2*p+4]
+    pre_mant_field = SubSignalSelection(res_normed_mant, 2*p+5, 3*p+3, precision = ML_StdLogicVectorFormat(p-1))
+
+    ## Helper function to extract a single bit
+    #  from a vector of bits signal
+    def BitExtraction(optree, index, **kw):
+      return VectorElementSelection(optree, index, precision = ML_StdLogic, **kw)
+    def IntCst(value):
+      return Constant(value, precision = ML_Integer)
+
+    round_bit = BitExtraction(res_normed_mant, IntCst(2*p+4))
+    mant_lsb  = BitExtraction(res_normed_mant, IntCst(2*p+5))
     sticky_prec = ML_StdLogicVectorFormat(2*p+4)
     sticky_input = SubSignalSelection(
       res_normed_mant, 0, 2*p+3, 
@@ -258,18 +267,64 @@ class FP_Adder(ML_Entity("fp_adder")):
       debug = debug_std
     )
 
+    # increment selection for rouding to nearest (tie to even)
+    round_increment_RN = BitLogicAnd(
+      round_bit,
+      BitLogicOr(
+        sticky_bit,
+        mant_lsb,
+        precision = ML_StdLogic
+      ),
+      precision = ML_StdLogic,
+      tag = "round_increment_RN",
+      debug = debug_std
+    )
+
+    rounded_mant = Addition(
+      zext(pre_mant_field, 1),
+      round_increment_RN,
+      precision = ML_StdLogicVectorFormat(p),
+      tag = "rounded_mant",
+      debug = debug_std
+    )
+    rounded_overflow = BitExtraction(
+      rounded_mant, 
+      IntCst(p-1), 
+      tag = "rounded_overflow", 
+      debug = debug_std
+    )
+    res_mant_field = Select(
+      Comparison(
+        rounded_overflow,
+        Constant(1, precision = ML_StdLogic),
+        specifier = Comparison.Equal,
+        precision = ML_Bool
+      ),
+      SubSignalSelection(rounded_mant, 1, p-1),
+      SubSignalSelection(rounded_mant, 0, p-2),
+      precision = ML_StdLogicVectorFormat(p-1),
+      tag = "final_mant",
+      debug = debug_std
+    )
+
     res_exp_prec_size = self.precision.get_exponent_size() + 2
     res_exp_prec = ML_StdLogicVectorFormat(res_exp_prec_size)
 
-    res_exp_ext = Subtraction(
-                Addition(
-                  zext(exp_vx, 2),
-                  Constant(3+p, precision = res_exp_prec),
-                  precision = res_exp_prec
-                ),
-                zext(add_lzc, res_exp_prec_size - lzc_width), 
-                precision = res_exp_prec
-              )
+    res_exp_ext = Addition(
+      Subtraction(
+        Addition(
+          zext(exp_vx, 2),
+          Constant(3+p, precision = res_exp_prec),
+          precision = res_exp_prec
+        ),
+        zext(add_lzc, res_exp_prec_size - lzc_width), 
+        precision = res_exp_prec
+      ),
+      rounded_overflow,
+      precision = res_exp_prec,
+      tag = "res_exp_ext",
+      debug = debug_std
+    )
 
     res_exp = Truncate(res_exp_ext, precision = ML_StdLogicVectorFormat(self.precision.get_exponent_size()), tag = "res_exp", debug = debug_dec)
 
@@ -298,7 +353,7 @@ class FP_Adder(ML_Entity("fp_adder")):
     result["vr_out"] = sollya.round(vx + vy, sollya.binary16, sollya.RN)
     return result
 
-  standard_test_cases = [({"x": 1.0, "y": S2**-11}, None)]
+  standard_test_cases = [({"x": 1.0, "y": (S2**-11 + S2**-17)}, None)]
 
 
 if __name__ == "__main__":

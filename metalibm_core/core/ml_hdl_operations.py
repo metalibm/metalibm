@@ -221,6 +221,8 @@ class Wait(AbstractOperationConstructor("Wait")):
 
 class SubSignalSelection(AbstractOperationConstructor("SubSignalSelection")):
   def __init__(self, arg, inf_index, sup_index, **kw):
+    if not "precision" in kw:
+      kw["precision"] = ML_StdLogicVectorFormat(sup_index - inf_index + 1)
     SubSignalSelection.__base__.__init__(self, arg, **kw)
     self.inf_index = inf_index
     self.sup_index = sup_index
