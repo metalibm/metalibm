@@ -34,9 +34,14 @@ def include_std_logic(optree):
 def zext_modifier(optree):
   ext_input = optree.get_input(0)
   ext_size = optree.ext_size
-  precision = ML_StdLogicVectorFormat(ext_size)
-  ext_precision = ML_StdLogicVectorFormat(ext_size + ext_input.get_precision().get_bit_size())
-  return Concatenation(Constant(0, precision = precision), ext_input, precision = ext_precision, tag = optree.get_tag())
+  assert ext_size >= 0
+  if ext_size == 0:
+    Log.report(Log.Warning, "zext_modifer called with ext_size=0 on {}".format(optree.get_str()))
+    return ext_input
+  else:
+    precision = ML_StdLogicVectorFormat(ext_size)
+    ext_precision = ML_StdLogicVectorFormat(ext_size + ext_input.get_precision().get_bit_size())
+    return Concatenation(Constant(0, precision = precision), ext_input, precision = ext_precision, tag = optree.get_tag())
 
 def negation_modifer(optree):
   neg_input = optree.get_input(0)
