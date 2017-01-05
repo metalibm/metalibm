@@ -25,8 +25,16 @@ class StdLogicDirection:
     def get_descriptor(low, high):
       return "%d to %d" % (low, high)
 
+def get_2scomplement_neg(value, size):
+  value = int(abs(value))
+  assert value < (S2**(size-1) - 1)
+  return (~value+1)
+
 class ML_StdLogicVectorFormat(ML_Format):
   def __init__(self, bit_size, offset = 0, direction = StdLogicDirection.Downwards):
+    assert bit_size > 0
+    bit_size = int(bit_size)
+    offset   = int(offset)
     ML_Format.__init__(self)
     self.bit_size = bit_size
     self.name[VHDL_Code] = "std_logic_vector({direction_descriptor})".format(direction_descriptor = direction.get_descriptor(offset, offset + self.bit_size - 1))
@@ -48,13 +56,12 @@ class ML_StdLogicVectorFormat(ML_Format):
 
   def get_vhdl_cst(self, value):
     #return "\"%s\"" % bin(value)[2:].zfill(self.bit_size)
+    value = int(value)
+    value &= int(2**self.bit_size - 1)
+    assert self.bit_size > 0
     if self.bit_size % 4 == 0:
-      if value < 0:
-        return "X\"ERROR_NEG(%s)\"" % hex(value)[2:].zfill(self.bit_size / 4)
       return "X\"%s\"" % hex(value)[2:].zfill(self.bit_size / 4)
     else:
-      if value < 0:
-        return "\"ERROR_NEG(%s)\"" % bin(value)[3:].zfill(self.bit_size)
       return "\"%s\"" % bin(value)[2:].zfill(self.bit_size)
 
 class ML_StdLogicClass(ML_Format):
