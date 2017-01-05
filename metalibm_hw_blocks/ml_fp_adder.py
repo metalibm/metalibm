@@ -340,9 +340,7 @@ class FP_Adder(ML_Entity("fp_adder")):
       debug = debug_std
     )
 
-
     self.implementation.add_output_signal("vr_out", vr_out)
-
 
     return lzc_entity_list + [self.implementation]
 
