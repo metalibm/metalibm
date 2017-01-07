@@ -334,7 +334,10 @@ class ML_FormatConstructor(ML_Format):
         self.bit_size = bit_size
         self.name[C_Code] = c_name
         self.display_format[C_Code] = c_display_format
-        self.get_cst = {C_Code: get_c_cst}
+        self.get_cst_map = {C_Code: get_c_cst}
+
+    def get_cst(self, value, language = C_Code):
+        return self.get_cst_map[language](self, value)
 
     def __str__(self):
         return self.name[C_Code]

@@ -134,9 +134,16 @@ vhdl_comp_symbol = {
   Comparison.GreaterSigned: ">",
 }
 
+def get_vhdl_bool_cst(self, value):
+  if value:
+    return "true"
+  else:
+    return "false"
+
 ## Updating standard format name for VHDL Code
 ML_Integer.name[VHDL_Code] = "integer"
 ML_Bool.name[VHDL_Code] = "boolean"
+ML_Bool.get_cst_map[VHDL_Code] = get_vhdl_bool_cst
 
 # class Match custom std logic vector format
 MCSTDLOGICV = TCM(ML_StdLogicVectorFormat)
