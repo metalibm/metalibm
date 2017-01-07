@@ -136,6 +136,7 @@ vhdl_comp_symbol = {
 
 ## Updating standard format name for VHDL Code
 ML_Integer.name[VHDL_Code] = "integer"
+ML_Bool.name[VHDL_Code] = "boolean"
 
 # class Match custom std logic vector format
 MCSTDLOGICV = TCM(ML_StdLogicVectorFormat)
