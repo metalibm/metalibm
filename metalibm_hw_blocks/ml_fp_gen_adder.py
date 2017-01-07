@@ -31,8 +31,9 @@ from metalibm_core.core.ml_hdl_operations import *
 from metalibm_hw_blocks.lzc import ML_LeadingZeroCounter
 
 ## Helper for debug enabling
-debug_std = ML_Debug(display_format = " -radix 2 ")
-debug_dec = ML_Debug(display_format = " -radix 10 ")
+debug_std          = ML_Debug(display_format = " -radix 2 ")
+debug_dec          = ML_Debug(display_format = " -radix 10 ")
+debug_dec_unsigned = ML_Debug(display_format = " -decimal -unsigned ")
 
 ## Wrapper for zero extension
 # @param op the input operation tree
@@ -102,7 +103,7 @@ class FP_FMA(ML_Entity("fp_fma")):
     io_precision = VirtualFormat(base_format = self.precision, support_format = ML_StdLogicVectorFormat(self.precision.get_bit_size()), get_cst = get_virtual_cst)
     # declaring standard clock and reset input signal
     #clk = self.implementation.add_input_signal("clk", ML_StdLogic)
-    reset = self.implementation.add_input_signal("reset", ML_StdLogic)
+    # reset = self.implementation.add_input_signal("reset", ML_StdLogic)
     # declaring main input variable
     vx = self.implementation.add_input_signal("x", io_precision) 
     vy = self.implementation.add_input_signal("y", io_precision) 
@@ -168,12 +169,25 @@ class FP_FMA(ML_Entity("fp_fma")):
                 ),
                 zext(exp_vy, exp_precision_ext_size - vy_precision.get_exponent_size()), 
                 precision = exp_precision_ext,
-                tag = "exp_diff"
+                tag = "exp_diff",
+                debug = debug_std
+    )
+    signed_exp_diff = SignCast(
+      exp_diff, 
+      specifier = SignCast.Signed, 
+      precision = exp_precision_ext
     )
     datapath_full_width = exp_offset + max(o + L_x, p) + 2 + q
     max_exp_diff = datapath_full_width - q 
-    exp_diff_lt_0 = Comparison(exp_diff, Constant(0, precision = exp_precision_ext), specifier = Comparison.Less, precision = ML_Bool)
-    exp_diff_gt_max_diff = Comparison(exp_diff, Constant(max_exp_diff, precision = exp_precision_ext), specifier = Comparison.Greater, precision = ML_Bool)
+    exp_diff_lt_0 = Comparison(
+      signed_exp_diff,
+      Constant(0, precision = exp_precision_ext), 
+      specifier = Comparison.Less, 
+      precision = ML_Bool, 
+      tag = "exp_diff_lt_0", 
+      debug = debug_std
+    )
+    exp_diff_gt_max_diff = Comparison(signed_exp_diff, Constant(max_exp_diff, precision = exp_precision_ext), specifier = Comparison.Greater, precision = ML_Bool)
 
     shift_amount_prec = ML_StdLogicVectorFormat(int(floor(log2(max_exp_diff))+1))
 
@@ -242,10 +256,11 @@ class FP_FMA(ML_Entity("fp_fma")):
         specifier = Comparison.Equal,
         precision = ML_Bool
       ),
-      Negation(mant_add, precision = add_prec, tag = "neg_mant_add"),
+      Negation(mant_add, precision = add_prec, tag = "neg_mant_add", debug = debug_std),
       mant_add,
       precision = add_prec,
-      tag = "mant_add_abs"
+      tag = "mant_add_abs",
+      debug = debug_std
     )
 
     res_sign = BitLogicXor(add_is_negative, sign_vy, precision = ML_StdLogic, tag = "res_sign")
@@ -272,7 +287,7 @@ class FP_FMA(ML_Entity("fp_fma")):
 
     #add_lzc = CountLeadingZeros(mant_add, precision = lzc_prec)
     # CP stands for close path, the data path where X and Y are within 1 exp diff
-    res_normed_mant = BitLogicLeftShift(mant_add, add_lzc, precision = add_prec, tag = "res_normed_mant", debug = debug_std)
+    res_normed_mant = BitLogicLeftShift(mant_add_abs, add_lzc, precision = add_prec, tag = "res_normed_mant", debug = debug_std)
     pre_mant_field = SubSignalSelection(res_normed_mant, mant_lsb_index, datapath_full_width - 1, precision = ML_StdLogicVectorFormat(o-1))
 
     ## Helper function to extract a single bit
@@ -351,20 +366,22 @@ class FP_FMA(ML_Entity("fp_fma")):
 
     exp_vy_biased = Addition(
       zext(exp_vy, res_exp_tmp_size - vy_precision.get_exponent_size()),
-      Constant(vy_precision.get_bias(), precision = res_exp_tmp_prec),
+      Constant(vy_precision.get_bias() + 1, precision = res_exp_tmp_prec),
       precision = res_exp_tmp_prec,
-      tag = "exp_vy_biased"
+      tag = "exp_vy_biased",
+      debug = debug_dec
     )
     # vx's exponent is biased with the format bias
     # plus the exponent offset so it is left align to datapath MSB
     exp_vx_biased = Addition(
       zext(exp_vx, res_exp_tmp_size - vx_precision.get_exponent_size()),
       Constant(
-        vx_precision.get_bias() + exp_offset, 
+        vx_precision.get_bias() + exp_offset + 1, 
         precision = res_exp_tmp_prec
       ),
       precision = res_exp_tmp_prec,
-      tag = "exp_vx_biased"
+      tag = "exp_vx_biased",
+      debug = debug_dec
     )
 
     # If exp diff is less than 0, then we must consider that vy's exponent is
@@ -375,7 +392,8 @@ class FP_FMA(ML_Entity("fp_fma")):
       exp_vy_biased,
       exp_vx_biased,
       precision = res_exp_tmp_prec,
-      tag = "res_exp_base"
+      tag = "res_exp_base",
+      debug = debug_dec
     )
 
     # Eventually we add the result exponent base 
@@ -384,7 +402,7 @@ class FP_FMA(ML_Entity("fp_fma")):
       Subtraction(
         Addition(
           zext(res_exp_base, 0),
-          Constant(result_precision.get_bias(), precision = res_exp_tmp_prec),
+          Constant(-result_precision.get_bias(), precision = res_exp_tmp_prec),
           precision = res_exp_tmp_prec
         ),
         zext(add_lzc, res_exp_tmp_size - lzc_width), 
@@ -398,7 +416,7 @@ class FP_FMA(ML_Entity("fp_fma")):
 
     res_exp_prec = ML_StdLogicVectorFormat(result_precision.get_exponent_size())
 
-    res_exp = Truncate(res_exp_ext, precision = res_exp_prec, tag = "res_exp", debug = debug_dec)
+    res_exp = Truncate(res_exp_ext, precision = res_exp_prec, tag = "res_exp", debug = debug_dec_unsigned)
 
     vr_out = TypeCast(
       FloatBuild(
@@ -420,10 +438,24 @@ class FP_FMA(ML_Entity("fp_fma")):
     vx = io_map["x"]
     vy = io_map["y"]
     result = {}
+    print "vx, vy"
+    print vx, vx.__class__
+    print vy, vy.__class__
     result["vr_out"] = sollya.round(vx + vy, self.precision.get_sollya_object(), sollya.RN)
     return result
 
-  standard_test_cases = [({"x": 1.0, "y": (S2**-11 + S2**-17)}, None)]
+  # standard_test_cases = [({"x": 1.0, "y": (S2**-11 + S2**-17)}, None)]
+  standard_test_cases = [
+    #({"x": 1.0, "y": (S2**-53 + S2**-54)}, None)
+    #({
+    #  "y": ML_Binary64.get_value_from_integer_coding("47d273e91e2c9048", base = 16),
+    #  "x": ML_Binary64.get_value_from_integer_coding("c7eea5670485a5ec", base = 16)
+    #}, None)
+    ({
+      "y": ML_Binary64.get_value_from_integer_coding("75164a1df94cd488", base = 16),
+      "x": ML_Binary64.get_value_from_integer_coding("5a7567b08508e5b4", base = 16)
+    }, None)
+  ]
 
 
 if __name__ == "__main__":
