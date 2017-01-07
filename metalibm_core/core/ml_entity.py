@@ -466,15 +466,22 @@ class ML_EntityBasis(object):
     raise NotImplementedError
 
   def generate_auto_test(self, test_num = 10, test_range = Interval(-1.0, 1.0), debug = False):
+    # extracting test interval boundaries
+    low_input = inf(test_range)
+    high_input = sup(test_range)
     # instanciating tested component
     io_map = {}
     input_signals = {}
     output_signals = {}
-    for input_port in self.implementation.get_arg_list():
+    # excluding clock and reset signals from argument list
+    # reduced_arg_list = [input_port for input_port in self.implementation.get_arg_list() if not input_port.get_tag() in ["clk", "reset"]]
+    reduced_arg_list = self.implementation.get_arg_list()
+    for input_port in reduced_arg_list:
       input_tag = input_port.get_tag()
       input_signal = Signal(input_tag + "_i", precision = input_port.get_precision(), var_type = Signal.Local)
       io_map[input_tag] = input_signal
-      input_signals[input_tag] = input_signal
+      if not input_tag in ["clk", "reset"]:
+        input_signals[input_tag] = input_signal
     for output_port in self.implementation.get_output_port():
       output_tag = output_port.get_tag()
       output_signal = Signal(output_tag + "_o", precision = output_port.get_precision(), var_type = Signal.Local)
@@ -486,6 +493,7 @@ class ML_EntityBasis(object):
 
     test_statement = Statement()
 
+
     # building list of test cases
     tc_list = []
     for i in range(test_num):
@@ -493,8 +501,12 @@ class ML_EntityBasis(object):
       for input_tag in input_signals:
         input_signal = io_map[input_tag]
         # FIXME: correct value generation depending on signal precision
-        input_size = input_signal.get_precision().get_base_format().get_bit_size()
-        input_value = random.randrange(2**input_size)
+        input_precision = input_signal.get_precision().get_base_format()
+        input_size = input_precision.get_bit_size()
+        # input_value = random.uniform(low_input, high_input)
+        input_value = random.uniform(1.0, 2.0) * S2**random.randrange(input_precision.get_emin_normal(), input_precision.get_emax())
+        print("input_value %e" % input_value)
+        input_value = round(input_value, input_precision.get_sollya_object(), RN)
         input_values[input_tag] = input_value
       tc_list.append((input_values,None))
 
@@ -517,6 +529,7 @@ class ML_EntityBasis(object):
       for output_tag in output_signals:
         output_signal = output_signals[output_tag]
         output_value  = Constant(output_values[output_tag], precision = output_signal.get_precision())
+        value_msg = output_signal.get_precision().get_cst(output_values[output_tag], language = VHDL_Code).replace('"',"'")
         test_statement.add(
           Assert(
             Comparison(
@@ -525,7 +538,7 @@ class ML_EntityBasis(object):
               specifier = Comparison.Equal, 
               precision = ML_Bool
             ),
-            "unexpected value for output %s " % output_tag,
+            "unexpected value for output %s, expecting %s " % (output_tag, value_msg),
             severity = Assert.Failure
           )
         )
