@@ -22,6 +22,16 @@ S2 = sollya.SollyaObject(2)
 ml_nan   = sollya.parse("nan")
 ml_infty = sollya.parse("infty")
 
+def get_sollya_from_long(v):
+  result = sollya.SollyaObject(0)
+  power  = sollya.SollyaObject(1)
+  base = S2**16
+  while v:
+    v, r = divmod(v, int(base))
+    result += int(r) * power 
+    power *= base
+  return result 
+
 ## class for floating-point exception
 class ML_FloatingPointException: pass
 
@@ -203,7 +213,7 @@ class ML_Std_FP_Format(ML_FP_Format):
         return self.name[C_Code]
 
     def get_bias(self):
-        return - S2**(self.get_exponent_size() - 1) + 1
+        return - 2**(self.get_exponent_size() - 1) + 1
 
     def get_emax(self):
         return 2**self.get_exponent_size() - 2 + self.get_bias()
@@ -220,9 +230,17 @@ class ML_Std_FP_Format(ML_FP_Format):
         exp   = int(sollya.floor(sollya.log2(value)))
         exp_biased = int(exp - self.get_bias())
         mant = int((value / S2**exp - 1.0) / (S2**-self.get_field_size()))
-        print("converting {} to {},{},{}".format(value, sign, exp_biased, mant))
         return mant | (exp_biased << self.get_field_size()) | (sign << (self.get_field_size() + self.get_exponent_size()))
 
+    def get_value_from_integer_coding(self, value, base = 10):
+      value = int(value, base)
+      mantissa = value & (2**self.get_field_size() - 1)
+      exponent = ((value >> self.get_field_size()) & (2**self.get_exponent_size() - 1)) + self.get_bias()
+      sign_bit = value >> (self.get_field_size() + self.get_exponent_size())
+      sign = -1.0 if sign_bit != 0 else 1.0
+      mantissa_value = get_sollya_from_long(mantissa)
+      return sign * S2**int(exponent) * (1.0 + mantissa_value * S2**-self.get_field_size())
+  
     # @return<SollyaObject> the format omega value, the maximal normal value
     def get_omega(self):
         return S2**self.get_emax() * (2 - S2**-self.get_field_size())
