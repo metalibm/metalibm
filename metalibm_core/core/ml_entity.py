@@ -546,7 +546,13 @@ class ML_EntityBasis(object):
 
     testbench = CodeEntity("testbench") 
     test_process = Process(
-      test_statement
+      test_statement,
+      # end of test
+      Assert(
+        Constant(0, precision = ML_Bool),
+        " end of test, no error encountered",
+        severity = Assert.Failure
+      )
     )
 
     testbench_scheme = Statement(
