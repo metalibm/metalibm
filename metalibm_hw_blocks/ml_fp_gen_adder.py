@@ -446,11 +446,11 @@ class FP_FMA(ML_Entity("fp_fma")):
 
   # standard_test_cases = [({"x": 1.0, "y": (S2**-11 + S2**-17)}, None)]
   standard_test_cases = [
-    #({"x": 1.0, "y": (S2**-53 + S2**-54)}, None)
-    #({
-    #  "y": ML_Binary64.get_value_from_integer_coding("47d273e91e2c9048", base = 16),
-    #  "x": ML_Binary64.get_value_from_integer_coding("c7eea5670485a5ec", base = 16)
-    #}, None)
+    ({"x": 1.0, "y": (S2**-53 + S2**-54)}, None),
+    ({
+      "y": ML_Binary64.get_value_from_integer_coding("47d273e91e2c9048", base = 16),
+      "x": ML_Binary64.get_value_from_integer_coding("c7eea5670485a5ec", base = 16)
+    }, None),
     ({
       "y": ML_Binary64.get_value_from_integer_coding("75164a1df94cd488", base = 16),
       "x": ML_Binary64.get_value_from_integer_coding("5a7567b08508e5b4", base = 16)
