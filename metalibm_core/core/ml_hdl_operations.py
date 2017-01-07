@@ -219,6 +219,18 @@ class Wait(AbstractOperationConstructor("Wait")):
   def finish_copy(self, new_copy, copy_map = {}):
     new_copy.time_ns = self.time_ns
 
+class SignCast(TypeCast):
+  class Signed: pass # 
+  class Unsigned: pass
+  def __init__(self, arg, specifier = None, **kw):
+    TypeCast.__init__(self, arg, **kw)
+    self.specifier = specifier
+  def get_codegen_key(self):
+    return self.specifier
+
+  def finish_copy(self, new_copy, copy_map = {}):
+    new_copy.specifier = self.specifier
+
 class SubSignalSelection(AbstractOperationConstructor("SubSignalSelection")):
   def __init__(self, arg, inf_index, sup_index, **kw):
     if not "precision" in kw:

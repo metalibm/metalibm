@@ -345,13 +345,18 @@ vhdl_code_generation_table = {
       },
     },
   },
-  #FloatBuild: {
-  #  None: {
-  #    lambda optree: {
-  #      type_custom_match(FSM(Binary32), FSM(ML_StdLogic), TCM(ML_StdLogicVectorFormat), TCM(ML_StdLogicVectorFormat)): ComplexOperator 
-  #    },
-  #  },
-  #},
+  SignCast: {
+    SignCast.Signed: {
+      lambda optree: True: {
+        type_custom_match(MCSTDLOGICV, MCSTDLOGICV): FunctionOperator("signed", arity = 1),
+      },
+    },
+    SignCast.Unsigned: {
+      lambda optree: True: {
+        type_custom_match(MCSTDLOGICV, MCSTDLOGICV): FunctionOperator("unsigned", arity = 1),
+      },
+    },
+  },
   TypeCast: {
     None: {
       lambda optree: True: {
