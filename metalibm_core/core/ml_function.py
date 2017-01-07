@@ -569,7 +569,9 @@ class ML_FunctionBasis(object):
 
     # random test cases
     for i in range(test_num):
-      input_value = round(low_input + (random.randrange(2**32 + 1) / float(2**32)) * interval_size, sollya_precision, RN) 
+      input_value = random.uniform(low_input, high_input)
+      input_value = round(input_value, sollya_precision, RN)
+      #input_value = round(low_input + (random.randrange(2**32 + 1) / float(2**32)) * interval_size, sollya_precision, RN) 
       input_table[table_index] = input_value
       # FIXME only valid for faithful evaluation
       output_table[table_index][0] = round(self.numeric_emulate(input_value), sollya_precision, RD)
