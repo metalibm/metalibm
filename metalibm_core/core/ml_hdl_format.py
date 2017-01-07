@@ -60,9 +60,9 @@ class ML_StdLogicVectorFormat(ML_Format):
     value &= int(2**self.bit_size - 1)
     assert self.bit_size > 0
     if self.bit_size % 4 == 0:
-      return "X\"%s\"" % hex(value)[2:].zfill(self.bit_size / 4)
+      return "X\"%s\"" % hex(value)[2:].replace("L","").zfill(self.bit_size / 4)
     else:
-      return "\"%s\"" % bin(value)[2:].zfill(self.bit_size)
+      return "\"%s\"" % bin(value)[2:].replace("L","").zfill(self.bit_size)
 
 class ML_StdLogicClass(ML_Format):
   def __init__(self):
