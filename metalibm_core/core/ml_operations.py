@@ -1018,6 +1018,10 @@ class Comparison(ArithmeticOperationConstructor("Comparison", arity = 2, inherit
     LessOrEqual    = CompSpecBuilder("LessOrEqual", "le", "<=")
     Greater        = CompSpecBuilder("Greater", "gt", ">")
     GreaterOrEqual = CompSpecBuilder("GreaterOrEqual", "ge", ">=")
+    LessSigned           = CompSpecBuilder("LessSigned",  "lt", "<")
+    LessOrEqualSigned    = CompSpecBuilder("LessOrEqualSigned", "le", "<=")
+    GreaterSigned        = CompSpecBuilder("GreaterSigned", "gt", ">")
+    GreaterOrEqualSigned = CompSpecBuilder("GreaterOrEqualSigned", "ge", ">=")
 
 
     def __init__(self, *args, **kwords):

@@ -127,7 +127,11 @@ vhdl_comp_symbol = {
   Comparison.Less: "<",
   Comparison.LessOrEqual: "<=",
   Comparison.GreaterOrEqual: ">=",
-  Comparison.Greater: ">"
+  Comparison.Greater: ">",
+  Comparison.LessSigned: "<",
+  Comparison.LessOrEqualSigned: "<=",
+  Comparison.GreaterOrEqualSigned: ">=",
+  Comparison.GreaterSigned: ">",
 }
 
 ## Updating standard format name for VHDL Code
@@ -215,7 +219,7 @@ vhdl_code_generation_table = {
   },
   Comparison: 
       dict (
-        (specifier,
+        [(specifier,
           { 
               lambda _: True: {
                   type_custom_match(FSM(ML_Bool), FSM(ML_Binary64), FSM(ML_Binary64)): 
@@ -230,7 +234,16 @@ vhdl_code_generation_table = {
                     SymbolOperator(vhdl_comp_symbol[specifier], arity = 2, force_folding = False),
               },
               #build_simplified_operator_generation([ML_Int32, ML_Int64, ML_UInt64, ML_UInt32, ML_Binary32, ML_Binary64], 2, SymbolOperator(">=", arity = 2), result_precision = ML_Int32),
-          }) for specifier in [Comparison.Equal, Comparison.NotEqual, Comparison.Greater, Comparison.GreaterOrEqual, Comparison.Less, Comparison.LessOrEqual]
+          }) for specifier in [Comparison.Equal, Comparison.NotEqual, Comparison.Greater, Comparison.GreaterOrEqual, Comparison.Less, Comparison.LessOrEqual]] 
+          + 
+          [(specifier, 
+            { 
+                lambda _: True: {
+                    type_custom_match(FSM(ML_Bool), TCM(ML_StdLogicVectorFormat), TCM(ML_StdLogicVectorFormat)): 
+                      TemplateOperator("signed(%%s) %s signed(%%s)" % vhdl_comp_symbol[specifier], arity = 2, force_folding = False),
+                },
+            }) for specifier in [Comparison.GreaterSigned, Comparison.GreaterOrEqualSigned, Comparison.LessSigned, Comparison.LessOrEqualSigned] 
+          ]
   ),
   ExponentExtraction: {
     None: {
