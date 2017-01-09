@@ -193,8 +193,14 @@ vhdl_code_generation_table = {
       {
         type_custom_match(MCSTDLOGICV, MCSTDLOGICV, MCSTDLOGICV):  SymbolOperator("-", arity = 2, force_folding = True),
       }
-      
     }
+  },
+  Multiplication: {
+    None: {
+      lambda optree: True: {
+        type_custom_match(MCSTDLOGICV, MCSTDLOGICV, MCSTDLOGICV): SymbolOperator("*", arity = 2, force_folding = True),
+      },
+    },
   },
   BitLogicNegate: {
     None: {
