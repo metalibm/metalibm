@@ -53,7 +53,7 @@ def rzext(optree, ext_size):
   out_format = ML_StdLogicVectorFormat(op_size + ext_size)
   return Concatenation(optree, Constant(0, precision = ext_format), precision = out_format)
 
-class FP_FMA(ML_Entity("fp_fma")):
+class FP_MPFMA(ML_Entity("fp_mpfma")):
   def __init__(self, 
              arg_template = DefaultEntityArgTemplate, 
              precision = ML_Binary32, 
@@ -63,8 +63,8 @@ class FP_FMA(ML_Entity("fp_fma")):
              fuse_fma = True, 
              fast_path_extract = True,
              target = VHDLBackend(), 
-             output_file = "fp_fma.vhd", 
-             entity_name = "fp_fma",
+             output_file = "fp_mpfma.vhd", 
+             entity_name = "fp_mpfma",
              language = VHDL_Code,
              vector_size = 1):
     # initializing I/O precision
@@ -73,7 +73,7 @@ class FP_FMA(ML_Entity("fp_fma")):
 
     # initializing base class
     ML_EntityBasis.__init__(self, 
-      base_name = "fp_fma",
+      base_name = "fp_mpfma",
       entity_name = entity_name,
       output_file = output_file,
 
@@ -93,6 +93,7 @@ class FP_FMA(ML_Entity("fp_fma")):
     self.precision = precision
 
   def generate_scheme(self):
+    ## Generate Fused multiply and add comput <x> . <y> + <z>
 
     def get_virtual_cst(prec, value, language):
       return prec.get_support_format().get_cst(
@@ -107,9 +108,11 @@ class FP_FMA(ML_Entity("fp_fma")):
     # declaring main input variable
     vx = self.implementation.add_input_signal("x", io_precision) 
     vy = self.implementation.add_input_signal("y", io_precision) 
+    vz = self.implementation.add_input_signal("z", io_precision)
 
     vx_precision     = self.precision
     vy_precision     = self.precision
+    vz_precision     = self.precision
     result_precision = self.precision
 
     # precision for first operand vx which is to be statically 
@@ -117,6 +120,8 @@ class FP_FMA(ML_Entity("fp_fma")):
     p = vx_precision.get_mantissa_size()
     # precision for second operand vy which is to be dynamically shifted
     q = vy_precision.get_mantissa_size()
+    # precision for
+    r = vz_precision.get_mantissa_size()
     # precision of output
     o = result_precision.get_mantissa_size()
 
@@ -125,36 +130,63 @@ class FP_FMA(ML_Entity("fp_fma")):
     # (1 guard bit and 1 rounding bit)
     exp_vx_precision     = ML_StdLogicVectorFormat(vx_precision.get_exponent_size())
     exp_vy_precision     = ML_StdLogicVectorFormat(vy_precision.get_exponent_size())
+    exp_vz_precision     = ML_StdLogicVectorFormat(vz_precision.get_exponent_size())
 
     mant_vx_precision    = ML_StdLogicVectorFormat(p-1)
     mant_vy_precision    = ML_StdLogicVectorFormat(q-1)
+    mant_vz_precision    = ML_StdLogicVectorFormat(r-1)
 
     mant_vx = MantissaExtraction(vx, precision = mant_vx_precision)
     mant_vy = MantissaExtraction(vy, precision = mant_vy_precision)
+    mant_vz = MantissaExtraction(vz, precision = mant_vz_precision)
     
     exp_vx = ExponentExtraction(vx, precision = exp_vx_precision)
     exp_vy = ExponentExtraction(vy, precision = exp_vy_precision)
+    exp_vz = ExponentExtraction(vz, precision = exp_vz_precision)
 
-    # Maximum number of leading zero for normalized <vx>
+    # Maximum number of leading zero for normalized <vx> mantissa
     L_x = 0
-    # Maximum number of leading zero for normalized <vy>
+    # Maximum number of leading zero for normalized <vy> mantissa
     L_y = 0
+    # Maximum number of leading zero for normalized <vz> mantissa
+    L_z = 0
+    # Maximum number of leading zero for the product of <x>.<y>
+    # mantissa. 
+    L_xy = L_x + L_y + 1
 
     sign_vx = CopySign(vx, precision = ML_StdLogic)
     sign_vy = CopySign(vy, precision = ML_StdLogic)
+    sign_vz = CopySign(vz, precision = ML_StdLogic)
 
     # determining if the operation is an addition (effective_op = '0')
     # or a subtraction (effective_op = '1')
-    effective_op = BitLogicXor(sign_vx, sign_vy, precision = ML_StdLogic, tag = "effective_op", debug = ML_Debug(display_format = "-radix 2"))
+    sign_xy = BitLogicXor(sign_vx, sign_vy, precision = ML_StdLogic, tag = "sign_xy", debug = ML_Debug(display_format = "-radix 2"))
+    effective_op = BitLogicXor(sign_xy, sign_vz, precision = ML_StdLogic, tag = "effective_op", debug = ML_Debug(display_format = "-radix 2"))
 
     exp_vx_bias = vx_precision.get_bias()
     exp_vy_bias = vy_precision.get_bias()
+    exp_vz_bias = vz_precision.get_bias()
 
-    exp_offset = max(o+L_y,q)+2
-    exp_bias = exp_offset + exp_vx_bias - exp_vy_bias
+    # x.y is statically positionned in the datapath
+    # while z is shifted
+    # This is justified by the fact that z alignment may be performed
+    # in parallel with the multiplication of x and y mantissas
+    # The product is positionned <exp_offset>-bit to the right of datapath MSB
+    # (without including an extra carry bit)
+    exp_offset = max(o+L_z,r)+2
+    exp_bias = exp_offset + (exp_vx_bias + exp_vy_bias) - exp_vz_bias
+
+    # because of the mantissa range [1, 2[, the product exponent
+    # is located one bit to the right (lower) of the product MSB
+    prod_exp_offset = 1
+
     # Determine a working precision to accomodate exponent difference
     # FIXME: check interval and exponent operations size
-    exp_precision_ext_size = max(vx_precision.get_exponent_size(), vy_precision.get_exponent_size()) + 2
+    exp_precision_ext_size = max(
+      vx_precision.get_exponent_size(), 
+      vy_precision.get_exponent_size(),
+      vz_precision.get_exponent_size()
+    ) + 2
     exp_precision_ext = ML_StdLogicVectorFormat(exp_precision_ext_size)
     # Y is first aligned offset = max(o+L_y,q) + 2 bits to the left of x 
     # and then shifted right by 
@@ -163,11 +195,15 @@ class FP_FMA(ML_Entity("fp_fma")):
     # exp_vx - exp_vx + p +2 in [emin-emax + p + 2, emax - emin + p + 2]
     exp_diff = Subtraction(
                 Addition(
-                  zext(exp_vx, exp_precision_ext_size - vx_precision.get_exponent_size()), 
-                  Constant(exp_bias, precision = exp_precision_ext),
+                  Addition(
+                    zext(exp_vy, exp_precision_ext_size - vy_precision.get_exponent_size()), 
+                    zext(exp_vx, exp_precision_ext_size - vx_precision.get_exponent_size()), 
+                    precision = exp_precision_ext
+                  ),
+                  Constant(exp_bias + prod_exp_offset, precision = exp_precision_ext),
                   precision = exp_precision_ext
                 ),
-                zext(exp_vy, exp_precision_ext_size - vy_precision.get_exponent_size()), 
+                zext(exp_vz, exp_precision_ext_size - vz_precision.get_exponent_size()), 
                 precision = exp_precision_ext,
                 tag = "exp_diff",
                 debug = debug_std
@@ -177,8 +213,8 @@ class FP_FMA(ML_Entity("fp_fma")):
       specifier = SignCast.Signed, 
       precision = exp_precision_ext
     )
-    datapath_full_width = exp_offset + max(o + L_x, p) + 2 + q
-    max_exp_diff = datapath_full_width - q 
+    datapath_full_width = exp_offset + max(o + L_xy, p + q) + 2 + r
+    max_exp_diff = datapath_full_width - r
     exp_diff_lt_0 = Comparison(
       signed_exp_diff,
       Constant(0, precision = exp_precision_ext), 
@@ -205,33 +241,60 @@ class FP_FMA(ML_Entity("fp_fma")):
       debug = ML_Debug(display_format = "-radix 10")
     )
 
+    prod_prec = ML_StdLogicVectorFormat(p+q)
+    prod = Multiplication(
+      mant_vx,
+      mant_vy,
+      precision = prod_prec,
+      tag = "prod",
+      debug = debug_std
+    )
+
     mant_ext_size = max_exp_diff
     shift_prec = ML_StdLogicVectorFormat(datapath_full_width)
-    shifted_mant_vy = BitLogicRightShift(rzext(mant_vy, mant_ext_size), mant_shift, precision = shift_prec, tag = "shifted_mant_vy", debug = debug_std)
+    shifted_mant_vz = BitLogicRightShift(rzext(mant_vz, mant_ext_size), mant_shift, precision = shift_prec, tag = "shifted_mant_vz", debug = debug_std)
     # vx is right-extended by q+2 bits
     # and left extend by exp_offset
-    mant_vx_ext = zext(rzext(mant_vx, q+2), exp_offset+1)
+    prod_ext = zext(rzext(prod, r+2), exp_offset+1)
 
     add_prec = ML_StdLogicVectorFormat(datapath_full_width + 1)
 
-    mant_vx_add_op = Select(
+    ## Here we make the supposition that 
+    #  the product is slower to compute than 
+    #  aligning <vz> and negating it if necessary
+    #  which means that mant_add as the same sign as the product
+    #prod_add_op = Select(
+    #  Comparison(
+    #    effective_op,
+    #    Constant(1, precision = ML_StdLogic),
+    #    precision = ML_Bool,
+    #    specifier = Comparison.Equal
+    #  ),
+    #  Negation(prod_ext, precision = add_prec, tag = "neg_prod"),
+    #  prod_ext,
+    #  precision = add_prec,
+    #  tag = "prod_add_op",
+    #  debug = ML_Debug(display_format = " ")
+    #)
+    addend_op = Select(
       Comparison(
         effective_op,
         Constant(1, precision = ML_StdLogic),
         precision = ML_Bool,
         specifier = Comparison.Equal
       ),
-      Negation(mant_vx_ext, precision = add_prec, tag = "neg_mant_vx"),
-      mant_vx_ext,
+      Negation(zext(shifted_mant_vz, 1), precision = add_prec, tag = "neg_addend_Op"),
+      zext(shifted_mant_vz, 1),
       precision = add_prec,
-      tag = "mant_vx_add_op",
-      debug = ML_Debug(display_format = " ")
+      tag = "addend_op",
+      debug = debug_std
     )
-      
+
+    prod_add_op = prod_ext
 
     mant_add = Addition(
-                 zext(shifted_mant_vy, 1),
-                 mant_vx_add_op,
+                 addend_op,
+                 prod_add_op,
                  precision = add_prec,
                  tag = "mant_add",
                  debug = ML_Debug(display_format = " -radix 2")
@@ -263,7 +326,9 @@ class FP_FMA(ML_Entity("fp_fma")):
       debug = debug_std
     )
 
-    res_sign = BitLogicXor(add_is_negative, sign_vy, precision = ML_StdLogic, tag = "res_sign")
+    # determining result sign, mant_add
+    # as the same sign as the product
+    res_sign = BitLogicXor(add_is_negative, sign_xy, precision = ML_StdLogic, tag = "res_sign")
 
     # Precision for leading zero count
     lzc_width = int(floor(log2(datapath_full_width + 1)) + 1)
@@ -276,8 +341,7 @@ class FP_FMA(ML_Entity("fp_fma")):
 
     lzc_component = lzc_implementation.get_component_object()
 
-    #lzc_in = SubSignalSelection(mant_add, p+1, 2*p+3)
-    lzc_in = mant_add_abs # SubSignalSelection(mant_add_abs, 0, 3*p+3, precision = ML_StdLogicVectorFormat(3*p+4))
+    lzc_in = mant_add_abs 
 
     add_lzc = Signal("add_lzc", precision = lzc_prec, var_type = Signal.Local, debug = debug_dec)
     add_lzc = PlaceHolder(add_lzc, lzc_component(io_map = {"x": lzc_in, "vr_out": add_lzc}))
@@ -360,37 +424,62 @@ class FP_FMA(ML_Entity("fp_fma")):
     )
 
 
-    res_exp_tmp_size = max(vx_precision.get_exponent_size(), vy_precision.get_exponent_size()) + 2
+    res_exp_tmp_size = max(
+      vx_precision.get_exponent_size(), 
+      vy_precision.get_exponent_size(),
+      vz_precision.get_exponent_size()
+    ) + 2
 
     res_exp_tmp_prec = ML_StdLogicVectorFormat(res_exp_tmp_size)
 
-    exp_vy_biased = Addition(
-      zext(exp_vy, res_exp_tmp_size - vy_precision.get_exponent_size()),
-      Constant(vy_precision.get_bias() + 1, precision = res_exp_tmp_prec),
+    # Product biased exponent
+    # is computed from both x and y exponent
+    exp_xy_biased = Addition(
+      Addition(
+        Addition(
+          zext(exp_vy, res_exp_tmp_size - vy_precision.get_exponent_size()),
+          Constant(vy_precision.get_bias(), precision = res_exp_tmp_prec),
+          precision = res_exp_tmp_prec,
+          tag = "exp_vy_biased",
+          debug = debug_dec
+        ),
+        Addition(
+          zext(exp_vx, res_exp_tmp_size - vx_precision.get_exponent_size()),
+          Constant(vx_precision.get_bias(), precision = res_exp_tmp_prec),
+          precision = res_exp_tmp_prec,
+          tag = "exp_vx_biased",
+          debug = debug_dec
+        ),
+        precision = res_exp_tmp_prec
+      ),
+      Constant(
+        exp_offset + 1,
+        precision = res_exp_tmp_prec,
+      ),
       precision = res_exp_tmp_prec,
-      tag = "exp_vy_biased",
+      tag = "exp_xy_biased",
       debug = debug_dec
     )
-    # vx's exponent is biased with the format bias
+    # vz's exponent is biased with the format bias
     # plus the exponent offset so it is left align to datapath MSB
-    exp_vx_biased = Addition(
-      zext(exp_vx, res_exp_tmp_size - vx_precision.get_exponent_size()),
+    exp_vz_biased = Addition(
+      zext(exp_vz, res_exp_tmp_size - vz_precision.get_exponent_size()),
       Constant(
-        vx_precision.get_bias() + exp_offset + 1, 
+        vz_precision.get_bias() + 1,# + exp_offset + 1, 
         precision = res_exp_tmp_prec
       ),
       precision = res_exp_tmp_prec,
-      tag = "exp_vx_biased",
+      tag = "exp_vz_biased",
       debug = debug_dec
     )
 
-    # If exp diff is less than 0, then we must consider that vy's exponent is
+    # If exp diff is less than 0, then we must consider that vz's exponent is
     # the meaningful one and thus compute result exponent with respect
-    # to vy's exponent value
+    # to vz's exponent value
     res_exp_base = Select(
       exp_diff_lt_0,
-      exp_vy_biased,
-      exp_vx_biased,
+      exp_vz_biased,
+      exp_xy_biased,
       precision = res_exp_tmp_prec,
       tag = "res_exp_base",
       debug = debug_dec
@@ -437,33 +526,36 @@ class FP_FMA(ML_Entity("fp_fma")):
   def numeric_emulate(self, io_map):
     vx = io_map["x"]
     vy = io_map["y"]
+    vz = io_map["z"]
     result = {}
-    print "vx, vy"
-    print vx, vx.__class__
-    print vy, vy.__class__
-    result["vr_out"] = sollya.round(vx + vy, self.precision.get_sollya_object(), sollya.RN)
+    result["vr_out"] = sollya.round(vx * vy + vz, self.precision.get_sollya_object(), sollya.RN)
     return result
 
   # standard_test_cases = [({"x": 1.0, "y": (S2**-11 + S2**-17)}, None)]
   standard_test_cases = [
-    ({"x": 1.0, "y": (S2**-53 + S2**-54)}, None),
+    #({"x": 2.0, "y": 4.0, "z": 16.0}, None),
     ({
-      "y": ML_Binary64.get_value_from_integer_coding("47d273e91e2c9048", base = 16),
-      "x": ML_Binary64.get_value_from_integer_coding("c7eea5670485a5ec", base = 16)
+      "y": ML_Binary16.get_value_from_integer_coding("2cdc", base = 16),
+      "x": ML_Binary16.get_value_from_integer_coding("1231", base = 16),
+      "z": ML_Binary16.get_value_from_integer_coding("5b5e", base = 16),
     }, None),
-    ({
-      "y": ML_Binary64.get_value_from_integer_coding("75164a1df94cd488", base = 16),
-      "x": ML_Binary64.get_value_from_integer_coding("5a7567b08508e5b4", base = 16)
-    }, None)
+    #({
+    #  "y": ML_Binary64.get_value_from_integer_coding("47d273e91e2c9048", base = 16),
+    #  "x": ML_Binary64.get_value_from_integer_coding("c7eea5670485a5ec", base = 16)
+    #}, None),
+    #({
+    #  "y": ML_Binary64.get_value_from_integer_coding("75164a1df94cd488", base = 16),
+    #  "x": ML_Binary64.get_value_from_integer_coding("5a7567b08508e5b4", base = 16)
+    #}, None)
   ]
 
 
 if __name__ == "__main__":
     # auto-test
-    arg_template = ML_EntityArgTemplate(default_entity_name = "new_fp_fma", default_output_file = "ml_fp_fma.vhd" )
+    arg_template = ML_EntityArgTemplate(default_entity_name = "new_fp_mpfma", default_output_file = "ml_fp_mpfma.vhd" )
     # argument extraction 
     args = parse_arg_index_list = arg_template.arg_extraction()
 
-    ml_hw_fma      = FP_FMA(args)
+    ml_hw_mpfma      = FP_MPFMA(args)
 
-    ml_hw_fma.gen_implementation()
+    ml_hw_mpfma.gen_implementation()
