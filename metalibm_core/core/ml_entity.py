@@ -43,6 +43,14 @@ import subprocess
 ## @{
 
 
+# return a random value in the given @p interval
+# Samplin is done uniformly on value exponent, 
+# not on the value itself
+def random_log_sample(interval):
+  lo = inf(interval)
+  hi = sup(interval)
+
+
   
 ## default argument template to be used when no specific value
 #  are given for a specific parameter
@@ -504,7 +512,9 @@ class ML_EntityBasis(object):
         input_precision = input_signal.get_precision().get_base_format()
         input_size = input_precision.get_bit_size()
         # input_value = random.uniform(low_input, high_input)
-        input_value = random.uniform(1.0, 2.0) * S2**random.randrange(input_precision.get_emin_normal(), input_precision.get_emax())
+        low_input_exp = int(floor(log2(abs(low_input))))
+        high_input_exp = int(floor(log2(abs(high_input))))
+        input_value = random.uniform(0.5, 1.0) * S2**random.randrange(input_precision.get_emin_normal(), 1) * (high_input - low_input) + low_input
         print("input_value %e" % input_value)
         input_value = round(input_value, input_precision.get_sollya_object(), RN)
         input_values[input_tag] = input_value
