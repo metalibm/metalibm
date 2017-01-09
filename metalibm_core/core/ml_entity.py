@@ -514,9 +514,12 @@ class ML_EntityBasis(object):
         # input_value = random.uniform(low_input, high_input)
         low_input_exp = int(floor(log2(abs(low_input))))
         high_input_exp = int(floor(log2(abs(high_input))))
-        input_value = random.uniform(0.5, 1.0) * S2**random.randrange(input_precision.get_emin_normal(), 1) * (high_input - low_input) + low_input
+        if isinstance(input_precision, ML_FP_Format):
+          input_value = random.uniform(0.5, 1.0) * S2**random.randrange(input_precision.get_emin_normal(), 1) * (high_input - low_input) + low_input
+          input_value = round(input_value, input_precision.get_sollya_object(), RN)
+        else: 
+          input_value = random.randrange(2**input_precision.get_bit_size())
         print("input_value %e" % input_value)
-        input_value = round(input_value, input_precision.get_sollya_object(), RN)
         input_values[input_tag] = input_value
       tc_list.append((input_values,None))
 

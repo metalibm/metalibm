@@ -95,6 +95,12 @@ class FP_FIXED_MPFMA(ML_Entity("fp_fixed_mpfma")):
     # number of extra bits to add to the accumulator fixed precision
     self.extra_digit = extra_digit
 
+    min_prod_exp = self.precision.get_emin_subnormal() * 2
+    self.acc_lsb_index = min_prod_exp
+
+  def get_acc_lsb_index(self):
+    return self.acc_lsb_index
+
   def generate_scheme(self):
     ## Generate Fused multiply and add comput <x> . <y> + <z>
 
@@ -296,27 +302,16 @@ class FP_FIXED_MPFMA(ML_Entity("fp_fixed_mpfma")):
   def numeric_emulate(self, io_map):
     vx = io_map["x"]
     vy = io_map["y"]
-    vz = io_map["z"]
+    acc = io_map["acc"]
     result = {}
-    result["vr_out"] = sollya.round(vx * vy + vz, self.precision.get_sollya_object(), sollya.RN)
+    acc_lsb_index = self.get_acc_lsb_index()
+    print "acc_lsb_index=", acc_lsb_index
+    result["vr_acc"] = int(sollya.nearestint((vx * vy + get_sollya_from_long(acc) *S2**acc_lsb_index)*S2**-acc_lsb_index))
     return result
 
   # standard_test_cases = [({"x": 1.0, "y": (S2**-11 + S2**-17)}, None)]
   standard_test_cases = [
-    #({"x": 2.0, "y": 4.0, "z": 16.0}, None),
-    ({
-      "y": ML_Binary16.get_value_from_integer_coding("2cdc", base = 16),
-      "x": ML_Binary16.get_value_from_integer_coding("1231", base = 16),
-      "z": ML_Binary16.get_value_from_integer_coding("5b5e", base = 16),
-    }, None),
-    #({
-    #  "y": ML_Binary64.get_value_from_integer_coding("47d273e91e2c9048", base = 16),
-    #  "x": ML_Binary64.get_value_from_integer_coding("c7eea5670485a5ec", base = 16)
-    #}, None),
-    #({
-    #  "y": ML_Binary64.get_value_from_integer_coding("75164a1df94cd488", base = 16),
-    #  "x": ML_Binary64.get_value_from_integer_coding("5a7567b08508e5b4", base = 16)
-    #}, None)
+    ({"x": 2.0, "y": 4.0, "z": 16.0}, None),
   ]
 
 
