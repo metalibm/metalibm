@@ -66,7 +66,8 @@ class FP_MPFMA(ML_Entity("fp_mpfma")):
              output_file = "fp_mpfma.vhd", 
              entity_name = "fp_mpfma",
              language = VHDL_Code,
-             vector_size = 1):
+             vector_size = 1,
+             acc_prec = None):
     # initializing I/O precision
     precision = ArgDefault.select_value([arg_template.precision, precision])
     io_precisions = [precision] * 2
@@ -90,10 +91,14 @@ class FP_MPFMA(ML_Entity("fp_mpfma")):
     )
 
     self.accuracy  = accuracy
+    # main precision (used for product operand and default for accumulator)
     self.precision = precision
+    # accumulator precision
+    self.acc_precision = precision if acc_prec is None else acc_prec
 
   def generate_scheme(self):
     ## Generate Fused multiply and add comput <x> . <y> + <z>
+    Log.report(Log.Info, "generating MPFMA with acc precision {acc_precision} and precision {precision}".format(acc_precision = self.acc_precision, precision = self.precision))
 
     def get_virtual_cst(prec, value, language):
       return prec.get_support_format().get_cst(
@@ -101,19 +106,25 @@ class FP_MPFMA(ML_Entity("fp_mpfma")):
 
     ## convert @p value from an input floating-point precision
     #  @p in_precision to an output support format @p out_precision
-    io_precision = VirtualFormat(base_format = self.precision, support_format = ML_StdLogicVectorFormat(self.precision.get_bit_size()), get_cst = get_virtual_cst)
+    prod_input_precision = VirtualFormat(base_format = self.precision, support_format = ML_StdLogicVectorFormat(self.precision.get_bit_size()), get_cst = get_virtual_cst)
+
+    accumulator_precision = VirtualFormat(base_format = self.acc_precision, support_format = ML_StdLogicVectorFormat(self.acc_precision.get_bit_size()), get_cst = get_virtual_cst)
+
     # declaring standard clock and reset input signal
     #clk = self.implementation.add_input_signal("clk", ML_StdLogic)
     # reset = self.implementation.add_input_signal("reset", ML_StdLogic)
     # declaring main input variable
-    vx = self.implementation.add_input_signal("x", io_precision) 
-    vy = self.implementation.add_input_signal("y", io_precision) 
-    vz = self.implementation.add_input_signal("z", io_precision)
+    vx = self.implementation.add_input_signal("x", prod_input_precision) 
+    vy = self.implementation.add_input_signal("y", prod_input_precision) 
+    vz = self.implementation.add_input_signal("z", accumulator_precision)
+
+    # extra reset input port
+    reset = self.implementation.add_input_signal("reset", ML_StdLogic)
 
     vx_precision     = self.precision
     vy_precision     = self.precision
-    vz_precision     = self.precision
-    result_precision = self.precision
+    vz_precision     = self.acc_precision
+    result_precision = self.acc_precision
 
     # precision for first operand vx which is to be statically 
     # positionned
@@ -512,9 +523,9 @@ class FP_MPFMA(ML_Entity("fp_mpfma")):
         res_sign, 
         res_exp, 
         res_mant_field, 
-        precision = self.precision,
+        precision = self.acc_precision,
       ),
-      precision = io_precision,
+      precision = accumulator_precision,
       tag = "result",
       debug = debug_std
     )
@@ -553,9 +564,11 @@ class FP_MPFMA(ML_Entity("fp_mpfma")):
 if __name__ == "__main__":
     # auto-test
     arg_template = ML_EntityArgTemplate(default_entity_name = "new_fp_mpfma", default_output_file = "ml_fp_mpfma.vhd" )
+    # accumulator precision (also the output format)
+    arg_template.parser.add_argument("--acc-prec", dest = "acc_prec", type = precision_parser, default = ArgDefault("binary32"), help = "select accumulator precision")
     # argument extraction 
     args = parse_arg_index_list = arg_template.arg_extraction()
 
-    ml_hw_mpfma      = FP_MPFMA(args)
+    ml_hw_mpfma      = FP_MPFMA(args, acc_prec = args.acc_prec)
 
     ml_hw_mpfma.gen_implementation()
