@@ -67,7 +67,8 @@ class FP_FIXED_MPFMA(ML_Entity("fp_fixed_mpfma")):
              entity_name = "fp_fixed_mpfma",
              language = VHDL_Code,
              vector_size = 1,
-             extra_digit = 0):
+             extra_digit = 0,
+             sign_magnitude = False):
     # initializing I/O precision
     precision = ArgDefault.select_value([arg_template.precision, precision])
     io_precisions = [precision] * 2
@@ -97,12 +98,15 @@ class FP_FIXED_MPFMA(ML_Entity("fp_fixed_mpfma")):
 
     min_prod_exp = self.precision.get_emin_subnormal() * 2
     self.acc_lsb_index = min_prod_exp
+    # select sign-magintude encoded accumulator
+    self.sign_magnitude = sign_magnitude
 
   def get_acc_lsb_index(self):
     return self.acc_lsb_index
 
   def generate_scheme(self):
     ## Generate Fused multiply and add comput <x> . <y> + <z>
+    Log.report(Log.Info, "generating fixed MPFMA with {ed} extra digit(s) and sign-magnitude accumulator: {sm}".format(ed = self.extra_digit, sm = self.sign_magnitude))
 
     def get_virtual_cst(prec, value, language):
       return prec.get_support_format().get_cst(
@@ -129,6 +133,8 @@ class FP_FIXED_MPFMA(ML_Entity("fp_fixed_mpfma")):
     acc_width = acc_msb_index - min_prod_exp + 1
     # precision of the accumulator
     acc_prec = ML_StdLogicVectorFormat(acc_width)
+
+    reset = self.implementation.add_input_signal("reset", ML_StdLogic)
 
     vx = self.implementation.add_input_signal("x", io_precision) 
     vy = self.implementation.add_input_signal("y", io_precision) 
@@ -272,30 +278,130 @@ class FP_FIXED_MPFMA(ML_Entity("fp_fixed_mpfma")):
     shift_prec = ML_StdLogicVectorFormat(datapath_full_width)
     shifted_prod = BitLogicRightShift(rzext(prod, mant_ext_size), mant_shift, precision = shift_prec, tag = "shifted_prod", debug = debug_std)
 
-    # negate shifted prod when required
-    shifted_prod_op = Select(
-      Comparison(
+
+    if self.sign_magnitude:
+      # the accumulator is in sign-magnitude representation
+      sign_acc = self.implementation.add_input_signal("sign_acc", ML_StdLogic)
+
+      effective_op = BitLogicXor(
         sign_xy,
+        sign_acc,
+        precision = ML_StdLogic,
+        tag = "sign_acc"
+      )
+
+      acc_negated = Select(
+        Comparison(
+          sign_xy,
+          sign_acc,
+          specifier = Comparison.Equal,
+          precision = ML_Bool
+        ),
+        acc,
+        BitLogicNegate(acc, precision = acc_prec),
+        precision = acc_prec
+      )
+
+      add_prec = acc_prec
+     
+      # FIXME: implement with a proper compound adder
+      mant_add_p0 = Addition(
+        prod,
+        acc_negated,
+        precision = acc_prec
+      )
+      mant_add_p1 = Addition(
+        mant_add_p0,
         Constant(1, precision = ML_StdLogic),
-        specifier = Comparison.Equal,
-        precision = ML_Bool
-      ),
-      Negation(shifted_prod, precision = shift_prec),
-      shifted_prod,
-      precision = shift_prec
-    )
+        precision = acc_prec,
+        tag = "mant_add",
+        debug = ML_Debug(display_format = " -radix 2")
+      )
 
-    add_prec = shift_prec # ML_StdLogicVectorFormat(datapath_full_width + 1)
+      mant_add_pre_sign = CopySign(mant_add_p1, precision = ML_StdLogic)
+      mant_add = Select(
+        Comparison(
+          sign_xy,
+          sign_acc,
+          specifier = Comparison.Equal,
+          precision = ML_Bool
+        ),
+        mant_add_p0,
+        Select(
+          Comparison(
+            mant_add_pre_sign,
+            Constant(1, precision = ML_StdLogic),
+            specifier = Comparison.Equal,
+            precision = ML_Bool
+          ),
+          BitLogicNegate(
+            mant_add_p0,
+            precision = acc_prec
+          ),
+          mant_add_p1,
+          precision = acc_prec,
+        ),
+        precision = acc_prec,
+        tag = "mant_add"
+      )
 
-    mant_add = Addition(
-                 shifted_prod_op,
-                 acc,
-                 precision = acc_prec,
-                 tag = "mant_add",
-                 debug = ML_Debug(display_format = " -radix 2")
-              )
 
-    self.implementation.add_output_signal("vr_acc", mant_add)
+      # if both operands had the same sign, then
+      # mant_add is necessarily positive and the result
+      # sign matches the input sign
+      # if both operands had opposite signs, then
+      # the result sign matches the product sign
+      # if mant_add is positive, else the accumulator sign
+      output_sign = Select(
+        Comparison(
+          effective_op,
+          Constant(1, precision = ML_StdLogic),
+          specifier = Comparison.Equal,
+          precision = ML_Bool
+        ),
+        sign_acc,
+        BitLogicXor(
+          sign_xy,
+          mant_add_pre_sign,
+          precision = ML_StdLogic
+        ),
+        precision = ML_StdLogic,
+        tag = "output_sign"
+      )
+      
+      # adding output
+      self.implementation.add_output_signal("vr_sign", output_sign)
+      self.implementation.add_output_signal("vr_acc", mant_add)
+
+    else:
+      # 2s complement encoding of the accumulator,
+      # the accumulator is never negated, only the producted
+      # is negated if negative
+     
+      # negate shifted prod when required
+      shifted_prod_op = Select(
+        Comparison(
+          sign_xy,
+          Constant(1, precision = ML_StdLogic),
+          specifier = Comparison.Equal,
+          precision = ML_Bool
+        ),
+        Negation(shifted_prod, precision = shift_prec),
+        shifted_prod,
+        precision = shift_prec
+      )
+
+      add_prec = shift_prec # ML_StdLogicVectorFormat(datapath_full_width + 1)
+
+      mant_add = Addition(
+                   shifted_prod_op,
+                   acc,
+                   precision = acc_prec,
+                   tag = "mant_add",
+                   debug = ML_Debug(display_format = " -radix 2")
+                )
+
+      self.implementation.add_output_signal("vr_acc", mant_add)
 
     return [self.implementation]
 
@@ -318,9 +424,12 @@ class FP_FIXED_MPFMA(ML_Entity("fp_fixed_mpfma")):
 if __name__ == "__main__":
     # auto-test
     arg_template = ML_EntityArgTemplate(default_entity_name = "new_fp_fixed_mpfma", default_output_file = "ml_fp_fixed_mpfma.vhd" )
+    # extra digit command line argument
+    arg_template.parser.add_argument("--extra-digit", dest = "extra_digit", type=int, default = 0, help = "set the number of accumulator extra digits")
+    arg_template.parser.add_argument("--sign-magnitude", dest = "sign_magnitude", action = "store_const", default = False, const = True, help = "set sign-magnitude encoding for the accumulator")
     # argument extraction 
     args = parse_arg_index_list = arg_template.arg_extraction()
 
-    ml_hw_fp_fixed_mpfma      = FP_FIXED_MPFMA(args)
+    ml_hw_fp_fixed_mpfma      = FP_FIXED_MPFMA(args, extra_digit = args.extra_digit, sign_magnitude = args.sign_magnitude)
 
     ml_hw_fp_fixed_mpfma.gen_implementation()
