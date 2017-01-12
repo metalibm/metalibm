@@ -56,6 +56,12 @@ _mm_add_ss = FunctionOperator("_mm_add_ss", arity = 2,
 _mm_mul_ss = FunctionOperator("_mm_mul_ss", arity = 2,
                               output_precision = ML_SSE_m128,
                               require_header = ["xmmintrin.h"])
+_lzcnt_u32 = FunctionOperator("_lzcnt_u32", arity = 1,
+        output_precision = ML_UInt32,
+        require_header = ["immintrin.h"])
+_lzcnt_u64 = FunctionOperator("_lzcnt_u64", arity = 1,
+        output_precision = ML_UInt64,
+        require_header = ["immintrin.h"])
 
 _mm_cvtss_f32 = FunctionOperator("_mm_cvtss_f32", arity = 1,
                                  output_precision = ML_Binary32,
@@ -175,9 +181,9 @@ class X86_SSE41_Processor(X86_SSE2_Processor):
     def __init__(self):
         X86_SSE2_Processor.__init__(self)
 
-class X86_FMA_Processor(X86_SSE41_Processor):
-    target_name = "x86_fma"
-    TargetRegister.register_new_target(target_name, lambda _: X86_FMA_Processor)
+class X86_AVX2_Processor(X86_SSE41_Processor):
+    target_name = "x86_avx2"
+    TargetRegister.register_new_target(target_name, lambda _: X86_AVX2_Processor)
 
     code_generation_table = {
         C_Code: {
@@ -204,6 +210,16 @@ class X86_FMA_Processor(X86_SSE41_Processor):
                     lambda optree: True: {
                         type_strict_match(ML_Binary32, ML_Binary32, ML_Binary32, ML_Binary32):x86_fma_intrinsic_builder(" _mm_fnmsub_ss"),
                         type_strict_match(ML_Binary64, ML_Binary64, ML_Binary64, ML_Binary64):x86_fmad_intrinsic_builder(" _mm_fnmsub_sd"),
+                    },
+                },
+            },
+            CountLeadingZeros: {
+                None: {
+                    lambda _: True: {
+                        type_strict_match(ML_UInt32, ML_UInt32):
+                        _lzcnt_u32(FO_Arg(0)),
+                        type_strict_match(ML_UInt64, ML_UInt64):
+                        _lzcnt_u64(FO_Arg(0)),
                     },
                 },
             },

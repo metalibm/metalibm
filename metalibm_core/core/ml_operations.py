@@ -901,7 +901,8 @@ class ExponentExtraction(ArithmeticOperationConstructor("ExponentExtraction", ar
 class RawSignExpExtraction(ArithmeticOperationConstructor("RawSignExpExtraction", arity = 1)):
     pass
 
-class CountLeadingZeros(ArithmeticOperationConstructor("CountLeadingZeros", arity = 1)):
+class CountLeadingZeros(
+        ArithmeticOperationConstructor("CountLeadingZeros", arity = 1)):
     pass
 
 class TestSpecifier(object): 
