@@ -99,7 +99,6 @@ class VHDLCodeGenerator(object):
 
         elif isinstance(optree, Signal):
             if optree.get_var_type() is Variable.Local:
-              print "sig: ",  optree.get_precision()
               final_var =  code_object.declare_signal(optree, optree.get_precision(), prefix = optree.get_tag())
               result = CodeVariable(final_var, optree.get_precision())
             else:
@@ -192,8 +191,8 @@ class VHDLCodeGenerator(object):
             else:
               result_value_code = self.generate_expr(code_object, result_value, folded = False, language = language)
               code_object << self.generate_assignation(output_var_code.get(), result_value_code.get())
-              if optree.get_debug() and not self.disable_debug:
-                self.generate_debug_msg(result_value, result_value_code, code_object, debug_object = optree.get_debug())
+            if optree.get_debug() and not self.disable_debug:
+              self.generate_debug_msg(result_value, result_value_code, code_object, debug_object = optree.get_debug())
 
             #code_object << self.generate_assignation(output_var_code.get(), result_value_code.get())
             #code_object << output_var.get_precision().generate_c_assignation(output_var_code, result_value_code)
@@ -323,7 +322,6 @@ class VHDLCodeGenerator(object):
                return flatten_select(op.inputs[1], lcond) + flatten_select(op.inputs[2], cond)
 
              prefix = optree.get_tag(default = "setmp")
-             print "select precision: ", optree.get_precision()
              result_varname = result_var if result_var != None else code_object.get_free_var_name(optree.get_precision(), prefix = prefix)
              result = CodeVariable(result_varname, optree.get_precision())
              select_opcond_list = flatten_select(optree);
@@ -474,8 +472,15 @@ class VHDLCodeGenerator(object):
       else:
         return ""
 
+    ## Generating debug message for a Constant optree node
+    def generate_debug_msg_for_cst(self, optree, result, code_object, debug_object = None):
+        assert isinstance(optree, Constant)
+        cst_tag   = optree.get_tag()
+        cst_value = optree.get_value() 
+        debug_msg = "echo \"constant {cst_name} has value {cst_value}\";".format(cst_name = cst_tag, cst_value = cst_value)
+        self.get_debug_code_object() << debug_msg
 
-    def generate_debug_msg(self, optree, result, code_object, debug_object = None):
+    def extract_debug_object_format(self, optree, code_object, debug_object):
         debug_object = optree.get_debug() if debug_object is None else debug_object
         debug_object = debug_object.select_object(optree) if isinstance(debug_object, ML_Debug) else debug_object
         # adding required headers
@@ -484,6 +489,14 @@ class VHDLCodeGenerator(object):
               code_object.add_header(header)
         precision = optree.get_precision().get_support_format()
         display_format = debug_object.get_display_format(precision.get_display_format(language = self.language)) if isinstance(debug_object, ML_Debug) else precision.get_display_format(language = self.language)
+        return debug_object, display_format
+
+
+    def generate_debug_msg(self, optree, result, code_object, debug_object = None):
+      if isinstance(optree, Constant):
+        return self.generate_debug_msg_for_cst(optree, result, code_object, debug_object)
+      else:
+        debug_object, display_format = self.extract_debug_object_format(optree, code_object, debug_object)
         if not isinstance(result, CodeVariable):
           final_var = code_object.get_free_signal_name(optree.get_precision(), prefix = "dbg_"+ optree.get_tag())
           code_object << "{} <= {};\n".format(final_var, result.get())
