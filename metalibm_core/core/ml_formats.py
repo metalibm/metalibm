@@ -238,7 +238,7 @@ class ML_Std_FP_Format(ML_FP_Format):
       exponent = ((value >> self.get_field_size()) & (2**self.get_exponent_size() - 1)) + self.get_bias()
       sign_bit = value >> (self.get_field_size() + self.get_exponent_size())
       sign = -1.0 if sign_bit != 0 else 1.0
-      mantissa_value = get_sollya_from_long(mantissa)
+      mantissa_value = mantissa
       return sign * S2**int(exponent) * (1.0 + mantissa_value * S2**-self.get_field_size())
   
     # @return<SollyaObject> the format omega value, the maximal normal value
