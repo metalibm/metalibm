@@ -323,9 +323,9 @@ class ML_EntityBasis(object):
   def generate_pipeline_stage(self):
     retiming_map = {}
     retime_map = RetimeMap()
-    output_list = self.implementation.get_output_list()
-    for output in output_list:
-      Log.report(Log.Verbose, "generating pipeline from output %s " % (output))
+    output_assign_list = self.implementation.get_output_assign()
+    for output in output_assign_list:
+      Log.report(Log.Verbose, "generating pipeline from output %s " % (output.get_str(depth = 1)))
       self.retime_op(output, retime_map)
     process_statement = Statement()
 

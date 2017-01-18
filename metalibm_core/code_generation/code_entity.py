@@ -74,6 +74,8 @@ class CodeEntity(object):
     else:
       return None
 
+  def get_output_assign(self):
+    return self.output_list
   def get_output_list(self):
     return [op.get_input(1) for op in self.output_list]
   def get_output_port(self):
