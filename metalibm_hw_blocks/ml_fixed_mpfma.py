@@ -34,6 +34,7 @@ from metalibm_hw_blocks.lzc import ML_LeadingZeroCounter
 debug_std          = ML_Debug(display_format = " -radix 2 ")
 debug_dec          = ML_Debug(display_format = " -radix 10 ")
 debug_dec_unsigned = ML_Debug(display_format = " -decimal -unsigned ")
+debug_cst_dec      = ML_Debug(display_format = " ")
 
 ## Wrapper for zero extension
 # @param op the input operation tree
@@ -68,7 +69,8 @@ class FP_FIXED_MPFMA(ML_Entity("fp_fixed_mpfma")):
              language = VHDL_Code,
              vector_size = 1,
              extra_digit = 0,
-             sign_magnitude = False):
+             sign_magnitude = False, 
+             pipelined = False):
     # initializing I/O precision
     precision = ArgDefault.select_value([arg_template.precision, precision])
     io_precisions = [precision] * 2
@@ -100,6 +102,8 @@ class FP_FIXED_MPFMA(ML_Entity("fp_fixed_mpfma")):
     self.acc_lsb_index = min_prod_exp
     # select sign-magintude encoded accumulator
     self.sign_magnitude = sign_magnitude
+    # enable/disable operator pipelining
+    self.pipelined = pipelined
 
   def get_acc_lsb_index(self):
     return self.acc_lsb_index
@@ -139,8 +143,11 @@ class FP_FIXED_MPFMA(ML_Entity("fp_fixed_mpfma")):
     vx = self.implementation.add_input_signal("x", io_precision) 
     vy = self.implementation.add_input_signal("y", io_precision) 
 
+    # Inserting post-input pipeline stage
+    if self.pipelined: self.implementation.start_new_stage()
+
     acc = self.implementation.add_input_signal("acc", acc_prec)
-    sign_acc = CopySign(acc, precision = ML_StdLogic)
+    sign_acc = CopySign(acc, precision = ML_StdLogic, tag = "sign_acc", debug = debug_std)
 
     vx_precision     = self.precision
     vy_precision     = self.precision
@@ -164,8 +171,8 @@ class FP_FIXED_MPFMA(ML_Entity("fp_fixed_mpfma")):
     mant_vx = MantissaExtraction(vx, precision = mant_vx_precision)
     mant_vy = MantissaExtraction(vy, precision = mant_vy_precision)
     
-    exp_vx = ExponentExtraction(vx, precision = exp_vx_precision)
-    exp_vy = ExponentExtraction(vy, precision = exp_vy_precision)
+    exp_vx = ExponentExtraction(vx, precision = exp_vx_precision, tag = "exp_vx", debug = debug_dec)
+    exp_vy = ExponentExtraction(vy, precision = exp_vy_precision, tag = "exp_vy", debug = debug_dec)
 
     # Maximum number of leading zero for normalized <vx> mantissa
     L_x = 0
@@ -204,11 +211,13 @@ class FP_FIXED_MPFMA(ML_Entity("fp_fixed_mpfma")):
       vy_precision.get_exponent_size(),
       abs(ceil(log2(abs(acc_msb_index)))),
       abs(ceil(log2(abs(acc_lsb_index)))),
+      abs(ceil(log2(abs(exp_bias + prod_exp_offset)))),
     ) + 2
+    Log.report(Log.Info, "exp_precision_ext_size={}".format(exp_precision_ext_size))
     exp_precision_ext = ML_StdLogicVectorFormat(exp_precision_ext_size)
 
     # static accumulator exponent
-    exp_acc = Constant(acc_msb_index, precision = exp_precision_ext) 
+    exp_acc = Constant(acc_msb_index, precision = exp_precision_ext, tag = "exp_acc", debug = debug_cst_dec) 
 
     # Y is first aligned offset = max(o+L_y,q) + 2 bits to the left of x 
     # and then shifted right by 
@@ -216,19 +225,21 @@ class FP_FIXED_MPFMA(ML_Entity("fp_fixed_mpfma")):
     # exp_vx in [emin, emax]
     # exp_vx - exp_vx + p +2 in [emin-emax + p + 2, emax - emin + p + 2]
     exp_diff = Subtraction(
+                exp_acc,
                 Addition(
                   Addition(
                     zext(exp_vy, exp_precision_ext_size - vy_precision.get_exponent_size()), 
                     zext(exp_vx, exp_precision_ext_size - vx_precision.get_exponent_size()), 
                     precision = exp_precision_ext
                   ),
-                  Constant(exp_bias + prod_exp_offset, precision = exp_precision_ext),
-                  precision = exp_precision_ext
+                  Constant(exp_bias + prod_exp_offset, precision = exp_precision_ext, tag = "diff_bias", debug = debug_cst_dec),
+                  precision = exp_precision_ext,
+                  tag = "pre_exp_diff",
+                  debug = debug_dec
                 ),
-                exp_acc,
                 precision = exp_precision_ext,
                 tag = "exp_diff",
-                debug = debug_std
+                debug = debug_dec
     )
     signed_exp_diff = SignCast(
       exp_diff, 
@@ -274,6 +285,9 @@ class FP_FIXED_MPFMA(ML_Entity("fp_fixed_mpfma")):
       debug = debug_std
     )
 
+    # attempt at pipelining the operator
+    # self.implementation.start_new_stage()
+
     mant_ext_size = datapath_full_width - (p+q)
     shift_prec = ML_StdLogicVectorFormat(datapath_full_width)
     shifted_prod = BitLogicRightShift(rzext(prod, mant_ext_size), mant_shift, precision = shift_prec, tag = "shifted_prod", debug = debug_std)
@@ -282,13 +296,6 @@ class FP_FIXED_MPFMA(ML_Entity("fp_fixed_mpfma")):
     if self.sign_magnitude:
       # the accumulator is in sign-magnitude representation
       sign_acc = self.implementation.add_input_signal("sign_acc", ML_StdLogic)
-
-      effective_op = BitLogicXor(
-        sign_xy,
-        sign_acc,
-        precision = ML_StdLogic,
-        tag = "sign_acc"
-      )
 
       acc_negated = Select(
         Comparison(
@@ -302,23 +309,29 @@ class FP_FIXED_MPFMA(ML_Entity("fp_fixed_mpfma")):
         precision = acc_prec
       )
 
-      add_prec = acc_prec
+      # one extra MSB bit is added to the final addition
+      # to detect overflows
+      add_width = acc_width + 1
+      add_prec = ML_StdLogicVectorFormat(add_width)
      
       # FIXME: implement with a proper compound adder
-      mant_add_p0 = Addition(
-        prod,
-        acc_negated,
-        precision = acc_prec
+      mant_add_p0_ext = Addition(
+        zext(shifted_prod, 1),
+        zext(acc_negated, 1),
+        precision = add_prec
       )
-      mant_add_p1 = Addition(
-        mant_add_p0,
+      mant_add_p1_ext = Addition(
+        mant_add_p0_ext,
         Constant(1, precision = ML_StdLogic),
-        precision = acc_prec,
+        precision = add_prec,
         tag = "mant_add",
         debug = ML_Debug(display_format = " -radix 2")
       )
+      # discarding carry overflow bit
+      mant_add_p0 = SubSignalSelection(mant_add_p0_ext, 0, acc_width - 1, precision = acc_prec)
+      mant_add_p1 = SubSignalSelection(mant_add_p1_ext, 0, acc_width - 1, precision = acc_prec)
 
-      mant_add_pre_sign = CopySign(mant_add_p1, precision = ML_StdLogic)
+      mant_add_pre_sign = CopySign(mant_add_p1_ext, precision = ML_StdLogic, tag = "mant_add_pre_sign", debug = debug_std)
       mant_add = Select(
         Comparison(
           sign_xy,
@@ -334,11 +347,11 @@ class FP_FIXED_MPFMA(ML_Entity("fp_fixed_mpfma")):
             specifier = Comparison.Equal,
             precision = ML_Bool
           ),
+          mant_add_p1,
           BitLogicNegate(
             mant_add_p0,
             precision = acc_prec
           ),
-          mant_add_p1,
           precision = acc_prec,
         ),
         precision = acc_prec,
@@ -359,16 +372,21 @@ class FP_FIXED_MPFMA(ML_Entity("fp_fixed_mpfma")):
           specifier = Comparison.Equal,
           precision = ML_Bool
         ),
-        sign_acc,
+        # if the effective op is a subtraction (prod - acc)
         BitLogicXor(
-          sign_xy,
+          sign_acc,
           mant_add_pre_sign,
           precision = ML_StdLogic
         ),
+        # the effective op is an addition, thus result and
+        # acc share sign
+        sign_acc,
         precision = ML_StdLogic,
         tag = "output_sign"
       )
-      
+
+      if self.pipelined: self.implementation.start_new_stage()
+        
       # adding output
       self.implementation.add_output_signal("vr_sign", output_sign)
       self.implementation.add_output_signal("vr_acc", mant_add)
@@ -393,6 +411,7 @@ class FP_FIXED_MPFMA(ML_Entity("fp_fixed_mpfma")):
 
       add_prec = shift_prec # ML_StdLogicVectorFormat(datapath_full_width + 1)
 
+
       mant_add = Addition(
                    shifted_prod_op,
                    acc,
@@ -400,6 +419,8 @@ class FP_FIXED_MPFMA(ML_Entity("fp_fixed_mpfma")):
                    tag = "mant_add",
                    debug = ML_Debug(display_format = " -radix 2")
                 )
+
+      if self.pipelined: self.implementation.start_new_stage()
 
       self.implementation.add_output_signal("vr_acc", mant_add)
 
@@ -411,13 +432,30 @@ class FP_FIXED_MPFMA(ML_Entity("fp_fixed_mpfma")):
     acc = io_map["acc"]
     result = {}
     acc_lsb_index = self.get_acc_lsb_index()
-    print "acc_lsb_index=", acc_lsb_index
-    result["vr_acc"] = int(sollya.nearestint((vx * vy + get_sollya_from_long(acc) *S2**acc_lsb_index)*S2**-acc_lsb_index))
+    if self.sign_magnitude:
+      sign_acc = io_map["sign_acc"]
+      acc = -acc if sign_acc else acc
+      result_value = int(sollya.nearestint((vx * vy + acc *S2**acc_lsb_index)*S2**-acc_lsb_index))
+      result_sign = 1 if result_value < 0 else 0
+      result["vr_sign"] = result_sign
+      result["vr_acc"]  = abs(result_value)
+    else:
+      result_value = int(sollya.nearestint((vx * vy + acc *S2**acc_lsb_index)*S2**-acc_lsb_index))
+      result["vr_acc"] = result_value
     return result
 
-  # standard_test_cases = [({"x": 1.0, "y": (S2**-11 + S2**-17)}, None)]
   standard_test_cases = [
-    ({"x": 2.0, "y": 4.0, "z": 16.0}, None),
+    #({
+      #"y": ML_Binary16.get_value_from_integer_coding("bab9", base = 16),
+      #"x": ML_Binary16.get_value_from_integer_coding("bbff", base = 16),
+      #"acc": int("1000000011111001011000111000101000101101110110001010011000101001001111100010101001", 2),
+      #"sign_acc": 0
+      #}, None),
+      ({
+        "y": ML_Binary16.get_value_from_integer_coding("bbff", base = 16),
+        "x": ML_Binary16.get_value_from_integer_coding("bbfa", base = 16),
+        "acc": int("1000100010100111001111000001000001101100110110011010001001011011000010010111111001", 2),
+        "sign_acc": 1}, None),
   ]
 
 
@@ -427,9 +465,10 @@ if __name__ == "__main__":
     # extra digit command line argument
     arg_template.parser.add_argument("--extra-digit", dest = "extra_digit", type=int, default = 0, help = "set the number of accumulator extra digits")
     arg_template.parser.add_argument("--sign-magnitude", dest = "sign_magnitude", action = "store_const", default = False, const = True, help = "set sign-magnitude encoding for the accumulator")
+    arg_template.parser.add_argument("--pipelined", dest = "pipelined", action = "store_const", default = False, const = True, help = "enable operator pipelining")
     # argument extraction 
     args = parse_arg_index_list = arg_template.arg_extraction()
 
-    ml_hw_fp_fixed_mpfma      = FP_FIXED_MPFMA(args, extra_digit = args.extra_digit, sign_magnitude = args.sign_magnitude)
+    ml_hw_fp_fixed_mpfma      = FP_FIXED_MPFMA(args, extra_digit = args.extra_digit, sign_magnitude = args.sign_magnitude, pipelined = args.pipelined)
 
     ml_hw_fp_fixed_mpfma.gen_implementation()
