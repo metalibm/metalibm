@@ -220,14 +220,21 @@ vhdl_code_generation_table = {
   LogicalAnd: {
     None: {
       lambda _: True : {
-        type_strict_match(ML_Bool, ML_Bool, ML_Bool): SymbolOperator("and", arity = 2, force_folding = True),
+        type_strict_match(ML_Bool, ML_Bool, ML_Bool): SymbolOperator("and", arity = 2, force_folding = False),
+      },
+   }, 
+  },
+  LogicalOr: {
+    None: {
+      lambda _: True : {
+        type_strict_match(ML_Bool, ML_Bool, ML_Bool): SymbolOperator("or", arity = 2, force_folding = False),
       },
    }, 
   },
   Event: {
     None: {
       lambda _: True : {
-        type_strict_match(ML_Bool, ML_StdLogic): SymbolOperator("\'event", lspace = "", inverse = True, arity = 1, force_folding = True), 
+        type_strict_match(ML_Bool, ML_StdLogic): SymbolOperator("\'event", lspace = "", inverse = True, arity = 1, force_folding = False), 
       },
     },
   },
