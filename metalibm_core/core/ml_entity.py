@@ -39,7 +39,7 @@ from metalibm_core.utility.ml_template import ArgDefault
 import random
 import subprocess
 
-## \defgroup ml_function ml_function
+## \defgroup ml_entity ml_entity
 ## @{
 
 
@@ -199,12 +199,11 @@ class ML_EntityBasis(object):
     backend = ArgDefault.select_value([arg_template.backend, backend])
     fuse_fma = ArgDefault.select_value([arg_template.fuse_fma, fuse_fma])
     fast_path_extract = ArgDefault.select_value([arg_template.fast_path_extract, fast_path_extract])
-    # Debug verbosit
+    # Debug verbosity
     debug_flag    = ArgDefault.select_value([arg_template.debug, debug_flag])
     language      = ArgDefault.select_value([arg_template.language, language])
     auto_test     = ArgDefault.select_value([arg_template.auto_test, arg_template.auto_test_execute, auto_test])
     auto_test_std = ArgDefault.select_value([arg_template.auto_test_std, auto_test_std])
-
 
     # io_precisions must be a list
     #     -> with a single element
@@ -277,7 +276,7 @@ class ML_EntityBasis(object):
     op_src = retime_map.get(op_key, current_stage)
     while current_stage != stage:  
       # create op instance for <current_stage+1>
-      op_dst = Signal(tag = "{tag}_S{stage}".format(tag = op_key.get_tag(), stage = (current_stage + 1)), init_stage = current_stage + 1, init_op = op_key, precision = op_key.get_precision()) 
+      op_dst = Signal(tag = "{tag}_S{stage}".format(tag = op_key.get_tag(), stage = (current_stage + 1)), init_stage = current_stage + 1, init_op = op_key, precision = op_key.get_precision(), var_type = Variable.Local) 
       retime_map.add_stage_forward(op_dst, op_src, current_stage)
       retime_map.set(op_dst, current_stage + 1)
       # update values for next iteration
@@ -288,7 +287,7 @@ class ML_EntityBasis(object):
   # process op's inputs and if necessary
   # propagate them to op's stage
   def retime_op(self, op, retime_map):
-    Log.report(Log.Verbose, "retiming op %s " % (op))
+    Log.report(Log.Verbose, "retiming op %s " % (op.get_str(depth = 1)))
     if retime_map.hasBeenProcessed(op):
       return
     op_stage = op.attributes.init_stage
@@ -296,7 +295,7 @@ class ML_EntityBasis(object):
       for in_id in range(op.get_input_num()):
         in_op = op.get_input(in_id)
         in_stage = in_op.attributes.init_stage
-        Log.report(Log.Verbose, "retiming input {inp} of {op} stage {in_stage} -> {op_stage}".format(inp = in_op, op = op, in_stage = in_stage, op_stage = op_stage))
+        Log.report(Log.Verbose, "retiming input {inp} of {op} stage {in_stage} -> {op_stage}".format(inp = in_op.get_str(depth = 1), op = op, in_stage = in_stage, op_stage = op_stage))
         if not retime_map.hasBeenProcessed(in_op):
           self.retime_op(in_op, retime_map)
         if in_stage < op_stage:
@@ -333,7 +332,16 @@ class ML_EntityBasis(object):
     clk = self.get_clk_input()
     for stage_id in sorted(retime_map.stage_forward.keys()):
       stage_block = ConditionBlock(
-        Event(clk, precision = ML_Bool),
+        LogicalAnd(
+          Event(clk, precision = ML_Bool),
+          Comparison(
+            clk,
+            Constant(1, precision = ML_StdLogic),
+            specifier = Comparison.Equal,
+            precision = ML_Bool
+          ),
+          precision = ML_Bool
+        ),
         Statement(*tuple(assign for assign in retime_map.stage_forward[stage_id]))
       )
       process_statement.add(stage_block)
@@ -543,6 +551,7 @@ class ML_EntityBasis(object):
         output_signal = output_signals[output_tag]
         output_value  = Constant(output_values[output_tag], precision = output_signal.get_precision())
         value_msg = output_signal.get_precision().get_cst(output_values[output_tag], language = VHDL_Code).replace('"',"'")
+        value_msg += " / " + hex(output_values[output_tag])
         test_statement.add(
           Assert(
             Comparison(
@@ -590,6 +599,6 @@ def ML_Entity(name):
   new_class.get_name = staticmethod(lambda: name) 
   return new_class
 
-# end of Doxygen's ml_function group
+# end of Doxygen's ml_entity group
 ## @}
 
