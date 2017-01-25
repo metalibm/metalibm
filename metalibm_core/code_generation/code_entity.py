@@ -37,9 +37,12 @@ class CodeEntity(object):
     self.current_stage = 0
     # component object to generate external instance of entity
     self.component_object = None
+    self.instanciate_dyn_attributes()
+
+  def instanciate_dyn_attributes(self):
     # attribute to contain thestage where the pipelined
     # signal was originally created
-    self.init_stage_attribute = AttributeCtor("init_stage", default_value = 0)
+    self.init_stage_attribute = AttributeCtor("init_stage", default_value = self.current_stage)
     # attribute to contain the original operation for the pipelined signals
     self.init_op_attribute    = AttributeCtor("init_op", default_value = None) 
     Attributes.add_dyn_attribute(self.init_stage_attribute)
@@ -81,9 +84,10 @@ class CodeEntity(object):
   def get_output_port(self):
     return [op.get_input(0) for op in self.output_list]
 
+  def get_current_stage(self):
+    return self.current_stage
   def start_new_stage(self):
     self.set_current_stage(self.current_stage + 1)
-
   def set_current_stage(self, stage_id = 0):
     self.current_stage = stage_id
     self.init_stage_attribute.default_value = self.current_stage
@@ -107,7 +111,7 @@ class CodeEntity(object):
     io_map = {}
     for arg_input in self.arg_list:
       io_map[arg_input] = AbstractVariable.Input 
-    for arg_output in self.get_output_list():
+    for arg_output in self.get_output_port():
       io_map[arg_output] = AbstractVariable.Output 
     return ComponentObject(self.name, io_map, self)
     
