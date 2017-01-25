@@ -105,6 +105,9 @@ class Attributes(object):
     def add_dyn_attribute(attr_ctor):
       Attributes.dynamic_attribute_map[attr_ctor.get_name()] = attr_ctor
 
+    def get_dyn_attribute(self, attr_name):
+      return getattr(self, attr_name)
+
     def __init__(self, **init_map):
         self.precision  = attr_init(init_map, "precision", Attributes.default_precision[0])
         self.interval   = attr_init(init_map, "interval")
@@ -135,7 +138,22 @@ class Attributes(object):
 
 
     def get_copy(self):
-        return Attributes(precision = self.precision, interval = self.interval, debug = self.debug, exact = self.exact, tag = self.tag, max_abs_error = self.max_abs_error, silent = self.silent, handle = self.handle, clearprevious = self.clearprevious, rounding_mode = self.rounding_mode, prevent_optimization = self.prevent_optimization)
+        copied_attibute =  Attributes(precision = self.precision, 
+          interval = self.interval, 
+          debug = self.debug, 
+          exact = self.exact, 
+          tag = self.tag, 
+          max_abs_error = self.max_abs_error, 
+          silent = self.silent, 
+          handle = self.handle, 
+          clearprevious = self.clearprevious, 
+          rounding_mode = self.rounding_mode, 
+          prevent_optimization = self.prevent_optimization
+        )
+        # copying dynamic attributes
+        for dyn_attr in Attributes.dynamic_attribute_map:
+          copied_attibute.__setattr__(dyn_attr, getattr(self, dyn_attr))
+        return copied_attibute
 
     def get_light_copy(self):
         return Attributes(precision = self.precision, debug = self.debug, tag = self.tag, silent = self.silent, handle = self.handle, clearprevious = self.clearprevious, rounding_mode = self.rounding_mode, prevent_optimization = self.prevent_optimization)
