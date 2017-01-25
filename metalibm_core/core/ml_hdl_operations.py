@@ -145,6 +145,22 @@ class ComponentInstance(AbstractOperationConstructor("ComponentInstance")):
     self.component_object = component_object
     self.instance_id = self.component_object.get_new_instance_id()
     self.io_map = kwords["io_map"]
+    io_inputs = []
+    # mapping of input integer index to component input tag
+    self.comp_map_id2tag = {}
+    # populating input list
+    for io_tag in self.io_map:
+      if self.component_object.get_io_tag_specifier(io_tag) == AbstractVariable.Input:
+        io_index = len(self.inputs) + len(io_inputs)
+        self.comp_map_id2tag[io_index] = io_tag
+        io_inputs.append(self.io_map[io_tag])
+    self.inputs = self.inputs + tuple(io_inputs)
+
+  def set_input(self, input_id, new_input):
+    ComponentInstance.__base__.set_input(self, input_id, new_input)
+    if input_id in self.comp_map_id2tag:
+      self.io_map[self.comp_map_id2tag[input_id]] = new_input
+      
 
   def get_instance_id(self):
     return self.instance_id
@@ -163,6 +179,12 @@ class ComponentObject(object):
     self.io_map = io_map
     self.generator_object = generator_object
     self.instance_id = -1
+    self.io_map_tag2specifier = {}
+    for sig in self.io_map:
+      self.io_map_tag2specifier[sig.get_tag()] = self.io_map[sig]
+
+  def get_io_tag_specifier(self, io_tag):
+    return self.io_map_tag2specifier[io_tag]
 
   def get_new_instance_id(self):
     self.instance_id += 1
