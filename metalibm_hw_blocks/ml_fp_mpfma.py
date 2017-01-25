@@ -46,12 +46,12 @@ def zext(op,s):
   return ZeroExt(op, s, precision = ext_precision)
 
 ## Generate the right zero extended output from @p optree
-def rzext(optree, ext_size):
+def rzext(optree, ext_size, **kw):
   ext_size = int(ext_size)
   op_size = optree.get_precision().get_bit_size()
   ext_format = ML_StdLogicVectorFormat(ext_size)
   out_format = ML_StdLogicVectorFormat(op_size + ext_size)
-  return Concatenation(optree, Constant(0, precision = ext_format), precision = out_format)
+  return Concatenation(optree, Constant(0, precision = ext_format), precision = out_format, **kw)
 
 class FP_MPFMA(ML_Entity("fp_mpfma")):
   def __init__(self, 
@@ -67,7 +67,8 @@ class FP_MPFMA(ML_Entity("fp_mpfma")):
              entity_name = "fp_mpfma",
              language = VHDL_Code,
              vector_size = 1,
-             acc_prec = None):
+             acc_prec = None,
+             pipelined = False):
     # initializing I/O precision
     precision = ArgDefault.select_value([arg_template.precision, precision])
     io_precisions = [precision] * 2
@@ -95,6 +96,8 @@ class FP_MPFMA(ML_Entity("fp_mpfma")):
     self.precision = precision
     # accumulator precision
     self.acc_precision = precision if acc_prec is None else acc_prec
+    # enable operator pipelining
+    self.pipelined = pipelined
 
   def generate_scheme(self):
     ## Generate Fused multiply and add comput <x> . <y> + <z>
@@ -121,6 +124,9 @@ class FP_MPFMA(ML_Entity("fp_mpfma")):
     # extra reset input port
     reset = self.implementation.add_input_signal("reset", ML_StdLogic)
 
+    # Inserting post-input pipeline stage
+    if self.pipelined: self.implementation.start_new_stage()
+
     vx_precision     = self.precision
     vy_precision     = self.precision
     vz_precision     = self.acc_precision
@@ -143,9 +149,11 @@ class FP_MPFMA(ML_Entity("fp_mpfma")):
     exp_vy_precision     = ML_StdLogicVectorFormat(vy_precision.get_exponent_size())
     exp_vz_precision     = ML_StdLogicVectorFormat(vz_precision.get_exponent_size())
 
-    mant_vx_precision    = ML_StdLogicVectorFormat(p-1)
-    mant_vy_precision    = ML_StdLogicVectorFormat(q-1)
-    mant_vz_precision    = ML_StdLogicVectorFormat(r-1)
+    # MantissaExtraction performs the implicit
+    # digit computation and concatenation
+    mant_vx_precision    = ML_StdLogicVectorFormat(p)
+    mant_vy_precision    = ML_StdLogicVectorFormat(q)
+    mant_vz_precision    = ML_StdLogicVectorFormat(r)
 
     mant_vx = MantissaExtraction(vx, precision = mant_vx_precision)
     mant_vy = MantissaExtraction(vy, precision = mant_vy_precision)
@@ -262,8 +270,18 @@ class FP_MPFMA(ML_Entity("fp_mpfma")):
     )
 
     mant_ext_size = max_exp_diff
+    print "mant_ext_size: ", max_exp_diff
+    print "datapath_full_width: ", datapath_full_width
     shift_prec = ML_StdLogicVectorFormat(datapath_full_width)
-    shifted_mant_vz = BitLogicRightShift(rzext(mant_vz, mant_ext_size), mant_shift, precision = shift_prec, tag = "shifted_mant_vz", debug = debug_std)
+    mant_vz_ext = rzext(mant_vz, mant_ext_size)
+    shifted_mant_vz = BitLogicRightShift(mant_vz_ext, mant_shift, precision = shift_prec, tag = "shifted_mant_vz", debug = debug_std)
+
+    # Inserting  pipeline stage
+    # after production computation
+    # and addend alignment shift
+    if self.pipelined: self.implementation.start_new_stage()
+
+
     # vx is right-extended by q+2 bits
     # and left extend by exp_offset
     prod_ext = zext(rzext(prod, r+2), exp_offset+1)
@@ -341,9 +359,18 @@ class FP_MPFMA(ML_Entity("fp_mpfma")):
     # as the same sign as the product
     res_sign = BitLogicXor(add_is_negative, sign_xy, precision = ML_StdLogic, tag = "res_sign")
 
+    print "pre lzc stage: ", self.implementation.get_current_stage()
+    # adding pipeline stage after addition computation
+    if self.pipelined: self.implementation.start_new_stage()
+
+    print "lzc stage: ", self.implementation.get_current_stage()
+
     # Precision for leading zero count
     lzc_width = int(floor(log2(datapath_full_width + 1)) + 1)
     lzc_prec = ML_StdLogicVectorFormat(lzc_width)
+
+    current_stage = self.implementation.get_current_stage()
+    print "saving current_stage: ", current_stage
 
     lzc_args = ML_LeadingZeroCounter.get_default_args(width = (datapath_full_width + 1))
     LZC_entity = ML_LeadingZeroCounter(lzc_args)
@@ -352,10 +379,19 @@ class FP_MPFMA(ML_Entity("fp_mpfma")):
 
     lzc_component = lzc_implementation.get_component_object()
 
-    lzc_in = mant_add_abs 
+    #self.implementation.set_current_stage(current_stage)
+    # Attributes dynamic field (init_stage and init_op)
+    # constructors must be initialized back after
+    # building a sub-operator inside this operator
+    self.implementation.instanciate_dyn_attributes()
 
-    add_lzc = Signal("add_lzc", precision = lzc_prec, var_type = Signal.Local, debug = debug_dec)
-    add_lzc = PlaceHolder(add_lzc, lzc_component(io_map = {"x": lzc_in, "vr_out": add_lzc}))
+    # lzc_in = mant_add_abs 
+
+    add_lzc_sig = Signal("add_lzc", precision = lzc_prec, var_type = Signal.Local, debug = debug_dec)
+    add_lzc = PlaceHolder(add_lzc_sig, lzc_component(io_map = {"x": mant_add_abs, "vr_out": add_lzc_sig}, tag = "lzc_i"), tag = "place_holder")
+
+    # adding pipeline stage after leading zero count
+    if self.pipelined: self.implementation.start_new_stage()
 
     # Index of output mantissa least significant bit
     mant_lsb_index = datapath_full_width - o + 1
@@ -372,6 +408,8 @@ class FP_MPFMA(ML_Entity("fp_mpfma")):
     def IntCst(value):
       return Constant(value, precision = ML_Integer)
 
+    # adding pipeline stage after normalization shift
+    if self.pipelined: self.implementation.start_new_stage()
 
     round_bit = BitExtraction(res_normed_mant, IntCst(mant_lsb_index - 1))
     mant_lsb  = BitExtraction(res_normed_mant, IntCst(mant_lsb_index))
@@ -523,12 +561,15 @@ class FP_MPFMA(ML_Entity("fp_mpfma")):
         res_sign, 
         res_exp, 
         res_mant_field, 
-        precision = self.acc_precision,
+        precision = accumulator_precision,
       ),
       precision = accumulator_precision,
       tag = "result",
       debug = debug_std
     )
+
+    # adding pipeline stage after rouding
+    if self.pipelined: self.implementation.start_new_stage()
 
     self.implementation.add_output_signal("vr_out", vr_out)
 
@@ -566,9 +607,10 @@ if __name__ == "__main__":
     arg_template = ML_EntityArgTemplate(default_entity_name = "new_fp_mpfma", default_output_file = "ml_fp_mpfma.vhd" )
     # accumulator precision (also the output format)
     arg_template.parser.add_argument("--acc-prec", dest = "acc_prec", type = precision_parser, default = ArgDefault("binary32"), help = "select accumulator precision")
+    arg_template.parser.add_argument("--pipelined", dest = "pipelined", action = "store_const", default = False, const = True, help = "enable operator pipelining")
     # argument extraction 
     args = parse_arg_index_list = arg_template.arg_extraction()
 
-    ml_hw_mpfma      = FP_MPFMA(args, acc_prec = args.acc_prec)
+    ml_hw_mpfma      = FP_MPFMA(args, acc_prec = args.acc_prec, pipelined = args.pipelined)
 
     ml_hw_mpfma.gen_implementation()
