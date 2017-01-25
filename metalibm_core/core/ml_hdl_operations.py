@@ -94,20 +94,21 @@ def force_size(optree, size):
 #  a sign, exponent, mantissa
 #  the result = sign * 2^(exponent - bias) * (1.0 + mantissae * 2^(-precision))
 def FloatBuild(sign_bit, exp_field, mantissa_field, precision = ML_Binary32, **kw):
+  float_precision = precision.get_base_format()
   # assert exp_field has the right output format
-  exp_field = force_size(exp_field, precision.get_exponent_size())
+  exp_field = force_size(exp_field, float_precision.get_exponent_size())
   # assert mantissa_field has the right output format
-  mantissa_field = force_size(mantissa_field, precision.get_field_size())
+  mantissa_field = force_size(mantissa_field, float_precision.get_field_size())
   # build cast concatenation of operands
   result = TypeCast(
     Concatenation(
       Concatenation(
         sign_bit, 
         exp_field, 
-        precision = ML_StdLogicVectorFormat(1 + precision.get_exponent_size())
+        precision = ML_StdLogicVectorFormat(1 + float_precision.get_exponent_size())
       ),
       mantissa_field,
-      precision = ML_StdLogicVectorFormat(precision.get_bit_size())
+      precision = ML_StdLogicVectorFormat(float_precision.get_bit_size())
     ),
     precision = precision,
     **kw
