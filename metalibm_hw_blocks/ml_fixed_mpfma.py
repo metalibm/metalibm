@@ -147,7 +147,11 @@ class FP_FIXED_MPFMA(ML_Entity("fp_fixed_mpfma")):
     if self.pipelined: self.implementation.start_new_stage()
 
     acc = self.implementation.add_input_signal("acc", acc_prec)
-    sign_acc = CopySign(acc, precision = ML_StdLogic, tag = "sign_acc", debug = debug_std)
+    if self.sign_magnitude:
+      # the accumulator is in sign-magnitude representation
+      sign_acc = self.implementation.add_input_signal("sign_acc", ML_StdLogic)
+    else:
+      sign_acc = CopySign(acc, precision = ML_StdLogic, tag = "sign_acc", debug = debug_std)
 
     vx_precision     = self.precision
     vy_precision     = self.precision
@@ -292,10 +296,12 @@ class FP_FIXED_MPFMA(ML_Entity("fp_fixed_mpfma")):
     shift_prec = ML_StdLogicVectorFormat(datapath_full_width)
     shifted_prod = BitLogicRightShift(rzext(prod, mant_ext_size), mant_shift, precision = shift_prec, tag = "shifted_prod", debug = debug_std)
 
+    ## Inserting a pipeline stage after the product shifting
+    if self.pipelined: self.implementation.start_new_stage()
+
 
     if self.sign_magnitude:
       # the accumulator is in sign-magnitude representation
-      sign_acc = self.implementation.add_input_signal("sign_acc", ML_StdLogic)
 
       acc_negated = Select(
         Comparison(
