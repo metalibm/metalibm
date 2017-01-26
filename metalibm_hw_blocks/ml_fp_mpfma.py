@@ -312,7 +312,7 @@ class FP_MPFMA(ML_Entity("fp_mpfma")):
         precision = ML_Bool,
         specifier = Comparison.Equal
       ),
-      Negation(zext(shifted_mant_vz, 1), precision = add_prec, tag = "neg_addend_Op"),
+      BitLogicNegate(zext(shifted_mant_vz, 1), precision = add_prec, tag = "neg_addend_Op"),
       zext(shifted_mant_vz, 1),
       precision = add_prec,
       tag = "addend_op",
@@ -321,20 +321,32 @@ class FP_MPFMA(ML_Entity("fp_mpfma")):
 
     prod_add_op = prod_ext
 
-    mant_add = Addition(
-                 addend_op,
-                 prod_add_op,
-                 precision = add_prec,
-                 tag = "mant_add",
-                 debug = ML_Debug(display_format = " -radix 2")
-              )
+    # Compound Addition
+    mant_add_p1 = Addition(
+      Addition(
+         addend_op,
+         prod_add_op,
+         precision = add_prec
+      ),
+      Constant(1, precision = ML_StdLogic),
+      precision = add_prec,
+      tag = "mant_add_p1",
+      debug = ML_Debug(display_format = " -radix 2")
+    )
+    mant_add_p0 = Addition(
+      addend_op,
+      prod_add_op,
+      precision = add_prec,
+      tag = "mant_add_p0",
+      debug = ML_Debug(display_format = " -radix 2")
+    )
 
     # if the addition overflows, then it meant vx has been negated and
     # the 2's complement addition cancelled the negative MSB, thus
     # the addition result is positive, and the result is of the sign of Y
     # else the result is of opposite sign to Y
     add_is_negative = BitLogicAnd(
-        CopySign(mant_add, precision = ML_StdLogic),
+        CopySign(mant_add_p1, precision = ML_StdLogic),
         effective_op,
         precision = ML_StdLogic,
         tag = "add_is_negative",
@@ -348,8 +360,8 @@ class FP_MPFMA(ML_Entity("fp_mpfma")):
         specifier = Comparison.Equal,
         precision = ML_Bool
       ),
-      Negation(mant_add, precision = add_prec, tag = "neg_mant_add", debug = debug_std),
-      mant_add,
+      BitLogicNegate(mant_add_p0, precision = add_prec, tag = "neg_mant_add_p0", debug = debug_std),
+      mant_add_p1,
       precision = add_prec,
       tag = "mant_add_abs",
       debug = debug_std
