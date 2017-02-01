@@ -289,6 +289,7 @@ class ML_EntityBasis(object):
   def retime_op(self, op, retime_map):
     Log.report(Log.Verbose, "retiming op %s " % (op.get_str(depth = 1)))
     if retime_map.hasBeenProcessed(op):
+      Log.report(Log.Verbose, "  retiming already processed")
       return
     op_stage = op.attributes.init_stage
     if not isinstance(op, ML_LeafNode):
@@ -349,6 +350,8 @@ class ML_EntityBasis(object):
     for op in retime_map.pre_statement:
       pipeline_process.add_to_pre_statement(op)
     self.implementation.add_process(pipeline_process)
+    stage_num = len(retime_map.stage_forward.keys())
+    print "there are %d pipeline stages" % (stage_num)
       
 
   def get_output_precision(self):
