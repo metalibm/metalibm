@@ -42,6 +42,8 @@ class ML_FloatingPointException_Type(object):
     return "NONE"
   def is_cst_decl_required(self):
     return False
+  def get_match_format(self):
+    return self
 
 ## ML object for floating-point exception type
 ML_FPE_Type = ML_FloatingPointException_Type()
