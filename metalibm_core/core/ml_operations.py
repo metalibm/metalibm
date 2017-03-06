@@ -1164,14 +1164,19 @@ class NoResultOperation(SpecificOperation, ML_LeafNode):
     SetRndMode        = SO_Specifier_Builder("SetRndMode", lambda optree, *ops: None, lambda backend, op, dprec: None)
 
 def ClearException(*args, **kwords):
-    kwords["specifier"] = ExceptionOperation.ClearException
-    return ExceptionOperation(*args, **kwords)
+    if not "precision" in kwords:
+      kwords.update({"precision": ML_Void})
+    return ExceptionOperation(*args, specifier = ExceptionOperation.ClearException, **kwords)
 
 def Raise(*args, **kwords):
+    if not "precision" in kwords:
+      kwords.update({"precision": ML_Void})
     kwords["specifier"] = ExceptionOperation.RaiseException
     return ExceptionOperation(*args, **kwords)
 
 def RaiseReturn(*args, **kwords):
+    if not "precision" in kwords:
+      kwords.update({"precision": ML_Void})
     kwords["specifier"] = ExceptionOperation.RaiseReturn
     return ExceptionOperation(*args, **kwords)
 
