@@ -129,6 +129,10 @@ class CompoundOperator(ML_CG_Operator):
                 compound_arg.append(FO_Result(arg_function.get_index(), output_precision))
                 result_in_args = True
 
+            elif isinstance(arg_function, FO_Value):
+                output_precision = arg_function.get_output_precision()
+                compound_arg.append(arg_function.get_value())
+
             else:
                 # other compound operator ?
                 dummy_precision = arg_function.get_output_precision()
@@ -185,7 +189,7 @@ class IdentityOperator(ML_CG_Operator):
 
         # generating assignation if required
         folded = kwords["folded"]
-        if (folded and self.get_force_folding() != False) or generate_pre_process != None: 
+        if self.get_force_folding() or (folded and self.get_force_folding() != False) or generate_pre_process != None: 
             prefix = optree.get_tag(default = "tmp")
             result_var = kwords["result_var"]
             result_varname = result_var if result_var != None else code_object.get_free_var_name(optree.get_precision(), prefix = prefix)
@@ -202,10 +206,11 @@ class IdentityOperator(ML_CG_Operator):
 
 class SymbolOperator(ML_CG_Operator):
     """ symbol operator generator """
-    def __init__(self, symbol, **kwords):
+    def __init__(self, symbol, lspace = " ", rspace = " ", inverse = False, **kwords):
         """ symbol operator initialization function """
         ML_CG_Operator.__init__(self, **kwords)
-        self.symbol = " %s " % symbol
+        self.symbol = "%s%s%s" % (lspace, symbol, rspace)
+        self.inverse = inverse
 
 
     def generate_expr(self, code_generator, code_object, optree, arg_tuple, generate_pre_process = None, **kwords):
@@ -231,12 +236,15 @@ class SymbolOperator(ML_CG_Operator):
         # generating result code
         result_code = None
         if self.arity == 1:
-            result_code = "%s%s" % (self.symbol, var_arg_list[0].get())
+            if not self.inverse:
+                result_code = "%s%s" % (self.symbol, var_arg_list[0].get())
+            else:
+                result_code = "%s%s" % (var_arg_list[0].get(),self.symbol)
         else:
             result_code = self.symbol.join([var_arg.get() for var_arg in var_arg_list])
 
         # generating assignation if required
-        if (kwords["folded"] and self.get_force_folding() != False) or generate_pre_process != None: 
+        if self.get_force_folding() or (kwords["folded"] and self.get_force_folding() != False) or generate_pre_process != None: 
             prefix = optree.get_tag(default = "tmp")
             result_var = kwords["result_var"]
             result_varname = result_var if result_var != None else code_object.get_free_var_name(optree.get_precision(), prefix = prefix)
@@ -261,6 +269,19 @@ class FO_Arg(object):
 class ML_VarArity(object):
     """ variable arity """
     pass
+
+
+class FO_Value(object):
+  """ Immediate value to be transmitted as is during code generation """
+  def __init__(self, value, precision):
+    self.value = value
+    self.precision = precision
+
+  def get_value(self):
+    return CodeExpression(self.value, self.precision)
+
+  def get_output_precision(self):
+    return self.precision
 
 class FO_Result(object):
   """ PlaceHolder for a function Operator result
@@ -389,7 +410,7 @@ class FunctionOperator(ML_CG_Operator):
 
         else:
           # generating assignation if required
-          if (folded and self.get_force_folding() != False) or generate_pre_process != None:
+          if self.get_force_folding() or (folded and self.get_force_folding() != False) or generate_pre_process != None:
               prefix = optree.get_tag(default = "tmp")
               result_varname = result_var if result_var != None else code_object.get_free_var_name(optree.get_precision(), prefix = prefix)
               if generate_pre_process != None:
@@ -410,6 +431,12 @@ class TemplateOperator(FunctionOperator):
     def generate_call_code(self, result_arg_list):
         """ overloading of FunctionOperator generate_call_code for template operator object """
         return self.function_name % tuple(var_arg.get() for var_arg in result_arg_list)
+
+class TemplateOperatorFormat(FunctionOperator):
+    """ template operator class """
+    def generate_call_code(self, result_arg_list):
+        """ overloading of FunctionOperator generate_call_code for template operator object """
+        return self.function_name.format(*tuple(var_arg.get() for var_arg in result_arg_list))
 
 
 class AsmInlineOperator(ML_CG_Operator):
@@ -506,7 +533,7 @@ class RoundOperator(FunctionOperator):
             # generating assignation if required
             folded = kwords["folded"]
             result_var = kwords["result_var"]
-            if (folded and self.get_force_folding() != False) or generate_pre_process != None: 
+            if self.get_force_folding() or (folded and self.get_force_folding() != False) or generate_pre_process != None: 
                 prefix = optree.get_tag(default = "tmp")
                 result_varname = result_var if result_var != None else code_object.get_free_var_name(optree.get_precision(), prefix = prefix)
                 if generate_pre_process != None:

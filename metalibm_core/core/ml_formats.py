@@ -22,6 +22,16 @@ S2 = sollya.SollyaObject(2)
 ml_nan   = sollya.parse("nan")
 ml_infty = sollya.parse("infty")
 
+def get_sollya_from_long(v):
+  result = sollya.SollyaObject(0)
+  power  = sollya.SollyaObject(1)
+  base = S2**16
+  while v:
+    v, r = divmod(v, int(base))
+    result += int(r) * power 
+    power *= base
+  return result 
+
 ## class for floating-point exception
 class ML_FloatingPointException: pass
 
@@ -55,10 +65,23 @@ class ML_Format(object):
       self.name = {}
       self.display_format = {}
 
+    ## return format name
     def get_name(self, language = C_Code):
         if language in self.name:
             return self.name[language]
         else: return self.name[C_Code]
+
+    ## return source code name for the format
+    def get_code_name(self, language = C_Code):
+        return self.get_name(language = language)
+
+    def get_match_format(self):
+        return self
+
+    def get_base_format(self):
+        return self
+    def get_support_format(self):
+        return self
 
     def get_display_format(self, language = C_Code):
         if language in self.display_format:
@@ -149,7 +172,7 @@ ML_Exact = ML_AbstractFormat("ML_Exact")
 def AbstractFormat_Builder(name, inheritance):
     field_map = {
         "name": name,
-        "__str__": lambda self: self.name,
+        "__str__": lambda self: self.name[C_Code],
     }
     return type(name, (ML_AbstractFormat,) + inheritance, field_map)
 
@@ -190,11 +213,34 @@ class ML_Std_FP_Format(ML_FP_Format):
         return self.name[C_Code]
 
     def get_bias(self):
-        return - S2**(self.get_exponent_size() - 1) + 1
+        return - 2**(self.get_exponent_size() - 1) + 1
 
     def get_emax(self):
         return 2**self.get_exponent_size() - 2 + self.get_bias()
 
+    ## return the integer coding of @p value
+    #  @param value numeric value to be converted
+    #  @return value encoding (as an integer number)
+    def get_integer_coding(self, value, language = C_Code):
+        # FIXME: manage subnormal and special values
+        value = sollya.round(value, self.get_sollya_object(), sollya.RN)
+        # FIXME: managing negative zero
+        sign = int(1 if value < 0 else 0)
+        value = abs(value)
+        exp   = int(sollya.floor(sollya.log2(value)))
+        exp_biased = int(exp - self.get_bias())
+        mant = int((value / S2**exp - 1.0) / (S2**-self.get_field_size()))
+        return mant | (exp_biased << self.get_field_size()) | (sign << (self.get_field_size() + self.get_exponent_size()))
+
+    def get_value_from_integer_coding(self, value, base = 10):
+      value = int(value, base)
+      mantissa = value & (2**self.get_field_size() - 1)
+      exponent = ((value >> self.get_field_size()) & (2**self.get_exponent_size() - 1)) + self.get_bias()
+      sign_bit = value >> (self.get_field_size() + self.get_exponent_size())
+      sign = -1.0 if sign_bit != 0 else 1.0
+      mantissa_value = mantissa
+      return sign * S2**int(exponent) * (1.0 + mantissa_value * S2**-self.get_field_size())
+  
     # @return<SollyaObject> the format omega value, the maximal normal value
     def get_omega(self):
         return S2**self.get_emax() * (2 - S2**-self.get_field_size())
@@ -216,6 +262,12 @@ class ML_Std_FP_Format(ML_FP_Format):
         """ return the format bit size """ 
         return self.bit_size
 
+    def get_zero_exponent_value(self):
+        return 0
+
+    def get_special_exponent_value(self):
+        return 2**self.get_exponent_size() - 1
+
     def get_exponent_size(self):
         return self.exponent_size
 
@@ -226,6 +278,10 @@ class ML_Std_FP_Format(ML_FP_Format):
 
     def get_field_size(self):
         return self.field_size
+
+    ## Return the complete mantissa size
+    def get_mantissa_size(self):
+        return self.field_size + 1
 
     def get_cst(self, cst_value, language = C_Code):
       if language is C_Code:
@@ -278,7 +334,10 @@ class ML_FormatConstructor(ML_Format):
         self.bit_size = bit_size
         self.name[C_Code] = c_name
         self.display_format[C_Code] = c_display_format
-        self.get_cst = {C_Code: get_c_cst}
+        self.get_cst_map = {C_Code: get_c_cst}
+
+    def get_cst(self, value, language = C_Code):
+        return self.get_cst_map[language](self, value)
 
     def __str__(self):
         return self.name[C_Code]
@@ -286,23 +345,64 @@ class ML_FormatConstructor(ML_Format):
     def get_bit_size(self):
         return self.bit_size
 
+## a virtual format is a format which is internal to Metalibm
+#  representation and relies on an other non-virtual format
+#  for support in generated code
+class VirtualFormat(ML_Format):
+  def __init__(self, 
+                base_format = None, 
+                support_format = None, 
+                get_cst = lambda self, value, language: self.base_format.get_cst(value, language)
+        ):
+    ML_Format.__init__(self)
+    self.support_format = support_format
+    self.base_format    = base_format
+    self.internal_get_cst = get_cst
+
+  def get_cst(self, cst_value, language = C_Code):
+    return self.internal_get_cst(self, cst_value, language)
+
+  ## return name for the format
+  def get_name(self, language = C_Code):
+    return self.base_format.get_name(language = language)
+
+  ## return source code name for the format
+  def get_code_name(self, language = C_Code):
+    return self.support_format.get_name(language = language)
+
+  def set_support_format(self, _format):
+    self.support_format = _format
+
+  def get_match_format(self):
+    return self.base_format
+
+  def get_base_format(self):
+    return self.base_format
+
+  def get_support_format(self):
+    return self.support_format
+
 
 ## Ancestor to fixed-point format
-class ML_Fixed_Format(ML_Format):
+class ML_Fixed_Format(VirtualFormat):
     """ parent to every Metalibm's fixed-point class """
     def __init__(self, support_format = None, align = 0):
-      ML_Format.__init__(self)
-      # integer format used to contain the fixed-point value 
-      self.support_format = support_format
+      VirtualFormat.__init__(self, support_format = support_format)
+      # self.support_format must be an integer format 
+      # used to contain the fixed-point value 
 
       # offset between the support LSB and the actual value LSB 
       self.support_right_align = align
 
-    def set_support_format(self, _format):
-      self.support_format = _format
+    def get_match_format(self):
+      return self
+    def get_base_format(self):
+      return self
 
-    def get_support_format(self):
-      return self.support_format
+    def get_name(self, language = C_Code):
+      return ML_Format.get_name(self, language = language)
+    def get_code_name(self, language = C_Code):
+      return ML_Format.get_code_name(self, language = language)
 
     def set_support_right_align(self, align):
       self.support_right_align = align
@@ -413,6 +513,8 @@ class ML_Bool_Format(object):
 ML_Binary32 = ML_Std_FP_Format(32, 8, 23, "f", "float", "fp32", "%a", sollya.binary32)
 ML_Binary64 = ML_Std_FP_Format(64, 11, 52, "", "double", "fp64", "%la", sollya.binary64)
 ML_Binary80 = ML_Std_FP_Format(80, 15, 64, "L", "long double", "fp80", "%la", sollya.binary80)
+# Half precision format
+ML_Binary16 = ML_Std_FP_Format(16, 5, 10, "__ERROR__", "half", "fp16", "%a", sollya.binary16)
 
 
 # Standard integer format declarations
@@ -586,22 +688,27 @@ def vector_format_builder(c_format_name, opencl_format_name, vector_size, scalar
   return compound_constructor(c_format_name, opencl_format_name, vector_size, scalar_format, sollya_precision)
 
 ML_Float2 = vector_format_builder("ml_float2_t", "float2", 2, ML_Binary32)
+ML_Float3 = vector_format_builder("ml_float3_t", "float3", 3, ML_Binary32)
 ML_Float4 = vector_format_builder("ml_float4_t", "float4", 4, ML_Binary32)
 ML_Float8 = vector_format_builder("ml_float8_t", "float8", 8, ML_Binary32)
 
 ML_Double2 = vector_format_builder("ml_double2_t", "double2", 2, ML_Binary64)
+ML_Double3 = vector_format_builder("ml_double3_t", "double3", 3, ML_Binary64)
 ML_Double4 = vector_format_builder("ml_double4_t", "double4", 4, ML_Binary64)
 ML_Double8 = vector_format_builder("ml_double8_t", "double8", 8, ML_Binary64)
 
 ML_Bool2  = vector_format_builder("ml_bool2_t", "int2", 2, ML_Bool, compound_constructor = ML_IntegerVectorFormat)
+ML_Bool3  = vector_format_builder("ml_bool3_t", "int3", 3, ML_Bool, compound_constructor = ML_IntegerVectorFormat)
 ML_Bool4  = vector_format_builder("ml_bool4_t", "int4", 4, ML_Bool, compound_constructor = ML_IntegerVectorFormat)
 ML_Bool8  = vector_format_builder("ml_bool8_t", "int8", 8, ML_Bool, compound_constructor = ML_IntegerVectorFormat)
 
 ML_Int2  = vector_format_builder("ml_int2_t", "int2", 2,  ML_Int32, compound_constructor = ML_IntegerVectorFormat)
+ML_Int3  = vector_format_builder("ml_int3_t", "int3", 3,  ML_Int32, compound_constructor = ML_IntegerVectorFormat)
 ML_Int4  = vector_format_builder("ml_int4_t", "int4", 4, ML_Int32, compound_constructor = ML_IntegerVectorFormat)
 ML_Int8  = vector_format_builder("ml_int8_t", "int8", 8, ML_Int32, compound_constructor = ML_IntegerVectorFormat)
                                                          
 ML_UInt2 = vector_format_builder("ml_uint2_t", "uint2", 2, ML_UInt32, compound_constructor = ML_IntegerVectorFormat)
+ML_UInt3 = vector_format_builder("ml_uint3_t", "uint3", 3, ML_UInt32, compound_constructor = ML_IntegerVectorFormat)
 ML_UInt4 = vector_format_builder("ml_uint4_t", "uint4", 4, ML_UInt32, compound_constructor = ML_IntegerVectorFormat)
 ML_UInt8 = vector_format_builder("ml_uint8_t", "uint8", 8, ML_UInt32, compound_constructor = ML_IntegerVectorFormat)
 

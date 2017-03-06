@@ -21,6 +21,7 @@ from ..core.attributes import ML_Debug
 from .code_object import Gappa_Unknown, GappaCodeObject
 
 from ..utility.gappa_utils import execute_gappa_script_extract
+from ..utility.log_report import Log
 
 
 class GappaCodeGenerator(object):
@@ -294,7 +295,14 @@ class GappaCodeGenerator(object):
         """ helper to compute the evaluation error of <pre_optree> bounded by tagged-node in variable_map, 
             assuming variable_map[v] is the liverange of node v """
         # registering initial bounds
-        bound_list = [op for op in variable_copy_map]
+        bound_list = []
+        bound_unique_list = []
+        bound_targets = []
+        for op in variable_copy_map:
+          bound_list.append(op)
+          if not variable_copy_map[op] in bound_targets:
+            bound_unique_list.append(op)
+            bound_targets.append(variable_copy_map[op])
         # copying pre-operation tree
         optree = pre_optree.copy(variable_copy_map)
         gappa_code = GappaCodeObject()
@@ -305,23 +313,24 @@ class GappaCodeGenerator(object):
             max_abs_error = v.get_max_abs_error()
             if max_abs_error == None:
                 var_error_copy_map[v] = variable_copy_map[v]
-                self.add_hypothesis(gappa_code, variable_copy_map[v], variable_copy_map[v].get_interval())
+                if v in bound_unique_list: 
+                  self.add_hypothesis(gappa_code, variable_copy_map[v], variable_copy_map[v].get_interval())
             else:
                 var_error_interval = Interval(-max_abs_error, max_abs_error)
                 var = variable_copy_map[v]
                 exact_var = Variable(var.get_tag() + "_", precision = var.get_precision(), interval = var.get_interval())
                 var_error_copy_map[v] = exact_var 
 
-                self.add_hypothesis(gappa_code, exact_var, variable_copy_map[v].get_interval())
+                if v in bound_unique_list: 
+                  self.add_hypothesis(gappa_code, exact_var, variable_copy_map[v].get_interval())
                 sub_var = var - exact_var
                 sub_var.set_precision(ML_Exact)
 
-                self.add_hypothesis(gappa_code, sub_var, var_error_interval)
+                if v in bound_unique_list: 
+                  self.add_hypothesis(gappa_code, sub_var, var_error_interval)
 
         pre_exact_optree = pre_optree.copy(var_error_copy_map)
         exact_optree = opt_engine.exactify(pre_exact_optree.copy())
-
-
 
         gappa_result_exact  = self.generate_expr(gappa_code, exact_optree, initial = True)
         #print "gappa_code: ", gappa_code.get(self)
@@ -341,7 +350,12 @@ class GappaCodeGenerator(object):
         self.add_goal(gappa_code, goal)
 
         self.clear_memoization_map()
-        return execute_gappa_script_extract(gappa_code.get(self), gappa_filename = gappa_filename)["goal"]
+        try:
+          eval_error = execute_gappa_script_extract(gappa_code.get(self), gappa_filename = gappa_filename)["goal"]
+          return eval_error
+        except ValueError:
+          Log.report(Log.Error, "Unable to compute evaluation error with gappa")
+          
 
     def get_eval_error_v3(self, opt_engine, pre_optree, variable_copy_map = {}, goal_precision = ML_Exact, gappa_filename = "gappa_tmp.g", dichotomy = [], relative_error = False):
         # storing initial interval values

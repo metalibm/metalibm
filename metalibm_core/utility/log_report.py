@@ -12,17 +12,24 @@
 
 
 import sys
+import pdb
 
 class Log(object):
     """ log report class """
-    log_stream    = None
-    dump_stdout   = False
-    exit_on_error = True
+    log_stream     = None
+    dump_stdout    = False
+    exit_on_error  = True
+    break_on_error = True
 
     @staticmethod
     def set_dump_stdout(new_dump_stdout):
       Log.dump_stdout = new_dump_stdout
       
+
+    @staticmethod
+    def set_break_on_error(value):
+      print "setting break on error ", value
+      Log.break_on_error = value
 
     class LogLevel(object): 
         """ log level builder """
@@ -31,9 +38,9 @@ class Log(object):
 
     # log levels definition
     Warning = LogLevel("Warning")
-    Info = LogLevel("Info")
-    Error = LogLevel("Error")
-    Debug = LogLevel("Debug")
+    Info    = LogLevel("Info")
+    Error   = LogLevel("Error")
+    Debug   = LogLevel("Debug")
     Verbose = LogLevel("Verbose")
 
     # list of enabled log levels
@@ -49,7 +56,10 @@ class Log(object):
         elif level in Log.enabled_levels:
             print "%s: %s" % (level.name, msg)
         if level is Log.Error:
-            if Log.exit_on_error:
+            if Log.break_on_error:
+              pdb.set_trace()
+              raise Exception()
+            elif Log.exit_on_error:
               sys.exit(1)
             else:
               raise Exception()

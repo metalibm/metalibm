@@ -128,7 +128,6 @@ class ML_Cbrt(ML_Function("ml_cbrt")):
       input_value = SollyaObject(2)**i
       cbrt_mod_table[i][0] = round(cbrt(input_value), self.precision.get_sollya_object(), RN)
 
-
     vx_int = TypeCast(reduced_vx, precision = int_precision)
     mask = BitLogicRightShift(vx_int, self.precision.get_precision() - index_size, precision = int_precision)
     mask = BitLogicAnd(mask, Constant(2**index_size - 1, precision = int_precision), precision = int_precision, tag = "table_index")
@@ -170,8 +169,6 @@ class ML_Cbrt(ML_Function("ml_cbrt")):
     xn_3 = Multiplication(current_approx, xn_2, precision = ext_precision)
 
     FourThird = Constant(4/SollyaObject(3), precision = ext_precision)
-
-
 
     # main scheme
     Log.report(Log.Info, "\033[33;1m MDL scheme \033[0m")

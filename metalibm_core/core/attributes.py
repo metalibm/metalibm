@@ -78,6 +78,18 @@ class Handle(object):
     def get_node(self):
         return self.node
 
+class AttributeCtor:
+  def __init__(self, name, build_function = (lambda x: x), default_value = None, required = False):
+    self.name = name
+    self.build_function = build_function
+    self.default_value = default_value
+    self.required = required
+
+  def get_name(self):
+    return self.name
+
+  def attr_init(self, init_map):
+    return self.build_function(attr_init(init_map, self.name, self.default_value, required = self.required))
 
 ## Base class to store Node's attributes
 class Attributes(object):
@@ -86,6 +98,15 @@ class Attributes(object):
     default_rounding_mode = [None]
     default_silent        = [None]
     str_del               = "| "
+    dynamic_attribute_map = {}
+
+    ## allow to add a new dynamic attribute
+    @staticmethod
+    def add_dyn_attribute(attr_ctor):
+      Attributes.dynamic_attribute_map[attr_ctor.get_name()] = attr_ctor
+
+    def get_dyn_attribute(self, attr_name):
+      return getattr(self, attr_name)
 
     def __init__(self, **init_map):
         self.precision  = attr_init(init_map, "precision", Attributes.default_precision[0])
@@ -102,6 +123,8 @@ class Attributes(object):
         self.rounding_mode_dependant = None
         self.prevent_optimization = attr_init(init_map, "prevent_optimization")
         self.unbreakable  = attr_init(init_map, "unbreakable", False)
+        for dyn_attr in Attributes.dynamic_attribute_map:
+          self.__setattr__(dyn_attr, Attributes.dynamic_attribute_map[dyn_attr].attr_init(init_map))
 
 
     def get_str(self, tab_level = 0):
@@ -115,7 +138,22 @@ class Attributes(object):
 
 
     def get_copy(self):
-        return Attributes(precision = self.precision, interval = self.interval, debug = self.debug, exact = self.exact, tag = self.tag, max_abs_error = self.max_abs_error, silent = self.silent, handle = self.handle, clearprevious = self.clearprevious, rounding_mode = self.rounding_mode, prevent_optimization = self.prevent_optimization)
+        copied_attibute =  Attributes(precision = self.precision, 
+          interval = self.interval, 
+          debug = self.debug, 
+          exact = self.exact, 
+          tag = self.tag, 
+          max_abs_error = self.max_abs_error, 
+          silent = self.silent, 
+          handle = self.handle, 
+          clearprevious = self.clearprevious, 
+          rounding_mode = self.rounding_mode, 
+          prevent_optimization = self.prevent_optimization
+        )
+        # copying dynamic attributes
+        for dyn_attr in Attributes.dynamic_attribute_map:
+          copied_attibute.__setattr__(dyn_attr, getattr(self, dyn_attr))
+        return copied_attibute
 
     def get_light_copy(self):
         return Attributes(precision = self.precision, debug = self.debug, tag = self.tag, silent = self.silent, handle = self.handle, clearprevious = self.clearprevious, rounding_mode = self.rounding_mode, prevent_optimization = self.prevent_optimization)

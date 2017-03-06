@@ -202,9 +202,15 @@ class AbstractOperation(ML_Operation):
 
     def get_inputs(self):
         return self.inputs
-
+    def get_input_num(self):
+        return len(self.inputs)
     def get_input(self, index):
         return self.inputs[index]
+    def set_input(self, index, new_input):
+        # FIXME: discard tuple -> list -> tuple 
+        input_list = list(self.inputs) 
+        input_list[index] = new_input
+        self.inputs = tuple(input_list)
 
     ##
     #  @return the node evaluated live-range (when available) 
@@ -328,6 +334,11 @@ class AbstractOperation(ML_Operation):
     def get_extra_inputs(self):
         """ return list of non-standard inputs """
         return self.extra_inputs
+
+    ## Add an extra (hidden) input to the operand's standard input
+    def add_to_extra_inputs(self, extra_input):
+        self.extra_inputs.append(extra_input)
+        
 
     ## change the node to mirror optree
     # by copying class, attributes, arity and inputs from optree to self
@@ -461,11 +472,12 @@ class Constant(ML_LeafNode):
 ## class for Variable node, which contains a temporary state of the operation DAG
 #  which may have been defined outside the scope of the implementation (input variable)
 #  @param var_type = (Variable.Input | Variable.Local)
-class Variable(ML_LeafNode):
+class AbstractVariable(ML_LeafNode):
     ## Input type for Variable Node
     #  such node is not defined as an input to the function description
     class Input: pass
     class Local: pass
+    class Output: pass
 
     ## Intermediary type for Variable Node
     #  such node is defined within the function description.
@@ -504,11 +516,12 @@ class Variable(ML_LeafNode):
             copy_map[self] = self
             return self
         # else define a new and free copy
-        new_copy = Variable(tag = self.get_tag(), var_type = self.var_type)
+        new_copy = self.__class__(tag = self.get_tag(), var_type = self.var_type)
         new_copy.attributes = self.attributes.get_copy()
         copy_map[self] = new_copy
         return new_copy
 
+class Variable(AbstractVariable): pass
 
 class InstanciatedOperation(ML_Operation):
   """ parent to Metalibm's type-instanciated operation """
@@ -1005,6 +1018,10 @@ class Comparison(ArithmeticOperationConstructor("Comparison", arity = 2, inherit
     LessOrEqual    = CompSpecBuilder("LessOrEqual", "le", "<=")
     Greater        = CompSpecBuilder("Greater", "gt", ">")
     GreaterOrEqual = CompSpecBuilder("GreaterOrEqual", "ge", ">=")
+    LessSigned           = CompSpecBuilder("LessSigned",  "lt", "<")
+    LessOrEqualSigned    = CompSpecBuilder("LessOrEqualSigned", "le", "<=")
+    GreaterSigned        = CompSpecBuilder("GreaterSigned", "gt", ">")
+    GreaterOrEqualSigned = CompSpecBuilder("GreaterOrEqualSigned", "ge", ">=")
 
 
     def __init__(self, *args, **kwords):
@@ -1042,20 +1059,18 @@ class Statement(AbstractOperationConstructor("Statement")):
         self.__class__.__base__.__init__(self, *args, **kwords)
         self.arity = len(args)
 
-
     # add a new statement at the end of the inputs list 
     # @param optree ML_Operation object added at the end of inputs list
     def add(self, optree):
         self.inputs = self.inputs + (optree,)
         self.arity += 1
 
-    # push a new statement at the end of the inputs list 
+    # push a new statement at the beginning of the inputs list 
     # @param optree ML_Operation object added at the end of inputs list
     def push(self, optree):
         """ add a new unary statement at the beginning of the input list """
         self.inputs = (optree,) + self.inputs
         self.arity += 1
-
 
     def finish_copy(self, new_copy, copy_map = {}):
         new_copy.arity = self.arity

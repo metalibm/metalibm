@@ -2,8 +2,6 @@
 
 import sys
 
-import sollya
-
 from sollya import (
         S2, Interval, ceil, floor, round, inf, sup, pi, log, exp, cos, sin,
         guessdegree
