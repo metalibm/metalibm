@@ -100,18 +100,10 @@ def old_scheme_test(function_ctor, options = []):
     return False
   return True
 
-def new_scheme_test(function_ctor, options = []):
-  function_name = function_ctor.get_name()
-  fct = function_ctor()
-  fct.gen_implementation()
-  #try: 
-  #except:
-  #  return False
-  return True
 
 
-test_list = [(function, old_scheme_test) for function in old_scheme_function_list]
-#test_list += [(function, new_scheme_test) for function in new_scheme_function_list]
+# test_list = [(function, old_scheme_test) for function in old_scheme_function_list]
+test_list = []
 
 
 
