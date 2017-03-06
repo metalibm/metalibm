@@ -19,7 +19,7 @@ class Log(object):
     log_stream     = None
     dump_stdout    = False
     exit_on_error  = True
-    break_on_error = True
+    break_on_error = False
 
     @staticmethod
     def set_dump_stdout(new_dump_stdout):
