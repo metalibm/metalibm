@@ -13,15 +13,18 @@
 import sollya
 
 from sollya import S2, SollyaObject, coeff
-from cgpe import (
-        PolynomialScheme as CgpePolynomialScheme,
-        Variable as CgpeVar,
-        Constant as CgpeConstant,
-        Addition as CgpeAdd,
-        Multiplication as CgpeMul,
-        Subtraction as CgpeSub,
-        CgpeDriver,
-        )
+try:
+  from cgpe import (
+          PolynomialScheme as CgpePolynomialScheme,
+          Variable as CgpeVar,
+          Constant as CgpeConstant,
+          Addition as CgpeAdd,
+          Multiplication as CgpeMul,
+          Subtraction as CgpeSub,
+          CgpeDriver,
+          )
+except ImportError:
+  print "CPGE could not be imported"
 
 from ..utility.log_report import Log
 from .ml_operations import Constant, Variable, Multiplication, Addition, Subtraction
