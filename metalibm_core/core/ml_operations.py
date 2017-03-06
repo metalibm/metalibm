@@ -57,10 +57,12 @@ def implicit_op(op):
 
     if isinstance(op, ML_Operation):
         return op
-    elif isinstance(op, SollyaObject) or isinstance(op, int) or isinstance(op, float) or isinstance(op, FP_SpecialValue):
+    elif isinstance(op, SollyaObject) or isinstance(op, int) or isinstance(op, float):
         return Constant(op)
     elif isinstance(op, ML_FloatingPointException):
         return Constant(op, precision = ML_FPE_Type)
+    elif isinstance(op, FP_SpecialValue):
+        return Constant(op, precision = op.get_precision())
     elif isinstance(op, ML_FloatingPoint_RoundingMode):
         return Constant(op, precision = ML_FPRM_Type)
     else:
