@@ -313,14 +313,19 @@ class ML_Exponential(ML_Function("ml_exp")):
     late_overflow_test = Comparison(ik, self.precision.get_emax(), specifier = Comparison.Greater, likely = False, debug = debug_multi, tag = "late_overflow_test")
     overflow_exp_offset = (self.precision.get_emax() - self.precision.get_field_size() / 2)
     diff_k = ik - overflow_exp_offset 
-    diff_k.set_attributes(debug = debug_multi, tag = "diff_k")
+    diff_k.set_attributes(debug = debug_multi, tag = "diff_k", precision = ML_Int32)
     late_overflow_result = (ExponentInsertion(diff_k, precision = self.precision) * poly) * ExponentInsertion(overflow_exp_offset, precision = self.precision)
     late_overflow_result.set_attributes(silent = False, tag = "late_overflow_result", debug = debug_multi, precision = self.precision)
     late_overflow_return = ConditionBlock(Test(late_overflow_result, specifier = Test.IsInfty, likely = False), ExpRaiseReturn(ML_FPE_Overflow, return_value = FP_PlusInfty(self.precision)), Return(late_overflow_result))
 
     late_underflow_test = Comparison(k, self.precision.get_emin_normal(), specifier = Comparison.LessOrEqual, likely = False)
     underflow_exp_offset = 2 * self.precision.get_field_size()
-    late_underflow_result = (ExponentInsertion(ik + underflow_exp_offset, precision = self.precision) * poly) * ExponentInsertion(-underflow_exp_offset, precision = self.precision)
+    corrected_exp = Addition( 
+      ik,
+      underflow_exp_offset,
+      precision = ML_Int32
+    )
+    late_underflow_result = (ExponentInsertion(corrected_exp, precision = self.precision) * poly) * ExponentInsertion(-underflow_exp_offset, precision = self.precision)
     late_underflow_result.set_attributes(debug = debug_multi, tag = "late_underflow_result", silent = False)
     test_subnormal = Test(late_underflow_result, specifier = Test.IsSubnormal)
     late_underflow_return = Statement(ConditionBlock(test_subnormal, ExpRaiseReturn(ML_FPE_Underflow, return_value = late_underflow_result)), Return(late_underflow_result))
