@@ -242,7 +242,7 @@ def get_git_tag():
 
 class CodeObject(object):
     tab = "    "
-    def __init__(self, language, shared_tables = None, parent_tables = None, rounding_mode = ML_GlobalRoundMode, uniquifier = ""):
+    def __init__(self, language, shared_tables = None, parent_tables = None, rounding_mode = ML_GlobalRoundMode, uniquifier = "", main_code_level = None):
         """ code object initialization """
         self.expanded_code = ""
         self.uniquifier = uniquifier
@@ -683,7 +683,7 @@ class NestedCode(object):
     """ object to support multiple levels of nested code with local and global variable management """
     ##
     #  @param uniquifier <str> unifiquation prefix for name generation
-    def __init__(self, code_generator, static_cst = False, static_table = True, uniquifier = "", code_ctor = CodeObject):
+    def __init__(self, code_generator, static_cst = False, static_table = True, uniquifier = "", code_ctor = CodeObject, main_code_level = None):
         self.language = code_generator.language
         self.code_generator = code_generator
 
