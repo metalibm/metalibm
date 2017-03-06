@@ -25,6 +25,14 @@ old_scheme_function_list = [
 # new scheme (ML_Function)
 new_scheme_function_list = [
   NewSchemeTest(
+    "basic log1p test",
+    metalibm_functions.ml_log1p.ML_Log1p,
+    [
+      {"precision": ML_Binary32}, 
+      {"precision": ML_Binary64}
+    ]
+  ), 
+  NewSchemeTest(
     "basic log2 test",
     metalibm_functions.ml_log2.ML_Log2,
     [
@@ -67,7 +75,6 @@ def old_scheme_test(function_ctor, options = []):
 
 
 
-# test_list = [(function, old_scheme_test) for function in old_scheme_function_list]
 test_list = []
 
 
