@@ -92,6 +92,10 @@ class DefaultArgTemplate:
   auto_test_range = None
   auto_test_std   = False
 
+  def __init__(self, **kw):
+    for key in kw:
+      setattr(self, key, kw[key])
+
 ## Base class for all metalibm function (metafunction)
 class ML_FunctionBasis(object):
   name = "function_basis"
