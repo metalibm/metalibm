@@ -769,6 +769,12 @@ class NearestInteger(ArithmeticOperationConstructor("NearestInteger", arity = 1,
     """ abstract addition """
     pass
 
+class FastReciprocal(ArithmeticOperationConstructor(
+        "FastReciprocal", arity = 1,
+        range_function = lambda self, ops: 1 / ops[0])):
+    """ abstract fast reciprocal """
+    pass
+
 class Ceil(ML_ArithmeticOperation):
   """ Round to integer upward """
   arity = 1

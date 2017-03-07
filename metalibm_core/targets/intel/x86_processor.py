@@ -38,6 +38,18 @@ _mm_round_sd_rn = FunctionOperator("_mm_round_sd", arg_map = {0: FO_Arg(0), 1: F
 _mm_cvtsd_f64 = FunctionOperator("_mm_cvtsd_f64", arity = 1, output_precision = ML_Binary64, require_header = ["xmmintrin.h"])
 
 
+# 3-to-5-cycle latency / 1-to-2-cycle throughput approximate reciprocal, with a
+# maximum relative error of 1.5 * 2^(-12).
+_mm_rcp_ss = FunctionOperator("_mm_rcp_ss", arity = 1,
+                              output_precision = ML_SSE_m128,
+                              require_header = ["xmmintrin.h"])
+_mm_rcp_ps = FunctionOperator("_mm_rcp_ps", arity = 1,
+                              output_precision = ML_SSE_m128,
+                              require_header = ["xmmintrin.h"])
+_mm256_rcp_ps = FunctionOperator("_mm256_rcp_ps", arity = 1,
+                                 output_precision = ML_AVX_m256,
+                                 require_header = ["immintrin.h"])
+
 _mm_add_ss = FunctionOperator("_mm_add_ss", arity = 2,
                               output_precision = ML_SSE_m128,
                               require_header = ["xmmintrin.h"])
@@ -84,6 +96,16 @@ sse_c_code_generation_table = {
                 type_strict_match(ML_Binary32, ML_Binary32, ML_Binary32):
                     _mm_cvtss_f32(_mm_mul_ss(_mm_set_ss(FO_Arg(0)),
                                              _mm_set_ss(FO_Arg(1)))),
+            },
+        },
+    },
+    FastReciprocal: {
+        None: {
+            lambda _: True: {
+                type_strict_match(ML_SSE_m128, ML_SSE_m128):
+                    _mm_rcp_ss(FO_Arg(0)),
+                type_strict_match(ML_Binary32, ML_Binary32):
+                    _mm_cvtss_f32(_mm_rcp_ss(_mm_set_ss(FO_Arg(0)))),
             },
         },
     },
