@@ -938,7 +938,6 @@ class OptimizationEngine(object):
         for node in optree.get_inputs() + optree.get_extra_inputs():
           self.recursive_swap_format(node, old_format, new_format)
 
-      
 
 
     def check_processor_support(self, optree, memoization_map = {}, debug = False):

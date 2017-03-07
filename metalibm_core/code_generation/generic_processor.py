@@ -24,6 +24,14 @@ from .complex_generator import *
 from .generator_helper import *
 from .abstract_backend import *
 
+def LibFunctionConstructor(require_header):
+    def extend_kwords(kwords, ext_list):
+        require_header_arg = [] if ((not "require_header" in kwords) or not kwords["require_header"]) else kwords["require_header"]
+        require_header_arg += require_header
+        kwords["require_header"] = require_header_arg
+        return kwords
+
+    return lambda *args, **kwords: FunctionOperator(*args, **extend_kwords(kwords, require_header))
 
 
 

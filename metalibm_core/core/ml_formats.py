@@ -586,7 +586,7 @@ ML_AbstractBool     = AbstractFormat_Builder("MLAbstractBool",     (ML_Bool_Form
 
 
 ###############################################################################
-#                     COMPOUNT FORMAT
+#                     COMPOUND FORMAT
 ###############################################################################
 
 class ML_Compound_Format(ML_Format):
@@ -708,7 +708,7 @@ ML_Int2  = vector_format_builder("ml_int2_t", "int2", 2,  ML_Int32, compound_con
 ML_Int3  = vector_format_builder("ml_int3_t", "int3", 3,  ML_Int32, compound_constructor = ML_IntegerVectorFormat)
 ML_Int4  = vector_format_builder("ml_int4_t", "int4", 4, ML_Int32, compound_constructor = ML_IntegerVectorFormat)
 ML_Int8  = vector_format_builder("ml_int8_t", "int8", 8, ML_Int32, compound_constructor = ML_IntegerVectorFormat)
-                                                         
+
 ML_UInt2 = vector_format_builder("ml_uint2_t", "uint2", 2, ML_UInt32, compound_constructor = ML_IntegerVectorFormat)
 ML_UInt3 = vector_format_builder("ml_uint3_t", "uint3", 3, ML_UInt32, compound_constructor = ML_IntegerVectorFormat)
 ML_UInt4 = vector_format_builder("ml_uint4_t", "uint4", 4, ML_UInt32, compound_constructor = ML_IntegerVectorFormat)

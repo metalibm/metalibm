@@ -346,12 +346,8 @@ class ML_FunctionBasis(object):
 
   def gen_implementation(self, display_after_gen = False, display_after_opt = False, enable_subexpr_sharing = True):
     # generate scheme
-    if self.get_vector_size() == 1:
-      # scalar implementation
-      code_function_list = self.generate_function_list()
-    else:
-      # generating scalar scheme
-      code_function_list = self.generate_function_list()
+    code_function_list = self.generate_function_list()
+    if self.get_vector_size() != 1:
       scalar_scheme = self.implementation.get_scheme()
       scalar_arg_list = self.implementation.get_arg_list()
       self.implementation.clear_arg_list()
@@ -360,7 +356,7 @@ class ML_FunctionBasis(object):
 
     if self.auto_test_enable:
       code_function_list += self.generate_auto_test(test_num = self.auto_test_number if self.auto_test_number else 0, test_range = self.auto_test_range)
-      
+
 
     for code_function in code_function_list:
       scheme = code_function.get_scheme()
