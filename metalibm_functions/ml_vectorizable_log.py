@@ -208,11 +208,18 @@ class ML_Log(ML_Function("ml_log")):
 
     print poly_object
 
-    log1pu_poly = PolynomialSchemeEvaluator.generate_cgpe_scheme(
-            poly_object,
-            u,
-            unified_precision = self.precision,
-            )
+    if is_cgpe_available():
+      log1pu_poly = PolynomialSchemeEvaluator.generate_cgpe_scheme(
+              poly_object,
+              u,
+              unified_precision = self.precision,
+              )
+    else:
+      log1pu_poly = PolynomialSchemeEvaluator.generate_horner_scheme(
+              poly_object,
+              u,
+              unified_precision = self.precision,
+              )
     log1pu_poly.set_attributes(
             tag = 'log1pu_poly',
             debug = debug_lftolx)
