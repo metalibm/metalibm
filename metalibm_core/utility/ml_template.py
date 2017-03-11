@@ -117,6 +117,7 @@ class TargetInfoAction(argparse.Action):
         exit(0)
         #setattr(namespace, "early_exit", True)
 
+## Command line action to set break on error in load module
 class MLDebugAction(argparse.Action):
     def __init__(self, option_strings, dest, nargs=None, **kwargs):
         if nargs is not None:

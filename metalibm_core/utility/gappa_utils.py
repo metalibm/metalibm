@@ -44,6 +44,7 @@ def execute_gappa_script_extract(gappa_code, gappa_filename = "gappa_tmp.g"):
     return result
     
 
+## Check if gappa binary is available in the execution environement
 def is_gappa_installed():
     """ check if gappa is present on the execution environement """
     dev_null = open("/dev/null", "w")
