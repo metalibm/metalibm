@@ -59,6 +59,8 @@ abstract_typing_rule = {
         lambda optree, op0, op1: merge_abstract_format(op0.get_precision(), op1.get_precision()), 
     Division: 
         lambda optree, op0, op1: merge_abstract_format(op0.get_precision(), op1.get_precision()), 
+    FastReciprocal:
+        lambda optree, op0: ML_Binary32,
     Modulo: 
         lambda optree, op0, op1: merge_abstract_format(op0.get_precision(), op1.get_precision()), 
     NearestInteger: 
@@ -129,6 +131,8 @@ practical_typing_rule = {
     FusedMultiplyAdd: 
         lambda backend, op, dprec: backend.merge_abstract_format(op, op.inputs),
     Division: 
+        lambda backend, op, dprec: backend.merge_abstract_format(op, op.inputs),
+    FastReciprocal:
         lambda backend, op, dprec: backend.merge_abstract_format(op, op.inputs),
     Modulo: 
         lambda backend, op, dprec: backend.merge_abstract_format(op, op.inputs),
@@ -938,7 +942,6 @@ class OptimizationEngine(object):
         for node in optree.get_inputs() + optree.get_extra_inputs():
           self.recursive_swap_format(node, old_format, new_format)
 
-      
 
 
     def check_processor_support(self, optree, memoization_map = {}, debug = False):

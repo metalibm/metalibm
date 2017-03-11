@@ -13,6 +13,8 @@
 import sollya
 
 from sollya import S2, SollyaObject, coeff
+from ..utility.log_report import Log
+
 try:
   from cgpe import (
           PolynomialScheme as CgpePolynomialScheme,
@@ -23,12 +25,17 @@ try:
           Subtraction as CgpeSub,
           CgpeDriver,
           )
+  cpge_available = True
 except ImportError:
-  print "CPGE could not be imported"
+  cpge_available = False
+  Log.report(Log.Warning, "CPGE import failed")
 
-from ..utility.log_report import Log
 from .ml_operations import Constant, Variable, Multiplication, Addition, Subtraction
 from .ml_formats import ML_Format, ML_FP_Format, ML_Fixed_Format
+
+
+def is_cgpe_available():
+  return cpge_available
 
 class Polynomial(object):
     """ Mathematical polynomial object class """

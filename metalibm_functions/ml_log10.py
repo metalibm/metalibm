@@ -22,7 +22,7 @@ from metalibm_core.core.ml_complex_formats import ML_Mpfr_t
 from metalibm_core.code_generation.gappa_code_generator import GappaCodeGenerator
 from metalibm_core.code_generation.generator_utility import FunctionOperator, FO_Result, FO_Arg
 
-from metalibm_core.utility.gappa_utils import execute_gappa_script_extract
+from metalibm_core.utility.gappa_utils import execute_gappa_script_extract, is_gappa_installed
 from metalibm_core.utility.ml_template import *
 
 from metalibm_core.utility.arg_utils import test_flag_option, extract_option_value  
@@ -203,8 +203,9 @@ class ML_Log10(ML_Function("log10")):
       corr_exp: Variable("corr_exp_g", precision = self.precision, interval = self.precision.get_exponent_interval()), 
     }
     # computing gappa error
-    poly_eval_error = self.get_eval_error(result, eval_error_map)
-    print "poly_eval_error: ", poly_eval_error
+    if is_gappa_installed():
+      poly_eval_error = self.get_eval_error(result, eval_error_map)
+      print "poly_eval_error: ", poly_eval_error
 
 
     neg_input = Comparison(vx, 0, likely = False, specifier = Comparison.Less, debug = debugd, tag = "neg_input")

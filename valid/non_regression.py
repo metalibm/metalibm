@@ -6,6 +6,7 @@ import metalibm_functions.ml_log2
 import metalibm_functions.ml_log
 import metalibm_functions.ml_exp
 import metalibm_functions.ml_cbrt
+import metalibm_functions.ml_vectorizable_log
 
 from metalibm_core.core.ml_formats import ML_Binary32, ML_Binary64, ML_Int32
 from metalibm_core.targets.common.vector_backend import VectorBackend
@@ -46,6 +47,14 @@ new_scheme_function_list = [
     "basic cubic square test",
     metalibm_functions.ml_cbrt.ML_Cbrt,
     [{"precision": ML_Binary32}, {"precision": ML_Binary64}]
+  ), 
+  NewSchemeTest(
+    "basic vectorizable log scalar test",
+    metalibm_functions.ml_vectorizable_log.ML_Log,
+    [
+      {"precision": ML_Binary32}, 
+      {"precision": ML_Binary64},
+    ]
   ), 
   NewSchemeTest(
     "vector exp test",

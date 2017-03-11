@@ -52,23 +52,6 @@ class ML_Table(ML_LeafNode):
         self.dimensions = dimensions
         self.storage_precision = storage_precision
 
-
-    def copy(self, copy_map = {}): 
-      """ base function to copy a ML_Table object
-          copy_map is a memoization hashtable which can be use to factorize
-          copies """
-      # test for previous definition in memoization map
-      if self in copy_map: 
-        return copy_map[self]
-      else:
-        kwords = self.attributes.__dict__.copy()
-        kwords.update({
-          'dimensions': self.dimensions,
-          'storage_precision': self.storage_precision,
-        })
-        new_copy = ML_Table(**kwords)
-        return new_copy
-
     def __setitem__(self, key, value):
         self.table[key] = value
 
@@ -109,7 +92,18 @@ class ML_Table(ML_LeafNode):
         attribute_str = "" if not display_attribute else self.attributes.get_str(tab_level = tab_level)
         precision_str = "" if not display_precision else "[%s]" % str(self.get_storage_precision())
         return "  " * tab_level + "Table[%s]%s%s%s\n" % ("][".join([str(dim) for dim in self.dimensions]), precision_str, id_str, attribute_str)
-        
+
+    def copy(self, copy_map = {}):
+        if self in copy_map.keys():
+            return copy_map[self]
+        else:
+            kwords = self.attributes.__dict__.copy()
+            kwords.update({
+                'dimensions' : self.dimensions,
+                'storage_precision' : self.storage_precision
+                })
+            new_copy = ML_Table(**kwords)
+            return new_copy
 
 
 def generic_index_function(index_size, variable):
