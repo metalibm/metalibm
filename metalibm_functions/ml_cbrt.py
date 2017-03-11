@@ -201,7 +201,7 @@ if __name__ == "__main__":
     # auto-test
     arg_template = ML_NewArgTemplate(default_function_name = "new_cosh", default_output_file = "new_cosh.c" )
     # argument extraction 
-    args = parse_arg_index_list = arg_template.arg_extraction()
+    args = arg_template.arg_extraction()
 
     ml_cbrt          = ML_Cbrt(args)
 
