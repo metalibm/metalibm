@@ -184,6 +184,9 @@ class ML_CommonArgTemplate(object):
     self.args = self.parser.parse_args(sys.argv[1:])
     return self.args
 
+  def get_parser(self):
+    return self.parser
+
 
   ## process argument to return overloadable arg_value
   #  @p arg_value argument value (bare or encapsulated within an ArgDefault object)
