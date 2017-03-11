@@ -5,6 +5,7 @@ import metalibm_functions.ml_log1p
 import metalibm_functions.ml_log2
 import metalibm_functions.ml_log
 import metalibm_functions.ml_exp
+import metalibm_functions.ml_cbrt
 
 from metalibm_core.core.ml_formats import ML_Binary32, ML_Binary64, ML_Int32
 from metalibm_core.targets.common.vector_backend import VectorBackend
@@ -19,49 +20,37 @@ new_scheme_function_list = [
   NewSchemeTest(
     "basic log test",
     metalibm_functions.ml_log.ML_Log,
-    [
-      {"precision": ML_Binary32}, 
-      {"precision": ML_Binary64}
-    ]
+    [{"precision": ML_Binary32}, {"precision": ML_Binary64}]
   ), 
   NewSchemeTest(
     "basic log1p test",
     metalibm_functions.ml_log1p.ML_Log1p,
-    [
-      {"precision": ML_Binary32}, 
-      {"precision": ML_Binary64}
-    ]
+    [{"precision": ML_Binary32}, {"precision": ML_Binary64}]
   ), 
   NewSchemeTest(
     "basic log2 test",
     metalibm_functions.ml_log2.ML_Log2,
-    [
-      {"precision": ML_Binary32}, 
-      {"precision": ML_Binary64}
-    ]
+    [{"precision": ML_Binary32}, {"precision": ML_Binary64}]
   ), 
   NewSchemeTest(
     "basic log10 test",
     metalibm_functions.ml_log10.ML_Log10,
-    [
-      {"precision": ML_Binary32}, 
-      {"precision": ML_Binary64}
-    ]
+    [{"precision": ML_Binary32}, {"precision": ML_Binary64}]
   ), 
   NewSchemeTest(
     "basic exp test",
     metalibm_functions.ml_exp.ML_Exponential,
-    [
-      {"precision": ML_Binary32}, 
-      {"precision": ML_Binary64},
-    ]
+    [{"precision": ML_Binary32}, {"precision": ML_Binary64}]
+  ), 
+  NewSchemeTest(
+    "basic cubic square test",
+    metalibm_functions.ml_cbrt.ML_Cbrt,
+    [{"precision": ML_Binary32}, {"precision": ML_Binary64}]
   ), 
   NewSchemeTest(
     "vector exp test",
     metalibm_functions.ml_exp.ML_Exponential,
-    [
-      {"precision": ML_Binary32, "vector_size": 2, "target": VectorBackend()}, 
-    ]
+    [{"precision": ML_Binary32, "vector_size": 2, "target": VectorBackend()}, ]
   ), 
 ]
 
