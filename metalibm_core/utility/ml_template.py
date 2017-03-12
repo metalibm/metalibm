@@ -104,6 +104,11 @@ class VerboseAction(argparse.Action):
         print('VerboseAction %r %r %r' % (namespace, values, option_string))
         Log.enable_level(Log.Verbose)
 
+## list the available targets
+def list_targets():
+  for target_name in target_map:
+    print "{}:\n  {}".format(target_name, target_map[target_name])
+
 class TargetInfoAction(argparse.Action):
     def __init__(self, option_strings, dest, nargs=None, **kwargs):
         if nargs is not None:
@@ -111,9 +116,7 @@ class TargetInfoAction(argparse.Action):
         super(TargetInfoAction, self).__init__(option_strings, dest, nargs = 0, **kwargs)
     def __call__(self, parser, namespace, values, option_string=None):
         #print('TargetInfoAction %r %r %r' % (namespace, values, option_string))
-        spacew = max(len(v) for v in target_map)
-        for target_name in target_map:
-          print "%s: %s %s " % (target_name, " " * (spacew - len(target_name)), target_map[target_name])
+        list_targets()
         exit(0)
         #setattr(namespace, "early_exit", True)
 
