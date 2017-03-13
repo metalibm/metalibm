@@ -329,6 +329,24 @@ class ML_Std_FP_Format(ML_FP_Format):
             else:
                 return str(cst_value) 
 
+    def get_integer_format(self):
+        int_precision = {
+                ML_Binary16: ML_Int16,
+                ML_Binary32: ML_Int32,
+                ML_Binary64: ML_Int64,
+                ML_Binary80: None,
+                }
+        return int_precision[self]
+
+    def get_unsigned_integer_format(self):
+        uint_precision = {
+                ML_Binary16: ML_UInt16,
+                ML_Binary32: ML_UInt32,
+                ML_Binary64: ML_UInt64,
+                ML_Binary80: None,
+                }
+        return uint_precision[self]
+
 
 class ML_FormatConstructor(ML_Format):
     def __init__(self, bit_size, c_name, c_display_format, get_c_cst):

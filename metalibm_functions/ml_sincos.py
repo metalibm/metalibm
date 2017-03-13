@@ -319,7 +319,7 @@ class ML_SinCos(ML_Function("ml_cos")):
     # sys.exit(1)
 
     # selecting int precision for cast corresponding to precision width
-    cast_int_precision = {ML_Binary64: ML_Int64, ML_Binary32: ML_Int32}[self.precision]
+    cast_int_precision = self.precision.get_integer_format()
 
     cond_3 = LogicalAnd(
                 Comparison(Abs(red_vx), Constant(cos_table_hi[2**(frac_pi_index-1)-1][0] / S2, precision = self.precision), specifier = Comparison.GreaterOrEqual, tag = "comp_bound", debug = True),
@@ -423,7 +423,7 @@ class ML_SinCos(ML_Function("ml_cos")):
     lar_cos_eval_3.set_attributes(tag = "lar_cos_eval_3", precision = self.precision, debug = debug_precision)
 
     # selecting int precision for cast corresponding to precision width
-    cast_int_precision = {ML_Binary64: ML_Int64, ML_Binary32: ML_Int32}[self.precision]
+    cast_int_precision = self.precision.get_integer_format()
 
     lar_cond_3 = LogicalAnd(
                 Comparison(Abs(lar_red_vx), Constant(cos_table_hi[2**(frac_pi_index-1)-1][0] / S2, precision = self.precision), specifier = Comparison.GreaterOrEqual, tag = "lar_comp_bound", debug = True),

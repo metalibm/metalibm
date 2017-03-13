@@ -69,7 +69,7 @@ class ML_Log(ML_Function("ml_log")):
     emulate_func_op = FunctionOperator(
             emulate_func_name,
             arg_map = { i: FO_Arg(i) for i in range(argc) },
-            require_header=["mpfr.h"])
+            require_header = ["mpfr.h"])
     emulate_func = FunctionObject(
             emulate_func_name,
             [ ML_Mpfr_t, ML_Mpfr_t, ML_Int32 ],
@@ -88,14 +88,14 @@ class ML_Log(ML_Function("ml_log")):
     vx = self.implementation.add_input_variable("x", self.precision)
 
     precision = self.precision.sollya_object
+    int_prec = self.precision.get_integer_format()
+    uint_prec = self.precision.get_unsigned_integer_format()
 
     # The denormalized mask is defined as:
     # 2^(e_min + 2) * (1 - 2^(-precision))
     # e.g. for binary32: 2^(-126 + 2) * (1 - 2^(-24))
-    if self.precision == ML_Binary32:
-        denorm_mask = 0x017fffff
-    elif self.precision == ML_Binary64:
-        denorm_mask = 0x002fffffffffffff
+    denorm_mask = Constant(value = 0x017fffff if self.precision == ML_Binary32
+                           else 0x002fffffffffffff, precision = int_prec)
 
     print "MDL table"
     table_index_size = 7 # to be abstracted somehow
@@ -111,29 +111,19 @@ class ML_Log(ML_Function("ml_log")):
             init_data = init_log2,
             tag = 'ml_log2_table')
 
-    int_precision = {
-        ML_Binary32: ML_Int32,
-        ML_Binary64: ML_Int64,
-    }
-    uint_precision = {
-        ML_Binary32: ML_UInt32,
-        ML_Binary64: ML_UInt64,
-    }
-    uint_prec = uint_precision[self.precision]
-    int_prec  = int_precision[self.precision]
     print 'MDL unified denormal handling'
-    vx_as_int = TypeCast(vx, precision=int_prec, tag='vx_as_int')
-    vx_as_uint = TypeCast(vx, precision=uint_prec, tag='vx_as_uint')
+    vx_as_int = TypeCast(vx, precision = int_prec, tag = 'vx_as_int')
+    vx_as_uint = TypeCast(vx, precision = uint_prec, tag = 'vx_as_uint')
     # Avoid the 0.0 case
     denorm = vx_as_int - 1
-    is_denormal = Conversion(denorm < denorm_mask, precision=int_prec)
+    is_denormal = Conversion(denorm < denorm_mask, precision = int_prec)
 
     # NO BRANCH, INTEGER BASED DENORMAL AND LARGE EXPONENT HANDLING
     # 1. lzcnt
     lzcount = CountLeadingZeros(vx_as_uint, tag = 'lzcount',
             interval = Interval(0, self.precision.bit_size),
             precision = uint_prec)
-    max8 = Max(8, Conversion(lzcount, precision=int_prec)) # Max of lzcnt and 8
+    max8 = Max(8, Conversion(lzcount, precision = int_prec)) # Max of lzcnt and 8
     # 2. compute shift value
     shift = max8 -  8
     # 3. shift left
@@ -145,14 +135,14 @@ class ML_Log(ML_Function("ml_log")):
     exponent = tmp2 - (1 << 24) # tmp2 - 2^24
 
     normal_vx_as_int = res + exponent
-    normal_vx = TypeCast(normal_vx_as_int, precision=self.precision,
-                         tag='normal_vx')
+    normal_vx = TypeCast(normal_vx_as_int, precision = self.precision,
+                         tag = 'normal_vx')
     mask_to_add = BitLogicAnd(is_denormal, 25) - 2
 
-    invx = FastReciprocal(normal_vx, tag='invx', precision=self.precision)
+    invx = FastReciprocal(normal_vx, tag = 'invx', precision = self.precision)
     if not self.processor.is_supported_operation(invx):
         # An approximation table could be used instead.
-        invx = Division(1.0, normal_vx, tag='invx')
+        invx = Division(1.0, normal_vx, tag = 'invx')
 
     print "MDL scheme"
     exponent = ExponentExtraction(invx, precision = self.precision,
@@ -163,7 +153,7 @@ class ML_Log(ML_Function("ml_log")):
 
     table_mantissa_half_ulp = \
             1 << (self.precision.field_size - table_index_size - 1)
-    invx_round = TypeCast(invx, precision=int_prec, tag='invx_int') \
+    invx_round = TypeCast(invx, precision = int_prec, tag = 'invx_int') \
             + table_mantissa_half_ulp
     table_s_exp_index_mask = ~((table_mantissa_half_ulp << 1) - 1)
     invx_fast_rndn = BitLogicAnd(
@@ -172,8 +162,8 @@ class ML_Log(ML_Function("ml_log")):
             tag = 'invx_fast_rndn'
             )
     # u should be optimized as an FMA
-    u = normal_vx * TypeCast(invx_fast_rndn, precision=self.precision) - 1.0
-    u.set_attributes(tag='u')
+    u = normal_vx * TypeCast(invx_fast_rndn, precision = self.precision) - 1.0
+    u.set_attributes(tag = 'u')
     unneeded_bits = self.precision.field_size - table_index_size
     invx_bits = BitLogicRightShift(invx_fast_rndn, unneeded_bits)
     table_index_mask = (1 << table_index_size) - 1
@@ -241,6 +231,5 @@ if __name__ == "__main__":
           default_output_file = "LOG.c" )
   args = arg_template.arg_extraction()
 
-
-  ml_log = ML_Log(args, precision=ML_Binary32)
+  ml_log = ML_Log(args)
   ml_log.gen_implementation()

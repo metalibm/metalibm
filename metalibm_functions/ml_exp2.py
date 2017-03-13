@@ -87,7 +87,7 @@ class ML_Exp2(ML_Function("ml_exp2")):
 
     approx_interval = Interval(0.0, 2**-index_size)
     error_goal_approx = 2**-(self.precision.get_precision())
-    int_precision = {ML_Binary32: ML_Int32, ML_Binary64: ML_Int64}[self.precision]
+    int_precision = self.precision.get_integer_format()
 
 
     vx_int = Floor(vx * 2**index_size, precision = self.precision, tag = "vx_int", debug = debug_multi)

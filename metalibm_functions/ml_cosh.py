@@ -87,7 +87,7 @@ class ML_HyperbolicCosine(ML_Function("ml_cosh")):
     index_size = 3
 
     vx = Abs(vx)
-    int_precision = {ML_Binary32: ML_Int32, ML_Binary64: ML_Int64}[self.precision]
+    int_precision = self.precision.get_integer_format()
 
     # argument reduction
     arg_reg_value = log(2)/2**index_size

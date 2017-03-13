@@ -152,7 +152,7 @@ class ML_Sqrt(ML_Function("ml_sqrt")):
 
     self.accuracy  = accuracy
     self.precision = precision
-    self.integer_precision = {ML_Binary32: ML_Int32, ML_Binary64: ML_Int64}[self.precision]
+    self.integer_precision = self.precision.get_integer_format()
     self.num_iter = num_iter
 
   def generate_scheme(self):

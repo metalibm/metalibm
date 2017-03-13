@@ -63,10 +63,7 @@ class ML_UT_PayneHanek(ML_Function("ml_ut_payne_hanek")):
 
   def generate_scheme(self):
     #func_implementation = CodeFunction(self.function_name, output_format = self.precision)
-    int_precision = {
-      ML_Binary32: ML_Int32,
-      ML_Binary64: ML_Int64
-    }[self.precision]
+    int_precision = self.precision.get_integer_format()
     vx = self.implementation.add_input_variable("x", ML_Binary64)
     k = 4
     frac_pi = S2**k/pi 

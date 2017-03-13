@@ -107,7 +107,7 @@ class ML_Log(ML_Function("ml_log")):
 
     vx_exp  = ExponentExtraction(vx, tag = "vx_exp", debug = debugd)
 
-    int_precision = ML_Int64 if self.precision is ML_Binary64 else ML_Int32
+    int_precision = self.precision.get_integer_format()
 
     # table creation
     table_index_size = 7

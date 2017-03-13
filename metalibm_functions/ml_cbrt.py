@@ -112,7 +112,7 @@ class ML_Cbrt(ML_Function("ml_cbrt")):
 
     reduced_vx = MantissaExtraction(vx, precision = self.precision)
 
-    int_precision = {ML_Binary32: ML_Int32, ML_Binary64: ML_Int64}[self.precision]
+    int_precision = self.precision.get_integer_format()
 
 
     cbrt_approx_table = ML_Table(dimensions = [2**index_size, 1], storage_precision = self.precision, tag = self.uniquify_name("cbrt_approx_table"))

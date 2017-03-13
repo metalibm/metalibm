@@ -109,7 +109,7 @@ class ML_Log10(ML_Function("log10")):
 
     vx_exp  = ExponentExtraction(vx, tag = "vx_exp", debug = debugd)
 
-    int_precision = ML_Int64 if self.precision is ML_Binary64 else ML_Int32
+    int_precision = self.precision.get_integer_format()
 
     # retrieving processor inverse approximation table
     dummy_var = Variable("dummy", precision = self.precision)

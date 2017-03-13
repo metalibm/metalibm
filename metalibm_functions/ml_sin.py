@@ -59,7 +59,7 @@ class ML_Sine(object):
         test_signaling_nan = Test(vx, specifier = Test.IsSignalingNaN, debug = True, tag = "is_signaling_nan")
         return_snan = Statement(ExpRaiseReturn(ML_FPE_Invalid, return_value = FP_QNaN(ML_Binary32)))
 
-        int_precision = ML_Int64 if self.precision is ML_Binary64 else ML_Int32
+        int_precision = self.precision.get_integer_format()
 
         inv_pi_value = 1 / pi
 

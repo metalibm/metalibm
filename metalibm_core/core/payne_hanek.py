@@ -28,10 +28,7 @@ def get_remainder(vx, precision, k, debug = None, tag = ""):
   """ get in floating-point format <precision>
       the integer part of vx with the k least
       significant bits zeroed """
-  int_precision = {
-    ML_Binary64: ML_Int64,
-    ML_Binary32: ML_Int32
-  }[precision]
+  int_precision = precision.get_integer_format()
   result  = Conversion(
                 BitLogicAnd(
                     NearestInteger(
@@ -48,10 +45,7 @@ def generate_payne_hanek(vx, frac_pi, precision, n = 100, k = 4, chunk_num = Non
   """ generate payne and hanek argument reduction for frac_pi * variable """
   # determining integer format corresponding to 
   # floating point precision argument
-  int_precision = {
-    ML_Binary64: ML_Int64,
-    ML_Binary32: ML_Int32
-  }[precision]
+  int_precision = precision.get_integer_format()
 
   cst_msb = floor(log2(abs(frac_pi)))
   cst_exp_range = cst_msb - precision.get_emin_subnormal() + 1
