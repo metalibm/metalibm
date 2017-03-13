@@ -31,3 +31,10 @@ USAGE
     python2 metalibm_functions/ml_log.py --help 
     
 
+TEST
+====
+* Unit-testing:
+  python2 valid/unit_test.py
+
+* Non-regression tests:
+  python2 valid/non_regression.py
