@@ -25,14 +25,13 @@ from metalibm_core.core.ml_table import ML_Table
 from metalibm_core.code_generation.gappa_code_generator import GappaCodeGenerator
 
 from metalibm_core.utility.gappa_utils import execute_gappa_script_extract
-from metalibm_core.utility.ml_template import ML_ArgTemplate
-
-from metalibm_core.utility.arg_utils import test_flag_option, extract_option_value  
+from metalibm_core.utility.ml_template import *
 
 from metalibm_core.utility.debug_utils import * 
 
 class ML_UT_PointerManipulation(ML_Function("ml_ut_pointer_manipulation")):
   def __init__(self, 
+                 arg_template,
                  precision = ML_Binary32, 
                  abs_accuracy = S2**-24, 
                  libm_compliant = True, 
@@ -42,6 +41,8 @@ class ML_UT_PointerManipulation(ML_Function("ml_ut_pointer_manipulation")):
                  target = MPFRProcessor(), 
                  output_file = "ut_function_format.c", 
                  function_name = "ut_function_format"):
+    # precision argument extraction
+    precision = ArgDefault.select_value([arg_template.precision, precision])
     io_precisions = [precision] * 2
 
     # initializing base class
@@ -58,6 +59,7 @@ class ML_UT_PointerManipulation(ML_Function("ml_ut_pointer_manipulation")):
       fuse_fma = fuse_fma,
       fast_path_extract = fast_path_extract,
 
+      arg_template = arg_template,
       debug_flag = debug_flag
     )
 
@@ -76,20 +78,20 @@ class ML_UT_PointerManipulation(ML_Function("ml_ut_pointer_manipulation")):
     scheme = Statement(px_assign)
 
     return scheme
+    
+
+def run_test(args):
+  ml_ut_pointer_manipulation = ML_UT_PointerManipulation(args)
+  ml_ut_pointer_manipulation.gen_implementation()
+  return True
 
 if __name__ == "__main__":
   # auto-test
-  arg_template = ML_ArgTemplate(default_function_name = "new_ut_function_format", default_output_file = "new_ut_function_format.c" )
-  arg_template.sys_arg_extraction()
+  arg_template = ML_NewArgTemplate("new_ut_function_format", default_output_file = "new_ut_function_format.c" )
+  args = arg_template.arg_extraction()
 
+  if run_test(args):
+    exit(0)
+  else:
+    exit(1)
 
-  ml_ut_pointer_manipulation = ML_UT_PointerManipulation(arg_template.precision, 
-                                libm_compliant            = arg_template.libm_compliant, 
-                                debug_flag                = arg_template.debug_flag, 
-                                target                    = arg_template.target, 
-                                fuse_fma                  = arg_template.fuse_fma, 
-                                fast_path_extract         = arg_template.fast_path,
-                                function_name             = arg_template.function_name,
-                                output_file               = arg_template.output_file)
-
-  ml_ut_pointer_manipulation.gen_implementation()

@@ -78,8 +78,11 @@ def accuracy_parser(accuracy_str):
 def interval_parser(interval_str):
   return eval(interval_str)
 
+## return the Target Constructor associated with 
+#  the string @p target_name
 def target_parser(target_name):
   return target_map[target_name]
+## Instanciate a target object from its string description
 def target_instanciate(target_name):
   return target_parser(target_name)()
 

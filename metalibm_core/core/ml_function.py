@@ -89,7 +89,7 @@ class DefaultArgTemplate:
   language = C_Code
   auto_test = False
   auto_test_execute = False
-  auto_test_range = None
+  auto_test_range = Interval(0, 1)
   auto_test_std   = False
 
   def __init__(self, **kw):
@@ -520,7 +520,7 @@ class ML_FunctionBasis(object):
     high_input = sup(test_range)
     auto_test = CodeFunction("main", output_format = ML_Int32)
 
-    test_num_cst = Constant(test_num, precision = ML_Int32)
+    test_num_cst = Constant(test_num, precision = ML_Int32, tag = "test_num")
 
     tested_function    = self.implementation.get_function_object()
     function_name      = self.implementation.get_name()

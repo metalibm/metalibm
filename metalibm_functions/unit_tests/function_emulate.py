@@ -84,12 +84,18 @@ class ML_UT_FunctionFormat(ML_Function("ml_ut_function_format")):
 
     return scheme
 
+def run_test(args):
+  ml_ut_function_format = ML_UT_FunctionFormat(args)
+  ml_ut_function_format.gen_implementation()
+  return True
+
 if __name__ == "__main__":
   # auto-test
   arg_template = ML_NewArgTemplate("new_ut_function_format", default_output_file = "new_ut_function_format.c" )
   args = arg_template.arg_extraction()
 
+  if run_test(args):
+    exit(0)
+  else:
+    exit(1)
 
-  ml_ut_function_format = ML_UT_FunctionFormat(args)
-
-  ml_ut_function_format.gen_implementation()

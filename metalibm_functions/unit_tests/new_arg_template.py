@@ -81,12 +81,17 @@ class ML_UT_NewArgTemplate(ML_Function("ml_ut_new_arg_template")):
 
     return scheme
 
+def run_test(args):
+  ml_ut_new_arg_template = ML_UT_NewArgTemplate(args)
+  ml_ut_new_arg_template.gen_implementation(display_after_gen = True, display_after_opt = True)
+  return True
+  
+
 if __name__ == "__main__":
-  # auto-test
-  #arg_template = ML_ArgTemplate(default_function_name = "new_ut_new_arg_template", default_output_file = "new_ut_new_arg_template.c" )
-  #arg_template.sys_arg_extraction()
   arg_template = ML_NewArgTemplate("new_ut_new_arg_template")
   args = arg_template.arg_extraction()
 
-  ml_ut_new_arg_template = ML_UT_NewArgTemplate(args)
-  ml_ut_new_arg_template.gen_implementation(display_after_gen = True, display_after_opt = True)
+  if run_test(args):
+    exit(0)
+  else:
+    exit(1)

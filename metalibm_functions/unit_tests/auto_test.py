@@ -76,18 +76,26 @@ class ML_UT_AutoTest(ML_Function("ml_ut_auto_test")):
 
   def generate_scheme(self):
     #func_implementation = CodeFunction(self.function_name, output_format = self.precision)
-    vx = self.implementation.add_input_variable("x", ML_Binary32)
+    vx = self.implementation.add_input_variable("x", self.precision)
 
-    scheme = Statement(Return(vx + vx))
+    scheme = Statement(Return(vx + vx, precision = self.precision))
 
     return scheme
+
+
+def run_test(args):
+  ml_ut_auto_test = ML_UT_AutoTest(args)
+
+  ml_ut_auto_test.gen_implementation(display_after_gen = True, display_after_opt = True)
+  return True
 
 if __name__ == "__main__":
   # auto-test
   arg_template = ML_NewArgTemplate(default_function_name = "new_ut_auto_test", default_output_file = "new_ut_auto_test.c" )
   args = arg_template.arg_extraction()
 
+  if run_test(args):
+    exit(0)
+  else:
+    exit(1)
 
-  ml_ut_auto_test = ML_UT_AutoTest(args)
-
-  ml_ut_auto_test.gen_implementation(display_after_gen = True, display_after_opt = True)

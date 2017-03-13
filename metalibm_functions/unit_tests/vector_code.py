@@ -96,16 +96,21 @@ class ML_UT_VectorCode(ML_Function("ml_ut_vector_code")):
 
     return [self.implementation]
 
+
+def run_test(args):
+  ml_ut_vector_code = ML_UT_VectorCode(args)
+  ml_ut_vector_code.gen_implementation()
+  return True
+
 if __name__ == "__main__":
   # auto-test
   arg_template = ML_NewArgTemplate("new_ut_vector_code", default_output_file = "new_ut_vector_code.c" )
   args = arg_template.arg_extraction()
 
-  ml_ut_vector_code = ML_UT_VectorCode(args)
 
-  display_after_gen = ArgDefault.select_value([args.display_after_gen])
-  display_after_opt = ArgDefault.select_value([args.display_after_opt])
-
-  ml_ut_vector_code.gen_implementation(display_after_gen = display_after_gen, display_after_opt = display_after_opt)
+  if run_test(args):
+    exit(0)
+  else:
+    exit(1)
 
 

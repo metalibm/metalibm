@@ -36,9 +36,7 @@ from metalibm_core.core.ml_optimization_engine import OptimizationEngine
 
 from metalibm_core.core.ml_vectorizer import StaticVectorizer
 
-from metalibm_core.utility.ml_template import ML_ArgTemplate
-
-from metalibm_core.utility.arg_utils import test_flag_option, extract_option_value  
+from metalibm_core.utility.ml_template import *
 
 from metalibm_core.utility.debug_utils import * 
 
@@ -47,6 +45,7 @@ from metalibm_core.utility.debug_utils import *
 
 class ML_UT_OpenCLCode(ML_Function("ml_ut_opencl_code")):
   def __init__(self, 
+                 arg_template, 
                  precision = ML_Binary32, 
                  abs_accuracy = S2**-24, 
                  libm_compliant = True, 
@@ -58,6 +57,8 @@ class ML_UT_OpenCLCode(ML_Function("ml_ut_opencl_code")):
                  function_name = "ut_opencl_code", 
                  vector_size = 2,
                  language = C_Code):
+    # precision argument extraction
+    precision = ArgDefault.select_value([arg_template.precision, precision])
     io_precisions = [precision] * 2
 
     # initializing base class
@@ -75,6 +76,7 @@ class ML_UT_OpenCLCode(ML_Function("ml_ut_opencl_code")):
       fast_path_extract = fast_path_extract,
 
       debug_flag = debug_flag,
+      arg_template = arg_template,
       vector_size = vector_size,
       language = language
     )
@@ -108,23 +110,21 @@ class ML_UT_OpenCLCode(ML_Function("ml_ut_opencl_code")):
 
     return scheme
 
+
+def run_test(args):
+  ml_ut_opencl_code = ML_UT_OpenCLCode(args)
+  ml_ut_opencl_code.gen_implementation()
+  return True
+
 if __name__ == "__main__":
   # auto-test
-  arg_template = ML_ArgTemplate(default_function_name = "new_ut_opencl_code", default_output_file = "new_ut_opencl_code.c" )
-  arg_template.sys_arg_extraction()
+  arg_template = ML_NewArgTemplate("new_ut_opencl_code", default_output_file = "new_ut_opencl_code.c" )
+  args = arg_template.arg_extraction()
 
+  if run_test(args):
+    exit(0)
+  else:
+    exit(1)
 
-  ml_ut_opencl_code = ML_UT_OpenCLCode(arg_template.precision, 
-                                libm_compliant            = arg_template.libm_compliant, 
-                                debug_flag                = arg_template.debug_flag, 
-                                target                    = arg_template.target, 
-                                fuse_fma                  = arg_template.fuse_fma, 
-                                fast_path_extract         = arg_template.fast_path,
-                                function_name             = arg_template.function_name,
-                                output_file               = arg_template.output_file,
-                                vector_size               = arg_template.vector_size,
-                                language                  = arg_template.language)
-
-  ml_ut_opencl_code.gen_implementation(display_after_gen = arg_template.display_after_gen, display_after_opt = arg_template.display_after_opt)
 
 

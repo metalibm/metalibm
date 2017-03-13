@@ -38,7 +38,6 @@ from metalibm_core.core.ml_vectorizer import StaticVectorizer
 
 from metalibm_core.utility.ml_template import *
 
-from metalibm_core.utility.arg_utils import test_flag_option, extract_option_value  
 
 from metalibm_core.utility.debug_utils import * 
 
@@ -109,15 +108,19 @@ class ML_UT_StaticVectorization(ML_Function("ml_ut_static_vectorization")):
 
     return self.generate_vector_implementation(scheme, [vx], vector_size)
 
+def run_test(args):
+  ml_ut_static_vectorization = ML_UT_StaticVectorization(args)
+  ml_ut_static_vectorization.gen_implementation()
+  return True
+
 if __name__ == "__main__":
   # auto-test
   arg_template = ML_NewArgTemplate(default_function_name = "new_ut_static_vectorization", default_output_file = "new_ut_static_vectorization.c" )
   args = arg_template.arg_extraction()
 
-  ml_ut_static_vectorization = ML_UT_StaticVectorization(args)
-
-  display_after_gen = ArgDefault.select_value([args.display_after_gen])
-  display_after_opt = ArgDefault.select_value([args.display_after_opt])
-  ml_ut_static_vectorization.gen_implementation(display_after_gen = display_after_gen, display_after_opt = display_after_opt)
+  if run_test(args):
+    exit(0)
+  else:
+    exit(1)
 
 
