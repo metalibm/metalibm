@@ -78,10 +78,10 @@ class ML_UT_VectorCode(ML_Function("ml_ut_vector_code")):
     vx.set_interval(Interval(-1, 1))
 
 
-    vec = Variable("vec", precision = ML_Float2, var_type = Variable.Local)
+    vec = Variable("vec", precision = v2float32, var_type = Variable.Local)
 
-    vec2 = Multiplication(vec, vec, precision = ML_Float2)
-    vec3 = Addition(vec, vec2, precision = ML_Float2)
+    vec2 = Multiplication(vec, vec, precision = v2float32)
+    vec3 = Addition(vec, vec2, precision = v2float32)
 
     result = Addition(vec3[0], vec3[1], precision = ML_Binary32)
 

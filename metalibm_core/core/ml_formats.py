@@ -520,8 +520,8 @@ ML_Binary16 = ML_Std_FP_Format(16, 5, 10, "__ERROR__", "half", "fp16", "%a", sol
 
 
 # Standard integer format declarations
-ML_Int8    = ML_Standard_FixedPoint_Format(8, 0, True)
-ML_UInt8   = ML_Standard_FixedPoint_Format(8, 0, False)
+v8int32    = ML_Standard_FixedPoint_Format(8, 0, True)
+v8uint32   = ML_Standard_FixedPoint_Format(8, 0, False)
 
 ML_Int16    = ML_Standard_FixedPoint_Format(16, 0, True)
 ML_UInt16   = ML_Standard_FixedPoint_Format(16, 0, False)
@@ -550,7 +550,7 @@ ML_Bool      = ML_BoolClass(32, "int", "%d", bool_get_c_cst)
 
 
 def is_std_integer_format(precision):
-  return precision in [ML_Int8,ML_UInt8,ML_Int16,ML_UInt16,ML_Int32,ML_UInt32,ML_Int64,ML_UInt64,ML_Int128,ML_UInt128]
+  return precision in [v8int32,v8uint32,ML_Int16,ML_UInt16,ML_Int32,ML_UInt32,ML_Int64,ML_UInt64,ML_Int128,ML_UInt128]
 
 def get_std_integer_support_format(precision):
   """ return the ML's integer format to contains
@@ -559,7 +559,7 @@ def get_std_integer_support_format(precision):
   format_map = {
     # signed
     True: {
-      8: ML_Int8,
+      8: v8int32,
       16: ML_Int16,
       32: ML_Int32,
       64: ML_Int64,
@@ -567,7 +567,7 @@ def get_std_integer_support_format(precision):
     },
     # unsigned
     False: {
-      8: ML_UInt8,
+      8: v8uint32,
       16: ML_UInt16,
       32: ML_UInt32,
       64: ML_UInt64,
@@ -689,30 +689,30 @@ class ML_FloatingPointVectorFormat(ML_CompoundVectorFormat, ML_FP_Format):
 def vector_format_builder(c_format_name, opencl_format_name, vector_size, scalar_format, sollya_precision = None, compound_constructor = ML_FloatingPointVectorFormat):
   return compound_constructor(c_format_name, opencl_format_name, vector_size, scalar_format, sollya_precision)
 
-ML_Float2 = vector_format_builder("ml_float2_t", "float2", 2, ML_Binary32)
-ML_Float3 = vector_format_builder("ml_float3_t", "float3", 3, ML_Binary32)
-ML_Float4 = vector_format_builder("ml_float4_t", "float4", 4, ML_Binary32)
-ML_Float8 = vector_format_builder("ml_float8_t", "float8", 8, ML_Binary32)
+v2float32 = vector_format_builder("ml_float2_t", "float2", 2, ML_Binary32)
+v3float32 = vector_format_builder("ml_float3_t", "float3", 3, ML_Binary32)
+v4float32 = vector_format_builder("ml_float4_t", "float4", 4, ML_Binary32)
+v8float32 = vector_format_builder("ml_float8_t", "float8", 8, ML_Binary32)
 
-ML_Double2 = vector_format_builder("ml_double2_t", "double2", 2, ML_Binary64)
-ML_Double3 = vector_format_builder("ml_double3_t", "double3", 3, ML_Binary64)
-ML_Double4 = vector_format_builder("ml_double4_t", "double4", 4, ML_Binary64)
-ML_Double8 = vector_format_builder("ml_double8_t", "double8", 8, ML_Binary64)
+v2float64 = vector_format_builder("ml_double2_t", "double2", 2, ML_Binary64)
+v3float64 = vector_format_builder("ml_double3_t", "double3", 3, ML_Binary64)
+v4float64 = vector_format_builder("ml_double4_t", "double4", 4, ML_Binary64)
+v8float64 = vector_format_builder("ml_double8_t", "double8", 8, ML_Binary64)
 
-ML_Bool2  = vector_format_builder("ml_bool2_t", "int2", 2, ML_Bool, compound_constructor = ML_IntegerVectorFormat)
-ML_Bool3  = vector_format_builder("ml_bool3_t", "int3", 3, ML_Bool, compound_constructor = ML_IntegerVectorFormat)
-ML_Bool4  = vector_format_builder("ml_bool4_t", "int4", 4, ML_Bool, compound_constructor = ML_IntegerVectorFormat)
-ML_Bool8  = vector_format_builder("ml_bool8_t", "int8", 8, ML_Bool, compound_constructor = ML_IntegerVectorFormat)
+v2bool  = vector_format_builder("ml_bool2_t", "int2", 2, ML_Bool, compound_constructor = ML_IntegerVectorFormat)
+v3bool  = vector_format_builder("ml_bool3_t", "int3", 3, ML_Bool, compound_constructor = ML_IntegerVectorFormat)
+v4bool  = vector_format_builder("ml_bool4_t", "int4", 4, ML_Bool, compound_constructor = ML_IntegerVectorFormat)
+v8bool  = vector_format_builder("ml_bool8_t", "int8", 8, ML_Bool, compound_constructor = ML_IntegerVectorFormat)
 
-ML_Int2  = vector_format_builder("ml_int2_t", "int2", 2,  ML_Int32, compound_constructor = ML_IntegerVectorFormat)
-ML_Int3  = vector_format_builder("ml_int3_t", "int3", 3,  ML_Int32, compound_constructor = ML_IntegerVectorFormat)
-ML_Int4  = vector_format_builder("ml_int4_t", "int4", 4, ML_Int32, compound_constructor = ML_IntegerVectorFormat)
-ML_Int8  = vector_format_builder("ml_int8_t", "int8", 8, ML_Int32, compound_constructor = ML_IntegerVectorFormat)
+v2int32  = vector_format_builder("ml_int2_t", "int2", 2,  ML_Int32, compound_constructor = ML_IntegerVectorFormat)
+v3int32  = vector_format_builder("ml_int3_t", "int3", 3,  ML_Int32, compound_constructor = ML_IntegerVectorFormat)
+v4int32  = vector_format_builder("ml_int4_t", "int4", 4, ML_Int32, compound_constructor = ML_IntegerVectorFormat)
+v8int32  = vector_format_builder("ml_int8_t", "int8", 8, ML_Int32, compound_constructor = ML_IntegerVectorFormat)
 
-ML_UInt2 = vector_format_builder("ml_uint2_t", "uint2", 2, ML_UInt32, compound_constructor = ML_IntegerVectorFormat)
-ML_UInt3 = vector_format_builder("ml_uint3_t", "uint3", 3, ML_UInt32, compound_constructor = ML_IntegerVectorFormat)
-ML_UInt4 = vector_format_builder("ml_uint4_t", "uint4", 4, ML_UInt32, compound_constructor = ML_IntegerVectorFormat)
-ML_UInt8 = vector_format_builder("ml_uint8_t", "uint8", 8, ML_UInt32, compound_constructor = ML_IntegerVectorFormat)
+v2uint32 = vector_format_builder("ml_uint2_t", "uint2", 2, ML_UInt32, compound_constructor = ML_IntegerVectorFormat)
+v3uint32 = vector_format_builder("ml_uint3_t", "uint3", 3, ML_UInt32, compound_constructor = ML_IntegerVectorFormat)
+v4uint32 = vector_format_builder("ml_uint4_t", "uint4", 4, ML_UInt32, compound_constructor = ML_IntegerVectorFormat)
+v8uint32 = vector_format_builder("ml_uint8_t", "uint8", 8, ML_UInt32, compound_constructor = ML_IntegerVectorFormat)
 
 
 ###############################################################################

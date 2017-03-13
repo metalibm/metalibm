@@ -1360,21 +1360,21 @@ class SwitchBlock(AbstractOperationConstructor("Switch", arity = 1)):
 
 class VectorElementSelection(ArithmeticOperationConstructor("VectorElementSelection", arity = 2)):
     implicit_arg_precision = {
-        ML_Float2: ML_Binary32,
-        ML_Float4: ML_Binary32,
-        ML_Float8: ML_Binary32,
+        v2float32: ML_Binary32,
+        v4float32: ML_Binary32,
+        v8float32: ML_Binary32,
 
-        ML_Double2: ML_Binary64,
-        ML_Double4: ML_Binary64,
-        ML_Double8: ML_Binary64,
+        v2float64: ML_Binary64,
+        v4float64: ML_Binary64,
+        v8float64: ML_Binary64,
 
-        ML_Int2: ML_Int32,
-        ML_Int4: ML_Int32,
-        ML_Int8: ML_Int32,
+        v2int32: ML_Int32,
+        v4int32: ML_Int32,
+        v8int32: ML_Int32,
 
-        ML_UInt2: ML_UInt32,
-        ML_UInt4: ML_UInt32,
-        ML_UInt8: ML_UInt32,
+        v2uint32: ML_UInt32,
+        v4uint32: ML_UInt32,
+        v8uint32: ML_UInt32,
     }
 
     def get_codegen_key(self):

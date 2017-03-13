@@ -75,34 +75,34 @@ class StaticVectorizer(object):
   def vectorize_format(self, scalar_format, vector_size):
     return {
       ML_Binary32: {
-        2: ML_Float2,
-        3: ML_Float3,
-        4: ML_Float4,
-        8: ML_Float8
+        2: v2float32,
+        3: v3float32,
+        4: v4float32,
+        8: v8float32
       },
       ML_Binary64: {
-        2: ML_Double2,
-        3: ML_Double3,
-        4: ML_Double4,
-        8: ML_Double8
+        2: v2float64,
+        3: v3float64,
+        4: v4float64,
+        8: v8float64
       },
       ML_UInt32: {
-        2: ML_UInt2,
-        3: ML_UInt3,
-        4: ML_UInt4,
-        8: ML_UInt8
+        2: v2uint32,
+        3: v3uint32,
+        4: v4uint32,
+        8: v8uint32
       },
       ML_Int32: {
-        2: ML_Int2,
-        3: ML_Int3,
-        4: ML_Int4,
-        8: ML_Int8
+        2: v2int32,
+        3: v3int32,
+        4: v4int32,
+        8: v8int32
       },
       ML_Bool: {
-        2: ML_Bool2,
-        3: ML_Bool3,
-        4: ML_Bool4,
-        8: ML_Bool8
+        2: v2bool,
+        3: v3bool,
+        4: v4bool,
+        8: v8bool
       },
     }[scalar_format][vector_size]
 
