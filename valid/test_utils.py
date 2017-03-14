@@ -32,6 +32,10 @@ class CommonTestScheme:
   def get_title(self):
     return self.title
 
+  ## get a transform version of title with no space
+  def get_tag_title(self):
+    return self.title.replace(" ", "_")
+
   def perform_all_test(self, debug = False):
     result_list = [self.single_test(tc, debug = debug) for tc in self.argument_tc]
     success_count = [r.get_result() for r in result_list].count(True)
