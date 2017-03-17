@@ -76,10 +76,11 @@ class AbstractBackend(object):
                           op_map[operation][specifier][condition][interface_format] = ML_FullySupported
           return op_map
 
-    def get_implementation(self, optree, language = C_Code, table_getter = lambda self: self.code_generation_table):
+    def get_implementation(self, optree, language = C_Code, table_getter = lambda self: self.code_generation_table, key_getter = lambda self, optree: self.get_operation_keys(optree)):
         """ return <self> implementation of operation performed by <optree> """
+        #key_getter = AbstractBackend.get_operation_keys if key_getter is None else key_getter
         table = table_getter(self)
-        op_class, interface, codegen_key = AbstractBackend.get_operation_keys(optree)
+        op_class, interface, codegen_key = key_getter(self, optree)
         for condition in table[language][op_class][codegen_key]:
             if condition(optree):
                 for interface_condition in table[language][op_class][codegen_key][condition]:
@@ -87,24 +88,24 @@ class AbstractBackend(object):
                         return table[language][op_class][codegen_key][condition][interface_condition]
         return None
 
-    def get_recursive_implementation(self, optree, language = None, table_getter = lambda self: self.code_generation_table):
+    def get_recursive_implementation(self, optree, language = None, table_getter = lambda self: self.code_generation_table, key_getter = lambda self, optree: self.get_operation_keys(optree)):
         """ recursively search for an implementation of optree in the processor class hierarchy """
-        if self.is_local_supported_operation(optree, language = language, table_getter = table_getter):
-            local_implementation = self.get_implementation(optree, language, table_getter = table_getter)
+        if self.is_local_supported_operation(optree, language = language, table_getter = table_getter, key_getter = key_getter):
+            local_implementation = self.get_implementation(optree, language, table_getter = table_getter, key_getter = key_getter)
             return local_implementation
         else:
             for parent_proc in self.parent_architecture:
-                if parent_proc.is_local_supported_operation(optree, language = language, table_getter = table_getter):
-                    return parent_proc.get_implementation(optree, language, table_getter = table_getter)
+                if parent_proc.is_local_supported_operation(optree, language = language, table_getter = table_getter, key_getter = key_getter):
+                    return parent_proc.get_implementation(optree, language, table_getter = table_getter, key_getter = key_getter)
             # no implementation were found
             Log.report(Log.Verbose, "Tested architecture(s) for language %s:" % language)
             for parent_proc in self.parent_architecture:
               Log.report(Log.Verbose, "  %s " % parent_proc)
             Log.report(Log.Error, "the following operation is not supported by %s: \n%s" % (self.__class__, optree.get_str(depth = 2, display_precision = True, memoization_map = {}))) 
         
-    def is_map_supported_operation(self, op_map, optree, language = C_Code, debug = False):
+    def is_map_supported_operation(self, op_map, optree, language = C_Code, debug = False,  key_getter = lambda self, optree: self.get_operation_keys(optree)):
         """ return wheter or not the operation performed by optree has a local implementation """
-        op_class, interface, codegen_key = self.get_operation_keys(optree)
+        op_class, interface, codegen_key = key_getter(self, optree)
 
         if not language in op_map: 
             # unsupported language
@@ -140,14 +141,14 @@ class AbstractBackend(object):
                       print op_map[language][op_class][codegen_key].keys()
                     return False
 
-    def is_local_supported_operation(self, optree, language = C_Code, table_getter = lambda self: self.code_generation_table, debug = False):
+    def is_local_supported_operation(self, optree, language = C_Code, table_getter = lambda self: self.code_generation_table, debug = False,  key_getter = lambda self, optree: self.get_operation_keys(optree)):
         """ return whether or not the operation performed by optree has a local implementation """
         table = table_getter(self)
-        return self.is_map_supported_operation(table, optree, language, debug = debug)
+        return self.is_map_supported_operation(table, optree, language, debug = debug, key_getter = key_getter)
 
-    def is_supported_operation(self, optree, language = C_Code, debug = False):
+    def is_supported_operation(self, optree, language = C_Code, debug = False,  key_getter = lambda self, optree: self.get_operation_keys(optree)):
         """ return whether or not the operation performed by optree is supported by any level of the processor hierarchy """
-        return self.is_map_supported_operation(self.simplified_rec_op_map, optree, language, debug = debug)
+        return self.is_map_supported_operation(self.simplified_rec_op_map, optree, language, debug = debug, key_getter = key_getter)
 
     @staticmethod
     def get_operation_keys(optree):
@@ -160,9 +161,9 @@ class AbstractBackend(object):
         return op_class, interface, codegen_key
 
     @staticmethod
-    def get_local_implementation(proc_class, optree, language = C_Code, table_getter = lambda c: c.code_generation_table):
+    def get_local_implementation(proc_class, optree, language = C_Code, table_getter = lambda c: c.code_generation_table, key_getter = lambda self, optree: self.get_operation_keys(optree)):
         """ return the implementation provided by <proc_class> of the operation performed by <optree> """
-        op_class, interface, codegen_key = proc_class.get_operation_keys(optree)
+        op_class, interface, codegen_key = key_getter(proc_class, optree)
         table = table_getter(proc_class)
         for condition in table[language][op_class][codegen_key]:
             if condition(optree):
