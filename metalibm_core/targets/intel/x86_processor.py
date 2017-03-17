@@ -107,6 +107,17 @@ def x86_fmad_intr_builder_native(intr_name):
 _mm_fmadd_ss = x86_fma_intrinsic_builder("_mm_fmadd_ss")
 
 sse_c_code_generation_table = {
+    Conversion: {
+      None: {
+        lambda _: True: {
+          type_strict_match(ML_SSE_m128_v1float32, ML_Binary32): _mm_set_ss,
+          type_strict_match(ML_Binary32, ML_SSE_m128_v1float32): _mm_cvtss_f32,
+
+          type_strict_match(ML_SSE_m128_v1float64, ML_Binary64): _mm_set_sd,
+          type_strict_match(ML_Binary64, ML_SSE_m128_v1float64): _mm_cvtsd_f64,
+        }
+      },
+    },
     # Arithmetic
     Addition: {
         None: {
