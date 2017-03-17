@@ -299,7 +299,8 @@ class ML_FunctionBasis(object):
       scheme = self.opt_engine.fuse_multiply_add(scheme, silence = True)
 
     if verbose: print "MDL abstract scheme"
-    self.opt_engine.instantiate_abstract_precision(scheme, None)
+    self.opt_engine.instantiate_abstract_precision(scheme,
+                                                   default_precision = None)
 
     if verbose: print "MDL instantiated scheme"
     self.opt_engine.instantiate_precision(scheme, default_precision = None)

@@ -274,6 +274,19 @@ class X86_AVX2_Processor(X86_SSE41_Processor):
                     },
                 },
             },
+            TableLoad: {
+                None: {
+                    lambda _: True: {
+                        # Unidimensional table for now, with integer indices:
+                        # first two types should be equal, and the other ones
+                        # should be integers
+                        (lambda *type_tuple, **kwords: len(type_tuple) == 3 and
+                            type_strict_match(type_tuple[0], type_tuple[1]) and
+                            type_std_integer_match(*type_tuple[2:])
+                        ) : True,
+                    }
+                },
+            },
         },
     }
 

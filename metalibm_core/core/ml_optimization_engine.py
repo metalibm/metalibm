@@ -485,7 +485,8 @@ class OptimizationEngine(object):
         return result_format
 
 
-    def instantiate_abstract_precision(self, optree, default_precision = None, memoization_map = {}):    
+    def instantiate_abstract_precision(self, optree, default_precision = None,
+                                       memoization_map = {}):
         """ recursively determine an abstract precision for each node """
         if optree in memoization_map:
             return memoization_map[optree]

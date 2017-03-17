@@ -66,7 +66,6 @@ class GappaCodeGenerator(object):
             if optree in memoization_level: return True
         return False
 
-
     def get_memoization(self, optree):
         """ retrieve pre-existing memoization entry """
         for memoization_level in self.memoization_map:

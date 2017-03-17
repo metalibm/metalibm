@@ -179,13 +179,18 @@ class ML_Log(ML_Function("ml_log")):
             tag = 'expf')
 
     print 'MDL polynomial approximation'
-    arg_red_mag = 1.0 / dimensions[0]
-    approx_interval = Interval(-arg_red_mag, arg_red_mag)
     sollya_function = log(1 + sollya.x)
-    poly_degree = sup(guessdegree(
-        sollya_function,
-        approx_interval,
-        S2**-(self.precision.get_field_size() * 2))) # prec + 1 bit
+    arg_red_mag = 2**(-table_index_size)
+    approx_interval = Interval(-arg_red_mag, arg_red_mag)
+    max_eps = 2**-(self.precision.get_field_size() * 3)
+    print "max acceptable error for polynomial = {}".format(float.hex(max_eps))
+    poly_degree = sup(
+            guessdegree(
+                sollya_function,
+                approx_interval,
+                max_eps,
+                )
+            )
     poly_object = Polynomial.build_from_approximation(
             sollya_function,
             range(1, poly_degree + 1), # Force 1st coeff to 0
@@ -220,7 +225,7 @@ class ML_Log(ML_Function("ml_log")):
     return scheme
 
   def numeric_emulate(self, input_value):
-    return 1.0
+    return log(input_value)
 
 if __name__ == "__main__":
   # auto-test
