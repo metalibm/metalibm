@@ -49,9 +49,11 @@ class AbstractBackend(object):
         """ generate a map of every operations supported by the processor hierarchy,
             to be used in OptimizationEngine step """
         op_map = {}
-        self.generate_local_op_map(language, op_map)
         for parent_proc in self.parent_architecture:
             parent_proc.generate_local_op_map(language, op_map, table_getter = table_getter)
+        # add locally supported operation last to patch
+        # any previously registered support mapping
+        self.generate_local_op_map(language, op_map)
         return op_map
 
     def generate_local_op_map(self, language = C_Code, op_map = {}, table_getter = lambda self: self.code_generation_table):
