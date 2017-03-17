@@ -43,7 +43,7 @@ def ordered_generation(gen_function, gen_list):
 
 class ML_CG_Operator(object):
     """ parent class for all code generation operators """
-    def __init__(self, arity = 0, output_precision = None, pre_process = None, custom_generate_expr = None, force_folding = None, require_header = None, no_parenthesis = False, context_dependant = None, speed_measure = None):
+    def __init__(self, arity = 0, output_precision = None, pre_process = None, custom_generate_expr = None, force_folding = None, require_header = None, no_parenthesis = False, context_dependant = None, speed_measure = 0):
         # number of inputs expected for the operator
         self.arity = arity
         # is the operator part of the composition
@@ -107,6 +107,10 @@ class CompoundOperator(ML_CG_Operator):
         ML_CG_Operator.__init__(self, **kwords)
         self.parent = parent
         self.args = args
+
+    ## return the expected operator latency
+    def get_speed_measure(self):
+        return self.parent.get_speed_measure() + max([arg.get_speed_measure() for arg in self.args])
 
 
     def generate_expr(self, code_generator, code_object, optree, arg_tuple, generate_pre_process = None, **kwords): #folded = True, result_var = None):
