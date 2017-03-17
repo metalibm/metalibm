@@ -34,7 +34,6 @@ def LibFunctionConstructor(require_header):
     return lambda *args, **kwords: FunctionOperator(*args, **extend_kwords(kwords, require_header))
 
 
-
 ## Generate a unary symbol operator for integer to integer conversion
 #  @param optree input DAG for the operator generator
 #  @return code generation operator for generating optree implementation
@@ -187,7 +186,7 @@ c_code_generation_table = {
     },
     Addition: {
         None: {
-          exclude_doubledouble: build_simplified_operator_generation_nomap([ML_Binary32, ML_Binary64, v8int32, v8uint32, ML_Int16, ML_UInt16, ML_Int32, ML_UInt32, ML_Int64, ML_UInt64, ML_Int128,ML_UInt128], 2, SymbolOperator("+", arity = 2), cond = fp_std_cond),
+          exclude_doubledouble: build_simplified_operator_generation_nomap([ML_Binary32, ML_Binary64, v8int32, v8uint32, ML_Int16, ML_UInt16, ML_Int32, ML_UInt32, ML_Int64, ML_UInt64, ML_Int128,ML_UInt128], 2, SymbolOperator("+", arity = 2, speed_measure = 1.0), cond = fp_std_cond),
           include_doubledouble: { 
             type_strict_match(ML_DoubleDouble, ML_Binary64, ML_Binary64): ML_Multi_Prec_Lib_Function("ml_add_dd_d2", arity = 2, output_precision = ML_DoubleDouble),
             type_strict_match(ML_DoubleDouble, ML_Binary64, ML_DoubleDouble): ML_Multi_Prec_Lib_Function("ml_add_dd_d_dd", arity = 2, output_precision = ML_DoubleDouble),
@@ -201,7 +200,7 @@ c_code_generation_table = {
     },
     Multiplication: {
         None: {
-          exclude_for_mult: build_simplified_operator_generation_nomap([ML_Binary32, ML_Binary64, v8int32, v8uint32, ML_Int16, ML_UInt16, ML_Int32, ML_UInt32, ML_Int64, ML_UInt64, ML_Int128,ML_UInt128], 2, SymbolOperator("*", arity = 2), cond = exclude_doubledouble),
+          exclude_for_mult: build_simplified_operator_generation_nomap([ML_Binary32, ML_Binary64, v8int32, v8uint32, ML_Int16, ML_UInt16, ML_Int32, ML_UInt32, ML_Int64, ML_UInt64, ML_Int128,ML_UInt128], 2, SymbolOperator("*", arity = 2, speed_measure = 2.0), cond = exclude_doubledouble),
           include_for_mult: {
             type_strict_match(ML_DoubleDouble, ML_Binary64, ML_Binary64): ML_Multi_Prec_Lib_Function("ml_mult_dd_d2", arity = 2, output_precision = ML_DoubleDouble),
             type_std_integer_match: ComplexOperator(optree_modifier = full_mul_modifier, backup_operator = SymbolOperator("*", arity = 2)),
