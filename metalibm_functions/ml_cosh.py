@@ -97,7 +97,7 @@ class ML_HyperbolicCosine(ML_Function("ml_cosh")):
     # for r_hi to be accurate we ensure k * log2_hi_value_cst is exact
     # by limiting the number of non-zero bits in log2_hi_value_cst
     # cosh(x) ~ exp(abs(x))/2  for a big enough x
-    # cosh(x) > 2^1023 <=> exp(x) > 2^1024 <=> x > log(2^21024)
+    # cosh(x) > 2^1023 <=> exp(x) > 2^1024 <=> x > log(2^1024)
     # k = inv_log2_value * x 
     # -1 for guard
     max_k_approx  = inv_log2_value * log(sollya.SollyaObject(2)**1024)
@@ -155,7 +155,7 @@ class ML_HyperbolicCosine(ML_Function("ml_cosh")):
 
     # log2_value = log(2) / 2^index_size
     # cosh(x) = 1/2 * (exp(x) + exp(-x))
-    # exp(x) = exp(x - k * log2_value + k * log2_value
+    # exp(x) = exp(x - k * log2_value + k * log2_value)
     #  
     # r = x - k * log2_value
     # exp(x) = exp(r) * 2 ^ (k / 2^index_size)
