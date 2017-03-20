@@ -520,8 +520,8 @@ ML_Binary16 = ML_Std_FP_Format(16, 5, 10, "__ERROR__", "half", "fp16", "%a", sol
 
 
 # Standard integer format declarations
-v8int32    = ML_Standard_FixedPoint_Format(8, 0, True)
-v8uint32   = ML_Standard_FixedPoint_Format(8, 0, False)
+ML_Int8    = ML_Standard_FixedPoint_Format(8, 0, True)
+ML_UInt8   = ML_Standard_FixedPoint_Format(8, 0, False)
 
 ML_Int16    = ML_Standard_FixedPoint_Format(16, 0, True)
 ML_UInt16   = ML_Standard_FixedPoint_Format(16, 0, False)
@@ -550,7 +550,7 @@ ML_Bool      = ML_BoolClass(32, "int", "%d", bool_get_c_cst)
 
 
 def is_std_integer_format(precision):
-  return precision in [v8int32,v8uint32,ML_Int16,ML_UInt16,ML_Int32,ML_UInt32,ML_Int64,ML_UInt64,ML_Int128,ML_UInt128]
+  return precision in [ML_Int8, ML_UInt8,ML_Int16,ML_UInt16,ML_Int32,ML_UInt32,ML_Int64,ML_UInt64,ML_Int128,ML_UInt128]
 
 def get_std_integer_support_format(precision):
   """ return the ML's integer format to contains
@@ -559,7 +559,7 @@ def get_std_integer_support_format(precision):
   format_map = {
     # signed
     True: {
-      8: v8int32,
+      8:  ML_Int8,
       16: ML_Int16,
       32: ML_Int32,
       64: ML_Int64,
@@ -567,7 +567,7 @@ def get_std_integer_support_format(precision):
     },
     # unsigned
     False: {
-      8: v8uint32,
+      8: ML_UInt8,
       16: ML_UInt16,
       32: ML_UInt32,
       64: ML_UInt64,
