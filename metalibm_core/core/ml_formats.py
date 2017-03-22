@@ -703,9 +703,12 @@ class ML_FloatingPointVectorFormat(ML_CompoundVectorFormat, ML_FP_Format):
 #  @param vector_size integer number of element in the vector
 #  @param scalar_format ML_Format object, format of a vector's element
 #  @param sollya_precision pythonsollya object, sollya precision to be used for computation
-#  @param compound_constructor ML_Compound_Format child class used to build the result format 
-def vector_format_builder(c_format_name, opencl_format_name, vector_size, scalar_format, sollya_precision = None, compound_constructor = ML_FloatingPointVectorFormat):
-  return compound_constructor(c_format_name, opencl_format_name, vector_size, scalar_format, sollya_precision)
+#  @param compound_constructor ML_Compound_Format child class used to build the result format
+def vector_format_builder(c_format_name, opencl_format_name, vector_size,
+                          scalar_format, sollya_precision = None,
+                          compound_constructor = ML_FloatingPointVectorFormat):
+  return compound_constructor(c_format_name, opencl_format_name, vector_size,
+                              scalar_format, sollya_precision)
 
 v2float32 = vector_format_builder("ml_float2_t", "float2", 2, ML_Binary32)
 v3float32 = vector_format_builder("ml_float3_t", "float3", 3, ML_Binary32)

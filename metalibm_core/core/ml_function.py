@@ -282,11 +282,14 @@ class ML_FunctionBasis(object):
 
   ## submit operation node to a standard optimization procedure
   #  @param pre_scheme ML_Operation object to be optimized
-  #  @param copy  dict(optree -> optree) copy map to be used while duplicating pre_scheme (if None disable copy)
-  #  @param enable_subexpr_sharing boolean flag, enables sub-expression sharing optimization
+  #  @param copy  dict(optree -> optree) copy map to be used while duplicating
+  #               pre_scheme (if None disable copy)
+  #  @param enable_subexpr_sharing boolean flag, enables sub-expression sharing
+  #         optimization
   #  @param verbose boolean flag, enable verbose mode
   #  @return optimizated scheme 
-  def optimise_scheme(self, pre_scheme, copy = None, enable_subexpr_sharing = True, verbose = True):
+  def optimise_scheme(self, pre_scheme, copy = None,
+                      enable_subexpr_sharing = True, verbose = True):
     """ default scheme optimization """
     # copying when required
     scheme = pre_scheme if copy is None else pre_scheme.copy(copy)
@@ -336,7 +339,9 @@ class ML_FunctionBasis(object):
     code_object = self.get_main_code_object()
     self.result = code_object
     for code_function in code_function_list:
-      self.result = code_function.add_definition(self.C_code_generator, language, code_object, static_cst = True)
+      self.result = code_function.add_definition(self.C_code_generator,
+                                                 language, code_object,
+                                                 static_cst = True)
 
     # adding headers
     self.result.add_header("support_lib/ml_special_values.h")
@@ -349,7 +354,9 @@ class ML_FunctionBasis(object):
     output_stream.write(self.result.get(self.C_code_generator))
     output_stream.close()
 
-  def gen_implementation(self, display_after_gen = False, display_after_opt = False, enable_subexpr_sharing = True):
+  def gen_implementation(self, display_after_gen = False,
+                         display_after_opt = False,
+                         enable_subexpr_sharing = True):
     # generate scheme
     code_function_list = self.generate_function_list()
     if self.get_vector_size() != 1:
@@ -357,20 +364,28 @@ class ML_FunctionBasis(object):
       scalar_arg_list = self.implementation.get_arg_list()
       self.implementation.clear_arg_list()
 
-      code_function_list = self.generate_vector_implementation(scalar_scheme, scalar_arg_list, self.get_vector_size())
+      code_function_list = self.generate_vector_implementation(
+          scalar_scheme, scalar_arg_list, self.get_vector_size()
+          )
 
     if self.auto_test_enable:
-      code_function_list += self.generate_auto_test(test_num = self.auto_test_number if self.auto_test_number else 0, test_range = self.auto_test_range)
+      code_function_list += self.generate_auto_test(
+          test_num = self.auto_test_number if self.auto_test_number else 0,
+          test_range = self.auto_test_range
+          )
 
 
     for code_function in code_function_list:
       scheme = code_function.get_scheme()
       if display_after_gen:
         print "function %s, after gen " % code_function.get_name()
-        print scheme.get_str(depth = None, display_precision = True, memoization_map = {})
+        print scheme.get_str(depth = None, display_precision = True,
+                             memoization_map = {})
 
       # optimize scheme
-      opt_scheme = self.optimise_scheme(scheme, enable_subexpr_sharing = enable_subexpr_sharing)
+      opt_scheme = self.optimise_scheme(
+          scheme, enable_subexpr_sharing = enable_subexpr_sharing
+          )
 
       if display_after_opt:
         print "function %s, after opt " % code_function.get_name()
@@ -419,7 +434,8 @@ class ML_FunctionBasis(object):
     return ext_function.get_function_object()(*arg_list), ext_function
 
 
-  def generate_vector_implementation(self, scalar_scheme, scalar_arg_list, vector_size = 2):
+  def generate_vector_implementation(self, scalar_scheme, scalar_arg_list,
+                                     vector_size = 2):
     # declaring optimizer
     self.opt_engine.set_boolean_format(ML_Bool)
     self.vectorizer = StaticVectorizer(self.opt_engine)
@@ -434,15 +450,23 @@ class ML_FunctionBasis(object):
     scalar_callback          = scalar_callback_function.get_function_object()
 
     print "[SV] vectorizing scheme"
-    vec_arg_list, vector_scheme, vector_mask = self.vectorizer.vectorize_scheme(scalar_scheme, scalar_arg_list, vector_size, self.call_externalizer, self.get_output_precision())
+    vec_arg_list, vector_scheme, vector_mask = \
+        self.vectorizer.vectorize_scheme(scalar_scheme, scalar_arg_list,
+                                         vector_size, self.call_externalizer,
+                                         self.get_output_precision())
 
-    vector_output_format = self.vectorizer.vectorize_format(self.precision, vector_size)
+    vector_output_format = self.vectorizer.vectorize_format(self.precision,
+                                                            vector_size)
 
 
     vi = Variable("i", precision = ML_Int32, var_type = Variable.Local)
-    vec_res = Variable("vec_res", precision = vector_output_format, var_type = Variable.Local)
+    vec_res = Variable("vec_res", precision = vector_output_format,
+                       var_type = Variable.Local)
 
-    vec_elt_arg_tuple = tuple(VectorElementSelection(vec_arg, vi, precision = self.precision) for vec_arg in vec_arg_list)
+    vec_elt_arg_tuple = tuple(
+        VectorElementSelection(vec_arg, vi, precision = self.precision)
+        for vec_arg in vec_arg_list
+        )
 
     vector_mask.set_attributes(tag = "vector_mask", debug = debug_multi)
 
