@@ -4,14 +4,10 @@
 import sys
 
 import sollya # sollya.RN, sollya.absolute, sollya.x
-
-from sollya import (
-        S2, Interval, round, sup, log, log2, guessdegree,
-)
+from sollya import (S2, Interval, round, sup, log, log2, guessdegree)
 
 from metalibm_core.core.ml_function import (ML_Function, ML_FunctionBasis,
-        DefaultArgTemplate)
-
+                                            DefaultArgTemplate)
 from metalibm_core.core.attributes import ML_Debug
 from metalibm_core.core.ml_operations import *
 from metalibm_core.core.ml_formats import *
@@ -21,7 +17,7 @@ from metalibm_core.core.ml_complex_formats import ML_Mpfr_t
 
 from metalibm_core.code_generation.generic_processor import GenericProcessor
 from metalibm_core.code_generation.generator_utility import (FunctionOperator,
-        FO_Result, FO_Arg)
+                                                             FO_Result, FO_Arg)
 
 from metalibm_core.utility.gappa_utils import execute_gappa_script_extract
 from metalibm_core.utility.ml_template import *
@@ -116,7 +112,9 @@ class ML_Log(ML_Function("ml_log")):
     vx_as_uint = TypeCast(vx, precision = uint_prec, tag = 'vx_as_uint')
     # Avoid the 0.0 case
     denorm = vx_as_int - 1
-    is_denormal = Conversion(denorm < denorm_mask, precision = int_prec)
+    is_normal = denorm >= denorm_mask
+    is_denormal = is_normal - 1
+    #is_denormal = Conversion(denorm < denorm_mask, precision = int_prec)
 
     # NO BRANCH, INTEGER BASED DENORMAL AND LARGE EXPONENT HANDLING
     # 1. lzcnt
