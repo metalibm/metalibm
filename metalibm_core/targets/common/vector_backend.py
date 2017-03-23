@@ -799,4 +799,5 @@ class VectorBackend(GenericProcessor):
     Log.report(Log.Error, "the following operation is not supported by %s: \n%s" % (self.__class__, optree.get_str(depth = 2, display_precision = True, memoization_map = {}))) 
 
       
-
+# debug message
+print "Initializing vector backend target"

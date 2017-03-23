@@ -261,3 +261,6 @@ class FixedPointBackend(GenericProcessor):
     C_Code: fixed_c_code_generation_table, 
     Gappa_Code: fixed_gappa_code_generation_table,
   }
+
+# debug message
+print "Initializing fixed-point backend target"
