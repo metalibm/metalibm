@@ -21,6 +21,7 @@ import metalibm_functions.unit_tests.static_vectorization as ut_static_vectoriza
 import metalibm_functions.unit_tests.vector_code as ut_vector_code
 import metalibm_functions.unit_tests.call_externalization as ut_call_externalization
 import metalibm_functions.unit_tests.auto_test as ut_auto_test
+import metalibm_functions.unit_tests.m128_conversion as ut_m128_conversion
 
 
 
@@ -115,6 +116,11 @@ unit_test_list = [
     "basic auto test",
     ut_auto_test,
     [{"auto_test": 10}]
+  ),
+  UnitTestScheme(
+    "m128 conversion test",
+    ut_m128_conversion,
+    [{"pre_gen_passes": ["m128_promotion"], "target": target_instanciate("x86_avx2")}],
   ),
 ]
 

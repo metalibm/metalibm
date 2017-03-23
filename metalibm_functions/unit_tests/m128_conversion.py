@@ -66,12 +66,14 @@ class ML_UT_M128Conversion(ML_Function("ml_ut_m128_conversion")):
     add_xx = Addition(vx, vx, precision = self.precision)
     mult = Multiplication(add_xx, vx, precision = self.precision)
 
-    scheme = Return(mult, precision = self.precision)
+    result = FusedMultiplyAdd(vx, mult, add_xx, specifier = FusedMultiplyAdd.Subtract, precision = self.precision)
 
-    conv_pass = Pass_M128_Promotion(self.processor)
-    new_scheme = conv_pass.execute(scheme)
+    scheme = Return(result, precision = self.precision)
 
-    return new_scheme
+    # conv_pass = Pass_M128_Promotion(self.processor)
+    # new_scheme = conv_pass.execute(scheme)
+
+    return scheme
 
   def numeric_emulate(self, x):
     return sollya.round((x + x) * x, self.precision.get_sollya_object(), sollya.RN)
