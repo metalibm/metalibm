@@ -27,6 +27,7 @@ from metalibm_core.code_generation.mpfr_backend import MPFRProcessor
 from metalibm_core.code_generation.c_code_generator import CCodeGenerator
 from metalibm_core.code_generation.code_constant import C_Code
 from metalibm_core.code_generation.generator_utility import *
+from metalibm_core.core.passes import Pass
 
 from metalibm_core.code_generation.gappa_code_generator import GappaCodeGenerator
 
@@ -91,6 +92,8 @@ class DefaultArgTemplate:
   auto_test_execute = False
   auto_test_range = Interval(0, 1)
   auto_test_std   = False
+  # list of pre-code generation opt passe names (string tag)
+  pre_gen_passes = []
 
   def __init__(self, **kw):
     for key in kw:
@@ -156,6 +159,7 @@ class ML_FunctionBasis(object):
     auto_test     = ArgDefault.select_value([arg_template.auto_test, arg_template.auto_test_execute, auto_test])
     auto_test_std = ArgDefault.select_value([arg_template.auto_test_std, auto_test_std])
 
+    self.pre_gen_passes = arg_template.pre_gen_passes
 
     # io_precisions must be a list
     #     -> with a single element
@@ -204,6 +208,7 @@ class ML_FunctionBasis(object):
     self.main_code_object = NestedCode(self.C_code_generator, static_cst = True, uniquifier = "{0}_".format(self.function_name))
 
     self.call_externalizer = CallExternalizer(self.main_code_object)
+
 
   def get_vector_size(self):
     return self.vector_size
@@ -369,7 +374,17 @@ class ML_FunctionBasis(object):
 
       if display_after_opt:
         print "function %s, after opt " % code_function.get_name()
-        print scheme.get_str(depth = None, display_precision = True, memoization_map = {})
+        print opt_scheme.get_str(depth = None, display_precision = True, memoization_map = {})
+
+      # pre-generation optimization
+      for pass_tag in self.pre_gen_passes:
+        pass_class = Pass.get_pass_by_tag(pass_tag)
+        pass_object = pass_class(self.processor)
+        Log.report(Log.Info, "executing opt pass: {}".format(pass_tag))
+        opt_scheme = pass_object.execute(opt_scheme)
+        print "post pass scheme"
+        print opt_scheme.get_str(depth = None, display_precision = True, memoization_map = {}, display_id = True)
+      code_function.set_scheme(opt_scheme)
 
     # generate C code to implement scheme
     self.generate_code(code_function_list, language = self.language)

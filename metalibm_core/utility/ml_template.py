@@ -24,6 +24,7 @@ from ..code_generation.generic_processor import GenericProcessor
 from ..core.target import TargetRegister
 from ..targets import *
 from ..code_generation.code_constant import *
+from ..core.passes import Pass
 
 # populating target_map
 target_map = {}
@@ -122,6 +123,16 @@ class TargetInfoAction(argparse.Action):
         list_targets()
         exit(0)
         #setattr(namespace, "early_exit", True)
+class PassListAction(argparse.Action):
+    def __init__(self, option_strings, dest, nargs=None, **kwargs):
+        if nargs is not None:
+            raise ValueError("nargs not allowed")
+        super(PassListAction, self).__init__(option_strings, dest, nargs = 0, **kwargs)
+    def __call__(self, parser, namespace, values, option_string=None):
+        print "list of registered passes"
+        for tag in Pass.get_pass_tag_list():
+          print "  {}: {}".format(tag, Pass.get_pass_by_tag(tag)) 
+        exit(0)
 
 ## Command line action to set break on error in load module
 class MLDebugAction(argparse.Action):
@@ -184,6 +195,9 @@ class ML_CommonArgTemplate(object):
     self.parser.add_argument("--auto-test-std", dest = "auto_test_std", action = "store_const", const = True, default = ArgDefault(False), help = "enabling function test on standard test case list")
 
     self.parser.add_argument("--ml-debug", dest = "ml_debug", action = MLDebugAction, const = True, default = False, help = "enable metalibm debug")
+    self.parser.add_argument("--pass-info", action = PassListAction, help = "list available optmization passes")
+
+    self.parser.add_argument("--pre-gen-pass", default = [], action = "store", dest = "pre_gen_passes", type = lambda s: s.split(","), help = "comma separated list of pass to be executed just before final code generation")
 
 
   def arg_extraction(self):
