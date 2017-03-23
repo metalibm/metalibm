@@ -1,27 +1,17 @@
 # -*- coding: utf-8 -*-
 # optimization pass to promote a scalar DAG into vector registers
 
-from .x86_processor import *
+from metalibm_core.targets.intel.x86_processor import *
+
 from metalibm_core.core.ml_formats import *
+from metalibm_core.core.passes import OptreeOptimization, Pass
 
-## Abstract parent to optimization pass
-class OptimizationPass:
-  """ Virtual parent to all optjmization pass """
-  def __init__(self, descriptor = ""):
-    self.descriptor = descriptor
+from metalibm_core.opt.check_support import Pass_CheckSupport
 
-  def get_descriptor(self):
-    return self.descriptor
-
-## Operation tree Optimization pass
-class OptreeOptimization(OptimizationPass):
-  def __init__(self, descriptor, target):
-    OptimizationPass.__init__(self, descriptor)
-    # Processor target
-    self.target = target
 
 ## _m128 register promotion
 class Pass_M128_Promotion(OptreeOptimization):
+  pass_tag = "m128_promotion"
   ## Translation table between standard formats
   #  and __m128-based register formats
   trans_table = {
@@ -33,10 +23,14 @@ class Pass_M128_Promotion(OptreeOptimization):
 
   def __init__(self, target):
     OptreeOptimization.__init__(self, "__m128 promotion pass", target)
-    ## memoization map for promotion optree
+    ## memoization map for promoted optree
     self.memoization_map = {}
+    ## memoization map for converted promoted optree
+    self.conversion_map = {}
     # memoization map for copy
     self.copy_map = {}
+
+    self.support_checker = Pass_CheckSupport(target) 
 
   ## Evaluate the latency of a converted operation
   #  graph to determine whether the conversion
@@ -72,47 +66,84 @@ class Pass_M128_Promotion(OptreeOptimization):
 
     return self.target.is_supported_operation(optree, key_getter = key_getter)
 
+  ## memoize converted     
   def memoize(self, force, optree, new_optree):
     self.memoization_map[(force, optree)] = new_optree
+    if not isinstance(optree, ML_LeafNode) and not self.target.is_supported_operation(optree):
+      print optree.get_str(display_precision = True, memoization_map = {})
+      print new_optree.get_str(display_precision = True, memoization_map = {})
+      #raise Exception()
     return new_optree
 
-  ## Convert a graph of operation to exploit
-  #  the _m128 registers
-  #  @param force indicate that the result must be __m128 formats 
-  #   possibly through a conversion if the operation is not supported
-  def convert_node_graph_to_m128(self, optree, force = False):
-    if (force, optree) in self.memoization_map:
-      return self.memoization_map[(force, optree)]
+  ## memoize conversion    
+  def memoize_conv(self, force, optree, new_optree):
+    self.conversion_map[(force, optree)] = new_optree
+    if not isinstance(optree, ML_LeafNode) and not self.target.is_supported_operation(optree):
+      raise Exception()
+    return new_optree
+
+  def get_converted_node(self, optree):
+    if optree in self.conversion_map:
+      return self.conversion_map[optree]
     else:
       if self.does_m128_support_operation(optree):
         new_optree = optree.copy(copy_map = self.copy_map)
+        new_inputs = [self.get_converted_node(op) for op in new_optree.get_inputs()]
+        new_optree.inputs = new_inputs
+        new_optree.set_precision(self.get_conv_format(optree.get_precision()))
+        self.conversion_map[optree] = new_optree
+    
 
-        new_inputs = [self.convert_node_graph_to_m128(op, force = True) for op in new_optree.get_inputs()]
+  ## Convert a graph of operation to exploit the _m128 registers
+  #  @param parent_converted indicates that the result must 
+  #         be in __m128 formats else it must be in input format
+  #         In case of __m128, the return value may need to be 
+  #         a conversion if the operation is not supported
+  def convert_node_graph_to_m128(self, optree, parent_converted = False):
+    #if (parent_converted, optree) in self.memoization_map:
+    #  if parent_converted:
+    #  else:
+    #    return self.memoization_map[(parent_converted, optree)]
+    #else:
+    if 1:
+      new_optree = optree.copy(copy_map = self.copy_map)
+      if self.does_m128_support_operation(optree):
+
+        new_inputs = [self.convert_node_graph_to_m128(op, parent_converted = True) for op in optree.get_inputs()]
         new_optree.inputs = new_inputs
         new_optree.set_precision(self.get_conv_format(optree.get_precision()))
 
-        ## must be converted back to initial format
-        if not force:
+        # must be converted back to initial format
+        # before being returned
+        if not parent_converted:
           new_optree = Conversion(new_optree, precision = optree.get_precision())
 
-        return self.memoize(force, optree, new_optree)
+        return self.memoize(parent_converted, optree, new_optree)
       elif isinstance(optree, ML_LeafNode):
-        if force and optree.get_precision() in self.trans_table:
+        if parent_converted and optree.get_precision() in self.trans_table:
           new_optree = Conversion(optree, precision = self.get_conv_format(optree.get_precision()))
-          return self.memoize(force, optree, new_optree)
+          return self.memoize(parent_converted, optree, new_optree)
+        elif parent_converted:
+          raise NotImplementedError
         else:
-          return self.memoize(force, optree, optree)
+          return self.memoize(parent_converted, optree, optree)
       else:
-        new_optree = optree.copy(copy_map = self.copy_map)
+        # new_optree = optree.copy(copy_map = self.copy_map)
 
         # propagate conversion to inputs
-        new_inputs = [self.convert_node_graph_to_m128(op) for op in new_optree.get_inputs()]
+        new_inputs = [self.convert_node_graph_to_m128(op) for op in optree.get_inputs()]
+
+
         # register modified inputs
         new_optree.inputs = new_inputs
 
-        if force and optree.get_precision() in self.trans_table:
+        if parent_converted and optree.get_precision() in self.trans_table:
           new_optree = Conversion(new_optree, precision = self.get_conv_format(optree.get_precision()))
-        return self.memoize(force, optree, new_optree)
+          return new_optree
+        elif parent_converted:
+          print optree.get_precision()
+          raise NotImplementedError
+        return self.memoize(parent_converted, optree, new_optree)
           
 
   # standard Opt pass API
@@ -120,4 +151,6 @@ class Pass_M128_Promotion(OptreeOptimization):
     return self.convert_node_graph_to_m128(optree)
 
 
- 
+print "Registering m128_conversion pass"
+# register pass
+Pass.register(Pass_M128_Promotion)
