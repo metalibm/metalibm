@@ -215,6 +215,7 @@ class ML_Log(ML_Function("ml_log")):
               unified_precision = self.precision,
               )
     else:
+      Log.report(Log.Warning, "CGPE not available, falling back to std poly evaluator")
       log1pu_poly = PolynomialSchemeEvaluator.generate_horner_scheme(
               poly_object,
               u,
@@ -226,7 +227,7 @@ class ML_Log(ML_Function("ml_log")):
 
     logx = nlog2 * (log2_1_p_rcp_x + expf) + log1pu_poly
 
-    scheme = Return(logx)
+    scheme = Return(logx, precision = self.precision)
 
     return scheme
 
