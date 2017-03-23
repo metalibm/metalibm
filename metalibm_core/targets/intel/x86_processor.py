@@ -10,12 +10,12 @@
 # author(s): Nicolas Brunie (nicolas.brunie@kalray.eu)
 ###############################################################################
 
-from ...utility.log_report import *
-from ...code_generation.generator_utility import *
-from ...core.ml_formats import *
-from ...core.ml_operations import *
-from ...code_generation.generic_processor import GenericProcessor
-from ...core.target import TargetRegister
+from metalibm_core.utility.log_report import *
+from metalibm_core.code_generation.generator_utility import *
+from metalibm_core.core.ml_formats import *
+from metalibm_core.core.ml_operations import *
+from metalibm_core.code_generation.generic_processor import GenericProcessor
+from metalibm_core.core.target import TargetRegister
 
 ## format for a single fp32 stored in a XMM 128-bit register 
 ML_SSE_m128_v1float32  = ML_FormatConstructor(128, "__m128",  None, lambda v: None)
