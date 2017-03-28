@@ -15,7 +15,7 @@ from sollya import *
 from metalibm_core.core.ml_formats import *
 from metalibm_core.core.ml_optimization_engine import OptimizationEngine
 from metalibm_core.core.ml_operations import *  
-from metalibm_core.core.ml_table import ML_Table
+from metalibm_core.core.ml_table import ML_NewTable
 from metalibm_core.core.ml_complex_formats import ML_Mpfr_t
 from metalibm_core.core.ml_call_externalizer import CallExternalizer
 from metalibm_core.core.ml_vectorizer import StaticVectorizer
@@ -587,9 +587,9 @@ class ML_FunctionBasis(object):
     sollya_precision = self.precision.get_sollya_object()
     interval_size = high_input - low_input 
 
-    input_table = ML_Table(dimensions = [test_total], storage_precision = self.precision, tag = self.uniquify_name("input_table"))
+    input_table = ML_NewTable(dimensions = [test_total], storage_precision = self.precision, tag = self.uniquify_name("input_table"))
     ## (low, high) are store in output table
-    output_table = ML_Table(dimensions = [test_total, 2], storage_precision = self.precision, tag = self.uniquify_name("output_table"))
+    output_table = ML_NewTable(dimensions = [test_total, 2], storage_precision = self.precision, tag = self.uniquify_name("output_table"))
 
     # general index for input/output tables
     table_index = 0
