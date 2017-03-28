@@ -14,7 +14,7 @@ from metalibm_core.core.ml_operations import *
 from metalibm_core.core.ml_formats import *
 from metalibm_core.code_generation.generic_processor import GenericProcessor
 from metalibm_core.core.polynomials import *
-from metalibm_core.core.ml_table import ML_Table
+from metalibm_core.core.ml_table import ML_NewTable
 from metalibm_core.core.ml_complex_formats import ML_Mpfr_t
 from metalibm_core.code_generation.generator_utility import FunctionOperator, FO_Result, FO_Arg
 
@@ -69,9 +69,9 @@ def generate_payne_hanek(vx, frac_pi, precision, n = 100, k = 4, chunk_num = Non
   prec(cst_exp_range + 100)
 
   # table to store chunk of constant multiplicand
-  cst_table = ML_Table(dimensions = [chunk_number, 1], storage_precision = precision, tag = "PH_cst_table")
+  cst_table = ML_NewTable(dimensions = [chunk_number, 1], storage_precision = precision, tag = "PH_cst_table")
   # table to store sqrt(scaling_factor) corresponding to the cst multiplicand chunks
-  scale_table =  ML_Table(dimensions = [chunk_number, 1], storage_precision = precision, tag = "PH_scale_table")
+  scale_table =  ML_NewTable(dimensions = [chunk_number, 1], storage_precision = precision, tag = "PH_scale_table")
   tmp_cst = frac_pi
   
   # this loop divide the digits of frac_pi into chunks 

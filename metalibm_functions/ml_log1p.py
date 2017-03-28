@@ -14,7 +14,7 @@ from metalibm_core.core.attributes import ML_Debug
 from metalibm_core.core.ml_operations import *
 from metalibm_core.core.ml_formats import *
 from metalibm_core.core.polynomials import *
-from metalibm_core.core.ml_table import ML_Table
+from metalibm_core.core.ml_table import ML_NewTable
 
 from metalibm_core.code_generation.c_code_generator import CCodeGenerator
 from metalibm_core.code_generation.generic_processor import GenericProcessor
@@ -93,7 +93,7 @@ class ML_Log1p(ML_Function("ml_log1p")):
 
     # table creation
     table_index_size = 7
-    log_table = ML_Table(dimensions = [2**table_index_size, 2], storage_precision = self.precision)
+    log_table = ML_NewTable(dimensions = [2**table_index_size, 2], storage_precision = self.precision)
     log_table[0][0] = 0.0
     log_table[0][1] = 0.0
     for i in xrange(1, 2**table_index_size):

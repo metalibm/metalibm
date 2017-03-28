@@ -17,7 +17,7 @@ from code_generation.code_element import CodeFunction
 from code_generation.code_constant import C_Code 
 from core.ml_optimization_engine import OptimizationEngine
 from core.polynomials import *
-from core.ml_table import ML_Table
+from core.ml_table import ML_NewTable
 
 from kalray_proprietary.k1a_processor import K1A_Processor
 from kalray_proprietary.k1b_processor import K1B_Processor

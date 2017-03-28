@@ -16,7 +16,7 @@ from metalibm_core.core.ml_operations import *
 from metalibm_core.core.ml_formats import *
 from metalibm_core.code_generation.generic_processor import GenericProcessor
 from metalibm_core.core.polynomials import *
-from metalibm_core.core.ml_table import ML_Table
+from metalibm_core.core.ml_table import ML_NewTable
 from metalibm_core.core.ml_complex_formats import ML_Mpfr_t
 
 from metalibm_core.code_generation.gappa_code_generator import GappaCodeGenerator
@@ -119,7 +119,7 @@ class ML_Log10(ML_Function("log10")):
     # table creation
     table_index_size = 7
     table_index_range = range(1, 2**table_index_size)
-    log_table = ML_Table(dimensions = [2**table_index_size, 2], storage_precision = self.precision)
+    log_table = ML_NewTable(dimensions = [2**table_index_size, 2], storage_precision = self.precision)
     log_table[0][0] = 0.0
     log_table[0][1] = 0.0
     for i in table_index_range:

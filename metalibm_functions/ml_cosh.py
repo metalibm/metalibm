@@ -10,7 +10,7 @@ from sollya import parse as sollya_parse
 from metalibm_core.core.attributes import ML_Debug
 from metalibm_core.core.ml_operations import *
 from metalibm_core.core.ml_formats import *
-from metalibm_core.core.ml_table import ML_Table
+from metalibm_core.core.ml_table import ML_NewTable
 from metalibm_core.code_generation.generic_processor import GenericProcessor
 from metalibm_core.core.polynomials import *
 from metalibm_core.core.ml_function import ML_Function, ML_FunctionBasis, DefaultArgTemplate
@@ -137,7 +137,7 @@ class ML_HyperbolicCosine(ML_Function("ml_cosh")):
     k_lo = Modulo(k_integer, 2**index_size, tag = "k_int_lo", precision = int_precision, debug = debug_multi)
     pow_exp = ExponentInsertion(Conversion(k_hi, precision = int_precision), precision = self.precision, tag = "pow_exp", debug = debug_multi)
 
-    exp_table = ML_Table(dimensions = [2 * 2**index_size, 4], storage_precision = self.precision, tag = self.uniquify_name("exp2_table"))
+    exp_table = ML_NewTable(dimensions = [2 * 2**index_size, 4], storage_precision = self.precision, tag = self.uniquify_name("exp2_table"))
     for i in range(2 * 2**index_size):
       input_value = i - 2**index_size if i >= 2**index_size else i 
       # using SollyaObject wrapper to force evaluation by sollya

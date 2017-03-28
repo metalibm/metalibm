@@ -16,7 +16,7 @@ from metalibm_core.core.ml_operations import *
 from metalibm_core.core.ml_formats import *
 from metalibm_core.code_generation.generic_processor import GenericProcessor
 from metalibm_core.core.polynomials import *
-from metalibm_core.core.ml_table import ML_Table
+from metalibm_core.core.ml_table import ML_NewTable
 from metalibm_core.core.ml_complex_formats import ML_Mpfr_t
 from metalibm_core.code_generation.generator_utility import FunctionOperator, FO_Result, FO_Arg
 from metalibm_core.core.payne_hanek import generate_payne_hanek
@@ -171,9 +171,9 @@ class ML_SinCos(ML_Function("ml_cos")):
     polynomial_scheme_builder = PolynomialSchemeEvaluator.generate_horner_scheme
 
     table_index_size = frac_pi_index+1
-    cos_table_hi = ML_Table(dimensions = [2**table_index_size, 1], storage_precision = self.precision, tag = self.uniquify_name("cos_table_hi"))
-    cos_table_lo = ML_Table(dimensions = [2**table_index_size, 1], storage_precision = self.precision, tag = self.uniquify_name("cos_table_lo"))
-    sin_table = ML_Table(dimensions = [2**table_index_size, 1], storage_precision = self.precision, tag = self.uniquify_name("sin_table"))
+    cos_table_hi = ML_NewTable(dimensions = [2**table_index_size, 1], storage_precision = self.precision, tag = self.uniquify_name("cos_table_hi"))
+    cos_table_lo = ML_NewTable(dimensions = [2**table_index_size, 1], storage_precision = self.precision, tag = self.uniquify_name("cos_table_lo"))
+    sin_table = ML_NewTable(dimensions = [2**table_index_size, 1], storage_precision = self.precision, tag = self.uniquify_name("sin_table"))
 
     #cos_hi_prec = self.precision.get_sollya_object() # int(self.precision.get_field_size() * 0.7)
     cos_hi_prec =  int(self.precision.get_field_size() - 2)

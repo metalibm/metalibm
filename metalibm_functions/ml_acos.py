@@ -13,7 +13,7 @@ from metalibm_core.core.ml_operations import *
 from metalibm_core.core.ml_formats import *
 from metalibm_core.code_generation.generic_processor import GenericProcessor
 from metalibm_core.core.polynomials import *
-from metalibm_core.core.ml_table import ML_Table
+from metalibm_core.core.ml_table import ML_NewTable
 from metalibm_core.core.ml_complex_formats import ML_Mpfr_t
 
 from metalibm_core.code_generation.gappa_code_generator import GappaCodeGenerator
@@ -95,7 +95,7 @@ class ML_Acos(ML_Function("acos")):
     table_index_range = range(table_size)
 
     local_degree = 9
-    coeff_table = ML_Table(dimensions = [table_size, local_degree], storage_precision = self.precision)
+    coeff_table = ML_NewTable(dimensions = [table_size, local_degree], storage_precision = self.precision)
 
     #local_interval_size = approx_interval_size / SollyaObject(table_size)
     #for i in table_index_range:

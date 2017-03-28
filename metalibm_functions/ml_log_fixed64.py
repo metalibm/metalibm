@@ -14,7 +14,7 @@ from metalibm_core.core.attributes import ML_Debug
 from metalibm_core.core.ml_operations import *
 from metalibm_core.core.ml_formats import *
 from metalibm_core.core.polynomials import *
-from metalibm_core.core.ml_table import ML_Table
+from metalibm_core.core.ml_table import ML_NewTable
 from metalibm_core.core.ml_complex_formats import ML_Mpfr_t
 
 from metalibm_core.code_generation.gappa_code_generator import GappaCodeGenerator
@@ -366,10 +366,10 @@ class ML_Log(ML_Function("ml_log")):
     print "\n\033[1mArgument reduction found:\033[0m [({},{}),({},{})] -> polynomials of degree {},{}, using {} bytes of memory".format(arg_reduc['size1'],arg_reduc['prec1'],arg_reduc['size2'],arg_reduc['prec2'],arg_reduc['degree_poly1'],arg_reduc['degree_poly2'],arg_reduc['sizeof_tables']) 
     
     print "\n\033[1mGenerate the first logarithm table:\033[0m containing {} elements, using {} bytes of memory".format(arg_reduc['length_table1'], arg_reduc['sizeof_table1'])
-    inv_table_1 = ML_Table(dimensions = [arg_reduc['length_table1']],
+    inv_table_1 = ML_NewTable(dimensions = [arg_reduc['length_table1']],
                            storage_precision = ML_Custom_FixedPoint_Format(1, arg_reduc['prec1'], False),
                            tag = self.uniquify_name("inv_table_1"))
-    log_table_1 = ML_Table(dimensions = [arg_reduc['length_table1']],
+    log_table_1 = ML_NewTable(dimensions = [arg_reduc['length_table1']],
                            storage_precision = ML_Custom_FixedPoint_Format(11, 128-11, False),
                            tag = self.uniquify_name("log_table_1"))
     for i in xrange(0, arg_reduc['length_table1']-1):
@@ -380,10 +380,10 @@ class ML_Log(ML_Function("ml_log")):
       log_table_1[i] = log_x1 #Constant(log_x1, precision = ML_Custom_FixedPoint_Format(11, 128-11, False))
 
     print "\n\033[1mGenerate the second logarithm table:\033[0m containing {} elements, using {} bytes of memory".format(arg_reduc['length_table2'], arg_reduc['sizeof_table2'])
-    inv_table_2 = ML_Table(dimensions = [arg_reduc['length_table2']],
+    inv_table_2 = ML_NewTable(dimensions = [arg_reduc['length_table2']],
                            storage_precision = ML_Custom_FixedPoint_Format(1, arg_reduc['prec2'], False),
                            tag = self.uniquify_name("inv_table_2"))
-    log_table_2 = ML_Table(dimensions = [arg_reduc['length_table2']],
+    log_table_2 = ML_NewTable(dimensions = [arg_reduc['length_table2']],
                            storage_precision = ML_Custom_FixedPoint_Format(11, 128-11, False),
                            tag = self.uniquify_name("log_table_2"))
     for i in xrange(0, arg_reduc['length_table2']-1):

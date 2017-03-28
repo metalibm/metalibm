@@ -22,7 +22,7 @@ from metalibm_core.core.ml_operations import *
 from metalibm_core.core.ml_formats import *
 from metalibm_core.code_generation.generic_processor import GenericProcessor
 from metalibm_core.core.polynomials import *
-from metalibm_core.core.ml_table import ML_Table
+from metalibm_core.core.ml_table import ML_NewTable
 from metalibm_core.core.ml_complex_formats import ML_Mpfr_t
 from metalibm_core.code_generation.generator_utility import FunctionOperator, FO_Result, FO_Arg
 from metalibm_core.code_generation.fixed_point_backend import FixedPointBackend
@@ -124,7 +124,7 @@ class ML_FastSinCos(ML_Function("ml_fast_cos")):
 
     Log.report(Log.Info, "tabulating cosine and sine")
     # cosine and sine fused table
-    fused_table = ML_Table(dimensions = [2**table_size_log, 2], storage_precision = storage_precision, tag = "fast_lib_shared_table") # self.uniquify_name("cossin_table"))
+    fused_table = ML_NewTable(dimensions = [2**table_size_log, 2], storage_precision = storage_precision, tag = "fast_lib_shared_table") # self.uniquify_name("cossin_table"))
     # filling table
     for i in xrange(2**table_size_log):
       local_x = i / S2**table_size_log * S2**max_bound_log

@@ -13,7 +13,7 @@ from metalibm_core.code_generation.code_object import CodeObject
 from metalibm_core.code_generation.generator_utility import C_Code 
 from metalibm_core.core.ml_optimization_engine import OptimizationEngine
 from metalibm_core.core.polynomials import *
-from metalibm_core.core.ml_table import ML_Table
+from metalibm_core.core.ml_table import ML_NewTable
 
 from metalibm_core.code_generation.gappa_code_generator import GappaCodeGenerator
 
