@@ -598,24 +598,26 @@ class ML_FunctionBasis(object):
     if self.auto_test_std:
       # standard test cases
       for i in range(num_std_case):
-        input_value = round(self.standard_test_cases[i], sollya_precision, RN)
+        input_value = self.precision.round_sollya_object(self.standard_test_cases[i], RN)
 
         input_table[table_index] = input_value
         # FIXME only valid for faithful evaluation
-        output_table[table_index][0] = round(self.numeric_emulate(input_value), sollya_precision, RD)
-        output_table[table_index][1] = round(self.numeric_emulate(input_value), sollya_precision, RU)
+        #output_table[table_index][0] = round(self.numeric_emulate(input_value), sollya_precision, RD)
+        #output_table[table_index][1] = round(self.numeric_emulate(input_value), sollya_precision, RU)
+        output_table[table_index][0] = self.precision.round_sollya_object(self.numeric_emulate(input_value), RD)
+        output_table[table_index][1] = self.precision.round_sollya_object(self.numeric_emulate(input_value), RU)
 
         table_index += 1
 
     # random test cases
     for i in range(test_num):
       input_value = random.uniform(low_input, high_input)
-      input_value = round(input_value, sollya_precision, RN)
+      input_value = self.precision.round_sollya_object(input_value, RN)
       #input_value = round(low_input + (random.randrange(2**32 + 1) / float(2**32)) * interval_size, sollya_precision, RN) 
       input_table[table_index] = input_value
       # FIXME only valid for faithful evaluation
-      output_table[table_index][0] = round(self.numeric_emulate(input_value), sollya_precision, RD)
-      output_table[table_index][1] = round(self.numeric_emulate(input_value), sollya_precision, RU)
+      output_table[table_index][0] = self.precision.round_sollya_object(self.numeric_emulate(input_value), RD)
+      output_table[table_index][1] = self.precision.round_sollya_object(self.numeric_emulate(input_value), RU)
       table_index += 1
 
 

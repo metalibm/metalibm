@@ -209,6 +209,11 @@ class ML_Std_FP_Format(ML_FP_Format):
     def get_sollya_object(self):
       return self.sollya_object
 
+    ## round the sollya object @p value to the sollya precision
+    #  equivalent to @p self
+    def round_sollya_object(self, value, round_mode = sollya.RN):
+      return sollya.round(value, self.get_sollya_object(), round_mode)
+
     def __str__(self):
         return self.name[C_Code]
 
@@ -507,6 +512,16 @@ class ML_Base_FixedPoint_Format(ML_Fixed_Format):
 class ML_Standard_FixedPoint_Format(ML_Base_FixedPoint_Format):
   def __init__(self, integer_size, frac_size, signed = True):
     ML_Base_FixedPoint_Format.__init__(self, integer_size, frac_size, signed = signed, support_format = self, align = 0)
+
+  ## use 0 as the LSB weight to round in sollya
+  def get_sollya_object(self):
+    return sollya.SollyaObject(0)
+
+    ## round the sollya object @p value to the sollya precision
+    #  equivalent to @p self
+  def round_sollya_object(self, value, round_mode = sollya.RN):
+    # TBD: support other rounding mode
+    return sollya.nearestint(value)
 
 class ML_Custom_FixedPoint_Format(ML_Base_FixedPoint_Format):
     def __eq__(self, other):
