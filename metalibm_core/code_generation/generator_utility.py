@@ -616,6 +616,8 @@ class type_custom_match(object):
 
     def __call__(self, *arg_tuple, **kwords):
         acc = True
+        if len(self.type_tuple) != len(arg_tuple):
+          return False
         for match_func, t in zip(self.type_tuple, arg_tuple):
           acc = acc and match_func(t)
         return acc
