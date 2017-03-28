@@ -3,11 +3,13 @@
 import argparse
 import sys
 
-from metalibm_core.targets import *
-
+from sollya import Interval
 
 from valid.test_utils import *
+
+from metalibm_core.targets import *
 from metalibm_core.utility.ml_template import target_instanciate
+from metalibm_core.core.ml_formats import ML_Int32
 
 import metalibm_functions.unit_tests.new_arg_template as ut_new_arg_template
 import metalibm_functions.unit_tests.fixed_point as ut_fixed_point
@@ -22,6 +24,7 @@ import metalibm_functions.unit_tests.vector_code as ut_vector_code
 import metalibm_functions.unit_tests.call_externalization as ut_call_externalization
 import metalibm_functions.unit_tests.auto_test as ut_auto_test
 import metalibm_functions.unit_tests.m128_conversion as ut_m128_conversion
+import metalibm_functions.unit_tests.new_table as ut_new_table
 
 
 
@@ -121,6 +124,11 @@ unit_test_list = [
     "m128 conversion test",
     ut_m128_conversion,
     [{"pre_gen_passes": ["m128_promotion"], "target": target_instanciate("x86_avx2")}],
+  ),
+  UnitTestScheme(
+    "new table test",
+    ut_new_table,
+    [{"auto_test_range": Interval(0, 100), "precision": ML_Int32, "auto_test_execute": 10}],
   ),
 ]
 
