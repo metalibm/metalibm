@@ -61,6 +61,8 @@ class ML_TableFormat(ML_Format):
 
 class ML_Table(ML_LeafNode):
     """ Metalibm Table object """
+    ## string used in get_str
+    str_name = "Table"
     def __init__(self, **kwords): 
         self.attributes = Attributes(**kwords)
         dimensions = attr_init(kwords, "dimensions", [])
@@ -112,7 +114,7 @@ class ML_Table(ML_LeafNode):
         id_str     = ("[id=%x]" % id(self)) if display_id else ""
         attribute_str = "" if not display_attribute else self.attributes.get_str(tab_level = tab_level)
         precision_str = "" if not display_precision else "[%s]" % str(self.get_storage_precision())
-        return "  " * tab_level + "Table[%s]%s%s%s\n" % ("][".join([str(dim) for dim in self.dimensions]), precision_str, id_str, attribute_str)
+        return "  " * tab_level + "%s[%s]%s%s%s\n" % (self.str_name, "][".join([str(dim) for dim in self.dimensions]), precision_str, id_str, attribute_str)
 
     def copy(self, copy_map = {}):
         if self in copy_map.keys():
