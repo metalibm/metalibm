@@ -12,7 +12,7 @@ from metalibm_core.core.attributes import ML_Debug
 from metalibm_core.core.ml_operations import *
 from metalibm_core.core.ml_formats import *
 from metalibm_core.core.polynomials import *
-from metalibm_core.core.ml_table import ML_Table
+from metalibm_core.core.ml_table import ML_NewTable
 from metalibm_core.core.ml_complex_formats import ML_Mpfr_t
 
 from metalibm_core.code_generation.generic_processor import GenericProcessor
@@ -102,7 +102,7 @@ class ML_Log(ML_Function("ml_log")):
                 self.precision.field_size, sollya.RN)
             for i in xrange(dimensions[0])
             ]
-    log2_table = ML_Table(dimensions = dimensions,
+    log2_table = ML_NewTable(dimensions = dimensions,
             storage_precision = self.precision,
             init_data = init_log2,
             tag = 'ml_log2_table')
