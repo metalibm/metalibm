@@ -13,7 +13,7 @@ from sollya import Interval
 
 from ml_operations import ML_LeafNode, BitLogicAnd, BitLogicRightShift, TypeCast, Constant
 from attributes import Attributes, attr_init
-from ml_formats import ML_Int32, ML_Int64, ML_UInt32, ML_UInt64
+from ml_formats import ML_Int32, ML_Int64, ML_UInt32, ML_UInt64, ML_Format
 from ..code_generation.code_constant import *
 
 def create_multi_dim_array(dimensions, init_data = None):
@@ -40,6 +40,25 @@ def get_table_content(table, dimensions, storage_precision, language = C_Code):
         code += "\n}"
         return code
 
+class ML_TableFormat(ML_Format):
+  def __init__(self, storage_precision, dimensions):
+    self.storage_precision = storage_precision
+    # uplet of dimensions 
+    self.dimensions = dimensions
+
+  ## Generate code name for the table format
+  def get_code_name(self, language = C_Code):
+    storage_code_name = self.storage_precision.get_code_name(language)
+    return "{}*".format(storage_code_name)
+
+  def get_storage_precision(self):
+    return self.storage_precision
+  def get_dimensions(self):
+    return self.dimensions
+  def get_match_format(self):
+    return self #.storage_precision.get_match_format(), self.get_dimensions()
+
+
 class ML_Table(ML_LeafNode):
     """ Metalibm Table object """
     def __init__(self, **kwords): 
@@ -51,6 +70,8 @@ class ML_Table(ML_LeafNode):
         self.table = create_multi_dim_array(dimensions, init_data = init_data)
         self.dimensions = dimensions
         self.storage_precision = storage_precision
+
+        self.index = -1
 
     def __setitem__(self, key, value):
         self.table[key] = value
@@ -115,9 +136,23 @@ def generic_index_function(index_size, variable):
     return BitLogicAnd(BitLogicRightShift(TypeCast(variable, precision = inter_precision), shift_amount, precision = inter_precision), index_mask, precision = inter_precision) 
 
         
-class ML_ApproxTable(ML_Table):
+## New Table class
+#  This class uses ML_TableFormat as precision for the 
+#  table object
+class ML_NewTable(ML_Table):
+  ## string used in get_str
+  str_name = "NewTable"
+  def __init__(self, dimensions = (16,), storage_precision = None, **kw):
+    ML_Table.__init__(self, dimensions = dimensions, storage_precision = storage_precision, **kw)
+    self.precision = ML_TableFormat(storage_precision, dimensions)
+
+  def get_precision(self):
+    return self.precision
+
+
+class ML_ApproxTable(ML_NewTable):
     def __init__(self, **kwords):
-        ML_Table.__init__(self, **kwords)
+        ML_NewTable.__init__(self, **kwords)
         index_size = attr_init(kwords, "index_size", 7)
         self.index_size = index_size
         index_function = attr_init(kwords, "index_function", lambda variable: generic_index_function(index_size, variable))
@@ -126,6 +161,3 @@ class ML_ApproxTable(ML_Table):
     def get_index_function(self):
         """ <index_function> getter """
         return self.index_function
-
-
-
