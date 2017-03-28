@@ -72,6 +72,42 @@ supported_vector_size = [2, 3, 4, 8]
 
 vector_opencl_code_generation_table = {
 
+  BitLogicLeftShift: {
+    None: {
+      lambda _: True: 
+        dict(
+          sum(
+          [
+            [
+              (type_strict_match(
+                  vector_type[scalar_type][vector_size], 
+                  vector_type[scalar_type][vector_size],
+                  vector_type[scalar_type][vector_size]
+                ), SymbolOperator(" << ", arity = 2)
+              ) for vector_size in supported_vector_size
+            ] for scalar_type in [ML_Binary32, ML_Binary64, ML_Int32, ML_UInt32]
+          ], [])
+        )
+     }
+  },
+  BitLogicRightShift: {
+    None: {
+      lambda _: True: 
+        dict(
+          sum(
+          [
+            [
+              (type_strict_match(
+                  vector_type[scalar_type][vector_size], 
+                  vector_type[scalar_type][vector_size],
+                  vector_type[scalar_type][vector_size]
+                ), SymbolOperator(" >> ", arity = 2)
+              ) for vector_size in supported_vector_size
+            ] for scalar_type in [ML_Binary32, ML_Binary64, ML_Int32, ML_UInt32]
+          ], [])
+        )
+     }
+  },
   Addition: {
     None: {
       lambda _: True: 
@@ -396,6 +432,11 @@ vector_opencl_code_generation_table = {
               type_strict_match(v8float32, v8int32) : ML_VectorLib_Function("as_float8", arg_map = {0: FO_Arg(0)}, arity = 1, output_precision = v8float32),
               type_strict_match(v8int32, v8float32) : ML_VectorLib_Function("as_int8", arg_map = {0: FO_Arg(0)}, arity = 1, output_precision = v8int32),
 
+              type_strict_match(v2uint32, v2float32) : ML_VectorLib_Function("as_uint2", arg_map = {0: FO_Arg(0)}, arity = 1, output_precision = v2int32),
+              type_strict_match(v3uint32, v3float32) : ML_VectorLib_Function("as_uint3", arg_map = {0: FO_Arg(0)}, arity = 1, output_precision = v3int32),
+              type_strict_match(v4uint32, v4float32) : ML_VectorLib_Function("as_uint4", arg_map = {0: FO_Arg(0)}, arity = 1, output_precision = v4int32),
+              type_strict_match(v8uint32, v8float32) : ML_VectorLib_Function("as_uint8", arg_map = {0: FO_Arg(0)}, arity = 1, output_precision = v8int32),
+
   }}},
   ExponentExtraction: {
       None: {
@@ -413,6 +454,34 @@ vector_opencl_code_generation_table = {
               type_strict_match(v4float32, v4int32) : ML_OCL_VectorLib_Function("ml_ocl_exp_insertion_vf4", arg_map = {0: FO_Arg(0)}, arity = 1, output_precision = v4int32),
               type_strict_match(v8float32, v8int32) : ML_OCL_VectorLib_Function("ml_ocl_exp_insertion_vf8", arg_map = {0: FO_Arg(0)}, arity = 1, output_precision = v8int32),
   }}},
+  Conversion: {
+    None: {
+      lambda optree: True: {
+        type_strict_match(v2uint32, v2int32): ML_VectorLib_Function("convert_uint2", arity = 1, output_precision = v2uint32),
+        type_strict_match(v2int32, v2uint32): ML_VectorLib_Function("convert_int2", arity = 1, output_precision = v2int32),
+        type_strict_match(v3uint32, v3int32): ML_VectorLib_Function("convert_uint2", arity = 1, output_precision = v3uint32),
+        type_strict_match(v3int32, v3uint32): ML_VectorLib_Function("convert_int2", arity = 1, output_precision = v3int32),
+        type_strict_match(v4uint32, v4int32): ML_VectorLib_Function("convert_uint2", arity = 1, output_precision = v4uint32),
+        type_strict_match(v4int32, v4uint32): ML_VectorLib_Function("convert_int2", arity = 1, output_precision = v4int32),
+        type_strict_match(v8uint32, v8int32): ML_VectorLib_Function("convert_uint2", arity = 1, output_precision = v8uint32),
+        type_strict_match(v8int32, v8uint32): ML_VectorLib_Function("convert_int2", arity = 1, output_precision = v8int32),
+      },
+    },
+  },
+  CountLeadingZeros: {
+    None: {
+      lambda optree: True: {
+        type_strict_match(v2uint32, v2uint32): ML_VectorLib_Function("clz", arg_map = {0: FO_Arg(0)}, arity = 1, output_precision = v2uint32),
+        type_strict_match(v2int32, v2int32): ML_VectorLib_Function("clz", arg_map = {0: FO_Arg(0)}, arity = 1, output_precision = v2int32),
+        type_strict_match(v3uint32, v3uint32): ML_VectorLib_Function("clz", arg_map = {0: FO_Arg(0)}, arity = 1, output_precision = v3uint32),
+        type_strict_match(v3int32, v3int32): ML_VectorLib_Function("clz", arg_map = {0: FO_Arg(0)}, arity = 1, output_precision = v3int32),
+        type_strict_match(v4uint32, v4uint32): ML_VectorLib_Function("clz", arg_map = {0: FO_Arg(0)}, arity = 1, output_precision = v4uint32),
+        type_strict_match(v4int32, v4int32): ML_VectorLib_Function("clz", arg_map = {0: FO_Arg(0)}, arity = 1, output_precision = v4int32),
+        type_strict_match(v8uint32, v8uint32): ML_VectorLib_Function("clz", arg_map = {0: FO_Arg(0)}, arity = 1, output_precision = v8uint32),
+        type_strict_match(v8int32, v8int32): ML_VectorLib_Function("clz", arg_map = {0: FO_Arg(0)}, arity = 1, output_precision = v8int32),
+      },
+    },
+  },
 
   Test: {
     Test.IsMaskAllZero: {
