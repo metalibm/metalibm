@@ -313,7 +313,7 @@ class ML_FunctionBasis(object):
     self.opt_engine.silence_fp_operations(scheme)
 
     if verbose: print "checking processor support"
-    self.opt_engine.check_processor_support(scheme)
+    self.opt_engine.check_processor_support(scheme, language = self.language)
 
     return scheme
 
