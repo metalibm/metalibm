@@ -49,10 +49,17 @@ class StaticVectorizer(object):
     vec_arg_list = [arg_list_copy[arg_node] for arg_node in arg_list]
 
     vector_path = linearized_most_likely_path.copy(arg_list_copy)
-    vector_mask = and_merge_conditions(validity_list).copy(arg_list_copy)
 
     vectorization_map = {}
     vector_path = self.vector_replicate_scheme_in_place(vector_path, vector_size, vectorization_map)
+
+    # no validity condition for vectorization (always valid)
+    if len(validity_list) == 0:
+      Log.report(Log.Info, "empty validity list encountered during vectorization")
+      vector_mask = Constant(True, precision = ML_Bool) 
+    else:
+      vector_mask = and_merge_conditions(validity_list).copy(arg_list_copy)
+
     vector_mask = self.vector_replicate_scheme_in_place(vector_mask, vector_size, vectorization_map)
 
     return vec_arg_list, vector_path, vector_mask
