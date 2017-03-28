@@ -436,6 +436,7 @@ class TemplateOperator(FunctionOperator):
         """ overloading of FunctionOperator generate_call_code for template operator object """
         return self.function_name % tuple(var_arg.get() for var_arg in result_arg_list)
 
+## Template operator using the format string construction
 class TemplateOperatorFormat(FunctionOperator):
     """ template operator class """
     def generate_call_code(self, result_arg_list):
