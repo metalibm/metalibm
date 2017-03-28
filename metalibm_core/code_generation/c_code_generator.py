@@ -14,7 +14,7 @@
 from ..utility.log_report import Log
 
 from ..core.ml_operations import Variable, Constant, ConditionBlock, Return, TableLoad, Statement, Loop, SpecificOperation, ExceptionOperation, ClearException, NoResultOperation, SwitchBlock, FunctionObject, ReferenceAssign
-from ..core.ml_table import ML_Table
+from ..core.ml_table import ML_Table, ML_NewTable
 from ..core.ml_formats import *
 from ..core.attributes import ML_Debug
 from .code_constant import C_Code
@@ -113,23 +113,12 @@ class CCodeGenerator(object):
                     result = CodeExpression(precision.get_cst(optree.get_value(), language = language), precision)
                     Log.report(Log.Error, "Error during get_cst call for Constant: %s " % optree.get_str(display_precision = True)) # Exception print
 
-        elif isinstance(optree, TableLoad):
-            # declaring table
-            table = optree.inputs[0]
+        elif isinstance(optree, ML_NewTable):
+            # Implementing LeafNode ML_NewTable generation support
+            table = optree
             tag = table.get_tag()
             table_name = code_object.declare_table(table, prefix = tag if tag != None else "table") 
-
-            index_code = [self.generate_expr(code_object, index_op, folded = folded, language = language).get() for index_op in optree.inputs[1:]]
-
-            result = CodeExpression("%s[%s]" % (table_name, "][".join(index_code)), optree.inputs[0].get_storage_precision())
-
-            # manually enforcing folding
-            if folded:
-                prefix = optree.get_tag(default = "tmp")
-                result_varname = result_var if result_var != None else code_object.get_free_var_name(optree.get_precision(), prefix = prefix)
-                code_object << self.generate_assignation(result_varname, result.get()) 
-                result = CodeVariable(result_varname, optree.get_precision())
-
+            result = CodeVariable(table_name, table.get_precision())
 
         elif isinstance(optree, SwitchBlock):
             switch_value = optree.inputs[0]

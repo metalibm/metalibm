@@ -15,7 +15,7 @@ from sollya import S2
 from ..utility.log_report import *
 
 from ..core.ml_formats import *
-from ..core.ml_table import ML_ApproxTable
+from ..core.ml_table import *
 from ..core.ml_operations import *
 
 from .generator_utility import *
@@ -133,10 +133,12 @@ c_code_generation_table = {
     TableLoad: {
         None: {
             lambda optree: True: {
-                # multidimensional tables, with integer indices:  first two types should be equal, and all the other should be integers
-                (lambda *type_tuple,**kwords:
-                    len(type_tuple) >= 3 and type_strict_match(type_tuple[0])(type_tuple[1]) and type_std_integer_match(*type_tuple[2:])
-                ) : True,
+                # TBD: add check on table format to make sure dimensions match expected
+                # 2-dimensional tables with integer indexes
+                type_custom_match(type_all_match, TCM(ML_TableFormat), type_std_integer_match, type_std_integer_match): TemplateOperatorFormat("{0}[{1}][{2}]", arity = 3), 
+                # TBD: add check on table format to make sure dimensions match expected
+                # 1-dimension tables with integer indexes
+                type_custom_match(type_all_match, TCM(ML_TableFormat), type_std_integer_match): TemplateOperatorFormat("{0}[{1}]", arity = 2), 
             },
         },
     },
