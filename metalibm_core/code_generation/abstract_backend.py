@@ -10,6 +10,8 @@
 # author(s): Nicolas Brunie (nibrunie@gmail.com)
 ###############################################################################
 
+import inspect
+
 from sollya import S2
 
 from ..utility.log_report import *
@@ -114,11 +116,11 @@ class AbstractBackend(object):
         else:
             if not op_class in op_map[language]:
                 # unsupported operation
-                if debug: Log.Report(Log.Info, "unsupported operation class for %s" % optree.get_str())
+                if debug: Log.report(Log.Info, "unsupported operation class for %s" % optree.get_str())
                 return False
             else:
                 if not codegen_key in op_map[language][op_class]:
-                    if debug: Log.Report(Log.Info, "unsupported codegen key for %s" % optree.get_str())
+                    if debug: Log.report(Log.Info, "unsupported codegen key for %s" % optree.get_str())
                     # unsupported codegen key
                     return False
                 else:
@@ -131,13 +133,13 @@ class AbstractBackend(object):
                       Log.report(Log.Info, "unsupported condition key for %s" % optree.get_str(display_precision = True))
                       for condition in op_map[language][op_class][codegen_key]:
                           if condition(optree):
-                            print "verified by condition ", condition
+                            src_file = inspect.getsourcefile(condition)
+                            _, lineno = inspect.getsourcelines(condition)
+                            ic_id = 0
+                            print "verified by condition @ {}:{}".format(src_file, lineno)
                             for interface_condition in op_map[language][op_class][codegen_key][condition]:
-                                print "ic: ", interface_condition.type_tuple, 
-                                if interface_condition(*interface, optree = optree): 
-                                  print "True"
-                                else:
-                                  print "False"
+                                print "  interface_condition @{}:{}/{} {}".format(src_file, lineno, ic_id, interface_condition(*interface, optree = optree)) 
+                                ic_id += 1
                       print op_map[language][op_class][codegen_key].keys()
                     return False
 
