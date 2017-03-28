@@ -945,7 +945,7 @@ class OptimizationEngine(object):
 
 
 
-    def check_processor_support(self, optree, memoization_map = {}, debug = False):
+    def check_processor_support(self, optree, memoization_map = {}, debug = True, language = C_Code):
         """ check if all precision-instantiated operation are supported by the processor """
         if debug:
           print "checking processor support: ", self.processor.__class__ # Debug print
@@ -953,10 +953,10 @@ class OptimizationEngine(object):
             return True
         if not isinstance(optree, ML_LeafNode):
             for inp in optree.inputs:
-                self.check_processor_support(inp, memoization_map, debug = debug)
+                self.check_processor_support(inp, memoization_map, debug = debug, language = language)
 
             if isinstance(optree, ConditionBlock):
-                self.check_processor_support(optree.get_pre_statement(), memoization_map, debug = debug)
+                self.check_processor_support(optree.get_pre_statement(), memoization_map, debug = debug, language = language)
                 pass
             elif isinstance(optree, Statement):
                 pass
@@ -973,8 +973,8 @@ class OptimizationEngine(object):
 
                 for op in optree.get_extra_inputs():
                   # TODO: assert case is integer constant
-                  self.check_processor_support(op, memoization_map, debug = debug)
-            elif not self.processor.is_supported_operation(optree, debug = debug):
+                  self.check_processor_support(op, memoization_map, debug = debug, language = language)
+            elif not self.processor.is_supported_operation(optree, debug = debug, language = language):
                 # trying operand format escalation
                 init_optree = optree
                 old_list = optree.inputs
@@ -1052,7 +1052,7 @@ class OptimizationEngine(object):
         
 
 
-    def optimization_process(self, pre_scheme, default_precision, copy = False, fuse_fma = True, subexpression_sharing = True, silence_fp_operations = True, factorize_fast_path = True):
+    def optimization_process(self, pre_scheme, default_precision, copy = False, fuse_fma = True, subexpression_sharing = True, silence_fp_operations = True, factorize_fast_path = True, language = C_Code):
         # copying when required
         scheme = pre_scheme if not copy else pre_scheme.copy({})
 
@@ -1074,7 +1074,7 @@ class OptimizationEngine(object):
             self.silence_fp_operations(scheme_post_fma)
 
         Log.report(Log.Info, "Checking processor support")
-        self.check_processor_support(scheme_post_fma, memoization_map = {})
+        self.check_processor_support(scheme_post_fma, memoization_map = {}, language = language)
 
         if factorize_fast_path:
             Log.report(Log.Info, "Factorizing fast path")
