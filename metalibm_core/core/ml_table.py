@@ -123,9 +123,10 @@ class ML_Table(ML_LeafNode):
             kwords = self.attributes.__dict__.copy()
             kwords.update({
                 'dimensions' : self.dimensions,
-                'storage_precision' : self.storage_precision
+                'storage_precision' : self.storage_precision,
+                'init_data': self.table
                 })
-            new_copy = ML_Table(**kwords)
+            new_copy = self.__class__(**kwords)
             return new_copy
 
 
