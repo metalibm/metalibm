@@ -713,6 +713,13 @@ vector_c_code_generation_table = {
       },
     },
   },
+  CountLeadingZeros: {
+    None: {
+      lambda optree: True: {
+        type_strict_match(v4uint32, v4uint32) : ML_VectorLib_Function("VECTORIZE_OP1", arg_map = {0: "__builtin_clz", 1: FO_ResultRef(0), 2: FO_Arg(0), 3: "4"}, arity = 1, output_precision = v4uint32),
+      },
+    },
+  },
   TypeCast: {
       None: {
           lambda optree: True: {
