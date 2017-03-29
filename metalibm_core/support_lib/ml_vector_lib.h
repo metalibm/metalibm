@@ -115,6 +115,24 @@ DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vmodu2, ml_uint2_t, uint32_t, 2, %)
 DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vmodu4, ml_uint4_t, uint32_t, 4, %)
 DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vmodu8, ml_uint8_t, uint32_t, 8, %)
 
+/** Vector BitLogic Left Shift */
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vslli2, ml_int2_t, int32_t, 2, <<)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vslli4, ml_int4_t, int32_t, 4, <<)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vslli8, ml_int8_t, int32_t, 8, <<)
+
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsllu2, ml_uint2_t, uint32_t, 2, <<)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsllu4, ml_uint4_t, uint32_t, 4, <<)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsllu8, ml_uint8_t, uint32_t, 8, <<)
+
+/** Vector Aritmethic Right Shift */
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsrai2, ml_int2_t, int32_t, 2, >>)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsrai4, ml_int4_t, int32_t, 4, >>)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsrai8, ml_int8_t, int32_t, 8, >>)
+
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsrau2, ml_uint2_t, uint32_t, 2, >>)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsrau4, ml_uint4_t, uint32_t, 4, >>)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsrau8, ml_uint8_t, uint32_t, 8, >>)
+
 /** Vector Fused Multiply and Add */
 DEF_ML_VECTOR_PRIMITIVES_OP3(ml_vfmaf2, ml_float2_t, float, 2, *, +)
 DEF_ML_VECTOR_PRIMITIVES_OP3(ml_vfmaf4, ml_float4_t, float, 4, *, +)
@@ -489,3 +507,7 @@ DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vexp_extraction_f8, ml_int8_t, ml_float8_t, 8, m
 /** Vector element-wise selection */
 #define ML_VSELECT(result,test,op0,op1,size) {\
   unsigned k; for (k = 0; k < size; ++k) (result)->_[k] = (test)._[k] ? (op0)._[k] : (op1)._[k]; };
+
+/** Vector elemt-wise load (gather) */
+#define ML_VLOAD(result,table,addr,size) {\
+  unsigned k; for (k = 0; k < size; ++k) (result)->_[k] = table[(test)._[k]]; };
