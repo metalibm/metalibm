@@ -113,7 +113,9 @@ class ML_Log(ML_Function("ml_log")):
     # Avoid the 0.0 case
     denorm = vx_as_int - 1
     is_normal = denorm >= denorm_mask
-    is_denormal = is_normal - 1
+    # hazardous conversion is_normal is a boolean
+    is_denormal = Select(is_normal, Constant(0, precision = int_prec), Constant(-1, precision = int_prec))
+    # is_denormal = is_normal - 1
     #is_denormal = Conversion(denorm < denorm_mask, precision = int_prec)
 
     # NO BRANCH, INTEGER BASED DENORMAL AND LARGE EXPONENT HANDLING
