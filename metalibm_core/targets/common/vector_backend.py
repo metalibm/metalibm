@@ -614,6 +614,16 @@ vector_c_code_generation_table = {
         type_strict_match(v3float32, v3float32, v3float32): ML_VectorLib_Function("ml_vsubf4", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v3float32),
         type_strict_match(v4float32, v4float32, v4float32): ML_VectorLib_Function("ml_vsubf4", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v4float32),
         type_strict_match(v8float32, v8float32, v8float32): ML_VectorLib_Function("ml_vsubf8", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v8float32),
+
+        type_strict_match(v2uint32, v2uint32, v2uint32): ML_VectorLib_Function("ml_vsubu2", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v2uint32),
+        type_strict_match(v3uint32, v3uint32, v3uint32): ML_VectorLib_Function("ml_vsubu4", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v3uint32),
+        type_strict_match(v4uint32, v4uint32, v4uint32): ML_VectorLib_Function("ml_vsubu4", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v4uint32),
+        type_strict_match(v8uint32, v8uint32, v8uint32): ML_VectorLib_Function("ml_vsubu8", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v8uint32),
+
+        type_strict_match(v2int32, v2int32, v2int32): ML_VectorLib_Function("ml_vsubi2", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v2int32),
+        type_strict_match(v3int32, v3int32, v3int32): ML_VectorLib_Function("ml_vsubi4", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v3int32),
+        type_strict_match(v4int32, v4int32, v4int32): ML_VectorLib_Function("ml_vsubi4", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v4int32),
+        type_strict_match(v8int32, v8int32, v8int32): ML_VectorLib_Function("ml_vsubi8", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v8int32),
       },
     },
   },
