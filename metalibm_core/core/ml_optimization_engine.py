@@ -377,7 +377,8 @@ class OptimizationEngine(object):
     def get_dot_product_enabled(self):
         return self.dot_product_enabled
 
-    def copy_optree(self, optree, copy_map = {}):
+    def copy_optree(self, optree, copy_map = None):
+        copy_map = {} if copy_map is None else copy_map
         return optree.copy(copy_map)
 
 
