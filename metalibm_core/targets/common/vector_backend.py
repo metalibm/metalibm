@@ -704,6 +704,15 @@ vector_c_code_generation_table = {
         )
      }
   },
+  Conversion: {
+    None: {
+      lambda optree: True: {
+        type_strict_match(v4uint32, v4int32) : IdentityOperator(), #ML_VectorLib_Function("VECTORIZE_OP1", arg_map = {0: "__builtin_clz", 1: FO_ResultRef(0), 2: FO_Arg(0), 3: "4"}, arity = 1, output_precision = v4uint32),
+        type_strict_match(v4int32, v4uint32) : IdentityOperator(), 
+        type_strict_match(v4float32, v4int32) : IdentityOperator(), 
+      },
+    },
+  },
   TypeCast: {
       None: {
           lambda optree: True: {
@@ -723,6 +732,11 @@ vector_c_code_generation_table = {
               type_strict_match(v2float32, v2int32) : ML_VectorLib_Function("VECTORIZE_OP1", arg_map = {0: "float_from_32b_encoding", 1: FO_ResultRef(0), 2: FO_Arg(0), 3: "2"}, arity = 1, output_precision = v2float32),
               type_strict_match(v2int32, v2float32) : ML_VectorLib_Function("VECTORIZE_OP1", arg_map = {0: "float_to_32b_encoding", 1: FO_ResultRef(0), 2: FO_Arg(0), 3: "2"}, arity = 1, output_precision = v2int32),
 
+              type_strict_match(v4float32, v4int32) : ML_VectorLib_Function("VECTORIZE_OP1", arg_map = {0: "float_from_32b_encoding", 1: FO_ResultRef(0), 2: FO_Arg(0), 3: "4"}, arity = 1, output_precision = v4float32),
+              type_strict_match(v4int32, v4float32) : ML_VectorLib_Function("VECTORIZE_OP1", arg_map = {0: "float_to_32b_encoding", 1: FO_ResultRef(0), 2: FO_Arg(0), 3: "4"}, arity = 1, output_precision = v4int32),
+
+              type_strict_match(v4float32, v4uint32) : ML_VectorLib_Function("VECTORIZE_OP1", arg_map = {0: "float_from_32b_encoding", 1: FO_ResultRef(0), 2: FO_Arg(0), 3: "4"}, arity = 1, output_precision = v4float32),
+              type_strict_match(v4uint32, v4float32) : ML_VectorLib_Function("VECTORIZE_OP1", arg_map = {0: "float_to_32b_encoding", 1: FO_ResultRef(0), 2: FO_Arg(0), 3: "4"}, arity = 1, output_precision = v4uint32),
               #ML_Utils_Function("float_from_32b_encoding", arity = 1),
               #type_strict_match(ML_Binary32, ML_UInt32): ML_Utils_Function("float_from_32b_encoding", arity = 1),
               #type_strict_match(ML_Int32, ML_Binary32) : ML_Utils_Function("float_to_32b_encoding", arity = 1),
