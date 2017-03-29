@@ -16,6 +16,7 @@ from metalibm_core.utility.log_report import *
 from metalibm_core.code_generation.generator_utility import *
 from metalibm_core.code_generation.complex_generator import *
 from metalibm_core.core.ml_formats import *
+from metalibm_core.core.ml_table import ML_TableFormat
 from metalibm_core.core.ml_operations import *
 from metalibm_core.code_generation.generic_processor import GenericProcessor, LibFunctionConstructor
 
@@ -528,6 +529,13 @@ vector_opencl_code_generation_table = {
 }
 
 vector_c_code_generation_table = {
+  TableLoad: {
+    None: {
+      lambda _: True: {
+        type_custom_match(FSM(v4float32), TCM(ML_TableFormat), FSM(v4int32)): ML_VectorLib_Function("ML_VLOAD", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: "4"}, arity = 4),
+      },
+    },
+  },
   BitLogicAnd: {
     None: {
        lambda _: True: {
