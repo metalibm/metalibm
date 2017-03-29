@@ -709,7 +709,7 @@ class ML_CompoundVectorFormat(ML_VectorFormat, ML_Compound_Format):
 
 
   def get_cst(self, cst_value, language = C_Code):
-    elt_value_list = [self.scalar_format.get_c_cst(cst_value[i]) for i in xrange(self.vector_size)]
+    elt_value_list = [self.scalar_format.get_cst(cst_value[i], language = language) for i in xrange(self.vector_size)]
     if language is C_Code:
       return "{._ = {%s}}" % (", ".join(elt_value_list))
     elif language is OpenCL_Code:
