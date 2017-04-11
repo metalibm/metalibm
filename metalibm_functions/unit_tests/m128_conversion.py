@@ -1,5 +1,9 @@
 # -*- coding: utf-8 -*-
 
+# Instances (see valid/unit_test.py
+# 1.  --pre-gen-passes m128_promotion --target x86_avx2
+# 
+
 import sys
 
 import sollya
@@ -65,8 +69,9 @@ class ML_UT_M128Conversion(ML_Function("ml_ut_m128_conversion")):
 
     add_xx = Addition(vx, vx, precision = self.precision)
     mult = Multiplication(add_xx, vx, precision = self.precision)
+    cst  = Constant(1.1, precision = self.precision)
 
-    result = FusedMultiplyAdd(vx, mult, add_xx, specifier = FusedMultiplyAdd.Subtract, precision = self.precision)
+    result = FusedMultiplyAdd(cst, mult, add_xx, specifier = FusedMultiplyAdd.Subtract, precision = self.precision)
 
     scheme = Return(result, precision = self.precision)
 
@@ -76,7 +81,10 @@ class ML_UT_M128Conversion(ML_Function("ml_ut_m128_conversion")):
     return scheme
 
   def numeric_emulate(self, x):
-    return sollya.round((x + x) * x, self.precision.get_sollya_object(), sollya.RN)
+    add_xx = sollya.round(x + x, self.precision.get_sollya_object(), sollya.RN)
+    mult   = sollya.round(add_xx * x, self.precision.get_sollya_object(), sollya.RN)
+    cst    = sollya.round(1.1, self.precision.get_sollya_object(), sollya.RN)
+    return sollya.round(cst * mult - add_xx , self.precision.get_sollya_object(), sollya.RN)
 
 
 def run_test(args):
