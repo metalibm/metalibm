@@ -806,7 +806,6 @@ class TableLoad(ArithmeticOperationConstructor("TableLoad", arity = 2, range_fun
     """ abstract load from a table operation """
     pass
 
-
 def interval_union(int0, int1):
     return Interval(min(inf(int0), inf(int1)), max(sup(int0), sup(int1)))
 
@@ -901,6 +900,9 @@ class ExponentExtraction(ArithmeticOperationConstructor("ExponentExtraction", ar
 class RawSignExpExtraction(ArithmeticOperationConstructor("RawSignExpExtraction", arity = 1)):
     pass
 
+## Unary operation, count the number of leading zeros in the operand
+#  If the operand equals 0, then the result is the bit size of the 
+#  operand
 class CountLeadingZeros(
         ArithmeticOperationConstructor("CountLeadingZeros", arity = 1)):
     pass
@@ -1405,6 +1407,8 @@ def AdditionN(*args, **kwords):
   return op_list[0]
 
 
+## Overloads @p optree get_likely
+#  with custom defined value @p likely_value
 def Likely(optree, likely_value):
   optree.get_likely = lambda: likely_value
   return optree
