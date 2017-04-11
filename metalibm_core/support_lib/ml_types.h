@@ -12,6 +12,14 @@
 #ifndef __ML_TYPES_H__
 #define __ML_TYPES_H__
 
+/** boolean true value */
+#ifndef ML_TRUE
+#define ML_TRUE 1
+#endif
+/** boolean false value */
+#ifndef ML_FALSE
+#define ML_FALSE 0
+#endif
 
 
 
