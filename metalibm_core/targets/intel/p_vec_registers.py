@@ -18,7 +18,9 @@ class Pass_M128_Promotion(OptreeOptimization):
     ML_Binary32: ML_SSE_m128_v1float32,
     ML_Binary64: ML_SSE_m128_v1float64,
     v2float64:   ML_SSE_m128_v2float64,
-    v4float32:   ML_SSE_m128_v4float32
+    v4float32:   ML_SSE_m128_v4float32,
+    v4int32:     ML_SSE_m128_v4int32,
+    ML_Int32:    ML_SSE_m128_v1int32,
   }
 
   def __init__(self, target):
@@ -64,22 +66,25 @@ class Pass_M128_Promotion(OptreeOptimization):
       codegen_key = optree.get_codegen_key()
       return op_class, interface, codegen_key
 
-    return self.target.is_supported_operation(optree, key_getter = key_getter)
+    support_status = self.target.is_supported_operation(optree, key_getter = key_getter)
+    if not support_status:
+      print "not supported in m128_promotion: ", optree.get_str(depth = 2, display_precision = True, memoization_map = {})
+    return support_status
 
   ## memoize converted     
   def memoize(self, force, optree, new_optree):
     self.memoization_map[(force, optree)] = new_optree
-    if not isinstance(optree, ML_LeafNode) and not self.target.is_supported_operation(optree):
-      print optree.get_str(display_precision = True, memoization_map = {})
-      print new_optree.get_str(display_precision = True, memoization_map = {})
-      #raise Exception()
+    #if not isinstance(optree, ML_LeafNode) and not self.target.is_supported_operation(optree):
+    #  print optree.get_str(display_precision = True, memoization_map = {})
+    #  print new_optree.get_str(display_precision = True, memoization_map = {})
+    #  #raise Exception()
     return new_optree
 
   ## memoize conversion    
   def memoize_conv(self, force, optree, new_optree):
     self.conversion_map[(force, optree)] = new_optree
-    if not isinstance(optree, ML_LeafNode) and not self.target.is_supported_operation(optree):
-      raise Exception()
+    #if not isinstance(optree, ML_LeafNode) and not self.target.is_supported_operation(optree):
+    #  raise Exception()
     return new_optree
 
   def get_converted_node(self, optree):
