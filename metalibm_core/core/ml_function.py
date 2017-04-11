@@ -94,6 +94,7 @@ class DefaultArgTemplate:
   auto_test_std   = False
   # list of pre-code generation opt passe names (string tag)
   pre_gen_passes = []
+  check_processor_support = True
 
   def __init__(self, **kw):
     for key in kw:
@@ -159,6 +160,8 @@ class ML_FunctionBasis(object):
     auto_test     = ArgDefault.select_value([arg_template.auto_test, arg_template.auto_test_execute, auto_test])
     auto_test_std = ArgDefault.select_value([arg_template.auto_test_std, auto_test_std])
 
+    # enable/disable check_processor_support pass run
+    self.check_processor_support = arg_template.check_processor_support
     self.pre_gen_passes = arg_template.pre_gen_passes
 
     # io_precisions must be a list
@@ -312,8 +315,9 @@ class ML_FunctionBasis(object):
     if verbose: print "silencing operation"
     self.opt_engine.silence_fp_operations(scheme)
 
-    if verbose: print "checking processor support"
-    self.opt_engine.check_processor_support(scheme, language = self.language)
+    if self.check_processor_support:
+      if verbose: print "checking processor support", self.language
+      self.opt_engine.check_processor_support(scheme, language = self.language)
 
     return scheme
 

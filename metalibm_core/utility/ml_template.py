@@ -198,6 +198,7 @@ class ML_CommonArgTemplate(object):
     self.parser.add_argument("--pass-info", action = PassListAction, help = "list available optmization passes")
 
     self.parser.add_argument("--pre-gen-pass", default = [], action = "store", dest = "pre_gen_passes", type = lambda s: s.split(","), help = "comma separated list of pass to be executed just before final code generation")
+    self.parser.add_argument("--disable-check", default = True, action = "store_const", const = False, dest = "check_processor_support", help = "disable check processor support pass run {default: enabled]")
 
 
   def arg_extraction(self):
