@@ -689,6 +689,10 @@ class GenericProcessor(AbstractBackend):
 
     def get_execution_command(self, test_file):
       return "./%s" % test_file
+    ## Return a list of compiler option strings for the @p self target
+    def get_compilation_options(self):
+      return []
+
 
 if __name__ == "__main__":
     print FunctionOperator("ml_is_nan_or_inff", arity = 1).arg_map
