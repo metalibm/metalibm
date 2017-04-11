@@ -58,8 +58,9 @@ class AbstractBackend(object):
         self.generate_local_op_map(language, op_map)
         return op_map
 
-    def generate_local_op_map(self, language = C_Code, op_map = {}, table_getter = lambda self: self.code_generation_table):
+    def generate_local_op_map(self, language = C_Code, op_map = None, table_getter = lambda self: self.code_generation_table):
         """ generate simplified map of locally supported operations """
+        op_map = {} if op_map is None else op_map
         table = table_getter(self)
         if not language in table:
           return op_map
