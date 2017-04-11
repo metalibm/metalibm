@@ -132,10 +132,33 @@ unit_test_list = [
   ),
 ]
 
+## Command line action to set break on error in load module
+class ListUnitTestAction(argparse.Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        for test in  unit_test_list:
+          print test.get_tag_title()
+        exit(0)
+
+# filling unit-test tag map
+unit_test_tag_map = {}
+for test in unit_test_list:
+  unit_test_tag_map[test.get_tag_title()] = test
+
+# generate list of test object from string 
+# of comma separated test's tag
+def parse_unit_test_list(test_list):
+  test_tags = test_list.split(",")
+  return [unit_test_tag_map[tag] for tag in test_tags]
+
+
 arg_parser = argparse.ArgumentParser(" Metalibm unit tests")
 arg_parser.add_argument("--debug", dest = "debug", action = "store_const", 
                         default = False, const = True, 
                         help = "enable debug mode")
+# listing available tests
+arg_parser.add_argument("--list", action = ListUnitTestAction, help = "list available unit tests", nargs = 0) 
+# select list of tests to be executed
+arg_parser.add_argument("--execute", dest = "test_list", type = parse_unit_test_list, default = unit_test_list, help = "list of comma separated test to be executed") 
 
 
 args = arg_parser.parse_args(sys.argv[1:])
@@ -147,7 +170,7 @@ debug_flag = args.debug
 # of new scheme tests
 result_details = []
 
-for test_scheme in unit_test_list:
+for test_scheme in args.test_list:
   test_result = test_scheme.perform_all_test(debug = debug_flag)
   result_details.append(test_result)
   if not test_result.get_result(): 
