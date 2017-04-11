@@ -370,14 +370,10 @@ class ML_FunctionBasis(object):
       self.implementation.clear_arg_list()
 
       code_function_list = self.generate_vector_implementation(
-          scalar_scheme, scalar_arg_list, self.get_vector_size()
-          )
+        scalar_scheme, scalar_arg_list, self.get_vector_size()
+      )
 
-    if self.auto_test_enable:
-      code_function_list += self.generate_auto_test(
-          test_num = self.auto_test_number if self.auto_test_number else 0,
-          test_range = self.auto_test_range
-          )
+
 
 
     for code_function in code_function_list:
@@ -406,13 +402,34 @@ class ML_FunctionBasis(object):
         print opt_scheme.get_str(depth = None, display_precision = True, memoization_map = {}, display_id = True)
       code_function.set_scheme(opt_scheme)
 
+    # generate auto-test wrapper
+    if self.auto_test_enable:
+      auto_test_function_list = self.generate_auto_test(
+        test_num = self.auto_test_number if self.auto_test_number else 0,
+        test_range = self.auto_test_range
+      )
+
+      for code_function in auto_test_function_list:
+        scheme = code_function.get_scheme()
+
+        opt_scheme = self.optimise_scheme(
+          scheme, enable_subexpr_sharing = enable_subexpr_sharing
+        )
+
+        code_function.set_scheme(opt_scheme)
+
+      # appending auto-test wrapper to general code_function_list
+      code_function_list += auto_test_function_list
+
     # generate C code to implement scheme
     self.generate_code(code_function_list, language = self.language)
 
     if self.auto_test_enable:
       compiler = self.processor.get_compiler()
       test_file = "./test_%s.bin" % self.function_name
-      test_command =  "%s -O2 -DML_DEBUG -I $ML_SRC_DIR/metalibm_core $ML_SRC_DIR/metalibm_core/support_lib/ml_libm_compatibility.c %s -o %s -lm " % (compiler, self.output_file, test_file) 
+      compiler_options = " ".join(self.processor.get_compilation_options())
+      Log.report(Log.Info, "Compiler options: \"{}\"".format(compiler_options))
+      test_command =  "{compiler} {options} -O2 -DML_DEBUG -I $ML_SRC_DIR/metalibm_core $ML_SRC_DIR/metalibm_core/support_lib/ml_libm_compatibility.c {src_file} -o {test_file} -lm ".format(compiler = compiler, src_file = self.output_file, test_file = test_file, options = compiler_options) 
       test_command += " && %s " % self.processor.get_execution_command(test_file)
       if self.auto_test_execute:
         print "VALIDATION %s " % self.get_name()
