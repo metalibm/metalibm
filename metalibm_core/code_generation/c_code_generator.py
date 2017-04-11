@@ -13,7 +13,8 @@
 
 from ..utility.log_report import Log
 
-from ..core.ml_operations import Variable, Constant, ConditionBlock, Return, TableLoad, Statement, Loop, SpecificOperation, ExceptionOperation, ClearException, NoResultOperation, SwitchBlock, FunctionObject, ReferenceAssign
+# TODO clean long import list
+from ..core.ml_operations import Variable, Constant, ConditionBlock, Return, TableLoad, Statement, Loop, SpecificOperation, ExceptionOperation, ClearException, NoResultOperation, SwitchBlock, FunctionObject, ReferenceAssign, BooleanOperation
 from ..core.ml_table import ML_Table, ML_NewTable
 from ..core.ml_formats import *
 from ..core.attributes import ML_Debug
@@ -188,10 +189,13 @@ class CCodeGenerator(object):
             self.generate_expr(code_object, optree.get_pre_statement(), folded = folded, language = language)
 
             cond_code = self.generate_expr(code_object, condition, folded = folded, language = language)
-            try:
+            if isinstance(condition, BooleanOperation):
               cond_likely = condition.get_likely()
-            except AttributeError:
-              Log.report(Log.Error, " the following condition has no (usable) likely attribute: %s" % (condition.get_str(depth = 1, display_precision = True, memoization_map = {}))) 
+            else:
+              # TODO To be refined (for example Constant(True)
+              #      should be associated with likely True
+              cond_likely = None
+              Log.report(Log.Warning, " the following condition has no (usable) likely attribute: %s" % (condition.get_str(depth = 1, display_precision = True, memoization_map = {}))) 
             if cond_likely in [True, False]:
                 code_object << "\nif (__builtin_expect(%s, %d)) " % (cond_code.get(), {True: 1, False: 0}[condition.get_likely()])
             else:
