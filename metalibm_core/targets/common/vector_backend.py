@@ -899,27 +899,27 @@ class VectorBackend(GenericProcessor):
     self.simplified_rec_op_map[OpenCL_Code] = self.generate_supported_op_map(language = OpenCL_Code)
 
 
-  def is_supported_operation(self, optree, language = C_Code, debug = False, fallback = True):
+  def is_supported_operation(self, optree, language = C_Code, debug = False, fallback = True,  key_getter = lambda self, optree: self.get_operation_keys(optree)):
     """ return whether or not the operation performed by optree is supported by any level of the processor hierarchy """
-    language_supported =  self.is_map_supported_operation(self.simplified_rec_op_map, optree, language, debug = debug)
+    language_supported =  self.is_map_supported_operation(self.simplified_rec_op_map, optree, language, debug = debug, key_getter = key_getter)
     # fallback to C_Code
     if language is OpenCL_Code and fallback: 
-      return language_supported or self.is_map_supported_operation(self.simplified_rec_op_map, optree, language = C_Code, debug = debug)
+      return language_supported or self.is_map_supported_operation(self.simplified_rec_op_map, optree, language = C_Code, debug = debug, key_getter = key_getter)
     else:
       return language_supported
 
-  def get_recursive_implementation(self, optree, language = None, table_getter = lambda self: self.code_generation_table):
-    if self.is_local_supported_operation(optree, language = language, table_getter = table_getter):
-      local_implementation = self.get_implementation(optree, language, table_getter = table_getter)
+  def get_recursive_implementation(self, optree, language = None, table_getter = lambda self: self.code_generation_table,  key_getter = lambda self, optree: self.get_operation_keys(optree)):
+    if self.is_local_supported_operation(optree, language = language, table_getter = table_getter, key_getter = key_getter):
+      local_implementation = self.get_implementation(optree, language, table_getter = table_getter, key_getter = key_getter)
       return local_implementation
     else:
       for parent_proc in self.parent_architecture:
-        if parent_proc.is_local_supported_operation(optree, language = language, table_getter = table_getter):
-          return parent_proc.get_implementation(optree, language, table_getter = table_getter)
+        if parent_proc.is_local_supported_operation(optree, language = language, table_getter = table_getter, key_getter = key_getter):
+          return parent_proc.get_implementation(optree, language, table_getter = table_getter, key_getter = key_getter)
 
     ## fallback to C_Code when no OpenCL_Code implementation is found
     if language is OpenCL_Code:
-      return self.get_recursive_implementation(optree, C_Code, table_getter)
+      return self.get_recursive_implementation(optree, C_Code, table_getter, key_getter = key_getter)
 
     # no implementation were found
     Log.report(Log.Verbose, "[VectorBackend] Tested architecture(s) for language %s:" % str(language))
