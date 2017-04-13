@@ -499,7 +499,12 @@ class ML_Base_FixedPoint_Format(ML_Fixed_Format):
 
     def get_c_cst(self, cst_value):
         """ C-language constant generation """
-        encoded_value = int(cst_value * sollya.S2**self.frac_size)
+        try:
+          encoded_value = int(cst_value * sollya.S2**self.frac_size)
+        except ValueError as e:
+          print e, cst_value, self.frac_size
+          Log.report(Log.Error, "Error during constant conversion to sollya object")
+          
         return ("" if self.signed else "U") + "INT" + str(self.c_bit_size) + "_C(" + str(encoded_value) + ")"
 
     def get_gappa_cst(self, cst_value):
@@ -700,6 +705,7 @@ class ML_VectorFormat(ML_Format):
     except KeyError:
       return self.get_scalar_format().get_name(language)
 
+## Generic class for Metalibm support library vector format
 class ML_CompoundVectorFormat(ML_VectorFormat, ML_Compound_Format):
   def __init__(self, c_format_name, opencl_format_name, vector_size, scalar_format, sollya_precision = None):
     ML_VectorFormat.__init__(self, scalar_format, vector_size, c_format_name)
