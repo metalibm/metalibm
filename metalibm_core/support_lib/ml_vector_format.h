@@ -20,7 +20,7 @@ typedef struct {\
 /** Return a pointer to the address of the vector field '_'
  *  of vector value @p x 
  */
-#define GET_VEC_FIELD_ADDR(x) (&(x._))
+#define GET_VEC_FIELD_ADDR(x) ((x._))
 
 // single precision vector format
 DEC_ML_FORMAT(ml_float2_t, float, 2)
