@@ -32,9 +32,9 @@ ML_SSE_m128_v1float64 = ML_FormatConstructor(128, "__m128d", None, lambda v: Non
 ML_SSE_m128_v2float64 = ML_FormatConstructor(128, "__m128d", None, lambda v: None)
 
 ## format for a single int32 stored in a XMM 128-bit register 
-ML_SSE_m128_v1int32  = ML_FormatConstructor(128, "__m128",  None, lambda v: None)
+ML_SSE_m128_v1int32  = ML_FormatConstructor(128, "__m128i",  None, lambda v: None)
 ## format for packed 4 int32 in a XMM 128-bit register 
-ML_SSE_m128_v4int32  = ML_FormatConstructor(128, "__m128",  None, lambda v: None)
+ML_SSE_m128_v4int32  = ML_FormatConstructor(128, "__m128i",  None, lambda v: None)
 
 ## format for packed 8 fp32 in a YMM 256-bit register 
 ML_AVX_m256  = ML_FormatConstructor(256, "__m256",  None, lambda v: None)
@@ -78,6 +78,13 @@ def XmmIntrin(*args, **kw):
 def EmmIntrin(*args, **kw):
   kw.update({
     'require_header': ["emmintrin.h"]
+  })
+  return FunctionOperator(*args, **kw)
+## Wrapper for intel x86 sse4.1 intrinsics
+#  defined in <smmintrin.h> header
+def SmmIntrin(*args, **kw):
+  kw.update({
+    'require_header': ["smmintrin.h"]
   })
   return FunctionOperator(*args, **kw)
 ## Wrapper for intel x86_avx2 intrinsics
@@ -167,14 +174,28 @@ sse_c_code_generation_table = {
           type_strict_match(ML_SSE_m128_v1float64, ML_Binary64): _mm_set_sd,
           type_strict_match(ML_Binary64, ML_SSE_m128_v1float64): _mm_cvtsd_f64,
 
-          type_strict_match(ML_SSE_m128_v4float32, v4float32): XmmIntrin("_mm_load_ps", arity = 1),
-          type_strict_match(v4float32, ML_SSE_m128_v4float32): XmmIntrin("_mm_store_ps", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)}, arity = 1),
+          type_strict_match(ML_SSE_m128_v4float32, v4float32):
+            XmmIntrin("_mm_load_ps", arity = 1, output_precision = ML_SSE_m128_v4float32)
+              #(TemplateOperatorFormat("(__m128*){}", arity = 1, output_precision = ML_Pointer_Format(ML_SSE_m128_v4float32))
+                (TemplateOperatorFormat("GET_VEC_FIELD_ADDR({})", arity = 1, output_precision = ML_Pointer_Format(ML_Binary32))),#),
+          # m128 float vector to ML's generic vector format
+          type_strict_match(v4float32, ML_SSE_m128_v4float32): 
+            TemplateOperatorFormat("_mm_store_ps(GET_VEC_FIELD_ADDR({}), {})", 
+              arity = 1, 
+              arg_map = {0: FO_Result(0), 1: FO_Arg(0)}, 
+              require_header = ["xmmintrin.h"]
+            ),
+            #XmmIntrin("_mm_store_ps", arity = 2, arg_map = {0: FO_Result(0), 1: FO_Arg(0)})
+            #  (FunctionOperator("GET_VEC_FIELD_ADDR", arity = 1, output_precision = ML_Pointer_Format(ML_Binary32))(FO_Result(0)), FO_Arg(0)),
 
           type_strict_match(v4int32, ML_SSE_m128_v4int32): XmmIntrin("_mm_store_si128", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)}, arity = 1),
 
           type_strict_match(ML_SSE_m128_v4int32, ML_Int32, ML_Int32, ML_Int32, ML_Int32): XmmIntrin("_mm_set_epi32", arity = 4),
           #type_strict_match(ML_SSE_m128_v4int32, v4int32): ComplexOperator(optree_modifier = v4_to_m128_modifier),
-          type_strict_match(ML_SSE_m128_v4int32, v4int32): XmmIntrin("_mm_load_si128", arity = 1, output_precision = ML_SSE_m128_v4int32)(TemplateOperatorFormat("(__m128i*){}", arity = 1, output_precision = ML_Pointer_Format(ML_SSE_m128_v4int32))(TemplateOperatorFormat("GET_VEC_FIELD_ADDR({})", arity = 1, output_precision = ML_Pointer_Format(ML_SSE_m128_v4int32)))),
+          type_strict_match(ML_SSE_m128_v4int32, v4int32): 
+            XmmIntrin("_mm_load_si128", arity = 1, output_precision = ML_SSE_m128_v4int32)
+              (TemplateOperatorFormat("(__m128i*){}", arity = 1, output_precision = ML_Pointer_Format(ML_SSE_m128_v4int32))
+                (TemplateOperatorFormat("GET_VEC_FIELD_ADDR({})", arity = 1, output_precision = ML_Pointer_Format(ML_Int32)))),
         }
       },
     },
@@ -201,6 +222,17 @@ sse_c_code_generation_table = {
                 type_strict_match(ML_Binary32, ML_Binary32, ML_Binary32):
                     _mm_cvtss_f32(_mm_add_ss(_mm_set_ss(FO_Arg(0)),
                                              _mm_set_ss(FO_Arg(1)))),
+                # vector addition
+                type_strict_match(ML_SSE_m128_v4float32, ML_SSE_m128_v4float32, ML_SSE_m128_v4float32): XmmIntrin("_mm_add_ps", arity = 2),
+            },
+        },
+    },
+    Subtraction: {
+        None: {
+            lambda _: True: {
+                # vector addition
+                type_strict_match(ML_SSE_m128_v4float32, ML_SSE_m128_v4float32, ML_SSE_m128_v4float32): XmmIntrin("_mm_sub_ps", arity = 2),
+                type_strict_match(ML_SSE_m128_v1float32, ML_SSE_m128_v1float32, ML_SSE_m128_v1float32): XmmIntrin("_mm_sub_ss", arity = 2),
             },
         },
     },
@@ -214,6 +246,8 @@ sse_c_code_generation_table = {
                 type_strict_match(ML_Binary32, ML_Binary32, ML_Binary32):
                     _mm_cvtss_f32(_mm_mul_ss(_mm_set_ss(FO_Arg(0)),
                                              _mm_set_ss(FO_Arg(1)))),
+                # vector multiplication
+                type_strict_match(ML_SSE_m128_v4float32, ML_SSE_m128_v4float32, ML_SSE_m128_v4float32): XmmIntrin("_mm_mul_ps", arity = 2),
             },
         },
     },
@@ -289,6 +323,28 @@ sse2_c_code_generation_table = {
         lambda optree: True: {
           type_strict_match(ML_SSE_m128_v4int32, ML_SSE_m128_v4int32, ML_Int32):
             EmmIntrin("_mm_sll_epi32", arity = 2, arg_map = {0: FO_Arg(0), 1: FO_Arg(1)})(FO_Arg(0), _mm_set1_epi64x(FO_Arg(1))),
+          type_strict_match(ML_SSE_m128_v4int32, ML_SSE_m128_v4int32, ML_SSE_m128_v4int32):
+            ImmIntrin("_mm_sllv_epi32", arity = 2, arg_map = {0: FO_Arg(0), 1: FO_Arg(1)}),
+        },
+      },
+    },
+    BitLogicRightShift: {
+      None: {
+        lambda optree: True: {
+          type_strict_match(ML_SSE_m128_v4int32, ML_SSE_m128_v4int32, ML_Int32):
+            EmmIntrin("_mm_sra_epi32", arity = 2, arg_map = {0: FO_Arg(0), 1: FO_Arg(1)})(FO_Arg(0), _mm_set1_epi64x(FO_Arg(1))),
+          type_strict_match(ML_SSE_m128_v4int32, ML_SSE_m128_v4int32, ML_SSE_m128_v4int32):
+            ImmIntrin("_mm_srav_epi32", arity = 2, arg_map = {0: FO_Arg(0), 1: FO_Arg(1)}),
+        },
+      },
+    },
+    Conversion: {
+      None: {
+        lambda optree: True: {
+          type_strict_match(ML_SSE_m128_v4float32, ML_SSE_m128_v4int32):
+            EmmIntrin("_mm_cvtepi32_ps", arity = 1),
+          type_strict_match(ML_SSE_m128_v4int32, ML_SSE_m128_v4float32):
+            EmmIntrin("_mm_cvtps_epi32", arity = 1),
         },
       },
     },
@@ -303,6 +359,12 @@ sse41_c_code_generation_table = {
 
                 type_strict_match(ML_Binary32, ML_Binary32): _mm_cvtss_f32(_mm_round_ss_rn(_mm_set_ss(FO_Arg(0)))),
                 type_strict_match(ML_Binary64, ML_Binary64): _mm_cvtsd_f64(_mm_round_sd_rn(_mm_set_sd(FO_Arg(0)))),
+
+                type_strict_match(ML_SSE_m128_v4float32, ML_SSE_m128_v4float32): 
+                  SmmIntrin("_mm_round_ps", arity = 1, arg_map = {0: FO_Arg(0), 1: "_MM_FROUND_TO_NEAREST_INT"}, output_precision = ML_SSE_m128_v4float32),
+                type_strict_match(ML_SSE_m128_v4int32, ML_SSE_m128_v4float32): 
+                  EmmIntrin("_mm_cvtps_epi32", arity = 1, output_precision = ML_SSE_m128_v4int32)
+                    (SmmIntrin("_mm_round_ps", arity = 1, arg_map = {0: FO_Arg(0), 1: "_MM_FROUND_TO_NEAREST_INT"}, output_precision = ML_SSE_m128_v4float32)),
             },
         },
     },
@@ -351,7 +413,7 @@ class X86_AVX2_Processor(X86_SSE41_Processor):
             TableLoad: {
               None: {
                 lambda optree: True: {
-                  type_custom_match(FSM(ML_SSE_m128_v4float32), TCM(ML_TableFormat), FSM(ML_SSE_m128_v4int32)): ImmIntrin("_mm_i32gather_ps", arity = 2, output_precision = ML_SSE_m128_v4float32),
+                  type_custom_match(FSM(ML_SSE_m128_v4float32), TCM(ML_TableFormat), FSM(ML_SSE_m128_v4int32)): ImmIntrin("_mm_i32gather_ps", arity = 3, output_precision = ML_SSE_m128_v4float32)(FO_Arg(0), FO_Arg(1), FO_Value("4", ML_Int32)),
                 },
               },
             },
@@ -419,7 +481,7 @@ class X86_AVX2_Processor(X86_SSE41_Processor):
         X86_SSE41_Processor.__init__(self)
 
     def get_compilation_options(self):
-      return super(X86_AVX2_Processor, self).get_compilation_options() + ["-mfma"]
+      return super(X86_AVX2_Processor, self).get_compilation_options() + ["-mfma", "-mavx2"]
 
 
 # debug message
