@@ -47,6 +47,12 @@ new_scheme_function_list = [
     [{"precision": ML_Binary32}, {"precision": ML_Binary64}]
   ), 
   NewSchemeTest(
+    "auto execute exp test",
+    metalibm_functions.ml_exp.ML_Exponential,
+    [{"precision": ML_Binary32, "function_name": "my_exp", "auto_test": 100, "auto_test_execute": 100},
+    ]
+  ), 
+  NewSchemeTest(
     "basic cubic square test",
     metalibm_functions.ml_cbrt.ML_Cbrt,
     [{"precision": ML_Binary32}, {"precision": ML_Binary64}]
@@ -106,7 +112,7 @@ success = True
 result_details = []
 
 for test_scheme in args.test_list:
-  test_result = test_scheme.perform_all_test()
+  test_result = test_scheme.perform_all_test(debug = args.debug)
   result_details.append(test_result)
   if not test_result.get_result(): 
     success = False
