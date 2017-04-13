@@ -71,8 +71,17 @@ scalar_type_letter = {
 
 supported_vector_size = [2, 3, 4, 8]
 
-vector_opencl_code_generation_table = {
+## Predicate to test if a VectorElementSelection
+#  is legal for the vector_backend_target, i.e.
+#  vector operand precision is a compound format
+def legal_vector_element_selection(optree):
+  compound_format = isinstance(
+    optree.get_input(0).get_precision(), 
+    ML_CompoundVectorFormat
+  )
+  return compound_format
 
+vector_opencl_code_generation_table = {
   BitLogicLeftShift: {
     None: {
       lambda _: True: 
@@ -779,8 +788,8 @@ vector_c_code_generation_table = {
   VectorElementSelection: 
   {
     None: {
-       lambda _: True: {
-        lambda rformat, opformat, indexformat, optree: True: TemplateOperator("%s._[%s]", arity = 2),
+      legal_vector_element_selection: {
+        lambda rformat, opformat, indexformat, optree: True: TemplateOperator("%s._[%s]", arity = 2, require_header = ["support_lib/ml_vector_format.h"]),
       },
     },
   },
