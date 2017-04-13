@@ -14,6 +14,7 @@ from metalibm_core.core.attributes import ML_Debug
 from metalibm_core.core.ml_operations import *
 from metalibm_core.core.ml_formats import *
 from metalibm_core.core.ml_complex_formats import * 
+from metalibm_core.core.ml_table import ML_NewTable
 
 from metalibm_core.code_generation.code_constant import C_Code 
 
@@ -71,7 +72,35 @@ class ML_UT_M128Conversion(ML_Function("ml_ut_m128_conversion")):
     mult = Multiplication(add_xx, vx, precision = self.precision)
     cst  = Constant(1.1, precision = self.precision)
 
-    result = FusedMultiplyAdd(cst, mult, add_xx, specifier = FusedMultiplyAdd.Subtract, precision = self.precision)
+    index_size = 4
+    table_size = 2**index_size
+
+    table = ML_NewTable(
+      dimensions = [table_size],
+      storage_precision = self.precision
+    )
+    for i in xrange(table_size):
+      table[i] = i
+
+    index = NearestInteger(
+      vx,
+      precision = ML_Int32
+    )
+    # index = index % table_size = index & (2**index_size - 1)
+    index = BitLogicAnd(
+      index, 
+      Constant(2**index_size - 1, precision = ML_Int32), 
+      precision = ML_Int32
+    )
+
+    table_value = TableLoad(table, index, precision = self.precision)
+
+
+    result = Multiplication(
+      table_value,
+      FusedMultiplyAdd(cst, mult, add_xx, specifier = FusedMultiplyAdd.Subtract, precision = self.precision),
+      precision = self.precision
+    )
 
     scheme = Return(result, precision = self.precision)
 
@@ -81,10 +110,16 @@ class ML_UT_M128Conversion(ML_Function("ml_ut_m128_conversion")):
     return scheme
 
   def numeric_emulate(self, x):
+    index = int(sollya.nearestint(x)) % 16
+    table_value = index
     add_xx = sollya.round(x + x, self.precision.get_sollya_object(), sollya.RN)
     mult   = sollya.round(add_xx * x, self.precision.get_sollya_object(), sollya.RN)
     cst    = sollya.round(1.1, self.precision.get_sollya_object(), sollya.RN)
-    return sollya.round(cst * mult - add_xx , self.precision.get_sollya_object(), sollya.RN)
+    return sollya.round(
+      table_value * 
+        sollya.round(
+          sollya.round(cst * mult, self.precision.get_sollya_object(), sollya.RN) - add_xx , self.precision.get_sollya_object(), sollya.RN), self.precision.get_sollya_object(), sollya.RN
+    )
 
 
 def run_test(args):
