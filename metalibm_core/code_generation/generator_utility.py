@@ -119,7 +119,6 @@ class CompoundOperator(ML_CG_Operator):
         self.register_headers(code_object)
         # generating list of arguments
         compound_arg = []
-        #pre_arg_value = [code_generator.generate_expr(code_object, arg, **kwords) for arg in arg_tuple]
         pre_arg_value = ordered_generation(lambda arg: code_generator.generate_expr(code_object, arg, **kwords), arg_tuple)
         # does a result appears as an argument (passed by reference)
         result_in_args = False
@@ -342,14 +341,10 @@ class FunctionOperator(ML_CG_Operator):
         arg_index = arg_map[index]
         if isinstance(arg_index, FO_Arg):
           return arg_result_list[arg_index.index]
-
         elif isinstance(arg_index, FO_Result):
           return result_args_map[arg_index.get_index()]
-          # return FO_Result(arg_index.get_index(), arg_index.get_output_precision()) 
-
         elif isinstance(arg_index, FO_ResultRef):
           return CodeExpression("&%s" % result_args_map[arg_index.get_index()].get(), None)
-
         else:
           return CodeExpression(arg_map[index], None)
 
@@ -363,11 +358,9 @@ class FunctionOperator(ML_CG_Operator):
             return self.custom_generate_expr(self, code_generator, code_object, optree, optree.inputs, generate_pre_process = generate_pre_process, **kwords)
         else:
             # generating list of arguments
-            #arg_result = [code_generator.generate_expr(code_object, arg, **kwords) for arg in arg_tuple]
             arg_result = ordered_generation(lambda arg: code_generator.generate_expr(code_object, arg, **kwords), arg_tuple)
             # assembling parent operator code
             return self.assemble_code(code_generator, code_object, optree, arg_result, generate_pre_process = generate_pre_process, **kwords)
-            #[self.get_arg_from_index(index, arg_result) for index in xrange(self.arity)],
 
 
     def generate_call_code(self, result_arg_list):
@@ -399,10 +392,7 @@ class FunctionOperator(ML_CG_Operator):
 
         # generating result code
         result_arg_list = [self.get_arg_from_index(index, var_arg_list, arg_map = arg_map, result_args_map = result_args_map) for index in xrange(total_arity)]
-        #result_code = None
-        #result_code = "%s(%s)" % (self.function_name, ", ".join([var_arg.get() for var_arg in result_arg_list]))
         result_code = self.generate_call_code(result_arg_list)
-
 
         if result_in_args:
           code_object << code_generator.generate_untied_statement(result_code)
