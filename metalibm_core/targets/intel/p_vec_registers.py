@@ -5,6 +5,7 @@ from metalibm_core.targets.intel.x86_processor import *
 
 from metalibm_core.core.ml_formats import *
 from metalibm_core.core.passes import OptreeOptimization, Pass
+from metalibm_core.core.ml_table import ML_NewTable
 
 from metalibm_core.opt.check_support import Pass_CheckSupport
 
@@ -41,19 +42,35 @@ class Pass_M128_Promotion(OptreeOptimization):
     pass
 
   def get_conv_format(self, precision):
-    return self.trans_table[precision]
+    # table precision are left unchanged
+    if isinstance(precision, ML_TableFormat):
+      return precision
+    else:
+      return self.trans_table[precision]
+
+  def is_convertible_format(self, precision):
+    # Table format is always convertible
+    if isinstance(precision, ML_TableFormat):
+      return True
+    else:
+      if precision in self.trans_table:
+        return True
+      else:
+        return False
 
   ## test wether optree's operation is supported on 
   #  __m128-based formats
   def does_m128_support_operation(self, optree):
     # check that the output format is supported
-    if not optree.get_precision() in self.trans_table:
+    if not self.is_convertible_format(optree.get_precision()):
       return False
-    if isinstance(optree, ML_LeafNode):
+    if isinstance(optree, ML_LeafNode) \
+       or isinstance(optree, VectorElementSelection) \
+       or isinstance(optree, FunctionCall):
       return False
     # check that the format of every input is supported 
     for arg in optree.get_inputs():
-      if not arg.get_precision() in self.trans_table:
+      if not self.is_convertible_format(arg.get_precision()):
         return False
     ## This local ket getter modifies on the fly
     # the optree precision to __m128-based formats
@@ -124,6 +141,8 @@ class Pass_M128_Promotion(OptreeOptimization):
           new_optree = Conversion(new_optree, precision = optree.get_precision())
 
         return self.memoize(parent_converted, optree, new_optree)
+      elif isinstance(optree, ML_NewTable):
+        return self.memoize(parent_converted, optree, optree)
       elif isinstance(optree, ML_LeafNode):
         if parent_converted and optree.get_precision() in self.trans_table:
           new_optree = Conversion(optree, precision = self.get_conv_format(optree.get_precision()))
