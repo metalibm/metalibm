@@ -59,10 +59,10 @@ class NewSchemeTest(CommonTestScheme):
     function_name = self.get_title()
     test_desc = "{}/{}".format(function_name, str(arg_tc))
     arg_template = DefaultArgTemplate(**arg_tc) 
+
     if debug:
       fct = self.ctor(arg_template)
       fct.gen_implementation()
-
     else:
       try:
         fct = self.ctor(arg_template)
