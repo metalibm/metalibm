@@ -140,13 +140,15 @@ class ML_HyperbolicCosine(ML_Function("ml_cosh")):
     exp_table = ML_NewTable(dimensions = [2 * 2**index_size, 4], storage_precision = self.precision, tag = self.uniquify_name("exp2_table"))
     for i in range(2 * 2**index_size):
       input_value = i - 2**index_size if i >= 2**index_size else i 
+
+      reduced_hi_prec = int(self.precision.get_mantissa_size() * 2 / 3.0)
       # using SollyaObject wrapper to force evaluation by sollya
       # with higher precision
       exp_value  = sollya.SollyaObject(2)**((input_value)* 2**-index_size)
       mexp_value = sollya.SollyaObject(2)**((-input_value)* 2**-index_size)
-      pos_value_hi = round(exp_value, self.precision.get_sollya_object(), RN)
+      pos_value_hi = round(exp_value, reduced_hi_prec, RN)
       pos_value_lo = round(exp_value - pos_value_hi, self.precision.get_sollya_object(), RN)
-      neg_value_hi = round(mexp_value, self.precision.get_sollya_object(), RN)
+      neg_value_hi = round(mexp_value, reduced_hi_prec, RN)
       neg_value_lo = round(mexp_value - neg_value_hi, self.precision.get_sollya_object(), RN)
       exp_table[i][0] = neg_value_hi
       exp_table[i][1] = neg_value_lo
@@ -160,11 +162,17 @@ class ML_HyperbolicCosine(ML_Function("ml_cosh")):
     # r = x - k * log2_value
     # exp(x) = exp(r) * 2 ^ (k / 2^index_size)
     #
-    # k / 2^index_size = h + l * 2^-index_size
+    # k / 2^index_size = h + l * 2^-index_size, with k, h, l integers
     # exp(x) = exp(r) * 2^h * 2^(l *2^-index_size)
     #
     # cosh(x) = exp(r) * 2^(h-1) 2^(l *2^-index_size) + exp(-r) * 2^(-h-1) * 2^(-l *2^-index_size)
+    # S=2^(h-1), T = 2^(-h-1)
+    # exp(r)  = 1 + poly_pos(r)
+    # exp(-r) = 1 + poly_neg(r)
+    # 2^(l / 2^index_size)  = pos_value_hi + pos_value_lo 
+    # 2^(-l / 2^index_size) = neg_value_hi + neg_value_lo 
     #
+    # cosh(x) = 
     error_function = lambda p, f, ai, mod, t: dirtyinfnorm(f - p, ai)
 
     poly_object, poly_approx_error = Polynomial.build_from_approximation_with_error(exp(sollya.x), poly_degree, precision_list, approx_interval, sollya.absolute, error_function = error_function)
@@ -191,15 +199,23 @@ class ML_HyperbolicCosine(ML_Function("ml_cosh")):
     pow_exp_pos = ExponentInsertion(k_plus, precision = self.precision)
     pow_exp_neg = ExponentInsertion(k_neg, precision = self.precision)
 
-    pos_exp = (pos_value_load_hi + (pos_value_load_hi * poly_pos + (pos_value_load_lo + pos_value_load_lo * poly_pos))) * pow_exp_pos 
+    hi_terms = (pos_value_load_hi * pow_exp_pos + neg_value_load_hi * pow_exp_neg)
+    hi_terms.set_attributes(tag = "hi_terms")
+
+
+    pos_exp = (pos_value_load_hi * poly_pos + (pos_value_load_lo + pos_value_load_lo * poly_pos)) * pow_exp_pos 
     pos_exp.set_attributes(tag = "pos_exp", debug = debug_multi)
 
-    neg_exp = (neg_value_load_hi + (neg_value_load_hi * poly_neg + (neg_value_load_lo + neg_value_load_lo * poly_neg))) * pow_exp_neg 
+    neg_exp = (neg_value_load_hi * poly_neg + (neg_value_load_lo + neg_value_load_lo * poly_neg)) * pow_exp_neg 
     neg_exp.set_attributes(tag = "neg_exp", debug = debug_multi)
 
     result = Addition(
-                pos_exp,
-                neg_exp,
+                Addition(
+                  pos_exp,
+                  neg_exp,
+                  precision = self.precision,
+                ),
+                hi_terms,
                 precision = self.precision,
                 tag = "result",
                 debug = debug_multi
