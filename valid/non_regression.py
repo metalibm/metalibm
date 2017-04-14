@@ -12,6 +12,7 @@ import metalibm_functions.ml_log
 import metalibm_functions.ml_exp
 import metalibm_functions.ml_cbrt
 import metalibm_functions.ml_vectorizable_log
+import metalibm_functions.ml_cosh
 
 from metalibm_core.core.ml_formats import ML_Binary32, ML_Binary64, ML_Int32
 from metalibm_core.targets.common.vector_backend import VectorBackend
@@ -23,6 +24,18 @@ from valid.test_utils import *
 #   Each object requires a title, a function constructor and a list
 #   of test cases (each is a dictionnary of parameters -> values)
 new_scheme_function_list = [
+  NewSchemeTest(
+    "basic hyperbolic cosine gen test",
+    metalibm_functions.ml_cosh.ML_HyperbolicCosine,
+    [{"precision": ML_Binary32}, {"precision": ML_Binary64}]
+  ),
+  NewSchemeTest(
+    "auto test hyperbolic cosine",
+    metalibm_functions.ml_cosh.ML_HyperbolicCosine,
+    [{"function_name": "my_cosh", "precision": ML_Binary32, "auto_test": 100, "auto_test_execute": 100}, 
+    {"function_name": "my_cosh", "precision": ML_Binary64, "auto_test": 100, "auto_test_execute": 100}, 
+    ]
+  ),
   NewSchemeTest(
     "basic log test",
     metalibm_functions.ml_log.ML_Log,
