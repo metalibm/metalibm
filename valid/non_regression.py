@@ -2,7 +2,9 @@
 
 import argparse
 import sys
+import re
 
+# import meta-function script from metalibm_functions directory
 import metalibm_functions.ml_log10
 import metalibm_functions.ml_log1p
 import metalibm_functions.ml_log2
@@ -101,6 +103,8 @@ arg_parser.add_argument("--list", action = ListTestAction, help = "list availabl
 # select list of tests to be executed
 arg_parser.add_argument("--execute", dest = "test_list", type = parse_test_list, default = new_scheme_function_list, help = "list of comma separated test to be executed") 
 
+arg_parser.add_argument("--match", dest = "match_regex", type = str, default = ".*", help = "list of comma separated match regexp to be used for test selection") 
+
 
 
 
@@ -112,10 +116,11 @@ success = True
 result_details = []
 
 for test_scheme in args.test_list:
-  test_result = test_scheme.perform_all_test(debug = args.debug)
-  result_details.append(test_result)
-  if not test_result.get_result(): 
-    success = False
+  if re.search(args.match_regex, test_scheme.get_tag_title()) != None:
+    test_result = test_scheme.perform_all_test(debug = args.debug)
+    result_details.append(test_result)
+    if not test_result.get_result(): 
+      success = False
 
 # Printing test summary for new scheme
 for result in result_details:
