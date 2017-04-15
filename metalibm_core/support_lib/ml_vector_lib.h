@@ -508,8 +508,11 @@ DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vexp_extraction_f8, ml_int8_t, ml_float8_t, 8, m
 #define ML_VSELECT(result,test,op0,op1,size) {\
   unsigned k; for (k = 0; k < size; ++k) (result)->_[k] = (test)._[k] ? (op0)._[k] : (op1)._[k]; };
 
-/** Vector elemt-wise load (gather) */
+/** Vector element-wise load (gather) */
 #define ML_VLOAD(result,table,addr,size) {\
   unsigned k; for (k = 0; k < size; ++k) (result)->_[k] = table[(addr)._[k]]; };
+/** Vector element-wise load (gather) for 2D table */
+#define ML_VLOAD2D(result,table,addr0,addr1,size) {\
+  unsigned k; for (k = 0; k < size; ++k) (result)->_[k] = table[(addr0)._[k]][(addr1)._[k]]; };
 #define ML_VCONV(dst,src,size) {\
   unsigned k; for (k = 0; k < size; ++k) (dst)->_[k] = (src)._[k]; };
