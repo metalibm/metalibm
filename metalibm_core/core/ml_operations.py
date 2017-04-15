@@ -612,35 +612,49 @@ def ArithmeticOperationConstructor(name, arity = 2, range_function = None, error
     return GeneralOperationConstructor(name, arity = arity, range_function = range_function, error_function = error_function, inheritance = inheritance, base_class = ML_ArithmeticOperation)
 
 
+## Bitwise bit AND operation
 class BitLogicAnd(ArithmeticOperationConstructor("BitLogicAnd")):
     pass
+## Bitwise bit OR operation
 class BitLogicOr(ArithmeticOperationConstructor("BitLogicOr")):
     pass
+## Bitwise bit exclusive-OR operation
 class BitLogicXor(ArithmeticOperationConstructor("BitLogicXor")):
     pass
+## Bitwise negate operation
 class BitLogicNegate(ArithmeticOperationConstructor("BitLogicNegate", arity = 1)):
     pass
+## Bit Right Shift
+#   2-operand operation, first argument is the value to be shifted
+#   the second is the shift amount
+#   TODO: should distinguish between arithmetic and logical shift
 class BitLogicRightShift(ArithmeticOperationConstructor("BitLogicRightShift", arity = 2)):
     pass
+## Bit Left Shift
+#   2-operand operation, first argument is the value to be shifted
+#   the second is the shift amount
 class BitLogicLeftShift(ArithmeticOperationConstructor("BitLogicLeftShift", arity = 2)):
     pass
 
 
+## Absolute value operation
+#  Expects a single argument and returns
+#  its absolute value
 class Abs(ArithmeticOperationConstructor("Abs", range_function = lambda self, ops: abs(ops[0]))):
     """ abstract absolute value operation """
     pass
 
+## Unary negation value operation
+#  Expects a single argument and returns
+#  its opposite value
 class Negation(ArithmeticOperationConstructor("Negation", range_function = lambda self, ops: - ops[0])): 
     """ abstract negation """
     pass
 
+## 2-Operand arithmetic addition
 class Addition(ArithmeticOperationConstructor("Addition", range_function = lambda self, ops: ops[0] + ops[1])): 
     """ abstract addition """
     pass
-
-#class Negate(ArithmeticOperationConstructor("Negate", range_function = lambda self, ops: -ops[0])): 
-#    """ abstract negation """
-#    pass
 
 
 class SpecifierOperation(object):
@@ -775,18 +789,23 @@ class FastReciprocal(ArithmeticOperationConstructor(
     """ abstract fast reciprocal """
     pass
 
+## Round to an integer value, rounding towards zero
+#  returns the minimal integer greater than or equal to the node's input
 class Ceil(ML_ArithmeticOperation):
   """ Round to integer upward """
   arity = 1
   name = "Ceil"
   range_function = interval_func(lambda self, ops: ops[0])
 
+## Round to an integer value, rounding towards zero
 class Trunc(ML_ArithmeticOperation):
   """ Round to integer towards zero """
   arity = 1
   name = "Trunc"
   range_function = interval_func(lambda self, ops: ops[0])
 
+## Round to an integer value, rounding towards zero
+#  returns the maximal integer less than or equal to the node's input
 class Floor(ML_ArithmeticOperation):
   """ Round to integer downward """
   arity = 1
