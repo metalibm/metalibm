@@ -603,12 +603,16 @@ class ML_FunctionBasis(object):
   def numeric_emulate(self, input_value):
     raise NotImplementedError
 
+
+  ## Generate a test wrapper for the @p self function 
+  #  @param test_num   number of test to perform
+  #  @param test_range numeric range for test's inputs
+  #  @param debug enable debug mode
   def generate_auto_test(self, test_num = 10, test_range = Interval(-1.0, 1.0), debug = False):
     low_input = inf(test_range)
     high_input = sup(test_range)
     auto_test = CodeFunction("main", output_format = ML_Int32)
 
-    test_num_cst = Constant(test_num, precision = ML_Int32, tag = "test_num")
 
     tested_function    = self.implementation.get_function_object()
     function_name      = self.implementation.get_name()
@@ -622,12 +626,13 @@ class ML_FunctionBasis(object):
     printf_success_op = FunctionOperator("printf", arg_map = {0: "\"test successful %s\\n\"" % function_name}, void_function = True) 
     printf_success_function = FunctionObject("printf", [], ML_Void, printf_success_op)
 
-
-    num_std_case = len(self.standard_test_cases)
     test_total   = test_num 
+    # compute the number of standard test cases
+    num_std_case = len(self.standard_test_cases)
+    # add them to the total if standard test enabled
     if self.auto_test_std:
       test_total += num_std_case
-
+    # round up the number of tests to the implementation vector-size
     diff = self.get_vector_size() - (test_total % self.get_vector_size())
     test_total += diff
     test_num   += diff
@@ -666,86 +671,15 @@ class ML_FunctionBasis(object):
       table_index += 1
 
 
-    vi = Variable("i", precision = ML_Int32, var_type = Variable.Local)
 
-    assignation_statement = Statement()
 
     if self.implementation.get_output_format().is_vector_format():
-      # vector implementation
-      vector_format = self.implementation.get_output_format()
-
-      # building inputs
-      local_input = Variable("vec_x", precision = vector_format, var_type = Variable.Local) 
-      assignation_statement.push(local_input)
-      for k in xrange(self.get_vector_size()):
-        elt_assign = ReferenceAssign(VectorElementSelection(local_input, k), TableLoad(input_table, vi + k))
-        assignation_statement.push(elt_assign)
-
-      # computing results
-      local_result = tested_function(local_input)
-      loop_increment = self.get_vector_size()
-
-      comp_statement = Statement()
-
-      # comparison with expected
-      for k in xrange(self.get_vector_size()):
-        elt_input  = VectorElementSelection(local_input, k)
-        elt_result = VectorElementSelection(local_result, k)
-        low_bound    = TableLoad(output_table, vi + k, 0)
-        high_bound   = TableLoad(output_table, vi + k, 1)
-
-        failure_test = LogicalOr(
-          Comparison(elt_result, low_bound, specifier = Comparison.Less),
-          Comparison(elt_result, high_bound, specifier = Comparison.Greater)
-        )
-
-        comp_statement.push(
-          ConditionBlock(
-            failure_test,
-            Statement(
-              printf_function(vi + k, elt_input, elt_input, elt_result, high_bound), 
-              Return(Constant(1, precision = ML_Int32))
-         )))
-
-
-      test_loop = Loop(
-        ReferenceAssign(vi, Constant(0, precision = ML_Int32)),
-        vi < test_num_cst,
-        Statement(
-          assignation_statement,
-          comp_statement,
-          ReferenceAssign(vi, vi + loop_increment)
-        ),
-      )
+      # vector implementation test
+      test_loop = self.get_vector_test_wrapper(test_num, tested_function, input_table, output_table, printf_function)
     else: 
-      # scalar function
-      local_input  = TableLoad(input_table, vi)
-      local_result = tested_function(local_input)
-      low_bound    = TableLoad(output_table, vi, 0)
-      high_bound   = TableLoad(output_table, vi, 1)
+      # scalar implemetation test
+      test_loop = self.get_scalar_test_wrapper(test_num, tested_function, input_table, output_table, printf_function)
 
-      failure_test = LogicalOr(
-        Comparison(local_result, low_bound, specifier = Comparison.Less),
-        Comparison(local_result, high_bound, specifier = Comparison.Greater)
-      )
-
-      loop_increment = self.get_vector_size()
-
-      test_loop = Loop(
-        ReferenceAssign(vi, Constant(0, precision = ML_Int32)),
-        vi < test_num_cst,
-        Statement(
-          assignation_statement,
-          ConditionBlock(
-            failure_test,
-            Statement(
-              printf_function(vi, local_input, local_input, local_result, high_bound), 
-              Return(Constant(1, precision = ML_Int32))
-            ),
-          ),
-          ReferenceAssign(vi, vi + loop_increment)
-        ),
-      )
     # common test scheme between scalar and vector functions
     test_scheme = Statement(
       test_loop,
@@ -754,6 +688,103 @@ class ML_FunctionBasis(object):
     )
     auto_test.set_scheme(test_scheme)
     return [auto_test]
+
+  ## generate a test loop for vector tests
+  #  @param test_num number of elementary tests to be executed
+  #  @param tested_function FunctionObject to be tested
+  #  @param input_table ML_NewTable object containing test inputs
+  #  @param output_table ML_NewTable object containing test outputs
+  #  @param printf_function FunctionObject to print error case
+  def get_vector_test_wrapper(self, test_num, tested_function, input_table, output_table, printf_function):
+    vector_format = self.implementation.get_output_format()
+    assignation_statement = Statement()
+    vi = Variable("i", precision = ML_Int32, var_type = Variable.Local)
+    test_num_cst = Constant(test_num, precision = ML_Int32, tag = "test_num")
+
+    # building inputs
+    local_input = Variable("vec_x", precision = vector_format, var_type = Variable.Local) 
+    assignation_statement.push(local_input)
+    for k in xrange(self.get_vector_size()):
+      elt_assign = ReferenceAssign(VectorElementSelection(local_input, k), TableLoad(input_table, vi + k))
+      assignation_statement.push(elt_assign)
+
+    # computing results
+    local_result = tested_function(local_input)
+    loop_increment = self.get_vector_size()
+
+    comp_statement = Statement()
+
+    # comparison with expected
+    for k in xrange(self.get_vector_size()):
+      elt_input  = VectorElementSelection(local_input, k)
+      elt_result = VectorElementSelection(local_result, k)
+      low_bound    = TableLoad(output_table, vi + k, 0)
+      high_bound   = TableLoad(output_table, vi + k, 1)
+
+      failure_test = LogicalOr(
+        Comparison(elt_result, low_bound, specifier = Comparison.Less),
+        Comparison(elt_result, high_bound, specifier = Comparison.Greater)
+      )
+
+      comp_statement.push(
+        ConditionBlock(
+          failure_test,
+          Statement(
+            printf_function(vi + k, elt_input, elt_input, elt_result, high_bound), 
+            Return(Constant(1, precision = ML_Int32))
+       )))
+
+
+    test_loop = Loop(
+      ReferenceAssign(vi, Constant(0, precision = ML_Int32)),
+      vi < test_num_cst,
+      Statement(
+        assignation_statement,
+        comp_statement,
+        ReferenceAssign(vi, vi + loop_increment)
+      ),
+    )
+    return test_loop
+
+  ## generate a test loop for scalar tests
+  #  @param test_num number of elementary tests to be executed
+  #  @param tested_function FunctionObject to be tested
+  #  @param input_table ML_NewTable object containing test inputs
+  #  @param output_table ML_NewTable object containing test outputs
+  #  @param printf_function FunctionObject to print error case
+  def get_scalar_test_wrapper(self, test_num, tested_function, input_table, output_table, printf_function):
+    assignation_statement = Statement()
+    vi = Variable("i", precision = ML_Int32, var_type = Variable.Local)
+    test_num_cst = Constant(test_num, precision = ML_Int32, tag = "test_num")
+
+    local_input  = TableLoad(input_table, vi)
+    local_result = tested_function(local_input)
+    low_bound    = TableLoad(output_table, vi, 0)
+    high_bound   = TableLoad(output_table, vi, 1)
+
+    failure_test = LogicalOr(
+      Comparison(local_result, low_bound, specifier = Comparison.Less),
+      Comparison(local_result, high_bound, specifier = Comparison.Greater)
+    )
+
+    loop_increment = self.get_vector_size()
+
+    test_loop = Loop(
+      ReferenceAssign(vi, Constant(0, precision = ML_Int32)),
+      vi < test_num_cst,
+      Statement(
+        assignation_statement,
+        ConditionBlock(
+          failure_test,
+          Statement(
+            printf_function(vi, local_input, local_input, local_result, high_bound), 
+            Return(Constant(1, precision = ML_Int32))
+          ),
+        ),
+        ReferenceAssign(vi, vi + loop_increment)
+      ),
+    )
+    return test_loop
 
   @staticmethod
   def get_name():
