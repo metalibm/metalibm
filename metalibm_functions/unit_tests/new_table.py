@@ -85,11 +85,25 @@ class ML_UT_NewTable(ML_Function("ml_ut_new_table")):
     load_value_lo = TableLoad(new_table, index, Constant(0, precision = ML_Int32), precision = self.precision)
     load_value_hi = TableLoad(new_table, index, Constant(1, precision = ML_Int32), precision = self.precision)
 
+    out_table = ML_NewTable(dimensions = [table_size], storage_precision = self.precision, empty = True)
+
+    result = Addition(
+      load_value_lo,
+      load_value_hi,
+      precision = self.precision
+    )
+
     scheme = Statement(
+      TableStore(
+        result, 
+        out_table,
+        Constant(13, precision = ML_Int32),
+        precision = ML_Void,
+      ),
       Return(
-        Addition(
-          load_value_lo,
-          load_value_hi,
+        TableLoad(
+          out_table,
+          Constant(13, precision = ML_Int32),
           precision = self.precision
         ),
         precision = self.precision,
