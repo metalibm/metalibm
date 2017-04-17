@@ -4,7 +4,7 @@
 # Copyright (2014)
 # All rights reserved
 # created:          Mar 20th, 2014
-# last-modified:    Nov 17th, 2014
+# last-modified:    Apr 16th, 2017
 #
 # author(s): Nicolas Brunie (nicolas.brunie@kalray.eu)
 ###############################################################################
@@ -63,15 +63,19 @@ class ML_Table(ML_LeafNode):
     """ Metalibm Table object """
     ## string used in get_str
     str_name = "Table"
-    def __init__(self, **kwords): 
+    ## ML_Table constructor 
+    #  @param empty indicates whether the table should be initialized empty
+    def __init__(self, empty = False, storage_precision = None, **kwords): 
         self.attributes = Attributes(**kwords)
         dimensions = attr_init(kwords, "dimensions", [])
-        storage_precision = attr_init(kwords, "storage_precision", None)
+        #storage_precision = attr_init(kwords, "storage_precision", None)
         init_data = attr_init(kwords, "init_data", None)
 
         self.table = create_multi_dim_array(dimensions, init_data = init_data)
         self.dimensions = dimensions
         self.storage_precision = storage_precision
+
+        self.empty = empty
 
         self.index = -1
 
@@ -80,6 +84,9 @@ class ML_Table(ML_LeafNode):
 
     def __getitem__(self, key):
         return self.table[key]
+
+    def is_empty(self):
+        return self.empty
 
     def get_storage_precision(self):
         return self.storage_precision
@@ -145,8 +152,9 @@ def generic_index_function(index_size, variable):
 class ML_NewTable(ML_Table):
   ## string used in get_str
   str_name = "NewTable"
-  def __init__(self, dimensions = (16,), storage_precision = None, **kw):
-    ML_Table.__init__(self, dimensions = dimensions, storage_precision = storage_precision, **kw)
+  ## ML_NewTable constructor
+  def __init__(self, dimensions = (16,), storage_precision = None, empty = False, **kw):
+    ML_Table.__init__(self, dimensions = dimensions, storage_precision = storage_precision, empty = empty, **kw)
     self.precision = ML_TableFormat(storage_precision, dimensions)
 
   def get_precision(self):

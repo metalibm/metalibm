@@ -313,9 +313,14 @@ class CCodeGenerator(object):
             return "%s%s%s" % (initial_symbol, symbol, final_symbol) 
 
         elif isinstance(symbol_object, ML_Table):
-            initial_symbol = (symbol_object.get_definition(symbol, final = "", language = self.language) + " ") if initial else ""
-            table_content_init = symbol_object.get_content_init(language = self.language)
-            return "%s = %s;\n" % (initial_symbol, table_content_init)
+            # TODO: check @p initial effect
+            if symbol_object.is_empty():
+              initial_symbol = (symbol_object.get_definition(symbol, final = "", language = self.language)) if initial else ""
+              return "{};\n".format(initial_symbol)
+            else:
+              initial_symbol = (symbol_object.get_definition(symbol, final = "", language = self.language) + " ") if initial else ""
+              table_content_init = symbol_object.get_content_init(language = self.language)
+              return "%s = %s;\n" % (initial_symbol, table_content_init)
 
         elif isinstance(symbol_object, CodeFunction):
             return "%s\n" % symbol_object.get_declaration()
