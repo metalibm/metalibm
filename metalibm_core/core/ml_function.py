@@ -250,7 +250,6 @@ class ML_FunctionBasis(object):
   def generate_emulate(self):
     raise NotImplementedError
 
-
   ## generation the wrapper to the emulation code
   #  @param test_input Variable where the test input is read from
   #  @param mpfr_rnd Variable object used as precision paramater for mpfr calls
@@ -267,24 +266,24 @@ class ML_FunctionBasis(object):
     code_generator.generate_expr(code_object, scheme, folded = False, initial = False)
     return code_object, code_generator
 
-
   def get_output_precision(self):
     return self.io_precisions[0]
-
   def get_input_precision(self):
     return self.io_precisions[-1]
-
 
   def get_sollya_precision(self):
     """ return the main precision use for sollya calls """
     return self.sollya_precision
 
-
   def generate_scheme(self):
     """ generate MDL scheme for function implementation """
     Log.report(Log.Error, "generate_scheme must be overloaded by ML_FunctionBasis child")
 
-  ## 
+  ## Return the list of CodeFunction objects (main function
+  #  and sub-functions) to be used to build @p self implementation
+  #  This function may be overloaded by child class to define
+  #  a specific way to build CodeFunction objects
+  #
   # @return main_scheme, [list of sub-CodeFunction object]
   def generate_function_list(self):
     self.implementation.set_scheme(self.generate_scheme())
@@ -452,7 +451,6 @@ class ML_FunctionBasis(object):
         print test_command
 
 
-
   ## externalized an optree: generate a CodeFunction which compute the 
   #  given optree inside a sub-function and returns it as a result
   # @param optree ML_Operation object to be externalized
@@ -604,6 +602,9 @@ class ML_FunctionBasis(object):
     """
 
   ## provide numeric evaluation of the main function on @p input_value
+  #  @param input_value SollyaObject numeric input value
+  #  @return SollyaObject numeric output value corresponding
+  #          to emulation of @p self function on @p input_value
   def numeric_emulate(self, input_value):
     raise NotImplementedError
 
