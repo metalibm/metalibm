@@ -142,6 +142,18 @@ c_code_generation_table = {
             },
         },
     },
+    TableStore: {
+        None: {
+            lambda optree: True: {
+                # TBD: add check on table format to make sure dimensions match expected
+                # 2-dimensional tables with integer indexes
+                type_custom_match(FSM(ML_Void), type_all_match, TCM(ML_TableFormat), type_std_integer_match, type_std_integer_match): TemplateOperatorFormat("{1}[{2}][{3}] = {0}", arity = 4, void_function = True), 
+                # TBD: add check on table format to make sure dimensions match expected
+                # 1-dimension tables with integer indexes
+                type_custom_match(FSM(ML_Void), type_all_match, TCM(ML_TableFormat), type_std_integer_match): TemplateOperatorFormat("{1}[{2}] = {0}", arity = 3, void_function = True), 
+            },
+        },
+    },
     BitLogicAnd: {
         None: build_simplified_operator_generation([ML_Int32, ML_UInt32, ML_Int64, ML_UInt64], 2, SymbolOperator("&", arity = 2)),
     },

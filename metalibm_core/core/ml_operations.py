@@ -821,8 +821,21 @@ class Return(AbstractOperationConstructor("Return", arity = 1, range_function = 
     """ abstract return value operation """
     pass
 
+## Memory Load from a Multi-Dimensional 
+#  The first argument is the table, following arguments
+#  are the table index in each dimension (from 1 to ...)
 class TableLoad(ArithmeticOperationConstructor("TableLoad", arity = 2, range_function = lambda self, ops: None)):
     """ abstract load from a table operation """
+    pass
+
+## Memory Store to a Multi-Dimensional 
+#  The first argument is the table to store to,
+#  the second argument is the value to be stored
+#  the following arguments are the table index 
+#  in each dimension (from 1 to ...)
+#   By default the precision of this operation is ML_Void
+class TableStore(ArithmeticOperationConstructor("TableStore", arity = 3, range_function = lambda self, ops: None)):
+    """ abstract store to a table operation """
     pass
 
 def interval_union(int0, int1):
