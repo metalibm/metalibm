@@ -618,15 +618,11 @@ class ML_FunctionBasis(object):
     high_input = sup(test_range)
     auto_test = CodeFunction("main", output_format = ML_Int32)
 
-
     tested_function    = self.implementation.get_function_object()
     function_name      = self.implementation.get_name()
 
     failure_report_op       = FunctionOperator("report_failure")
     failure_report_function = FunctionObject("report_failure", [], ML_Void, failure_report_op)
-
-    printf_op = FunctionOperator("printf", arg_map = {0: "\"error[%%d]: %s(%%f/%%a)=%%a vs expected = %%a \\n\"" % function_name, 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2), 4: FO_Arg(3), 5: FO_Arg(4)}, void_function = True) 
-    printf_function = FunctionObject("printf", [ML_Int32] + [self.precision] * 4, ML_Void, printf_op)
 
     printf_success_op = FunctionOperator("printf", arg_map = {0: "\"test successful %s\\n\"" % function_name}, void_function = True) 
     printf_success_function = FunctionObject("printf", [], ML_Void, printf_success_op)
@@ -646,22 +642,21 @@ class ML_FunctionBasis(object):
     interval_size = high_input - low_input 
 
     input_table = ML_NewTable(dimensions = [test_total], storage_precision = self.precision, tag = self.uniquify_name("input_table"))
-    ## (low, high) are store in output table
-    output_table = ML_NewTable(dimensions = [test_total, 2], storage_precision = self.precision, tag = self.uniquify_name("output_table"))
+    ## output values required to check results are stored in output table
+    num_output_value = self.accuracy_obj.get_num_output_value()
+    output_table = ML_NewTable(dimensions = [test_total, num_output_value], storage_precision = self.precision, tag = self.uniquify_name("output_table"))
 
     # general index for input/output tables
     table_index = 0
-
 
     if self.auto_test_std:
       # standard test cases
       for i in range(num_std_case):
         input_value = self.precision.round_sollya_object(self.standard_test_cases[i], RN)
-
         input_table[table_index] = input_value
-        # FIXME only valid for faithful evaluation
-        output_table[table_index][0] = self.precision.round_sollya_object(self.numeric_emulate(input_value), RD)
-        output_table[table_index][1] = self.precision.round_sollya_object(self.numeric_emulate(input_value), RU)
+        output_values = self.accuracy_obj.get_output_check_value(self.numeric_emulate, input_value)
+        for o in xrange(num_output_value):
+          output_table[table_index][o] = output_values[o]
 
         table_index += 1
 
@@ -670,20 +665,18 @@ class ML_FunctionBasis(object):
       input_value = random.uniform(low_input, high_input)
       input_value = self.precision.round_sollya_object(input_value, RN)
       input_table[table_index] = input_value
-      # FIXME only valid for faithful evaluation
-      output_table[table_index][0] = self.precision.round_sollya_object(self.numeric_emulate(input_value), RD)
-      output_table[table_index][1] = self.precision.round_sollya_object(self.numeric_emulate(input_value), RU)
+
+      output_values = self.accuracy_obj.get_output_check_value(self.numeric_emulate, input_value)
+      for o in xrange(num_output_value):
+        output_table[table_index][o] = output_values[o]
       table_index += 1
-
-
-
 
     if self.implementation.get_output_format().is_vector_format():
       # vector implementation test
-      test_loop = self.get_vector_test_wrapper(test_num, tested_function, input_table, output_table, printf_function)
+      test_loop = self.get_vector_test_wrapper(test_num, tested_function, input_table, output_table)
     else: 
       # scalar implemetation test
-      test_loop = self.get_scalar_test_wrapper(test_num, tested_function, input_table, output_table, printf_function)
+      test_loop = self.get_scalar_test_wrapper(test_num, tested_function, input_table, output_table)
 
     # common test scheme between scalar and vector functions
     test_scheme = Statement(
@@ -699,8 +692,7 @@ class ML_FunctionBasis(object):
   #  @param tested_function FunctionObject to be tested
   #  @param input_table ML_NewTable object containing test inputs
   #  @param output_table ML_NewTable object containing test outputs
-  #  @param printf_function FunctionObject to print error case
-  def get_vector_test_wrapper(self, test_num, tested_function, input_table, output_table, printf_function):
+  def get_vector_test_wrapper(self, test_num, tested_function, input_table, output_table):
     vector_format = self.implementation.get_output_format()
     assignation_statement = Statement()
     vi = Variable("i", precision = ML_Int32, var_type = Variable.Local)
@@ -718,24 +710,25 @@ class ML_FunctionBasis(object):
     loop_increment = self.get_vector_size()
 
     comp_statement = Statement()
+    printf_op = FunctionOperator("printf", arg_map = {0: "\"error[%%d]: %s(%s), result is %s vs expected \"" % (self.function_name, self.precision.get_display_format(), self.precision.get_display_format()), 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2)}, void_function = True) 
+    printf_input_function = FunctionObject("printf", [ML_Int32] + [self.precision] * 2, ML_Void, printf_op)
+
 
     # comparison with expected
     for k in xrange(self.get_vector_size()):
       elt_input  = VectorElementSelection(local_input, k)
       elt_result = VectorElementSelection(local_result, k)
-      low_bound    = TableLoad(output_table, vi + k, 0)
-      high_bound   = TableLoad(output_table, vi + k, 1)
 
-      failure_test = LogicalOr(
-        Comparison(elt_result, low_bound, specifier = Comparison.Less),
-        Comparison(elt_result, high_bound, specifier = Comparison.Greater)
-      )
+      output_values = [TableLoad(output_table, vi + k, i) for i in xrange(self.accuracy_obj.get_num_output_value())]
+
+      failure_test = self.accuracy_obj.get_output_check_test(elt_result, output_values)
 
       comp_statement.push(
         ConditionBlock(
           failure_test,
           Statement(
-            printf_function(vi + k, elt_input, elt_input, elt_result, high_bound), 
+            printf_input_function(vi + k, elt_input, elt_result), 
+            self.accuracy_obj.get_output_print_call(self.function_name, output_values),
             Return(Constant(1, precision = ML_Int32))
        )))
 
@@ -757,20 +750,19 @@ class ML_FunctionBasis(object):
   #  @param input_table ML_NewTable object containing test inputs
   #  @param output_table ML_NewTable object containing test outputs
   #  @param printf_function FunctionObject to print error case
-  def get_scalar_test_wrapper(self, test_num, tested_function, input_table, output_table, printf_function):
+  def get_scalar_test_wrapper(self, test_num, tested_function, input_table, output_table):
     assignation_statement = Statement()
     vi = Variable("i", precision = ML_Int32, var_type = Variable.Local)
     test_num_cst = Constant(test_num, precision = ML_Int32, tag = "test_num")
 
     local_input  = TableLoad(input_table, vi)
     local_result = tested_function(local_input)
-    low_bound    = TableLoad(output_table, vi, 0)
-    high_bound   = TableLoad(output_table, vi, 1)
+    output_values = [TableLoad(output_table, vi, i) for i in xrange(self.accuracy_obj.get_num_output_value())]
 
-    failure_test = LogicalOr(
-      Comparison(local_result, low_bound, specifier = Comparison.Less),
-      Comparison(local_result, high_bound, specifier = Comparison.Greater)
-    )
+    failure_test = self.accuracy_obj.get_output_check_test(local_result, output_values)
+
+    printf_op = FunctionOperator("printf", arg_map = {0: "\"error[%%d]: %s(%s), result is %s vs expected \"" % (self.function_name, self.precision.get_display_format(), self.precision.get_display_format()), 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2)}, void_function = True) 
+    printf_input_function = FunctionObject("printf", [ML_Int32] + [self.precision] * 2, ML_Void, printf_op)
 
     loop_increment = self.get_vector_size()
 
@@ -782,7 +774,8 @@ class ML_FunctionBasis(object):
         ConditionBlock(
           failure_test,
           Statement(
-            printf_function(vi, local_input, local_input, local_result, high_bound), 
+            printf_input_function(vi, local_input, local_result), 
+            self.accuracy_obj.get_output_print_call(self.function_name, output_values),
             Return(Constant(1, precision = ML_Int32))
           ),
         ),
@@ -799,7 +792,8 @@ class ML_FunctionBasis(object):
   standard_test_cases = []
 
 
-        
+## Function class builder to build ML_FunctionBasis
+#  child class with specific function_name value
 def ML_Function(name):
   new_class = type(name, (ML_FunctionBasis,), {"function_name": name})
   new_class.get_name = staticmethod(lambda: name) 
