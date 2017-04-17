@@ -19,6 +19,7 @@ from metalibm_core.core.ml_table import ML_NewTable
 from metalibm_core.core.ml_complex_formats import ML_Mpfr_t
 from metalibm_core.core.ml_call_externalizer import CallExternalizer
 from metalibm_core.core.ml_vectorizer import StaticVectorizer
+from metalibm_core.core.precisions import *
 
 from metalibm_core.code_generation.code_object import NestedCode
 from metalibm_core.code_generation.code_function import CodeFunction

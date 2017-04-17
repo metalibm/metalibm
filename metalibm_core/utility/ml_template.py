@@ -19,6 +19,7 @@ from .arg_utils import extract_option_value, test_flag_option
 from .log_report import Log
 
 from ..core.ml_formats import *
+from ..core.precisions import *
 
 from ..code_generation.generic_processor import GenericProcessor
 from ..core.target import TargetRegister
