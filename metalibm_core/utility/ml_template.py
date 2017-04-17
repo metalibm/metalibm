@@ -176,7 +176,7 @@ class ML_CommonArgTemplate(object):
     self.parser.add_argument("--output", action = "store", dest = "output_file", default = ArgDefault(self.default_output_file), help = "set output file")
 
     self.parser.add_argument("--precision", dest = "precision", type = precision_parser, default = ArgDefault(ML_Binary32), help = "select main precision")
-    self.parser.add_argument("--accuracy", dest = "accuracy", default = ArgDefault("faithful"), type = accuracy_parser, help = "select accuracy")
+    self.parser.add_argument("--accuracy", dest = "accuracy", default = ArgDefault(ML_Faithful), type = accuracy_parser, help = "select accuracy")
     self.parser.add_argument("--no-fpe", dest = "fast_path_extract", action = "store_const", const = False, default = ArgDefault(True), help = "disable Fast Path Extraction")
     self.parser.add_argument("--dot-product", dest = "dot_product_enabled", action = "store_const", const = True, default = ArgDefault(False), help = "enable Dot Product fusion")
     self.parser.add_argument ("--display-after-opt", dest = "display_after_opt", action = "store_const", const = True, default = ArgDefault(False), help = "display MDL IR after optimization")

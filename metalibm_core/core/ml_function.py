@@ -80,6 +80,7 @@ class DefaultArgTemplate:
   precision = ML_Binary32
   io_precisions = [ML_Binary32]
   abs_accuracy = None
+  accuracy = ML_Faithful
   libm_compliant = True
   # Optimization parameters
   target = GenericProcessor()
@@ -150,6 +151,7 @@ class ML_FunctionBasis(object):
     io_precisions = ArgDefault.select_value([io_precisions])
     abs_accuracy = ArgDefault.select_value([abs_accuracy])
     libm_compliant = ArgDefault.select_value([arg_template.libm_compliant, libm_compliant])
+    accuracy = ArgDefault.select_value([arg_template.accuracy])
 
     # Optimization parameters
     processor = ArgDefault.select_value([arg_template.target, processor])
@@ -198,8 +200,8 @@ class ML_FunctionBasis(object):
     # self.sollya_precision = self.get_output_precision().get_sollya_object()
 
     self.abs_accuracy = abs_accuracy if abs_accuracy else S2**(-self.get_output_precision().get_precision())
-
     self.libm_compliant = libm_compliant
+    self.accuracy_obj = accuracy(self.get_output_precision())
     
     self.processor = processor
 
@@ -216,7 +218,8 @@ class ML_FunctionBasis(object):
 
     self.call_externalizer = CallExternalizer(self.main_code_object)
 
-
+  def get_accuracy(self):
+    return self.accuracy_obj
   def get_vector_size(self):
     return self.vector_size
 
