@@ -806,11 +806,24 @@ def FP_SpecialValueBuilder(special_value):
         "get_precision": lambda self: self.precision,
         "__init__": FP_SpecialValue_init,
         "get_c_cst": FP_SpecialValue_get_c_cst
-
     }
     return type(special_value, (FP_SpecialValue,), attr_map)
 
-class FP_PlusInfty(FP_SpecialValueBuilder("_sv_PlusInfty")):
+## Special value class builder for floatingg-point special values
+#  using lib math (libm) macros and constant
+def FP_MathSpecialValueBuilder(special_value):
+    attr_map = {
+        "ml_support_name": special_value,
+        "__str__": FP_SpecialValue_get_str,
+        "get_precision": lambda self: self.precision,
+        "__init__": FP_SpecialValue_init,
+        "get_c_cst": lambda self: self.ml_support_name
+    }
+    return type(special_value, (FP_SpecialValue,), attr_map)
+
+#class FP_PlusInfty(FP_SpecialValueBuilder("_sv_PlusInfty")):
+#    pass
+class FP_PlusInfty(FP_MathSpecialValueBuilder("INFINITY")):
     pass
 class FP_MinusInfty(FP_SpecialValueBuilder("_sv_MinusInfty")):
     pass
