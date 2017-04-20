@@ -435,7 +435,10 @@ class ML_FunctionBasis(object):
       test_file = "./test_%s.bin" % self.function_name
       compiler_options = " ".join(self.processor.get_compilation_options())
       Log.report(Log.Info, "Compiler options: \"{}\"".format(compiler_options))
-      test_command =  "{compiler} {options} -O2 -DML_DEBUG -I $ML_SRC_DIR/metalibm_core $ML_SRC_DIR/metalibm_core/support_lib/ml_libm_compatibility.c {src_file} -o {test_file} -lm ".format(compiler = compiler, src_file = self.output_file, test_file = test_file, options = compiler_options) 
+      test_command =  "{compiler} {options} -O2 -DML_DEBUG -I$ML_SRC_DIR/metalibm_core \
+      $ML_SRC_DIR/metalibm_core/support_lib/ml_libm_compatibility.c  \
+      $ML_SRC_DIR/metalibm_core/support_lib/ml_multi_prec_lib.c \
+      {src_file} -o {test_file} -lm ".format(compiler = compiler, src_file = self.output_file, test_file = test_file, options = compiler_options) 
       test_command += " && %s " % self.processor.get_execution_command(test_file)
       if self.auto_test_execute:
         print "VALIDATION %s " % self.get_name()
