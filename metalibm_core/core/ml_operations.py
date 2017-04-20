@@ -546,8 +546,8 @@ def AbstractOperation_copy(self, copy_map = {}):
   # else define a new and free copy
   new_copy = self.__class__(*tuple(op.copy(copy_map) for op in self.inputs), __copy = True)
   new_copy.attributes = self.attributes.get_copy()
-  self.finish_copy(new_copy, copy_map)
   copy_map[self] = new_copy
+  self.finish_copy(new_copy, copy_map)
   return new_copy
 
 
@@ -886,10 +886,11 @@ class ConditionBlock(AbstractOperationConstructor("ConditionBlock", arity = 3)):
     def push_to_pre_statement(self, optree):
         self.pre_statement.push(optree)
 
-    def finish_copy(self, new_copy, copy_map = {}):
+    def finish_copy(self, new_copy, copy_map = None):
+        copy_map = {} if copy_map is None else copy_map
         new_copy.pre_statement = self.pre_statement.copy(copy_map)
         new_copy.extra_inputs = [op.copy(copy_map) for op in self.extra_inputs]
-        new_copy.parent_list = [op.copy(copy_map) for op in self.parent_list] 
+        new_copy.parent_list  = [op.copy(copy_map) for op in self.parent_list] 
   
 
 class Conversion(ArithmeticOperationConstructor("Conversion", arity = 1)):
@@ -1320,8 +1321,8 @@ class FunctionCall(AbstractOperationConstructor("FunctionCall")):
         # else define a new and free copy
         new_copy = self.__class__(self.function_object, *tuple(op.copy(copy_map) for op in self.inputs), __copy = True)
         new_copy.attributes = self.attributes.get_copy()
-        self.finish_copy(new_copy, copy_map)
         copy_map[self] = new_copy
+        self.finish_copy(new_copy, copy_map)
         return new_copy
 
 
