@@ -168,7 +168,10 @@ class ArgDefault(object):
   def select_value(arg_list):
     return ArgDefault.select(arg_list).get_value()
 
+## Common ancestor for Argument Template class
 class ML_CommonArgTemplate(object):
+  ## constructor for ML_CommonArgTemplate
+  #  add generic arguments description (e.g. --debug)
   def __init__(self, parser):
     self.parser = parser
     self.parser.add_argument("--debug", dest = "debug", action = "store_const", const = True, default = ArgDefault(False), help = "enable debug display in generated code")
@@ -202,10 +205,12 @@ class ML_CommonArgTemplate(object):
     self.parser.add_argument("--disable-check", default = True, action = "store_const", const = False, dest = "check_processor_support", help = "disable check processor support pass run {default: enabled]")
 
 
+  ## Extract argument from the command-line (sys.argv)
   def arg_extraction(self):
     self.args = self.parser.parse_args(sys.argv[1:])
     return self.args
 
+  ## Return @p self's parser object
   def get_parser(self):
     return self.parser
 
