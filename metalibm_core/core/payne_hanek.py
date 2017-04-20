@@ -5,7 +5,7 @@
 # last modified:  August 26th, 2015
 
 
-from sollya import floor, ceil, log2, S2
+from sollya import floor, ceil, log2, S2, settings
 
 from metalibm_core.core.ml_function import ML_Function, ML_FunctionBasis
 
@@ -65,8 +65,8 @@ def generate_payne_hanek(vx, frac_pi, precision, n = 100, k = 4, chunk_num = Non
   debug_precision = {ML_Binary32: debug_ftox, ML_Binary64: debug_lftolx}[precision] if debug else None
 
   # saving sollya's global precision
-  old_global_prec = get_prec()
-  prec(cst_exp_range + 100)
+  old_global_prec = sollya.settings.prec
+  sollya.settings.prec (cst_exp_range + 100)
 
   # table to store chunk of constant multiplicand
   cst_table = ML_NewTable(dimensions = [chunk_number, 1], storage_precision = precision, tag = "PH_cst_table")
@@ -102,7 +102,7 @@ def generate_payne_hanek(vx, frac_pi, precision, n = 100, k = 4, chunk_num = Non
 
   half_size = precision.get_field_size() / 2 + 1
 
-  vx_hi = TypeCast(BitLogicAnd(TypeCast(vx, precision = ML_Int64), Constant(~(2**half_size-1), precision = ML_Int64)), precision = precision) 
+  vx_hi = TypeCast(BitLogicAnd(TypeCast(vx, precision = int_precision), Constant(~(2**half_size-1), precision = int_precision)), precision = precision) 
   vx_hi.set_attributes(tag = "vx_hi", debug = debug_precision)
 
   vx_lo = vx - vx_hi
@@ -184,7 +184,7 @@ def generate_payne_hanek(vx, frac_pi, precision, n = 100, k = 4, chunk_num = Non
   result = Statement(lsb_index, msb_index, red_loop) 
 
   # restoring sollya's global precision
-  prec(old_global_prec)
+  sollya.settings.prec = old_global_prec
 
   return result, acc, acc_int
 
