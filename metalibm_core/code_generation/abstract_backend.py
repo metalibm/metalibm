@@ -142,6 +142,7 @@ class AbstractBackend(object):
                                 print "  interface_condition @{}:{}/{} {}".format(src_file, lineno, ic_id, interface_condition(*interface, optree = optree)) 
                                 ic_id += 1
                       print op_map[language][op_class][codegen_key].keys()
+                      Log.report(Log.Info, "unsupported condition key for %s" % optree.get_str(display_precision = True))
                     return False
 
     def is_local_supported_operation(self, optree, language = C_Code, table_getter = lambda self: self.code_generation_table, debug = False,  key_getter = lambda self, optree: self.get_operation_keys(optree)):
