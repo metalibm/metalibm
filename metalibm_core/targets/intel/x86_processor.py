@@ -52,7 +52,7 @@ _mm_set1_epi64x = FunctionOperator("_mm_set1_epi64x", arity = 1, force_folding =
 # contained also in a __m128 register
 _mm_cvt_ss2si = FunctionOperator("_mm_cvt_ss2si", arity = 1, require_header = ["xmmintrin.h"])
 
-_mm_cvtsd2si  = FunctionOperator("_mm_cvtsd2si", arity = 1, require_header = ["emmintrin.h"])
+_mm_cvtsd_si64  = FunctionOperator("_mm_cvtsd_si64", arity = 1, require_header = ["emmintrin.h"])
 _mm_cvtsd_si32  = FunctionOperator("_mm_cvtsd_si32", arity = 1, require_header = ["emmintrin.h"])
 
 _mm_round_ss_rn = FunctionOperator("_mm_round_ss", arg_map = {0: FO_Arg(0), 1: FO_Arg(0), 2: "_MM_FROUND_TO_NEAREST_INT"}, arity = 1, output_precision = ML_SSE_m128_v1float32
@@ -277,7 +277,7 @@ sse2_c_code_generation_table = {
     NearestInteger: {
         None: {
             lambda optree: True: {
-                type_strict_match(ML_Int64, ML_Binary64):    _mm_cvtsd2si(_mm_set_sd(FO_Arg(0))),
+                type_strict_match(ML_Int64, ML_Binary64):    _mm_cvtsd_si64(_mm_set_sd(FO_Arg(0))),
                 type_strict_match(ML_Int32, ML_Binary64):    _mm_cvtsd_si32(_mm_set_sd(FO_Arg(0))),
             },
         },
