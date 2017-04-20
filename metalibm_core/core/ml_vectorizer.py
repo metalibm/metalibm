@@ -137,10 +137,14 @@ class StaticVectorizer(object):
         if isinstance(optree, Constant):
           optree.set_value([optree.get_value() for i in xrange(vector_size)])
         elif isinstance(optree, Variable):
+          # TODO: does not take into account intermediary variables
           pass
         elif not isinstance(optree, ML_LeafNode):
           for optree_input in optree.get_inputs():
             self.vector_replicate_scheme_in_place(optree_input, vector_size, memoization_map)
         memoization_map[optree] = optree
         return optree
+      else:
+        Log.report(Log.Info, "optree not vectorizable: {}".format(optree.get_str(display_precision = True)))
+
     
