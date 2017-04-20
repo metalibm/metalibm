@@ -90,6 +90,7 @@ def full_mul_modifier(optree):
     return Multiplication(op0_conv, op1_conv, precision = optree_type)
 
 
+
 ## hash map of Comparison specifier -> C symbol relation
 c_comp_symbol = {
   Comparison.Equal: "==", 
@@ -504,11 +505,14 @@ c_code_generation_table = {
         ComponentSelection.Hi: {
             lambda optree: True: {
                 type_strict_match(ML_Binary64, ML_DoubleDouble): TemplateOperator("%s.hi", arity = 1), 
+                #type_strict_match(ML_Binary32, ML_Binary64): ComplexOperator(optree_modifier = lambda x: Conversion(x, precision = ML_Binary32)),
+                type_strict_match(ML_Binary32, ML_Binary64): IdentityOperator(),
             },
         },
         ComponentSelection.Lo: {
             lambda optree: True: {
                 type_strict_match(ML_Binary64, ML_DoubleDouble): TemplateOperator("%s.lo", arity = 1), 
+                type_strict_match(ML_Binary32, ML_Binary64): ComplexOperator(optree_modifier = lambda x: Conversion(Subtraction(x, Conversion(Conversion(x , precision = ML_Binary32), precision = ML_Binary64), precision = ML_Binary64), precision = ML_Binary32)),
             },
         },
     },

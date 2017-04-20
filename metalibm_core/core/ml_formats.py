@@ -318,6 +318,9 @@ class ML_Std_FP_Format(ML_FP_Format):
             elif isinstance(cst_value, int):
                 conv_result = str(float(cst_value)) + self.c_suffix
             else:
+              if isinstance(cst_value, sollya.SollyaObject):
+                conv_result  = str(self.round_sollya_object(cst_value)) + self.c_suffix
+              else:
                 conv_result  = str(cst_value) + self.c_suffix
             if conv_result == "0f":
                 conv_result = "0.0f"
