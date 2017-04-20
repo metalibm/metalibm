@@ -162,6 +162,7 @@ class ML_NewTable(ML_Table):
 
 
 class ML_ApproxTable(ML_NewTable):
+    str_name = "ApproxTable"
     def __init__(self, **kwords):
         ML_NewTable.__init__(self, **kwords)
         index_size = attr_init(kwords, "index_size", 7)
