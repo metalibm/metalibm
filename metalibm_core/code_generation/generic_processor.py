@@ -682,32 +682,37 @@ generic_approx_table_map = {
 
 ## Generic C Capable Backend
 class GenericProcessor(AbstractBackend):
-    """ Generic class for instruction selection,
-        corresponds to a portable C-implementation """
+  """ Generic class for instruction selection,
+      corresponds to a portable C-implementation """
 
-    target_name = "generic"
-    default_compiler = "gcc"
+  target_name = "generic"
+  default_compiler = "gcc"
 
 
-    # code generation table map
-    code_generation_table = {
-        C_Code: c_code_generation_table,
-        Gappa_Code: gappa_code_generation_table,
-    }
+  # code generation table map
+  code_generation_table = {
+      C_Code: c_code_generation_table,
+      Gappa_Code: gappa_code_generation_table,
+  }
 
-    # approximation table map
-    approx_table_map = generic_approx_table_map
+  # approximation table map
+  approx_table_map = generic_approx_table_map
 
-    ## return the compiler command line program to use to build
-    #  test programs
-    def get_compiler(self):
-      return GenericProcessor.default_compiler
+  ## return the compiler command line program to use to build
+  #  test programs
+  def get_compiler(self):
+    return GenericProcessor.default_compiler
 
-    def get_execution_command(self, test_file):
-      return "./%s" % test_file
-    ## Return a list of compiler option strings for the @p self target
-    def get_compilation_options(self):
-      return []
+  ## Function returning a ML_Int64 timestamp of
+  #  the current processor clock value
+  def get_current_timestamp(self):
+    raise NotImplementedError
+
+  def get_execution_command(self, test_file):
+    return "./%s" % test_file
+  ## Return a list of compiler option strings for the @p self target
+  def get_compilation_options(self):
+    return []
 
 
 if __name__ == "__main__":
