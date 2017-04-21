@@ -9,11 +9,12 @@ from sollya import (
         guessdegree, dirtyinfnorm
 )
 
-from metalibm_core.core.ml_function import ML_Function, ML_FunctionBasis
+from metalibm_core.core.ml_function import ML_Function, ML_FunctionBasis, DefaultArgTemplate
 
 from metalibm_core.core.attributes import ML_Debug
 from metalibm_core.core.ml_operations import *
 from metalibm_core.core.ml_formats import *
+from metalibm_core.core.precisions import ML_Faithful
 from metalibm_core.code_generation.generic_processor import GenericProcessor
 from metalibm_core.core.polynomials import *
 from metalibm_core.core.ml_table import ML_NewTable
@@ -21,7 +22,7 @@ from metalibm_core.core.ml_complex_formats import ML_Mpfr_t
 from metalibm_core.code_generation.generator_utility import FunctionOperator, FO_Result, FO_Arg
 from metalibm_core.core.payne_hanek import generate_payne_hanek
 
-from metalibm_core.utility.ml_template import ML_ArgTemplate
+from metalibm_core.utility.ml_template import ML_NewArgTemplate, ArgDefault
 from metalibm_core.utility.log_report  import Log
 from metalibm_core.utility.debug_utils import *
 from metalibm_core.utility.num_utils   import ulp
@@ -29,13 +30,10 @@ from metalibm_core.utility.gappa_utils import is_gappa_installed
 
 
 
-
-    
-
-
 class ML_SinCos(ML_Function("ml_cos")):
   """ Implementation of cosinus function """
   def __init__(self, 
+             arg_template = DefaultArgTemplate, 
                precision = ML_Binary32, 
                accuracy  = ML_Faithful,
                libm_compliant = True, 
@@ -45,8 +43,9 @@ class ML_SinCos(ML_Function("ml_cos")):
                target = GenericProcessor(), 
                output_file = "cosf.c", 
                function_name = "cosf", 
-               cos_output = True):
+               sin_output = True):
     # initializing I/O precision
+    precision = ArgDefault.select_value([arg_template.precision, precision])
     io_precisions = [precision] * 2
 
     # initializing base class
@@ -63,10 +62,11 @@ class ML_SinCos(ML_Function("ml_cos")):
       fuse_fma = fuse_fma,
       fast_path_extract = fast_path_extract,
 
-      debug_flag = debug_flag
+      debug_flag = debug_flag,
+      arg_template = arg_template
     )
     self.precision = precision
-    self.cos_output = cos_output
+    self.sin_output = sin_output
 
 
 
@@ -75,7 +75,7 @@ class ML_SinCos(ML_Function("ml_cos")):
         mpfr_x is a mpfr_t variable which should have the right precision
         mpfr_rnd is the rounding mode
     """
-    emulate_func_name = "mpfr_cos" if self.cos_output else "mpfr_sin"
+    emulate_func_name = "mpfr_cos" if self.sin_output else "mpfr_sin"
     emulate_func_op = FunctionOperator(emulate_func_name, arg_map = {0: FO_Arg(0), 1: FO_Arg(1), 2: FO_Arg(2)}, require_header = ["mpfr.h"]) 
     emulate_func   = FunctionObject(emulate_func_name, [ML_Mpfr_t, ML_Mpfr_t, ML_Int32], ML_Int32, emulate_func_op)
     mpfr_call = Statement(ReferenceAssign(result_ternary, emulate_func(result, mpfr_x, mpfr_rnd)))
@@ -86,7 +86,6 @@ class ML_SinCos(ML_Function("ml_cos")):
   def generate_scheme(self): 
     # declaring CodeFunction and retrieving input variable
     vx = Abs(self.implementation.add_input_variable("x", self.precision), tag = "vx", precision = self.precision) 
-
 
     Log.report(Log.Info, "generating implementation scheme")
     if self.debug_flag: 
@@ -119,14 +118,19 @@ class ML_SinCos(ML_Function("ml_cos")):
 
 
     # argument reduction
+    # m 
     frac_pi_index = {ML_Binary32: 5, ML_Binary64: 6}[self.precision]
 
+    # 2^m / pi 
     frac_pi     = round(S2**frac_pi_index / pi, sollya_precision, sollya.RN)
+    # pi / 2^m, high part
     inv_frac_pi = round(pi / S2**frac_pi_index, hi_precision, sollya.RN)
+    # pi / 2^m, low part
     inv_frac_pi_lo = round(pi / S2**frac_pi_index - inv_frac_pi, sollya_precision, sollya.RN)
     # computing k = E(x * frac_pi)
     vx_pi = Multiplication(vx, frac_pi, precision = self.precision)
     k = NearestInteger(vx_pi, precision = ML_Int32, tag = "k", debug = debugd)
+    # k in floating-point precision
     fk = Conversion(k, precision = self.precision, tag = "fk")
 
     inv_frac_pi_cst    = Constant(inv_frac_pi, tag = "inv_frac_pi", precision = self.precision)
@@ -136,12 +140,12 @@ class ML_SinCos(ML_Function("ml_cos")):
     red_vx_hi.set_attributes(tag = "red_vx_hi", debug = debug_precision, precision = self.precision)
     red_vx_lo_sub = inv_frac_pi_lo_cst * fk
     red_vx_lo_sub.set_attributes(tag = "red_vx_lo_sub", debug = debug_precision, unbreakable = True, precision = self.precision)
-    vx_d = Conversion(vx, precision = ML_Binary64, tag = "vx_d")
+    vx_d = Conversion(vx, precision = self.precision, tag = "vx_d")
     pre_red_vx = red_vx_hi - inv_frac_pi_lo_cst * fk
     pre_red_vx_d_hi = (vx_d - inv_frac_pi_cst * fk)
-    pre_red_vx_d_hi.set_attributes(tag = "pre_red_vx_d_hi", precision = ML_Binary64, debug = debug_lftolx)
+    pre_red_vx_d_hi.set_attributes(tag = "pre_red_vx_d_hi", precision = self.precision, debug = debug_lftolx)
     pre_red_vx_d = pre_red_vx_d_hi - inv_frac_pi_lo_cst * fk
-    pre_red_vx_d.set_attributes(tag = "pre_red_vx_d", debug = debug_lftolx, precision = ML_Binary64)
+    pre_red_vx_d.set_attributes(tag = "pre_red_vx_d", debug = debug_lftolx, precision = self.precision)
 
 
     modk = Modulo(k, 2**(frac_pi_index+1), precision = ML_Int32, tag = "modk", debug = True)
@@ -152,7 +156,7 @@ class ML_SinCos(ML_Function("ml_cos")):
     red_vx.set_attributes(tag = "red_vx", debug = debug_precision, precision = self.precision)
 
     red_vx_d = Select(sel_c, -pre_red_vx_d, pre_red_vx_d)
-    red_vx_d.set_attributes(tag = "red_vx_d", debug = debug_lftolx, precision = ML_Binary64)
+    red_vx_d.set_attributes(tag = "red_vx_d", debug = debug_lftolx, precision = self.precision)
 
     approx_interval = Interval(-pi/(S2**(frac_pi_index+1)), pi / S2**(frac_pi_index+1))
 
@@ -188,13 +192,13 @@ class ML_SinCos(ML_Function("ml_cos")):
       sin_table[i][0] = round(sin(local_x), self.precision.get_sollya_object(), sollya.RN)
 
 
-    tabulated_cos_hi = TableLoad(cos_table_hi, modk, 0, tag = "tab_cos_hi", debug = debug_precision) 
-    tabulated_cos_lo = TableLoad(cos_table_lo, modk, 0, tag = "tab_cos_lo", debug = debug_precision) 
-    tabulated_sin  = TableLoad(sin_table, modk, 0, tag = "tab_sin", debug = debug_precision) 
+    tabulated_cos_hi = TableLoad(cos_table_hi, modk, 0, tag = "tab_cos_hi", debug = debug_precision, precision = self.precision) 
+    tabulated_cos_lo = TableLoad(cos_table_lo, modk, 0, tag = "tab_cos_lo", debug = debug_precision, precision = self.precision) 
+    tabulated_sin  = TableLoad(sin_table, modk, 0, tag = "tab_sin", debug = debug_precision, precision = self.precision) 
 
     Log.report(Log.Info, "building mathematical polynomials for sin and cos")
     poly_degree_cos   = sup(guessdegree(cos(sollya.x), approx_interval, S2**-(self.precision.get_field_size()+1)) ) + 2
-    poly_degree_sin   = sup(guessdegree(sin(sollya.x)/sollya.x, approx_interval, S2**-(self.precision.get_field_size()+1))) + 2
+    poly_degree_sin   = sup(guessdegree(sin(sollya.x) / sollya.x, approx_interval, S2**-(self.precision.get_field_size()+1))) + 2
 
     print poly_degree_cos, poly_degree_sin
 
@@ -228,38 +232,54 @@ class ML_SinCos(ML_Function("ml_cos")):
 
 
     cos_eval_d = (tabulated_cos_hi - red_vx * (tabulated_sin + (tabulated_cos_hi * red_vx * 0.5 + (tabulated_sin * poly_sin + (- tabulated_cos_hi * poly_cos))))) + tabulated_cos_lo
+    cos_eval_d.set_precision(self.precision)
+
+    # extended precision to be used when more accuracy
+    # than the working precision is required
+    ext_precision = {
+      ML_Binary32: ML_Binary64,
+      ML_Binary64: ML_DoubleDouble
+    }[self.precision]
+
+    promote = {
+      ML_Binary32: lambda x: Conversion(x, precision = ext_precision, tag = "promote"),
+      ML_Binary64: lambda x: x,
+    }[self.precision]
 
 
-    tab_cos_dd = (tabulated_cos_hi + tabulated_cos_lo).modify_attributes(precision = ML_DoubleDouble, tag = "tab_cos_dd")
+    tab_cos_dd = (promote(tabulated_cos_hi) + promote(tabulated_cos_lo)).modify_attributes(precision = ext_precision, tag = "tab_cos_dd")
 
     #cos_eval_lo_dd_op0 = tab_cos_dd
-    cos_eval_lo_dd_op1 = ((-red_vx) * (tabulated_sin)).modify_attributes(precision = ML_DoubleDouble)
+    cos_eval_lo_dd_op1 = (promote(-red_vx) * promote(tabulated_sin)).modify_attributes(precision = ext_precision)
     cos_eval_lo_dd_op2 = ((-tabulated_cos_hi) * ((red_vx * red_vx) * 0.5)).modify_attributes(precision = self.precision)
     cos_eval_lo_dd_op3 = ((-tabulated_sin) * (poly_sin * red_vx)).modify_attributes(precision = self.precision)
-    cos_eval_lo_dd_op4 = (tabulated_cos_hi * (red_vx * poly_cos)).modify_attributes(precision = self.precision)
+    cos_eval_lo_dd_op4 = ((tabulated_cos_hi) * (red_vx * poly_cos)).modify_attributes(precision = self.precision)
 
     cos_eval_d2_add = AdditionN(
-                        tabulated_cos_hi,
+                        promote(tabulated_cos_hi),
                         AdditionN(
                           cos_eval_lo_dd_op1, 
-                          AdditionN(
-                            cos_eval_lo_dd_op2,
-                            cos_eval_lo_dd_op3,
-                            cos_eval_lo_dd_op4,
-                            tabulated_cos_lo,
-                            unbreakable = True,
-                            precision = self.precision
+                          promote(
+                            AdditionN(
+                              cos_eval_lo_dd_op2,
+                              cos_eval_lo_dd_op3,
+                              cos_eval_lo_dd_op4,
+                              tabulated_cos_lo,
+                              unbreakable = True,
+                              precision = self.precision
+                            )
                           ),
-                          precision = ML_DoubleDouble,
+                          precision = ext_precision,
                           unbreakable = True
                         ),
-                        precision = ML_DoubleDouble,
+                        precision = ext_precision,
                         unbreakable = True
                       )
 
 
-    cos_eval_d2_add.set_attributes(unbreakable = True, precision = ML_DoubleDouble, tag = "cos_eval_d2_add", debug = debug_ddtolx)
-    cos_eval_d2 = cos_eval_d2_add.hi + cos_eval_d2_add.lo
+    cos_eval_d2_add.set_attributes(unbreakable = True, precision = ext_precision, tag = "cos_eval_d2_add", debug = debug_ddtolx)
+    #cos_eval_d2 = cos_eval_d2_add.hi.modify_attributes(precision = self.precision) + cos_eval_d2_add.lo.modify_attributes(precision = self.precision)
+    cos_eval_d2 = cos_eval_d2_add.hi.modify_attributes(precision = self.precision) 
     cos_eval_d2.set_attributes(tag = "cos_eval_d2", debug = debug_precision, precision = self.precision)
 
 
@@ -268,7 +288,7 @@ class ML_SinCos(ML_Function("ml_cos")):
     cos_eval_d.set_attributes(tag = "cos_eval_d", debug = debug_precision, precision = self.precision)
     
     exact_sub = (tabulated_cos_hi - red_vx)
-    exact_sub.set_attributes(tag = "exact_sub", debug = debug_precision, unbreakable = True, prevent_optimization = True)
+    exact_sub.set_attributes(tag = "exact_sub", debug = debug_precision, unbreakable = True, prevent_optimization = True, precision = self.precision)
 
     # cos_eval_2 and cos_eval_3 are to be used when tabulated_sin is positive and very close to 1.0
     cos_eval_2 = exact_sub + ((- red_vx * ((tabulated_sin - 1) + (tabulated_cos_hi * red_vx * 0.5 + (tabulated_sin * poly_sin + (- tabulated_cos_hi * poly_cos))))) + tabulated_cos_lo)
@@ -283,10 +303,10 @@ class ML_SinCos(ML_Function("ml_cos")):
       copy_map = {
         #tabulated_cos_hi : Constant(cos_table_hi[i][0], tag = "tabulated_cos_hi", precision = ML_Binary64), 
         #tabulated_sin    : Constant(sin_table[i][0], tag = "tabulated_sin", precision = ML_Binary64),
-        tabulated_cos_hi : Variable("tabulated_cos_hi", interval = Interval(cos_table_hi[i][0]), precision = ML_Binary64), 
-        tabulated_cos_lo : Variable("tabulated_cos_lo", interval = Interval(cos_table_lo[i][0]), precision = ML_Binary64), 
-        tabulated_sin    : Variable("tabulated_sin", interval = Interval(sin_table[i][0]), precision = ML_Binary64),
-        red_vx           : Variable("red_vx", precision = ML_Binary64, interval = approx_interval),
+        tabulated_cos_hi : Variable("tabulated_cos_hi", interval = Interval(cos_table_hi[i][0]), precision = self.precision), 
+        tabulated_cos_lo : Variable("tabulated_cos_lo", interval = Interval(cos_table_lo[i][0]), precision = self.precision), 
+        tabulated_sin    : Variable("tabulated_sin", interval = Interval(sin_table[i][0]), precision = self.precision),
+        red_vx           : Variable("red_vx", precision = self.precision, interval = approx_interval),
       }
 
       cos_eval_d_eerror_local = sup(abs(self.get_eval_error(cos_eval_d, variable_copy_map = copy_map, relative_error = True)))
@@ -298,10 +318,10 @@ class ML_SinCos(ML_Function("ml_cos")):
       copy_map = {
         #tabulated_cos_hi : Constant(cos_table_hi[i][0], tag = "tabulated_cos_hi", precision = ML_Binary64), 
         #tabulated_sin    : Constant(sin_table[i][0], tag = "tabulated_sin", precision = ML_Binary64),
-        tabulated_cos_hi : Variable("tabulated_cos_hi", interval = Interval(cos_table_hi[i][0]), precision = ML_Binary64), 
-        tabulated_cos_lo : Variable("tabulated_cos_lo", interval = Interval(cos_table_lo[i][0]), precision = ML_Binary64), 
-        tabulated_sin    : Variable("tabulated_sin", interval = Interval(sin_table[i][0]), precision = ML_Binary64),
-        red_vx           : Variable("red_vx", precision = ML_Binary64, interval = approx_interval),
+        tabulated_cos_hi : Variable("tabulated_cos_hi", interval = Interval(cos_table_hi[i][0]), precision = self.precision), 
+        tabulated_cos_lo : Variable("tabulated_cos_lo", interval = Interval(cos_table_lo[i][0]), precision = self.precision), 
+        tabulated_sin    : Variable("tabulated_sin", interval = Interval(sin_table[i][0]), precision = self.precision),
+        red_vx           : Variable("red_vx", precision = self.precision, interval = approx_interval),
       }
 
       cos_eval_d_eerror_local = sup(abs(self.get_eval_error(cos_eval_2, variable_copy_map = copy_map, relative_error = True)))
@@ -463,7 +483,10 @@ class ML_SinCos(ML_Function("ml_cos")):
     #                debug = debugd
     #              )
 
-    int_precision = ML_Int64
+    int_precision = {
+      ML_Binary64: ML_Int64,
+      ML_Binary32: ML_Int32
+    }[self.precision]
     C32 = Constant(2**(ph_k+1), precision = int_precision)
     ph_acc_int_red = Conversion(Select(ph_acc_int < Constant(0, precision = int_precision), ph_acc_int + C32, ph_acc_int), precision = self.precision)
 
@@ -502,29 +525,22 @@ class ML_SinCos(ML_Function("ml_cos")):
 
     return scheme
 
+  def numeric_emulate(self, input_value):
+    if self.sin_output:
+      return sin(input_value)
+    else:
+      return cos(input_value)
 
 
 
 
 if __name__ == "__main__":
   # auto-test
-  arg_template = ML_ArgTemplate(default_function_name = "new_sincos", default_output_file = "new_sincos.c" )
+  arg_template = ML_NewArgTemplate(default_function_name = "new_sincos", default_output_file = "new_sincos.c" )
   # argument extraction 
-  cos_output = arg_template.test_flag_option("--cos", True, False, parse_arg = arg_template.parse_arg, help_str = "select cos output") 
-  enable_subexpr_sharing = arg_template.test_flag_option("--enable-subexpr-sharing", True, False, parse_arg = arg_template.parse_arg, help_str = "force subexpression sharing")
+  arg_template.get_parser().add_argument("--sin", dest = "sin_output", default = False, const = True, action = "store_const", help = "select sine output (default is cosine)")
 
-  parse_arg_index_list = arg_template.sys_arg_extraction()
-  arg_template.check_args(parse_arg_index_list)
+  args = arg_template.arg_extraction()
 
-
-  ml_sincos = ML_SinCos(arg_template.precision, 
-                     libm_compliant            = arg_template.libm_compliant, 
-                     debug_flag                = arg_template.debug_flag, 
-                     target                    = arg_template.target, 
-                     fuse_fma                  = arg_template.fuse_fma, 
-                     fast_path_extract         = arg_template.fast_path,
-                     function_name             = arg_template.function_name,
-                     accuracy                  = arg_template.accuracy,
-                     output_file               = arg_template.output_file,
-                     cos_output                = cos_output)
-  ml_sincos.gen_implementation(display_after_opt = arg_template.display_after_opt, enable_subexpr_sharing = enable_subexpr_sharing)
+  ml_sincos = ML_SinCos(args, sin_output = args.sin_output)
+  ml_sincos.gen_implementation()
