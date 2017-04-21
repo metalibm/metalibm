@@ -1152,6 +1152,8 @@ class SpecificOperation(AbstractOperationConstructor("SpecificOperation", inheri
     GetRndMode        = SO_Specifier_Builder("GetRndMode", lambda optree, *ops: ML_FPRM_Type, lambda backend, op, dprec: ML_FPRM_Type)
     CopySign          = SO_Specifier_Builder("CopySign", lambda optree, *ops: std_merge_abstract_format(ops[0].get_precision(), ops[1].get_precision()), lambda backend, op, dprec: backend.merge_abstract_format(op, op.inputs))
     RoundedSignedOverflow = SO_Specifier_Builder("RoundedSignedOverflow", lambda optree, *ops: ops[0].get_precision(), lambda backend, op, dprec: backend.merge_abstract_format(op, op.inputs))
+    # dummy instantiated_type_rule function
+    ReadTimeStamp = SO_Specifier_Builder("ReadTimeStamp", lambda optree, *ops: optree.get_precision(), lambda backend, op, dprec: backend.merge_abstract_format(op, op.inputs))
 
 
     def __init__(self, *args, **kwords): 
