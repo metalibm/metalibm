@@ -4,6 +4,8 @@ import argparse
 import sys
 import re
 
+from sollya import Interval
+
 # import meta-function script from metalibm_functions directory
 import metalibm_functions.ml_log10
 import metalibm_functions.ml_log1p
@@ -13,9 +15,11 @@ import metalibm_functions.ml_exp
 import metalibm_functions.ml_cbrt
 import metalibm_functions.ml_vectorizable_log
 import metalibm_functions.ml_cosh
+import metalibm_functions.external_bench
 
 from metalibm_core.core.ml_formats import ML_Binary32, ML_Binary64, ML_Int32
 from metalibm_core.targets.common.vector_backend import VectorBackend
+from metalibm_core.utility.ml_template import target_instanciate
 
 from valid.test_utils import *
 
@@ -85,6 +89,17 @@ new_scheme_function_list = [
     "vector exp test",
     metalibm_functions.ml_exp.ML_Exponential,
     [{"precision": ML_Binary32, "vector_size": 2, "target": VectorBackend()}, ]
+  ), 
+  NewSchemeTest(
+    "external bench test",
+    metalibm_functions.external_bench.ML_ExternalBench,
+    [{"precision": ML_Binary32, 
+      "bench_function_name": "tanf", 
+      "target": target_instanciate("x86"),
+      "input_formats": [ML_Binary32],
+      "bench_execute": 1000,
+      "bench_test_range": Interval(-1, 1)
+    }, ]
   ), 
 ]
 

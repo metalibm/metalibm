@@ -100,6 +100,9 @@ class DefaultArgTemplate:
   bench_execute   = False
   bench_test_number = 0
   bench_test_range  = Interval(0, 1)
+  bench_function_name = "undefined"
+  headers = []
+  libraries = []
   # list of pre-code generation opt passe names (string tag)
   pre_gen_passes = []
   check_processor_support = True

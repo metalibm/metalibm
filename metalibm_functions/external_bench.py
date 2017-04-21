@@ -30,8 +30,8 @@ from metalibm_core.utility.gappa_utils import is_gappa_installed
 
 
 
-class ML_ExternalBench(ML_Function("ml_cos")):
-  """ Implementation of cosinus function """
+class ML_ExternalBench(ML_Function("ml_external_bench")):
+  """ Implementation of external bench function wrapper """
   def __init__(self, 
              arg_template = DefaultArgTemplate, 
                precision = ML_Binary32, 
@@ -51,7 +51,7 @@ class ML_ExternalBench(ML_Function("ml_cos")):
 
     # initializing base class
     ML_FunctionBasis.__init__(self, 
-      base_name = "cos",
+      base_name = "bench",
       function_name = function_name,
       output_file = output_file,
 
@@ -92,12 +92,12 @@ class ML_ExternalBench(ML_Function("ml_cos")):
 
 if __name__ == "__main__":
   # auto-test
-  arg_template = ML_NewArgTemplate(default_function_name = "new_sincos", default_output_file = "new_sincos.c" )
+  arg_template = ML_NewArgTemplate(default_function_name = "bench_wrapper", default_output_file = "bench.c" )
   def precision_list_parser(s):
     return [precision_parser(p) for p in s.split(",")]
 
   # argument extraction 
-  arg_template.get_parser().add_argument("--function", dest = "bench_function_name", default = "exp", action = "store", type = str, help = "name of the function to be benched")
+  arg_template.get_parser().add_argument("--function", dest = "bench_function_name", default = "expf", action = "store", type = str, help = "name of the function to be benched")
   arg_template.get_parser().add_argument("--input-formats", dest = "input_formats", default = [ML_Binary32], action = "store", type = precision_list_parser, help = "comma separated list of input precision")
   arg_template.get_parser().add_argument("--headers", dest = "headers", default = [], action = "store", type = lambda s: s.split(","), help = "comma separated list of required headers")
   arg_template.get_parser().add_argument("--libraries", dest = "libraries", default = [], action = "store", type = lambda s: s.split(","), help = "comma separated list of required libraries")
