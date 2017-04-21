@@ -90,10 +90,16 @@ class DefaultArgTemplate:
   debug = False
   vector_size = 1
   language = C_Code
+  # auto-test properties
   auto_test = False
   auto_test_execute = False
   auto_test_range = Interval(0, 1)
   auto_test_std   = False
+  # bench properties
+  #bench_enabled   = False
+  bench_execute   = False
+  bench_test_number = 0
+  bench_test_range  = Interval(0, 1)
   # list of pre-code generation opt passe names (string tag)
   pre_gen_passes = []
   check_processor_support = True
@@ -137,6 +143,10 @@ class ML_FunctionBasis(object):
              auto_test = ArgDefault(False, 2),
              auto_test_range = ArgDefault(Interval(-1, 1), 2),
              auto_test_std = ArgDefault(False, 2),
+             #bench_enabled = ArgDefault(False, 2),
+             bench_execute   = ArgDefault(False, 2),
+             bench_test_number = ArgDefault(0, 2),
+             bench_test_range  = ArgDefault(Interval(0, 1), 2),
              arg_template = DefaultArgTemplate 
          ):
     # selecting argument values among defaults
@@ -163,6 +173,11 @@ class ML_FunctionBasis(object):
     language      = ArgDefault.select_value([arg_template.language, language])
     auto_test     = ArgDefault.select_value([arg_template.auto_test, arg_template.auto_test_execute, auto_test])
     auto_test_std = ArgDefault.select_value([arg_template.auto_test_std, auto_test_std])
+    #bench_enabled = ArgDefault.select_value([arg_template.bench_enabled, bench_enabled])
+    bench_execute = ArgDefault.select_value([arg_template.bench_execute, bench_execute])
+    bench_test_range = ArgDefault.select_value([arg_template.bench_test_range, bench_test_range])
+    bench_test_number = ArgDefault.select_value([arg_template.bench_test_number, bench_test_number])
+
 
     # enable/disable check_processor_support pass run
     self.check_processor_support = arg_template.check_processor_support
@@ -173,12 +188,18 @@ class ML_FunctionBasis(object):
     # XOR -> with as many elements as function arity (input + output arities)
     self.io_precisions = io_precisions
 
-    ## enable the generation of numeric/functionnal auto-test
+    # enable the generation of numeric/functionnal auto-test
     self.auto_test_enable = (auto_test != False or auto_test_std != False)
     self.auto_test_number = auto_test
     self.auto_test_execute = ArgDefault.select_value([arg_template.auto_test_execute])
     self.auto_test_range = ArgDefault.select_value([arg_template.auto_test_range, auto_test_range])
     self.auto_test_std   = auto_test_std 
+
+    # enable and configure the generation of a performance bench
+    self.bench_enabled = bench_test_number or bench_execute
+    self.bench_execute = bench_execute != 0
+    self.bench_test_number = bench_test_number or bench_execute
+    self.bench_test_range = bench_test_range
 
     self.language = language
 
@@ -417,15 +438,28 @@ class ML_FunctionBasis(object):
 
       for code_function in auto_test_function_list:
         scheme = code_function.get_scheme()
-
         opt_scheme = self.optimise_scheme(
           scheme, enable_subexpr_sharing = enable_subexpr_sharing
         )
-
         code_function.set_scheme(opt_scheme)
 
       # appending auto-test wrapper to general code_function_list
       code_function_list += auto_test_function_list
+    elif self.bench_enabled:
+      bench_function_list = self.generate_bench_wrapper(
+        test_num = self.bench_test_number if self.bench_test_number else 1000,
+        test_range = self.bench_test_range
+      )
+
+      for code_function in bench_function_list:
+        scheme = code_function.get_scheme()
+        opt_scheme = self.optimise_scheme(
+          scheme, enable_subexpr_sharing = enable_subexpr_sharing
+        )
+        code_function.set_scheme(opt_scheme)
+
+      # appending bench wrapper to general code_function_list
+      code_function_list += bench_function_list
 
     # generate C code to implement scheme
     self.generate_code(code_function_list, language = self.language)
@@ -447,11 +481,36 @@ class ML_FunctionBasis(object):
         if not test_result:
           print "VALIDATION SUCCESS"
         else:
+          print test_result
           print "VALIDATION FAILURE"
           sys.exit(1)
       else:
         print "VALIDATION %s command line:" % self.get_name()
         print test_command
+
+    elif self.bench_enabled:
+      compiler = self.processor.get_compiler()
+      bench_obj = "./bench_%s.bin" % self.function_name
+      compiler_options = " ".join(self.processor.get_compilation_options())
+      Log.report(Log.Info, "Compiler options: \"{}\"".format(compiler_options))
+      bench_command =  "{compiler} {options} -O2 -DML_DEBUG -I$ML_SRC_DIR/metalibm_core \
+      $ML_SRC_DIR/metalibm_core/support_lib/ml_libm_compatibility.c  \
+      $ML_SRC_DIR/metalibm_core/support_lib/ml_multi_prec_lib.c \
+      {src_file} -o {bench_obj} -lm ".format(compiler = compiler, src_file = self.output_file, bench_obj = bench_obj, options = compiler_options) 
+      bench_command += " && {} ".format(self.processor.get_execution_command(bench_obj))
+      if self.bench_execute:
+        print "BENCH {}".format(self.get_name)
+        print bench_command
+        bench_result = subprocess.call(bench_command, shell = True)
+        if not bench_result:
+          print "BENCH FINISHED"
+        else:
+          print bench_result
+          print "BENCH FAILURE"
+          sys.exit(1)
+      else:
+        print "BENCH %s command line:" % self.get_name()
+        print bench_command
 
 
   ## externalized an optree: generate a CodeFunction which compute the 
@@ -782,6 +841,163 @@ class ML_FunctionBasis(object):
             Return(Constant(1, precision = ML_Int32))
           ),
         ),
+        ReferenceAssign(vi, vi + loop_increment)
+      ),
+    )
+    return test_loop
+
+
+  ## Generate a test wrapper for the @p self function 
+  #  @param test_num   number of test to perform
+  #  @param test_range numeric range for test's inputs
+  #  @param debug enable debug mode
+  def generate_bench_wrapper(self, test_num = 10, test_range = Interval(-1.0, 1.0), debug = False):
+    low_input = inf(test_range)
+    high_input = sup(test_range)
+    auto_test = CodeFunction("main", output_format = ML_Int32)
+
+    tested_function    = self.implementation.get_function_object()
+    function_name      = self.implementation.get_name()
+
+    failure_report_op       = FunctionOperator("report_failure")
+    failure_report_function = FunctionObject("report_failure", [], ML_Void, failure_report_op)
+
+
+    printf_success_op = FunctionOperator("printf", arg_map = {0: "\"test successful %s\\n\"" % function_name}, void_function = True) 
+    printf_success_function = FunctionObject("printf", [], ML_Void, printf_success_op)
+
+    test_total   = test_num 
+    # compute the number of standard test cases
+    num_std_case = len(self.standard_test_cases)
+    # add them to the total if standard test enabled
+    if self.auto_test_std:
+      test_total += num_std_case
+    # round up the number of tests to the implementation vector-size
+    diff        = self.get_vector_size() - (test_total % self.get_vector_size())
+    test_total += diff
+    test_num   += diff
+
+    sollya_precision = self.precision.get_sollya_object()
+    interval_size = high_input - low_input 
+
+    input_table = ML_NewTable(dimensions = [test_total], storage_precision = self.precision, tag = self.uniquify_name("input_table"))
+    ## (low, high) are store in output table
+    output_table = ML_NewTable(dimensions = [test_total], storage_precision = self.precision, tag = self.uniquify_name("output_table"), empty = True)
+
+    # general index for input/output tables
+    table_index = 0
+
+    # random test cases
+    for i in range(test_num):
+      input_value = random.uniform(low_input, high_input)
+      input_value = self.precision.round_sollya_object(input_value, RN)
+      input_table[table_index] = input_value
+      # FIXME only valid for faithful evaluation
+      table_index += 1
+
+    if self.implementation.get_output_format().is_vector_format():
+      # vector implementation bench
+      test_loop = self.get_vector_bench_wrapper(test_num, tested_function, input_table, output_table)
+    else: 
+      # scalar implemetation bench
+      test_loop = self.get_scalar_bench_wrapper(test_num, tested_function, input_table, output_table)
+
+    timer = Variable("timer", precision = ML_Int64, var_type = Variable.Local)
+    printf_timing_op = FunctionOperator("printf", arg_map = {0: "\"%s %%lld elts computed in %%lld cycles => %%.3f CPE \\n\"" % function_name, 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2)}, void_function = True) 
+    printf_timing_function = FunctionObject("printf", [ML_Int64, ML_Int64, ML_Binary64], ML_Void, printf_timing_op)
+
+    # common test scheme between scalar and vector functions
+    test_scheme = Statement(
+      ReferenceAssign(timer, self.processor.get_current_timestamp()),
+      test_loop,
+
+      ReferenceAssign(timer, 
+        Subtraction(
+          self.processor.get_current_timestamp(),
+          timer,
+          precision = ML_Int64
+        )
+      ),
+      printf_timing_function(
+        Constant(test_num, precision = ML_Int64),
+        timer,
+        Division(
+          Conversion(timer, precision = ML_Binary64),
+          Constant(test_num, precision = ML_Binary64),
+          precision = ML_Binary64
+        )
+      ),
+      Return(Constant(0, precision = ML_Int32))
+    )
+    auto_test.set_scheme(test_scheme)
+    return [auto_test]
+
+
+  ## generate a test loop for vector tests
+  #  @param test_num number of elementary tests to be executed
+  #  @param tested_function FunctionObject to be tested
+  #  @param input_table ML_NewTable object containing test inputs
+  #  @param output_table ML_NewTable object containing test outputs
+  def get_vector_bench_wrapper(self, test_num, tested_function, input_table, output_table):
+    vector_format = self.implementation.get_output_format()
+    assignation_statement = Statement()
+    vi = Variable("i", precision = ML_Int32, var_type = Variable.Local)
+    test_num_cst = Constant(test_num, precision = ML_Int32, tag = "test_num")
+
+    # building inputs
+    local_input = Variable("vec_x", precision = vector_format, var_type = Variable.Local) 
+    assignation_statement.push(local_input)
+    for k in xrange(self.get_vector_size()):
+      elt_assign = ReferenceAssign(VectorElementSelection(local_input, k), TableLoad(input_table, vi + k))
+      assignation_statement.push(elt_assign)
+
+    # computing results
+    local_result = tested_function(local_input)
+    loop_increment = self.get_vector_size()
+
+    store_statement = Statement()
+
+    # comparison with expected
+    for k in xrange(self.get_vector_size()):
+      elt_input  = VectorElementSelection(local_input, k)
+      elt_result = VectorElementSelection(local_result, k)
+
+      # TODO: change to use aligned linear vector store
+      store_statement.push(
+        TableStore(elt_result, output_table, vi + k, precision = ML_Void) 
+      )
+
+    test_loop = Loop(
+      ReferenceAssign(vi, Constant(0, precision = ML_Int32)),
+      vi < test_num_cst,
+      Statement(
+        assignation_statement,
+        store_statement,
+        ReferenceAssign(vi, vi + loop_increment)
+      ),
+    )
+    return test_loop
+
+  ## generate a bench loop for scalar tests
+  #  @param test_num number of elementary tests to be executed
+  #  @param tested_function FunctionObject to be tested
+  #  @param input_table ML_NewTable object containing test inputs
+  #  @param output_table ML_NewTable object containing test outputs
+  def get_scalar_bench_wrapper(self, test_num, tested_function, input_table, output_table):
+    assignation_statement = Statement()
+    vi = Variable("i", precision = ML_Int32, var_type = Variable.Local)
+    test_num_cst = Constant(test_num, precision = ML_Int32, tag = "test_num")
+
+    local_input  = TableLoad(input_table, vi)
+    local_result = tested_function(local_input)
+
+    loop_increment = 1
+
+    test_loop = Loop(
+      ReferenceAssign(vi, Constant(0, precision = ML_Int32)),
+      vi < test_num_cst,
+      Statement(
+        TableStore(local_result, output_table, vi, precision = ML_Void),
         ReferenceAssign(vi, vi + loop_increment)
       ),
     )
