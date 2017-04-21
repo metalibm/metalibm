@@ -370,8 +370,41 @@ sse41_c_code_generation_table = {
     },
 }
 
+rdtsc_operator = AsmInlineOperator(
+  "__asm volatile (\"rdtsc\" : \"=A\"(%s));",
+  arg_map = {0: FO_Result(0)},
+  arity = 0
+)
 
-class X86_SSE_Processor(VectorBackend):
+x86_c_code_generation_table = {
+  SpecificOperation: {
+    SpecificOperation.ReadTimeStamp: {
+      lambda _: True: {
+        type_strict_match(ML_Int64): rdtsc_operator
+      }
+    }
+  },
+}
+
+class X86_Processor(VectorBackend):
+  target_name = "x86"
+  TargetRegister.register_new_target(target_name, lambda _: X86_Processor)
+
+  code_generation_table = {
+    C_Code: x86_c_code_generation_table,
+  }
+
+  def __init__(self):
+    GenericProcessor.__init__(self)
+
+  def get_current_timestamp(self):
+    return SpecificOperation(
+      specifier = SpecificOperation.ReadTimeStamp,
+      precision = ML_Int64
+    )
+
+
+class X86_SSE_Processor(X86_Processor):
     target_name = "x86_sse"
     TargetRegister.register_new_target(target_name, lambda _: X86_SSE_Processor)
 
