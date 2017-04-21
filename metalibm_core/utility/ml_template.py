@@ -188,9 +188,14 @@ class ML_CommonArgTemplate(object):
     self.parser.add_argument("--vector-size", dest = "vector_size" , type = int, default = ArgDefault(1), help = "define size of vector (1: scalar implemenation)")
     self.parser.add_argument("--language", dest = "language", type = language_parser, default = ArgDefault(C_Code), help = "select language for generated source code") 
 
+    # auto-test related arguments
     self.parser.add_argument("--auto-test", dest = "auto_test", action = "store", nargs = '?', const=10, type=int, default = ArgDefault(False), help = "enable the generation of a self-testing numerical/functionnal bench")
     self.parser.add_argument("--auto-test-execute", dest = "auto_test_execute", action = "store", nargs = '?', const=10, type=int, default = ArgDefault(False), help = "enable the generation of a self-testing numerical/functionnal bench")
-    self.parser.add_argument("--auto-test-range", dest = "auto_test_range", action = "store", type=interval_parser, default = ArgDefault(Interval(-1,1)), help = "enable the generation of a self-testing numerical/functionnal bench")
+    self.parser.add_argument("--auto-test-range", dest = "auto_test_range", action = "store", type=interval_parser, default = ArgDefault(Interval(-1,1)), help = "define the range of input values to be used during functional testing")
+    # performance bench related arguments
+    self.parser.add_argument("--bench", dest = "bench_test_number", action = "store", nargs = '?', const=1000, type=int, default = ArgDefault(False), help = "enable the generation of a performance bench")
+    self.parser.add_argument("--bench-execute", dest = "bench_execute", action = "store", nargs = '?', const=1000, type=int, default = ArgDefault(False), help = "enable the generation and execution of a performance bench")
+    self.parser.add_argument("--bench-range", dest = "bench_test_range", action = "store", type=interval_parser, default = ArgDefault(Interval(0,1)), help = "define the interval of input values to use during performance bench")
 
     self.parser.add_argument("--verbose", dest = "verbose_enable", action = VerboseAction, const = True, default = ArgDefault(False), help = "enable Verbose log level")
     self.parser.add_argument("--target-info", dest = "target_info_flag", action = TargetInfoAction, const = True, default = ArgDefault(False), help = "display list of supported targets")
