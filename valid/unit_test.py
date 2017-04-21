@@ -130,6 +130,11 @@ unit_test_list = [
     ut_new_table,
     [{"auto_test_range": Interval(0, 100), "precision": ML_Int32, "auto_test_execute": 10}],
   ),
+  UnitTestScheme(
+    "perf bench test",
+    ut_new_table,
+    [{"bench_range": Interval(0, 100), "precision": ML_Int32, "bench_execute": 100, "target": target_instanciate("x86")}],
+  ),
 ]
 
 ## Command line action to set break on error in load module
