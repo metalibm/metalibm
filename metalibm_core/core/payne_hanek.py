@@ -52,7 +52,7 @@ def generate_payne_hanek(vx, frac_pi, precision, n = 100, k = 4, chunk_num = Non
 
   # chunk size has to be so than multiplication by a splitted <v> (vx_hi or vx_lo)
   # is exact
-  chunk_size = 20 # precision.get_field_size() / 2 - 2
+  chunk_size = precision.get_field_size() / 2 - 2
   chunk_number = int(ceil((cst_exp_range + chunk_size - 1) / chunk_size)) 
   scaling_factor = S2**-(chunk_size/2)
 

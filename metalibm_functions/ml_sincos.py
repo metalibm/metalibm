@@ -116,7 +116,7 @@ class ML_SinCos(ML_Function("ml_cos")):
     # return in case of standard (non-special) input
 
     sollya_precision = self.precision.get_sollya_object()
-    hi_precision = self.precision.get_field_size() - 3
+    hi_precision = self.precision.get_field_size() - 5
 
 
     # argument reduction
@@ -248,83 +248,51 @@ class ML_SinCos(ML_Function("ml_cos")):
     }[self.precision]
 
     # evaluation scheme
-    cos_eval_d = (tabulated_cos_hi - red_vx * (tabulated_sin + (tabulated_cos_hi * red_vx * 0.5 + (tabulated_sin * poly_sin + (- tabulated_cos_hi * poly_cos))))) + tabulated_cos_lo
-    cos_eval_d.set_precision(self.precision)
-
-    cos_eval_d_ext = Subtraction(
-        Addition(
-          Conversion(tabulated_cos_hi, precision = ext_precision),
-          Conversion(tabulated_cos_lo, precision = ext_precision)
-        ),
-        Multiplication(
-          Conversion(red_vx, precision = ext_precision),
-          Conversion((tabulated_sin + (tabulated_cos_hi * red_vx * 0.5 + (tabulated_sin * poly_sin + (- tabulated_cos_hi * poly_cos)))), precision = ext_precision),
-          precision = ext_precision
-        ),
-        precision = ext_precision
-      )
-    cos_eval_d = Conversion(cos_eval_d_ext, precision = self.precision, tag = "cos_eval_d")
-
-
-    # cos_eval_d = tabulated_cos_hi + FusedMultiplyAdd(- red_vx, (tabulated_sin + (tabulated_cos_hi * red_vx * 0.5 + (tabulated_sin * poly_sin + (- tabulated_cos_hi * poly_cos)))), tabulated_cos_lo)
-
-    cos_eval_d.set_attributes(tag = "cos_eval_d", debug = debug_precision, precision = self.precision)
-
+    # cos_eval_d = (tabulated_cos_hi - red_vx * (tabulated_sin + (tabulated_cos_hi * red_vx * 0.5 + (tabulated_sin * poly_sin + (- tabulated_cos_hi * poly_cos))))) + tabulated_cos_lo
+    # cos_eval_d.set_precision(self.precision)
 
     promote = {
       ML_Binary32: lambda x: Conversion(x, precision = ext_precision, tag = "promote"),
       ML_Binary64: lambda x: x,
     }[self.precision]
 
-
-    tab_cos_dd = (promote(tabulated_cos_hi) + promote(tabulated_cos_lo)).modify_attributes(precision = ext_precision, tag = "tab_cos_dd")
-
-    #cos_eval_lo_dd_op0 = tab_cos_dd
-    cos_eval_lo_dd_op1 = (promote(-red_vx) * promote(tabulated_sin)).modify_attributes(precision = ext_precision)
-    cos_eval_lo_dd_op2 = ((-tabulated_cos_hi) * ((red_vx * red_vx) * 0.5)).modify_attributes(precision = self.precision)
-    cos_eval_lo_dd_op3 = ((-tabulated_sin) * (poly_sin * red_vx)).modify_attributes(precision = self.precision)
-    cos_eval_lo_dd_op4 = ((tabulated_cos_hi) * (red_vx * poly_cos)).modify_attributes(precision = self.precision)
-
-    # Extended precision evaluation
-    cos_eval_d2_add = AdditionN(
-      promote(tabulated_cos_hi),
-      AdditionN(
-        cos_eval_lo_dd_op1, 
-        promote(
-          AdditionN(
-            cos_eval_lo_dd_op2,
-            cos_eval_lo_dd_op3,
-            cos_eval_lo_dd_op4,
-            tabulated_cos_lo,
-            unbreakable = True,
-            precision = self.precision
-          )
+    cos_eval_d_ext = Subtraction(
+      Addition(
+        Addition(
+          Conversion(tabulated_cos_hi, precision = ext_precision),
+          Conversion(tabulated_cos_lo, precision = ext_precision),
+          precision = ext_precision
         ),
-        precision = ext_precision,
-        unbreakable = True
+        Multiplication(
+          # promote(-red_vx),
+          Addition(
+            promote(- red_vx_hi), 
+            promote( red_vx_lo_sub),
+            precision = ext_precision,
+            tag = "red_vx_ext",
+            debug = debug_multi
+          ),
+          promote(tabulated_sin),
+          precision = ext_precision
+        ),
+        precision = ext_precision
       ),
-      precision = ext_precision,
-      unbreakable = True
+      Multiplication(
+        Conversion(red_vx, precision = ext_precision),
+        Conversion(((tabulated_cos_hi * red_vx * 0.5 + (tabulated_sin * poly_sin + (- tabulated_cos_hi * poly_cos)))), precision = ext_precision),
+        precision = ext_precision
+      ),
+      precision = ext_precision
     )
 
+    cos_eval_d = Conversion(cos_eval_d_ext, precision = self.precision, tag = "cos_eval_d")
 
-    # cos_eval_d2 is a more precise evaluation than cos_eval_d
-    # using extended precision for some of the last steps
-    cos_eval_d2_add.set_attributes(unbreakable = True, precision = ext_precision, tag = "cos_eval_d2_add", debug = {ML_DoubleDouble: debug_ddtolx, ML_Binary64: debug_lftolx}[ext_precision])
-    #cos_eval_d2 = cos_eval_d2_add.hi.modify_attributes(precision = self.precision) + cos_eval_d2_add.lo.modify_attributes(precision = self.precision)
-    cos_eval_d2 = cos_eval_d2_add.hi.modify_attributes(precision = self.precision) 
-    cos_eval_d2.set_attributes(tag = "cos_eval_d2", debug = debug_precision, precision = self.precision)
 
-    
-    exact_sub = (tabulated_cos_hi - red_vx)
-    exact_sub.set_attributes(tag = "exact_sub", debug = debug_precision, unbreakable = True, prevent_optimization = True, precision = self.precision)
+    cos_eval_d.set_attributes(tag = "cos_eval_d", debug = debug_precision, precision = self.precision)
 
-    # cos_eval_2 and cos_eval_3 are to be used when tabulated_sin is positive and very close to 1.0
-    cos_eval_2 = exact_sub + ((- red_vx * ((tabulated_sin - 1) + (tabulated_cos_hi * red_vx * 0.5 + (tabulated_sin * poly_sin + (- tabulated_cos_hi * poly_cos))))) + tabulated_cos_lo)
-    cos_eval_2.set_attributes(tag = "cos_eval_2", precision = self.precision, debug = debug_precision)
 
-    cos_eval_3 = (tabulated_cos_hi + (- red_vx - red_vx * ((tabulated_sin - 1) + tabulated_cos_hi * red_vx * 0.5 + tabulated_sin * poly_sin - tabulated_cos_hi * poly_cos))) + tabulated_cos_lo 
-    cos_eval_3.set_attributes(tag = "cos_eval_3", precision = self.precision, debug = debug_precision)
+
+
 
     # computing evaluation error for cos_eval_d
     cos_eval_d_eerror = []
@@ -336,90 +304,25 @@ class ML_SinCos(ML_Function("ml_cos")):
         red_vx           : Variable("red_vx", precision = self.precision, interval = approx_interval),
       }
 
-      cos_eval_d_eerror_local = sup(abs(self.get_eval_error(cos_eval_d, variable_copy_map = copy_map, relative_error = True)))
-      cos_eval_d_eerror.append(cos_eval_d_eerror_local)
-      if cos_eval_d_eerror_local > S2**-52:
-        print "cos_eval_d_eerror_local: ", i, cos_eval_d_eerror_local
+      # disabled because Abs is not supported in Gappa backend
+      #cos_eval_d_eerror_local = sup(abs(self.get_eval_error(cos_eval_d, variable_copy_map = copy_map, relative_error = True)))
+      #cos_eval_d_eerror.append(cos_eval_d_eerror_local)
+      #if cos_eval_d_eerror_local > S2**-52:
+      #  print "cos_eval_d_eerror_local: ", i, cos_eval_d_eerror_local
 
-    for i in xrange(2**(frac_pi_index-1)-3, 2**(frac_pi_index-1)-1):
-      copy_map = {
-        tabulated_cos_hi : Variable("tabulated_cos_hi", interval = Interval(cos_table_hi[i][0]), precision = self.precision), 
-        tabulated_cos_lo : Variable("tabulated_cos_lo", interval = Interval(cos_table_lo[i][0]), precision = self.precision), 
-        tabulated_sin    : Variable("tabulated_sin", interval = Interval(sin_table[i][0]), precision = self.precision),
-        red_vx           : Variable("red_vx", precision = self.precision, interval = approx_interval),
-      }
+    # Log.report(Log.Info, "max cos_eval_d error: {}".format(max(cos_eval_d_eerror)))
 
-      cos_eval_d_eerror_local = sup(abs(self.get_eval_error(cos_eval_2, variable_copy_map = copy_map, relative_error = True)))
-      cos_eval_d_eerror.append(cos_eval_d_eerror_local)
-      if cos_eval_d_eerror_local > S2**-52:
-        print "cos_eval_d_eerror_local_2: ", i, cos_eval_d_eerror_local
-
-      cos_eval_d_eerror_local = sup(abs(self.get_eval_error(cos_eval_3, variable_copy_map = copy_map, relative_error = True)))
-      cos_eval_d_eerror.append(cos_eval_d_eerror_local)
-      if cos_eval_d_eerror_local > S2**-52:
-        print "cos_eval_d_eerror_local_3: ", i, cos_eval_d_eerror_local
-
-    print "max error: ", max(cos_eval_d_eerror)
-
-    # sys.exit(1)
-
-    # selecting int precision for cast corresponding to precision width
-    cast_int_precision = self.precision.get_integer_format()
-
-    cond_3 = LogicalAnd(
-                Comparison(Abs(red_vx), Constant(cos_table_hi[2**(frac_pi_index-1)-1][0] / S2, precision = self.precision), specifier = Comparison.GreaterOrEqual, tag = "comp_bound", debug = True),
-                # opposite sign
-                Equal(
-                  BitLogicRightShift(
-                    BitLogicXor(
-                      TypeCast(red_vx, precision = cast_int_precision),
-                      TypeCast(tabulated_cos_hi, precision = cast_int_precision)
-                    ),
-                    Constant(cast_int_precision.get_bit_size() - 1)
-                  ),
-                  Constant(1, precision = cast_int_precision)
-                ),
-              tag = "cond3",
-              debug = True
-            )
-
-    result_sel_c = ( Equal(modk, Constant(2**(frac_pi_index-1)-1), precision = ML_Int32) |
-                     Equal(modk, Constant(2**(frac_pi_index-1)), precision = ML_Int32)   |
-                     Equal(modk, Constant(2**(frac_pi_index-1)+1), precision = ML_Int32) 
-                     #Equal(modk, Constant(3 * 2**(frac_pi_index-1)-1), precision = ML_Int32) |
-                     #Equal(modk, Constant(3 * 2**(frac_pi_index-1)), precision = ML_Int32) |
-                     #Equal(modk, Constant(3 * 2**(frac_pi_index-1)+1), precision = ML_Int32) 
-                  ).modify_attributes(
-                    tag = "result_sel_c",
-                    debug = debugd
-                  )
 
     result = Statement(
-        ConditionBlock(
-          result_sel_c,
-          ConditionBlock(
-            cond_3,
-            Return(cos_eval_2),
-            Return(cos_eval_3)
-          ), 
-          ConditionBlock(
-            (
-              Equal(modk, Constant(3* 2**(frac_pi_index-1)+1), precision = ML_Int32) | 
-              Equal(modk, Constant(3* 2**(frac_pi_index-1)), precision = ML_Int32) | 
-              Equal(modk, Constant(3* 2**(frac_pi_index-1)-1), precision = ML_Int32) 
-            ).modify_attributes(tag = "result_sel_d2", debug = debugd),
-            Return(cos_eval_d2),
-            Return(cos_eval_d)
-          )
-        )
-      )
+       Return(cos_eval_d)
+    )
 
     #######################################################################
     #                    LARGE ARGUMENT MANAGEMENT                        #
     #                 (lar: Large Argument Reduction)                     #
     #######################################################################
     # payne and hanek argument reduction for large arguments
-    ph_k = 6
+    ph_k = 4
     ph_frac_pi     = S2**ph_k / pi
     ph_inv_frac_pi = pi / S2**ph_k 
     # ph_chunk_num = 
@@ -427,12 +330,18 @@ class ML_SinCos(ML_Function("ml_cos")):
 
     # assigning Large Argument Reduction reduced variable
     lar_vx = Variable("lar_vx", precision = self.precision, var_type = Variable.Local)
-    lar_tab_index = Variable("lar_tab_index", precision = ML_Int32, var_type = Variable.Local)
+    lar_tab_index = Variable("lar_tab_index", precision = ML_Int32, var_type = Variable.Local, debug = debug_multi)
 
     lar_red_vx = lar_vx * Constant(ph_inv_frac_pi, precision = self.precision)
     lar_red_vx.set_attributes(tag = "lar_red_vx", debug = debug_precision)
 
-    red_bound     = S2**20
+    lar_red_vx_ext = Multiplication(
+      promote(lar_vx),
+      Constant(ph_inv_frac_pi, precision = ext_precision),
+      precision = ext_precision
+    )
+
+    red_bound     = S2**10
     lar_cond = Abs(vx) >= red_bound
     lar_cond.set_attributes(tag = "lar_cond", likely = False)
 
@@ -449,64 +358,34 @@ class ML_SinCos(ML_Function("ml_cos")):
     lar_poly_sin.set_attributes(tag = "lar_poly_sin", debug = debug_precision)
 
 
-    lar_cos_eval_d = lar_tabulated_cos_hi + (- lar_red_vx * (lar_tabulated_sin + (lar_tabulated_cos_hi * lar_red_vx * 0.5 + (lar_tabulated_sin * lar_poly_sin + (- lar_tabulated_cos_hi * lar_poly_cos)))) + lar_tabulated_cos_lo)
+    lar_cos_eval_d_ext = Addition(
+      Addition(
+        Addition(
+          promote(lar_tabulated_cos_hi),
+          promote(lar_tabulated_cos_lo),
+          precision = ext_precision
+        ),
+        Multiplication(
+          - lar_red_vx_ext, 
+          promote(lar_tabulated_sin),
+          precision = ext_precision,
+          debug = debug_multi,
+          tag = "sin_mon1"
+        ),
+        precision = ext_precision
+      ),
+      Multiplication(
+        promote(- lar_red_vx), 
+        promote(lar_tabulated_cos_hi * lar_red_vx * 0.5 + (lar_tabulated_sin * lar_poly_sin + (- lar_tabulated_cos_hi * lar_poly_cos))),
+        precision = ext_precision
+      ),
+      precision = ext_precision
+    )
+
+    lar_cos_eval_d = Conversion(lar_cos_eval_d_ext, precision = self.precision)
 
     lar_cos_eval_d.set_attributes(tag = "lar_cos_eval_d", debug = debug_precision, precision = self.precision)
     
-    lar_exact_sub = (lar_tabulated_cos_hi - lar_red_vx)
-    lar_exact_sub.set_attributes(tag = "lar_exact_sub", debug = debug_precision, unbreakable = True, prevent_optimization = True)
-
-    lar_cos_eval_2 = lar_exact_sub + ((- lar_red_vx * ((lar_tabulated_sin - 1) + (lar_tabulated_cos_hi * lar_red_vx * 0.5 + (lar_tabulated_sin * lar_poly_sin + (- lar_tabulated_cos_hi * lar_poly_cos))))) + lar_tabulated_cos_lo)
-    lar_cos_eval_2.set_attributes(tag = "lar_cos_eval_2", precision = self.precision, debug = debug_precision)
-
-    #lar_cos_eval_4 = - lar_red_vx - lar_red_vx * (lar_poly_sin)
-    lar_cos_eval_4 = lar_tabulated_sin * FusedMultiplyAdd(-lar_vx, Constant(ph_inv_frac_pi, precision = self.precision), -lar_red_vx * lar_poly_sin)
-    lar_cos_eval_4.set_attributes(tag = "lar_cos_eval_4", debug = debug_precision)
-
-    # to be used when lar_tabulated_sin is very close to 1 
-    lar_cos_eval_3 = (lar_tabulated_cos_hi + (- lar_red_vx - lar_red_vx * ((lar_tabulated_sin - 1) + lar_tabulated_cos_hi * lar_red_vx * 0.5 + lar_tabulated_sin * lar_poly_sin - lar_tabulated_cos_hi * lar_poly_cos))) + lar_tabulated_cos_lo 
-    lar_cos_eval_3.set_attributes(tag = "lar_cos_eval_3", precision = self.precision, debug = debug_precision)
-
-    # selecting int precision for cast corresponding to precision width
-    cast_int_precision = self.precision.get_integer_format()
-
-    lar_cond_3 = LogicalAnd(
-                Comparison(Abs(lar_red_vx), Constant(cos_table_hi[2**(frac_pi_index-1)-1][0] / S2, precision = self.precision), specifier = Comparison.GreaterOrEqual, tag = "lar_comp_bound", debug = True),
-                Equal(
-                  BitLogicRightShift(
-                    BitLogicXor(
-                      TypeCast(lar_red_vx, precision = cast_int_precision),
-                      TypeCast(lar_tabulated_cos_hi, precision = cast_int_precision)
-                    ),
-                    Constant(cast_int_precision.get_bit_size() - 1)
-                  ),
-                  Constant(1, precision = cast_int_precision)
-                ),
-              tag = "lar_cond3",
-              debug = True
-            )
-
-    lar_result_sel_c = (Equal(lar_tab_index, Constant(2**(frac_pi_index-1)-1), precision = ML_Int32) |
-                        Equal(lar_tab_index, Constant(2**(frac_pi_index-1)+1), precision = ML_Int32) # |
-                        # Equal(lar_tab_index, Constant(3 * 2**(frac_pi_index-1)+1), precision = ML_Int32) |
-                        # Equal(lar_tab_index, Constant(3 * 2**(frac_pi_index-1)-1), precision = ML_Int32)
-                        ).modify_attributes(
-                            tag = "lar_result_sel_c",
-                            debug = debugd
-                        )
-
-    lar_result_sel_mid_c = (Equal(lar_tab_index, Constant(2**(frac_pi_index-1)), precision = ML_Int32) | 
-                            Equal(lar_tab_index, Constant(3 * 2**(frac_pi_index-1)), precision = ML_Int32) 
-                          ).modify_attributes(tag = "lar_result_sel_mid_c", debug = debugd)
-    #LogicalOr(
-    #                LogicalOr(
-    #                  Equal(lar_tab_index, Constant(2**(frac_pi_index-1)-1), precision = ML_Int32),
-    #                  Equal(lar_tab_index, Constant(2**(frac_pi_index-1)), precision = ML_Int32)
-    #                ),
-    #                Equal(lar_tab_index, Constant(2**(frac_pi_index-1)+1), precision = ML_Int32),
-    #                tag = "result_sel_c",
-    #                debug = debugd
-    #              )
 
     int_precision = {
       ML_Binary64: ML_Int64,
@@ -519,23 +398,8 @@ class ML_SinCos(ML_Function("ml_cos")):
         ph_statement,
         ReferenceAssign(lar_vx, ph_acc, debug = debug_precision),
         ReferenceAssign(lar_tab_index, ph_acc_int_red, debug = debugd),
-        lar_cos_eval_4,
-        lar_cos_eval_3,
-        lar_cos_eval_2,
         lar_cos_eval_d,
-        ConditionBlock(
-          lar_result_sel_c,
-          ConditionBlock(
-            lar_cond_3,
-            Return(lar_cos_eval_2),
-            Return(lar_cos_eval_3)
-          ), 
-          ConditionBlock(
-            lar_result_sel_mid_c,
-            Return(lar_cos_eval_4),
-            Return(lar_cos_eval_d)
-          )
-        ),
+        Return(lar_cos_eval_d),
         prevent_optimization = True
       )
 
@@ -556,7 +420,7 @@ class ML_SinCos(ML_Function("ml_cos")):
     else:
       return cos(input_value)
 
-  standard_test_cases =[sollya.parse(x) for x in  ["0x1.d5c0bcp-4", "-0x1.3e25bp+2"]]
+  standard_test_cases =[sollya.parse(x) for x in  ["-0x1.419768p+18", "0x1.e57612p+19", "-0x1.fd0846p+2", "0x1.d5c0bcp-4", "-0x1.3e25bp+2"]]
 
 
 
