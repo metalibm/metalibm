@@ -11,7 +11,7 @@
 ###############################################################################
 
 import sollya
-from .ml_operations import LogicalOr, Comparison, FunctionObject 
+from .ml_operations import LogicalOr, Comparison, FunctionObject, Min, Abs, Subtraction
 from metalibm_core.code_generation.generator_utility import *
 
 ## Parent class for output precision indication/constraint
@@ -36,15 +36,28 @@ class ML_FunctionPrecision(object):
     raise NotImplementedError
   def get_error_print_call(self, function_name, input_value, local_result, output_values):
     raise NotImplementedError
+  ## generate an optree to get evaluation error between local_result 
+  # and output_values
+  def compute_error(self, local_result, output_values):
+    raise NotImplementedError
     
-## Faithful (error <= 1 ulp) rounding output precision indication
-class ML_Faithful(ML_FunctionPrecision):
+class ML_TwoFactorPrecision(ML_FunctionPrecision):
   def get_num_output_value(self):
     return 2
   def get_output_check_value(self, numeric_emulate, input_value):
     low_bound  = self.precision.round_sollya_object(numeric_emulate(input_value), sollya.RD)
     high_bound = self.precision.round_sollya_object(numeric_emulate(input_value), sollya.RU)
     return low_bound, high_bound
+
+  def compute_error(self, local_result, stored_outputs):
+    precision = local_result.get_precision()
+    low_bound, high_bound = stored_outputs
+    error = Min(
+      Abs(Subtraction(local_result, low_bound, precision = precision), precision = precision),
+      Abs(Subtraction(local_result, high_bound, precision = precision), precision = precision),
+      precision = precision
+    )
+    return error
 
   def get_output_check_test(self, test_result, stored_outputs):
     low_bound, high_bound = stored_outputs
@@ -77,6 +90,12 @@ class ML_CorrectlyRounded(ML_FunctionPrecision):
     expected_value = self.precision.round_sollya_object(numeric_emulate(input_value), sollya.RN)
     return (expected_value,)
 
+  def compute_error(self, local_result, output_values):
+    precision = local_result.get_precision()
+    expected_value,  = stored_outputs
+    error = Abs(Subtraction(local_result, expected_value, precision = precision), precision = precision)
+    return error
+
   def get_output_check_test(self, test_result, stored_outputs):
     expected_value,  = stored_outputs
     failure_test = Comparison(
@@ -100,10 +119,19 @@ class ML_CorrectlyRounded(ML_FunctionPrecision):
     print_function = self.get_output_print_function(function_name, footer)
     return print_function(expected_value)
 
+## Faithful (error <= 1 ulp) rounding output precision indication
+class ML_Faithful(ML_TwoFactorPrecision):
+  pass
+
 ## Degraded accuracy function output precision indication
-class ML_DegradedAccuracy(ML_FunctionPrecision):
+class ML_DegradedAccuracy(ML_TwoFactorPrecision):
   def __init__(self, goal):
     self.goal = goal
+
+  def set_precision(self, precision):
+    self.precision = precision
+    return self
+    
 
   ## return the absolute or relative goal assocaited
   #  with the accuracy object
@@ -111,7 +139,7 @@ class ML_DegradedAccuracy(ML_FunctionPrecision):
     return self.goal
 
 ## Degraded accuracy with absoute error function output precision indication
-class ML_DegradedAccuracyAbsolute(ML_DegradedAccuracy):
+class ML_DegradedAccuracyAbsolute(ML_DegradedAccuracy, ):
   """ absolute error accuracy """
   def __init__(self, absolute_goal):
     ML_DegradedAccuracy.__init__(self, absolute_goal)
@@ -128,10 +156,16 @@ class ML_DegradedAccuracyRelative(ML_DegradedAccuracy):
   def __str__(self):
     return "ML_DegradedAccuracyRelative(%s)" % self.goal
 
+  def get_output_check_value(self, numeric_emulate, input_value):
+    low_bound  = self.precision.round_sollya_object(numeric_emulate(input_value) * (1 - self.goal), sollya.RD)
+    high_bound = self.precision.round_sollya_object(numeric_emulate(input_value) * (1 + self.goal), sollya.RU)
+    return low_bound, high_bound
+
+
 
 ## degraded absolute accuracy alias
 def daa(*args, **kwords):
-    return ML_DegradedAccuracyAbsolute(*args, **kwords)
+    return lambda precision: ML_DegradedAccuracyAbsolute(*args, **kwords).set_precision(precision)
 ## degraded relative accuracy alias
 def dar(*args, **kwords):
-    return ML_DegradedAccuracyRelative(*args, **kwords)
+    return lambda precision: ML_DegradedAccuracyRelative(*args, **kwords).set_precision(precision)

@@ -95,8 +95,9 @@ class DefaultArgTemplate:
   auto_test_execute = False
   auto_test_range = Interval(0, 1)
   auto_test_std   = False
+  # enable max error computation
+  compute_max_error = False
   # bench properties
-  #bench_enabled   = False
   bench_execute   = False
   bench_test_number = 0
   bench_test_range  = Interval(0, 1)
@@ -197,6 +198,9 @@ class ML_FunctionBasis(object):
     self.auto_test_execute = ArgDefault.select_value([arg_template.auto_test_execute])
     self.auto_test_range = ArgDefault.select_value([arg_template.auto_test_range, auto_test_range])
     self.auto_test_std   = auto_test_std 
+
+    # enable the computation of maximal error during functional testing
+    self.compute_max_error = arg_template.compute_max_error
 
     # enable and configure the generation of a performance bench
     self.bench_enabled = bench_test_number or bench_execute
@@ -832,6 +836,9 @@ class ML_FunctionBasis(object):
     printf_op = FunctionOperator("printf", arg_map = {0: "\"error[%%d]: %s(%s), result is %s vs expected \"" % (self.function_name, self.precision.get_display_format(), self.precision.get_display_format()), 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2)}, void_function = True) 
     printf_input_function = FunctionObject("printf", [ML_Int32] + [self.precision] * 2, ML_Void, printf_op)
 
+    printf_error_op = FunctionOperator("printf", arg_map = {0: "\"max %s error is %s \\n \"" % (self.function_name, self.precision.get_display_format()), 1: FO_Arg(0)}, void_function = True) 
+    printf_error_function = FunctionObject("printf", [self.precision], ML_Void, printf_error_op)
+
     loop_increment = self.get_vector_size()
 
     test_loop = Loop(
@@ -850,7 +857,45 @@ class ML_FunctionBasis(object):
         ReferenceAssign(vi, vi + loop_increment)
       ),
     )
-    return test_loop
+
+    test_statement = Statement() 
+
+    if self.compute_max_error:
+      eval_error = Variable("max_error", precision = self.precision, var_type = Variable.Local)
+
+      local_result  = tested_function(TableLoad(input_table, vi))
+      stored_values = [TableLoad(output_table, vi, i) for i in xrange(self.accuracy_obj.get_num_output_value())]
+
+      error_loop = Loop(
+        ReferenceAssign(vi, Constant(0, precision = ML_Int32)),
+        vi < test_num_cst,
+        Statement(
+          assignation_statement,
+          ReferenceAssign(
+            eval_error,
+            Max(
+              Division(
+                self.accuracy_obj.compute_error(local_result, stored_values),
+                local_result,
+                precision = self.precision
+              ),
+              eval_error,
+              precision = self.precision
+            )
+          ),
+          ReferenceAssign(vi, vi + loop_increment)
+        ),
+      )
+      test_statement.add(Statement(
+        ReferenceAssign(eval_error, Constant(0, precision = self.precision)),
+        error_loop,
+        printf_error_function(eval_error)
+      ))
+
+    # adding functional test_loop to test statement
+    test_statement.add(test_loop)
+
+    return test_statement
 
 
   ## Generate a test wrapper for the @p self function 

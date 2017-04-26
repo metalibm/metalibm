@@ -192,6 +192,8 @@ class ML_CommonArgTemplate(object):
     self.parser.add_argument("--auto-test", dest = "auto_test", action = "store", nargs = '?', const=10, type=int, default = ArgDefault(False), help = "enable the generation of a self-testing numerical/functionnal bench")
     self.parser.add_argument("--auto-test-execute", dest = "auto_test_execute", action = "store", nargs = '?', const=10, type=int, default = ArgDefault(False), help = "enable the generation of a self-testing numerical/functionnal bench")
     self.parser.add_argument("--auto-test-range", dest = "auto_test_range", action = "store", type=interval_parser, default = ArgDefault(Interval(-1,1)), help = "define the range of input values to be used during functional testing")
+    # enable the computation of eval error (if self-testing enabled)
+    self.parser.add_argument("--max-error", dest = "compute_max_error", action = "store_const", const = True, default = False, help = "enable the computation of the maximum error (if auto-test is enabled)")
     # performance bench related arguments
     self.parser.add_argument("--bench", dest = "bench_test_number", action = "store", nargs = '?', const=1000, type=int, default = ArgDefault(False), help = "enable the generation of a performance bench")
     self.parser.add_argument("--bench-execute", dest = "bench_execute", action = "store", nargs = '?', const=1000, type=int, default = ArgDefault(False), help = "enable the generation and execution of a performance bench")
