@@ -109,6 +109,25 @@ class ML_Table(ML_LeafNode):
           if high_bound is None or high_bound < value: high_bound = value
         return Interval(low_bound, high_bound)
 
+    ## return the interval containing each value of the Table
+    def get_interval(self):
+        def build_range_set(dimensions, prefix = []):
+          if len(dimensions) == 1:
+            return [(prefix + [i]) for i in xrange(dimensions[0])]
+          else:
+            return sum([build_range_set(dimensions[1:], prefix = prefix + [i]) for i in xrange(dimensions[0])], [])
+
+        def get_rec_index(table, range_tuple):
+          if len(range_tuple) == 1:
+            return table[range_tuple[0]]
+          else:
+            return get_rec_index(table[range_tuple[0]], range_tuple[1:])
+
+        def get_index(self, range_tuple):
+          return get_rec_index(self.table, range_tuple)
+          
+        return self.get_subset_interval(get_index, build_range_set(self.dimensions))
+
 
     def get_definition(self, table_name, final = ";", language = C_Code):
         precision_name = self.get_storage_precision().get_name(language = language)

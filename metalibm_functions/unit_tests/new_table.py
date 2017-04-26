@@ -85,6 +85,8 @@ class ML_UT_NewTable(ML_Function("ml_ut_new_table")):
     load_value_lo = TableLoad(new_table, index, Constant(0, precision = ML_Int32), precision = self.precision)
     load_value_hi = TableLoad(new_table, index, Constant(1, precision = ML_Int32), precision = self.precision)
 
+    Log.report(Log.Info, "table interval: {}".format(new_table.get_interval()))
+
     out_table = ML_NewTable(dimensions = [table_size], storage_precision = self.precision, empty = True)
 
     result = Addition(
