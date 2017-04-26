@@ -434,7 +434,7 @@ class ML_FunctionBasis(object):
 
     # generate auto-test wrapper
     if self.auto_test_enable:
-      auto_test_function_list = self.generate_auto_test(
+      auto_test_function_list = self.generate_test_wrapper(
         test_num = self.auto_test_number if self.auto_test_number else 0,
         test_range = self.auto_test_range
       )
@@ -678,7 +678,7 @@ class ML_FunctionBasis(object):
   #  @param test_num   number of test to perform
   #  @param test_range numeric range for test's inputs
   #  @param debug enable debug mode
-  def generate_auto_test(self, test_num = 10, test_range = Interval(-1.0, 1.0), debug = False):
+  def generate_test_wrapper(self, test_num = 10, test_range = Interval(-1.0, 1.0), debug = False):
     low_input = inf(test_range)
     high_input = sup(test_range)
     auto_test = CodeFunction("main", output_format = ML_Int32)
