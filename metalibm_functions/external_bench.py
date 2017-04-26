@@ -72,6 +72,8 @@ class ML_ExternalBench(ML_Function("ml_external_bench")):
     self.libraries = arg_template.libraries
     self.bench_function_name = arg_template.bench_function_name
 
+    self.emulate = arg_template.emulate
+
 
 
   def generate_scheme(self): 
@@ -90,6 +92,9 @@ class ML_ExternalBench(ML_Function("ml_external_bench")):
 
     return scheme
 
+  def numeric_emulate(self, *args):
+    return self.emulate(*args)
+
 if __name__ == "__main__":
   # auto-test
   arg_template = ML_NewArgTemplate(default_function_name = "bench_wrapper", default_output_file = "bench.c" )
@@ -101,6 +106,9 @@ if __name__ == "__main__":
   arg_template.get_parser().add_argument("--input-formats", dest = "input_formats", default = [ML_Binary32], action = "store", type = precision_list_parser, help = "comma separated list of input precision")
   arg_template.get_parser().add_argument("--headers", dest = "headers", default = [], action = "store", type = lambda s: s.split(","), help = "comma separated list of required headers")
   arg_template.get_parser().add_argument("--libraries", dest = "libraries", default = [], action = "store", type = lambda s: s.split(","), help = "comma separated list of required libraries")
+  def local_eval(s):
+    return eval(s)
+  arg_template.get_parser().add_argument("--emulate", dest = "emulate", default = lambda x: x, action = "store", type = local_eval, help = "function numeric emulation")
 
 
   args = arg_template.arg_extraction()
