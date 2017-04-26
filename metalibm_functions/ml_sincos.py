@@ -30,6 +30,8 @@ from metalibm_core.utility.gappa_utils import is_gappa_installed
 
 
 
+## Implementation of sine or cosine sharing a common
+#  approximation scheme
 class ML_SinCos(ML_Function("ml_cos")):
   """ Implementation of cosinus function """
   def __init__(self, 
@@ -119,7 +121,7 @@ class ML_SinCos(ML_Function("ml_cos")):
 
     # argument reduction
     # m 
-    frac_pi_index = {ML_Binary32: 5, ML_Binary64: 6}[self.precision]
+    frac_pi_index = {ML_Binary32: 4, ML_Binary64: 6}[self.precision]
 
     # 2^m / pi 
     frac_pi     = round(S2**frac_pi_index / pi, sollya_precision, sollya.RN)
@@ -160,6 +162,8 @@ class ML_SinCos(ML_Function("ml_cos")):
 
     approx_interval = Interval(-pi/(S2**(frac_pi_index+1)), pi / S2**(frac_pi_index+1))
 
+    red_vx.set_interval(approx_interval)
+
     Log.report(Log.Info, "approx interval: %s\n" % approx_interval)
 
     error_goal_approx = S2**-self.precision.get_precision()
@@ -187,7 +191,6 @@ class ML_SinCos(ML_Function("ml_cos")):
       cos_local_hi = round(cos(local_x), cos_hi_prec, sollya.RN)
       cos_table_hi[i][0] = cos_local_hi 
       cos_table_lo[i][0] = round(cos(local_x) - cos_local_hi, self.precision.get_sollya_object(), sollya.RN)
-      #cos_table_d[i][0] = round(cos(local_x), ML_Binary64.get_sollya_object(), sollya.RN)
 
       sin_table[i][0] = round(sin(local_x), self.precision.get_sollya_object(), sollya.RN)
 
@@ -195,6 +198,10 @@ class ML_SinCos(ML_Function("ml_cos")):
     tabulated_cos_hi = TableLoad(cos_table_hi, modk, 0, tag = "tab_cos_hi", debug = debug_precision, precision = self.precision) 
     tabulated_cos_lo = TableLoad(cos_table_lo, modk, 0, tag = "tab_cos_lo", debug = debug_precision, precision = self.precision) 
     tabulated_sin  = TableLoad(sin_table, modk, 0, tag = "tab_sin", debug = debug_precision, precision = self.precision) 
+
+    Log.report(Log.Info, "tabulated cos hi interval: {}".format(cos_table_hi.get_interval()))
+    Log.report(Log.Info, "tabulated cos lo interval: {}".format(cos_table_lo.get_interval()))
+    Log.report(Log.Info, "tabulated sin    interval: {}".format(sin_table.get_interval()))
 
     Log.report(Log.Info, "building mathematical polynomials for sin and cos")
     poly_degree_cos   = sup(guessdegree(cos(sollya.x), approx_interval, S2**-(self.precision.get_field_size()+1)) ) + 2
@@ -213,26 +220,25 @@ class ML_SinCos(ML_Function("ml_cos")):
       poly_degree_cos_list = [0, 2, 4, 6]
       poly_degree_sin_list = [0, 2, 4, 6]
 
+    # cosine polynomial: limiting first and second coefficient precision to 1-bit
     poly_cos_prec_list = [1, 1] + [self.precision] * (len(poly_degree_cos_list) - 2)
+    # sine polynomial: limiting first coefficient precision to 1-bit
     poly_sin_prec_list = [1] + [self.precision] * (len(poly_degree_sin_list) - 1)
 
     error_function = lambda p, f, ai, mod, t: dirtyinfnorm(f - p, ai)
 
+    # Polynomial approximations
     poly_object_cos, poly_error_cos = Polynomial.build_from_approximation_with_error(cos(sollya.x), poly_degree_cos_list, poly_cos_prec_list, approx_interval, sollya.absolute, error_function = error_function)
     poly_object_sin, poly_error_sin = Polynomial.build_from_approximation_with_error(sin(sollya.x)/sollya.x, poly_degree_sin_list, poly_sin_prec_list, approx_interval, sollya.absolute, error_function = error_function)
-  
-    print poly_object_cos.get_sollya_object()
-    print poly_object_sin.get_sollya_object()
-    print "poly_error: ", poly_error_cos, poly_error_sin
 
+    Log.report(Log.Info, "poly error cos: {} / {:d}".format(poly_error_cos, int(sollya.log2(poly_error_cos))))
+    Log.report(Log.Info, "poly error sin: {0} / {1:d}".format(poly_error_sin, int(sollya.log2(poly_error_sin))))
+  
+    # Polynomial evaluation scheme
     poly_cos = polynomial_scheme_builder(poly_object_cos.sub_poly(start_index = 4, offset = 1), red_vx, unified_precision = self.precision)
     poly_sin = polynomial_scheme_builder(poly_object_sin.sub_poly(start_index = 2), red_vx, unified_precision = self.precision)
     poly_cos.set_attributes(tag = "poly_cos", debug = debug_precision)
     poly_sin.set_attributes(tag = "poly_sin", debug = debug_precision)
-
-
-    cos_eval_d = (tabulated_cos_hi - red_vx * (tabulated_sin + (tabulated_cos_hi * red_vx * 0.5 + (tabulated_sin * poly_sin + (- tabulated_cos_hi * poly_cos))))) + tabulated_cos_lo
-    cos_eval_d.set_precision(self.precision)
 
     # extended precision to be used when more accuracy
     # than the working precision is required
@@ -240,6 +246,30 @@ class ML_SinCos(ML_Function("ml_cos")):
       ML_Binary32: ML_Binary64,
       ML_Binary64: ML_DoubleDouble
     }[self.precision]
+
+    # evaluation scheme
+    cos_eval_d = (tabulated_cos_hi - red_vx * (tabulated_sin + (tabulated_cos_hi * red_vx * 0.5 + (tabulated_sin * poly_sin + (- tabulated_cos_hi * poly_cos))))) + tabulated_cos_lo
+    cos_eval_d.set_precision(self.precision)
+
+    cos_eval_d_ext = Subtraction(
+        Addition(
+          Conversion(tabulated_cos_hi, precision = ext_precision),
+          Conversion(tabulated_cos_lo, precision = ext_precision)
+        ),
+        Multiplication(
+          Conversion(red_vx, precision = ext_precision),
+          Conversion((tabulated_sin + (tabulated_cos_hi * red_vx * 0.5 + (tabulated_sin * poly_sin + (- tabulated_cos_hi * poly_cos)))), precision = ext_precision),
+          precision = ext_precision
+        ),
+        precision = ext_precision
+      )
+    cos_eval_d = Conversion(cos_eval_d_ext, precision = self.precision, tag = "cos_eval_d")
+
+
+    # cos_eval_d = tabulated_cos_hi + FusedMultiplyAdd(- red_vx, (tabulated_sin + (tabulated_cos_hi * red_vx * 0.5 + (tabulated_sin * poly_sin + (- tabulated_cos_hi * poly_cos)))), tabulated_cos_lo)
+
+    cos_eval_d.set_attributes(tag = "cos_eval_d", debug = debug_precision, precision = self.precision)
+
 
     promote = {
       ML_Binary32: lambda x: Conversion(x, precision = ext_precision, tag = "promote"),
@@ -255,37 +285,36 @@ class ML_SinCos(ML_Function("ml_cos")):
     cos_eval_lo_dd_op3 = ((-tabulated_sin) * (poly_sin * red_vx)).modify_attributes(precision = self.precision)
     cos_eval_lo_dd_op4 = ((tabulated_cos_hi) * (red_vx * poly_cos)).modify_attributes(precision = self.precision)
 
+    # Extended precision evaluation
     cos_eval_d2_add = AdditionN(
-                        promote(tabulated_cos_hi),
-                        AdditionN(
-                          cos_eval_lo_dd_op1, 
-                          promote(
-                            AdditionN(
-                              cos_eval_lo_dd_op2,
-                              cos_eval_lo_dd_op3,
-                              cos_eval_lo_dd_op4,
-                              tabulated_cos_lo,
-                              unbreakable = True,
-                              precision = self.precision
-                            )
-                          ),
-                          precision = ext_precision,
-                          unbreakable = True
-                        ),
-                        precision = ext_precision,
-                        unbreakable = True
-                      )
+      promote(tabulated_cos_hi),
+      AdditionN(
+        cos_eval_lo_dd_op1, 
+        promote(
+          AdditionN(
+            cos_eval_lo_dd_op2,
+            cos_eval_lo_dd_op3,
+            cos_eval_lo_dd_op4,
+            tabulated_cos_lo,
+            unbreakable = True,
+            precision = self.precision
+          )
+        ),
+        precision = ext_precision,
+        unbreakable = True
+      ),
+      precision = ext_precision,
+      unbreakable = True
+    )
 
 
-    cos_eval_d2_add.set_attributes(unbreakable = True, precision = ext_precision, tag = "cos_eval_d2_add", debug = debug_ddtolx)
+    # cos_eval_d2 is a more precise evaluation than cos_eval_d
+    # using extended precision for some of the last steps
+    cos_eval_d2_add.set_attributes(unbreakable = True, precision = ext_precision, tag = "cos_eval_d2_add", debug = {ML_DoubleDouble: debug_ddtolx, ML_Binary64: debug_lftolx}[ext_precision])
     #cos_eval_d2 = cos_eval_d2_add.hi.modify_attributes(precision = self.precision) + cos_eval_d2_add.lo.modify_attributes(precision = self.precision)
     cos_eval_d2 = cos_eval_d2_add.hi.modify_attributes(precision = self.precision) 
     cos_eval_d2.set_attributes(tag = "cos_eval_d2", debug = debug_precision, precision = self.precision)
 
-
-    # cos_eval_d = tabulated_cos_hi + FusedMultiplyAdd(- red_vx, (tabulated_sin + (tabulated_cos_hi * red_vx * 0.5 + (tabulated_sin * poly_sin + (- tabulated_cos_hi * poly_cos)))), tabulated_cos_lo)
-
-    cos_eval_d.set_attributes(tag = "cos_eval_d", debug = debug_precision, precision = self.precision)
     
     exact_sub = (tabulated_cos_hi - red_vx)
     exact_sub.set_attributes(tag = "exact_sub", debug = debug_precision, unbreakable = True, prevent_optimization = True, precision = self.precision)
@@ -301,8 +330,6 @@ class ML_SinCos(ML_Function("ml_cos")):
     cos_eval_d_eerror = []
     for i in xrange(0, 2**(frac_pi_index-1)-3):
       copy_map = {
-        #tabulated_cos_hi : Constant(cos_table_hi[i][0], tag = "tabulated_cos_hi", precision = ML_Binary64), 
-        #tabulated_sin    : Constant(sin_table[i][0], tag = "tabulated_sin", precision = ML_Binary64),
         tabulated_cos_hi : Variable("tabulated_cos_hi", interval = Interval(cos_table_hi[i][0]), precision = self.precision), 
         tabulated_cos_lo : Variable("tabulated_cos_lo", interval = Interval(cos_table_lo[i][0]), precision = self.precision), 
         tabulated_sin    : Variable("tabulated_sin", interval = Interval(sin_table[i][0]), precision = self.precision),
@@ -316,8 +343,6 @@ class ML_SinCos(ML_Function("ml_cos")):
 
     for i in xrange(2**(frac_pi_index-1)-3, 2**(frac_pi_index-1)-1):
       copy_map = {
-        #tabulated_cos_hi : Constant(cos_table_hi[i][0], tag = "tabulated_cos_hi", precision = ML_Binary64), 
-        #tabulated_sin    : Constant(sin_table[i][0], tag = "tabulated_sin", precision = ML_Binary64),
         tabulated_cos_hi : Variable("tabulated_cos_hi", interval = Interval(cos_table_hi[i][0]), precision = self.precision), 
         tabulated_cos_lo : Variable("tabulated_cos_lo", interval = Interval(cos_table_lo[i][0]), precision = self.precision), 
         tabulated_sin    : Variable("tabulated_sin", interval = Interval(sin_table[i][0]), precision = self.precision),
@@ -531,6 +556,7 @@ class ML_SinCos(ML_Function("ml_cos")):
     else:
       return cos(input_value)
 
+  standard_test_cases =[sollya.parse(x) for x in  ["0x1.d5c0bcp-4", "-0x1.3e25bp+2"]]
 
 
 
