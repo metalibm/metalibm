@@ -699,9 +699,12 @@ class ML_FunctionBasis(object):
     if self.auto_test_std:
       test_total += num_std_case
     # round up the number of tests to the implementation vector-size
-    diff = self.get_vector_size() - (test_total % self.get_vector_size())
+    diff = self.get_vector_size() - (test_total % self.get_vector_size()) - 1
+    assert diff >= 0
     test_total += diff
     test_num   += diff
+
+    Log.report(Log.Info, "test total and num: {} {}".format(test_total, test_num))
 
     sollya_precision = self.precision.get_sollya_object()
     interval_size = high_input - low_input 
@@ -738,10 +741,10 @@ class ML_FunctionBasis(object):
 
     if self.implementation.get_output_format().is_vector_format():
       # vector implementation test
-      test_loop = self.get_vector_test_wrapper(test_num, tested_function, input_table, output_table)
+      test_loop = self.get_vector_test_wrapper(test_total, tested_function, input_table, output_table)
     else: 
       # scalar implemetation test
-      test_loop = self.get_scalar_test_wrapper(test_num, tested_function, input_table, output_table)
+      test_loop = self.get_scalar_test_wrapper(test_total, tested_function, input_table, output_table)
 
     # common test scheme between scalar and vector functions
     test_scheme = Statement(
