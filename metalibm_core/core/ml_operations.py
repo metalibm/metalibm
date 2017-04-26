@@ -698,23 +698,39 @@ def FMASpecifier_Builder(name, arity, range_function = None):
     """ Test Specifier constructor """
     return type(name, (FMASpecifier,), {"arity": arity, "name": name, "range_function": staticmethod(range_function)})
 
+## Fused Multiply-Add (FMA) operation
+#
+# specifier by one of the following  specifiers:
+# - FusedMultiplyAdd.Standard FMA         op0 * op1 + op2
+# - FusedMultiplyAdd.Subtract FMA         op0 * op1 - op2
+# - FusedMultiplyAdd.Negate FMA         - op0 * op1 - op2
+# - FusedMultiplyAdd.SubtractNegate FMA - op0 * op1 + op2
+# - FusedMultiplyAdd.SubtractNegate FMA - op0 * op1 + op2
+# - FusedMultiplyAdd.DotProduct         op0 * op1 + op2 * op3
+# - FusedMultiplyAdd.DotProductNegate   op0 * op1 + op2 * op3
 class FusedMultiplyAdd(ArithmeticOperationConstructor("FusedMultiplyAdd", inheritance = [SpecifierOperation], range_function = lambda optree, ops: optree.specifier.range_function(optree, ops))):
     """ abstract fused multiply and add operation op0 * op1 + op2 """
+    ## standard FMA op0 * op1 + op2
     class Standard(FMASpecifier_Builder("Standard", 3, lambda optree, ops: ops[0] * ops[1] + ops[2])):
         """ op0 * op1 + op2 """
         pass
+    ## Subtract FMA op0 * op1 - op2
     class Subtract(FMASpecifier_Builder("Subtract", 3, lambda optree, ops: ops[0] * ops[1] - ops[2])): 
         """ op0 * op1 - op2 """
         pass
+    ## Negate FMA - op0 * op1 - op2
     class Negate(FMASpecifier_Builder("Negate", 3, lambda _self, ops: - ops[0] * ops[1] - ops[2])): 
         """ -op0 * op1 - op2 """
         pass
+    ## Subtract Negate FMA - op0 * op1 + op2
     class SubtractNegate(FMASpecifier_Builder("SubtractNegate", 3, lambda _self, ops: - ops[0] * ops[1] + ops[2])):
         """ -op0 * op1 + op2 """
         pass
+    ## Dot Product op0 * op1 + op2 * op3
     class DotProduct(FMASpecifier_Builder("DotProduct", 4, lambda _self, ops: ops[0] * ops[1] + ops[2] * ops[3])):
         """ op0 * op1 + op2 * op3 """
         pass
+    ## Dot Product Negate op0 * op1 - op2 * op3
     class DotProductNegate(FMASpecifier_Builder("DotProductNegate", 4, lambda _self, ops: ops[0] * ops[1] - ops[2] * ops[3])):
         """ op0 * op1 - op2 * op3 """
         pass
