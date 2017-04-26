@@ -154,6 +154,12 @@ class AbstractBackend(object):
         """ return whether or not the operation performed by optree is supported by any level of the processor hierarchy """
         return self.is_map_supported_operation(self.simplified_rec_op_map, optree, language, debug = debug, key_getter = key_getter)
 
+    ## Test if an operation class with given prototype is supported
+    def test_operation_support(self, op_class, out_format, in_formats, specifier = None):
+      dummy_inputs = [Variable("dummy_%d" % i, precision = input_format) for i,input_format in enumerate(in_formats)]
+      dummy_op = op_class(*dummy_inputs, precision = out_format, specifier = specifier)
+      return self.is_supported_operation(dummy_op)
+
     @staticmethod
     def get_operation_keys(optree):
         """ return code_generation_table key corresponding to the operation performed by <optree> """
