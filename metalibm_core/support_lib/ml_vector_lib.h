@@ -503,16 +503,21 @@ DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vexp_extraction_f2, ml_int2_t, ml_float2_t, 2, m
 DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vexp_extraction_f4, ml_int4_t, ml_float4_t, 4, ml_exp_extraction_dirty_fp32)
 DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vexp_extraction_f8, ml_int8_t, ml_float8_t, 8, ml_exp_extraction_dirty_fp32)
 
+/** Mantissa extraction */
+DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vmantissa_extraction_f2, ml_float2_t, ml_float2_t, 2, ml_mantissa_extraction_fp32)
+DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vmantissa_extraction_f4, ml_float4_t, ml_float4_t, 4, ml_mantissa_extraction_fp32)
+DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vmantissa_extraction_f8, ml_float8_t, ml_float8_t, 8, ml_mantissa_extraction_fp32)
+
 
 /** Vector element-wise selection */
 #define ML_VSELECT(result,test,op0,op1,size) {\
-  unsigned k; for (k = 0; k < size; ++k) (result)->_[k] = (test)._[k] ? (op0)._[k] : (op1)._[k]; };
+  unsigned __k; for (__k = 0; __k < size; ++__k) (result)->_[__k] = (test)._[__k] ? (op0)._[__k] : (op1)._[__k]; };
 
 /** Vector element-wise load (gather) */
 #define ML_VLOAD(result,table,addr,size) {\
-  unsigned k; for (k = 0; k < size; ++k) (result)->_[k] = table[(addr)._[k]]; };
+  unsigned __k; for (__k = 0; __k < size; ++__k) (result)->_[__k] = table[(addr)._[__k]]; };
 /** Vector element-wise load (gather) for 2D table */
 #define ML_VLOAD2D(result,table,addr0,addr1,size) {\
-  unsigned k; for (k = 0; k < size; ++k) (result)->_[k] = table[(addr0)._[k]][(addr1)._[k]]; };
+  unsigned __k; for (__k = 0; __k < size; ++__k) (result)->_[__k] = table[(addr0)._[__k]][(addr1)._[__k]]; };
 #define ML_VCONV(dst,src,size) {\
-  unsigned k; for (k = 0; k < size; ++k) (dst)->_[k] = (src)._[k]; };
+  unsigned __k; for (__k = 0; __k < size; ++__k) (dst)->_[__k] = (src)._[__k]; };
