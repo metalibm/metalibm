@@ -69,5 +69,7 @@ debug_multi = ML_MultiDebug({
   v2bool: debug_int2,
   v4bool: debug_int4,
   v8bool: debug_int8,
-  ML_Bool:  debugd
+  ML_Bool:  debugd,
+
+  ML_DoubleDouble: debug_dd,
 })
