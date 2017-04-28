@@ -104,6 +104,8 @@ class DefaultArgTemplate:
   bench_function_name = "undefined"
   headers = []
   libraries = []
+  # emulation numeric function 
+  emulate = lambda x: x
   # list of pre-code generation opt passe names (string tag)
   pre_gen_passes = []
   check_processor_support = True
