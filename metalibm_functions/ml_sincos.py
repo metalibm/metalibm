@@ -46,8 +46,8 @@ class ML_SinCos(ML_Function("ml_cos")):
                fuse_fma = True, 
                fast_path_extract = True,
                target = GenericProcessor(), 
-               output_file = "cosf.c", 
-               function_name = "cosf", 
+               output_file = "ml_cos.c", 
+               function_name = "ml_cos", 
                sin_output = True):
     # initializing I/O precision
     precision = ArgDefault.select_value([arg_template.precision, precision])
@@ -149,7 +149,12 @@ class ML_SinCos(ML_Function("ml_cos")):
     # pi / 2^m, low part
     inv_frac_pi_lo = round(pi / S2**frac_pi_index - inv_frac_pi, sollya_precision, sollya.RN)
     # computing k = E(x * frac_pi)
-    vx_pi = Multiplication(vx, frac_pi, precision = self.precision)
+    vx_pi = Multiplication(
+      vx, 
+      Constant(frac_pi, precision = self.precision), 
+      precision = self.precision,
+      tag = "vx_pi"
+    )
     k = NearestInteger(vx_pi, precision = ML_Int32, tag = "k", debug = debugd)
     # k in floating-point precision
     fk = Conversion(k, precision = self.precision, tag = "fk")
@@ -164,7 +169,7 @@ class ML_SinCos(ML_Function("ml_cos")):
     # red_vx_lo_sub.set_attributes(tag = "red_vx_lo_sub", debug = debug_precision, unbreakable = True, precision = self.precision)
     vx_d = Conversion(vx, precision = self.precision, tag = "vx_d")
     #pre_red_vx = red_vx_hi - inv_frac_pi_lo_cst * fk
-    pre_red_vx = FusedMultiplyAdd(inv_frac_pi_lo_cst, fk, red_vx_hi, specifier = FusedMultiplyAdd.SubtractNegate, precision = self.precision)
+    red_vx_std = FusedMultiplyAdd(inv_frac_pi_lo_cst, fk, red_vx_hi, specifier = FusedMultiplyAdd.SubtractNegate, precision = self.precision, tag = "red_vx_std")
     # pre_red_vx_d_hi = (vx_d - inv_frac_pi_cst * fk)
     # pre_red_vx_d_hi.set_attributes(tag = "pre_red_vx_d_hi", precision = self.precision, debug = debug_lftolx)
     # pre_red_vx_d = pre_red_vx_d_hi - inv_frac_pi_lo_cst * fk
@@ -182,17 +187,20 @@ class ML_SinCos(ML_Function("ml_cos")):
     else:
       offset_k = k
 
+    # multi-path shared variable
+    modk       = Variable("modk", precision = ML_Int32, var_type = Variable.Local)
+    red_vx     = Variable("red_vx", precision = self.precision, var_type = Variable.Local)
+    red_vx_ext = Variable("red_vx_ext", precision = ext_precision, var_type = Variable.Local)
 
     #modk = Modulo(offset_k, 2**(frac_pi_index+1), precision = ML_Int32, tag = "modk", debug = True)
-    modk = BitLogicAnd(offset_k, 2**(frac_pi_index+1)-1, precision = ML_Int32, tag = "modk", debug = True)
+    modk_std = BitLogicAnd(offset_k, 2**(frac_pi_index+1)-1, precision = ML_Int32, tag = "modk", debug = True)
+
 
     sel_c = Equal(BitLogicAnd(modk, 2**(frac_pi_index-1)), 2**(frac_pi_index-1))
     sel_c.set_attributes(tag = "sel_c", debug = debugd)
-    red_vx = pre_red_vx # Select(sel_c, -pre_red_vx, pre_red_vx)
-    red_vx.set_attributes(tag = "red_vx", debug = debug_precision, precision = self.precision)
+    # red_vx_std = pre_red_vx 
+    #red_vx.set_attributes(tag = "red_vx", debug = debug_precision, precision = self.precision)
 
-    # red_vx_d = Select(sel_c, -pre_red_vx_d, pre_red_vx_d)
-    # red_vx_d.set_attributes(tag = "red_vx_d", debug = debug_lftolx, precision = self.precision)
 
     approx_interval = Interval(-pi/(S2**(frac_pi_index+1)), pi / S2**(frac_pi_index+1))
 
@@ -288,8 +296,8 @@ class ML_SinCos(ML_Function("ml_cos")):
     if not isinstance(ext_precision, ML_Compound_Format):
       tabulated_cos_ext = TableLoad(cos_table_ext, modk, tag = "tab_cos_ext", debug = debug_precision, precision = ext_precision) 
       tabulated_sin_ext  = TableLoad(sin_table_ext, modk, tag = "tab_sin_ext", debug = debug_precision, precision = ext_precision) 
-      red_vx_ext = FusedMultiplyAdd(
-        Constant(inv_frac_pi_ext , precision =ext_precision),
+      red_vx_ext_std = FusedMultiplyAdd(
+        Constant(inv_frac_pi_ext , precision = ext_precision),
         promote(fk), 
         promote(vx), 
         specifier = FusedMultiplyAdd.Subtract, 
@@ -312,7 +320,7 @@ class ML_SinCos(ML_Function("ml_cos")):
         precision = ext_precision
       )
       tabulated_sin_ext = promote(tabulated_sin)
-      red_vx_ext = promote(
+      red_vx_ext_std = promote(
         Negation(
           red_vx,
           precision = self.precision
@@ -387,118 +395,70 @@ class ML_SinCos(ML_Function("ml_cos")):
     lar_red_vx = Multiplication(
       lar_vx,
       Constant(ph_inv_frac_pi, precision = self.precision),
-      precision = self.precision
+      precision = self.precision,
+      tag = "lar_red_vx",
+      debug = debug_multi
     )
-    lar_red_vx.set_attributes(tag = "lar_red_vx", debug = debug_precision)
 
 
     if not isinstance(ext_precision, ML_Compound_Format):
       lar_red_vx_ext = Multiplication(
         promote(lar_vx),
         Constant(ph_inv_frac_pi, precision = ext_precision),
-        precision = ext_precision
+        precision = ext_precision,
+        tag = "lar_red_vx_ext",
+        debug = debug_multi
       )
     else:
       lar_red_vx_ext = Multiplication(
         promote(lar_vx),
         Constant(ph_inv_frac_pi, precision = self.precision),
-        precision = ext_precision
+        precision = ext_precision,
+        tag = "lar_red_vx_ext",
+        debug = debug_multi
       )
 
     lar_cond = vx >= red_bound
-    lar_cond.set_attributes(tag = "lar_cond", likely = False)
+    lar_cond.set_attributes(tag = "lar_cond", likely = False, debug = debug_multi)
 
     
-    lar_tabulated_cos_hi = TableLoad(cos_table_hi, lar_tab_index, 0, tag = "lar_tab_cos_hi", debug = debug_precision) 
-    lar_tabulated_cos_lo = TableLoad(cos_table_lo, lar_tab_index, 0, tag = "lar_tab_cos_lo", debug = debug_precision) 
-    lar_tabulated_sin    = TableLoad(sin_table,    lar_tab_index, 0, tag = "lar_tab_sin", debug = debug_precision) 
-
-    lar_approx_interval = Interval(-1, 1)
-
-    lar_poly_cos = polynomial_scheme_builder(poly_object_cos.sub_poly(start_index = 4, offset = 1), lar_red_vx, unified_precision = self.precision)
-    lar_poly_sin = polynomial_scheme_builder(poly_object_sin.sub_poly(start_index = 2), lar_red_vx, unified_precision = self.precision)
-    lar_poly_cos.set_attributes(tag = "lar_poly_cos", debug = debug_precision)
-    lar_poly_sin.set_attributes(tag = "lar_poly_sin", debug = debug_precision)
-
-    if not isinstance(ext_precision, ML_Compound_Format):
-      mult_ext = Multiplication(
-        Negation(
-          lar_red_vx_ext,
-          precision = ext_precision
-        ),
-        promote(lar_tabulated_sin),
-        precision = ext_precision,
-        debug = debug_multi,
-        tag = "sin_mon1"
-      )
-    else:
-      mult_ext = Multiplication(
-        Negation(
-          lar_red_vx,
-          precision = self.precision
-        ),
-        lar_tabulated_sin,
-        precision = ext_precision,
-        debug = debug_multi,
-        tag = "sin_mon1"
-      )
-
-
-        
-    lar_low_poly = lar_tabulated_cos_hi * lar_red_vx * 0.5 + (lar_tabulated_sin * lar_poly_sin + (- lar_tabulated_cos_hi * lar_poly_cos))
-    lar_low_poly.set_attributes(tag = "lar_low_poly", precision = self.precision)
-
-
-    lar_cos_eval_d_ext = Addition(
-      Addition(
-        Addition(
-          promote(lar_tabulated_cos_hi),
-          promote(lar_tabulated_cos_lo),
-          precision = ext_precision
-        ),
-        mult_ext,
-        precision = ext_precision
-      ),
-      Multiplication(
-        promote(
-          Negation(
-            lar_red_vx,
-            precision = self.precision
-          )
-        ), 
-        promote(lar_low_poly),
-        precision = ext_precision
-      ),
-      precision = ext_precision
-    )
-
-    lar_cos_eval_d = Conversion(lar_cos_eval_d_ext, precision = self.precision)
-
-    lar_cos_eval_d.set_attributes(tag = "lar_cos_eval_d", debug = debug_precision, precision = self.precision)
     
 
     int_precision = {
       ML_Binary64: ML_Int64,
       ML_Binary32: ML_Int32
     }[self.precision]
-    C32 = Constant(2**(ph_k+1), precision = int_precision)
-    ph_acc_int_red = Conversion(Select(ph_acc_int < Constant(0, precision = int_precision), ph_acc_int + C32, ph_acc_int), precision = self.precision)
+    C32 = Constant(2**(ph_k+1), precision = int_precision, tag = "C32")
+    ph_acc_int_red = Conversion(
+      Select(ph_acc_int < Constant(0, precision = int_precision), ph_acc_int + C32, ph_acc_int, precision = int_precision, tag = "ph_acc_int_red"),
+      precision = ML_Int32
+    )
 
-    lar_result = Statement(
+
+
+    lar_statement = Statement(
         ph_statement,
         ReferenceAssign(lar_vx, ph_acc, debug = debug_precision),
-        ReferenceAssign(lar_tab_index, ph_acc_int_red, debug = debugd),
-        lar_cos_eval_d,
-        Return(lar_cos_eval_d),
+        ReferenceAssign(red_vx, lar_red_vx, debug = debug_precision),
+        ReferenceAssign(red_vx_ext, -lar_red_vx_ext, debug = debug_precision),
+        ReferenceAssign(modk, ph_acc_int_red, debug = debugd),
         prevent_optimization = True
       )
 
     scheme = Statement(
+      modk,
+      red_vx,
+      red_vx_ext,
       ConditionBlock(
         lar_cond,
-        lar_result,
-        result
-      )
+        lar_statement,
+        Statement(
+          ReferenceAssign(modk, modk_std),
+          ReferenceAssign(red_vx, red_vx_std),
+          ReferenceAssign(red_vx_ext, red_vx_ext_std),
+        )
+      ),
+      result
     )
 
 
@@ -510,7 +470,7 @@ class ML_SinCos(ML_Function("ml_cos")):
     else:
       return cos(input_value)
 
-  standard_test_cases =[sollya.parse(x) for x in  ["0x1.0ef65ap+9", "0x1.c20874p+9", "-0x1.419768p+18", "0x1.e57612p+19", "-0x1.fd0846p+2", "0x1.d5c0bcp-4", "-0x1.3e25bp+2"]]
+  standard_test_cases =[sollya.parse(x) for x in  [ "0x1.e57612p+19", "0x1.0ef65ap+9", "0x1.c20874p+9", "-0x1.419768p+18", "-0x1.fd0846p+2", "0x1.d5c0bcp-4", "-0x1.3e25bp+2"]]
 
 
 
