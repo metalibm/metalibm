@@ -43,7 +43,28 @@ class StaticVectorizer(object):
         second_half = and_merge_conditions(condition_list[half_size:])
         return LogicalAnd(first_half, second_half, precision = bool_precision)
 
-    linearized_most_likely_path, validity_list = self.opt_engine.extract_vectorizable_path(optree, fallback_policy)
+    # instanciate intermediary variable according
+    # to the association indicated by variable_mapping
+    # @param optree ML_Operation object root of the input operation graph
+    # @param variable_mapping dict ML_Operation -> ML_Operation 
+    #        mapping a variable to its sub-graph
+    # @return an updated version of optree with variables replaced
+    #         by the corresponding sub-graph if any
+    def instanciate_variable(optree, variable_mapping):
+      if isinstance(optree, Variable) and optree in variable_mapping:
+        return variable_mapping[optree]
+      elif isinstance(optree, ML_LeafNode):
+        return optree
+      else:
+        for index, op_in in enumerate(optree.get_inputs()):
+          optree.set_input(index, instanciate_variable(op_in, variable_mapping))
+        return optree
+
+    vectorized_path = self.opt_engine.extract_vectorizable_path(optree, fallback_policy)
+    linearized_most_likely_path = vectorized_path.linearized_optree
+    validity_list = vectorized_path.validity_mask_list
+    # replacing temporary variables by their latest assigned values
+    linearized_most_likely_path = instanciate_variable(linearized_most_likely_path, vectorized_path.variable_mapping)
 
     arg_list_copy = dict((arg_node, Variable("vec_%s" % arg_node.get_tag(), precision = arg_node.get_precision())) for arg_node in arg_list)
     vec_arg_list = [arg_list_copy[arg_node] for arg_node in arg_list]
