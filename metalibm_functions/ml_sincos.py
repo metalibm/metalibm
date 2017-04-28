@@ -28,7 +28,10 @@ from metalibm_core.utility.debug_utils import *
 from metalibm_core.utility.num_utils   import ulp
 from metalibm_core.utility.gappa_utils import is_gappa_installed
 
-
+# disabling sollya's rounding warning
+sollya.roundingwarnings = sollya.off 
+sollya.verbosity = 0
+sollya.showmessagenumbers = sollya.on
 
 ## Implementation of sine or cosine sharing a common
 #  approximation scheme
@@ -87,7 +90,7 @@ class ML_SinCos(ML_Function("ml_cos")):
 
   def generate_scheme(self): 
     # declaring CodeFunction and retrieving input variable
-    vx = Abs(self.implementation.add_input_variable("x", self.precision), tag = "vx", precision = self.precision) 
+    vx = self.implementation.add_input_variable("x", self.precision)
 
     Log.report(Log.Info, "generating implementation scheme")
     if self.debug_flag: 
@@ -115,9 +118,23 @@ class ML_SinCos(ML_Function("ml_cos")):
     specific_return = ConditionBlock(test_nan, ConditionBlock(test_signaling_nan, return_snan, Return(FP_QNaN(self.precision))), infty_return)
     # return in case of standard (non-special) input
 
-    sollya_precision = self.precision.get_sollya_object()
-    hi_precision = self.precision.get_field_size() - 5
+    # bound to determine extended precision and standard precision
+    # computation
+    red_bound     = S2**10
 
+    sollya_precision = self.precision.get_sollya_object()
+    hi_precision = self.precision.get_field_size() - 13
+
+    # extended precision to be used when more accuracy
+    # than the working precision is required
+    ext_precision = {
+      ML_Binary32: ML_Binary64,
+      ML_Binary64: ML_Binary64
+    }[self.precision]
+    promote = {
+      ML_Binary32: lambda x: Conversion(x, precision = ext_precision, tag = "promote"),
+      ML_Binary64: lambda x: x,
+    }[self.precision]
 
     # argument reduction
     # m 
@@ -127,6 +144,8 @@ class ML_SinCos(ML_Function("ml_cos")):
     frac_pi     = round(S2**frac_pi_index / pi, sollya_precision, sollya.RN)
     # pi / 2^m, high part
     inv_frac_pi = round(pi / S2**frac_pi_index, hi_precision, sollya.RN)
+
+    inv_frac_pi_ext = round(pi / S2**frac_pi_index, ext_precision.get_sollya_object(), sollya.RN)
     # pi / 2^m, low part
     inv_frac_pi_lo = round(pi / S2**frac_pi_index - inv_frac_pi, sollya_precision, sollya.RN)
     # computing k = E(x * frac_pi)
@@ -138,27 +157,42 @@ class ML_SinCos(ML_Function("ml_cos")):
     inv_frac_pi_cst    = Constant(inv_frac_pi, tag = "inv_frac_pi", precision = self.precision)
     inv_frac_pi_lo_cst = Constant(inv_frac_pi_lo, tag = "inv_frac_pi_lo", precision = self.precision)
 
-    red_vx_hi = (vx - inv_frac_pi_cst * fk)
+    # red_vx_hi = (vx - inv_frac_pi_cst * fk)
+    red_vx_hi = FusedMultiplyAdd(inv_frac_pi_cst, fk, vx, specifier = FusedMultiplyAdd.SubtractNegate, precision = self.precision)
     red_vx_hi.set_attributes(tag = "red_vx_hi", debug = debug_precision, precision = self.precision)
-    red_vx_lo_sub = inv_frac_pi_lo_cst * fk
-    red_vx_lo_sub.set_attributes(tag = "red_vx_lo_sub", debug = debug_precision, unbreakable = True, precision = self.precision)
+    # red_vx_lo_sub = inv_frac_pi_lo_cst * fk
+    # red_vx_lo_sub.set_attributes(tag = "red_vx_lo_sub", debug = debug_precision, unbreakable = True, precision = self.precision)
     vx_d = Conversion(vx, precision = self.precision, tag = "vx_d")
-    pre_red_vx = red_vx_hi - inv_frac_pi_lo_cst * fk
-    pre_red_vx_d_hi = (vx_d - inv_frac_pi_cst * fk)
-    pre_red_vx_d_hi.set_attributes(tag = "pre_red_vx_d_hi", precision = self.precision, debug = debug_lftolx)
-    pre_red_vx_d = pre_red_vx_d_hi - inv_frac_pi_lo_cst * fk
-    pre_red_vx_d.set_attributes(tag = "pre_red_vx_d", debug = debug_lftolx, precision = self.precision)
+    #pre_red_vx = red_vx_hi - inv_frac_pi_lo_cst * fk
+    pre_red_vx = FusedMultiplyAdd(inv_frac_pi_lo_cst, fk, red_vx_hi, specifier = FusedMultiplyAdd.SubtractNegate, precision = self.precision)
+    # pre_red_vx_d_hi = (vx_d - inv_frac_pi_cst * fk)
+    # pre_red_vx_d_hi.set_attributes(tag = "pre_red_vx_d_hi", precision = self.precision, debug = debug_lftolx)
+    # pre_red_vx_d = pre_red_vx_d_hi - inv_frac_pi_lo_cst * fk
+    # pre_red_vx_d.set_attributes(tag = "pre_red_vx_d", debug = debug_lftolx, precision = self.precision)
+
+    # to compute sine we offset x by 3pi/2 
+    # which means add 3  * S2^(frac_pi_index-1) to k
+    if self.sin_output:
+      offset_k = Addition(
+        k,
+        Constant(3 * S2**(frac_pi_index - 1), precision = ML_Int32),
+        precision = ML_Int32,
+        tag = "offset_k"
+      )
+    else:
+      offset_k = k
 
 
-    modk = Modulo(k, 2**(frac_pi_index+1), precision = ML_Int32, tag = "modk", debug = True)
+    #modk = Modulo(offset_k, 2**(frac_pi_index+1), precision = ML_Int32, tag = "modk", debug = True)
+    modk = BitLogicAnd(offset_k, 2**(frac_pi_index+1)-1, precision = ML_Int32, tag = "modk", debug = True)
 
     sel_c = Equal(BitLogicAnd(modk, 2**(frac_pi_index-1)), 2**(frac_pi_index-1))
     sel_c.set_attributes(tag = "sel_c", debug = debugd)
     red_vx = pre_red_vx # Select(sel_c, -pre_red_vx, pre_red_vx)
     red_vx.set_attributes(tag = "red_vx", debug = debug_precision, precision = self.precision)
 
-    red_vx_d = Select(sel_c, -pre_red_vx_d, pre_red_vx_d)
-    red_vx_d.set_attributes(tag = "red_vx_d", debug = debug_lftolx, precision = self.precision)
+    # red_vx_d = Select(sel_c, -pre_red_vx_d, pre_red_vx_d)
+    # red_vx_d.set_attributes(tag = "red_vx_d", debug = debug_lftolx, precision = self.precision)
 
     approx_interval = Interval(-pi/(S2**(frac_pi_index+1)), pi / S2**(frac_pi_index+1))
 
@@ -182,6 +216,9 @@ class ML_SinCos(ML_Function("ml_cos")):
     cos_table_hi = ML_NewTable(dimensions = [2**table_index_size, 1], storage_precision = self.precision, tag = self.uniquify_name("cos_table_hi"))
     cos_table_lo = ML_NewTable(dimensions = [2**table_index_size, 1], storage_precision = self.precision, tag = self.uniquify_name("cos_table_lo"))
     sin_table = ML_NewTable(dimensions = [2**table_index_size, 1], storage_precision = self.precision, tag = self.uniquify_name("sin_table"))
+    if not isinstance(ext_precision, ML_Compound_Format):
+      sin_table_ext = ML_NewTable(dimensions = [2**table_index_size], storage_precision = ext_precision, tag = self.uniquify_name("sin_table_ext"))
+      cos_table_ext = ML_NewTable(dimensions = [2**table_index_size], storage_precision = ext_precision, tag = self.uniquify_name("cos_table_ext"))
 
     #cos_hi_prec = self.precision.get_sollya_object() # int(self.precision.get_field_size() * 0.7)
     cos_hi_prec =  int(self.precision.get_field_size() - 2)
@@ -194,10 +231,16 @@ class ML_SinCos(ML_Function("ml_cos")):
 
       sin_table[i][0] = round(sin(local_x), self.precision.get_sollya_object(), sollya.RN)
 
+      # extended table
+      if not isinstance(ext_precision, ML_Compound_Format):
+        cos_table_ext[i] = round(cos(local_x), ext_precision.get_sollya_object(), sollya.RN)
+        sin_table_ext[i] = round(sin(local_x), ext_precision.get_sollya_object(), sollya.RN)
+
 
     tabulated_cos_hi = TableLoad(cos_table_hi, modk, 0, tag = "tab_cos_hi", debug = debug_precision, precision = self.precision) 
     tabulated_cos_lo = TableLoad(cos_table_lo, modk, 0, tag = "tab_cos_lo", debug = debug_precision, precision = self.precision) 
     tabulated_sin  = TableLoad(sin_table, modk, 0, tag = "tab_sin", debug = debug_precision, precision = self.precision) 
+
 
     Log.report(Log.Info, "tabulated cos hi interval: {}".format(cos_table_hi.get_interval()))
     Log.report(Log.Info, "tabulated cos lo interval: {}".format(cos_table_lo.get_interval()))
@@ -207,8 +250,6 @@ class ML_SinCos(ML_Function("ml_cos")):
     poly_degree_cos   = sup(guessdegree(cos(sollya.x), approx_interval, S2**-(self.precision.get_field_size()+1)) ) + 2
     poly_degree_sin   = sup(guessdegree(sin(sollya.x) / sollya.x, approx_interval, S2**-(self.precision.get_field_size()+1))) + 2
 
-    print poly_degree_cos, poly_degree_sin
-
     poly_degree_cos_list = range(0, poly_degree_cos + 1, 2)
     poly_degree_sin_list = range(0, poly_degree_sin + 1, 2)
 
@@ -217,8 +258,8 @@ class ML_SinCos(ML_Function("ml_cos")):
       poly_degree_sin_list = [0, 2, 4, 6]
 
     else:
-      poly_degree_cos_list = [0, 2, 4, 6]
-      poly_degree_sin_list = [0, 2, 4, 6]
+      poly_degree_cos_list = [0, 2, 4, 5, 6, 7, 8]
+      poly_degree_sin_list = [0, 2, 4, 5, 6, 7, 8]
 
     # cosine polynomial: limiting first and second coefficient precision to 1-bit
     poly_cos_prec_list = [1, 1] + [self.precision] * (len(poly_degree_cos_list) - 2)
@@ -240,46 +281,57 @@ class ML_SinCos(ML_Function("ml_cos")):
     poly_cos.set_attributes(tag = "poly_cos", debug = debug_precision)
     poly_sin.set_attributes(tag = "poly_sin", debug = debug_precision)
 
-    # extended precision to be used when more accuracy
-    # than the working precision is required
-    ext_precision = {
-      ML_Binary32: ML_Binary64,
-      ML_Binary64: ML_DoubleDouble
-    }[self.precision]
 
     # evaluation scheme
     # cos_eval_d = (tabulated_cos_hi - red_vx * (tabulated_sin + (tabulated_cos_hi * red_vx * 0.5 + (tabulated_sin * poly_sin + (- tabulated_cos_hi * poly_cos))))) + tabulated_cos_lo
     # cos_eval_d.set_precision(self.precision)
-
-    promote = {
-      ML_Binary32: lambda x: Conversion(x, precision = ext_precision, tag = "promote"),
-      ML_Binary64: lambda x: x,
-    }[self.precision]
+    if not isinstance(ext_precision, ML_Compound_Format):
+      tabulated_cos_ext = TableLoad(cos_table_ext, modk, tag = "tab_cos_ext", debug = debug_precision, precision = ext_precision) 
+      tabulated_sin_ext  = TableLoad(sin_table_ext, modk, tag = "tab_sin_ext", debug = debug_precision, precision = ext_precision) 
+      red_vx_ext = FusedMultiplyAdd(
+        Constant(inv_frac_pi_ext , precision =ext_precision),
+        promote(fk), 
+        promote(vx), 
+        specifier = FusedMultiplyAdd.Subtract, 
+        precision = ext_precision,
+        tag = "red_vx_ext",
+        debug = debug_multi
+      ) 
+      
+      #Addition(
+      #  promote(- red_vx_hi), 
+      #  promote( red_vx_lo_sub),
+      #  precision = ext_precision,
+      #  tag = "red_vx_ext",
+      #  debug = debug_multi
+      #)
+    else:
+      tabulated_cos_ext = Addition(
+        promote(tabulated_cos_hi),
+        promote(tabulated_cos_lo),
+        precision = ext_precision
+      )
+      tabulated_sin_ext = promote(tabulated_sin)
+      red_vx_ext = promote(
+        Negation(
+          red_vx,
+          precision = self.precision
+        )
+      )
 
     cos_eval_d_ext = Subtraction(
       Addition(
-        Addition(
-          Conversion(tabulated_cos_hi, precision = ext_precision),
-          Conversion(tabulated_cos_lo, precision = ext_precision),
-          precision = ext_precision
-        ),
+        tabulated_cos_ext,
         Multiplication(
-          # promote(-red_vx),
-          Addition(
-            promote(- red_vx_hi), 
-            promote( red_vx_lo_sub),
-            precision = ext_precision,
-            tag = "red_vx_ext",
-            debug = debug_multi
-          ),
-          promote(tabulated_sin),
+          red_vx_ext,
+          tabulated_sin_ext,
           precision = ext_precision
         ),
         precision = ext_precision
       ),
       Multiplication(
-        Conversion(red_vx, precision = ext_precision),
-        Conversion(((tabulated_cos_hi * red_vx * 0.5 + (tabulated_sin * poly_sin + (- tabulated_cos_hi * poly_cos)))), precision = ext_precision),
+        promote(red_vx),
+        promote((((tabulated_cos_hi * red_vx * 0.5) + (tabulated_sin * poly_sin + (- tabulated_cos_hi * poly_cos))))),
         precision = ext_precision
       ),
       precision = ext_precision
@@ -332,17 +384,28 @@ class ML_SinCos(ML_Function("ml_cos")):
     lar_vx = Variable("lar_vx", precision = self.precision, var_type = Variable.Local)
     lar_tab_index = Variable("lar_tab_index", precision = ML_Int32, var_type = Variable.Local, debug = debug_multi)
 
-    lar_red_vx = lar_vx * Constant(ph_inv_frac_pi, precision = self.precision)
+    lar_red_vx = Multiplication(
+      lar_vx,
+      Constant(ph_inv_frac_pi, precision = self.precision),
+      precision = self.precision
+    )
     lar_red_vx.set_attributes(tag = "lar_red_vx", debug = debug_precision)
 
-    lar_red_vx_ext = Multiplication(
-      promote(lar_vx),
-      Constant(ph_inv_frac_pi, precision = ext_precision),
-      precision = ext_precision
-    )
 
-    red_bound     = S2**10
-    lar_cond = Abs(vx) >= red_bound
+    if not isinstance(ext_precision, ML_Compound_Format):
+      lar_red_vx_ext = Multiplication(
+        promote(lar_vx),
+        Constant(ph_inv_frac_pi, precision = ext_precision),
+        precision = ext_precision
+      )
+    else:
+      lar_red_vx_ext = Multiplication(
+        promote(lar_vx),
+        Constant(ph_inv_frac_pi, precision = self.precision),
+        precision = ext_precision
+      )
+
+    lar_cond = vx >= red_bound
     lar_cond.set_attributes(tag = "lar_cond", likely = False)
 
     
@@ -357,6 +420,34 @@ class ML_SinCos(ML_Function("ml_cos")):
     lar_poly_cos.set_attributes(tag = "lar_poly_cos", debug = debug_precision)
     lar_poly_sin.set_attributes(tag = "lar_poly_sin", debug = debug_precision)
 
+    if not isinstance(ext_precision, ML_Compound_Format):
+      mult_ext = Multiplication(
+        Negation(
+          lar_red_vx_ext,
+          precision = ext_precision
+        ),
+        promote(lar_tabulated_sin),
+        precision = ext_precision,
+        debug = debug_multi,
+        tag = "sin_mon1"
+      )
+    else:
+      mult_ext = Multiplication(
+        Negation(
+          lar_red_vx,
+          precision = self.precision
+        ),
+        lar_tabulated_sin,
+        precision = ext_precision,
+        debug = debug_multi,
+        tag = "sin_mon1"
+      )
+
+
+        
+    lar_low_poly = lar_tabulated_cos_hi * lar_red_vx * 0.5 + (lar_tabulated_sin * lar_poly_sin + (- lar_tabulated_cos_hi * lar_poly_cos))
+    lar_low_poly.set_attributes(tag = "lar_low_poly", precision = self.precision)
+
 
     lar_cos_eval_d_ext = Addition(
       Addition(
@@ -365,18 +456,17 @@ class ML_SinCos(ML_Function("ml_cos")):
           promote(lar_tabulated_cos_lo),
           precision = ext_precision
         ),
-        Multiplication(
-          - lar_red_vx_ext, 
-          promote(lar_tabulated_sin),
-          precision = ext_precision,
-          debug = debug_multi,
-          tag = "sin_mon1"
-        ),
+        mult_ext,
         precision = ext_precision
       ),
       Multiplication(
-        promote(- lar_red_vx), 
-        promote(lar_tabulated_cos_hi * lar_red_vx * 0.5 + (lar_tabulated_sin * lar_poly_sin + (- lar_tabulated_cos_hi * lar_poly_cos))),
+        promote(
+          Negation(
+            lar_red_vx,
+            precision = self.precision
+          )
+        ), 
+        promote(lar_low_poly),
         precision = ext_precision
       ),
       precision = ext_precision
@@ -420,7 +510,7 @@ class ML_SinCos(ML_Function("ml_cos")):
     else:
       return cos(input_value)
 
-  standard_test_cases =[sollya.parse(x) for x in  ["-0x1.419768p+18", "0x1.e57612p+19", "-0x1.fd0846p+2", "0x1.d5c0bcp-4", "-0x1.3e25bp+2"]]
+  standard_test_cases =[sollya.parse(x) for x in  ["0x1.0ef65ap+9", "0x1.c20874p+9", "-0x1.419768p+18", "0x1.e57612p+19", "-0x1.fd0846p+2", "0x1.d5c0bcp-4", "-0x1.3e25bp+2"]]
 
 
 
