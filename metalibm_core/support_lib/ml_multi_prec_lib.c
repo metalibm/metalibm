@@ -4,6 +4,16 @@
 #include <inttypes.h>
 #include <stdio.h>
 
+ml_dd_t ml_conv_dd_d(double x)
+{
+  ml_dd_t result = {.hi = x, .lo = 0.0};
+  return result;
+}
+
+ml_dd_t ml_neg_dd(ml_dd_t x) {
+  ml_dd_t result = {.hi = - x.hi, .lo = - x.lo};
+  return result;
+}
 
 ml_dd_t ml_split_dd_d(double x) {
     /* Veltkamp split appied to p = 53, C = (1 << 27) + 1 */

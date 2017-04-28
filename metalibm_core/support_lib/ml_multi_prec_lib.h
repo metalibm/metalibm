@@ -30,6 +30,18 @@ ml_dd_t ml_fma_dd_d3(double x, double y, double z);
  *  round field(x) accounting for subnormal cases */
 double ml_subnormalize_d_dd_i(ml_dd_t x, int scale_factor);
 
+/** Conversion from binary64 to compound
+ *  double double format
+ *  @param x conversion input
+ *  @return result of conversion
+ */
+ml_dd_t ml_conv_dd_d(double x);
 
+
+/** Unary negation
+ *  @param x input value
+ *  @return negated value
+ */
+ml_dd_t ml_neg_dd(ml_dd_t x);
 
 #endif /* def ML_MULTI_PREC_LIB */
