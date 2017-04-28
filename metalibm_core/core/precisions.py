@@ -92,7 +92,7 @@ class ML_CorrectlyRounded(ML_FunctionPrecision):
 
   def compute_error(self, local_result, output_values):
     precision = local_result.get_precision()
-    expected_value,  = stored_outputs
+    expected_value,  = output_values
     error = Abs(Subtraction(local_result, expected_value, precision = precision), precision = precision)
     return error
 
