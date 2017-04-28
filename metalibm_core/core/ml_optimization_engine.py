@@ -946,7 +946,7 @@ class OptimizationEngine(object):
 
 
 
-    def check_processor_support(self, optree, memoization_map = {}, debug = True, language = C_Code):
+    def check_processor_support(self, optree, memoization_map = {}, debug = False, language = C_Code):
         """ check if all precision-instantiated operation are supported by the processor """
         if debug:
           print "checking processor support: ", self.processor.__class__ # Debug print
@@ -979,7 +979,7 @@ class OptimizationEngine(object):
                 # trying operand format escalation
                 init_optree = optree
                 old_list = optree.inputs
-                while optree.__class__ in type_escalation:
+                while False: #optree.__class__ in type_escalation:
                     match_found = False
                     for result_type_cond in type_escalation[optree.__class__]:
                         if result_type_cond(optree.get_precision()): 
