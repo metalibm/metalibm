@@ -170,7 +170,7 @@ class ML_Log10(ML_Function("log10")):
         _poly.set_attributes(tag = "poly", debug = debug_lftolx)
         print global_poly_object.get_sollya_object()
 
-        corr_exp = _vx_exp if exp_corr_factor == None else _vx_exp + exp_corr_factor
+        corr_exp = Conversion(_vx_exp if exp_corr_factor == None else _vx_exp + exp_corr_factor, precision = self.precision)
         split_red_vx = Split(_red_vx, precision = ML_DoubleDouble, tag = "split_red_vx", debug = debug_ddtolx) 
         red_vx_hi = split_red_vx.hi
         red_vx_lo = split_red_vx.lo

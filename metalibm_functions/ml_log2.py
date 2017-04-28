@@ -174,9 +174,9 @@ class ML_Log2(ML_Function("ml_log2")):
         #pre_result = -_log_inv_hi + (_red_vx + (_red_vx * _poly + (- _log_inv_lo)))
         pre_result = -_log_inv_hi + (_red_vx * _poly + (- _log_inv_lo))
         pre_result.set_attributes(tag = "pre_result", debug = debug_lftolx)
-        exact_log2_hi_exp = corr_exp 
+        exact_log2_hi_exp = Conversion(corr_exp, precision = self.precision)
         exact_log2_hi_exp.set_attributes(tag = "exact_log2_hi_hex", debug = debug_lftolx)
-        _result = corr_exp + pre_result
+        _result = exact_log2_hi_exp + pre_result
         return _result, _poly, _log_inv_lo, _log_inv_hi, _red_vx
 
     result, poly, log_inv_lo, log_inv_hi, red_vx = compute_log(vx)

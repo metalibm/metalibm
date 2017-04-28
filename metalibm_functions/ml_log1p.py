@@ -179,7 +179,7 @@ class ML_Log1p(ML_Function("ml_log1p")):
 
 
     vxp1_inv_exp = ExponentExtraction(vxp1_inv, tag = "vxp1_inv_exp", debug = debugd)
-    corr_exp = -vxp1_exp + scaling_factor_exp# vxp1_inv_exp
+    corr_exp = Conversion(-vxp1_exp + scaling_factor_exp, precision = self.precision)# vxp1_inv_exp
 
     #poly = (red_vxp1) * (1 +  _poly)
     #poly.set_attributes(tag = "poly", debug = debug_lftolx, prevent_optimization = True)

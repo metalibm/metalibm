@@ -122,7 +122,7 @@ class ML_HyperbolicCosine(ML_Function("ml_cosh")):
     r_eval_error = self.get_eval_error(r_hi, variable_copy_map = 
       {
         vx: Variable("vx", interval = Interval(0, 715), precision = self.precision),
-        k: Variable("k", interval = Interval(0, 1024), precision = int_precision)
+        k: Variable("k", interval = Interval(0, 1024), precision = self.precision)
       })
     print "r_eval_error: ", r_eval_error
 
