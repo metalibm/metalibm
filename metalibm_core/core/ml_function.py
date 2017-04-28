@@ -703,12 +703,12 @@ class ML_FunctionBasis(object):
     if self.auto_test_std:
       test_total += num_std_case
     # round up the number of tests to the implementation vector-size
-    diff = self.get_vector_size() - (test_total % self.get_vector_size()) - 1
+    diff = (self.get_vector_size() - (test_total % self.get_vector_size())) % self.get_vector_size()
     assert diff >= 0
     test_total += diff
     test_num   += diff
 
-    Log.report(Log.Info, "test total and num: {} {}".format(test_total, test_num))
+    Log.report(Log.Info, "test test_total, test_num, diff: {} {} {}".format(test_total, test_num, diff))
 
     sollya_precision = self.precision.get_sollya_object()
     interval_size = high_input - low_input 
