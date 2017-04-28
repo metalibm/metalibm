@@ -197,7 +197,13 @@ c_code_generation_table = {
         None: build_simplified_operator_generation([ML_Bool, ML_Int32, ML_UInt32], 1, SymbolOperator("!", arity = 1)),
     },
     Negation: {
-        None: build_simplified_operator_generation([ML_Int32, ML_UInt32, ML_UInt64, ML_Int64, ML_Binary32, ML_Binary64], 1, SymbolOperator("-", arity = 1)),
+        None: { 
+          lambda optree: True: 
+            build_simplified_operator_generation_nomap([ML_Int32, ML_UInt32, ML_UInt64, ML_Int64, ML_Binary32, ML_Binary64], 1, SymbolOperator("-", arity = 1)),
+          lambda optree: True: {
+            type_strict_match(ML_DoubleDouble, ML_DoubleDouble): FunctionOperator("ml_neg_dd", arity = 1),
+            }
+        },
     },
     Addition: {
         None: {
@@ -211,7 +217,14 @@ c_code_generation_table = {
         },
     },
     Subtraction: {
-        None: build_simplified_operator_generation([ML_Binary32, ML_Binary64, ML_Int8, ML_UInt8, ML_Int16, ML_UInt16, ML_Int32, ML_UInt32, ML_Int64, ML_UInt64, ML_Int128,ML_UInt128], 2, SymbolOperator("-", arity = 2), cond = fp_std_cond),
+        None: { 
+          lambda optree: True: 
+            build_simplified_operator_generation_nomap([ML_Binary32, ML_Binary64, ML_Int8, ML_UInt8, ML_Int16, ML_UInt16, ML_Int32, ML_UInt32, ML_Int64, ML_UInt64, ML_Int128,ML_UInt128], 2, SymbolOperator("-", arity = 2), cond = fp_std_cond),
+          lambda optree: True: {
+            type_strict_match(ML_DoubleDouble, ML_DoubleDouble, ML_DoubleDouble):
+              FunctionOperator("ml_add_dd_dd2", arity = 2)(FO_Arg(0), FunctionOperator("ml_neg_dd", arity = 1, output_precision = ML_DoubleDouble)(FO_Arg(1))),
+          },
+        },
     },
     Multiplication: {
         None: {
@@ -389,6 +402,7 @@ c_code_generation_table = {
             lambda optree: True: {
                 type_strict_match(ML_Binary32, ML_Int32): ML_Utils_Function("ml_exp_insertion_fp32", arity = 1), 
                 type_strict_match(ML_Binary64, ML_Int32): ML_Utils_Function("ml_exp_insertion_fp64", arity = 1),
+                type_strict_match(ML_Binary64, ML_Int64): ML_Utils_Function("ml_exp_insertion_fp64", arity = 1),
             },
         },
         ExponentInsertion.NoOffset: {
@@ -441,6 +455,11 @@ c_code_generation_table = {
                 (lambda dst_type,src_type,**kwords:
                     ((is_std_integer_format(dst_type) or is_std_integer_format(src_type)) and (dst_type == ML_Binary64 or dst_type == ML_Binary32 or src_type == ML_Binary64 or src_type == ML_Binary32)) or (dst_type in [ML_Binary32, ML_Binary64] and src_type in [ML_Binary64, ML_Binary32])
                 ) :  IdentityOperator(),
+            },
+            lambda optree: True: {
+              type_strict_match(ML_Binary64, ML_DoubleDouble): 
+                ComplexOperator(optree_modifier = lambda x: ComponentSelection(x.get_input(0), precision = ML_Binary64, specifier = ComponentSelection.Hi)),
+              type_strict_match(ML_DoubleDouble, ML_Binary64): FunctionOperator("ml_conv_dd_d", arity = 1), 
             },
         },
     },
