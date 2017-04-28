@@ -735,49 +735,83 @@ class OptimizationEngine(object):
     ## extract a linear execution path from optree by chosing
     #  most likely side on each conditional branch
     #  @param optree operation tree to extract fast path from
-    #  @param fallback_policy lambda function cond, cond_block, if_branch, else_branch: branch_to_consider, validity_mask_list
-    #  @return tuple linearized optree, validity mask list
+    #  @param fallback_policy lambda function 
+    #         (cond, cond_block, if_branch, else_branch): 
+    #                branch_to_consider, validity_mask_list
+    #  @return VectorizedPath object containing linearized optree, 
+    #          validity mask list and variable_mapping
     def extract_vectorizable_path(self, optree, fallback_policy, bool_precision = ML_Bool):
+        class VectorizedPath:
+          def __init__(self, linearized_optree, validity_mask_list, variable_mapping = None):
+            self.linearized_optree = linearized_optree
+            self.validity_mask_list = validity_mask_list
+            self.variable_mapping = {} if variable_mapping is None else variable_mapping
+
         """ look for the most likely Return statement """
         if isinstance(optree, ConditionBlock):
             cond   = optree.inputs[0]
             likely = cond.get_likely()
-            linearized_optree, validity_mask_list = self.extract_vectorizable_path(optree.get_pre_statement(), fallback_policy)
-            if not linearized_optree is None:
-              return linearized_optree, validity_mask_list
+            #linearized_optree, validity_mask_list = self.extract_vectorizable_path(optree.get_pre_statement(), fallback_policy)
+            vectorized_path = self.extract_vectorizable_path(optree.get_pre_statement(), fallback_policy)
+            # start by vectorizing the if-then-else pre-statement
+            if not vectorized_path.linearized_optree is None:
+              return vectorized_path
             else:
               if likely:
                   if_branch = optree.inputs[1]
-                  linearized_optree, validity_mask_list = self.extract_vectorizable_path(if_branch, fallback_policy)
-                  return  linearized_optree, (validity_mask_list + [cond])
+                  vectorized_path = self.extract_vectorizable_path(if_branch, fallback_policy)
+                  return  VectorizedPath(
+                            vectorized_path.linearized_optree, 
+                            vectorized_path.validity_mask_list + [cond],
+                            vectorized_path.variable_mapping
+                          )
               elif likely == False:
                   if len(optree.inputs) >= 3:
                     # else branch exists
                     else_branch = optree.inputs[2]
-                    linearized_optree, validity_mask_list = self.extract_vectorizable_path(else_branch, fallback_policy)
-                    return  linearized_optree, (validity_mask_list + [LogicalNot(cond, precision = bool_precision)])
+                    vectorized_path = self.extract_vectorizable_path(else_branch, fallback_policy)
+                    extra_cond = [LogicalNot(cond, precision = bool_precision) ]
+                    # return  linearized_optree, (validity_mask_list + [LogicalNot(cond, precision = bool_precision)])
+                    return  VectorizedPath(
+                              vectorized_path.linearized_optree, 
+                              vectorized_path.validity_mask_list + extra_cond,
+                              vectorized_path.variable_mapping
+                            )
                   else:
                     # else branch does not exists
-                    return None, []
+                    return VectorizedPath(None, [])
               elif len(optree.inputs) >= 2:
-                  # using fallback policy
+                  # no likely identified => using fallback policy
                   if_branch = optree.inputs[1]
                   else_branch = optree.inputs[2]
                   selected_branch, cond_mask_list = fallback_policy(cond, optree, if_branch, else_branch)
-                  linearized_optree, validity_mask_list = self.extract_vectorizable_path(selected_branch, fallback_policy)
-                  return  linearized_optree, (cond_mask_list + validity_mask_list)
+                  vectorized_path = self.extract_vectorizable_path(selected_branch, fallback_policy)
+                  return  VectorizedPath(
+                    vectorized_path.linearized_optree, 
+                    (cond_mask_list + vectorized_path.validity_mask_list),
+                    vectorized_path.variable_mapping
+                  )
               else:
-                  return None, []
+                  return VectorizedPath(None, [])
         elif isinstance(optree, Statement):
+            merged_variable_mapping = {}
+            result_path = VectorizedPath(None, [])
             for sub_stat in optree.inputs:
-                linearized_optree, validity_mask_list = self.extract_vectorizable_path(sub_stat, fallback_policy)
-                if not linearized_optree is None: 
-                  return linearized_optree, validity_mask_list
-            return None, []
+                vectorized_path = self.extract_vectorizable_path(sub_stat, fallback_policy)
+                # The following ensures that the latest assignation
+                # as priority over all the previous ones
+                merged_variable_mapping.update(vectorized_path.variable_mapping)
+                if not vectorized_path.linearized_optree is None and result_path.linearized_optree is None: 
+                  result_path =  vectorized_path
+            return VectorizedPath(result_path.linearized_optree, result_path.validity_mask_list, merged_variable_mapping)
+        elif isinstance(optree, ReferenceAssign):
+            var_dst   = optree.get_input(0)
+            var_value = optree.get_input(1)
+            return VectorizedPath(None, [], {var_dst: var_value})
         elif isinstance(optree, Return):
-            return optree.inputs[0], []
+            return VectorizedPath(optree.inputs[0], [])
         else:
-            return None, []
+            return VectorizedPath(None, [])
 
     def factorize_fast_path(self, optree):
         """ extract <optree>'s fast path and add it to be pre-computed at 
