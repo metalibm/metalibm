@@ -22,7 +22,6 @@ from metalibm_core.utility.ml_template import *
 from metalibm_core.utility.debug_utils import * 
 
 from metalibm_core.targets.intel.x86_processor import X86_AVX2_Processor
-from metalibm_core.targets.intel.p_vec_registers import Pass_M128_Promotion
 
 
 

@@ -31,6 +31,8 @@ class OptimizationPass:
   def __init__(self, descriptor = ""):
     self.descriptor = descriptor
 
+  def set_descriptor(self, descriptor):
+    self.descriptor = descriptor
   def get_descriptor(self):
     return self.descriptor
 
