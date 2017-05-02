@@ -29,15 +29,10 @@ class ML_Exponential(ML_Function("ml_exp")):
              arg_template = DefaultArgTemplate, 
              precision = ML_Binary32, 
              accuracy  = ML_Faithful,
-             libm_compliant = True, 
-             debug_flag = False, 
-             fuse_fma = True, 
-             fast_path_extract = True,
              target = GenericProcessor(), 
              output_file = "my_exp.c", 
              function_name = "my_exp",
-             language = C_Code,
-             vector_size = 1):
+             ):
     # initializing I/O precision
     precision = ArgDefault.select_value([arg_template.precision, precision])
     io_precisions = [precision] * 2
@@ -49,16 +44,9 @@ class ML_Exponential(ML_Function("ml_exp")):
       output_file = output_file,
 
       io_precisions = io_precisions,
-      abs_accuracy = None,
-      libm_compliant = libm_compliant,
 
       processor = target,
-      fuse_fma = fuse_fma,
-      fast_path_extract = fast_path_extract,
 
-      debug_flag = debug_flag,
-      language = language,
-      vector_size = vector_size,
       arg_template = arg_template
     )
 

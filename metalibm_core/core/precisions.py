@@ -25,7 +25,9 @@ class ML_FunctionPrecision(object):
   def get_precision(self):
     return self.precision
   ## return a tuple of output values required to check a test
-  def get_output_check_value(self, emulated_function, input_value):
+  # @param emulated_function is an object with a numeric_emulate methode
+  # @param input_values is a tuple of input values
+  def get_output_check_value(self, emulated_function, input_values):
     raise NotImplementedError
   ## return an Operation graph for testing if test_result
   #  fails numeric test defined by @p self accuracy and @p stored_outputs
@@ -44,9 +46,9 @@ class ML_FunctionPrecision(object):
 class ML_TwoFactorPrecision(ML_FunctionPrecision):
   def get_num_output_value(self):
     return 2
-  def get_output_check_value(self, numeric_emulate, input_value):
-    low_bound  = self.precision.round_sollya_object(numeric_emulate(input_value), sollya.RD)
-    high_bound = self.precision.round_sollya_object(numeric_emulate(input_value), sollya.RU)
+  def get_output_check_value(self, emulated_function, input_values):
+    low_bound  = self.precision.round_sollya_object(emulated_function.numeric_emulate(*input_values), sollya.RD)
+    high_bound = self.precision.round_sollya_object(emulated_function.numeric_emulate(*input_values), sollya.RU)
     return low_bound, high_bound
 
   def compute_error(self, local_result, stored_outputs):
@@ -86,8 +88,8 @@ class ML_TwoFactorPrecision(ML_FunctionPrecision):
 class ML_CorrectlyRounded(ML_FunctionPrecision):
   def get_num_output_value(self):
     return 1
-  def get_output_check_value(self, numeric_emulate, input_value):
-    expected_value = self.precision.round_sollya_object(numeric_emulate(input_value), sollya.RN)
+  def get_output_check_value(self, emulated_function, input_values):
+    expected_value = self.precision.round_sollya_object(emulated_function.numeric_emulate(*input_values), sollya.RN)
     return (expected_value,)
 
   def compute_error(self, local_result, output_values):
@@ -156,9 +158,9 @@ class ML_DegradedAccuracyRelative(ML_DegradedAccuracy):
   def __str__(self):
     return "ML_DegradedAccuracyRelative(%s)" % self.goal
 
-  def get_output_check_value(self, numeric_emulate, input_value):
-    low_bound  = self.precision.round_sollya_object(numeric_emulate(input_value) * (1 - self.goal), sollya.RD)
-    high_bound = self.precision.round_sollya_object(numeric_emulate(input_value) * (1 + self.goal), sollya.RU)
+  def get_output_check_value(self, emulated_function, input_values):
+    low_bound  = self.precision.round_sollya_object(emulated_function.numeric_emulate(*input_value) * (1 - self.goal), sollya.RD)
+    high_bound = self.precision.round_sollya_object(emulated_function.numeric_emulate(*input_value) * (1 + self.goal), sollya.RU)
     return low_bound, high_bound
 
 

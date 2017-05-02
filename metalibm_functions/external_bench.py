@@ -35,39 +35,21 @@ class ML_ExternalBench(ML_Function("ml_external_bench")):
   def __init__(self, 
              arg_template = DefaultArgTemplate, 
                precision = ML_Binary32, 
-               accuracy  = ML_Faithful,
-               libm_compliant = True, 
-               debug_flag = False, 
-               fuse_fma = True, 
-               fast_path_extract = True,
-               target = GenericProcessor(), 
                output_file = "bench.c", 
                function_name = "bench_wrapper", 
-               sin_output = True):
-    # initializing I/O precision
-    precision = ArgDefault.select_value([arg_template.precision, precision])
-    input_formats = arg_template.input_formats
-    io_precisions = [precision] + input_formats
+               ):
+    arity = len(arg_template.input_precisions)
 
     # initializing base class
     ML_FunctionBasis.__init__(self, 
       base_name = "bench",
       function_name = function_name,
       output_file = output_file,
-
-      io_precisions = io_precisions,
-      abs_accuracy = None,
-      libm_compliant = libm_compliant,
-
-      processor = target,
-      fuse_fma = fuse_fma,
-      fast_path_extract = fast_path_extract,
-
-      debug_flag = debug_flag,
+      arity = arity,
       arg_template = arg_template
     )
-    self.precision = precision
-    self.input_formats = arg_template.input_formats
+    # initializing I/O precision
+
     self.headers = arg_template.headers
     self.libraries = arg_template.libraries
     self.bench_function_name = arg_template.bench_function_name
@@ -78,10 +60,10 @@ class ML_ExternalBench(ML_Function("ml_external_bench")):
 
   def generate_scheme(self): 
     # declaring CodeFunction and retrieving input variable
-    inputs = [self.implementation.add_input_variable("x%d" % i, precision) for i,precision in enumerate(self.input_formats)]
+    inputs = [self.implementation.add_input_variable("x%d" % i, precision) for i,precision in enumerate(self.get_input_precisions())]
 
-    external_function_op = FunctionOperator(self.bench_function_name, arity = len(self.input_formats), output_precision = self.precision, require_header = self.headers)
-    external_function = FunctionObject(self.bench_function_name, self.input_formats, self.precision, external_function_op)
+    external_function_op = FunctionOperator(self.bench_function_name, arity = self.get_arity(), output_precision = self.precision, require_header = self.headers)
+    external_function = FunctionObject(self.bench_function_name, self.get_input_precisions(), self.precision, external_function_op)
 
     scheme = Statement(
       Return(
@@ -103,7 +85,7 @@ if __name__ == "__main__":
 
   # argument extraction 
   arg_template.get_parser().add_argument("--function", dest = "bench_function_name", default = "expf", action = "store", type = str, help = "name of the function to be benched")
-  arg_template.get_parser().add_argument("--input-formats", dest = "input_formats", default = [ML_Binary32], action = "store", type = precision_list_parser, help = "comma separated list of input precision")
+  #arg_template.get_parser().add_argument("--input-formats", dest = "input_formats", default = [ML_Binary32], action = "store", type = precision_list_parser, help = "comma separated list of input precision")
   arg_template.get_parser().add_argument("--headers", dest = "headers", default = [], action = "store", type = lambda s: s.split(","), help = "comma separated list of required headers")
   arg_template.get_parser().add_argument("--libraries", dest = "libraries", default = [], action = "store", type = lambda s: s.split(","), help = "comma separated list of required libraries")
   def local_eval(s):

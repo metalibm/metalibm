@@ -71,6 +71,12 @@ def precision_parser(precision_str):
     else:
       return fixed_format
 
+## Parse list of formats 
+#  @param format_str comma separated list of formats
+#  @return the list of ML format objects
+def format_list_parser(format_str):
+  return [precision_parser(prec_str) for prec_str in format_str.split(",")]
+
 def accuracy_parser(accuracy_str):
     if accuracy_str in accuracy_map:
         return accuracy_map[accuracy_str]
@@ -168,42 +174,96 @@ class ArgDefault(object):
   def select_value(arg_list):
     return ArgDefault.select(arg_list).get_value()
 
+## default argument template to be used when no specific value
+#  are given for a specific parameter
+class DefaultArgTemplate:
+  base_name = "unknown_function"
+  function_name = None
+  output_file = None
+  # metalim engine settings
+  display_after_opt = False
+  display_after_gen = False
+  verbose_enable    = False
+  # output/intermediate format Specification
+  precision = ML_Binary32
+  # list of input precisions
+  # None <=> [self.precision] * self.get_arity()
+  input_precisions = None
+  abs_accuracy = None
+  accuracy = ML_Faithful
+  libm_compliant = True
+  input_interval = Interval(0, 1)
+  # Optimization parameters
+  target = GenericProcessor()
+  fuse_fma = True
+  fast_path_extract = True
+  dot_product_enabled = False
+  # Debug verbosity
+  debug = False
+  vector_size = 1
+  language = C_Code
+  # auto-test properties
+  auto_test = False
+  auto_test_execute = False
+  auto_test_range = Interval(0, 1)
+  auto_test_std   = False
+  # enable max error computation
+  compute_max_error = False
+  # bench properties
+  bench_execute   = False
+  bench_test_number = 0
+  bench_test_range  = Interval(0, 1)
+  bench_function_name = "undefined"
+  headers = []
+  libraries = []
+  # emulation numeric function 
+  emulate = lambda x: x
+  # list of pre-code generation opt passe names (string tag)
+  pre_gen_passes = []
+  check_processor_support = True
+
+  def __init__(self, **kw):
+    for key in kw:
+      setattr(self, key, kw[key])
+
 ## Common ancestor for Argument Template class
 class ML_CommonArgTemplate(object):
   ## constructor for ML_CommonArgTemplate
   #  add generic arguments description (e.g. --debug)
-  def __init__(self, parser):
+  def __init__(self, parser, default_arg = DefaultArgTemplate):
     self.parser = parser
-    self.parser.add_argument("--debug", dest = "debug", action = "store_const", const = True, default = ArgDefault(False), help = "enable debug display in generated code")
-    self.parser.add_argument("--disable-fma", dest = "fuse_fma", action = "store_const", const = False, default = ArgDefault(True), help = "disable FMA-like operation fusion")
-    self.parser.add_argument("--output", action = "store", dest = "output_file", default = ArgDefault(self.default_output_file), help = "set output file")
+    self.parser.add_argument("--debug", dest = "debug", action = "store_const", const = True, default = default_arg.debug, help = "enable debug display in generated code")
+    self.parser.add_argument("--disable-fma", dest = "fuse_fma", action = "store_const", const = False, default = default_arg.fuse_fma, help = "disable FMA-like operation fusion")
+    self.parser.add_argument("--output", action = "store", dest = "output_file", default = self.default_output_file, help = "set output file")
 
-    self.parser.add_argument("--precision", dest = "precision", type = precision_parser, default = ArgDefault(ML_Binary32), help = "select main precision")
-    self.parser.add_argument("--accuracy", dest = "accuracy", default = ArgDefault(ML_Faithful), type = accuracy_parser, help = "select accuracy")
-    self.parser.add_argument("--no-fpe", dest = "fast_path_extract", action = "store_const", const = False, default = ArgDefault(True), help = "disable Fast Path Extraction")
-    self.parser.add_argument("--dot-product", dest = "dot_product_enabled", action = "store_const", const = True, default = ArgDefault(False), help = "enable Dot Product fusion")
-    self.parser.add_argument ("--display-after-opt", dest = "display_after_opt", action = "store_const", const = True, default = ArgDefault(False), help = "display MDL IR after optimization")
-    self.parser.add_argument ("--display-after-gen", dest = "display_after_gen", action = "store_const", const = True, default = ArgDefault(False), help = "display MDL IR after implementation generation")
-    self.parser.add_argument("--input-interval", dest = "input_interval", type = interval_parser, default = ArgDefault(Interval(0,1)), help = "select input range")
-    self.parser.add_argument("--vector-size", dest = "vector_size" , type = int, default = ArgDefault(1), help = "define size of vector (1: scalar implemenation)")
-    self.parser.add_argument("--language", dest = "language", type = language_parser, default = ArgDefault(C_Code), help = "select language for generated source code") 
+    self.parser.add_argument("--precision", dest = "precision", type = precision_parser, default = default_arg.precision, help = "select main precision")
+    self.parser.add_argument("--input-formats", dest = "input_precisions", type = format_list_parser, default = default_arg.input_precisions, help = "comma separated list of input formats")
+
+    self.parser.add_argument("--accuracy", dest = "accuracy", default = default_arg.accuracy, type = accuracy_parser, help = "select accuracy")
+    self.parser.add_argument("--no-fpe", dest = "fast_path_extract", action = "store_const", const = False, default = default_arg.fast_path_extract, help = "disable Fast Path Extraction")
+    self.parser.add_argument("--dot-product", dest = "dot_product_enabled", action = "store_const", const = True, default = default_arg.dot_product_enabled, help = "enable Dot Product fusion")
+    self.parser.add_argument ("--display-after-opt", dest = "display_after_opt", action = "store_const", const = True, default = default_arg.display_after_opt, help = "display MDL IR after optimization")
+    self.parser.add_argument ("--display-after-gen", dest = "display_after_gen", action = "store_const", const = True, default = default_arg.display_after_gen, help = "display MDL IR after implementation generation")
+    self.parser.add_argument("--input-interval", dest = "input_interval", type = interval_parser, default = default_arg.input_interval, help = "select input range")
+    self.parser.add_argument("--vector-size", dest = "vector_size" , type = int, default = default_arg.vector_size, help = "define size of vector (1: scalar implemenation)")
+    self.parser.add_argument("--language", dest = "language", type = language_parser, default = default_arg.language, help = "select language for generated source code") 
 
     # auto-test related arguments
-    self.parser.add_argument("--auto-test", dest = "auto_test", action = "store", nargs = '?', const=10, type=int, default = ArgDefault(False), help = "enable the generation of a self-testing numerical/functionnal bench")
-    self.parser.add_argument("--auto-test-execute", dest = "auto_test_execute", action = "store", nargs = '?', const=10, type=int, default = ArgDefault(False), help = "enable the generation of a self-testing numerical/functionnal bench")
-    self.parser.add_argument("--auto-test-range", dest = "auto_test_range", action = "store", type=interval_parser, default = ArgDefault(Interval(-1,1)), help = "define the range of input values to be used during functional testing")
+    self.parser.add_argument("--auto-test", dest = "auto_test", action = "store", nargs = '?', const=10, type=int, default = default_arg.auto_test, help = "enable the generation of a self-testing numerical/functionnal bench")
+    self.parser.add_argument("--auto-test-execute", dest = "auto_test_execute", action = "store", nargs = '?', const=10, type=int, default = default_arg.auto_test_execute, help = "enable the generation of a self-testing numerical/functionnal bench")
+    self.parser.add_argument("--auto-test-range", dest = "auto_test_range", action = "store", type=interval_parser, default = default_arg.auto_test_range, help = "define the range of input values to be used during functional testing")
+    self.parser.add_argument("--auto-test-std", dest = "auto_test_std", action = "store_const", const = True, default = default_arg.auto_test_std, help = "enabling function test on standard test case list")
     # enable the computation of eval error (if self-testing enabled)
-    self.parser.add_argument("--max-error", dest = "compute_max_error", action = "store_const", const = True, default = False, help = "enable the computation of the maximum error (if auto-test is enabled)")
+    self.parser.add_argument("--max-error", dest = "compute_max_error", action = "store_const", const = True, default = default_arg.compute_max_error, help = "enable the computation of the maximum error (if auto-test is enabled)")
     # performance bench related arguments
-    self.parser.add_argument("--bench", dest = "bench_test_number", action = "store", nargs = '?', const=1000, type=int, default = ArgDefault(False), help = "enable the generation of a performance bench")
+    self.parser.add_argument("--bench", dest = "bench_test_number", action = "store", nargs = '?', const=1000, type=int, default = default_arg.bench_test_number, help = "enable the generation of a performance bench")
     self.parser.add_argument("--bench-execute", dest = "bench_execute", action = "store", nargs = '?', const=1000, type=int, default = ArgDefault(False), help = "enable the generation and execution of a performance bench")
-    self.parser.add_argument("--bench-range", dest = "bench_test_range", action = "store", type=interval_parser, default = ArgDefault(Interval(0,1)), help = "define the interval of input values to use during performance bench")
+    self.parser.add_argument("--bench-range", dest = "bench_test_range", action = "store", type=interval_parser, default = default_arg.bench_test_range, help = "define the interval of input values to use during performance bench")
 
-    self.parser.add_argument("--verbose", dest = "verbose_enable", action = VerboseAction, const = True, default = ArgDefault(False), help = "enable Verbose log level")
+    self.parser.add_argument("--verbose", dest = "verbose_enable", action = VerboseAction, const = True, default = default_arg.verbose_enable, help = "enable Verbose log level")
     self.parser.add_argument("--target-info", dest = "target_info_flag", action = TargetInfoAction, const = True, default = ArgDefault(False), help = "display list of supported targets")
 
     self.parser.add_argument("--exception-error", dest = "exception_on_error", action = ExceptionOnErrorAction, const = True, default = ArgDefault(False), help = "convert Fatal error to python Exception rather than straight sys exit")
-    self.parser.add_argument("--auto-test-std", dest = "auto_test_std", action = "store_const", const = True, default = ArgDefault(False), help = "enabling function test on standard test case list")
 
     self.parser.add_argument("--ml-debug", dest = "ml_debug", action = MLDebugAction, const = True, default = False, help = "enable metalibm debug")
     self.parser.add_argument("--pass-info", action = PassListAction, help = "list available optmization passes")
@@ -251,12 +311,12 @@ class ML_EntityArgTemplate(ML_CommonArgTemplate):
 
 ## new argument template based on argparse module
 class ML_NewArgTemplate(ML_CommonArgTemplate):
-  def __init__(self, default_function_name, default_output_file = "ml_func_gen.c"):
+  def __init__(self, default_function_name, default_output_file = "ml_func_gen.c", default_arg = DefaultArgTemplate):
     self.default_output_file = default_output_file
     self.default_function_name = default_function_name
 
     parser = argparse.ArgumentParser(" Metalibm %s function generation script" % self.default_function_name)
-    ML_CommonArgTemplate.__init__(self, parser)
+    ML_CommonArgTemplate.__init__(self, parser, default_arg = default_arg)
     self.parser.add_argument("--libm", dest = "libm_compliant", action = "store_const", const = True, default = ArgDefault(False), help = "generate libm compliante code")
     self.parser.add_argument("--fname", dest = "function_name", default = ArgDefault(self.default_function_name), help = "set function name")
     self.parser.add_argument("--target", dest = "target", action = "store", type = target_instanciate, default = "none", help = "select generation target")
