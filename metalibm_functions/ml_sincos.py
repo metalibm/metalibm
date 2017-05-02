@@ -192,14 +192,10 @@ class ML_SinCos(ML_Function("ml_cos")):
     red_vx     = Variable("red_vx", precision = self.precision, var_type = Variable.Local)
     red_vx_ext = Variable("red_vx_ext", precision = ext_precision, var_type = Variable.Local)
 
+    
     #modk = Modulo(offset_k, 2**(frac_pi_index+1), precision = ML_Int32, tag = "modk", debug = True)
+    # faster modulo using bitwise logic
     modk_std = BitLogicAnd(offset_k, 2**(frac_pi_index+1)-1, precision = ML_Int32, tag = "modk", debug = True)
-
-
-    sel_c = Equal(BitLogicAnd(modk, 2**(frac_pi_index-1)), 2**(frac_pi_index-1))
-    sel_c.set_attributes(tag = "sel_c", debug = debugd)
-    # red_vx_std = pre_red_vx 
-    #red_vx.set_attributes(tag = "red_vx", debug = debug_precision, precision = self.precision)
 
 
     approx_interval = Interval(-pi/(S2**(frac_pi_index+1)), pi / S2**(frac_pi_index+1))
@@ -431,9 +427,20 @@ class ML_SinCos(ML_Function("ml_cos")):
     C32 = Constant(2**(ph_k+1), precision = int_precision, tag = "C32")
     ph_acc_int_red = Conversion(
       Select(ph_acc_int < Constant(0, precision = int_precision), ph_acc_int + C32, ph_acc_int, precision = int_precision, tag = "ph_acc_int_red"),
-      precision = ML_Int32
+      precision = ML_Int32,
+      tag = "ph_acc_int_red",
+      debug = debug_multi
     )
 
+    if self.sin_output:
+      lar_offset_k = Addition(
+        ph_acc_int_red,
+        Constant(3 * S2**(frac_pi_index - 1), precision = ML_Int32),
+        precision = ML_Int32,
+        tag = "lar_offset_k"
+      )
+    else:
+      lar_offset_k = ph_acc_int_red
 
 
     lar_statement = Statement(
@@ -441,7 +448,14 @@ class ML_SinCos(ML_Function("ml_cos")):
         ReferenceAssign(lar_vx, ph_acc, debug = debug_precision),
         ReferenceAssign(red_vx, lar_red_vx, debug = debug_precision),
         ReferenceAssign(red_vx_ext, -lar_red_vx_ext, debug = debug_precision),
-        ReferenceAssign(modk, ph_acc_int_red, debug = debugd),
+        ReferenceAssign(
+          modk, 
+          BitLogicAnd(
+            lar_offset_k, 
+            2**(frac_pi_index+1) - 1,
+            precision = ML_Int32
+          ),
+          debug = debug_multi),
         prevent_optimization = True
       )
 
@@ -470,7 +484,7 @@ class ML_SinCos(ML_Function("ml_cos")):
     else:
       return cos(input_value)
 
-  standard_test_cases =[sollya.parse(x) for x in  [ "0x1.e57612p+19", "0x1.0ef65ap+9", "0x1.c20874p+9", "-0x1.419768p+18", "-0x1.fd0846p+2", "0x1.d5c0bcp-4", "-0x1.3e25bp+2"]]
+  standard_test_cases =[[sollya.parse(x)] for x in  [ "0x1.e57612p+19", "0x1.0ef65ap+9", "0x1.c20874p+9", "-0x1.419768p+18", "-0x1.fd0846p+2", "0x1.d5c0bcp-4", "-0x1.3e25bp+2"]]
 
 
 
