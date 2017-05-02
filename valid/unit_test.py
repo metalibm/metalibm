@@ -25,6 +25,7 @@ import metalibm_functions.unit_tests.call_externalization as ut_call_externaliza
 import metalibm_functions.unit_tests.auto_test as ut_auto_test
 import metalibm_functions.unit_tests.m128_conversion as ut_m128_conversion
 import metalibm_functions.unit_tests.new_table as ut_new_table
+import metalibm_functions.unit_tests.multi_ary_function as ut_multi_ary_function
 
 
 
@@ -135,6 +136,11 @@ unit_test_list = [
     ut_new_table,
     [{"bench_range": Interval(0, 100), "precision": ML_Int32, "bench_execute": 100, "target": target_instanciate("x86")}],
   ),
+  UnitTestScheme(
+    "multi ary function",
+    ut_multi_ary_function,
+    [{"input_formats": [ML_Int32, ML_Int32, ML_Int32], "precision": ML_Int32, "bench_execute": 100, "target": target_instanciate("x86")}],
+  )
 ]
 
 ## Command line action to set break on error in load module
