@@ -322,9 +322,10 @@ class ML_FunctionBasis(object):
     if verbose: print "silencing operation"
     self.opt_engine.silence_fp_operations(scheme)
 
-    if self.check_processor_support:
-      if verbose: print "checking processor support", self.language
-      self.opt_engine.check_processor_support(scheme, language = self.language)
+    # Too early
+    #if self.check_processor_support:
+    #  if verbose: print "checking processor support", self.language
+    #  self.opt_engine.check_processor_support(scheme, language = self.language)
 
     return scheme
 
@@ -405,9 +406,8 @@ class ML_FunctionBasis(object):
         pass_object = pass_class(self.processor)
         Log.report(Log.Info, "executing opt pass: {}".format(pass_tag))
         opt_scheme = pass_object.execute(opt_scheme)
-        print "post pass scheme"
-        print opt_scheme.get_str(depth = None, display_precision = True, memoization_map = {}, display_id = True)
       code_function.set_scheme(opt_scheme)
+
 
     # generate auto-test wrapper
     if self.auto_test_enable:
@@ -440,6 +440,13 @@ class ML_FunctionBasis(object):
 
       # appending bench wrapper to general code_function_list
       code_function_list += bench_function_list
+
+    # finally checking processor support
+    if self.check_processor_support:
+      for code_function in code_function_list:
+        verbose = True
+        if verbose: print "checking processor support", self.language
+        self.opt_engine.check_processor_support(code_function.get_scheme(), language = self.language)
 
     # generate C code to implement scheme
     self.generate_code(code_function_list, language = self.language)
