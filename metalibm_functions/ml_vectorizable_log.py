@@ -26,34 +26,15 @@ from metalibm_core.utility.debug_utils import *
 class ML_Log(ML_Function("ml_log")):
   def __init__(self,
                arg_template=DefaultArgTemplate,
-               precision=ML_Binary32,
-               abs_accuracy=S2**-24,
-               libm_compliant=True,
-               debug_flag=False,
-               fuse_fma=True,
-               fast_path_extract=True,
-               target=GenericProcessor(),
                output_file="ml_log.c",
                function_name="ml_log"):
-    # initializing I/O precision
-    precision = ArgDefault.select_value([arg_template.precision, precision])
-    io_precisions = [precision] * 2
-
     # initializing base class
     ML_FunctionBasis.__init__(self,
             base_name = "log",
             function_name = function_name,
             output_file = output_file,
-            io_precisions = io_precisions,
-            abs_accuracy = None,
-            libm_compliant = libm_compliant,
-            processor = target,
-            fuse_fma = fuse_fma,
-            fast_path_extract = fast_path_extract,
-            debug_flag = debug_flag,
             arg_template = arg_template)
 
-    self.precision = precision
 
   def generate_emulate(self, result_ternary, result, mpfr_x, mpfr_rnd):
     """ generate the emulation code for the function
