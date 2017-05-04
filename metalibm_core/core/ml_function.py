@@ -96,7 +96,7 @@ class ML_FunctionBasis(object):
              libm_compliant = ArgDefault(True, 2),
              # Optimization parameters
              processor = ArgDefault(GenericProcessor(), 2),
-             fuse_fma = ArgDefault(True, 2), 
+             fuse_fma = ArgDefault(False, 2), 
              fast_path_extract = ArgDefault(True, 2),
              # Debug verbosity
              debug_flag = ArgDefault(False, 2),

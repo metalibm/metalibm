@@ -195,7 +195,7 @@ class DefaultArgTemplate:
   input_interval = Interval(0, 1)
   # Optimization parameters
   target = GenericProcessor()
-  fuse_fma = True
+  fuse_fma = False
   fast_path_extract = True
   dot_product_enabled = False
   # Debug verbosity
