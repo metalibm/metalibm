@@ -823,6 +823,9 @@ class ML_FunctionBasis(object):
           )
         )
       )
+    
+    # common test Statement
+    test_statement = Statement()
 
     test_loop = Loop(
       ReferenceAssign(vi, Constant(0, precision = ML_Int32)),
@@ -833,7 +836,71 @@ class ML_FunctionBasis(object):
         ReferenceAssign(vi, vi + loop_increment)
       ),
     )
-    return test_loop
+
+    # computing maximal error
+    if self.compute_max_error:
+      eval_error = Variable("max_error", precision = self.precision, var_type = Variable.Local)
+
+      printf_error_op = FunctionOperator("printf", arg_map = {0: "\"max %s error is %s \\n \"" % (self.function_name, self.precision.get_display_format()), 1: FO_Arg(0)}, void_function = True) 
+      printf_error_function = FunctionObject("printf", [self.precision], ML_Void, printf_error_op)
+
+      local_inputs = [
+        Variable(
+          "vec_x_{}".format(i) , 
+          precision = vector_format, 
+          var_type = Variable.Local
+        ) for i in xrange(self.get_arity())
+      ]
+      assignation_statement = Statement()
+      for input_index, local_input in enumerate(local_inputs):
+        assignation_statement.push(local_input)
+        for k in xrange(self.get_vector_size()):
+          elt_assign = ReferenceAssign(VectorElementSelection(local_input, k), TableLoad(input_tables[input_index], vi + k))
+          assignation_statement.push(elt_assign)
+
+      # computing results
+      local_result = tested_function(*local_inputs)
+
+      comp_statement = Statement()
+      for k in xrange(self.get_vector_size()):
+        elt_inputs = [VectorElementSelection(local_inputs[input_id], k) for input_id in xrange(self.get_arity())]
+        elt_result = VectorElementSelection(local_result, Constant(k, precision = ML_Integer))
+
+        output_values = [TableLoad(output_table, vi + k, i) for i in xrange(self.accuracy_obj.get_num_output_value())]
+
+        local_error = self.accuracy_obj.compute_error(elt_result, output_values, relative = True)
+
+        comp_statement.push(
+          ReferenceAssign(
+            eval_error,
+            Max(
+              local_error,
+              eval_error,
+              precision = self.precision
+            )
+          )
+        )
+
+      error_loop = Loop(
+        ReferenceAssign(vi, Constant(0, precision = ML_Int32)),
+        vi < test_num_cst,
+        Statement(
+          assignation_statement,
+          comp_statement,
+          ReferenceAssign(vi, vi + loop_increment)
+        ),
+      )
+      test_statement.add(
+        Statement(
+          ReferenceAssign(eval_error, Constant(0, precision = self.precision)),
+          error_loop,
+          printf_error_function(eval_error)
+        )
+      )
+
+    # adding functional test_loop to test statement
+    test_statement.add(test_loop)
+    return test_statement
 
   ## generate a test loop for scalar tests
   #  @param test_num number of elementary tests to be executed
@@ -893,11 +960,7 @@ class ML_FunctionBasis(object):
           ReferenceAssign(
             eval_error,
             Max(
-              Division(
-                self.accuracy_obj.compute_error(local_result, stored_values),
-                local_result,
-                precision = self.precision
-              ),
+              self.accuracy_obj.compute_error(local_result, stored_values, relative = True),
               eval_error,
               precision = self.precision
             )
