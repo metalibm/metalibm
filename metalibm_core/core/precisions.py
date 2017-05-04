@@ -11,7 +11,7 @@
 ###############################################################################
 
 import sollya
-from .ml_operations import LogicalOr, Comparison, FunctionObject, Min, Abs, Subtraction
+from .ml_operations import LogicalOr, Comparison, FunctionObject, Min, Abs, Subtraction, Division
 from metalibm_core.code_generation.generator_utility import *
 
 ## Parent class for output precision indication/constraint
@@ -40,7 +40,8 @@ class ML_FunctionPrecision(object):
     raise NotImplementedError
   ## generate an optree to get evaluation error between local_result 
   # and output_values
-  def compute_error(self, local_result, output_values):
+  # @param relative select the computation of a relative error (default: absolute)
+  def compute_error(self, local_result, output_values, relative = False):
     raise NotImplementedError
     
 class ML_TwoFactorPrecision(ML_FunctionPrecision):
@@ -51,7 +52,7 @@ class ML_TwoFactorPrecision(ML_FunctionPrecision):
     high_bound = self.precision.round_sollya_object(emulated_function.numeric_emulate(*input_values), sollya.RU)
     return low_bound, high_bound
 
-  def compute_error(self, local_result, stored_outputs):
+  def compute_error(self, local_result, stored_outputs, relative = False):
     precision = local_result.get_precision()
     low_bound, high_bound = stored_outputs
     error = Min(
@@ -59,6 +60,8 @@ class ML_TwoFactorPrecision(ML_FunctionPrecision):
       Abs(Subtraction(local_result, high_bound, precision = precision), precision = precision),
       precision = precision
     )
+    if relative:
+      error = Abs(Division(error, local_result, precision = precision), precision = precision)
     return error
 
   def get_output_check_test(self, test_result, stored_outputs):
@@ -92,10 +95,14 @@ class ML_CorrectlyRounded(ML_FunctionPrecision):
     expected_value = self.precision.round_sollya_object(emulated_function.numeric_emulate(*input_values), sollya.RN)
     return (expected_value,)
 
-  def compute_error(self, local_result, output_values):
+  def compute_error(self, local_result, output_values, relative = False):
     precision = local_result.get_precision()
     expected_value,  = output_values
-    error = Abs(Subtraction(local_result, expected_value, precision = precision), precision = precision)
+    error = Subtraction(local_result, expected_value, precision = precision)
+    if relative:
+      error = Abs(Division(error, local_result, precision = precision), precision = precision)
+    else:
+      error = Abs(error, precision = precision)
     return error
 
   def get_output_check_test(self, test_result, stored_outputs):
