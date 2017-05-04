@@ -116,10 +116,10 @@ _mm_mul_ss = FunctionOperator("_mm_mul_ss", arity = 2,
                               require_header = ["xmmintrin.h"])
 _lzcnt_u32 = FunctionOperator("_lzcnt_u32", arity = 1,
         output_precision = ML_UInt32,
-        require_header = ["immintrin.h"])
+        require_header = ["lzcntintrin.h"])
 _lzcnt_u64 = FunctionOperator("_lzcnt_u64", arity = 1,
         output_precision = ML_UInt64,
-        require_header = ["immintrin.h"])
+        require_header = ["lzcntintrin.h"])
 
 _mm_cvtss_f32 = FunctionOperator("_mm_cvtss_f32", arity = 1,
                                  output_precision = ML_Binary32,
@@ -500,10 +500,10 @@ class X86_AVX2_Processor(X86_SSE41_Processor):
             CountLeadingZeros: {
                 None: {
                     lambda _: True: {
-                        type_strict_match(ML_UInt32, ML_UInt32):
-                        _lzcnt_u32(FO_Arg(0)),
-                        type_strict_match(ML_UInt64, ML_UInt64):
-                        _lzcnt_u64(FO_Arg(0)),
+                        #type_strict_match(ML_UInt32, ML_UInt32):
+                        #_lzcnt_u32(FO_Arg(0)),
+                        #type_strict_match(ML_UInt64, ML_UInt64):
+                        #_lzcnt_u64(FO_Arg(0)),
                     },
                 },
             },
