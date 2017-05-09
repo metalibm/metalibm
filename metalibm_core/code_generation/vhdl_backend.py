@@ -386,7 +386,7 @@ vhdl_code_generation_table = {
   Truncate: {
     None: {
       lambda optree: True: {
-        type_custom_match(TCM(ML_StdLogicVectorFormat), TCM(ML_StdLogicVectorFormat), TCM(ML_StdLogicVectorFormat)): DynamicOperator(truncate_generator),
+        type_custom_match(TCM(ML_StdLogicVectorFormat), TCM(ML_StdLogicVectorFormat)): DynamicOperator(truncate_generator),
       },
     },
   },
