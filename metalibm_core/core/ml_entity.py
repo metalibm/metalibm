@@ -23,6 +23,8 @@ from metalibm_core.core.ml_complex_formats import ML_Mpfr_t
 from metalibm_core.core.ml_call_externalizer import CallExternalizer
 from metalibm_core.core.ml_vectorizer import StaticVectorizer
 
+from metalibm_core.core.precisions import ML_Faithful
+
 from metalibm_core.code_generation.code_object import NestedCode, VHDLCodeObject, CodeObject
 from metalibm_core.code_generation.code_entity import CodeEntity
 from metalibm_core.code_generation.vhdl_backend import VHDLBackend
@@ -34,7 +36,7 @@ from metalibm_core.code_generation.gappa_code_generator import GappaCodeGenerato
 
 from metalibm_core.utility.log_report import Log
 from metalibm_core.utility.debug_utils import *
-from metalibm_core.utility.ml_template import ArgDefault
+from metalibm_core.utility.ml_template import ArgDefault, DefaultEntityArgTemplate
 
 import random
 import subprocess
@@ -52,59 +54,6 @@ def random_log_sample(interval):
 
 
   
-## default argument template to be used when no specific value
-#  are given for a specific parameter
-class DefaultEntityArgTemplate:
-  def __init__(self, 
-                base_name = "unknown_entity",
-                entity_name = None,
-                output_file = None,
-                debug_file  = None,
-                # Specification,
-                precision = ML_Binary32,
-                accuracy = ML_Faithful,
-                io_precisions = [ML_Binary32],
-                abs_accuracy   = None,
-                libm_compliant = True,
-                # Optimization parameters,
-                backend = VHDLBackend(),
-                fuse_fma = True,
-                fast_path_extract = True,
-                # Debug verbosity,
-                debug= False,
-                language = VHDL_Code,
-                auto_test = False,
-                auto_test_execute = False,
-                auto_test_range = None,
-                auto_test_std   = False,
-                **kw # extra arguments
-              ):
-    self.base_name  = base_name
-    self.entity_name  = entity_name
-    self.output_file  = output_file
-    self.debug_file   = debug_file
-    # Specification,
-    self.precision  = precision
-    self.io_precisions  = io_precisions
-    self.abs_accuracy  = abs_accuracy
-    self.accuracy      = accuracy
-    self.libm_compliant  = libm_compliant
-    # Optimization parameters,
-    self.backend  = backend
-    self.fuse_fma  = fuse_fma
-    self.fast_path_extract  = fast_path_extract
-    # Debug verbosity,
-    self.debug = debug
-    self.language  = language
-    self.auto_test  = auto_test
-    self.auto_test_execute  = auto_test_execute
-    self.auto_test_range  = auto_test_range
-    self.auto_test_std  = auto_test_std
-    # registering extra arguments
-    for attr in kw:
-      print "initializing: ", attr, kw[attr]
-      setattr(self, attr, kw[attr])
-
 class RetimeMap:
   def __init__(self):
     # map (op_key, stage) -> stage's op
@@ -178,9 +127,6 @@ class ML_EntityBasis(object):
              # Debug verbosity
              debug_flag = ArgDefault(False, 2),
              language = ArgDefault(VHDL_Code, 2),
-             auto_test = ArgDefault(False, 2),
-             auto_test_range = ArgDefault(Interval(-1, 1), 2),
-             auto_test_std = ArgDefault(False, 2),
              arg_template = DefaultEntityArgTemplate 
          ):
     # selecting argument values among defaults
@@ -202,8 +148,10 @@ class ML_EntityBasis(object):
     # Debug verbosity
     debug_flag    = ArgDefault.select_value([arg_template.debug, debug_flag])
     language      = ArgDefault.select_value([arg_template.language, language])
-    auto_test     = ArgDefault.select_value([arg_template.auto_test, arg_template.auto_test_execute, auto_test])
-    auto_test_std = ArgDefault.select_value([arg_template.auto_test_std, auto_test_std])
+    auto_test     = arg_template.auto_test or arg_template.auto_test_execute
+    auto_test_std = arg_template.auto_test_std
+
+    self.precision = arg_template.precision
 
     # io_precisions must be a list
     #     -> with a single element
@@ -211,11 +159,12 @@ class ML_EntityBasis(object):
     self.io_precisions = io_precisions
 
     ## enable the generation of numeric/functionnal auto-test
-    self.auto_test_enable = (auto_test != False or auto_test_std != False)
-    self.auto_test_number = auto_test
-    self.auto_test_execute = ArgDefault.select_value([arg_template.auto_test_execute])
-    self.auto_test_range = ArgDefault.select_value([arg_template.auto_test_range, auto_test_range])
-    self.auto_test_std   = auto_test_std 
+    self.auto_test_enable  = (auto_test != False or auto_test_std != False)
+    self.auto_test_number  = auto_test
+    self.auto_test_execute = arg_template.auto_test_execute
+    self.auto_test_range   = arg_template.auto_test_range
+    self.auto_test_std     = auto_test_std 
+    print "auto_test args: ", auto_test, auto_test_std, self.auto_test_enable, self.auto_test_number, self.auto_test_execute, self.auto_test_std
 
     self.language = language
 

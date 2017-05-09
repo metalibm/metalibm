@@ -27,6 +27,8 @@ from ..targets import *
 from ..code_generation.code_constant import *
 from ..core.passes import Pass
 
+from metalibm_core.code_generation.vhdl_backend import VHDLBackend
+
 # populating target_map
 target_map = {}
 target_map["none"] = GenericProcessor
@@ -226,6 +228,33 @@ class DefaultArgTemplate:
     for key in kw:
       setattr(self, key, kw[key])
 
+## default argument template to be used for entity
+#  when no specific value are given for a specific parameter
+class DefaultEntityArgTemplate(DefaultArgTemplate):
+    base_name  = "unknown_entity"
+    entity_name  = "unknown_entity"
+    output_file  = "entity.vhd"
+    debug_file   = None
+    # Specification,
+    precision      = ML_Binary32
+    io_precisions  = None 
+    accuracy       = ML_Faithful
+    libm_compliant = True
+    # Optimization parameters,
+    backend           = VHDLBackend()
+    fuse_fma          = None
+    fast_path_extract = False
+    # Debug verbosity,
+    debug = False
+    language  = VHDL_Code
+    # functional test related parameters
+    auto_test  = False
+    auto_test_execute  = False
+    auto_test_range  = None
+    auto_test_std  = False
+
+  
+
 ## Common ancestor for Argument Template class
 class ML_CommonArgTemplate(object):
   ## constructor for ML_CommonArgTemplate
@@ -297,15 +326,15 @@ class ML_CommonArgTemplate(object):
 
 ## Argument template for entity object
 class ML_EntityArgTemplate(ML_CommonArgTemplate):
-  def __init__(self, default_entity_name, default_output_file = "ml_entity.vhd"):
+  def __init__(self, default_entity_name, default_output_file = "ml_entity.vhd", default_arg = DefaultEntityArgTemplate):
     parser = argparse.ArgumentParser(" Metalibm %s entity generation script" % default_entity_name)
     self.default_output_file = default_output_file
     self.default_entity_name = default_entity_name
 
-    ML_CommonArgTemplate.__init__(self, parser)
+    ML_CommonArgTemplate.__init__(self, parser, default_arg = default_arg)
 
-    self.parser.add_argument("--entityname", dest = "entity_name", default = ArgDefault(self.default_entity_name), help = "set entity name")
-    self.parser.add_argument("--backend", dest = "backend", action = "store", type = target_instanciate, default = "none", help = "select generation backend")
+    self.parser.add_argument("--entityname", dest = "entity_name", default = self.default_entity_name, help = "set entity name")
+    self.parser.add_argument("--backend", dest = "backend", action = "store", type = target_instanciate, default = default_arg.backend, help = "select generation backend")
     self.parser.add_argument("--debug-file", dest = "debug_file", action="store", help = "help define output file for debug script")
 
 

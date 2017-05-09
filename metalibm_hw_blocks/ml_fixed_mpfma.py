@@ -58,12 +58,8 @@ class FP_FIXED_MPFMA(ML_Entity("fp_fixed_mpfma")):
   def __init__(self, 
              arg_template = DefaultEntityArgTemplate, 
              precision = ML_Binary32, 
-             accuracy  = ML_Faithful,
-             libm_compliant = True, 
-             debug_flag = False, 
-             fuse_fma = True, 
-             fast_path_extract = True,
              target = VHDLBackend(), 
+             debug_flag = False,
              output_file = "fp_fixed_mpfma.vhd", 
              entity_name = "fp_fixed_mpfma",
              language = VHDL_Code,
@@ -85,15 +81,12 @@ class FP_FIXED_MPFMA(ML_Entity("fp_fixed_mpfma")):
       abs_accuracy = None,
 
       backend = target,
-      fuse_fma = fuse_fma,
-      fast_path_extract = fast_path_extract,
 
       debug_flag = debug_flag,
       language = language,
       arg_template = arg_template
     )
 
-    self.accuracy  = accuracy
     self.precision = precision
     # number of extra bits to add to the accumulator fixed precision
     self.extra_digit = extra_digit
