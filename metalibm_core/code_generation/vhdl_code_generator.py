@@ -20,7 +20,7 @@ from ..core.ml_operations import Variable, Constant, ConditionBlock, Return, Tab
 from ..core.ml_hdl_operations import *
 from ..core.ml_table import ML_Table
 from ..core.ml_formats import *
-from ..core.attributes import ML_Debug
+from ..core.attributes import ML_Debug, ML_AdvancedDebug
 from .code_constant import VHDL_Code
 from .code_element import CodeVariable, CodeExpression
 from .code_function import CodeFunction
@@ -517,8 +517,11 @@ class VHDLCodeGenerator(object):
           final_var = code_object.get_free_signal_name(optree.get_precision(), prefix = "dbg_"+ optree.get_tag())
           code_object << "{} <= {};\n".format(final_var, result.get())
           result = CodeVariable(final_var, optree.get_precision())
-        display_result = debug_object.get_pre_process(result.get(), optree) if isinstance(debug_object, ML_Debug) else result.get()
-        debug_msg = "echo \"{tag}\"; examine {display_format} testbench.tested_entity.{display_result};\n".format(tag = optree.get_tag(), display_format = display_format, display_result = display_result)
+        signal_name = "testbench.tested_entity.{}".format(result.get())
+        # display_result = debug_object.get_pre_process(result.get(), optree) if isinstance(debug_object, ML_Debug) else result.get()
+        display_result = debug_object.get_pre_process(signal_name, optree) if isinstance(debug_object, ML_AdvancedDebug) else "examine {display_format} {signal_name}".format(display_format = display_format, signal_name = signal_name)
+        #debug_msg = "echo \"{tag}\"; examine {display_format} testbench.tested_entity.{display_result};\n".format(tag = optree.get_tag(), display_format = display_format, display_result = display_result)
+        debug_msg = "echo \"{tag}\"; {display_result};\n".format(tag = optree.get_tag(), display_result = display_result)
         self.get_debug_code_object() << debug_msg
 
     ## define the code object for debug 
