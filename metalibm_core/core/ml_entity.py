@@ -169,6 +169,9 @@ class ML_EntityBasis(object):
     self.auto_test_std     = auto_test_std 
     print "auto_test args: ", auto_test, auto_test_std, self.auto_test_enable, self.auto_test_number, self.auto_test_execute, self.auto_test_std
 
+    # enable post-generation RTL elaboration
+    self.build_enable = arg_template.build_enable
+
     self.language = language
 
     # Naming logic, using provided information if available, otherwise deriving from base_name
@@ -414,8 +417,27 @@ class ML_EntityBasis(object):
     # generate VHDL code to implement scheme
     self.generate_code(code_entity_list, language = self.language)
 
-    if self.auto_test_enable:
-      pass
+    if self.auto_test_execute:
+      # rtl elaboration
+      print "Elaborating {}".format(self.output_file)
+      elab_cmd = "vlib work && vcom {}".format(self.output_file)
+      elab_result = subprocess.call(elab_cmd, shell = True)
+      print "Elaboration result: ", elab_result
+      # simulation
+      sim_cmd = "vsim -c work.testbench -do \"run 1000 ns;\"".format(entity = self.entity_name)
+      sim_result = subprocess.call(sim_cmd, shell = True)
+      print "Simulation result: ", sim_result
+
+    elif self.build_enable:
+      print "Elaborating {}".format(self.output_file)
+      elab_cmd = "vlib work && vcom {}".format(self.output_file)
+      elab_result = subprocess.call(elab_cmd, shell = True)
+      print "elab_result: ", elab_result
+    
+
+
+
+   
 
 
   # Currently mostly empty, to be populated someday
@@ -468,6 +490,11 @@ class ML_EntityBasis(object):
 
     # building list of test cases
     tc_list = []
+
+    # Appending standard test cases if required
+    if self.auto_test_std:
+      tc_list += self.standard_test_cases 
+
     for i in range(test_num):
       input_values = {}
       for input_tag in input_signals:
@@ -486,10 +513,6 @@ class ML_EntityBasis(object):
         print("input_value %e" % input_value)
         input_values[input_tag] = input_value
       tc_list.append((input_values,None))
-
-    # Appending standard test cases if required
-    if self.auto_test_std:
-      tc_list += self.standard_test_cases 
 
     for input_values, output_values in tc_list:
       # Adding input setting
