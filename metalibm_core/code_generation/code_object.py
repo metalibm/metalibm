@@ -683,7 +683,7 @@ class NestedCode(object):
     """ object to support multiple levels of nested code with local and global variable management """
     ##
     #  @param uniquifier <str> unifiquation prefix for name generation
-    def __init__(self, code_generator, static_cst = False, static_table = True, uniquifier = "", code_ctor = CodeObject, main_code_level = None):
+    def __init__(self, code_generator, static_cst = False, static_table = True, uniquifier = "", code_ctor = CodeObject, main_code_level = None, shared_symbol_list = None):
         self.language = code_generator.language
         self.code_generator = code_generator
 
