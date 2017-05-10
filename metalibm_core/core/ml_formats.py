@@ -421,6 +421,9 @@ class VirtualFormat(ML_Format):
   def get_support_format(self):
     return self.support_format
 
+  def get_bit_size(self):
+    return self.base_format.get_bit_size()
+
 
 ## Ancestor to fixed-point format
 class ML_Fixed_Format(VirtualFormat):
