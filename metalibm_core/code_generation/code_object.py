@@ -699,11 +699,17 @@ class NestedCode(object):
 
         self.static_function_table = SymbolTable(uniquifier = self.uniquifier)
         
-        shared_tables = {
-            MultiSymbolTable.ConstantSymbol: self.get_cst_table(), 
-            MultiSymbolTable.TableSymbol: self.get_table_table(),
-            MultiSymbolTable.FunctionSymbol: self.get_function_table(),   
+        # defaulting list of shared symbol table to build
+        # if none is defined
+        shared_symbol_list = [MultiSymbolTable.ConstantSymbol, MultiSymbolTable.TableSymbol, MultiSymbolTable.FunctionSymbol] if shared_symbol_list is None else shared_symbol_list
+        # Constructor of Shared table
+        shared_tables_ctor = {
+            MultiSymbolTable.ConstantSymbol: self.get_cst_table, 
+            MultiSymbolTable.TableSymbol: self.get_table_table,
+            MultiSymbolTable.FunctionSymbol: self.get_function_table,   
         }
+        # Building share symbol
+        shared_tables = dict([(symbol, shared_tables_ctor[symbol]()) for symbol in shared_symbol_list])
 
         self.main_code = self.code_ctor(self.language, shared_tables, uniquifier = self.uniquifier, main_code_level = True) 
         self.code_list = [self.main_code]
