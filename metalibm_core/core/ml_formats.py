@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
 
+## @package ml_operations
+#  Metalibm Formats node precision 
+
 ###############################################################################
 # This file is part of Kalray's Metalibm tool
 # Copyright (2013-2015)
@@ -17,6 +20,9 @@ import re
 
 
 S2 = sollya.SollyaObject(2)
+
+## \defgroup ml_formats ml_formats
+#  @{
 
 # numerical floating-point constants
 ml_nan   = sollya.parse("nan")
@@ -861,3 +867,5 @@ class FP_Context(object):
     def get_silent(self):
         return self.silent
 
+## @} 
+# end of metalibm's Doxygen ml_formats group
