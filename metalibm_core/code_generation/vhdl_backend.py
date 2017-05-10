@@ -23,6 +23,7 @@ from ..core.ml_operations import *
 from ..core.ml_hdl_operations import *
 from metalibm_core.core.target import TargetRegister
 
+from metalibm_hw_blocks.rtl_blocks import *
 
 from .abstract_backend import AbstractBackend
 
