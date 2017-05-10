@@ -364,12 +364,13 @@ class ML_EntityBasis(object):
     self.result = code_object
     code_str = ""
     for code_entity in code_entity_list:
-      entity_code_object = NestedCode(self.vhdl_code_generator, static_cst = True, uniquifier = "{0}_".format(self.entity_name), code_ctor = VHDLCodeObject)
+      entity_code_object = NestedCode(self.vhdl_code_generator, static_cst = False, uniquifier = "{0}_".format(self.entity_name), code_ctor = VHDLCodeObject)
       result = code_entity.add_definition(self.vhdl_code_generator, language, entity_code_object, static_cst = True)
       result.add_library("ieee")
       result.add_header("ieee.std_logic_1164.all")
-      result.add_header("ieee.std_logic_unsigned.all")
-      result.add_header("ieee.numeric_std.all")
+      result.add_header("ieee.std_logic_arith.all")
+      result.add_header("ieee.std_logic_misc.all")
+      #result.add_header("ieee.numeric_std.all")
       #result.push_into_parent_code(self.result, self.vhdl_code_generator, headers = True)
       code_str += result.get(self.vhdl_code_generator, headers = True)
 
@@ -530,7 +531,7 @@ class ML_EntityBasis(object):
         output_signal = output_signals[output_tag]
         output_value  = Constant(output_values[output_tag], precision = output_signal.get_precision())
         value_msg = output_signal.get_precision().get_cst(output_values[output_tag], language = VHDL_Code).replace('"',"'")
-        value_msg += " / " + hex(output_values[output_tag])
+        value_msg += " / " + hex(output_signal.get_precision().get_base_format().get_integer_coding(output_values[output_tag]))
         test_statement.add(
           Assert(
             Comparison(
