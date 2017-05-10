@@ -2,12 +2,13 @@
 
 ###############################################################################
 # This file is part of Kalray's Metalibm tool
-# Copyright (2013)
+# VHDL code generation module
+# Copyright (2016-)
 # All rights reserved
-# created:          Dec 24th, 2013
-# last-modified:    Apr 2nd,  2014
+# created:          Nov 19th, 2016
+# last-modified:    May  9th, 2017
 #
-# author(s): Nicolas Brunie (nicolas.brunie@kalray.eu)
+# author(s): Nicolas Brunie (nibrunie@gmail.com)
 ###############################################################################
 
 
