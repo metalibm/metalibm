@@ -31,6 +31,7 @@ def exclude_std_logic(optree):
 def include_std_logic(optree):
   return isinstance(optree.get_precision(), ML_StdLogicVectorFormat)
 
+
 ## Copy the value of the init_stage attribute field
 #  from @p src node to @p dst node
 def copy_init_stage(src, dst):
@@ -151,16 +152,78 @@ def sub_signal_generator(optree):
   sup_index = optree.get_sup_index()
   return TemplateOperator("%s({sup_index} downto {inf_index})".format(inf_index = inf_index, sup_index = sup_index), arity = 1, force_folding = True)
 
-def sext_modifier(optree):
+
+## fixed point operation generation block
+def fixed_point_op_modifier(optree, op_ctor = Addition):
   init_stage = optree.attributes.get_dyn_attribute("init_stage")
 
-  ext_size = optree.ext_size
-  ext_precision = ML_StdLogicVectorFormat(ext_size + ext_input.get_precision().get_bit_size())
-  ext_input = optree.get_input(0)
-  op_size = ext_input.get_precision().get_bit_size()
-  sign_digit = VectorElementSelection(ext_input, Constant(op_size -1, precision = ML_Integer), precision = ML_StdLogic, init_stage = init_stage)
-  precision = ML_StdLogicVectorFormat(ext_size)
-  return Concatenation(Replication(sign_digit, precision = precision, init_stage = init_stage), optree, precision = ext_precision, tag = optree.get_tag(), init_stage = init_stage)
+  # left hand side and right hand side operand extraction
+  lhs = optree.get_input(0)
+  rhs = optree.get_input(1)
+  lhs_prec = lhs.get_precision().get_base_format()
+  rhs_prec = rhs.get_precision().get_base_format()
+  optree_prec = optree.get_precision().get_base_format()
+  result_frac_size = max(lhs_prec.get_frac_size(), rhs_prec.get_frac_size(), optree_prec.get_frac_size())
+  result_integer_size = max(lhs_prec.get_integer_size(), rhs_prec.get_integer_size(), optree_prec.get_integer_size())
+  assert optree_prec.get_frac_size() >= result_frac_size
+  assert optree_prec.get_integer_size() >= result_integer_size
+  lhs_casted = TypeCast(lhs, precision = ML_StdLogicVectorFormat(lhs_prec.get_bit_size()), init_stage = init_stage)
+  rhs_casted = TypeCast(rhs, precision = ML_StdLogicVectorFormat(rhs_prec.get_bit_size()), init_stage = init_stage)
+
+  lhs_ext = (sext if lhs_prec.get_signed() else zext)(
+    rzext(lhs_casted, result_frac_size - lhs_prec.get_frac_size()),
+    result_integer_size - lhs_prec.get_integer_size()
+  )
+  lhs_ext = SignCast(lhs_ext, precision = lhs_ext.get_precision(), specifier = SignCast.Signed if lhs_prec.get_signed() else  SignCast.Unsigned)
+
+  rhs_ext = (sext if rhs_prec.get_signed() else zext)(
+    rzext(rhs_casted, result_frac_size - rhs_prec.get_frac_size()),
+    result_integer_size - rhs_prec.get_integer_size()
+  )
+  rhs_ext = SignCast(rhs_ext, precision = rhs_ext.get_precision(), specifier = SignCast.Signed if rhs_prec.get_signed() else  SignCast.Unsigned)
+  return TypeCast(
+    op_ctor(
+      lhs_ext,
+      rhs_ext,
+      precision = ML_StdLogicVectorFormat(optree_prec.get_bit_size()),
+    ),
+    init_stage = init_stage,
+    precision = optree_prec,
+  )
+
+def fixed_point_add_modifier(optree):
+  return fixed_point_op_modifier(optree, op_ctor = Addition)
+def fixed_point_sub_modifier(optree):
+  return fixed_point_op_modifier(optree, op_ctor = Subtraction)
+
+def fixed_point_mul_modifier(optree):
+  init_stage = optree.attributes.get_dyn_attribute("init_stage")
+
+  # left hand side and right hand side operand extraction
+  lhs = optree.get_input(0)
+  rhs = optree.get_input(1)
+  lhs_prec = lhs.get_precision().get_base_format()
+  rhs_prec = rhs.get_precision().get_base_format()
+  optree_prec = optree.get_precision().get_base_format()
+  result_frac_size = max(lhs_prec.get_frac_size() + rhs_prec.get_frac_size(), optree_prec.get_frac_size())
+  result_integer_size = max(lhs_prec.get_integer_size() +  rhs_prec.get_integer_size(), optree_prec.get_integer_size())
+  assert optree_prec.get_frac_size() >= result_frac_size
+  assert optree_prec.get_integer_size() >= result_integer_size
+  lhs_casted = TypeCast(lhs, precision = ML_StdLogicVectorFormat(lhs_prec.get_bit_size()), init_stage = init_stage)
+  lhs_casted = SignCast(lhs_casted, precision = lhs_casted.get_precision(), specifier = SignCast.Signed if lhs_prec.get_signed() else  SignCast.Unsigned)
+  rhs_casted = TypeCast(rhs, precision = ML_StdLogicVectorFormat(rhs_prec.get_bit_size()), init_stage = init_stage)
+  rhs_casted = SignCast(rhs_casted, precision = rhs_casted.get_precision(), specifier = SignCast.Signed if rhs_prec.get_signed() else  SignCast.Unsigned)
+
+  mult_prec = ML_StdLogicVectorFormat(result_frac_size + result_integer_size)
+  raw_result = Multiplication(
+    lhs_casted,
+    rhs_casted,
+    precision = mult_prec,
+    init_stage = init_stage
+  )
+  rext_result = rzext(raw_result, optree_prec.get_frac_size() - result_frac_size)
+  result = (sext if (optree_prec.get_signed()) else zext)(rext_result, optree_prec.get_integer_size() - result_integer_size)
+  return TypeCast(result, precision = optree_prec, init_stage = init_stage)
 
 vhdl_comp_symbol = {
   Comparison.Equal: "=", 
@@ -188,6 +251,9 @@ ML_Bool.get_cst_map[VHDL_Code] = get_vhdl_bool_cst
 
 # class Match custom std logic vector format
 MCSTDLOGICV = TCM(ML_StdLogicVectorFormat)
+
+# class match custom fixed point format
+MCFixedPoint = TCM(ML_Base_FixedPoint_Format)
 
 formal_generation_table = {
   Addition: {
@@ -223,6 +289,10 @@ vhdl_code_generation_table = {
         type_custom_match(MCSTDLOGICV, MCSTDLOGICV, MCSTDLOGICV):  SymbolOperator("+", arity = 2, force_folding = True),
         type_custom_match(MCSTDLOGICV, MCSTDLOGICV, FSM(ML_StdLogic)):  SymbolOperator("+", arity = 2, force_folding = True),
         type_custom_match(MCSTDLOGICV, FSM(ML_StdLogic), MCSTDLOGICV):  SymbolOperator("+", arity = 2, force_folding = True),
+      },
+      # fallback
+      lambda _: True: {
+        type_custom_match(MCFixedPoint, MCFixedPoint, MCFixedPoint): ComplexOperator(optree_modifier = fixed_point_add_modifier),
       }
     }
   },
@@ -233,6 +303,10 @@ vhdl_code_generation_table = {
       include_std_logic:
       {
         type_custom_match(MCSTDLOGICV, MCSTDLOGICV, MCSTDLOGICV):  SymbolOperator("-", arity = 2, force_folding = True),
+      },
+      # fallback
+      lambda _: True: {
+        type_custom_match(MCFixedPoint, MCFixedPoint, MCFixedPoint): ComplexOperator(optree_modifier = fixed_point_sub_modifier),
       }
     }
   },
@@ -240,6 +314,7 @@ vhdl_code_generation_table = {
     None: {
       lambda optree: True: {
         type_custom_match(MCSTDLOGICV, MCSTDLOGICV, MCSTDLOGICV): SymbolOperator("*", arity = 2, force_folding = True),
+        type_custom_match(MCFixedPoint, MCFixedPoint, MCFixedPoint): ComplexOperator(optree_modifier = fixed_point_mul_modifier),
       },
     },
   },
@@ -439,6 +514,9 @@ vhdl_code_generation_table = {
         type_custom_match(FSM(ML_Binary64), TCM(ML_StdLogicVectorFormat)): IdentityOperator(output_precision = ML_Binary64, no_parenthesis = True),
         type_custom_match(FSM(ML_Binary64), FSM(ML_Binary64)): IdentityOperator(output_precision = ML_Binary64, no_parenthesis = True),
         type_custom_match(MCSTDLOGICV, FSM(ML_Binary64)): IdentityOperator(no_parenthesis = True),
+
+        type_custom_match(MCSTDLOGICV, MCFixedPoint): IdentityOperator(no_parenthesis = True),
+        type_custom_match(MCFixedPoint, MCSTDLOGICV): IdentityOperator(no_parenthesis = True),
       },
     },
   },
