@@ -54,6 +54,22 @@ def zext_modifier(optree):
     copy_init_stage(optree, result)
     return result
 
+## Operation code generator modifier for Sign Extension
+def sext_modifier(optree):
+  init_stage = optree.attributes.get_dyn_attribute("init_stage")
+
+  ext_size = optree.ext_size
+  ext_input = optree.get_input(0)
+  if ext_size == 0:
+    Log.report(Log.Warning, "zext_modifer called with ext_size=0 on {}".format(optree.get_str()))
+    return ext_input
+  else:
+    ext_precision = ML_StdLogicVectorFormat(ext_size + ext_input.get_precision().get_bit_size())
+    op_size = ext_input.get_precision().get_bit_size()
+    sign_digit = VectorElementSelection(ext_input, Constant(op_size -1, precision = ML_Integer), precision = ML_StdLogic, init_stage = init_stage)
+    precision = ML_StdLogicVectorFormat(ext_size)
+    return Concatenation(Replication(sign_digit, precision = precision, init_stage = init_stage), optree, precision = ext_precision, tag = optree.get_tag(), init_stage = init_stage)
+
 def negation_modifer(optree):
   init_stage = optree.attributes.get_dyn_attribute("init_stage")
 
@@ -307,12 +323,19 @@ vhdl_code_generation_table = {
       },
     }
   },
+  SignExt: {
+    None: {
+      lambda _: True: {
+        type_custom_match(TCM(ML_StdLogicVectorFormat), TCM(ML_StdLogicVectorFormat)): ComplexOperator(optree_modifier = sext_modifier), 
+      },
+    }
+  },
   Concatenation: {
     None: {
       lambda _: True: {
-        type_custom_match(TCM(ML_StdLogicVectorFormat), TCM(ML_StdLogicVectorFormat), TCM(ML_StdLogicVectorFormat)): SymbolOperator("&", arity = 2),
-        type_custom_match(TCM(ML_StdLogicVectorFormat), FSM(ML_StdLogic), TCM(ML_StdLogicVectorFormat)): SymbolOperator("&", arity = 2),
-        type_custom_match(TCM(ML_StdLogicVectorFormat), TCM(ML_StdLogicVectorFormat), FSM(ML_StdLogic)): SymbolOperator("&", arity = 2),
+        type_custom_match(TCM(ML_StdLogicVectorFormat), TCM(ML_StdLogicVectorFormat), TCM(ML_StdLogicVectorFormat)): SymbolOperator("&", arity = 2, force_folding = True),
+        type_custom_match(TCM(ML_StdLogicVectorFormat), FSM(ML_StdLogic), TCM(ML_StdLogicVectorFormat)): SymbolOperator("&", arity = 2, force_folding = True),
+        type_custom_match(TCM(ML_StdLogicVectorFormat), TCM(ML_StdLogicVectorFormat), FSM(ML_StdLogic)): SymbolOperator("&", arity = 2, force_folding = True),
       },
     },
   },
