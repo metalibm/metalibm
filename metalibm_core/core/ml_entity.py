@@ -53,6 +53,9 @@ def random_log_sample(interval):
   hi = sup(interval)
 
 
+debug_utils_lib = """proc get_fixed_value {value weight} {
+  return [expr $value * pow(2.0, $weight)]
+}\n"""
   
 class RetimeMap:
   def __init__(self):
@@ -193,9 +196,10 @@ class ML_EntityBasis(object):
 
     self.vhdl_code_generator = VHDLCodeGenerator(self.backend, declare_cst = False, disable_debug = not self.debug_flag, language = self.language)
     uniquifier = self.entity_name
-    self.main_code_object = NestedCode(self.vhdl_code_generator, static_cst = True, uniquifier = "{0}_".format(self.entity_name), code_ctor = VHDLCodeObject)
+    self.main_code_object = NestedCode(self.vhdl_code_generator, static_cst = False, uniquifier = "{0}_".format(self.entity_name), code_ctor = VHDLCodeObject)
     if self.debug_flag:
       self.debug_code_object = CodeObject(self.language)
+      self.debug_code_object << debug_utils_lib
       self.vhdl_code_generator.set_debug_code_object(self.debug_code_object)
 
 
@@ -495,7 +499,7 @@ class ML_EntityBasis(object):
         input_value = input_values[input_tag]
         test_statement.add(ReferenceAssign(input_signal, Constant(input_value, precision = input_signal.get_precision())))
       test_statement.add(Wait(10))
-      # Computin output values when necessary
+      # Computing output values when necessary
       if output_values is None:
         output_values = self.numeric_emulate(input_values)
       # Adding output value comparison
