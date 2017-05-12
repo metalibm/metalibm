@@ -1106,6 +1106,9 @@ class Comparison(ArithmeticOperationConstructor("Comparison", arity = 2, inherit
 
 def Equal(op0, op1, **kwords):
     """ syntaxic bypass for equality comparison """
+    # defaulting to ML_Bool precision
+    if not "precision" in kwords or kwords["precision"] is None:
+      kwords["precision"] = ML_Bool
     kwords["specifier"] = Comparison.Equal
     return Comparison(op0, op1, **kwords)
 
