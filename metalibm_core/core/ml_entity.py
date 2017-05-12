@@ -511,17 +511,21 @@ class ML_EntityBasis(object):
           input_value = round(input_value, input_precision.get_sollya_object(), RN)
         else: 
           input_value = random.randrange(2**input_precision.get_bit_size())
-        print("input_value %e" % input_value)
         input_values[input_tag] = input_value
       tc_list.append((input_values,None))
 
     for input_values, output_values in tc_list:
+      input_msg = ""
+
       # Adding input setting
       for input_tag in input_values:
         input_signal = io_map[input_tag]
         # FIXME: correct value generation depending on signal precision
         input_value = input_values[input_tag]
         test_statement.add(ReferenceAssign(input_signal, Constant(input_value, precision = input_signal.get_precision())))
+        value_msg = input_signal.get_precision().get_cst(input_value, language = VHDL_Code).replace('"',"'")
+        value_msg += " / " + hex(input_signal.get_precision().get_base_format().get_integer_coding(input_value))
+        input_msg += " {}={} ".format(input_tag, value_msg)
       test_statement.add(Wait(10))
       # Computing output values when necessary
       if output_values is None:
@@ -540,7 +544,7 @@ class ML_EntityBasis(object):
               specifier = Comparison.Equal, 
               precision = ML_Bool
             ),
-            "unexpected value for output %s, expecting %s " % (output_tag, value_msg),
+            "\"unexpected value for inputs {input_msg}, output {output_tag}, expecting {value_msg}, got: \"".format(input_msg = input_msg, output_tag = output_tag, value_msg = value_msg),
             severity = Assert.Failure
           )
         )
@@ -552,7 +556,7 @@ class ML_EntityBasis(object):
       # end of test
       Assert(
         Constant(0, precision = ML_Bool),
-        " end of test, no error encountered",
+        " \"end of test, no error encountered \"",
         severity = Assert.Failure
       )
     )

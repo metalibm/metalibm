@@ -129,7 +129,7 @@ class VHDLCodeGenerator(object):
 
             cond_code = self.generate_expr(code_object, cond, folded = False, language = language)
 
-            code_object << " assert {cond} report \"{error_msg}\" severity {severity};\n".format(cond = cond_code.get(), error_msg = error_msg, severity = severity.descriptor)
+            code_object << " assert {cond} report {error_msg} severity {severity};\n".format(cond = cond_code.get(), error_msg = error_msg, severity = severity.descriptor)
 
             return None
 
