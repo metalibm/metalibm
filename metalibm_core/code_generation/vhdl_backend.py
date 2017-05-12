@@ -63,14 +63,14 @@ def sext_modifier(optree):
   ext_size = optree.ext_size
   ext_input = optree.get_input(0)
   if ext_size == 0:
-    Log.report(Log.Warning, "zext_modifer called with ext_size=0 on {}".format(optree.get_str()))
+    Log.report(Log.Warning, "sext_modifer called with ext_size=0 on {}".format(optree.get_str()))
     return ext_input
   else:
     ext_precision = ML_StdLogicVectorFormat(ext_size + ext_input.get_precision().get_bit_size())
     op_size = ext_input.get_precision().get_bit_size()
     sign_digit = VectorElementSelection(ext_input, Constant(op_size -1, precision = ML_Integer), precision = ML_StdLogic, init_stage = init_stage)
     precision = ML_StdLogicVectorFormat(ext_size)
-    return Concatenation(Replication(sign_digit, precision = precision, init_stage = init_stage), optree, precision = ext_precision, tag = optree.get_tag(), init_stage = init_stage)
+    return Concatenation(Replication(sign_digit, Constant(ext_size, precision = ML_Integer), precision = precision, init_stage = init_stage), ext_input, precision = ext_precision, tag = optree.get_tag(), init_stage = init_stage)
 
 def negation_modifer(optree):
   init_stage = optree.attributes.get_dyn_attribute("init_stage")
