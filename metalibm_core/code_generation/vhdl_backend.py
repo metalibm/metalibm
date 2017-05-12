@@ -154,6 +154,36 @@ def sub_signal_generator(optree):
   return TemplateOperator("%s({sup_index} downto {inf_index})".format(inf_index = inf_index, sup_index = sup_index), arity = 1, force_folding = True)
 
 
+## adapt a fixed-optree @p raw_result assumimg fixed format
+#  with @p integer_size and @p frac_size
+# to match format of @optree
+def adapt_fixed_optree(raw_optree, (integer_size, frac_size), optree):
+  # extracting params
+  optree_prec = optree.get_precision()
+  init_stage = optree.attributes.get_dyn_attribute("init_stage")
+
+  # MSB extension/reduction (left)
+  msb_delta = optree_prec.get_integer_size() - integer_size
+  if msb_delta >= 0:
+    result_lext = (sext if optree_prec.get_signed() else zext)(raw_optree, msb_delta)
+  else:
+    result_lext = SubSignalSelection(raw_optree, 0, frac_size + integer_size - 1 + msb_delta)
+  # LSB extension/reduction (right)
+  lsb_delta = optree_prec.get_frac_size() - frac_size
+  if lsb_delta >= 0:
+    result_rext = rzext(result_lext, lsb_delta)
+  else:
+    result_rext = SubSignalSelection(result_lext, -lsb_delta, result_lext.get_precision().get_bit_size() - 1)
+  # final format casting
+  result = TypeCast(
+    result_rext,
+    tag = optree.get_tag(),
+    debug = optree.get_debug(),
+    init_stage = init_stage,
+    precision = optree_prec,
+  )
+  return result
+
 ## fixed point operation generation block
 def fixed_point_op_modifier(optree, op_ctor = Addition):
   init_stage = optree.attributes.get_dyn_attribute("init_stage")
@@ -164,10 +194,11 @@ def fixed_point_op_modifier(optree, op_ctor = Addition):
   lhs_prec = lhs.get_precision().get_base_format()
   rhs_prec = rhs.get_precision().get_base_format()
   optree_prec = optree.get_precision().get_base_format()
-  result_frac_size = max(lhs_prec.get_frac_size(), rhs_prec.get_frac_size(), optree_prec.get_frac_size())
-  result_integer_size = max(lhs_prec.get_integer_size(), rhs_prec.get_integer_size(), optree_prec.get_integer_size())
-  assert optree_prec.get_frac_size() >= result_frac_size
-  assert optree_prec.get_integer_size() >= result_integer_size
+  # TODO: This assume integer_size is at least 0 (no negative (frac end before fixed point) accepted
+  result_frac_size = max(lhs_prec.get_frac_size(), rhs_prec.get_frac_size())  #, optree_prec.get_frac_size())
+  result_integer_size = max(lhs_prec.get_integer_size(), rhs_prec.get_integer_size()) + 1 #, optree_prec.get_integer_size())
+  #assert optree_prec.get_frac_size() >= result_frac_size
+  #assert optree_prec.get_integer_size() >= result_integer_size
   lhs_casted = TypeCast(lhs, precision = ML_StdLogicVectorFormat(lhs_prec.get_bit_size()), init_stage = init_stage)
   rhs_casted = TypeCast(rhs, precision = ML_StdLogicVectorFormat(rhs_prec.get_bit_size()), init_stage = init_stage)
 
@@ -182,15 +213,12 @@ def fixed_point_op_modifier(optree, op_ctor = Addition):
     result_integer_size - rhs_prec.get_integer_size()
   )
   rhs_ext = SignCast(rhs_ext, precision = rhs_ext.get_precision(), specifier = SignCast.Signed if rhs_prec.get_signed() else  SignCast.Unsigned)
-  return TypeCast(
-    op_ctor(
-      lhs_ext,
-      rhs_ext,
-      precision = ML_StdLogicVectorFormat(optree_prec.get_bit_size()),
-    ),
-    init_stage = init_stage,
-    precision = optree_prec,
+  raw_result = op_ctor(
+    lhs_ext,
+    rhs_ext,
+    precision = ML_StdLogicVectorFormat(result_frac_size + result_integer_size)
   )
+  return adapt_fixed_optree(raw_result, (result_integer_size, result_frac_size), optree)
 
 def fixed_point_add_modifier(optree):
   return fixed_point_op_modifier(optree, op_ctor = Addition)
@@ -206,10 +234,10 @@ def fixed_point_mul_modifier(optree):
   lhs_prec = lhs.get_precision().get_base_format()
   rhs_prec = rhs.get_precision().get_base_format()
   optree_prec = optree.get_precision().get_base_format()
-  result_frac_size = max(lhs_prec.get_frac_size() + rhs_prec.get_frac_size(), optree_prec.get_frac_size())
-  result_integer_size = max(lhs_prec.get_integer_size() +  rhs_prec.get_integer_size(), optree_prec.get_integer_size())
-  assert optree_prec.get_frac_size() >= result_frac_size
-  assert optree_prec.get_integer_size() >= result_integer_size
+  result_frac_size = (lhs_prec.get_frac_size() + rhs_prec.get_frac_size())#max, optree_prec.get_frac_size())
+  result_integer_size = (lhs_prec.get_integer_size() +  rhs_prec.get_integer_size())#max, optree_prec.get_integer_size())
+  #assert optree_prec.get_frac_size() >= result_frac_size
+  #assert optree_prec.get_integer_size() >= result_integer_size
   lhs_casted = TypeCast(lhs, precision = ML_StdLogicVectorFormat(lhs_prec.get_bit_size()), init_stage = init_stage)
   lhs_casted = SignCast(lhs_casted, precision = lhs_casted.get_precision(), specifier = SignCast.Signed if lhs_prec.get_signed() else  SignCast.Unsigned)
   rhs_casted = TypeCast(rhs, precision = ML_StdLogicVectorFormat(rhs_prec.get_bit_size()), init_stage = init_stage)
@@ -220,11 +248,20 @@ def fixed_point_mul_modifier(optree):
     lhs_casted,
     rhs_casted,
     precision = mult_prec,
+    tag = optree.get_tag(),
     init_stage = init_stage
   )
-  rext_result = rzext(raw_result, optree_prec.get_frac_size() - result_frac_size)
-  result = (sext if (optree_prec.get_signed()) else zext)(rext_result, optree_prec.get_integer_size() - result_integer_size)
-  return TypeCast(result, precision = optree_prec, init_stage = init_stage)
+  # adapting raw result to output format
+  return adapt_fixed_optree(raw_result, (result_integer_size, result_frac_size), optree)
+  #rext_result = rzext(raw_result, optree_prec.get_frac_size() - result_frac_size)
+  #result = (sext if (optree_prec.get_signed()) else zext)(rext_result, optree_prec.get_integer_size() - result_integer_size)
+  #return TypeCast(
+  #  result, 
+  #  precision = optree_prec, 
+  #  init_stage = init_stage, 
+  #  debug = optree.get_debug(), 
+  #  tag = optree.get_tag()
+  #) 
 
 vhdl_comp_symbol = {
   Comparison.Equal: "=", 
