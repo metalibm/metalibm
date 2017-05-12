@@ -462,10 +462,9 @@ vhdl_code_generation_table = {
   },
   Replication: {
     None: {
-        # make sure index accessor is a Constant (or fallback to C implementation)
        lambda optree: True:  {
         type_custom_match(FSM(ML_StdLogic), FSM(ML_StdLogic)): IdentityOperator(),
-        type_custom_match(TCM(ML_StdLogicVectorFormat), FSM(ML_StdLogic), FSM(ML_Integer)): TemplateOperatorFormat("({1!d} - 1 downto 0 => {0:s}"),
+        type_custom_match(TCM(ML_StdLogicVectorFormat), FSM(ML_StdLogic), FSM(ML_Integer)): TemplateOperatorFormat("({1} - 1 downto 0 => {0:s})", arity = 2),
       },
     },
   },
