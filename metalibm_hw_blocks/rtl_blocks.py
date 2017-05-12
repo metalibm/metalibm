@@ -16,6 +16,7 @@ def zext(op,s):
   return ZeroExt(op, s, precision = ext_precision)
 
 
+## Wrapper for sign extension
 def sext(op,s):
   s = int(s)
   assert s >= 0
