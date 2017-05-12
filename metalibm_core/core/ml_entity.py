@@ -424,8 +424,11 @@ class ML_EntityBasis(object):
       elab_cmd = "vlib work && vcom {}".format(self.output_file)
       elab_result = subprocess.call(elab_cmd, shell = True)
       print "Elaboration result: ", elab_result
+      # debug cmd
+      debug_cmd = "do {debug_file};".format(debug_file = self.debug_file) if self.debug_flag else "" 
       # simulation
-      sim_cmd = "vsim -c work.testbench -do \"run 1000 ns;\"".format(entity = self.entity_name)
+      test_delay = 10 * (self.auto_test_number + (len(self.standard_test_cases) if self.auto_test_std else 0) + 10) 
+      sim_cmd = "vsim -c work.testbench -do \"run {test_delay} ns; {debug_cmd}\"".format(entity = self.entity_name, debug_cmd = debug_cmd, test_delay = test_delay)
       sim_result = subprocess.call(sim_cmd, shell = True)
       print "Simulation result: ", sim_result
 
