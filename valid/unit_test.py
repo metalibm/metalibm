@@ -12,6 +12,7 @@ from metalibm_core.utility.ml_template import target_instanciate
 from metalibm_core.core.ml_formats import ML_Int32
 
 import metalibm_functions.unit_tests.new_arg_template as ut_new_arg_template
+import metalibm_functions.unit_tests.block_lzcnt as ut_block_lzcnt
 import metalibm_functions.unit_tests.fixed_point as ut_fixed_point
 import metalibm_functions.unit_tests.function_emulate  as ut_function_emulate
 import metalibm_functions.unit_tests.function_formats as ut_function_formats
@@ -65,6 +66,11 @@ unit_test_list = [
     "basic new arg template test",
     ut_new_arg_template,
     [{"target": target_instanciate("x86_avx2")}]
+  ),
+  UnitTestScheme(
+    "basic block LZCNT test",
+    ut_block_lzcnt,
+    [{}]
   ),
   UnitTestScheme(
     "basic fixed-point",

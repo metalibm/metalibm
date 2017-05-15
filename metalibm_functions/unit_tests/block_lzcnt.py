@@ -21,8 +21,15 @@ from metalibm_core.utility.debug_utils import *
 
 from metalibm_core.opt.ml_blocks import generate_count_leading_zeros
 
-class ML_Lzcnt(ML_Function("ml_lzcnt")):
-  def __init__(self, arg_template=DefaultArgTemplate(precision = ML_Int32)):
+class ML_UT_Lzcnt(ML_Function("ml_lzcnt")):
+  def __init__(self,
+      arg_template=DefaultArgTemplate(
+        output_file = "ut_block_lzcnt.c",
+        function_name = "ut_lzcnt",
+        precision = ML_Int32,
+        auto_test_range = Interval(0, 2**31),
+        auto_test_execute = 1000)
+      ):
     # initializing I/O precision
     self.precision = arg_template.precision
 
@@ -45,6 +52,13 @@ class ML_Lzcnt(ML_Function("ml_lzcnt")):
       input_value <<= 1
     return float(n);
 
+def run_test(args):
+  # just ignore args here and trust default constructor? seems like a bad idea.
+  ml_ut_block_lzcnt = ML_UT_Lzcnt()
+  ml_ut_block_lzcnt.gen_implementation(display_after_gen = True,
+                                       display_after_opt = True)
+  return True
+
 if __name__ == "__main__":
   # auto-test
   arg_template = ML_NewArgTemplate(
@@ -55,6 +69,6 @@ if __name__ == "__main__":
   # Overwrite default args by command line args if any
   args = arg_template.arg_extraction()
 
-  ml_lzcnt = ML_Lzcnt(args)
+  ml_lzcnt = ML_UT_Lzcnt(args)
 
   ml_lzcnt.gen_implementation()
