@@ -2,10 +2,10 @@
 
 ###############################################################################
 # This file is part of New Metalibm tool
-# Copyright (2016)
+# Copyright (2016-)
 # All rights reserved
 # created:          Nov 17th, 2016    
-# last-modified:    Nov 17th, 2016
+# last-modified:    May  9th, 2017
 #
 # author(s):   Nicolas Brunie (nibrunie@gmail.com)
 # decription:  Declare and implement a class to manage
