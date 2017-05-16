@@ -539,7 +539,17 @@ class ML_FunctionBasis(object):
       vec_elt_arg_tuple = tuple(VectorElementSelection(vec_arg, elt_index, precision = self.precision) for vec_arg in vec_arg_list)
       unrolled_cond_allocation.add(
         ConditionBlock(
-          Likely(VectorElementSelection(vector_mask, elt_index, precision = ML_Bool), None),
+          Likely(
+            LogicalNot(
+              VectorElementSelection(
+                vector_mask, 
+                elt_index, 
+                precision = ML_Bool
+              ),
+              precision = ML_Bool
+            ),
+            None
+          ),
           ReferenceAssign(VectorElementSelection(vec_res, elt_index, precision = self.precision), scalar_callback(*vec_elt_arg_tuple)),
           # ReferenceAssign(VectorElementSelection(vec_res, elt_index, precision = self.precision), VectorElementSelection(vector_scheme, elt_index, precision = self.precision))
         )
@@ -572,7 +582,15 @@ class ML_FunctionBasis(object):
     function_scheme = Statement(
       vector_scheme,
       ConditionBlock(
-        Test(vector_mask, specifier = Test.IsMaskNotAnyZero, precision = ML_Bool, likely = True, debug = debug_multi),
+        # if there is not any zero in the mask. then
+        # the vector result may be returned
+        Test(
+          vector_mask, 
+          specifier = Test.IsMaskNotAnyZero, 
+          precision = ML_Bool, 
+          likely = True, 
+          debug = debug_multi
+        ),
         Return(vector_scheme),
         Statement(
           ReferenceAssign(vec_res, vector_scheme),
@@ -581,8 +599,21 @@ class ML_FunctionBasis(object):
             vi < Constant(vector_size, precision = ML_Int32),
             Statement(
               ConditionBlock(
-                Likely(VectorElementSelection(vector_mask, vi, precision = ML_Bool), None),
-                ReferenceAssign(VectorElementSelection(vec_res, vi, precision = self.precision), scalar_callback(*vec_elt_arg_tuple))
+                LogicalNot(
+                  Likely(
+                    VectorElementSelection(
+                      vector_mask, vi, precision = ML_Bool
+                    ), 
+                    None
+                  ),
+                  precision = ML_Bool
+                ),
+                ReferenceAssign(
+                  VectorElementSelection(
+                    vec_res, vi, precision = self.precision
+                  ), 
+                  scalar_callback(*vec_elt_arg_tuple)
+                )
               ),
               ReferenceAssign(vi, vi + 1)
             ),
