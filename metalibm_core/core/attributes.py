@@ -62,6 +62,10 @@ class ML_MultiDebug(ML_Debug):
   def select_object(self, optree): 
     return self.debug_object_map[self.key_function(optree)]
 
+  ## Declare a new mapping between @p debug_key and @p debug_object
+  def add_mapping(self, debug_key, debug_object):
+    self.debug_object_map[debug_key] = debug_object
+
 class ML_AdvancedDebug(ML_Debug):
   def get_pre_process(self, value_to_display, optree):
     return self.pre_process(value_to_display, optree)
