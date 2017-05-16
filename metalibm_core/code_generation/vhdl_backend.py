@@ -52,9 +52,38 @@ def zext_modifier(optree):
   else:
     precision = ML_StdLogicVectorFormat(ext_size)
     ext_precision = ML_StdLogicVectorFormat(ext_size + ext_input.get_precision().get_bit_size())
-    result = Concatenation(Constant(0, precision = precision), ext_input, precision = ext_precision, tag = optree.get_tag(), init_stage = init_stage)
+    result = Concatenation(
+      Constant(0, precision = precision), 
+      ext_input, precision = ext_precision, 
+      tag = optree.get_tag("dummy") + "_zext", 
+      init_stage = init_stage
+    )
     copy_init_stage(optree, result)
     return result
+
+## Operation code generator modifier for Sign Extension
+def sext_modifier(optree):
+  init_stage = optree.attributes.get_dyn_attribute("init_stage")
+
+  ext_size = optree.ext_size
+  ext_input = optree.get_input(0)
+  if ext_size == 0:
+    Log.report(Log.Warning, "sext_modifer called with ext_size=0 on {}".format(optree.get_str()))
+    return ext_input
+  else:
+    ext_precision = ML_StdLogicVectorFormat(ext_size + ext_input.get_precision().get_bit_size())
+    op_size = ext_input.get_precision().get_bit_size()
+    sign_digit = VectorElementSelection(ext_input, Constant(op_size -1, precision = ML_Integer), precision = ML_StdLogic, init_stage = init_stage)
+    precision = ML_StdLogicVectorFormat(ext_size)
+    return Concatenation(
+      Replication(
+        sign_digit, Constant(ext_size, precision = ML_Integer), 
+        precision = precision, init_stage = init_stage
+      ), 
+      ext_input, precision = ext_precision, 
+      tag = optree.get_tag("dummy") + "_sext", 
+      init_stage = init_stage
+    )
 
 def negation_modifer(optree):
   init_stage = optree.attributes.get_dyn_attribute("init_stage")
@@ -69,6 +98,8 @@ def negation_modifer(optree):
     init_stage = init_stage
   )
 
+
+## Optree generation function for MantissaExtraction 
 def mantissa_extraction_modifier(optree):
   init_stage = optree.attributes.get_dyn_attribute("init_stage")
   op = optree.get_input(0)
@@ -137,16 +168,121 @@ def sub_signal_generator(optree):
   sup_index = optree.get_sup_index()
   return TemplateOperator("%s({sup_index} downto {inf_index})".format(inf_index = inf_index, sup_index = sup_index), arity = 1, force_folding = True)
 
-def sext_modifier(optree):
+
+## adapt a fixed-optree @p raw_result assumimg fixed format
+#  with @p integer_size and @p frac_size
+# to match format of @optree
+def adapt_fixed_optree(raw_optree, (integer_size, frac_size), optree):
+  # extracting params
+  optree_prec = optree.get_precision()
   init_stage = optree.attributes.get_dyn_attribute("init_stage")
 
-  ext_size = optree.ext_size
-  ext_precision = ML_StdLogicVectorFormat(ext_size + ext_input.get_precision().get_bit_size())
-  ext_input = optree.get_input(0)
-  op_size = ext_input.get_precision().get_bit_size()
-  sign_digit = VectorElementSelection(ext_input, Constant(op_size -1, precision = ML_Integer), precision = ML_StdLogic, init_stage = init_stage)
-  precision = ML_StdLogicVectorFormat(ext_size)
-  return Concatenation(Replication(sign_digit, precision = precision, init_stage = init_stage), optree, precision = ext_precision, tag = optree.get_tag(), init_stage = init_stage)
+  # MSB extension/reduction (left)
+  msb_delta = optree_prec.get_integer_size() - integer_size
+  if msb_delta >= 0:
+    result_lext = (sext if optree_prec.get_signed() else zext)(raw_optree, msb_delta)
+  else:
+    result_lext = SubSignalSelection(raw_optree, 0, frac_size + integer_size - 1 + msb_delta)
+  # LSB extension/reduction (right)
+  lsb_delta = optree_prec.get_frac_size() - frac_size
+  if lsb_delta >= 0:
+    result_rext = rzext(result_lext, lsb_delta)
+  else:
+    result_rext = SubSignalSelection(result_lext, -lsb_delta, result_lext.get_precision().get_bit_size() - 1)
+  # final format casting
+  result = TypeCast(
+    result_rext,
+    tag = optree.get_tag(),
+    #debug = optree.get_debug(),
+    init_stage = init_stage,
+    precision = optree_prec,
+  )
+  return result
+
+## fixed point operation generation block
+def fixed_point_op_modifier(optree, op_ctor = Addition):
+  init_stage = optree.attributes.get_dyn_attribute("init_stage")
+
+  # left hand side and right hand side operand extraction
+  lhs = optree.get_input(0)
+  rhs = optree.get_input(1)
+  lhs_prec = lhs.get_precision().get_base_format()
+  rhs_prec = rhs.get_precision().get_base_format()
+  optree_prec = optree.get_precision().get_base_format()
+  # TODO: This assume integer_size is at least 0 (no negative (frac end before fixed point) accepted
+  result_frac_size = max(lhs_prec.get_frac_size(), rhs_prec.get_frac_size())  #, optree_prec.get_frac_size())
+  result_integer_size = max(lhs_prec.get_integer_size(), rhs_prec.get_integer_size()) + 1 #, optree_prec.get_integer_size())
+  #assert optree_prec.get_frac_size() >= result_frac_size
+  #assert optree_prec.get_integer_size() >= result_integer_size
+  lhs_casted = TypeCast(lhs, precision = ML_StdLogicVectorFormat(lhs_prec.get_bit_size()), init_stage = init_stage)
+  rhs_casted = TypeCast(rhs, precision = ML_StdLogicVectorFormat(rhs_prec.get_bit_size()), init_stage = init_stage)
+
+  lhs_ext = (sext if lhs_prec.get_signed() else zext)(
+    rzext(lhs_casted, result_frac_size - lhs_prec.get_frac_size()),
+    result_integer_size - lhs_prec.get_integer_size()
+  )
+  lhs_ext = SignCast(lhs_ext, precision = lhs_ext.get_precision(), specifier = SignCast.Signed if lhs_prec.get_signed() else  SignCast.Unsigned)
+
+  rhs_ext = (sext if rhs_prec.get_signed() else zext)(
+    rzext(rhs_casted, result_frac_size - rhs_prec.get_frac_size()),
+    result_integer_size - rhs_prec.get_integer_size()
+  )
+  rhs_ext = SignCast(rhs_ext, precision = rhs_ext.get_precision(), specifier = SignCast.Signed if rhs_prec.get_signed() else  SignCast.Unsigned)
+  raw_result = op_ctor(
+    lhs_ext,
+    rhs_ext,
+    precision = ML_StdLogicVectorFormat(result_frac_size + result_integer_size)
+  )
+  return adapt_fixed_optree(raw_result, (result_integer_size, result_frac_size), optree)
+
+def fixed_point_add_modifier(optree):
+  return fixed_point_op_modifier(optree, op_ctor = Addition)
+def fixed_point_sub_modifier(optree):
+  return fixed_point_op_modifier(optree, op_ctor = Subtraction)
+
+def fixed_point_mul_modifier(optree):
+  init_stage = optree.attributes.get_dyn_attribute("init_stage")
+
+  # left hand side and right hand side operand extraction
+  lhs = optree.get_input(0)
+  rhs = optree.get_input(1)
+  lhs_prec = lhs.get_precision().get_base_format()
+  rhs_prec = rhs.get_precision().get_base_format()
+  optree_prec = optree.get_precision().get_base_format()
+  result_frac_size = (lhs_prec.get_frac_size() + rhs_prec.get_frac_size())#max, optree_prec.get_frac_size())
+  result_integer_size = (lhs_prec.get_integer_size() +  rhs_prec.get_integer_size())#max, optree_prec.get_integer_size())
+  #assert optree_prec.get_frac_size() >= result_frac_size
+  #assert optree_prec.get_integer_size() >= result_integer_size
+  lhs_casted = TypeCast(lhs, precision = ML_StdLogicVectorFormat(lhs_prec.get_bit_size()), init_stage = init_stage)
+  lhs_casted = SignCast(lhs_casted, precision = lhs_casted.get_precision(), specifier = SignCast.Signed if lhs_prec.get_signed() else  SignCast.Unsigned)
+  rhs_casted = TypeCast(rhs, precision = ML_StdLogicVectorFormat(rhs_prec.get_bit_size()), init_stage = init_stage)
+  rhs_casted = SignCast(rhs_casted, precision = rhs_casted.get_precision(), specifier = SignCast.Signed if rhs_prec.get_signed() else  SignCast.Unsigned)
+
+  mult_prec = ML_StdLogicVectorFormat(result_frac_size + result_integer_size)
+  print "Multiplication {}: {} x {} = {} bits".format(
+    optree.get_tag(),
+    lhs_casted.get_precision().get_bit_size(),
+    rhs_casted.get_precision().get_bit_size(),
+    mult_prec.get_bit_size()
+  )
+  raw_result = Multiplication(
+    lhs_casted,
+    rhs_casted,
+    precision = mult_prec,
+    tag = optree.get_tag(),
+    init_stage = init_stage
+  )
+  # adapting raw result to output format
+  return adapt_fixed_optree(raw_result, (result_integer_size, result_frac_size), optree)
+  #rext_result = rzext(raw_result, optree_prec.get_frac_size() - result_frac_size)
+  #result = (sext if (optree_prec.get_signed()) else zext)(rext_result, optree_prec.get_integer_size() - result_integer_size)
+  #return TypeCast(
+  #  result, 
+  #  precision = optree_prec, 
+  #  init_stage = init_stage, 
+  #  debug = optree.get_debug(), 
+  #  tag = optree.get_tag()
+  #) 
 
 ## fixed point operation generation block
 def fixed_point_op_modifier(optree, op_ctor = Addition):
@@ -233,7 +369,7 @@ ML_Bool.get_cst_map[VHDL_Code] = get_vhdl_bool_cst
 MCSTDLOGICV = TCM(ML_StdLogicVectorFormat)
 
 # class match custom fixed point format
-MCFixedPoint = TCM(ML_Standard_FixedPoint_Format)
+MCFixedPoint = TCM(ML_Base_FixedPoint_Format)
 
 formal_generation_table = {
   Addition: {
@@ -266,7 +402,9 @@ vhdl_code_generation_table = {
           build_simplified_operator_generation_nomap([v8int32, v8uint32, ML_Int16, ML_UInt16, ML_Int32, ML_UInt32, ML_Int64, ML_UInt64, ML_Int128,ML_UInt128], 2, SymbolOperator("+", arity = 2, force_folding = True), cond = (lambda _: True)),
       include_std_logic:
       {
-        type_custom_match(MCSTDLOGICV, MCSTDLOGICV, MCSTDLOGICV):  SymbolOperator("+", arity = 2, force_folding = True),
+        type_custom_match(MCSTDLOGICV, MCSTDLOGICV, MCSTDLOGICV):  
+          SymbolOperator("+", arity = 2, force_folding = True),
+          #TemplateOperatorFormat("std_logic_vector({0} + {1})", arity = 2, force_folding = True),
         type_custom_match(MCSTDLOGICV, MCSTDLOGICV, FSM(ML_StdLogic)):  SymbolOperator("+", arity = 2, force_folding = True),
         type_custom_match(MCSTDLOGICV, FSM(ML_StdLogic), MCSTDLOGICV):  SymbolOperator("+", arity = 2, force_folding = True),
       },
@@ -378,12 +516,19 @@ vhdl_code_generation_table = {
       },
     }
   },
+  SignExt: {
+    None: {
+      lambda _: True: {
+        type_custom_match(TCM(ML_StdLogicVectorFormat), TCM(ML_StdLogicVectorFormat)): ComplexOperator(optree_modifier = sext_modifier), 
+      },
+    }
+  },
   Concatenation: {
     None: {
       lambda _: True: {
-        type_custom_match(TCM(ML_StdLogicVectorFormat), TCM(ML_StdLogicVectorFormat), TCM(ML_StdLogicVectorFormat)): SymbolOperator("&", arity = 2),
-        type_custom_match(TCM(ML_StdLogicVectorFormat), FSM(ML_StdLogic), TCM(ML_StdLogicVectorFormat)): SymbolOperator("&", arity = 2),
-        type_custom_match(TCM(ML_StdLogicVectorFormat), TCM(ML_StdLogicVectorFormat), FSM(ML_StdLogic)): SymbolOperator("&", arity = 2),
+        type_custom_match(TCM(ML_StdLogicVectorFormat), TCM(ML_StdLogicVectorFormat), TCM(ML_StdLogicVectorFormat)): SymbolOperator("&", arity = 2, force_folding = True),
+        type_custom_match(TCM(ML_StdLogicVectorFormat), FSM(ML_StdLogic), TCM(ML_StdLogicVectorFormat)): SymbolOperator("&", arity = 2, force_folding = True),
+        type_custom_match(TCM(ML_StdLogicVectorFormat), TCM(ML_StdLogicVectorFormat), FSM(ML_StdLogic)): SymbolOperator("&", arity = 2, force_folding = True),
       },
     },
   },
@@ -391,16 +536,15 @@ vhdl_code_generation_table = {
     None: {
         # make sure index accessor is a Constant (or fallback to C implementation)
        lambda optree: True:  {
-        type_custom_match(FSM(ML_StdLogic), TCM(ML_StdLogicVectorFormat), FSM(ML_Integer)): TemplateOperator("%s(%s)", arity = 2),
+        type_custom_match(FSM(ML_StdLogic), TCM(ML_StdLogicVectorFormat), type_all_match): TemplateOperator("%s(%s)", arity = 2),
       },
     },
   },
   Replication: {
     None: {
-        # make sure index accessor is a Constant (or fallback to C implementation)
        lambda optree: True:  {
         type_custom_match(FSM(ML_StdLogic), FSM(ML_StdLogic)): IdentityOperator(),
-        type_custom_match(TCM(ML_StdLogicVectorFormat), FSM(ML_StdLogic), FSM(ML_Integer)): TemplateOperatorFormat("({1!d} - 1 downto 0 => {0:s}"),
+        type_custom_match(TCM(ML_StdLogicVectorFormat), FSM(ML_StdLogic), FSM(ML_Integer)): TemplateOperatorFormat("({1} - 1 downto 0 => {0:s})", arity = 2),
       },
     },
   },

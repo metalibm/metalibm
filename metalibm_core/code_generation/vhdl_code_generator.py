@@ -20,7 +20,7 @@ from ..core.ml_operations import Variable, Constant, ConditionBlock, Return, Tab
 from ..core.ml_hdl_operations import *
 from ..core.ml_table import ML_Table
 from ..core.ml_formats import *
-from ..core.attributes import ML_Debug
+from ..core.attributes import ML_Debug, ML_AdvancedDebug
 from .code_constant import VHDL_Code
 from .code_element import CodeVariable, CodeExpression
 from .code_function import CodeFunction
@@ -31,7 +31,7 @@ class VHDLCodeGenerator(object):
     language = C_Code
 
     """ C language code generator """
-    def __init__(self, processor, declare_cst = True, disable_debug = False, libm_compliant = False, default_rounding_mode = ML_GlobalRoundMode, default_silent = None, language = C_Code):
+    def __init__(self, processor, declare_cst = False, disable_debug = False, libm_compliant = False, default_rounding_mode = ML_GlobalRoundMode, default_silent = None, language = C_Code):
         self.memoization_map = [{}]
         self.processor = processor
         self.declare_cst = declare_cst
@@ -129,7 +129,7 @@ class VHDLCodeGenerator(object):
 
             cond_code = self.generate_expr(code_object, cond, folded = False, language = language)
 
-            code_object << " assert {cond} report \"{error_msg}\" severity {severity};\n".format(cond = cond_code.get(), error_msg = error_msg, severity = severity.descriptor)
+            code_object << " assert {cond} report {error_msg} severity {severity};\n".format(cond = cond_code.get(), error_msg = error_msg, severity = severity.descriptor)
 
             return None
 
@@ -348,11 +348,16 @@ class VHDLCodeGenerator(object):
 
             # linearizing table selection
             for tabid, value in enumerate(table.get_data()):
-              code_object << "\t{} when {}\n".format(table.get_precision().get_storage_precision().get_cst(value),index.get_precision().get_cst(tabid))
-            if 2**int(sollya.log2(table_size)) == table_size:
-              code_object << ";\n"
-            else:
-              code_object << "\t{} when others;\n".format(table.get_precision().get_storage_precision().get_cst(default_value))
+              code_object << "\t{} when {},\n".format(table.get_precision().get_storage_precision().get_cst(value),index.get_precision().get_cst(tabid))
+            # last_index = table_size - 1
+            # last cell
+            # code_object << "\t{} when {}".format(table.get_precision().get_storage_precision().get_cst(table.get_data()[last_index]),index.get_precision().get_cst(last_index))
+
+            #if 2**int(sollya.log2(table_size)) == table_size:
+            #  code_object << ";\n"
+            #else:
+            #  code_object << ",\n\t{} when others;\n".format(table.get_precision().get_storage_precision().get_cst(default_value))
+            code_object << "\t{} when others;\n".format(table.get_precision().get_storage_precision().get_cst(default_value))
 
              # result is set 
 
@@ -512,8 +517,11 @@ class VHDLCodeGenerator(object):
           final_var = code_object.get_free_signal_name(optree.get_precision(), prefix = "dbg_"+ optree.get_tag())
           code_object << "{} <= {};\n".format(final_var, result.get())
           result = CodeVariable(final_var, optree.get_precision())
-        display_result = debug_object.get_pre_process(result.get(), optree) if isinstance(debug_object, ML_Debug) else result.get()
-        debug_msg = "echo \"{tag}\"; examine {display_format} testbench.tested_entity.{display_result};\n".format(tag = optree.get_tag(), display_format = display_format, display_result = display_result)
+        signal_name = "testbench.tested_entity.{}".format(result.get())
+        # display_result = debug_object.get_pre_process(result.get(), optree) if isinstance(debug_object, ML_Debug) else result.get()
+        display_result = debug_object.get_pre_process(signal_name, optree) if isinstance(debug_object, ML_AdvancedDebug) else "examine {display_format} {signal_name}".format(display_format = display_format, signal_name = signal_name)
+        #debug_msg = "echo \"{tag}\"; examine {display_format} testbench.tested_entity.{display_result};\n".format(tag = optree.get_tag(), display_format = display_format, display_result = display_result)
+        debug_msg = "echo \"{tag}\"; {display_result};\n".format(tag = optree.get_tag(), display_result = display_result)
         self.get_debug_code_object() << debug_msg
 
     ## define the code object for debug 

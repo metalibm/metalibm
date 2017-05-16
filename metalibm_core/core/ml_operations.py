@@ -1106,6 +1106,9 @@ class Comparison(ArithmeticOperationConstructor("Comparison", arity = 2, inherit
 
 def Equal(op0, op1, **kwords):
     """ syntaxic bypass for equality comparison """
+    # defaulting to ML_Bool precision
+    if not "precision" in kwords or kwords["precision"] is None:
+      kwords["precision"] = ML_Bool
     kwords["specifier"] = Comparison.Equal
     return Comparison(op0, op1, **kwords)
 
@@ -1410,6 +1413,8 @@ class SwitchBlock(AbstractOperationConstructor("Switch", arity = 1)):
                 pre_str += "Case: %s" %  case_str #.get_str(new_depth, display_precision, tab_level = 0, memoization_map = memoization_map, display_attribute = display_attribute, display_id = display_id)
                 pre_str += "%s" %  self.case_map[case].get_str(new_depth, display_precision, tab_level = tab_level + 2, memoization_map = memoization_map, display_attribute = display_attribute, display_id = display_id)
             return pre_str
+
+class VectorAssembling(ArithmeticOperationConstructor("VectorAssembling")): pass
 
 class VectorElementSelection(ArithmeticOperationConstructor("VectorElementSelection", arity = 2)):
     implicit_arg_precision = {

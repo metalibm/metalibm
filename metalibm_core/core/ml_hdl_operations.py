@@ -68,6 +68,11 @@ class ZeroExt(AbstractOperationConstructor("ZeroExt", arity = 1)):
     self.__class__.__base__.__init__(self, op, **kwords)
     self.ext_size = ext_size
 
+class SignExt(AbstractOperationConstructor("SignExt", arity = 1)):
+  def __init__(self, op, ext_size, **kwords):
+    self.__class__.__base__.__init__(self, op, **kwords)
+    self.ext_size = ext_size
+
 ## Build a larger value by concatenating two smaller values
 # The first operand (Left hand side) is positioned as the new Value most significant bits
 # and the second operand (Right hand side) is positionned
@@ -250,6 +255,7 @@ class Wait(AbstractOperationConstructor("Wait")):
 
 ## TypeCast for signal values
 class SignCast(TypeCast):
+  name = "SignCast"
   class Signed: pass # 
   class Unsigned: pass
   def __init__(self, arg, specifier = None, **kw):

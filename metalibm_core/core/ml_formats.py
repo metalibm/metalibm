@@ -290,10 +290,11 @@ class ML_Std_FP_Format(ML_FP_Format):
         high_bound = self.get_emax()
         return sollya.Interval(low_bound, high_bound)
 
+    ## return the size of the mantissa bitfield (excluding implicit bit(s))
     def get_field_size(self):
         return self.field_size
 
-    ## Return the complete mantissa size
+    ## Return the complete mantissa size (including implicit bit(s))
     def get_mantissa_size(self):
         return self.field_size + 1
 
@@ -633,7 +634,7 @@ def get_std_integer_support_format(precision):
 
 
 
-# abstract formats
+# abstract formats singleton
 ML_Integer          = AbstractFormat_Builder("ML_Integer",  (ML_Fixed_Format,))("ML_Integer")
 ML_Float            = AbstractFormat_Builder("ML_Float",    (ML_FP_Format,))("ML_Float")
 ML_AbstractBool     = AbstractFormat_Builder("MLAbstractBool",     (ML_Bool_Format,))("ML_AbstractBool")
