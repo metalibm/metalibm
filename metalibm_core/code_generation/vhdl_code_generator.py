@@ -121,22 +121,6 @@ class VHDLCodeGenerator(object):
                     result = CodeExpression(precision.get_cst(optree.get_value(), language = language), precision)
                     Log.report(Log.Error, "Error during get_cst call for Constant: %s " % optree.get_str(display_precision = True)) # Exception print
 
-        elif isinstance(optree, TableLoad):
-            # declaring table
-            table = optree.inputs[0]
-            tag = table.get_tag()
-            table_name = code_object.declare_table(table, prefix = tag if tag != None else "table") 
-
-            index_code = [self.generate_expr(code_object, index_op, folded = folded, language = language).get() for index_op in optree.inputs[1:]]
-
-            result = CodeExpression("%s[%s]" % (table_name, "][".join(index_code)), optree.inputs[0].get_storage_precision())
-
-            # manually enforcing folding
-            if folded:
-                prefix = optree.get_tag(default = "tltmp")
-                result_varname = result_var if result_var != None else code_object.get_free_var_name(optree.get_precision(), prefix = prefix)
-                code_object << self.generate_assignation(result_varname, result.get()) 
-                result = CodeVariable(result_varname, optree.get_precision())
 
         elif isinstance(optree, Assert):
             cond = optree.get_input(0)
@@ -346,6 +330,32 @@ class VHDLCodeGenerator(object):
                else:
                  code_object << "{op_code};\n".format(op_code = op_code.get())
              code_object.dec_level()
+
+        elif isinstance(optree, TableLoad):
+            table = optree.get_input(0)
+            index = optree.get_input(1)
+            index_code = self.generate_expr(code_object, index, folded = folded, language = language)
+            prefix = optree.get_tag(default = "table_value")
+            result_varname = result_var if result_var != None else code_object.get_free_var_name(optree.get_precision(), prefix = prefix)
+            result = CodeVariable(result_varname, optree.get_precision())
+            code_object << "with {index} select {result} <=\n".format(index = index_code.get(), result = result.get())
+
+            table_dimensions = table.get_precision().get_dimensions()
+            assert len(table_dimensions) == 1
+            table_size = table_dimensions[0]
+
+            default_value = 0
+
+            # linearizing table selection
+            for tabid, value in enumerate(table.get_data()):
+              code_object << "\t{} when {}\n".format(table.get_precision().get_storage_precision().get_cst(value),index.get_precision().get_cst(tabid))
+            if 2**int(sollya.log2(table_size)) == table_size:
+              code_object << ";\n"
+            else:
+              code_object << "\t{} when others;\n".format(table.get_precision().get_storage_precision().get_cst(default_value))
+
+             # result is set 
+
 
         elif isinstance(optree, Return):
             return_result = optree.inputs[0]
