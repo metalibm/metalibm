@@ -38,7 +38,7 @@ class ML_ExternalBench(ML_Function("ml_external_bench")):
                output_file = "bench.c", 
                function_name = "bench_wrapper", 
                ):
-    arity = len(arg_template.input_precisions)
+    arity = len(arg_template.input_formats)
 
     # initializing base class
     ML_FunctionBasis.__init__(self, 
