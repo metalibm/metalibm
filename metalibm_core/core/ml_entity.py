@@ -182,7 +182,11 @@ class ML_EntityBasis(object):
     self.output_file = output_file if output_file else self.entity_name + ".vhd"
     self.debug_file  = debug_file  if debug_file  else "{}_dbg.do".format(self.entity_name)
 
+    # debug version
     self.debug_flag = debug_flag
+    # debug display 
+    self.display_after_gen = arg_template.display_after_gen
+    self.display_after_opt = arg_template.display_after_opt
 
     # TODO: FIX which i/o precision to select
     # TODO: incompatible with fixed-point formats
@@ -190,8 +194,10 @@ class ML_EntityBasis(object):
 
     self.abs_accuracy = abs_accuracy if abs_accuracy else S2**(-self.get_output_precision().get_precision())
 
+    # target selection
     self.backend = backend
 
+    # optimization parameters
     self.fuse_fma = fuse_fma
     self.fast_path_extract = fast_path_extract
 
@@ -365,7 +371,7 @@ class ML_EntityBasis(object):
     code_str = ""
     for code_entity in code_entity_list:
       entity_code_object = NestedCode(self.vhdl_code_generator, static_cst = False, uniquifier = "{0}_".format(self.entity_name), code_ctor = VHDLCodeObject)
-      result = code_entity.add_definition(self.vhdl_code_generator, language, entity_code_object, static_cst = True)
+      result = code_entity.add_definition(self.vhdl_code_generator, language, entity_code_object, static_cst = False)
       result.add_library("ieee")
       result.add_header("ieee.std_logic_1164.all")
       result.add_header("ieee.std_logic_arith.all")
@@ -403,15 +409,15 @@ class ML_EntityBasis(object):
 
     for code_entity in code_entity_list:
       scheme = code_entity.get_scheme()
-      if display_after_gen:
+      if display_after_gen or self.display_after_gen:
         print "function %s, after gen " % code_entity.get_name()
         print scheme.get_str(depth = None, display_precision = True, memoization_map = {})
 
       # optimize scheme
       opt_scheme = self.optimise_scheme(scheme, enable_subexpr_sharing = enable_subexpr_sharing)
 
-      if display_after_opt:
-        print "function %s, after opt " % code_function.get_name()
+      if display_after_opt or self.display_after_opt:
+        print "function %s, after opt " % code_entity.get_name()
         print scheme.get_str(depth = None, display_precision = True, memoization_map = {})
 
 

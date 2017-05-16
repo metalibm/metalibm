@@ -31,7 +31,7 @@ class VHDLCodeGenerator(object):
     language = C_Code
 
     """ C language code generator """
-    def __init__(self, processor, declare_cst = True, disable_debug = False, libm_compliant = False, default_rounding_mode = ML_GlobalRoundMode, default_silent = None, language = C_Code):
+    def __init__(self, processor, declare_cst = False, disable_debug = False, libm_compliant = False, default_rounding_mode = ML_GlobalRoundMode, default_silent = None, language = C_Code):
         self.memoization_map = [{}]
         self.processor = processor
         self.declare_cst = declare_cst
