@@ -37,6 +37,11 @@ static inline void FUNC_NAME(VECTOR_FORMAT *r, VECTOR_FORMAT vop) {\
   };\
 }
 
+#define ML_ASSEMBLE_VECTOR(vr, va, vb, size_a, size_b) {\
+  int __k; \
+  for(__k = 0; __k < (size_a); __k++) (vr)->_[__k] = (va)._[__k];\
+  for(__k = 0; __k < (size_b); __k++) (vr)->_[__k + (size_a)] = (vb)._[__k];\
+}
 
 /** Vector Addition */
 DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vaddf2, ml_float2_t, float, 2, +)

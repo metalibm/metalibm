@@ -1414,6 +1414,8 @@ class SwitchBlock(AbstractOperationConstructor("Switch", arity = 1)):
                 pre_str += "%s" %  self.case_map[case].get_str(new_depth, display_precision, tab_level = tab_level + 2, memoization_map = memoization_map, display_attribute = display_attribute, display_id = display_id)
             return pre_str
 
+class VectorAssembling(ArithmeticOperationConstructor("VectorAssembling")): pass
+
 class VectorElementSelection(ArithmeticOperationConstructor("VectorElementSelection", arity = 2)):
     implicit_arg_precision = {
         v2float32: ML_Binary32,

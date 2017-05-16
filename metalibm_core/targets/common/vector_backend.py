@@ -538,6 +538,12 @@ vector_opencl_code_generation_table = {
 }
 
 vector_c_code_generation_table = {
+  VectorAssembling: {
+    None: {
+      lambda _: True: {
+      },
+    },
+  },
   TableLoad: {
     None: {
       lambda _: True: {
