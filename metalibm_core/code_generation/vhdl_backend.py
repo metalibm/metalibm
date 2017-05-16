@@ -23,6 +23,7 @@ from ..core.ml_operations import *
 from ..core.ml_hdl_operations import *
 from metalibm_core.core.target import TargetRegister
 
+from metalibm_hw_blocks.rtl_blocks import *
 
 from .abstract_backend import AbstractBackend
 
@@ -30,6 +31,7 @@ def exclude_std_logic(optree):
   return not isinstance(optree.get_precision(), ML_StdLogicVectorFormat)
 def include_std_logic(optree):
   return isinstance(optree.get_precision(), ML_StdLogicVectorFormat)
+
 
 ## Copy the value of the init_stage attribute field
 #  from @p src node to @p dst node
@@ -146,6 +148,63 @@ def sext_modifier(optree):
   precision = ML_StdLogicVectorFormat(ext_size)
   return Concatenation(Replication(sign_digit, precision = precision, init_stage = init_stage), optree, precision = ext_precision, tag = optree.get_tag(), init_stage = init_stage)
 
+## fixed point operation generation block
+def fixed_point_op_modifier(optree, op_ctor = Addition):
+  # left hand side and right hand side operand extraction
+  lhs = optree.get_input(0)
+  rhs = optree.get_input(1)
+  lhs_prec = lhs.get_precision().get_base_format()
+  rhs_prec = rhs.get_precision().get_base_format()
+  optree_prec = optree.get_precision().get_base_format()
+  result_frac_size = max(lhs_prec.get_frac_size(), rhs_prec.get_frac_size(), optree_prec.get_frac_size())
+  result_integer_size = max(lhs_prec.get_integer_size(), rhs_prec.get_integer_size(), optree_prec.get_integer_size())
+  assert optree_prec.get_frac_size() >= result_frac_size
+  assert optree_prec.get_integer_size() >= result_integer_size
+  lhs_casted = TypeCast(lhs, precision = ML_StdLogicVectorFormat(lhs_prec.get_bit_size()))
+  rhs_casted = TypeCast(rhs, precision = ML_StdLogicVectorFormat(rhs_prec.get_bit_size()))
+  return TypeCast(
+    op_ctor(
+      zext(
+        rzext(lhs_casted, result_frac_size - lhs_prec.get_frac_size()),
+        result_integer_size - lhs_prec.get_integer_size()
+      ),
+      zext(
+        rzext(rhs_casted, result_frac_size - rhs_prec.get_frac_size()),
+        result_integer_size - rhs_prec.get_integer_size()
+      ),
+      precision = ML_StdLogicVectorFormat(optree_prec.get_bit_size()),
+    ),
+    precision = optree_prec,
+  )
+
+def fixed_point_add_modifier(optree):
+  return fixed_point_op_modifier(optree, op_ctor = Addition)
+def fixed_point_sub_modifier(optree):
+  return fixed_point_op_modifier(optree, op_ctor = Subtraction)
+
+def fixed_point_mul_modifier(optree):
+  # left hand side and right hand side operand extraction
+  lhs = optree.get_input(0)
+  rhs = optree.get_input(1)
+  lhs_prec = lhs.get_precision().get_base_format()
+  rhs_prec = rhs.get_precision().get_base_format()
+  optree_prec = optree.get_precision().get_base_format()
+  result_frac_size = max(lhs_prec.get_frac_size() + rhs_prec.get_frac_size(), optree_prec.get_frac_size())
+  result_integer_size = max(lhs_prec.get_integer_size() +  rhs_prec.get_integer_size(), optree_prec.get_integer_size())
+  assert optree_prec.get_frac_size() >= result_frac_size
+  assert optree_prec.get_integer_size() >= result_integer_size
+  lhs_casted = TypeCast(lhs, precision = ML_StdLogicVectorFormat(lhs_prec.get_bit_size()))
+  rhs_casted = TypeCast(rhs, precision = ML_StdLogicVectorFormat(rhs_prec.get_bit_size()))
+  mult_prec = ML_StdLogicVectorFormat(result_frac_size + result_integer_size)
+  raw_result = Multiplication(
+    lhs_casted,
+    rhs_casted,
+    precision = mult_prec,
+  )
+  rext_result = rext(raw_result, optree_prec.get_frac_size() - mult_prec.get_frac_size())
+  result = zext(rext_result, optree_prec.get_integer_size() - mult_prec.get_integer_size())
+  return TypeCast(result, precision = optree_prec)
+
 vhdl_comp_symbol = {
   Comparison.Equal: "=", 
   Comparison.NotEqual: "/=",
@@ -172,6 +231,9 @@ ML_Bool.get_cst_map[VHDL_Code] = get_vhdl_bool_cst
 
 # class Match custom std logic vector format
 MCSTDLOGICV = TCM(ML_StdLogicVectorFormat)
+
+# class match custom fixed point format
+MCFixedPoint = TCM(ML_Standard_FixedPoint_Format)
 
 formal_generation_table = {
   Addition: {
@@ -207,6 +269,10 @@ vhdl_code_generation_table = {
         type_custom_match(MCSTDLOGICV, MCSTDLOGICV, MCSTDLOGICV):  SymbolOperator("+", arity = 2, force_folding = True),
         type_custom_match(MCSTDLOGICV, MCSTDLOGICV, FSM(ML_StdLogic)):  SymbolOperator("+", arity = 2, force_folding = True),
         type_custom_match(MCSTDLOGICV, FSM(ML_StdLogic), MCSTDLOGICV):  SymbolOperator("+", arity = 2, force_folding = True),
+      },
+      # fallback
+      lambda _: True: {
+        type_custom_match(MCFixedPoint, MCFixedPoint, MCFixedPoint): ComplexOperator(optree_modifier = fixed_point_add_modifier),
       }
     }
   },
@@ -217,6 +283,10 @@ vhdl_code_generation_table = {
       include_std_logic:
       {
         type_custom_match(MCSTDLOGICV, MCSTDLOGICV, MCSTDLOGICV):  SymbolOperator("-", arity = 2, force_folding = True),
+      },
+      # fallback
+      lambda _: True: {
+        type_custom_match(MCFixedPoint, MCFixedPoint, MCFixedPoint): ComplexOperator(optree_modifier = fixed_point_sub_modifier),
       }
     }
   },
@@ -224,6 +294,7 @@ vhdl_code_generation_table = {
     None: {
       lambda optree: True: {
         type_custom_match(MCSTDLOGICV, MCSTDLOGICV, MCSTDLOGICV): SymbolOperator("*", arity = 2, force_folding = True),
+        type_custom_match(MCFixedPoint, MCFixedPoint, MCFixedPoint): ComplexOperator(optree_modifier = fixed_point_mul_modifier),
       },
     },
   },
@@ -416,6 +487,9 @@ vhdl_code_generation_table = {
         type_custom_match(FSM(ML_Binary64), TCM(ML_StdLogicVectorFormat)): IdentityOperator(output_precision = ML_Binary64, no_parenthesis = True),
         type_custom_match(FSM(ML_Binary64), FSM(ML_Binary64)): IdentityOperator(output_precision = ML_Binary64, no_parenthesis = True),
         type_custom_match(MCSTDLOGICV, FSM(ML_Binary64)): IdentityOperator(no_parenthesis = True),
+
+        type_custom_match(MCSTDLOGICV, MCFixedPoint): IdentityOperator(no_parenthesis = True),
+        type_custom_match(MCFixedPoint, MCSTDLOGICV): IdentityOperator(no_parenthesis = True),
       },
     },
   },
