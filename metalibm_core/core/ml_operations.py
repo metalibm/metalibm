@@ -989,6 +989,10 @@ class BooleanOperation(object):
     def finish_copy(self, new_copy, copy_map = {}):
         new_copy.likely = self.likely
 
+## Extract likely properties if @p optree is a BooleanOperation
+#  else returns None
+def get_arg_likely(optree):
+  return optree.get_likely() if isinstance(optree, BooleanOperation) else None
 
 def logic_operation_init(self, *args, **kwords):
     self.__class__.__base__.__init__(self, *args, **kwords)
@@ -996,7 +1000,7 @@ def logic_operation_init(self, *args, **kwords):
     # if likely has not been overloaded
     # trying to determine it with respect to input likeliness
     if self.likely == None:
-        self.likely = self.likely_function(*tuple(arg.get_likely() for arg in args))
+        self.likely = self.likely_function(*tuple(get_arg_likely(arg) for arg in args))
 
 def LogicOperationBuilder(op_name, arity = 2, likely_function = lambda self, *ops: None):
     field_map = {
