@@ -223,6 +223,8 @@ class DefaultArgTemplate:
   # list of pre-code generation opt passe names (string tag)
   pre_gen_passes = []
   check_processor_support = True
+  # source elaboration
+  build_enable = False
 
   def __init__(self, **kw):
     for key in kw:
@@ -301,6 +303,7 @@ class ML_CommonArgTemplate(object):
 
     self.parser.add_argument("--pre-gen-pass", default = [], action = "store", dest = "pre_gen_passes", type = lambda s: s.split(","), help = "comma separated list of pass to be executed just before final code generation")
     self.parser.add_argument("--disable-check", default = True, action = "store_const", const = False, dest = "check_processor_support", help = "disable check processor support pass run {default: enabled]")
+    self.parser.add_argument("--build", dest = "build_enable", action = "store_const", const = True, default = default_arg.build_enable, help = "enable RTL elaboration")
 
 
   ## Extract argument from the command-line (sys.argv)
@@ -338,7 +341,6 @@ class ML_EntityArgTemplate(ML_CommonArgTemplate):
     self.parser.add_argument("--entityname", dest = "entity_name", default = self.default_entity_name, help = "set entity name")
     self.parser.add_argument("--backend", dest = "backend", action = "store", type = target_instanciate, default = default_arg.backend, help = "select generation backend")
     self.parser.add_argument("--debug-file", dest = "debug_file", action="store", help = "help define output file for debug script")
-    self.parser.add_argument("--build", dest = "build_enable", action = "store_const", const = True, default = default_arg.build_enable, help = "enable RTL elaboration")
 
 
 ## new argument template based on argparse module

@@ -174,6 +174,9 @@ class ML_FunctionBasis(object):
     self.bench_test_number = bench_test_number or bench_execute
     self.bench_test_range = bench_test_range
 
+    # source building
+    self.build_enable = arg_template.build_enable
+
     self.language = language
 
     Log.report(Log.Info, "auto test: {}, {}, {}, {}".format(self.auto_test_enable, self.auto_test_number, self.auto_test_execute, self.auto_test_range))
@@ -451,29 +454,45 @@ class ML_FunctionBasis(object):
     # generate C code to implement scheme
     self.generate_code(code_function_list, language = self.language)
 
-    if self.auto_test_enable:
+    if self.build_enable or self.auto_test_execute:
       compiler = self.processor.get_compiler()
       test_file = "./test_%s.bin" % self.function_name
       compiler_options = " ".join(self.processor.get_compilation_options())
-      Log.report(Log.Info, "Compiler options: \"{}\"".format(compiler_options))
-      test_command =  "{compiler} {options} -O2 -DML_DEBUG -I$ML_SRC_DIR/metalibm_core \
-      $ML_SRC_DIR/metalibm_core/support_lib/ml_libm_compatibility.c  \
-      $ML_SRC_DIR/metalibm_core/support_lib/ml_multi_prec_lib.c \
-      {src_file} -o {test_file} -lm ".format(compiler = compiler, src_file = self.output_file, test_file = test_file, options = compiler_options) 
-      test_command += " && %s " % self.processor.get_execution_command(test_file)
-      if self.auto_test_execute:
-        print "VALIDATION %s " % self.get_name()
-        print test_command
-        test_result = subprocess.call(test_command, shell = True)
-        if not test_result:
-          print "VALIDATION SUCCESS"
-        else:
-          print test_result
-          print "VALIDATION FAILURE"
-          sys.exit(1)
+      src_list = [self.output_file]
+      if not self.auto_test_execute:
+        # build only, disable link
+        compiler_options += " -c  "
       else:
-        print "VALIDATION %s command line:" % self.get_name()
-        print test_command
+        src_list += [
+          "$ML_SRC_DIR/metalibm_core/support_lib/ml_libm_compatibility.c",
+          "$ML_SRC_DIR/metalibm_core/support_lib/ml_multi_prec_lib.c",
+        ]
+      Log.report(Log.Info, "Compiler options: \"{}\"".format(compiler_options))
+
+      build_command = "{compiler} {options} -O2 -DML_DEBUG -I$ML_SRC_DIR/metalibm_core \
+      {src_files} -o {test_file} -lm ".format(compiler = compiler, src_files = (" ".join(src_list)), test_file = test_file, options = compiler_options) 
+
+      Log.report(Log.Info, "Building source with command: {}".format(build_command))
+      build_result = subprocess.call(build_command, shell = True)
+      Log.report(Log.Info, "build result: {}".format(build_result))
+
+      if self.auto_test_enable and not build_result:
+        test_command = " %s " % self.processor.get_execution_command(test_file)
+        if self.auto_test_execute:
+          print "VALIDATION %s " % self.get_name()
+          print test_command
+          test_result = subprocess.call(test_command, shell = True)
+          if not test_result:
+            print "VALIDATION SUCCESS"
+          else:
+            print test_result
+            print "VALIDATION FAILURE"
+            sys.exit(1)
+        else:
+          print "VALIDATION %s command line:" % self.get_name()
+          print test_command
+      elif build_result:
+        Log.report(Log.Error, "build failed: {}".format(build_result))
 
     elif self.bench_enabled:
       compiler = self.processor.get_compiler()
