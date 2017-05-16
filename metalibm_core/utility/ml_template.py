@@ -262,7 +262,7 @@ class ML_CommonArgTemplate(object):
   def __init__(self, parser, default_arg = DefaultArgTemplate):
     self.parser = parser
     self.parser.add_argument("--debug", dest = "debug", action = "store_const", const = True, default = default_arg.debug, help = "enable debug display in generated code")
-    self.parser.add_argument("--disable-fma", dest = "fuse_fma", action = "store_const", const = False, default = default_arg.fuse_fma, help = "disable FMA-like operation fusion")
+    self.parser.add_argument("--fuse-fma", dest = "fuse_fma", action = "store_const", const = True, default = default_arg.fuse_fma, help = "disable FMA-like operation fusion")
     self.parser.add_argument("--output", action = "store", dest = "output_file", default = self.default_output_file, help = "set output file")
 
     self.parser.add_argument("--precision", dest = "precision", type = precision_parser, default = default_arg.precision, help = "select main precision")
