@@ -105,7 +105,7 @@ class ML_Log(ML_Function("ml_log")):
     log2_hi = Constant(v_log2_hi, precision = self.precision, tag = "log2_hi")
     log2_lo = Constant(v_log2_lo, precision = self.precision, tag = "log2_lo")
 
-    vx_exp  = ExponentExtraction(vx, tag = "vx_exp", debug = debugd)
+    vx_exp  = ExponentExtraction(vx, tag = "vx_exp", debug = debug_multi)
 
     int_precision = self.precision.get_integer_format()
 
@@ -133,26 +133,61 @@ class ML_Log(ML_Function("ml_log")):
         log_table[i][1] = value_low
 
     def compute_log(_vx, exp_corr_factor = None):
-        _vx_mant = MantissaExtraction(_vx, tag = "_vx_mant", debug = debug_lftolx, precision = self.precision)
-        _vx_exp  = ExponentExtraction(_vx, tag = "_vx_exp", debug = debugd)
+        _vx_mant = MantissaExtraction(_vx, tag = "_vx_mant", debug = debug_multi, precision = self.precision)
+        _vx_exp  = ExponentExtraction(_vx, tag = "_vx_exp", debug = debug_multi)
 
-        table_index = BitLogicAnd(BitLogicRightShift(TypeCast(_vx_mant, precision = int_precision, debug = debuglx), self.precision.get_field_size() - 7, debug = debuglx), 0x7f, tag = "table_index", debug = debuglx) 
+        table_index = BitLogicAnd(
+          BitLogicRightShift(
+            TypeCast(
+              _vx_mant, 
+              precision = int_precision, 
+              debug = debug_multi
+            ), 
+            self.precision.get_field_size() - 7, 
+            debug = debug_multi
+          ), 
+          0x7f, 
+          tag = "table_index", 
+          debug = debug_multi
+        ) 
 
         # argument reduction
         # TODO: detect if single operand inverse seed is supported by the targeted architecture
-        pre_arg_red_index = TypeCast(BitLogicAnd(TypeCast(DivisionSeed(_vx_mant, precision = self.precision, tag = "seed", debug = debug_lftolx, silent = True), precision = integer_precision), Constant(-2, precision = integer_precision), precision = integer_precision), precision = self.precision, tag = "pre_arg_red_index", debug = debug_lftolx)
+        pre_arg_red_index = TypeCast(
+          BitLogicAnd(
+            TypeCast(
+              DivisionSeed(
+                _vx_mant, 
+                precision = self.precision, 
+                tag = "seed", 
+                debug = debug_multi, 
+                silent = True
+              ), 
+              precision = integer_precision
+            ), 
+            Constant(
+              -2, 
+              precision = integer_precision
+            ), 
+            precision = integer_precision
+          ), 
+          precision = self.precision, 
+          tag = "pre_arg_red_index", 
+        debug = debug_multi
+      )
+
         arg_red_index = Select(Equal(table_index, 0), 1.0, pre_arg_red_index)
 
         #_red_vx        = arg_red_index * _vx_mant - 1.0
         _red_vx = FusedMultiplyAdd(arg_red_index, _vx_mant, 1.0, specifier = FusedMultiplyAdd.Subtract)
-        _red_vx.set_attributes(tag = "_red_vx", debug = debug_lftolx)
+        _red_vx.set_attributes(tag = "_red_vx", debug = debug_multi)
 
         inv_err = S2**-7
         red_interval = Interval(1 - inv_err, 1 + inv_err)
 
         # return in case of standard (non-special) input
-        _log_inv_lo = TableLoad(log_table, table_index, 1, tag = "log_inv_lo", debug = debug_lftolx) 
-        _log_inv_hi = TableLoad(log_table, table_index, 0, tag = "log_inv_hi", debug = debug_lftolx)
+        _log_inv_lo = TableLoad(log_table, table_index, 1, tag = "log_inv_lo", debug = debug_multi) 
+        _log_inv_hi = TableLoad(log_table, table_index, 0, tag = "log_inv_hi", debug = debug_multi)
 
         print "building mathematical polynomial"
         approx_interval = Interval(-inv_err, inv_err)
@@ -164,42 +199,42 @@ class ML_Log(ML_Function("ml_log")):
         #_poly = PolynomialSchemeEvaluator.generate_horner_scheme(poly_object, _red_vx, unified_precision = self.precision)
         _poly = PolynomialSchemeEvaluator.generate_estrin_scheme(poly_object, _red_vx, unified_precision = self.precision)
 
-        _poly.set_attributes(tag = "poly", debug = debug_lftolx)
+        _poly.set_attributes(tag = "poly", debug = debug_multi)
         print global_poly_object.get_sollya_object()
 
         corr_exp = Conversion(_vx_exp if exp_corr_factor == None else _vx_exp + exp_corr_factor, precision = self.precision)
-        split_red_vx = Split(_red_vx, precision = ML_DoubleDouble, tag = "split_red_vx", debug = debug_ddtolx) 
+        split_red_vx = Split(_red_vx, precision = ML_DoubleDouble, tag = "split_red_vx", debug = debug_multi) 
         red_vx_hi = split_red_vx.hi
         red_vx_lo = split_red_vx.lo
 
         # result = _red_vx * poly - log_inv_hi - log_inv_lo + _vx_exp * log2_hi + _vx_exp * log2_lo
         pre_result = -_log_inv_hi + (_red_vx + (_red_vx * _poly + (corr_exp * log2_lo - _log_inv_lo)))
-        pre_result.set_attributes(tag = "pre_result", debug = debug_lftolx)
+        pre_result.set_attributes(tag = "pre_result", debug = debug_multi)
         exact_log2_hi_exp = corr_exp * log2_hi
-        exact_log2_hi_exp.set_attributes(tag = "exact_log2_hi_exp", debug = debug_lftolx)
+        exact_log2_hi_exp.set_attributes(tag = "exact_log2_hi_exp", debug = debug_multi)
         cancel_part = (corr_exp * log2_hi - _log_inv_hi)
-        cancel_part.set_attributes(tag = "cancel_part", debug = debug_lftolx)
+        cancel_part.set_attributes(tag = "cancel_part", debug = debug_multi)
         sub_part = red_vx_hi + cancel_part
-        sub_part.set_attributes(tag = "sub_part", debug = debug_lftolx)
+        sub_part.set_attributes(tag = "sub_part", debug = debug_multi)
         #result_one_low_part = (red_vx_hi * _poly + (red_vx_lo + (red_vx_lo * _poly + (corr_exp * log2_lo - _log_inv_lo))))
         result_one_low_part = ((red_vx_lo + (red_vx_lo * _poly + (corr_exp * log2_lo - _log_inv_lo))))
-        result_one_low_part.set_attributes(tag = "result_one_low_part", debug = debug_lftolx)
+        result_one_low_part.set_attributes(tag = "result_one_low_part", debug = debug_multi)
         _result_one = ((sub_part) + red_vx_hi * _poly) + result_one_low_part 
         return exact_log2_hi_exp + pre_result, _poly, _log_inv_lo, _log_inv_hi, _red_vx, _result_one 
 
     result, poly, log_inv_lo, log_inv_hi, red_vx, new_result_one = compute_log(vx)
-    result.set_attributes(tag = "result", debug = debug_lftolx)
-    new_result_one.set_attributes(tag = "new_result_one", debug = debug_lftolx)
+    result.set_attributes(tag = "result", debug = debug_multi)
+    new_result_one.set_attributes(tag = "new_result_one", debug = debug_multi)
 
-    neg_input = Comparison(vx, 0, likely = False, specifier = Comparison.Less, debug = debugd, tag = "neg_input")
-    vx_nan_or_inf = Test(vx, specifier = Test.IsInfOrNaN, likely = False, debug = debugd, tag = "nan_or_inf")
-    vx_snan = Test(vx, specifier = Test.IsSignalingNaN, likely = False, debug = debugd, tag = "snan")
-    vx_inf  = Test(vx, specifier = Test.IsInfty, likely = False, debug = debugd, tag = "inf")
-    vx_subnormal = Test(vx, specifier = Test.IsSubnormal, likely = False, debug = debugd, tag = "vx_subnormal")
-    vx_zero = Test(vx, specifier = Test.IsZero, likely = False, debug = debugd, tag = "vx_zero")
+    neg_input = Comparison(vx, 0, likely = False, specifier = Comparison.Less, debug = debug_multi, tag = "neg_input")
+    vx_nan_or_inf = Test(vx, specifier = Test.IsInfOrNaN, likely = False, debug = debug_multi, tag = "nan_or_inf")
+    vx_snan = Test(vx, specifier = Test.IsSignalingNaN, likely = False, debug = debug_multi, tag = "snan")
+    vx_inf  = Test(vx, specifier = Test.IsInfty, likely = False, debug = debug_multi, tag = "inf")
+    vx_subnormal = Test(vx, specifier = Test.IsSubnormal, likely = False, debug = debug_multi, tag = "vx_subnormal")
+    vx_zero = Test(vx, specifier = Test.IsZero, likely = False, debug = debug_multi, tag = "vx_zero")
 
-    exp_mone = Equal(vx_exp, -1, tag = "exp_minus_one", debug = debugd, likely = False)
-    vx_one = Equal(vx, 1.0, tag = "vx_one", likely = False, debug = debugd)
+    exp_mone = Equal(vx_exp, -1, tag = "exp_minus_one", debug = debug_multi, likely = False)
+    vx_one = Equal(vx, 1.0, tag = "vx_one", likely = False, debug = debug_multi)
 
     # exp=-1 case
     print "managing exp=-1 case"
@@ -213,7 +248,7 @@ class ML_Log(ML_Function("ml_log")):
     #result2 = (poly2 - log_inv_hi - log_inv_lo)
 
     result2 = (-log_inv_hi - log2_hi) + ((red_vx + poly * red_vx) - log2_lo - log_inv_lo)
-    result2.set_attributes(tag = "result2", debug = debug_lftolx)
+    result2.set_attributes(tag = "result2", debug = debug_multi)
 
     m100 = -100
     S2100 = Constant(S2**100, precision = self.precision)
@@ -226,10 +261,10 @@ class ML_Log(ML_Function("ml_log")):
     poly_degree_one = sup(guessdegree(log(1+sollya.x)/sollya.x, approx_interval_one, S2**-(self.precision.get_field_size()+1))) + 1
     poly_object_one = Polynomial.build_from_approximation(log(1+sollya.x)/sollya.x, poly_degree_one, [self.precision]*(poly_degree_one+1), approx_interval_one, sollya.absolute).sub_poly(start_index = 1)
     poly_one = PolynomialSchemeEvaluator.generate_horner_scheme(poly_object_one, red_vx_one, unified_precision = self.precision)
-    poly_one.set_attributes(tag = "poly_one", debug = debug_lftolx)
+    poly_one.set_attributes(tag = "poly_one", debug = debug_multi)
     result_one = red_vx_one + red_vx_one * poly_one
     cond_one = (vx < (1+one_err)) & (vx > (1 - one_err))
-    cond_one.set_attributes(tag = "cond_one", debug = debugd, likely = False)
+    cond_one.set_attributes(tag = "cond_one", debug = debug_multi, likely = False)
 
 
     # main scheme
@@ -286,6 +321,8 @@ class ML_Log(ML_Function("ml_log")):
     scheme = pre_scheme
 
     return scheme
+
+  standard_test_cases = [(sollya.parse("0x1.fe9a5p-1"),), (sollya.parse("0x1.fe9a5p-1"),)]
 
   def numeric_emulate(self, input_value):
     return log(input_value)
