@@ -45,6 +45,67 @@ def fixed_debug_pre_process(value_name, optree):
 ## Debug attributes specific for Fixed-Point values
 debug_fixed = ML_AdvancedDebug(pre_process = fixed_debug_pre_process)
 
+
+## Generate the code for a single step of a newton-Raphson 
+#  iteration
+def generate_NR_iteration(recp_input, previous_approx, (mult_int_size, mult_frac_size), (error_int_size, error_frac_size), (tmp_approx_int_size, tmp_approx_frac_size), (approx_int_size, approx_frac_size), implementation, pipelined = 0, tag_suffix = ""):
+  # creating required formats
+  it_mult_precision = RTL_FixedPointFormat(
+    mult_int_size, mult_frac_size,
+    support_format = ML_StdLogicVectorFormat(mult_int_size + mult_frac_size)
+  )
+  error_precision = RTL_FixedPointFormat(
+    error_int_size,
+    error_frac_size,
+    support_format = ML_StdLogicVectorFormat(error_int_size + error_frac_size)
+  )
+  tmp_approx_precision = RTL_FixedPointFormat(
+    tmp_approx_int_size,
+    tmp_approx_frac_size,
+    support_format = ML_StdLogicVectorFormat(tmp_approx_int_size + tmp_approx_frac_size)
+  )
+  new_approx_precision = RTL_FixedPointFormat(
+    approx_int_size,
+    approx_frac_size,
+    support_format = ML_StdLogicVectorFormat(approx_int_size + approx_frac_size)
+  )
+  # computing error
+  it_mult = Multiplication(
+    recp_input,
+    previous_approx,
+    precision = it_mult_precision,
+    debug = debug_fixed,
+    tag = "it_mult" + tag_suffix
+  )
+  if pipelined >= 2: implementation.start_new_stage()
+  it_error = Subtraction(
+    Constant(1, precision = it_mult_precision),
+    it_mult,
+    precision = error_precision,
+    tag = "it_error" + tag_suffix,
+    debug = debug_fixed
+  )
+  if pipelined >= 1: implementation.start_new_stage()
+
+  # computing new approximation
+  approx_mult = Multiplication(
+    it_error,
+    previous_approx,
+    precision = tmp_approx_precision,
+    tag = "approx_mult" + tag_suffix,
+    debug = debug_fixed
+  )
+  if pipelined >= 2: implementation.start_new_stage()
+
+  new_approx = Addition(
+    previous_approx,
+    approx_mult,
+    precision = new_approx_precision, 
+    tag = "new_approx",
+    debug = debug_fixed
+  )
+  return new_approx
+
 class FP_Divider(ML_Entity("fp_div")):
   def __init__(self, 
              arg_template = DefaultEntityArgTemplate, 
@@ -54,6 +115,8 @@ class FP_Divider(ML_Entity("fp_div")):
     ML_EntityBasis.__init__(self, 
       arg_template = arg_template
     )
+
+    self.pipelined = arg_template.pipelined
 
   @staticmethod
   def get_default_args(width = 32):
@@ -78,38 +141,28 @@ class FP_Divider(ML_Entity("fp_div")):
 
     # declaring main input variable
     vx = self.implementation.add_input_signal("x", io_precision) 
-    vy = self.implementation.add_input_signal("y", io_precision) 
+
+    if self.pipelined:
+      self.implementation.add_input_signal("reset", ML_StdLogic)
 
     vx_precision = self.precision
-    vy_precision = self.precision
 
     p = vx_precision.get_mantissa_size()
-    assert p == vy_precision.get_mantissa_size()
 
     exp_vx_precision     = ML_StdLogicVectorFormat(vx_precision.get_exponent_size())
-    exp_vy_precision     = ML_StdLogicVectorFormat(vy_precision.get_exponent_size())
-
     mant_vx_precision    = ML_StdLogicVectorFormat(p)
-    mant_vy_precision    = ML_StdLogicVectorFormat(p)
 
     # mantissa extraction
     mant_vx = MantissaExtraction(vx, precision = mant_vx_precision, tag = "mant_vx")
-    mant_vy = MantissaExtraction(vy, precision = mant_vy_precision, tag = "mant_vy")
     # exponent extraction 
     exp_vx = ExponentExtraction(vx, precision = exp_vx_precision, tag = "exp_vx", debug = debug_dec)
-    exp_vy = ExponentExtraction(vy, precision = exp_vy_precision, tag = "exp_vy", debug = debug_dec)
 
-    approx_index_size = 6
+    approx_index_size = 8
 
     approx_precision = RTL_FixedPointFormat(
       2, approx_index_size,
       support_format = ML_StdLogicVectorFormat(approx_index_size + 2),
     )
-    #approx_precision_unsigned = RTL_FixedPointFormat(
-    #  2, approx_index_size,
-    #  support_format = ML_StdLogicVectorFormat(approx_index_size + 1),
-    #  signed = False
-    #)
 
     # selecting table index from input mantissa MSBs
     tab_index = SubSignalSelection(mant_vx, p-2 - approx_index_size +1, p-2, tag = "tab_index")
@@ -129,88 +182,48 @@ class FP_Divider(ML_Entity("fp_div")):
     pre_it0_input = zext(SubSignalSelection(mant_vx, p-1 - approx_index_size , p-1, tag = "it0_input"), 1)
     it0_input = TypeCast(pre_it0_input, precision = approx_precision, tag = "it0_input", debug = debug_fixed)
 
-    #it0_input = TypeCast(it0_input, precision = approx_precision_unsigned, tag = "it0_input", debug = debug_fixed)
-
-    def generate_NR_iteration(recp_input, previous_approx, (mult_int_size, mult_frac_size), (approx_int_size, approx_frac_size)):
-      # creating required formats
-      it_mult_precision = RTL_FixedPointFormat(
-        mult_int_size, mult_frac_size,
-        support_format = ML_StdLogicVectorFormat(mult_int_size + mult_frac_size)
-      )
-      new_approx_precision = RTL_FixedPointFormat(
-        approx_int_size,
-        approx_frac_size,
-        support_format = ML_StdLogicVectorFormat(approx_int_size + approx_frac_size)
-      )
-      # computing error
-      it_mult = Multiplication(
-        recp_input,
-        previous_approx,
-        precision = it_mult_precision,
-        debug = debug_fixed,
-        tag = "it_mult"
-      )
-      it_error = Subtraction(
-        Constant(1, precision = it_mult_precision),
-        it_mult,
-        precision = it_mult_precision,
-        tag = "it_error",
-        debug = debug_fixed
-      )
-      # computing new approximation
-      approx_mult = Multiplication(
-        it_error,
-        previous_approx,
-        precision = new_approx_precision,
-        tag = "approx_mult",
-        debug = debug_fixed
-      )
-      new_approx = Addition(
-        previous_approx,
-        approx_mult,
-        precision = new_approx_precision, 
-        tag = "new_approx",
-        debug = debug_fixed
-      )
-      return new_approx
-
-    it0_mult_precision = RTL_FixedPointFormat(
-      3, approx_index_size * 2,
-      support_format = ML_StdLogicVectorFormat(3 + 2 * approx_index_size),
+    it1_precision = RTL_FixedPointFormat(
+      2,
+      2 * approx_index_size,
+      support_format = ML_StdLogicVectorFormat(2 + 2 * approx_index_size)
     )
 
-    it0_mult = Multiplication(it0_input, inv_approx_value, precision = it0_mult_precision, tag = "it0_mult", debug = debug_fixed)
-    it0_error = Subtraction(
-      Constant(1, precision = it0_mult_precision),
-      it0_mult,
-      precision = it0_mult_precision,
-      tag = "it0_error",
-      debug = debug_fixed
-    )
-    it1_approx_precision = RTL_FixedPointFormat(
-      4, 3 * approx_index_size,
-      support_format = ML_StdLogicVectorFormat(4 + 3 * approx_index_size),
-    )
-    it1_mult = Multiplication(
-      it0_error,
-      inv_approx_value,
-      precision = it1_approx_precision 
-    )
-
-    it1_approx = Addition(
-      inv_approx_value,
-      it1_mult,
-      precision = it1_approx_precision,
-      tag = "it1_approx",
-      debug = debug_fixed
-    )
+    pre_it1_input = zext(SubSignalSelection(mant_vx, p - 1 - 2 * approx_index_size, p -1, tag = "it1_input"), 1)
+    it1_input = TypeCast(pre_it1_input, precision = it1_precision, tag = "it1_input", debug = debug_fixed)
 
     final_approx = generate_NR_iteration(
       it0_input,
-      it1_approx,
-      (2, approx_index_size * 3),
-      (2, approx_index_size * 3)
+      inv_approx_value,
+      (2, approx_index_size * 2), # mult precision
+      (-3, 2 * approx_index_size), # error precision
+      (2, approx_index_size * 3), # new-approx mult
+      (2, approx_index_size * 2), # new approx precision
+      self.implementation,
+      pipelined = 0, #1 if self.pipelined else 0,
+      tag_suffix = "_first"
     )
+
+    # Inserting post-input pipeline stage
+    if self.pipelined: self.implementation.start_new_stage()
+
+    final_approx = generate_NR_iteration(
+      it1_input,
+      final_approx,
+      # mult precision
+      (2, approx_index_size * 3),
+      # error precision
+      (-6, approx_index_size * 3),
+      # approx mult precision
+      (2, approx_index_size * 3),
+      # new approx precision
+      (2, approx_index_size * 3),
+      self.implementation,
+      pipelined = 1 if self.pipelined else 0,
+      tag_suffix = "_second"
+    )
+
+    # Inserting post-input pipeline stage
+    if self.pipelined: self.implementation.start_new_stage()
 
     last_it_precision = RTL_FixedPointFormat(
       2,
@@ -224,23 +237,37 @@ class FP_Divider(ML_Entity("fp_div")):
     final_approx = generate_NR_iteration(
       last_it_input,
       final_approx,
-      (2, approx_index_size * 3 + p - 1),
-      (2, approx_index_size * 3 + p - 1)
+      # mult-precision 
+      (2, 2 * p - 1),   
+      # error precision
+      (- (3 * approx_index_size) / 2, approx_index_size * 2 + p - 1), 
+      # mult approx mult precision 
+      (2, approx_index_size * 2 + p - 1), 
+      # approx precision
+      (2, p), 
+      self.implementation,
+      pipelined = 2 if self.pipelined else 0,
+      tag_suffix = "_third"
     )
 
-    final_approx = generate_NR_iteration(
-      last_it_input,
-      final_approx,
-      (2, approx_index_size * 3 + p - 1),
-      (2, approx_index_size * 3 + p - 1)
-    )
+    # Inserting post-input pipeline stage
+    if self.pipelined: self.implementation.start_new_stage()
 
     final_approx = generate_NR_iteration(
       last_it_input,
       final_approx,
       (2, 2 * p),
-      (2, 2 * p)
+      (-(4 * p)/5, 2 * p),
+      (2, 2 * p),
+      (2, 2 * p),
+      self.implementation,
+      pipelined = 2 if self.pipelined else 0,
+      tag_suffix = "_last"
     )
+
+    # Inserting post-input pipeline stage
+    if self.pipelined: self.implementation.start_new_stage()
+
 
     final_approx.set_attributes(tag = "final_approx", debug = debug_fixed)
 
@@ -434,14 +461,6 @@ class FP_Divider(ML_Entity("fp_div")):
       debug = debug_hex,
       tag = "vr_out"
     )
-    #vr_out = FloatBuild(
-    #  res_sign,
-    #  res_exp,
-    #  res_mant_field,
-    #  precision = io_precision,
-    #  tag = "vr_out",
-    #  debug = debug_hex
-    #)
 
     self.implementation.add_output_signal("vr_out", vr_out)
 
@@ -449,18 +468,23 @@ class FP_Divider(ML_Entity("fp_div")):
 
   def numeric_emulate(self, io_map):
     vx = io_map["x"]
-    vy = io_map["y"]
     result = {}
     result["vr_out"] = sollya.round(1.0 / vx, self.precision.get_sollya_object(), sollya.RN)
     return result
 
   #standard_test_cases = [({"x": 1.0, "y": (S2**-11 + S2**-17)}, None)]
-  standard_test_cases = [({"x": 1.5, "y": 0.0}, None)]
+  standard_test_cases = [
+    ({"x": sollya.parse("0x1.24f608p0")}, None),
+    ({"x": 1.5}, None),
+  ]
 
 
 if __name__ == "__main__":
     # auto-test
     arg_template = ML_EntityArgTemplate(default_entity_name = "new_fp_div", default_output_file = "ml_fp_div.vhd", default_arg = FP_Divider.get_default_args() )
+    # extra command line arguments
+
+    arg_template.parser.add_argument("--pipelined", dest = "pipelined", action = "store_const", default = False, const = True, help = "enable operator pipelining")
     # argument extraction 
     args = parse_arg_index_list = arg_template.arg_extraction()
 
