@@ -52,6 +52,17 @@ class NR_Iteration:
   def get_hint_rules(self, gcg, gappa_code, exact):
     pass
 
+
+## propagate @p precision on @p optree on all operands with 
+#  no precision (None) set, applied recursively
+def propagate_format(optree, precision):
+  if optree.get_precision() is None:
+    optree.set_precision(precision)
+    if not isinstance(optree, ML_LeafNode):
+      for op_input in optree.get_inputs():
+        propagate_format(op_input, precision)
+
+
 def compute_sqrt(vx, init_approx, num_iter, debug_lftolx = None, precision = ML_Binary64):
 
     h = 0.5 * vx
@@ -106,6 +117,13 @@ def compute_sqrt(vx, init_approx, num_iter, debug_lftolx = None, precision = ML_
 
     #R = FMA(d1, H1, S1, rounding_mode = ML_GlobalRoundMode)
     R = FMA(d_last, H1, pR, rounding_mode = ML_GlobalRoundMode)
+
+    # set precision
+    propagate_format(R, precision)
+    propagate_format(S1, precision)
+    propagate_format(H1, precision)
+    propagate_format(d1, precision)
+
     return R, S1, H1, d1
 
 
@@ -165,9 +183,9 @@ class ML_Sqrt(ML_Function("ml_sqrt")):
         kwords["function_name"] = self.function_name
         return RaiseReturn(*args, **kwords)
 
-    ex = ExponentExtraction(pre_vx, tag = "ex", debug = debug_multi)
-    equal_comp = Equal(Modulo(ex, 2), 0)
-    even_ex = Select(equal_comp, ex, ex - 1, tag = "even_ex", debug = debug_multi)
+    ex = ExponentExtraction(pre_vx, tag = "ex", debug = debug_multi, precision = ML_Int32)
+    equal_comp = Equal(Modulo(ex, 2, precision = ML_Int32), 0, precision = ML_Bool)
+    even_ex = Select(equal_comp, ex, ex - 1, tag = "even_ex", debug = debug_multi, precision = ML_Int32)
     pre_scale_factor = ExponentInsertion(-(even_ex/2), tag = "pre_scale_factor", debug = debug_multi, precision = self.precision) 
     pre_scale_mult = (pre_vx * pre_scale_factor)
     pre_scale_mult.set_attributes(silent = True, rounding_mode = ML_RoundToNearest, precision = self.precision)
@@ -205,12 +223,12 @@ class ML_Sqrt(ML_Function("ml_sqrt")):
         # return NotEqual(BitLogicAnd(TypeCast(fp_optree, precision = self.integer_precision), 1 << bit_id), 0, likely = likely, **kwords)
         return BitLogicAnd(TypeCast(fp_optree, precision = self.integer_precision), 1 << bit_id)
 
-    x_qnan = Test(pre_vx, specifier = Test.IsQuietNaN, likely = False, tag = "x_qnan", debug = debug_multi)
-    x_zero = Test(pre_vx, specifier = Test.IsZero, likely = False, tag = "x_zero", debug = debug_multi)
-    x_neg = Comparison(pre_vx, 0, specifier = Comparison.Less, likely = False)
-    x_nan = Test(pre_vx, specifier = Test.IsNaN, likely = False, tag = "x_nan", debug = debug_multi)
-    x_nan_or_neg = x_nan | x_neg
-    x_plus_inf = Test(pre_vx, specifier = Test.IsPositiveInfty, likely = False, tag = "x_plus_inf", debug = debug_multi)
+    x_qnan = Test(pre_vx, specifier = Test.IsQuietNaN, likely = False, tag = "x_qnan", debug = debug_multi, precision = ML_Bool)
+    x_zero = Test(pre_vx, specifier = Test.IsZero, likely = False, tag = "x_zero", debug = debug_multi, precision = ML_Bool)
+    x_neg = Comparison(pre_vx, 0, specifier = Comparison.Less, likely = False, precision = ML_Bool)
+    x_nan = Test(pre_vx, specifier = Test.IsNaN, likely = False, tag = "x_nan", debug = debug_multi, precision = ML_Bool)
+    x_nan_or_neg = LogicalOr(x_nan, x_neg, precision = ML_Bool)
+    x_plus_inf = Test(pre_vx, specifier = Test.IsPositiveInfty, likely = False, tag = "x_plus_inf", debug = debug_multi, precision = ML_Bool)
 
     return_neg = Statement(ClearException(), SqrtRaiseReturn(ML_FPE_Invalid, return_value = FP_QNaN(self.precision)))
 
@@ -240,7 +258,7 @@ class ML_Sqrt(ML_Function("ml_sqrt")):
     )
     scheme = None
     rnd_mode = GetRndMode()
-    scheme = Statement(rnd_mode, SetRndMode(ML_RoundToNearest), S1, H1, d1, SetRndMode(rnd_mode), result, pre_scheme)
+    scheme = Statement(rnd_mode, SetRndMode(ML_RoundToNearest, precision = ML_Void), S1, H1, d1, SetRndMode(rnd_mode, precision = ML_Void), result, pre_scheme)
 
     return scheme
 
