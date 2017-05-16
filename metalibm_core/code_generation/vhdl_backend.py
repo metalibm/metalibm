@@ -52,7 +52,12 @@ def zext_modifier(optree):
   else:
     precision = ML_StdLogicVectorFormat(ext_size)
     ext_precision = ML_StdLogicVectorFormat(ext_size + ext_input.get_precision().get_bit_size())
-    result = Concatenation(Constant(0, precision = precision), ext_input, precision = ext_precision, tag = optree.get_tag(), init_stage = init_stage)
+    result = Concatenation(
+      Constant(0, precision = precision), 
+      ext_input, precision = ext_precision, 
+      tag = optree.get_tag("dummy") + "_zext", 
+      init_stage = init_stage
+    )
     copy_init_stage(optree, result)
     return result
 
@@ -70,7 +75,15 @@ def sext_modifier(optree):
     op_size = ext_input.get_precision().get_bit_size()
     sign_digit = VectorElementSelection(ext_input, Constant(op_size -1, precision = ML_Integer), precision = ML_StdLogic, init_stage = init_stage)
     precision = ML_StdLogicVectorFormat(ext_size)
-    return Concatenation(Replication(sign_digit, Constant(ext_size, precision = ML_Integer), precision = precision, init_stage = init_stage), ext_input, precision = ext_precision, tag = optree.get_tag(), init_stage = init_stage)
+    return Concatenation(
+      Replication(
+        sign_digit, Constant(ext_size, precision = ML_Integer), 
+        precision = precision, init_stage = init_stage
+      ), 
+      ext_input, precision = ext_precision, 
+      tag = optree.get_tag("dummy") + "_sext", 
+      init_stage = init_stage
+    )
 
 def negation_modifer(optree):
   init_stage = optree.attributes.get_dyn_attribute("init_stage")
@@ -85,6 +98,8 @@ def negation_modifer(optree):
     init_stage = init_stage
   )
 
+
+## Optree generation function for MantissaExtraction 
 def mantissa_extraction_modifier(optree):
   init_stage = optree.attributes.get_dyn_attribute("init_stage")
   op = optree.get_input(0)
@@ -178,7 +193,7 @@ def adapt_fixed_optree(raw_optree, (integer_size, frac_size), optree):
   result = TypeCast(
     result_rext,
     tag = optree.get_tag(),
-    debug = optree.get_debug(),
+    #debug = optree.get_debug(),
     init_stage = init_stage,
     precision = optree_prec,
   )
@@ -244,6 +259,12 @@ def fixed_point_mul_modifier(optree):
   rhs_casted = SignCast(rhs_casted, precision = rhs_casted.get_precision(), specifier = SignCast.Signed if rhs_prec.get_signed() else  SignCast.Unsigned)
 
   mult_prec = ML_StdLogicVectorFormat(result_frac_size + result_integer_size)
+  print "Multiplication {}: {} x {} = {} bits".format(
+    optree.get_tag(),
+    lhs_casted.get_precision().get_bit_size(),
+    rhs_casted.get_precision().get_bit_size(),
+    mult_prec.get_bit_size()
+  )
   raw_result = Multiplication(
     lhs_casted,
     rhs_casted,
@@ -324,7 +345,9 @@ vhdl_code_generation_table = {
           build_simplified_operator_generation_nomap([v8int32, v8uint32, ML_Int16, ML_UInt16, ML_Int32, ML_UInt32, ML_Int64, ML_UInt64, ML_Int128,ML_UInt128], 2, SymbolOperator("+", arity = 2, force_folding = True), cond = (lambda _: True)),
       include_std_logic:
       {
-        type_custom_match(MCSTDLOGICV, MCSTDLOGICV, MCSTDLOGICV):  SymbolOperator("+", arity = 2, force_folding = True),
+        type_custom_match(MCSTDLOGICV, MCSTDLOGICV, MCSTDLOGICV):  
+          SymbolOperator("+", arity = 2, force_folding = True),
+          #TemplateOperatorFormat("std_logic_vector({0} + {1})", arity = 2, force_folding = True),
         type_custom_match(MCSTDLOGICV, MCSTDLOGICV, FSM(ML_StdLogic)):  SymbolOperator("+", arity = 2, force_folding = True),
         type_custom_match(MCSTDLOGICV, FSM(ML_StdLogic), MCSTDLOGICV):  SymbolOperator("+", arity = 2, force_folding = True),
       },
