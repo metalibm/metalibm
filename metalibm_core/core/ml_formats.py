@@ -851,8 +851,10 @@ class FP_PlusZero(FP_SpecialValueBuilder("_sv_PlusZero")):
     pass
 class FP_MinusZero(FP_SpecialValueBuilder("_sv_MinusZero")):
     pass
-class FP_QNaN(FP_SpecialValueBuilder("_sv_QNaN")):
+class FP_QNaN(FP_MathSpecialValueBuilder("NAN")):
     pass
+#class FP_QNaN(FP_SpecialValueBuilder("_sv_QnaN")):
+#    pass
 class FP_SNaN(FP_SpecialValueBuilder("_sv_SNaN")):
     pass
 
