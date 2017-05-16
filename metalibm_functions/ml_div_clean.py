@@ -16,8 +16,6 @@ from metalibm_core.core.ml_optimization_engine import OptimizationEngine
 from metalibm_core.core.polynomials import *
 from metalibm_core.core.ml_table import ML_NewTable
 
-from metalibm_core.targets.kalray.k1a_processor import K1A_Processor
-from metalibm_core.targets.kalray.k1b_processor import K1B_Processor
 from metalibm_core.code_generation.gappa_code_generator import GappaCodeGenerator
 
 from metalibm_core.utility.gappa_utils import execute_gappa_script_extract
