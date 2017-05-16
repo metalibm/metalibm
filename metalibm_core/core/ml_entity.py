@@ -495,7 +495,7 @@ class ML_EntityBasis(object):
         input_value = input_values[input_tag]
         test_statement.add(ReferenceAssign(input_signal, Constant(input_value, precision = input_signal.get_precision())))
       test_statement.add(Wait(10))
-      # Computin output values when necessary
+      # Computing output values when necessary
       if output_values is None:
         output_values = self.numeric_emulate(input_values)
       # Adding output value comparison
