@@ -16,7 +16,7 @@ from metalibm_core.core.ml_formats import *
 # The algorithm is taken from the Hacker's Delight and works only for 32-bit
 # registers.
 # TODO Adapt to other register sizes.
-def generate_count_leading_zeros(vx, precision=ML_UInt32):
+def generate_count_leading_zeros(vx):
   """Generate a vectorizable LZCNT optree."""
 
   y = - BitLogicRightShift(vx, 16)    # If left half of x is 0,
@@ -53,27 +53,27 @@ def generate_count_leading_zeros(vx, precision=ML_UInt32):
   return n + 2 - m
 
 
-def generate_twosum(vx, vy, precision=ML_Binary64):
+def generate_twosum(vx, vy):
   """Return two optrees for a TwoSum operation.
 
   The return value is a tuple (sum, error).
   """
-  s  = Addition(vx, vy, precision = precision)
-  _x = Subtraction(s, vy, precision = precision)
-  _y = Subtraction(s, _x, precision = precision)
-  dx = Subtraction(vx, _x, precision = precision)
-  dy = Subtraction(vy, _y, precision = precision)
-  e  = Addition(dx, dy, precision = precision)
+  s  = Addition(vx, vy)
+  _x = Subtraction(s, vy)
+  _y = Subtraction(s, _x)
+  dx = Subtraction(vx, _x)
+  dy = Subtraction(vy, _y)
+  e  = Addition(dx, dy)
   return s, e
 
 
-def generate_fasttwosum(vx, vy, precision=ML_Binary64):
+def generate_fasttwosum(vx, vy):
   """Return two optrees for a FastTwoSum operation.
 
   Precondition: |vx| >= |vy|.
   The return value is a tuple (sum, error).
   """
-  s = Addition(vx, vy, precision = precision)
-  b = Subtraction(z, vx, precision = precision)
-  e = Subtraction(vy, b, precision = precision)
+  s = Addition(vx, vy)
+  b = Subtraction(z, vx)
+  e = Subtraction(vy, b)
   return s, e
