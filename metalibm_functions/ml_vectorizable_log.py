@@ -14,6 +14,8 @@ from metalibm_core.core.ml_formats import *
 from metalibm_core.core.polynomials import *
 from metalibm_core.core.ml_table import ML_NewTable
 from metalibm_core.core.ml_complex_formats import ML_Mpfr_t
+from metalibm_core.opt.ml_blocks import (generate_count_leading_zeros,
+                                         generate_fasttwosum)
 
 from metalibm_core.code_generation.generic_processor import GenericProcessor
 from metalibm_core.code_generation.generator_utility import (FunctionOperator,
@@ -104,6 +106,7 @@ class ML_Log(ML_Function("ml_log")):
     lzcount = CountLeadingZeros(vx_as_uint, tag = 'lzcount',
             interval = Interval(0, self.precision.bit_size),
             precision = uint_prec)
+    lzcount = generate_count_leading_zeros(vx_as_uint)
     max8 = Max(8, Conversion(lzcount, precision = int_prec)) # Max of lzcnt and 8
     # 2. compute shift value
     shift = max8 -  8
