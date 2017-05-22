@@ -322,9 +322,7 @@ sse2_c_code_generation_table = {
       None: {
         lambda optree: True: {
           type_strict_match(ML_SSE_m128_v4int32, ML_SSE_m128_v4int32, ML_Int32):
-            EmmIntrin("_mm_sll_epi32", arity = 2, arg_map = {0: FO_Arg(0), 1: FO_Arg(1)})(FO_Arg(0), _mm_set1_epi64x(FO_Arg(1))),
-          type_strict_match(ML_SSE_m128_v4int32, ML_SSE_m128_v4int32, ML_SSE_m128_v4int32):
-            ImmIntrin("_mm_sllv_epi32", arity = 2, arg_map = {0: FO_Arg(0), 1: FO_Arg(1)}),
+            EmmIntrin("_mm_slli_epi32", arity = 2, arg_map = {0: FO_Arg(0), 1: FO_Arg(1)})(FO_Arg(0), _mm_set1_epi64x(FO_Arg(1))),
         },
       },
     },
@@ -332,9 +330,15 @@ sse2_c_code_generation_table = {
       None: {
         lambda optree: True: {
           type_strict_match(ML_SSE_m128_v4int32, ML_SSE_m128_v4int32, ML_Int32):
-            EmmIntrin("_mm_sra_epi32", arity = 2, arg_map = {0: FO_Arg(0), 1: FO_Arg(1)})(FO_Arg(0), _mm_set1_epi64x(FO_Arg(1))),
-          type_strict_match(ML_SSE_m128_v4int32, ML_SSE_m128_v4int32, ML_SSE_m128_v4int32):
-            ImmIntrin("_mm_srav_epi32", arity = 2, arg_map = {0: FO_Arg(0), 1: FO_Arg(1)}),
+            EmmIntrin("_mm_srli_epi32", arity = 2, arg_map = {0: FO_Arg(0), 1: FO_Arg(1)})(FO_Arg(0), _mm_set1_epi64x(FO_Arg(1))),
+        },
+      },
+    },
+    BitArithmeticRightShift: {
+      None: {
+        lambda optree: True: {
+          type_strict_match(ML_SSE_m128_v4int32, ML_SSE_m128_v4int32, ML_Int32):
+            EmmIntrin("_mm_srai_epi32", arity = 2, arg_map = {0: FO_Arg(0), 1: FO_Arg(1)})(FO_Arg(0), _mm_set1_epi64x(FO_Arg(1))),
         },
       },
     },
@@ -504,6 +508,39 @@ class X86_AVX2_Processor(X86_SSE41_Processor):
                         #_lzcnt_u32(FO_Arg(0)),
                         #type_strict_match(ML_UInt64, ML_UInt64):
                         #_lzcnt_u64(FO_Arg(0)),
+                    },
+                },
+            },
+            BitLogicLeftShift: {
+                None: {
+                  lambda _: True: {
+                    type_strict_match(ML_SSE_m128_v4int32,
+                                      ML_SSE_m128_v4int32,
+                                      ML_SSE_m128_v4int32):
+                    ImmIntrin("_mm_sllv_epi32", arity = 2,
+                              arg_map = {0: FO_Arg(0), 1: FO_Arg(1)}),
+                    },
+                },
+            },
+            BitLogicRightShift: {
+                None: {
+                  lambda optree: True: {
+                    type_strict_match(ML_SSE_m128_v4int32,
+                                      ML_SSE_m128_v4int32,
+                                      ML_SSE_m128_v4int32):
+                    ImmIntrin("_mm_srlv_epi32", arity = 2,
+                              arg_map = {0: FO_Arg(0), 1: FO_Arg(1)}),
+                    },
+                },
+            },
+            BitArithmeticRightShift: {
+                None: {
+                  lambda _: True: {
+                    type_strict_match(ML_SSE_m128_v4int32,
+                                      ML_SSE_m128_v4int32,
+                                      ML_SSE_m128_v4int32):
+                    ImmIntrin("_mm_srav_epi32", arity = 2,
+                              arg_map = {0: FO_Arg(0), 1: FO_Arg(1)}),
                     },
                 },
             },

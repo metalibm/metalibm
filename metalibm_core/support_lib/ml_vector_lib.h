@@ -115,7 +115,7 @@ DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vmodu2, ml_uint2_t, uint32_t, 2, %)
 DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vmodu4, ml_uint4_t, uint32_t, 4, %)
 DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vmodu8, ml_uint8_t, uint32_t, 8, %)
 
-/** Vector BitLogic Left Shift */
+/** Vector Logic Left Shift */
 DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vslli2, ml_int2_t, int32_t, 2, <<)
 DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vslli4, ml_int4_t, int32_t, 4, <<)
 DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vslli8, ml_int8_t, int32_t, 8, <<)
@@ -124,7 +124,16 @@ DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsllu2, ml_uint2_t, uint32_t, 2, <<)
 DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsllu4, ml_uint4_t, uint32_t, 4, <<)
 DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsllu8, ml_uint8_t, uint32_t, 8, <<)
 
-/** Vector Aritmethic Right Shift */
+/** Vector Logic Right Shift */
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsrli2, ml_int2_t, int32_t, 2, >>)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsrli4, ml_int4_t, int32_t, 4, >>)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsrli8, ml_int8_t, int32_t, 8, >>)
+
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsrlu2, ml_uint2_t, uint32_t, 2, >>)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsrlu4, ml_uint4_t, uint32_t, 4, >>)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsrlu8, ml_uint8_t, uint32_t, 8, >>)
+
+/** Vector Arithmethic Right Shift */
 DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsrai2, ml_int2_t, int32_t, 2, >>)
 DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsrai4, ml_int4_t, int32_t, 4, >>)
 DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsrai8, ml_int8_t, int32_t, 8, >>)
