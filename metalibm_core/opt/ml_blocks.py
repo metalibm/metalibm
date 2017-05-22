@@ -20,7 +20,7 @@ def generate_count_leading_zeros(vx):
   """Generate a vectorizable LZCNT optree."""
 
   y = - BitLogicRightShift(vx, 16)    # If left half of x is 0,
-  m = BitLogicAnd(BitLogicRightShift(y, 16), 16)
+  m = BitLogicAnd(BitArithmeticRightShift(y, 16), 16)
                                       # set n = 16.  If left half
   n = Subtraction(16, m)              # is nonzero, set n = 0 and
   vx_2 = BitLogicRightShift(vx, m)    # shift x right 16.
