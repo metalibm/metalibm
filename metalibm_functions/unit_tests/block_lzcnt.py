@@ -21,39 +21,20 @@ from metalibm_core.utility.debug_utils import *
 
 from metalibm_core.opt.ml_blocks import generate_count_leading_zeros
 
-class ML_Lzcnt(ML_Function("ml_lzcnt")):
+class ML_UT_Lzcnt(ML_Function("ml_lzcnt")):
   def __init__(self,
-               arg_template = DefaultArgTemplate,
-               precision = ML_Int32,
-               abs_accuracy = None,
-               libm_compliant = True,
-               debug_flag = False,
-               fuse_fma = True,
-               fast_path_extract = True,
-               target = GenericProcessor(),
-               output_file = "my_lznct.c",
-               function_name = "my_lzcnt"):
+      arg_template=DefaultArgTemplate(
+        output_file = "ut_block_lzcnt.c",
+        function_name = "ut_lzcnt",
+        precision = ML_Int32,
+        auto_test_range = Interval(0, 2**31),
+        auto_test_execute = 1000)
+      ):
     # initializing I/O precision
-    io_precisions = [precision] * 2
-    self.precision = precision
+    self.precision = arg_template.precision
 
     # initializing base class
-    ML_FunctionBasis.__init__(self,
-      base_name = "lzcnt",
-      function_name = function_name,
-      output_file = output_file,
-
-      io_precisions = io_precisions,
-      abs_accuracy = abs_accuracy,
-      libm_compliant = libm_compliant,
-
-      processor = target,
-      fuse_fma = fuse_fma,
-      fast_path_extract = fast_path_extract,
-
-      debug_flag = debug_flag,
-      arg_template = arg_template
-    )
+    ML_FunctionBasis.__init__(self, arg_template = arg_template)
 
 
   def generate_scheme(self):
@@ -71,11 +52,23 @@ class ML_Lzcnt(ML_Function("ml_lzcnt")):
       input_value <<= 1
     return float(n);
 
+def run_test(args):
+  # just ignore args here and trust default constructor? seems like a bad idea.
+  ml_ut_block_lzcnt = ML_UT_Lzcnt()
+  ml_ut_block_lzcnt.gen_implementation(display_after_gen = True,
+                                       display_after_opt = True)
+  return True
+
 if __name__ == "__main__":
   # auto-test
-  arg_template = ML_NewArgTemplate(default_function_name = "new_lzcnt", default_output_file = "new_lzcnt.c" )
+  arg_template = ML_NewArgTemplate(
+      default_function_name = "new_lzcnt",
+      default_output_file = "new_lzcnt.c",
+      default_arg = DefaultArgTemplate(precision = ML_Int32)
+      )
+  # Overwrite default args by command line args if any
   args = arg_template.arg_extraction()
 
-  ml_lzcnt          = ML_Lzcnt(args)
+  ml_lzcnt = ML_UT_Lzcnt(args)
 
   ml_lzcnt.gen_implementation()
