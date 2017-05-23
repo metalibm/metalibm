@@ -203,10 +203,11 @@ class ML_FunctionBasis(object):
     self.processor = processor
 
     self.fuse_fma = fuse_fma
+    self.dot_product_enabled = arg_template.dot_product_enabled
     self.fast_path_extract = fast_path_extract
 
     self.implementation = CodeFunction(self.function_name, output_format = self.get_output_precision())
-    self.opt_engine = OptimizationEngine(self.processor)
+    self.opt_engine = OptimizationEngine(self.processor, dot_product_enabled = self.dot_product_enabled)
     self.gappa_engine = GappaCodeGenerator(self.processor, declare_cst = True, disable_debug = True)
 
     self.C_code_generator = CCodeGenerator(self.processor, declare_cst = False, disable_debug = not self.debug_flag, libm_compliant = self.libm_compliant, language = self.language)
