@@ -9,8 +9,12 @@ from sollya import Interval
 # import meta-function script from metalibm_functions directory
 import metalibm_hw_blocks.lzc
 import metalibm_hw_blocks.ml_fp_adder
+import metalibm_hw_blocks.ml_fp_mpfma
+import metalibm_hw_blocks.ml_fixed_mpfma
 
-from metalibm_core.core.ml_formats import ML_Binary32, ML_Binary64, ML_Int32
+from metalibm_core.core.ml_formats import  \
+  ML_Binary16, ML_Binary32, ML_Binary64, ML_Int32 
+  
 from metalibm_core.utility.ml_template import target_instanciate, DefaultEntityArgTemplate
 
 from valid.test_utils import *
@@ -18,7 +22,8 @@ from valid.test_utils import *
 class EntitySchemeTest(NewSchemeTest):
   ## Build an argument template from dict
   def build_arg_template(self, **kw):
-    return DefaultEntityArgTemplate(**kw)
+    default_arg = self.ctor.get_default_args(**kw)
+    return default_arg
 
 # list of non-regression tests
 # details on NewSchemeTest object can be found in valid.test_utils module
@@ -34,6 +39,23 @@ new_scheme_function_list = [
     "basic floating-point adder",
     metalibm_hw_blocks.ml_fp_adder.FP_Adder,
     [{"precision": ML_Binary32}, {"precision": ML_Binary64},]
+  ),
+  EntitySchemeTest(
+    "mixed-precision fused multiply-add",
+    metalibm_hw_blocks.ml_fp_mpfma.FP_MPFMA,
+    [
+    {},
+    {"precision": ML_Binary16, "acc_precision": ML_Binary32}],
+  ),
+  EntitySchemeTest(
+    "fixed-point accumulation MPFMA",
+    metalibm_hw_blocks.ml_fixed_mpfma.FP_FIXED_MPFMA,
+    [
+      {},
+      {"precision": ML_Binary16, "extra_digits": 16},
+      {"precision": ML_Binary16, "extra_digits": 16, "sign_magnitude": True},
+      {"precision": ML_Binary16, "extra_digits": 16, "pipelined": True},
+    ],
   ),
 ]
 
