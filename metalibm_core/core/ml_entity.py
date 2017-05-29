@@ -397,14 +397,21 @@ class ML_EntityBasis(object):
       debug_stream.close()
 
 
-  def gen_implementation(self, display_after_gen = False, display_after_opt = False, enable_subexpr_sharing = True):
+  def gen_implementation(self, 
+			display_after_gen = False, 
+			display_after_opt = False, 
+			enable_subexpr_sharing = True
+		):
     # generate scheme
     code_entity_list = self.generate_entity_list()
     
     self.generate_pipeline_stage()
 
     if self.auto_test_enable:
-      code_entity_list += self.generate_auto_test(test_num = self.auto_test_number if self.auto_test_number else 0, test_range = self.auto_test_range)
+      code_entity_list += self.generate_auto_test(
+				test_num = self.auto_test_number if self.auto_test_number else 0, 
+				test_range = self.auto_test_range
+			)
       
 
     for code_entity in code_entity_list:
@@ -412,6 +419,11 @@ class ML_EntityBasis(object):
       if display_after_gen or self.display_after_gen:
         print "function %s, after gen " % code_entity.get_name()
         print scheme.get_str(depth = None, display_precision = True, memoization_map = {})
+
+
+
+
+
 
       # optimize scheme
       opt_scheme = self.optimise_scheme(scheme, enable_subexpr_sharing = enable_subexpr_sharing)
