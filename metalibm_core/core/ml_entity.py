@@ -212,6 +212,12 @@ class ML_EntityBasis(object):
       self.vhdl_code_generator.set_debug_code_object(self.debug_code_object)
 
 
+  ## Class method to generate a structure containing default arguments
+  #  which must be overloaded by @p kw
+  @staticmethod
+  def get_default_args(**kw):
+    return DefaultEntityArgTemplate(**kw)
+
   def get_implementation(self):
     return self.implementation
 
