@@ -29,6 +29,9 @@ from ..core.passes import Pass
 
 from metalibm_core.code_generation.vhdl_backend import VHDLBackend
 
+# import optimization passes
+from metalibm_core.opt import * 
+
 # populating target_map
 target_map = {}
 target_map["none"] = GenericProcessor
