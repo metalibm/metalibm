@@ -157,6 +157,14 @@ def conversion_generator(optree):
   output_size = optree.get_precision().get_bit_size()
   return TemplateOperator("std_logic_vector(to_unsigned(%s, {output_size}))".format(output_size = output_size), arity = 1)
 
+## @p optree 0-th input has ML_Bool precision and must be converted
+#  to optree's precision
+def conversion_from_bool_generator(optree):
+  op_input = optree.get_input(0)
+  op_precision = optree.get_precision()
+  return Select(op_input, Constant(1, precision = op_precision), Constant(0, precision = op_precision))
+
+
 def copy_sign_generator(optree):
   sign_input = optree.get_input(0)
   sign_index = sign_input.get_precision().get_bit_size() - 1
@@ -407,6 +415,7 @@ vhdl_code_generation_table = {
           #TemplateOperatorFormat("std_logic_vector({0} + {1})", arity = 2, force_folding = True),
         type_custom_match(MCSTDLOGICV, MCSTDLOGICV, FSM(ML_StdLogic)):  SymbolOperator("+", arity = 2, force_folding = True),
         type_custom_match(MCSTDLOGICV, FSM(ML_StdLogic), MCSTDLOGICV):  SymbolOperator("+", arity = 2, force_folding = True),
+        type_custom_match(MCSTDLOGICV, MCSTDLOGICV, FSM(ML_StdLogic)):  SymbolOperator("+", arity = 2, force_folding = True),
       },
       # fallback
       lambda _: True: {
@@ -513,6 +522,7 @@ vhdl_code_generation_table = {
     None: {
       lambda _: True: {
         type_custom_match(TCM(ML_StdLogicVectorFormat), TCM(ML_StdLogicVectorFormat)): ComplexOperator(optree_modifier = zext_modifier), 
+        type_custom_match(MCSTDLOGICV, FSM(ML_StdLogic)): TemplateOperatorFormat("(0 => {0}, others => '0')", arity = 1),
       },
     }
   },
@@ -552,6 +562,7 @@ vhdl_code_generation_table = {
     None: {
       lambda optree: True: {
         type_custom_match(TCM(ML_StdLogicVectorFormat), FSM(ML_Integer)): DynamicOperator(conversion_generator),
+        type_strict_match(ML_StdLogic, ML_Bool): ComplexOperator(optree_modifier = conversion_from_bool_generator),
       }
     },
   },
