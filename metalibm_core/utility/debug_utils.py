@@ -45,6 +45,9 @@ debug_ddtolx    = ML_Debug(display_format = "%\"PRIx64\" %\"PRIx64\"", pre_proce
 # display floating-point value of double double fp number
 debug_dd      = ML_Debug(display_format = "{.hi=%lf, .lo=%lf}", pre_process = lambda v: "%s.hi, %s.lo" % (v, v))
 
+# display floating-point value of double single fp number
+debug_ds      = ML_Debug(display_format = "{.hi=%f, .lo=%f)", pre_process = lambda v : "%s.hi, %s.lo" % (v, v))
+
 debug_float2  = ML_Debug(display_format = "{%.3f, %.3f}", pre_process = lambda v: "%s._[0], %s._[1]" % (v, v))
 debug_float4  = ML_Debug(display_format = "{%.3f, %.3f, %.3f, %.3f}", pre_process = lambda v: "%s._[0], %s._[1], %s._[2], %s._[3]" % (v, v, v, v))
 debug_float8  = ML_Debug(display_format = "{%.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f}", pre_process = lambda v: "%s._[0], %s._[1], %s._[2], %s._[3], %s._[4], %s._[5], %s._[6], %s._[7]" % (v, v, v, v, v, v, v, v))
@@ -72,4 +75,5 @@ debug_multi = ML_MultiDebug({
   ML_Bool:  debugd,
 
   ML_DoubleDouble: debug_dd,
+  ML_SingleSingle: debug_ds,
 })
