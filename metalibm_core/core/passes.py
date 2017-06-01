@@ -133,16 +133,17 @@ class PassScheduler:
     ):
     self.enqueue_slot_to_waiting(pass_slot = pass_slot)
     passes_to_execute = self.update_rdy_pass_list()
+    intermediary_values = inputs
     while len(passes_to_execute) > 0:
-      outputs = self.execute_pass_list(
+      intermediary_values = self.execute_pass_list(
         passes_to_execute, 
-        inputs,
+        intermediary_values,
         execution_function
       )
       self.executed_passes += passes_to_execute
       self.flush_rdy_pass_list()
       passes_to_execute = self.update_rdy_pass_list()
-    return outputs
+    return intermediary_values
 
 
 ## System to manage dynamically defined optimization pass
