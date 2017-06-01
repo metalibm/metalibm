@@ -32,6 +32,8 @@ from metalibm_core.code_generation.vhdl_code_generator import VHDLCodeGenerator
 from metalibm_core.code_generation.code_constant import VHDL_Code
 from metalibm_core.code_generation.generator_utility import *
 
+from metalibm_core.core.passes import PassScheduler
+
 from metalibm_core.code_generation.gappa_code_generator import GappaCodeGenerator
 
 from metalibm_core.utility.log_report import Log
@@ -161,13 +163,13 @@ class ML_EntityBasis(object):
     # XOR -> with as many elements as function arity (input + output arities)
     self.io_precisions = io_precisions
 
+
     ## enable the generation of numeric/functionnal auto-test
     self.auto_test_enable  = (auto_test != False or auto_test_std != False)
     self.auto_test_number  = auto_test
     self.auto_test_execute = arg_template.auto_test_execute
     self.auto_test_range   = arg_template.auto_test_range
     self.auto_test_std     = auto_test_std 
-    print "auto_test args: ", auto_test, auto_test_std, self.auto_test_enable, self.auto_test_number, self.auto_test_execute, self.auto_test_std
 
     # enable post-generation RTL elaboration
     self.build_enable = arg_template.build_enable
@@ -210,6 +212,18 @@ class ML_EntityBasis(object):
       self.debug_code_object = CodeObject(self.language)
       self.debug_code_object << debug_utils_lib
       self.vhdl_code_generator.set_debug_code_object(self.debug_code_object)
+
+    # pass scheduler instanciation
+    self.pass_scheduler = PassScheduler()
+    for pass_uplet in arg_template.passes:
+      pass_slot_tag, pass_tag = pass_uplet.split(":")
+      pass_slot = PassScheduler.get_tag_class(pass_slot_tag)
+      pass_class  = Pass.get_pass_by_tag(pass_tag)
+      pass_object = pass_class(self.backend) 
+      self.pass_scheduler.register_pass(pass_object, pass_slot = pass_slot)
+
+  def get_pass_scheduler(self):
+    return self.pass_scheduler
 
 
   ## Class method to generate a structure containing default arguments
@@ -438,6 +452,23 @@ class ML_EntityBasis(object):
         print "function %s, after opt " % code_entity.get_name()
         print scheme.get_str(depth = None, display_precision = True, memoization_map = {})
 
+    ## apply @p pass_object optimization pass
+    #  to the scheme of each entity in code_entity_list
+    def entity_execute_pass(scheduler, pass_object, code_entity_list):
+      for code_entity in code_entity_list:
+        entity_scheme = code_entity.get_scheme()
+        processed_scheme = pass_object.execute(entity_scheme)
+        # todo check pass effect
+        # code_entity.set_scheme(processed_scheme)
+      return code_entity_list
+      
+
+    print "Applying passes just before codegen"
+    code_entity_list = self.pass_scheduler.get_full_execute_from_slot(
+      code_entity_list, 
+      PassScheduler.JustBeforeCodeGen,
+      entity_execute_pass
+    )
 
     # generate VHDL code to implement scheme
     self.generate_code(code_entity_list, language = self.language)
