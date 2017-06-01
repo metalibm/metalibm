@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import sys
 
 class PassDependency: 
   def is_dep_resolved(self, pass_scheduler):
@@ -63,7 +64,7 @@ class PassScheduler:
   class Whenever:
     tag = "whenever"
   class JustBeforeCodeGen: 
-    tag = "beforecode"
+    tag = "beforecodegen"
 
   @staticmethod
   def get_tag_class(tag):
@@ -198,6 +199,7 @@ class OptimizationPass(Pass):
   def get_descriptor(self):
     return self.descriptor
 
+
 ## Operation tree Optimization pass
 class OptreeOptimization(OptimizationPass):
   def __init__(self, descriptor, target):
@@ -212,3 +214,23 @@ class OptreeOptimization(OptimizationPass):
   # on the given operation sub-graph @p optree
   def execute(self, optree):
     raise NotImplemented
+
+class PassQuit(OptreeOptimization):
+  pass_tag = "quit"
+  def __init__(self, *args):
+    OptimizationPass.__init__(self, "quit")
+
+  def execute(self, *args):
+    sys.exit(1)
+
+class PassDump(OptreeOptimization):
+  pass_tag = "dump"
+  def __init__(self, *args):
+    OptimizationPass.__init__(self, "dump")
+
+  def execute(self, optree):
+    print optree.get_str(depth = None, display_precision = True, memoization_map = {})
+    
+# registering commidity pass
+Pass.register(PassQuit)
+Pass.register(PassDump)
