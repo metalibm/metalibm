@@ -17,7 +17,7 @@ import re
 ## check if @p pass_name is a valid filename
 #  for a path description file
 def pass_validity_test(pass_name):
-  return re.match("p_[\w]+\.py", pass_name) != None
+  return re.match("p_[\w]+\.py$", pass_name) != None
 
 ## build the pass module name from the filename
 #  @pass_name
