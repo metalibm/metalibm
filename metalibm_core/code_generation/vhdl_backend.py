@@ -155,14 +155,21 @@ def truncate_generator(optree):
 
 def conversion_generator(optree):
   output_size = optree.get_precision().get_bit_size()
-  return TemplateOperator("std_logic_vector(to_unsigned(%s, {output_size}))".format(output_size = output_size), arity = 1)
+  return TemplateOperator("conv_std_logic_vector(%s, {output_size})".format(output_size = output_size), arity = 1)
+
+## dynamic operator helper for Shift operations
+#  @param operator string name of the operation
+def shift_generator(operator, optree):
+  width = optree.get_precision().get_bit_size()
+  return TemplateOperator("conv_std_logic_vector({}(unsigned(%s), unsigned(%s)), {})".format(operator, width), arity = 2, force_folding = True)
+
 
 ## @p optree 0-th input has ML_Bool precision and must be converted
 #  to optree's precision
 def conversion_from_bool_generator(optree):
   op_input = optree.get_input(0)
   op_precision = optree.get_precision()
-  return Select(op_input, Constant(1, precision = op_precision), Constant(0, precision = op_precision))
+  return Select(op_input, Constant(1, precision = op_precision), Constant(0, precision = op_precision), precision = op_precision)
 
 
 def copy_sign_generator(optree):
@@ -522,7 +529,7 @@ vhdl_code_generation_table = {
     None: {
       lambda _: True: {
         type_custom_match(TCM(ML_StdLogicVectorFormat), TCM(ML_StdLogicVectorFormat)): ComplexOperator(optree_modifier = zext_modifier), 
-        type_custom_match(MCSTDLOGICV, FSM(ML_StdLogic)): TemplateOperatorFormat("(0 => {0}, others => '0')", arity = 1),
+        type_custom_match(MCSTDLOGICV, FSM(ML_StdLogic)): TemplateOperatorFormat("(0 => {0}, others => '0')", arity = 1, force_folding = True),
       },
     }
   },
@@ -651,14 +658,16 @@ vhdl_code_generation_table = {
   BitLogicRightShift: {
     None: {
       lambda optree: True: {
-        type_custom_match(MCSTDLOGICV, MCSTDLOGICV, MCSTDLOGICV): TemplateOperator("std_logic_vector(shift_right(unsigned(%s), to_integer(unsigned(%s))))", arity = 2, force_folding = True),
+        type_custom_match(MCSTDLOGICV, MCSTDLOGICV, MCSTDLOGICV): 
+          DynamicOperator(lambda optree: shift_generator("shr", optree)),
       },
     },
   },
   BitLogicLeftShift: {
     None: {
       lambda optree: True: {
-        type_custom_match(MCSTDLOGICV, MCSTDLOGICV, MCSTDLOGICV): TemplateOperator("std_logic_vector(shift_left(unsigned(%s), to_integer(unsigned(%s))))", arity = 2, force_folding = True),
+        type_custom_match(MCSTDLOGICV, MCSTDLOGICV, MCSTDLOGICV): 
+          DynamicOperator(lambda optree: shift_generator("shl", optree)),
       },
     },
   },
