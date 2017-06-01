@@ -228,6 +228,8 @@ class DefaultArgTemplate:
   check_processor_support = True
   # source elaboration
   build_enable = False
+  #
+  passes = []
 
   def __init__(self, **kw):
     for key in kw:
