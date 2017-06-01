@@ -671,6 +671,7 @@ class ComponentSelection(ArithmeticOperationConstructor("ComponentSelection", in
     class Lo(ComponentSelectionSpecifier): pass
 
     implicit_arg_precision = {
+        ML_SingleSingle: ML_Binary32,
         ML_DoubleDouble: ML_Binary64,
         ML_TripleDouble: ML_Binary64,
     }
