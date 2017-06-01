@@ -268,45 +268,152 @@ class ML_CommonArgTemplate(object):
   #  add generic arguments description (e.g. --debug)
   def __init__(self, parser, default_arg = DefaultArgTemplate):
     self.parser = parser
-    self.parser.add_argument("--debug", dest = "debug", action = "store_const", const = True, default = default_arg.debug, help = "enable debug display in generated code")
-    self.parser.add_argument("--fuse-fma", dest = "fuse_fma", action = "store_const", const = True, default = default_arg.fuse_fma, help = "disable FMA-like operation fusion")
-    self.parser.add_argument("--output", action = "store", dest = "output_file", default = self.default_output_file, help = "set output file")
+    self.parser.add_argument(
+      "--debug", dest = "debug", 
+      action = "store_const", const = True, 
+      default = default_arg.debug, 
+      help = "enable debug display in generated code")
+    self.parser.add_argument(
+      "--fuse-fma", dest = "fuse_fma", action = "store_const", 
+      const = True, default = default_arg.fuse_fma, 
+      help = "disable FMA-like operation fusion")
+    self.parser.add_argument(
+      "--output", action = "store", dest = "output_file", 
+      default = self.default_output_file, 
+      help = "set output file")
 
-    self.parser.add_argument("--precision", dest = "precision", type = precision_parser, default = default_arg.precision, help = "select main precision")
-    self.parser.add_argument("--input-formats", dest = "input_precisions", type = format_list_parser, default = default_arg.input_precisions, help = "comma separated list of input formats")
+    self.parser.add_argument(
+      "--precision", dest = "precision", type = precision_parser, 
+      default = default_arg.precision, 
+      help = "select main precision")
+    self.parser.add_argument(
+      "--input-formats", dest = "input_precisions", 
+      type = format_list_parser, 
+      default = default_arg.input_precisions, 
+      help = "comma separated list of input formats")
 
-    self.parser.add_argument("--accuracy", dest = "accuracy", default = default_arg.accuracy, type = accuracy_parser, help = "select accuracy")
-    self.parser.add_argument("--no-fpe", dest = "fast_path_extract", action = "store_const", const = False, default = default_arg.fast_path_extract, help = "disable Fast Path Extraction")
-    self.parser.add_argument("--dot-product", dest = "dot_product_enabled", action = "store_const", const = True, default = default_arg.dot_product_enabled, help = "enable Dot Product fusion")
-    self.parser.add_argument ("--display-after-opt", dest = "display_after_opt", action = "store_const", const = True, default = default_arg.display_after_opt, help = "display MDL IR after optimization")
-    self.parser.add_argument ("--display-after-gen", dest = "display_after_gen", action = "store_const", const = True, default = default_arg.display_after_gen, help = "display MDL IR after implementation generation")
-    self.parser.add_argument("--input-interval", dest = "input_interval", type = interval_parser, default = default_arg.input_interval, help = "select input range")
-    self.parser.add_argument("--vector-size", dest = "vector_size" , type = int, default = default_arg.vector_size, help = "define size of vector (1: scalar implemenation)")
-    self.parser.add_argument("--language", dest = "language", type = language_parser, default = default_arg.language, help = "select language for generated source code") 
+    self.parser.add_argument(
+      "--accuracy", dest = "accuracy", default = default_arg.accuracy, 
+      type = accuracy_parser, help = "select accuracy")
 
+    self.parser.add_argument(
+      "--no-fpe", dest = "fast_path_extract", action = "store_const", 
+      const = False, default = default_arg.fast_path_extract, 
+      help = "disable Fast Path Extraction")
+
+    self.parser.add_argument(
+      "--dot-product", dest = "dot_product_enabled", action = "store_const", 
+      const = True, default = default_arg.dot_product_enabled, 
+      help = "enable Dot Product fusion")
+
+    self.parser.add_argument (
+      "--display-after-opt", dest = "display_after_opt", 
+      action = "store_const", const = True, 
+      default = default_arg.display_after_opt, 
+      help = "display MDL IR after optimization")
+
+    self.parser.add_argument (
+      "--display-after-gen", dest = "display_after_gen", 
+      action = "store_const", const = True, 
+      default = default_arg.display_after_gen, 
+      help = "display MDL IR after implementation generation")
+
+    self.parser.add_argument(
+      "--input-interval", dest = "input_interval", type = interval_parser,
+      default = default_arg.input_interval, help = "select input range")
+
+    self.parser.add_argument(
+      "--vector-size", dest = "vector_size" , type = int, 
+      default = default_arg.vector_size,
+      help = "define size of vector (1: scalar implemenation)")
+    # language selection
+    self.parser.add_argument(
+      "--language", dest = "language", type = language_parser, 
+      default = default_arg.language, 
+      help = "select language for generated source code") 
     # auto-test related arguments
-    self.parser.add_argument("--auto-test", dest = "auto_test", action = "store", nargs = '?', const=10, type=int, default = default_arg.auto_test, help = "enable the generation of a self-testing numerical/functionnal bench")
-    self.parser.add_argument("--auto-test-execute", dest = "auto_test_execute", action = "store", nargs = '?', const=10, type=int, default = default_arg.auto_test_execute, help = "enable the generation of a self-testing numerical/functionnal bench")
-    self.parser.add_argument("--auto-test-range", dest = "auto_test_range", action = "store", type=interval_parser, default = default_arg.auto_test_range, help = "define the range of input values to be used during functional testing")
-    self.parser.add_argument("--auto-test-std", dest = "auto_test_std", action = "store_const", const = True, default = default_arg.auto_test_std, help = "enabling function test on standard test case list")
+    self.parser.add_argument(
+      "--auto-test", dest = "auto_test", action = "store", nargs = '?', 
+      const=10, type=int, default = default_arg.auto_test,
+      help = "enable the generation of a self-testing numerical/functionnal\
+      bench")
+    self.parser.add_argument(
+      "--auto-test-execute", dest = "auto_test_execute", action = "store", 
+      nargs = '?', const=10, type=int, default = default_arg.auto_test_execute,
+      help = "enable the generation of a self-testing numerical/functionnal bench")
+
+    self.parser.add_argument(
+    "--auto-test-range", dest = "auto_test_range", action = "store", 
+    type=interval_parser, default = default_arg.auto_test_range, 
+    help = "define the range of input values to be used during functional testing")
+
+    self.parser.add_argument(
+      "--auto-test-std", dest = "auto_test_std", action = "store_const", 
+      const = True, default = default_arg.auto_test_std, 
+      help = "enabling function test on standard test case list")
+
     # enable the computation of eval error (if self-testing enabled)
-    self.parser.add_argument("--max-error", dest = "compute_max_error", action = "store_const", const = True, default = default_arg.compute_max_error, help = "enable the computation of the maximum error (if auto-test is enabled)")
+    self.parser.add_argument(
+      "--max-error", dest = "compute_max_error", action = "store_const",
+      const = True, default = default_arg.compute_max_error, 
+      help = "enable the computation of the maximum error (if auto-test is enabled)")
     # performance bench related arguments
-    self.parser.add_argument("--bench", dest = "bench_test_number", action = "store", nargs = '?', const=1000, type=int, default = default_arg.bench_test_number, help = "enable the generation of a performance bench")
-    self.parser.add_argument("--bench-execute", dest = "bench_execute", action = "store", nargs = '?', const=1000, type=int, default = ArgDefault(False), help = "enable the generation and execution of a performance bench")
-    self.parser.add_argument("--bench-range", dest = "bench_test_range", action = "store", type=interval_parser, default = default_arg.bench_test_range, help = "define the interval of input values to use during performance bench")
+    self.parser.add_argument(
+      "--bench", dest = "bench_test_number", action = "store", nargs = '?',
+      const=1000, type=int, default = default_arg.bench_test_number,
+      help = "enable the generation of a performance bench")
+    self.parser.add_argument(
+      "--bench-execute", dest = "bench_execute", action = "store", 
+      nargs = '?', const=1000, type=int, default = ArgDefault(False), 
+      help = "enable the generation and execution of a performance bench")
+    self.parser.add_argument(
+      "--bench-range", dest = "bench_test_range", action = "store", 
+      type=interval_parser, default = default_arg.bench_test_range,
+      help = "define the interval of input values to use during performance bench")
 
-    self.parser.add_argument("--verbose", dest = "verbose_enable", action = VerboseAction, const = True, default = default_arg.verbose_enable, help = "enable Verbose log level")
-    self.parser.add_argument("--target-info", dest = "target_info_flag", action = TargetInfoAction, const = True, default = ArgDefault(False), help = "display list of supported targets")
+    self.parser.add_argument(
+      "--verbose", dest = "verbose_enable", action = VerboseAction, 
+      const = True, default = default_arg.verbose_enable, 
+      help = "enable Verbose log level")
+    self.parser.add_argument(
+      "--target-info", dest = "target_info_flag", action = TargetInfoAction,
+      const = True, default = ArgDefault(False), 
+      help = "display list of supported targets")
 
-    self.parser.add_argument("--exception-error", dest = "exception_on_error", action = ExceptionOnErrorAction, const = True, default = ArgDefault(False), help = "convert Fatal error to python Exception rather than straight sys exit")
+    self.parser.add_argument(
+      "--exception-error", dest = "exception_on_error", 
+      action = ExceptionOnErrorAction, const = True, 
+      default = ArgDefault(False), 
+      help = "convert Fatal error to python Exception rather\
+      than straight sys exit")
 
-    self.parser.add_argument("--ml-debug", dest = "ml_debug", action = MLDebugAction, const = True, default = False, help = "enable metalibm debug")
-    self.parser.add_argument("--pass-info", action = PassListAction, help = "list available optmization passes")
+    self.parser.add_argument(
+      "--ml-debug", dest = "ml_debug", action = MLDebugAction, const = True, 
+      default = False, help = "enable metalibm debug")
+    self.parser.add_argument(
+      "--pass-info", action = PassListAction, 
+      help = "list available optmization passes")
 
-    self.parser.add_argument("--pre-gen-pass", default = [], action = "store", dest = "pre_gen_passes", type = lambda s: s.split(","), help = "comma separated list of pass to be executed just before final code generation")
-    self.parser.add_argument("--disable-check", default = True, action = "store_const", const = False, dest = "check_processor_support", help = "disable check processor support pass run {default: enabled]")
-    self.parser.add_argument("--build", dest = "build_enable", action = "store_const", const = True, default = default_arg.build_enable, help = "enable RTL elaboration")
+    self.parser.add_argument(
+      "--pre-gen-pass", default = [], action = "store", 
+      dest = "pre_gen_passes", type = lambda s: s.split(","), 
+      help = "comma separated list of pass to be executed just before\
+      final code generation")
+    # list of 
+    self.parser.add_argument(
+      "--passes", default = [], action = "store", dest = "passes", 
+      type = lambda s: s.split(","), help = "comma separated list \
+      of slot:pass to be executed ")
+    # disable check processor pass
+    self.parser.add_argument(
+      "--disable-check", default = True, action = "store_const", 
+      const = False, dest = "check_processor_support", 
+      help = "disable check processor support pass run {default: enabled]")
+    # enable generated code build
+    self.parser.add_argument(
+      "--build", dest = "build_enable", action = "store_const", 
+      const = True, default = default_arg.build_enable, 
+      help = "enable RTL elaboration")
 
 
   ## Extract argument from the command-line (sys.argv)
