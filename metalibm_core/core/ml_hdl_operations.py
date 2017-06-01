@@ -290,5 +290,15 @@ class SubSignalSelection(AbstractOperationConstructor("SubSignalSelection")):
     new_copy.inf_index = self.inf_index
     new_copy.sup_index = self.sup_index
 
+## Wrapper for the generation of a bit selection operation
+#  from a multi-bit signal
+def BitSelection(optree, index, **kw):
+  return VectorElementSelection(
+    optree, 
+    Constant(index, precision = ML_Integer),
+    precision = ML_StdLogic,
+    **kw
+  )
+
 ## @} 
 # end of metalibm's Doxygen ml_hdl_operations group
