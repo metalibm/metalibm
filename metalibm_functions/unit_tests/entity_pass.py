@@ -14,20 +14,21 @@ from metalibm_core.core.ml_table import ML_Table
 from metalibm_core.code_generation.vhdl_backend import VHDLBackend
 from metalibm_core.core.polynomials import *
 from metalibm_core.core.ml_entity import ML_Entity, ML_EntityBasis, DefaultEntityArgTemplate
+
 from metalibm_core.code_generation.generator_utility import FunctionOperator, FO_Result, FO_Arg
 
 
 from metalibm_core.utility.ml_template import *
 from metalibm_core.utility.log_report  import Log
 from metalibm_core.utility.debug_utils import *
-from metalibm_core.utility.num_utils   import ulp
-from metalibm_core.utility.gappa_utils import is_gappa_installed
 
 from metalibm_core.core.passes import *
 
 
 from metalibm_core.core.ml_hdl_format import *
 from metalibm_core.core.ml_hdl_operations import *
+
+from metalibm_functions.unit_tests.utils import TestRunner 
 
 # global list to check pass execution
 executed_id_list = []
@@ -42,7 +43,7 @@ class LocalPass(OptimizationPass):
     executed_id_list.append(self.final_id)
     return optree
 
-class ML_LeadingZeroCounter(ML_Entity("ml_lzc")):
+class ML_UT_EntityPass(ML_Entity("ml_lzc"), TestRunner):
   @staticmethod
   def get_default_args(width = 32):
     return DefaultEntityArgTemplate( 
@@ -57,7 +58,7 @@ class ML_LeadingZeroCounter(ML_Entity("ml_lzc")):
 
   def __init__(self, arg_template = None):
     # building default arg_template if necessary
-    arg_template = ML_LeadingZeroCounter.get_default_args() if arg_template is None else arg_template
+    arg_template = ML_UT_EntityPass.get_default_args() if arg_template is None else arg_template
     # initializing I/O precision
     self.width = arg_template.width
     precision = arg_template.precision
@@ -171,17 +172,46 @@ class ML_LeadingZeroCounter(ML_Entity("ml_lzc")):
 
     return [self.implementation]
 
-  standard_test_cases =[sollya_parse(x) for x in  ["1.1", "1.5"]]
+  @staticmethod
+  def build_default_args(**kw):
+    root_arg = {
+      "entity_name" : "new_entity_pass",
+      "output_file"   : "ut_entity_pass.c",
+      "width"         : 32,
+      "precision" : ML_Int32
+    }
+    root_arg.update(kw)
+    return DefaultEntityArgTemplate(**root_arg)
 
+  @staticmethod
+  def __call__(args):
+    # just ignore args here and trust default constructor? seems like a bad idea.
+    ml_ut_block_lzcnt = ML_UT_EntityPass(args)
+    ml_ut_block_lzcnt.gen_implementation()
+
+    expected_id_list = [2, 5, 3, 4]
+
+    print "expected_id_list: ", expected_id_list
+    print "executed_id_list: ", executed_id_list
+    assert reduce(
+      lambda lhs, rhs: lhs and rhs,
+      [exp == real for exp,real in zip(executed_id_list, expected_id_list)], 
+      True
+    )
+                                         
+    return True
+
+# registering top class for unit test
+run_test = ML_UT_EntityPass
 
 if __name__ == "__main__":
     # auto-test
-    arg_template = ML_EntityArgTemplate(default_entity_name = "new_lzc", default_output_file = "ml_lzc.vhd", default_arg = ML_LeadingZeroCounter.get_default_args())
+    arg_template = ML_EntityArgTemplate(default_entity_name = "new_lzc", default_output_file = "ml_lzc.vhd", default_arg = ML_UT_EntityPass.get_default_args())
     arg_template.parser.add_argument("--width", dest = "width", type=int, default = 32, help = "set input width value (in bits)")
     # argument extraction 
     args = parse_arg_index_list = arg_template.arg_extraction()
 
-    ml_lzc           = ML_LeadingZeroCounter(args)
+    ml_lzc           = ML_UT_EntityPass(args)
 
     ml_lzc.gen_implementation()
 

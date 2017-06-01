@@ -54,13 +54,14 @@ class ML_UT_Lzcnt(ML_Function("ml_lzcnt"), TestRunner):
     return float(n);
 
   @staticmethod
-  def build_default_args():
-    default_arg = DefaultArgTemplate(
-      function_name = "new_lzcnt",
-      output_file   = "ut_lzcnt.c",
-      precision = ML_Int32
-    )
-    return default_arg
+  def build_default_args(**kw):
+    default_arg = {
+      "function_name": "new_lzcnt",
+      "output_file": "ut_lzcnt.c",
+      "precision": ML_Int32
+    }
+    default_arg.update(**kw)
+    return DefaultArgTemplate(**default_arg)
 
   @staticmethod
   def __call__(args):

@@ -2,6 +2,7 @@
 
 import argparse
 import sys
+import inspect
 
 from sollya import Interval
 
@@ -27,6 +28,7 @@ import metalibm_functions.unit_tests.auto_test as ut_auto_test
 import metalibm_functions.unit_tests.m128_conversion as ut_m128_conversion
 import metalibm_functions.unit_tests.new_table as ut_new_table
 import metalibm_functions.unit_tests.multi_ary_function as ut_multi_ary_function
+import metalibm_functions.unit_tests.entity_pass as ut_entity_pass
 
 from metalibm_functions.unit_tests.utils import TestRunner
 
@@ -51,8 +53,9 @@ class UnitTestScheme(CommonTestScheme):
   def single_test(self, arg_tc, debug = False):
     runner = self.module.run_test
     test_desc = self.get_title()
-    if isinstance(runner, TestRunner):
-      arg_template = runner.build_default_args()
+    print isinstance(runner, TestRunner)
+    if inspect.isclass(runner) and TestRunner in runner.__bases__:
+      arg_template = runner.build_default_args(**arg_tc)
     else:
       arg_template = DefaultArgTemplate(**arg_tc) 
 
@@ -155,7 +158,12 @@ unit_test_list = [
     "multi ary function",
     ut_multi_ary_function,
     [{"input_formats": [ML_Int32, ML_Int32, ML_Int32], "precision": ML_Int32, "bench_execute": 100, "target": target_instanciate("x86")}],
-  )
+  ),
+  UnitTestScheme(
+    "entity pass scheduling",
+    ut_entity_pass,
+    [{}],
+  ),
 ]
 
 ## Command line action to set break on error in load module
