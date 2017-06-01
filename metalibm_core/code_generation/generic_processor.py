@@ -518,6 +518,7 @@ c_code_generation_table = {
         None: {
             lambda optree: True: {
                 type_strict_match(ML_DoubleDouble, ML_Binary64): ML_Multi_Prec_Lib_Function("ml_split_dd_d", arity = 1),
+                type_strict_match(ML_SingleSingle, ML_Binary32): ML_Multi_Prec_Lib_Function("ml_split_ds_s", arity = 1),
             },
         },
     },
@@ -525,6 +526,7 @@ c_code_generation_table = {
         ComponentSelection.Hi: {
             lambda optree: True: {
                 type_strict_match(ML_Binary64, ML_DoubleDouble): TemplateOperator("%s.hi", arity = 1), 
+                type_strict_match(ML_Binary32, ML_SingleSingle): TemplateOperator("%s.hi", arity = 1),
                 #type_strict_match(ML_Binary32, ML_Binary64): ComplexOperator(optree_modifier = lambda x: Conversion(x, precision = ML_Binary32)),
                 type_strict_match(ML_Binary32, ML_Binary64): IdentityOperator(),
             },
@@ -532,6 +534,7 @@ c_code_generation_table = {
         ComponentSelection.Lo: {
             lambda optree: True: {
                 type_strict_match(ML_Binary64, ML_DoubleDouble): TemplateOperator("%s.lo", arity = 1), 
+                type_strict_match(ML_Binary32, ML_SingleSingle): TemplateOperator("%s.lo", arity = 1),
                 type_strict_match(ML_Binary32, ML_Binary64): ComplexOperator(optree_modifier = lambda x: Conversion(Subtraction(x, Conversion(Conversion(x , precision = ML_Binary32), precision = ML_Binary64), precision = ML_Binary64), precision = ML_Binary32)),
             },
         },
