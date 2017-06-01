@@ -32,7 +32,7 @@ from metalibm_core.code_generation.vhdl_code_generator import VHDLCodeGenerator
 from metalibm_core.code_generation.code_constant import VHDL_Code
 from metalibm_core.code_generation.generator_utility import *
 
-from metalibm_core.core.passes import PassScheduler
+from metalibm_core.core.passes import *
 
 from metalibm_core.code_generation.gappa_code_generator import GappaCodeGenerator
 
@@ -215,12 +215,16 @@ class ML_EntityBasis(object):
 
     # pass scheduler instanciation
     self.pass_scheduler = PassScheduler()
+    # recursive pass dependency
+    pass_dep = PassDependency()
     for pass_uplet in arg_template.passes:
       pass_slot_tag, pass_tag = pass_uplet.split(":")
       pass_slot = PassScheduler.get_tag_class(pass_slot_tag)
       pass_class  = Pass.get_pass_by_tag(pass_tag)
       pass_object = pass_class(self.backend) 
-      self.pass_scheduler.register_pass(pass_object, pass_slot = pass_slot)
+      self.pass_scheduler.register_pass(pass_object, pass_dep = pass_dep, pass_slot = pass_slot)
+      # linearly linking pass in the order they appear
+      pass_dep = AfterPassById(pass_object.get_pass_id())
 
   def get_pass_scheduler(self):
     return self.pass_scheduler
