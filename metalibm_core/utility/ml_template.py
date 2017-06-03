@@ -259,6 +259,8 @@ class DefaultEntityArgTemplate(DefaultArgTemplate):
     auto_test_execute  = False
     auto_test_range  = Interval(0, 1)
     auto_test_std  = False
+    # exit after test
+    exit_after_test = True
     # RTL elaboration
     build_enable = False
 
@@ -453,6 +455,14 @@ class ML_EntityArgTemplate(ML_CommonArgTemplate):
     self.parser.add_argument("--entityname", dest = "entity_name", default = self.default_entity_name, help = "set entity name")
     self.parser.add_argument("--backend", dest = "backend", action = "store", type = target_instanciate, default = default_arg.backend, help = "select generation backend")
     self.parser.add_argument("--debug-file", dest = "debug_file", action="store", help = "help define output file for debug script")
+    self.parser.add_argument(
+      "--no-exit", 
+      action = "store_const",
+      dest = "exit_after_test",
+      const = False,
+      default = True,
+      help = "disable auto exit after functionnal test"
+    )
 
 
 ## new argument template based on argparse module

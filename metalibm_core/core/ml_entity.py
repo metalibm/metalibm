@@ -171,6 +171,9 @@ class ML_EntityBasis(object):
     self.auto_test_range   = arg_template.auto_test_range
     self.auto_test_std     = auto_test_std 
 
+    # enable/disable automatic exit once functional test is finished
+    self.exit_after_test   = arg_template.exit_after_test
+
     # enable post-generation RTL elaboration
     self.build_enable = arg_template.build_enable
 
@@ -485,6 +488,7 @@ class ML_EntityBasis(object):
       print "Elaboration result: ", elab_result
       # debug cmd
       debug_cmd = "do {debug_file};".format(debug_file = self.debug_file) if self.debug_flag else "" 
+      debug_cmd += " exit;" if self.exit_after_test else ""
       # simulation
       test_delay = 10 * (self.auto_test_number + (len(self.standard_test_cases) if self.auto_test_std else 0) + 10) 
       sim_cmd = "vsim -c work.testbench -do \"run {test_delay} ns; {debug_cmd}\"".format(entity = self.entity_name, debug_cmd = debug_cmd, test_delay = test_delay)
