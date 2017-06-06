@@ -23,6 +23,8 @@ from metalibm_core.utility.debug_utils import *
 from metalibm_core.utility.num_utils   import ulp
 from metalibm_core.utility.gappa_utils import is_gappa_installed
 
+from metalibm_core.utility.rtl_debug_utils import *
+
 
 from metalibm_core.core.ml_hdl_format import *
 from metalibm_core.core.ml_hdl_operations import *
@@ -30,11 +32,6 @@ from metalibm_core.core.ml_hdl_operations import *
 
 from metalibm_hw_blocks.lzc import ML_LeadingZeroCounter
 
-## Helper for debug enabling
-debug_std          = ML_Debug(display_format = " -radix 2 ")
-debug_dec          = ML_Debug(display_format = " -radix 10 ")
-debug_dec_unsigned = ML_Debug(display_format = " -decimal -unsigned ")
-debug_cst_dec      = ML_Debug(display_format = " ")
 
 ## Wrapper for zero extension
 # @param op the input operation tree
