@@ -84,36 +84,36 @@ def legal_vector_element_selection(optree):
 vector_opencl_code_generation_table = {
   BitLogicLeftShift: {
     None: {
-      lambda _: True: 
+      lambda _: True:
         dict(
           sum(
           [
             [
               (type_strict_match(
-                  vector_type[scalar_type][vector_size], 
+                  vector_type[scalar_type][vector_size],
                   vector_type[scalar_type][vector_size],
                   vector_type[scalar_type][vector_size]
                 ), SymbolOperator(" << ", arity = 2)
               ) for vector_size in supported_vector_size
-            ] for scalar_type in [ML_Binary32, ML_Binary64, ML_Int32, ML_UInt32]
+            ] for scalar_type in [ ML_Int32, ML_UInt32 ]
           ], [])
         )
      }
   },
   BitLogicRightShift: {
     None: {
-      lambda _: True: 
+      lambda _: True:
         dict(
           sum(
           [
             [
               (type_strict_match(
-                  vector_type[scalar_type][vector_size], 
+                  vector_type[scalar_type][vector_size],
                   vector_type[scalar_type][vector_size],
                   vector_type[scalar_type][vector_size]
                 ), SymbolOperator(" >> ", arity = 2)
               ) for vector_size in supported_vector_size
-            ] for scalar_type in [ML_Binary32, ML_Binary64, ML_Int32, ML_UInt32]
+            ] for scalar_type in [ ML_Int32, ML_UInt32 ]
           ], [])
         )
      }
