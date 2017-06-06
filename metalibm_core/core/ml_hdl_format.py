@@ -96,6 +96,9 @@ class ML_StdLogicVectorFormat(ML_Format):
   def get_bit_size(self):
     return self.bit_size
 
+  def get_integer_coding(self, value, language = VHDL_Code):
+    return int(value)
+
   def get_vhdl_cst(self, value):
     return generic_get_vhdl_cst(value, self.bit_size)
 
