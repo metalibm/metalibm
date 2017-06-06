@@ -447,11 +447,6 @@ class ML_EntityBasis(object):
         print "function %s, after gen " % code_entity.get_name()
         print scheme.get_str(depth = None, display_precision = True, memoization_map = {})
 
-
-
-
-
-
       # optimize scheme
       opt_scheme = self.optimise_scheme(scheme, enable_subexpr_sharing = enable_subexpr_sharing)
 
@@ -531,8 +526,12 @@ class ML_EntityBasis(object):
     low_input = inf(test_range)
     high_input = sup(test_range)
     # instanciating tested component
+    # map of input_tag -> input_signal and output_tag -> output_signal
     io_map = {}
+    # map of input_tag -> input_signal, excludind commodity signals
+    # (e.g. clock and reset)
     input_signals = {}
+    # map of output_tag -> output_signal
     output_signals = {}
     # excluding clock and reset signals from argument list
     # reduced_arg_list = [input_port for input_port in self.implementation.get_arg_list() if not input_port.get_tag() in ["clk", "reset"]]
