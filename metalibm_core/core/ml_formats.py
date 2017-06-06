@@ -807,15 +807,30 @@ ML_Void = ML_FormatConstructor(0, "void", "ERROR", lambda _: None)
 #                     FLOATING-POINT SPECIAL VALUES
 ###############################################################################
 class FP_SpecialValue(object):
-    """ parent to all floating-point constants """
-    suffix_table = {
-        ML_Binary32: ".f",
-        ML_Binary64: ".d",
-    }
-    support_prefix = {
-        ML_Binary32: "fp32",
-        ML_Binary64: "fp64",
-    }
+  ml_support_name = "undefined"
+
+  """ parent to all floating-point constants """
+  suffix_table = {
+      ML_Binary32: ".f",
+      ML_Binary64: ".d",
+  }
+  support_prefix = {
+      ML_Binary32: "fp32",
+      ML_Binary64: "fp64",
+  }
+  def __init__(self, precision):
+    self.precision = precision
+
+  def get_c_cst(self):
+    prefix = self.support_prefix[self.precision]
+    suffix = self.suffix_table[self.precision]
+    return prefix + self.ml_support_name + suffix
+
+  def __str__(self):
+    return "%s" % (self.ml_support_name)
+
+  def get_precision(self):
+    return self.precision
 
 def FP_SpecialValue_get_c_cst(self):
     prefix = self.support_prefix[self.precision]
@@ -828,48 +843,32 @@ def FP_SpecialValue_init(self, precision):
 def FP_SpecialValue_get_str(self):
     return "%s" % (self.ml_support_name)
 
-def FP_SpecialValueBuilder(special_value):
-    attr_map = {
-        "ml_support_name": special_value,
-        "__str__": FP_SpecialValue_get_str,
-        "get_precision": lambda self: self.precision,
-        "__init__": FP_SpecialValue_init,
-        "get_c_cst": FP_SpecialValue_get_c_cst
-    }
-    return type(special_value, (FP_SpecialValue,), attr_map)
 
-## Special value class builder for floatingg-point special values
-#  using lib math (libm) macros and constant
-def FP_MathSpecialValueBuilder(special_value):
-    attr_map = {
-        "ml_support_name": special_value,
-        "__str__": FP_SpecialValue_get_str,
-        "get_precision": lambda self: self.precision,
-        "__init__": FP_SpecialValue_init,
-        "get_c_cst": lambda self: self.ml_support_name
-    }
-    return type(special_value, (FP_SpecialValue,), attr_map)
+class FP_MathSpecialValue(FP_SpecialValue):
+  def get_c_cst(self):
+    return self.ml_support_name
+
 
 #class FP_PlusInfty(FP_SpecialValueBuilder("_sv_PlusInfty")):
 #    pass
-class FP_PlusInfty(FP_MathSpecialValueBuilder("INFINITY")):
-    pass
-class FP_MinusInfty(FP_SpecialValueBuilder("_sv_MinusInfty")):
-    pass
-class FP_PlusOmega(FP_SpecialValueBuilder("_sv_PlusOmega")):
-    pass
-class FP_MinusOmega(FP_SpecialValueBuilder("_sv_MinusOmega")):
-    pass
-class FP_PlusZero(FP_SpecialValueBuilder("_sv_PlusZero")):
-    pass
-class FP_MinusZero(FP_SpecialValueBuilder("_sv_MinusZero")):
-    pass
-class FP_QNaN(FP_MathSpecialValueBuilder("NAN")):
-    pass
+class FP_PlusInfty(FP_MathSpecialValue):
+  ml_support_name = "INFINITY"
+class FP_MinusInfty(FP_SpecialValue):
+  ml_support_name = "_sv_MinusInfty"
+class FP_PlusOmega(FP_SpecialValue):
+  ml_support_name = "_sv_PlusOmega"
+class FP_MinusOmega(FP_SpecialValue):
+  ml_support_name = "_sv_MinusOmega"
+class FP_PlusZero(FP_SpecialValue):
+  ml_support_name = "_sv_PlusZero"
+class FP_MinusZero(FP_SpecialValue):
+  ml_support_name = "_sv_MinusZero"
+class FP_QNaN(FP_MathSpecialValue):
+  ml_support_name = "NAN"
 #class FP_QNaN(FP_SpecialValueBuilder("_sv_QnaN")):
 #    pass
-class FP_SNaN(FP_SpecialValueBuilder("_sv_SNaN")):
-    pass
+class FP_SNaN(FP_SpecialValue):
+  ml_support_name = "_sv_SNaN"
 
 
 class FP_Context(object):
