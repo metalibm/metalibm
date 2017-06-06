@@ -267,7 +267,7 @@ class ML_Std_FP_Format(ML_FP_Format):
         return 1 + self.get_bias()
 
     def get_emin_subnormal(self):
-        return 1 - (self.get_field_size() + 1) + self.get_bias()
+        return 1 - (self.get_field_size()) + self.get_bias()
 
     def get_display_format(self, language = C_Code):
         return self.display_format[language]
