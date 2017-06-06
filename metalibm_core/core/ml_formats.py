@@ -236,20 +236,29 @@ class ML_Std_FP_Format(ML_FP_Format):
     #  @param value numeric value to be converted
     #  @return value encoding (as an integer number)
     def get_integer_coding(self, value, language = C_Code):
-        # FIXME: manage subnormal and special values
         value = sollya.round(value, self.get_sollya_object(), sollya.RN)
         # FIXME: managing negative zero
         sign = int(1 if value < 0 else 0)
         value = abs(value)
-        exp   = int(sollya.floor(sollya.log2(value)))
-        exp_biased = int(exp - self.get_bias())
-        mant = int((value / S2**exp - 1.0) / (S2**-self.get_field_size()))
+        if value == 0.0:
+          Log.report(Log.Warning, "+0.0 forced during get_integer_coding conversion")
+          exp_biased = 0
+          mant = 0
+        else:
+          exp        = int(sollya.floor(sollya.log2(value)))
+          exp_biased = int(exp - self.get_bias())
+          if exp < self.get_emin_normal():
+            exp_biased = 0
+            mant = int((value / S2**self.get_emin_subnormal()))
+          else:
+            mant = int((value / S2**exp - 1.0) / (S2**-self.get_field_size()))
         return mant | (exp_biased << self.get_field_size()) | (sign << (self.get_field_size() + self.get_exponent_size()))
 
     def get_value_from_integer_coding(self, value, base = 10):
       value = int(value, base)
       mantissa = value & (2**self.get_field_size() - 1)
-      exponent = ((value >> self.get_field_size()) & (2**self.get_exponent_size() - 1)) + self.get_bias()
+      exponent_field = ((value >> self.get_field_size()) & (2**self.get_exponent_size() - 1)) 
+      exponent = exponent_field + self.get_bias() + (1 if exponent_field == 0 else 0)
       sign_bit = value >> (self.get_field_size() + self.get_exponent_size())
       sign = -1.0 if sign_bit != 0 else 1.0
       mantissa_value = mantissa
@@ -509,6 +518,10 @@ class ML_Base_FixedPoint_Format(ML_Fixed_Format):
             return self.get_gappa_cst(cst_value)
         else:
             return self.get_c_cst(cst_value)
+
+    def get_integer_coding(self, value, language = C_Code):
+      encoded_value = int(cst_value * sollya.S2**self.frac_size)
+      return encoded_value
 
     def get_c_cst(self, cst_value):
         """ C-language constant generation """
