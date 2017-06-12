@@ -220,6 +220,13 @@ class ML_FunctionBasis(object):
   def get_vector_size(self):
     return self.vector_size
 
+
+  ## generate a default argument template
+  #  may be overloaded by sub-class to provide
+  #  a meta-function specific default argument structure
+  def get_default_args(self, **args):
+    return DefaultArgTemplate(**args)
+
   ## Return function's arity (number of input arguments)
   #  Default to 1
   def get_arity(self):
