@@ -318,6 +318,16 @@ sse2_c_code_generation_table = {
         },
       },
     },
+    BitLogicNegate: {
+      None: {
+        lambda _: True: {
+          type_strict_match(ML_SSE_m128_v4int32, ML_SSE_m128_v4int32):
+          ImmIntrin("_mm_andnot_si128", arity = 2,
+                    arg_map = { 0: FO_Arg(0),
+                                1: FO_Value(-1, ML_SSE_m128_v4int32) }),
+        },
+      },
+    },
     BitLogicLeftShift: {
       None: {
         lambda optree: True: {

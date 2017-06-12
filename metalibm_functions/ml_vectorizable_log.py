@@ -103,11 +103,8 @@ class ML_Log(ML_Function("ml_log")):
 
     # NO BRANCH, INTEGER BASED DENORMAL AND LARGE EXPONENT HANDLING
     # 1. lzcnt
-    lzcount = CountLeadingZeros(vx_as_uint, tag = 'lzcount',
-            interval = Interval(0, self.precision.bit_size),
-            precision = uint_prec)
-    lzcount = generate_count_leading_zeros(vx_as_uint)
-    max8 = Max(8, Conversion(lzcount, precision = int_prec)) # Max of lzcnt and 8
+    lzcount = generate_count_leading_zeros(vx_as_int)
+    max8 = Max(8, lzcount) # Max of lzcnt and 8
     # 2. compute shift value
     shift = max8 -  8
     # 3. shift left
