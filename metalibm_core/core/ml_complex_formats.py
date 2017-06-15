@@ -13,7 +13,7 @@
 from .ml_formats import *
 
 
-class ML_Complex_Format(ML_FP_Format):
+class ML_AdvancedFormat(ML_FP_Format):
   """ Complex format with initialization and set function """
   def __init__(self, c_name, init_function, set_function, bit_size = 53):
     self.name = {C_Code: c_name}
@@ -58,7 +58,7 @@ def is_pointer(_format):
 
 mpfr_init = lambda self, symbol, symbol_object: "mpfr_init2(%s, %d)" % (symbol, self.get_bit_size())
 mpfr_set = lambda self, var, result: "mpfr_set(%s, %s, MPFR_RNDN)" % (var.get(), result.get())
-ML_Mpfr_t = ML_Complex_Format("mpfr_t", mpfr_init, mpfr_set)
+ML_Mpfr_t = ML_AdvancedFormat("mpfr_t", mpfr_init, mpfr_set)
 
 # definition of standard pointer types
 ML_Binary32_p = ML_Pointer_Format(ML_Binary32)
