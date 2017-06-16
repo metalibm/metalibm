@@ -603,6 +603,9 @@ def is_std_integer_format(precision):
 def is_std_signed_integer_format(precision):
   return precision in [ ML_Int8, ML_Int16, ML_Int32, ML_Int64, ML_Int128 ]
 
+def is_std_unsigned_integer_format(precision):
+  return precision in [ ML_UInt8, ML_UInt16, ML_UInt32, ML_UInt64, ML_UInt128 ]
+
 def get_std_integer_support_format(precision):
   """ return the ML's integer format to contains
       the fixed-point format precision """
