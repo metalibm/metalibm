@@ -1,0 +1,10 @@
+before_script:
+
+unit_tests:
+  script:
+    - python2.7 valid/unit_test.py
+
+non_regression:
+  script:
+    - python2.7 valid/non_regression.py
+
