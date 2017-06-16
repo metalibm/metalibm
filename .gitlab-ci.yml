@@ -1,7 +1,6 @@
 image: registry.gitlab.com/metalibm-dev/metalibm/image:ci_image
 
 before_script:
-  - apt-get install gcc
 
 unit_tests:
   script:
