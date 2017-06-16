@@ -6,11 +6,11 @@ unit_tests:
   script:
     - export LD_LIBRARY_PATH=/app/local/lib/
     - export PYTHONPATH=/app/local/python/lib/python
-    - python2.7 valid/unit_test.py
+    - PYTHONPATH=$PWD:$PYTHONPATH python2.7 valid/unit_test.py
 
 non_regression:
   script:
     - export LD_LIBRARY_PATH=/app/local/lib/
     - export PYTHONPATH=/app/local/python/lib/python
-    - python2.7 valid/non_regression.py
+    - PYTHONPATH=$PWD:$PYTHONPATH python2.7 valid/non_regression.py
 
