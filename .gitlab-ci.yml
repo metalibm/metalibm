@@ -1,3 +1,5 @@
+image: registry.gitlab.com/metalibm-dev/metalibm/image:ci_image
+
 before_script:
 
 unit_tests:
