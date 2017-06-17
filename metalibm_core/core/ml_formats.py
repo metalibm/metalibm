@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
 
+## @package ml_operations
+#  Metalibm Formats node precision 
+
 ###############################################################################
 # This file is part of Kalray's Metalibm tool
 # Copyright (2013-2015)
@@ -17,6 +20,9 @@ import re
 
 
 S2 = sollya.SollyaObject(2)
+
+## \defgroup ml_formats ml_formats
+#  @{
 
 # numerical floating-point constants
 ml_nan   = sollya.parse("nan")
@@ -284,10 +290,11 @@ class ML_Std_FP_Format(ML_FP_Format):
         high_bound = self.get_emax()
         return sollya.Interval(low_bound, high_bound)
 
+    ## return the size of the mantissa bitfield (excluding implicit bit(s))
     def get_field_size(self):
         return self.field_size
 
-    ## Return the complete mantissa size
+    ## Return the complete mantissa size (including implicit bit(s))
     def get_mantissa_size(self):
         return self.field_size + 1
 
@@ -414,6 +421,9 @@ class VirtualFormat(ML_Format):
 
   def get_support_format(self):
     return self.support_format
+
+  def get_bit_size(self):
+    return self.base_format.get_bit_size()
 
 
 ## Ancestor to fixed-point format
@@ -629,7 +639,7 @@ def get_std_integer_support_format(precision):
 
 
 
-# abstract formats
+# abstract formats singleton
 ML_Integer          = AbstractFormat_Builder("ML_Integer",  (ML_Fixed_Format,))("ML_Integer")
 ML_Float            = AbstractFormat_Builder("ML_Float",    (ML_FP_Format,))("ML_Float")
 ML_AbstractBool     = AbstractFormat_Builder("MLAbstractBool",     (ML_Bool_Format,))("ML_AbstractBool")
@@ -846,8 +856,10 @@ class FP_PlusZero(FP_SpecialValueBuilder("_sv_PlusZero")):
     pass
 class FP_MinusZero(FP_SpecialValueBuilder("_sv_MinusZero")):
     pass
-class FP_QNaN(FP_SpecialValueBuilder("_sv_QNaN")):
+class FP_QNaN(FP_MathSpecialValueBuilder("NAN")):
     pass
+#class FP_QNaN(FP_SpecialValueBuilder("_sv_QnaN")):
+#    pass
 class FP_SNaN(FP_SpecialValueBuilder("_sv_SNaN")):
     pass
 
@@ -866,3 +878,5 @@ class FP_Context(object):
     def get_silent(self):
         return self.silent
 
+## @} 
+# end of metalibm's Doxygen ml_formats group

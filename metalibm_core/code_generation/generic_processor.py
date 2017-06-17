@@ -5,11 +5,12 @@
 # Copyright (2013-2014)
 # All rights reserved
 # created:          Dec 24th, 2013
-# last-modified:    Jun  6th, 2014
+# last-modified:    May 16th, 2017
 #
 # author(s): Nicolas Brunie (nicolas.brunie@kalray.eu)
 ###############################################################################
 
+import os, inspect
 from sollya import S2
 
 from ..utility.log_report import *
@@ -744,7 +745,11 @@ class GenericProcessor(AbstractBackend):
     return "./%s" % test_file
   ## Return a list of compiler option strings for the @p self target
   def get_compilation_options(self):
-    return []
+    local_filename = inspect.getfile(inspect.currentframe()) # script filename (usually with path)
+    local_dir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))) # script directory
+    support_lib_dir = os.path.join(local_dir, "../support_lib/")
+    
+    return [" -I{} ".format(support_lib_dir)]
 
 
 if __name__ == "__main__":

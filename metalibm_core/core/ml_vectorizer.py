@@ -30,7 +30,10 @@ class StaticVectorizer(object):
   #  @param call_externalizer function to handle call_externalization process
   #  @param output_precision scalar precision to be used in scalar callback
   #  @return paire ML_Operation, CodeFunction of vectorized scheme and scalar callback 
-  def vectorize_scheme(self, optree, arg_list, vector_size, call_externalizer, output_precision):
+  def vectorize_scheme(self, optree, arg_list, vector_size, call_externalizer, output_precision, sub_vector_size = None):
+    # defaulting sub_vector_size to vector_size  when undefined
+    sub_vector_size = vector_size if sub_vector_size is None else sub_vector_size
+
     def fallback_policy(cond, cond_block, if_branch, else_branch):
       return if_branch, [cond]
     def and_merge_conditions(condition_list, bool_precision = ML_Bool):
@@ -66,22 +69,50 @@ class StaticVectorizer(object):
     # replacing temporary variables by their latest assigned values
     linearized_most_likely_path = instanciate_variable(linearized_most_likely_path, vectorized_path.variable_mapping)
 
-    arg_list_copy = dict((arg_node, Variable("vec_%s" % arg_node.get_tag(), precision = arg_node.get_precision())) for arg_node in arg_list)
-    vec_arg_list = [arg_list_copy[arg_node] for arg_node in arg_list]
+    vector_paths    = []
+    vector_masks    = []
+    vector_arg_list = []
 
-    vector_path = linearized_most_likely_path.copy(arg_list_copy)
+    for i in xrange(vector_size / sub_vector_size):
+      arg_list_copy = dict((arg_node, Variable("vec_%s" % arg_node.get_tag(), precision = arg_node.get_precision())) for arg_node in arg_list)
+      sub_vec_arg_list = [arg_list_copy[arg_node] for arg_node in arg_list]
+      vector_arg_list.append(sub_vec_arg_list)
 
-    vectorization_map = {}
-    vector_path = self.vector_replicate_scheme_in_place(vector_path, vector_size, vectorization_map)
+      sub_vector_path = linearized_most_likely_path.copy(arg_list_copy)
+      vectorization_map = {}
+      sub_vector_path = self.vector_replicate_scheme_in_place(sub_vector_path, sub_vector_size, vectorization_map)
+      vector_paths.append(sub_vector_path)
 
-    # no validity condition for vectorization (always valid)
-    if len(validity_list) == 0:
-      Log.report(Log.Info, "empty validity list encountered during vectorization")
-      vector_mask = Constant(True, precision = ML_Bool) 
-    else:
-      vector_mask = and_merge_conditions(validity_list).copy(arg_list_copy)
+      # no validity condition for vectorization (always valid)
+      if len(validity_list) == 0:
+        Log.report(Log.Info, "empty validity list encountered during vectorization")
+        sub_vector_mask = Constant(True, precision = ML_Bool) 
+      else:
+        sub_vector_mask = and_merge_conditions(validity_list).copy(arg_list_copy)
 
-    vector_mask = self.vector_replicate_scheme_in_place(vector_mask, vector_size, vectorization_map)
+      sub_vector_mask = self.vector_replicate_scheme_in_place(sub_vector_mask, sub_vector_size, vectorization_map)
+      vector_masks.append(sub_vector_mask)
+
+    # Assembling a vector from sub-vectors, simplify to identity
+    # if there is only ONE sub-vector
+    def assembling_vector(args, precision = None):
+      if len(args) == 1:
+        return args[0]
+      else: 
+        return VectorAssembling(*args, precision = precision)
+        
+    vector_path = assembling_vector(tuple(vector_paths), precision = self.vectorize_format(linearized_most_likely_path.get_precision(), vector_size))
+    vec_arg_list = [
+      assembling_vector(
+        tuple(elt_arg[arg_id] for elt_arg in vector_arg_list), 
+        precision = self.vectorize_format(arg_node.get_precision(), vector_size)
+      )
+      for arg_id, arg_node in enumerate(arg_list)
+    ]
+    vector_mask = assembling_vector(
+      tuple(vector_masks),
+      precision = self.vectorize_format(ML_Bool, vector_size)
+    )
 
     return vec_arg_list, vector_path, vector_mask
 

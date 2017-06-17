@@ -55,10 +55,14 @@ class NewSchemeTest(CommonTestScheme):
     CommonTestScheme.__init__(self, title, argument_tc)
     self.ctor = ctor
 
+  ## Build an argument template from dict
+  def build_arg_template(self, **kw):
+    return DefaultArgTemplate(**kw)
+
   def single_test(self, arg_tc, debug = False):
     function_name = self.get_title()
     test_desc = "{}/{}".format(function_name, str(arg_tc))
-    arg_template = DefaultArgTemplate(**arg_tc) 
+    arg_template = self.build_arg_template(**arg_tc) 
 
     if debug:
       fct = self.ctor(arg_template)

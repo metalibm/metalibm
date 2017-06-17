@@ -1,4 +1,8 @@
 # -*- coding: utf-8 -*-
+
+## @package ml_table
+#  Metalibm Table (numerical array)
+
 ###############################################################################
 # This file is part of Kalray's Metalibm tool
 # Copyright (2014)
@@ -16,6 +20,14 @@ from attributes import Attributes, attr_init
 from ml_formats import ML_Int32, ML_Int64, ML_UInt32, ML_UInt64, ML_Format
 from ..code_generation.code_constant import *
 
+## \defgroup ml_table ml_table
+#  @{
+
+## create a multi-dimension array
+#  @param dimensions tuple of size in each dimensions
+#         the number of dimensions is the tuple length
+#  @return a python multi-dimensional list whose dimensions
+#          matches @p dimensions
 def create_multi_dim_array(dimensions, init_data = None):
     """ create a multi dimension array """
     if len(dimensions) == 1:
@@ -31,6 +43,8 @@ def create_multi_dim_array(dimensions, init_data = None):
             return [create_multi_dim_array(dimensions[1:]) for i in xrange(dim)]
 
 
+## return the C encoding of the array @table whose dimension tuple is @p dimensions
+#  and data's format is @p storage_precision
 def get_table_content(table, dimensions, storage_precision, language = C_Code):
     if len(dimensions) == 1:
         return "{" + ", ".join([storage_precision.get_cst(value, language = language) for value in table]) + "}"
@@ -40,6 +54,7 @@ def get_table_content(table, dimensions, storage_precision, language = C_Code):
         code += "\n}"
         return code
 
+## Format for Table object (storage precision)
 class ML_TableFormat(ML_Format):
   def __init__(self, storage_precision, dimensions):
     self.storage_precision = storage_precision
@@ -96,6 +111,10 @@ class ML_Table(ML_LeafNode):
 
     def get_tag(self):
         return self.attributes.get_tag()
+
+    ## return @p self data content
+    def get_data(self):
+        return self.table
 
     def get_subset_interval(self, index_function, range_set):
         # init bound values
@@ -192,3 +211,6 @@ class ML_ApproxTable(ML_NewTable):
     def get_index_function(self):
         """ <index_function> getter """
         return self.index_function
+
+## @} 
+# end of metalibm's Doxygen ml_table group

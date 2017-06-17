@@ -27,6 +27,8 @@ from ..targets import *
 from ..code_generation.code_constant import *
 from ..core.passes import Pass
 
+from metalibm_core.code_generation.vhdl_backend import VHDLBackend
+
 # populating target_map
 target_map = {}
 target_map["none"] = GenericProcessor
@@ -221,10 +223,41 @@ class DefaultArgTemplate:
   # list of pre-code generation opt passe names (string tag)
   pre_gen_passes = []
   check_processor_support = True
+  # source elaboration
+  build_enable = False
 
   def __init__(self, **kw):
     for key in kw:
       setattr(self, key, kw[key])
+
+## default argument template to be used for entity
+#  when no specific value are given for a specific parameter
+class DefaultEntityArgTemplate(DefaultArgTemplate):
+    base_name  = "unknown_entity"
+    entity_name  = "unknown_entity"
+    output_file  = "entity.vhd"
+    debug_file   = None
+    # Specification,
+    precision      = ML_Binary32
+    io_precisions  = None 
+    accuracy       = ML_Faithful
+    libm_compliant = True
+    # Optimization parameters,
+    backend           = VHDLBackend()
+    fuse_fma          = None
+    fast_path_extract = False
+    # Debug verbosity,
+    debug = False
+    language  = VHDL_Code
+    # functional test related parameters
+    auto_test  = False
+    auto_test_execute  = False
+    auto_test_range  = Interval(0, 1)
+    auto_test_std  = False
+    # RTL elaboration
+    build_enable = False
+
+  
 
 ## Common ancestor for Argument Template class
 class ML_CommonArgTemplate(object):
@@ -233,7 +266,7 @@ class ML_CommonArgTemplate(object):
   def __init__(self, parser, default_arg = DefaultArgTemplate):
     self.parser = parser
     self.parser.add_argument("--debug", dest = "debug", action = "store_const", const = True, default = default_arg.debug, help = "enable debug display in generated code")
-    self.parser.add_argument("--disable-fma", dest = "fuse_fma", action = "store_const", const = False, default = default_arg.fuse_fma, help = "disable FMA-like operation fusion")
+    self.parser.add_argument("--fuse-fma", dest = "fuse_fma", action = "store_const", const = True, default = default_arg.fuse_fma, help = "disable FMA-like operation fusion")
     self.parser.add_argument("--output", action = "store", dest = "output_file", default = self.default_output_file, help = "set output file")
 
     self.parser.add_argument("--precision", dest = "precision", type = precision_parser, default = default_arg.precision, help = "select main precision")
@@ -270,6 +303,7 @@ class ML_CommonArgTemplate(object):
 
     self.parser.add_argument("--pre-gen-pass", default = [], action = "store", dest = "pre_gen_passes", type = lambda s: s.split(","), help = "comma separated list of pass to be executed just before final code generation")
     self.parser.add_argument("--disable-check", default = True, action = "store_const", const = False, dest = "check_processor_support", help = "disable check processor support pass run {default: enabled]")
+    self.parser.add_argument("--build", dest = "build_enable", action = "store_const", const = True, default = default_arg.build_enable, help = "enable RTL elaboration")
 
 
   ## Extract argument from the command-line (sys.argv)
@@ -297,15 +331,15 @@ class ML_CommonArgTemplate(object):
 
 ## Argument template for entity object
 class ML_EntityArgTemplate(ML_CommonArgTemplate):
-  def __init__(self, default_entity_name, default_output_file = "ml_entity.vhd"):
+  def __init__(self, default_entity_name, default_output_file = "ml_entity.vhd", default_arg = DefaultEntityArgTemplate):
     parser = argparse.ArgumentParser(" Metalibm %s entity generation script" % default_entity_name)
     self.default_output_file = default_output_file
     self.default_entity_name = default_entity_name
 
-    ML_CommonArgTemplate.__init__(self, parser)
+    ML_CommonArgTemplate.__init__(self, parser, default_arg = default_arg)
 
-    self.parser.add_argument("--entityname", dest = "entity_name", default = ArgDefault(self.default_entity_name), help = "set entity name")
-    self.parser.add_argument("--backend", dest = "backend", action = "store", type = target_instanciate, default = "none", help = "select generation backend")
+    self.parser.add_argument("--entityname", dest = "entity_name", default = self.default_entity_name, help = "set entity name")
+    self.parser.add_argument("--backend", dest = "backend", action = "store", type = target_instanciate, default = default_arg.backend, help = "select generation backend")
     self.parser.add_argument("--debug-file", dest = "debug_file", action="store", help = "help define output file for debug script")
 
 

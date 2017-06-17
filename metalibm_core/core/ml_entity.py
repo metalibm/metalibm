@@ -2,10 +2,10 @@
 
 ###############################################################################
 # This file is part of New Metalibm tool
-# Copyright (2016)
+# Copyright (2016-)
 # All rights reserved
 # created:          Nov 17th, 2016    
-# last-modified:    Nov 17th, 2016
+# last-modified:    May  9th, 2017
 #
 # author(s):   Nicolas Brunie (nibrunie@gmail.com)
 # decription:  Declare and implement a class to manage
@@ -23,6 +23,8 @@ from metalibm_core.core.ml_complex_formats import ML_Mpfr_t
 from metalibm_core.core.ml_call_externalizer import CallExternalizer
 from metalibm_core.core.ml_vectorizer import StaticVectorizer
 
+from metalibm_core.core.precisions import ML_Faithful
+
 from metalibm_core.code_generation.code_object import NestedCode, VHDLCodeObject, CodeObject
 from metalibm_core.code_generation.code_entity import CodeEntity
 from metalibm_core.code_generation.vhdl_backend import VHDLBackend
@@ -34,7 +36,7 @@ from metalibm_core.code_generation.gappa_code_generator import GappaCodeGenerato
 
 from metalibm_core.utility.log_report import Log
 from metalibm_core.utility.debug_utils import *
-from metalibm_core.utility.ml_template import ArgDefault
+from metalibm_core.utility.ml_template import ArgDefault, DefaultEntityArgTemplate
 
 import random
 import subprocess
@@ -51,60 +53,10 @@ def random_log_sample(interval):
   hi = sup(interval)
 
 
+debug_utils_lib = """proc get_fixed_value {value weight} {
+  return [expr $value * pow(2.0, $weight)]
+}\n"""
   
-## default argument template to be used when no specific value
-#  are given for a specific parameter
-class DefaultEntityArgTemplate:
-  def __init__(self, 
-                base_name = "unknown_entity",
-                entity_name = None,
-                output_file = None,
-                debug_file  = None,
-                # Specification,
-                precision = ML_Binary32,
-                accuracy = ML_Faithful,
-                io_precisions = [ML_Binary32],
-                abs_accuracy   = None,
-                libm_compliant = True,
-                # Optimization parameters,
-                backend = VHDLBackend(),
-                fuse_fma = True,
-                fast_path_extract = True,
-                # Debug verbosity,
-                debug= False,
-                language = VHDL_Code,
-                auto_test = False,
-                auto_test_execute = False,
-                auto_test_range = None,
-                auto_test_std   = False,
-                **kw # extra arguments
-              ):
-    self.base_name  = base_name
-    self.entity_name  = entity_name
-    self.output_file  = output_file
-    self.debug_file   = debug_file
-    # Specification,
-    self.precision  = precision
-    self.io_precisions  = io_precisions
-    self.abs_accuracy  = abs_accuracy
-    self.accuracy      = accuracy
-    self.libm_compliant  = libm_compliant
-    # Optimization parameters,
-    self.backend  = backend
-    self.fuse_fma  = fuse_fma
-    self.fast_path_extract  = fast_path_extract
-    # Debug verbosity,
-    self.debug = debug
-    self.language  = language
-    self.auto_test  = auto_test
-    self.auto_test_execute  = auto_test_execute
-    self.auto_test_range  = auto_test_range
-    self.auto_test_std  = auto_test_std
-    # registering extra arguments
-    for attr in kw:
-      print "initializing: ", attr, kw[attr]
-      setattr(self, attr, kw[attr])
-
 class RetimeMap:
   def __init__(self):
     # map (op_key, stage) -> stage's op
@@ -178,9 +130,6 @@ class ML_EntityBasis(object):
              # Debug verbosity
              debug_flag = ArgDefault(False, 2),
              language = ArgDefault(VHDL_Code, 2),
-             auto_test = ArgDefault(False, 2),
-             auto_test_range = ArgDefault(Interval(-1, 1), 2),
-             auto_test_std = ArgDefault(False, 2),
              arg_template = DefaultEntityArgTemplate 
          ):
     # selecting argument values among defaults
@@ -202,8 +151,10 @@ class ML_EntityBasis(object):
     # Debug verbosity
     debug_flag    = ArgDefault.select_value([arg_template.debug, debug_flag])
     language      = ArgDefault.select_value([arg_template.language, language])
-    auto_test     = ArgDefault.select_value([arg_template.auto_test, arg_template.auto_test_execute, auto_test])
-    auto_test_std = ArgDefault.select_value([arg_template.auto_test_std, auto_test_std])
+    auto_test     = arg_template.auto_test or arg_template.auto_test_execute
+    auto_test_std = arg_template.auto_test_std
+
+    self.precision = arg_template.precision
 
     # io_precisions must be a list
     #     -> with a single element
@@ -211,11 +162,15 @@ class ML_EntityBasis(object):
     self.io_precisions = io_precisions
 
     ## enable the generation of numeric/functionnal auto-test
-    self.auto_test_enable = (auto_test != False or auto_test_std != False)
-    self.auto_test_number = auto_test
-    self.auto_test_execute = ArgDefault.select_value([arg_template.auto_test_execute])
-    self.auto_test_range = ArgDefault.select_value([arg_template.auto_test_range, auto_test_range])
-    self.auto_test_std   = auto_test_std 
+    self.auto_test_enable  = (auto_test != False or auto_test_std != False)
+    self.auto_test_number  = auto_test
+    self.auto_test_execute = arg_template.auto_test_execute
+    self.auto_test_range   = arg_template.auto_test_range
+    self.auto_test_std     = auto_test_std 
+    print "auto_test args: ", auto_test, auto_test_std, self.auto_test_enable, self.auto_test_number, self.auto_test_execute, self.auto_test_std
+
+    # enable post-generation RTL elaboration
+    self.build_enable = arg_template.build_enable
 
     self.language = language
 
@@ -227,7 +182,11 @@ class ML_EntityBasis(object):
     self.output_file = output_file if output_file else self.entity_name + ".vhd"
     self.debug_file  = debug_file  if debug_file  else "{}_dbg.do".format(self.entity_name)
 
+    # debug version
     self.debug_flag = debug_flag
+    # debug display 
+    self.display_after_gen = arg_template.display_after_gen
+    self.display_after_opt = arg_template.display_after_opt
 
     # TODO: FIX which i/o precision to select
     # TODO: incompatible with fixed-point formats
@@ -235,8 +194,10 @@ class ML_EntityBasis(object):
 
     self.abs_accuracy = abs_accuracy if abs_accuracy else S2**(-self.get_output_precision().get_precision())
 
+    # target selection
     self.backend = backend
 
+    # optimization parameters
     self.fuse_fma = fuse_fma
     self.fast_path_extract = fast_path_extract
 
@@ -244,9 +205,10 @@ class ML_EntityBasis(object):
 
     self.vhdl_code_generator = VHDLCodeGenerator(self.backend, declare_cst = False, disable_debug = not self.debug_flag, language = self.language)
     uniquifier = self.entity_name
-    self.main_code_object = NestedCode(self.vhdl_code_generator, static_cst = True, uniquifier = "{0}_".format(self.entity_name), code_ctor = VHDLCodeObject)
+    self.main_code_object = NestedCode(self.vhdl_code_generator, static_cst = False, uniquifier = "{0}_".format(self.entity_name), code_ctor = VHDLCodeObject)
     if self.debug_flag:
       self.debug_code_object = CodeObject(self.language)
+      self.debug_code_object << debug_utils_lib
       self.vhdl_code_generator.set_debug_code_object(self.debug_code_object)
 
 
@@ -408,12 +370,13 @@ class ML_EntityBasis(object):
     self.result = code_object
     code_str = ""
     for code_entity in code_entity_list:
-      entity_code_object = NestedCode(self.vhdl_code_generator, static_cst = True, uniquifier = "{0}_".format(self.entity_name), code_ctor = VHDLCodeObject)
-      result = code_entity.add_definition(self.vhdl_code_generator, language, entity_code_object, static_cst = True)
+      entity_code_object = NestedCode(self.vhdl_code_generator, static_cst = False, uniquifier = "{0}_".format(self.entity_name), code_ctor = VHDLCodeObject)
+      result = code_entity.add_definition(self.vhdl_code_generator, language, entity_code_object, static_cst = False)
       result.add_library("ieee")
       result.add_header("ieee.std_logic_1164.all")
-      result.add_header("ieee.std_logic_unsigned.all")
-      result.add_header("ieee.numeric_std.all")
+      result.add_header("ieee.std_logic_arith.all")
+      result.add_header("ieee.std_logic_misc.all")
+      #result.add_header("ieee.numeric_std.all")
       #result.push_into_parent_code(self.result, self.vhdl_code_generator, headers = True)
       code_str += result.get(self.vhdl_code_generator, headers = True)
 
@@ -446,23 +409,45 @@ class ML_EntityBasis(object):
 
     for code_entity in code_entity_list:
       scheme = code_entity.get_scheme()
-      if display_after_gen:
+      if display_after_gen or self.display_after_gen:
         print "function %s, after gen " % code_entity.get_name()
         print scheme.get_str(depth = None, display_precision = True, memoization_map = {})
 
       # optimize scheme
       opt_scheme = self.optimise_scheme(scheme, enable_subexpr_sharing = enable_subexpr_sharing)
 
-      if display_after_opt:
-        print "function %s, after opt " % code_function.get_name()
+      if display_after_opt or self.display_after_opt:
+        print "function %s, after opt " % code_entity.get_name()
         print scheme.get_str(depth = None, display_precision = True, memoization_map = {})
 
 
     # generate VHDL code to implement scheme
     self.generate_code(code_entity_list, language = self.language)
 
-    if self.auto_test_enable:
-      pass
+    if self.auto_test_execute:
+      # rtl elaboration
+      print "Elaborating {}".format(self.output_file)
+      elab_cmd = "vlib work && vcom {}".format(self.output_file)
+      elab_result = subprocess.call(elab_cmd, shell = True)
+      print "Elaboration result: ", elab_result
+      # debug cmd
+      debug_cmd = "do {debug_file};".format(debug_file = self.debug_file) if self.debug_flag else "" 
+      # simulation
+      test_delay = 10 * (self.auto_test_number + (len(self.standard_test_cases) if self.auto_test_std else 0) + 10) 
+      sim_cmd = "vsim -c work.testbench -do \"run {test_delay} ns; {debug_cmd}\"".format(entity = self.entity_name, debug_cmd = debug_cmd, test_delay = test_delay)
+      sim_result = subprocess.call(sim_cmd, shell = True)
+      print "Simulation result: ", sim_result
+
+    elif self.build_enable:
+      print "Elaborating {}".format(self.output_file)
+      elab_cmd = "vlib work && vcom {}".format(self.output_file)
+      elab_result = subprocess.call(elab_cmd, shell = True)
+      print "elab_result: ", elab_result
+    
+
+
+
+   
 
 
   # Currently mostly empty, to be populated someday
@@ -515,6 +500,11 @@ class ML_EntityBasis(object):
 
     # building list of test cases
     tc_list = []
+
+    # Appending standard test cases if required
+    if self.auto_test_std:
+      tc_list += self.standard_test_cases 
+
     for i in range(test_num):
       input_values = {}
       for input_tag in input_signals:
@@ -530,23 +520,23 @@ class ML_EntityBasis(object):
           input_value = round(input_value, input_precision.get_sollya_object(), RN)
         else: 
           input_value = random.randrange(2**input_precision.get_bit_size())
-        print("input_value %e" % input_value)
         input_values[input_tag] = input_value
       tc_list.append((input_values,None))
 
-    # Appending standard test cases if required
-    if self.auto_test_std:
-      tc_list += self.standard_test_cases 
-
     for input_values, output_values in tc_list:
+      input_msg = ""
+
       # Adding input setting
       for input_tag in input_values:
         input_signal = io_map[input_tag]
         # FIXME: correct value generation depending on signal precision
         input_value = input_values[input_tag]
         test_statement.add(ReferenceAssign(input_signal, Constant(input_value, precision = input_signal.get_precision())))
+        value_msg = input_signal.get_precision().get_cst(input_value, language = VHDL_Code).replace('"',"'")
+        value_msg += " / " + hex(input_signal.get_precision().get_base_format().get_integer_coding(input_value))
+        input_msg += " {}={} ".format(input_tag, value_msg)
       test_statement.add(Wait(10))
-      # Computin output values when necessary
+      # Computing output values when necessary
       if output_values is None:
         output_values = self.numeric_emulate(input_values)
       # Adding output value comparison
@@ -554,7 +544,7 @@ class ML_EntityBasis(object):
         output_signal = output_signals[output_tag]
         output_value  = Constant(output_values[output_tag], precision = output_signal.get_precision())
         value_msg = output_signal.get_precision().get_cst(output_values[output_tag], language = VHDL_Code).replace('"',"'")
-        value_msg += " / " + hex(output_values[output_tag])
+        value_msg += " / " + hex(output_signal.get_precision().get_base_format().get_integer_coding(output_values[output_tag]))
         test_statement.add(
           Assert(
             Comparison(
@@ -563,7 +553,7 @@ class ML_EntityBasis(object):
               specifier = Comparison.Equal, 
               precision = ML_Bool
             ),
-            "unexpected value for output %s, expecting %s " % (output_tag, value_msg),
+            "\"unexpected value for inputs {input_msg}, output {output_tag}, expecting {value_msg}, got: \"".format(input_msg = input_msg, output_tag = output_tag, value_msg = value_msg),
             severity = Assert.Failure
           )
         )
@@ -575,7 +565,7 @@ class ML_EntityBasis(object):
       # end of test
       Assert(
         Constant(0, precision = ML_Bool),
-        " end of test, no error encountered",
+        " \"end of test, no error encountered \"",
         severity = Assert.Failure
       )
     )

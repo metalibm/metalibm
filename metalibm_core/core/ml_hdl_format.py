@@ -11,8 +11,12 @@
 # description: Declaration of Node formats for hardware designs
 ###############################################################################
 
-from .ml_formats import ML_Format
+import sollya
+
+from .ml_formats import ML_Format, ML_Base_FixedPoint_Format, ML_Fixed_Format
 from ..code_generation.code_constant import *
+
+S2 = sollya.SollyaObject(2)
 
 
 class StdLogicDirection:
@@ -29,6 +33,44 @@ def get_2scomplement_neg(value, size):
   value = int(abs(value))
   assert value < (S2**(size-1) - 1)
   return (~value+1)
+
+def generic_get_vhdl_cst(value, bit_size):
+  #return "\"%s\"" % bin(value)[2:].zfill(self.bit_size)
+  value = int(value)
+  value &= int(2**bit_size - 1)
+  assert bit_size > 0
+  if bit_size % 4 == 0:
+    return "X\"%s\"" % hex(value)[2:].replace("L","").zfill(bit_size / 4)
+  else:
+    return "\"%s\"" % bin(value)[2:].replace("L","").zfill(bit_size)
+  
+
+
+class RTL_FixedPointFormat(ML_Base_FixedPoint_Format):
+  def __init__(self, integer_size, frac_size, signed = True, support_format = None, align = 0):
+    ML_Fixed_Format.__init__(self, support_format, align)
+    self.integer_size = integer_size
+    self.frac_size    = frac_size
+    self.signed       = signed
+    name = ("" if self.signed else "U") + "INT" + str(self.get_bit_size()) 
+    self.name[VHDL_Code] = name
+
+  def get_vhdl_cst(self, cst_value):
+    return generic_get_vhdl_cst(cst_value * S2**self.get_frac_size(), self.get_bit_size())
+
+  def get_name(self, language = VHDL_Code):
+    return self.support_format.get_name(language)
+  def get_code_name(self, language = VHDL_Code):
+    return self.support_format.get_code_name(language)
+
+  def is_cst_decl_required(self):
+    return True
+
+  def get_cst(self, cst_value, language = VHDL_Code):
+    if language is VHDL_Code:
+      return self.get_vhdl_cst(cst_value)
+    else:
+      raise NotImplementedError
 
 class ML_StdLogicVectorFormat(ML_Format):
   def __init__(self, bit_size, offset = 0, direction = StdLogicDirection.Downwards):
@@ -55,14 +97,10 @@ class ML_StdLogicVectorFormat(ML_Format):
     return self.bit_size
 
   def get_vhdl_cst(self, value):
-    #return "\"%s\"" % bin(value)[2:].zfill(self.bit_size)
-    value = int(value)
-    value &= int(2**self.bit_size - 1)
-    assert self.bit_size > 0
-    if self.bit_size % 4 == 0:
-      return "X\"%s\"" % hex(value)[2:].replace("L","").zfill(self.bit_size / 4)
-    else:
-      return "\"%s\"" % bin(value)[2:].replace("L","").zfill(self.bit_size)
+    return generic_get_vhdl_cst(value, self.bit_size)
+
+  def is_cst_decl_required(self):
+    return True
 
 class ML_StdLogicClass(ML_Format):
   def __init__(self):
