@@ -208,7 +208,7 @@ for result in result_details:
 
 if success:
   print "OVERALL SUCCESS"
-  exit(1)
+  exit(0)
 else:
   print "OVERALL FAILURE"
   exit(1)
