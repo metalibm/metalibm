@@ -176,6 +176,8 @@ class ML_FunctionBasis(object):
 
     # source building
     self.build_enable = arg_template.build_enable
+    # binary execution
+    self.execute_trigger = arg_template.execute_trigger
 
     self.language = language
 
@@ -461,12 +463,12 @@ class ML_FunctionBasis(object):
     # generate C code to implement scheme
     self.generate_code(code_function_list, language = self.language)
 
-    if self.build_enable or self.auto_test_execute:
+    if self.build_enable or self.auto_test_execute or self.execute_trigger:
       compiler = self.processor.get_compiler()
       test_file = "./test_%s.bin" % self.function_name
       compiler_options = " ".join(self.processor.get_compilation_options())
       src_list = [self.output_file]
-      if not self.auto_test_execute:
+      if (not self.auto_test_execute) and (not self.execute_trigger):
         # build only, disable link
         compiler_options += " -c  "
       else:
@@ -483,9 +485,9 @@ class ML_FunctionBasis(object):
       build_result = subprocess.call(build_command, shell = True)
       Log.report(Log.Info, "build result: {}".format(build_result))
 
-      if self.auto_test_enable and not build_result:
+      if (self.auto_test_enable or self.execute_trigger) and not build_result:
         test_command = " %s " % self.processor.get_execution_command(test_file)
-        if self.auto_test_execute:
+        if self.auto_test_execute or self.execute_trigger:
           print "VALIDATION %s " % self.get_name()
           print test_command
           test_result = subprocess.call(test_command, shell = True)
