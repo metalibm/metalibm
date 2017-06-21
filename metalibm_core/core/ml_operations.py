@@ -1125,6 +1125,8 @@ def NotEqual(op0, op1, **kwords):
     kwords["specifier"] = Comparison.NotEqual
     return Comparison(op0, op1, **kwords)
 
+## Basic imperative-style Statement (list of separate operations, returning
+#  void)
 class Statement(AbstractOperationConstructor("Statement")):
     def __init__(self, *args, **kwords):
         self.__class__.__base__.__init__(self, *args, **kwords)
