@@ -489,6 +489,13 @@ vhdl_code_generation_table = {
       },
    }, 
   },
+  LogicalNot: {
+    None: {
+      lambda _: True : {
+        type_strict_match(ML_Bool, ML_Bool): FunctionOperator("not", arity = 1, force_folding = False),
+      },
+   }, 
+  },
   Event: {
     None: {
       lambda _: True : {
