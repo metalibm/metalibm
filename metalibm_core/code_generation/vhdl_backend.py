@@ -32,6 +32,14 @@ def exclude_std_logic(optree):
 def include_std_logic(optree):
   return isinstance(optree.get_precision(), ML_StdLogicVectorFormat)
 
+## return a lambda function associating to an output node
+#  its transformation to a predicate node
+#  @param predicate_function lambda optree -> predicate(optree)
+#  @param kw dictionnary of attributes to attach to the resulting node
+#  @return lambda function optree -> predicate(optree's input) annotated
+#          with @p kw attributes
+def test_modifier(predicate_function, **kw):
+  return lambda optree, **kw: predicate_function(optree.get_input(0)).modify_attributes(**kw)
 
 ## Copy the value of the init_stage attribute field
 #  from @p src node to @p dst node
@@ -693,6 +701,44 @@ vhdl_code_generation_table = {
       lambda optree: True: {
         type_custom_match(MCSTDLOGICV, MCSTDLOGICV): DynamicOperator(sub_signal_generator),
       },
+    },
+  },
+  # Floating-point predicates
+  Test: {
+    Test.IsNaN: {
+      lambda optree: True: {
+        type_custom_match(FSM(ML_Bool), TCM(ML_Std_FP_Format)): ComplexOperator(optree_modifier = test_modifier(fp_is_nan)),
+      }
+    },
+    Test.IsPositiveInfty: {
+      lambda optree: True: {
+        type_custom_match(FSM(ML_Bool), TCM(ML_Std_FP_Format)): ComplexOperator(optree_modifier = test_modifier(fp_is_pos_inf)),
+      }
+    },
+    Test.IsNegativeInfty: {
+      lambda optree: True: {
+        type_custom_match(FSM(ML_Bool), TCM(ML_Std_FP_Format)): ComplexOperator(optree_modifier = test_modifier(fp_is_neg_inf)),
+      }
+    },
+    Test.IsInfty: {
+      lambda optree: True: {
+        type_custom_match(FSM(ML_Bool), TCM(ML_Std_FP_Format)): ComplexOperator(optree_modifier = test_modifier(fp_is_inf)),
+      }
+    },
+    Test.IsInfOrNaN: {
+      lambda optree: True: {
+        type_custom_match(FSM(ML_Bool), TCM(ML_Std_FP_Format)): ComplexOperator(optree_modifier = test_modifier(fp_is_infornan)),
+      }
+    },
+    Test.IsZero: {
+      lambda optree: True: {
+        type_custom_match(FSM(ML_Bool), TCM(ML_Std_FP_Format)): ComplexOperator(optree_modifier = test_modifier(fp_is_zero)),
+      }
+    },
+    Test.IsSubnormal: {
+      lambda optree: True: {
+        type_custom_match(FSM(ML_Bool), TCM(ML_Std_FP_Format)): ComplexOperator(optree_modifier = test_modifier(fp_is_subnormal)),
+      }
     },
   },
 }
