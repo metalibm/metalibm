@@ -272,12 +272,21 @@ class ML_Std_FP_Format(ML_FP_Format):
     def get_max_value(self):
         return self.get_omega()
 
+    ## return the exponent field corresponding to 
+    #  a special value (inf or NaN)
+    def get_nanorinf_exp_field(self):
+        return S2**self.get_exponent_size() - 1
+
+    ## Return the minimal exponent for a normal number
     def get_emin_normal(self):
         return 1 + self.get_bias()
 
+    ## Return the minimal exponent for a subnormal number
     def get_emin_subnormal(self):
         return 1 - (self.get_field_size()) + self.get_bias()
 
+    ## Return the display (for debug message) associated
+    #  to format @p self
     def get_display_format(self, language = C_Code):
         return self.display_format[language]
 
@@ -581,10 +590,12 @@ class ML_Bool_Format(object):
     pass
 
 # Standard binary floating-point format declarations
+## IEEE binary32 (fp32) single precision floating-point format
 ML_Binary32 = ML_Std_FP_Format(32, 8, 23, "f", "float", "fp32", "%a", sollya.binary32)
+## IEEE binary64 (fp64) double precision floating-point format
 ML_Binary64 = ML_Std_FP_Format(64, 11, 52, "", "double", "fp64", "%la", sollya.binary64)
 ML_Binary80 = ML_Std_FP_Format(80, 15, 64, "L", "long double", "fp80", "%la", sollya.binary80)
-# Half precision format
+## IEEE binary16 (fp16) half precision floating-point format
 ML_Binary16 = ML_Std_FP_Format(16, 5, 10, "__ERROR__", "half", "fp16", "%a", sollya.binary16)
 
 
