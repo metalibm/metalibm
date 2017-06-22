@@ -613,6 +613,7 @@ vector_c_code_generation_table = {
   BitArithmeticRightShift: {
     None: {
        lambda _: True: {
+        type_strict_match(v2int32, v2int32, v2int32): ML_VectorLib_Function("ml_vsrai2", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v2int32),
         type_strict_match(v4int32, v4int32, v4int32): ML_VectorLib_Function("ml_vsrai4", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v4int32),
         type_strict_match(v4uint32, v4uint32, v4uint32): ML_VectorLib_Function("ml_vsrau4", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v4uint32),
       },
