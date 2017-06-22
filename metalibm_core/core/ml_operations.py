@@ -202,14 +202,25 @@ class AbstractOperation(ML_Operation):
         self.attributes.set_precision(new_precision)
 
 
+    ## return the complete list of node's input
+    #  @return list of nodes
     def get_inputs(self):
         return self.inputs
+    ## return @p self's number of inputs
     def get_input_num(self):
         return len(self.inputs)
+    ## return a specific input to @p self
+    #  @param self Operation node
+    #  @param index integer id of the input to extract
+    #  @return the @p index-th input of @p self
     def get_input(self, index):
         return self.inputs[index]
+    ## swap an input in node's input list
+    #  @param self Operation node
+    #  @param index integer id of the input to swap
+    #  @param new_input new value of the input to be set
     def set_input(self, index, new_input):
-        # FIXME: discard tuple -> list -> tuple 
+        # FIXME: discard tuple -> list -> tuple transform 
         input_list = list(self.inputs) 
         input_list[index] = new_input
         self.inputs = tuple(input_list)
