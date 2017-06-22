@@ -225,6 +225,8 @@ class DefaultArgTemplate:
   check_processor_support = True
   # source elaboration
   build_enable = False
+  # built binary execution
+  execute_trigger = False
 
   def __init__(self, **kw):
     for key in kw:
@@ -304,6 +306,7 @@ class ML_CommonArgTemplate(object):
     self.parser.add_argument("--pre-gen-pass", default = [], action = "store", dest = "pre_gen_passes", type = lambda s: s.split(","), help = "comma separated list of pass to be executed just before final code generation")
     self.parser.add_argument("--disable-check", default = True, action = "store_const", const = False, dest = "check_processor_support", help = "disable check processor support pass run {default: enabled]")
     self.parser.add_argument("--build", dest = "build_enable", action = "store_const", const = True, default = default_arg.build_enable, help = "enable RTL elaboration")
+    self.parser.add_argument("--execute", dest = "execute_trigger", action = "store_const", const = True, default = default_arg.execute_trigger, help = "trigger post-build execution")
 
 
   ## Extract argument from the command-line (sys.argv)

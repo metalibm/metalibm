@@ -624,11 +624,15 @@ class BitLogicXor(ArithmeticOperationConstructor("BitLogicXor")):
 ## Bitwise negate operation
 class BitLogicNegate(ArithmeticOperationConstructor("BitLogicNegate", arity = 1)):
     pass
-## Bit Right Shift
+## Bit Logic Right Shift
 #   2-operand operation, first argument is the value to be shifted
 #   the second is the shift amount
-#   TODO: should distinguish between arithmetic and logical shift
 class BitLogicRightShift(ArithmeticOperationConstructor("BitLogicRightShift", arity = 2)):
+    pass
+## Bit Arithmetic Right Shift
+#   2-operand operation, first argument is the value to be shifted
+#   the second is the shift amount
+class BitArithmeticRightShift(ArithmeticOperationConstructor("BitArithmeticRightShift", arity = 2)):
     pass
 ## Bit Left Shift
 #   2-operand operation, first argument is the value to be shifted
@@ -1121,6 +1125,8 @@ def NotEqual(op0, op1, **kwords):
     kwords["specifier"] = Comparison.NotEqual
     return Comparison(op0, op1, **kwords)
 
+## Basic imperative-style Statement (list of separate operations, returning
+#  void)
 class Statement(AbstractOperationConstructor("Statement")):
     def __init__(self, *args, **kwords):
         self.__class__.__base__.__init__(self, *args, **kwords)

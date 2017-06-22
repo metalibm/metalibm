@@ -176,7 +176,7 @@ c_code_generation_table = {
                     type_strict_match(dst_type)(op0_type) and type_std_integer_match(op1_type)
                 ) : SymbolOperator("<<", arity = 2),
             },
-        },  
+        },
     },
     BitLogicRightShift: {
         None: {
@@ -186,7 +186,20 @@ c_code_generation_table = {
                     dst_type == op0_type and is_std_integer_format(op0_type) and is_std_integer_format(op1_type)
                 ) : SymbolOperator(">>", arity = 2),
             },
-        },  
+        },
+    },
+    BitArithmeticRightShift: {
+        None: {
+            lambda optree: True: {
+                # shift any signed integer, as long as all types are integers,
+                # and the dest and first arg have the same type
+                (lambda dst_type, op0_type, op1_type, **kwords:
+                    dst_type == op0_type
+                    and is_std_signed_integer_format(op0_type)
+                    and is_std_integer_format(op1_type)
+                ) : SymbolOperator(">>", arity = 2),
+            },
+        },
     },
     LogicalOr: {
         None: build_simplified_operator_generation([ML_Bool, ML_Int32, ML_UInt32], 2, SymbolOperator("||", arity = 2)),
