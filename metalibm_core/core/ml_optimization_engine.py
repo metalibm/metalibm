@@ -97,6 +97,8 @@ abstract_typing_rule = {
         lambda *ops: ML_Integer,
     BitLogicRightShift:
         lambda *ops: ML_Integer,
+    BitArithmeticRightShift:
+        lambda *ops: ML_Integer,
     Return:
         lambda *ops: ops[0].get_precision(),
     TableLoad: 
@@ -162,6 +164,8 @@ practical_typing_rule = {
         lambda backend, op, dprec: backend.get_boolean_format(op),
     BitLogicRightShift: 
         lambda backend, op, dprec: backend.merge_abstract_format(op, op.inputs),
+    BitArithmeticRightShift:
+        lambda backend, op, dprec: backend.merge_abstract_format(op, op.inputs),
     BitLogicLeftShift: 
         lambda backend, op, dprec: backend.merge_abstract_format(op, op.inputs),
     BitLogicAnd: 
@@ -221,6 +225,8 @@ post_typing_process_rules = {
         lambda backend, op: backend.propagate_format_to_cst(op, op.get_precision()), 
     BitLogicRightShift: 
         lambda backend, op: backend.propagate_format_to_cst(op, op.get_precision()), 
+    BitArithmeticRightShift:
+        lambda backend, op: backend.propagate_format_to_cst(op, op.get_precision()),
     BitLogicLeftShift: 
         lambda backend, op: backend.propagate_format_to_cst(op, op.get_precision()), 
     FunctionCall:
