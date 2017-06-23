@@ -498,12 +498,12 @@ class OptimizationEngine(object):
         if optree in memoization_map:
             return memoization_map[optree]
         elif optree.get_precision() != None: 
+            memoization_map[optree] = optree.get_precision()
             if not isinstance(optree, ML_LeafNode):
                 for inp in optree.inputs:
                     self.instantiate_abstract_precision(inp, default_precision, memoization_map = memoization_map)
                 for inp in optree.get_extra_inputs():
                     self.instantiate_abstract_precision(inp, default_precision, memoization_map = memoization_map)
-            memoization_map[optree] = optree.get_precision()
             return optree.get_precision()
         else:
             if isinstance(optree, Constant):
@@ -931,16 +931,21 @@ class OptimizationEngine(object):
                 memoization[optree] = optree
                 return optree
 
-    def silence_fp_operations(self, optree, force = False):
-        if isinstance(optree, ML_LeafNode):
-            pass
+    def silence_fp_operations(self, optree, force = False, memoization_map = None):
+        memoization_map = {} if memoization_map is None else memoization_map
+        if optree in memoization_map:
+          return
         else:
-            for op in optree.inputs:
-                self.silence_fp_operations(op, force = force)
-            for op in optree.get_extra_inputs():
-                self.silence_fp_operations(op, force = force)
-            if isinstance(optree, Multiplication) or isinstance(optree, Addition) or isinstance(optree, FusedMultiplyAdd) or isinstance(optree, Subtraction):
-                if optree.get_silent() == None: optree.set_silent(True)
+          memoization_map[optree] = optree
+          if isinstance(optree, ML_LeafNode):
+              pass
+          else:
+              for op in optree.inputs:
+                  self.silence_fp_operations(op, force = force, memoization_map = memoization_map)
+              for op in optree.get_extra_inputs():
+                  self.silence_fp_operations(op, force = force, memoization_map = memoization_map)
+              if isinstance(optree, Multiplication) or isinstance(optree, Addition) or isinstance(optree, FusedMultiplyAdd) or isinstance(optree, Subtraction):
+                  if optree.get_silent() == None: optree.set_silent(True)
 
 
     def register_nodes_by_tag(self, optree, node_map = {}):
