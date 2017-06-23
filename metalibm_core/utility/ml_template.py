@@ -10,6 +10,8 @@
 # author(s): Nicolas Brunie (nicolas.brunie@kalray.eu)
 ###############################################################################
 
+""" command-line argument templates """
+
 import sys
 import argparse
 
@@ -69,6 +71,8 @@ language_map = {
 #  @param precision_str string to convert
 #  @return ML_Format intsance corresponding to the input string
 def precision_parser(precision_str):
+    """ string -> ML_Format return the precision associated
+        to a string description """
     if precision_str in precision_map:
         return precision_map[precision_str]
     else:
@@ -85,10 +89,14 @@ def precision_parser(precision_str):
 
 
 def format_list_parser(format_str):
+    """ apply precision_parser to a comma-separated list of
+        format string """
     return [precision_parser(prec_str) for prec_str in format_str.split(",")]
 
 
 def accuracy_parser(accuracy_str):
+    """ string -> Accuracry, convert an accuracy description string
+        to an accuracy object """
     if accuracy_str in accuracy_map:
         return accuracy_map[accuracy_str]
     else:
@@ -96,26 +104,29 @@ def accuracy_parser(accuracy_str):
 
 
 def interval_parser(interval_str):
+    """ string -> Interval conversion """
     return eval(interval_str)
 
-# return the Target Constructor associated with
+## return the Target Constructor associated with
 #  the string @p target_name
-
-
 def target_parser(target_name):
+    """ string -> target conversion """
     return target_map[target_name]
 # Instanciate a target object from its string description
 
 
 def target_instanciate(target_name):
+    """ instanciate target object from target string name """
     return target_parser(target_name)()
 
 
 def language_parser(language_str):
+    """ string -> Language object conversion """
     return language_map[language_str]
 
 
 class ExceptionOnErrorAction(argparse.Action):
+    """ Exception action for command-line argument """
     def __init__(self, option_strings, dest, nargs=None, **kwargs):
         if nargs is not None:
             raise ValueError("nargs not allowed")
@@ -135,7 +146,7 @@ class VerboseAction(argparse.Action):
         super(VerboseAction, self).__init__(option_strings, dest, **kwargs)
 
     def __call__(self, parser, namespace, values, option_string=None):
-        print('VerboseAction %r %r %r' % (namespace, values, option_string))
+        print 'VerboseAction %r %r %r' % (namespace, values, option_string)
         Log.enable_level(Log.Verbose)
 
 # list the available targets
@@ -183,7 +194,7 @@ class MLDebugAction(argparse.Action):
         super(MLDebugAction, self).__init__(option_strings, dest, **kwargs)
 
     def __call__(self, parser, namespace, values, option_string=None):
-        print('MLDebugAction %r %r %r' % (namespace, values, option_string))
+        print 'MLDebugAction %r %r %r' % (namespace, values, option_string)
         ml_debug_bool = bool(values)
         setattr(namespace, "ml_debug", ml_debug_bool)
         Log.set_break_on_error(ml_debug_bool)
@@ -206,7 +217,8 @@ class ArgDefault(object):
     @staticmethod
     def select(arg_list):
         arg_list = [ArgDefault(
-            arg, -1) if not isinstance(arg, ArgDefault) else arg for arg in arg_list]
+            arg, -1
+        ) if not isinstance(arg, ArgDefault) else arg for arg in arg_list]
         return min(arg_list, key=lambda v: v.get_level())
 
     @staticmethod
@@ -381,13 +393,16 @@ class ML_CommonArgTemplate(object):
       bench")
         self.parser.add_argument(
             "--auto-test-execute", dest="auto_test_execute", action="store",
-            nargs='?', const=10, type=int, default=default_arg.auto_test_execute,
-            help="enable the generation of a self-testing numerical/functionnal bench")
+            nargs='?', const=10, type=int,
+            default=default_arg.auto_test_execute,
+            help="enable the generation of a self-testing "
+                 "numerical/functionnal bench")
 
         self.parser.add_argument(
             "--auto-test-range", dest="auto_test_range", action="store",
             type=interval_parser, default=default_arg.auto_test_range,
-            help="define the range of input values to be used during functional testing")
+            help="define the range of input values to be used during "
+                 "functional testing")
 
         self.parser.add_argument(
             "--auto-test-std", dest="auto_test_std", action="store_const",
@@ -398,7 +413,8 @@ class ML_CommonArgTemplate(object):
         self.parser.add_argument(
             "--max-error", dest="compute_max_error", action="store_const",
             const=True, default=default_arg.compute_max_error,
-            help="enable the computation of the maximum error (if auto-test is enabled)")
+            help="enable the computation of the maximum error "
+                 "(if auto-test is enabled)")
         # performance bench related arguments
         self.parser.add_argument(
             "--bench", dest="bench_test_number", action="store", nargs='?',
@@ -411,7 +427,8 @@ class ML_CommonArgTemplate(object):
         self.parser.add_argument(
             "--bench-range", dest="bench_test_range", action="store",
             type=interval_parser, default=default_arg.bench_test_range,
-            help="define the interval of input values to use during performance bench")
+            help="define the interval of input values to use during "
+                  "performance bench")
 
         self.parser.add_argument(
             "--verbose", dest="verbose_enable", action=VerboseAction,
@@ -467,7 +484,8 @@ class ML_CommonArgTemplate(object):
         return self.parser
 
     # process argument to return overloadable arg_value
-    #  @p arg_value argument value (bare or encapsulated within an ArgDefault object)
+    #  @p arg_value argument value (bare or encapsulated within
+    #     an ArgDefault object)
     #  @p processing function to pre-process argument value
     def process_arg(self, arg_value, processing=lambda v: v):
         if isinstance(arg_value, ArgDefault):
@@ -481,7 +499,10 @@ class ML_CommonArgTemplate(object):
 
 # Argument template for entity object
 class ML_EntityArgTemplate(ML_CommonArgTemplate):
-    def __init__(self, default_entity_name, default_output_file="ml_entity.vhd", default_arg=DefaultEntityArgTemplate):
+    def __init__(self, default_entity_name,
+                 default_output_file="ml_entity.vhd",
+                 default_arg=DefaultEntityArgTemplate
+        ):
         parser = argparse.ArgumentParser(
             " Metalibm %s entity generation script" % default_entity_name)
         self.default_output_file = default_output_file
@@ -489,12 +510,19 @@ class ML_EntityArgTemplate(ML_CommonArgTemplate):
 
         ML_CommonArgTemplate.__init__(self, parser, default_arg=default_arg)
 
-        self.parser.add_argument("--entityname", dest="entity_name",
-                                 default=self.default_entity_name, help="set entity name")
-        self.parser.add_argument("--backend", dest="backend", action="store", type=target_instanciate,
-                                 default=default_arg.backend, help="select generation backend")
-        self.parser.add_argument("--debug-file", dest="debug_file",
-                                 action="store", help="help define output file for debug script")
+        self.parser.add_argument(
+            "--entityname", dest="entity_name",
+            default=self.default_entity_name,
+            help="set entity name"
+        )
+        self.parser.add_argument("--backend", dest="backend", action="store",
+            type=target_instanciate,
+            default=default_arg.backend, help="select generation backend"
+        )
+        self.parser.add_argument(
+            "--debug-file", dest="debug_file",
+            action="store", help="help define output file for debug script"
+        )
         self.parser.add_argument(
             "--no-exit",
             action="store_const",
@@ -504,22 +532,33 @@ class ML_EntityArgTemplate(ML_CommonArgTemplate):
             help="disable auto exit after functionnal test"
         )
 
-
 # new argument template based on argparse module
 class ML_NewArgTemplate(ML_CommonArgTemplate):
-    def __init__(self, default_function_name, default_output_file="ml_func_gen.c", default_arg=DefaultArgTemplate):
+    def __init__(
+            self, default_function_name,
+            default_output_file="ml_func_gen.c",
+            default_arg=DefaultArgTemplate
+        ):
         self.default_output_file = default_output_file
         self.default_function_name = default_function_name
 
         parser = argparse.ArgumentParser(
-            " Metalibm %s function generation script" % self.default_function_name)
+            " Metalibm %s function generation script" % \
+            self.default_function_name)
         ML_CommonArgTemplate.__init__(self, parser, default_arg=default_arg)
-        self.parser.add_argument("--libm", dest="libm_compliant", action="store_const",
-                                 const=True, default=ArgDefault(False), help="generate libm compliante code")
-        self.parser.add_argument("--fname", dest="function_name", default=ArgDefault(
-            self.default_function_name), help="set function name")
+        self.parser.add_argument(
+            "--libm", dest="libm_compliant", action="store_const",
+            const=True, default=ArgDefault(False),
+            help="generate libm compliante code"
+        )
+        self.parser.add_argument(
+            "--fname", dest="function_name", default=ArgDefault(
+            self.default_function_name), help="set function name"
+        )
         self.parser.add_argument("--target", dest="target", action="store",
-                                 type=target_instanciate, default="none", help="select generation target")
+            type=target_instanciate, default="none",
+            help="select generation target"
+        )
 
 
 class ML_ArgTemplate(object):
@@ -535,44 +574,92 @@ class ML_ArgTemplate(object):
         # argument extraction
         parse_arg = self.parse_arg if parse_arg is None else parse_arg
         self.libm_compliant = test_flag_option(
-            "--libm", True, False, parse_arg=parse_arg, help_map=self.help_map, help_str="enable libm compliance")
-        self.debug_flag = test_flag_option("--debug", True, False, parse_arg=parse_arg,
-                                           help_map=self.help_map, help_str="enable debug display in generated code")
+            "--libm", True, False, parse_arg=parse_arg,
+            help_map=self.help_map, help_str="enable libm compliance"
+        )
+        self.debug_flag = test_flag_option(
+            "--debug", True, False, parse_arg=parse_arg,
+            help_map=self.help_map,
+            help_str="enable debug display in generated code"
+        )
         target_name = extract_option_value(
-            "--target", "none", parse_arg=parse_arg, help_map=self.help_map, help_str="select target")
+            "--target", "none", parse_arg=parse_arg,
+            help_map=self.help_map, help_str="select target"
+        )
         self.fuse_fma = test_flag_option(
-            "--disable-fma", False, True, parse_arg=parse_arg, help_map=self.help_map, help_str="disable FMA fusion")
+            "--disable-fma", False, True, parse_arg=parse_arg,
+            help_map=self.help_map, help_str="disable FMA fusion"
+        )
         self.output_file = extract_option_value(
-            "--output", self.default_output_file, parse_arg=parse_arg, help_map=self.help_map, help_str="set output file")
+            "--output", self.default_output_file,
+            parse_arg=parse_arg, help_map=self.help_map,
+            help_str="set output file"
+        )
         self.function_name = extract_option_value(
-            "--fname", self.default_function_name, parse_arg=parse_arg, help_map=self.help_map, help_str="set function name")
+            "--fname", self.default_function_name,
+            parse_arg=parse_arg, help_map=self.help_map,
+            help_str="set function name"
+        )
         precision_name = extract_option_value(
-            "--precision", "binary32", parse_arg=parse_arg, help_map=self.help_map, help_str="select main precision")
-        accuracy_value = extract_option_value("--accuracy", "faithful", parse_arg=parse_arg,
-                                              processing=accuracy_parser, help_map=self.help_map, help_str="select accuracy")
+            "--precision", "binary32", parse_arg=parse_arg,
+            help_map=self.help_map, help_str="select main precision"
+        )
+        accuracy_value = extract_option_value(
+            "--accuracy", "faithful", parse_arg=parse_arg,
+            processing=accuracy_parser, help_map=self.help_map,
+            help_str="select accuracy"
+        )
         self.fast_path = test_flag_option(
-            "--no-fpe", False, True, parse_arg=parse_arg, help_map=self.help_map, help_str="disable Fast Path Extraction")
+            "--no-fpe", False, True, parse_arg=parse_arg,
+            help_map=self.help_map, help_str="disable Fast Path Extraction"
+        )
         self.dot_product_enabled = test_flag_option(
-            "--dot-product", True, False, parse_arg=parse_arg, help_map=self.help_map, help_str="enable Dot Product fusion")
+            "--dot-product", True, False, parse_arg=parse_arg,
+            help_map=self.help_map, help_str="enable Dot Product fusion"
+        )
         self.display_after_opt = test_flag_option(
-            "--display-after-opt", True, False, parse_arg=parse_arg, help_map=self.help_map, help_str="display MDL IR after optimization")
-        self.display_after_gen = test_flag_option("--display-after-gen", True, False, parse_arg=parse_arg,
-                                                  help_map=self.help_map, help_str="display MDL IR after implementation generation")
-        input_interval = extract_option_value("--input-interval", "Interval(0,1)", parse_arg=parse_arg,
-                                              processing=interval_parser, help_map=self.help_map, help_str="select input range")
-        self.vector_size = extract_option_value("--vector-size", "1", parse_arg=parse_arg, processing=lambda v: int(
-            v), help_map=self.help_map, help_str="define size of vector (1: scalar implemenation)")
-        self.language = extract_option_value("--language", "c", parse_arg=parse_arg, processing=lambda v:
-                                             language_map[v], help_map=self.help_map, help_str="select language for generated source code")
+            "--display-after-opt", True, False, parse_arg=parse_arg,
+            help_map=self.help_map, help_str="display MDL IR after optimization"
+        )
+        self.display_after_gen = test_flag_option(
+            "--display-after-gen", True, False, parse_arg=parse_arg,
+            help_map=self.help_map,
+            help_str="display MDL IR after implementation generation"
+        )
+        input_interval = extract_option_value(
+            "--input-interval", "Interval(0,1)", parse_arg=parse_arg,
+            processing=interval_parser, help_map=self.help_map,
+            help_str="select input range"
+        )
+        self.vector_size = extract_option_value(
+            "--vector-size", "1", parse_arg=parse_arg,
+            processing=lambda v: int(v),
+            help_map=self.help_map,
+            help_str="define size of vector (1: scalar implemenation)"
+        )
+        self.language = extract_option_value(
+            "--language", "c", parse_arg=parse_arg,
+            processing=lambda v: language_map[v], help_map=self.help_map,
+            help_str="select language for generated source code"
+        )
 
-        self.auto_test = test_flag_option("--auto-test", True, False, parse_arg=parse_arg, help_map=self.help_map,
-                                          help_str="enable the generation of a self-testing numerical/functionnal bench")
+        self.auto_test = test_flag_option(
+            "--auto-test", True, False, parse_arg=parse_arg,
+            help_map=self.help_map,
+            help_str="enable the generation of a self-testing "\
+                     "numerical/functionnal bench"
+            )
 
         verbose_enable = test_flag_option(
-            "--verbose", True, False, parse_arg=parse_arg, help_map=self.help_map, help_str="enable Verbose log level")
+            "--verbose", True, False, parse_arg=parse_arg,
+            help_map=self.help_map, help_str="enable Verbose log level"
+        )
 
-        exception_on_error = test_flag_option("--exception-error", True, False, parse_arg=parse_arg, help_map=self.help_map,
-                                              help_str="convert Fatal error to python Exception rather than straight sys exit")
+        exception_on_error = test_flag_option(
+            "--exception-error", True, False, parse_arg=parse_arg,
+            help_map=self.help_map,
+            help_str="convert Fatal error to python Exception rather "\
+                     "than straight sys exit")
 
         if exception_on_error:
             Log.exit_on_error = False
@@ -599,20 +686,30 @@ class ML_ArgTemplate(object):
         spacew = max(len(o) for o in self.help_map)
         print "option list:"
         for option_name in self.help_map:
-            print "  %s %s %s" % (option_name, " " * (spacew - len(option_name)), self.help_map[option_name])
+            print "  %s %s %s" % (
+                option_name, " " * (spacew - len(option_name)),
+                self.help_map[option_name]
+            )
 
     def check_args(self, parse_arg, exit_on_info=True):
         """ check that all options on command line have been parse
             and display info messages """
-        help_flag = test_flag_option("--help", True, False, parse_arg=parse_arg,
-                                     help_map=self.help_map, help_str="display this message")
-        target_info_flag = test_flag_option("--target-info", True, False, parse_arg=parse_arg,
-                                            help_map=self.help_map, help_str="display the list of supported targets")
+        help_flag = test_flag_option(
+            "--help", True, False, parse_arg=parse_arg,
+            help_map=self.help_map, help_str="display this message"
+        )
+        target_info_flag = test_flag_option(
+            "--target-info", True, False, parse_arg=parse_arg,
+            help_map=self.help_map,
+            help_str="display the list of supported targets"
+        )
         for i in xrange(1, len(sys.argv)):
             if not i in parse_arg:
                 self.display_help()
                 Log.report(
-                    Log.Error, "unknown command line argument: %s" % sys.argv[i])
+                    Log.Error,
+                    "unknown command line argument: %s" % sys.argv[i]
+                )
         if help_flag:
             self.display_help()
             if exit_on_info:
@@ -621,7 +718,10 @@ class ML_ArgTemplate(object):
         if target_info_flag:
             spacew = max(len(v) for v in target_map)
             for target_name in target_map:
-                print "%s: %s %s " % (target_name, " " * (spacew - len(target_name)), target_map[target_name])
+                print "%s: %s %s " % (
+                    target_name, " " * (spacew - len(target_name)),
+                    target_map[target_name]
+                )
             if exit_on_info:
                 sys.exit(0)
                 return None
