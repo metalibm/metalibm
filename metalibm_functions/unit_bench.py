@@ -1,30 +1,39 @@
 # -*- coding: utf-8 -*-
 
+""" Unitary bench to infer micro-architecture
+    performance measurement """
+
 import random
 
 import sollya
 
 from sollya import (
-    S2, Interval, ceil, floor, round, inf, sup, pi, log, exp, cos, sin,
+    S2, Interval, ceil, floor, inf, sup, pi, log, exp, cos, sin,
     guessdegree, dirtyinfnorm
 )
 
-from metalibm_core.core.ml_function import ML_Function, ML_FunctionBasis, DefaultArgTemplate
+from metalibm_core.core.ml_function import (
+    ML_Function, ML_FunctionBasis, DefaultArgTemplate
+)
 
 from metalibm_core.core.attributes import ML_Debug
 from metalibm_core.core.ml_operations import *
 from metalibm_core.core.ml_formats import *
 from metalibm_core.core.polynomials import *
 from metalibm_core.core.ml_table import ML_NewTable
-from metalibm_core.code_generation.generator_utility import FunctionOperator, FO_Result, FO_Arg
+from metalibm_core.code_generation.generator_utility import (
+    FunctionOperator, FO_Result, FO_Arg
+)
 
-from metalibm_core.utility.ml_template import ML_NewArgTemplate, ArgDefault, precision_parser
+from metalibm_core.utility.ml_template import (
+    ML_NewArgTemplate, ArgDefault, precision_parser
+)
 from metalibm_core.utility.log_report import Log
 from metalibm_core.utility.debug_utils import *
 from metalibm_core.utility.num_utils import ulp
 
 
-class OpUnitBench:
+class OpUnitBench(object):
     # @param op_class Operation class (to build new operation instance)
     #  @param op_arity Number of arguments expected by the operation
     #  @param init_interval Range of the first arguments to the operation
@@ -32,7 +41,12 @@ class OpUnitBench:
     #         result of a series of Operation to avoid overflow / underflow
     #  @param output_precision format of the operation output
     #  @param input_precisions list of input operand formats
-    def __init__(self, op_class, bench_name, op_arity=2, init_interval=Interval(-0.5, 0.5), renorm_function=lambda x: x, output_precision=ML_Binary32, input_precisions=[ML_Binary32, ML_Binary32]):
+    def __init__(
+            self, op_class, bench_name, op_arity=2,
+            init_interval=Interval(-0.5, 0.5),
+            renorm_function=lambda x: x, output_precision=ML_Binary32,
+            input_precisions=[ML_Binary32, ML_Binary32]
+        ):
         self.op_class = op_class
         self.op_arity = op_arity
         self.init_interval = init_interval
@@ -52,13 +66,16 @@ class OpUnitBench:
             ) for i, precision in enumerate(self.input_precisions)
         ]
 
-        var_inputs = [Variable("var_%d" % i, precision=precision, var_type=Variable.Local)
-                      for i, precision in enumerate(self.input_precisions)]
+        var_inputs = [
+            Variable("var_%d" % i, precision=precision, var_type=Variable.Local)
+            for i, precision in enumerate(self.input_precisions)
+        ]
 
         printf_timing_op = FunctionOperator(
             "printf",
             arg_map={
-                0: "\"%s[%s] %%lld elts computed in %%lld cycles => %%.3f CPE \\n\"" %
+                0: "\"%s[%s] %%lld elts computed "\
+                   "in %%lld cycles => %%.3f CPE \\n\"" %
                 (
                     self.bench_name,
                     self.output_precision.get_display_format()
@@ -158,7 +175,7 @@ class OpUnitBench:
         return test_scheme
 
 
-operator_bench_list = [
+OPERATOR_BENCH_LIST = [
     lambda precision:
     OpUnitBench(Addition, "Addition %s" % precision, 2, Interval(-1, 1),
                 output_precision=precision, input_precisions=[precision] * 2),
@@ -166,26 +183,39 @@ operator_bench_list = [
     OpUnitBench(Subtraction, "Subtraction %s" % precision, 2, Interval(-1, 1),
                 output_precision=precision, input_precisions=[precision] * 2),
     lambda precision:
-    OpUnitBench(Multiplication, "Multiplication %s" % precision, 2, Interval(
-        0.9999, 1.0001), output_precision=precision, input_precisions=[precision] * 2),
+    OpUnitBench(
+        Multiplication, "Multiplication %s" % precision, 2,
+        Interval(0.9999, 1.0001),
+        output_precision=precision, input_precisions=[precision] * 2
+    ),
     lambda precision:
     OpUnitBench(Division, "Division %s" %
                 precision, 2, Interval(0.9999, 1.0001)),
 ]
 
-int_operator_bench_list = [
+INT_OPERATOR_BENCH_LIST = [
     lambda precision:
     OpUnitBench(Addition, "Addition %s" % precision, 2, Interval(-1000, 100),
                 output_precision=precision, input_precisions=[precision] * 2),
     lambda precision:
-    OpUnitBench(Subtraction, "Subtraction %s" % precision, 2, Interval(-1000,
-                                                                       1000), output_precision=precision, input_precisions=[precision] * 2),
+    OpUnitBench(
+        Subtraction, "Subtraction %s" % precision, 2, Interval(-1000, 1000),
+        output_precision=precision, input_precisions=[precision] * 2
+    ),
     lambda precision:
-    OpUnitBench(Multiplication, "Multiplication %s" % precision, 2, Interval(-1000,
-                                                                             1000), output_precision=precision, input_precisions=[precision] * 2),
+    OpUnitBench(
+        Multiplication, "Multiplication %s" % precision, 2,
+        Interval(-1000, 1000), output_precision=precision,
+        input_precisions=[precision] * 2
+    ),
     lambda precision:
-    OpUnitBench(Division, "Division %s" % precision, 2, Interval(- 2 **
-                                                                 (precision.get_size() - 1), 2**(precision.get_size() - 1))),
+    OpUnitBench(
+        Division, "Division %s" % precision, 2,
+        Interval(
+            - S2** (precision.get_bit_size() - 1),
+              S2**(precision.get_bit_size() - 1)
+        )
+    ),
 ]
 
 
@@ -207,16 +237,10 @@ class ML_UnitBench(ML_Function("ml_external_bench")):
                                   arity=arity,
                                   arg_template=arg_template
                                   )
-        # initializing I/O precision
-
-        self.headers = arg_template.headers
-        self.libraries = arg_template.libraries
-        self.bench_function_name = arg_template.bench_function_name
         # number of basic iteration
         self.test_num = arg_template.test_num
         self.unroll_factor = arg_template.unroll_factor
 
-        self.emulate = arg_template.emulate
 
     @staticmethod
     def get_default_args(**kw):
@@ -237,49 +261,40 @@ class ML_UnitBench(ML_Function("ml_external_bench")):
         bench_statement = Statement()
         # floating-point bench
         for precision in [ML_Binary32, ML_Binary64]:
-            for op_bench in operator_bench_list:
+            for op_bench in OPERATOR_BENCH_LIST:
                 bench_statement.add(op_bench(precision).generate_bench(
                     self.processor, test_num, unroll_factor))
         # integer bench
         for precision in [ML_Int32, ML_Int64]:
-            for op_bench in operator_bench_list:
+            for op_bench in INT_OPERATOR_BENCH_LIST:
                 bench_statement.add(op_bench(precision).generate_bench(
                     self.processor, test_num, unroll_factor))
         bench_statement.add(Return(0))
 
         return bench_statement
 
-    def numeric_emulate(self, *args):
-        return self.emulate(*args)
 
 
 if __name__ == "__main__":
     # auto-test
     arg_template = ML_NewArgTemplate(
-        default_function_name="main", default_output_file="bench.c", default_arg=ML_UnitBench.get_default_args())
+        default_function_name="main", default_output_file="bench.c",
+        default_arg=ML_UnitBench.get_default_args())
 
     def precision_list_parser(s):
         return [precision_parser(p) for p in s.split(",")]
 
     # argument extraction
-    arg_template.get_parser().add_argument("--function", dest="bench_function_name",
-                                           default="expf", action="store", type=str, help="name of the function to be benched")
-    #arg_template.get_parser().add_argument("--input-formats", dest = "input_formats", default = [ML_Binary32], action = "store", type = precision_list_parser, help = "comma separated list of input precision")
-    arg_template.get_parser().add_argument("--test-num", dest="test_num", default=10000,
-                                           action="store", type=int, help="number of basic iteration")
-    arg_template.get_parser().add_argument("--unroll-factor", dest="unroll_factor",
-                                           default=10, action="store", type=int, help="number of basic iteration")
-    arg_template.get_parser().add_argument("--headers", dest="headers", default=[], action="store",
-                                           type=lambda s: s.split(","), help="comma separated list of required headers")
-    arg_template.get_parser().add_argument("--libraries", dest="libraries", default=[], action="store",
-                                           type=lambda s: s.split(","), help="comma separated list of required libraries")
-
-    def local_eval(s):
-        return eval(s)
-    arg_template.get_parser().add_argument("--emulate", dest="emulate", default=lambda x: x,
-                                           action="store", type=local_eval, help="function numeric emulation")
+    arg_template.get_parser().add_argument(
+        "--test-num", dest="test_num", default=10000,
+        action="store", type=int, help="number of basic iteration"
+    )
+    arg_template.get_parser().add_argument(
+        "--unroll-factor", dest="unroll_factor",
+        default=10, action="store", type=int, help="number of basic iteration"
+    )
 
     args = arg_template.arg_extraction()
 
-    ml_sincos = ML_UnitBench(args)
-    ml_sincos.gen_implementation()
+    ml_unit_bench = ML_UnitBench(args)
+    ml_unit_bench.gen_implementation()
