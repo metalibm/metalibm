@@ -41,14 +41,14 @@ class OpUnitBench:
     self.bench_name       = bench_name
 
   ## generate bench  
-  def generate_bench(self, test_num = 1000, unroll_factor = 10): 
+  def generate_bench(self, processor, test_num = 1000, unroll_factor = 10): 
     initial_inputs = [
       Constant(
         random.uniform(
           inf(self.init_interval),
           sup(self.init_interval)
         ), precision = precision
-      ) for i in xrange(self.op_arity)
+      ) for i, precision in enumerate(self.input_precisions)
     ]
 
     var_inputs = [Variable("var_%d" % i, precision = precision, var_type = Variable.Local) for i, precision in enumerate(self.input_precisions)]
@@ -97,11 +97,11 @@ class OpUnitBench:
     # Goal build a chain of dependant operation to measure
     # elementary operation latency
     local_inputs  = tuple(var_inputs)
-    local_result = operation(*local_inputs, precision = self.output_precision)
+    local_result = self.op_class(*local_inputs, precision = self.output_precision)
     input_list = var_inputs
     for i in xrange(unroll_factor - 1):
       local_inputs = tuple([local_result] + var_inputs[1:])
-      local_result = operation(*local_inputs, precision = self.output_precision)
+      local_result = self.op_class(*local_inputs, precision = self.output_precision)
     # renormalisation
     local_result = self.renorm_function(local_result)
 
@@ -124,13 +124,13 @@ class OpUnitBench:
 
     # bench scheme
     test_scheme = Statement(
-      ReferenceAssign(timer, self.processor.get_current_timestamp()),
+      ReferenceAssign(timer, processor.get_current_timestamp()),
       init_assign,
       test_loop,
 
       ReferenceAssign(timer, 
         Subtraction(
-          self.processor.get_current_timestamp(),
+          processor.get_current_timestamp(),
           timer,
           precision = ML_Int64
         )
@@ -146,18 +146,33 @@ class OpUnitBench:
           Constant(test_num, precision = ML_Binary64),
           precision = ML_Binary64
         )
-      ),
-      Return(Constant(0, precision = ML_Int32))
+      )
+      # ,Return(Constant(0, precision = ML_Int32))
     )
 
     return test_scheme
 
-operator_bench_map = {
-  Addition:       OpUnitBench(Addition, 2, Interval(-0.1, 0.1)),
-  Subtraction:    OpUnitBench(Addition, 2, Interval(-0.1, 0.1)),
-  Multiplication: OpUnitBench(Addition, 2, Interval(0.9999, 1.0001)),
-  Division:       OpUnitBench(Addition, 2, Interval(0.9999, 1.0001)),
-}
+operator_bench_list = [
+  lambda precision: 
+    OpUnitBench(Addition, "Addition %s" % precision, 2, Interval(-1, 1), output_precision = precision, input_precisions = [precision]*2),
+  lambda precision: 
+    OpUnitBench(Subtraction, "Subtraction %s" % precision, 2, Interval(-1, 1), output_precision = precision, input_precisions = [precision]*2),
+  lambda precision: 
+    OpUnitBench(Multiplication, "Multiplication %s" % precision, 2, Interval(0.9999, 1.0001), output_precision = precision, input_precisions = [precision]*2),
+  lambda precision: 
+    OpUnitBench(Division, "Division %s" % precision, 2, Interval(0.9999, 1.0001)),
+]
+
+int_operator_bench_list = [
+  lambda precision: 
+    OpUnitBench(Addition, "Addition %s" % precision, 2, Interval(-1000, 100), output_precision = precision, input_precisions = [precision]*2),
+  lambda precision: 
+    OpUnitBench(Subtraction, "Subtraction %s" % precision, 2, Interval(-1000, 1000), output_precision = precision, input_precisions = [precision]*2),
+  lambda precision: 
+    OpUnitBench(Multiplication, "Multiplication %s" % precision, 2, Interval(-1000, 1000), output_precision = precision, input_precisions = [precision]*2),
+  lambda precision: 
+    OpUnitBench(Division, "Division %s" % precision, 2, Interval(- 2** (precision.get_size() -1), 2**(precision.get_size() - 1))),
+]
 
 
 
@@ -205,87 +220,18 @@ class ML_UnitBench(ML_Function("ml_external_bench")):
     unroll_factor = self.unroll_factor
     test_num      = self.test_num
 
-    initial_inputs = [Constant(random.uniform(0.99999, 1.0001), precision = precision) 
-                       for i in xrange(arity)]
+    bench_statement = Statement()
+    # floating-point bench
+    for precision in [ML_Binary32, ML_Binary64]:
+      for op_bench in operator_bench_list:
+        bench_statement.add(op_bench(precision).generate_bench(self.processor, test_num, unroll_factor))
+    # integer bench        
+    for precision in [ML_Int32, ML_Int64]:
+      for op_bench in operator_bench_list:
+        bench_statement.add(op_bench(precision).generate_bench(self.processor, test_num, unroll_factor))
+    bench_statement.add(Return(0))
 
-    var_inputs = [Variable("var_%d" % i, precision = precision, var_type = Variable.Local) for i in xrange(arity)]
-
-    printf_timing_op = FunctionOperator("printf", arg_map = {0: "\"%s[%s] %%lld elts computed in %%lld cycles => %%.3f CPE \\n\"" % (function_name, precision.get_display_format()), 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2), 4: FO_Arg(3)}, void_function = True) 
-    printf_timing_function = FunctionObject("printf", [precision, ML_Int64, ML_Int64, ML_Binary64], ML_Void, printf_timing_op)
-    timer = Variable("timer", precision = ML_Int64, var_type = Variable.Local)
-
-    void_function_op = FunctionOperator("(void)", arity = 1, void_function = True)
-    void_function    = FunctionObject("(void)", [precision], ML_Void, void_function_op)
-
-    # test loop
-    vi = Variable("i", precision = ML_Int64, var_type = Variable.Local)
-    test_num_cst = Constant(test_num / unroll_factor, precision = ML_Int64, tag = "test_num")
-
-    # Goal build a chain of dependant operation to measure
-    # elementary operation latency
-    local_inputs  = tuple(var_inputs)
-    local_result = operation(*local_inputs, precision = precision)
-    input_list = var_inputs
-    for i in xrange(unroll_factor - 1):
-      local_inputs = tuple([local_result] + var_inputs[1:])
-      local_result = operation(*local_inputs, precision = precision)
-    # renormalisation
-    #renorm_factor = ExponentInsertion(
-    #  - ExponentExtraction(local_result, precision = ML_Int32),
-    #  precision = precision
-    #)
-    #local_result = Multiplication(renorm_factor, local_result, precision = precision)
-
-    var_assign = Statement()
-    init_assign = Statement()
-    var_assign.push(ReferenceAssign(var_inputs[0], local_result))
-    final_value = var_inputs[0]
-
-    for var_input, init_value in zip(var_inputs, initial_inputs):
-      init_assign.push(ReferenceAssign(var_input, init_value))
-
-    loop_increment = 1
-
-    test_loop = Loop(
-      ReferenceAssign(vi, Constant(0, precision = ML_Int32)),
-      vi < test_num_cst,
-      Statement(
-        var_assign,
-        ReferenceAssign(vi, vi + loop_increment)
-      ),
-    )
-
-    # bench scheme
-    test_scheme = Statement(
-      ReferenceAssign(timer, self.processor.get_current_timestamp()),
-      init_assign,
-      test_loop,
-
-
-
-      ReferenceAssign(timer, 
-        Subtraction(
-          self.processor.get_current_timestamp(),
-          timer,
-          precision = ML_Int64
-        )
-      ),
-      # prevent intermediary variable simplification
-      void_function(final_value),
-      printf_timing_function(
-        final_value,
-        Constant(test_num, precision = ML_Int64),
-        timer,
-        Division(
-          Conversion(timer, precision = ML_Binary64),
-          Constant(test_num, precision = ML_Binary64),
-          precision = ML_Binary64
-        )
-      ),
-      Return(Constant(0, precision = ML_Int32))
-    )
-
-    return test_scheme
+    return bench_statement
 
 
   def numeric_emulate(self, *args):
