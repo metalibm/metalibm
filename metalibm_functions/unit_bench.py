@@ -5,35 +5,34 @@
 
 import random
 
-import sollya
-
 from sollya import (
-    S2, Interval, ceil, floor, inf, sup, pi, log, exp, cos, sin,
-    guessdegree, dirtyinfnorm
+    S2, Interval, inf, sup
 )
 
 from metalibm_core.core.ml_function import (
     ML_Function, ML_FunctionBasis, DefaultArgTemplate
 )
 
-from metalibm_core.core.attributes import ML_Debug
-from metalibm_core.core.ml_operations import *
-from metalibm_core.core.ml_formats import *
-from metalibm_core.core.polynomials import *
-from metalibm_core.core.ml_table import ML_NewTable
+from metalibm_core.core.ml_operations import (
+    Statement, ReferenceAssign, Constant, Loop, Variable,
+    FunctionObject, Subtraction, Division, Conversion,
+    Return
+)
+import metalibm_core.core.ml_operations as metaop
+from metalibm_core.core.ml_formats import (
+    ML_Binary64, ML_Binary32, ML_Int32, ML_Int64, ML_Void
+)
 from metalibm_core.code_generation.generator_utility import (
-    FunctionOperator, FO_Result, FO_Arg
+    FunctionOperator, FO_Arg
 )
 
 from metalibm_core.utility.ml_template import (
-    ML_NewArgTemplate, ArgDefault, precision_parser
+    ML_NewArgTemplate,
 )
-from metalibm_core.utility.log_report import Log
-from metalibm_core.utility.debug_utils import *
-from metalibm_core.utility.num_utils import ulp
 
 
 class OpUnitBench(object):
+    """ Operation Unitary Bench class """
     # @param op_class Operation class (to build new operation instance)
     #  @param op_arity Number of arguments expected by the operation
     #  @param init_interval Range of the first arguments to the operation
@@ -47,6 +46,7 @@ class OpUnitBench(object):
             renorm_function=lambda x: x, output_precision=ML_Binary32,
             input_precisions=[ML_Binary32, ML_Binary32]
         ):
+        """ OpUnitBench ctor """
         self.op_class = op_class
         self.op_arity = op_arity
         self.init_interval = init_interval
@@ -57,6 +57,7 @@ class OpUnitBench(object):
 
     # generate bench
     def generate_bench(self, processor, test_num=1000, unroll_factor=10):
+        """ generate performance bench for self.op_class """
         initial_inputs = [
             Constant(
                 random.uniform(
@@ -102,12 +103,12 @@ class OpUnitBench(object):
         )
 
         # initialization of operation inputs
-        init_assign = Statement()
+        init_assign = metaop.Statement()
         for var_input, init_value in zip(var_inputs, initial_inputs):
             init_assign.push(ReferenceAssign(var_input, init_value))
 
         # test loop
-        vi = Variable("i", precision=ML_Int64, var_type=Variable.Local)
+        loop_i = Variable("i", precision=ML_Int64, var_type=Variable.Local)
         test_num_cst = Constant(
             test_num / unroll_factor,
             precision=ML_Int64,
@@ -119,7 +120,6 @@ class OpUnitBench(object):
         local_inputs = tuple(var_inputs)
         local_result = self.op_class(
             *local_inputs, precision=self.output_precision)
-        input_list = var_inputs
         for i in xrange(unroll_factor - 1):
             local_inputs = tuple([local_result] + var_inputs[1:])
             local_result = self.op_class(
@@ -136,11 +136,11 @@ class OpUnitBench(object):
         loop_increment = 1
 
         test_loop = Loop(
-            ReferenceAssign(vi, Constant(0, precision=ML_Int32)),
-            vi < test_num_cst,
+            ReferenceAssign(loop_i, Constant(0, precision=ML_Int32)),
+            loop_i < test_num_cst,
             Statement(
                 var_assign,
-                ReferenceAssign(vi, vi + loop_increment)
+                ReferenceAssign(loop_i, loop_i + loop_increment)
             ),
         )
 
@@ -177,40 +177,46 @@ class OpUnitBench(object):
 
 OPERATOR_BENCH_LIST = [
     lambda precision:
-    OpUnitBench(Addition, "Addition %s" % precision, 2, Interval(-1, 1),
-                output_precision=precision, input_precisions=[precision] * 2),
-    lambda precision:
-    OpUnitBench(Subtraction, "Subtraction %s" % precision, 2, Interval(-1, 1),
-                output_precision=precision, input_precisions=[precision] * 2),
+    OpUnitBench(
+        metaop.Addition, "Addition %s" % precision, 2, Interval(-1, 1),
+        output_precision=precision, input_precisions=[precision] * 2
+    ),
     lambda precision:
     OpUnitBench(
-        Multiplication, "Multiplication %s" % precision, 2,
+        metaop.Subtraction, "Subtraction %s" % precision, 2, Interval(-1, 1),
+        output_precision=precision, input_precisions=[precision] * 2),
+    lambda precision:
+    OpUnitBench(
+        metaop.Multiplication, "Multiplication %s" % precision, 2,
         Interval(0.9999, 1.0001),
         output_precision=precision, input_precisions=[precision] * 2
     ),
     lambda precision:
-    OpUnitBench(Division, "Division %s" %
-                precision, 2, Interval(0.9999, 1.0001)),
+    OpUnitBench(
+        metaop.Division, "Division %s" %
+        precision, 2, Interval(0.9999, 1.0001)),
 ]
 
 INT_OPERATOR_BENCH_LIST = [
     lambda precision:
-    OpUnitBench(Addition, "Addition %s" % precision, 2, Interval(-1000, 100),
-                output_precision=precision, input_precisions=[precision] * 2),
+    OpUnitBench(
+        metaop.Addition, "Addition %s" % precision, 2, Interval(-1000, 100),
+        output_precision=precision, input_precisions=[precision] * 2),
     lambda precision:
     OpUnitBench(
-        Subtraction, "Subtraction %s" % precision, 2, Interval(-1000, 1000),
+        metaop.Subtraction, "Subtraction %s" % precision, 2,
+        Interval(-1000, 1000),
         output_precision=precision, input_precisions=[precision] * 2
     ),
     lambda precision:
     OpUnitBench(
-        Multiplication, "Multiplication %s" % precision, 2,
+        metaop.Multiplication, "Multiplication %s" % precision, 2,
         Interval(-1000, 1000), output_precision=precision,
         input_precisions=[precision] * 2
     ),
     lambda precision:
     OpUnitBench(
-        Division, "Division %s" % precision, 2,
+        metaop.Division, "Division %s" % precision, 2,
         Interval(
             - S2** (precision.get_bit_size() - 1),
               S2**(precision.get_bit_size() - 1)
@@ -219,7 +225,7 @@ INT_OPERATOR_BENCH_LIST = [
 ]
 
 
-class ML_UnitBench(ML_Function("ml_external_bench")):
+class UnitBench(ML_Function("ml_external_bench")):
     """ Implementation of external bench function wrapper """
 
     def __init__(self,
@@ -244,6 +250,7 @@ class ML_UnitBench(ML_Function("ml_external_bench")):
 
     @staticmethod
     def get_default_args(**kw):
+        """ generate default argument structure for OpUnitBench """
         default_values = {
             "precision": ML_Int32,
         }
@@ -251,14 +258,13 @@ class ML_UnitBench(ML_Function("ml_external_bench")):
         return DefaultArgTemplate(**default_values)
 
     def generate_scheme(self):
-        operation = Multiplication
-        function_name = "Addition"
-        precision = ML_Binary32
-        arity = 2
+        """ generate an operation unitary bench test scheme
+            (graph of operation implementing latency computation
+             on a dependent sequence of self.op_class)"""
         unroll_factor = self.unroll_factor
         test_num = self.test_num
 
-        bench_statement = Statement()
+        bench_statement = metaop.Statement()
         # floating-point bench
         for precision in [ML_Binary32, ML_Binary64]:
             for op_bench in OPERATOR_BENCH_LIST:
@@ -279,10 +285,8 @@ if __name__ == "__main__":
     # auto-test
     arg_template = ML_NewArgTemplate(
         default_function_name="main", default_output_file="bench.c",
-        default_arg=ML_UnitBench.get_default_args())
+        default_arg=UnitBench.get_default_args())
 
-    def precision_list_parser(s):
-        return [precision_parser(p) for p in s.split(",")]
 
     # argument extraction
     arg_template.get_parser().add_argument(
@@ -294,7 +298,6 @@ if __name__ == "__main__":
         default=10, action="store", type=int, help="number of basic iteration"
     )
 
-    args = arg_template.arg_extraction()
-
-    ml_unit_bench = ML_UnitBench(args)
-    ml_unit_bench.gen_implementation()
+    ARGS = arg_template.arg_extraction()
+    ML_UNIT_BENCH = UnitBench(ARGS)
+    ML_UNIT_BENCH.gen_implementation()
