@@ -374,8 +374,24 @@ sse41_c_code_generation_table = {
     },
 }
 
+#rdtsc_operator = AsmInlineOperator(
+#  "__asm volatile ( \"xor %%%%eax, %%%%eax\\n\"\n \"CPUID\\n\" \n\"rdtsc\\n\"\n : \"=A\"(%s));",
+#  arg_map = {0: FO_Result(0)},
+#  arity = 0
+#)
+
 rdtsc_operator = AsmInlineOperator(
-  "__asm volatile (\"rdtsc\" : \"=A\"(%s));",
+"""{
+    uint32_t cycles_hi = 0, cycles_lo = 0;
+    asm volatile (
+  "cpuid\\n\\t"
+   "rdtsc\\n\\t"
+   "mov %%%%edx, %%0\\n\\t"
+   "mov %%%%eax, %%1\\n\\t"
+   : "=r" (cycles_hi), "=r" (cycles_lo)
+   :: "%%rax", "%%rbx", "%%rcx", "%%rdx");
+   %s = ((uint64_t) cycles_hi << 32) | cycles_lo;
+   }""",
   arg_map = {0: FO_Result(0)},
   arity = 0
 )
