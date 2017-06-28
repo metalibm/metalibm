@@ -530,6 +530,10 @@ class X86_AVX2_Processor(X86_SSE41_Processor):
                                       ML_SSE_m128_v4int32):
                     ImmIntrin("_mm_sllv_epi32", arity = 2,
                               arg_map = {0: FO_Arg(0), 1: FO_Arg(1)}),
+                    type_strict_match(ML_AVX_m256_v8int32,
+                                      ML_AVX_m256_v8int32,
+                                      ML_AVX_m256_v8int32):
+                    ImmIntrin("_mm256_sllv_epi32", arity = 2),
                     },
                 },
             },
@@ -541,6 +545,10 @@ class X86_AVX2_Processor(X86_SSE41_Processor):
                                       ML_SSE_m128_v4int32):
                     ImmIntrin("_mm_srlv_epi32", arity = 2,
                               arg_map = {0: FO_Arg(0), 1: FO_Arg(1)}),
+                    type_strict_match(ML_AVX_m256_v8int32,
+                                      ML_AVX_m256_v8int32,
+                                      ML_AVX_m256_v8int32):
+                    ImmIntrin("_mm256_srlv_epi32", arity = 2),
                     },
                 },
             },
@@ -552,6 +560,10 @@ class X86_AVX2_Processor(X86_SSE41_Processor):
                                       ML_SSE_m128_v4int32):
                     ImmIntrin("_mm_srav_epi32", arity = 2,
                               arg_map = {0: FO_Arg(0), 1: FO_Arg(1)}),
+                    type_strict_match(ML_AVX_m256_v8int32,
+                                      ML_AVX_m256_v8int32,
+                                      ML_AVX_m256_v8int32):
+                    ImmIntrin("_mm256_srav_epi32", arity = 2),
                     },
                 },
             },
