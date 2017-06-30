@@ -165,7 +165,7 @@ class ML_Log(ML_Function("ml_log")):
     sollya_function = log(1 + sollya.x)
     arg_red_mag = 2**(-table_index_size)
     approx_interval = Interval(-arg_red_mag, arg_red_mag)
-    max_eps = 2**-(self.precision.get_field_size() * 3)
+    max_eps = 2**-(self.precision.get_field_size() + 10)
     print "max acceptable error for polynomial = {}".format(float.hex(max_eps))
     poly_degree = sup(
             guessdegree(
