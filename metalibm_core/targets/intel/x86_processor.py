@@ -26,7 +26,7 @@ from metalibm_core.targets.common.vector_backend import VectorBackend
 ML_SSE_m128_v1float32  = ML_FormatConstructor(128, "__m128",  None, lambda v: None)
 ## format for packed 4 fp32 in a XMM 128-bit register
 ML_SSE_m128_v4float32  = ML_FormatConstructor(128, "__m128",  None, lambda v: None)
-## format for packed 1 fp64 in a XMM 128-bit register
+## format for single 1 fp64 in a XMM 128-bit register
 ML_SSE_m128_v1float64 = ML_FormatConstructor(128, "__m128d", None, lambda v: None)
 ## format for packed 2 fp64 in a XMM 128-bit register
 ML_SSE_m128_v2float64 = ML_FormatConstructor(128, "__m128d", None, lambda v: None)
@@ -34,6 +34,10 @@ ML_SSE_m128_v2float64 = ML_FormatConstructor(128, "__m128d", None, lambda v: Non
 ML_SSE_m128_v1int32  = ML_FormatConstructor(128, "__m128i",  None, lambda v: None)
 ## format for packed 4 int32 in a XMM 128-bit register
 ML_SSE_m128_v4int32  = ML_FormatConstructor(128, "__m128i",  None, lambda v: None)
+## format for single 1 int64 in a XMM 128-bit register
+ML_SSE_m128_v1int64  = ML_FormatConstructor(128, "__m128i",  None, lambda v: None)
+## format for packed 2 int64 in a XMM 128-bit register
+ML_SSE_m128_v2int64  = ML_FormatConstructor(128, "__m128i",  None, lambda v: None)
 
 ## format for packed 8 fp32 in a YMM 256-bit register
 ML_AVX_m256_v8float32 = ML_FormatConstructor(256, "__m256",  None, lambda v: None)
@@ -41,6 +45,8 @@ ML_AVX_m256_v8float32 = ML_FormatConstructor(256, "__m256",  None, lambda v: Non
 ML_AVX_m256_v4float64 = ML_FormatConstructor(256, "__m256d", None, lambda v: None)
 ## format for packed 8 int32 in a YMM 256-bit register
 ML_AVX_m256_v8int32   = ML_FormatConstructor(256, "__m256i", None, lambda v: None)
+## format for packed 4 int64 in a YMM 256-bit register
+ML_AVX_m256_v4int64   = ML_FormatConstructor(256, "__m256i", None, lambda v: None)
 
 # Conversion function from any float to a float packed into a __m128 register
 _mm_set_ss = FunctionOperator("_mm_set_ss", arity = 1, force_folding = True, output_precision = ML_SSE_m128_v1float32, require_header = ["xmmintrin.h"])
@@ -145,8 +151,11 @@ def x86_fma_intr_builder_native(intr_name, output_precision = ML_SSE_m128_v1floa
                              output_precision = output_precision,
                              require_header = ["immintrin.h"]
                              )
-def x86_fmad_intr_builder_native(intr_name):
-    return FunctionOperator(intr_name, arity = 3, output_precision = ML_SSE_m128_v1float64, require_header = ["immintrin.h"])
+def x86_fmad_intr_builder_native(intr_name, output_precision = ML_SSE_m128_v1float64):
+    return FunctionOperator(intr_name, arity = 3,
+                            output_precision = output_precision,
+                            require_header = ["immintrin.h"]
+                            )
 
 ## Convert a v4 to m128 conversion optree
 def v4_to_m128_modifier(optree):
@@ -323,9 +332,10 @@ sse2_c_code_generation_table = {
       None: {
         lambda _: True: {
           type_strict_match(ML_SSE_m128_v4int32, ML_SSE_m128_v4int32):
-          ImmIntrin("_mm_andnot_si128", arity = 2,
-                    arg_map = { 0: FO_Arg(0),
-                                1: FO_Value(-1, ML_SSE_m128_v4int32) }),
+          ImmIntrin("_mm_andnot_si128", arity = 2)(
+              FO_Arg(0),
+              FO_Value("_mm_set1_epi32(-1)", ML_SSE_m128_v4int32)
+              ),
         },
       },
     },
@@ -461,56 +471,68 @@ class X86_AVX2_Processor(X86_SSE41_Processor):
             TableLoad: {
               None: {
                 lambda optree: True: {
+                  # XMM version
                   type_custom_match(FSM(ML_SSE_m128_v4float32), TCM(ML_TableFormat), FSM(ML_SSE_m128_v4int32)): ImmIntrin("_mm_i32gather_ps", arity = 3, output_precision = ML_SSE_m128_v4float32)(FO_Arg(0), FO_Arg(1), FO_Value("4", ML_Int32)),
+                  type_custom_match(FSM(ML_SSE_m128_v2float64), TCM(ML_TableFormat), FSM(ML_SSE_m128_v2float64)): ImmIntrin("_mm_i32gather_pd", arity = 3, output_precision = ML_SSE_m128_v4float32)(FO_Arg(0), FO_Arg(1), FO_Value("8", ML_Int32)),
+                  # YMM version
+                  type_custom_match(FSM(ML_AVX_m256_v8float32), TCM(ML_TableFormat), FSM(ML_AVX_m256_v8float32)): ImmIntrin("_mm256_i32gather_ps", arity = 3, output_precision = ML_AVX_m256_v8float32)(FO_Arg(0), FO_Arg(1), FO_Value("4", ML_Int32)),
+                  type_custom_match(FSM(ML_AVX_m256_v4float64), TCM(ML_TableFormat), FSM(ML_AVX_m256_v4float64)): ImmIntrin("_mm256_i32gather_pd", arity = 3, output_precision = ML_AVX_m256_v4float64)(FO_Arg(0), FO_Arg(1), FO_Value("8", ML_Int32)),
                 },
               },
             },
             FusedMultiplyAdd: {
-                FusedMultiplyAdd.Standard: {
-                    lambda optree: True: {
-                        type_strict_match(ML_SSE_m128_v1float32, ML_SSE_m128_v1float32, ML_SSE_m128_v1float32, ML_SSE_m128_v1float32): x86_fma_intr_builder_native("_mm_fmadd_ss"),
-                        type_strict_match(ML_SSE_m128_v1float64, ML_SSE_m128_v1float64, ML_SSE_m128_v1float64, ML_SSE_m128_v1float64): x86_fmad_intr_builder_native("_mm_fmadd_sd"),
-                        # vectorial fma
-                        type_strict_match(ML_SSE_m128_v4float32, ML_SSE_m128_v4float32, ML_SSE_m128_v4float32, ML_SSE_m128_v4float32): x86_fma_intr_builder_native("_mm_fmadd_ps", output_precision = ML_SSE_m128_v4float32),
-
-                        type_strict_match(ML_Binary32, ML_Binary32, ML_Binary32, ML_Binary32):x86_fma_intrinsic_builder(" _mm_fmadd_ss"),
-                        type_strict_match(ML_Binary64, ML_Binary64, ML_Binary64, ML_Binary64):x86_fmad_intrinsic_builder(" _mm_fmadd_sd"),
-                    },
+              FusedMultiplyAdd.Standard: {
+                lambda optree: True: {
+                  # Scalar version
+                  type_strict_match(*(4*(ML_SSE_m128_v1float32,))): x86_fma_intr_builder_native("_mm_fmadd_ss"),
+                  type_strict_match(*(4*(ML_SSE_m128_v1float64,))): x86_fmad_intr_builder_native("_mm_fmadd_sd"),
+                  # XMM version
+                  type_strict_match(*(4*(ML_SSE_m128_v4float32,))): x86_fma_intr_builder_native("_mm_fmadd_ps", output_precision = ML_SSE_m128_v4float32),
+                  type_strict_match(*(4*(ML_SSE_m128_v2float64,))): x86_fmad_intr_builder_native("_mm_fmadd_ps", output_precision = ML_SSE_m128_v2float64),
+                  # YMM version
+                  type_strict_match(*(4*(ML_AVX_m256_v8float32,))): x86_fma_intr_builder_native("_mm256_fmadd_ps", output_precision = ML_AVX_m256_v8float32),
+                  type_strict_match(*(4*(ML_AVX_m256_v4float64,))): x86_fma_intr_builder_native("_mm256_fmadd_pd", output_precision = ML_AVX_m256_v4float64),
                 },
-                FusedMultiplyAdd.Subtract: {
-                    lambda optree: True: {
-                        type_strict_match(ML_SSE_m128_v1float32, ML_SSE_m128_v1float32, ML_SSE_m128_v1float32, ML_SSE_m128_v1float32): x86_fma_intr_builder_native(" _mm_fmsub_ss"),
-                        type_strict_match(ML_SSE_m128_v1float64, ML_SSE_m128_v1float64, ML_SSE_m128_v1float64, ML_SSE_m128_v1float64): x86_fmad_intr_builder_native(" _mm_fmsub_sd"),
-                        # vectorial fma
-                        type_strict_match(ML_SSE_m128_v4float32, ML_SSE_m128_v4float32, ML_SSE_m128_v4float32, ML_SSE_m128_v4float32): x86_fma_intr_builder_native("_mm_fmsub_ps", output_precision = ML_SSE_m128_v4float32),
-
-                        type_strict_match(ML_Binary32, ML_Binary32, ML_Binary32, ML_Binary32):x86_fma_intrinsic_builder(" _mm_fmsub_ss"),
-                        type_strict_match(ML_Binary64, ML_Binary64, ML_Binary64, ML_Binary64):x86_fmad_intrinsic_builder(" _mm_fmsub_sd"),
-                    },
+              },
+              FusedMultiplyAdd.Subtract: {
+                lambda optree: True: {
+                  # Scalar version
+                  type_strict_match(*(4*(ML_SSE_m128_v1float32,))): x86_fma_intr_builder_native("_mm_fmsub_ss"),
+                  type_strict_match(*(4*(ML_SSE_m128_v1float64,))): x86_fmad_intr_builder_native("_mm_fmsub_sd"),
+                  # XMM version
+                  type_strict_match(*(4*(ML_SSE_m128_v4float32,))): x86_fma_intr_builder_native("_mm_fmsub_ps", output_precision = ML_SSE_m128_v4float32),
+                  type_strict_match(*(4*(ML_SSE_m128_v2float64,))): x86_fmad_intr_builder_native("_mm_fmsub_ps", output_precision = ML_SSE_m128_v2float64),
+                  # YMM version
+                  type_strict_match(*(4*(ML_AVX_m256_v8float32,))): x86_fma_intr_builder_native("_mm256_fmsub_ps", output_precision = ML_AVX_m256_v8float32),
+                  type_strict_match(*(4*(ML_AVX_m256_v4float64,))): x86_fma_intr_builder_native("_mm256_fmsub_pd", output_precision = ML_AVX_m256_v4float64),
                 },
-                FusedMultiplyAdd.SubtractNegate: {
-                    lambda optree: True: {
-                        type_strict_match(ML_SSE_m128_v1float32, ML_SSE_m128_v1float32, ML_SSE_m128_v1float32, ML_SSE_m128_v1float32): x86_fma_intr_builder_native(" _mm_fnmadd_ss"),
-                        type_strict_match(ML_SSE_m128_v1float64, ML_SSE_m128_v1float64, ML_SSE_m128_v1float64, ML_SSE_m128_v1float64): x86_fmad_intr_builder_native(" _mm_fnmadd_sd"),
-
-                        # vectorial fma
-                        type_strict_match(ML_SSE_m128_v4float32, ML_SSE_m128_v4float32, ML_SSE_m128_v4float32, ML_SSE_m128_v4float32): x86_fma_intr_builder_native("_mm_fnmadd_ps", output_precision = ML_SSE_m128_v4float32),
-
-                        type_strict_match(ML_Binary32, ML_Binary32, ML_Binary32, ML_Binary32):x86_fma_intrinsic_builder(" _mm_fnmadd_ss"),
-                        type_strict_match(ML_Binary64, ML_Binary64, ML_Binary64, ML_Binary64):x86_fmad_intrinsic_builder(" _mm_fnmadd_sd"),
-                    },
+              },
+              FusedMultiplyAdd.SubtractNegate: {
+                lambda optree: True: {
+                  # Scalar version
+                  type_strict_match(*(4*(ML_SSE_m128_v1float32,))): x86_fma_intr_builder_native("_mm_fnmadd_ss"),
+                  type_strict_match(*(4*(ML_SSE_m128_v1float64,))): x86_fmad_intr_builder_native("_mm_fnmadd_sd"),
+                  # XMM version
+                  type_strict_match(*(4*(ML_SSE_m128_v4float32,))): x86_fma_intr_builder_native("_mm_fnmadd_ps", output_precision = ML_SSE_m128_v4float32),
+                  type_strict_match(*(4*(ML_SSE_m128_v2float64,))): x86_fmad_intr_builder_native("_mm_fnmadd_ps", output_precision = ML_SSE_m128_v2float64),
+                  # YMM version
+                  type_strict_match(*(4*(ML_AVX_m256_v8float32,))): x86_fma_intr_builder_native("_mm256_fnmadd_ps", output_precision = ML_AVX_m256_v8float32),
+                  type_strict_match(*(4*(ML_AVX_m256_v4float64,))): x86_fma_intr_builder_native("_mm256_fnmadd_pd", output_precision = ML_AVX_m256_v4float64),
                 },
-                FusedMultiplyAdd.Negate: {
-                    lambda optree: True: {
-                        type_strict_match(ML_SSE_m128_v1float32, ML_SSE_m128_v1float32, ML_SSE_m128_v1float32, ML_SSE_m128_v1float32): x86_fma_intr_builder_native(" _mm_fnmsub_ss"),
-                        type_strict_match(ML_SSE_m128_v1float64, ML_SSE_m128_v1float64, ML_SSE_m128_v1float64, ML_SSE_m128_v1float64): x86_fmad_intr_builder_native(" _mm_fnmsub_sd"),
-                        # vectorial fma
-                        type_strict_match(ML_SSE_m128_v4float32, ML_SSE_m128_v4float32, ML_SSE_m128_v4float32, ML_SSE_m128_v4float32): x86_fma_intr_builder_native("_mm_fnmsub_ps", output_precision = ML_SSE_m128_v4float32),
-
-                        type_strict_match(ML_Binary32, ML_Binary32, ML_Binary32, ML_Binary32):x86_fma_intrinsic_builder(" _mm_fnmsub_ss"),
-                        type_strict_match(ML_Binary64, ML_Binary64, ML_Binary64, ML_Binary64):x86_fmad_intrinsic_builder(" _mm_fnmsub_sd"),
-                    },
+              },
+              FusedMultiplyAdd.Negate: {
+                lambda optree: True: {
+                  # Scalar version
+                  type_strict_match(*(4*(ML_SSE_m128_v1float32,))): x86_fma_intr_builder_native("_mm_fnmsub_ss"),
+                  type_strict_match(*(4*(ML_SSE_m128_v1float64,))): x86_fmad_intr_builder_native("_mm_fnmsub_sd"),
+                  # XMM version
+                  type_strict_match(*(4*(ML_SSE_m128_v4float32,))): x86_fma_intr_builder_native("_mm_fnmsub_ps", output_precision = ML_SSE_m128_v4float32),
+                  type_strict_match(*(4*(ML_SSE_m128_v2float64,))): x86_fmad_intr_builder_native("_mm_fnmsub_ps", output_precision = ML_SSE_m128_v2float64),
+                  # YMM version
+                  type_strict_match(*(4*(ML_AVX_m256_v8float32,))): x86_fma_intr_builder_native("_mm256_fnmsub_ps", output_precision = ML_AVX_m256_v8float32),
+                  type_strict_match(*(4*(ML_AVX_m256_v4float64,))): x86_fma_intr_builder_native("_mm256_fnmsub_pd", output_precision = ML_AVX_m256_v4float64),
                 },
+              },
             },
             CountLeadingZeros: {
                 None: {
@@ -525,46 +547,39 @@ class X86_AVX2_Processor(X86_SSE41_Processor):
             BitLogicLeftShift: {
                 None: {
                   lambda _: True: {
-                    type_strict_match(ML_SSE_m128_v4int32,
-                                      ML_SSE_m128_v4int32,
-                                      ML_SSE_m128_v4int32):
-                    ImmIntrin("_mm_sllv_epi32", arity = 2,
-                              arg_map = {0: FO_Arg(0), 1: FO_Arg(1)}),
-                    type_strict_match(ML_AVX_m256_v8int32,
-                                      ML_AVX_m256_v8int32,
-                                      ML_AVX_m256_v8int32):
-                    ImmIntrin("_mm256_sllv_epi32", arity = 2),
-                    },
-                },
+                    # TODO implement fixed bit shift (sll, slli)
+                    # Variable bit shift is only available with AVX2
+                    # XMM version
+                    type_strict_match(*(3*(ML_SSE_m128_v4int32,))): ImmIntrin("_mm_sllv_epi32", arity = 2, arg_map = {0: FO_Arg(0), 1: FO_Arg(1)}),
+                    type_strict_match(*(3*(ML_SSE_m128_v2int64,))): ImmIntrin("_mm_sllv_epi64", arity = 2, arg_map = {0: FO_Arg(0), 1: FO_Arg(1)}),
+                    # YMM version
+                    type_strict_match(*(3*(ML_AVX_m256_v8int32,))): ImmIntrin("_mm256_sllv_epi32", arity = 2, arg_map = {0: FO_Arg(0), 1: FO_Arg(1)}),
+                    type_strict_match(*(3*(ML_AVX_m256_v4int64,))): ImmIntrin("_mm256_sllv_epi64", arity = 2, arg_map = {0: FO_Arg(0), 1: FO_Arg(1)}),
+                  },
+              },
             },
             BitLogicRightShift: {
                 None: {
                   lambda optree: True: {
-                    type_strict_match(ML_SSE_m128_v4int32,
-                                      ML_SSE_m128_v4int32,
-                                      ML_SSE_m128_v4int32):
-                    ImmIntrin("_mm_srlv_epi32", arity = 2,
-                              arg_map = {0: FO_Arg(0), 1: FO_Arg(1)}),
-                    type_strict_match(ML_AVX_m256_v8int32,
-                                      ML_AVX_m256_v8int32,
-                                      ML_AVX_m256_v8int32):
-                    ImmIntrin("_mm256_srlv_epi32", arity = 2),
-                    },
-                },
+                    # XMM version
+                    type_strict_match(*(3*(ML_SSE_m128_v4int32,))): ImmIntrin("_mm_srlv_epi32", arity = 2, arg_map = {0: FO_Arg(0), 1: FO_Arg(1)}),
+                    type_strict_match(*(3*(ML_SSE_m128_v2int64,))): ImmIntrin("_mm_srlv_epi64", arity = 2, arg_map = {0: FO_Arg(0), 1: FO_Arg(1)}),
+                    # YMM version
+                    type_strict_match(*(3*(ML_AVX_m256_v8int32,))): ImmIntrin("_mm256_srlv_epi32", arity = 2, arg_map = {0: FO_Arg(0), 1: FO_Arg(1)}),
+                    type_strict_match(*(3*(ML_AVX_m256_v4int64,))): ImmIntrin("_mm256_srlv_epi64", arity = 2, arg_map = {0: FO_Arg(0), 1: FO_Arg(1)}),
+                  },
+              },
             },
             BitArithmeticRightShift: {
                 None: {
                   lambda _: True: {
-                    type_strict_match(ML_SSE_m128_v4int32,
-                                      ML_SSE_m128_v4int32,
-                                      ML_SSE_m128_v4int32):
-                    ImmIntrin("_mm_srav_epi32", arity = 2,
-                              arg_map = {0: FO_Arg(0), 1: FO_Arg(1)}),
-                    type_strict_match(ML_AVX_m256_v8int32,
-                                      ML_AVX_m256_v8int32,
-                                      ML_AVX_m256_v8int32):
-                    ImmIntrin("_mm256_srav_epi32", arity = 2),
-                    },
+                    # XMM version
+                    type_strict_match(*(3*(ML_SSE_m128_v4int32,))): ImmIntrin("_mm_srav_epi32", arity = 2, arg_map = {0: FO_Arg(0), 1: FO_Arg(1)}),
+                    type_strict_match(*(3*(ML_SSE_m128_v2int64,))): ImmIntrin("_mm_srav_epi64", arity = 2, arg_map = {0: FO_Arg(0), 1: FO_Arg(1)}),
+                    # YMM version
+                    type_strict_match(*(3*(ML_AVX_m256_v8int32,))): ImmIntrin("_mm256_srav_epi32", arity = 2, arg_map = {0: FO_Arg(0), 1: FO_Arg(1)}),
+                    type_strict_match(*(3*(ML_AVX_m256_v4int64,))): ImmIntrin("_mm256_srav_epi64", arity = 2, arg_map = {0: FO_Arg(0), 1: FO_Arg(1)}),
+                  },
                 },
             },
         },
