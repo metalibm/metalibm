@@ -585,9 +585,6 @@ class ML_Custom_FixedPoint_Format(ML_Base_FixedPoint_Format):
           return None
         return ML_Custom_FixedPoint_Format(int(format_match.group("integer")), int(format_match.group("frac")), signed = signed)
 
-class ML_Bool_Format(object):
-    """ abstract Boolean format """
-    pass
 
 # Standard binary floating-point format declarations
 ## IEEE binary32 (fp32) single precision floating-point format
@@ -622,12 +619,37 @@ def bool_get_c_cst(self, cst_value):
   else:
     return "ML_FALSE"
 
+class ML_Bool_Format(object):
+    """ abstract Boolean format """
+    pass
+
+
 class ML_BoolClass(ML_FormatConstructor, ML_Bool_Format):
   def __str__(self):
     return "ML_Bool"
 
 ML_Bool      = ML_BoolClass(32, "int", "%d", bool_get_c_cst)
 
+## virtual parent to string formats
+class ML_String_Format(ML_Format):
+    """ abstract String format """
+    pass
+class ML_StringClass(ML_String_Format):
+    """ Metalibm character string class """
+    def __init__(self, c_name, c_display_format, get_c_cst):
+        ML_Format.__init__(self)
+        self.name[C_Code] = c_name
+        self.display_format[C_Code] = c_display_format
+        self.get_cst_map = {C_Code: get_c_cst}
+
+    def get_cst(self, value, language = C_Code):
+        return self.get_cst_map[language](self, value)
+
+    def __str__(self):
+        return "ML_String"
+
+## Metalibm string format
+ML_String = ML_StringClass("char*", "%s", lambda self, s: "\"{}\"".format(s)) 
 
 def is_std_integer_format(precision):
   return precision in [ ML_Int8, ML_UInt8, ML_Int16, ML_UInt16,
