@@ -553,7 +553,7 @@ class VHDLCodeObject(object):
         result = ""
         # generating git comment
         if git_tag:
-            git_comment = "generated using metalibm %s \n sha1 git: %s \n" % (ml_version_info.version_num, ml_version_info.git_sha)
+            git_comment = "generated using metalibm %s \n sha1 git: %s \n" % (ml_version_info.VERSION_NUM, ml_version_info.GIT_SHA)
             self.header_comment.insert(0, git_comment) 
         # generating header comments
         result += "--\n"
