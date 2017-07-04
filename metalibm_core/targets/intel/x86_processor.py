@@ -158,7 +158,10 @@ def v4_to_m128_modifier(optree):
     precision = elt_precision
   ) for i in xrange(4)]
   return Conversion(elts[0], elts[1], elts[2], elts[3], precision = optree.get_precision())
-
+__m128ip_cast_operator = TemplateOperatorFormat(
+    "(__m128i*){}", arity = 1, 
+    output_precision = ML_Pointer_Format(ML_SSE_m128_v4int32)
+)
 
 _mm_fmadd_ss = x86_fma_intrinsic_builder("_mm_fmadd_ss")
 
@@ -188,13 +191,14 @@ sse_c_code_generation_table = {
             #XmmIntrin("_mm_store_ps", arity = 2, arg_map = {0: FO_Result(0), 1: FO_Arg(0)})
             #  (FunctionOperator("GET_VEC_FIELD_ADDR", arity = 1, output_precision = ML_Pointer_Format(ML_Binary32))(FO_Result(0)), FO_Arg(0)),
 
-          type_strict_match(v4int32, ML_SSE_m128_v4int32): XmmIntrin("_mm_store_si128", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)}, arity = 1),
+          type_strict_match(v4int32, ML_SSE_m128_v4int32): 
+            TemplateOperatorFormat("_mm_store_si128((__m128i*){0}, {1})", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)}, void_function = True),
 
           type_strict_match(ML_SSE_m128_v4int32, ML_Int32, ML_Int32, ML_Int32, ML_Int32): XmmIntrin("_mm_set_epi32", arity = 4),
           #type_strict_match(ML_SSE_m128_v4int32, v4int32): ComplexOperator(optree_modifier = v4_to_m128_modifier),
           type_strict_match(ML_SSE_m128_v4int32, v4int32): 
             XmmIntrin("_mm_load_si128", arity = 1, output_precision = ML_SSE_m128_v4int32)
-              (TemplateOperatorFormat("(__m128i*){}", arity = 1, output_precision = ML_Pointer_Format(ML_SSE_m128_v4int32))
+              (__m128ip_cast_operator
                 (TemplateOperatorFormat("GET_VEC_FIELD_ADDR({})", arity = 1, output_precision = ML_Pointer_Format(ML_Int32)))),
         }
       },
@@ -248,6 +252,7 @@ sse_c_code_generation_table = {
                                              _mm_set_ss(FO_Arg(1)))),
                 # vector multiplication
                 type_strict_match(ML_SSE_m128_v4float32, ML_SSE_m128_v4float32, ML_SSE_m128_v4float32): XmmIntrin("_mm_mul_ps", arity = 2),
+                # type_strict_match(ML_SSE_m128_v4int32, ML_SSE_m128_v4int32, ML_SSE_m128_v4int32): XmmIntrin("_mm_mul_epi32", arity = 2),
             },
         },
     },
