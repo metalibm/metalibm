@@ -685,6 +685,8 @@ class ML_FunctionBasis(object):
       return isinstance(mask, Constant) and \
             reduce(lambda v, acc: (v and acc), mask.get_value(), True)
 
+    self.get_main_code_object().add_header("support_lib/ml_vector_format.h")
+
     print "[SV] building vectorized main statement"
     if no_scalar_fallback_required(vector_mask):
       function_scheme = Statement(
