@@ -102,6 +102,11 @@ class AbstractOperation(ML_Operation):
     def __setitem__(self, index, value):
         return ReferenceAssign(VectorElementSelection(self, index), value, precision = value.get_precision())
 
+    ## apply the @p self. bare_range_function to a tuple
+    #  of intervals
+    def apply_bare_range_function(self, intervals):
+        return self.bare_range_function(*intervals)
+
 
     ## Operator for boolean negation of operands 
     def __not__(self):
@@ -618,6 +623,8 @@ def GeneralOperationConstructor(name, arity = 2, range_function = None, error_fu
         "arity": arity, 
         # interval function building
         "range_function": interval_func(range_function), 
+        # bare range function
+        "bare_range_function": range_function,
         # error function building
         "error_function": error_function,
         # generation key building
