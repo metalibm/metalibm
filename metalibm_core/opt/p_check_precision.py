@@ -2,8 +2,12 @@
 # optimization pass to promote a scalar/vector DAG into vector registers
 
 from metalibm_core.core.ml_formats import *
-from metalibm_core.core.ml_operations import ML_LeafNode, Statement, ConditionBlock, ReferenceAssign
-from metalibm_core.core.ml_hdl_operations import Process, Loop, ComponentInstance
+from metalibm_core.core.ml_operations import (
+    ML_LeafNode, Statement, ConditionBlock, ReferenceAssign
+)
+from metalibm_core.core.ml_hdl_operations import (
+    Process, Loop, ComponentInstance, Assert, Wait
+)
 from metalibm_core.core.passes import OptreeOptimization, Pass
 
 
@@ -11,7 +15,8 @@ from metalibm_core.core.passes import OptreeOptimization, Pass
 def check_precision_validity(optree):
   none_class_list = [
     Statement, ConditionBlock, Process,
-    ReferenceAssign, Loop, ComponentInstance
+    ReferenceAssign, Loop, ComponentInstance,
+    Assert, Wait,
   ]
   if reduce(lambda x, y: x or y, [isinstance(optree, none_class) for none_class in none_class_list], False):
     return optree.get_precision() is None
