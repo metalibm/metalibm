@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+""" HDL description specific formats (for RTL and signals) """
+
 ###############################################################################
 # This file is part of New Metalibm tool
 # Copyrights Nicolas Brunie (2016)
@@ -14,8 +16,9 @@
 import sollya
 
 from .ml_formats import ML_Format, ML_Base_FixedPoint_Format, ML_Fixed_Format
-from ..code_generation.code_constant import *
+from ..code_generation.code_constant import VHDL_Code
 
+## Helper constant: 2 as a sollya object
 S2 = sollya.SollyaObject(2)
 
 
@@ -29,6 +32,10 @@ class StdLogicDirection:
     def get_descriptor(low, high):
       return "%d to %d" % (low, high)
 
+## Computes the negation of the positive @p value on 
+#  @p size bits
+#  Fails if value exceeds the largest representable
+#  number of @p size - 1 bits
 def get_2scomplement_neg(value, size):
   value = int(abs(value))
   assert value < (S2**(size-1) - 1)
@@ -72,7 +79,9 @@ class RTL_FixedPointFormat(ML_Base_FixedPoint_Format):
     else:
       raise NotImplementedError
 
+## Format class for multiple bit signals
 class ML_StdLogicVectorFormat(ML_Format):
+  """ Format class for multiple bit signals """
   def __init__(self, bit_size, offset = 0, direction = StdLogicDirection.Downwards):
     assert bit_size > 0
     bit_size = int(bit_size)
@@ -87,7 +96,7 @@ class ML_StdLogicVectorFormat(ML_Format):
   def get_name(self, language = VHDL_Code):
     return self.name[language]
 
-  def get_cst(self, cst_value, language = C_Code):
+  def get_cst(self, cst_value, language = VHDL_Code):
     if language is VHDL_Code:
       return self.get_vhdl_cst(cst_value)
     else:
@@ -105,7 +114,9 @@ class ML_StdLogicVectorFormat(ML_Format):
   def is_cst_decl_required(self):
     return True
 
+## Class of single bit value format
 class ML_StdLogicClass(ML_Format):
+  """ class of single bit value signals """
   def __init__(self):
     ML_Format.__init__(self)
     self.bit_size = 1
@@ -123,7 +134,7 @@ class ML_StdLogicClass(ML_Format):
   def get_support_format(self):
     return self
 
-# std_logic type singleton
+## std_logic type singleton
 ML_StdLogic = ML_StdLogicClass()
 
 
