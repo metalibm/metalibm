@@ -568,6 +568,9 @@ vhdl_code_generation_table = {
         type_custom_match(TCM(ML_StdLogicVectorFormat), TCM(ML_StdLogicVectorFormat), TCM(ML_StdLogicVectorFormat)): SymbolOperator("&", arity = 2, force_folding = True),
         type_custom_match(TCM(ML_StdLogicVectorFormat), FSM(ML_StdLogic), TCM(ML_StdLogicVectorFormat)): SymbolOperator("&", arity = 2, force_folding = True),
         type_custom_match(TCM(ML_StdLogicVectorFormat), TCM(ML_StdLogicVectorFormat), FSM(ML_StdLogic)): SymbolOperator("&", arity = 2, force_folding = True),
+
+        type_custom_match(FSM(ML_String), FSM(ML_String), FSM(ML_String)):
+            SymbolOperator("&", arity = 2, force_folding = False),
       },
     },
   },
@@ -592,6 +595,8 @@ vhdl_code_generation_table = {
       lambda optree: True: {
         type_custom_match(TCM(ML_StdLogicVectorFormat), FSM(ML_Integer)): DynamicOperator(conversion_generator),
         type_strict_match(ML_StdLogic, ML_Bool): ComplexOperator(optree_modifier = conversion_from_bool_generator),
+        type_custom_match(FSM(ML_String), TCM(ML_StdLogicVectorFormat)):
+            FunctionOperator("to_hstring", arity = 1, force_folding = False),
       }
     },
   },
@@ -755,7 +760,20 @@ vhdl_code_generation_table = {
       }
     },
   },
+  Report: {
+    None: {
+        lambda optree: True: {
+            type_custom_match(FSM(ML_Void), FSM(ML_String)):
+                TemplateOperatorFormat(
+                    "report {0}",
+                    arity = 1,
+                    void_function = True
+                ),
+        }
+    },
+  },
 }
+
 
 class FormalBackend(AbstractBackend):
   """ description of VHDL's Backend """
