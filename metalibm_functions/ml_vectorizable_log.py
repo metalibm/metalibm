@@ -38,27 +38,6 @@ class ML_Log(ML_Function("ml_log")):
             arg_template = arg_template)
 
 
-  def generate_emulate(self, result_ternary, result, mpfr_x, mpfr_rnd):
-    """ generate the emulation code for the function
-        mpfr_x is a mpfr_t variable which should have the right precision
-        mpfr_rnd is the rounding mode
-    """
-    emulate_func_name = "mpfr_log"
-    argc = 3
-    emulate_func_op = FunctionOperator(
-            emulate_func_name,
-            arg_map = { i: FO_Arg(i) for i in range(argc) },
-            require_header = ["mpfr.h"])
-    emulate_func = FunctionObject(
-            emulate_func_name,
-            [ ML_Mpfr_t, ML_Mpfr_t, ML_Int32 ],
-            ML_Int32,
-            emulate_func_op)
-    mpfr_call = Statement(ReferenceAssign(
-            result_ternary, emulate_func(result, mpfr_x, mpfr_rnd)))
-    return mpfr_call
-
-
   def generate_scheme(self):
     """Produce an abstract scheme for the logarithm.
 
@@ -74,7 +53,8 @@ class ML_Log(ML_Function("ml_log")):
     # 2^(e_min + 2) * (1 - 2^(-precision))
     # e.g. for binary32: 2^(-126 + 2) * (1 - 2^(-24))
     denorm_mask = Constant(value = 0x017fffff if self.precision == ML_Binary32
-                           else 0x002fffffffffffff, precision = int_prec)
+                           else 0x002fffffffffffff, precision = int_prec,
+                           tag = "denorm_mask")
 
     print "MDL table"
     table_index_size = 7 # to be abstracted somehow
