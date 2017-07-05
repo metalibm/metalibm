@@ -601,14 +601,40 @@ class ML_EntityBasis(object):
         output_value  = Constant(output_values[output_tag], precision = output_signal.get_precision())
         value_msg = output_signal.get_precision().get_cst(output_values[output_tag], language = VHDL_Code).replace('"',"'")
         value_msg += " / " + hex(output_signal.get_precision().get_base_format().get_integer_coding(output_values[output_tag]))
+
+        test_pass_cond = Comparison(
+          output_signal,
+          output_value,
+          specifier = Comparison.Equal,
+          precision = ML_Bool
+        )
+
+        test_statement.add(
+            ConditionBlock(
+                LogicalNot(
+                    test_pass_cond,
+                    precision = ML_Bool
+                ),
+                Report(
+                    Concatenation(
+                        " result for {}: ".format(output_tag),
+                        Conversion(
+                            TypeCast(
+                                output_signal,
+                                precision = ML_StdLogicVectorFormat(
+                                    output_signal.get_precision().get_bit_size()
+                                )
+                             ),
+                            precision = ML_String
+                            ),
+                        precision = ML_String
+                    )
+                )
+            )
+        )
         test_statement.add(
           Assert(
-            Comparison(
-              output_signal, 
-              output_value, 
-              specifier = Comparison.Equal, 
-              precision = ML_Bool
-            ),
+            test_pass_cond,
             "\"unexpected value for inputs {input_msg}, output {output_tag}, expecting {value_msg}, got: \"".format(input_msg = input_msg, output_tag = output_tag, value_msg = value_msg),
             severity = Assert.Failure
           )
