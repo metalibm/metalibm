@@ -270,8 +270,8 @@ class DefaultArgTemplate:
     headers = []
     libraries = []
     # emulation numeric function
+    emulate = lambda x: x
 
-    def emulate(x): return x
     # list of pre-code generation opt passe names (string tag)
     pre_gen_passes = []
     check_processor_support = True
@@ -279,12 +279,16 @@ class DefaultArgTemplate:
     build_enable = False
     #
     passes = []
+    # built binary execution
+    execute_trigger = False
 
     def __init__(self, **kw):
         for key in kw:
             setattr(self, key, kw[key])
 
-# default argument template to be used for entity
+
+
+## default argument template to be used for entity
 #  when no specific value are given for a specific parameter
 
 
@@ -498,6 +502,7 @@ class ML_CommonArgTemplate(object):
 
 
 # Argument template for entity object
+
 class ML_EntityArgTemplate(ML_CommonArgTemplate):
     def __init__(self, default_entity_name,
                  default_output_file="ml_entity.vhd",

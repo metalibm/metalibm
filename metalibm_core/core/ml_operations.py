@@ -1173,9 +1173,11 @@ def NotEqual(op0, op1, **kwords):
     kwords["specifier"] = Comparison.NotEqual
     return Comparison(op0, op1, **kwords)
 
-## Sequential statement block, can have an arbitrary number of 
+## Sequential statement block, can have an arbitrary number of
 #  sub-statement operands. Each of those is executed sequentially in
 #  operands order
+# Basic imperative-style Statement (list of separate operations, returning
+#  void)
 class Statement(AbstractOperationConstructor("Statement")):
     def __init__(self, *args, **kwords):
         self.__class__.__base__.__init__(self, *args, **kwords)
