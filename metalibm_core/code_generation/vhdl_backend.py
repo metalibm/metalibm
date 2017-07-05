@@ -165,6 +165,7 @@ def conversion_generator(optree):
   output_size = optree.get_precision().get_bit_size()
   return TemplateOperator("conv_std_logic_vector(%s, {output_size})".format(output_size = output_size), arity = 1)
 
+
 ## dynamic operator helper for Shift operations
 #  @param operator string name of the operation
 def shift_generator(operator, optree):
@@ -383,10 +384,16 @@ def get_vhdl_bool_cst(self, value):
   else:
     return "false"
 
+## TODO: factorize following statements into
+#  a clean function with correct execution as
+#  "vhdl backend" install
 ## Updating standard format name for VHDL Code
 ML_Integer.name[VHDL_Code] = "integer"
 ML_Bool.name[VHDL_Code] = "boolean"
 ML_Bool.get_cst_map[VHDL_Code] = get_vhdl_bool_cst
+
+ML_String.name[VHDL_Code] = "string"
+ML_String.get_cst_map[VHDL_Code] = ML_String.get_cst_map[C_Code]
 
 # class Match custom std logic vector format
 MCSTDLOGICV = TCM(ML_StdLogicVectorFormat)
