@@ -168,7 +168,10 @@ def v4_to_m128_modifier(optree):
     precision = elt_precision
   ) for i in xrange(4)]
   return Conversion(elts[0], elts[1], elts[2], elts[3], precision = optree.get_precision())
-
+__m128ip_cast_operator = TemplateOperatorFormat(
+    "(__m128i*){}", arity = 1, 
+    output_precision = ML_Pointer_Format(ML_SSE_m128_v4int32)
+)
 
 _mm_fmadd_ss = x86_fma_intrinsic_builder("_mm_fmadd_ss")
 
@@ -198,13 +201,14 @@ sse_c_code_generation_table = {
             #XmmIntrin("_mm_store_ps", arity = 2, arg_map = {0: FO_Result(0), 1: FO_Arg(0)})
             #  (FunctionOperator("GET_VEC_FIELD_ADDR", arity = 1, output_precision = ML_Pointer_Format(ML_Binary32))(FO_Result(0)), FO_Arg(0)),
 
-          type_strict_match(v4int32, ML_SSE_m128_v4int32): XmmIntrin("_mm_store_si128", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)}, arity = 1),
+          type_strict_match(v4int32, ML_SSE_m128_v4int32): 
+            TemplateOperatorFormat("_mm_store_si128((__m128i*){0}, {1})", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)}, void_function = True),
 
           type_strict_match(ML_SSE_m128_v4int32, ML_Int32, ML_Int32, ML_Int32, ML_Int32): XmmIntrin("_mm_set_epi32", arity = 4),
           #type_strict_match(ML_SSE_m128_v4int32, v4int32): ComplexOperator(optree_modifier = v4_to_m128_modifier),
           type_strict_match(ML_SSE_m128_v4int32, v4int32):
             XmmIntrin("_mm_load_si128", arity = 1, output_precision = ML_SSE_m128_v4int32)
-              (TemplateOperatorFormat("(__m128i*){}", arity = 1, output_precision = ML_Pointer_Format(ML_SSE_m128_v4int32))
+              (__m128ip_cast_operator
                 (TemplateOperatorFormat("GET_VEC_FIELD_ADDR({})", arity = 1, output_precision = ML_Pointer_Format(ML_Int32)))),
         }
       },
@@ -258,6 +262,7 @@ sse_c_code_generation_table = {
                                              _mm_set_ss(FO_Arg(1)))),
                 # vector multiplication
                 type_strict_match(ML_SSE_m128_v4float32, ML_SSE_m128_v4float32, ML_SSE_m128_v4float32): XmmIntrin("_mm_mul_ps", arity = 2),
+                # type_strict_match(ML_SSE_m128_v4int32, ML_SSE_m128_v4int32, ML_SSE_m128_v4int32): XmmIntrin("_mm_mul_epi32", arity = 2),
             },
         },
     },
@@ -395,8 +400,24 @@ sse41_c_code_generation_table = {
     },
 }
 
+#rdtsc_operator = AsmInlineOperator(
+#  "__asm volatile ( \"xor %%%%eax, %%%%eax\\n\"\n \"CPUID\\n\" \n\"rdtsc\\n\"\n : \"=A\"(%s));",
+#  arg_map = {0: FO_Result(0)},
+#  arity = 0
+#)
+
 rdtsc_operator = AsmInlineOperator(
-  "__asm volatile (\"rdtsc\" : \"=A\"(%s));",
+"""{
+    uint32_t cycles_hi = 0, cycles_lo = 0;
+    asm volatile (
+  "cpuid\\n\\t"
+   "rdtsc\\n\\t"
+   "mov %%%%edx, %%0\\n\\t"
+   "mov %%%%eax, %%1\\n\\t"
+   : "=r" (cycles_hi), "=r" (cycles_lo)
+   :: "%%rax", "%%rbx", "%%rcx", "%%rdx");
+   %s = ((uint64_t) cycles_hi << 32) | cycles_lo;
+   }""",
   arg_map = {0: FO_Result(0)},
   arity = 0
 )

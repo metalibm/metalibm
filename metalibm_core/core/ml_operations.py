@@ -993,6 +993,10 @@ class BooleanOperation(object):
     def finish_copy(self, new_copy, copy_map = {}):
         new_copy.likely = self.likely
 
+## Extract likely properties if @p optree is a BooleanOperation
+#  else returns None
+def get_arg_likely(optree):
+  return optree.get_likely() if isinstance(optree, BooleanOperation) else None
 
 def logic_operation_init(self, *args, **kwords):
     self.__class__.__base__.__init__(self, *args, **kwords)
@@ -1000,7 +1004,7 @@ def logic_operation_init(self, *args, **kwords):
     # if likely has not been overloaded
     # trying to determine it with respect to input likeliness
     if self.likely == None:
-        self.likely = self.likely_function(*tuple(arg.get_likely() for arg in args))
+        self.likely = self.likely_function(*tuple(get_arg_likely(arg) for arg in args))
 
 def LogicOperationBuilder(op_name, arity = 2, likely_function = lambda self, *ops: None):
     field_map = {
@@ -1110,6 +1114,9 @@ class Comparison(ArithmeticOperationConstructor("Comparison", arity = 2, inherit
 
 def Equal(op0, op1, **kwords):
     """ syntaxic bypass for equality comparison """
+    # defaulting to ML_Bool precision
+    if not "precision" in kwords or kwords["precision"] is None:
+      kwords["precision"] = ML_Bool
     kwords["specifier"] = Comparison.Equal
     return Comparison(op0, op1, **kwords)
 
@@ -1118,6 +1125,8 @@ def NotEqual(op0, op1, **kwords):
     kwords["specifier"] = Comparison.NotEqual
     return Comparison(op0, op1, **kwords)
 
+## Basic imperative-style Statement (list of separate operations, returning
+#  void)
 class Statement(AbstractOperationConstructor("Statement")):
     def __init__(self, *args, **kwords):
         self.__class__.__base__.__init__(self, *args, **kwords)
@@ -1414,6 +1423,8 @@ class SwitchBlock(AbstractOperationConstructor("Switch", arity = 1)):
                 pre_str += "Case: %s" %  case_str #.get_str(new_depth, display_precision, tab_level = 0, memoization_map = memoization_map, display_attribute = display_attribute, display_id = display_id)
                 pre_str += "%s" %  self.case_map[case].get_str(new_depth, display_precision, tab_level = tab_level + 2, memoization_map = memoization_map, display_attribute = display_attribute, display_id = display_id)
             return pre_str
+
+class VectorAssembling(ArithmeticOperationConstructor("VectorAssembling")): pass
 
 class VectorElementSelection(ArithmeticOperationConstructor("VectorElementSelection", arity = 2)):
     implicit_arg_precision = {

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-## @package ml_operations
+## @package ml_hdl_operations
 #  Metalibm Description Language HDL Operations 
 
 ###############################################################################
@@ -8,9 +8,9 @@
 # Copyrights Nicolas Brunie (2016)
 # All rights reserved
 # created:          Nov 17th, 2016
-# last-modified:    Nov 17th, 2016
+# last-modified:    May  9th, 2017
 #
-# author(s): Nicolas Brunie (nibrunie)
+# author(s): Nicolas Brunie (nibrunie@gmail.com)
 ###############################################################################
 
 
@@ -24,7 +24,10 @@ from .ml_formats import *
 from .ml_hdl_format import *
 from .ml_operations import *
 
+## \defgroup ml_hdl_operations ml_hdl_operations
+#  @{
 
+## Process object (sequential imperative module)
 class Process(AbstractOperationConstructor("Process")):
   def __init__(self, *args, **kwords):
     self.__class__.__base__.__init__(self, *args, **kwords)
@@ -61,6 +64,11 @@ class Event(AbstractOperationConstructor("Event", arity = 1)):
     return False
 
 class ZeroExt(AbstractOperationConstructor("ZeroExt", arity = 1)):
+  def __init__(self, op, ext_size, **kwords):
+    self.__class__.__base__.__init__(self, op, **kwords)
+    self.ext_size = ext_size
+
+class SignExt(AbstractOperationConstructor("SignExt", arity = 1)):
   def __init__(self, op, ext_size, **kwords):
     self.__class__.__base__.__init__(self, op, **kwords)
     self.ext_size = ext_size
@@ -212,6 +220,8 @@ class PlaceHolder(AbstractOperationConstructor("AbstractOperation")):
   def get_precision(self):
     return self.get_main_input().get_precision()
 
+
+## Boolean assertion
 class Assert(AbstractOperationConstructor("Assert")):
   class Failure: 
     descriptor = "failure"
@@ -231,6 +241,7 @@ class Assert(AbstractOperationConstructor("Assert")):
     new_copy.error_msg = self.error_msg
     new_copy.severity = severity
 
+## Timed wait routine
 class Wait(AbstractOperationConstructor("Wait")):
   def __init__(self, time_ns, **kw):
     Wait.__base__.__init__(self, **kw)
@@ -242,7 +253,9 @@ class Wait(AbstractOperationConstructor("Wait")):
   def finish_copy(self, new_copy, copy_map = {}):
     new_copy.time_ns = self.time_ns
 
+## TypeCast for signal values
 class SignCast(TypeCast):
+  name = "SignCast"
   class Signed: pass # 
   class Unsigned: pass
   def __init__(self, arg, specifier = None, **kw):
@@ -254,6 +267,12 @@ class SignCast(TypeCast):
   def finish_copy(self, new_copy, copy_map = {}):
     new_copy.specifier = self.specifier
 
+## extract a sub-signal from inputs
+#  arguments are:
+#  @param arg input signal
+#  @param inf_index least significant index to start from in @p arg
+#  @param sup_index most significant index to stop at in @p arg
+#  @return sub-signal arg(inf_index to sup_index)
 class SubSignalSelection(AbstractOperationConstructor("SubSignalSelection")):
   def __init__(self, arg, inf_index, sup_index, **kw):
     if not "precision" in kw:
@@ -270,3 +289,6 @@ class SubSignalSelection(AbstractOperationConstructor("SubSignalSelection")):
   def finish_copy(self, new_copy, copy_map = {}):
     new_copy.inf_index = self.inf_index
     new_copy.sup_index = self.sup_index
+
+## @} 
+# end of metalibm's Doxygen ml_hdl_operations group

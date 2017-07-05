@@ -9,7 +9,7 @@ from valid.test_utils import *
 
 from metalibm_core.targets import *
 from metalibm_core.utility.ml_template import target_instanciate
-from metalibm_core.core.ml_formats import ML_Int32
+from metalibm_core.core.ml_formats import ML_Int32, ML_Int16, ML_Int64
 
 import metalibm_functions.unit_tests.new_arg_template as ut_new_arg_template
 import metalibm_functions.unit_tests.block_lzcnt as ut_block_lzcnt
@@ -28,6 +28,7 @@ import metalibm_functions.unit_tests.m128_conversion as ut_m128_conversion
 import metalibm_functions.unit_tests.new_table as ut_new_table
 import metalibm_functions.unit_tests.multi_ary_function as ut_multi_ary_function
 
+from metalibm_functions.unit_tests.utils import TestRunner
 
 
 
@@ -48,14 +49,19 @@ class UnitTestScheme(CommonTestScheme):
     return self.title
 
   def single_test(self, arg_tc, debug = False):
+    runner = self.module.run_test
     test_desc = self.get_title()
-    arg_template = DefaultArgTemplate(**arg_tc) 
+    if isinstance(runner, TestRunner):
+      arg_template = runner.build_default_args()
+    else:
+      arg_template = DefaultArgTemplate(**arg_tc) 
+
     if debug:
-      self.module.run_test(arg_template)
+      runner(arg_template)
       return TestResult(True, "{} succeed".format(test_desc))
     else:
       try:
-        self.module.run_test(arg_template)
+        runner(arg_template)
         return TestResult(True, "{} succeed".format(test_desc))
       except:
         return TestResult(False, "{} failed".format(test_desc))
@@ -70,7 +76,10 @@ unit_test_list = [
   UnitTestScheme(
     "basic block LZCNT test",
     ut_block_lzcnt,
-    [{}]
+    [
+      {"precision": ML_Int32, "auto_test_execute": 100}, 
+      {"precision": ML_Int64, "auto_test_execute": 100}, 
+    ]
   ),
   UnitTestScheme(
     "basic fixed-point",

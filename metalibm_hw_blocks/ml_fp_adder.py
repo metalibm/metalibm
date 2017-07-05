@@ -37,16 +37,13 @@ class FP_Adder(ML_Entity("fp_adder")):
   def __init__(self, 
              arg_template = DefaultEntityArgTemplate, 
              precision = ML_Binary32, 
-             accuracy  = ML_Faithful,
              libm_compliant = True, 
              debug_flag = False, 
-             fuse_fma = True, 
-             fast_path_extract = True,
              target = VHDLBackend(), 
              output_file = "fp_adder.vhd", 
              entity_name = "fp_adder",
              language = VHDL_Code,
-             vector_size = 1):
+             ):
     # initializing I/O precision
     precision = ArgDefault.select_value([arg_template.precision, precision])
     io_precisions = [precision] * 2
@@ -58,18 +55,14 @@ class FP_Adder(ML_Entity("fp_adder")):
       output_file = output_file,
 
       io_precisions = io_precisions,
-      abs_accuracy = None,
 
       backend = target,
-      fuse_fma = fuse_fma,
-      fast_path_extract = fast_path_extract,
 
       debug_flag = debug_flag,
       language = language,
       arg_template = arg_template
     )
 
-    self.accuracy  = accuracy
     self.precision = precision
 
   def generate_scheme(self):

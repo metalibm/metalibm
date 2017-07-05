@@ -122,7 +122,7 @@ class ML_LeadingZeroCounter(ML_Entity("ml_lzc")):
 
 if __name__ == "__main__":
     # auto-test
-    arg_template = ML_EntityArgTemplate(default_entity_name = "new_lzc", default_output_file = "ml_lzc.vhd")
+    arg_template = ML_EntityArgTemplate(default_entity_name = "new_lzc", default_output_file = "ml_lzc.vhd", default_arg = ML_LeadingZeroCounter.get_default_args())
     arg_template.parser.add_argument("--width", dest = "width", type=int, default = 32, help = "set input width value (in bits)")
     # argument extraction 
     args = parse_arg_index_list = arg_template.arg_extraction()
