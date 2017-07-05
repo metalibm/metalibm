@@ -478,7 +478,7 @@ class ML_EntityBasis(object):
     if self.auto_test_execute:
       # rtl elaboration
       print "Elaborating {}".format(self.output_file)
-      elab_cmd = "vlib work && vcom {}".format(self.output_file)
+      elab_cmd = "vlib work && vcom -2008 {}".format(self.output_file)
       elab_result = subprocess.call(elab_cmd, shell = True)
       print "Elaboration result: ", elab_result
       # debug cmd
@@ -492,7 +492,7 @@ class ML_EntityBasis(object):
 
     elif self.build_enable:
       print "Elaborating {}".format(self.output_file)
-      elab_cmd = "vlib work && vcom {}".format(self.output_file)
+      elab_cmd = "vlib work && vcom -2008 {}".format(self.output_file)
       elab_result = subprocess.call(elab_cmd, shell = True)
       print "elab_result: ", elab_result
     
