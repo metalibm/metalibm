@@ -367,7 +367,15 @@ class ML_Std_FP_Format(ML_FP_Format):
         return uint_precision[self]
 
 
+## Generic constructor for Metalibm formats
 class ML_FormatConstructor(ML_Format):
+    """ Generic constructor for Metalibm formats """
+    ## Object constructor 
+    #  @param bit_size size of the format (in bits)
+    #  @param c_name name of the format in the C language
+    #  @param c_display_format string format to display @p self format value
+    #  @param get_c_cst function self, value -> Node to generate
+    #         constant value associated with @p self format
     def __init__(self, bit_size, c_name, c_display_format, get_c_cst):
         ML_Format.__init__(self)
         self.bit_size = bit_size
@@ -375,12 +383,15 @@ class ML_FormatConstructor(ML_Format):
         self.display_format[C_Code] = c_display_format
         self.get_cst_map = {C_Code: get_c_cst}
 
+    ## generate a constant value with numerical value @p value
+    #  in language @p language
     def get_cst(self, value, language = C_Code):
         return self.get_cst_map[language](self, value)
 
     def __str__(self):
         return self.name[C_Code]
 
+    ## Return the format size (in bits)
     def get_bit_size(self):
         return self.bit_size
 
