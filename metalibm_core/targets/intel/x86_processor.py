@@ -87,6 +87,13 @@ def EmmIntrin(*args, **kw):
     'require_header': ["emmintrin.h"]
   })
   return FunctionOperator(*args, **kw)
+## Wrapper for intel x86_ssse3 intrinsics
+#  defined in <tmmintrin.h> header
+def TmmIntrin(*args, **kw):
+  kw.update({
+    'require_header': ["tmmintrin.h"]
+  })
+  return FunctionOperator(*args, **kw)
 ## Wrapper for intel x86 sse4.1 intrinsics
 #  defined in <smmintrin.h> header
 def SmmIntrin(*args, **kw):
@@ -378,6 +385,50 @@ sse2_c_code_generation_table = {
         },
       },
     },
+    Negation: {
+        None: {
+            lambda optree: True: {
+                # Float negation
+                type_strict_match(*(2*(ML_SSE_m128_v4float32,))):
+                    EmmIntrin("_mm_xor_ps", arity = 2)(
+                        FO_Arg(0),
+                        FO_Value("_mm_set1_ps(-0.0f)", ML_SSE_m128_v4float32)
+                    ),
+                type_strict_match(*(2*(ML_SSE_m128_v2float64,))):
+                    EmmIntrin("_mm_xor_pd", arity = 2)(
+                        FO_Value("_mm_set1_pd(-0.0f)", ML_SSE_m128_v2float64),
+                        FO_Arg(0)
+                    ),
+                # Integer negation
+                type_strict_match(*(2*(ML_SSE_m128_v4int32,))):
+                    EmmIntrin("_mm_sub_epi32", arity = 2)(
+                        FO_Value("_mm_set1_epi32(0)", ML_SSE_m128_v4int32),
+                        FO_Arg(0)
+                    ),
+                type_strict_match(*(2*(ML_SSE_m128_v2int64,))):
+                    EmmIntrin("_mm_sub_epi64", arity = 2)(
+                        FO_Value("_mm_set1_epi64(0)", ML_SSE_m128_v2int64),
+                        FO_Arg(0)
+                    ),
+            },
+        },
+    },
+}
+
+ssse3_c_code_generation_table = {
+    Negation: {
+        None: {
+            lambda optree: True: {
+                # Float negation is handled by SSE2 instructions
+                # 32-bit integer negation using SSSE3 sign_epi32 instruction
+                type_strict_match(*(2*(ML_SSE_m128_v4int32,))):
+                    TmmIntrin("_mm_sign_epi32", arity = 2)(
+                        FO_Value("_mm_set1_epi32(-1)", ML_SSE_m128_v4int32),
+                        FO_Arg(0)
+                    ),
+            },
+        },
+    },
 }
 
 sse41_c_code_generation_table = {
@@ -472,7 +523,21 @@ class X86_SSE2_Processor(X86_SSE_Processor):
     def __init__(self):
         X86_SSE_Processor.__init__(self)
 
-class X86_SSE41_Processor(X86_SSE2_Processor):
+class X86_SSSE3_Processor(X86_SSE2_Processor):
+    target_name = "x86_ssse3"
+    TargetRegister.register_new_target(target_name, lambda _: X86_SSSE3_Processor)
+
+    code_generation_table = {
+        C_Code: ssse3_c_code_generation_table,
+    }
+
+    def __init__(self):
+        X86_SSE_Processor.__init__(self)
+
+    def get_compilation_options(self):
+      return super(X86_SSSE3_Processor, self).get_compilation_options() + ["-mssse3"]
+
+class X86_SSE41_Processor(X86_SSSE3_Processor):
     target_name = "x86_sse41"
     TargetRegister.register_new_target(target_name, lambda _: X86_SSE41_Processor)
 
