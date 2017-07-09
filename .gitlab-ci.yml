@@ -2,12 +2,19 @@ image: registry.gitlab.com/metalibm-dev/metalibm/image:ci_image_gappa
 
 before_script:
 
-unit_tests:
+soft_unit_tests:
   script:
     - export PATH=/app/local/bin:$PATH
     - export LD_LIBRARY_PATH=/app/local/lib/
     - export PYTHONPATH=/app/local/python/lib/python
     - PYTHONPATH=$PWD:$PYTHONPATH ML_SRC_DIR=$PWD python2.7 valid/soft_unit_test.py --debug
+
+rtl_unit_tests:
+  script:
+    - export PATH=/app/local/bin:$PATH
+    - export LD_LIBRARY_PATH=/app/local/lib/
+    - export PYTHONPATH=/app/local/python/lib/python
+    - PYTHONPATH=$PWD:$PYTHONPATH ML_SRC_DIR=$PWD python2.7 valid/rtl_unit_test.py --debug
 
 non_regression:
   script:
@@ -15,4 +22,11 @@ non_regression:
     - export LD_LIBRARY_PATH=/app/local/lib/
     - export PYTHONPATH=/app/local/python/lib/python
     - PYTHONPATH=$PWD:$PYTHONPATH  ML_SRC_DIR=$PWD python2.7 valid/non_regression.py --debug
+
+rtl_regression:
+  script:
+    - export PATH=/app/local/bin:$PATH
+    - export LD_LIBRARY_PATH=/app/local/lib/
+    - export PYTHONPATH=/app/local/python/lib/python
+    - PYTHONPATH=$PWD:$PYTHONPATH  ML_SRC_DIR=$PWD python2.7 valid/hw_non_regression.py --debug
 
