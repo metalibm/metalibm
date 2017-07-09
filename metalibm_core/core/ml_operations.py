@@ -381,7 +381,12 @@ class AbstractOperation(ML_Operation):
     #  @param  display_attribute [boolean] enable/disable display of node's attributes
     #  @param  display_id [boolean]  enable/disbale display of unique node identified
     #  @return a string describing the node
-    def get_str(self, depth = 2, display_precision = False, tab_level = 0, memoization_map = {}, display_attribute = False, display_id = False):
+    def get_str(
+            self, depth = 2, display_precision = False, 
+            tab_level = 0, memoization_map = None, 
+            display_attribute = False, display_id = False
+        ):
+        memoization_map = {} if memoization_map is None else memoization_map
         new_depth = None 
         if depth != None:
             if  depth < 0: 
@@ -472,7 +477,12 @@ class Constant(ML_LeafNode):
     def set_value(self, new_value):
         self.value = new_value
 
-    def get_str(self, depth = None, display_precision = False, tab_level = 0, memoization_map = {}, display_attribute = False, display_id = False):
+    def get_str(
+            self, depth = None, display_precision = False, 
+            tab_level = 0, memoization_map = None, 
+            display_attribute = False, display_id = False
+        ):
+        memoization_map = {} if memoization_map is None else memoization_map
         precision_str = "" if not display_precision else "[%s]" % str(self.get_precision())
         attribute_str = "" if not display_attribute else self.attributes.get_str(tab_level = tab_level)
         id_str        = ("[id=%x]" % id(self)) if display_id else ""
@@ -520,7 +530,12 @@ class AbstractVariable(ML_LeafNode):
         return self.var_type
 
     ## generate string description of the Variable node
-    def get_str(self, depth = None, display_precision = False, tab_level = 0, memoization_map = {}, display_attribute = False, display_id = False):
+    def get_str(
+            self, depth = None, display_precision = False, tab_level = 0, 
+            memoization_map = None, display_attribute = False, display_id = False
+        ):
+        memoization_map = {} if memoization_map is None else memoization_map
+
         precision_str = "" if not display_precision else "[%s]" % str(self.get_precision())
         attribute_str = "" if not display_attribute else self.attributes.get_str(tab_level = tab_level)
         id_str        = ("[id=%x]" % id(self)) if display_id else ""
@@ -1443,11 +1458,16 @@ class SwitchBlock(AbstractOperationConstructor("Switch", arity = 1)):
     def push_to_pre_statement(self, optree):
         self.pre_statement.push(optree)
 
-    def get_str(self, depth = 2, display_precision = False, tab_level = 0, memoization_map = {}, display_attribute = False, display_id = False):
+    def get_str(
+            self, depth = 2, display_precision = False, 
+            tab_level = 0, memoization_map = None,
+            display_attribute = False, display_id = False
+        ):
         """ string conversion for operation graph 
             depth:                  number of level to be crossed (None: infty)
             display_precision:      enable/display format display
         """
+        memoization_map = {} if memoization_map is None else memoization_map
         new_depth = None 
         if depth != None:
             if  depth < 0: 
