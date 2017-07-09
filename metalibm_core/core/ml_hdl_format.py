@@ -21,7 +21,6 @@ from ..code_generation.code_constant import VHDL_Code
 ## Helper constant: 2 as a sollya object
 S2 = sollya.SollyaObject(2)
 
-
 class StdLogicDirection:
   class Downwards: 
     @staticmethod
@@ -50,7 +49,6 @@ def generic_get_vhdl_cst(value, bit_size):
     return "X\"%s\"" % hex(value)[2:].replace("L","").zfill(bit_size / 4)
   else:
     return "\"%s\"" % bin(value)[2:].replace("L","").zfill(bit_size)
-  
 
 
 class RTL_FixedPointFormat(ML_Base_FixedPoint_Format):
@@ -137,4 +135,18 @@ class ML_StdLogicClass(ML_Format):
 ## std_logic type singleton
 ML_StdLogic = ML_StdLogicClass()
 
+
+## Helper to build RTL fixed-point formats
+def fixed_point(int_size, frac_size, signed = True):
+    new_precision = RTL_FixedPointFormat(
+        int_size, frac_size,
+        signed = signed,
+        support_format = ML_StdLogicVectorFormat(int_size + frac_size)
+    )
+    return new_precision
+
+## Test whether @p precision is a fixed-point format
+#  @return boolean value
+def is_fixed_point(precision):
+    return isinstance(precision, ML_Base_FixedPoint_Format)
 
