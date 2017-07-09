@@ -510,9 +510,7 @@ class ML_Base_FixedPoint_Format(ML_Fixed_Format):
         return self.signed
 
     def __str__(self):
-        if self.frac_size == 0:
-          return self.name[C_Code]
-        elif self.signed:
+        if self.signed:
           return "FS%d.%d" % (self.integer_size, self.frac_size)
         else:
           return "FU%d.%d" % (self.integer_size, self.frac_size)
@@ -562,6 +560,9 @@ class ML_Standard_FixedPoint_Format(ML_Base_FixedPoint_Format):
   def round_sollya_object(self, value, round_mode = sollya.RN):
     # TBD: support other rounding mode
     return sollya.nearestint(value)
+
+  def __str__(self):
+    return self.name[C_Code]
 
 class ML_Custom_FixedPoint_Format(ML_Base_FixedPoint_Format):
     def __eq__(self, other):
