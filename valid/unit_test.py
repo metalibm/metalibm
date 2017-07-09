@@ -46,7 +46,7 @@ class UnitTestScheme(CommonTestScheme):
     test_desc = self.get_title()
     print isinstance(runner, TestRunner)
     if inspect.isclass(runner) and TestRunner in runner.__bases__:
-      arg_template = runner.build_default_args(**arg_tc)
+      arg_template = runner.get_default_args(**arg_tc)
     else:
       arg_template = DefaultArgTemplate(**arg_tc) 
 
@@ -59,14 +59,6 @@ class UnitTestScheme(CommonTestScheme):
         return TestResult(True, "{} succeed".format(test_desc))
       except:
         return TestResult(False, "{} failed".format(test_desc))
-
-## Command line action to set break on error in load module
-class ListUnitTestAction(argparse.Action):
-    def __call__(self, parser, namespace, values, option_string=None):
-        for test in  unit_test_list:
-          print test.get_tag_title()
-        exit(0)
-
 
 # generate list of test object from string 
 # of comma separated test's tag

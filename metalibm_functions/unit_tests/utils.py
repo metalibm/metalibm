@@ -10,7 +10,8 @@ class TestRunner:
 
   ## Generate default argument template
   #  may be overloaded
-  def build_default_args(self):
+  @staticmethod
+  def get_default_args(**kw):
     arg_template = DefaultArgTemplate(
       precision = ML_Binary32,
       output_file = "ut_out.c",

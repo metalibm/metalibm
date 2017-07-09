@@ -173,7 +173,7 @@ class ML_UT_EntityPass(ML_Entity("ml_lzc"), TestRunner):
     return [self.implementation]
 
   @staticmethod
-  def build_default_args(**kw):
+  def get_default_args(**kw):
     root_arg = {
       "entity_name" : "new_entity_pass",
       "output_file"   : "ut_entity_pass.c",

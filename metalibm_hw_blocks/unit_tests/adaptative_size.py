@@ -30,6 +30,8 @@ from metalibm_core.opt.rtl_fixed_point_utils import (
     solve_equal_formats
 )
 
+from metalibm_functions.unit_tests.utils import TestRunner
+
 
 ## determine generic operation precision
 def solve_format_BooleanOp(optree):
@@ -250,10 +252,10 @@ def solve_format_rec(optree, memoization_map=None):
         propagate_format_to_input(new_format, optree, prop_index_list)
 
 
-class AdaptativeEntity(ML_Entity("ml_adaptative_entity")):
+class AdaptativeEntity(ML_Entity("ml_adaptative_entity"), TestRunner):
     """ Adaptative Entity unit-test """
     @staticmethod
-    def get_default_args(width=32):
+    def get_default_args(width=32, **kw):
         """ generate default argument template """
         return DefaultEntityArgTemplate(
             precision=ML_Int32,
@@ -323,6 +325,17 @@ class AdaptativeEntity(ML_Entity("ml_adaptative_entity")):
         return [self.implementation]
 
     standard_test_cases = [sollya_parse(x) for x in ["1.1", "1.5"]]
+
+    @staticmethod
+    def __call__(args):
+        # just ignore args here and trust default constructor?
+        # seems like a bad idea.
+        ut_adaptative_entity = AdaptativeEntity(args)
+        ut_adaptative_entity.gen_implementation()
+
+        return True
+
+run_test = AdaptativeEntity
 
 
 if __name__ == "__main__":

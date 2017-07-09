@@ -24,7 +24,7 @@ from metalibm_core.utility.ml_template import target_instanciate
 from metalibm_core.core.ml_formats import ML_Int32, ML_Int16, ML_Int64
 
 from valid.unit_test import (
-    UnitTestScheme, parse_unit_test_list, ListUnitTestAction
+    UnitTestScheme, parse_unit_test_list
 )
 
 import metalibm_functions.unit_tests.new_arg_template as ut_new_arg_template
@@ -142,6 +142,14 @@ unit_test_list = [
 ]
 
 # TODO: factorize / encapsulate in object/function
+## Command line action to set break on error in load module
+class ListUnitTestAction(argparse.Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        for test in  unit_test_list:
+          print test.get_tag_title()
+        exit(0)
+
+
 
 # filling unit-test tag map
 unit_test_tag_map = {}
