@@ -60,10 +60,4 @@ class UnitTestScheme(CommonTestScheme):
       except:
         return TestResult(False, "{} failed".format(test_desc))
 
-# generate list of test object from string 
-# of comma separated test's tag
-def parse_unit_test_list(test_list):
-  test_tags = test_list.split(",")
-  return [unit_test_tag_map[tag] for tag in test_tags]
-
 

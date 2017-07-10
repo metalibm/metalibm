@@ -24,7 +24,7 @@ from metalibm_core.utility.ml_template import target_instanciate
 from metalibm_core.core.ml_formats import ML_Int32, ML_Int16, ML_Int64
 
 from valid.unit_test import (
-    UnitTestScheme, parse_unit_test_list
+    UnitTestScheme 
 )
 
 import metalibm_functions.unit_tests.new_arg_template as ut_new_arg_template
@@ -149,6 +149,12 @@ class ListUnitTestAction(argparse.Action):
           print test.get_tag_title()
         exit(0)
 
+
+# generate list of test object from string
+# of comma separated test's tag
+def parse_unit_test_list(test_list):
+  test_tags = test_list.split(",")
+  return [unit_test_tag_map[tag] for tag in test_tags]
 
 
 # filling unit-test tag map
