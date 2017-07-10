@@ -10,10 +10,11 @@
 # author(s): Nicolas Brunie (nicolas.brunie@kalray.eu)
 ###############################################################################
 
-import inspect
-
 from ..utility.log_report import Log
+from ..utility.source_info import SourceInfo
+
 from .generator_utility import ML_CG_Operator
+
 
 
 ## complex generator for symbol-like operators, 
@@ -30,7 +31,7 @@ class ComplexOperator(ML_CG_Operator):
     ## generator used when optree returned by modifier is None
     self.backup_operator = backup_operator
 
-    self.retrieve_source_info()
+    self.sourceinfo = SourceInfo.retrieve_source_info(0)
 
 
   ## generate expression for operator

@@ -10,22 +10,14 @@
 # author(s): Nicolas Brunie (nicolas.brunie@kalray.eu)
 ###############################################################################
 
-import inspect
-import os
 
 from ..utility.log_report import Log
 from ..core.ml_formats import *
 from .code_element import CodeVariable, CodeExpression
 from .code_constant import C_Code, Gappa_Code
 
-class SourceInfo:
-    def __init__(self, filename, lineno):
-        self.filename = filename
-        self.lineno = lineno
+from ..utility.source_info import SourceInfo
 
-    def __str__(self):
-        filename = os.path.basename(self.filename)
-        return "{}:{}".format(filename, self.lineno)
 
 class DummyTree(object):
     def __init__(self, tag = "tmp", precision = None):
@@ -74,13 +66,9 @@ class ML_CG_Operator(object):
         # 
         self.context_dependant = context_dependant
         self.speed_measure = speed_measure
-        self.sourceinfo = SourceInfo("undefined", -1)
-        self.retrieve_source_info(extra_depth = 1)
 
-    def retrieve_source_info(self, extra_depth = 0):
-        frame = inspect.currentframe(2 + extra_depth)
-        frameinfo = inspect.getframeinfo(frame)
-        self.sourceinfo = SourceInfo(frameinfo.filename, frameinfo.lineno)
+        ## source file information about opertor instantitation
+        self.sourceinfo = SourceInfo.retrieve_source_info(1)
 
     def get_source_info(self):
         return self.sourceinfo
@@ -564,8 +552,11 @@ class FunctionOperator(ML_CG_Operator):
           else:
               return CodeExpression("%s" % result_code, optree.get_precision())
 
-class FunctionObjectOperator(object):
+class FunctionObjectOperator(ML_CG_Operator):
     """ meta generator for FunctionObject """
+    def __init__(self):
+        ML_CG_Operator.__init__(self)
+
     def generate_expr(self, code_generator, code_object, optree, arg_tuple, generate_pre_process = None, **kwords):
         return optree.get_function_object().get_generator_object().generate_expr(code_generator, code_object, optree, arg_tuple, generate_pre_process = None, **kwords)
 

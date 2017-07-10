@@ -552,7 +552,7 @@ c_code_generation_table = {
     FunctionCall: {
         None: {
             lambda optree: True: {
-                type_function_match: FunctionObjectOperator(), 
+                type_function_match: FunctionObjectOperator(),
             },
         },
     },
