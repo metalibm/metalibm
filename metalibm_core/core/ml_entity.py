@@ -573,7 +573,17 @@ class ML_EntityBasis(object):
         high_input_exp = int(floor(log2(abs(high_input))))
         if isinstance(input_precision, ML_FP_Format):
           input_value = random.uniform(0.5, 1.0) * S2**random.randrange(input_precision.get_emin_normal(), 1) * (high_input - low_input) + low_input
-          input_value = round(input_value, input_precision.get_sollya_object(), RN)
+          input_value = input_precision.round_sollya_object(input_value, RN)
+        elif isinstance(input_precision, ML_Fixed_Format):
+          # fixed point format
+          lo_value = input_precision.get_min_value()
+          hi_value = input_precision.get_max_value()
+          print "lo/hi", lo_value, hi_value
+          input_value = random.uniform(
+            lo_value,
+            hi_value 
+          )
+          input_value = input_precision.round_sollya_object(input_value)
         else: 
           input_value = random.randrange(2**input_precision.get_bit_size())
         input_values[input_tag] = input_value
