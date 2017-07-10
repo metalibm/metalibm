@@ -1,10 +1,15 @@
 # -*- coding: utf-8 -*-
 
 import sys
+from metalibm_core.utility.log_report import Log
 
-class PassDependency: 
-  def is_dep_resolved(self, pass_scheduler):
-    return True
+## Parent class for all pass dependency
+class PassDependency:
+    ## test if the  @p self dependency is resolved
+    #  @p param pass_scheduler scheduler which requires dependency checking
+    #  @return boolean True if dependency is resolved, False otherwise
+    def is_dep_resolved(self, pass_scheduler):
+        return True
 
 class AfterPassByClass(PassDependency):
   def __init__(self, pass_class):
@@ -229,8 +234,11 @@ class PassDump(OptreeOptimization):
     OptimizationPass.__init__(self, "dump")
 
   def execute(self, optree):
-    print optree.get_str(depth = None, display_precision = True, memoization_map = {})
-    
+    Log.report(Log.Info, "executing PassDump")
+    print optree.get_str(
+        depth = None, display_precision = True, memoization_map = {}
+    )
+
 # registering commidity pass
 Pass.register(PassQuit)
 Pass.register(PassDump)
