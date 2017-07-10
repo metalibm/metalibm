@@ -471,7 +471,7 @@ def fixed_point_op_modifier(optree, op_ctor = Addition):
   return TypeCast(
     op_ctor(
       SignCast(
-          zext(
+          (zext if not lhs_prec.get_signed() else sext)(
             rzext(lhs_casted, result_frac_size - lhs_prec.get_frac_size()),
             result_integer_size - lhs_prec.get_integer_size()
           ),
@@ -479,7 +479,7 @@ def fixed_point_op_modifier(optree, op_ctor = Addition):
           precision = raw_op_precision
       ),
       SignCast(
-          zext(
+          (zext if not lhs_prec.get_signed() else sext)(
             rzext(rhs_casted, result_frac_size - rhs_prec.get_frac_size()),
             result_integer_size - rhs_prec.get_integer_size()
           ),
