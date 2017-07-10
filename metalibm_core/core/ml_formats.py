@@ -493,12 +493,18 @@ class ML_Base_FixedPoint_Format(ML_Fixed_Format):
         self.name[C_Code] = c_name
         self.display_format[C_Code] = c_display_format
 
+    ## @return size (in bits) of the integer part of @p self formats
+    #          may be negative to indicate a right shift of the fractionnal
+    #          part
     def get_integer_size(self):
         return self.integer_size
 
     def get_c_bit_size(self):
         return self.c_bit_size
 
+    ## @return size (in bits) of the fractional part of
+    #          @p self formats
+    #          may be negative to indicate a left shift of the integer part
     def get_frac_size(self):
         return self.frac_size
 
@@ -506,8 +512,49 @@ class ML_Base_FixedPoint_Format(ML_Fixed_Format):
         """ return the number of digits after the point """
         return self.frac_size
 
+    ## @return boolean signed/unsigned property
     def get_signed(self):
         return self.signed
+
+    ## return the maximal possible value for the format
+    def get_max_value(self):
+        offset = -1 if self.get_signed() else 0
+        max_code_exp = self.get_integer_size() + self.get_frac_size()
+        code_value = S2**(max_code_exp + offset) - 1
+        return code_value * S2**-self.get_frac_size()
+
+    ## @p round the numerical value @p value to
+    #  @p self fixed-point format while applying
+    #  @p round_mode to determine rounding direction
+    #  @return rounded value (SollyaObject)
+    def round_sollya_object(self, value, round_mode=sollya.RN):
+        rnd_function = {
+            sollya.RN: sollya.nearestint,
+            sollya.RD: sollya.floor,
+            sollya.RU: sollya.ceil,
+            sollya.RZ: lambda x: sollya.floor(x) if x > 0 \
+                       else sollya.ceil(x)
+        }[round_mode]
+        scale_factor = S2**self.get_frac_size()
+        return rnd_function(scale_factor * value) / scale_factor
+
+    ## return the minimal possible value for the format
+    def get_min_value(self):
+        if not self.get_signed():
+            return 0
+        else:
+            max_code_exp = self.get_integer_size() + self.get_frac_size()
+            code_value = S2**(max_code_exp - 1) 
+            return - (code_value * S2**-self.get_frac_size())
+
+    ## if value exceeds formats then
+    def truncate(self, value):
+        descaled_value = value * S2**self.get_frac_size()
+        masked_value = int(descaled_value) & int(S2**self.get_bit_size() - 1)
+        scaled_value = masked_value * S2**-self.get_frac_size()
+        if scaled_value > self.get_max_value():
+            scaled_value -= S2**self.get_integer_size() 
+        return scaled_value
 
     def __str__(self):
         if self.signed:
@@ -527,8 +574,16 @@ class ML_Base_FixedPoint_Format(ML_Fixed_Format):
             return self.get_c_cst(cst_value)
 
     def get_integer_coding(self, value, language = C_Code):
-      encoded_value = int(cst_value * sollya.S2**self.frac_size)
-      return encoded_value
+      assert value <= self.get_max_value()
+      assert value >= self.get_min_value()
+      if value < 0:
+        if not self.signed:
+            Log.report(Log.Error, "negative value encountered {} while converting for an unsigned precision: {}".format(value, self))
+        encoded_value = (~int(abs(value) * sollya.S2**self.frac_size) + 1) % 2**self.get_bit_size()
+        return encoded_value
+      else:
+        encoded_value = int(value * sollya.S2**self.frac_size)
+        return encoded_value
 
     def get_c_cst(self, cst_value):
         """ C-language constant generation """
