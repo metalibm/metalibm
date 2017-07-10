@@ -10,6 +10,8 @@
 # author(s): Nicolas Brunie (nicolas.brunie@kalray.eu)
 ###############################################################################
 
+import inspect
+
 from ..utility.log_report import Log
 from .generator_utility import ML_CG_Operator
 
@@ -27,6 +29,9 @@ class ComplexOperator(ML_CG_Operator):
     self.optree_modifier = optree_modifier
     ## generator used when optree returned by modifier is None
     self.backup_operator = backup_operator
+
+    self.retrieve_source_info()
+
 
   ## generate expression for operator
   # @param self current operator
@@ -49,6 +54,7 @@ class ComplexOperator(ML_CG_Operator):
 #  to the optree being generated
 class DynamicOperator(ML_CG_Operator):
   def __init__(self, dynamic_function, **kwords):
+    ML_CG_Operator.__init__(self, **kwords)
     self.dynamic_function = dynamic_function
 
   ## generate expression for operator

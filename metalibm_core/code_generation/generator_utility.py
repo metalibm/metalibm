@@ -10,11 +10,22 @@
 # author(s): Nicolas Brunie (nicolas.brunie@kalray.eu)
 ###############################################################################
 
+import inspect
+import os
+
 from ..utility.log_report import Log
 from ..core.ml_formats import *
 from .code_element import CodeVariable, CodeExpression
 from .code_constant import C_Code, Gappa_Code
 
+class SourceInfo:
+    def __init__(self, filename, lineno):
+        self.filename = filename
+        self.lineno = lineno
+
+    def __str__(self):
+        filename = os.path.basename(self.filename)
+        return "{}:{}".format(filename, self.lineno)
 
 class DummyTree(object):
     def __init__(self, tag = "tmp", precision = None):
@@ -63,6 +74,17 @@ class ML_CG_Operator(object):
         # 
         self.context_dependant = context_dependant
         self.speed_measure = speed_measure
+        self.sourceinfo = SourceInfo("undefined", -1)
+        self.retrieve_source_info(extra_depth = 1)
+
+    def retrieve_source_info(self, extra_depth = 0):
+        frame = inspect.currentframe(2 + extra_depth)
+        frameinfo = inspect.getframeinfo(frame)
+        self.sourceinfo = SourceInfo(frameinfo.filename, frameinfo.lineno)
+
+    def get_source_info(self):
+        return self.sourceinfo
+        
 
     def register_headers(self, code_object):
         for header in self.require_header: 
@@ -245,6 +267,7 @@ class SymbolOperator(ML_CG_Operator):
         ML_CG_Operator.__init__(self, **kwords)
         self.symbol = "%s%s%s" % (lspace, symbol, rspace)
         self.inverse = inverse
+
 
 
     def generate_expr(self, code_generator, code_object, optree, arg_tuple, generate_pre_process = None, **kwords):
