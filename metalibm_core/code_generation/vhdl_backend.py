@@ -194,9 +194,11 @@ def sub_signal_generator(optree):
     sign_input = optree.get_input(0)
     inf_index = optree.get_inf_index()
     sup_index = optree.get_sup_index()
+    range_direction = "to" if (inf_index == sup_index) else "downto"
     return TemplateOperator(
-        "%s({sup_index} downto {inf_index})".format(
-            inf_index = inf_index, sup_index = sup_index
+        "%s({sup_index} {direction} {inf_index})".format(
+            inf_index = inf_index, direction = range_direction,
+            sup_index = sup_index
         ), arity = 1, force_folding = True
     )
 
