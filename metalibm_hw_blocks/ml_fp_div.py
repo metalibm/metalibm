@@ -28,22 +28,7 @@ from metalibm_hw_blocks.rtl_blocks import *
 
 from metalibm_hw_blocks.lzc import ML_LeadingZeroCounter
 
-## Helper for debug enabling
-debug_std          = ML_Debug(display_format = " -radix 2 ")
-debug_hex          = ML_Debug(display_format = " -radix 16 ")
-debug_dec          = ML_Debug(display_format = " -radix 10 ")
-debug_dec_unsigned = ML_Debug(display_format = " -decimal -unsigned ")
-
-
-## debug pre-process function for
-#  fixed-point value
-def fixed_debug_pre_process(value_name, optree):
-  fixed_prec = optree.get_precision()
-  signed_attr = "-signed" if fixed_prec.get_signed() else "-unsigned"
-  return "echo [get_fixed_value [examine -value {signed_attr} {value}] {weight}]".format(signed_attr = signed_attr, value = value_name, weight = -fixed_prec.get_frac_size())
-
-## Debug attributes specific for Fixed-Point values
-debug_fixed = ML_AdvancedDebug(pre_process = fixed_debug_pre_process)
+from metalibm_core.utlity.rtl_debug_utils import debug_fixed, debug_dec
 
 
 ## Generate the code for a single step of a newton-Raphson 
