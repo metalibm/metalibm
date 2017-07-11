@@ -11,11 +11,14 @@ import metalibm_hw_blocks.lzc
 import metalibm_hw_blocks.ml_fp_adder
 import metalibm_hw_blocks.ml_fp_mpfma
 import metalibm_hw_blocks.ml_fixed_mpfma
+import metalibm_hw_blocks.ml_fp_div
 
 from metalibm_core.core.ml_formats import  \
-  ML_Binary16, ML_Binary32, ML_Binary64, ML_Int32 
-  
-from metalibm_core.utility.ml_template import target_instanciate, DefaultEntityArgTemplate
+  ML_Binary16, ML_Binary32, ML_Binary64, ML_Int32
+
+from metalibm_core.utility.ml_template import (
+    target_instanciate, DefaultEntityArgTemplate
+)
 
 from valid.test_utils import *
 
@@ -56,6 +59,13 @@ new_scheme_function_list = [
       {"precision": ML_Binary16, "extra_digits": 16, "sign_magnitude": True},
       {"precision": ML_Binary16, "extra_digits": 16, "pipelined": True},
     ],
+  ),
+  EntitySchemeTest(
+    "floating-point division",
+    metalibm_hw_blocks.ml_fp_div.FP_Divider,
+    [
+        {},
+    ]
   ),
 ]
 
