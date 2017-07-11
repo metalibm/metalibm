@@ -50,11 +50,9 @@ def test_modifier(predicate_function, **kw):
 def copy_init_stage(src, dst):
   init_stage = src.attributes.get_dyn_attribute("init_stage")
   dst.attributes.init_stage = init_stage
-  
 
 def zext_modifier(optree):
   init_stage = optree.attributes.get_dyn_attribute("init_stage")
-  
   ext_input = optree.get_input(0)
   ext_size = optree.ext_size
   assert ext_size >= 0
@@ -316,12 +314,15 @@ def adapt_fixed_optree(raw_optree, (integer_size, frac_size), optree):
   if lsb_delta >= 0:
     result_rext = rzext(result_lext, lsb_delta)
   else:
-    result_rext = SubSignalSelection(result_lext, -lsb_delta, result_lext.get_precision().get_bit_size() - 1)
+    result_rext = SubSignalSelection(
+        result_lext,
+        -lsb_delta,
+        result_lext.get_precision().get_bit_size() - 1
+    )
   # final format casting
   result = TypeCast(
     result_rext,
     tag = optree.get_tag(),
-    #debug = optree.get_debug(),
     init_stage = init_stage,
     precision = optree_prec,
   )
@@ -329,8 +330,8 @@ def adapt_fixed_optree(raw_optree, (integer_size, frac_size), optree):
 
 ## fixed point operation generation block
 def fixed_point_op_modifier(optree, op_ctor = Addition):
+  ## TODO: fixed node attribute transmission
   init_stage = optree.attributes.get_dyn_attribute("init_stage")
-
   # left hand side and right hand side operand extraction
   lhs = optree.get_input(0)
   rhs = optree.get_input(1)
@@ -343,9 +344,7 @@ def fixed_point_op_modifier(optree, op_ctor = Addition):
   result_integer_size = max(
     lhs_prec.get_integer_size(),
     rhs_prec.get_integer_size()
-  ) + 1 #, optree_prec.get_integer_size())
-  #assert optree_prec.get_frac_size() >= result_frac_size
-  #assert optree_prec.get_integer_size() >= result_integer_size
+  ) + 1 
   lhs_casted = TypeCast(
     lhs,
     precision = ML_StdLogicVectorFormat(lhs_prec.get_bit_size()),
@@ -379,17 +378,11 @@ def fixed_point_op_modifier(optree, op_ctor = Addition):
     rhs_ext,
     precision = ML_StdLogicVectorFormat(result_frac_size + result_integer_size)
   )
-  return adapt_fixed_optree(
+  adapted_result = adapt_fixed_optree(
     raw_result, (result_integer_size, result_frac_size), optree
   )
+  return adapted_result
 
-def fixed_point_add_modifier(optree):
-    Log.report(Log.Info, "fixed_point_add_modifier: {}",
-        optree.get_str(display_precision = True)
-    )
-    return fixed_point_op_modifier(optree, op_ctor = Addition)
-def fixed_point_sub_modifier(optree):
-  return fixed_point_op_modifier(optree, op_ctor = Subtraction)
 
 def fixed_point_mul_modifier(optree):
   init_stage = optree.attributes.get_dyn_attribute("init_stage")
@@ -425,99 +418,13 @@ def fixed_point_mul_modifier(optree):
   )
   # adapting raw result to output format
   return adapt_fixed_optree(raw_result, (result_integer_size, result_frac_size), optree)
-  #rext_result = rzext(raw_result, optree_prec.get_frac_size() - result_frac_size)
-  #result = (sext if (optree_prec.get_signed()) else zext)(rext_result, optree_prec.get_integer_size() - result_integer_size)
-  #return TypeCast(
-  #  result, 
-  #  precision = optree_prec, 
-  #  init_stage = init_stage, 
-  #  debug = optree.get_debug(), 
-  #  tag = optree.get_tag()
-  #) 
 
-## fixed point operation generation block
-def fixed_point_op_modifier(optree, op_ctor = Addition):
-  # left hand side and right hand side operand extraction
-  lhs = optree.get_input(0)
-  rhs = optree.get_input(1)
-  lhs_prec = lhs.get_precision().get_base_format()
-  rhs_prec = rhs.get_precision().get_base_format()
-  optree_prec = optree.get_precision().get_base_format()
-  result_frac_size = max(
-    lhs_prec.get_frac_size(),
-    rhs_prec.get_frac_size(),
-    optree_prec.get_frac_size()
-  )
-  result_integer_size = max(
-    max(
-        lhs_prec.get_integer_size(),
-        rhs_prec.get_integer_size()
-    ) + 1,
-    optree_prec.get_integer_size()
-  )
-  assert optree_prec.get_frac_size() >= result_frac_size
-  assert optree_prec.get_integer_size() >= result_integer_size
-  lhs_casted = TypeCast(
-    lhs, precision = ML_StdLogicVectorFormat(lhs_prec.get_bit_size())
-  )
-  rhs_casted = TypeCast(
-    rhs, precision = ML_StdLogicVectorFormat(rhs_prec.get_bit_size())
-  )
-  lhs_sign_specifier = SignCast.Signed if lhs_prec.get_signed() else \
-      SignCast.Unsigned
-  rhs_sign_specifier = SignCast.Signed if rhs_prec.get_signed() else \
-      SignCast.Unsigned
-  raw_op_precision = ML_StdLogicVectorFormat(optree_prec.get_bit_size())
-  return TypeCast(
-    op_ctor(
-      SignCast(
-          (zext if not lhs_prec.get_signed() else sext)(
-            rzext(lhs_casted, result_frac_size - lhs_prec.get_frac_size()),
-            result_integer_size - lhs_prec.get_integer_size()
-          ),
-          specifier = lhs_sign_specifier,
-          precision = raw_op_precision
-      ),
-      SignCast(
-          (zext if not lhs_prec.get_signed() else sext)(
-            rzext(rhs_casted, result_frac_size - rhs_prec.get_frac_size()),
-            result_integer_size - rhs_prec.get_integer_size()
-          ),
-          specifier = rhs_sign_specifier,
-          precision = raw_op_precision
-      ),
-      precision = raw_op_precision,
-    ),
-    precision = optree_prec,
-  )
 
 def fixed_point_add_modifier(optree):
   return fixed_point_op_modifier(optree, op_ctor = Addition)
 def fixed_point_sub_modifier(optree):
   return fixed_point_op_modifier(optree, op_ctor = Subtraction)
 
-def fixed_point_mul_modifier(optree):
-  # left hand side and right hand side operand extraction
-  lhs = optree.get_input(0)
-  rhs = optree.get_input(1)
-  lhs_prec = lhs.get_precision().get_base_format()
-  rhs_prec = rhs.get_precision().get_base_format()
-  optree_prec = optree.get_precision().get_base_format()
-  result_frac_size = max(lhs_prec.get_frac_size() + rhs_prec.get_frac_size(), optree_prec.get_frac_size())
-  result_integer_size = max(lhs_prec.get_integer_size() +  rhs_prec.get_integer_size(), optree_prec.get_integer_size())
-  assert optree_prec.get_frac_size() >= result_frac_size
-  assert optree_prec.get_integer_size() >= result_integer_size
-  lhs_casted = TypeCast(lhs, precision = ML_StdLogicVectorFormat(lhs_prec.get_bit_size()))
-  rhs_casted = TypeCast(rhs, precision = ML_StdLogicVectorFormat(rhs_prec.get_bit_size()))
-  mult_prec = ML_StdLogicVectorFormat(result_frac_size + result_integer_size)
-  raw_result = Multiplication(
-    lhs_casted,
-    rhs_casted,
-    precision = mult_prec,
-  )
-  rext_result = rext(raw_result, optree_prec.get_frac_size() - mult_prec.get_frac_size())
-  result = zext(rext_result, optree_prec.get_integer_size() - mult_prec.get_integer_size())
-  return TypeCast(result, precision = optree_prec)
 
 vhdl_comp_symbol = {
   Comparison.Equal: "=", 
