@@ -103,16 +103,21 @@ class FP_Divider(ML_Entity("fp_div")):
 
     self.pipelined = arg_template.pipelined
 
+  ## default argument template generation
   @staticmethod
-  def get_default_args(width = 32):
-    return DefaultEntityArgTemplate( 
-             precision = ML_Binary32, 
-             debug_flag = False, 
-             target = VHDLBackend(), 
-             output_file = "my_fp_div.vhd", 
-             entity_name = "my_fp_div",
-             language = VHDL_Code
-           )
+  def get_default_args(**kw):
+    default_dict = {
+        "precision": ML_Binary32,
+        "target": VHDLBackend(),
+        "output_file": "my_fp_div.vhd", 
+        "entity_name": "my_fp_div",
+        "language": VHDL_Code,
+        "pipelined": False,
+    }
+    default_dict.update(kw)
+    return DefaultEntityArgTemplate(
+        **default_dict
+    )
 
   def generate_scheme(self):
 
