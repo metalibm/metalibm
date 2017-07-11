@@ -28,68 +28,70 @@ from metalibm_hw_blocks.rtl_blocks import *
 
 from metalibm_hw_blocks.lzc import ML_LeadingZeroCounter
 
-from metalibm_core.utlity.rtl_debug_utils import debug_fixed, debug_dec
+from metalibm_core.utility.rtl_debug_utils import (
+    debug_fixed, debug_dec, debug_std, debug_hex
+)
 
 
 ## Generate the code for a single step of a newton-Raphson 
 #  iteration
 def generate_NR_iteration(recp_input, previous_approx, (mult_int_size, mult_frac_size), (error_int_size, error_frac_size), (tmp_approx_int_size, tmp_approx_frac_size), (approx_int_size, approx_frac_size), implementation, pipelined = 0, tag_suffix = ""):
-  # creating required formats
-  it_mult_precision = RTL_FixedPointFormat(
-    mult_int_size, mult_frac_size,
-    support_format = ML_StdLogicVectorFormat(mult_int_size + mult_frac_size)
-  )
-  error_precision = RTL_FixedPointFormat(
-    error_int_size,
-    error_frac_size,
-    support_format = ML_StdLogicVectorFormat(error_int_size + error_frac_size)
-  )
-  tmp_approx_precision = RTL_FixedPointFormat(
-    tmp_approx_int_size,
-    tmp_approx_frac_size,
-    support_format = ML_StdLogicVectorFormat(tmp_approx_int_size + tmp_approx_frac_size)
-  )
-  new_approx_precision = RTL_FixedPointFormat(
-    approx_int_size,
-    approx_frac_size,
-    support_format = ML_StdLogicVectorFormat(approx_int_size + approx_frac_size)
-  )
-  # computing error
-  it_mult = Multiplication(
-    recp_input,
-    previous_approx,
-    precision = it_mult_precision,
-    debug = debug_fixed,
-    tag = "it_mult" + tag_suffix
-  )
-  if pipelined >= 2: implementation.start_new_stage()
-  it_error = Subtraction(
-    Constant(1, precision = it_mult_precision),
-    it_mult,
-    precision = error_precision,
-    tag = "it_error" + tag_suffix,
-    debug = debug_fixed
-  )
-  if pipelined >= 1: implementation.start_new_stage()
-
-  # computing new approximation
-  approx_mult = Multiplication(
-    it_error,
-    previous_approx,
-    precision = tmp_approx_precision,
-    tag = "approx_mult" + tag_suffix,
-    debug = debug_fixed
-  )
-  if pipelined >= 2: implementation.start_new_stage()
-
-  new_approx = Addition(
-    previous_approx,
-    approx_mult,
-    precision = new_approx_precision, 
-    tag = "new_approx",
-    debug = debug_fixed
-  )
-  return new_approx
+    # creating required formats
+    it_mult_precision = RTL_FixedPointFormat(
+      mult_int_size, mult_frac_size,
+      support_format = ML_StdLogicVectorFormat(mult_int_size + mult_frac_size)
+    )
+    error_precision = RTL_FixedPointFormat(
+      error_int_size,
+      error_frac_size,
+      support_format = ML_StdLogicVectorFormat(error_int_size + error_frac_size)
+    )
+    tmp_approx_precision = RTL_FixedPointFormat(
+      tmp_approx_int_size,
+      tmp_approx_frac_size,
+      support_format = ML_StdLogicVectorFormat(tmp_approx_int_size + tmp_approx_frac_size)
+    )
+    new_approx_precision = RTL_FixedPointFormat(
+      approx_int_size,
+      approx_frac_size,
+      support_format = ML_StdLogicVectorFormat(approx_int_size + approx_frac_size)
+    )
+    # computing error
+    it_mult = Multiplication(
+      recp_input,
+      previous_approx,
+      precision = it_mult_precision,
+      debug = debug_fixed,
+      tag = "it_mult" + tag_suffix
+    )
+    if pipelined >= 2: implementation.start_new_stage()
+    it_error = Subtraction(
+      Constant(1, precision = it_mult_precision),
+      it_mult,
+      precision = error_precision,
+      tag = "it_error" + tag_suffix,
+      debug = debug_fixed
+    )
+    if pipelined >= 1: implementation.start_new_stage()
+ 
+    # computing new approximation
+    approx_mult = Multiplication(
+      it_error,
+      previous_approx,
+      precision = tmp_approx_precision,
+      tag = "approx_mult" + tag_suffix,
+      debug = debug_fixed
+    )
+    if pipelined >= 2: implementation.start_new_stage()
+ 
+    new_approx = Addition(
+      previous_approx,
+      approx_mult,
+      precision = new_approx_precision, 
+      tag = "new_approx",
+      debug = debug_fixed
+    )
+    return new_approx
 
 class FP_Divider(ML_Entity("fp_div")):
   def __init__(self, 
