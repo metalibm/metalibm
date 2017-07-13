@@ -17,6 +17,7 @@
 import sys, inspect
 
 from sollya import Interval, SollyaObject, nearestint, floor, ceil
+import sollya
 
 from ..utility.log_report import Log
 from .attributes import Attributes, attr_init
@@ -54,7 +55,7 @@ class ML_Operation(object):
 #  @brief This function is called on every operations arguments
 #         to legalize them
 def implicit_op(op):
-
+    """ implicit constant operand promotion """
     if isinstance(op, ML_Operation):
         return op
     elif isinstance(op, SollyaObject) or isinstance(op, int) or isinstance(op, float):
@@ -65,6 +66,8 @@ def implicit_op(op):
         return Constant(op, precision = op.get_precision())
     elif isinstance(op, ML_FloatingPoint_RoundingMode):
         return Constant(op, precision = ML_FPRM_Type)
+    elif isinstance(op , str):
+        return Constant(op, precision = ML_String)
     else:
         print "ERROR: unsupported operand in implicit_op conversion ", op, op.__class__
         raise Exception()
@@ -98,6 +101,11 @@ class AbstractOperation(ML_Operation):
         return VectorElementSelection(self, index)
     def __setitem__(self, index, value):
         return ReferenceAssign(VectorElementSelection(self, index), value, precision = value.get_precision())
+
+    ## apply the @p self. bare_range_function to a tuple
+    #  of intervals
+    def apply_bare_range_function(self, intervals):
+        return self.bare_range_function(*intervals)
 
 
     ## Operator for boolean negation of operands 
@@ -202,14 +210,25 @@ class AbstractOperation(ML_Operation):
         self.attributes.set_precision(new_precision)
 
 
+    ## return the complete list of node's input
+    #  @return list of nodes
     def get_inputs(self):
         return self.inputs
+    ## return @p self's number of inputs
     def get_input_num(self):
         return len(self.inputs)
+    ## return a specific input to @p self
+    #  @param self Operation node
+    #  @param index integer id of the input to extract
+    #  @return the @p index-th input of @p self
     def get_input(self, index):
         return self.inputs[index]
+    ## swap an input in node's input list
+    #  @param self Operation node
+    #  @param index integer id of the input to swap
+    #  @param new_input new value of the input to be set
     def set_input(self, index, new_input):
-        # FIXME: discard tuple -> list -> tuple 
+        # FIXME: discard tuple -> list -> tuple transform 
         input_list = list(self.inputs) 
         input_list[index] = new_input
         self.inputs = tuple(input_list)
@@ -362,7 +381,12 @@ class AbstractOperation(ML_Operation):
     #  @param  display_attribute [boolean] enable/disable display of node's attributes
     #  @param  display_id [boolean]  enable/disbale display of unique node identified
     #  @return a string describing the node
-    def get_str(self, depth = 2, display_precision = False, tab_level = 0, memoization_map = {}, display_attribute = False, display_id = False):
+    def get_str(
+            self, depth = 2, display_precision = False, 
+            tab_level = 0, memoization_map = None, 
+            display_attribute = False, display_id = False
+        ):
+        memoization_map = {} if memoization_map is None else memoization_map
         new_depth = None 
         if depth != None:
             if  depth < 0: 
@@ -453,7 +477,12 @@ class Constant(ML_LeafNode):
     def set_value(self, new_value):
         self.value = new_value
 
-    def get_str(self, depth = None, display_precision = False, tab_level = 0, memoization_map = {}, display_attribute = False, display_id = False):
+    def get_str(
+            self, depth = None, display_precision = False, 
+            tab_level = 0, memoization_map = None, 
+            display_attribute = False, display_id = False
+        ):
+        memoization_map = {} if memoization_map is None else memoization_map
         precision_str = "" if not display_precision else "[%s]" % str(self.get_precision())
         attribute_str = "" if not display_attribute else self.attributes.get_str(tab_level = tab_level)
         id_str        = ("[id=%x]" % id(self)) if display_id else ""
@@ -501,7 +530,12 @@ class AbstractVariable(ML_LeafNode):
         return self.var_type
 
     ## generate string description of the Variable node
-    def get_str(self, depth = None, display_precision = False, tab_level = 0, memoization_map = {}, display_attribute = False, display_id = False):
+    def get_str(
+            self, depth = None, display_precision = False, tab_level = 0, 
+            memoization_map = None, display_attribute = False, display_id = False
+        ):
+        memoization_map = {} if memoization_map is None else memoization_map
+
         precision_str = "" if not display_precision else "[%s]" % str(self.get_precision())
         attribute_str = "" if not display_attribute else self.attributes.get_str(tab_level = tab_level)
         id_str        = ("[id=%x]" % id(self)) if display_id else ""
@@ -555,6 +589,8 @@ class InvalidInterval(Exception):
   """ Invalid interval exception """
   pass
 
+## Check interval validity, verifying that @p lrange
+#  is a valid interval
 def interval_check(lrange):
     """ check if the argument <lrange> is a valid interval,
         if it is, returns it, else raises an InvalidInterval 
@@ -564,6 +600,10 @@ def interval_check(lrange):
     else:
         raise InvalidInterval()
 
+## Extend interval verification to a list of operands
+#  an interval is extract from each operand and checked for validity
+#  if all intervals are valid, @p interval_op is applied and a 
+#  resulting interval is returned
 def interval_wrapper(self, interval_op, ops):
     try:
         return interval_op(self, tuple(interval_check(op.get_interval()) for op in ops))
@@ -571,6 +611,8 @@ def interval_wrapper(self, interval_op, ops):
         return None
 
 
+## Wraps the operation on intervals @p interval_op
+#  to an object method which inputs operations trees
 def interval_func(interval_op):
     """ interval function builder for multi-arity interval operation """
     if interval_op == None:
@@ -596,6 +638,8 @@ def GeneralOperationConstructor(name, arity = 2, range_function = None, error_fu
         "arity": arity, 
         # interval function building
         "range_function": interval_func(range_function), 
+        # bare range function
+        "bare_range_function": range_function,
         # error function building
         "error_function": error_function,
         # generation key building
@@ -822,7 +866,7 @@ class Trunc(ML_ArithmeticOperation):
   """ Round to integer towards zero """
   arity = 1
   name = "Trunc"
-  range_function = interval_func(lambda self, ops: ops[0])
+  range_function = interval_func(lambda self, ops: sollya.trunc(ops[0]))
 
 ## Round to an integer value, rounding towards zero
 #  returns the maximal integer less than or equal to the node's input
@@ -830,13 +874,17 @@ class Floor(ML_ArithmeticOperation):
   """ Round to integer downward """
   arity = 1
   name = "Floor"
-  range_function = interval_func(lambda self, ops: ops[0])
+  range_function = interval_func(lambda self, ops: sollya.floor(ops[0]))
 
 
+## Compute the power of 2 of its unique operand
 class PowerOf2(ArithmeticOperationConstructor("PowerOf2", arity = 1, range_function = lambda self, ops: S2**ops[0])):
     """ abstract power of 2 operation """
     pass
 
+
+## Side effect operator which stops the function and
+#  returns a result value
 class Return(AbstractOperationConstructor("Return", arity = 1, range_function = lambda self, ops: ops[0])):
     """ abstract return value operation """
     pass
@@ -858,25 +906,38 @@ class TableStore(ArithmeticOperationConstructor("TableStore", arity = 3, range_f
     """ abstract store to a table operation """
     pass
 
+## Compute the union of two intervals
 def interval_union(int0, int1):
     return Interval(min(inf(int0), inf(int1)), max(sup(int0), sup(int1)))
 
+## Ternary selection operator: the first operand is a condition
+#  when True the node returns the 2nd operand else its returns the
+#  3rd operand
 class Select(ArithmeticOperationConstructor("Select", arity = 3, range_function = lambda self, ops: interval_union(ops[1], ops[2]))):
     pass
 
 
+## Computes the maximum of its 2 operands
 def Max(op0, op1, **kwords):
     return Select(Comparison(op0, op1, specifier = Comparison.Greater), op0, op1, **kwords)
 
+## Computes the minimum of its 2 operands
 def Min(op0, op1, **kwords):
     return Select(Comparison(op0, op1, specifier = Comparison.Less), op0, op1, **kwords)
 
+## Control-flow loop construction
+#  1st operand is a loop initialization block
+#  2nd operand is a loop exit condition block
+#  3rd operand is a loop body block
 class Loop(AbstractOperationConstructor("Loop", arity = 3)):
   """ abstract loop constructor 
       loop (init_statement, exit_condition, loop_body)
   """
 
-
+## Control-flow if-then-else construction
+#  1st operand is a condition expression
+#  2nd operand is the true-condition branch
+#  3rd operand (optinal) is the false-condition branch
 class ConditionBlock(AbstractOperationConstructor("ConditionBlock", arity = 3)):
     """ abstract if/then(/else) block """
     
@@ -1075,9 +1136,9 @@ def CompSpecBuilder(name, opcode, symbol):
         "get_symbol": (lambda self: self.symbol),
     }
     return type(name, (ComparisonSpecifier,), field_map)
-
   
 
+## Comparision operator
 class Comparison(ArithmeticOperationConstructor("Comparison", arity = 2, inheritance = [BooleanOperation, SpecifierOperation])):
     """ Abstract Comparison operation """
     Equal          = CompSpecBuilder("Equal", "eq", "==")
@@ -1112,6 +1173,7 @@ class Comparison(ArithmeticOperationConstructor("Comparison", arity = 2, inherit
         new_copy.specifier = self.specifier
         BooleanOperation.finish_copy(self, new_copy, copy_map)
 
+## Equality comparision operation
 def Equal(op0, op1, **kwords):
     """ syntaxic bypass for equality comparison """
     # defaulting to ML_Bool precision
@@ -1120,12 +1182,16 @@ def Equal(op0, op1, **kwords):
     kwords["specifier"] = Comparison.Equal
     return Comparison(op0, op1, **kwords)
 
+## Inequality comparision operation
 def NotEqual(op0, op1, **kwords):
     """ syntaxic bypass for non-equality comparison """
     kwords["specifier"] = Comparison.NotEqual
     return Comparison(op0, op1, **kwords)
 
-## Basic imperative-style Statement (list of separate operations, returning
+## Sequential statement block, can have an arbitrary number of
+#  sub-statement operands. Each of those is executed sequentially in
+#  operands order
+# Basic imperative-style Statement (list of separate operations, returning
 #  void)
 class Statement(AbstractOperationConstructor("Statement")):
     def __init__(self, *args, **kwords):
@@ -1392,11 +1458,16 @@ class SwitchBlock(AbstractOperationConstructor("Switch", arity = 1)):
     def push_to_pre_statement(self, optree):
         self.pre_statement.push(optree)
 
-    def get_str(self, depth = 2, display_precision = False, tab_level = 0, memoization_map = {}, display_attribute = False, display_id = False):
+    def get_str(
+            self, depth = 2, display_precision = False, 
+            tab_level = 0, memoization_map = None,
+            display_attribute = False, display_id = False
+        ):
         """ string conversion for operation graph 
             depth:                  number of level to be crossed (None: infty)
             display_precision:      enable/display format display
         """
+        memoization_map = {} if memoization_map is None else memoization_map
         new_depth = None 
         if depth != None:
             if  depth < 0: 
@@ -1463,6 +1534,7 @@ class VectorElementSelection(ArithmeticOperationConstructor("VectorElementSelect
         return self.elt_index
 
 
+## N-operand addition
 def AdditionN(*args, **kwords):
   """ multiple-operand addition wrapper """
   op_list = [op for op in args]

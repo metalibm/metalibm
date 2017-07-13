@@ -236,20 +236,29 @@ class ML_Std_FP_Format(ML_FP_Format):
     #  @param value numeric value to be converted
     #  @return value encoding (as an integer number)
     def get_integer_coding(self, value, language = C_Code):
-        # FIXME: manage subnormal and special values
         value = sollya.round(value, self.get_sollya_object(), sollya.RN)
         # FIXME: managing negative zero
         sign = int(1 if value < 0 else 0)
         value = abs(value)
-        exp   = int(sollya.floor(sollya.log2(value)))
-        exp_biased = int(exp - self.get_bias())
-        mant = int((value / S2**exp - 1.0) / (S2**-self.get_field_size()))
+        if value == 0.0:
+          Log.report(Log.Warning, "+0.0 forced during get_integer_coding conversion")
+          exp_biased = 0
+          mant = 0
+        else:
+          exp        = int(sollya.floor(sollya.log2(value)))
+          exp_biased = int(exp - self.get_bias())
+          if exp < self.get_emin_normal():
+            exp_biased = 0
+            mant = int((value / S2**self.get_emin_subnormal()))
+          else:
+            mant = int((value / S2**exp - 1.0) / (S2**-self.get_field_size()))
         return mant | (exp_biased << self.get_field_size()) | (sign << (self.get_field_size() + self.get_exponent_size()))
 
     def get_value_from_integer_coding(self, value, base = 10):
       value = int(value, base)
       mantissa = value & (2**self.get_field_size() - 1)
-      exponent = ((value >> self.get_field_size()) & (2**self.get_exponent_size() - 1)) + self.get_bias()
+      exponent_field = ((value >> self.get_field_size()) & (2**self.get_exponent_size() - 1)) 
+      exponent = exponent_field + self.get_bias() + (1 if exponent_field == 0 else 0)
       sign_bit = value >> (self.get_field_size() + self.get_exponent_size())
       sign = -1.0 if sign_bit != 0 else 1.0
       mantissa_value = mantissa
@@ -263,12 +272,21 @@ class ML_Std_FP_Format(ML_FP_Format):
     def get_max_value(self):
         return self.get_omega()
 
+    ## return the exponent field corresponding to 
+    #  a special value (inf or NaN)
+    def get_nanorinf_exp_field(self):
+        return S2**self.get_exponent_size() - 1
+
+    ## Return the minimal exponent for a normal number
     def get_emin_normal(self):
         return 1 + self.get_bias()
 
+    ## Return the minimal exponent for a subnormal number
     def get_emin_subnormal(self):
-        return 1 - (self.get_field_size() + 1) + self.get_bias()
+        return 1 - (self.get_field_size()) + self.get_bias()
 
+    ## Return the display (for debug message) associated
+    #  to format @p self
     def get_display_format(self, language = C_Code):
         return self.display_format[language]
 
@@ -486,12 +504,18 @@ class ML_Base_FixedPoint_Format(ML_Fixed_Format):
         self.name[C_Code] = c_name
         self.display_format[C_Code] = c_display_format
 
+    ## @return size (in bits) of the integer part of @p self formats
+    #          may be negative to indicate a right shift of the fractionnal
+    #          part
     def get_integer_size(self):
         return self.integer_size
 
     def get_c_bit_size(self):
         return self.c_bit_size
 
+    ## @return size (in bits) of the fractional part of
+    #          @p self formats
+    #          may be negative to indicate a left shift of the integer part
     def get_frac_size(self):
         return self.frac_size
 
@@ -499,13 +523,52 @@ class ML_Base_FixedPoint_Format(ML_Fixed_Format):
         """ return the number of digits after the point """
         return self.frac_size
 
+    ## @return boolean signed/unsigned property
     def get_signed(self):
         return self.signed
 
+    ## return the maximal possible value for the format
+    def get_max_value(self):
+        offset = -1 if self.get_signed() else 0
+        max_code_exp = self.get_integer_size() + self.get_frac_size()
+        code_value = S2**(max_code_exp + offset) - 1
+        return code_value * S2**-self.get_frac_size()
+
+    ## @p round the numerical value @p value to
+    #  @p self fixed-point format while applying
+    #  @p round_mode to determine rounding direction
+    #  @return rounded value (SollyaObject)
+    def round_sollya_object(self, value, round_mode=sollya.RN):
+        rnd_function = {
+            sollya.RN: sollya.nearestint,
+            sollya.RD: sollya.floor,
+            sollya.RU: sollya.ceil,
+            sollya.RZ: lambda x: sollya.floor(x) if x > 0 \
+                       else sollya.ceil(x)
+        }[round_mode]
+        scale_factor = S2**self.get_frac_size()
+        return rnd_function(scale_factor * value) / scale_factor
+
+    ## return the minimal possible value for the format
+    def get_min_value(self):
+        if not self.get_signed():
+            return 0
+        else:
+            max_code_exp = self.get_integer_size() + self.get_frac_size()
+            code_value = S2**(max_code_exp - 1) 
+            return - (code_value * S2**-self.get_frac_size())
+
+    ## if value exceeds formats then
+    def truncate(self, value):
+        descaled_value = value * S2**self.get_frac_size()
+        masked_value = int(descaled_value) & int(S2**self.get_bit_size() - 1)
+        scaled_value = masked_value * S2**-self.get_frac_size()
+        if scaled_value > self.get_max_value():
+            scaled_value -= S2**self.get_integer_size() 
+        return scaled_value
+
     def __str__(self):
-        if self.frac_size == 0:
-          return self.name[C_Code]
-        elif self.signed:
+        if self.signed:
           return "FS%d.%d" % (self.integer_size, self.frac_size)
         else:
           return "FU%d.%d" % (self.integer_size, self.frac_size)
@@ -520,6 +583,18 @@ class ML_Base_FixedPoint_Format(ML_Fixed_Format):
             return self.get_gappa_cst(cst_value)
         else:
             return self.get_c_cst(cst_value)
+
+    def get_integer_coding(self, value, language = C_Code):
+      assert value <= self.get_max_value()
+      assert value >= self.get_min_value()
+      if value < 0:
+        if not self.signed:
+            Log.report(Log.Error, "negative value encountered {} while converting for an unsigned precision: {}".format(value, self))
+        encoded_value = (~int(abs(value) * sollya.S2**self.frac_size) + 1) % 2**self.get_bit_size()
+        return encoded_value
+      else:
+        encoded_value = int(value * sollya.S2**self.frac_size)
+        return encoded_value
 
     def get_c_cst(self, cst_value):
         """ C-language constant generation """
@@ -552,6 +627,9 @@ class ML_Standard_FixedPoint_Format(ML_Base_FixedPoint_Format):
     # TBD: support other rounding mode
     return sollya.nearestint(value)
 
+  def __str__(self):
+    return self.name[C_Code]
+
 class ML_Custom_FixedPoint_Format(ML_Base_FixedPoint_Format):
     def __eq__(self, other):
         return (type(self) == type(other)) and (self.__dict__ == other.__dict__)
@@ -574,15 +652,14 @@ class ML_Custom_FixedPoint_Format(ML_Base_FixedPoint_Format):
           return None
         return ML_Custom_FixedPoint_Format(int(format_match.group("integer")), int(format_match.group("frac")), signed = signed)
 
-class ML_Bool_Format(object):
-    """ abstract Boolean format """
-    pass
 
 # Standard binary floating-point format declarations
+## IEEE binary32 (fp32) single precision floating-point format
 ML_Binary32 = ML_Std_FP_Format(32, 8, 23, "f", "float", "fp32", "%a", sollya.binary32)
+## IEEE binary64 (fp64) double precision floating-point format
 ML_Binary64 = ML_Std_FP_Format(64, 11, 52, "", "double", "fp64", "%la", sollya.binary64)
 ML_Binary80 = ML_Std_FP_Format(80, 15, 64, "L", "long double", "fp80", "%la", sollya.binary80)
-# Half precision format
+## IEEE binary16 (fp16) half precision floating-point format
 ML_Binary16 = ML_Std_FP_Format(16, 5, 10, "__ERROR__", "half", "fp16", "%a", sollya.binary16)
 
 
@@ -609,12 +686,37 @@ def bool_get_c_cst(self, cst_value):
   else:
     return "ML_FALSE"
 
+class ML_Bool_Format(object):
+    """ abstract Boolean format """
+    pass
+
+
 class ML_BoolClass(ML_FormatConstructor, ML_Bool_Format):
   def __str__(self):
     return "ML_Bool"
 
 ML_Bool      = ML_BoolClass(32, "int", "%d", bool_get_c_cst)
 
+## virtual parent to string formats
+class ML_String_Format(ML_Format):
+    """ abstract String format """
+    pass
+class ML_StringClass(ML_String_Format):
+    """ Metalibm character string class """
+    def __init__(self, c_name, c_display_format, get_c_cst):
+        ML_Format.__init__(self)
+        self.name[C_Code] = c_name
+        self.display_format[C_Code] = c_display_format
+        self.get_cst_map = {C_Code: get_c_cst}
+
+    def get_cst(self, value, language = C_Code):
+        return self.get_cst_map[language](self, value)
+
+    def __str__(self):
+        return "ML_String"
+
+## Metalibm string format
+ML_String = ML_StringClass("char*", "%s", lambda self, s: "\"{}\"".format(s)) 
 
 def is_std_integer_format(precision):
   return precision in [ ML_Int8, ML_UInt8, ML_Int16, ML_UInt16,
@@ -813,15 +915,30 @@ ML_Void = ML_FormatConstructor(0, "void", "ERROR", lambda _: None)
 #                     FLOATING-POINT SPECIAL VALUES
 ###############################################################################
 class FP_SpecialValue(object):
-    """ parent to all floating-point constants """
-    suffix_table = {
-        ML_Binary32: ".f",
-        ML_Binary64: ".d",
-    }
-    support_prefix = {
-        ML_Binary32: "fp32",
-        ML_Binary64: "fp64",
-    }
+  ml_support_name = "undefined"
+
+  """ parent to all floating-point constants """
+  suffix_table = {
+      ML_Binary32: ".f",
+      ML_Binary64: ".d",
+  }
+  support_prefix = {
+      ML_Binary32: "fp32",
+      ML_Binary64: "fp64",
+  }
+  def __init__(self, precision):
+    self.precision = precision
+
+  def get_c_cst(self):
+    prefix = self.support_prefix[self.precision]
+    suffix = self.suffix_table[self.precision]
+    return prefix + self.ml_support_name + suffix
+
+  def __str__(self):
+    return "%s" % (self.ml_support_name)
+
+  def get_precision(self):
+    return self.precision
 
 def FP_SpecialValue_get_c_cst(self):
     prefix = self.support_prefix[self.precision]
@@ -834,48 +951,32 @@ def FP_SpecialValue_init(self, precision):
 def FP_SpecialValue_get_str(self):
     return "%s" % (self.ml_support_name)
 
-def FP_SpecialValueBuilder(special_value):
-    attr_map = {
-        "ml_support_name": special_value,
-        "__str__": FP_SpecialValue_get_str,
-        "get_precision": lambda self: self.precision,
-        "__init__": FP_SpecialValue_init,
-        "get_c_cst": FP_SpecialValue_get_c_cst
-    }
-    return type(special_value, (FP_SpecialValue,), attr_map)
 
-## Special value class builder for floatingg-point special values
-#  using lib math (libm) macros and constant
-def FP_MathSpecialValueBuilder(special_value):
-    attr_map = {
-        "ml_support_name": special_value,
-        "__str__": FP_SpecialValue_get_str,
-        "get_precision": lambda self: self.precision,
-        "__init__": FP_SpecialValue_init,
-        "get_c_cst": lambda self: self.ml_support_name
-    }
-    return type(special_value, (FP_SpecialValue,), attr_map)
+class FP_MathSpecialValue(FP_SpecialValue):
+  def get_c_cst(self):
+    return self.ml_support_name
+
 
 #class FP_PlusInfty(FP_SpecialValueBuilder("_sv_PlusInfty")):
 #    pass
-class FP_PlusInfty(FP_MathSpecialValueBuilder("INFINITY")):
-    pass
-class FP_MinusInfty(FP_SpecialValueBuilder("_sv_MinusInfty")):
-    pass
-class FP_PlusOmega(FP_SpecialValueBuilder("_sv_PlusOmega")):
-    pass
-class FP_MinusOmega(FP_SpecialValueBuilder("_sv_MinusOmega")):
-    pass
-class FP_PlusZero(FP_SpecialValueBuilder("_sv_PlusZero")):
-    pass
-class FP_MinusZero(FP_SpecialValueBuilder("_sv_MinusZero")):
-    pass
-class FP_QNaN(FP_MathSpecialValueBuilder("NAN")):
-    pass
+class FP_PlusInfty(FP_MathSpecialValue):
+  ml_support_name = "INFINITY"
+class FP_MinusInfty(FP_SpecialValue):
+  ml_support_name = "_sv_MinusInfty"
+class FP_PlusOmega(FP_SpecialValue):
+  ml_support_name = "_sv_PlusOmega"
+class FP_MinusOmega(FP_SpecialValue):
+  ml_support_name = "_sv_MinusOmega"
+class FP_PlusZero(FP_SpecialValue):
+  ml_support_name = "_sv_PlusZero"
+class FP_MinusZero(FP_SpecialValue):
+  ml_support_name = "_sv_MinusZero"
+class FP_QNaN(FP_MathSpecialValue):
+  ml_support_name = "NAN"
 #class FP_QNaN(FP_SpecialValueBuilder("_sv_QnaN")):
 #    pass
-class FP_SNaN(FP_SpecialValueBuilder("_sv_SNaN")):
-    pass
+class FP_SNaN(FP_SpecialValue):
+  ml_support_name = "_sv_SNaN"
 
 
 class FP_Context(object):

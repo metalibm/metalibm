@@ -28,83 +28,70 @@ from metalibm_hw_blocks.rtl_blocks import *
 
 from metalibm_hw_blocks.lzc import ML_LeadingZeroCounter
 
-## Helper for debug enabling
-debug_std          = ML_Debug(display_format = " -radix 2 ")
-debug_hex          = ML_Debug(display_format = " -radix 16 ")
-debug_dec          = ML_Debug(display_format = " -radix 10 ")
-debug_dec_unsigned = ML_Debug(display_format = " -decimal -unsigned ")
-
-
-## debug pre-process function for
-#  fixed-point value
-def fixed_debug_pre_process(value_name, optree):
-  fixed_prec = optree.get_precision()
-  signed_attr = "-signed" if fixed_prec.get_signed() else "-unsigned"
-  return "echo [get_fixed_value [examine -value {signed_attr} {value}] {weight}]".format(signed_attr = signed_attr, value = value_name, weight = -fixed_prec.get_frac_size())
-
-## Debug attributes specific for Fixed-Point values
-debug_fixed = ML_AdvancedDebug(pre_process = fixed_debug_pre_process)
+from metalibm_core.utility.rtl_debug_utils import (
+    debug_fixed, debug_dec, debug_std, debug_hex
+)
 
 
 ## Generate the code for a single step of a newton-Raphson 
 #  iteration
 def generate_NR_iteration(recp_input, previous_approx, (mult_int_size, mult_frac_size), (error_int_size, error_frac_size), (tmp_approx_int_size, tmp_approx_frac_size), (approx_int_size, approx_frac_size), implementation, pipelined = 0, tag_suffix = ""):
-  # creating required formats
-  it_mult_precision = RTL_FixedPointFormat(
-    mult_int_size, mult_frac_size,
-    support_format = ML_StdLogicVectorFormat(mult_int_size + mult_frac_size)
-  )
-  error_precision = RTL_FixedPointFormat(
-    error_int_size,
-    error_frac_size,
-    support_format = ML_StdLogicVectorFormat(error_int_size + error_frac_size)
-  )
-  tmp_approx_precision = RTL_FixedPointFormat(
-    tmp_approx_int_size,
-    tmp_approx_frac_size,
-    support_format = ML_StdLogicVectorFormat(tmp_approx_int_size + tmp_approx_frac_size)
-  )
-  new_approx_precision = RTL_FixedPointFormat(
-    approx_int_size,
-    approx_frac_size,
-    support_format = ML_StdLogicVectorFormat(approx_int_size + approx_frac_size)
-  )
-  # computing error
-  it_mult = Multiplication(
-    recp_input,
-    previous_approx,
-    precision = it_mult_precision,
-    debug = debug_fixed,
-    tag = "it_mult" + tag_suffix
-  )
-  if pipelined >= 2: implementation.start_new_stage()
-  it_error = Subtraction(
-    Constant(1, precision = it_mult_precision),
-    it_mult,
-    precision = error_precision,
-    tag = "it_error" + tag_suffix,
-    debug = debug_fixed
-  )
-  if pipelined >= 1: implementation.start_new_stage()
-
-  # computing new approximation
-  approx_mult = Multiplication(
-    it_error,
-    previous_approx,
-    precision = tmp_approx_precision,
-    tag = "approx_mult" + tag_suffix,
-    debug = debug_fixed
-  )
-  if pipelined >= 2: implementation.start_new_stage()
-
-  new_approx = Addition(
-    previous_approx,
-    approx_mult,
-    precision = new_approx_precision, 
-    tag = "new_approx",
-    debug = debug_fixed
-  )
-  return new_approx
+    # creating required formats
+    it_mult_precision = RTL_FixedPointFormat(
+      mult_int_size, mult_frac_size,
+      support_format = ML_StdLogicVectorFormat(mult_int_size + mult_frac_size)
+    )
+    error_precision = RTL_FixedPointFormat(
+      error_int_size,
+      error_frac_size,
+      support_format = ML_StdLogicVectorFormat(error_int_size + error_frac_size)
+    )
+    tmp_approx_precision = RTL_FixedPointFormat(
+      tmp_approx_int_size,
+      tmp_approx_frac_size,
+      support_format = ML_StdLogicVectorFormat(tmp_approx_int_size + tmp_approx_frac_size)
+    )
+    new_approx_precision = RTL_FixedPointFormat(
+      approx_int_size,
+      approx_frac_size,
+      support_format = ML_StdLogicVectorFormat(approx_int_size + approx_frac_size)
+    )
+    # computing error
+    it_mult = Multiplication(
+      recp_input,
+      previous_approx,
+      precision = it_mult_precision,
+      debug = debug_fixed,
+      tag = "it_mult" + tag_suffix
+    )
+    if pipelined >= 2: implementation.start_new_stage()
+    it_error = Subtraction(
+      Constant(1, precision = it_mult_precision),
+      it_mult,
+      precision = error_precision,
+      tag = "it_error" + tag_suffix,
+      debug = debug_fixed
+    )
+    if pipelined >= 1: implementation.start_new_stage()
+ 
+    # computing new approximation
+    approx_mult = Multiplication(
+      it_error,
+      previous_approx,
+      precision = tmp_approx_precision,
+      tag = "approx_mult" + tag_suffix,
+      debug = debug_fixed
+    )
+    if pipelined >= 2: implementation.start_new_stage()
+ 
+    new_approx = Addition(
+      previous_approx,
+      approx_mult,
+      precision = new_approx_precision, 
+      tag = "new_approx",
+      debug = debug_fixed
+    )
+    return new_approx
 
 class FP_Divider(ML_Entity("fp_div")):
   def __init__(self, 
@@ -118,16 +105,21 @@ class FP_Divider(ML_Entity("fp_div")):
 
     self.pipelined = arg_template.pipelined
 
+  ## default argument template generation
   @staticmethod
-  def get_default_args(width = 32):
-    return DefaultEntityArgTemplate( 
-             precision = ML_Binary32, 
-             debug_flag = False, 
-             target = VHDLBackend(), 
-             output_file = "my_fp_div.vhd", 
-             entity_name = "my_fp_div",
-             language = VHDL_Code
-           )
+  def get_default_args(**kw):
+    default_dict = {
+        "precision": ML_Binary32,
+        "target": VHDLBackend(),
+        "output_file": "my_fp_div.vhd", 
+        "entity_name": "my_fp_div",
+        "language": VHDL_Code,
+        "pipelined": False,
+    }
+    default_dict.update(kw)
+    return DefaultEntityArgTemplate(
+        **default_dict
+    )
 
   def generate_scheme(self):
 

@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
 
+## @package attributes
+#  Operation Node attributes (decorator)
+
 ###############################################################################
 # This file is part of Kalray's Metalibm tool
 # Copyright (2013-2014)
@@ -12,11 +15,15 @@
 
 from ..utility.log_report import Log
 
-## attribute initialization function (with default value when not initialized) 
+## \defgroup attributes attributes
+#  @{
+
+## attribute initialization function (with default value when not initialized)
 #  @param attrs is an attribute dictionnary
 #  @param attr_name is the name of the attribute to initialize
-#  @param default_value [None] is the value to be associated with the attribute if no value is found within attrs
-#  @param required [False] indicate whether the attribute may be omitted or not 
+#  @param default_value [None] is the value to be associated with the attribute
+#  if no value is found within attrs
+#  @param required [False] indicate whether the attribute may be omitted or not
 def attr_init(attrs, attr_name, default_value = None, required = False):
     if attr_name in attrs:
         return attrs[attr_name]
@@ -27,13 +34,13 @@ def attr_init(attrs, attr_name, default_value = None, required = False):
             return default_value
 
 
-## Debug attributes class to adapt the debug display message properties 
+## Debug attributes class to adapt the debug display message properties
 #  @param display_format C string used when displaying debug message
 #  @param color of the debug message
-#  @param pre_process  pre_process function to be applied to the Node before display
+#  @param pre_process  pre_process function to be applied to the Node
+#         before display
 #  @param require_header list of headers required to generate the debug message
 class ML_Debug(object):
-    
     ## initialization of a new ML_Debug object
     def __init__(self, display_format = None, color = None, pre_process = lambda v: v, require_header = []):
         self.display_format = display_format
@@ -271,3 +278,7 @@ class Attributes(object):
     def unset_default_silent():
         Attributes.default_silent.pop(0)
         if len(Attributes.default_silent) < 1: raise Exception()
+
+
+# end of doxygen group attributes
+## @}

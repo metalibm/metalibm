@@ -1,10 +1,177 @@
 # -*- coding: utf-8 -*-
 
+import sys
+from metalibm_core.utility.log_report import Log
+
+## Parent class for all pass dependency
+class PassDependency:
+    ## test if the  @p self dependency is resolved
+    #  @p param pass_scheduler scheduler which requires dependency checking
+    #  @return boolean True if dependency is resolved, False otherwise
+    def is_dep_resolved(self, pass_scheduler):
+        return True
+
+class AfterPassByClass(PassDependency):
+  def __init__(self, pass_class):
+    self.pass_class = pass_class
+
+  def is_dep_resolved(self, pass_scheduler):
+    for pass_obj in pass_scheduler.get_executed_passes():
+      if isinstance(pass_obj, self.pass_class):
+        return True
+    return False
+
+class AfterPassById(PassDependency):
+  def __init__(self, pass_id):
+    self.pass_id = pass_id
+
+  def is_dep_resolved(self, pass_scheduler):
+    for pass_obj in pass_scheduler.get_executed_passes():
+      if pass_obj.get_pass_id() == self.pass_id:
+        return True
+    return False
+
+class CombineAnd(PassDependency):
+  def __init__(self, lhs, rhs):
+    self.ops = lhs, rhs
+
+  def is_dep_resolved(self, pass_scheduler):
+    lhs, rhs = self.ops
+    return lhs.is_dep_resolved(pass_scheduler) and \
+           rhs.is_dep_resolved(pass_scheduler)
+
+class CombineOr(PassDependency):
+  def __init__(self, lhs, rhs):
+    self.ops = lhs, rhs
+
+  def is_dep_resolved(self, pass_scheduler):
+    lhs, rhs = self.ops
+    return lhs.is_dep_resolved(pass_scheduler) or \
+           rhs.is_dep_resolved(pass_scheduler)
+
+class PassWrapper:
+  def __init__(self, pass_object, dependency):
+    self.pass_object = pass_object
+    self.dependency  = dependency
+  def get_dependency(self):
+    return self.dependency
+  def get_pass_object(self):
+    return self.pass_object
+
+
+## default execution pass function
+def default_execute_pass(pass_scheduler, pass_object, inputs):
+  return [pass_object.execute(pass_input) for pass_input in inputs]
+
+class PassScheduler:
+  class Start: 
+    tag = "start"
+  class Whenever:
+    tag = "whenever"
+  class JustBeforeCodeGen: 
+    tag = "beforecodegen"
+
+  @staticmethod
+  def get_tag_class(tag):
+    return {
+      PassScheduler.Start.tag: PassScheduler.Start,
+      PassScheduler.Whenever.tag: PassScheduler.Whenever,
+      PassScheduler.JustBeforeCodeGen.tag: PassScheduler.JustBeforeCodeGen,
+    }[tag]
+
+  def __init__(self):
+    self.pass_map = {
+      None: [], # should remain empty
+      PassScheduler.Start: [],
+      PassScheduler.Whenever: [],
+      PassScheduler.JustBeforeCodeGen: [],
+    }
+    self.executed_passes = []
+    self.ready_passes    = []
+    self.waiting_pass_wrappers  = []
+
+  def register_pass(self, pass_object, pass_dep = PassDependency(), pass_slot = None):
+    self.pass_map[pass_slot].append(PassWrapper(pass_object, pass_dep)) 
+
+  def get_executed_passes(self):
+    return self.executed_passes
+
+  def get_rdy_pass_list(self):
+    annotated_list = [(pass_wrapper, pass_wrapper.get_dependency().is_dep_resolved(self)) for pass_wrapper in self.waiting_pass_wrappers ]
+    self.ready_passes += [pass_wrapper.get_pass_object() for (pass_wrapper, rdy_flag) in annotated_list if rdy_flag]
+    self.waiting_pass_wrappers = [pass_wrapper for (pass_wrapper, rdy_flag) in annotated_list if not rdy_flag]
+    return self.ready_passes
+
+
+  def update_rdy_pass_list(self):
+    self.ready_passes = self.get_rdy_pass_list()
+    return self.ready_passes
+
+  def enqueue_slot_to_waiting(self, pass_slot = None):
+    self.waiting_pass_wrappers += self.pass_map[pass_slot]
+    self.pass_map[pass_slot] = []
+
+  ## @param pass_slot, add all remaining passes supposed to 
+  #  start after pass_slot to the waiting list
+  #  than update the ready passe list and execute ready passes
+  #  each updating @p pass_input in turn
+  #  the final result is returned
+  def execute_pass_list(self, pass_list, inputs, execution_function):
+    inter_values = inputs
+    for pass_object in pass_list:
+      inter_values = execution_function(self, pass_object, inputs)
+    return inter_values
+
+  def flush_rdy_pass_list(self):
+    ready_passes = self.ready_passes
+    self.ready_passes = []
+    return ready_passes
+
+
+  ## Execute all the ready passes from the given @p pass_slot
+  #  @param execution_function takes a pass and inputs as arguments and return 
+  #         the corresponding  outputs
+  def get_full_execute_from_slot(
+      self, 
+      inputs, 
+      pass_slot = None, 
+      execution_function = default_execute_pass
+    ):
+    self.enqueue_slot_to_waiting(pass_slot = pass_slot)
+    passes_to_execute = self.update_rdy_pass_list()
+    intermediary_values = inputs
+    while len(passes_to_execute) > 0:
+      intermediary_values = self.execute_pass_list(
+        passes_to_execute, 
+        intermediary_values,
+        execution_function
+      )
+      self.executed_passes += passes_to_execute
+      self.flush_rdy_pass_list()
+      passes_to_execute = self.update_rdy_pass_list()
+    return intermediary_values
+
+
 ## System to manage dynamically defined optimization pass
 class Pass:
   pass_tag = None
   ## map of all registered pass
   pass_map = {}
+  pass_id_iterator = -1
+
+  @staticmethod
+  def get_new_pass_id():
+    Pass.pass_id_iterator += 1
+    return Pass.pass_id_iterator
+
+  ## instance a new pass object and allocate it a
+  #  unique pass identifier
+  def __init__(self):
+    self.pass_id = Pass.get_new_pass_id()
+
+  def get_pass_id(self):
+    return self.pass_id
+
   @staticmethod
   def register(pass_class):
     tag = pass_class.pass_tag
@@ -26,15 +193,17 @@ class Pass:
 
 
 ## Abstract parent to optimization pass
-class OptimizationPass:
+class OptimizationPass(Pass):
   """ Virtual parent to all optjmization pass """
   def __init__(self, descriptor = ""):
+    Pass.__init__(self)
     self.descriptor = descriptor
 
   def set_descriptor(self, descriptor):
     self.descriptor = descriptor
   def get_descriptor(self):
     return self.descriptor
+
 
 ## Operation tree Optimization pass
 class OptreeOptimization(OptimizationPass):
@@ -50,3 +219,26 @@ class OptreeOptimization(OptimizationPass):
   # on the given operation sub-graph @p optree
   def execute(self, optree):
     raise NotImplemented
+
+class PassQuit(OptreeOptimization):
+  pass_tag = "quit"
+  def __init__(self, *args):
+    OptimizationPass.__init__(self, "quit")
+
+  def execute(self, *args):
+    sys.exit(1)
+
+class PassDump(OptreeOptimization):
+  pass_tag = "dump"
+  def __init__(self, *args):
+    OptimizationPass.__init__(self, "dump")
+
+  def execute(self, optree):
+    Log.report(Log.Info, "executing PassDump")
+    print optree.get_str(
+        depth = None, display_precision = True, memoization_map = {}
+    )
+
+# registering commidity pass
+Pass.register(PassQuit)
+Pass.register(PassDump)

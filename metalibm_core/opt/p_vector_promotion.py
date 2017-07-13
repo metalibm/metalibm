@@ -79,7 +79,7 @@ class Pass_Vector_Promotion(OptreeOptimization):
 
     support_status = self.target.is_supported_operation(optree, key_getter = key_getter)
     if not support_status:
-      print "not supported in vector_promotion: ", optree.get_str(depth = 2, display_precision = True, memoization_map = {})
+      Log.report(Log.Verbose, "not supported in vector_promotion: {}".format(optree.get_str(depth = 2, display_precision = True, memoization_map = {})))
     return support_status
 
   ## memoize converted     

@@ -32,6 +32,8 @@ from metalibm_core.code_generation.vhdl_code_generator import VHDLCodeGenerator
 from metalibm_core.code_generation.code_constant import VHDL_Code
 from metalibm_core.code_generation.generator_utility import *
 
+from metalibm_core.core.passes import *
+
 from metalibm_core.code_generation.gappa_code_generator import GappaCodeGenerator
 
 from metalibm_core.utility.log_report import Log
@@ -161,13 +163,16 @@ class ML_EntityBasis(object):
     # XOR -> with as many elements as function arity (input + output arities)
     self.io_precisions = io_precisions
 
+
     ## enable the generation of numeric/functionnal auto-test
     self.auto_test_enable  = (auto_test != False or auto_test_std != False)
     self.auto_test_number  = auto_test
     self.auto_test_execute = arg_template.auto_test_execute
     self.auto_test_range   = arg_template.auto_test_range
     self.auto_test_std     = auto_test_std 
-    print "auto_test args: ", auto_test, auto_test_std, self.auto_test_enable, self.auto_test_number, self.auto_test_execute, self.auto_test_std
+
+    # enable/disable automatic exit once functional test is finished
+    self.exit_after_test   = arg_template.exit_after_test
 
     # enable post-generation RTL elaboration
     self.build_enable = arg_template.build_enable
@@ -211,6 +216,28 @@ class ML_EntityBasis(object):
       self.debug_code_object << debug_utils_lib
       self.vhdl_code_generator.set_debug_code_object(self.debug_code_object)
 
+    # pass scheduler instanciation
+    self.pass_scheduler = PassScheduler()
+    # recursive pass dependency
+    pass_dep = PassDependency()
+    for pass_uplet in arg_template.passes:
+      pass_slot_tag, pass_tag = pass_uplet.split(":")
+      pass_slot = PassScheduler.get_tag_class(pass_slot_tag)
+      pass_class  = Pass.get_pass_by_tag(pass_tag)
+      pass_object = pass_class(self.backend) 
+      self.pass_scheduler.register_pass(pass_object, pass_dep = pass_dep, pass_slot = pass_slot)
+      # linearly linking pass in the order they appear
+      pass_dep = AfterPassById(pass_object.get_pass_id())
+
+  def get_pass_scheduler(self):
+    return self.pass_scheduler
+
+
+  ## Class method to generate a structure containing default arguments
+  #  which must be overloaded by @p kw
+  @staticmethod
+  def get_default_args(**kw):
+    return DefaultEntityArgTemplate(**kw)
 
   def get_implementation(self):
     return self.implementation
@@ -397,14 +424,21 @@ class ML_EntityBasis(object):
       debug_stream.close()
 
 
-  def gen_implementation(self, display_after_gen = False, display_after_opt = False, enable_subexpr_sharing = True):
+  def gen_implementation(self, 
+			display_after_gen = False, 
+			display_after_opt = False, 
+			enable_subexpr_sharing = True
+		):
     # generate scheme
     code_entity_list = self.generate_entity_list()
     
     self.generate_pipeline_stage()
 
     if self.auto_test_enable:
-      code_entity_list += self.generate_auto_test(test_num = self.auto_test_number if self.auto_test_number else 0, test_range = self.auto_test_range)
+      code_entity_list += self.generate_auto_test(
+				test_num = self.auto_test_number if self.auto_test_number else 0, 
+				test_range = self.auto_test_range
+			)
       
 
     for code_entity in code_entity_list:
@@ -420,6 +454,23 @@ class ML_EntityBasis(object):
         print "function %s, after opt " % code_entity.get_name()
         print scheme.get_str(depth = None, display_precision = True, memoization_map = {})
 
+    ## apply @p pass_object optimization pass
+    #  to the scheme of each entity in code_entity_list
+    def entity_execute_pass(scheduler, pass_object, code_entity_list):
+      for code_entity in code_entity_list:
+        entity_scheme = code_entity.get_scheme()
+        processed_scheme = pass_object.execute(entity_scheme)
+        # todo check pass effect
+        # code_entity.set_scheme(processed_scheme)
+      return code_entity_list
+      
+
+    print "Applying passes just before codegen"
+    code_entity_list = self.pass_scheduler.get_full_execute_from_slot(
+      code_entity_list, 
+      PassScheduler.JustBeforeCodeGen,
+      entity_execute_pass
+    )
 
     # generate VHDL code to implement scheme
     self.generate_code(code_entity_list, language = self.language)
@@ -427,11 +478,12 @@ class ML_EntityBasis(object):
     if self.auto_test_execute:
       # rtl elaboration
       print "Elaborating {}".format(self.output_file)
-      elab_cmd = "vlib work && vcom {}".format(self.output_file)
+      elab_cmd = "vlib work && vcom -2008 {}".format(self.output_file)
       elab_result = subprocess.call(elab_cmd, shell = True)
       print "Elaboration result: ", elab_result
       # debug cmd
       debug_cmd = "do {debug_file};".format(debug_file = self.debug_file) if self.debug_flag else "" 
+      debug_cmd += " exit;" if self.exit_after_test else ""
       # simulation
       test_delay = 10 * (self.auto_test_number + (len(self.standard_test_cases) if self.auto_test_std else 0) + 10) 
       sim_cmd = "vsim -c work.testbench -do \"run {test_delay} ns; {debug_cmd}\"".format(entity = self.entity_name, debug_cmd = debug_cmd, test_delay = test_delay)
@@ -440,7 +492,7 @@ class ML_EntityBasis(object):
 
     elif self.build_enable:
       print "Elaborating {}".format(self.output_file)
-      elab_cmd = "vlib work && vcom {}".format(self.output_file)
+      elab_cmd = "vlib work && vcom -2008 {}".format(self.output_file)
       elab_result = subprocess.call(elab_cmd, shell = True)
       print "elab_result: ", elab_result
     
@@ -474,8 +526,12 @@ class ML_EntityBasis(object):
     low_input = inf(test_range)
     high_input = sup(test_range)
     # instanciating tested component
+    # map of input_tag -> input_signal and output_tag -> output_signal
     io_map = {}
+    # map of input_tag -> input_signal, excludind commodity signals
+    # (e.g. clock and reset)
     input_signals = {}
+    # map of output_tag -> output_signal
     output_signals = {}
     # excluding clock and reset signals from argument list
     # reduced_arg_list = [input_port for input_port in self.implementation.get_arg_list() if not input_port.get_tag() in ["clk", "reset"]]
@@ -517,7 +573,17 @@ class ML_EntityBasis(object):
         high_input_exp = int(floor(log2(abs(high_input))))
         if isinstance(input_precision, ML_FP_Format):
           input_value = random.uniform(0.5, 1.0) * S2**random.randrange(input_precision.get_emin_normal(), 1) * (high_input - low_input) + low_input
-          input_value = round(input_value, input_precision.get_sollya_object(), RN)
+          input_value = input_precision.round_sollya_object(input_value, RN)
+        elif isinstance(input_precision, ML_Fixed_Format):
+          # fixed point format
+          lo_value = input_precision.get_min_value()
+          hi_value = input_precision.get_max_value()
+          print "lo/hi", lo_value, hi_value
+          input_value = random.uniform(
+            lo_value,
+            hi_value 
+          )
+          input_value = input_precision.round_sollya_object(input_value)
         else: 
           input_value = random.randrange(2**input_precision.get_bit_size())
         input_values[input_tag] = input_value
@@ -545,14 +611,40 @@ class ML_EntityBasis(object):
         output_value  = Constant(output_values[output_tag], precision = output_signal.get_precision())
         value_msg = output_signal.get_precision().get_cst(output_values[output_tag], language = VHDL_Code).replace('"',"'")
         value_msg += " / " + hex(output_signal.get_precision().get_base_format().get_integer_coding(output_values[output_tag]))
+
+        test_pass_cond = Comparison(
+          output_signal,
+          output_value,
+          specifier = Comparison.Equal,
+          precision = ML_Bool
+        )
+
+        test_statement.add(
+            ConditionBlock(
+                LogicalNot(
+                    test_pass_cond,
+                    precision = ML_Bool
+                ),
+                Report(
+                    Concatenation(
+                        " result for {}: ".format(output_tag),
+                        Conversion(
+                            TypeCast(
+                                output_signal,
+                                precision = ML_StdLogicVectorFormat(
+                                    output_signal.get_precision().get_bit_size()
+                                )
+                             ),
+                            precision = ML_String
+                            ),
+                        precision = ML_String
+                    )
+                )
+            )
+        )
         test_statement.add(
           Assert(
-            Comparison(
-              output_signal, 
-              output_value, 
-              specifier = Comparison.Equal, 
-              precision = ML_Bool
-            ),
+            test_pass_cond,
             "\"unexpected value for inputs {input_msg}, output {output_tag}, expecting {value_msg}, got: \"".format(input_msg = input_msg, output_tag = output_tag, value_msg = value_msg),
             severity = Assert.Failure
           )

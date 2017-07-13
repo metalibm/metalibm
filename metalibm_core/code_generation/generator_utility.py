@@ -10,10 +10,13 @@
 # author(s): Nicolas Brunie (nicolas.brunie@kalray.eu)
 ###############################################################################
 
+
 from ..utility.log_report import Log
 from ..core.ml_formats import *
 from .code_element import CodeVariable, CodeExpression
 from .code_constant import C_Code, Gappa_Code
+
+from ..utility.source_info import SourceInfo
 
 
 class DummyTree(object):
@@ -63,6 +66,13 @@ class ML_CG_Operator(object):
         # 
         self.context_dependant = context_dependant
         self.speed_measure = speed_measure
+
+        ## source file information about opertor instantitation
+        self.sourceinfo = SourceInfo.retrieve_source_info(1)
+
+    def get_source_info(self):
+        return self.sourceinfo
+        
 
     def register_headers(self, code_object):
         for header in self.require_header: 
@@ -245,6 +255,7 @@ class SymbolOperator(ML_CG_Operator):
         ML_CG_Operator.__init__(self, **kwords)
         self.symbol = "%s%s%s" % (lspace, symbol, rspace)
         self.inverse = inverse
+
 
 
     def generate_expr(self, code_generator, code_object, optree, arg_tuple, generate_pre_process = None, **kwords):
@@ -541,8 +552,11 @@ class FunctionOperator(ML_CG_Operator):
           else:
               return CodeExpression("%s" % result_code, optree.get_precision())
 
-class FunctionObjectOperator(object):
+class FunctionObjectOperator(ML_CG_Operator):
     """ meta generator for FunctionObject """
+    def __init__(self):
+        ML_CG_Operator.__init__(self)
+
     def generate_expr(self, code_generator, code_object, optree, arg_tuple, generate_pre_process = None, **kwords):
         return optree.get_function_object().get_generator_object().generate_expr(code_generator, code_object, optree, arg_tuple, generate_pre_process = None, **kwords)
 
