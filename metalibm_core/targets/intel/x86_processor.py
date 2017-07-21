@@ -1056,7 +1056,7 @@ rdtsc_operator = AsmInlineOperator(
         : "=r" (cycles_hi), "=r" (cycles_lo)
         :: "%%rax", "%%rbx", "%%rcx", "%%rdx");
     %s = ((uint64_t) cycles_hi << 32) | cycles_lo;
-    }""",
+}""",
     arg_map = {0: FO_Result(0)},
     arity = 0
 )
