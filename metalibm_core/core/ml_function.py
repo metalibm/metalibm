@@ -77,15 +77,20 @@ class ML_FunctionBasis(object):
 
   ## constructor
   #  @param base_name string function name (without precision considerations)
-  #  @param function_name 
+  #  @param function_name
   #  @param output_file string name of source code output file
   #  @param io_precisions input/output ML_Format list
   #  @param abs_accuracy absolute accuracy
-  #  @param libm_compliant boolean flag indicating whether or not the function should be compliant with standard libm specification (wrt exception, error ...)
+  #  @param libm_compliant boolean flag indicating whether or not the
+  #         function should be compliant with standard libm specification
+  #         (wrt exception, error ...)
   #  @param processor GenericProcessor instance, target of the implementation
-  #  @param fuse_fma boolean flag indicating whether or not fusing Multiply+Add optimization must be applied
-  #  @param fast_path_extract boolean flag indicating whether or not fast path extraction optimization must be applied
-  #  @param debug_flag boolean flag, indicating whether or not debug code must be generated 
+  #  @param fuse_fma boolean flag indicating whether or not fusing
+  #         Multiply+Add optimization must be applied
+  #  @param fast_path_extract boolean flag indicating whether or not fast
+  #         path extraction optimization must be applied
+  #  @param debug_flag boolean flag, indicating whether or not debug code
+  #         must be generated
   def __init__(self,
              # Naming
              base_name = ArgDefault("unknown_function", 2),
@@ -174,6 +179,11 @@ class ML_FunctionBasis(object):
     self.bench_test_number = bench_test_number or bench_execute
     self.bench_test_range = bench_test_range
 
+    # source building
+    self.build_enable = arg_template.build_enable
+    # binary execution
+    self.execute_trigger = arg_template.execute_trigger
+
     self.language = language
 
     Log.report(Log.Info, "auto test: {}, {}, {}, {}".format(self.auto_test_enable, self.auto_test_number, self.auto_test_execute, self.auto_test_range))
@@ -217,6 +227,13 @@ class ML_FunctionBasis(object):
   def get_vector_size(self):
     return self.vector_size
 
+
+  ## generate a default argument template
+  #  may be overloaded by sub-class to provide
+  #  a meta-function specific default argument structure
+  def get_default_args(self, **args):
+    return DefaultArgTemplate(**args)
+
   ## Return function's arity (number of input arguments)
   #  Default to 1
   def get_arity(self):
@@ -224,20 +241,29 @@ class ML_FunctionBasis(object):
 
   ## compute the evaluation error of an ML_Operation node
   #  @param optree ML_Operation object whose evaluation error is computed
-  #  @param variable_copy_map dict(optree -> optree) used to delimit the bound of optree
+  #  @param variable_copy_map dict(optree -> optree) used to delimit the
+  #         bound of optree
   #  @param goal_precision ML_Format object, precision used for evaluation goal
-  #  @param gappa_filename string, name of the file where the gappa proof of the evaluation error will be dumped
+  #  @param gappa_filename string, name of the file where the gappa proof
+  #         of the evaluation error will be dumped
   #  @return numerical value of the evaluation error
-  def get_eval_error(self, optree, variable_copy_map = {}, goal_precision = ML_Exact, gappa_filename = "gappa_eval_error.g", relative_error = False):
+  def get_eval_error(
+        self, optree, variable_copy_map = {}, goal_precision = ML_Exact,
+        gappa_filename = "gappa_eval_error.g", relative_error = False
+    ):
     """ wrapper for GappaCodeGenerator get_eval_error_v2 function """
     copy_map = {}
-    for leaf in variable_copy_map: 
+    for leaf in variable_copy_map:
       copy_map[leaf] = variable_copy_map[leaf]
     opt_optree = self.optimise_scheme(optree, copy = copy_map, verbose = False)
     new_variable_copy_map = {}
     for leaf in variable_copy_map:
       new_variable_copy_map[leaf.get_handle().get_node()] = variable_copy_map[leaf]
-    return self.gappa_engine.get_eval_error_v2(self.opt_engine, opt_optree, new_variable_copy_map if variable_copy_map != None else {}, goal_precision, gappa_filename, relative_error = relative_error)
+    return self.gappa_engine.get_eval_error_v2(
+        self.opt_engine, opt_optree,
+        new_variable_copy_map if variable_copy_map != None else {},
+        goal_precision, gappa_filename, relative_error = relative_error
+    )
 
   ## name generation
   #  @param base_name string, name to be extended for unifiquation
@@ -451,29 +477,45 @@ class ML_FunctionBasis(object):
     # generate C code to implement scheme
     self.generate_code(code_function_list, language = self.language)
 
-    if self.auto_test_enable:
+    if self.build_enable or self.auto_test_execute or self.execute_trigger:
       compiler = self.processor.get_compiler()
       test_file = "./test_%s.bin" % self.function_name
       compiler_options = " ".join(self.processor.get_compilation_options())
-      Log.report(Log.Info, "Compiler options: \"{}\"".format(compiler_options))
-      test_command =  "{compiler} {options} -O2 -DML_DEBUG -I$ML_SRC_DIR/metalibm_core \
-      $ML_SRC_DIR/metalibm_core/support_lib/ml_libm_compatibility.c  \
-      $ML_SRC_DIR/metalibm_core/support_lib/ml_multi_prec_lib.c \
-      {src_file} -o {test_file} -lm ".format(compiler = compiler, src_file = self.output_file, test_file = test_file, options = compiler_options) 
-      test_command += " && %s " % self.processor.get_execution_command(test_file)
-      if self.auto_test_execute:
-        print "VALIDATION %s " % self.get_name()
-        print test_command
-        test_result = subprocess.call(test_command, shell = True)
-        if not test_result:
-          print "VALIDATION SUCCESS"
-        else:
-          print test_result
-          print "VALIDATION FAILURE"
-          sys.exit(1)
+      src_list = [self.output_file]
+      if (not self.auto_test_execute) and (not self.execute_trigger):
+        # build only, disable link
+        compiler_options += " -c  "
       else:
-        print "VALIDATION %s command line:" % self.get_name()
-        print test_command
+        src_list += [
+          "$ML_SRC_DIR/metalibm_core/support_lib/ml_libm_compatibility.c",
+          "$ML_SRC_DIR/metalibm_core/support_lib/ml_multi_prec_lib.c",
+        ]
+      Log.report(Log.Info, "Compiler options: \"{}\"".format(compiler_options))
+
+      build_command = "{compiler} {options} -O2 -DML_DEBUG -I$ML_SRC_DIR/metalibm_core \
+      {src_files} -o {test_file} -lm ".format(compiler = compiler, src_files = (" ".join(src_list)), test_file = test_file, options = compiler_options) 
+
+      Log.report(Log.Info, "Building source with command: {}".format(build_command))
+      build_result = subprocess.call(build_command, shell = True)
+      Log.report(Log.Info, "build result: {}".format(build_result))
+
+      if (self.auto_test_enable or self.execute_trigger) and not build_result:
+        test_command = " %s " % self.processor.get_execution_command(test_file)
+        if self.auto_test_execute or self.execute_trigger:
+          print "VALIDATION %s " % self.get_name()
+          print test_command
+          test_result = subprocess.call(test_command, shell = True)
+          if not test_result:
+            print "VALIDATION SUCCESS"
+          else:
+            print test_result
+            print "VALIDATION FAILURE"
+            sys.exit(1)
+        else:
+          print "VALIDATION %s command line:" % self.get_name()
+          print test_command
+      elif build_result:
+        Log.report(Log.Error, "build failed: {}".format(build_result))
 
     elif self.bench_enabled:
       compiler = self.processor.get_compiler()
@@ -520,7 +562,17 @@ class ML_FunctionBasis(object):
       vec_elt_arg_tuple = tuple(VectorElementSelection(vec_arg, elt_index, precision = self.precision) for vec_arg in vec_arg_list)
       unrolled_cond_allocation.add(
         ConditionBlock(
-          Likely(VectorElementSelection(vector_mask, elt_index, precision = ML_Bool), None),
+          Likely(
+            LogicalNot(
+              VectorElementSelection(
+                vector_mask, 
+                elt_index, 
+                precision = ML_Bool
+              ),
+              precision = ML_Bool
+            ),
+            None
+          ),
           ReferenceAssign(VectorElementSelection(vec_res, elt_index, precision = self.precision), scalar_callback(*vec_elt_arg_tuple)),
           # ReferenceAssign(VectorElementSelection(vec_res, elt_index, precision = self.precision), VectorElementSelection(vector_scheme, elt_index, precision = self.precision))
         )
@@ -544,6 +596,7 @@ class ML_FunctionBasis(object):
   #  @p vector_scheme by testing vector mask element and branching
   #  to scalar callback when necessary
   def generate_c_vector_wrapper(self, vector_size, vec_arg_list, vector_scheme, vector_mask, vec_res, scalar_callback):
+
     vi = Variable("i", precision = ML_Int32, var_type = Variable.Local)
     vec_elt_arg_tuple = tuple(
       VectorElementSelection(vec_arg, vi, precision = self.precision)
@@ -553,7 +606,15 @@ class ML_FunctionBasis(object):
     function_scheme = Statement(
       vector_scheme,
       ConditionBlock(
-        Test(vector_mask, specifier = Test.IsMaskNotAnyZero, precision = ML_Bool, likely = True, debug = debug_multi),
+        # if there is not any zero in the mask. then
+        # the vector result may be returned
+        Test(
+          vector_mask, 
+          specifier = Test.IsMaskNotAnyZero, 
+          precision = ML_Bool, 
+          likely = True, 
+          debug = debug_multi
+        ),
         Return(vector_scheme),
         Statement(
           ReferenceAssign(vec_res, vector_scheme),
@@ -562,8 +623,21 @@ class ML_FunctionBasis(object):
             vi < Constant(vector_size, precision = ML_Int32),
             Statement(
               ConditionBlock(
-                Likely(VectorElementSelection(vector_mask, vi, precision = ML_Bool), None),
-                ReferenceAssign(VectorElementSelection(vec_res, vi, precision = self.precision), scalar_callback(*vec_elt_arg_tuple))
+                LogicalNot(
+                  Likely(
+                    VectorElementSelection(
+                      vector_mask, vi, precision = ML_Bool
+                    ), 
+                    None
+                  ),
+                  precision = ML_Bool
+                ),
+                ReferenceAssign(
+                  VectorElementSelection(
+                    vec_res, vi, precision = self.precision
+                  ), 
+                  scalar_callback(*vec_elt_arg_tuple)
+                )
               ),
               ReferenceAssign(vi, vi + 1)
             ),
@@ -610,6 +684,8 @@ class ML_FunctionBasis(object):
     def no_scalar_fallback_required(mask):
       return isinstance(mask, Constant) and \
             reduce(lambda v, acc: (v and acc), mask.get_value(), True)
+
+    self.get_main_code_object().add_header("support_lib/ml_vector_format.h")
 
     print "[SV] building vectorized main statement"
     if no_scalar_fallback_required(vector_mask):

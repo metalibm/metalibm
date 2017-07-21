@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
 
+## @package ml_operations
+#  Metalibm Formats node precision 
+
 ###############################################################################
 # This file is part of Kalray's Metalibm tool
 # Copyright (2013-2015)
@@ -17,6 +20,9 @@ import re
 
 
 S2 = sollya.SollyaObject(2)
+
+## \defgroup ml_formats ml_formats
+#  @{
 
 # numerical floating-point constants
 ml_nan   = sollya.parse("nan")
@@ -284,10 +290,11 @@ class ML_Std_FP_Format(ML_FP_Format):
         high_bound = self.get_emax()
         return sollya.Interval(low_bound, high_bound)
 
+    ## return the size of the mantissa bitfield (excluding implicit bit(s))
     def get_field_size(self):
         return self.field_size
 
-    ## Return the complete mantissa size
+    ## Return the complete mantissa size (including implicit bit(s))
     def get_mantissa_size(self):
         return self.field_size + 1
 
@@ -360,7 +367,15 @@ class ML_Std_FP_Format(ML_FP_Format):
         return uint_precision[self]
 
 
+## Generic constructor for Metalibm formats
 class ML_FormatConstructor(ML_Format):
+    """ Generic constructor for Metalibm formats """
+    ## Object constructor 
+    #  @param bit_size size of the format (in bits)
+    #  @param c_name name of the format in the C language
+    #  @param c_display_format string format to display @p self format value
+    #  @param get_c_cst function self, value -> Node to generate
+    #         constant value associated with @p self format
     def __init__(self, bit_size, c_name, c_display_format, get_c_cst):
         ML_Format.__init__(self)
         self.bit_size = bit_size
@@ -368,12 +383,15 @@ class ML_FormatConstructor(ML_Format):
         self.display_format[C_Code] = c_display_format
         self.get_cst_map = {C_Code: get_c_cst}
 
+    ## generate a constant value with numerical value @p value
+    #  in language @p language
     def get_cst(self, value, language = C_Code):
         return self.get_cst_map[language](self, value)
 
     def __str__(self):
         return self.name[C_Code]
 
+    ## Return the format size (in bits)
     def get_bit_size(self):
         return self.bit_size
 
@@ -414,6 +432,9 @@ class VirtualFormat(ML_Format):
 
   def get_support_format(self):
     return self.support_format
+
+  def get_bit_size(self):
+    return self.base_format.get_bit_size()
 
 
 ## Ancestor to fixed-point format
@@ -603,6 +624,9 @@ def is_std_integer_format(precision):
 def is_std_signed_integer_format(precision):
   return precision in [ ML_Int8, ML_Int16, ML_Int32, ML_Int64, ML_Int128 ]
 
+def is_std_unsigned_integer_format(precision):
+  return precision in [ ML_UInt8, ML_UInt16, ML_UInt32, ML_UInt64, ML_UInt128 ]
+
 def get_std_integer_support_format(precision):
   """ return the ML's integer format to contains
       the fixed-point format precision """
@@ -629,7 +653,7 @@ def get_std_integer_support_format(precision):
 
 
 
-# abstract formats
+# abstract formats singleton
 ML_Integer          = AbstractFormat_Builder("ML_Integer",  (ML_Fixed_Format,))("ML_Integer")
 ML_Float            = AbstractFormat_Builder("ML_Float",    (ML_FP_Format,))("ML_Float")
 ML_AbstractBool     = AbstractFormat_Builder("MLAbstractBool",     (ML_Bool_Format,))("ML_AbstractBool")
@@ -846,8 +870,10 @@ class FP_PlusZero(FP_SpecialValueBuilder("_sv_PlusZero")):
     pass
 class FP_MinusZero(FP_SpecialValueBuilder("_sv_MinusZero")):
     pass
-class FP_QNaN(FP_SpecialValueBuilder("_sv_QNaN")):
+class FP_QNaN(FP_MathSpecialValueBuilder("NAN")):
     pass
+#class FP_QNaN(FP_SpecialValueBuilder("_sv_QnaN")):
+#    pass
 class FP_SNaN(FP_SpecialValueBuilder("_sv_SNaN")):
     pass
 
@@ -866,3 +892,5 @@ class FP_Context(object):
     def get_silent(self):
         return self.silent
 
+## @} 
+# end of metalibm's Doxygen ml_formats group

@@ -37,6 +37,11 @@ static inline void FUNC_NAME(VECTOR_FORMAT *r, VECTOR_FORMAT vop) {\
   };\
 }
 
+#define ML_ASSEMBLE_VECTOR(vr, va, vb, size_a, size_b) {\
+  int __k; \
+  for(__k = 0; __k < (size_a); __k++) (vr)->_[__k] = (va)._[__k];\
+  for(__k = 0; __k < (size_b); __k++) (vr)->_[__k + (size_a)] = (vb)._[__k];\
+}
 
 /** Vector Addition */
 DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vaddf2, ml_float2_t, float, 2, +)
@@ -353,6 +358,10 @@ DEF_ML_VECTOR_TEST_FUNC_OP1(ml_vtestf8_is_nan, ml_bool8_t, ml_float8_t, 8, ml_is
 DEF_ML_VECTOR_TEST_FUNC_OP1(ml_vtestd2_is_nan, ml_bool2_t, ml_double2_t, 2, ml_is_nan)
 DEF_ML_VECTOR_TEST_FUNC_OP1(ml_vtestd4_is_nan, ml_bool4_t, ml_double4_t, 4, ml_is_nan)
 DEF_ML_VECTOR_TEST_FUNC_OP1(ml_vtestd8_is_nan, ml_bool8_t, ml_double8_t, 8, ml_is_nan)
+
+DEF_ML_VECTOR_TEST_FUNC_OP1(ml_vtestf2_is_subnormal, ml_bool2_t, ml_float2_t, 2, ml_is_subnormalf)
+DEF_ML_VECTOR_TEST_FUNC_OP1(ml_vtestf4_is_subnormal, ml_bool4_t, ml_float4_t, 4, ml_is_subnormalf)
+DEF_ML_VECTOR_TEST_FUNC_OP1(ml_vtestf8_is_subnormal, ml_bool8_t, ml_float8_t, 8, ml_is_subnormalf)
 
 static inline int ml_is_vmask2_zero(ml_bool2_t vop) {
   return (vop._[0] == 0) && (vop._[1] == 0);

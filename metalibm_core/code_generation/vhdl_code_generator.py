@@ -2,12 +2,13 @@
 
 ###############################################################################
 # This file is part of Kalray's Metalibm tool
-# Copyright (2013)
+# VHDL code generation module
+# Copyright (2016-)
 # All rights reserved
-# created:          Dec 24th, 2013
-# last-modified:    Apr 2nd,  2014
+# created:          Nov 19th, 2016
+# last-modified:    May  9th, 2017
 #
-# author(s): Nicolas Brunie (nicolas.brunie@kalray.eu)
+# author(s): Nicolas Brunie (nibrunie@gmail.com)
 ###############################################################################
 
 
@@ -19,7 +20,7 @@ from ..core.ml_operations import Variable, Constant, ConditionBlock, Return, Tab
 from ..core.ml_hdl_operations import *
 from ..core.ml_table import ML_Table
 from ..core.ml_formats import *
-from ..core.attributes import ML_Debug
+from ..core.attributes import ML_Debug, ML_AdvancedDebug
 from .code_constant import VHDL_Code
 from .code_element import CodeVariable, CodeExpression
 from .code_function import CodeFunction
@@ -30,7 +31,7 @@ class VHDLCodeGenerator(object):
     language = C_Code
 
     """ C language code generator """
-    def __init__(self, processor, declare_cst = True, disable_debug = False, libm_compliant = False, default_rounding_mode = ML_GlobalRoundMode, default_silent = None, language = C_Code):
+    def __init__(self, processor, declare_cst = False, disable_debug = False, libm_compliant = False, default_rounding_mode = ML_GlobalRoundMode, default_silent = None, language = C_Code):
         self.memoization_map = [{}]
         self.processor = processor
         self.declare_cst = declare_cst
@@ -120,22 +121,6 @@ class VHDLCodeGenerator(object):
                     result = CodeExpression(precision.get_cst(optree.get_value(), language = language), precision)
                     Log.report(Log.Error, "Error during get_cst call for Constant: %s " % optree.get_str(display_precision = True)) # Exception print
 
-        elif isinstance(optree, TableLoad):
-            # declaring table
-            table = optree.inputs[0]
-            tag = table.get_tag()
-            table_name = code_object.declare_table(table, prefix = tag if tag != None else "table") 
-
-            index_code = [self.generate_expr(code_object, index_op, folded = folded, language = language).get() for index_op in optree.inputs[1:]]
-
-            result = CodeExpression("%s[%s]" % (table_name, "][".join(index_code)), optree.inputs[0].get_storage_precision())
-
-            # manually enforcing folding
-            if folded:
-                prefix = optree.get_tag(default = "tltmp")
-                result_varname = result_var if result_var != None else code_object.get_free_var_name(optree.get_precision(), prefix = prefix)
-                code_object << self.generate_assignation(result_varname, result.get()) 
-                result = CodeVariable(result_varname, optree.get_precision())
 
         elif isinstance(optree, Assert):
             cond = optree.get_input(0)
@@ -144,7 +129,7 @@ class VHDLCodeGenerator(object):
 
             cond_code = self.generate_expr(code_object, cond, folded = False, language = language)
 
-            code_object << " assert {cond} report \"{error_msg}\" severity {severity};\n".format(cond = cond_code.get(), error_msg = error_msg, severity = severity.descriptor)
+            code_object << " assert {cond} report {error_msg} severity {severity};\n".format(cond = cond_code.get(), error_msg = error_msg, severity = severity.descriptor)
 
             return None
 
@@ -346,6 +331,37 @@ class VHDLCodeGenerator(object):
                  code_object << "{op_code};\n".format(op_code = op_code.get())
              code_object.dec_level()
 
+        elif isinstance(optree, TableLoad):
+            table = optree.get_input(0)
+            index = optree.get_input(1)
+            index_code = self.generate_expr(code_object, index, folded = folded, language = language)
+            prefix = optree.get_tag(default = "table_value")
+            result_varname = result_var if result_var != None else code_object.get_free_var_name(optree.get_precision(), prefix = prefix)
+            result = CodeVariable(result_varname, optree.get_precision())
+            code_object << "with {index} select {result} <=\n".format(index = index_code.get(), result = result.get())
+
+            table_dimensions = table.get_precision().get_dimensions()
+            assert len(table_dimensions) == 1
+            table_size = table_dimensions[0]
+
+            default_value = 0
+
+            # linearizing table selection
+            for tabid, value in enumerate(table.get_data()):
+              code_object << "\t{} when {},\n".format(table.get_precision().get_storage_precision().get_cst(value),index.get_precision().get_cst(tabid))
+            # last_index = table_size - 1
+            # last cell
+            # code_object << "\t{} when {}".format(table.get_precision().get_storage_precision().get_cst(table.get_data()[last_index]),index.get_precision().get_cst(last_index))
+
+            #if 2**int(sollya.log2(table_size)) == table_size:
+            #  code_object << ";\n"
+            #else:
+            #  code_object << ",\n\t{} when others;\n".format(table.get_precision().get_storage_precision().get_cst(default_value))
+            code_object << "\t{} when others;\n".format(table.get_precision().get_storage_precision().get_cst(default_value))
+
+             # result is set 
+
+
         elif isinstance(optree, Return):
             return_result = optree.inputs[0]
             return_code = self.generate_expr(code_object, return_result, folded = folded, language = language)
@@ -501,8 +517,11 @@ class VHDLCodeGenerator(object):
           final_var = code_object.get_free_signal_name(optree.get_precision(), prefix = "dbg_"+ optree.get_tag())
           code_object << "{} <= {};\n".format(final_var, result.get())
           result = CodeVariable(final_var, optree.get_precision())
-        display_result = debug_object.get_pre_process(result.get(), optree) if isinstance(debug_object, ML_Debug) else result.get()
-        debug_msg = "echo \"{tag}\"; examine {display_format} testbench.tested_entity.{display_result};\n".format(tag = optree.get_tag(), display_format = display_format, display_result = display_result)
+        signal_name = "testbench.tested_entity.{}".format(result.get())
+        # display_result = debug_object.get_pre_process(result.get(), optree) if isinstance(debug_object, ML_Debug) else result.get()
+        display_result = debug_object.get_pre_process(signal_name, optree) if isinstance(debug_object, ML_AdvancedDebug) else "examine {display_format} {signal_name}".format(display_format = display_format, signal_name = signal_name)
+        #debug_msg = "echo \"{tag}\"; examine {display_format} testbench.tested_entity.{display_result};\n".format(tag = optree.get_tag(), display_format = display_format, display_result = display_result)
+        debug_msg = "echo \"{tag}\"; {display_result};\n".format(tag = optree.get_tag(), display_result = display_result)
         self.get_debug_code_object() << debug_msg
 
     ## define the code object for debug 

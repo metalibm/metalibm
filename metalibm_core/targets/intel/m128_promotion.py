@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# optimization pass to promote a scalar/vector DAG into SSE/AVX  registers
+# optimization pass to promote a scalar/vector DAG into SSE registers
 
 from metalibm_core.targets.intel.x86_processor import *
 
@@ -28,7 +28,7 @@ class Pass_M128_Promotion(Pass_Vector_Promotion):
 
   def __init__(self, target):
     Pass_Vector_Promotion.__init__(self, target)
-    self.set_descriptor("SSE/AVX promotion pass")
+    self.set_descriptor("SSE promotion pass")
 
 
 

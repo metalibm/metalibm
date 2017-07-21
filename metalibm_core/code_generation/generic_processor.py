@@ -5,11 +5,12 @@
 # Copyright (2013-2014)
 # All rights reserved
 # created:          Dec 24th, 2013
-# last-modified:    Jun  6th, 2014
+# last-modified:    May 16th, 2017
 #
 # author(s): Nicolas Brunie (nicolas.brunie@kalray.eu)
 ###############################################################################
 
+import os, inspect
 from sollya import S2
 
 from ..utility.log_report import *
@@ -101,6 +102,24 @@ c_comp_symbol = {
   Comparison.Greater: ">"
 }
 
+## helper map for unsigned to signed integer formats
+signed_integer_precision = {
+  ML_UInt8:   ML_Int8,
+  ML_UInt16:  ML_Int16,
+  ML_UInt32:  ML_Int32,
+  ML_UInt64:  ML_Int64,
+  ML_UInt128: ML_Int128,
+}
+
+## helper map for signed to unsigned integer formats
+unsigned_integer_precision = {
+  ML_Int8:   ML_UInt8,
+  ML_Int16:  ML_UInt16,
+  ML_Int32:  ML_UInt32,
+  ML_Int64:  ML_UInt64,
+  ML_Int128: ML_UInt128,
+}
+
 c_code_generation_table = {
     Select: {
         None: {
@@ -180,23 +199,58 @@ c_code_generation_table = {
     BitLogicRightShift: {
         None: {
             lambda optree: True: {
-                # shift any integer, as long as all types are integers, and the dest and first arg have the same type
+                # If the first operand type is unsigned, conforming compilers
+                # will make the shift logic.
                 (lambda dst_type,op0_type,op1_type,**kwords:
-                    dst_type == op0_type and is_std_integer_format(op0_type) and is_std_integer_format(op1_type)
+                    dst_type.get_bit_size() == op0_type.get_bit_size()
+                    and is_std_integer_format(dst_type)
+                    and is_std_unsigned_integer_format(op0_type)
+                    and is_std_integer_format(op1_type)
                 ) : SymbolOperator(">>", arity = 2),
+                # If the first operand type is signed, we must add a TypeCast
+                # operator to make the shift logic instead of arithmetic.
+                (lambda dst_type, op0_type, op1_type, **kwords:
+                    dst_type.get_bit_size() == op0_type.get_bit_size()
+                    and is_std_integer_format(dst_type)
+                    and is_std_signed_integer_format(op0_type)
+                    and is_std_integer_format(op1_type)
+                    ) : ComplexOperator(
+                      lambda optree: BitLogicRightShift(
+                        TypeCast(optree.get_input(0),
+                                 precision = unsigned_integer_precision[optree.get_input(0).get_precision()]),
+                        optree.get_input(1),
+                        precision = optree.get_precision()
+                        )
+                    )
             },
         },
     },
     BitArithmeticRightShift: {
         None: {
             lambda optree: True: {
-                # shift any signed integer, as long as all types are integers,
-                # and the dest and first arg have the same type
+                # If the first operand type is signed, conforming compilers
+                # will make the shift arithmetic.
                 (lambda dst_type, op0_type, op1_type, **kwords:
-                    dst_type == op0_type
+                    dst_type.get_bit_size() == op0_type.get_bit_size()
+                    and is_std_integer_format(dst_type)
                     and is_std_signed_integer_format(op0_type)
                     and is_std_integer_format(op1_type)
                 ) : SymbolOperator(">>", arity = 2),
+                # If the first operand type is unsigned, we must add a TypeCast
+                # operators to make the shift arithmetic instead of logic.
+                (lambda dst_type, op0_type, op1_type, **kwords:
+                    dst_type.get_bit_size() == op0_type.get_bit_size()
+                    and is_std_integer_format(dst_type)
+                    and is_std_unsigned_integer_format(op0_type)
+                    and is_std_integer_format(op1_type)
+                    ) : ComplexOperator(
+                      lambda optree: BitArithmeticRightShift(
+                        TypeCast(optree.get_input(0),
+                                 precision = signed_integer_precision[optree.get_input(0).get_precision()]),
+                        optree.get_input(1),
+                        precision = optree.get_precision()
+                        )
+                      )
             },
         },
     },
@@ -489,6 +543,16 @@ c_code_generation_table = {
                 type_strict_match(ML_UInt32, ML_Binary32): ML_Utils_Function("float_to_32b_encoding", arity = 1),
                 type_strict_match(ML_UInt64, ML_Binary32): ML_Utils_Function("(uint64_t) float_to_32b_encoding", arity = 1),
                 type_strict_match(ML_Binary32, ML_UInt64): ML_Utils_Function("float_from_32b_encoding", arity = 1),
+                type_strict_match(ML_UInt8, ML_Int8): IdentityOperator(),
+                type_strict_match(ML_Int8, ML_UInt8): SymbolOperator("(int8_t)", arity = 1, require_header = [ "stdint.h" ], force_folding = False),
+                type_strict_match(ML_UInt16, ML_Int16): IdentityOperator(),
+                type_strict_match(ML_Int16, ML_UInt16): SymbolOperator("(int16_t)", arity = 1, require_header = [ "stdint.h" ], force_folding = False),
+                type_strict_match(ML_UInt32, ML_Int32): IdentityOperator(),
+                type_strict_match(ML_Int32, ML_UInt32): SymbolOperator("(int32_t)", arity = 1, require_header = [ "stdint.h" ], force_folding = False),
+                type_strict_match(ML_UInt64, ML_Int64): IdentityOperator(),
+                type_strict_match(ML_Int64, ML_UInt64): SymbolOperator("(int64_t)", arity = 1, require_header = [ "stdint.h" ], force_folding = False),
+                type_strict_match(ML_UInt128, ML_Int128): IdentityOperator(),
+                type_strict_match(ML_Int128, ML_UInt128): SymbolOperator("(__int128)", arity = 1, require_header = [ "stdint.h" ], force_folding = False),
             },
         },
     },
@@ -744,7 +808,11 @@ class GenericProcessor(AbstractBackend):
     return "./%s" % test_file
   ## Return a list of compiler option strings for the @p self target
   def get_compilation_options(self):
-    return []
+    local_filename = inspect.getfile(inspect.currentframe()) # script filename (usually with path)
+    local_dir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))) # script directory
+    support_lib_dir = os.path.join(local_dir, "../support_lib/")
+    
+    return [" -I{} ".format(support_lib_dir)]
 
 
 if __name__ == "__main__":
