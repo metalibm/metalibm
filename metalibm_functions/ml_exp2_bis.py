@@ -83,7 +83,7 @@ class ML_Exp2(ML_Function("ml_exp2")):
         kwords["function_name"] = self.function_name
         return RaiseReturn(*args, **kwords)
 
-    r_interval = Interval(-1.0, 1.0)
+    r_interval = Interval(-0.5, 0.5)
 
     local_ulp = sup(ulp(2**r_interval, self.precision))
     print "ulp: ", local_ulp
@@ -94,7 +94,7 @@ class ML_Exp2(ML_Function("ml_exp2")):
     int_prec_map = {ML_Binary32: ML_Int32, ML_Binary64: ML_Int64}
 
     #Argument Reduction
-    vx_int = Trunc(vx, precision = self.precision, tag = 'vx_int', debug = debug_multi)
+    vx_int = NearestInteger(vx, precision = self.precision, tag = 'vx_int', debug = debug_multi)
     ivx = Conversion(vx_int, precision = int_prec_map[self.precision])
     vx_r = vx - vx_int
     vx_r.set_attributes(tag = "vx_r", debug = debug_multi)
@@ -107,38 +107,38 @@ class ML_Exp2(ML_Function("ml_exp2")):
     #Polynomial Approx
     polynomial_scheme_builder = PolynomialSchemeEvaluator.generate_horner_scheme
 
-    poly_object, poly_error = Polynomial.build_from_approximation_with_error(2**(sollya.x), degree, precision_list, r_interval, sollya.absolute)
+    poly_object, poly_error = Polynomial.build_from_approximation_with_error(2**(sollya.x) - 1 , degree, precision_list, r_interval, sollya.absolute)
     Log.report(Log.Info, "Poly : %s" % poly_object)
     print "poly_error : ", poly_error
-    poly = polynomial_scheme_builder(poly_object, vx_r, unified_precision = self.precision)
+    poly = polynomial_scheme_builder(poly_object.sub_poly(start_index = 1), vx_r, unified_precision = self.precision)
     poly.set_attributes(tag = "poly", debug = debug_multi)
 
 
 
     #Handling special cases
-    oflow_bound = self.precision.get_emax()
+    oflow_bound = self.precision.get_emax() + 1
     subnormal_bound = self.precision.get_emin_subnormal()
     uflow_bound = self.precision.get_emin_normal()
-    #print "oflow : ", oflow_bound
+    print "oflow : ", oflow_bound
     #print "uflow : ", uflow_bound
     #print "sub : ", subnormal_bound
-    test_overflow = Comparison(vx_int, oflow_bound, specifier = Comparison.Greater)
+    test_overflow = Comparison(vx, oflow_bound, specifier = Comparison.GreaterOrEqual)
     test_overflow.set_attributes(tag = "oflow_test", debug = debug_multi)
 
-    test_underflow = Comparison(vx_int, uflow_bound, specifier = Comparison.Less)
+    test_underflow = Comparison(vx, uflow_bound, specifier = Comparison.Less)
     test_underflow.set_attributes(tag = "uflow_test", debug = debug_multi)
 
-    test_subnormal = Comparison(vx_int, subnormal_bound, specifier = Comparison.Greater)
+    test_subnormal = Comparison(vx, subnormal_bound, specifier = Comparison.Greater)
     test_subnormal.set_attributes(tag = "sub_test", debug = debug_multi)
 
     subnormal_offset = - (uflow_bound - ivx)
     subnormal_offset.set_attributes( tag = "offset", debug = debug_multi)
     exp_offset = ExponentInsertion(subnormal_offset, precision = self.precision, debug = debug_multi, tag = "exp_offset")
     exp_min = ExponentInsertion(uflow_bound, precision = self.precision, debug = debug_multi, tag = "exp_min")
-    subnormal_result = exp_offset*exp_min*poly
+    subnormal_result = exp_offset*exp_min*poly + exp_offset*exp_min
 
     #Reconstruction
-    result = exp_X*poly
+    result = exp_X*poly + exp_X
     result.set_attributes(tag = "result", debug = debug_multi)
 
     scheme = Statement(
@@ -172,7 +172,7 @@ class ML_Exp2(ML_Function("ml_exp2")):
   def numeric_emulate(self, input_value):
     return sollya.SollyaObject(2)**(input_value)
 
-  standard_test_cases = [(sollya.parse("-0x1.6775b4p+6"),)]
+  standard_test_cases =[[sollya.parse(x)] for x in  ["0x1.ffead1bac7ad2p+9", "-0x1.ee9cb4p+1", "-0x1.db0928p+3"]]
 
 if __name__ == "__main__":
     # auto-test
