@@ -97,7 +97,7 @@ class ML_ExponentialM1_Red(ML_Function("ml_expm1")):
     sollya_prec_map = {ML_Binary32: sollya.binary32, ML_Binary64: sollya.binary64}
     
     # Constants
-
+    
     log_2 = round(log(2), sollya_prec_map[self.precision], sollya.RN)
     invlog2 = round(1/log(2), sollya_prec_map[self.precision], sollya.RN)
     
@@ -105,7 +105,7 @@ class ML_ExponentialM1_Red(ML_Function("ml_expm1")):
     interval_fk = interval_vx * invlog2
     interval_k = Interval(floor(inf(interval_fk)), ceil(sup(interval_fk)))
     
-    log2_hi_precision = self.precision.get_field_size() - (ceil(log2(sup(abs(interval_k)))) + 4)
+    log2_hi_precision = self.precision.get_field_size() - 4
     log2_hi = round(log(2), log2_hi_precision, sollya.RN)
     log2_lo = round(log(2) - log2_hi, sollya_prec_map[self.precision], sollya.RN)
 
@@ -121,35 +121,15 @@ class ML_ExponentialM1_Red(ML_Function("ml_expm1")):
     exact_hi_part.set_attributes(exact = True, prevent_optimization = True)
     exact_lo_part = - k * log2_lo
     exact_lo_part.set_attributes(prevent_optimization = True)
+    
     r = exact_hi_part + exact_lo_part
+    # z = s - exact_hi_part
+    # t = exact_lo_part - z
+    # r = s + t
+    
     r.set_attributes(tag = "r", debug = debug_multi)
     
     r_interval = Interval(-log_2/S2, log_2/S2)
-    
-    approx_interval = Interval(-log(2)/2, log(2)/2)
-    
-    opt_r = self.optimise_scheme(r, copy = {})
-    #r = opt_r
-    
-    tag_map = {}
-    self.opt_engine.register_nodes_by_tag(opt_r, tag_map)
-
-    cg_eval_error_copy_map = {
-        vx: Variable("x", precision = self.precision, interval = interval_vx),
-        tag_map["k"]: Variable("k", interval = interval_k, precision = self.precision)
-    }
-
-    #try:
-    if is_gappa_installed():
-        #eval_error = gappacg.get_eval_error(opt_r, cg_eval_error_copy_map, gappa_filename = "red_arg.g")
-        eval_error = self.gappa_engine.get_eval_error_v2(self.opt_engine, opt_r, cg_eval_error_copy_map, gappa_filename = "red_arg.g")
-    else:
-        eval_error = 0.0
-        Log.report(Log.Warning, "gappa is not installed in this environnement")
-    Log.report(Log.Info, "eval error: %s" % eval_error)
-    #except:
-    #    Log.report(Log.Info, "gappa error evaluation failed")
-    
     
     local_ulp = sup(ulp(exp(r_interval), self.precision))
     
@@ -162,12 +142,12 @@ class ML_ExponentialM1_Red(ML_Function("ml_expm1")):
     
     Log.report(Log.Info, "\033[33;1m Building polynomial \033[0m\n")
     
-    poly_degree = max(sup(guessdegree(expm1(sollya.x), r_interval, error_goal)), 2)
+    poly_degree = sup(guessdegree(expm1(sollya.x), r_interval, error_goal) + 1)
     
-    polynomial_scheme_builder = PolynomialSchemeEvaluator.generate_estrin_scheme
+    polynomial_scheme_builder = PolynomialSchemeEvaluator.generate_horner_scheme
+    poly_degree_list = range(0, poly_degree)
     
-    Log.report(Log.Info, "Degree : %d" % poly_degree)
-    precision_list = [self.precision] *(poly_degree + 1)
+    precision_list = [self.precision] *(len(poly_degree_list) + 1)
     poly_object = Polynomial.build_from_approximation(expm1(sollya.x), poly_degree, precision_list, r_interval, sollya.absolute)
     sub_poly = poly_object.sub_poly(start_index = 2)
     Log.report(Log.Info, "Poly : %s" % sub_poly)
@@ -221,6 +201,7 @@ class ML_ExponentialM1_Red(ML_Function("ml_expm1")):
     # Reconstruction
     
     std_result = exp_k * ( poly + diff )
+    std_result.set_attributes(tag = "result", debug = debug_multi)
     
     result_scheme = ConditionBlock(
         late_overflow_test, 
