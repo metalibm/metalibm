@@ -33,6 +33,7 @@ sollya.roundingwarnings = sollya.off
 sollya.verbosity = 0
 sollya.showmessagenumbers = sollya.on
 
+
 class ML_Atan(ML_Function("atan")):
   def __init__(self,
               arg_template = DefaultArgTemplate,
@@ -69,7 +70,8 @@ class ML_Atan(ML_Function("atan")):
     )
 
     self.precision = precision
-
+    
+    
   def generate_emulate(self, result, mpfr_x, mpfr_rnd):
     """ generate the emulation code for ML_Log2 functions
         mpfr_x is a mpfr_t variable which should have the right precision
@@ -84,6 +86,16 @@ class ML_Atan(ML_Function("atan")):
 
 
   def generate_scheme(self):
+    
+    def compute_reciprocal(vx):
+      inv_seed = DivisionSeed(vx, precision = self.precision, tag = "inv_seed", debug = debug_multi)
+      nr_1 = 2*inv_seed - vx*inv_seed*inv_seed
+      nr_2 = 2*nr_1 - vx*nr_1*nr_1
+      nr_3 =2*nr_2 - vx*nr_2*nr_2
+      inv_vx = 2*nr_3 - vx*nr_3*nr_3
+      
+      return inv_vx
+      
     #func_implementation = CodeFunction(self.function_name, output_format = self.precision)
     vx = self.implementation.add_input_variable("x", self.get_input_precision()) 
 
@@ -94,98 +106,161 @@ class ML_Atan(ML_Function("atan")):
         ML_Binary64 : ML_Int64
       }[self.precision]
     
-    half_pi = round(pi*0.5, sollya_precision, sollya.RN)
+    hi_precision = self.precision.get_field_size() - 12
+    
+    half_pi = round(pi/2, sollya_precision, sollya.RN)
     half_pi_cst = Constant(half_pi, precision = self.precision)
+    
+    test_sign = Comparison(vx, 0, specifier = Comparison.Less, precision = ML_Bool, debug = debug_multi, tag = "Is_Negative")
+    neg_vx = -vx
+    
+    sign = Variable("sign", precision = self.precision, var_type = Variable.Local)
     abs_vx_std = Variable("abs_vx", precision = self.precision, var_type = Variable.Local)
     red_vx_std = Variable("red_vx", precision = self.precision, var_type = Variable.Local)
+    const_index_std = Variable("const_index", precision = int_precision, var_type = Variable.Local)
     
+    set_sign = Statement(
+        ConditionBlock(test_sign,
+          Statement(ReferenceAssign(abs_vx_std, neg_vx), ReferenceAssign(sign, -1)),
+          Statement(ReferenceAssign(abs_vx_std, vx), ReferenceAssign(sign, 1))
+      ))
+      
     if self.precision is ML_Binary32:
       bound = 24
     else:
       bound = 53
       
-    test_zero = Test(vx, specifier = Test.IsZero, precision = ML_Bool, debug = debug_multi, tag = "Is_Zero")
-    test_sign = Comparison(vx, 0, specifier = Comparison.Less, precision = ML_Bool, debug = debug_multi, tag = "Is_Negative")
-    test_inv = Comparison(abs_vx_std, 1, specifier = Comparison.Greater, precision = ML_Bool, debug = debug_multi, tag = "Greater_Than_1")
-    test_bound = Comparison(vx, S2**bound, specifier = Comparison.GreaterOrEqual, precision = ML_Bool, debug = debug_multi, tag ="bound")
+    test_bound = Comparison(abs_vx_std, S2**bound, specifier = Comparison.GreaterOrEqual, precision = ML_Bool)#, debug = debug_multi, tag ="bound")
+    test_bound1 = Comparison(abs_vx_std, 39.0/16.0, specifier = Comparison.GreaterOrEqual, precision = ML_Bool)#, debug = debug_multi, tag ="bound")
+    test_bound2 = Comparison(abs_vx_std, 19.0/16.0, specifier = Comparison.GreaterOrEqual, precision = ML_Bool)#, debug = debug_multi, tag ="bound")
+    test_bound3 = Comparison(abs_vx_std, 11.0/16.0, specifier = Comparison.GreaterOrEqual, precision = ML_Bool)#, debug = debug_multi, tag ="bound")
+    test_bound4 = Comparison(abs_vx_std, 7.0/16.0, specifier = Comparison.GreaterOrEqual, precision = ML_Bool)#, debug = debug_multi, tag ="bound")
     
-    neg_vx = -vx
-    sign = Variable("sign", precision = self.precision, var_type = Variable.Local)
-    inv_vx = 1.0/abs_vx_std
-  
     
-    set_sign = Statement(
-      ConditionBlock(test_sign,
-        Statement(ReferenceAssign(abs_vx_std, neg_vx), ReferenceAssign(sign, -1)),
-        Statement(ReferenceAssign(abs_vx_std, vx), ReferenceAssign(sign, 1))
-    ))
     
-    set_red_vx = Statement(
-      ConditionBlock(test_inv,
-        ReferenceAssign(red_vx_std, inv_vx),
-        ReferenceAssign(red_vx_std, abs_vx_std))
+    set_bound = Statement(Return(sign*half_pi_cst))
+    
+    set_bound1 = Statement(
+      ReferenceAssign(red_vx_std, -compute_reciprocal(abs_vx_std)),
+      ReferenceAssign(const_index_std, 3)
     )
     
-    r_interval = Interval(S2**-bound, 1)
-    red_vx_std.set_interval(r_interval)
+    set_bound2 = Statement(
+      ReferenceAssign(red_vx_std, (abs_vx_std - 1.5)*compute_reciprocal(1 + 1.5*abs_vx_std)),
+      ReferenceAssign(const_index_std, 2)
+    )
     
-    inv_vx.set_attributes(tag = "inv_vx", debug = debug_multi)
+    set_bound3 = Statement(
+      ReferenceAssign(red_vx_std, (abs_vx_std - 1.0)*compute_reciprocal(abs_vx_std + 1.0)),
+      ReferenceAssign(const_index_std, 1)
+    )
     
-    error_function = lambda p, f, ai, mod, t: dirtyinfnorm(f - p, ai)
-    polynomial_scheme_builder = PolynomialSchemeEvaluator.generate_estrin_scheme
+    set_bound4 = Statement(
+      ReferenceAssign(red_vx_std, (abs_vx_std - 0.5)*compute_reciprocal(1 + abs_vx_std*0.5)),
+      ReferenceAssign(const_index_std, 0)
+    )
     
-    poly_degree = sup(guessdegree(atan(sollya.x), r_interval, S2**-self.precision.get_precision()) + 2)
-    poly_degree_list = range(0, poly_degree + 2)
-    # poly_degree_list = [0, 1, 3, 5, 7, 9]
-    poly_prec_list = [self.precision] * len(poly_degree_list)
+    set_bound5 = Statement(
+      ReferenceAssign(red_vx_std, abs_vx_std),
+      ReferenceAssign(const_index_std, 4)
+    )
     
-    Log.report(Log.Info, "Building mathematical polynomial for atan")
     
-    poly_object, poly_error = Polynomial.build_from_approximation_with_error(atan(sollya.x), poly_degree_list, poly_prec_list, r_interval, sollya.absolute, error_function = error_function)
+    cons_table = ML_NewTable(dimensions = [5, 2], storage_precision = self.precision, tag = self.uniquify_name("cons_table"))
+    coeff_table = ML_NewTable(dimensions = [11], storage_precision = self.precision, tag = self.uniquify_name("coeff_table"))
     
-    Log.report(Log.Info, "poly error : {} / {:d}".format(poly_error, int(sollya.log2(poly_error))))
-    Log.report(Log.Info, "poly : %s" % poly_object.sub_poly(start_index = 1))
+    cons_hi = round(atan(0.5), hi_precision, sollya.RN)
+    cons_table[0][0] = cons_hi
+    cons_table[0][1] = round(atan(0.5) - cons_hi, sollya_precision, sollya.RN)
     
-    poly = polynomial_scheme_builder(poly_object.sub_poly(start_index = 1), red_vx_std, unified_precision = self.precision)
-    poly.set_attributes(tag = "poly", debug = debug_multi)
+    cons_hi = round(atan(1.0), hi_precision, sollya.RN)
+    cons_table[1][0] = cons_hi
+    cons_table[1][1] = round(atan(1.0) - cons_hi, sollya_precision, sollya.RN)
     
-    s = (half_pi_cst - poly)
-    z = (s - half_pi_cst)
-    t = (- poly - z)
-    result = s + t
+    cons_hi = round(atan(1.5), hi_precision, sollya.RN)
+    cons_table[2][0] = cons_hi
+    cons_table[2][1] = round(atan(1.5) - cons_hi, sollya_precision, sollya.RN)
     
-    s.set_attributes(tag = "s", debug = debug_multi)
-    z.set_attributes(tag = "z", debug = debug_multi)
-    t.set_attributes(tag = "t", debug = debug_multi)
+    cons_hi = round(pi/2, hi_precision, sollya.RN)
+    cons_table[3][0] = cons_hi
+    cons_table[3][1] = round(pi/2 - cons_hi, sollya_precision, sollya.RN)
     
-    result.set_attributes(tag ="result", debug = debug_multi)
-    std_return = ConditionBlock(
-      test_inv,
-      Return(sign*result),
-      Return(sign*poly))
+    cons_table[4][0] = 0.0
+    cons_table[4][1] = 0.0
     
+    coeff_table[0] = round(3.33333333333329318027e-01, sollya_precision, sollya.RN)
+    coeff_table[1] = round(-1.99999999998764832476e-01, sollya_precision, sollya.RN)
+    coeff_table[2] = round(1.42857142725034663711e-01, sollya_precision, sollya.RN)
+    coeff_table[3] = round(-1.11111104054623557880e-01, sollya_precision, sollya.RN)
+    coeff_table[4] = round(9.09088713343650656196e-02, sollya_precision, sollya.RN)
+    coeff_table[5] = round(-7.69187620504482999495e-02, sollya_precision, sollya.RN)
+    coeff_table[6] = round(6.66107313738753120669e-02, sollya_precision, sollya.RN)
+    coeff_table[7] = round(-5.83357013379057348645e-02, sollya_precision, sollya.RN)
+    coeff_table[8] = round(4.97687799461593236017e-02, sollya_precision, sollya.RN)
+    coeff_table[9] = round(-3.65315727442169155270e-02, sollya_precision, sollya.RN)
+    coeff_table[10] = round(1.62858201153657823623e-02, sollya_precision, sollya.RN)
+    
+    red_vx2 = red_vx_std*red_vx_std
+    red_vx4 = red_vx2*red_vx2
+    a0 = TableLoad(coeff_table, 0, precision = self.precision)
+    a1 = TableLoad(coeff_table, 1, precision = self.precision)
+    a2 = TableLoad(coeff_table, 2, precision = self.precision)
+    a3 = TableLoad(coeff_table, 3, precision = self.precision)
+    a4 = TableLoad(coeff_table, 4, precision = self.precision)
+    a5 = TableLoad(coeff_table, 5, precision = self.precision)
+    a6 = TableLoad(coeff_table, 6, precision = self.precision)
+    a7 = TableLoad(coeff_table, 7, precision = self.precision)
+    a8 = TableLoad(coeff_table, 8, precision = self.precision)
+    a9 = TableLoad(coeff_table, 9, precision = self.precision)
+    a10 = TableLoad(coeff_table, 10, precision = self.precision)
+    
+    poly_even = red_vx2*(a0 + red_vx4*(a2 + red_vx4*(a4 + red_vx4*(a6 + red_vx4*(a8 + red_vx4*a10)))))
+    poly_odd = red_vx4*(a1 + red_vx4*(a3 + red_vx4*(a5 + red_vx4*(a7 + red_vx4*a9))))
+    
+    
+    poly_even.set_attributes(tag = "poly_even", debug = debug_multi)
+    poly_odd.set_attributes(tag = "poly_odd", debug = debug_multi)
+    
+    const_load_hi = TableLoad(cons_table, const_index_std, 0, tag = "const_load_hi", debug = debug_multi)
+    const_load_lo = TableLoad(cons_table, const_index_std, 1, tag = "const_load_lo", debug = debug_multi)
+    
+    result = const_load_hi - ((red_vx_std*(poly_even + poly_odd) - const_load_lo) - red_vx_std)
+    result.set_attributes(tag = "result", debug = debug_multi)
     scheme = Statement(
+      sign,
       abs_vx_std,
       red_vx_std,
-      sign,
+      const_index_std,
       set_sign,
       ConditionBlock(
         test_bound,
+        set_bound,
         ConditionBlock(
-          test_sign,
-          Return(-half_pi_cst),
-          Return(half_pi_cst)
-        ),
-        set_red_vx
+          test_bound1,
+          set_bound1,
+          ConditionBlock(
+            test_bound2,
+            set_bound2,
+            ConditionBlock(
+              test_bound3,
+              set_bound3,
+              ConditionBlock(
+                test_bound4,
+                set_bound4,
+                set_bound5
+              )
+            )
+          )
+        )
       ),
-      std_return)
-    
+      Return(sign*result)
+    )
     return scheme
 
   def numeric_emulate(self, input_value):
     return atan(input_value)
 
-  standard_test_cases =[[sollya.parse(x)] for x in  ["-0x1.3b150ap+8", "0x1.9e75a6p+0" ]]
+  standard_test_cases =[[sollya.parse(x)] for x in  ["0x1.107a78p+0", "0x1.9e75a6p+0" ]]
 if __name__ == "__main__":
     # auto-test
     arg_template = ML_NewArgTemplate(default_function_name = "new_atan", default_output_file = "new_atan.c" )
