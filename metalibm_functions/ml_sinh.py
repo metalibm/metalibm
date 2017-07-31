@@ -132,7 +132,7 @@ class ML_HyperbolicSine(ML_Function("ml_sinh")):
     log2_hi_value_cst = Constant(log2_hi_value, tag = "log2_hi_value", precision = self.precision)
     log2_lo_value_cst = Constant(log2_lo_value, tag = "log2_lo_value", precision = self.precision)
 
-    k = NearestInteger(Multiplication(inv_log2_cst, vx), precision = self.precision)
+    k = Trunc(Multiplication(inv_log2_cst, vx), precision = self.precision)
     k_log2 = Multiplication(k, log2_hi_value_cst, precision = self.precision, exact = True, tag = "k_log2", unbreakable = True)
     r_hi = vx - k_log2
     r_hi.set_attributes(tag = "r_hi", debug = debug_multi, unbreakable = True)
@@ -148,7 +148,7 @@ class ML_HyperbolicSine(ML_Function("ml_sinh")):
       })
     print "r_eval_error: ", r_eval_error
 
-    approx_interval = Interval(-arg_reg_value/2, arg_reg_value/2)
+    approx_interval = Interval(-arg_reg_value, arg_reg_value)
     error_goal_approx = 2**-(self.precision.get_precision())
 
     poly_degree = sup(guessdegree(exp(sollya.x), approx_interval, error_goal_approx)) + 3
@@ -163,7 +163,7 @@ class ML_HyperbolicSine(ML_Function("ml_sinh")):
     for i in range(2 * 2**index_size):
       input_value = i - 2**index_size if i >= 2**index_size else i 
 
-      reduced_hi_prec = int(self.precision.get_mantissa_size() * 2 / 3.0)
+      reduced_hi_prec = int(self.precision.get_mantissa_size() - 8)
       # using SollyaObject wrapper to force evaluation by sollya
       # with higher precision
       exp_value  = sollya.SollyaObject(2)**((input_value)* 2**-index_size)
@@ -262,7 +262,7 @@ class ML_HyperbolicSine(ML_Function("ml_sinh")):
   def numeric_emulate(self, input_value):
     return sinh(input_value)
 
-  standard_test_cases =[[sollya.parse(x)] for x in  ["0x1.921fb7p+0"]]
+  standard_test_cases =[[sollya.parse(x)] for x in  ["0x1.8d3694p-5", "0x1.efc2cp-6"]]
 
 
 
