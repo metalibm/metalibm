@@ -167,6 +167,8 @@ class ML_FunctionBasis(object):
 
     # enable the computation of maximal error during functional testing
     self.compute_max_error = arg_template.compute_max_error
+    
+    self.error_break = arg_template.error_break
 
     # enable and configure the generation of a performance bench
     self.bench_enabled = bench_test_number or bench_execute
@@ -979,7 +981,18 @@ class ML_FunctionBasis(object):
     printf_max_function = FunctionObject("printf", [self.precision], ML_Void, printf_max_op)
 
     loop_increment = self.get_vector_size()
-
+    
+    if self.error_break:
+      return_statement_break = Statement(
+        printf_input_function(*((vi,) + local_inputs + (local_result,))), 
+        self.accuracy_obj.get_output_print_call(self.function_name, output_values)
+      )
+    else:
+      return_statement_break = Statement(
+        printf_input_function(*((vi,) + local_inputs + (local_result,))), 
+        self.accuracy_obj.get_output_print_call(self.function_name, output_values),
+        Return(Constant(1, precision = ML_Int32))
+      )
     test_loop = Loop(
       ReferenceAssign(vi, Constant(0, precision = ML_Int32)),
       vi < test_num_cst,
@@ -987,11 +1000,7 @@ class ML_FunctionBasis(object):
         assignation_statement,
         ConditionBlock(
           failure_test,
-          Statement(
-            printf_input_function(*((vi,) + local_inputs + (local_result,))), 
-            self.accuracy_obj.get_output_print_call(self.function_name, output_values),
-            Return(Constant(1, precision = ML_Int32))
-          ),
+          return_statement_break,
         ),
         ReferenceAssign(vi, vi + loop_increment)
       ),
@@ -1002,6 +1011,8 @@ class ML_FunctionBasis(object):
     if self.compute_max_error:
       eval_error = Variable("max_error", precision = self.precision, var_type = Variable.Local)
       max_input = Variable("max_input", precision = ML_Int32, var_type = Variable.Local)
+      max_result = Variable("max_result", precision = self.precision, var_type = Variable.Local)
+      max_vi = Variable("max_vi", precision = ML_Int32, var_type = Variable.Local)
       local_inputs  = tuple(TableLoad(input_tables[in_id], vi) for in_id in xrange(self.get_arity()))
 
       local_result  = tested_function(*local_inputs)
@@ -1017,7 +1028,9 @@ class ML_FunctionBasis(object):
             error_comp,
             Statement(
               ReferenceAssign(eval_error, local_error),
-              ReferenceAssign(max_input, vi/loop_increment)
+              ReferenceAssign(max_input, vi/loop_increment),
+              ReferenceAssign(max_vi, vi),
+              ReferenceAssign(max_result, local_result)              
             ),
             Statement()),
           ReferenceAssign(vi, vi + loop_increment)
@@ -1028,7 +1041,7 @@ class ML_FunctionBasis(object):
         ReferenceAssign(max_input, Constant(0, precision = ML_Int32)),
         error_loop,
         printf_error_function(eval_error),
-        printf_max_function(max_input)
+        printf_max_function(max_input),
       ))
 
     # adding functional test_loop to test statement

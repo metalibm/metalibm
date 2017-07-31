@@ -211,6 +211,7 @@ class DefaultArgTemplate:
   auto_test_std   = False
   # enable max error computation
   compute_max_error = False
+  error_break = False
   # bench properties
   bench_execute   = False
   bench_test_number = 0
@@ -288,6 +289,7 @@ class ML_CommonArgTemplate(object):
     self.parser.add_argument("--auto-test-std", dest = "auto_test_std", action = "store_const", const = True, default = default_arg.auto_test_std, help = "enabling function test on standard test case list")
     # enable the computation of eval error (if self-testing enabled)
     self.parser.add_argument("--max-error", dest = "compute_max_error", action = "store_const", const = True, default = default_arg.compute_max_error, help = "enable the computation of the maximum error (if auto-test is enabled)")
+    self.parser.add_argument("--error-break", dest = "error_break", action = "store_const", const = True, default = default_arg.error_break, help = "disable function return on error detection")
     # performance bench related arguments
     self.parser.add_argument("--bench", dest = "bench_test_number", action = "store", nargs = '?', const=1000, type=int, default = default_arg.bench_test_number, help = "enable the generation of a performance bench")
     self.parser.add_argument("--bench-execute", dest = "bench_execute", action = "store", nargs = '?', const=1000, type=int, default = ArgDefault(False), help = "enable the generation and execution of a performance bench")
