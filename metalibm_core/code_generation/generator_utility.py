@@ -303,6 +303,63 @@ class SymbolOperator(ML_CG_Operator):
             else:
                 return CodeExpression("(%s)" % result_code, optree.get_precision())
 
+## Constant node operator
+class ConstantOperator(ML_CG_Operator):
+    """ symbol operator generator """
+    def __init__(self, force_decl=False, **kwords):
+        """ symbol operator initialization function """
+        ML_CG_Operator.__init__(self, **kwords)
+        ## forces constant declaration
+        self.force_decl = force_decl
+
+    def generate_expr(
+            self, code_generator, code_object, optree, arg_tuple,
+            generate_pre_process=None, language=C_Code, **kwords
+        ):
+        """ generate expression function """
+        # registering headers
+        self.register_headers(code_object)
+
+        # assembling parent operator code
+        return self.assemble_code(
+            code_generator, code_object, optree,
+            generate_pre_process = generate_pre_process,
+            language=language,**kwords
+        )
+
+    def assemble_code(
+            self, code_generator, code_object, optree,
+            generate_pre_process = None, language=C_Code,
+            **kwords):
+        """ base code assembly function """
+        # registering headers
+        self.register_headers(code_object)
+
+        precision = optree.get_precision()
+
+        if code_generator.declare_cst or \
+            self.force_decl or precision.is_cst_decl_required():
+            cst_prefix = "cst" if optree.get_tag() is None else optree.get_tag()
+            cst_varname = code_object.declare_cst(optree, prefix = cst_prefix)
+            return CodeVariable(cst_varname, precision)
+        else:
+            if precision is ML_Integer:
+                return CodeExpression("%d" % optree.get_value(), precision)
+            else:
+                return CodeExpression(
+                    precision.get_cst(
+                        optree.get_value(), language = language
+                    ), precision
+                )
+                #try:
+                #except:
+                #    Log.report(
+                #        Log.Error,
+                #        "Error during get_cst call for Constant: {} ".format(
+                #            optree.get_str(display_precision = True)
+                #        )
+                #    )
+
 
 class FO_Arg(object):
     def __init__(self, index):

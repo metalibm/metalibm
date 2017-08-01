@@ -20,6 +20,7 @@ from ..core.ml_table import *
 from ..core.ml_operations import *
 
 from .generator_utility import *
+from .generator_utility import ConstantOperator
 from .code_element import *
 from .complex_generator import *
 from .generator_helper import *
@@ -121,6 +122,13 @@ unsigned_integer_precision = {
 }
 
 c_code_generation_table = {
+    Constant: {
+        None: {
+            lambda optree: True: {
+                type_custom_match(type_all_match): ConstantOperator(),
+            }
+        },
+    },
     Select: {
         None: {
             lambda optree: True: 
