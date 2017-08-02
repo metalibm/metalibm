@@ -77,15 +77,20 @@ class ML_FunctionBasis(object):
 
   ## constructor
   #  @param base_name string function name (without precision considerations)
-  #  @param function_name 
+  #  @param function_name
   #  @param output_file string name of source code output file
   #  @param io_precisions input/output ML_Format list
   #  @param abs_accuracy absolute accuracy
-  #  @param libm_compliant boolean flag indicating whether or not the function should be compliant with standard libm specification (wrt exception, error ...)
+  #  @param libm_compliant boolean flag indicating whether or not the
+  #         function should be compliant with standard libm specification
+  #         (wrt exception, error ...)
   #  @param processor GenericProcessor instance, target of the implementation
-  #  @param fuse_fma boolean flag indicating whether or not fusing Multiply+Add optimization must be applied
-  #  @param fast_path_extract boolean flag indicating whether or not fast path extraction optimization must be applied
-  #  @param debug_flag boolean flag, indicating whether or not debug code must be generated 
+  #  @param fuse_fma boolean flag indicating whether or not fusing
+  #         Multiply+Add optimization must be applied
+  #  @param fast_path_extract boolean flag indicating whether or not fast
+  #         path extraction optimization must be applied
+  #  @param debug_flag boolean flag, indicating whether or not debug code
+  #         must be generated
   def __init__(self,
              # Naming
              base_name = ArgDefault("unknown_function", 2),
@@ -237,20 +242,29 @@ class ML_FunctionBasis(object):
 
   ## compute the evaluation error of an ML_Operation node
   #  @param optree ML_Operation object whose evaluation error is computed
-  #  @param variable_copy_map dict(optree -> optree) used to delimit the bound of optree
+  #  @param variable_copy_map dict(optree -> optree) used to delimit the
+  #         bound of optree
   #  @param goal_precision ML_Format object, precision used for evaluation goal
-  #  @param gappa_filename string, name of the file where the gappa proof of the evaluation error will be dumped
+  #  @param gappa_filename string, name of the file where the gappa proof
+  #         of the evaluation error will be dumped
   #  @return numerical value of the evaluation error
-  def get_eval_error(self, optree, variable_copy_map = {}, goal_precision = ML_Exact, gappa_filename = "gappa_eval_error.g", relative_error = False):
+  def get_eval_error(
+        self, optree, variable_copy_map = {}, goal_precision = ML_Exact,
+        gappa_filename = "gappa_eval_error.g", relative_error = False
+    ):
     """ wrapper for GappaCodeGenerator get_eval_error_v2 function """
     copy_map = {}
-    for leaf in variable_copy_map: 
+    for leaf in variable_copy_map:
       copy_map[leaf] = variable_copy_map[leaf]
     opt_optree = self.optimise_scheme(optree, copy = copy_map, verbose = False)
     new_variable_copy_map = {}
     for leaf in variable_copy_map:
       new_variable_copy_map[leaf.get_handle().get_node()] = variable_copy_map[leaf]
-    return self.gappa_engine.get_eval_error_v2(self.opt_engine, opt_optree, new_variable_copy_map if variable_copy_map != None else {}, goal_precision, gappa_filename, relative_error = relative_error)
+    return self.gappa_engine.get_eval_error_v2(
+        self.opt_engine, opt_optree,
+        new_variable_copy_map if variable_copy_map != None else {},
+        goal_precision, gappa_filename, relative_error = relative_error
+    )
 
   ## name generation
   #  @param base_name string, name to be extended for unifiquation
@@ -583,6 +597,7 @@ class ML_FunctionBasis(object):
   #  @p vector_scheme by testing vector mask element and branching
   #  to scalar callback when necessary
   def generate_c_vector_wrapper(self, vector_size, vec_arg_list, vector_scheme, vector_mask, vec_res, scalar_callback):
+
     vi = Variable("i", precision = ML_Int32, var_type = Variable.Local)
     vec_elt_arg_tuple = tuple(
       VectorElementSelection(vec_arg, vi, precision = self.precision)
@@ -670,6 +685,8 @@ class ML_FunctionBasis(object):
     def no_scalar_fallback_required(mask):
       return isinstance(mask, Constant) and \
             reduce(lambda v, acc: (v and acc), mask.get_value(), True)
+
+    self.get_main_code_object().add_header("support_lib/ml_vector_format.h")
 
     print "[SV] building vectorized main statement"
     if no_scalar_fallback_required(vector_mask):

@@ -24,34 +24,58 @@ from metalibm_core.utility.debug_utils import *
 from metalibm_core.utility.num_utils   import ulp
 from metalibm_core.utility.gappa_utils import is_gappa_installed
 
+## Generate a partial integer remainder
+#  result = precision((int(vx) >> k) << k)
+#
+#  @param vx input node
+#  @param precision output precision
+#  @param k number of LSB bits to be zeroed
+#  @param debug debug attributes
+#  @param tag node name
+#  @return masked remainder converted to @p precision 
 def get_remainder(vx, precision, k, debug = None, tag = ""):
-  """ get in floating-point format <precision>
-      the integer part of vx with the k least
-      significant bits zeroed """
-  int_precision = precision.get_integer_format()
-  result  = Conversion(
-                BitLogicAnd(
-                    NearestInteger(
-                      vx, precision = int_precision), 
-                    Constant(~(2**(k+1)-1), precision = int_precision),
-                    tag = tag, 
-                    debug = debug
-                  ), 
-                precision = precision
-              )
-  return result
+    """ get in floating-point format <precision>
+        the integer part of vx with the k least
+        significant bits zeroed """
+    int_precision = precision.get_integer_format()
+    result  = Conversion(
+        BitLogicAnd(
+            NearestInteger(vx, precision = int_precision),
+            Constant(~(2**(k+1)-1), precision = int_precision),
+            tag = tag,
+            debug = debug
+        ),
+        precision = precision
+    )
+    return result
 
-def generate_payne_hanek(vx, frac_pi, precision, n = 100, k = 4, chunk_num = None, debug = False ):
+## Generate a Payne&Hanek reduction node graph
+#
+#  @param vx input node
+#  @param frac_pi constant considered during reduction
+#  @param precision output format
+#  @param n number of representative bits to be considered
+#  @param k
+#  @param chunk_num
+#  @param debug debug enabling flag / attribute
+#
+#  @return
+def generate_payne_hanek(
+    vx, frac_pi, precision, n = 100, k = 4, chunk_num = None, debug = False
+  ):
   """ generate payne and hanek argument reduction for frac_pi * variable """
   # determining integer format corresponding to 
   # floating point precision argument
   int_precision = precision.get_integer_format()
 
+  # weight of the most significant digit of the constant
   cst_msb = floor(log2(abs(frac_pi)))
+  # length of exponent range which must be covered by the approximation
+  # of the constant
   cst_exp_range = cst_msb - precision.get_emin_subnormal() + 1
 
-  # chunk size has to be so than multiplication by a splitted <v> (vx_hi or vx_lo)
-  # is exact
+  # chunk size has to be so than multiplication by a splitted <v>
+  # (vx_hi or vx_lo) is exact
   chunk_size = precision.get_field_size() / 2 - 2
   chunk_number = int(ceil((cst_exp_range + chunk_size - 1) / chunk_size)) 
   scaling_factor = S2**-(chunk_size/2)
@@ -62,18 +86,33 @@ def generate_payne_hanek(vx, frac_pi, precision, n = 100, k = 4, chunk_num = Non
   p = precision.get_field_size()
 
   # adapting debug format to precision argument
-  debug_precision = {ML_Binary32: debug_ftox, ML_Binary64: debug_lftolx}[precision] if debug else None
+  debug_precision = {
+    ML_Binary32: debug_ftox, ML_Binary64: debug_lftolx
+  }[precision] if debug else None
 
   # saving sollya's global precision
   old_global_prec = sollya.settings.prec
   sollya.settings.prec (cst_exp_range + 100)
 
   # table to store chunk of constant multiplicand
-  cst_table = ML_NewTable(dimensions = [chunk_number, 1], storage_precision = precision, tag = "PH_cst_table")
-  # table to store sqrt(scaling_factor) corresponding to the cst multiplicand chunks
-  scale_table =  ML_NewTable(dimensions = [chunk_number, 1], storage_precision = precision, tag = "PH_scale_table")
+  cst_table = ML_NewTable(
+    dimensions = [chunk_number, 1],
+    storage_precision = precision, tag = "PH_cst_table"
+  )
+  # table to store sqrt(scaling_factor) corresponding to the
+  # cst multiplicand chunks
+  scale_table =  ML_NewTable(
+    dimensions = [chunk_number, 1],
+    storage_precision = precision, tag = "PH_scale_table"
+  )
   tmp_cst = frac_pi
-  
+
+  # cst_table stores normalized constant chunks (they have been
+  # scale back to close to 1.0 interval)
+  #
+  # scale_table stores the scaling factors corresponding to the
+  # denormalization of cst_table coefficients
+
   # this loop divide the digits of frac_pi into chunks 
   # the chunk lsb weight is given by a shift from 
   # cst_msb, multiple of the chunk index
@@ -90,32 +129,36 @@ def generate_payne_hanek(vx, frac_pi, precision, n = 100, k = 4, chunk_num = Non
   msb_exp = -vx_exp + p - 1 + k
   msb_exp.set_attributes(tag = "msb_exp", debug = (debugd if debug else None))
 
+  # Select the highest index where the reduction should start
   msb_index = Select(cst_msb_node < msb_exp, 0, (cst_msb_node - msb_exp) / chunk_size_cst)
   msb_index.set_attributes(tag = "msb_index", debug = (debugd if debug else None))
 
   lsb_exp = -vx_exp + p - 1 -n
   lsb_exp.set_attributes(tag = "lsb_exp", debug = (debugd if debug else None))
-
+  # Select the lowest index where the reduction should end
   lsb_index = (cst_msb_node - lsb_exp) / chunk_size_cst
   lsb_index.set_attributes(tag = "lsb_index", debug = (debugd if debug else None))
 
 
   half_size = precision.get_field_size() / 2 + 1
 
+  # hi part (most significant digit) of vx input
   vx_hi = TypeCast(BitLogicAnd(TypeCast(vx, precision = int_precision), Constant(~(2**half_size-1), precision = int_precision)), precision = precision) 
   vx_hi.set_attributes(tag = "vx_hi", debug = debug_precision)
-
+  # lo part (least significant digit) of vx input
   vx_lo = vx - vx_hi
   vx_lo.set_attributes(tag = "vx_lo", debug = debug_precision)
-
+  # loop iterator variable
   vi = Variable("i", precision = ML_Int32, var_type = Variable.Local)
-
+  # step scaling factor
   half_scaling = Constant(S2**(-chunk_size/2), precision = precision)
 
 
   i1 = Constant(1, precision = ML_Int32)
 
+  # accumulator to the output precision
   acc     = Variable("acc", precision = precision, var_type = Variable.Local)
+  # integer accumulator
   acc_int = Variable("acc_int", precision = int_precision, var_type = Variable.Local)
 
   init_loop = Statement(
@@ -124,12 +167,13 @@ def generate_payne_hanek(vx, frac_pi, precision, n = 100, k = 4, chunk_num = Non
   
     ReferenceAssign(vi, msb_index), 
     ReferenceAssign(acc, Constant(0, precision = precision)),
-    ReferenceAssign(acc_int, Constant(0, precision = precision)),
+    ReferenceAssign(acc_int, Constant(0, precision = int_precision)),
   )
   
   cst_load = TableLoad(cst_table, vi, 0, tag = "cst_load", debug = debug_precision)
   sca_load = TableLoad(scale_table, vi, 0, tag = "sca_load", debug = debug_precision)
-
+  # loop body
+  # hi_mult = vx_hi * <scale_factor> * <cst>
   hi_mult = (vx_hi * sca_load) * (cst_load * sca_load)
   hi_mult.set_attributes(tag = "hi_mult", debug = debug_precision)
   pre_hi_mult_int   = NearestInteger(hi_mult, precision = int_precision, tag = "hi_mult_int", debug = (debuglld if debug else None))
@@ -147,20 +191,25 @@ def generate_payne_hanek(vx, frac_pi, precision, n = 100, k = 4, chunk_num = Non
   hi_mult_red = Select(exclude_hi, pre_hi_mult_red, Constant(0, precision = precision))
   hi_mult_int = Select(exclude_hi, pre_hi_mult_int, Constant(0, precision = int_precision))
 
+  # lo part of the chunk reduction
   lo_mult = (vx_lo * sca_load) * (cst_load * sca_load)
   lo_mult.set_attributes(tag = "lo_mult", debug = debug_precision)
   lo_mult_int   = NearestInteger(lo_mult, precision = int_precision, tag = "lo_mult_int", debug = (debuglld if debug else None))
   lo_mult_int_f = Conversion(lo_mult_int, precision = precision, tag = "lo_mult_int_f", debug = debug_precision)
   lo_mult_red = (lo_mult - lo_mult_int_f).modify_attributes(tag = "lo_mult_red", debug = debug_precision)
 
+  # accumulating fractional part
   acc_expr = (acc + hi_mult_red) + lo_mult_red
+  # accumulating integer part
   int_expr = ((acc_int + hi_mult_int) + lo_mult_int) % 2**(k+1) 
 
   CF1 = Constant(1, precision = precision)
   CI1 = Constant(1, precision = int_precision)
 
+  # extracting exceeding integer part in fractionnal accumulator
   acc_expr_int = NearestInteger(acc_expr, precision = int_precision)
-
+  # normalizing integer and fractionnal accumulator by subtracting then
+  # adding exceeding integer part
   normalization = Statement(
       ReferenceAssign(acc, acc_expr - Conversion(acc_expr_int, precision = precision)),
       ReferenceAssign(acc_int, int_expr + acc_expr_int),
@@ -173,22 +222,15 @@ def generate_payne_hanek(vx, frac_pi, precision, n = 100, k = 4, chunk_num = Non
   red_loop = Loop(init_loop,
       vi <= lsb_index,
        Statement(
-          acc_expr, 
+          acc_expr,
           int_expr,
           normalization,
-          #ReferenceAssign(acc, acc_expr), 
-          #ReferenceAssign(acc_int, int_expr),
           ReferenceAssign(vi, vi + 1)
         )
       )
-  result = Statement(lsb_index, msb_index, red_loop) 
+  result = Statement(lsb_index, msb_index, red_loop)
 
   # restoring sollya's global precision
   sollya.settings.prec = old_global_prec
 
   return result, acc, acc_int
-
-
-
-    
-

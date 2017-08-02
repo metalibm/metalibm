@@ -23,6 +23,8 @@ from metalibm_core.utility.debug_utils import *
 from metalibm_core.utility.num_utils   import ulp
 from metalibm_core.utility.gappa_utils import is_gappa_installed
 
+from metalibm_core.utility.rtl_debug_utils import *
+
 
 from metalibm_core.core.ml_hdl_format import *
 from metalibm_core.core.ml_hdl_operations import *
@@ -30,11 +32,6 @@ from metalibm_core.core.ml_hdl_operations import *
 
 from metalibm_hw_blocks.lzc import ML_LeadingZeroCounter
 
-## Helper for debug enabling
-debug_std          = ML_Debug(display_format = " -radix 2 ")
-debug_dec          = ML_Debug(display_format = " -radix 10 ")
-debug_dec_unsigned = ML_Debug(display_format = " -decimal -unsigned ")
-debug_cst_dec      = ML_Debug(display_format = " ")
 
 ## Wrapper for zero extension
 # @param op the input operation tree
@@ -64,9 +61,7 @@ class FP_FIXED_MPFMA(ML_Entity("fp_fixed_mpfma")):
              entity_name = "fp_fixed_mpfma",
              language = VHDL_Code,
              vector_size = 1,
-             extra_digit = 0,
-             sign_magnitude = False, 
-             pipelined = False):
+             ):
     # initializing I/O precision
     precision = ArgDefault.select_value([arg_template.precision, precision])
     io_precisions = [precision] * 2
@@ -89,14 +84,26 @@ class FP_FIXED_MPFMA(ML_Entity("fp_fixed_mpfma")):
 
     self.precision = precision
     # number of extra bits to add to the accumulator fixed precision
-    self.extra_digit = extra_digit
+    self.extra_digit = arg_template.extra_digit
 
     min_prod_exp = self.precision.get_emin_subnormal() * 2
     self.acc_lsb_index = min_prod_exp
     # select sign-magintude encoded accumulator
-    self.sign_magnitude = sign_magnitude
+    self.sign_magnitude = arg_template.sign_magnitude
     # enable/disable operator pipelining
-    self.pipelined = pipelined
+    self.pipelined      = arg_template.pipelined
+
+  @staticmethod
+  def get_default_args(**kw):
+    default_mapping = {
+      "extra_digit" : 0,
+      "sign_magnitude" : False,
+      "pipelined" : False
+    }
+    default_mapping.update(kw)
+    return DefaultEntityArgTemplate(
+      **default_mapping
+    )
 
   def get_acc_lsb_index(self):
     return self.acc_lsb_index
@@ -468,6 +475,6 @@ if __name__ == "__main__":
     # argument extraction 
     args = parse_arg_index_list = arg_template.arg_extraction()
 
-    ml_hw_fp_fixed_mpfma      = FP_FIXED_MPFMA(args, extra_digit = args.extra_digit, sign_magnitude = args.sign_magnitude, pipelined = args.pipelined)
+    ml_hw_fp_fixed_mpfma      = FP_FIXED_MPFMA(args)
 
     ml_hw_fp_fixed_mpfma.gen_implementation()

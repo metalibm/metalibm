@@ -15,10 +15,14 @@
 
 from sollya import Interval
 
-from ml_operations import ML_LeafNode, BitLogicAnd, BitLogicRightShift, TypeCast, Constant
+from ml_operations import (
+    ML_LeafNode, BitLogicAnd, BitLogicRightShift, TypeCast, Constant
+)
 from attributes import Attributes, attr_init
 from ml_formats import ML_Int32, ML_Int64, ML_UInt32, ML_UInt64, ML_Format
 from ..code_generation.code_constant import *
+
+from ..utility.source_info import SourceInfo
 
 ## \defgroup ml_table ml_table
 #  @{
@@ -199,6 +203,9 @@ class ML_NewTable(ML_Table):
     return self.precision
 
 
+## Table specifically used to described an approximation i.e a seed-like
+#  instruction.
+#  This class has source-info information to retrieve declaration location
 class ML_ApproxTable(ML_NewTable):
     str_name = "ApproxTable"
     def __init__(self, **kwords):
@@ -207,6 +214,10 @@ class ML_ApproxTable(ML_NewTable):
         self.index_size = index_size
         index_function = attr_init(kwords, "index_function", lambda variable: generic_index_function(index_size, variable))
         self.index_function = index_function
+        self.sourceinfo = SourceInfo.retrieve_source_info(0)
+
+    def get_source_info(self):
+        return self.sourceinfo
 
     def get_index_function(self):
         """ <index_function> getter """

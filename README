@@ -25,7 +25,7 @@ USAGE
     python2 metalibm_functions/ml_exp.py --help 
 
 * Example:
-    python2 metalibm_functions/ml_exp.py --target x86_fma --output x86_fma_exp2d.c
+    python2 metalibm_functions/ml_exp.py --target x86_avx2 --output x86_avx2_exp2d.c
 
 * Explore the other functions of this directory, e.g. :
     python2 metalibm_functions/ml_log.py --help 

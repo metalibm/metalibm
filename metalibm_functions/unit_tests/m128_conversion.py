@@ -87,17 +87,36 @@ class ML_UT_M128Conversion(ML_Function("ml_ut_m128_conversion")):
     )
     # index = index % table_size = index & (2**index_size - 1)
     index = BitLogicAnd(
-      index, 
-      Constant(2**index_size - 1, precision = ML_Int32), 
+      index,
+      Constant(2**index_size - 1, precision = ML_Int32),
       precision = ML_Int32
     )
 
     table_value = TableLoad(table, index, precision = self.precision)
 
+    int_tree = Multiplication(
+        index,
+        Addition(
+            index,
+            Constant(7, precision = ML_Int32),
+            precision = ML_Int32
+        ),
+        precision = ML_Int32
+    )
 
     result = Multiplication(
       table_value,
-      FusedMultiplyAdd(cst, mult, add_xx, specifier = FusedMultiplyAdd.Subtract, precision = self.precision),
+      FusedMultiplyAdd(
+        Addition(
+            cst,
+            Conversion(int_tree, precision = self.precision),
+            precision = self.precision
+        ),
+        mult,
+        add_xx,
+        specifier = FusedMultiplyAdd.Subtract,
+        precision = self.precision
+      ),
       precision = self.precision
     )
 

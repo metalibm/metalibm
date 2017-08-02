@@ -47,10 +47,7 @@ class Pass_Vector_Promotion(OptreeOptimization):
     if isinstance(precision, ML_TableFormat):
       return True
     else:
-      if precision in self.get_translation_table():
-        return True
-      else:
-        return False
+      return precision in self.get_translation_table()
 
   ## test wether optree's operation is supported on 
   #  promoted formats

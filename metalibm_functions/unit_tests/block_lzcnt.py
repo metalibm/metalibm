@@ -20,7 +20,7 @@ from metalibm_core.utility.ml_template import *
 from metalibm_core.utility.debug_utils import *
 
 from metalibm_core.opt.ml_blocks import generate_count_leading_zeros
-from metalibm_functions.unit_tests.utils import TestRunner 
+from metalibm_functions.unit_tests.utils import TestRunner
 
 class ML_UT_Lzcnt(ML_Function("ml_lzcnt"), TestRunner):
   def __init__(self,
@@ -54,20 +54,21 @@ class ML_UT_Lzcnt(ML_Function("ml_lzcnt"), TestRunner):
     return float(n);
 
   @staticmethod
-  def build_default_args():
-    default_arg = DefaultArgTemplate(
-      function_name = "new_lzcnt",
-      output_file   = "ut_lzcnt.c",
-      precision = ML_Int32
-    )
-    return default_arg
+  def get_default_args(**kw):
+    default_arg = {
+      "function_name": "new_lzcnt",
+      "output_file": "ut_lzcnt.c",
+      "precision": ML_Int32
+    }
+    default_arg.update(**kw)
+    return DefaultArgTemplate(**default_arg)
 
   @staticmethod
   def __call__(args):
     # just ignore args here and trust default constructor? seems like a bad idea.
     ml_ut_block_lzcnt = ML_UT_Lzcnt(args)
     ml_ut_block_lzcnt.gen_implementation()
-                                         
+
     return True
 
 run_test = ML_UT_Lzcnt
@@ -84,4 +85,3 @@ if __name__ == "__main__":
   args = arg_template.arg_extraction()
 
   run_test(args)
-
