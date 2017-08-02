@@ -42,11 +42,24 @@ ml_dd_t ml_split_dd_d_safe(double x) {
     return result;
 }
 
+ml_ds_t  ml_split_ds_s(float x) {
+    /* Veltkamp split applied to p = 24 */
+    const float C = 4097.0;
+
+    volatile float gamma = C * x;
+    float delta = x - gamma;
+    float xhi = gamma + delta;
+
+    ml_ds_t result = { .hi = xhi, .lo = x - xhi};
+
+    return result;
+}
+
 ml_dd_t ml_mult_dd_d2(double x, double y) {
     ml_dd_t xs, ys;
     xs = ml_split_dd_d(x);
     ys = ml_split_dd_d(y);
-    
+
     double r1, t1, t2, t3, r2;
     r1 = x * y;
     t1 = -r1 + xs.hi * ys.hi;
