@@ -40,7 +40,7 @@ class ML_ExponentialM1_Red(ML_Function("ml_expm1")):
 
     # initializing base class
     ML_FunctionBasis.__init__(self, 
-      base_name = "expm1_red",
+      base_name = "expm1",
       function_name = function_name,
       output_file = output_file,
 
@@ -258,7 +258,7 @@ class ML_ExponentialM1_Red(ML_Function("ml_expm1")):
 
 if __name__ == "__main__":
     # auto-test
-    arg_template = ML_NewArgTemplate(default_function_name = "new_expm1_red", default_output_file = "new_expm1_red.c" )
+    arg_template = ML_NewArgTemplate(default_function_name = "new_expm1", default_output_file = "new_expm1.c" )
     # argument extraction 
     args = parse_arg_index_list = arg_template.arg_extraction()
  

@@ -18,7 +18,7 @@ ml_dd_t ml_neg_dd(ml_dd_t x) {
 ml_dd_t ml_split_dd_d(double x) {
     /* Veltkamp split appied to p = 53, C = (1 << 27) + 1 */
     const uid_conv_t C = {.u = 0x41a0000002000000ull};
-    double gamma = C.d * x;
+    volatile double gamma = C.d * x;
     double delta = x - gamma;
 
     double xhi = gamma + delta;
@@ -31,7 +31,7 @@ ml_dd_t ml_split_dd_d(double x) {
 ml_dd_t ml_split_dd_d_safe(double x) {
     /* Veltkamp split appied to p = 53, C = (1 << 27) + 1 */
     const uid_conv_t C = {.u = 0x41a0000002000000ull};
-    double gamma = C.d * x;
+    volatile double gamma = C.d * x;
     double delta = x - gamma;
 
     double xhi = gamma + delta;
