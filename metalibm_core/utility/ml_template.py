@@ -565,6 +565,12 @@ class ML_NewArgTemplate(ML_CommonArgTemplate):
             type=target_instanciate, default="none",
             help="select generation target"
         )
+        self.parser.add_argument(
+          "--execute", dest = "execute_trigger", action = "store_const",
+          const = True, default = default_arg.execute_trigger,
+          help = "trigger post-build execution"
+        )
+
 
 
 class ML_ArgTemplate(object):
