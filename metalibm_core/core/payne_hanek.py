@@ -41,134 +41,145 @@ def get_remainder(vx, precision, k, debug = None, tag = ""):
               )
   return result
 
-def generate_payne_hanek(vx, frac_pi, precision, n = 100, k = 4, chunk_num = None, debug = False ):
+def generate_payne_hanek(vx, frac_pi, precision, n = 100, k = 4, chunk_num = None, debug = False):
   """ generate payne and hanek argument reduction for frac_pi * variable """
-  # determining integer format corresponding to 
-  # floating point precision argument
-  int_precision = precision.get_integer_format()
+  
+  sollya.roundingwarnings = sollya.off
+  
+  int_precision = {
+    ML_Binary32 : ML_Int32,
+    ML_Binary64 : ML_Int64
+    }[precision]
+  
+  p = precision.get_field_size()
 
+  ## Constant msb
   cst_msb = floor(log2(abs(frac_pi)))
-  cst_exp_range = cst_msb - precision.get_emin_subnormal() + 1
+  cst_exp_range = cst_msb + 500 + 1
 
-  # chunk size has to be so than multiplication by a splitted <v> (vx_hi or vx_lo)
-  # is exact
-  chunk_size = precision.get_field_size() / 2 - 2
+  # Chunk size has to be so that multiplication by a splitted <v> (vx_hi or vx_lo)
+  # is exact, <vx_hi> or <vx_lo> has at most p/2 significant bits
+  chunk_size = p / 2 - 2
+  
   chunk_number = int(ceil((cst_exp_range + chunk_size - 1) / chunk_size)) 
   scaling_factor = S2**-(chunk_size/2)
 
-  chunk_size_cst = Constant(chunk_size, precision = ML_Int32)
-  cst_msb_node   = Constant(cst_msb, precision = ML_Int32)
+  chunk_size_cst = Constant(chunk_size, precision = int_precision)
+  cst_msb_node   = Constant(cst_msb, precision = int_precision)
 
-  p = precision.get_field_size()
-
-  # adapting debug format to precision argument
-  debug_precision = {ML_Binary32: debug_ftox, ML_Binary64: debug_lftolx}[precision] if debug else None
-
-  # saving sollya's global precision
+  # Saving sollya's global precision
   old_global_prec = sollya.settings.prec
-  sollya.settings.prec (cst_exp_range + 100)
+  sollya.settings.prec (cst_exp_range + n)
 
-  # table to store chunk of constant multiplicand
+  # Table to store chunks of constant multiplicand
   cst_table = ML_NewTable(dimensions = [chunk_number, 1], storage_precision = precision, tag = "PH_cst_table")
-  # table to store sqrt(scaling_factor) corresponding to the cst multiplicand chunks
+  # Table to store sqrt(scaling_factor) corresponding to the constant multiplicand chunks
   scale_table =  ML_NewTable(dimensions = [chunk_number, 1], storage_precision = precision, tag = "PH_scale_table")
+  
+  # Constant value
   tmp_cst = frac_pi
   
-  # this loop divide the digits of frac_pi into chunks 
-  # the chunk lsb weight is given by a shift from 
-  # cst_msb, multiple of the chunk index
+  # Dividing frac_pi into <chunk_number> chunks
   for i in xrange(chunk_number):
-    value_div_factor = S2**(chunk_size * (i+1) - cst_msb)
-    local_cst = int(tmp_cst * value_div_factor) / value_div_factor 
+    # Shift from constant msb to get current chunk's lsb
+    chunk_lsb = ((i+1)*chunk_size - cst_msb)
+    chunk_value = int(tmp_cst * S2**chunk_lsb) / S2**chunk_lsb 
     local_scale = (scaling_factor**i)
-    # storing scaled constant chunks
-    cst_table[i][0] = local_cst / (local_scale**2)
+    
+    # Storing scaled constant chunks
+    cst_table[i][0] = chunk_value / (local_scale**2)
     scale_table[i][0] = local_scale
-    tmp_cst = tmp_cst - local_cst
+    # Updating constant value
+    tmp_cst = tmp_cst - chunk_value
+
+  # Computing which part of the constant we do not need to multiply
+  # In the following comments, vi represents the bit of frac_pi of weight 2**-i
+  
+  # Bits vi so that i <= (vx_exp - p + 1 -k)  are not needed, because they result
+  # in a multiple of 2pi and do not contribute to trig functions.    
 
   vx_exp = ExponentExtraction(vx)
-  msb_exp = -vx_exp + p - 1 + k
-  msb_exp.set_attributes(tag = "msb_exp", debug = (debugd if debug else None))
+  
+  msb_exp = -(vx_exp - p + 1 - k)
+  msb_exp.set_attributes(precision = int_precision, tag = "msb_exp", debug = debug_multi)
 
+  # Index of the corresponding chunk
   msb_index = Select(cst_msb_node < msb_exp, 0, (cst_msb_node - msb_exp) / chunk_size_cst)
-  msb_index.set_attributes(tag = "msb_index", debug = (debugd if debug else None))
+  msb_index.set_attributes(tag = "msb_index", debug = debug_multi)
 
-  lsb_exp = -vx_exp + p - 1 -n
-  lsb_exp.set_attributes(tag = "lsb_exp", debug = (debugd if debug else None))
+  # For a desired accuracy of 2**-n, bits vi so that i >= (vx_exp + n + 4)  are not needed, because they contribute less than
+  # 2**-n to the result
+  
+  lsb_exp = -(vx_exp + n + 4)
+  lsb_exp.set_attributes(tag = "lsb_exp", debug = debug_multi)
 
+  # Index of the corresponding chunk
   lsb_index = (cst_msb_node - lsb_exp) / chunk_size_cst
-  lsb_index.set_attributes(tag = "lsb_index", debug = (debugd if debug else None))
+  lsb_index.set_attributes(tag = "lsb_index", debug = debug_multi)
 
-
+  # Splitting vx
   half_size = precision.get_field_size() / 2 + 1
-
-  vx_hi = TypeCast(BitLogicAnd(TypeCast(vx, precision = int_precision), Constant(~(2**half_size-1), precision = int_precision)), precision = precision) 
-  vx_hi.set_attributes(tag = "vx_hi", debug = debug_precision)
-
-  vx_lo = vx - vx_hi
-  vx_lo.set_attributes(tag = "vx_lo", debug = debug_precision)
-
-  vi = Variable("i", precision = ML_Int32, var_type = Variable.Local)
-
   half_scaling = Constant(S2**(-chunk_size/2), precision = precision)
 
+  vx_hi = TypeCast(BitLogicAnd(TypeCast(vx, precision = int_precision), Constant(~(2**half_size-1), precision = int_precision)), precision = precision) 
+  vx_hi.set_attributes(tag = "vx_hi_ph")#, debug = debug_multi)
+
+  vx_lo = vx - vx_hi
+  vx_lo.set_attributes(tag = "vx_lo_ph")#, debug = debug_multi)
 
   i1 = Constant(1, precision = ML_Int32)
-
+  vi = Variable("i", precision = ML_Int32, var_type = Variable.Local)
   acc     = Variable("acc", precision = precision, var_type = Variable.Local)
   acc_int = Variable("acc_int", precision = int_precision, var_type = Variable.Local)
 
   init_loop = Statement(
     vx_hi,
     vx_lo, 
-  
     ReferenceAssign(vi, msb_index), 
     ReferenceAssign(acc, Constant(0, precision = precision)),
     ReferenceAssign(acc_int, Constant(0, precision = precision)),
   )
   
-  cst_load = TableLoad(cst_table, vi, 0, tag = "cst_load", debug = debug_precision)
-  sca_load = TableLoad(scale_table, vi, 0, tag = "sca_load", debug = debug_precision)
+  cst_load = TableLoad(cst_table, vi, 0, tag = "cst_load")#, debug = debug_multi)
+  sca_load = TableLoad(scale_table, vi, 0, tag = "sca_load")#, debug = debug_multi)
 
   hi_mult = (vx_hi * sca_load) * (cst_load * sca_load)
-  hi_mult.set_attributes(tag = "hi_mult", debug = debug_precision)
-  pre_hi_mult_int   = NearestInteger(hi_mult, precision = int_precision, tag = "hi_mult_int", debug = (debuglld if debug else None))
-  hi_mult_int_f = Conversion(pre_hi_mult_int, precision = precision, tag = "hi_mult_int_f", debug = debug_precision)
-  pre_hi_mult_red = (hi_mult - hi_mult_int_f).modify_attributes(tag = "hi_mult_red", debug = debug_precision)
+  hi_mult.set_attributes(tag = "hi_mult")#, debug = debug_multi)
+  
+  pre_hi_mult_int   = NearestInteger(hi_mult, precision = int_precision, tag = "hi_mult_int")#, debug = debug_multi)
+  hi_mult_int_f = Conversion(pre_hi_mult_int, precision = precision, tag = "hi_mult_int_f")#, debug = debug_multi)
+  pre_hi_mult_red = (hi_mult - hi_mult_int_f).modify_attributes(tag = "hi_mult_red")#, debug = debug_multi)
 
-  # for the first chunks (vx_hi * <constant chunk>) exceeds 2**k+1 and may be 
-  # discard (whereas it may lead to overflow during integer conversion
-  pre_exclude_hi = ((cst_msb_node - (vi + i1) * chunk_size + i1) + (vx_exp + Constant(- half_size + 1, precision = ML_Int32))).modify_attributes(tag = "pre_exclude_hi", debug = (debugd if debug else None)) 
+  pre_exclude_hi = ((cst_msb_node - (vi + i1) * chunk_size + i1) + (vx_exp + Constant(- half_size + 1, precision = int_precision))).modify_attributes(tag = "pre_exclude_hi", debug = debug_multi) 
   pre_exclude_hi.propagate_precision(ML_Int32, [cst_msb_node, vi, vx_exp, i1])
   Ck = Constant(k, precision = ML_Int32)
   exclude_hi = pre_exclude_hi <= Ck
-  exclude_hi.set_attributes(tag = "exclude_hi", debug = (debugd if debug else None))
+  exclude_hi.set_attributes(tag = "exclude_hi", debug = debug_multi)
 
   hi_mult_red = Select(exclude_hi, pre_hi_mult_red, Constant(0, precision = precision))
   hi_mult_int = Select(exclude_hi, pre_hi_mult_int, Constant(0, precision = int_precision))
 
   lo_mult = (vx_lo * sca_load) * (cst_load * sca_load)
-  lo_mult.set_attributes(tag = "lo_mult", debug = debug_precision)
-  lo_mult_int   = NearestInteger(lo_mult, precision = int_precision, tag = "lo_mult_int", debug = (debuglld if debug else None))
-  lo_mult_int_f = Conversion(lo_mult_int, precision = precision, tag = "lo_mult_int_f", debug = debug_precision)
-  lo_mult_red = (lo_mult - lo_mult_int_f).modify_attributes(tag = "lo_mult_red", debug = debug_precision)
+  lo_mult.set_attributes(tag = "lo_mult")#, debug = debug_multi)
+  lo_mult_int   = NearestInteger(lo_mult, precision = int_precision, tag = "lo_mult_int")#, debug = debug_multi
+  lo_mult_int_f = Conversion(lo_mult_int, precision = precision, tag = "lo_mult_int_f")#, debug = debug_multi)
+  lo_mult_red = (lo_mult - lo_mult_int_f).modify_attributes(tag = "lo_mult_red")#, debug = debug_multi)
 
   acc_expr = (acc + hi_mult_red) + lo_mult_red
-  int_expr = ((acc_int + hi_mult_int) + lo_mult_int) % 2**(k+1) 
+  int_expr = ((acc_int + hi_mult_int) + lo_mult_int) % 2**(k+1)
 
   CF1 = Constant(1, precision = precision)
   CI1 = Constant(1, precision = int_precision)
 
-  acc_expr_int = NearestInteger(acc_expr, precision = int_precision)
+  acc_expr_int = NearestInteger(acc_expr, precision = int_precision, tag = "acc_expr_int")#, debug = debug_multi)
 
   normalization = Statement(
       ReferenceAssign(acc, acc_expr - Conversion(acc_expr_int, precision = precision)),
       ReferenceAssign(acc_int, int_expr + acc_expr_int),
   )
 
-
-  acc_expr.set_attributes(tag = "acc_expr", debug = debug_precision)
-  int_expr.set_attributes(tag = "int_expr", debug = (debuglld if debug else None))
+  acc_expr.set_attributes(tag = "acc_expr")#, debug = debug_multi)
+  int_expr.set_attributes(tag = "int_expr")#, debug = debug_multi)
 
   red_loop = Loop(init_loop,
       vi <= lsb_index,
@@ -176,11 +187,10 @@ def generate_payne_hanek(vx, frac_pi, precision, n = 100, k = 4, chunk_num = Non
           acc_expr, 
           int_expr,
           normalization,
-          #ReferenceAssign(acc, acc_expr), 
-          #ReferenceAssign(acc_int, int_expr),
           ReferenceAssign(vi, vi + 1)
         )
       )
+      
   result = Statement(lsb_index, msb_index, red_loop) 
 
   # restoring sollya's global precision
