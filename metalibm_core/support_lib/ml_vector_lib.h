@@ -201,6 +201,19 @@ DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vandb2, ml_bool2_t, int32_t, 2, &&)
 DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vandb4, ml_bool4_t, int32_t, 4, &&)
 DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vandb8, ml_bool8_t, int32_t, 8, &&)
 
+/** Vector logical or */
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vori2, ml_int2_t, int32_t, 2, ||)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vori4, ml_int4_t, int32_t, 4, ||)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vori8, ml_int8_t, int32_t, 8, ||)
+
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_voru2, ml_uint2_t, int32_t, 2, ||)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_voru4, ml_uint4_t, int32_t, 4, ||)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_voru8, ml_uint8_t, int32_t, 8, ||)
+
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vorb2, ml_bool2_t, int32_t, 2, ||)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vorb4, ml_bool4_t, int32_t, 4, ||)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vorb8, ml_bool8_t, int32_t, 8, ||)
+
 /** Vector bitwise and */
 DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vbwandi2, ml_int2_t, int32_t, 2, &)
 DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vbwandi4, ml_int4_t, int32_t, 4, &)
@@ -349,6 +362,14 @@ DEF_ML_VECTOR_TEST_FUNC_OP1(ml_vtestf8_is_nan, ml_bool8_t, ml_float8_t, 8, ml_is
 DEF_ML_VECTOR_TEST_FUNC_OP1(ml_vtestd2_is_nan, ml_bool2_t, ml_double2_t, 2, ml_is_nan)
 DEF_ML_VECTOR_TEST_FUNC_OP1(ml_vtestd4_is_nan, ml_bool4_t, ml_double4_t, 4, ml_is_nan)
 DEF_ML_VECTOR_TEST_FUNC_OP1(ml_vtestd8_is_nan, ml_bool8_t, ml_double8_t, 8, ml_is_nan)
+
+DEF_ML_VECTOR_TEST_FUNC_OP1(ml_vtestf2_is_inf, ml_bool2_t, ml_float2_t, 2, ml_is_inff)
+DEF_ML_VECTOR_TEST_FUNC_OP1(ml_vtestf4_is_inf, ml_bool4_t, ml_float4_t, 4, ml_is_inff)
+DEF_ML_VECTOR_TEST_FUNC_OP1(ml_vtestf8_is_inf, ml_bool8_t, ml_float8_t, 8, ml_is_inff)
+
+DEF_ML_VECTOR_TEST_FUNC_OP1(ml_vtestd2_is_inf, ml_bool2_t, ml_double2_t, 2, ml_is_inf)
+DEF_ML_VECTOR_TEST_FUNC_OP1(ml_vtestd4_is_inf, ml_bool4_t, ml_double4_t, 4, ml_is_inf)
+DEF_ML_VECTOR_TEST_FUNC_OP1(ml_vtestd8_is_inf, ml_bool8_t, ml_double8_t, 8, ml_is_inf)
 
 DEF_ML_VECTOR_TEST_FUNC_OP1(ml_vtestf2_is_subnormal, ml_bool2_t, ml_float2_t, 2, ml_is_subnormalf)
 DEF_ML_VECTOR_TEST_FUNC_OP1(ml_vtestf4_is_subnormal, ml_bool4_t, ml_float4_t, 4, ml_is_subnormalf)
