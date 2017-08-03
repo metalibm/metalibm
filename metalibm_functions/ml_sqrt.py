@@ -171,30 +171,24 @@ class ML_Sqrt(ML_Function("ml_sqrt")):
         return RaiseReturn(*args, **kwords)
 
 
-    test_zero = Test(vx, specifier = Test.IsZero, likely = False, debug = debug_multi, tag = "Is_Zero", precision = ML_Bool)
-    test_zero_sign = Test(vx, specifier = Test.IsPositiveZero, likely = False, debug = debug_multi, tag = "IsPositiveZero", precision = ML_Bool)
+    test_zero = Comparison(vx, 0, specifier = Comparison.Equal, likely = False, debug = debug_multi, tag = "Is_Zero", precision = ML_Bool)
     test_NaN = Test(vx, specifier = Test.IsNaN, likely = False, debug = debug_multi, tag = "is_NaN", precision = ML_Bool)
-    test_negative = Comparison(vx, 0, specifier = Comparison.Less, debug = debug_multi, tag = "is_Negative", precision = ML_Bool)
+    test_negative = Comparison(vx, 0, specifier = Comparison.Less, debug = debug_multi, tag = "is_Negative", precision = ML_Bool, likely = False)
     test_inf = Test(vx, specifier = Test.IsInfty, likely = False, debug = debug_multi, tag = "is_Inf", precision = ML_Bool)
     test_NaN_or_Neg = LogicalOr(test_NaN, test_negative, precision = ML_Bool)
-
-    return_PosZero = Statement(Return(FP_PlusZero(self.precision)))
-    return_MinusZero = Statement(Return(FP_MinusZero(self.precision)))
+    
     return_NaN_or_neg = Statement(Return(FP_QNaN(self.precision)))
     return_inf = Statement(Return(FP_PlusInfty(self.precision)))
 
 
+    # NR_init = 1
     NR_init = InverseSquareRootSeed(vx, precision = self.precision, tag = "sqrt_seed", debug = debug_multi)
 
     result = compute_sqrt(vx, NR_init, int(self.num_iter), precision = self.precision)
 
     scheme = ConditionBlock(
                 test_zero,
-                ConditionBlock(
-                    test_zero_sign,
-                    return_PosZero,
-                    return_MinusZero
-                ),
+                Return(0),
                 ConditionBlock(
                     test_NaN_or_Neg,
                     return_NaN_or_neg,
