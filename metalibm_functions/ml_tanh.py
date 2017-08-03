@@ -153,6 +153,10 @@ class ML_HyperbolicTangent(ML_Function("ml_tanh")):
     r.set_attributes(tag = "r", debug = debug_multi)
     
     r_interval = Interval(-log_2/S2, log_2/S2)
+    r_interval_tanh = Interval(0, 0.48)
+    r_interval_tanh2 = Interval(0.48, 0.52)
+    r_interval_tanh3 = Interval(0.52, 0.9)
+    r_interval_tanh4 = Interval(0.9, 1)
     
     local_ulp = sup(ulp(exp(r_interval), self.precision))
     
@@ -161,22 +165,44 @@ class ML_HyperbolicTangent(ML_Function("ml_tanh")):
     print "error goal: ", error_goal 
     
     # Polynomial Approx
-    
+    error_function = lambda p, f, ai, mod, t: dirtyinfnorm(f - p, ai)
     Log.report(Log.Info, "\033[33;1m Building polynomial \033[0m\n")
     
     poly_degree = sup(guessdegree(expm1(sollya.x), r_interval, error_goal) + 1)
+    poly_degree_tanh = sup(guessdegree(tanh(sollya.x), r_interval_tanh, error_goal) + 4)
+    poly_degree_tanh2 = sup(guessdegree(tanh(sollya.x), r_interval_tanh2, error_goal)+ 2)
+    poly_degree_tanh3 = sup(guessdegree(tanh(sollya.x), r_interval_tanh3, error_goal)+ 4)
+    poly_degree_tanh4 = sup(guessdegree(tanh(sollya.x), r_interval_tanh4, error_goal)+ 2)
     
     polynomial_scheme_builder = PolynomialSchemeEvaluator.generate_horner_scheme
     poly_degree_list = range(0, poly_degree)
+    poly_degree_list_tanh = range(0, poly_degree_tanh)
+    poly_degree_list_tanh2 = range(0, poly_degree_tanh2)
+    poly_degree_list_tanh3 = range(0, poly_degree_tanh3)
+    poly_degree_list_tanh4 = range(0, poly_degree_tanh4)
     
     precision_list = [self.precision] *(len(poly_degree_list) + 1)
-    poly_object = Polynomial.build_from_approximation(expm1(sollya.x), poly_degree, precision_list, r_interval, sollya.absolute)
+    precision_list_tanh = [self.precision] *(len(poly_degree_list_tanh) + 1)
+    precision_list_tanh2 = [self.precision] *(len(poly_degree_list_tanh2) + 1)
+    precision_list_tanh3 = [self.precision] *(len(poly_degree_list_tanh3) + 1)
+    precision_list_tanh4 = [self.precision] *(len(poly_degree_list_tanh4) + 1)
+    
+    poly_object, poly_approx_error = Polynomial.build_from_approximation_with_error(expm1(sollya.x), poly_degree, precision_list, r_interval, sollya.absolute, error_function = error_function)
+    poly_object_tanh, poly_approx_error_tanh = Polynomial.build_from_approximation_with_error(tanh(sollya.x), poly_degree_tanh, precision_list_tanh, r_interval_tanh, sollya.absolute, error_function = error_function)
+    poly_object_tanh2, poly_approx_error_tanh2 = Polynomial.build_from_approximation_with_error(tanh(sollya.x), poly_degree_tanh2, precision_list_tanh2, r_interval_tanh2, sollya.absolute, error_function = error_function)
+    poly_object_tanh3, poly_approx_error_tanh3 = Polynomial.build_from_approximation_with_error(tanh(sollya.x), poly_degree_tanh3, precision_list_tanh3, r_interval_tanh3, sollya.absolute, error_function = error_function)
+    poly_object_tanh4, poly_approx_error_tanh4 = Polynomial.build_from_approximation_with_error(tanh(sollya.x), poly_degree_tanh4, precision_list_tanh4, r_interval_tanh4, sollya.absolute, error_function = error_function)
+    
+    print "poly_approx_error: ", poly_approx_error, float(log2(poly_approx_error))
+    print "poly_approx_error_tanh: ", poly_approx_error_tanh, float(log2(poly_approx_error_tanh))
+    print "poly_approx_error_tanh2: ", poly_approx_error_tanh2, float(log2(poly_approx_error_tanh2))
+    print "poly_approx_error_tanh3: ", poly_approx_error_tanh3, float(log2(poly_approx_error_tanh3))
+    print "poly_approx_error_tanh4: ", poly_approx_error_tanh4, float(log2(poly_approx_error_tanh4))
+    
     sub_poly = poly_object.sub_poly(start_index = 2)
     Log.report(Log.Info, "Poly : %s" % sub_poly)
     pre_sub_poly = polynomial_scheme_builder(sub_poly, r, unified_precision = self.precision)
-    m_pre_sub_poly = polynomial_scheme_builder(sub_poly, -r, unified_precision = self.precision)
     poly = r + pre_sub_poly
-    _poly = -r + m_pre_sub_poly
     poly.set_attributes(tag = "poly", debug = debug_multi)
     
     exp_k = ExponentInsertion(ik, tag = "exp_k", debug = debug_multi, precision = self.precision)
@@ -192,9 +218,25 @@ class ML_HyperbolicTangent(ML_Function("ml_tanh")):
     result = 1 - result2
     result.set_attributes(tag = "result", debug = debug_multi)
     
+    result_tanh = polynomial_scheme_builder(poly_object_tanh, 0.5*vx, unified_precision = self.precision)
+    result_tanh.set_attributes(tag = "result_tanh", debug = debug_multi)
+    
+    result_tanh2 = polynomial_scheme_builder(poly_object_tanh2, 0.5*vx, unified_precision = self.precision)
+    result_tanh2.set_attributes(tag = "result_tanh2", debug = debug_multi)
+    
+    result_tanh3 = polynomial_scheme_builder(poly_object_tanh3, 0.5*vx, unified_precision = self.precision)
+    result_tanh3.set_attributes(tag = "result_tanh3", debug = debug_multi)
+    
+    result_tanh4 = polynomial_scheme_builder(poly_object_tanh4, 0.5*vx, unified_precision = self.precision)
+    result_tanh4.set_attributes(tag = "result_tanh4", debug = debug_multi)
     # ov_value 
     ov_value = bound
     ov_flag = Comparison(vx*0.5, Constant(ov_value, precision = self.precision), specifier = Comparison.Greater, tag = "ov_flag", debug = debug_multi)
+    
+    test_interval = Comparison(vx*0.5, 1, specifier = Comparison.Greater, precision = ML_Bool)
+    test_interval2 = Comparison(vx*0.5, 0.48, specifier = Comparison.Greater, precision = ML_Bool)
+    test_interval3 = Comparison(vx*0.5, 0.52, specifier = Comparison.Greater, precision = ML_Bool)
+    test_interval4 = Comparison(vx*0.5, 0.9, specifier = Comparison.Greater, precision = ML_Bool)
     # main scheme
     scheme = Statement(
                 sign,
@@ -202,8 +244,25 @@ class ML_HyperbolicTangent(ML_Function("ml_tanh")):
                 ConditionBlock(
                   ov_flag,
                   Return(sign*Constant(1.0, precision = self.precision)),
-                  Return(sign*result),
-                ))
+                  ConditionBlock(
+                    test_interval,
+                    Return(sign*result),
+                    ConditionBlock(
+                      test_interval4,
+                      Return(result_tanh4),
+                      ConditionBlock(
+                        test_interval3,
+                        Return(result_tanh3),
+                        ConditionBlock(
+                          test_interval2,
+                          Return(result_tanh2),
+                          Return(result_tanh)
+                        )
+                      )
+                    )
+                  )
+                )
+              )
 
       
     return scheme
