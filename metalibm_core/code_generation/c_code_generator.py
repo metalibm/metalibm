@@ -106,28 +106,45 @@ class CCodeGenerator(object):
                 result = CodeVariable(cst_varname, precision)
             else:
                 if precision is ML_Integer:
-                  result = CodeExpression("%d" % optree.get_value(), precision)
+                    result = CodeExpression("%d" % optree.get_value(), precision)
                 else:
-                  try:
-                      result = CodeExpression(precision.get_cst(optree.get_value(), language = language), precision)
-                  except:
-                    result = CodeExpression(precision.get_cst(optree.get_value(), language = language), precision)
-                    Log.report(Log.Error, "Error during get_cst call for Constant: %s " % optree.get_str(display_precision = True)) # Exception print
+                    try:
+                        result = CodeExpression(
+                            precision.get_cst(
+                                optree.get_value(), language = language
+                            ), precision
+                        )
+                    except:
+                        result = CodeExpression(
+                            precision.get_cst(
+                                optree.get_value(), language = language
+                            ), precision
+                        )
+                        Log.report(
+                            Log.Error,
+                            "Error during get_cst call for Constant: %s " % optree.get_str(display_precision = True)
+                        ) # Exception print
 
         elif isinstance(optree, ML_NewTable):
             # Implementing LeafNode ML_NewTable generation support
             table = optree
             tag = table.get_tag()
-            table_name = code_object.declare_table(table, prefix = tag if tag != None else "table") 
+            table_name = code_object.declare_table(
+                table, prefix = tag if tag != None else "table"
+            )
             result = CodeVariable(table_name, table.get_precision())
 
         elif isinstance(optree, SwitchBlock):
             switch_value = optree.inputs[0]
-            
             # generating pre_statement
-            self.generate_expr(code_object, optree.get_pre_statement(), folded = folded, language = language)
+            self.generate_expr(
+                code_object, optree.get_pre_statement(),
+                folded = folded, language = language
+            )
 
-            switch_value_code = self.generate_expr(code_object, switch_value, folded = folded, language = language)
+            switch_value_code = self.generate_expr(
+                code_object, switch_value, folded = folded, language = language
+            )
             case_map = optree.get_case_map()
 
             code_object << "\nswitch(%s) {\n" % switch_value_code.get()
@@ -140,7 +157,10 @@ class CCodeGenerator(object):
               else:
                 code_object << "case %s:\n" % case
               code_object.open_level()
-              self.generate_expr(code_object, case_statement, folded = folded, language = language) 
+              self.generate_expr(
+                code_object, case_statement,
+                folded = folded, language = language
+              )
               code_object.close_level()
             code_object << "}\n"
 
@@ -150,14 +170,22 @@ class CCodeGenerator(object):
             output_var = optree.inputs[0]
             result_value = optree.inputs[1]
 
-            output_var_code   = self.generate_expr(code_object, output_var, folded = False, language = language)
+            output_var_code   = self.generate_expr(
+                code_object, output_var, folded = False, language = language
+            )
 
             if isinstance(result_value, Constant):
               # generate assignation
-              result_value_code = self.generate_expr(code_object, result_value, folded = folded, language = language)
-              code_object << self.generate_assignation(output_var_code.get(), result_value_code.get())
+              result_value_code = self.generate_expr(
+                code_object, result_value, folded = folded, language = language
+              )
+              code_object << self.generate_assignation(
+                output_var_code.get(), result_value_code.get()
+              )
             else:
-              result_value_code = self.generate_expr(code_object, result_value, folded = folded, language = language)
+              result_value_code = self.generate_expr(
+                code_object, result_value, folded = folded, language = language
+              )
               code_object << self.generate_assignation(output_var_code.get(), result_value_code.get())
               if optree.get_debug() and not self.disable_debug:
                 code_object << self.generate_debug_msg(result_value, result_value_code, code_object, debug_object = optree.get_debug())

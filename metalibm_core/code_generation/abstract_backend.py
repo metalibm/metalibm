@@ -88,7 +88,16 @@ class AbstractBackend(object):
             if condition(optree):
                 for interface_condition in table[language][op_class][codegen_key][condition]:
                     if interface_condition(*interface, optree = optree):
-                        return table[language][op_class][codegen_key][condition][interface_condition]
+                        implementation = table[language][op_class][codegen_key][condition][interface_condition]
+                        sourceinfo = implementation.get_source_info()
+                        Log.report(
+                            Log.Verbose, 
+                             "optree {} to implementation @ {}".format(
+                                optree.get_str(display_precision = True),
+                                str(sourceinfo)
+                             )
+                        )
+                        return implementation
         return None
 
     def get_recursive_implementation(self, optree, language = None, table_getter = lambda self: self.code_generation_table, key_getter = lambda self, optree: self.get_operation_keys(optree)):

@@ -14,13 +14,20 @@ import os
 import re
 
 
+## check if @p pass_name is a valid filename
+#  for a path description file
 def pass_validity_test(pass_name):
-    return re.match("p_[\w]+\.py", pass_name) != None
+  return re.match("p_[\w]+\.py$", pass_name) != None
+
+## build the pass module name from the filename
+#  @pass_name
+def get_module_name(pass_name):
+	return pass_name.replace(".py", "") 
 
 # dynamically search for installed targets
 pass_dirname = os.path.dirname(os.path.realpath(__file__))
 
-pass_list = [possible_pass for possible_pass in os.listdir(pass_dirname) if pass_validity_test(possible_pass)]
+pass_list = [get_module_name(possible_pass) for possible_pass in os.listdir(pass_dirname) if pass_validity_test(possible_pass)]
     
 __all__ = pass_list
 

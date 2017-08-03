@@ -14,6 +14,8 @@ from metalibm_core.core.ml_formats import *
 from metalibm_core.core.polynomials import *
 from metalibm_core.core.ml_table import ML_NewTable
 from metalibm_core.core.ml_complex_formats import ML_Mpfr_t
+from metalibm_core.opt.ml_blocks import (generate_count_leading_zeros,
+                                         generate_fasttwosum)
 
 from metalibm_core.code_generation.generic_processor import GenericProcessor
 from metalibm_core.code_generation.generator_utility import (FunctionOperator,
@@ -36,27 +38,6 @@ class ML_Log(ML_Function("ml_log")):
             arg_template = arg_template)
 
 
-  def generate_emulate(self, result_ternary, result, mpfr_x, mpfr_rnd):
-    """ generate the emulation code for the function
-        mpfr_x is a mpfr_t variable which should have the right precision
-        mpfr_rnd is the rounding mode
-    """
-    emulate_func_name = "mpfr_log"
-    argc = 3
-    emulate_func_op = FunctionOperator(
-            emulate_func_name,
-            arg_map = { i: FO_Arg(i) for i in range(argc) },
-            require_header = ["mpfr.h"])
-    emulate_func = FunctionObject(
-            emulate_func_name,
-            [ ML_Mpfr_t, ML_Mpfr_t, ML_Int32 ],
-            ML_Int32,
-            emulate_func_op)
-    mpfr_call = Statement(ReferenceAssign(
-            result_ternary, emulate_func(result, mpfr_x, mpfr_rnd)))
-    return mpfr_call
-
-
   def generate_scheme(self):
     """Produce an abstract scheme for the logarithm.
 
@@ -72,7 +53,8 @@ class ML_Log(ML_Function("ml_log")):
     # 2^(e_min + 2) * (1 - 2^(-precision))
     # e.g. for binary32: 2^(-126 + 2) * (1 - 2^(-24))
     denorm_mask = Constant(value = 0x017fffff if self.precision == ML_Binary32
-                           else 0x002fffffffffffff, precision = int_prec)
+                           else 0x002fffffffffffff, precision = int_prec,
+                           tag = "denorm_mask")
 
     print "MDL table"
     table_index_size = 7 # to be abstracted somehow
@@ -101,10 +83,8 @@ class ML_Log(ML_Function("ml_log")):
 
     # NO BRANCH, INTEGER BASED DENORMAL AND LARGE EXPONENT HANDLING
     # 1. lzcnt
-    lzcount = CountLeadingZeros(vx_as_uint, tag = 'lzcount',
-            interval = Interval(0, self.precision.bit_size),
-            precision = uint_prec)
-    max8 = Max(8, Conversion(lzcount, precision = int_prec)) # Max of lzcnt and 8
+    lzcount = generate_count_leading_zeros(vx_as_int)
+    max8 = Max(8, lzcount) # Max of lzcnt and 8
     # 2. compute shift value
     shift = max8 -  8
     # 3. shift left
@@ -165,7 +145,7 @@ class ML_Log(ML_Function("ml_log")):
     sollya_function = log(1 + sollya.x)
     arg_red_mag = 2**(-table_index_size)
     approx_interval = Interval(-arg_red_mag, arg_red_mag)
-    max_eps = 2**-(self.precision.get_field_size() * 3)
+    max_eps = 2**-(self.precision.get_field_size() + 10)
     print "max acceptable error for polynomial = {}".format(float.hex(max_eps))
     poly_degree = sup(
             guessdegree(

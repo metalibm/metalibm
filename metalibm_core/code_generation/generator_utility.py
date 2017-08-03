@@ -10,10 +10,13 @@
 # author(s): Nicolas Brunie (nicolas.brunie@kalray.eu)
 ###############################################################################
 
+
 from ..utility.log_report import Log
 from ..core.ml_formats import *
 from .code_element import CodeVariable, CodeExpression
 from .code_constant import C_Code, Gappa_Code
+
+from ..utility.source_info import SourceInfo
 
 
 class DummyTree(object):
@@ -63,6 +66,13 @@ class ML_CG_Operator(object):
         # 
         self.context_dependant = context_dependant
         self.speed_measure = speed_measure
+
+        ## source file information about opertor instantitation
+        self.sourceinfo = SourceInfo.retrieve_source_info(1)
+
+    def get_source_info(self):
+        return self.sourceinfo
+        
 
     def register_headers(self, code_object):
         for header in self.require_header: 
@@ -136,6 +146,16 @@ class CompoundOperator(ML_CG_Operator):
                 output_precision = arg_function.get_output_precision()
                 compound_arg.append(arg_function.get_value())
 
+            elif isinstance(arg_function, FO_ResultRef):
+                output_precision = optree.get_precision()
+                compound_arg.append(
+                    FO_ResultRef(
+                        arg_function.get_index(),
+                        output_precision
+                    )
+                )
+                result_in_args = True
+
             else:
                 # other compound operator ?
                 dummy_precision = arg_function.get_output_precision()
@@ -148,18 +168,39 @@ class CompoundOperator(ML_CG_Operator):
                 dummy_optree = DummyTree("carg", dummy_precision)
 
                 if isinstance(arg_function, CompoundOperator):
-                    compound_arg.append(arg_function.generate_expr(code_generator, code_object, dummy_optree, arg_tuple, **kwords))
+                    compound_arg.append(
+                        arg_function.generate_expr(
+                            code_generator, code_object, dummy_optree,
+                            arg_tuple, **kwords
+                        )
+                    )
                 elif isinstance(arg_function, ML_CG_Operator):
                     if arg_function.custom_generate_expr:
-                        compound_arg.append(arg_function.generate_expr(code_generator, code_object, dummy_optree, arg_tuple, **kwords))
+                        compound_arg.append(
+                            arg_function.generate_expr(
+                                code_generator, code_object, dummy_optree,
+                                arg_tuple, **kwords
+                            )
+                        )
                     else:
-                        compound_arg.append(arg_function.assemble_code(code_generator, code_object, dummy_optree, pre_arg_value, **kwords))
+                        compound_arg.append(
+                            arg_function.assemble_code(
+                                code_generator, code_object, dummy_optree,
+                                pre_arg_value, **kwords
+                            )
+                        )
         # assembling parent operator code
         folded = kwords["folded"]
-        folded_arg = folded if self.get_force_folding() == None else self.get_force_folding()
+        folded_arg = folded if self.get_force_folding() == None else \
+                     self.get_force_folding()
         kwords["folded"] = folded_arg
-        return self.parent.assemble_code(code_generator, code_object, optree, compound_arg, generate_pre_process = generate_pre_process, result_in_args = result_in_args, **kwords)
-            
+        return self.parent.assemble_code(
+            code_generator, code_object, optree,
+            compound_arg,
+            generate_pre_process = generate_pre_process,
+            result_in_args = result_in_args, **kwords
+        )
+
 
 class IdentityOperator(ML_CG_Operator):
     """ symbol operator generator """
@@ -214,6 +255,7 @@ class SymbolOperator(ML_CG_Operator):
         ML_CG_Operator.__init__(self, **kwords)
         self.symbol = "%s%s%s" % (lspace, symbol, rspace)
         self.inverse = inverse
+
 
 
     def generate_expr(self, code_generator, code_object, optree, arg_tuple, generate_pre_process = None, **kwords):
@@ -317,56 +359,134 @@ class FO_ResultRef(object):
 
   def get_output_precision(self):
     return self.output_precision
-  
 
+
+## Code generation operator for function
 class FunctionOperator(ML_CG_Operator):
-    def __init__(self, function_name, arg_map = None, pre_process = None, declare_prototype = None, void_function = False, **kwords):
+    def __init__(
+            self, function_name, arg_map = None, pre_process = None,
+            declare_prototype = None, void_function = False, **kwords
+        ):
         """ symbol operator initialization function """
         ML_CG_Operator.__init__(self, **kwords)
         self.function_name = function_name
-        self.arg_map = None if self.arity is ML_VarArity else dict([(i, FO_Arg(i)) for i in xrange(self.arity)]) if arg_map == None else (arg_map if arg_map else {})
+        self.arg_map = None if self.arity is ML_VarArity else dict(
+                [(i, FO_Arg(i)) for i in xrange(self.arity)]
+            ) if arg_map == None else (arg_map if arg_map else {})
         self.total_arity = None if self.arg_map == None else len(self.arg_map)
         self.pre_process = pre_process
         self.declare_prototype = declare_prototype
         self.void_function = void_function
 
 
+    ## Register the function protype of @self to
+    #  the CodeObject @p code_object
     def register_prototype(self, optree, code_object):
         if self.declare_prototype:
-            code_object.declare_function(self.function_name, self.declare_prototype)
+            code_object.declare_function(
+                self.function_name, self.declare_prototype
+            )
 
+    ## resolve 1 level of indirection for function arguments
+    #  @param arg value to be materialized
+    #  @param arg_map dictionnary index => arg template defined 
+    #         at FunctionOperator instantiation
+    #  @param arg_result_list list of arguments
+    #  @param result_map dictionary of result value
+    def materialize_argument(self, arg, arg_result_list, arg_map, result_map):
+        if isinstance(arg, FO_Arg):
+            return self.materialize_argument(
+                arg_result_list[arg.get_index()],
+                arg_result_list,
+                arg_map,
+                result_map
+            )
+        elif isinstance(arg, FO_Result):
+            return result_map[arg.get_index()]
+        elif isinstance(arg, FO_ResultRef):
+            return CodeExpression(
+                "&%s" % result_map[arg.get_index()].get(), None
+            )
+        elif isinstance(arg, CodeVariable) or isinstance(arg, CodeExpression):
+            return arg
+        else:
+            return CodeExpression(arg, None)
 
-    def get_arg_from_index(self, index, arg_result_list, arg_map, result_args_map):
+    ## Extract an argument with index @p index from
+    #  the pre-built list of arguments and results
+    #  @param index numerical position of the arguments in the list
+    #  @param arg_result_list list of arguments submitted when calling
+    #         to assemble_code method
+    #  @param arg_map dictionnary of index => argument template
+    #         declared at operator definition or built
+    #  @param result_args_map dictionnary index => materialized result value 
+    def get_arg_from_index(
+            self, index, arg_result_list, arg_map, result_args_map
+        ):
         """ return the function argument at position <index> """
         arg_index = arg_map[index]
-        if isinstance(arg_index, FO_Arg):
-          return arg_result_list[arg_index.index]
-        elif isinstance(arg_index, FO_Result):
-          return result_args_map[arg_index.get_index()]
-        elif isinstance(arg_index, FO_ResultRef):
-          return CodeExpression("&%s" % result_args_map[arg_index.get_index()].get(), None)
-        else:
-          return CodeExpression(arg_map[index], None)
+        return self.materialize_argument(
+            arg_index,
+            arg_result_list,
+            arg_map,
+            result_args_map
+        )
 
-    def generate_expr(self, code_generator, code_object, optree, arg_tuple, generate_pre_process = None, **kwords):
+    ## generate source code corresponding to the implementation
+    #  of the Operation Node @p optree
+    def generate_expr(
+            self, code_generator, code_object, optree, arg_tuple,
+            generate_pre_process = None, **kwords
+        ):
         """ generate expression function """
         # registering headers
         self.register_headers(code_object)
         self.register_prototype(optree, code_object)
 
         if self.custom_generate_expr:
-            return self.custom_generate_expr(self, code_generator, code_object, optree, optree.inputs, generate_pre_process = generate_pre_process, **kwords)
+            return self.custom_generate_expr(
+                self, code_generator, code_object, optree, optree.inputs,
+                generate_pre_process = generate_pre_process, **kwords
+            )
         else:
             # generating list of arguments
-            arg_result = ordered_generation(lambda arg: code_generator.generate_expr(code_object, arg, **kwords), arg_tuple)
+            arg_result = ordered_generation(
+                lambda arg: code_generator.generate_expr(
+                    code_object, arg, **kwords
+                ), arg_tuple
+            )
             # assembling parent operator code
-            return self.assemble_code(code_generator, code_object, optree, arg_result, generate_pre_process = generate_pre_process, **kwords)
+            return self.assemble_code(
+                code_generator, code_object, optree, arg_result,
+                generate_pre_process = generate_pre_process, **kwords
+            )
 
 
     def generate_call_code(self, result_arg_list):
-        return "%s(%s)" % (self.function_name, ", ".join([var_arg.get() for var_arg in result_arg_list]))
+        return "{function_name}({arg_list})".format(
+            function_name = self.function_name,
+            arg_list = ", ".join(
+                [var_arg.get() for var_arg in result_arg_list]
+            )
+        )
 
-    def assemble_code(self, code_generator, code_object, optree, var_arg_list, generate_pre_process = None, **kwords):
+    ## Function source-code assembling method
+    # @param code_generator Code generation engine
+    # @param code_object CodeObject output of the generated source code
+    # @param optree FunctionCall operation node to be generated
+    # @param var_arg_list list of pre-generated arguments as they appears in
+    #        the function call parameter list
+    # @param generate_pre_process pre-processing to be apply before code
+    #        generation
+    # @param results_in_args boolean indicating wheter the node results is
+    #        part of the parameter list or not
+    # @param kwords generic extra keyword parameters
+    def assemble_code(
+            self, code_generator, code_object,
+            optree, var_arg_list,
+            generate_pre_process = None, result_in_args = False,
+            **kwords
+        ):
         """ base code assembly function """
         # registering headers
         self.register_headers(code_object)
@@ -375,23 +495,41 @@ class FunctionOperator(ML_CG_Operator):
         folded = kwords["folded"]
         result_var = kwords["result_var"]
 
-        arg_map = dict([(i, FO_Arg(i)) for i in xrange(len(optree.inputs))]) if self.arity is ML_VarArity else self.arg_map
-        total_arity = len(optree.inputs) if self.arity is ML_VarArity else self.total_arity
-        
+        arg_map = dict([
+            (i, FO_Arg(i)) for i in xrange(
+                len(optree.inputs))]
+        ) if self.arity is ML_VarArity else self.arg_map
+        total_arity = len(optree.inputs) if self.arity is ML_VarArity \
+                      else self.total_arity
         # is their result passed by reference
-        result_in_args = False
+        # if so then set result_in_args to point towards the result variables
+        # and materialize result variable code in result_arg_maps
         result_args_map = {}
-        for arg_index in self.arg_map:
-          arg = self.arg_map[arg_index]
+        merged_arg_list = [self.arg_map[arg_index] for arg_index in self.arg_map] + var_arg_list
+        for arg in merged_arg_list:
           if isinstance(arg, FO_Result) or isinstance(arg, FO_ResultRef):
-            prefix = optree.get_tag(default = "tmp")
-            result_varname = result_var if result_var != None else code_object.get_free_var_name(optree.get_precision(), prefix = prefix)
-            result_in_args = CodeVariable(result_varname, optree.get_precision())
-            result_args_map[arg.get_index()] = result_in_args 
+            arg_index = arg.get_index()
+            if not arg_index in result_args_map:
+                prefix = optree.get_tag(default = "tmp")
+                result_varname = result_var if result_var != None \
+                     else code_object.get_free_var_name(
+                        optree.get_precision(), prefix = prefix
+                    )
+                result_in_args = CodeVariable(
+                    result_varname, optree.get_precision()
+                )
+                result_args_map[arg_index] = result_in_args
 
 
         # generating result code
-        result_arg_list = [self.get_arg_from_index(index, var_arg_list, arg_map = arg_map, result_args_map = result_args_map) for index in xrange(total_arity)]
+        result_arg_list = [
+            self.get_arg_from_index(
+                index,
+                var_arg_list,
+                arg_map = arg_map,
+                result_args_map = result_args_map
+            ) for index in xrange(total_arity)
+        ]
         result_code = self.generate_call_code(result_arg_list)
 
         if result_in_args:
@@ -414,8 +552,11 @@ class FunctionOperator(ML_CG_Operator):
           else:
               return CodeExpression("%s" % result_code, optree.get_precision())
 
-class FunctionObjectOperator(object):
+class FunctionObjectOperator(ML_CG_Operator):
     """ meta generator for FunctionObject """
+    def __init__(self):
+        ML_CG_Operator.__init__(self)
+
     def generate_expr(self, code_generator, code_object, optree, arg_tuple, generate_pre_process = None, **kwords):
         return optree.get_function_object().get_generator_object().generate_expr(code_generator, code_object, optree, arg_tuple, generate_pre_process = None, **kwords)
 
@@ -469,6 +610,7 @@ class AsmInlineOperator(ML_CG_Operator):
             # assembling parent operator code
             return self.assemble_code(code_generator, code_object, optree, arg_result, generate_pre_process = generate_pre_process, **kwords)
             #[self.get_arg_from_index(index, arg_result) for index in xrange(self.arity)], 
+
 
 
     def assemble_code(self, code_generator, code_object, optree, var_arg_list, generate_pre_process = None, **kwords):

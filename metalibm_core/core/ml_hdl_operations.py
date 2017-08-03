@@ -241,6 +241,14 @@ class Assert(AbstractOperationConstructor("Assert")):
     new_copy.error_msg = self.error_msg
     new_copy.severity = severity
 
+## Message reporting operation
+class Report(AbstractOperationConstructor("Report")):
+    """ Message reporting operation """
+    def __init__(self, *ops, **kw):
+        Report.__base__.__init__(self, *ops, **kw)
+        self.arity = len(ops)
+        self.set_precision(ML_Void)
+
 ## Timed wait routine
 class Wait(AbstractOperationConstructor("Wait")):
   def __init__(self, time_ns, **kw):
@@ -289,6 +297,16 @@ class SubSignalSelection(AbstractOperationConstructor("SubSignalSelection")):
   def finish_copy(self, new_copy, copy_map = {}):
     new_copy.inf_index = self.inf_index
     new_copy.sup_index = self.sup_index
+
+## Wrapper for the generation of a bit selection operation
+#  from a multi-bit signal
+def BitSelection(optree, index, **kw):
+  return VectorElementSelection(
+    optree, 
+    Constant(index, precision = ML_Integer),
+    precision = ML_StdLogic,
+    **kw
+  )
 
 ## @} 
 # end of metalibm's Doxygen ml_hdl_operations group

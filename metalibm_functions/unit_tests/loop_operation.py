@@ -85,7 +85,7 @@ def run_test(args):
 
 if __name__ == "__main__":
   # auto-test
-  arg_template = ML_ArgTemplate("new_ut_loop_operation", default_output_file = "new_ut_loop_operation.c" )
+  arg_template = ML_NewArgTemplate("new_ut_loop_operation", default_output_file = "new_ut_loop_operation.c" )
   args = arg_template.arg_extraction()
 
   if run_test(args):
