@@ -258,6 +258,41 @@ def fixed_conversion_modifier(optree):
     )
     return result
 
+def fixed_shift_modifier(optree):
+    """ legalize a shift node on fixed-point operation tree
+
+        Args:
+            optree (ML_Operation): operation node input
+        Returns:
+            legalize node
+    """
+    shift_input = optree.get_input(0)
+    out_precision = optree.get_precision()
+    shift_amount = optree.get_input(1)
+    converted_input = Conversion(
+        shift_input,
+        precision = optree.get_precision()
+    )
+    # check precision equality
+    casted_format = ML_StdLogicVectorFormat(out_precision.get_bit_size())
+    casted_input = TypeCast(
+        converted_input,
+        precision = casted_format
+    )
+    # inserting shift
+    casted_shift = BitLogicRightShift(
+        casted_input,
+        shift_amount,
+        precision = casted_format
+    )
+    # casting back
+    fixed_result = TypeCast(
+        casted_shift,
+        precision = out_precision
+    )
+    return fixed_result
+
+
 # If @p optree's precision does not match @p new_format
 #  insert a conversion
 
@@ -826,7 +861,9 @@ vhdl_code_generation_table = {
         None: {
             lambda optree: True: {
                 type_custom_match(MCSTDLOGICV, MCSTDLOGICV, MCSTDLOGICV):
-                DynamicOperator(lambda optree: shift_generator("shr", optree)),
+                    DynamicOperator(lambda optree: shift_generator("shr", optree)),
+                type_custom_match(MCFixedPoint, MCFixedPoint, MCSTDLOGICV):
+                    ComplexOperator(optree_modifier = fixed_shift_modifier),
             },
         },
     },
