@@ -224,7 +224,7 @@ def fixed_conversion_modifier(optree):
     arg_precision = arg.get_precision()
     assert is_fixed_point(conv_precision)
     assert is_fixed_point(arg_precision)
-    assert conv_precision.get_signed() == arg_precision.get_signed()
+    assert (conv_precision.get_signed() and arg_precision.get_signed()) or not arg_precision.get_signed()
     result = arg
     raw_arg_precision = ML_StdLogicVectorFormat(
         arg_precision.get_bit_size()
@@ -675,7 +675,7 @@ vhdl_code_generation_table = {
                   SymbolOperator(
                       vhdl_comp_symbol[specifier], arity=2, force_folding=False),
                   type_strict_match(ML_Bool, ML_StdLogic, ML_StdLogic):
-                  SymbolOperator(
+                    SymbolOperator(
                       vhdl_comp_symbol[specifier], arity=2, force_folding=False),
                   # fixed-point comparison
                   type_custom_match(FSM(ML_Bool), MCFixedPoint, MCFixedPoint):
