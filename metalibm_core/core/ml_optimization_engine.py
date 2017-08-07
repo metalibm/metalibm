@@ -325,32 +325,32 @@ def simplify_inverse(optree, processor):
 
 
 support_simplification = {
-    FusedMultiplyAdd: {
-        FusedMultiplyAdd.Standard: {
-            lambda optree: True: 
-                lambda optree, processor: Addition(Multiplication(optree.inputs[0], optree.inputs[1], precision = optree.get_precision()), optree.inputs[2], precision = optree.get_precision()),
-        },
-        FusedMultiplyAdd.Subtract: {
-            lambda optree: True: 
-                lambda optree, processor: Subtraction(Multiplication(optree.inputs[0], optree.inputs[1], precision = optree.get_precision()), optree.inputs[2], precision = optree.get_precision()),
-        },
-        FusedMultiplyAdd.Negate: {
-            lambda optree: True: 
-                lambda optree, processor: Negate(Addition(Multiplication(optree.inputs[0], optree.inputs[1], precision = optree.get_precision()), optree.inputs[2], precision = optree.get_precision()), precision = optree.get_precision()),
-        },
-        FusedMultiplyAdd.SubtractNegate: {
-            lambda optree: True: 
-                lambda optree, processor: Subtraction(optree.inputs[2], Multiplication(optree.inputs[0], optree.inputs[1], precision = optree.get_precision()), precision = optree.get_precision()),
-        },
-        FusedMultiplyAdd.DotProduct: {
-            lambda optree: True:
-                lambda optree, processor: Addition(Multiplication(optree.inputs[0], optree.inputs[1], precision = optree.get_precision()), Multiplication(optree.inputs[2], optree.inputs[3], precision = optree.get_precision()), precision = optree.get_precision()), 
-        },
-        FusedMultiplyAdd.DotProductNegate: {
-            lambda optree: True: 
-                lambda optree, processor: Subtraction(Multiplication(optree.inputs[0], optree.inputs[1], precision = optree.get_precision()), Multiplication(optree.inputs[2], optree.inputs[3], precision = optree.get_precision()), precision = optree.get_precision()), 
-        },
-    },
+    #FusedMultiplyAdd: {
+    #    FusedMultiplyAdd.Standard: {
+    #        lambda optree: True: 
+    #            lambda optree, processor: Addition(Multiplication(optree.inputs[0], optree.inputs[1], precision = optree.get_precision()), optree.inputs[2], precision = optree.get_precision()),
+    #    },
+    #    FusedMultiplyAdd.Subtract: {
+    #        lambda optree: True: 
+    #            lambda optree, processor: Subtraction(Multiplication(optree.inputs[0], optree.inputs[1], precision = optree.get_precision()), optree.inputs[2], precision = optree.get_precision()),
+    #    },
+    #    FusedMultiplyAdd.Negate: {
+    #        lambda optree: True: 
+    #            lambda optree, processor: Negate(Addition(Multiplication(optree.inputs[0], optree.inputs[1], precision = optree.get_precision()), optree.inputs[2], precision = optree.get_precision()), precision = optree.get_precision()),
+    #    },
+    #    FusedMultiplyAdd.SubtractNegate: {
+    #        lambda optree: True: 
+    #            lambda optree, processor: Subtraction(optree.inputs[2], Multiplication(optree.inputs[0], optree.inputs[1], precision = optree.get_precision()), precision = optree.get_precision()),
+    #    },
+    #    FusedMultiplyAdd.DotProduct: {
+    #        lambda optree: True:
+    #            lambda optree, processor: Addition(Multiplication(optree.inputs[0], optree.inputs[1], precision = optree.get_precision()), Multiplication(optree.inputs[2], optree.inputs[3], precision = optree.get_precision()), precision = optree.get_precision()), 
+    #    },
+    #    FusedMultiplyAdd.DotProductNegate: {
+    #        lambda optree: True: 
+    #            lambda optree, processor: Subtraction(Multiplication(optree.inputs[0], optree.inputs[1], precision = optree.get_precision()), Multiplication(optree.inputs[2], optree.inputs[3], precision = optree.get_precision()), precision = optree.get_precision()), 
+    #    },
+    #},
     Subtraction: {
       None: {
         lambda optree: True: 
@@ -964,7 +964,6 @@ class OptimizationEngine(object):
                 self.register_nodes_by_tag(op, node_map)
 
     def has_support_simplification(self, optree):
-        return False
         if optree.__class__ in support_simplification:
             code_gen_key = optree.get_codegen_key()
             if code_gen_key in support_simplification[optree.__class__]:
