@@ -46,7 +46,7 @@ class Polynomial(object):
 
     def __init__(self, init_object = None):
         """ Polynomial initialization function
-            init_object can be one of 
+            init_object can be one of
                 - list of coefficient
                 - dict of index, coefficient
                 - SollyaObject (sollya polynomial)
@@ -113,7 +113,7 @@ class Polynomial(object):
         return Constant(self.coeff_map[index], precision=precision)
 
 
-    def sub_poly_cond(self, monomial_cond = lambda i, c: True, offset = 0): 
+    def sub_poly_cond(self, monomial_cond = lambda i, c: True, offset = 0):
         """ sub polynomial extraction, each monomial C*x^i verifying monomial_cond(i, C)
             is selected, others are discarded """
         new_coeff_map = {}
@@ -122,7 +122,7 @@ class Polynomial(object):
           if monomial_cond(index, coeff_value):
             new_coeff_map[index - offset] = coeff_value
         return Polynomial(new_coeff_map)
-          
+
 
     def get_ordered_coeff_list(self):
         """ return the list of (index, coefficient) for the polynomial <self>
@@ -151,9 +151,34 @@ class Polynomial(object):
             precision_list.append(c.get_bit_size())
           else:
             precision_list.append(c)
-        sollya_poly = sollya.fpminimax(function, poly_degree, precision_list, approx_interval, *modifiers)
+
+        sollya_poly = sollya.fpminimax(function, poly_degree, precision_list,
+                                       approx_interval, *modifiers)
+        while sollya_poly.is_error() and sollya.settings.points < 10000:
+            # We don't want sollya.settings.points to be too large. A value <
+            # 20000 does not impact too much the timings for the moment.
+            # We also give an odd value to sollya.settings.points (even though
+            # it should not be needed anymore) to avoid errors when working on a
+            # symmetric interval. See this clear explanation by Sylvain
+            # Chevillard on the Sollya mailing list at
+            # https://lists.gforge.inria.fr/pipermail/sollya-users/2017-August/000056.html
+            sollya.settings.points = 2 * sollya.settings.points - 1
+            Log.report(Log.Warning,
+                       "Trying with more points: {}"
+                       .format(sollya.settings.points))
+            sollya_poly = sollya.fpminimax(function, poly_degree,
+                                           precision_list, approx_interval,
+                                           *modifiers)
+
+        # Reset points to its default value
+        sollya.settings.points = sollya.default
+
         if sollya_poly.is_error():
-            raise SollyaError()
+            # We could try other parameters before crashing Metalibm:
+            #   * increase the Sollya 'points' variable even more
+            #   * slightly relax approx_interval bounds
+            raise SollyaError
+
         return Polynomial(sollya_poly)
 
 
@@ -234,7 +259,7 @@ class PolynomialSchemeEvaluator(object):
     def generate_horner_scheme(polynomial_object, variable,
             unified_precision=None, power_map_=None, constant_precision = None):
         """ generate a Horner evaluation scheme for the polynomial <polynomial_object>
-            on variable <variable>, arithmetic operation are performed in format 
+            on variable <variable>, arithmetic operation are performed in format
             <unified_precision> if specified """
         cst_precision = unified_precision if constant_precision == None else constant_precision
         coeff_list = [
@@ -265,7 +290,7 @@ class PolynomialSchemeEvaluator(object):
                     generate_power(variable, index, power_map, precision = unified_precision),
                     coeff, tag="pm_%d" % index
                 )
-            
+
         current_index = coeff_list[0][0]
         current_scheme = coeff_list[0][1]
         for index, coeff in coeff_list[1:-1]:
@@ -338,12 +363,12 @@ class PolynomialSchemeEvaluator(object):
     def generate_estrin_scheme(polynomial_object, variable, unified_precision, power_map_ = None):
         """ generate a Estrin evaluation scheme """
         power_map = power_map_ if power_map_ != None else {}
-        if polynomial_object.get_coeff_num() == 1: 
+        if polynomial_object.get_coeff_num() == 1:
             index, coeff = polynomial_object.get_ordered_coeff_list()[0]
             coeff_node = Constant(coeff)
             if index == 0:
                 return coeff_node
-            else: 
+            else:
                 power_node = generate_power(variable, index, power_map, unified_precision)
                 return Multiplication(coeff_node, power_node, precision = unified_precision)
         else:
@@ -351,7 +376,7 @@ class PolynomialSchemeEvaluator(object):
             max_degree = int(polynomial_object.get_degree())
             poly_degree = (max_degree - min_degree + 2) / 2 + min_degree - 1
             offset_degree = poly_degree + 1 - min_degree
-            sub_poly_lo = polynomial_object.sub_poly(stop_index = poly_degree) 
+            sub_poly_lo = polynomial_object.sub_poly(stop_index = poly_degree)
             sub_poly_hi = polynomial_object.sub_poly(start_index = poly_degree + 1, offset = offset_degree)
             lo_node = PolynomialSchemeEvaluator.generate_estrin_scheme(sub_poly_lo, variable, unified_precision, power_map)
             hi_node = PolynomialSchemeEvaluator.generate_estrin_scheme(sub_poly_hi, variable, unified_precision, power_map)
