@@ -10,10 +10,10 @@ from metalibm_core.utility.log_report import Log
 from metalibm_core.core.passes import OptreeOptimization, Pass
 from metalibm_core.core.ml_operations import (
     Comparison, Addition, Select, Constant, ML_LeafNode, Conversion,
-    Statement, ReferenceAssign
+    Statement, ReferenceAssign, BitLogicNegate
 )
 from metalibm_core.core.ml_hdl_operations import (
-    Process, ComponentInstance 
+    Process, ComponentInstance
 )
 from metalibm_core.opt.rtl_fixed_point_utils import (
     test_format_equality,
@@ -66,14 +66,28 @@ def size_addition(op0, op1):
 
 ## determine generic operation precision
 def solve_format_BooleanOp(optree):
-    """ legalize BooleanOperation node """
+    """ legalize BooleanOperation node
+
+        Args:
+            optree (BooleanOperation): input boolean node
+
+        Returns:
+            (ML_Format): legalized optree format
+    """
     if optree.get_precision() is None:
         optree.set_precision(ML_Bool)
     return optree.get_precision()
 
 ## Determine comparison node precision
 def solve_format_Comparison(optree):
-    """ Legalize Comparison node """
+    """ Legalize Comparison node
+
+        Args:
+            optree (Comparison): input node
+
+        Returns:
+            (ML_Format) legalized node format
+    """
     assert isinstance(optree, Comparison)
     if optree.get_precision() is None:
         optree.set_precision(ML_Bool)
@@ -111,6 +125,41 @@ def solve_format_Addition(optree):
     else:
         return optree.get_precision()
 
+def solve_format_bitwise_op(optree):
+    """ legalize format of bitwise logical operation
+
+        Args:
+            optree (ML_Operation): bitwise logical input node
+
+        Returns:
+            (ML_Format): legal format for input node
+    """
+    lhs = optree.get_input(0)
+    rhs = optree.get_input(1)
+    lhs_precision = lhs.get_precision()
+    rhs_precision = rhs.get_precision()
+
+    if is_fixed_point(lhs_precision) and is_fixed_point(rhs_precision):
+        assert(lhs_precision.get_integer_size() == rhs_precision.get_integer_size())
+        assert(lhs_precision.get_frac_size() == rhs_precision.get_frac_size())
+        return lhs_precision
+    else:
+        return optree.get_precision()
+
+def solve_format_BitLogicNegate(optree):
+    """ legalize format of bitwise logical operation
+
+        Args:
+            optree (ML_Operation): bitwise logical input node
+
+        Returns:
+            (ML_Format): legal format for input node
+    """
+    op_input = optree.get_input(0)
+    input_precision = op_input.get_precision()
+
+    return input_precision
+
 ## determine Constant node precision
 def solve_format_Constant(optree):
     """ Legalize Constant node """
@@ -120,7 +169,7 @@ def solve_format_Constant(optree):
     abs_value = abs(value)
     signed = value < 0
 
-    int_size = int(sollya.ceil(sollya.log2(abs_value))) + (1 if signed else 0)
+    int_size = max(int(sollya.ceil(sollya.log2(abs_value))), 0) + (1 if signed else 0)
     frac_size = 0
     if frac_size == 0 and int_size == 0:
         int_size = 1
@@ -143,14 +192,10 @@ def solve_format_Select(optree):
     true_value = optree.get_input(1)
     false_value = optree.get_input(2)
     unified_format = solve_equal_formats([optree, true_value, false_value])
-    format_set_if_undef(optree, unified_format)
     format_set_if_undef(true_value, unified_format)
     format_set_if_undef(false_value, unified_format)
+    return format_set_if_undef(optree, unified_format)
 
-    optree.set_precision(unified_format)
-    true_value.set_precision(unified_format)
-    false_value.set_precision(unified_format)
-    return unified_format
 
 ## Test if @p optree is a Operation node propagating format
 #  if it does return the list of @p optree's input index
@@ -203,7 +248,7 @@ def propagate_format_to_input(new_format, optree, input_index_list):
                             str(new_format)
                         )
                     )
-                    op_input.set_precision(new_format)
+                    format_set_if_undef(op_input, new_format)
                 else:
                     Log.report(
                         Log.Error,
@@ -247,7 +292,8 @@ def solve_format_rec(optree, memoization_map=None):
                    )
 
         # updating optree format
-        optree.set_precision(new_format)
+        #optree.set_precision(new_format)
+        format_set_if_undef(optree, new_format)
         memoization_map[optree] = new_format
 
     elif isinstance(optree, Statement):
@@ -259,7 +305,6 @@ def solve_format_rec(optree, memoization_map=None):
         src = optree.get_input(1)
         src_precision = solve_format_rec(src)
         format_set_if_undef(dst, src_precision)
-        
     elif solve_skip_test(optree):
         pass
         return None
@@ -280,6 +325,8 @@ def solve_format_rec(optree, memoization_map=None):
             new_format = solve_format_Addition(optree)
         elif isinstance(optree, Select):
             new_format = solve_format_Select(optree)
+        elif isinstance(optree, BitLogicNegate):
+            new_format = solve_format_BitLogicNegate(optree) 
         elif isinstance(optree, Conversion):
             Log.report(
                 Log.Error,
@@ -300,8 +347,9 @@ def solve_format_rec(optree, memoization_map=None):
                        str(new_format), optree.get_str(display_precision=True)
                    )
                    )
-        optree.set_precision(new_format)
-        memoization_map[optree] = new_format
+        # optree.set_precision(new_format)
+        real_format = format_set_if_undef(optree, new_format)
+        memoization_map[optree] = real_format
 
         # format propagation
         prop_index_list = does_node_propagate_format(optree)
