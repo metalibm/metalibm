@@ -964,6 +964,7 @@ class OptimizationEngine(object):
                 self.register_nodes_by_tag(op, node_map)
 
     def has_support_simplification(self, optree):
+        return False
         if optree.__class__ in support_simplification:
             code_gen_key = optree.get_codegen_key()
             if code_gen_key in support_simplification[optree.__class__]:
