@@ -312,12 +312,12 @@ class CCodeGenerator(object):
 
     def generate_declaration(self, symbol, symbol_object, initial = True, final = True):
         if isinstance(symbol_object, Constant):
-            initial_symbol = (symbol_object.get_precision().get_name(language = self.language) + " ") if initial else ""
+            initial_symbol = (symbol_object.get_precision().get_code_name(language = self.language) + " ") if initial else ""
             final_symbol = ";\n" if final else ""
             return "%s%s = %s%s" % (initial_symbol, symbol, symbol_object.get_precision().get_cst(symbol_object.get_value(), language = self.language), final_symbol) 
 
         elif isinstance(symbol_object, Variable):
-            initial_symbol = (symbol_object.get_precision().get_name(language = self.language) + " ") if initial else ""
+            initial_symbol = (symbol_object.get_precision().get_code_name(language = self.language) + " ") if initial else ""
             final_symbol = ";\n" if final else ""
             return "%s%s%s" % (initial_symbol, symbol, final_symbol) 
 

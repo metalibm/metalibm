@@ -151,6 +151,7 @@ class ML_FunctionBasis(object):
     bench_test_range = ArgDefault.select_value([arg_template.bench_test_range, bench_test_range])
     bench_test_number = ArgDefault.select_value([arg_template.bench_test_number, bench_test_number])
 
+    self.display_after_opt = arg_template.display_after_opt
 
     # enable/disable check_processor_support pass run
     self.check_processor_support = arg_template.check_processor_support
@@ -408,9 +409,6 @@ class ML_FunctionBasis(object):
         scalar_scheme, scalar_arg_list, self.get_vector_size()
       )
 
-
-
-
     for code_function in code_function_list:
       scheme = code_function.get_scheme()
       if display_after_gen:
@@ -423,10 +421,6 @@ class ML_FunctionBasis(object):
         scheme, enable_subexpr_sharing = enable_subexpr_sharing
       )
 
-      if display_after_opt:
-        print "function %s, after opt " % code_function.get_name()
-        print opt_scheme.get_str(depth = None, display_precision = True, memoization_map = {})
-
       # pre-generation optimization
       for pass_tag in self.pre_gen_passes:
         pass_class = Pass.get_pass_by_tag(pass_tag)
@@ -435,6 +429,9 @@ class ML_FunctionBasis(object):
         opt_scheme = pass_object.execute(opt_scheme)
       code_function.set_scheme(opt_scheme)
 
+      if self.display_after_opt or display_after_opt:
+        print "function %s, after opt " % code_function.get_name()
+        print opt_scheme.get_str(depth = None, display_precision = True, memoization_map = {})
 
     # generate auto-test wrapper
     if self.auto_test_enable:

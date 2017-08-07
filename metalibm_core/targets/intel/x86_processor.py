@@ -22,31 +22,42 @@ from metalibm_core.core.ml_table import ML_TableFormat
 
 from metalibm_core.targets.common.vector_backend import VectorBackend
 
+## TODO; change ML_SSE and ML_AVX format to be vector formats
+
+def get_sse_scalar_cst(format_object, value, language = C_Code):
+	base_format = format_object.get_base_format()
+	return "{{{}}}/*sse*/".format(base_format.get_cst(value, language))
+	
+ML_SSE_m128  = ML_FormatConstructor(128, "__m128", None, lambda v: None)
+ML_SSE_m128i = ML_FormatConstructor(128, "__m128i", None, lambda v: None)
+ML_SSE_m128d = ML_FormatConstructor(128, "__m128d", None, lambda v: None)
+
 ## format for a single fp32 stored in a XMM 128-bit register
-ML_SSE_m128_v1float32  = ML_FormatConstructor(128, "__m128",  None, lambda v: None)
-## format for packed 4 fp32 in a XMM 128-bit register
-ML_SSE_m128_v4float32  = ML_FormatConstructor(128, "__m128",  None, lambda v: None)
+ML_SSE_m128_v1float32 = VirtualFormatNoForward(ML_Binary32, ML_SSE_m128, get_sse_scalar_cst, True)
 ## format for single 1 fp64 in a XMM 128-bit register
-ML_SSE_m128_v1float64 = ML_FormatConstructor(128, "__m128d", None, lambda v: None)
-## format for packed 2 fp64 in a XMM 128-bit register
-ML_SSE_m128_v2float64 = ML_FormatConstructor(128, "__m128d", None, lambda v: None)
+ML_SSE_m128_v1float64 = VirtualFormatNoForward(ML_Binary64, ML_SSE_m128d, get_sse_scalar_cst, True)
 ## format for a single int32 stored in a XMM 128-bit register
-ML_SSE_m128_v1int32  = ML_FormatConstructor(128, "__m128i",  None, lambda v: None)
-## format for packed 4 int32 in a XMM 128-bit register
-ML_SSE_m128_v4int32  = ML_FormatConstructor(128, "__m128i",  None, lambda v: None)
+ML_SSE_m128_v1int32  = VirtualFormatNoForward(ML_Int32, ML_SSE_m128i, get_sse_scalar_cst, True)
 ## format for single 1 int64 in a XMM 128-bit register
-ML_SSE_m128_v1int64  = ML_FormatConstructor(128, "__m128i",  None, lambda v: None)
+ML_SSE_m128_v1int64  = VirtualFormatNoForward(ML_Int64, ML_SSE_m128i, get_sse_scalar_cst, True)
+
+## format for packed 4 fp32 in a XMM 128-bit register
+ML_SSE_m128_v4float32  = vector_format_builder("__m128", None, 4, ML_Binary32)
+## format for packed 2 fp64 in a XMM 128-bit register
+ML_SSE_m128_v2float64 = vector_format_builder("__m128d", None, 2, ML_Binary64)
+## format for packed 4 int32 in a XMM 128-bit register
+ML_SSE_m128_v4int32  = vector_format_builder("__m128i",  None, 4, ML_Int32)
 ## format for packed 2 int64 in a XMM 128-bit register
-ML_SSE_m128_v2int64  = ML_FormatConstructor(128, "__m128i",  None, lambda v: None)
+ML_SSE_m128_v2int64  = vector_format_builder("__m128i",  None, 2, ML_Int64)
 
 ## format for packed 8 fp32 in a YMM 256-bit register
-ML_AVX_m256_v8float32 = ML_FormatConstructor(256, "__m256",  None, lambda v: None)
+ML_AVX_m256_v8float32 = vector_format_builder("__m256",  None, 8, ML_Binary32)
 ## format for packed 4 fp64 in a YMM 256-bit register
-ML_AVX_m256_v4float64 = ML_FormatConstructor(256, "__m256d", None, lambda v: None)
+ML_AVX_m256_v4float64 = vector_format_builder("__m256d", None, 4, ML_Binary64)
 ## format for packed 8 int32 in a YMM 256-bit register
-ML_AVX_m256_v8int32   = ML_FormatConstructor(256, "__m256i", None, lambda v: None)
+ML_AVX_m256_v8int32   = vector_format_builder("__m256i", None, 8, ML_Int32)
 ## format for packed 4 int64 in a YMM 256-bit register
-ML_AVX_m256_v4int64   = ML_FormatConstructor(256, "__m256i", None, lambda v: None)
+ML_AVX_m256_v4int64   = vector_format_builder("__m256i", None, 4, ML_Int64)
 
 
 ## Wrapper for intel x86_sse intrinsics
@@ -139,7 +150,7 @@ _mm256_rcp_ps = ImmIntrin("_mm256_rcp_ps", arity = 1,
 _mm_add_ss = XmmIntrin("_mm_add_ss", arity = 2,
                        output_precision = ML_SSE_m128_v1float32)
 _mm_mul_ss = XmmIntrin("_mm_mul_ss", arity = 2,
-                       output_precision = ML_SSE_m128_v4float32)
+                       output_precision = ML_SSE_m128_v1float32)
 _lzcnt_u32 = ImmIntrin("_lzcnt_u32", arity = 1,
                        output_precision = ML_UInt32)
 _lzcnt_u64 = ImmIntrin("_lzcnt_u64", arity = 1,
@@ -149,6 +160,33 @@ _lzcnt_u64 = ImmIntrin("_lzcnt_u64", arity = 1,
 _mm256_and_si256 = ImmIntrin("_mm256_and_si256", arity = 2,
                              output_precision = ML_AVX_m256_v8int32)
 
+
+## check that list if made of only a single value replicated
+#  in each element
+def uniform_list_check(value_list):
+	return reduce(lambda acc, value: acc and value == value_list[0], value_list, True)
+
+# check whether @p optree is a uniform vector constant
+def uniform_vector_constant_check(optree):
+	if isinstance(optree, Constant) and optree.get_precision().is_vector_format():
+		return uniform_list_check(optree.get_value())
+	else:
+		return False
+
+## If optree is vector uniform constant modify it to be a 
+#  conversion between a scalar constant and a vector
+def vector_constant_op(optree):
+	assert isinstance(optree, Constant)
+	cst_value_v = optree.get_value()
+	op_format = optree.get_precision()
+	if uniform_list_check(cst_value_v):
+		scalar_format = op_format.get_scalar_format()
+		scalar_cst = Constant(cst_value_v[0], precision = scalar_format)
+		## TODO: Conversion class may be changed to VectorBoardCast
+		return Conversion(scalar_cst, precision = op_format)
+	else:
+		raise NotImplementedError
+	
 
 def x86_fma_intrinsic_builder(intr_name):
     return _mm_cvtss_f32(
@@ -475,6 +513,11 @@ sse2_c_code_generation_table = {
                                 output_precision = ML_Pointer_Format(ML_Int32)
                                 )
                             )),
+								# broadcast implemented as conversions
+                type_strict_match(ML_SSE_m128_v4int32, ML_Int32):
+                    XmmIntrin("_mm_set1_epi32", arity = 1),
+                type_strict_match(ML_SSE_m128_v4float32, ML_Binary32):
+                    XmmIntrin("_mm_set1_ps", arity = 1),
             },
         },
     },
@@ -533,7 +576,27 @@ sse2_c_code_generation_table = {
             },
         },
     },
+    Constant: {
+        None: {
+            uniform_vector_constant_check: {
+                type_strict_match(ML_SSE_m128_v4int32): 
+									ComplexOperator(optree_modifier = vector_constant_op),
+                type_strict_match(ML_SSE_m128_v4float32):
+									ComplexOperator(optree_modifier = vector_constant_op),
+            },
+        },
+    },
+
 }
+
+## generates a check function which from a Constant vector node of vector_size
+#  genrates a function which check that the constant value is uniform accross
+#  every vector lane
+def uniform_constant_check(optree):
+	assert isinstance(optree, Constant)
+	value_v = optree.get_value()
+	init_value = value_v[0]
+	return reduce(lambda acc, value: acc and (value == init_value), value_v, True)
 
 sse3_c_code_generation_table = {}
 
@@ -715,6 +778,10 @@ avx_c_code_generation_table = {
                                     )
                                 )
                             ),
+                type_strict_match(ML_AVX_m256_v8int32, ML_Int32):
+                    XmmIntrin("_mm256_set1_epi32", arity = 1),
+                type_strict_match(ML_AVX_m256_v8float32, ML_Binary32):
+                    XmmIntrin("_mm256_set1_ps", arity = 1),
             },
         },
     },
@@ -762,6 +829,16 @@ avx_c_code_generation_table = {
                     ImmIntrin("_mm256_sub_ps", arity = 2),
                 type_strict_match(*(3*(ML_AVX_m256_v4float64,))):
                     ImmIntrin("_mm256_sub_pd", arity = 2),
+            },
+        },
+    },
+    Constant: {
+        None: {
+            uniform_vector_constant_check: {
+                type_strict_match(ML_AVX_m256_v8int32): 
+									ComplexOperator(optree_modifier = vector_constant_op),
+                type_strict_match(ML_AVX_m256_v8float32):
+									ComplexOperator(optree_modifier = vector_constant_op),
             },
         },
     },
