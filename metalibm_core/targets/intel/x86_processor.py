@@ -150,7 +150,7 @@ _mm256_rcp_ps = ImmIntrin("_mm256_rcp_ps", arity = 1,
 _mm_add_ss = XmmIntrin("_mm_add_ss", arity = 2,
                        output_precision = ML_SSE_m128_v1float32)
 _mm_mul_ss = XmmIntrin("_mm_mul_ss", arity = 2,
-                       output_precision = ML_SSE_m128_v4float32)
+                       output_precision = ML_SSE_m128_v1float32)
 _lzcnt_u32 = ImmIntrin("_lzcnt_u32", arity = 1,
                        output_precision = ML_UInt32)
 _lzcnt_u64 = ImmIntrin("_lzcnt_u64", arity = 1,
