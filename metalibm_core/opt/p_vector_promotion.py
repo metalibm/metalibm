@@ -9,6 +9,12 @@ from metalibm_core.core.ml_table import ML_NewTable
 
 from metalibm_core.opt.p_check_support import Pass_CheckSupport
 
+## Test if @p optree is a non-constant leaf node
+#  @param optree operation node to be tested
+#  @return boolean result of predicate evaluation
+def is_leaf_no_Constant(optree):
+	return isinstance(optree, ML_LeafNode) and not isinstance(optree, Constant)
+
 
 ## Generic vector promotion pass
 class Pass_Vector_Promotion(OptreeOptimization):
@@ -55,7 +61,7 @@ class Pass_Vector_Promotion(OptreeOptimization):
     # check that the output format is supported
     if not self.is_convertible_format(optree.get_precision()):
       return False
-    if isinstance(optree, ML_LeafNode) \
+    if is_leaf_no_Constant(optree) \
        or isinstance(optree, VectorElementSelection) \
        or isinstance(optree, FunctionCall):
       return False
@@ -69,7 +75,7 @@ class Pass_Vector_Promotion(OptreeOptimization):
     def key_getter(target_obj, optree):
       op_class = optree.__class__
       result_type = (self.get_conv_format(optree.get_precision().get_match_format()),)
-      arg_type = tuple((self.get_conv_format(arg.get_precision().get_match_format()) if not arg.get_precision() is None else None) for arg in optree.inputs)
+      arg_type = tuple((self.get_conv_format(arg.get_precision().get_match_format()) if not arg.get_precision() is None else None) for arg in optree.get_inputs())
       interface = result_type + arg_type
       codegen_key = optree.get_codegen_key()
       return op_class, interface, codegen_key
@@ -134,7 +140,7 @@ class Pass_Vector_Promotion(OptreeOptimization):
         return self.memoize(parent_converted, optree, new_optree)
       elif isinstance(optree, ML_NewTable):
         return self.memoize(parent_converted, optree, optree)
-      elif isinstance(optree, ML_LeafNode):
+      elif is_leaf_no_Constant(optree):
         if parent_converted and optree.get_precision() in self.get_translation_table():
           new_optree = Conversion(optree, precision = self.get_conv_format(optree.get_precision()))
           return self.memoize(parent_converted, optree, new_optree)
