@@ -160,6 +160,18 @@ class StaticVectorizer(object):
         4: v4int32,
         8: v8int32
       },
+      ML_UInt64: {
+        2: v2uint64,
+        3: v3uint64,
+        4: v4uint64,
+        8: v8uint64
+      },
+      ML_Int64: {
+        2: v2int64,
+        3: v3int64,
+        4: v4int64,
+        8: v8int64
+      },
       ML_Bool: {
         2: v2bool,
         3: v3bool,
