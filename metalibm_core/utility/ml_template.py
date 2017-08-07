@@ -464,7 +464,7 @@ class ML_CommonArgTemplate(object):
       final code generation")
         # list of
         self.parser.add_argument(
-            "--passes", default=[], action="store", dest="passes",
+            "--passes", default=default_arg.passes, action="store", dest="passes",
             type=lambda s: s.split(","), help="comma separated list \
       of slot:pass to be executed ")
         # disable check processor pass
