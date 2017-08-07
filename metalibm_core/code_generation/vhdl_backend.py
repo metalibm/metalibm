@@ -615,6 +615,7 @@ vhdl_code_generation_table = {
             lambda optree: True: {
                 type_strict_match(ML_StdLogic, ML_StdLogic): FunctionOperator("not", arity=1),
                 type_custom_match(MCSTDLOGICV, MCSTDLOGICV): FunctionOperator("not", arity=1),
+                type_custom_match(MCFixedPoint, MCFixedPoint): FunctionOperator("not", arity = 1),
             },
         },
     },
