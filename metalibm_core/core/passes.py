@@ -91,6 +91,12 @@ class PassScheduler:
     self.waiting_pass_wrappers  = []
 
   def register_pass(self, pass_object, pass_dep = PassDependency(), pass_slot = None):
+    Log.report(Log.Info, 
+        "PassScheduler: registering pass {} at {}".format(
+            pass_object,
+            pass_slot
+        )
+    )
     self.pass_map[pass_slot].append(PassWrapper(pass_object, pass_dep)) 
 
   def get_executed_passes(self):
