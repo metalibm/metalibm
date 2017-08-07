@@ -43,6 +43,7 @@ class AdaptativeEntity(ML_Entity("ml_adaptative_entity"), TestRunner):
             entity_name="my_adaptative_entity",
             language=VHDL_Code,
             width=width,
+            passes=[("beforecodegen:size_datapath")],
         )
 
     def __init__(self, arg_template=None):
