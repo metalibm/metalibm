@@ -753,19 +753,22 @@ ML_String = ML_StringClass("char*", "%s", lambda self, s: "\"{}\"".format(s))
 
 ## Predicate checking if @p precision is a standard integer format
 def is_std_integer_format(precision):
-	return isinstance(precision.get_base_format(), ML_Standard_FixedPoint_Format)
+	return isinstance(precision, ML_Standard_FixedPoint_Format) or \
+           isinstance(precision.get_base_format(), ML_Standard_FixedPoint_Format)
   #return precision in [ ML_Int8, ML_UInt8, ML_Int16, ML_UInt16,
   #                      ML_Int32, ML_UInt32, ML_Int64, ML_UInt64,
   #                      ML_Int128, ML_UInt128 ]
 
 def is_std_signed_integer_format(precision):
-	return is_std_signed_integer_format(precision) and \
-	       precision.get_base_format().get_signed()
+	return is_std_integer_format(precision) and \
+	       (precision.get_base_format().get_signed() or \
+            precision.get_signed())
   #return precision in [ ML_Int8, ML_Int16, ML_Int32, ML_Int64, ML_Int128 ]
 
 def is_std_unsigned_integer_format(precision):
-	return is_std_signed_integer_format(precision) and \
-	       precision.get_base_format().get_signed()
+	return is_std_integer_format(precision) and \
+	       ((not precision.get_base_format().get_signed()) or \
+            (not precision.get_signed()))
   #return precision in [ ML_UInt8, ML_UInt16, ML_UInt32, ML_UInt64, ML_UInt128 ]
 
 def get_std_integer_support_format(precision):
