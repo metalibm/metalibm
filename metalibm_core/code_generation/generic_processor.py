@@ -120,7 +120,51 @@ unsigned_integer_precision = {
   ML_Int128: ML_UInt128,
 }
 
+def minmax_legalizer_wrapper(predicate):
+    """ Legalize a min/max node by converting it to a Select operation
+        with the predicate given as argument """
+    def minmax_legalizer(optree):
+        op0 = optree.get_input(0)
+        op1 = optree.get_input(1)
+        result = Select(Comparison(op0, op1, specifier = predicate, precision = ML_Bool), op0, op1)
+        result.attributes = optree.attributes.get_copy()
+        return result
+    return minmax_legalizer
+
+min_legalizer = minmax_legalizer_wrapper(Comparison.Less)
+max_legalizer = minmax_legalizer_wrapper(Comparison.Greater)
+
 c_code_generation_table = {
+    Max: {
+        None: {
+            lambda _: True: 
+                dict([
+                  (
+                    type_strict_match(precision, precision, precision),
+                    ComplexOperator(optree_modifier = max_legalizer)
+                  ) for precision in [
+                    ML_Int32, ML_UInt32, ML_Int64, ML_UInt64, \
+                    ML_Binary32, ML_Binary64
+                  ]
+                  ]
+                )
+        },
+    },
+    Min: {
+        None: {
+            lambda _: True: 
+                dict([
+                  (
+                    type_strict_match(precision, precision, precision),
+                    ComplexOperator(optree_modifier = min_legalizer)
+                  ) for precision in [
+                    ML_Int32, ML_UInt32, ML_Int64, ML_UInt64, \
+                    ML_Binary32, ML_Binary64
+                  ]
+                  ]
+                )
+        },
+    },
     Select: {
         None: {
             lambda optree: True: 

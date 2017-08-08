@@ -919,12 +919,20 @@ class Select(ArithmeticOperationConstructor("Select", arity = 3, range_function 
 
 
 ## Computes the maximum of its 2 operands
-def Max(op0, op1, **kwords):
-    return Select(Comparison(op0, op1, specifier = Comparison.Greater), op0, op1, **kwords)
+#def Max(op0, op1, **kwords):
+#    return Select(Comparison(op0, op1, specifier = Comparison.Greater), op0, op1, **kwords)
+
+def min_interval(a, b):
+    return Interval(min(inf(a), inf(b)), min(sup(a), sup(b)))
+def max_interval(a, b):
+    return Interval(max(inf(a), inf(b)), max(sup(a), sup(b)))
+
+class Min(ArithmeticOperationConstructor("Min", arity = 2, range_function = lambda self, ops: min_interval(ops[0], ops[1]))): pass
+class Max(ArithmeticOperationConstructor("Max", arity = 2, range_function = lambda self, ops: max_interval(ops[0], ops[1]))): pass
 
 ## Computes the minimum of its 2 operands
-def Min(op0, op1, **kwords):
-    return Select(Comparison(op0, op1, specifier = Comparison.Less), op0, op1, **kwords)
+# def Min(op0, op1, **kwords):
+#    return Select(Comparison(op0, op1, specifier = Comparison.Less), op0, op1, **kwords)
 
 ## Control-flow loop construction
 #  1st operand is a loop initialization block

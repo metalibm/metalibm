@@ -51,6 +51,10 @@ abstract_typing_rule = {
         lambda optree, op0: merge_abstract_format(op0.get_precision()),
     Addition: 
         lambda optree, op0, op1: merge_abstract_format(op0.get_precision(), op1.get_precision()), 
+    Max:
+        lambda optree, op0, op1: merge_abstract_format(op0.get_precision(), op1.get_precision()), 
+    Min:
+        lambda optree, op0, op1: merge_abstract_format(op0.get_precision(), op1.get_precision()), 
     FusedMultiplyAdd: 
         lambda optree, *ops: merge_abstract_format(*tuple(op.get_precision() for op in ops)),
     Subtraction: 
@@ -124,6 +128,10 @@ practical_typing_rule = {
         lambda backend, op, dprec: backend.merge_abstract_format(op, op.inputs),
     Negation:
         lambda backend, op, dprec: backend.merge_abstract_format(op, op.inputs),
+    Min:
+        lambda backend, op, dprec: backend.merge_abstract_format(op, op.inputs),
+    Max:
+        lambda backend, op, dprec: backend.merge_abstract_format(op, op.inputs),
     Addition: 
         lambda backend, op, dprec: backend.merge_abstract_format(op, op.inputs),
     Subtraction: 
@@ -195,6 +203,10 @@ practical_typing_rule = {
 }
 
 post_typing_process_rules = {
+    Min:
+        lambda backend, op: backend.propagate_format_to_cst(op, op.get_precision()), 
+    Max:
+        lambda backend, op: backend.propagate_format_to_cst(op, op.get_precision()), 
     Addition: 
         lambda backend, op: backend.propagate_format_to_cst(op, op.get_precision()), 
     Subtraction: 
