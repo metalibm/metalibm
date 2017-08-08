@@ -114,12 +114,30 @@ class CodeEntity(object):
     for arg_output in self.get_output_port():
       io_map[arg_output] = AbstractVariable.Output 
     return ComponentObject(self.name, io_map, self)
+
+  def get_output_precision(self, output):
+    """ Retrieve the format of an output ReferenceAssign
+        
+        Args:
+            self (CodeEntity): self object
+            output(ReferenceAssign): output assignation
+
+        Returns:
+            ML_Format: output format
+    """
+    assert isinstance(output, ReferenceAssign)
+    out_signal = output.get_input(0)
+    out_value  = output.get_input(1)
+    if out_signal.get_precision() is None:
+        return out_value.get_precision()
+    else:
+        return out_signal.get_precision()
     
   def get_declaration(self, final = True, language = None):
     language = self.language if language is None else language
     # input signal declaration
     input_port_list = ["%s : in %s" % (inp.get_tag(), inp.get_precision().get_code_name(language = language)) for inp in self.arg_list]
-    output_port_list = ["%s : out %s" % (out.get_input(0).get_tag(), out.get_input(0).get_precision().get_code_name(language = language)) for out in self.output_list]
+    output_port_list = ["%s : out %s" % (out.get_input(0).get_tag(), self.get_output_precision(out).get_code_name(language = language)) for out in self.output_list]
     port_format_list = ";\n  ".join(input_port_list + output_port_list)
     # FIXME: add suport for inout and generic
     port_desc = "port (\n  {port_list}\n);".format(port_list = port_format_list)
