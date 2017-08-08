@@ -172,6 +172,7 @@ class ML_FunctionBasis(object):
 
     # enable the computation of maximal error during functional testing
     self.compute_max_error = arg_template.compute_max_error
+    self.break_error = arg_template.break_error
 
     # enable and configure the generation of a performance bench
     self.bench_enabled = bench_test_number or bench_execute
@@ -1003,12 +1004,18 @@ class ML_FunctionBasis(object):
     printf_max_function = FunctionObject("printf", [self.precision], ML_Void, printf_max_op)
 
     loop_increment = self.get_vector_size()
-
-    return_statement_break = Statement(
-        printf_input_function(*((vi,) + local_inputs + (local_result,))), 
-        self.accuracy_obj.get_output_print_call(self.function_name, output_values),
-        Return(Constant(1, precision = ML_Int32))
-    )
+    
+    if self.break_error:
+        return_statement_break = Statement(
+            printf_input_function(*((vi,) + local_inputs + (local_result,))), 
+            self.accuracy_obj.get_output_print_call(self.function_name, output_values)
+        )
+    else:
+        return_statement_break = Statement(
+            printf_input_function(*((vi,) + local_inputs + (local_result,))), 
+            self.accuracy_obj.get_output_print_call(self.function_name, output_values),
+            Return(Constant(1, precision = ML_Int32))
+        )
     
     test_loop = Loop(
       ReferenceAssign(vi, Constant(0, precision = ML_Int32)),

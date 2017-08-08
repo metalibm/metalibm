@@ -262,6 +262,7 @@ class DefaultArgTemplate:
     auto_test_std = False
     # enable max error computation
     compute_max_error = False
+    break_error = False
     # bench properties
     bench_execute = False
     bench_test_number = 0
@@ -420,6 +421,10 @@ class ML_CommonArgTemplate(object):
             const=True, default=default_arg.compute_max_error,
             help="enable the computation of the maximum error "
                  "(if auto-test is enabled)")
+        self.parser.add_argument(
+            "--break_error", dest="break_error", action="store_const",
+            const=True, default=default_arg.break_error,
+            help="forces tester to continue when encountering an error")
         # performance bench related arguments
         self.parser.add_argument(
             "--bench", dest="bench_test_number", action="store", nargs='?',
