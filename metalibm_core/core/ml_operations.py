@@ -15,8 +15,9 @@
 
 
 import sys, inspect
+import operator
 
-from sollya import Interval, SollyaObject, nearestint, floor, ceil
+from sollya import Interval, SollyaObject, nearestint, floor, ceil, inf, sup
 import sollya
 
 from ..utility.log_report import Log
@@ -105,7 +106,8 @@ class AbstractOperation(ML_Operation):
     ## apply the @p self. bare_range_function to a tuple
     #  of intervals
     def apply_bare_range_function(self, intervals):
-        return self.bare_range_function(*intervals)
+        func = self.bare_range_function
+        return func(intervals)
 
 
     ## Operator for boolean negation of operands 
@@ -688,19 +690,25 @@ class BitLogicLeftShift(ArithmeticOperationConstructor("BitLogicLeftShift", arit
 ## Absolute value operation
 #  Expects a single argument and returns
 #  its absolute value
-class Abs(ArithmeticOperationConstructor("Abs", range_function = lambda self, ops: abs(ops[0]))):
+class Abs(ArithmeticOperationConstructor("Abs", range_function = lambda self, ops: safe(abs)(ops[0]))):
     """ abstract absolute value operation """
     pass
 
 ## Unary negation value operation
 #  Expects a single argument and returns
 #  its opposite value
-class Negation(ArithmeticOperationConstructor("Negation", range_function = lambda self, ops: - ops[0])): 
+class Negation(ArithmeticOperationConstructor("Negation", range_function = lambda self, ops: safe(operator.__neg__)(ops[0]))): 
     """ abstract negation """
     pass
 
+
+def safe(operation):
+    """ function decorator to forward None value """
+    return lambda *args: None if None in args else operation(*args)
+
+
 ## 2-Operand arithmetic addition
-class Addition(ArithmeticOperationConstructor("Addition", range_function = lambda self, ops: ops[0] + ops[1])): 
+class Addition(ArithmeticOperationConstructor("Addition", range_function = lambda self, ops: safe(operator.__add__)(ops[0], ops[1]))): 
     """ abstract addition """
     pass
 
@@ -823,28 +831,27 @@ def FMSN(op0, op1, op2, **kwords):
     return FusedMultiplyAdd(op0, op1, op2, **kwords)
 
 
-
-class Subtraction(ArithmeticOperationConstructor("Subtraction", range_function = lambda self, ops: ops[0] - ops[1])): 
+class Subtraction(ArithmeticOperationConstructor("Subtraction", range_function = lambda self, ops: safe(operator.__sub__)(ops[0], ops[1]))): 
     """ abstract addition """
     pass
 
 
-class Multiplication(ArithmeticOperationConstructor("Multiplication", range_function = lambda self, ops: ops[0] * ops[1])): 
+class Multiplication(ArithmeticOperationConstructor("Multiplication", range_function = lambda self, ops: safe(operator.__mul__)(ops[0], ops[1]))): 
     """ abstract addition """
     pass
 
 
-class Division(ArithmeticOperationConstructor("Division", range_function = lambda self, ops: ops[0] / ops[1])): 
+class Division(ArithmeticOperationConstructor("Division", range_function = lambda self, ops: safe(operator.__div__)(ops[0], ops[1]))): 
     """ abstract addition """
     pass
 
 
-class Modulo(ArithmeticOperationConstructor("Modulo", range_function = lambda self, ops: ops[0] % ops[1])):
+class Modulo(ArithmeticOperationConstructor("Modulo", range_function = lambda self, ops: safe(operator.__mod__)(ops[0], ops[1]))):
     """ abstract modulo operation """
     pass
 
 
-class NearestInteger(ArithmeticOperationConstructor("NearestInteger", arity = 1, range_function = lambda self, ops: nearestint(ops[0]))): 
+class NearestInteger(ArithmeticOperationConstructor("NearestInteger", arity = 1, range_function = lambda self, ops: safe(nearestint)(ops[0]))): 
     """ abstract addition """
     pass
 
@@ -860,14 +867,16 @@ class Ceil(ML_ArithmeticOperation):
   """ Round to integer upward """
   arity = 1
   name = "Ceil"
-  range_function = interval_func(lambda self, ops: ops[0])
+  range_function = interval_func(lambda self, ops: safe(sollya.ceil)(ops[0]))
+  bare_range_function = lambda self, ops: safe(sollya.ceil)(ops[0])
 
 ## Round to an integer value, rounding towards zero
 class Trunc(ML_ArithmeticOperation):
   """ Round to integer towards zero """
   arity = 1
   name = "Trunc"
-  range_function = interval_func(lambda self, ops: sollya.trunc(ops[0]))
+  range_function = interval_func(lambda self, ops: None)#safe(sollya.trunc)(ops[0]))
+  bare_range_function = lambda self, ops: None
 
 ## Round to an integer value, rounding towards zero
 #  returns the maximal integer less than or equal to the node's input
@@ -875,11 +884,12 @@ class Floor(ML_ArithmeticOperation):
   """ Round to integer downward """
   arity = 1
   name = "Floor"
-  range_function = interval_func(lambda self, ops: sollya.floor(ops[0]))
+  range_function = interval_func(lambda self, ops: safe(sollya.floor)(ops[0]))
+  bare_range_function = lambda self, ops: safe(sollya.floor)(ops[0])
 
 
 ## Compute the power of 2 of its unique operand
-class PowerOf2(ArithmeticOperationConstructor("PowerOf2", arity = 1, range_function = lambda self, ops: S2**ops[0])):
+class PowerOf2(ArithmeticOperationConstructor("PowerOf2", arity = 1, range_function = lambda self, ops: safe(operator.__pow__)(S2, ops[0]))):
     """ abstract power of 2 operation """
     pass
 
@@ -914,7 +924,7 @@ def interval_union(int0, int1):
 ## Ternary selection operator: the first operand is a condition
 #  when True the node returns the 2nd operand else its returns the
 #  3rd operand
-class Select(ArithmeticOperationConstructor("Select", arity = 3, range_function = lambda self, ops: interval_union(ops[1], ops[2]))):
+class Select(ArithmeticOperationConstructor("Select", arity = 3, range_function = lambda self, ops: safe(interval_union)(ops[1], ops[2]))):
     pass
 
 
