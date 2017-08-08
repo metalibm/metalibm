@@ -824,7 +824,8 @@ class ML_VectorFormat(ML_Format):
     return self.vector_size * self.scalar_format.get_bit_size()
 
   def __str__(self):
-    return "VEC_%s[%d]" % (self.scalar_format, self.vector_size)
+      return self.get_name(language = C_Code)
+      #return "VEC_%s[%d]" % (self.scalar_format, self.vector_size)
 
   def get_scalar_format(self):
     return self.scalar_format
