@@ -71,12 +71,14 @@ class ML_ExponentialM1_Red(ML_Function("ml_expm1")):
         kwords["function_name"] = self.function_name
         return RaiseReturn(*args, **kwords)
     
-    test_NaN_or_inf = Test(vx, specifier = Test.IsInfOrNaN, likely = False, debug = debug_multi, tag = "NaN_or_inf")
-    test_NaN = Test(vx, specifier = Test.IsNaN, likely = False, debug = debug_multi, tag = "is_NaN")
-    test_inf = Comparison(vx, 0, specifier = Comparison.Greater, debug = debug_multi, tag = "sign");
+    C_m1 = Constant(-1, precision = self.precision)
+    
+    test_NaN_or_inf = Test(vx, specifier = Test.IsInfOrNaN, likely = False, debug = debug_multi, tag = "NaN_or_inf", precision = ML_Bool)
+    test_NaN = Test(vx, specifier = Test.IsNaN, likely = False, debug = debug_multi, tag = "is_NaN", precision = ML_Bool)
+    test_inf = Comparison(vx, 0, specifier = Comparison.Greater, debug = debug_multi, tag = "sign", precision = ML_Bool, likely = False);
     
     #  Infnty input
-    infty_return = Statement(ConditionBlock(test_inf, Return(FP_PlusInfty(self.precision)), Return(-1)))
+    infty_return = Statement(ConditionBlock(test_inf, Return(FP_PlusInfty(self.precision)), Return(C_m1)))
     #  non-std input (inf/nan)
     specific_return = ConditionBlock(test_NaN, Return(FP_QNaN(self.precision)), infty_return)
     
@@ -85,21 +87,22 @@ class ML_ExponentialM1_Red(ML_Function("ml_expm1")):
     precision_emax = self.precision.get_emax()
     precision_max_value = S2**(precision_emax + 1)
     expm1_overflow_bound = ceil(log(precision_max_value + 1))
-    overflow_test = Comparison(vx, expm1_overflow_bound, likely = False, specifier = Comparison.Greater)
+    overflow_test = Comparison(vx, expm1_overflow_bound, likely = False, specifier = Comparison.Greater, precision = ML_Bool)
     overflow_return = Statement(Return(FP_PlusInfty(self.precision)))
     
     precision_emin = self.precision.get_emin_subnormal()
     precision_min_value = S2** precision_emin
     expm1_underflow_bound = floor(log(precision_min_value) + 1)
-    underflow_test = Comparison(vx, expm1_underflow_bound, likely = False, specifier = Comparison.Less)
-    underflow_return = Statement(Return(-1))
+    underflow_test = Comparison(vx, expm1_underflow_bound, likely = False, specifier = Comparison.Less, precision = ML_Bool)
+    underflow_return = Statement(Return(C_m1))
     
-    sollya_prec_map = {ML_Binary32: sollya.binary32, ML_Binary64: sollya.binary64}
+    sollya_precision = {ML_Binary32: sollya.binary32, ML_Binary64: sollya.binary64}[self.precision]
+    int_precision = {ML_Binary32: ML_Int32, ML_Binary64: ML_Int64}[self.precision]
     
     # Constants
     
-    log_2 = round(log(2), sollya_prec_map[self.precision], sollya.RN)
-    invlog2 = round(1/log(2), sollya_prec_map[self.precision], sollya.RN)
+    log_2 = round(log(2), sollya_precision, sollya.RN)
+    invlog2 = round(1/log(2), sollya_precision, sollya.RN)
     
     interval_vx = Interval(expm1_underflow_bound, expm1_overflow_bound)
     interval_fk = interval_vx * invlog2
@@ -107,14 +110,14 @@ class ML_ExponentialM1_Red(ML_Function("ml_expm1")):
     
     log2_hi_precision = self.precision.get_field_size() - 4
     log2_hi = round(log(2), log2_hi_precision, sollya.RN)
-    log2_lo = round(log(2) - log2_hi, sollya_prec_map[self.precision], sollya.RN)
+    log2_lo = round(log(2) - log2_hi, sollya_precision, sollya.RN)
 
 
     # Reduction
     
     unround_k = vx * invlog2
-    k = NearestInteger(unround_k, precision = self.precision, tag = "k")
-    ik = NearestInteger(unround_k, precision = ML_Int32, debug = debug_multi, tag = "ik")
+    ik = NearestInteger(unround_k, precision = int_precision, debug = debug_multi, tag = "ik")
+    k = Conversion(ik, precision = self.precision, tag = "k")
     exact_pre_mul = (k * log2_hi)
     exact_pre_mul.set_attributes(exact = True)
     exact_hi_part = vx - exact_pre_mul
@@ -123,9 +126,6 @@ class ML_ExponentialM1_Red(ML_Function("ml_expm1")):
     exact_lo_part.set_attributes(prevent_optimization = True)
     
     r = exact_hi_part + exact_lo_part
-    # z = s - exact_hi_part
-    # t = exact_lo_part - z
-    # r = s + t
     
     r.set_attributes(tag = "r", debug = debug_multi)
     
@@ -189,7 +189,7 @@ class ML_ExponentialM1_Red(ML_Function("ml_expm1")):
     
     late_underflow_result = ( exp_corrected * (1 + poly)) * exp_uflow_offset - 1.0
     
-    test_subnormal = Test(late_underflow_result, specifier = Test.IsSubnormal)
+    test_subnormal = Test(late_underflow_result, specifier = Test.IsSubnormal, likely = False)
     
     late_underflow_return = Statement(
         ConditionBlock(
