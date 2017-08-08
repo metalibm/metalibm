@@ -124,11 +124,8 @@ class Pass_Vector_Promotion(OptreeOptimization):
   #         In case of promoted-format, the return value may need to be 
   #         a conversion if the operation is not supported
   def promote_node(self, optree, parent_converted = False):
-    #if (parent_converted, optree) in self.memoization_map:
-    #  if parent_converted:
-    #  else:
-    #    return self.memoization_map[(parent_converted, optree)]
-    #else:
+    if (parent_converted, optree) in self.memoization_map:
+        return self.memoization_map[(parent_converted, optree)]
     if 1:
       new_optree = optree.copy(copy_map = self.copy_map)
       if self.does_target_support_promoted_op(optree):
