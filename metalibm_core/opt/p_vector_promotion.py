@@ -10,6 +10,10 @@ from metalibm_core.core.ml_table import ML_NewTable
 from metalibm_core.opt.p_check_support import Pass_CheckSupport
 
 
+## Check if @p optree is a non-Constant leaf node
+def is_Leaf_no_Constant(optree):
+    return isinstance(optree, ML_LeafNode) and not isinstance(optree, Constant)
+
 ## Generic vector promotion pass
 class Pass_Vector_Promotion(OptreeOptimization):
   pass_tag = "vector_promotion"
@@ -55,7 +59,7 @@ class Pass_Vector_Promotion(OptreeOptimization):
     # check that the output format is supported
     if not self.is_convertible_format(optree.get_precision()):
       return False
-    if isinstance(optree, ML_LeafNode) \
+    if is_Leaf_no_Constant(optree) \
        or isinstance(optree, VectorElementSelection) \
        or isinstance(optree, FunctionCall):
       return False
@@ -134,7 +138,7 @@ class Pass_Vector_Promotion(OptreeOptimization):
         return self.memoize(parent_converted, optree, new_optree)
       elif isinstance(optree, ML_NewTable):
         return self.memoize(parent_converted, optree, optree)
-      elif isinstance(optree, ML_LeafNode):
+      elif is_Leaf_no_Constant(optree):
         if parent_converted and optree.get_precision() in self.get_translation_table():
           new_optree = Conversion(optree, precision = self.get_conv_format(optree.get_precision()))
           return self.memoize(parent_converted, optree, new_optree)
