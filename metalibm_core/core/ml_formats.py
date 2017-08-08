@@ -845,14 +845,14 @@ class ML_VectorFormat(ML_Format):
 
 ## Generic class for Metalibm support library vector format
 class ML_CompoundVectorFormat(ML_VectorFormat, ML_Compound_Format):
-  def __init__(self, c_format_name, opencl_format_name, vector_size, scalar_format, sollya_precision = None):
+  def __init__(self, c_format_name, opencl_format_name, vector_size, scalar_format, sollya_precision = None, cst_callback = None):
     ML_VectorFormat.__init__(self, scalar_format, vector_size, c_format_name)
     ML_Compound_Format.__init__(self, c_format_name, ["_[%d]" % i for i in xrange(vector_size)], [scalar_format for i in xrange(vector_size)], "", "", sollya_precision)
     # registering OpenCL-C format name
     self.name[OpenCL_Code] = opencl_format_name
+    self.cst_callback = cst_callback
 
-
-  def get_cst(self, cst_value, language = C_Code):
+  def get_cst_default(self, cst_value, language = C_Code):
     elt_value_list = [self.scalar_format.get_cst(cst_value[i], language = language) for i in xrange(self.vector_size)]
     if language is C_Code:
       return "{._ = {%s}}" % (", ".join(elt_value_list))
@@ -860,7 +860,13 @@ class ML_CompoundVectorFormat(ML_VectorFormat, ML_Compound_Format):
       return "(%s)(%s)" % (self.get_name(language = OpenCL_Code), (", ".join(elt_value_list)))
     else:
       Log.report(Log.Error, "unsupported language in ML_CompoundVectorFormat.get_cst: %s" % (language))
-
+      
+  def get_cst(self, cst_value, language = C_Code):
+    if self.cst_callback is None:
+      return self.get_cst_default(cst_value, language)
+    else:
+      return self.cst_callback(self, cst_value, language)
+  
 
 class ML_IntegerVectorFormat(ML_CompoundVectorFormat, ML_Fixed_Format):
   pass
@@ -876,9 +882,9 @@ class ML_FloatingPointVectorFormat(ML_CompoundVectorFormat, ML_FP_Format):
 #  @param compound_constructor ML_Compound_Format child class used to build the result format
 def vector_format_builder(c_format_name, opencl_format_name, vector_size,
                           scalar_format, sollya_precision = None,
-                          compound_constructor = ML_FloatingPointVectorFormat):
+                          compound_constructor = ML_FloatingPointVectorFormat, cst_callback = None):
   return compound_constructor(c_format_name, opencl_format_name, vector_size,
-                              scalar_format, sollya_precision)
+                              scalar_format, sollya_precision, cst_callback)
 
 v2float32 = vector_format_builder("ml_float2_t", "float2", 2, ML_Binary32)
 v3float32 = vector_format_builder("ml_float3_t", "float3", 3, ML_Binary32)
