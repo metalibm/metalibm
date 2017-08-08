@@ -80,7 +80,7 @@ class Pass_Vector_Promotion(OptreeOptimization):
     def key_getter(target_obj, optree):
       op_class = optree.__class__
       result_type = (self.get_conv_format(optree.get_precision().get_match_format()),)
-      arg_type = tuple((self.get_conv_format(arg.get_precision().get_match_format()) if not arg.get_precision() is None else None) for arg in optree.inputs)
+      arg_type = tuple((self.get_conv_format(arg.get_precision().get_match_format()) if not arg.get_precision() is None else None) for arg in optree.get_inputs())
       interface = result_type + arg_type
       codegen_key = optree.get_codegen_key()
       return op_class, interface, codegen_key
