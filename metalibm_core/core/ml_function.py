@@ -422,11 +422,6 @@ class ML_FunctionBasis(object):
       opt_scheme = self.optimise_scheme(
         scheme, enable_subexpr_sharing = enable_subexpr_sharing
       )
-
-      if display_after_opt:
-        print "function %s, after opt " % code_function.get_name()
-        print opt_scheme.get_str(depth = None, display_precision = True, memoization_map = {})
-
       # pre-generation optimization
       for pass_tag in self.pre_gen_passes:
         pass_class = Pass.get_pass_by_tag(pass_tag)
@@ -434,7 +429,10 @@ class ML_FunctionBasis(object):
         Log.report(Log.Info, "executing opt pass: {}".format(pass_tag))
         opt_scheme = pass_object.execute(opt_scheme)
       code_function.set_scheme(opt_scheme)
-
+      
+      if display_after_opt:
+        print "function %s, after opt " % code_function.get_name()
+        print opt_scheme.get_str(depth = None, display_precision = True, memoization_map = {}, display_id = True)
 
     # generate auto-test wrapper
     if self.auto_test_enable:
