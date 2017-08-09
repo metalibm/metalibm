@@ -11,8 +11,10 @@ from metalibm_core.core.passes import OptreeOptimization, Pass
 from metalibm_core.core.ml_operations import (
     Comparison, Addition, Select, Constant, ML_LeafNode, Conversion,
     Statement, ReferenceAssign, BitLogicNegate, Subtraction,
-    SpecificOperation, Negation, BitLogicRightShift, Min, Max
+    SpecificOperation, Negation, BitLogicRightShift, Min, Max,
+    CountLeadingZeros, Multiplication
 )
+from metalibm_core.core.advanced_operations import FixedPointPosition
 from metalibm_core.core.ml_hdl_operations import (
     Process, ComponentInstance
 )
@@ -20,7 +22,7 @@ from metalibm_core.opt.rtl_fixed_point_utils import (
     test_format_equality,
     solve_equal_formats
 )
-from metalibm_core.core.ml_formats import ML_Bool
+from metalibm_core.core.ml_formats import ML_Bool, ML_Integer
 from metalibm_core.core.ml_hdl_format import (
     is_fixed_point, fixed_point, ML_StdLogic
 )
@@ -89,6 +91,29 @@ def solve_format_Addition(optree):
             lhs_precision.get_frac_size(),
             rhs_precision.get_frac_size()
         )
+        is_signed = lhs_precision.get_signed() or rhs_precision.get_signed()
+        return fixed_point(
+            int_size,
+            frac_size,
+            signed=is_signed
+        )
+    else:
+        return optree.get_precision()
+
+
+## determine Multiplication node precision
+def solve_format_Multiplication(optree):
+    """ Legalize Multiplication node """
+    assert isinstance(optree, Multiplication)
+    lhs = optree.get_input(0)
+    rhs = optree.get_input(1)
+    lhs_precision = lhs.get_precision()
+    rhs_precision = rhs.get_precision()
+
+    if is_fixed_point(lhs_precision) and is_fixed_point(rhs_precision):
+        # +1 for carry overflow
+        int_size = lhs_precision.get_integer_size() + rhs_precision.get_integer_size()
+        frac_size = lhs_precision.get_frac_size() + rhs_precision.get_frac_size()
         is_signed = lhs_precision.get_signed() or rhs_precision.get_signed()
         return fixed_point(
             int_size,
@@ -388,6 +413,8 @@ def solve_format_rec(optree, memoization_map=None):
             )
         elif isinstance(optree, Comparison):
             new_format = solve_format_Comparison(optree)
+        elif isinstance(optree, Multiplication):
+            new_format = solve_format_Multiplication(optree)
         elif isinstance(optree, Addition):
             new_format = solve_format_Addition(optree)
         elif isinstance(optree, Subtraction):
