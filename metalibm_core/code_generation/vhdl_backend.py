@@ -620,7 +620,19 @@ def bit_selection_legalizer(optree):
 
 
 
+# optree_modifier will be modified once ML_LeadingZeroCounter has been instanciated
+# (as its depends on VHDLBackend, this can not happen here)
+handle_LZC_legalizer = ComplexOperator(optree_modifier = None)
+
 vhdl_code_generation_table = {
+    CountLeadingZeros: {
+        None: {
+            lambda optree: True: {
+                type_custom_match(MCFixedPoint, MCFixedPoint):
+                    handle_LZC_legalizer,
+            }
+        },
+    },
     Min: {
         None: {
             lambda _: True: {

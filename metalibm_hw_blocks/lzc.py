@@ -12,6 +12,7 @@ from metalibm_core.core.ml_operations import *
 from metalibm_core.core.ml_formats import *
 from metalibm_core.core.ml_table import ML_Table
 from metalibm_core.code_generation.vhdl_backend import VHDLBackend
+import metalibm_core.code_generation.vhdl_backend as vhdl_backend
 from metalibm_core.core.polynomials import *
 from metalibm_core.core.ml_entity import ML_Entity, ML_EntityBasis, DefaultEntityArgTemplate
 from metalibm_core.code_generation.generator_utility import FunctionOperator, FO_Result, FO_Arg
@@ -119,6 +120,45 @@ class ML_LeadingZeroCounter(ML_Entity("ml_lzc")):
 
   standard_test_cases =[sollya_parse(x) for x in  ["1.1", "1.5"]]
 
+def vhdl_legalize_count_leading_zeros(optree):
+    """ Legalize a CountLeadingZeros node into a valid vhdl 
+        implementation
+
+        Args:
+            optree (CountLeadingZeros): input node
+
+        Return:
+            ML_Operation: legal operation graph to implement LZC
+    """
+    lzc_format = optree.get_precision()
+    lzc_width = lzc_format.get_bit_size()
+    lzc_input = optree.get_input(0)
+
+    lzc_args = ML_LeadingZeroCounter.get_default_args(width = lzc_width)
+    LZC_entity = ML_LeadingZeroCounter(lzc_args)
+    lzc_entity_list = LZC_entity.generate_scheme()
+    lzc_implementation = LZC_entity.get_implementation()
+
+    lzc_component = lzc_implementation.get_component_object()
+
+    # LZC output value signal
+    lzc_signal = Signal(
+        optree.get_tag(), precision = lzc_format,
+        var_type = Signal.Local, debug = debug_dec
+    )
+    lzc_value = PlaceHolder(
+        lzc_signal,
+        lzc_component(io_map = {
+            "x": lzc_input, 
+            "vr_out": lzc_signap
+        }, tag = "lzc_i"), tag = "place_holder"
+    )
+    # returing PlaceHolder as valid leading zero count result
+    return lzc_value
+
+
+Log.report(Log.Info, "installing ML_LeadingZeroCounter legalizer in vhdl backend")
+vhdl_backend.handle_LZC_legalizer.optree_modifier = vhdl_legalize_count_leading_zeros
 
 if __name__ == "__main__":
     # auto-test
