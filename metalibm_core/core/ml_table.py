@@ -165,8 +165,9 @@ class ML_Table(ML_LeafNode):
         precision_str = "" if not display_precision else "[%s]" % str(self.get_storage_precision())
         return "  " * tab_level + "%s[%s]%s%s%s\n" % (self.str_name, "][".join([str(dim) for dim in self.dimensions]), precision_str, id_str, attribute_str)
 
-    def copy(self, copy_map = {}):
-        if self in copy_map.keys():
+    def copy(self, copy_map = None):
+        copy_map = {} if copy_map is None else copy_map
+        if self in copy_map:
             return copy_map[self]
         else:
             kwords = self.attributes.__dict__.copy()
@@ -176,6 +177,7 @@ class ML_Table(ML_LeafNode):
                 'init_data': self.table
                 })
             new_copy = self.__class__(**kwords)
+            copy_map[self] = new_copy
             return new_copy
 
 
