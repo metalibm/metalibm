@@ -32,37 +32,7 @@ from metalibm_core.core.ml_hdl_format import (
 # attributes will be used to determine output live range and tune
 # the output format
 
-## Assuming @p optree has no pre-defined range, recursively compute a range
-#  from the node inputs
-def evaluate_range(optree):
-    init_interval =  get_node_range(optree)
-    if not init_interval is None:
-        return init_interval
-    else:
-        args_interval = tuple(
-            evaluate_range(op) for op in
-                optree.get_inputs()
-        )
-        return optree.apply_bare_range_function(args_interval)
 
-## determine the live range value of a node
-def get_node_range(optree):
-    init_interval = optree.get_interval()
-    if not init_interval is None:
-        return init_interval
-    else:
-        precision = optree.get_precision()
-        if precision is None:
-            return evaluate_range(optree)
-        raise NotImplementedError
-        #elif isinstance(precision, ML_:
-        #    # unsigned case
-        #    bit_size = precision.get_bit_size()
-        #    return Interval(0, 2**bit_size-1)
-
-
-def size_addition(op0, op1):
-    pass
 
 ## determine generic operation precision
 def solve_format_BooleanOp(optree):
