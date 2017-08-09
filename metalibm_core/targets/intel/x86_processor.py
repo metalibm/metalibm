@@ -168,7 +168,7 @@ def uniform_list_check(value_list):
 
 # check whether @p optree is a uniform vector constant
 def uniform_vector_constant_check(optree):
-	if isinstance(optree, Constant) and optree.get_precision().is_vector_format():
+	if isinstance(optree, Constant) and not optree.get_precision() is None and optree.get_precision().is_vector_format():
 		return uniform_list_check(optree.get_value())
 	else:
 		return False

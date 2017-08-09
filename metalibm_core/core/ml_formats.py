@@ -476,11 +476,16 @@ class VirtualFormat(ML_Format):
 
   def get_support_format(self):
     return self.support_format
+  def get_signed(self):
+    return self.base_format.get_signed()
 
   def get_bit_size(self):
     return self.base_format.get_bit_size()
   def is_cst_decl_required(self):
     return self.cst_decl_required
+
+  def is_vector_format(self):
+    return False if self.base_format is None else self.base_format.is_vector_format()
 
 ## Virtual format with no match forwarding
 class VirtualFormatNoForward(VirtualFormat):
