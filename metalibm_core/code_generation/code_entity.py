@@ -23,12 +23,12 @@ from ..core.attributes import Attributes, AttributeCtor
 
 class CodeEntity(object):
   """ function code object """
-  def __init__(self, name, arg_list = None, output_list = None, code_object = None, language = VHDL_Code):
+  def __init__(self, name, arg_list = None, output_map = None, code_object = None, language = VHDL_Code):
     """ code function initialization """
     self.name = name
     self.arg_list = arg_list if arg_list else []
     self.arg_map = dict((arg.get_tag(), arg) for arg in self.arg_list)
-    self.output_list = output_list if output_list else []
+    self.output_map = output_map if output_map else {}
     self.code_object = code_object
     self.entity_object   = None
     self.entity_operator = None
@@ -59,7 +59,9 @@ class CodeEntity(object):
   def add_output_variable(self, name, output_node):
     output_var = Variable(name, precision = output_node.get_precision(), var_type = Variable.Output)
     output_assign = ReferenceAssign(output_var, output_node)
-    self.output_list.append(output_assign)
+    if name in self.output_map:
+        Log.report(Log.error, "pre-existing name {} in output_map".format(name))
+    self.output_map[name] = output_assign
 
   def add_input_signal(self, name, signaltype):
     input_signal = Signal(name, precision = signaltype) 
@@ -69,7 +71,9 @@ class CodeEntity(object):
   def add_output_signal(self, name, output_node):
     output_var = Signal(name, precision = output_node.get_precision(), var_type = Signal.Output)
     output_assign = ReferenceAssign(output_var, output_node)
-    self.output_list.append(output_assign)
+    if name in self.output_map:
+        Log.report(Log.error, "pre-existing name {} in output_map".format(name))
+    self.output_map[name] = output_assign
 
   def get_input_by_tag(self, tag):
     if tag in self.arg_map:
@@ -77,12 +81,21 @@ class CodeEntity(object):
     else:
       return None
 
+  def get_port_from_output(self, out):
+    return out.get_input(0)
+  def get_value_from_output(self, out):
+    return out.get_input(1)
+
   def get_output_assign(self):
-    return self.output_list
+    return self.output_map.values()
+  def get_output_value_by_name(self, name):
+    return self.get_value_from_output(self.output_map[name])
+  def get_output_port_by_name(self, name):
+    return self.get_port_from_output(self.output_map[name])
   def get_output_list(self):
-    return [op.get_input(1) for op in self.output_list]
+    return [self.get_value_from_output(op) for op in self.get_output_assign()]
   def get_output_port(self):
-    return [op.get_input(0) for op in self.output_list]
+    return [self.get_port_from_output(op) for op in self.get_output_assign()]
 
   def get_current_stage(self):
     return self.current_stage
@@ -137,7 +150,7 @@ class CodeEntity(object):
     language = self.language if language is None else language
     # input signal declaration
     input_port_list = ["%s : in %s" % (inp.get_tag(), inp.get_precision().get_code_name(language = language)) for inp in self.arg_list]
-    output_port_list = ["%s : out %s" % (out.get_input(0).get_tag(), self.get_output_precision(out).get_code_name(language = language)) for out in self.output_list]
+    output_port_list = ["%s : out %s" % (self.get_port_from_output(out).get_tag(), self.get_output_precision(out).get_code_name(language = language)) for out in self.get_output_assign()]
     port_format_list = ";\n  ".join(input_port_list + output_port_list)
     # FIXME: add suport for inout and generic
     port_desc = "port (\n  {port_list}\n);".format(port_list = port_format_list)
@@ -149,7 +162,7 @@ class CodeEntity(object):
     language = self.language if language is None else language
     # input signal declaration
     input_port_list = ["%s : in %s" % (inp.get_tag(), inp.get_precision().get_code_name(language = language)) for inp in self.arg_list]
-    output_port_list = ["%s : out %s" % (out.get_input(0).get_tag(), out.get_input(0).get_precision().get_code_name(language = language)) for out in self.output_list]
+    output_port_list = ["%s : out %s" % (self.get_port_from_output(out).get_tag(), self.get_port_from_output(out).get_precision().get_code_name(language = language)) for out in self.get_output_assign()]
     port_format_list = ";\n  ".join(input_port_list + output_port_list)
     port_desc = "port (\n  {port_list}\n);".format(port_list = port_format_list)
     if len(port_format_list) == 0:
@@ -159,7 +172,7 @@ class CodeEntity(object):
 
   ## @return function implementation (ML_Operation DAG)
   def get_scheme(self):
-    return Statement(*tuple(self.process_list + self.output_list))
+    return Statement(*tuple(self.process_list + self.get_output_assign()))
 
   def get_definition(self, code_generator, language, folded = True, static_cst = False):
     code_object = NestedCode(code_generator, static_cst = static_cst, code_ctor = VHDLCodeObject)
