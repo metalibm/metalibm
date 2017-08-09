@@ -72,6 +72,27 @@ def solve_format_Comparison(optree):
     propagate_format_to_input(merge_format, optree, [0, 1])
     return solve_format_BooleanOp(optree)
 
+def solve_format_CLZ(optree):
+    """ Legalize CountLeadingZeros node """
+    assert isinstance(optree, CountLeadingZeros)
+    op_input = optree.get_input(0)
+    input_precision = lhs.get_precision()
+
+    if is_fixed_point(input_precision):
+        if input_precision.get_signed():
+            Log.report(Log.Warning , "signed format in solve_format_CLZ")
+        # +1 for carry overflow
+        int_size = int(ceil(log2(input_precision.get_bit_size()))) + 1 
+        frac_size = 0
+        return fixed_point(
+            int_size,
+            frac_size,
+            signed=False
+        )
+    else:
+        Log.report(Log.Warning , "unsupported format in solve_format_CLZ")
+        return optree.get_precision()
+
 ## determine Addition node precision
 def solve_format_Addition(optree):
     """ Legalize Addition node """
@@ -413,6 +434,8 @@ def solve_format_rec(optree, memoization_map=None):
             )
         elif isinstance(optree, Comparison):
             new_format = solve_format_Comparison(optree)
+        elif isinstance(optree, CountLeadingZeros):
+            new_format = solve_format_CLZ(optree)
         elif isinstance(optree, Multiplication):
             new_format = solve_format_Multiplication(optree)
         elif isinstance(optree, Addition):
