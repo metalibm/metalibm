@@ -5,7 +5,7 @@ from metalibm_core.core.ml_formats import *
 from metalibm_core.core.passes import OptreeOptimization, Pass
 from metalibm_core.core.ml_table import ML_NewTable, ML_TableFormat
 from metalibm_core.core.ml_operations import (
-    ML_LeafNode, VectorElementSelection, FunctionCall, Conversion
+    ML_LeafNode, VectorElementSelection, FunctionCall, Conversion, Constant
 )
 
 from metalibm_core.opt.p_check_support import Pass_CheckSupport

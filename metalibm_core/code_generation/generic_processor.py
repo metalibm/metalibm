@@ -155,6 +155,8 @@ c_code_generation_table = {
                   ]
                   ]
                 )
+        },
+    },
     Constant: {
         None: {
             lambda optree: True: {
