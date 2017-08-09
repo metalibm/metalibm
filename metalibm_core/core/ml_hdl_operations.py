@@ -298,12 +298,17 @@ class SubSignalSelection(AbstractOperationConstructor("SubSignalSelection")):
     new_copy.inf_index = self.inf_index
     new_copy.sup_index = self.sup_index
 
+def cst_promotion(value, precision = ML_Integer):
+    if isinstance(value, ML_Operation):
+        return value
+    else:
+        return Constant(value, precision = precision)
 ## Wrapper for the generation of a bit selection operation
 #  from a multi-bit signal
 def BitSelection(optree, index, **kw):
   return VectorElementSelection(
     optree, 
-    Constant(index, precision = ML_Integer),
+    cst_promotion(index, precision = ML_Integer),
     precision = ML_StdLogic,
     **kw
   )
