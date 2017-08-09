@@ -11,8 +11,9 @@
 # description:  
 ###############################################################################
 
-from metalibm_core.core.ml_operations import Comparison, Select
-from metalibm_core.core.ml_formats import ML_Bool
+from metalibm_core.core.ml_operations import Comparison, Select, Constant
+from metalibm_core.core.advanced_operations import FixedPointPosition
+from metalibm_core.core.ml_formats import ML_Bool, ML_Integer
 
 def minmax_legalizer_wrapper(predicate):
     """ Legalize a min/max node by converting it to a Select operation
@@ -25,5 +26,30 @@ def minmax_legalizer_wrapper(predicate):
         return result
     return minmax_legalizer
 
+## Min node legalizer
 min_legalizer = minmax_legalizer_wrapper(Comparison.Less)
+## Max node legalizer
 max_legalizer = minmax_legalizer_wrapper(Comparison.Greater)
+
+
+def fixed_point_position_legalizer(optree):
+    """ Legalize a FixedPointPosition node to a constant """
+    assert isinstance(optree, FixedPointPosition)
+    fixed_input = optree.get_input(0)
+    fixed_precision = fixed_input.get_precision()
+
+    position = optree.get_input(1).get_value()
+
+    align = optree.get_align()
+
+    value_computation_map = {
+        FixedPointPosition.FromLSBToLSB: position,
+        FixedPointPosition.FromMSBToLSB: fixed_precision.get_bit_size() - 1 - position,
+        FixedPointPosition.FromPointToLSB: fixed_precision.get_frac_size() + position
+    }
+    cst_value = value_computation_map[align]
+    return Constant(
+        cst_value,
+        precision = ML_Integer
+    )
+

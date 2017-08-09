@@ -21,7 +21,10 @@ from ..core.ml_hdl_format import *
 from ..core.ml_table import ML_ApproxTable
 from ..core.ml_operations import *
 from ..core.ml_hdl_operations import *
-from ..core.legalizer import min_legalizer, max_legalizer
+from ..core.legalizer import (
+    min_legalizer, max_legalizer, fixed_point_position_legalizer
+)
+from ..core.advanced_operations import FixedPointPosition
 from metalibm_core.core.target import TargetRegister
 
 from metalibm_hw_blocks.rtl_blocks import *
@@ -537,6 +540,8 @@ def fixed_point_sub_modifier(optree):
     return fixed_point_op_modifier(optree, op_ctor=Subtraction)
 
 
+
+
 vhdl_comp_symbol = {
     Comparison.Equal: "=",
     Comparison.NotEqual: "/=",
@@ -625,6 +630,14 @@ def bit_selection_legalizer(optree):
 handle_LZC_legalizer = ComplexOperator(optree_modifier = None)
 
 vhdl_code_generation_table = {
+    FixedPointPosition: {
+        None: {
+            lambda optree: True: {
+                type_custom_match(type_all_match, MCFixedPoint, type_all_match):
+                    ComplexOperator(optree_modifier = fixed_point_position_legalizer),
+            }
+        },
+    },
     CountLeadingZeros: {
         None: {
             lambda optree: True: {
