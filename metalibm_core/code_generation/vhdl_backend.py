@@ -599,6 +599,27 @@ formal_generation_table = {
     },
 }
 
+
+def bit_selection_legalizer(optree):
+    assert isinstance(optree, VectorElementSelection)
+    op_input = optree.get_input(0)
+    op_index = optree.get_input(1)
+    input_precision = op_input.get_precision()
+    if is_fixed_point(input_precision):
+        cast_format = ML_StdLogicVectorFormat(input_precision.get_bit_size())
+        return VectorElementSelection(
+            TypeCast(
+                op_input,
+                precision = cast_format
+            ),
+            op_index,
+            precision = optree.get_precision()
+        )
+    else:
+        return optree
+
+
+
 vhdl_code_generation_table = {
     Min: {
         None: {
@@ -804,7 +825,14 @@ vhdl_code_generation_table = {
         None: {
             # make sure index accessor is a Constant (or fallback to C implementation)
             lambda optree: True:  {
-                type_custom_match(FSM(ML_StdLogic), TCM(ML_StdLogicVectorFormat), type_all_match): TemplateOperator("%s(%s)", arity=2),
+                type_custom_match(
+                    FSM(ML_StdLogic),
+                    TCM(ML_StdLogicVectorFormat),
+                    type_all_match
+                ): 
+                    TemplateOperator("%s(%s)", arity=2),
+                type_custom_match(FSM(ML_StdLogic), MCFixedPoint, type_all_match): 
+                    ComplexOperator(optree_modifier = bit_selection_legalizer),
             },
         },
     },
