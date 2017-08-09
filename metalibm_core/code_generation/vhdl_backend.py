@@ -32,6 +32,8 @@ from metalibm_core.opt.rtl_fixed_point_utils import (
     largest_format, test_format_equality
 )
 
+from metalibm_core.opt.opt_utils import evaluate_range
+
 
 def exclude_std_logic(optree):
     return not isinstance(optree.get_precision(), ML_StdLogicVectorFormat)
@@ -259,6 +261,24 @@ def fixed_conversion_modifier(optree):
     )
     return result
 
+def legalizing_fixed_shift_amount(shift_amount):
+    precision = shift_amount.get_precision()
+    if is_fixed_point(precision):
+        sa_range = evaluate_range(shift_amount)
+        if inf(sa_range) < 0:
+            Log.report(Log.Error, "shift amount {} whose range has been evaluated to {} may take negative values".format(shift_amount.get_str(depth = 2, display_precision = True), sa_range))
+        # TODO support negative frac size via static amount shifting
+        assert(precision.get_frac_size() == 0) 
+        casted_format = ML_StdLogicVectorFormat(precision.get_bit_size())
+        casted_sa = TypeCast(
+            shift_amount,
+            precision = casted_format
+        )
+        return casted_sa
+    else:
+        return shift_amount
+
+
 def fixed_shift_modifier(optree):
     """ legalize a shift node on fixed-point operation tree
 
@@ -269,7 +289,7 @@ def fixed_shift_modifier(optree):
     """
     shift_input = optree.get_input(0)
     out_precision = optree.get_precision()
-    shift_amount = optree.get_input(1)
+    shift_amount = legalizing_fixed_shift_amount(optree.get_input(1))
     converted_input = Conversion(
         shift_input,
         precision = optree.get_precision()
@@ -871,6 +891,8 @@ vhdl_code_generation_table = {
                 type_custom_match(MCSTDLOGICV, MCSTDLOGICV, MCSTDLOGICV):
                     DynamicOperator(lambda optree: shift_generator("shr", optree)),
                 type_custom_match(MCFixedPoint, MCFixedPoint, MCSTDLOGICV):
+                    ComplexOperator(optree_modifier = fixed_shift_modifier),
+                type_custom_match(MCFixedPoint, MCFixedPoint, MCFixedPoint):
                     ComplexOperator(optree_modifier = fixed_shift_modifier),
             },
         },
