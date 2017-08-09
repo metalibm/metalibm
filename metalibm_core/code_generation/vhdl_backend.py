@@ -127,6 +127,25 @@ def negation_modifer(optree):
         init_stage=init_stage
     )
 
+def fixed_point_negation_modifier(optree):
+    """ Legalize a Negation node on fixed-point inputs """
+    op_format = optree.get_precision()
+    op_input = optree.get_input(0)
+    casted_format = ML_StdLogicVectorFormat(op_format.get_bit_size())
+    casted_optree = TypeCast(
+        Conversion(
+            op_input,
+            precision = op_format
+        ),
+        precision = casted_format
+    )
+    casted_negated = Negation(casted_optree, precision = casted_format)
+    result = TypeCast(
+        casted_negated,
+        precision = op_format
+    )
+    return result
+
 
 # Optree generation function for MantissaExtraction
 def mantissa_extraction_modifier(optree):
@@ -659,7 +678,10 @@ vhdl_code_generation_table = {
     Negation: {
         None: {
             lambda optree: True: {
-                type_custom_match(MCSTDLOGICV, MCSTDLOGICV): ComplexOperator(optree_modifier=negation_modifer),
+                type_custom_match(MCSTDLOGICV, MCSTDLOGICV): 
+                    ComplexOperator(optree_modifier=negation_modifer),
+                type_custom_match(MCFixedPoint, MCFixedPoint): 
+                    ComplexOperator(optree_modifier = fixed_point_negation_modifier),
             },
         },
     },
