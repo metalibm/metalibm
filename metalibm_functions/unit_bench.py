@@ -258,8 +258,11 @@ OPERATOR_BENCH_MAP = {
     predicate_is_fp_op:
       lambda precision:
       OpUnitBench(
-          metaop.Division, "Division %s" %
-          precision, 2, Interval(0.9999, 1.0001)),
+          metaop.Division, "Division %s" % precision, 2,
+					Interval(0.9999, 1.0001),
+					output_precision = precision,
+					input_precisions = [precision] * 2
+			),
     predicate_is_int_op:
       lambda precision:
       OpUnitBench(
@@ -268,7 +271,7 @@ OPERATOR_BENCH_MAP = {
               - S2** (precision.get_bit_size() - 1),
                 S2**(precision.get_bit_size() - 1)
           ),
-                  output_precision=precision,
+          output_precision=precision,
           input_precisions=[precision] * 2
       ),
   },
