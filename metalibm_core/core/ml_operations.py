@@ -28,6 +28,11 @@ from .ml_formats import * # FP_SpecialValue, ML_FloatingPointException, ML_Float
 #  @{
 
 
+def empty_range(*args):
+    """ empty live-range function: whichever the arguments
+        always return None """
+    return None
+
 ## merge abstract format function
 #  @return most generic abstract format to unify args formats 
 def std_merge_abstract_format(*args):
@@ -627,7 +632,7 @@ def AbstractOperation_get_codegen_key(self):
 
 
 
-def GeneralOperationConstructor(name, arity = 2, range_function = None, error_function = None, inheritance = [], base_class = AbstractOperation):
+def GeneralOperationConstructor(name, arity = 2, range_function = empty_range, error_function = None, inheritance = [], base_class = AbstractOperation):
     """ meta-class constructor for abstract operation """
     field_map = {
         # operation initialization function assignation
@@ -650,11 +655,12 @@ def GeneralOperationConstructor(name, arity = 2, range_function = None, error_fu
     return type(name, (base_class,) + tuple(inheritance), field_map)
 
 
-def AbstractOperationConstructor(name, arity = 2, range_function = None, error_function = None, inheritance = []):
+def AbstractOperationConstructor(name, arity = 2, range_function = empty_range, error_function = None, inheritance = []):
     return GeneralOperationConstructor(name, arity = arity, range_function = range_function, error_function = error_function, inheritance = inheritance, base_class = AbstractOperation)
 
 
-def ArithmeticOperationConstructor(name, arity = 2, range_function = None, error_function = None, inheritance = []):
+
+def ArithmeticOperationConstructor(name, arity = 2, range_function = empty_range, error_function = None, inheritance = []):
     return GeneralOperationConstructor(name, arity = arity, range_function = range_function, error_function = error_function, inheritance = inheritance, base_class = ML_ArithmeticOperation)
 
 
@@ -751,7 +757,7 @@ class FMASpecifier(object):
     """ Common parent to all Test specifiers """
     pass
 
-def FMASpecifier_Builder(name, arity, range_function = None): 
+def FMASpecifier_Builder(name, arity, range_function = empty_range): 
     """ Test Specifier constructor """
     return type(name, (FMASpecifier,), {"arity": arity, "name": name, "range_function": staticmethod(range_function)})
 
