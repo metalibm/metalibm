@@ -21,6 +21,7 @@ from ..core.ml_hdl_format import *
 from ..core.ml_table import ML_ApproxTable
 from ..core.ml_operations import *
 from ..core.ml_hdl_operations import *
+from ..core.legalizer import min_legalizer, max_legalizer
 from metalibm_core.core.target import TargetRegister
 
 from metalibm_hw_blocks.rtl_blocks import *
@@ -560,6 +561,22 @@ formal_generation_table = {
 }
 
 vhdl_code_generation_table = {
+    Min: {
+        None: {
+            lambda _: True: {
+                type_custom_match(MCFixedPoint, MCFixedPoint, MCFixedPoint):
+                    ComplexOperator(optree_modifier=min_legalizer),
+            }
+        },
+    },
+    Max: {
+        None: {
+            lambda _: True: {
+                type_custom_match(MCFixedPoint, MCFixedPoint, MCFixedPoint):
+                    ComplexOperator(optree_modifier=max_legalizer),
+            }
+        },
+    },
     Addition: {
         None: {
             exclude_std_logic:

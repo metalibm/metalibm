@@ -18,6 +18,7 @@ from ..utility.log_report import *
 from ..core.ml_formats import *
 from ..core.ml_table import *
 from ..core.ml_operations import *
+from ..core.legalizer import min_legalizer, max_legalizer
 
 from .generator_utility import *
 from .code_element import *
@@ -119,20 +120,6 @@ unsigned_integer_precision = {
   ML_Int64:  ML_UInt64,
   ML_Int128: ML_UInt128,
 }
-
-def minmax_legalizer_wrapper(predicate):
-    """ Legalize a min/max node by converting it to a Select operation
-        with the predicate given as argument """
-    def minmax_legalizer(optree):
-        op0 = optree.get_input(0)
-        op1 = optree.get_input(1)
-        result = Select(Comparison(op0, op1, specifier = predicate, precision = ML_Bool), op0, op1)
-        result.attributes = optree.attributes.get_copy()
-        return result
-    return minmax_legalizer
-
-min_legalizer = minmax_legalizer_wrapper(Comparison.Less)
-max_legalizer = minmax_legalizer_wrapper(Comparison.Greater)
 
 c_code_generation_table = {
     Max: {
