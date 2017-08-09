@@ -30,12 +30,18 @@ from valid.unit_test import (
 import metalibm_hw_blocks.unit_tests.adaptative_size as ut_adaptative_size
 import metalibm_hw_blocks.unit_tests.report_test as ut_report_test
 import metalibm_hw_blocks.unit_tests.range_eval as ut_range_eval
+import metalibm_hw_blocks.unit_tests.fixed_point_position as ut_fixed_point_position
 
 unit_test_list = [
   UnitTestScheme(
     "basic fixed-point legalization pass",
     ut_adaptative_size,
     [{}]
+  ),
+  UnitTestScheme(
+    "basic fixed-point position ",
+    ut_fixed_point_position,
+    [{"width": 17}, {"width": 32}, {"width": 63}]
   ),
   UnitTestScheme(
     "basic message report test",
