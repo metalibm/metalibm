@@ -354,6 +354,9 @@ class ML_EntityBasis(object):
     """ return the main precision use for sollya calls """
     return self.sollya_precision
 
+  def generate_interfaces(self):
+    """ Generate entity interfaces """
+    raise NotImplementedError
 
   def generate_scheme(self):
     """ generate MDL scheme for function implementation """
