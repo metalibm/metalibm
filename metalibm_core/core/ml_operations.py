@@ -506,6 +506,12 @@ class Constant(ML_LeafNode):
         copy_map[self] = new_copy
         return new_copy
 
+    def get_codegen_key(self):
+        return None
+    ## return empty input list
+    def get_inputs(self):
+        return []
+
 
 ## class for Variable node, which contains a temporary state of the operation DAG
 #  which may have been defined outside the scope of the implementation (input variable)

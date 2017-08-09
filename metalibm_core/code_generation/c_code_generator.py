@@ -14,7 +14,12 @@
 from ..utility.log_report import Log
 
 # TODO clean long import list
-from ..core.ml_operations import Variable, Constant, ConditionBlock, Return, TableLoad, Statement, Loop, SpecificOperation, ExceptionOperation, ClearException, NoResultOperation, SwitchBlock, FunctionObject, ReferenceAssign, BooleanOperation
+from ..core.ml_operations import (
+    Variable, Constant, ConditionBlock, Return, TableLoad, Statement,\
+    Loop, SpecificOperation, ExceptionOperation, ClearException, \
+    NoResultOperation, SwitchBlock, FunctionObject, ReferenceAssign, \
+    BooleanOperation
+)
 from ..core.ml_table import ML_Table, ML_NewTable
 from ..core.ml_formats import *
 from ..core.attributes import ML_Debug
@@ -97,33 +102,6 @@ class CCodeGenerator(object):
               result = CodeVariable(final_var, optree.get_precision())
             else:
               result = CodeVariable(optree.get_tag(), optree.get_precision())
-
-        elif isinstance(optree, Constant):
-            precision = optree.get_precision()
-            if self.declare_cst or optree.get_precision().is_cst_decl_required():
-                cst_prefix = "cst" if optree.get_tag() is None else optree.get_tag()
-                cst_varname = code_object.declare_cst(optree, prefix = cst_prefix)
-                result = CodeVariable(cst_varname, precision)
-            else:
-                if precision is ML_Integer:
-                    result = CodeExpression("%d" % optree.get_value(), precision)
-                else:
-                    try:
-                        result = CodeExpression(
-                            precision.get_cst(
-                                optree.get_value(), language = language
-                            ), precision
-                        )
-                    except:
-                        result = CodeExpression(
-                            precision.get_cst(
-                                optree.get_value(), language = language
-                            ), precision
-                        )
-                        Log.report(
-                            Log.Error,
-                            "Error during get_cst call for Constant: %s " % optree.get_str(display_precision = True)
-                        ) # Exception print
 
         elif isinstance(optree, ML_NewTable):
             # Implementing LeafNode ML_NewTable generation support
@@ -293,6 +271,9 @@ class CCodeGenerator(object):
                     self.generate_expr(code_object, op, folded = folded, initial = True, language = language)
 
             return None
+        elif isinstance(optree, Constant):
+            generate_pre_process = self.generate_clear_exception if optree.get_clearprevious() else None
+            result = self.processor.generate_expr(self, code_object, optree, [], generate_pre_process = generate_pre_process, folded = folded, result_var = result_var, language = language)
 
         else:
             generate_pre_process = self.generate_clear_exception if optree.get_clearprevious() else None
@@ -331,12 +312,12 @@ class CCodeGenerator(object):
 
     def generate_declaration(self, symbol, symbol_object, initial = True, final = True):
         if isinstance(symbol_object, Constant):
-            initial_symbol = (symbol_object.get_precision().get_name(language = self.language) + " ") if initial else ""
+            initial_symbol = (symbol_object.get_precision().get_code_name(language = self.language) + " ") if initial else ""
             final_symbol = ";\n" if final else ""
             return "%s%s = %s%s" % (initial_symbol, symbol, symbol_object.get_precision().get_cst(symbol_object.get_value(), language = self.language), final_symbol) 
 
         elif isinstance(symbol_object, Variable):
-            initial_symbol = (symbol_object.get_precision().get_name(language = self.language) + " ") if initial else ""
+            initial_symbol = (symbol_object.get_precision().get_code_name(language = self.language) + " ") if initial else ""
             final_symbol = ";\n" if final else ""
             return "%s%s%s" % (initial_symbol, symbol, final_symbol) 
 

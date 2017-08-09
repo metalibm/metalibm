@@ -174,7 +174,7 @@ class AbstractBackend(object):
         """ return code_generation_table key corresponding to the operation performed by <optree> """
         op_class = optree.__class__
         result_type = (optree.get_precision().get_match_format(),)
-        arg_type = tuple((arg.get_precision().get_match_format() if not arg.get_precision() is None else None) for arg in optree.inputs)
+        arg_type = tuple((arg.get_precision().get_match_format() if not arg.get_precision() is None else None) for arg in optree.get_inputs())
         interface = result_type + arg_type
         codegen_key = optree.get_codegen_key()
         return op_class, interface, codegen_key
