@@ -454,6 +454,8 @@ def solve_format_rec(optree, memoization_map=None):
             new_format = solve_format_Negation(optree)
         elif isinstance(optree, BitLogicRightShift):
             new_format = solve_format_shift(optree)
+        elif isinstance(optree, FixedPointPosition):
+            new_format = ML_Integer
         elif isinstance(optree, Conversion):
             Log.report(
                 Log.Error,
