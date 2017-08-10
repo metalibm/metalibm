@@ -477,27 +477,35 @@ class VirtualFormat(ML_Format):
   def get_support_format(self):
     return self.support_format
   def get_signed(self):
-    return self.base_format.get_signed()
+    return self.get_base_format().get_signed()
 
   def get_bit_size(self):
-    return self.base_format.get_bit_size()
+    return self.get_base_format().get_bit_size()
   def is_cst_decl_required(self):
     return self.cst_decl_required
 
   def is_vector_format(self):
-    return False if self.base_format is None else self.base_format.is_vector_format()
+    return False
 
 ## Virtual format with no match forwarding
 class VirtualFormatNoForward(VirtualFormat):
   def get_match_format(self):
 		return self
 
+class VirtualFormatNoBase(VirtualFormat):
+  def get_match_format(self):
+		return self
+  def get_base_format(self):
+		return self
+  def get_vector_format(self):
+        return False
+
 
 ## Ancestor to fixed-point format
-class ML_Fixed_Format(VirtualFormat):
+class ML_Fixed_Format(ML_Format):
     """ parent to every Metalibm's fixed-point class """
-    def __init__(self, support_format = None, align = 0):
-      VirtualFormat.__init__(self, support_format = support_format)
+    def __init__(self, align = 0):
+      ML_Format.__init__(self)
       # self.support_format must be an integer format
       # used to contain the fixed-point value
 
@@ -521,11 +529,12 @@ class ML_Fixed_Format(VirtualFormat):
       return self.support_right_align
 
 
-class ML_Base_FixedPoint_Format(ML_Fixed_Format):
+class ML_Base_FixedPoint_Format(ML_Fixed_Format, VirtualFormatNoBase):
     """ base class for standard integer format """
     def __init__(self, integer_size, frac_size, signed = True, support_format = None, align = 0):
         """ standard fixed-point format object initialization function """
-        ML_Fixed_Format.__init__(self, support_format, align)
+        ML_Fixed_Format.__init__(self, align)
+        VirtualFormatNoBase.__init__(self, support_format = support_format)
 
         self.integer_size = integer_size
         self.frac_size = frac_size
@@ -809,7 +818,7 @@ def AbstractFormat_Builder(name, inheritance):
     }
     return type(name, (ML_AbstractFormat,) + inheritance, field_map)
 
-class ML_IntegerClass(ML_AbstractFormat, ML_Fixed_Format): pass 
+class ML_IntegerClass(ML_AbstractFormat, ML_Fixed_Format): pass
 class ML_FloatClass(ML_AbstractFormat, ML_FP_Format): pass
 class ML_AbstractBoolClass(ML_AbstractFormat, ML_Bool_Format): pass
 
