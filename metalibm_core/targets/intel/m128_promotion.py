@@ -25,8 +25,6 @@ class Pass_M128_Promotion(Pass_Vector_Promotion):
     v4int32:     ML_SSE_m128_v4int32,
     v2uint64:    ML_SSE_m128_v2uint64,
     v4uint32:    ML_SSE_m128_v4uint32,
-    v2bool:      ML_SSE_m128_v2bool,
-    v4bool:      ML_SSE_m128_v4bool,
     ML_Int32:    ML_SSE_m128_v1int32,
   }
 

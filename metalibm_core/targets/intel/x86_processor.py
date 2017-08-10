@@ -55,10 +55,6 @@ ML_SSE_m128_v2int64   = vector_format_builder("__m128i",  None, 2, ML_Int64)
 ML_SSE_m128_v4uint32  = vector_format_builder("__m128i",  None, 4, ML_UInt32)
 ## format for packed 2 uint64 in a XMM 128-bit register
 ML_SSE_m128_v2uint64  = vector_format_builder("__m128i",  None, 2, ML_UInt64)
-## format for packed 4 bool in a XMM 128-bit register
-ML_SSE_m128_v4bool    = vector_format_builder("__m128i", None, 4, ML_Bool)
-## format for packed 2 bool in a XMM 128-bit register
-ML_SSE_m128_v2bool    = vector_format_builder("__m128i", None, 2, ML_Bool)
 
 ## format for packed 8 fp32 in a YMM 256-bit register
 ML_AVX_m256_v8float32 = vector_format_builder("__m256",  None, 8, ML_Binary32)
@@ -72,10 +68,6 @@ ML_AVX_m256_v4int64   = vector_format_builder("__m256i", None, 4, ML_Int64)
 ML_AVX_m256_v8uint32  = vector_format_builder("__m256i", None, 8, ML_UInt32)
 ## format for packed 4 uint64 in a YMM 256-bit register
 ML_AVX_m256_v4uint64  = vector_format_builder("__m256i", None, 4, ML_UInt64)
-## format for packed 8 bool in a YMM 256-bit register
-ML_AVX_m256_v8bool    = vector_format_builder("__m256i", None, 8, ML_Bool)
-## format for packed 4 bool in a YMM 256-bit register
-ML_AVX_m256_v4bool    = vector_format_builder("__m256i", None, 4, ML_Bool)
 
 
 ## Wrapper for intel x86_sse intrinsics
@@ -850,31 +842,6 @@ avx_c_code_generation_table = {
                         void_function = True,
                         require_header = ['immintrin.h']
                         ),
-                type_strict_match(ML_AVX_m256_v4bool, v4bool):
-                    ImmIntrin(
-                        "_mm256_load_si256", arity = 1,
-                        output_precision = ML_AVX_m256_v4bool
-                        )(TemplateOperatorFormat(
-                            "(__m256i*){}", arity = 1,
-                            output_precision = ML_Pointer_Format(
-                                ML_AVX_m256_v4bool
-                                )
-                            )(
-                                TemplateOperatorFormat(
-                                    "GET_VEC_FIELD_ADDR({})", arity = 1,
-                                    output_precision = ML_Pointer_Format(
-                                        ML_Bool
-                                        )
-                                    )
-                                )
-                            ),
-                type_strict_match(v4bool, ML_AVX_m256_v4bool):
-                    TemplateOperatorFormat(
-                        "_mm256_store_si256((__m256i*){0}, {1})",
-                        arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)},
-                        void_function = True,
-                        require_header = ['immintrin.h']
-                        ),
             },
         },
     },
@@ -1055,16 +1022,6 @@ avx2_c_code_generation_table = {
                           arg_map = {0: FO_Arg(0), 1: FO_Arg(1)}),
           },
       },
-    },
-    Comparison: {
-        Comparison.Greater: {
-            lambda _: True: {
-                type_strict_match(ML_AVX_m256_v4bool, ML_AVX_m256_v4int64,
-                                  ML_AVX_m256_v4int64):
-                    ImmIntrin("_mm256_cmpgt_epi64", arity = 2,
-                              arg_map = {0: FO_Arg(0), 1: FO_Arg(1)}),
-            },
-        },
     },
     CountLeadingZeros: {
         None: {
