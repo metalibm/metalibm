@@ -20,7 +20,7 @@ import sollya
 from ..core.ml_operations import Variable
 from ..core.ml_hdl_operations import Signal
 from .code_constant import C_Code, Gappa_Code
-from ..core.ml_formats import ML_GlobalRoundMode, ML_Fixed_Format, ML_FP_Format
+from ..core.ml_formats import ML_GlobalRoundMode, ML_Fixed_Format, ML_FP_Format, FunctionFormat
 
 from ..utility import version_info as ml_version_info
 
