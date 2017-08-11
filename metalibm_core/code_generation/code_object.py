@@ -323,6 +323,7 @@ class CodeObject(object):
         return result
 
     def get_free_var_name(self, var_type, prefix = "cotmp", declare = True, var_ctor = Variable):
+        assert not var_type is None
         free_var_name = self.symbol_table.get_free_name(var_type, prefix)
         # declare free var if required 
         if declare:
@@ -330,6 +331,7 @@ class CodeObject(object):
         return free_var_name
 
     def get_free_name(self, var_type, prefix = "cotmp"):
+        assert not var_type is None
         return self.symbol_table.get_free_name(var_type, prefix)
 
     def table_has_definition(self, table_object):
@@ -569,6 +571,7 @@ class VHDLCodeObject(object):
         return result
 
     def get_free_var_name(self, var_type, prefix = "tmps", declare = True, var_ctor = Signal):
+        assert not var_type is None
         free_var_name = self.symbol_table.get_free_name(var_type, prefix)
         # declare free var if required 
         if declare:
@@ -581,6 +584,7 @@ class VHDLCodeObject(object):
         return free_var_name
 
     def get_free_signal_name(self, signal_type, prefix = "stmp", declare = True):
+        assert not signal_type is None
         free_signal_name = self.symbol_table.get_free_name(signal_type, prefix)
         # declare free var if required 
         if declare:
