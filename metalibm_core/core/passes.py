@@ -184,6 +184,8 @@ class Pass:
     if not tag in Pass.pass_map:
       print "registering pass {} associated to tag {}".format(pass_class, tag)
       Pass.pass_map[tag] = pass_class
+    else:
+      Log.report(Log.Error, "a pass with name {} has already been registered while trying to register {}".format(tag, pass_class))
 
   ## return the pass class associated with name @p tag
   #  @param tag[str] pass name
