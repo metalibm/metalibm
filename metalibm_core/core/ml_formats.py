@@ -1047,5 +1047,9 @@ class FP_Context(object):
     def get_silent(self):
         return self.silent
 
+class FunctionFormat(object):
+    """ format for function object """
+    pass
+
 ## @} 
 # end of metalibm's Doxygen ml_formats group

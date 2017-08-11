@@ -771,7 +771,7 @@ class NestedCode(object):
 
     # @param function_object possible dummy FunctionObject associated with new function_name
     def declare_free_function_name(self, prefix = "foo", function_object = None):
-        function_name = self.code_list[0].get_free_name(None, prefix = prefix) 
+        function_name = self.code_list[0].get_free_name(FunctionFormat(), prefix = prefix) 
         self.code_list[0].declare_function(function_name, function_object)
         return function_name
 
