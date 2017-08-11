@@ -733,6 +733,9 @@ class ML_Standard_FixedPoint_Format(ML_Base_SW_FixedPoint_Format):
     # TBD: support other rounding mode
     return sollya.nearestint(value)
 
+  def __repr__(self):
+      return self.name[C_Code]
+
   def __str__(self):
     return self.name[C_Code]
 

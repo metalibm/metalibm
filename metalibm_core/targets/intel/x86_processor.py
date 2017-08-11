@@ -1208,7 +1208,7 @@ avx2_c_code_generation_table = {
                             FO_Arg(1),
                             FO_Value("8", ML_Int32)
                             ),
-                # YMM version
+                # YMM version with 32-bit indices
                 type_custom_match(FSM(ML_AVX_m256_v8float32),
                                   TCM(ML_TableFormat),
                                   FSM(ML_AVX_m256_v8int32)):
@@ -1220,7 +1220,26 @@ avx2_c_code_generation_table = {
                                   ),
                 type_custom_match(FSM(ML_AVX_m256_v4float64),
                                   TCM(ML_TableFormat),
-                                  FSM(ML_AVX_m256_v4float64)):
+                                  FSM(ML_AVX_m256_v8int32)):
+                    ImmIntrin("_mm256_i32gather_pd", arity = 3,
+                              output_precision = ML_AVX_m256_v4float64)(
+                                  FO_Arg(0),
+                                  FO_Arg(1),
+                                  FO_Value("8", ML_Int32)
+                                  ),
+                # YMM version with 64-bit indices
+                type_custom_match(FSM(ML_SSE_m128_v4float32),
+                                  TCM(ML_TableFormat),
+                                  FSM(ML_AVX_m256_v4int64)):
+                    ImmIntrin("_mm256_i64gather_ps", arity = 3,
+                              output_precision = ML_SSE_m128_v4float32)(
+                                  FO_Arg(0),
+                                  FO_Arg(1),
+                                  FO_Value("4", ML_Int32)
+                                  ),
+                type_custom_match(FSM(ML_AVX_m256_v4float64),
+                                  TCM(ML_TableFormat),
+                                  FSM(ML_AVX_m256_v4int64)):
                     ImmIntrin("_mm256_i32gather_pd", arity = 3,
                               output_precision = ML_AVX_m256_v4float64)(
                                   FO_Arg(0),

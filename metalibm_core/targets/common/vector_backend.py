@@ -56,6 +56,18 @@ vector_type = {
     4: v4uint32,
     8: v8uint32
   },
+  ML_Int64: {
+    2: v2int64,
+    3: v3int64,
+    4: v4int64,
+    8: v8int64
+  },
+  ML_UInt64: {
+    2: v2uint64,
+    3: v3uint64,
+    4: v4uint64,
+    8: v8uint64
+  },
   ML_Bool: {
     2: v2bool,
     3: v3bool,
@@ -68,6 +80,8 @@ scalar_type_letter = {
   ML_Binary64: "d",
   ML_UInt32:   "u",
   ML_Int32:    "i",
+  ML_UInt64:   "ul",
+  ML_Int64:    "l",
 }
 
 supported_vector_size = [2, 3, 4, 8]
@@ -211,18 +225,20 @@ vector_opencl_code_generation_table = {
   },
   Division: {
     None: {
-      lambda _: True: 
+      lambda _: True:
         dict(
           sum(
           [
             [
               (type_strict_match(
-                  vector_type[scalar_type][vector_size], 
+                  vector_type[scalar_type][vector_size],
                   vector_type[scalar_type][vector_size],
                   vector_type[scalar_type][vector_size]
                 ), SymbolOperator("/", arity = 2)
               ) for vector_size in supported_vector_size
-            ] for scalar_type in [ML_Binary32, ML_Binary64, ML_Int32, ML_UInt32]
+            ] for scalar_type in [ML_Binary32, ML_Binary64,
+                                  ML_Int32, ML_UInt32,
+                                  ML_Int64, ML_UInt64]
           ], [])
         )
      }
@@ -247,19 +263,21 @@ vector_opencl_code_generation_table = {
   },
   Select: {
     None: {
-      lambda _: True: 
+      lambda _: True:
         dict(
           sum(
           [
             [
               (type_strict_match(
-                  vector_type[scalar_type][vector_size], 
-                  vector_type[ML_Bool][vector_size], 
+                  vector_type[scalar_type][vector_size],
+                  vector_type[ML_Bool][vector_size],
                   vector_type[scalar_type][vector_size],
                   vector_type[scalar_type][vector_size]
                 ), TemplateOperator("%s ? %s : %s", arity = 3)
               ) for vector_size in supported_vector_size
-            ] for scalar_type in [ML_Binary32, ML_Binary64, ML_Int32, ML_UInt32]
+            ] for scalar_type in [ML_Binary32, ML_Binary64,
+                                  ML_Int32, ML_UInt32,
+                                  ML_Int64, ML_UInt64]
           ], [])
         )
      }
@@ -651,6 +669,11 @@ vector_c_code_generation_table = {
         # floating-point select
         type_strict_match(v2float32, v2bool, v2float32, v2float32): ML_VectorLib_Function("ML_VSELECT", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2), 4: "2"}, arity = 3, output_precision = v2float32),
         type_strict_match(v4float32, v4bool, v4float32, v4float32): ML_VectorLib_Function("ML_VSELECT", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2), 4: "4"}, arity = 3, output_precision = v4float32),
+        # long int select
+        type_strict_match(v2int64, v2bool, v2int64, v2int64): ML_VectorLib_Function("ML_VSELECT", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2), 4: "2"}, arity = 3),
+        type_strict_match(v3int64, v3bool, v3int64, v3int64): ML_VectorLib_Function("ML_VSELECT", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2), 4: "4"}, arity = 3, output_precision = v3int64),
+        type_strict_match(v4int64, v4bool, v4int64, v4int64): ML_VectorLib_Function("ML_VSELECT", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2), 4: "4"}, arity = 3, output_precision = v4int64),
+        type_strict_match(v8int64, v8bool, v8int64, v8int64): ML_VectorLib_Function("ML_VSELECT", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2), 4: "8"}, arity = 3, output_precision = v8int64),
       },
     },
   },
@@ -676,6 +699,15 @@ vector_c_code_generation_table = {
         type_strict_match(v3float32, v3float32, v3float32): ML_VectorLib_Function("ml_vdivf4", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v3float32),
         type_strict_match(v4float32, v4float32, v4float32): ML_VectorLib_Function("ml_vdivf4", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v4float32),
         type_strict_match(v8float32, v8float32, v8float32): ML_VectorLib_Function("ml_vdivf8", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v8float32),
+
+        type_strict_match(v2float64, v2float64, v2float64):
+            ML_VectorLib_Function("ml_vdiv2", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2),
+        type_strict_match(v3float64, v3float64, v3float64):
+            ML_VectorLib_Function("ml_vdiv4", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v3float64),
+        type_strict_match(v4float64, v4float64, v4float64):
+            ML_VectorLib_Function("ml_vdiv4", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v4float64),
+        type_strict_match(v8float64, v8float64, v8float64):
+            ML_VectorLib_Function("ml_vdiv8", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v8float64),
       },
     },
   },
@@ -956,20 +988,20 @@ vector_c_code_generation_table = {
       },
     },
   },
-  Comparison: 
-    #specifier -> 
-    dict ((comp_specifier, 
+  Comparison:
+    #specifier ->
+    dict ((comp_specifier,
       {
-        lambda _: True: 
+        lambda _: True:
           dict(
-            ( 
+            (
               sum(
                 [
                   [
                     (
                       type_strict_match_list(
                         [
-                          #vector_type[ML_Int32][vector_size], 
+                          #vector_type[ML_Int32][vector_size],
                           vector_type[ML_Bool][vector_size]
                         ],
                         [
@@ -979,16 +1011,33 @@ vector_c_code_generation_table = {
                           vector_type[scalar_type][vector_size]
                         ]
                       )
-                      , 
-                      ML_VectorLib_Function("ml_comp_%s_%s%d" % (comp_specifier.opcode, scalar_type_letter[scalar_type], vector_size), arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = vector_type[ML_Bool][vector_size])
-                    )  for scalar_type in [ML_Binary32, ML_Binary64, ML_Int32, ML_UInt32]
+                      ,
+                      ML_VectorLib_Function(
+                          "ml_comp_%s_%s%d" % (comp_specifier.opcode,
+                                               scalar_type_letter[scalar_type],
+                                               vector_size),
+                          arg_map = {
+                              0: FO_ResultRef(0),
+                              1: FO_Arg(0),
+                              2: FO_Arg(1)
+                              },
+                          arity = 2,
+                          output_precision = vector_type[ML_Bool][vector_size]
+                          )
+                    ) for scalar_type in [
+                        ML_Binary32, ML_Binary64,
+                        ML_Int32, ML_UInt32,
+                        ML_Int64, ML_UInt64
+                        ]
                   ] for vector_size in supported_vector_size
                 ], []
               )
             )
           )
       }
-    ) for comp_specifier in [Comparison.Equal, Comparison.NotEqual, Comparison.Greater, Comparison.GreaterOrEqual, Comparison.Less, Comparison.LessOrEqual]
+    ) for comp_specifier in [ Comparison.Equal, Comparison.NotEqual,
+                              Comparison.Greater, Comparison.GreaterOrEqual,
+                              Comparison.Less, Comparison.LessOrEqual ]
   ),
   Test: {
     Test.IsMaskAllZero: {
