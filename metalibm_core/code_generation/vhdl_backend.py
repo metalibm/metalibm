@@ -521,13 +521,17 @@ def fixed_point_op_modifier(optree, op_ctor=Addition):
         init_stage=init_stage
     )
 
+    # vhdl does not support signed <op> unsigned unless result size is increased
+    # those we always SignCast the same way both operands
+    signed_op = lhs_prec.get_signed() or rhs_prec.get_signed()
+
     lhs_ext = (sext if lhs_prec.get_signed() else zext)(
         rzext(lhs_casted, result_frac_size - lhs_prec.get_frac_size()),
         result_integer_size - lhs_prec.get_integer_size()
     )
     lhs_ext = SignCast(
         lhs_ext, precision=lhs_ext.get_precision(),
-        specifier=SignCast.Signed if lhs_prec.get_signed() else SignCast.Unsigned
+        specifier=SignCast.Signed if signed_op else SignCast.Unsigned
     )
 
     rhs_ext = (sext if rhs_prec.get_signed() else zext)(
@@ -536,7 +540,7 @@ def fixed_point_op_modifier(optree, op_ctor=Addition):
     )
     rhs_ext = SignCast(
         rhs_ext, precision=rhs_ext.get_precision(),
-        specifier=SignCast.Signed if rhs_prec.get_signed() else SignCast.Unsigned
+        specifier=SignCast.Signed if signed_op else SignCast.Unsigned
     )
     raw_result = op_ctor(
         lhs_ext,
