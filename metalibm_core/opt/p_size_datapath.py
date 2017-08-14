@@ -266,20 +266,24 @@ def solve_format_Negation(optree):
 
 def solve_format_shift(optree):
     """ Legalize shift node """
-    assert instance(optree, BitLogicRightShift)
+    assert isinstance(optree, BitLogicRightShift) or isinstance(optree, BitLogicLeftShift)
     shift_input = optree.get_input(0)
+    shift_input_precision = shift_input.get_precision()
     shift_amount = optree.get_input(1)
 
     shift_amount_prec = shift_amount.get_precision()
     if is_fixed_point(shift_amount_prec):
         sa_range = evaluate_range(shift_amount)
-        if inf(sa_range) < 0:
+        if sollya.inf(sa_range) < 0:
             Log.report(Log.Error, "shift amount of {} may be negative {}\n".format(
                 optree,
                 sa_range
                 )
             )
-    return optree.get_precision()
+    if is_fixed_point(shift_input_precision):
+        return shift_input_precision
+    else:
+        return optree.get_precision()
 
 ## determine Constant node precision
 def solve_format_Constant(optree):
@@ -469,7 +473,7 @@ def solve_format_rec(optree, memoization_map=None):
             new_format = solve_format_BitLogicNegate(optree)
         elif isinstance(optree, Negation):
             new_format = solve_format_Negation(optree)
-        elif isinstance(optree, BitLogicRightShift):
+        elif isinstance(optree, BitLogicRightShift) or isinstance(optree, BitLogicLeftShift):
             new_format = solve_format_shift(optree)
         elif isinstance(optree, FixedPointPosition):
             new_format = ML_Integer
@@ -500,6 +504,8 @@ def solve_format_rec(optree, memoization_map=None):
         # format propagation
         prop_index_list = does_node_propagate_format(optree)
         propagate_format_to_input(new_format, optree, prop_index_list)
+
+        return optree.get_precision()
 
 ## Legalize the precision of a datapath by finely tuning the size
 #  of each operations (limiting width while preventing overflow)
