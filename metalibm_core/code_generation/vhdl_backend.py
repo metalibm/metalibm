@@ -261,6 +261,24 @@ def sub_signal_generator(optree):
         ), arity=1, force_folding=True
     )
 
+def integer2fixed_conversion_modifier(optree):
+    cst_graph = optree.get_input(0)
+    cst_val = evaluate_cst_graph(cst_graph)
+    result = Constant(cst_val, precision = optree.get_precision())
+    forward_attributes(optree, result)
+    return result
+
+def bool2fixed_conversion_modifier(optree):
+    bool_value = optree.get_input(0)
+    op_prec = optree.get_precision()
+    result = Select(
+        bool_value,
+        Constant(1, precision = op_prec), 
+        Constant(0, precision = op_prec), 
+        precision = op_prec
+    )
+    forward_attributes(optree, result)
+    return result
 
 # @p optree is a conversion node which should be modified
 def fixed_conversion_modifier(optree):
@@ -923,7 +941,11 @@ vhdl_code_generation_table = {
                 FunctionOperator("to_hstring", arity=1, force_folding=False),
                 # fixed-point conversion support
                 type_custom_match(MCFixedPoint, MCFixedPoint):
-                ComplexOperator(optree_modifier=fixed_conversion_modifier),
+                    ComplexOperator(optree_modifier=fixed_conversion_modifier),
+                type_custom_match(MCFixedPoint, FSM(ML_Integer)):
+                    ComplexOperator(optree_modifier=integer2fixed_conversion_modifier),
+                type_custom_match(MCFixedPoint, FSM(ML_Bool)):
+                    ComplexOperator(optree_modifier=bool2fixed_conversion_modifier),
             }
         },
     },
