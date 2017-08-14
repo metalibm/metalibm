@@ -302,9 +302,20 @@ class VHDLCodeGenerator(object):
              # we go through all of select operands to
              # flatten the select tree
              def flatten_select(op, cond = None):
+               """ Process recursively a Select operation to build a list
+                   of tuple (result, condition) """
                if not isinstance(op, Select): return [(op, cond)]
                lcond = op.inputs[0] if cond is None else LogicalAnd(op.inputs[0], cond)
                return flatten_select(op.inputs[1], lcond) + flatten_select(op.inputs[2], cond)
+
+             def legalize_select_input(select_input):
+                if select_input.get_precision().get_bit_size() != optree.get_precision().get_bit_size():
+                    return Conversion(
+                        select_input,
+                        precision = optree.get_precision()
+                    )
+                else:
+                    return select_input
 
              prefix = optree.get_tag(default = "setmp")
              result_varname = result_var if result_var != None else code_object.get_free_var_name(optree.get_precision(), prefix = prefix)
@@ -315,6 +326,7 @@ class VHDLCodeGenerator(object):
 
              gen_list = []
              for op, cond in select_opcond_list: 
+               op = legalize_select_input(op)
                op_code = self.generate_expr(code_object, op, folded = folded, language = language)
                if not cond is None:
                  cond_code = self.generate_expr(code_object, cond, folded = False, language = language)
