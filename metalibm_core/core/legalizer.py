@@ -11,6 +11,8 @@
 # description:
 ###############################################################################
 
+from metalibm_core.utility.log_report import Log
+
 from metalibm_core.core.ml_operations import (
     Comparison, Select, Constant, TypeCast, Multiplication, Addition,
     Subtraction, Negation
@@ -105,9 +107,16 @@ def fixed_point_position_legalizer(optree, input_prec_solver = default_prec_solv
     value_computation_map = {
         FixedPointPosition.FromLSBToLSB: position,
         FixedPointPosition.FromMSBToLSB: fixed_precision.get_bit_size() - 1 - position,
-        FixedPointPosition.FromPointToLSB: fixed_precision.get_frac_size() + position
+        FixedPointPosition.FromPointToLSB: fixed_precision.get_frac_size() + position,
+        FixedPointPosition.FromPointToMSB: fixed_precision.get_integer_size() - position
     }
     cst_value = value_computation_map[align]
+    # display value
+    Log.report(Log.Info, "fixed-point position {tag} has been resolved to {value}".format(
+        tag = optree.get_tag(),
+        value = cst_value
+        )
+    )
     result = Constant(
         cst_value,
         precision = ML_Integer

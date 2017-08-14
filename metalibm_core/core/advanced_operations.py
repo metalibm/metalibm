@@ -26,13 +26,26 @@ class FixedPointPosition(
         convert to a constant during code generation, once input
         format has been determined """
     class FromMSBToLSB:
-        """ align position to the input most significant bit downward """
+        """ offset is given from MSB downward.
+            The node returns the index of position (MSB - offset) from LSB
+        """
         pass
     class FromLSBToLSB:
-        """ align position to the input least significant bit upward """
+        """ offset is given from LSB upward.
+            The node returns the position of index (LSB + offset) from LSB
+            (i.e result = offset)
+        """
         pass
     class FromPointToLSB:
-        """ align position to the input fixed-point upward """
+        """ The offset is given from point position upward.
+            The node returns the position of index (point + offset) from LSB
+        """
+        pass
+    class FromPointToMSB:
+        """ The offset is given from point position upward.
+            The node returns the position of (point + offset) from MSB.
+            The result is expected to be negative
+        """
         pass
     def __init__(self, op, position, align = FromLSBToLSB, **kwords):
         self.__class__.__base__.__init__(self, op, position, **kwords)
