@@ -318,6 +318,8 @@ class DefaultEntityArgTemplate(DefaultArgTemplate):
     exit_after_test = True
     # RTL elaboration
     build_enable = False
+    # pipelined deisgn
+    pipelined = False
 
 
 # Common ancestor for Argument Template class
@@ -527,6 +529,10 @@ class ML_EntityArgTemplate(ML_CommonArgTemplate):
         self.parser.add_argument(
             "--debug-file", dest="debug_file",
             action="store", help="help define output file for debug script"
+        )
+        self.parser.add_argument(
+            "--pipelined", dest = "pipelined",
+            action = "store", help = "define the number of pipeline stages"
         )
         self.parser.add_argument(
             "--no-exit",

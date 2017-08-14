@@ -157,6 +157,7 @@ class ML_EntityBasis(object):
     auto_test_std = arg_template.auto_test_std
 
     self.precision = arg_template.precision
+    self.pipelined = arg_template.pipelined
 
     # io_precisions must be a list
     #     -> with a single element
@@ -435,7 +436,8 @@ class ML_EntityBasis(object):
     # generate scheme
     code_entity_list = self.generate_entity_list()
     
-    self.generate_pipeline_stage()
+    if self.pipelined:
+        self.generate_pipeline_stage()
 
     if self.auto_test_enable:
       code_entity_list += self.generate_auto_test(
