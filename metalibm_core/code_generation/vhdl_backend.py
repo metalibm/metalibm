@@ -747,7 +747,11 @@ vhdl_code_generation_table = {
             # fallback
             lambda _: True: {
                 type_custom_match(MCFixedPoint, MCFixedPoint, MCFixedPoint):
-                ComplexOperator(optree_modifier=fixed_point_add_modifier),
+                    ComplexOperator(optree_modifier=fixed_point_add_modifier),
+                type_custom_match(MCFixedPoint, MCFixedPoint, FSM(ML_Integer)):
+                    ComplexOperator(optree_modifier=fixed_point_add_modifier),
+                type_custom_match(MCFixedPoint, FSM(ML_Integer), MCFixedPoint):
+                    ComplexOperator(optree_modifier=fixed_point_add_modifier),
             }
         }
     },
@@ -762,7 +766,12 @@ vhdl_code_generation_table = {
             },
             # fallback
             lambda _: True: {
-                type_custom_match(MCFixedPoint, MCFixedPoint, MCFixedPoint): ComplexOperator(optree_modifier=fixed_point_sub_modifier),
+                type_custom_match(MCFixedPoint, MCFixedPoint, MCFixedPoint):
+                    ComplexOperator(optree_modifier=fixed_point_sub_modifier),
+                type_custom_match(MCFixedPoint, FSM(ML_Integer), MCFixedPoint):
+                    ComplexOperator(optree_modifier=fixed_point_sub_modifier),
+                type_custom_match(MCFixedPoint, MCFixedPoint, FSM(ML_Integer)):
+                    ComplexOperator(optree_modifier=fixed_point_sub_modifier),
             }
         }
     },
@@ -902,9 +911,19 @@ vhdl_code_generation_table = {
                 type_custom_match(TCM(ML_StdLogicVectorFormat), TCM(ML_StdLogicVectorFormat), TCM(ML_StdLogicVectorFormat)): SymbolOperator("&", arity=2, force_folding=True),
                 type_custom_match(TCM(ML_StdLogicVectorFormat), FSM(ML_StdLogic), TCM(ML_StdLogicVectorFormat)): SymbolOperator("&", arity=2, force_folding=True),
                 type_custom_match(TCM(ML_StdLogicVectorFormat), TCM(ML_StdLogicVectorFormat), FSM(ML_StdLogic)): SymbolOperator("&", arity=2, force_folding=True),
+                type_custom_match(MCFixedPoint, MCFixedPoint, MCFixedPoint):
+                    SymbolOperator("&", arity=2, force_folding=True),
+                type_custom_match(MCFixedPoint, MCSTDLOGICV, MCSTDLOGICV):
+                    SymbolOperator("&", arity=2, force_folding=True),
+                type_custom_match(MCFixedPoint, FSM(ML_StdLogic), MCSTDLOGICV):
+                    SymbolOperator("&", arity=2, force_folding=True),
+                type_custom_match(MCFixedPoint, MCSTDLOGICV, FSM(ML_StdLogic)):
+                    SymbolOperator("&", arity=2, force_folding=True),
+                type_custom_match(MCFixedPoint, FSM(ML_StdLogic), MCFixedPoint):
+                    SymbolOperator("&", arity=2, force_folding=True),
 
                 type_custom_match(FSM(ML_String), FSM(ML_String), FSM(ML_String)):
-                SymbolOperator("&", arity=2, force_folding=False),
+                    SymbolOperator("&", arity=2, force_folding=False),
             },
         },
     },
@@ -1032,9 +1051,12 @@ vhdl_code_generation_table = {
                 type_custom_match(MCSTDLOGICV, MCSTDLOGICV, MCSTDLOGICV):
                     DynamicOperator(lambda optree: shift_generator("shr", optree)),
                 type_custom_match(MCFixedPoint, MCFixedPoint, MCSTDLOGICV):
-                    ComplexOperator(optree_modifier = fixed_shift_modifier),
+                    ComplexOperator(
+                        optree_modifier = fixed_shift_modifier(BitLogicRightShift)
+                    ),
                 type_custom_match(MCFixedPoint, MCFixedPoint, MCFixedPoint):
-                    ComplexOperator(optree_modifier = fixed_shift_modifier),
+                    ComplexOperator(
+                        optree_modifier = fixed_shift_modifier(BitLogicRightShift)),
             },
         },
     },
@@ -1042,17 +1064,21 @@ vhdl_code_generation_table = {
         None: {
             lambda optree: True: {
                 type_custom_match(MCSTDLOGICV, MCSTDLOGICV, MCSTDLOGICV):
-                DynamicOperator(lambda optree: shift_generator("shl", optree)),
+                    DynamicOperator(lambda optree: shift_generator("shl", optree)),
+                type_custom_match(MCFixedPoint, MCFixedPoint, MCSTDLOGICV):
+                    ComplexOperator(optree_modifier = fixed_shift_modifier(BitLogicLeftShift)),
+                type_custom_match(MCFixedPoint, MCFixedPoint, MCFixedPoint):
+                    ComplexOperator(optree_modifier = fixed_shift_modifier(BitLogicLeftShift)),
             },
         },
     },
-    CountLeadingZeros: {
-        None: {
-            lambda optree: True: {
-                type_custom_match(MCSTDLOGICV, MCSTDLOGICV): FunctionOperator("count_leading_zeros", arity=1),
-            },
-        },
-    },
+    #CountLeadingZeros: {
+    #    None: {
+    #        lambda optree: True: {
+    #            type_custom_match(MCSTDLOGICV, MCSTDLOGICV): FunctionOperator("count_leading_zeros", arity=1),
+    #        },
+    #    },
+    #},
     #CopySign: {
     #    SpecificOperation.Copy: {
     #        lambda optree: True: {
@@ -1083,7 +1109,12 @@ vhdl_code_generation_table = {
     SubSignalSelection: {
         None: {
             lambda optree: True: {
-                type_custom_match(MCSTDLOGICV, MCSTDLOGICV): DynamicOperator(sub_signal_generator),
+                type_custom_match(MCSTDLOGICV, MCSTDLOGICV, type_strict_match(ML_Integer), type_strict_match(ML_Integer)):
+                    DynamicOperator(sub_signal_generator),
+                type_custom_match(MCFixedPoint, MCFixedPoint, type_strict_match(ML_Integer), type_strict_match(ML_Integer)): 
+                    ComplexOperator(optree_modifier = legalize_fixed_point_subselection),
+                type_custom_match(MCSTDLOGICV, MCFixedPoint, type_strict_match(ML_Integer), type_strict_match(ML_Integer)): 
+                    ComplexOperator(optree_modifier = legalize_fixed_point_subselection),
             },
         },
     },
