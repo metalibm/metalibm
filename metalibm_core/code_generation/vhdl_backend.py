@@ -722,6 +722,30 @@ def conversion_legalizer(optree):
         raise NotImplementedError
 
 
+def fixed_cast_legalizer(optree):
+    """ Legalize a TypeCast operation from a fixed-point input to a
+        fixed-point output """
+    assert isinstance(optree, TypeCast)
+    out_prec = optree.get_precision()
+    cast_input = optree.get_input(0)
+    input_prec = cast_input.get_precision()
+    assert is_fixed_point(out_prec) and is_fixed_point(input_prec)
+    if input_prec.get_bit_size() != out_prec.get_bit_size():
+        Log.report(Log.Error, "fixed_cast_legalizer only support same size I/O")
+        raise NotImplementedError
+    else:
+        # Using an exchange format derived from ML_StdLogicVectorFormat
+        exch_format = ML_StdLogicVectorFormat(input_prec.get_bit_size())
+        result = TypeCast(
+            TypeCast( 
+                cast_input,
+                precision = exch_format
+            ),
+            precision = out_prec
+        )
+        forward_attributes(optree, result)
+        return result
+
 
 # optree_modifier will be modified once ML_LeadingZeroCounter has been instanciated
 # (as its depends on VHDLBackend, this can not happen here)
@@ -1068,20 +1092,34 @@ vhdl_code_generation_table = {
     TypeCast: {
         None: {
             lambda optree: True: {
-                type_custom_match(FSM(ML_Binary16), TCM(ML_StdLogicVectorFormat)): IdentityOperator(output_precision=ML_Binary16, no_parenthesis=True),
-                type_custom_match(FSM(ML_Binary16), FSM(ML_Binary16)): IdentityOperator(output_precision=ML_Binary16, no_parenthesis=True),
-                type_custom_match(MCSTDLOGICV, FSM(ML_Binary16)): IdentityOperator(no_parenthesis=True),
+                type_custom_match(FSM(ML_Binary16), TCM(ML_StdLogicVectorFormat)):
+					IdentityOperator(output_precision=ML_Binary16, no_parenthesis=True),
+                type_custom_match(FSM(ML_Binary16), FSM(ML_Binary16)):
+					IdentityOperator(output_precision=ML_Binary16, no_parenthesis=True),
+                type_custom_match(MCSTDLOGICV, FSM(ML_Binary16)):
+					IdentityOperator(no_parenthesis=True),
 
-                type_custom_match(FSM(ML_Binary32), TCM(ML_StdLogicVectorFormat)): IdentityOperator(output_precision=ML_Binary32, no_parenthesis=True),
-                type_custom_match(FSM(ML_Binary32), FSM(ML_Binary32)): IdentityOperator(output_precision=ML_Binary32, no_parenthesis=True),
-                type_custom_match(MCSTDLOGICV, FSM(ML_Binary32)): IdentityOperator(no_parenthesis=True),
+                type_custom_match(FSM(ML_Binary32), TCM(ML_StdLogicVectorFormat)):
+					IdentityOperator(output_precision=ML_Binary32, no_parenthesis=True),
+                type_custom_match(FSM(ML_Binary32), FSM(ML_Binary32)):
+					IdentityOperator(output_precision=ML_Binary32, no_parenthesis=True),
+                type_custom_match(MCSTDLOGICV, FSM(ML_Binary32)):
+					IdentityOperator(no_parenthesis=True),
 
-                type_custom_match(FSM(ML_Binary64), TCM(ML_StdLogicVectorFormat)): IdentityOperator(output_precision=ML_Binary64, no_parenthesis=True),
-                type_custom_match(FSM(ML_Binary64), FSM(ML_Binary64)): IdentityOperator(output_precision=ML_Binary64, no_parenthesis=True),
-                type_custom_match(MCSTDLOGICV, FSM(ML_Binary64)): IdentityOperator(no_parenthesis=True),
+                type_custom_match(FSM(ML_Binary64), TCM(ML_StdLogicVectorFormat)):
+					IdentityOperator(output_precision=ML_Binary64, no_parenthesis=True),
+                type_custom_match(FSM(ML_Binary64), FSM(ML_Binary64)):
+					IdentityOperator(output_precision=ML_Binary64, no_parenthesis=True),
+                type_custom_match(MCSTDLOGICV, FSM(ML_Binary64)):
+					IdentityOperator(no_parenthesis=True),
 
-                type_custom_match(MCSTDLOGICV, MCFixedPoint): IdentityOperator(no_parenthesis=True),
-                type_custom_match(MCFixedPoint, MCSTDLOGICV): IdentityOperator(no_parenthesis=True),
+                type_custom_match(MCSTDLOGICV, MCFixedPoint):
+                    IdentityOperator(no_parenthesis=True),
+                type_custom_match(MCFixedPoint, MCSTDLOGICV):
+                    IdentityOperator(no_parenthesis=True),
+
+                type_custom_match(MCFixedPoint, MCFixedPoint):
+                    ComplexOperator(optree_modifier = fixed_cast_legalizer),
             },
         },
     },
