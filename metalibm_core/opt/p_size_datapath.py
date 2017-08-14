@@ -11,12 +11,12 @@ from metalibm_core.core.passes import OptreeOptimization, Pass
 from metalibm_core.core.ml_operations import (
     Comparison, Addition, Select, Constant, ML_LeafNode, Conversion,
     Statement, ReferenceAssign, BitLogicNegate, Subtraction,
-    SpecificOperation, Negation, BitLogicRightShift, Min, Max,
-    CountLeadingZeros, Multiplication
+    SpecificOperation, Negation, BitLogicRightShift, BitLogicLeftShift, 
+    Min, Max, CountLeadingZeros, Multiplication
 )
 from metalibm_core.core.advanced_operations import FixedPointPosition
 from metalibm_core.core.ml_hdl_operations import (
-    Process, ComponentInstance
+    Process, ComponentInstance, Concatenation, SubSignalSelection
 )
 from metalibm_core.opt.rtl_fixed_point_utils import (
     test_format_equality,
@@ -24,7 +24,6 @@ from metalibm_core.opt.rtl_fixed_point_utils import (
 )
 from metalibm_core.core.ml_formats import ML_Bool, ML_Integer
 from metalibm_core.core.ml_hdl_format import (
-    is_fixed_point, fixed_point, ML_StdLogic
     is_fixed_point, fixed_point, ML_StdLogic, ML_StdLogicVectorFormat
 )
 from metalibm_core.core.legalizer import (
@@ -46,7 +45,7 @@ from .opt_utils import evaluate_range
 
 ## determine generic operation precision
 def solve_format_BooleanOp(optree):
-    """ legalize BooleanOperation node
+    """ legalize BooleanOperation precision
 
         Args:
             optree (BooleanOperation): input boolean node
@@ -60,7 +59,7 @@ def solve_format_BooleanOp(optree):
 
 ## Determine comparison node precision
 def solve_format_Comparison(optree):
-    """ Legalize Comparison node
+    """ Legalize Comparison precision
 
         Args:
             optree (Comparison): input node
@@ -78,16 +77,23 @@ def solve_format_Comparison(optree):
     return solve_format_BooleanOp(optree)
 
 def solve_format_CLZ(optree):
-    """ Legalize CountLeadingZeros node """
+    """ Legalize CountLeadingZeros precision
+    
+        Args:
+            optree (CountLeadingZeros): input node
+            
+        Returns:
+            ML_Format: legal format for CLZ
+    """
     assert isinstance(optree, CountLeadingZeros)
     op_input = optree.get_input(0)
-    input_precision = lhs.get_precision()
+    input_precision = op_input.get_precision()
 
     if is_fixed_point(input_precision):
         if input_precision.get_signed():
             Log.report(Log.Warning , "signed format in solve_format_CLZ")
         # +1 for carry overflow
-        int_size = int(ceil(log2(input_precision.get_bit_size()))) + 1 
+        int_size = int(sollya.floor(sollya.log2(input_precision.get_bit_size()))) + 1 
         frac_size = 0
         return fixed_point(
             int_size,
@@ -98,26 +104,37 @@ def solve_format_CLZ(optree):
         Log.report(Log.Warning , "unsupported format in solve_format_CLZ")
         return optree.get_precision()
 
-## determine Addition node precision
-def solve_format_Addition(optree):
-    """ Legalize Addition node """
-    assert isinstance(optree, Addition)
+
+def solve_format_ArithOperation(optree,
+    integer_size_func = lambda lhs_prec, rhs_prec: None,
+    frac_size_func = lambda lhs_prec, rhs_prec: None,
+    signed_func = lambda lhs_prec, rhs_prec: False
+    ):
+    """ determining fixed-point format for a generic 2-op arithmetic
+        operation (e.g. Multiplication, Addition, Subtraction)
+    """
     lhs = optree.get_input(0)
     rhs = optree.get_input(1)
     lhs_precision = lhs.get_precision()
     rhs_precision = rhs.get_precision()
 
+    abstract_operation = (lhs_precision is ML_Integer) and (rhs_precision is ML_Integer)
+    if abstract_operation:
+        return ML_Integer
+
+    if lhs_precision is ML_Integer:
+        cst_eval = evaluate_cst_graph(lhs, input_prec_solver = solve_format_rec)
+        lhs_precision = solve_format_Constant(Constant(cst_eval))
+
+    if rhs_precision is ML_Integer:
+        cst_eval = evaluate_cst_graph(rhs, input_prec_solver = solve_format_rec)
+        rhs_precision = solve_format_Constant(Constant(cst_eval))
+
     if is_fixed_point(lhs_precision) and is_fixed_point(rhs_precision):
         # +1 for carry overflow
-        int_size = max(
-            lhs_precision.get_integer_size(),
-            rhs_precision.get_integer_size()
-        ) + 1
-        frac_size = max(
-            lhs_precision.get_frac_size(),
-            rhs_precision.get_frac_size()
-        )
-        is_signed = lhs_precision.get_signed() or rhs_precision.get_signed()
+        int_size = integer_size_func(lhs_precision, rhs_precision)
+        frac_size = frac_size_func(lhs_precision, rhs_precision)
+        is_signed = signed_func(lhs_precision, rhs_precision)
         return fixed_point(
             int_size,
             frac_size,
@@ -125,6 +142,19 @@ def solve_format_Addition(optree):
         )
     else:
         return optree.get_precision()
+
+
+## determine Addition node precision
+def solve_format_Addition(optree):
+    """ Legalize Addition precision """
+    assert isinstance(optree, Addition)
+
+    return solve_format_ArithOperation(
+        optree,
+        lambda l, r: max(l.get_integer_size(), r.get_integer_size()) + 1,
+        lambda l, r: max(l.get_frac_size(), r.get_frac_size()),
+        lambda l, r: l.get_signed() or r.get_signed()
+    )
 
 
 ## determine Multiplication node precision
@@ -136,22 +166,17 @@ def solve_format_Multiplication(optree):
     lhs_precision = lhs.get_precision()
     rhs_precision = rhs.get_precision()
 
-    if is_fixed_point(lhs_precision) and is_fixed_point(rhs_precision):
-        # +1 for carry overflow
-        int_size = lhs_precision.get_integer_size() + rhs_precision.get_integer_size()
-        frac_size = lhs_precision.get_frac_size() + rhs_precision.get_frac_size()
-        is_signed = lhs_precision.get_signed() or rhs_precision.get_signed()
-        return fixed_point(
-            int_size,
-            frac_size,
-            signed=is_signed
-        )
-    else:
-        return optree.get_precision()
+    return solve_format_ArithOperation(
+        optree,
+        lambda l, r: l.get_integer_size() + r.get_integer_size(),
+        lambda l, r: l.get_frac_size() + r.get_frac_size(),
+        lambda l, r: l.get_signed() or r.get_signed()
+    )
+
 
 def solve_format_Subtraction(optree):
     """ Legalize Subtraction node
-        
+
         Args:
             optree (Subtraction): input subtraction node
 
@@ -159,35 +184,22 @@ def solve_format_Subtraction(optree):
             Subtraction: legalize subtraction node
     """
     assert isinstance(optree, Subtraction)
-    lhs = optree.get_input(0)
-    rhs = optree.get_input(1)
-    lhs_precision = lhs.get_precision()
-    rhs_precision = rhs.get_precision()
-    out_precision = optree.get_precision()
 
-    assert out_precision is None or out_precision.get_signed()
-
-    # increment integer size by 1 if left hand side is unsigned
-    # and has same size as result
-    int_inc = 1 if not lhs_precision.get_signed() else 0
-
-    if is_fixed_point(lhs_precision) and is_fixed_point(rhs_precision):
+    def sub_integer_size(lhs, rhs):
+        int_inc = 1 if not lhs.get_signed() else 0
         int_size = max(
-            lhs_precision.get_integer_size(),
-            rhs_precision.get_integer_size()
-        ) + int_inc 
-        frac_size = max(
-            lhs_precision.get_frac_size(),
-            rhs_precision.get_frac_size()
-        )
-        is_signed = True # lhs_precision.get_signed() or rhs_precision.get_signed()
-        return fixed_point(
-            int_size,
-            frac_size,
-            signed=is_signed
-        )
-    else:
-        return optree.get_precision()
+            lhs.get_integer_size(),
+            rhs.get_integer_size()
+        ) + int_inc
+        return int_size
+
+    return solve_format_ArithOperation(
+        optree,
+        sub_integer_size,
+        lambda l, r: l.get_frac_size() + r.get_frac_size(),
+        lambda l, r: l.get_signed() or r.get_signed()
+    )
+
 
 def solve_format_SpecificOperation(optree):
     assert isinstance(optree, SpecificOperation)
