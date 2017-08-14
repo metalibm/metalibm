@@ -300,6 +300,38 @@ def solve_format_Constant(optree):
         int_size = 1
     return fixed_point(int_size, frac_size, signed=signed)
 
+def solve_format_FixedPointPosition(optree):
+    """ resolve the format of a FixedPointPosition Node """
+    assert isinstance(optree, FixedPointPosition)
+    return ML_Integer
+
+def solve_format_Concatenation(optree):
+    """ legalize Concatenation operation node """
+    if not optree.get_precision() is None:
+        return optree.get_precision()
+    else:
+        bit_size = reduce(lambda x, y: x + y, [op.get_precision().get_bit_size() for op in optree.get_inputs()], 0)
+        return fixed_point(bit_size, 0, signed = False)
+
+def solve_format_SubSignalSelection(optree):
+    """ Dummy legalization of SubSignalSelection operation node """
+    if optree.get_precision() is None:
+        select_input = optree.get_input(0)
+        input_prec = select_input.get_precision()
+
+        inf_index = evaluate_cst_graph(optree.get_inf_index(), input_prec_solver = solve_format_rec)
+        sup_index = evaluate_cst_graph(optree.get_sup_index(), input_prec_solver = solve_format_rec)
+
+        if is_fixed_point(input_prec):
+            frac_size = input_prec.get_frac_size() - inf_index
+            integer_size = input_prec.get_integer_size() - (input_prec.get_bit_size() - 1 - sup_index)
+            return fixed_point(integer_size, frac_size)
+        else:
+            return ML_StdLogicVectorFormat(sup_index - inf_index + 1)
+            
+    else:
+        return optree.get_precision()
+
 
 def format_set_if_undef(optree, new_format):
     """ Define a new format to @p optree if no format was previously
@@ -475,8 +507,12 @@ def solve_format_rec(optree, memoization_map=None):
             new_format = solve_format_Negation(optree)
         elif isinstance(optree, BitLogicRightShift) or isinstance(optree, BitLogicLeftShift):
             new_format = solve_format_shift(optree)
+        elif isinstance(optree, Concatenation):
+            new_format = solve_format_Concatenation(optree)
+        elif isinstance(optree, SubSignalSelection):
+            new_format = solve_format_SubSignalSelection(optree)
         elif isinstance(optree, FixedPointPosition):
-            new_format = ML_Integer
+            new_format = solve_format_FixedPointPosition(optree)
         elif isinstance(optree, Conversion):
             Log.report(
                 Log.Error,
