@@ -43,3 +43,11 @@ def evaluate_range(optree):
                 optree.get_inputs()
             )
             return optree.apply_bare_range_function(args_interval)
+
+
+    
+def forward_attributes(src, dst):
+    """ forward compatible attributes from src node to dst node """
+    dst.set_tag(src.get_tag())
+    dst.set_debug(src.get_debug())
+    dst.set_handle(src.get_handle())
