@@ -687,7 +687,9 @@ def bit_selection_legalizer(optree):
 
 # optree_modifier will be modified once ML_LeadingZeroCounter has been instanciated
 # (as its depends on VHDLBackend, this can not happen here)
-handle_LZC_legalizer = ComplexOperator(optree_modifier = None)
+def fallback_modifier(_):
+    raise NotImplementedError
+handle_LZC_legalizer = ComplexOperator(optree_modifier = fallback_modifier)
 
 vhdl_code_generation_table = {
     FixedPointPosition: {
