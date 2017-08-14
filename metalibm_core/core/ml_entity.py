@@ -120,7 +120,6 @@ class ML_EntityBasis(object):
              base_name = ArgDefault("unknown_entity", 2),
              entity_name= ArgDefault(None, 2),
              output_file = ArgDefault(None, 2),
-             debug_file  = ArgDefault(None, 2),
              # Specification
              io_precisions = ArgDefault([ML_Binary32], 2), 
              abs_accuracy = ArgDefault(None, 2),
@@ -140,9 +139,9 @@ class ML_EntityBasis(object):
     entity_name = ArgDefault.select_value([arg_template.entity_name, entity_name])
     print "entity_name: ", entity_name
     print "output_file: ", arg_template.output_file, output_file 
-    print "debug_file:  ", arg_template.debug_file, debug_file 
+    print "debug_file:  ", arg_template.debug_file
     output_file = ArgDefault.select_value([arg_template.output_file, output_file])
-    debug_file  = ArgDefault.select_value([arg_template.debug_file, debug_file])
+    debug_file  = arg_template.debug_file
     # Specification
     io_precisions = ArgDefault.select_value([io_precisions])
     abs_accuracy = ArgDefault.select_value([abs_accuracy])
