@@ -12,6 +12,7 @@
 # description: Utilities for fixed-point node manipulation
 ###############################################################################
 
+from metalibm_core.utility.log_report import Log
 from metalibm_core.core.ml_hdl_format import is_fixed_point, fixed_point
 
 ## test equality between @p unified_format and all
