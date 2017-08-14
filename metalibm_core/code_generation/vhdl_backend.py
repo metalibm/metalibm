@@ -32,7 +32,10 @@ from metalibm_core.core.target import TargetRegister
 
 from ..opt.p_size_datapath import solve_format_Constant
 
-from metalibm_hw_blocks.rtl_blocks import *
+from metalibm_hw_blocks.rtl_blocks import (
+    zext, zext_to_size, fp_is_nan, fp_is_pos_inf, fp_is_neg_inf, fp_is_infornan,
+    fp_is_subnormal, fp_is_zero, fp_is_inf
+)
 
 # import metalibm_hw_blocks.lzc as ml_rtl_lzc
 
@@ -684,6 +687,36 @@ def bit_selection_legalizer(optree):
         return optree
 
 
+def conversion_legalizer(optree):
+    """ Legalize conversion operation. Currently supports
+        legalization of ML_StdLogicVectorFormat to ML_StdLogicVectorFormat
+        conversion """
+    conv_input = optree.get_input(0)
+    if MCSTDLOGICV(optree.get_precision()) and MCSTDLOGICV(conv_input.get_precision()):
+        conv_input_size = conv_input.get_precision().get_bit_size()
+        out_size = optree.get_precision().get_bit_size()
+        result = None
+
+        if conv_input_size == out_size:
+            result = conv_input
+        elif conv_input_size > out_size:
+            result = SubSignalSelection(
+                conv_input,
+                0, 
+                out_size - 1,
+                precision = optree.get_precision()
+            )
+        else:
+            result = zext_to_size(
+                conv_input,
+                optree.get_precision().get_bit_size()
+            )
+        forward_attributes(optree, result)
+        return result
+    else:
+        raise NotImplementedError
+
+
 
 # optree_modifier will be modified once ML_LeadingZeroCounter has been instanciated
 # (as its depends on VHDLBackend, this can not happen here)
@@ -954,7 +987,9 @@ vhdl_code_generation_table = {
         None: {
             lambda optree: True: {
                 type_custom_match(TCM(ML_StdLogicVectorFormat), FSM(ML_Integer)):
-                DynamicOperator(conversion_generator),
+                    DynamicOperator(conversion_generator),
+                type_custom_match(MCSTDLOGICV, MCSTDLOGICV):
+                    ComplexOperator(optree_modifier = conversion_legalizer),
                 type_strict_match(ML_StdLogic, ML_Bool):
                 ComplexOperator(
                     optree_modifier=conversion_from_bool_generator),

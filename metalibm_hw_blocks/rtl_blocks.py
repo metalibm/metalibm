@@ -15,6 +15,18 @@ def zext(op,s):
   ext_precision  = ML_StdLogicVectorFormat(op_size + s)
   return ZeroExt(op, s, precision = ext_precision)
 
+## Wrapper for zero extension
+# @param op the input operation tree
+# @param s integer size of the extension
+# @return the Zero extended operation node
+def zext_to_size(op,s):
+  s = int(s)
+  op_size = op.get_precision().get_bit_size() 
+  assert s >= op_size
+  if s == op_size:
+    return op
+  ext_precision  = ML_StdLogicVectorFormat(s)
+  return ZeroExt(op, s - op_size, precision = ext_precision)
 
 ## Wrapper for sign extension
 def sext(op,s):
