@@ -533,6 +533,7 @@ class AbstractVariable(ML_LeafNode):
     #  @param init_map standard ML_Operation attribute dictionnary initialization 
     def __init__(self, tag, **init_map):
         AbstractOperation.__init__(self, **init_map)
+        assert not tag is None
         self.attributes.set_tag(tag)
         # used to distinguish between input variables (without self.inputs) 
         # and intermediary variables 
