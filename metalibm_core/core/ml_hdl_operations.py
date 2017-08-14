@@ -275,34 +275,39 @@ class SignCast(TypeCast):
   def finish_copy(self, new_copy, copy_map = {}):
     new_copy.specifier = self.specifier
 
+def cst_promotion(value, precision = ML_Integer):
+    """ promote argument to Constant node with given precision if
+        it is not already a ML_Operation node """
+    if isinstance(value, ML_Operation):
+        return value
+    else:
+        return Constant(value, precision = precision)
+
 ## extract a sub-signal from inputs
 #  arguments are:
 #  @param arg input signal
 #  @param inf_index least significant index to start from in @p arg
 #  @param sup_index most significant index to stop at in @p arg
 #  @return sub-signal arg(inf_index to sup_index)
-class SubSignalSelection(AbstractOperationConstructor("SubSignalSelection")):
+class SubSignalSelection(AbstractOperationConstructor("SubSignalSelection", arity = 3)):
   def __init__(self, arg, inf_index, sup_index, **kw):
     if not "precision" in kw:
       kw["precision"] = ML_StdLogicVectorFormat(sup_index - inf_index + 1)
-    SubSignalSelection.__base__.__init__(self, arg, **kw)
-    self.inf_index = inf_index
-    self.sup_index = sup_index
+    inf_index = cst_promotion(inf_index, precision = ML_Integer)
+    sup_index = cst_promotion(sup_index, precision = ML_Integer)
+    SubSignalSelection.__base__.__init__(self, arg, inf_index, sup_index, **kw)
+    #self.inf_index = inf_index
+    #self.sup_index = sup_index
 
   def get_inf_index(self):
-    return self.inf_index
+    return self.get_input(1) #self.inf_index
   def get_sup_index(self):
-    return self.sup_index
+    return self.get_input(2) #self.sup_index
 
-  def finish_copy(self, new_copy, copy_map = {}):
-    new_copy.inf_index = self.inf_index
-    new_copy.sup_index = self.sup_index
+  #def finish_copy(self, new_copy, copy_map = {}):
+  #  new_copy.inf_index = self.inf_index
+  #  new_copy.sup_index = self.sup_index
 
-def cst_promotion(value, precision = ML_Integer):
-    if isinstance(value, ML_Operation):
-        return value
-    else:
-        return Constant(value, precision = precision)
 ## Wrapper for the generation of a bit selection operation
 #  from a multi-bit signal
 def BitSelection(optree, index, **kw):
