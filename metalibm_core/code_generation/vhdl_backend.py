@@ -5,12 +5,14 @@
 # Copyrights  Nicolas Brunie (2016)
 # All rights reserved
 # created:          Nov 17th, 2016
-# last-modified:    Nov 17th, 2016
+# last-modified:    Aug 10th, 2017
 #
 # author(s):    Nicolas Brunie (nibrunie@gmail.com)
 # description:  Implement a basic VHDL backend for hardware description
 #               generation
 ###############################################################################
+
+import operator
 
 from ..utility.log_report import *
 from .generator_utility import *
@@ -28,7 +30,11 @@ from ..core.legalizer import (
 from ..core.advanced_operations import FixedPointPosition
 from metalibm_core.core.target import TargetRegister
 
+from ..opt.p_size_datapath import solve_format_Constant
+
 from metalibm_hw_blocks.rtl_blocks import *
+
+# import metalibm_hw_blocks.lzc as ml_rtl_lzc
 
 from .abstract_backend import AbstractBackend
 
@@ -36,14 +42,18 @@ from metalibm_core.opt.rtl_fixed_point_utils import (
     largest_format, test_format_equality
 )
 
-from metalibm_core.opt.opt_utils import evaluate_range
+from metalibm_core.opt.opt_utils import evaluate_range, forward_attributes
 
 
 def exclude_std_logic(optree):
+    """ Backend matching predicate to exclude optree whose
+        precision is a derivate from ML_StdLogicVectorFormat """
     return not isinstance(optree.get_precision(), ML_StdLogicVectorFormat)
 
 
 def include_std_logic(optree):
+    """ Backend matching predicate to include optree whose
+        precision is a derivate from ML_StdLogicVectorFormat """
     return isinstance(optree.get_precision(), ML_StdLogicVectorFormat)
 
 # return a lambda function associating to an output node
@@ -86,6 +96,7 @@ def zext_modifier(optree):
             init_stage=init_stage
         )
         copy_init_stage(optree, result)
+        forward_attributes(optree, result)
         return result
 
 # Operation code generator modifier for Sign Extension
@@ -107,7 +118,7 @@ def sext_modifier(optree):
         sign_digit = VectorElementSelection(ext_input, Constant(
             op_size - 1, precision=ML_Integer), precision=ML_StdLogic, init_stage=init_stage)
         precision = ML_StdLogicVectorFormat(ext_size)
-        return Concatenation(
+        result = Concatenation(
             Replication(
                 sign_digit, Constant(ext_size, precision=ML_Integer),
                 precision=precision, init_stage=init_stage
@@ -116,6 +127,7 @@ def sext_modifier(optree):
             tag=optree.get_tag("dummy") + "_sext",
             init_stage=init_stage
         )
+        return result
 
 
 def negation_modifer(optree):
@@ -123,13 +135,19 @@ def negation_modifer(optree):
 
     neg_input = optree.get_input(0)
     precision = optree.get_precision()
-    return Addition(
-        BitLogicNegate(neg_input, precision=precision, init_stage=init_stage),
+    result = Addition(
+        SignCast(
+            BitLogicNegate(neg_input, precision=precision, init_stage=init_stage),
+            specifier = SignCast.Unsigned,
+            precision = precision
+        ),
         Constant(1, precision=ML_StdLogic),
         precision=precision,
         tag=optree.get_tag(),
         init_stage=init_stage
     )
+    forward_attributes(optree, result)
+    return result
 
 def fixed_point_negation_modifier(optree):
     """ Legalize a Negation node on fixed-point inputs """
@@ -148,6 +166,7 @@ def fixed_point_negation_modifier(optree):
         casted_negated,
         precision = op_format
     )
+    forward_attributes(optree, result)
     return result
 
 
@@ -188,14 +207,14 @@ def mantissa_extraction_modifier(optree):
         tag="implicit_digit",
         init_stage=init_stage
     )
-    return Concatenation(
+    result = Concatenation(
         implicit_digit,
         field_op,
         precision=ML_StdLogicVectorFormat(op_precision.get_mantissa_size()),
-        tag=optree.get_tag(),
-        debug=optree.get_debug(),
         init_stage=init_stage
     )
+    forward_attributes(optree, result)
+    return result
 
 
 def truncate_generator(optree):
@@ -209,11 +228,11 @@ def conversion_generator(optree):
     return TemplateOperator("conv_std_logic_vector(%s, {output_size})".format(output_size=output_size), arity=1)
 
 
-# dynamic operator helper for Shift operations
-#  @param operator string name of the operation
-def shift_generator(operator, optree):
+# dynamic dyn_operator helper for Shift operations
+#  @param dyn_operator string name of the operation
+def shift_generator(dyn_operator, optree):
     width = optree.get_precision().get_bit_size()
-    return TemplateOperator("conv_std_logic_vector({}(unsigned(%s), unsigned(%s)), {})".format(operator, width), arity=2, force_folding=True)
+    return TemplateOperator("conv_std_logic_vector({}(unsigned(%s), unsigned(%s)), {})".format(dyn_operator, width), arity=2, force_folding=True)
 
 
 # @p optree 0-th input has ML_Bool precision and must be converted
@@ -232,8 +251,8 @@ def copy_sign_generator(optree):
 
 def sub_signal_generator(optree):
     sign_input = optree.get_input(0)
-    inf_index = optree.get_inf_index()
-    sup_index = optree.get_sup_index()
+    inf_index = evaluate_cst_graph(optree.get_inf_index())
+    sup_index = evaluate_cst_graph(optree.get_sup_index())
     range_direction = "to" if (inf_index == sup_index) else "downto"
     return TemplateOperator(
         "%s({sup_index} {direction} {inf_index})".format(
@@ -278,6 +297,7 @@ def fixed_conversion_modifier(optree):
             result_raw, -frac_ext_size,
             result_raw.get_precision().get_bit_size() - 1
         )
+    forward_attributes(optree, result_raw)
     result = TypeCast(
         result_raw,
         precision=conv_precision
@@ -302,7 +322,7 @@ def legalizing_fixed_shift_amount(shift_amount):
         return shift_amount
 
 
-def fixed_shift_modifier(optree):
+def fixed_shift_modifier(shift_class):
     """ legalize a shift node on fixed-point operation tree
 
         Args:
@@ -310,31 +330,34 @@ def fixed_shift_modifier(optree):
         Returns:
             legalize node
     """
-    shift_input = optree.get_input(0)
-    out_precision = optree.get_precision()
-    shift_amount = legalizing_fixed_shift_amount(optree.get_input(1))
-    converted_input = Conversion(
-        shift_input,
-        precision = optree.get_precision()
-    )
-    # check precision equality
-    casted_format = ML_StdLogicVectorFormat(out_precision.get_bit_size())
-    casted_input = TypeCast(
-        converted_input,
-        precision = casted_format
-    )
-    # inserting shift
-    casted_shift = BitLogicRightShift(
-        casted_input,
-        shift_amount,
-        precision = casted_format
-    )
-    # casting back
-    fixed_result = TypeCast(
-        casted_shift,
-        precision = out_precision
-    )
-    return fixed_result
+    def fixed_shift_modifier_routine(optree):
+        shift_input = optree.get_input(0)
+        out_precision = optree.get_precision()
+        shift_amount = legalizing_fixed_shift_amount(optree.get_input(1))
+        converted_input = Conversion(
+            shift_input,
+            precision = optree.get_precision()
+        )
+        # check precision equality
+        casted_format = ML_StdLogicVectorFormat(out_precision.get_bit_size())
+        casted_input = TypeCast(
+            converted_input,
+            precision = casted_format
+        )
+        # inserting shift
+        casted_shift = shift_class(
+            casted_input,
+            shift_amount,
+            precision = casted_format
+        )
+        # casting back
+        fixed_result = TypeCast(
+            casted_shift,
+            precision = out_precision
+        )
+        forward_attributes(optree, fixed_result)
+        return fixed_result
+    return fixed_shift_modifier_routine
 
 
 # If @p optree's precision does not match @p new_format
@@ -425,10 +448,10 @@ def adapt_fixed_optree(raw_optree, (integer_size, frac_size), optree):
     # final format casting
     result = TypeCast(
         result_rext,
-        tag=optree.get_tag(),
         init_stage=init_stage,
         precision=optree_prec,
     )
+    forward_attributes(optree, result)
     return result
 
 # fixed point operation generation block
@@ -443,6 +466,21 @@ def fixed_point_op_modifier(optree, op_ctor=Addition):
     lhs_prec = lhs.get_precision().get_base_format()
     rhs_prec = rhs.get_precision().get_base_format()
     optree_prec = optree.get_precision().get_base_format()
+
+    if lhs.get_precision() is ML_Integer:
+        lhs_value = evaluate_cst_graph(lhs)
+        new_node = Constant(lhs_value)
+        lhs_prec = solve_format_Constant(new_node)
+        new_node.set_precision(lhs_prec)
+        lhs = new_node
+
+    if rhs.get_precision() is ML_Integer:
+        rhs_value = evaluate_cst_graph(rhs)
+        new_node = Constant(rhs_value)
+        rhs_prec = solve_format_Constant(new_node)
+        new_node.set_precision(rhs_prec)
+        rhs = new_node
+
     # TODO: This assume integer_size is at least 0 (no negative
     # (frac end before fixed point) accepted
     result_frac_size = max(lhs_prec.get_frac_size(), rhs_prec.get_frac_size())
@@ -498,6 +536,7 @@ def fixed_point_mul_modifier(optree):
     rhs = optree.get_input(1)
     lhs_prec = lhs.get_precision().get_base_format()
     rhs_prec = rhs.get_precision().get_base_format()
+
     optree_prec = optree.get_precision().get_base_format()
     # max, optree_prec.get_frac_size())
     result_frac_size = (lhs_prec.get_frac_size() + rhs_prec.get_frac_size())
@@ -613,7 +652,7 @@ def bit_selection_legalizer(optree):
     input_precision = op_input.get_precision()
     if is_fixed_point(input_precision):
         cast_format = ML_StdLogicVectorFormat(input_precision.get_bit_size())
-        return VectorElementSelection(
+        result = VectorElementSelection(
             TypeCast(
                 op_input,
                 precision = cast_format
@@ -621,6 +660,8 @@ def bit_selection_legalizer(optree):
             op_index,
             precision = optree.get_precision()
         )
+        forward_attributes(optree, result)
+        return result
     else:
         return optree
 
