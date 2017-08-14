@@ -33,7 +33,8 @@ from metalibm_core.core.target import TargetRegister
 from ..opt.p_size_datapath import solve_format_Constant
 
 from metalibm_hw_blocks.rtl_blocks import (
-    zext, zext_to_size, fp_is_nan, fp_is_pos_inf, fp_is_neg_inf, fp_is_infornan,
+    zext, zext_to_size, sext, rzext,
+    fp_is_nan, fp_is_pos_inf, fp_is_neg_inf, fp_is_infornan,
     fp_is_subnormal, fp_is_zero, fp_is_inf
 )
 
