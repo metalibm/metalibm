@@ -22,7 +22,8 @@ from ..core.ml_table import ML_ApproxTable
 from ..core.ml_operations import *
 from ..core.ml_hdl_operations import *
 from ..core.legalizer import (
-    min_legalizer, max_legalizer, fixed_point_position_legalizer
+    min_legalizer, max_legalizer, fixed_point_position_legalizer,
+    legalize_fixed_point_subselection, evaluate_cst_graph
 )
 from ..core.advanced_operations import FixedPointPosition
 from metalibm_core.core.target import TargetRegister

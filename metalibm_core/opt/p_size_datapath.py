@@ -25,6 +25,11 @@ from metalibm_core.opt.rtl_fixed_point_utils import (
 from metalibm_core.core.ml_formats import ML_Bool, ML_Integer
 from metalibm_core.core.ml_hdl_format import (
     is_fixed_point, fixed_point, ML_StdLogic
+    is_fixed_point, fixed_point, ML_StdLogic, ML_StdLogicVectorFormat
+)
+from metalibm_core.core.legalizer import (
+    legalize_fixed_point_subselection, fixed_point_position_legalizer,
+    evaluate_cst_graph
 )
 
 from .opt_utils import evaluate_range
