@@ -11,7 +11,6 @@ from metalibm_core.core.attributes import ML_Debug
 from metalibm_core.core.ml_operations import *
 from metalibm_core.core.ml_formats import *
 from metalibm_core.core.ml_table import ML_Table
-from metalibm_core.code_generation.vhdl_backend import VHDLBackend
 import metalibm_core.code_generation.vhdl_backend as vhdl_backend
 from metalibm_core.core.polynomials import *
 from metalibm_core.core.ml_entity import ML_Entity, ML_EntityBasis, DefaultEntityArgTemplate
@@ -24,6 +23,8 @@ from metalibm_core.utility.debug_utils import *
 from metalibm_core.utility.num_utils   import ulp
 from metalibm_core.utility.gappa_utils import is_gappa_installed
 
+from metalibm_core.utility.rtl_debug_utils import debug_dec
+
 
 from metalibm_core.core.ml_hdl_format import *
 from metalibm_core.core.ml_hdl_operations import *
@@ -34,7 +35,7 @@ class ML_LeadingZeroCounter(ML_Entity("ml_lzc")):
     return DefaultEntityArgTemplate( 
              precision = ML_Int32, 
              debug_flag = False, 
-             target = VHDLBackend(), 
+             target = vhdl_backend.VHDLBackend(), 
              output_file = "my_lzc.vhd", 
              entity_name = "my_lzc",
              language = VHDL_Code,
@@ -112,7 +113,6 @@ class ML_LeadingZeroCounter(ML_Entity("ml_lzc")):
     )
 
     self.implementation.add_process(lzc_process)
-    
 
     self.implementation.add_output_signal("vr_out", vr_out)
 
@@ -131,8 +131,8 @@ def vhdl_legalize_count_leading_zeros(optree):
             ML_Operation: legal operation graph to implement LZC
     """
     lzc_format = optree.get_precision()
-    lzc_width = lzc_format.get_bit_size()
     lzc_input = optree.get_input(0)
+    lzc_width = lzc_input.get_precision().get_bit_size()
 
     lzc_args = ML_LeadingZeroCounter.get_default_args(width = lzc_width)
     LZC_entity = ML_LeadingZeroCounter(lzc_args)
@@ -141,16 +141,18 @@ def vhdl_legalize_count_leading_zeros(optree):
 
     lzc_component = lzc_implementation.get_component_object()
 
+    lzc_tag = optree.get_tag() if not optree.get_tag() is None else "lzc_signal"
+
     # LZC output value signal
     lzc_signal = Signal(
-        optree.get_tag(), precision = lzc_format,
+        lzc_tag, precision = lzc_format,
         var_type = Signal.Local, debug = debug_dec
     )
     lzc_value = PlaceHolder(
         lzc_signal,
         lzc_component(io_map = {
             "x": lzc_input, 
-            "vr_out": lzc_signap
+            "vr_out": lzc_signal
         }, tag = "lzc_i"), tag = "place_holder"
     )
     # returing PlaceHolder as valid leading zero count result
