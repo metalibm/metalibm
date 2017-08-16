@@ -24,7 +24,7 @@ from metalibm_core.utility.ml_template import target_instanciate
 from metalibm_core.core.ml_formats import ML_Int32, ML_Int16, ML_Int64
 
 from valid.unit_test import (
-    UnitTestScheme 
+    UnitTestScheme
 )
 
 import metalibm_functions.unit_tests.new_arg_template as ut_new_arg_template
@@ -44,8 +44,14 @@ import metalibm_functions.unit_tests.m128_conversion as ut_m128_conversion
 import metalibm_functions.unit_tests.new_table as ut_new_table
 import metalibm_functions.unit_tests.multi_ary_function as ut_multi_ary_function
 import metalibm_functions.unit_tests.entity_pass as ut_entity_pass
+import metalibm_functions.unit_tests.implicit_interval_eval as ut_implicit_interval_eval
 
 unit_test_list = [
+  UnitTestScheme(
+    "implicit interval eval test",
+    ut_implicit_interval_eval,
+    [{}]
+  ),
   UnitTestScheme(
     "basic new arg template test",
     ut_new_arg_template,
