@@ -42,15 +42,11 @@ class FP_MPFMA(ML_Entity("fp_mpfma")):
              arg_template = DefaultEntityArgTemplate, 
              precision = ML_Binary32, 
              accuracy  = ML_Faithful,
-             libm_compliant = True, 
              debug_flag = False, 
-             fuse_fma = True, 
-             fast_path_extract = True,
              target = VHDLBackend(), 
              output_file = "fp_mpfma.vhd", 
              entity_name = "fp_mpfma",
              language = VHDL_Code,
-             vector_size = 1,
              acc_prec = None,
              pipelined = False):
     # initializing I/O precision
@@ -67,8 +63,6 @@ class FP_MPFMA(ML_Entity("fp_mpfma")):
       abs_accuracy = None,
 
       backend = target,
-      fuse_fma = fuse_fma,
-      fast_path_extract = fast_path_extract,
 
       debug_flag = debug_flag,
       language = language,
