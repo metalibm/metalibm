@@ -111,8 +111,6 @@ class ML_EntityBasis(object):
   #  @param io_precisions input/output ML_Format list
   #  @param abs_accuracy absolute accuracy
   #  @param libm_compliant boolean flag indicating whether or not the function should be compliant with standard libm specification (wrt exception, error ...)
-  #  @param processor GenericProcessor instance, target of the implementation
-  #  @param fuse_fma boolean flag indicating whether or not fusing Multiply+Add optimization must be applied
   #  @param fast_path_extract boolean flag indicating whether or not fast path extraction optimization must be applied
   #  @param debug_flag boolean flag, indicating whether or not debug code must be generated 
   def __init__(self,
@@ -126,7 +124,6 @@ class ML_EntityBasis(object):
              libm_compliant = ArgDefault(True, 2),
              # Optimization parameters
              backend = ArgDefault(VHDLBackend(), 2),
-             fuse_fma = ArgDefault(True, 2), 
              fast_path_extract = ArgDefault(True, 2),
              # Debug verbosity
              debug_flag = ArgDefault(False, 2),
@@ -147,7 +144,6 @@ class ML_EntityBasis(object):
     abs_accuracy = ArgDefault.select_value([abs_accuracy])
     # Optimization parameters
     backend = ArgDefault.select_value([arg_template.backend, backend])
-    fuse_fma = ArgDefault.select_value([arg_template.fuse_fma, fuse_fma])
     fast_path_extract = ArgDefault.select_value([arg_template.fast_path_extract, fast_path_extract])
     # Debug verbosity
     debug_flag    = ArgDefault.select_value([arg_template.debug, debug_flag])
@@ -203,7 +199,6 @@ class ML_EntityBasis(object):
     self.backend = backend
 
     # optimization parameters
-    self.fuse_fma = fuse_fma
     self.fast_path_extract = fast_path_extract
 
     self.implementation = CodeEntity(self.entity_name)
@@ -397,23 +392,35 @@ class ML_EntityBasis(object):
     #self.implementation.set_scheme(scheme)
     # main code object
     code_object = self.get_main_code_object()
+
+    # list of ComponentObject which are entities on which self depends
+    common_entity_list = []
+    generated_entity = []
+
     self.result = code_object
     code_str = ""
-    for code_entity in code_entity_list:
+    while len(code_entity_list) > 0:
+      code_entity = code_entity_list.pop(0)
+      if code_entity in generated_entity:
+        continue
       entity_code_object = NestedCode(self.vhdl_code_generator, static_cst = False, uniquifier = "{0}_".format(self.entity_name), code_ctor = VHDLCodeObject)
       result = code_entity.add_definition(self.vhdl_code_generator, language, entity_code_object, static_cst = False)
       result.add_library("ieee")
       result.add_header("ieee.std_logic_1164.all")
       result.add_header("ieee.std_logic_arith.all")
       result.add_header("ieee.std_logic_misc.all")
-      #result.add_header("ieee.numeric_std.all")
-      #result.push_into_parent_code(self.result, self.vhdl_code_generator, headers = True)
       code_str += result.get(self.vhdl_code_generator, headers = True)
 
-    # adding headers
-    #self.result.add_header("ieee.std_logic_1164.all")
-    #self.result.add_header("ieee.std_logic_unsigned.all")
-    #self.result.add_header("ieee.numeric_std.all")
+      generated_entity.append(code_entity)
+
+      # adding the entities encountered during code generation
+      # for future generation
+      extra_entity_list = [
+            comp_object.get_code_entity() for comp_object in
+                entity_code_object.get_entity_list()
+      ]
+      Log.report(Log.Info, "appending {} extra entit(y/ies)\n".format(len(extra_entity_list)))
+      code_entity_list += extra_entity_list
 
     Log.report(Log.Verbose, "Generating VHDL code in " + self.output_file)
     output_stream = open(self.output_file, "w")
