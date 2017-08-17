@@ -10,7 +10,7 @@ from metalibm_core.utility.log_report import Log
 from metalibm_core.core.passes import OptreeOptimization, Pass
 
 from metalibm_core.core.ml_operations import (
-    ML_LeafNode, Select
+    ML_LeafNode, Select, Conversion
 )
 from metalibm_core.core.advanced_operations import FixedPointPosition
 from metalibm_core.core.ml_hdl_operations import SubSignalSelection
