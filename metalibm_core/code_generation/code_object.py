@@ -60,6 +60,9 @@ class SymbolTable(object):
               self.prefix_index[_prefix] = new_index
             return "%s%d" % (_prefix, new_index)
 
+    def get_values(self):
+        return self.table.values()
+
     def has_definition(self, symbol_object):
         if symbol_object in self.reverse_map:
           return self.reverse_map[symbol_object]
@@ -96,6 +99,7 @@ class MultiSymbolTable(object):
     class ConstantSymbol: pass
     class FunctionSymbol: pass
     class ComponentSymbol: pass
+    class EntitySymbol: pass
     class VariableSymbol: pass
     class SignalSymbol:  pass
     class ProtectedSymbol: pass
@@ -123,6 +127,7 @@ class MultiSymbolTable(object):
         self.protected_table = self.get_shared_table(MultiSymbolTable.ProtectedSymbol, shared_tables)
         self.table_table = self.get_shared_table(MultiSymbolTable.TableSymbol, shared_tables)
         self.component_table = self.get_shared_table(MultiSymbolTable.ComponentSymbol, shared_tables)
+        self.entity_table    = self.get_shared_table(MultiSymbolTable.EntitySymbol, shared_tables)
 
         self.parent_tables = parent_tables
 
@@ -135,6 +140,7 @@ class MultiSymbolTable(object):
             MultiSymbolTable.ProtectedSymbol: self.protected_table, 
             MultiSymbolTable.TableSymbol: self.table_table,
             MultiSymbolTable.ComponentSymbol: self.component_table,
+            MultiSymbolTable.EntitySymbol: self.entity_table,
         }
 
         self.prefix_index = {}
@@ -192,15 +198,16 @@ class MultiSymbolTable(object):
         return cst_free_name
 
 
-    #def is_empty(self):
-    #    return reduce(lambda acc, v: acc + len(v), self.table_list) == 0
-
-
     def declare_function_name(self, function_name, function_object):
         self.function_table.declare_symbol(function_name, function_object)
 
     def declare_component_name(self, component_name, component_object):
         self.component_table.declare_symbol(component_name, component_object)
+        self.entity_table.declare_symbol(component_name, component_object)
+
+    def get_entity_list(self):
+        """ return a list of components registered in this table """
+        return self.entity_table.get_values()
 
     def declare_var_name(self, var_name, var_object):
         self.variable_table.declare_symbol(var_name, var_object)
@@ -538,7 +545,7 @@ class VHDLCodeObject(object):
 
     def link_level(self, transition = ""):
         """ close nested block """
-        raise NotImplemented
+        raise NotImplementedError
 
     def add_header(self, header_file):
         """ add a new header file """
@@ -635,6 +642,10 @@ class VHDLCodeObject(object):
         self.symbol_table.declare_component_name(component_name, component_object)
         return component_name
 
+    def get_entity_list(self):
+        """ Return the list of component instanciated in this code object """
+        return self.symbol_table.get_entity_list()
+
 
     def get(self, code_generator, static_cst = False, static_table = False, headers = False, skip_function = False):
         """ generate unrolled code content """
@@ -644,11 +655,18 @@ class VHDLCodeObject(object):
             result += self.generate_header_code()
             result += "\n\n"
 
-        declaration_exclusion_list = [MultiSymbolTable.ConstantSymbol] if static_cst else []
-        declaration_exclusion_list += [MultiSymbolTable.TableSymbol] if static_table else []
-        declaration_exclusion_list += [MultiSymbolTable.FunctionSymbol] if skip_function else []
-        declaration_exclusion_list += [MultiSymbolTable.SignalSymbol] if self.shared_symbol_table_f else []
-        print "shared_symbol_table_f: ", self.shared_symbol_table_f
+        # Entities are always excluded from generation
+        # They will be processed in a separate manner (see ML_EntityBasis)
+        declaration_exclusion_list = [MultiSymbolTable.EntitySymbol]
+        if static_cst:
+            declaration_exclusion_list.append(MultiSymbolTable.ConstantSymbol)
+        if static_table:
+            declaration_exclusion_list.append(MultiSymbolTable.TableSymbol)
+        if skip_function:
+            declaration_exclusion_list.append(MultiSymbolTable.FunctionSymbol)
+        if self.shared_symbol_table_f:
+            declaration_exclusion_list.append(MultiSymbolTable.SignalSymbol)
+
         result += self.symbol_table.generate_declarations(code_generator, exclusion_list = declaration_exclusion_list)
         result += self.symbol_table.generate_initializations(code_generator, init_required_list = [MultiSymbolTable.ConstantSymbol, MultiSymbolTable.VariableSymbol])
         result += "begin\n" if not self.main_code_level else ""
@@ -663,10 +681,15 @@ class VHDLCodeObject(object):
             parent_code << self.generate_header_code()
             parent_code << "\n\n"
 
-        declaration_exclusion_list = [MultiSymbolTable.ConstantSymbol] if static_cst else []
-        declaration_exclusion_list += [MultiSymbolTable.TableSymbol] if static_table else []
-        declaration_exclusion_list += [MultiSymbolTable.FunctionSymbol] if skip_function else []
-        declaration_exclusion_list += [MultiSymbolTable.SignalSymbol] if self.shared_symbol_table_f else []
+        declaration_exclusion_list = [MultiSymbolTable.EntitySymbol]
+        if static_cst:
+            declaration_exclusion_list.append(MultiSymbolTable.ConstantSymbol)
+        if static_table:
+            declaration_exclusion_list.append(MultiSymbolTable.TableSymbol)
+        if skip_function:
+            declaration_exclusion_list.append(MultiSymbolTable.FunctionSymbol)
+        if self.shared_symbol_table_f:
+            declaration_exclusion_list.append(MultiSymbolTable.SignalSymbol)
         parent_code << self.symbol_table.generate_declarations(code_generator, exclusion_list = declaration_exclusion_list)
         parent_code << self.symbol_table.generate_initializations(code_generator, init_required_list = [MultiSymbolTable.ConstantSymbol, MultiSymbolTable.VariableSymbol])
         parent_code.dec_level()
@@ -702,15 +725,24 @@ class NestedCode(object):
         self.code_ctor = code_ctor
 
         self.static_function_table = SymbolTable(uniquifier = self.uniquifier)
+
+        # static table to store shared entities
+        self.static_entity_table = SymbolTable(uniquifier = self.uniquifier)
         
         # defaulting list of shared symbol table to build
         # if none is defined
-        shared_symbol_list = [MultiSymbolTable.ConstantSymbol, MultiSymbolTable.TableSymbol, MultiSymbolTable.FunctionSymbol] if shared_symbol_list is None else shared_symbol_list
+        shared_symbol_list = [
+            MultiSymbolTable.ConstantSymbol,
+            MultiSymbolTable.TableSymbol,
+            MultiSymbolTable.FunctionSymbol,
+            MultiSymbolTable.EntitySymbol
+        ] if shared_symbol_list is None else shared_symbol_list
         # Constructor of Shared table
         shared_tables_ctor = {
             MultiSymbolTable.ConstantSymbol: self.get_cst_table, 
             MultiSymbolTable.TableSymbol: self.get_table_table,
             MultiSymbolTable.FunctionSymbol: self.get_function_table,   
+            MultiSymbolTable.EntitySymbol: self.get_entity_table,   
         }
         # Building share symbol
         shared_tables = dict([(symbol, shared_tables_ctor[symbol]()) for symbol in shared_symbol_list])
@@ -731,6 +763,9 @@ class NestedCode(object):
 
     def get_function_table(self):
         return self.static_function_table
+        
+    def get_entity_table(self):
+        return self.static_entity_table
         
     def add_header(self, header_file):
         self.main_code.add_header(header_file)
@@ -754,6 +789,7 @@ class NestedCode(object):
             MultiSymbolTable.ConstantSymbol: self.get_cst_table(), 
             MultiSymbolTable.TableSymbol: self.get_table_table(),
             MultiSymbolTable.FunctionSymbol: self.get_function_table(),    
+            MultiSymbolTable.EntitySymbol: self.get_entity_table(),    
         }
         if extra_shared_tables:
           for table_key in extra_shared_tables:
@@ -802,7 +838,12 @@ class NestedCode(object):
         return self.code_list[0].declare_function(function_name, function_object)
 
     def declare_component(self, component_name, component_object):
-        return self.code_list[0].declare_component(component_name, component_object)
+        component_name = self.code_list[0].declare_component(component_name, component_object)
+        return component_name
+
+    def get_entity_list(self):
+        """ Return the component list """
+        return self.code_list[0].get_entity_list()
 
     def get(self, code_generator, static_cst = False, static_table = False, headers = True, skip_function = False):
         return self.code_list[0].get(code_generator, static_cst = static_cst, static_table = static_table, headers = headers, skip_function = skip_function)
