@@ -182,7 +182,9 @@ class ComponentInstance(AbstractOperationConstructor("ComponentInstance")):
 
 class ComponentObject(object):
   ##
+  # name (str) name of the component
   # @param io_map is a dict <Signal, Signal.Specifier>
+  # @param generator_object (CodeEntity): generator for the component
   def __init__(self, name, io_map, generator_object):
     self.name = name
     self.io_map = io_map
@@ -204,6 +206,9 @@ class ComponentObject(object):
 
   def __call__(self, *args, **kw):
     return ComponentInstance(self, *args, **kw)
+
+  def get_code_entity(self):
+    return self.generator_object
 
   def get_declaration(self):
     return self.generator_object.get_component_declaration()
