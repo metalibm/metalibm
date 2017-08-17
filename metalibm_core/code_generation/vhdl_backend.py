@@ -1117,6 +1117,8 @@ vhdl_code_generation_table = {
                     IdentityOperator(no_parenthesis=True),
                 type_custom_match(MCFixedPoint, MCSTDLOGICV):
                     IdentityOperator(no_parenthesis=True),
+                type_custom_match(MCFixedPoint, FSM(ML_StdLogic)):
+                    IdentityOperator(no_parenthesis=True),
 
                 type_custom_match(MCFixedPoint, MCFixedPoint):
                     ComplexOperator(optree_modifier = fixed_cast_legalizer),
