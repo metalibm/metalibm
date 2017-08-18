@@ -277,9 +277,9 @@ class ML_Std_FP_Format(ML_FP_Format):
 
     def get_value_from_integer_coding(self, value, base = 10):
       value = int(value, base)
+      exponent_field = ((value >> self.get_field_size()) & (2**self.get_exponent_size() - 1)) 
       is_subnormal = (exponent_field == 0)
       mantissa = value & (2**self.get_field_size() - 1)
-      exponent_field = ((value >> self.get_field_size()) & (2**self.get_exponent_size() - 1)) 
       exponent = exponent_field + self.get_bias() + (1 if is_subnormal else 0)
       sign_bit = value >> (self.get_field_size() + self.get_exponent_size())
       sign = -1.0 if sign_bit != 0 else 1.0
