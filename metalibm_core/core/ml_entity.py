@@ -43,6 +43,26 @@ from metalibm_core.utility.ml_template import ArgDefault, DefaultEntityArgTempla
 import random
 import subprocess
 
+def generate_random_fp_value(precision, inf, sup):
+    """ Generate a random floating-point value of format precision """
+    assert isinstance(precision, ML_FP_Format)
+    value = random.uniform(0.5, 1.0) * S2**random.randrange(precision.get_emin_normal(), 1) * (sup - inf) + inf
+    rounded_value = precision.round_sollya_object(value, RN)
+    return rounded_value
+
+def generate_random_fixed_value(precision):
+    """ Generate a random fixed-point value of format precision """
+    assert is_fixed_point(precision)
+    # fixed point format
+    lo_value = precision.get_min_value()
+    hi_value = precision.get_max_value()
+    value = random.uniform(
+      lo_value,
+      hi_value 
+    )
+    rounded_value = input_precision.round_sollya_object(value)
+    return rounded_value
+
 ## \defgroup ml_entity ml_entity
 ## @{
 
@@ -508,11 +528,6 @@ class ML_EntityBasis(object):
       print "elab_result: ", elab_result
     
 
-
-
-   
-
-
   # Currently mostly empty, to be populated someday
   def gen_emulation_code(self, precode, code, postcode):
     """generate C code that emulates the function, typically using MPFR.
@@ -532,10 +547,36 @@ class ML_EntityBasis(object):
   def numeric_emulate(self, input_value):
     raise NotImplementedError
 
-  def generate_auto_test(self, test_num = 10, test_range = Interval(-1.0, 1.0), debug = False):
+  def generate_test_case(self, input_signals, io_map, index, test_range = Interval(-1.0, 1.0)):
+    """ generic test case generation: generate a random input
+        with index @p index
+        
+        Args:
+            index (int): integer index of the test case
+            
+        Returns:
+            dict: mapping (input tag -> numeric value)
+    """
     # extracting test interval boundaries
     low_input = inf(test_range)
     high_input = sup(test_range)
+    input_values = {}
+    for input_tag in input_signals:
+        input_signal = io_map[input_tag]
+        # FIXME: correct value generation depending on signal precision
+        input_precision = input_signal.get_precision().get_base_format()
+        if isinstance(input_precision, ML_FP_Format):
+            input_value = generate_random_fp_value(input_precision, low_input, high_input)
+        elif isinstance(input_precision, ML_Fixed_Format):
+            # TODO: does not depend on low and high range bounds
+            input_value = generate_random_fixed_value(input_precision)
+        else: 
+            input_value = random.randrange(2**input_precision.get_bit_size())
+        # registering input value
+        input_values[input_tag] = input_value
+    return input_values
+
+  def generate_auto_test(self, test_num = 10, test_range = Interval(-1.0, 1.0), debug = False):
     # instanciating tested component
     # map of input_tag -> input_signal and output_tag -> output_signal
     io_map = {}
@@ -559,45 +600,19 @@ class ML_EntityBasis(object):
       io_map[output_tag] = output_signal
       output_signals[output_tag] = output_signal
 
-    self_component = self.implementation.get_component_object()
-    self_instance = self_component(io_map = io_map, tag = "tested_entity")
-
-    test_statement = Statement()
-
-
     # building list of test cases
     tc_list = []
+
+    self_component = self.implementation.get_component_object()
+    self_instance = self_component(io_map = io_map, tag = "tested_entity")
+    test_statement = Statement()
 
     # Appending standard test cases if required
     if self.auto_test_std:
       tc_list += self.standard_test_cases 
 
     for i in range(test_num):
-      input_values = {}
-      for input_tag in input_signals:
-        input_signal = io_map[input_tag]
-        # FIXME: correct value generation depending on signal precision
-        input_precision = input_signal.get_precision().get_base_format()
-        input_size = input_precision.get_bit_size()
-        # input_value = random.uniform(low_input, high_input)
-        low_input_exp = int(floor(log2(abs(low_input))))
-        high_input_exp = int(floor(log2(abs(high_input))))
-        if isinstance(input_precision, ML_FP_Format):
-          input_value = random.uniform(0.5, 1.0) * S2**random.randrange(input_precision.get_emin_normal(), 1) * (high_input - low_input) + low_input
-          input_value = input_precision.round_sollya_object(input_value, RN)
-        elif isinstance(input_precision, ML_Fixed_Format):
-          # fixed point format
-          lo_value = input_precision.get_min_value()
-          hi_value = input_precision.get_max_value()
-          print "lo/hi", lo_value, hi_value
-          input_value = random.uniform(
-            lo_value,
-            hi_value 
-          )
-          input_value = input_precision.round_sollya_object(input_value)
-        else: 
-          input_value = random.randrange(2**input_precision.get_bit_size())
-        input_values[input_tag] = input_value
+      input_values = self.generate_test_case(input_signals, io_map, i, test_range)
       tc_list.append((input_values,None))
 
     for input_values, output_values in tc_list:
