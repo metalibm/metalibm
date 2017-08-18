@@ -91,7 +91,7 @@ supported_vector_size = [2, 3, 4, 8]
 #  vector operand precision is a compound format
 def legal_vector_element_selection(optree):
   compound_format = isinstance(
-    optree.get_input(0).get_precision(), 
+    optree.get_input(0).get_precision(),
     ML_CompoundVectorFormat
   )
   return compound_format
@@ -950,7 +950,7 @@ vector_c_code_generation_table = {
   #    }
   #  }
   #},
-  VectorElementSelection: 
+  VectorElementSelection:
   {
     None: {
       legal_vector_element_selection: {

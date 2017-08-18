@@ -105,7 +105,11 @@ class ML_Log(ML_Function("ml_log")):
     normal_vx_as_int = res + exponent
     normal_vx = TypeCast(normal_vx_as_int, precision = self.precision,
                          tag = 'normal_vx')
-    mask_to_add = BitLogicAnd(is_denormal, 25) - 2
+    cst_n2 = Constant(-2, precision = int_prec)
+    cst_25 = Constant(25, precision = int_prec)
+    mask_to_add = Addition(BitLogicAnd(is_denormal, cst_25),
+                           cst_n2,
+                           interval = Interval(-2, 23))
 
     invx = FastReciprocal(normal_vx, tag = 'invx', precision = self.precision)
     if not self.processor.is_supported_operation(invx):
@@ -141,9 +145,14 @@ class ML_Log(ML_Function("ml_log")):
             tag = 'table_index')
     log2_1_p_rcp_x = TableLoad(log2_table, table_index, tag = 'log2_1_p_rcp_x',
             debug = debug_multi)
-    exponent = BitLogicRightShift(invx_bits,
-            table_index_size,
-            tag = 'exponent') + mask_to_add
+    exponent = Addition(
+            BitLogicRightShift(invx_bits,
+                table_index_size,
+                tag = 'exponent',
+                interval = self.precision.get_exponent_interval()),
+            mask_to_add,
+            #interval = self.precision.get_exponent_interval() + mask_to_add.get_interval()
+            )
     expf = Conversion(exponent,
             precision = self.precision,
             tag = 'expf')

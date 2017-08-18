@@ -77,6 +77,8 @@ def implicit_op(op):
     elif isinstance(op , str):
         return Constant(op, precision = ML_String)
     else:
+        import pdb
+        pdb.set_trace()
         print "ERROR: unsupported operand in implicit_op conversion ", op, op.__class__
         raise Exception()
 
@@ -733,7 +735,7 @@ class SpecifierOperation(object):
         """ return code generation specific key """
         return self.specifier
 
-class ComponentSelectionSpecifier: pass
+class ComponentSelectionSpecifier(object): pass
 
 class Split(ArithmeticOperationConstructor("Split", arity = 1)):
     pass
@@ -806,7 +808,7 @@ class FusedMultiplyAdd(ArithmeticOperationConstructor("FusedMultiplyAdd", inheri
     class DotProductNegate(FMASpecifier_Builder("DotProductNegate", 4, lambda _self, ops: ops[0] * ops[1] - ops[2] * ops[3])):
         """ op0 * op1 - op2 * op3 """
         pass
-        
+
     def __init__(self, *args, **kwords):
         self.specifier = attr_init(kwords, "specifier", FusedMultiplyAdd.Standard)
         # indicates wheter a base operation commutation has been processed
@@ -860,6 +862,9 @@ class Division(ArithmeticOperationConstructor("Division", range_function = lambd
     """ abstract addition """
     pass
 
+class Extract(ArithmeticOperationConstructor("Extract")):
+    """ abstract word or vector extract-from-vector operation """
+    pass
 
 class Modulo(ArithmeticOperationConstructor("Modulo", range_function = lambda self, ops: safe(operator.__mod__)(ops[0], ops[1]))):
     """ abstract modulo operation """
@@ -869,6 +874,12 @@ class Modulo(ArithmeticOperationConstructor("Modulo", range_function = lambda se
 class NearestInteger(ArithmeticOperationConstructor("NearestInteger", arity = 1, range_function = lambda self, ops: safe(nearestint)(ops[0]))): 
     """ abstract addition """
     pass
+
+class Permute(ArithmeticOperationConstructor("Permute")):
+    """ abstract word-permutations inside a vector operation """
+
+    def __init__(self, vector, imm8_reorder = [], **kwords):
+        super(Permute, self).__init__(vector, **kwords)
 
 class FastReciprocal(ArithmeticOperationConstructor(
         "FastReciprocal", arity = 1,
@@ -931,6 +942,21 @@ class TableLoad(ArithmeticOperationConstructor("TableLoad", arity = 2, range_fun
 class TableStore(ArithmeticOperationConstructor("TableStore", arity = 3, range_function = lambda self, ops: None)):
     """ abstract store to a table operation """
     pass
+
+class VectorUnpack(ArithmeticOperationConstructor("VectorUnpack",
+                   inheritance = [SpecifierOperation])):
+    """ abstract vector unpacking operation """
+    # High and Low specifiers for Unpack operation
+    class Hi(object): name = 'Hi'
+    class Lo(object): name = 'Lo'
+
+    def __init__(self, *args, **kwords):
+        self.specifier = attr_init(kwords, "specifier", VectorUnpack.Lo)
+        super(VectorUnpack, self).__init__(*args, **kwords)
+
+    def get_name(self):
+        return  "VectorUnpack.{}".format(self.specifier.name)
+
 
 ## Compute the union of two intervals
 def interval_union(int0, int1):
