@@ -277,13 +277,15 @@ class ML_Std_FP_Format(ML_FP_Format):
 
     def get_value_from_integer_coding(self, value, base = 10):
       value = int(value, base)
+      is_subnormal = (exponent_field == 0)
       mantissa = value & (2**self.get_field_size() - 1)
       exponent_field = ((value >> self.get_field_size()) & (2**self.get_exponent_size() - 1)) 
-      exponent = exponent_field + self.get_bias() + (1 if exponent_field == 0 else 0)
+      exponent = exponent_field + self.get_bias() + (1 if is_subnormal else 0)
       sign_bit = value >> (self.get_field_size() + self.get_exponent_size())
       sign = -1.0 if sign_bit != 0 else 1.0
       mantissa_value = mantissa
-      return sign * S2**int(exponent) * (1.0 + mantissa_value * S2**-self.get_field_size())
+      implicit_digit = 0.0 if is_subnormal else 1.0
+      return sign * S2**int(exponent) * (implicit_digit + mantissa_value * S2**-self.get_field_size())
 
     # @return<SollyaObject> the format omega value, the maximal normal value
     def get_omega(self):
