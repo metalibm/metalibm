@@ -103,29 +103,32 @@ class ML_ExponentialM1_Red(ML_Function("ml_expm1")):
     
     log_2 = round(log(2), sollya_precision, sollya.RN)
     invlog2 = round(1/log(2), sollya_precision, sollya.RN)
+    log_2_cst = Constant(log_2, precision = self.precision)
     
     interval_vx = Interval(expm1_underflow_bound, expm1_overflow_bound)
     interval_fk = interval_vx * invlog2
     interval_k = Interval(floor(inf(interval_fk)), ceil(sup(interval_fk)))
     
-    log2_hi_precision = self.precision.get_field_size() - 4
+    log2_hi_precision = self.precision.get_field_size() - 6
     log2_hi = round(log(2), log2_hi_precision, sollya.RN)
     log2_lo = round(log(2) - log2_hi, sollya_precision, sollya.RN)
 
 
     # Reduction
-    
     unround_k = vx * invlog2
     ik = NearestInteger(unround_k, precision = int_precision, debug = debug_multi, tag = "ik")
     k = Conversion(ik, precision = self.precision, tag = "k")
-    exact_pre_mul = (k * log2_hi)
-    exact_pre_mul.set_attributes(exact = True)
-    exact_hi_part = vx - exact_pre_mul
-    exact_hi_part.set_attributes(exact = True, prevent_optimization = True)
-    exact_lo_part = - k * log2_lo
-    exact_lo_part.set_attributes(prevent_optimization = True)
     
-    r = exact_hi_part + exact_lo_part
+    red_coeff1 = Multiplication(k, log2_hi, precision = self.precision)
+    red_coeff2 = Multiplication(Negation(k, precision = self.precision), log2_lo, precision = self.precision)
+    
+    pre_sub_mul = Subtraction(vx, red_coeff1, precision  = self.precision)
+    
+    s = Addition(pre_sub_mul, red_coeff2, precision = self.precision)
+    z = Subtraction(s, pre_sub_mul, precision = self.precision)
+    t = Subtraction(red_coeff2, z, precision = self.precision)
+    
+    r = Addition(s, t, precision = self.precision)
     
     r.set_attributes(tag = "r", debug = debug_multi)
     
@@ -139,7 +142,7 @@ class ML_ExponentialM1_Red(ML_Function("ml_expm1")):
     
     
     # Polynomial Approx
-    
+    error_function = lambda p, f, ai, mod, t: dirtyinfnorm(f - p, ai)
     Log.report(Log.Info, "\033[33;1m Building polynomial \033[0m\n")
     
     poly_degree = sup(guessdegree(expm1(sollya.x), r_interval, error_goal) + 1)
@@ -148,9 +151,10 @@ class ML_ExponentialM1_Red(ML_Function("ml_expm1")):
     poly_degree_list = range(0, poly_degree)
     
     precision_list = [self.precision] *(len(poly_degree_list) + 1)
-    poly_object = Polynomial.build_from_approximation(expm1(sollya.x), poly_degree, precision_list, r_interval, sollya.absolute)
+    poly_object, poly_error = Polynomial.build_from_approximation_with_error(expm1(sollya.x), poly_degree, precision_list, r_interval, sollya.absolute, error_function = error_function)
     sub_poly = poly_object.sub_poly(start_index = 2)
     Log.report(Log.Info, "Poly : %s" % sub_poly)
+    Log.report(Log.Info, "poly error : {} / {:d}".format(poly_error, int(sollya.log2(poly_error))))
     pre_sub_poly = polynomial_scheme_builder(sub_poly, r, unified_precision = self.precision)
     poly = r + pre_sub_poly
     poly.set_attributes(tag = "poly", debug = debug_multi)
@@ -234,7 +238,7 @@ class ML_ExponentialM1_Red(ML_Function("ml_expm1")):
   def numeric_emulate(self, input_value):
     return expm1(input_value)
 
-  standard_test_cases = [(sollya.parse("-0x1.0783eep+6"),)]
+  standard_test_cases = [[sollya.parse(x)] for x in ["0x1.9b3216p-2", "0x1.8c108p-2"]]
 
 
 if __name__ == "__main__":
