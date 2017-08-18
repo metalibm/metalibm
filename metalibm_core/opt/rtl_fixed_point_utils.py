@@ -14,6 +14,7 @@
 
 from metalibm_core.utility.log_report import Log
 from metalibm_core.core.ml_hdl_format import is_fixed_point, fixed_point
+from metalibm_core.core.ml_formats import ML_Integer
 
 ## test equality between @p unified_format and all
 #  the format in @p format_list
@@ -57,10 +58,15 @@ def largest_format(format0, format1):
             frac_size,
             signed = format0.get_signed() or format1.get_signed()
         )
-    elif format0 is None:
+    elif format0 is None or format0 is ML_Integer: # TODO: fix for abstract format
         return format1
-    else:
+    elif format1 is None or format1 is ML_Integer: # TODO: fix for abstract format
         return format0
+    elif format0.get_bit_size() == format1.get_bit_size():
+        return format0
+    else:
+        Log.report(Log.Error, "unable to determine largest format")
+        raise NotImplementedError
 
 ## determine if there is a common format
 #  to unify format_list
@@ -84,5 +90,5 @@ def solve_equal_formats(optree_list):
         )
         return None
     else:
-        test_format_equality_list(format_reduced, precision_list)
+        # test_format_equality_list(format_reduced, precision_list)
         return format_reduced

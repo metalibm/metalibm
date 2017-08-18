@@ -10,11 +10,15 @@ from metalibm_core.utility.log_report import Log
 from metalibm_core.core.passes import OptreeOptimization, Pass
 
 from metalibm_core.core.ml_operations import (
-    ML_LeafNode, Select, Conversion
+    ML_LeafNode, Select, Conversion, Comparison
 )
 from metalibm_core.core.advanced_operations import FixedPointPosition
 from metalibm_core.core.ml_hdl_operations import SubSignalSelection
-from metalibm_core.core.ml_hdl_format import is_fixed_point 
+from metalibm_core.core.ml_hdl_format import is_fixed_point
+
+from metalibm_core.opt.p_size_datapath import (
+    solve_format_Comparison
+)
 
 from metalibm_core.core.legalizer import (
     subsignalsection_legalizer, fixed_point_position_legalizer
@@ -52,6 +56,11 @@ def legalize_Select(optree):
         )
     return optree
 
+def legalize_Comparison(optree):
+    assert isinstance(optree, Comparison)
+    new_format = solve_format_Comparison(optree)
+    return optree
+
 
 def legalize_single_operation(optree):
     if isinstance(optree, SubSignalSelection):
@@ -63,6 +72,9 @@ def legalize_single_operation(optree):
     elif isinstance(optree, Select):
         new_optree = legalize_Select(optree)
         return True, new_optree
+    elif isinstance(optree, Comparison):
+        new_optree = legalize_Comparison(optree)
+        return True, optree
     return False, optree
 
 

@@ -414,7 +414,7 @@ def propagate_format_to_input(new_format, optree, input_index_list):
                             str(new_format)
                         )
                     )
-                    format_set_if_undef(op_input, new_format)
+                    op_input.set_precision(new_format)
                 else:
                     Log.report(
                         Log.Error,
