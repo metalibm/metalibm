@@ -31,8 +31,14 @@ import metalibm_hw_blocks.unit_tests.adaptative_size as ut_adaptative_size
 import metalibm_hw_blocks.unit_tests.report_test as ut_report_test
 import metalibm_hw_blocks.unit_tests.range_eval as ut_range_eval
 import metalibm_hw_blocks.unit_tests.fixed_point_position as ut_fixed_point_position
+import metalibm_hw_blocks.unit_tests.ut_special_values as ut_special_values
 
 unit_test_list = [
+  UnitTestScheme(
+    "basic special values arithmetic",
+    ut_special_values,
+    [{}]
+  ),
   UnitTestScheme(
     "basic fixed-point legalization pass",
     ut_adaptative_size,
