@@ -6,10 +6,12 @@ import random
 
 from sollya import SollyaObject, S2
 
-from metalibm_core.core.ml_formats import (
+from metalibm_core.core.special_values import (
+    NumericValue,
     FP_PlusInfty, FP_MinusInfty, FP_PlusZero, FP_MinusZero,
     FP_PlusOmega, FP_MinusOmega, FP_QNaN, FP_SNaN
 )
+
 
 import metalibm_core.core.ml_formats as ml_formats
 
@@ -96,7 +98,7 @@ class FPRandomGen(object):
         sign = self.generate_sign()
         field = self.random.randrange(2**field_size)
         mantissa = 1.0 + field * S2**-self.precision.get_field_size()
-        return mantissa * sign * S2**exp
+        return NumericValue(mantissa * sign * S2**exp)
 
     def generate_subnormal_number(self):
         """ Generate a single subnormal value """
@@ -107,7 +109,7 @@ class FPRandomGen(object):
         sign = self.generate_sign()
         field = self.random.randrange(2**field_size)
         mantissa = 0.0 + field * S2**-self.precision.get_field_size()
-        return mantissa * sign * S2**exp
+        return NumericValue(mantissa * sign * S2**exp)
 
     def get_new_value_by_category(self, category):
         """ generate a new value from the given category """
