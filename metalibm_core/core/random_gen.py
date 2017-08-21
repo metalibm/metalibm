@@ -1,7 +1,14 @@
 # -*- coding: utf-8 -*-
 """ metalibm_core.core.random_gen Random value generation """
 
-from enum import Enum, unique
+try:
+    from enum import Enum, unique
+except ImportError:
+    class Enum(object): pass
+
+    def unique(fct):
+        """ Fallback for unique decorator when unique is not defined """
+        return fct
 import random
 
 from sollya import SollyaObject, S2
