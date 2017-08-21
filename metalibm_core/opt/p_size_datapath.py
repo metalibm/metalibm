@@ -316,7 +316,7 @@ def solve_format_Constant(optree):
       assert int(value) == value
       abs_value = abs(value)
       signed = value < 0
-      int_size = max(int(sollya.ceil(sollya.log2(abs_value))), 0) + (1 if signed else 0)
+      int_size = max(int(sollya.ceil(sollya.log2(abs_value+1))), 0) + (1 if signed else 0)
       frac_size = 0
       if frac_size == 0 and int_size == 0:
           int_size = 1
