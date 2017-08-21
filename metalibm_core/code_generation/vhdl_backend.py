@@ -300,7 +300,7 @@ def fixed_conversion_modifier(optree):
         result,
         precision=raw_arg_precision
     )
-    signed = conv_precision.get_signed()
+    signed = arg_precision.get_signed()
     int_ext_size = conv_precision.get_integer_size() - arg_precision.get_integer_size()
     if int_ext_size > 0:
         result_raw = (sext if signed else zext)(result_raw, int_ext_size)
@@ -604,8 +604,6 @@ def fixed_point_add_modifier(optree):
 
 def fixed_point_sub_modifier(optree):
     return fixed_point_op_modifier(optree, op_ctor=Subtraction)
-
-
 
 
 vhdl_comp_symbol = {
