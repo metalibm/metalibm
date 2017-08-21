@@ -26,7 +26,7 @@ class NumericValue(sollya.SollyaObject):
             return NumericValue(sollya.SollyaObject.__add__(lhs, rhs))
     def __mul__(lhs, rhs):
         if FP_SpecialValue.is_special_value(rhs):
-            return rhs + lhs
+            return rhs * lhs
         else:
             return NumericValue(sollya.SollyaObject.__mul__(lhs, rhs))
     def __sub__(lhs, rhs):
@@ -103,7 +103,7 @@ def special_value_add(lhs, rhs):
     if is_nan(lhs) or is_nan(rhs):
         return FP_QNaN(lhs.precision)
     elif (is_plus_infty(lhs) and is_minus_infty(rhs)) or \
-         (is_minus_infty(rhs) and is_plus_infty(rhs)):
+         (is_minus_infty(lhs) and is_plus_infty(rhs)):
         return FP_QNaN(lhs.precision)
     elif is_infty(lhs) and is_infty(rhs):
         # non-symmetrical infty case have already been excluded
@@ -162,7 +162,7 @@ def special_value_mul(lhs, rhs):
     if is_nan(lhs) or is_nan(rhs):
         return FP_QNaN(lhs.precision)
     elif (is_plus_infty(lhs) and is_plus_infty(rhs)) or \
-         (is_minus_infty(rhs) and is_minus_infty(rhs)):
+         (is_minus_infty(lhs) and is_minus_infty(rhs)):
         return FP_PlusInfty(lhs.precision)
     elif is_infty(lhs) and is_infty(rhs):
         # positive infinity results are processed by the previous case
