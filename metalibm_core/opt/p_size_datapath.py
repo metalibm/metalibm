@@ -4,6 +4,7 @@
     RTL entities """
 
 import sollya
+import operator
 
 from metalibm_core.utility.log_report import Log
 
@@ -12,7 +13,8 @@ from metalibm_core.core.ml_operations import (
     Comparison, Addition, Select, Constant, ML_LeafNode, Conversion,
     Statement, ReferenceAssign, BitLogicNegate, Subtraction,
     SpecificOperation, Negation, BitLogicRightShift, BitLogicLeftShift, 
-    Min, Max, CountLeadingZeros, Multiplication
+    Min, Max, CountLeadingZeros, Multiplication,
+    LogicalOr, LogicalAnd
 )
 from metalibm_core.core.advanced_operations import FixedPointPosition
 from metalibm_core.core.ml_hdl_operations import (
@@ -30,8 +32,11 @@ from metalibm_core.core.legalizer import (
     legalize_fixed_point_subselection, fixed_point_position_legalizer,
     evaluate_cst_graph
 )
+from metalibm_core.core.special_values import FP_SpecialValue
 
 from .opt_utils import evaluate_range
+
+from metalibm_core.utility.decorator import safe
 
 # The pass implemented in this file processes an optree and replaces
 #  each None precision by a std_logic_vector's like precision whose
@@ -108,7 +113,7 @@ def solve_format_CLZ(optree):
 def solve_format_ArithOperation(optree,
     integer_size_func = lambda lhs_prec, rhs_prec: None,
     frac_size_func = lambda lhs_prec, rhs_prec: None,
-    signed_func = lambda lhs_prec, rhs_prec: False
+    signed_func = lambda (lhs, lhs_prec), (rhs, rhs_prec): False
     ):
     """ determining fixed-point format for a generic 2-op arithmetic
         operation (e.g. Multiplication, Addition, Subtraction)
@@ -134,7 +139,7 @@ def solve_format_ArithOperation(optree,
         # +1 for carry overflow
         int_size = integer_size_func(lhs_precision, rhs_precision)
         frac_size = frac_size_func(lhs_precision, rhs_precision)
-        is_signed = signed_func(lhs_precision, rhs_precision)
+        is_signed = signed_func((lhs, lhs_precision), (rhs, rhs_precision))
         return fixed_point(
             int_size,
             frac_size,
@@ -153,7 +158,7 @@ def solve_format_Addition(optree):
         optree,
         lambda l, r: max(l.get_integer_size(), r.get_integer_size()) + 1,
         lambda l, r: max(l.get_frac_size(), r.get_frac_size()),
-        lambda l, r: l.get_signed() or r.get_signed()
+        lambda (l, lp), (r, rp): lp.get_signed() or rp.get_signed()
     )
 
 
@@ -170,7 +175,7 @@ def solve_format_Multiplication(optree):
         optree,
         lambda l, r: l.get_integer_size() + r.get_integer_size(),
         lambda l, r: l.get_frac_size() + r.get_frac_size(),
-        lambda l, r: l.get_signed() or r.get_signed()
+        lambda (l, lp), (r, rp): lp.get_signed() or rp.get_signed()
     )
 
 
@@ -193,11 +198,25 @@ def solve_format_Subtraction(optree):
         ) + int_inc
         return int_size
 
+    def sub_signed_predicate((lhs, lhs_prec), (rhs, rhs_prec)):
+        """ determine whether subtraction output on a signed or
+            unsigned format """
+        left_range = evaluate_range(lhs)
+        right_range = evaluate_range(rhs)
+        result_range = safe(operator.__sub__)(left_range, right_range)
+        if result_range is None:
+            return True
+        elif sollya.inf(result_range) < 0:
+            return True
+        else:
+            return False
+
+
     return solve_format_ArithOperation(
         optree,
         sub_integer_size,
-        lambda l, r: l.get_frac_size() + r.get_frac_size(),
-        lambda l, r: l.get_signed() or r.get_signed()
+        lambda lp, rp: lp.get_frac_size() + rp.get_frac_size(),
+        sub_signed_predicate
     )
 
 
@@ -290,15 +309,18 @@ def solve_format_Constant(optree):
     """ Legalize Constant node """
     assert isinstance(optree, Constant)
     value = optree.get_value()
-    assert int(value) == value
-    abs_value = abs(value)
-    signed = value < 0
-
-    int_size = max(int(sollya.ceil(sollya.log2(abs_value))), 0) + (1 if signed else 0)
-    frac_size = 0
-    if frac_size == 0 and int_size == 0:
-        int_size = 1
-    return fixed_point(int_size, frac_size, signed=signed)
+    if FP_SpecialValue.is_special_value(value):
+        return optree.get_precision()
+    else:
+      # fixed-point format solving
+      assert int(value) == value
+      abs_value = abs(value)
+      signed = value < 0
+      int_size = max(int(sollya.ceil(sollya.log2(abs_value))), 0) + (1 if signed else 0)
+      frac_size = 0
+      if frac_size == 0 and int_size == 0:
+          int_size = 1
+      return fixed_point(int_size, frac_size, signed=signed)
 
 def solve_format_FixedPointPosition(optree):
     """ resolve the format of a FixedPointPosition Node """
@@ -485,6 +507,8 @@ def solve_format_rec(optree, memoization_map=None):
                     str(new_format), optree.get_str(display_precision=True)
                 )
             )
+        elif isinstance(optree, LogicalOr) or isinstance(optree, LogicalAnd):
+            new_format = solve_format_BooleanOp(optree)
         elif isinstance(optree, Comparison):
             new_format = solve_format_Comparison(optree)
         elif isinstance(optree, CountLeadingZeros):
