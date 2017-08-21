@@ -121,6 +121,10 @@ def special_value_add(lhs, rhs):
         return rhs
     elif is_number(lhs) and is_number(rhs):
         return lhs + rhs
+    elif is_sv_omega(lhs):
+        return lhs.get_value() + rhs
+    elif is_sv_omega(rhs):
+        return lhs + rhs.get_value()
     else:
         raise NotImplementedError
 
@@ -143,6 +147,10 @@ def special_value_sub(lhs, rhs):
     elif is_infty(lhs):
         # invalid inf - inf excluded previous
         return lhs
+    elif is_sv_omega(lhs):
+        return lhs.get_value() - rhs
+    elif is_sv_omega(rhs):
+        return lhs - rhs.get_value()
     elif is_infty(rhs):
         return -rhs
     else:
@@ -186,6 +194,10 @@ def special_value_mul(lhs, rhs):
         return -lhs
     elif is_zero(rhs) and is_negative(lhs):
         return -rhs
+    elif is_sv_omega(lhs):
+        return lhs.get_value() * rhs
+    elif is_sv_omega(rhs):
+        return lhs * rhs.get_value()
     else:
         raise NotImplementedError
 
@@ -223,10 +235,15 @@ class FP_PlusOmega(FP_SpecialValue):
   ml_support_name = "_sv_PlusOmega"
   def get_integer_coding(self):
     return self.precision.get_integer_coding(self.precision.get_omega())
+  def get_value(self):
+    return NumericValue(self.precision.get_omega())
 class FP_MinusOmega(FP_SpecialValue):
   ml_support_name = "_sv_MinusOmega"
   def get_integer_coding(self):
     return self.precision.get_integer_coding(-self.precision.get_omega())
+  def get_value(self):
+    return NumericValue(-self.precision.get_omega())
+
 class FP_PlusZero(FP_SpecialValue):
   ml_support_name = "_sv_PlusZero"
   def get_integer_coding(self):
@@ -293,6 +310,8 @@ def is_infty(value):
 def is_number(value):
     """ Only partially valid """
     return not isinstance(value, FP_SpecialValue)
+def is_sv_omega(value):
+    return isinstance(value, FP_PlusOmega) or isinstance(value, FP_MinusOmega)
 
 
 if __name__ == "__main__":
@@ -304,6 +323,8 @@ if __name__ == "__main__":
         FP_MinusZero(PRECISION),
         FP_QNaN(PRECISION),
         FP_SNaN(PRECISION),
+        FP_PlusOmega(PRECISION),
+        FP_MinusOmega(PRECISION),
         NumericValue(7.0),
         NumericValue(-3.0),
     ]
