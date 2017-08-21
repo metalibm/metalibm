@@ -24,6 +24,8 @@ from ..utility.log_report import Log
 from .attributes import Attributes, attr_init
 from .ml_formats import * # FP_SpecialValue, ML_FloatingPointException, ML_FloatingPoint_RoundingMode, ML_FPRM_Type, ML_FPE_Type
 
+from metalibm_core.utility.decorator import safe
+
 ## \defgroup ml_operations ml_operations
 #  @{
 
@@ -713,11 +715,6 @@ class Abs(ArithmeticOperationConstructor("Abs", range_function = lambda self, op
 class Negation(ArithmeticOperationConstructor("Negation", range_function = lambda self, ops: safe(operator.__neg__)(ops[0]))): 
     """ abstract negation """
     pass
-
-
-def safe(operation):
-    """ function decorator to forward None value """
-    return lambda *args: None if None in args else operation(*args)
 
 
 ## 2-Operand arithmetic addition
