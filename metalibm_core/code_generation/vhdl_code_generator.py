@@ -305,7 +305,7 @@ class VHDLCodeGenerator(object):
                """ Process recursively a Select operation to build a list
                    of tuple (result, condition) """
                if not isinstance(op, Select): return [(op, cond)]
-               lcond = op.inputs[0] if cond is None else LogicalAnd(op.inputs[0], cond)
+               lcond = op.inputs[0] if cond is None else LogicalAnd(op.inputs[0], cond, precision = cond.get_precision())
                return flatten_select(op.inputs[1], lcond) + flatten_select(op.inputs[2], cond)
 
              def legalize_select_input(select_input):
