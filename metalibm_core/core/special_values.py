@@ -14,6 +14,7 @@
 ###############################################################################
 
 import sollya
+from sollya import S2
 
 class NumericValue(sollya.SollyaObject):
     """ numerical object encapsulating sollya's number to 
@@ -22,17 +23,17 @@ class NumericValue(sollya.SollyaObject):
         if FP_SpecialValue.is_special_value(rhs):
             return rhs + lhs
         else:
-            return sollya.SollyaObject.__add__(lhs, rhs)
+            return NumericValue(sollya.SollyaObject.__add__(lhs, rhs))
     def __mul__(lhs, rhs):
         if FP_SpecialValue.is_special_value(rhs):
             return rhs + lhs
         else:
-            return sollya.SollyaObject.__mul__(lhs, rhs)
+            return NumericValue(sollya.SollyaObject.__mul__(lhs, rhs))
     def __sub__(lhs, rhs):
         if FP_SpecialValue.is_special_value(rhs):
             return rhs.__rsub__(lhs)
         else:
-            return sollya.SollyaObject.__sub__(lhs, rhs)
+            return NumericValue(sollya.SollyaObject.__sub__(lhs, rhs))
 
             
 ###############################################################################
@@ -198,7 +199,7 @@ def is_negative(value):
 class FP_PlusInfty(FP_MathSpecialValue):
   ml_support_name = "INFINITY"
   def get_integer_coding(self):
-    exp = self.precision.get_nanorinf_exp_field()
+    exp = int(self.precision.get_nanorinf_exp_field())
     return exp << self.precision.get_field_size()
   def __str__(self):
     return "+inf"
@@ -208,7 +209,7 @@ class FP_PlusInfty(FP_MathSpecialValue):
 class FP_MinusInfty(FP_SpecialValue):
   ml_support_name = "_sv_MinusInfty"
   def get_integer_coding(self):
-    exp = self.precision.get_nanorinf_exp_field()
+    exp = int(self.precision.get_nanorinf_exp_field())
     sign = 1
     field_size = self.precision.get_field_size()
     exp_size = self.precision.get_exponent_size()
@@ -234,7 +235,6 @@ class FP_PlusZero(FP_SpecialValue):
     return "+0"
   def __neg__(self):
     return FP_MinusZero(self.precision)
-
 class FP_MinusZero(FP_SpecialValue):
   ml_support_name = "_sv_MinusZero"
   def get_integer_coding(self):
@@ -251,12 +251,12 @@ class FP_QNaN(FP_MathSpecialValue):
   """ Floating-point quiet NaN """
   ml_support_name = "NAN"
   def get_integer_coding(self):
-    exp = self.precision.get_nanorinf_exp_field()
+    exp = int(self.precision.get_nanorinf_exp_field())
     sign = 1
     field_size = self.precision.get_field_size()
     exp_size = self.precision.get_exponent_size()
     ## field MSB is 0
-    mant = S2**(field_size - 1) - 1 
+    mant = int(S2**(field_size - 1) - 1)
     return mant | (((sign << exp_size) | exp) << field_size)
   def __str__(self):
     return "qNaN"
@@ -265,12 +265,12 @@ class FP_SNaN(FP_SpecialValue):
   """ Floating-point signaling NaN """
   ml_support_name = "_sv_SNaN"
   def get_integer_coding(self):
-    exp = self.precision.get_nanorinf_exp_field()
+    exp = int(self.precision.get_nanorinf_exp_field())
     sign = 1
     field_size = self.precision.get_field_size()
     exp_size = self.precision.get_exponent_size()
     ## field MSB is 1
-    mant = S2**(field_size) - 1 
+    mant = int(S2**(field_size) - 1 )
     return mant | (((sign << exp_size) | exp) << field_size)
   def __str__(self):
     return "sNaN"
