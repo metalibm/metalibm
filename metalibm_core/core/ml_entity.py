@@ -576,6 +576,10 @@ class ML_EntityBasis(object):
         input_values[input_tag] = input_value
     return input_values
 
+  def init_test_generator(self):
+    """ Generic initialization of test case generator """
+    return
+
   def generate_auto_test(self, test_num = 10, test_range = Interval(-1.0, 1.0), debug = False):
     # instanciating tested component
     # map of input_tag -> input_signal and output_tag -> output_signal
@@ -606,6 +610,9 @@ class ML_EntityBasis(object):
     self_component = self.implementation.get_component_object()
     self_instance = self_component(io_map = io_map, tag = "tested_entity")
     test_statement = Statement()
+
+    # initializing random test case generator
+    self.init_test_generator()
 
     # Appending standard test cases if required
     if self.auto_test_std:
