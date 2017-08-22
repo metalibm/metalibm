@@ -280,13 +280,16 @@ class ML_EntityBasis(object):
     op_src = retime_map.get(op_key, current_stage)
     while current_stage != stage:  
       # create op instance for <current_stage+1>
-      op_dst = Signal(tag = "{tag}_S{stage}".format(tag = op_key.get_tag(), stage = (current_stage + 1)), init_stage = current_stage + 1, init_op = op_key, precision = op_key.get_precision(), var_type = Variable.Local) 
+      op_dst = Signal(tag = "{tag}_S{stage}".format(
+        tag = op_key.get_tag(), stage = (current_stage + 1)),
+        init_stage = current_stage + 1, init_op = op_key,
+        precision = op_key.get_precision(), var_type = Variable.Local)
       retime_map.add_stage_forward(op_dst, op_src, current_stage)
       retime_map.set(op_dst, current_stage + 1)
       # update values for next iteration
       current_stage += 1
       op_src = op_dst
-      
+
 
   # process op's inputs and if necessary
   # propagate them to op's stage
