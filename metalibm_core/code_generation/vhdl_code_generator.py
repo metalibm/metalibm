@@ -78,7 +78,14 @@ class VHDLCodeGenerator(object):
         self.memoization_map[0][optree] = code_value
 
 
-    def generate_expr(self, code_object, optree, folded = False, result_var = None, initial = False, language = None):
+    def generate_expr(
+            self, code_object, optree, folded = False,
+            result_var = None, initial = False,
+            language = None,
+            ## force to store result in a variable, wrapping CodeExpression
+            #  in CodeVariable
+            force_variable_storing = False
+        ):
         """ code generation function """
         language = self.language if language is None else language
 
@@ -434,8 +441,9 @@ class VHDLCodeGenerator(object):
             self.generate_debug_msg(optree, result, code_object)
             
 
-        if initial and not isinstance(result, CodeVariable) and not result is None:
-            final_var = result_var if result_var else code_object.get_free_var_name(optree.get_precision(), prefix = "result", declare = True)
+        if (initial or force_variable_storing) and not isinstance(result, CodeVariable) and not result is None:
+            prefix_tag = optree.get_tag() if force_variable_storing and not optree.get_tag() is None else "result" 
+            final_var = result_var if result_var else code_object.get_free_var_name(optree.get_precision(), prefix = prefix_tag, declare = True)
             code_object << self.generate_assignation(final_var, result.get())
             return CodeVariable(final_var, optree.get_precision())
 

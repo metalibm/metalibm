@@ -82,8 +82,8 @@ class CCodeGenerator(object):
         """ register memoization value <code_value> for entry <optree> """
         self.memoization_map[0][optree] = code_value
 
-
-    def generate_expr(self, code_object, optree, folded = True, result_var = None, initial = False, language = None):
+    # force_variable_storing is not supported yet
+    def generate_expr(self, code_object, optree, folded = True, result_var = None, initial = False, language = None, force_variable_storing = False):
         """ code generation function """
         language = self.language if language is None else language
 
