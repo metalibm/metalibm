@@ -70,7 +70,7 @@ class RTL_FixedPointFormat(ML_Base_FixedPoint_Format):
     return self.support_format.get_code_name(language)
 
   def is_cst_decl_required(self):
-    return True
+    return False
 
   def get_cst(self, cst_value, language = VHDL_Code):
     if language is VHDL_Code:
@@ -111,7 +111,7 @@ class ML_StdLogicVectorFormat(ML_Format):
     return generic_get_vhdl_cst(value, self.bit_size)
 
   def is_cst_decl_required(self):
-    return True
+    return False
 
 ## Class of single bit value format
 class ML_StdLogicClass(ML_Format):
