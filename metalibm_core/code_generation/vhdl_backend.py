@@ -420,23 +420,23 @@ def fixed_comparison_modifier(optree):
     rhs = convert_if_needed(rhs, unified_format)
     lhs = TypeCast(
         lhs,
-        precision=lhs_precision.get_support_format()
+        precision=lhs.get_precision().get_support_format(),
     )
     rhs = TypeCast(
         rhs,
-        precision=rhs_precision.get_support_format()
+        precision=rhs.get_precision().get_support_format(),
     )
     lhs = SignCast(
         lhs,
         specifier=SignCast.Signed if lhs_precision.get_signed() else
         SignCast.Unsigned,
-        precision=lhs.get_precision()
+        precision=lhs.get_precision(),
     )
     rhs = SignCast(
         rhs,
         specifier=SignCast.Signed if rhs_precision.get_signed() else
         SignCast.Unsigned,
-        precision=rhs.get_precision()
+        precision=rhs.get_precision(),
     )
     # we must keep every initial properties of the Comparison node
     # except the operand nodes
