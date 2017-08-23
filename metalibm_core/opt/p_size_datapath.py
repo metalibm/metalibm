@@ -436,7 +436,9 @@ def propagate_format_to_input(new_format, optree, input_index_list):
                             str(new_format)
                         )
                     )
-                    op_input.set_precision(new_format)
+                    new_input = op_input.copy()
+                    new_input.set_precision(new_format)
+                    optree.set_input(op_index, new_input)
                 else:
                     Log.report(
                         Log.Error,
