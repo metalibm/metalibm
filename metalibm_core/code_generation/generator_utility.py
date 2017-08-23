@@ -44,6 +44,9 @@ def ordered_generation(gen_function, gen_list):
         result_list[index] = gen_function(arg)
     return result_list
 
+def default_process_arg_list(code_object, code_generator, arg_list):
+    return arg_list
+
 class ML_CG_Operator(object):
     """ parent class for all code generation operators """
     def __init__(self,
@@ -51,7 +54,9 @@ class ML_CG_Operator(object):
             custom_generate_expr = None, force_folding = None,
             require_header = None, no_parenthesis = False,
             context_dependant = None, speed_measure = 0,
-            force_input_variable = False
+            force_input_variable = False,
+            ## process argument list before assembling code
+            process_arg_list = default_process_arg_list
         ):
         # number of inputs expected for the operator
         self.arity = arity
@@ -72,12 +77,18 @@ class ML_CG_Operator(object):
         ## if set, does not accept CodeExpression as input variables
         #  (forces CodeVariable)
         self.force_input_variable = force_input_variable
+        # argument processing between argument code generation
+        # and operator code assembling
+        self.process_arg_list = process_arg_list
         # 
         self.context_dependant = context_dependant
         self.speed_measure = speed_measure
 
         ## source file information about opertor instantitation
         self.sourceinfo = SourceInfo.retrieve_source_info(1)
+
+    def get_process_arg_list(self):
+        return self.process_arg_list
 
     def get_source_info(self):
         return self.sourceinfo
@@ -550,7 +561,7 @@ class FunctionOperator(ML_CG_Operator):
             # generating list of arguments
             arg_result = ordered_generation(
                 lambda arg: code_generator.generate_expr(
-                    code_object, arg, force_variable_storing = force_variable_storing,
+                    code_object, arg, force_variable_storing = self.get_force_input_variable(),
                     **kwords
                 ), arg_tuple
             )
@@ -632,6 +643,11 @@ class FunctionOperator(ML_CG_Operator):
                 result_args_map = result_args_map
             ) for index in xrange(total_arity)
         ]
+        result_arg_list = self.get_process_arg_list()(
+            code_object,
+            code_generator,
+            result_arg_list
+        )
         result_code = self.generate_call_code(result_arg_list)
 
         if result_in_args:
