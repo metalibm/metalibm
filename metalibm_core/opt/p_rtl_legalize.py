@@ -10,18 +10,19 @@ from metalibm_core.utility.log_report import Log
 from metalibm_core.core.passes import OptreeOptimization, Pass
 
 from metalibm_core.core.ml_operations import (
-    ML_LeafNode, Select, Conversion, Comparison
+    ML_LeafNode, Select, Conversion, Comparison, Min, Max
 )
 from metalibm_core.core.advanced_operations import FixedPointPosition
 from metalibm_core.core.ml_hdl_operations import SubSignalSelection
 from metalibm_core.core.ml_hdl_format import is_fixed_point
 
 from metalibm_core.opt.p_size_datapath import (
-    solve_format_Comparison
+    solve_format_Comparison, solve_format_rec
 )
 
 from metalibm_core.core.legalizer import (
-    subsignalsection_legalizer, fixed_point_position_legalizer
+    subsignalsection_legalizer, fixed_point_position_legalizer, 
+    minmax_legalizer_wrapper
 )
 
 ###############################################################################
@@ -74,7 +75,15 @@ def legalize_single_operation(optree):
         return True, new_optree
     elif isinstance(optree, Comparison):
         new_optree = legalize_Comparison(optree)
-        return True, optree
+        return True, new_optree
+    elif isinstance(optree, Min):
+        new_optree = minmax_legalizer_wrapper(Comparison.Less)(optree)
+        solve_format_rec(new_optree)
+        return True, new_optree
+    elif isinstance(optree, Max):
+        new_optree = minmax_legalizer_wrapper(Comparison.Greater)(optree)
+        solve_format_rec(new_optree)
+        return True, new_optree
     return False, optree
 
 
