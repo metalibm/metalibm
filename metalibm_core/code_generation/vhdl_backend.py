@@ -163,12 +163,14 @@ def fixed_point_negation_modifier(optree):
             op_input,
             precision = op_format
         ),
-        precision = casted_format
+        precision = casted_format,
+        tag = "neg_casted_optree"
     )
     casted_negated = Negation(casted_optree, precision = casted_format)
     result = TypeCast(
         casted_negated,
-        precision = op_format
+        precision = op_format,
+        tag = optree.get_tag() or "neg_casted_negated"
     )
     forward_attributes(optree, result)
     return result
@@ -298,7 +300,8 @@ def fixed_conversion_modifier(optree):
     )
     result_raw = TypeCast(
         result,
-        precision=raw_arg_precision
+        precision=raw_arg_precision,
+        tag = "fixed_conv_result_raw"
     )
     signed = arg_precision.get_signed()
     int_ext_size = conv_precision.get_integer_size() - arg_precision.get_integer_size()
@@ -322,7 +325,8 @@ def fixed_conversion_modifier(optree):
     forward_attributes(optree, result_raw)
     result = TypeCast(
         result_raw,
-        precision=conv_precision
+        precision=conv_precision,
+        tag = "final_fixed_conv_result"
     )
     return result
 
@@ -337,8 +341,10 @@ def legalizing_fixed_shift_amount(shift_amount):
         casted_format = ML_StdLogicVectorFormat(precision.get_bit_size())
         casted_sa = TypeCast(
             shift_amount,
-            precision = casted_format
+            precision = casted_format,
+            tag = shift_amount.get_tag() or "casted_sa"
         )
+        forward_attributes(shift_amount, casted_sa)
         return casted_sa
     else:
         return shift_amount
@@ -364,7 +370,8 @@ def fixed_shift_modifier(shift_class):
         casted_format = ML_StdLogicVectorFormat(out_precision.get_bit_size())
         casted_input = TypeCast(
             converted_input,
-            precision = casted_format
+            precision = casted_format,
+            tag = "shift_casted_input"
         )
         # inserting shift
         casted_shift = shift_class(
@@ -375,7 +382,8 @@ def fixed_shift_modifier(shift_class):
         # casting back
         fixed_result = TypeCast(
             casted_shift,
-            precision = out_precision
+            precision = out_precision,
+            tag = optree.get_tag() or "shift_fixed_result"
         )
         forward_attributes(optree, fixed_result)
         return fixed_result
@@ -472,6 +480,7 @@ def adapt_fixed_optree(raw_optree, (integer_size, frac_size), optree):
         result_rext,
         init_stage=init_stage,
         precision=optree_prec,
+        tag = optree.get_tag() or "fixed_adapt_result"
     )
     forward_attributes(optree, result)
     return result
@@ -513,12 +522,14 @@ def fixed_point_op_modifier(optree, op_ctor=Addition):
     lhs_casted = TypeCast(
         lhs,
         precision=ML_StdLogicVectorFormat(lhs_prec.get_bit_size()),
-        init_stage=init_stage
+        init_stage=init_stage,
+        tag = "op_lhs_casted"
     )
     rhs_casted = TypeCast(
         rhs,
         precision=ML_StdLogicVectorFormat(rhs_prec.get_bit_size()),
-        init_stage=init_stage
+        init_stage=init_stage,
+        tag = "op_rhs_casted"
     )
 
     # vhdl does not support signed <op> unsigned unless result size is increased
@@ -571,12 +582,22 @@ def fixed_point_mul_modifier(optree):
                            rhs_prec.get_integer_size())
     #assert optree_prec.get_frac_size() >= result_frac_size
     #assert optree_prec.get_integer_size() >= result_integer_size
-    lhs_casted = TypeCast(lhs, precision=ML_StdLogicVectorFormat(
-        lhs_prec.get_bit_size()), init_stage=init_stage)
+    lhs_casted = TypeCast(
+        lhs, 
+        precision=ML_StdLogicVectorFormat(
+            lhs_prec.get_bit_size()
+        ), init_stage=init_stage,
+        tag = "mul_lhs_casted",
+    )
     lhs_casted = SignCast(lhs_casted, precision=lhs_casted.get_precision(
     ), specifier=SignCast.Signed if lhs_prec.get_signed() else SignCast.Unsigned)
-    rhs_casted = TypeCast(rhs, precision=ML_StdLogicVectorFormat(
-        rhs_prec.get_bit_size()), init_stage=init_stage)
+    rhs_casted = TypeCast(
+        rhs, 
+        precision=ML_StdLogicVectorFormat(
+            rhs_prec.get_bit_size()
+        ), init_stage=init_stage,
+        tag = "mul_rhs_casted",
+    )
     rhs_casted = SignCast(rhs_casted, precision=rhs_casted.get_precision(
     ), specifier=SignCast.Signed if rhs_prec.get_signed() else SignCast.Unsigned)
 
@@ -679,7 +700,8 @@ def bit_selection_legalizer(optree):
         result = VectorElementSelection(
             TypeCast(
                 op_input,
-                precision = cast_format
+                precision = cast_format,
+                tag = "bit_sel_input_casted"
             ),
             op_index,
             precision = optree.get_precision()
@@ -737,13 +759,26 @@ def fixed_cast_legalizer(optree):
         result = TypeCast(
             TypeCast( 
                 cast_input,
-                precision = exch_format
+                precision = exch_format,
+                tag = "fixed_cast_input"
             ),
-            precision = out_prec
+            precision = out_prec,
+            tag = optree.get_tag() or "fixed_cast_legalizer"
         )
         forward_attributes(optree, result)
         return result
 
+
+def vel_arg_process(code_object, code_generator, arg_list):
+    """ VectorElementSelection argument processing """
+    vel_input, vel_index = arg_list
+    if isinstance(vel_input, CodeExpression):
+        # declare input
+        prefix = "vel_input"
+        result_varname = code_object.get_free_var_name(vel_input.precision, prefix = prefix)
+        code_object << code_generator.generate_assignation(result_varname, vel_input.get())
+        vel_input = CodeVariable(result_varname, vel_input.precision)
+    return [vel_input, vel_index]
 
 # optree_modifier will be modified once ML_LeadingZeroCounter has been instanciated
 # (as its depends on VHDLBackend, this can not happen here)
@@ -996,7 +1031,7 @@ vhdl_code_generation_table = {
                     TCM(ML_StdLogicVectorFormat),
                     type_all_match
                 ): 
-                    TemplateOperator("%s(%s)", arity=2),
+                    TemplateOperator("%s(%s)", arity=2, process_arg_list = vel_arg_process),
                 type_custom_match(FSM(ML_StdLogic), MCFixedPoint, type_all_match): 
                     ComplexOperator(optree_modifier = bit_selection_legalizer),
             },
@@ -1078,12 +1113,20 @@ vhdl_code_generation_table = {
     SignCast: {
         SignCast.Signed: {
             lambda optree: True: {
-                type_custom_match(MCSTDLOGICV, MCSTDLOGICV): FunctionOperator("signed", arity=1, force_folding=False),
+                type_custom_match(MCSTDLOGICV, MCSTDLOGICV): 
+                    FunctionOperator("signed",
+                        arity=1,
+                        force_folding=False, force_input_variable = True
+                    ),
             },
         },
         SignCast.Unsigned: {
             lambda optree: True: {
-                type_custom_match(MCSTDLOGICV, MCSTDLOGICV): FunctionOperator("unsigned", arity=1, force_folding=False),
+                type_custom_match(MCSTDLOGICV, MCSTDLOGICV): 
+                    FunctionOperator(
+                        "unsigned", arity=1, force_folding=False,
+                        force_input_variable = True
+                    ),
             },
         },
     },
