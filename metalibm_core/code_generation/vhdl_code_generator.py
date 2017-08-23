@@ -114,7 +114,7 @@ class VHDLCodeGenerator(object):
 
         elif isinstance(optree, Constant):
             precision = optree.get_precision() # .get_base_format()
-            if self.declare_cst or optree.get_precision().is_cst_decl_required():
+            if force_variable_storing or self.declare_cst or optree.get_precision().is_cst_decl_required():
                 cst_prefix = "cst" if optree.get_tag() is None else optree.get_tag()
                 cst_varname = code_object.declare_cst(optree, prefix = cst_prefix)
                 result = CodeVariable(cst_varname, precision)
@@ -442,10 +442,12 @@ class VHDLCodeGenerator(object):
             
 
         if (initial or force_variable_storing) and not isinstance(result, CodeVariable) and not result is None:
-            prefix_tag = optree.get_tag() if force_variable_storing and not optree.get_tag() is None else "result" 
-            final_var = result_var if result_var else code_object.get_free_var_name(optree.get_precision(), prefix = prefix_tag, declare = True)
+            # result could have been modified from initial optree
+            result_precision = result.precision
+            prefix_tag = optree.get_tag(default = "var_result") if force_variable_storing  else "tmp_result" 
+            final_var = result_var if result_var else code_object.get_free_var_name(result_precision, prefix = prefix_tag, declare = True)
             code_object << self.generate_assignation(final_var, result.get())
-            return CodeVariable(final_var, optree.get_precision())
+            return CodeVariable(final_var, result_precision)
 
         return result
 
