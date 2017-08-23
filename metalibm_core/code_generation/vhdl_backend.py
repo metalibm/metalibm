@@ -421,31 +421,37 @@ def fixed_comparison_modifier(optree):
     lhs = TypeCast(
         lhs,
         precision=lhs.get_precision().get_support_format(),
+        tag = "comp_lhs_casted"
     )
     rhs = TypeCast(
         rhs,
         precision=rhs.get_precision().get_support_format(),
+        tag = "comp_rhs_casted"
     )
     lhs = SignCast(
         lhs,
         specifier=SignCast.Signed if lhs_precision.get_signed() else
         SignCast.Unsigned,
         precision=lhs.get_precision(),
+        tag = "comp_lhs_signcasted"
     )
     rhs = SignCast(
         rhs,
         specifier=SignCast.Signed if rhs_precision.get_signed() else
         SignCast.Unsigned,
         precision=rhs.get_precision(),
+        tag = "comp_rhs_signcasted"
     )
     # we must keep every initial properties of the Comparison node
     # except the operand nodes
-    return optree.copy(
+    result = optree.copy(
         copy_map={
             optree.get_input(0): lhs,
             optree.get_input(1): rhs
         }
     )
+    forward_attributes(optree, result)
+    return result
 
 # adapt a fixed-optree @p raw_result assumimg fixed format
 #  with @p integer_size and @p frac_size
