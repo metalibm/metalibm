@@ -32,8 +32,14 @@ import metalibm_hw_blocks.unit_tests.report_test as ut_report_test
 import metalibm_hw_blocks.unit_tests.range_eval as ut_range_eval
 import metalibm_hw_blocks.unit_tests.fixed_point_position as ut_fixed_point_position
 import metalibm_hw_blocks.unit_tests.ut_special_values as ut_special_values
+import metalibm_hw_blocks.unit_tests.min_max_select as ut_min_max_select
 
 unit_test_list = [
+  UnitTestScheme(
+    "basic min max select entity",
+    ut_min_max_select,
+    [{}]
+  ),
   UnitTestScheme(
     "basic special values arithmetic",
     ut_special_values,
