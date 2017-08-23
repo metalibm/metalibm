@@ -27,7 +27,7 @@ def evaluate_range(optree):
 
         Return:
             sollya Interval: evaluated range of optree or None if no range
-                             could be determined 
+                             could be determined
     """
     init_interval =  optree.get_interval()
     if not init_interval is None:
@@ -45,7 +45,6 @@ def evaluate_range(optree):
             return optree.apply_bare_range_function(args_interval)
 
 
-    
 def forward_attributes(src, dst):
     """ forward compatible attributes from src node to dst node """
     dst.set_tag(src.get_tag())
