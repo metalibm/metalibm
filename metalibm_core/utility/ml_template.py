@@ -254,6 +254,7 @@ class DefaultArgTemplate:
     # Debug verbosity
     debug = False
     vector_size = 1
+    sub_vector_size = None
     language = C_Code
     # auto-test properties
     auto_test = False
@@ -386,6 +387,11 @@ class ML_CommonArgTemplate(object):
             "--vector-size", dest="vector_size", type=int,
             default=default_arg.vector_size,
             help="define size of vector (1: scalar implemenation)")
+            
+        self.parser.add_argument(
+            "--sub-vector-size", dest="sub_vector_size", type=int,
+            default=default_arg.sub_vector_size,
+            help="define size of sub vector")
         # language selection
         self.parser.add_argument(
             "--language", dest="language", type=language_parser,
