@@ -559,6 +559,25 @@ vector_c_code_generation_table = {
   VectorAssembling: {
     None: {
       lambda _: True: {
+        type_strict_match(v2float32, ML_Binary32, ML_Binary32): ML_VectorLib_Function("ml_vec_assembling_1_2_float", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2),
+        type_strict_match(v2int32, ML_Int32, ML_Int32): ML_VectorLib_Function("ml_vec_assembling_1_2_int", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2),
+        type_strict_match(v2bool, ML_Bool, ML_Bool): ML_VectorLib_Function("ml_vec_assembling_1_2_bool", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2),
+
+        type_strict_match(v4float32, ML_Binary32, ML_Binary32, ML_Binary32, ML_Binary32): ML_VectorLib_Function("ml_vec_assembling_1_4_float", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2), 4: FO_Arg(3)}, arity = 4),
+        type_strict_match(v4int32, ML_Int32, ML_Int32, ML_Int32, ML_Int32): ML_VectorLib_Function("ml_vec_assembling_1_4_int", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2), 4: FO_Arg(3)}, arity = 4),
+        type_strict_match(v4bool, ML_Bool, ML_Bool, ML_Bool, ML_Bool): ML_VectorLib_Function("ml_vec_assembling_1_4_bool", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2), 4: FO_Arg(3)}, arity = 4),
+
+        type_strict_match(v4float32, v2float32, v2float32): ML_VectorLib_Function("ml_vec_assembling_2_4_float", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2),
+        type_strict_match(v4int32, v2int32, v2int32): ML_VectorLib_Function("ml_vec_assembling_2_4_int", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2),
+        type_strict_match(v4bool, v2bool, v2bool): ML_VectorLib_Function("ml_vec_assembling_2_4_bool", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2),
+
+        type_strict_match(v8float32, v4float32, v4float32): ML_VectorLib_Function("ml_vec_assembling_4_8_float", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2),
+        type_strict_match(v8int32, v4int32, v4int32): ML_VectorLib_Function("ml_vec_assembling_4_8_int", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2),
+        type_strict_match(v8bool, v4bool, v4bool): ML_VectorLib_Function("ml_vec_assembling_4_8_bool", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2),
+
+        type_strict_match(v8float32, v2float32, v2float32, v2float32, v2float32): ML_VectorLib_Function("ml_vec_assembling_2_8_float", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2), 4: FO_Arg(3)}, arity = 4),
+        type_strict_match(v8int32, v2int32, v2int32, v2int32, v2int32): ML_VectorLib_Function("ml_vec_assembling_2_8_int", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2), 4: FO_Arg(3)}, arity = 4),
+        type_strict_match(v8bool, v2bool, v2bool, v2bool, v2bool): ML_VectorLib_Function("ml_vec_assembling_2_8_bool", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2), 4: FO_Arg(3)}, arity = 4),
       },
     },
   },
