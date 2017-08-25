@@ -27,7 +27,7 @@ from metalibm_core.core.legalizer import (
 
 ###############################################################################
 # PASS DESCRIPTION:
-# The pass implemented in this file processes an optree and  legalize every 
+# The pass implemented in this file processes an optree and  legalize every
 # supported node
 # the output format
 ###############################################################################
