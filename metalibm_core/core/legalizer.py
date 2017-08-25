@@ -26,7 +26,9 @@ from metalibm_core.core.ml_hdl_format import (
     is_fixed_point, ML_StdLogicVectorFormat
 )
 
-from metalibm_core.opt.opt_utils import forward_attributes
+from metalibm_core.opt.opt_utils import (
+    forward_attributes, forward_stage_attributes
+)
 
 
 def minmax_legalizer_wrapper(predicate):
@@ -35,12 +37,15 @@ def minmax_legalizer_wrapper(predicate):
     def minmax_legalizer(optree):
         op0 = optree.get_input(0)
         op1 = optree.get_input(1)
+        comp = Comparison(
+            op0, op1, specifier = predicate,
+            precision = ML_Bool,
+            tag = "minmax_pred"
+        )
+        # forward_stage_attributes(optree, comp)
         result = Select(
-            Comparison(
-                op0, op1, specifier = predicate,
-                precision = ML_Bool,
-                tag = "minmax_pred"
-            ), op0, op1,
+            comp,
+            op0, op1,
             precision = optree.get_precision()
         )
         forward_attributes(optree, result)
