@@ -481,6 +481,10 @@ class ML_EntityBasis(object):
 		):
     # generate scheme
     code_entity_list = self.generate_entity_list()
+
+    # defaulting pipeline stage to None
+    self.implementation.set_current_stage(None)
+
     
     if self.pipelined:
         self.generate_pipeline_stage()
