@@ -33,6 +33,7 @@ import metalibm_hw_blocks.unit_tests.range_eval as ut_range_eval
 import metalibm_hw_blocks.unit_tests.fixed_point_position as ut_fixed_point_position
 import metalibm_hw_blocks.unit_tests.ut_special_values as ut_special_values
 import metalibm_hw_blocks.unit_tests.min_max_select as ut_min_max_select
+import metalibm_hw_blocks.unit_tests.unify_pipeline as ut_unify_pipeline
 
 unit_test_list = [
   UnitTestScheme(
@@ -63,6 +64,11 @@ unit_test_list = [
   UnitTestScheme(
     "basic range evaluate test",
     ut_range_eval,
+    [{}]
+  ),
+  UnitTestScheme(
+    "pipeline unification pass test",
+    ut_unify_pipeline,
     [{}]
   ),
 ]
