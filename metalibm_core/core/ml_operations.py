@@ -393,7 +393,8 @@ class AbstractOperation(ML_Operation):
     def get_str(
             self, depth = 2, display_precision = False, 
             tab_level = 0, memoization_map = None, 
-            display_attribute = False, display_id = False
+            display_attribute = False, display_id = False,
+            custom_callback = lambda op: "",
         ):
         memoization_map = {} if memoization_map is None else memoization_map
         new_depth = None 
@@ -402,7 +403,7 @@ class AbstractOperation(ML_Operation):
                 return "" 
         new_depth = (depth - 1) if depth != None else None
             
-        tab_str = AbstractOperation.str_del * tab_level
+        tab_str = AbstractOperation.str_del * tab_level + custom_callback(self)
         silent_str = "[S]" if self.get_silent() else ""
         dbg_str = "[DBG]" if self.get_debug() else ""
         id_str     = ("[id=%x]" % id(self)) if display_id else ""
@@ -413,11 +414,11 @@ class AbstractOperation(ML_Operation):
         if self.arity == 1:
             precision_str = "" if not display_precision else "[%s]" % str(self.get_precision())
             memoization_map[self] = str_tag
-            return tab_str + "%s%s%s%s%s%s -------> %s\n%s" % (self.get_name(), precision_str, dbg_str, silent_str, id_str, attribute_str, str_tag, "".join(inp.get_str(new_depth, display_precision, tab_level = tab_level + 1, memoization_map = memoization_map, display_attribute = display_attribute, display_id = display_id) for inp in self.inputs))
+            return tab_str + "%s%s%s%s%s%s -------> %s\n%s" % (self.get_name(), precision_str, dbg_str, silent_str, id_str, attribute_str, str_tag, "".join(inp.get_str(new_depth, display_precision, tab_level = tab_level + 1, memoization_map = memoization_map, display_attribute = display_attribute, display_id = display_id, custom_callback = custom_callback) for inp in self.inputs))
         else:
             memoization_map[self] = str_tag
             precision_str = "" if not display_precision else "[%s]" % str(self.get_precision())
-            return tab_str + "%s%s%s%s%s%s ------> %s\n%s" % (self.get_name(), precision_str, dbg_str, silent_str, id_str, attribute_str, str_tag, "".join(inp.get_str(new_depth, display_precision, tab_level = tab_level + 1, memoization_map = memoization_map, display_attribute = display_attribute, display_id = display_id) for inp in self.inputs))
+            return tab_str + "%s%s%s%s%s%s ------> %s\n%s" % (self.get_name(), precision_str, dbg_str, silent_str, id_str, attribute_str, str_tag, "".join(inp.get_str(new_depth, display_precision, tab_level = tab_level + 1, memoization_map = memoization_map, display_attribute = display_attribute, display_id = display_id, custom_callback = custom_callback) for inp in self.inputs))
 
 
     ## virtual function, called after a node's copy
@@ -489,13 +490,14 @@ class Constant(ML_LeafNode):
     def get_str(
             self, depth = None, display_precision = False, 
             tab_level = 0, memoization_map = None, 
-            display_attribute = False, display_id = False
+            display_attribute = False, display_id = False,
+            custom_callback = lambda op: "",
         ):
         memoization_map = {} if memoization_map is None else memoization_map
         precision_str = "" if not display_precision else "[%s]" % str(self.get_precision())
         attribute_str = "" if not display_attribute else self.attributes.get_str(tab_level = tab_level)
         id_str        = ("[id=%x]" % id(self)) if display_id else ""
-        return AbstractOperation.str_del * tab_level + "Cst(%s)%s%s%s\n" % (self.value, attribute_str, precision_str, id_str)
+        return AbstractOperation.str_del * tab_level + custom_callback(self) + "Cst(%s)%s%s%s\n" % (self.value, attribute_str, precision_str, id_str)
 
 
     def copy(self, copy_map = {}):
@@ -548,14 +550,15 @@ class AbstractVariable(ML_LeafNode):
     ## generate string description of the Variable node
     def get_str(
             self, depth = None, display_precision = False, tab_level = 0, 
-            memoization_map = None, display_attribute = False, display_id = False
+            memoization_map = None, display_attribute = False, display_id = False,
+            custom_callback = lambda op: ""
         ):
         memoization_map = {} if memoization_map is None else memoization_map
 
         precision_str = "" if not display_precision else "[%s]" % str(self.get_precision())
         attribute_str = "" if not display_attribute else self.attributes.get_str(tab_level = tab_level)
         id_str        = ("[id=%x]" % id(self)) if display_id else ""
-        return AbstractOperation.str_del * tab_level + "Var(%s)%s%s%s\n" % (self.get_tag(), precision_str, attribute_str, id_str)
+        return AbstractOperation.str_del * tab_level + custom_callback(self) + "Var(%s)%s%s%s\n" % (self.get_tag(), precision_str, attribute_str, id_str)
 
 
     def copy(self, copy_map = {}):
@@ -1490,7 +1493,8 @@ class SwitchBlock(AbstractOperationConstructor("Switch", arity = 1)):
     def get_str(
             self, depth = 2, display_precision = False, 
             tab_level = 0, memoization_map = None,
-            display_attribute = False, display_id = False
+            display_attribute = False, display_id = False,
+            custom_callback = lambda optree: ""
         ):
         """ string conversion for operation graph 
             depth:                  number of level to be crossed (None: infty)
@@ -1503,7 +1507,7 @@ class SwitchBlock(AbstractOperationConstructor("Switch", arity = 1)):
                 return "" 
         new_depth = (depth - 1) if depth != None else None
             
-        tab_str = AbstractOperation.str_del * tab_level
+        tab_str = AbstractOperation.str_del * tab_level + custom_callback(self)
         silent_str = "[S]" if self.get_silent() else ""
         id_str     = ("[id=%x]" % id(self)) if display_id else ""
         attribute_str = "" if not display_attribute else self.attributes.get_str(tab_level = tab_level)
@@ -1513,7 +1517,7 @@ class SwitchBlock(AbstractOperationConstructor("Switch", arity = 1)):
         if 1:
             memoization_map[self] = str_tag
             precision_str = "" if not display_precision else "[%s]" % str(self.get_precision())
-            pre_str = tab_str + "%s%s%s%s%s ------> %s\n%s" % (self.get_name(), precision_str, silent_str, id_str, attribute_str, str_tag, "".join(inp.get_str(new_depth, display_precision, tab_level = tab_level + 1, memoization_map = memoization_map, display_attribute = display_attribute, display_id = display_id) for inp in self.inputs))
+            pre_str = tab_str + "%s%s%s%s%s ------> %s\n%s" % (self.get_name(), precision_str, silent_str, id_str, attribute_str, str_tag, "".join(inp.get_str(new_depth, display_precision, tab_level = tab_level + 1, memoization_map = memoization_map, display_attribute = display_attribute, display_id = display_id, custom_callback = custom_callback) for inp in self.inputs))
             for case in self.case_map:
                 case_str = ""
                 if isinstance(case, tuple):
@@ -1521,7 +1525,7 @@ class SwitchBlock(AbstractOperationConstructor("Switch", arity = 1)):
                 else:
                   case_str = "%s" % case
                 pre_str += "Case: %s" %  case_str #.get_str(new_depth, display_precision, tab_level = 0, memoization_map = memoization_map, display_attribute = display_attribute, display_id = display_id)
-                pre_str += "%s" %  self.case_map[case].get_str(new_depth, display_precision, tab_level = tab_level + 2, memoization_map = memoization_map, display_attribute = display_attribute, display_id = display_id)
+                pre_str += "%s" %  self.case_map[case].get_str(new_depth, display_precision, tab_level = tab_level + 2, memoization_map = memoization_map, display_attribute = display_attribute, display_id = display_id, custom_callback = custom_callback)
             return pre_str
 
 class VectorAssembling(ArithmeticOperationConstructor("VectorAssembling")): pass
