@@ -68,6 +68,10 @@ class PassScheduler:
     tag = "start"
   class Whenever:
     tag = "whenever"
+  class BeforePipelining: 
+    tag = "beforepipelining"
+  class AfterPipelining: 
+    tag = "afterpipelining"
   class JustBeforeCodeGen: 
     tag = "beforecodegen"
 
@@ -77,6 +81,8 @@ class PassScheduler:
       PassScheduler.Start.tag: PassScheduler.Start,
       PassScheduler.Whenever.tag: PassScheduler.Whenever,
       PassScheduler.JustBeforeCodeGen.tag: PassScheduler.JustBeforeCodeGen,
+      PassScheduler.BeforePipelining.tag: PassScheduler.BeforePipelining,
+      PassScheduler.AfterPipelining.tag: PassScheduler.AfterPipelining,
     }[tag]
 
   def __init__(self):
@@ -85,6 +91,8 @@ class PassScheduler:
       PassScheduler.Start: [],
       PassScheduler.Whenever: [],
       PassScheduler.JustBeforeCodeGen: [],
+      PassScheduler.BeforePipelining: [],
+      PassScheduler.AfterPipelining: [],
     }
     self.executed_passes = []
     self.ready_passes    = []
