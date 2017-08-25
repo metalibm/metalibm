@@ -303,7 +303,13 @@ class ML_EntityBasis(object):
       for in_id in range(op.get_input_num()):
         in_op = op.get_input(in_id)
         in_stage = in_op.attributes.init_stage
-        Log.report(Log.Verbose, "retiming input {inp} of {op} stage {in_stage} -> {op_stage}".format(inp = in_op.get_str(depth = 1), op = op, in_stage = in_stage, op_stage = op_stage))
+        Log.report(
+            Log.Verbose,
+            "retiming input {inp} of {op} stage {in_stage} -> {op_stage}".format(
+                inp = in_op.get_str(depth = 1), op = op, in_stage = in_stage,
+                op_stage = op_stage
+            )
+        )
         if not retime_map.hasBeenProcessed(in_op):
           self.retime_op(in_op, retime_map)
         if in_stage < op_stage:
@@ -313,11 +319,22 @@ class ML_EntityBasis(object):
           Log.report(Log.Verbose, "new version of input {inp} for {op} is {new_in}".format(inp = in_op, op = op, new_in = new_in))
           op.set_input(in_id, new_in)
         elif in_stage > op_stage:
-          Log.report(Log.Error, "input {inp} of {op} is defined at a later stage".format(inp = in_op, op = op))
+          Log.report(Log.Error, "stages {in_stage} -> {op_stage}, input {inp} of {op} is defined at a later stage".format(
+            in_stage = in_stage, op_stage = op_stage,
+            inp = in_op.get_str(
+                display_precision = True,
+                custom_callback = lambda op: " [S={}] ".format(op.attributes.init_stage)
+            ),
+            op = op.get_str(
+                display_precision = True,
+                custom_callback = lambda op: " [S={}] ".format(op.attributes.init_stage)
+            )
+          )
+          )
     retime_map.set(op, op_stage)
     retime_map.addToProcessed(op)
-        
-  # try to extract 'clk' input or create it if 
+
+  # try to extract 'clk' input or create it if
   # it does not exist
   def get_clk_input(self):
     clk_in = self.implementation.get_input_by_tag("clk")
