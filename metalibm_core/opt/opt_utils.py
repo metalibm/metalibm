@@ -50,3 +50,8 @@ def forward_attributes(src, dst):
     dst.set_tag(src.get_tag())
     dst.set_debug(src.get_debug())
     dst.set_handle(src.get_handle())
+    forward_stage_attributes(src, dst)
+
+
+def forward_stage_attributes(src, dst):
+    dst.attributes.init_stage = src.attributes.init_stage
