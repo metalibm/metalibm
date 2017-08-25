@@ -479,15 +479,48 @@ class ML_EntityBasis(object):
 			display_after_opt = False, 
 			enable_subexpr_sharing = True
 		):
+    ## apply @p pass_object optimization pass
+    #  to the scheme of each entity in code_entity_list
+    def entity_execute_pass(scheduler, pass_object, code_entity_list):
+      for code_entity in code_entity_list:
+        entity_scheme = code_entity.get_scheme()
+        processed_scheme = pass_object.execute(entity_scheme)
+        # todo check pass effect
+        # code_entity.set_scheme(processed_scheme)
+      return code_entity_list
+
     # generate scheme
     code_entity_list = self.generate_entity_list()
 
     # defaulting pipeline stage to None
     self.implementation.set_current_stage(None)
 
+    print "Applying passes just before pipelining"
+    code_entity_list = self.pass_scheduler.get_full_execute_from_slot(
+      code_entity_list, 
+      PassScheduler.BeforePipelining,
+      entity_execute_pass
+    )
+
+    print "before pipelining dump: " 
+    for code_entity in code_entity_list:
+        scheme = code_entity.get_scheme()
+        print scheme.get_str(
+            depth = None,
+            display_precision = True,
+            memoization_map = {},
+            custom_callback = lambda op: " [S={}] ".format(op.attributes.init_stage)
+        )
     
     if self.pipelined:
         self.generate_pipeline_stage()
+
+    print "Applying passes just after pipelining"
+    code_entity_list = self.pass_scheduler.get_full_execute_from_slot(
+      code_entity_list, 
+      PassScheduler.AfterPipelining,
+      entity_execute_pass
+    )
 
     if self.auto_test_enable:
       code_entity_list += self.generate_auto_test(
@@ -509,15 +542,6 @@ class ML_EntityBasis(object):
         print "function %s, after opt " % code_entity.get_name()
         print scheme.get_str(depth = None, display_precision = True, memoization_map = {})
 
-    ## apply @p pass_object optimization pass
-    #  to the scheme of each entity in code_entity_list
-    def entity_execute_pass(scheduler, pass_object, code_entity_list):
-      for code_entity in code_entity_list:
-        entity_scheme = code_entity.get_scheme()
-        processed_scheme = pass_object.execute(entity_scheme)
-        # todo check pass effect
-        # code_entity.set_scheme(processed_scheme)
-      return code_entity_list
       
 
     print "Applying passes just before codegen"
