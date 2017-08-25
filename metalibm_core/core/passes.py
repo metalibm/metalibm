@@ -255,6 +255,19 @@ class PassDump(OptreeOptimization):
         depth = None, display_precision = True, memoization_map = {}
     )
 
+class PassDumpWithStages(OptreeOptimization):
+  pass_tag = "dump_with_stages"
+  def __init__(self, *args):
+    OptimizationPass.__init__(self, "dump_with_stages")
+
+  def execute(self, optree):
+    Log.report(Log.Info, "executing PassDumpWithStages")
+    print optree.get_str(
+        depth = None, display_precision = True, memoization_map = {},
+        custom_callback = lambda op: " [S={}] ".format(op.attributes.init_stage)
+    )
+
 # registering commidity pass
 Pass.register(PassQuit)
 Pass.register(PassDump)
+Pass.register(PassDumpWithStages)
