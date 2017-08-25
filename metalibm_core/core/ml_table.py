@@ -159,11 +159,20 @@ class ML_Table(ML_LeafNode):
     def get_content_init(self, language = C_Code):
         return get_table_content(self.table, self.dimensions, self.get_storage_precision(), language = language)
 
-    def get_str(self, depth = None, display_precision = False, tab_level = 0, memoization_map = {}, display_attribute = False, display_id = False):
+    def get_str(
+            self, depth = None, display_precision = False,
+            tab_level = 0, memoization_map = {}, display_attribute = False,
+            display_id = False, custom_callback = lambda optree: ""
+        ):
         id_str     = ("[id=%x]" % id(self)) if display_id else ""
         attribute_str = "" if not display_attribute else self.attributes.get_str(tab_level = tab_level)
         precision_str = "" if not display_precision else "[%s]" % str(self.get_storage_precision())
-        return "  " * tab_level + "%s[%s]%s%s%s\n" % (self.str_name, "][".join([str(dim) for dim in self.dimensions]), precision_str, id_str, attribute_str)
+        custom_str = custom_callback(self)
+        return "  " * tab_level + custom_str + "%s[%s]%s%s%s\n" % (
+            self.str_name,
+            "][".join([str(dim) for dim in self.dimensions]),
+            precision_str, id_str, attribute_str
+        )
 
     def copy(self, copy_map = {}):
         if self in copy_map.keys():
