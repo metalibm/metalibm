@@ -32,5 +32,6 @@ rtl_regression:
 
 lint:
     stage: test
+    allow_failure: true
     script:
         - pylint metalibm_core/
