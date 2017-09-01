@@ -336,7 +336,7 @@ class VHDLCodeGenerator(object):
                op = legalize_select_input(op)
                op_code = self.generate_expr(code_object, op, folded = folded, language = language)
                if not cond is None:
-                 cond_code = self.generate_expr(code_object, cond, folded = False, language = language)
+                 cond_code = self.generate_expr(code_object, cond, folded = True, force_variable_storing = True, language = language)
                  gen_list.append((op_code, cond_code))
                else:
                  gen_list.append((op_code, None))
