@@ -62,7 +62,7 @@ def generate_random_fixed_value(precision):
       lo_value,
       hi_value 
     )
-    rounded_value = input_precision.round_sollya_object(value)
+    rounded_value = precision.round_sollya_object(value)
     return rounded_value
 
 ## \defgroup ml_entity ml_entity
@@ -363,37 +363,44 @@ class ML_EntityBasis(object):
     # defaulting pipeline stage to None
     self.implementation.set_current_stage(None)
 
-    print "Applying passes just before pipelining"
+    Log.report(Log.Info, "Applying passes just before pipelining")
     code_entity_list = self.pass_scheduler.get_full_execute_from_slot(
       code_entity_list, 
       PassScheduler.BeforePipelining,
       entity_execute_pass
     )
 
-    print "before pipelining dump: " 
-    for code_entity in code_entity_list:
-        scheme = code_entity.get_scheme()
-        print scheme.get_str(
-            depth = None,
-            display_precision = True,
-            memoization_map = {},
-            custom_callback = lambda op: " [S={}] ".format(op.attributes.init_stage)
-        )
+    #print "before pipelining dump: " 
+    #for code_entity in code_entity_list:
+    #    scheme = code_entity.get_scheme()
+    #    print scheme.get_str(
+    #        depth = None,
+    #        display_precision = True,
+    #        memoization_map = {},
+    #        custom_callback = lambda op: " [S={}] ".format(op.attributes.init_stage)
+    #    )
     
     if self.pipelined:
-        generate_pipeline_stage(self)
+        self.stage_num = generate_pipeline_stage(self)
+    else:
+        self.stage_num = 1
+    Log.report(Log.Info, "there is/are {} pipeline stage(s)".format(self.stage_num)) 
 
-    print "Applying passes just after pipelining"
+    Log.report(Log.Info, "Applying passes just after pipelining")
     code_entity_list = self.pass_scheduler.get_full_execute_from_slot(
       code_entity_list, 
       PassScheduler.AfterPipelining,
       entity_execute_pass
     )
 
+    # stage duration (in ns)
+    time_step = 10
+
     if self.auto_test_enable:
       code_entity_list += self.generate_auto_test(
 				test_num = self.auto_test_number if self.auto_test_number else 0, 
-				test_range = self.auto_test_range
+				test_range = self.auto_test_range,
+                time_step = time_step
 			)
       
 
@@ -432,7 +439,7 @@ class ML_EntityBasis(object):
       debug_cmd = "do {debug_file};".format(debug_file = self.debug_file) if self.debug_flag else "" 
       debug_cmd += " exit;" if self.exit_after_test else ""
       # simulation
-      test_delay = 10 * (self.auto_test_number + (len(self.standard_test_cases) if self.auto_test_std else 0) + 10) 
+      test_delay = time_step * self.stage_num * (self.auto_test_number + (len(self.standard_test_cases) if self.auto_test_std else 0) + 10) 
       sim_cmd = "vsim -c work.testbench -do \"run {test_delay} ns; {debug_cmd}\"".format(entity = self.entity_name, debug_cmd = debug_cmd, test_delay = test_delay)
       sim_result = subprocess.call(sim_cmd, shell = True)
       print "Simulation result: ", sim_result
@@ -496,7 +503,8 @@ class ML_EntityBasis(object):
     """ Generic initialization of test case generator """
     return
 
-  def generate_auto_test(self, test_num = 10, test_range = Interval(-1.0, 1.0), debug = False):
+  def generate_auto_test(self, test_num = 10, test_range = Interval(-1.0, 1.0), debug = False, time_step = 10):
+    """ time_step: duration of a stage (in ns) """
     # instanciating tested component
     # map of input_tag -> input_signal and output_tag -> output_signal
     io_map = {}
@@ -550,7 +558,7 @@ class ML_EntityBasis(object):
         value_msg = input_signal.get_precision().get_cst(input_value, language = VHDL_Code).replace('"',"'")
         value_msg += " / " + hex(input_signal.get_precision().get_base_format().get_integer_coding(input_value))
         input_msg += " {}={} ".format(input_tag, value_msg)
-      test_statement.add(Wait(10))
+      test_statement.add(Wait(time_step * self.stage_num))
       # Computing output values when necessary
       if output_values is None:
         output_values = self.numeric_emulate(input_values)
@@ -600,6 +608,8 @@ class ML_EntityBasis(object):
         )
 
 
+
+
     testbench = CodeEntity("testbench") 
     test_process = Process(
       test_statement,
@@ -615,6 +625,26 @@ class ML_EntityBasis(object):
       self_instance,
       test_process
     )
+
+    if self.pipelined:
+        half_time_step = time_step / 2
+        assert (half_time_step * 2) == time_step
+        # adding clock process for pipelined bench
+        clk_process = Process(
+            Statement(
+                ReferenceAssign(
+                    io_map["clk"],
+                    Constant(1, precision = ML_StdLogic)
+                ),
+                Wait(half_time_step),
+                ReferenceAssign(
+                    io_map["clk"],
+                    Constant(0, precision = ML_StdLogic)
+                ),
+                Wait(half_time_step),
+            )
+        )
+        testbench_scheme.push(clk_process)
 
     testbench.add_process(testbench_scheme)
 
