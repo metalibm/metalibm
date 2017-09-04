@@ -181,7 +181,7 @@ class VHDLCodeGenerator(object):
               result_value_code = self.generate_expr(code_object, result_value, folded = folded, language = language)
               code_object << self.generate_assignation(output_var_code.get(), result_value_code.get())
             else:
-              result_value_code = self.generate_expr(code_object, result_value, folded = False, language = language)
+              result_value_code = self.generate_expr(code_object, result_value, folded = True, force_variable_storing = True, language = language)
               code_object << self.generate_assignation(output_var_code.get(), result_value_code.get())
             if optree.get_debug() and not self.disable_debug:
               self.generate_debug_msg(result_value, result_value_code, code_object, debug_object = optree.get_debug())
@@ -439,9 +439,16 @@ class VHDLCodeGenerator(object):
         # debug management
         if optree.get_debug() and not self.disable_debug:
             self.generate_debug_msg(optree, result, code_object)
+
+        def result_too_long(result, threshold = 80):
+            """ Checks if CodeExpression result exceeds a given threshold """
+            if not isinstance(result, CodeExpression):
+                return False
+            else:
+                return len(result.get()) > threshold
             
 
-        if (initial or force_variable_storing) and not isinstance(result, CodeVariable) and not result is None:
+        if (initial or force_variable_storing or result_too_long(result)) and not isinstance(result, CodeVariable) and not result is None:
             # result could have been modified from initial optree
             result_precision = result.precision
             prefix_tag = optree.get_tag(default = "var_result") if force_variable_storing  else "tmp_result" 

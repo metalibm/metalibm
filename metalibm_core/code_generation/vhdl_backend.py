@@ -987,13 +987,13 @@ vhdl_code_generation_table = {
             lambda _: True: {
                 type_custom_match(TCM(ML_StdLogicVectorFormat), FSM(ML_Binary64)):
                 SymbolOperator("(62 downto 52)", lspace="", inverse=True, \
-                               arity=1, force_folding=True),
+                               arity=1),
                 type_custom_match(TCM(ML_StdLogicVectorFormat), FSM(ML_Binary32)):
                 SymbolOperator("(30 downto 23)", lspace="", inverse=True, \
-                               arity=1, force_folding=True),
+                               arity=1),
                 type_custom_match(TCM(ML_StdLogicVectorFormat), FSM(ML_Binary16)):
                 SymbolOperator("(14 downto 10)", lspace="", inverse=True, \
-                               arity=1, force_folding=True),
+                               arity=1),
             },
         },
     },
