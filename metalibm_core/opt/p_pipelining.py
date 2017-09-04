@@ -184,4 +184,5 @@ def generate_pipeline_stage(entity):
         pipeline_process.add_to_pre_statement(op)
     entity.implementation.add_process(pipeline_process)
     stage_num = len(retime_map.stage_forward.keys())
-    print "there are %d pipeline stages" % (stage_num)
+    #print "there are %d pipeline stages" % (stage_num)
+    return stage_num 
