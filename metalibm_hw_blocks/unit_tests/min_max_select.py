@@ -8,7 +8,8 @@ from sollya import parse as sollya_parse
 
 from metalibm_core.core.ml_operations import (
     Comparison, Addition, Select, Constant, Conversion,
-    Min, Max
+    Min, Max,
+    LogicalAnd
 )
 from metalibm_core.code_generation.code_constant import VHDL_Code
 from metalibm_core.core.ml_formats import (
@@ -91,14 +92,36 @@ class MinMaxSelectEntity(ML_Entity("ut_min_max_select_entity"), TestRunner):
         sub = var_x - var_y
         c = Constant(0)
 
-        pre_result = Select(
+        pre_result_select = Select(
             c > sub,
-            c,
-            sub
+            Select(
+                c < var_y,
+                sub,
+                Select(
+                    LogicalAnd(
+                        c > var_x,
+                        c < var_y,
+                        tag="last_lev_cond"
+                    ),
+                    var_x,
+                    c,
+                    tag="last_lev_sel"
+                ),
+                tag="pre_select"
+            ),
+            var_y,
+            tag = "pre_result_select"
         )
-        pre_result = Max(0, var_x - var_y)
+        pre_result = Max(0, var_x - var_y, tag = "pre_result")
 
-        result = Conversion(pre_result, precision=output_precision)
+        result = Conversion(
+            Addition(
+                pre_result,
+                pre_result_select,
+                tag = "add"
+            ),
+            precision=output_precision
+        )
 
         self.implementation.add_output_signal("vr_out", result)
 
