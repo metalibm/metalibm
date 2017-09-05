@@ -194,7 +194,8 @@ def mantissa_extraction_modifier(optree):
         TypeCast(
             op,
             precision=op.get_precision().get_support_format(),
-            init_stage=init_stage
+            init_stage=init_stage,
+            tag = tag + "_field_cast"
         ), 0, op_precision.get_field_size() - 1, precision=field_prec,
         init_stage=init_stage,
         tag = tag + "_field"
@@ -1173,9 +1174,13 @@ vhdl_code_generation_table = {
                     IdentityOperator(no_parenthesis=True),
                 type_custom_match(MCFixedPoint, FSM(ML_StdLogic)):
                     IdentityOperator(no_parenthesis=True),
+                type_custom_match(FSM(ML_StdLogic), MCFixedPoint):
+                    IdentityOperator(no_parenthesis=True),
 
                 type_custom_match(MCFixedPoint, MCFixedPoint):
                     ComplexOperator(optree_modifier = fixed_cast_legalizer),
+                type_custom_match(MCSTDLOGICV, MCSTDLOGICV):
+                    IdentityOperator()
             },
         },
     },
