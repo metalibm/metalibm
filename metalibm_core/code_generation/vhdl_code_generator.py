@@ -176,13 +176,22 @@ class VHDLCodeGenerator(object):
 
             output_var_code   = self.generate_expr(code_object, output_var, folded = False, language = language)
 
+            assign_sign = "<=" if isinstance(output_var, Signal) else ":="
+
             if isinstance(result_value, Constant):
               # generate assignation
               result_value_code = self.generate_expr(code_object, result_value, folded = folded, language = language)
-              code_object << self.generate_assignation(output_var_code.get(), result_value_code.get())
+              code_object << self.generate_assignation(
+                output_var_code.get(), result_value_code.get(),
+                assign_sign = assign_sign
+              )
             else:
-              result_value_code = self.generate_expr(code_object, result_value, folded = True, force_variable_storing = True, language = language)
-              code_object << self.generate_assignation(output_var_code.get(), result_value_code.get())
+              #result_value_code = self.generate_expr(code_object, result_value, folded = True, force_variable_storing = True, language = language)
+              result_value_code = self.generate_expr(code_object, result_value, folded = True, language = language)
+              code_object << self.generate_assignation(
+                output_var_code.get(), result_value_code.get(),
+                assign_sign = assign_sign
+              )
             if optree.get_debug() and not self.disable_debug:
               self.generate_debug_msg(result_value, result_value_code, code_object, debug_object = optree.get_debug())
 
