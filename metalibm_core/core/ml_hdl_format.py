@@ -138,11 +138,13 @@ ML_StdLogic = ML_StdLogicClass()
 
 
 ## Helper to build RTL fixed-point formats
-def fixed_point(int_size, frac_size, signed = True):
+def fixed_point(int_size, frac_size, signed = True, support_format = None):
+    """ Generate a fixed-point format """
+    support_format = support_format or ML_StdLogicVectorFormat(int_size + frac_size) 
     new_precision = RTL_FixedPointFormat(
         int_size, frac_size,
         signed = signed,
-        support_format = ML_StdLogicVectorFormat(int_size + frac_size)
+        support_format = support_format
     )
     return new_precision
 
