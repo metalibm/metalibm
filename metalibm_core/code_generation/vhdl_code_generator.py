@@ -462,12 +462,26 @@ class VHDLCodeGenerator(object):
         #generate_pre_process(code_generator, code_object, optree, var_arg_list, **kwords)
         self.generate_expr(code_object, ClearException(), language = language)
 
+    def generate_code_assignation(self, code_object, result_var, expression_code, final=True, assign_sign=None):
+        assign_sign_map = {
+            Signal: "<=",
+            Variable: ":=",
+            None: "<="
+        }
+        assign_sign = assign_sign or assign_sign_map[code_object.default_var_ctor]
+        return self.generate_assignation(result_var, expression_code, final=final, assign_sign = assign_sign)
+        
 
-    def generate_assignation(self, result_var, expression_code, final = True):
+    def generate_assignation(self, result_var, expression_code, final = True, assign_sign = "<="):
         """ generate code for assignation of value <expression_code> to 
             variable <result_var> """
         final_symbol = ";\n" if final else ""
-        return "%s <= %s%s" % (result_var, expression_code, final_symbol) 
+        return "{result} {assign_sign} {expr}{final_symbol}".format(
+            result = result_var,
+            assign_sign = assign_sign,
+            expr = expression_code,
+            final_symbol = final_symbol
+        )
 
     def generate_untied_statement(self, expression_code, final = True):
       final_symbol = ";\n" if final else ""

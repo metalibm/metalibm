@@ -298,6 +298,9 @@ class CCodeGenerator(object):
         #generate_pre_process(code_generator, code_object, optree, var_arg_list, **kwords)
         self.generate_expr(code_object, ClearException(), language = language)
 
+    def generate_code_assignation(self, code_object, result_var, expr_code, final=True):
+        return self.generate_assignation(result_var, expr_code, final=final)
+
 
     def generate_assignation(self, result_var, expression_code, final = True):
         """ generate code for assignation of value <expression_code> to 

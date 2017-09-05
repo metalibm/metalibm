@@ -235,6 +235,8 @@ class GappaCodeGenerator(object):
           result.strip_outer_parenthesis()
         return result
 
+    def generate_code_assignation(self, code_object, result_var, expr_code, final=True):
+        return self.generate_assignation(result_var, expr_code, final=final)
 
     def generate_assignation(self, result_var, expression_code, final = True):
         """ generate code for assignation of value <expression_code> to 
