@@ -80,9 +80,10 @@ class ML_LeadingZeroCounter(ML_Entity("ml_lzc")):
     # declaring main input variable
     vx = self.implementation.add_input_signal("x", input_precision) 
     vr_out = Signal("lzc", precision = precision, var_type = Variable.Local)
+    tmp_lzc = Variable("tmp_lzc", precision = precision, var_type = Variable.Local)
     iterator = Variable("i", precision = ML_Integer, var_type = Variable.Local)
     lzc_loop = RangeLoop(
-      iterator, 
+      iterator,
       Interval(0, self.width - 1),
       ConditionBlock(
         Comparison(
@@ -92,11 +93,11 @@ class ML_LeadingZeroCounter(ML_Entity("ml_lzc")):
           precision = ML_Bool
         ),
         ReferenceAssign(
-          vr_out, 
+          tmp_lzc,
           Conversion(
             Subtraction(
               Constant(self.width - 1, precision = ML_Integer),
-              iterator, 
+              iterator,
               precision = ML_Integer
             ),
           precision = precision),
@@ -107,7 +108,8 @@ class ML_LeadingZeroCounter(ML_Entity("ml_lzc")):
     lzc_process = Process(
       Statement(
         ReferenceAssign(vr_out, Constant(self.width, precision = precision)),
-        lzc_loop, 
+        lzc_loop,
+        ReferenceAssign(vr_out, tmp_lzc)
       ),
       sensibility_list = [vx]
     )
