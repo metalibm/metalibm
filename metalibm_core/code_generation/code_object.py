@@ -249,7 +249,7 @@ def get_git_tag():
 
 class CodeObject(object):
     tab = "    "
-    def __init__(self, language, shared_tables = None, parent_tables = None, rounding_mode = ML_GlobalRoundMode, uniquifier = "", main_code_level = None):
+    def __init__(self, language, shared_tables = None, parent_tables = None, rounding_mode = ML_GlobalRoundMode, uniquifier = "", main_code_level = None, var_ctor = None):
         """ code object initialization """
         self.expanded_code = ""
         self.uniquifier = uniquifier
@@ -259,6 +259,7 @@ class CodeObject(object):
         self.symbol_table = MultiSymbolTable(shared_tables if shared_tables else {}, parent_tables = (parent_tables if parent_tables else []), uniquifier = self.uniquifier)
         self.language = language
         self.header_comment = []
+        self.default_var_ctor = var_ctor
 
     def add_header_comment(self, comment):
         self.header_comment.append(comment)
@@ -497,7 +498,7 @@ class GappaCodeObject(CodeObject):
 
 class VHDLCodeObject(object):
     tab = "    "
-    def __init__(self, language, shared_tables = None, parent_tables = None, rounding_mode = ML_GlobalRoundMode, uniquifier = "", main_code_level = False):
+    def __init__(self, language, shared_tables = None, parent_tables = None, rounding_mode = ML_GlobalRoundMode, uniquifier = "", main_code_level = False, var_ctor = None):
         """ code object initialization """
         self.expanded_code = ""
         self.uniquifier = uniquifier
@@ -509,6 +510,7 @@ class VHDLCodeObject(object):
         self.header_comment = []
         self.shared_symbol_table_f = MultiSymbolTable.SignalSymbol in shared_tables 
         self.main_code_level = main_code_level
+        self.default_var_ctor = var_ctor
 
     def add_header_comment(self, comment):
         self.header_comment.append(comment)
@@ -577,8 +579,9 @@ class VHDLCodeObject(object):
             result += """use %s;\n""" % (header_file)
         return result
 
-    def get_free_var_name(self, var_type, prefix = "tmps", declare = True, var_ctor = Signal):
+    def get_free_var_name(self, var_type, prefix = "tmps", declare = True, var_ctor = None):
         assert not var_type is None
+        var_ctor = var_ctor or self.default_var_ctor or Signal
         free_var_name = self.symbol_table.get_free_name(var_type, prefix)
         # declare free var if required 
         if declare:
@@ -750,6 +753,10 @@ class NestedCode(object):
         self.main_code = self.code_ctor(self.language, shared_tables, uniquifier = self.uniquifier, main_code_level = True) 
         self.code_list = [self.main_code]
 
+    @property
+    def default_var_ctor(self):
+        return self.code_list[0].default_var_ctor
+
     def add_header_comment(self, comment):
         self.main_code.add_header_comment(comment)
 
@@ -782,7 +789,7 @@ class NestedCode(object):
     def add_comment(self, comment):
         self.code_list[0].add_comment(comment)
 
-    def open_level(self, extra_shared_tables = None, inc = True):
+    def open_level(self, extra_shared_tables = None, inc = True, var_ctor = None):
         self.code_list[0].open_level(inc = inc)
         parent_tables = self.code_list[0].get_symbol_table().get_extended_dependency_table()
         shared_tables = {
@@ -794,7 +801,7 @@ class NestedCode(object):
         if extra_shared_tables:
           for table_key in extra_shared_tables:
             shared_tables[table_key] = self.code_list[0].get_symbol_table().get_table(table_key)
-        self.code_list.insert(0, self.code_ctor(self.language, shared_tables, parent_tables = parent_tables))
+        self.code_list.insert(0, self.code_ctor(self.language, shared_tables, parent_tables = parent_tables, var_ctor = var_ctor))
 
     def close_level(self, cr = "\n", inc = True):
         level_code = self.code_list.pop(0)
