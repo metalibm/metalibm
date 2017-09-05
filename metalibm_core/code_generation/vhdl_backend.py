@@ -531,15 +531,16 @@ def fixed_point_op_modifier(optree, op_ctor=Addition):
         lhs_prec.get_integer_size(),
         rhs_prec.get_integer_size()
     ) + 1
+
     lhs_casted = TypeCast(
         lhs,
-        precision=ML_StdLogicVectorFormat(lhs_prec.get_bit_size()),
+        precision=lhs_prec.get_support_format(),
         init_stage=init_stage,
         tag = "op_lhs_casted"
     )
     rhs_casted = TypeCast(
         rhs,
-        precision=ML_StdLogicVectorFormat(rhs_prec.get_bit_size()),
+        precision=rhs_prec.get_support_format(),
         init_stage=init_stage,
         tag = "op_rhs_casted"
     )
