@@ -453,7 +453,7 @@ class VHDLCodeGenerator(object):
             result_precision = result.precision
             prefix_tag = optree.get_tag(default = "var_result") if force_variable_storing  else "tmp_result" 
             final_var = result_var if result_var else code_object.get_free_var_name(result_precision, prefix = prefix_tag, declare = True)
-            code_object << self.generate_assignation(final_var, result.get())
+            code_object << self.generate_code_assignation(code_object, final_var, result.get())
             return CodeVariable(final_var, result_precision)
 
         return result
@@ -558,7 +558,8 @@ class VHDLCodeGenerator(object):
         debug_object, display_format = self.extract_debug_object_format(optree, code_object, debug_object)
         if not isinstance(result, CodeVariable):
           final_var = code_object.get_free_signal_name(optree.get_precision(), prefix = "dbg_"+ optree.get_tag())
-          code_object << "{} <= {};\n".format(final_var, result.get())
+          #code_object << "{} <= {};\n".format(final_var, result.get())
+          code_object << self.generate_code_assignation(code_object, final_var, result.get())
           result = CodeVariable(final_var, optree.get_precision())
         signal_name = "testbench.tested_entity.{}".format(result.get())
         # display_result = debug_object.get_pre_process(result.get(), optree) if isinstance(debug_object, ML_Debug) else result.get()
