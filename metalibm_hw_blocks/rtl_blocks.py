@@ -123,9 +123,10 @@ def fp_is_neg_inf(op):
 #  @return ML_Bool operation graph implementing predicates
 def fp_mant_is_zero(op):
   op_prec = op.get_precision().get_base_format()
+  op_support_prec = op.get_precision().get_support_format()
   mant_prec = ML_StdLogicVectorFormat(op_prec.get_field_size())
   mant = SubSignalSelection(
-    TypeCast(op, precision = mant_prec),
+    TypeCast(op, precision = op_support_prec),
     0, op_prec.get_field_size() - 1
   )
   return Equal(
