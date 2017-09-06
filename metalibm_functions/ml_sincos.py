@@ -121,14 +121,18 @@ class ML_SinCos(ML_Function("ml_cos")):
     else:
       ph_bound = S2**33
     
-    test_ph_bound = Comparison(vx, ph_bound, specifier = Comparison.GreaterOrEqual, precision = ML_Bool)
+    test_ph_bound = Comparison(vx, ph_bound, specifier = Comparison.GreaterOrEqual, precision = ML_Bool, likely = False)
     
     # argument reduction
     # m
-    frac_pi_index = {ML_Binary32: 12, ML_Binary64: 14}[self.precision]
-
+    frac_pi_index = {ML_Binary32: 10, ML_Binary64: 14}[self.precision]
+    
+    C0 = Constant(0, precision = int_precision)
+    C1 = Constant(1, precision = int_precision)
+    C_offset = Constant(3 * S2**(frac_pi_index - 1), precision = int_precision)
+    
     # 2^m / pi
-    frac_pi     = round(S2**frac_pi_index / pi, hi_precision, sollya.RN)
+    frac_pi     = round(S2**frac_pi_index / pi, cw_hi_precision, sollya.RN)
     frac_pi_lo = round(S2**frac_pi_index / pi - frac_pi, sollya_precision, sollya.RN)
     # pi / 2^m, high part
     inv_frac_pi = round(pi / S2**frac_pi_index, cw_hi_precision, sollya.RN)
@@ -179,7 +183,7 @@ class ML_SinCos(ML_Function("ml_cos")):
       Log.report(Log.Info, "Computing Sin")
       offset_k = Addition(
         k,
-        Constant(3 * S2**(frac_pi_index - 1), precision = int_precision),
+        C_offset,
         precision = int_precision,
         tag = "offset_k"
       )
@@ -196,7 +200,6 @@ class ML_SinCos(ML_Function("ml_cos")):
     approx_interval = Interval(-pi/(S2**(frac_pi_index+1)), pi / S2**(frac_pi_index+1))
 
     red_vx.set_interval(approx_interval)
-    red_vx.set_attributes(debug = debug_multi)
 
     Log.report(Log.Info, "approx interval: %s\n" % approx_interval)
 
@@ -217,13 +220,13 @@ class ML_SinCos(ML_Function("ml_cos")):
 
 
     sin_index = Modulo(modk + 2**(frac_pi_index-1), 2**(frac_pi_index+1), precision = int_precision, tag = "sin_index")#, debug = debug_multi)
-    tabulated_cos = TableLoad(cos_table, modk, 0, precision = self.precision, tag = "tab_cos", debug = debug_multi)
-    tabulated_sin = -TableLoad(cos_table, sin_index , 0, precision = self.precision, tag = "tab_sin", debug = debug_multi)
+    tabulated_cos = TableLoad(cos_table, modk, C0, precision = self.precision, tag = "tab_cos", debug = debug_multi)
+    tabulated_sin = -TableLoad(cos_table, sin_index , C0, precision = self.precision, tag = "tab_sin", debug = debug_multi)
 
     poly_degree_cos   = sup(guessdegree(cos(sollya.x), approx_interval, S2**-self.precision.get_precision()) + 2) 
     poly_degree_sin   = sup(guessdegree(sin(sollya.x)/sollya.x, approx_interval, S2**-self.precision.get_precision()) + 2) 
     
-    poly_degree_cos_list = range(0, poly_degree_cos + 1)
+    poly_degree_cos_list = range(0, poly_degree_cos + 3)
     poly_degree_sin_list = range(0, poly_degree_sin + 3)
 
     # cosine polynomial: limiting first and second coefficient precision to 1-bit
@@ -245,7 +248,7 @@ class ML_SinCos(ML_Function("ml_cos")):
     Log.report(Log.Info, "poly sin : %s" % poly_object_sin)
 
     # Polynomial evaluation scheme
-    poly_cos = polynomial_scheme_builder(poly_object_cos.sub_poly(start_index = 2), red_vx, unified_precision = self.precision)
+    poly_cos = polynomial_scheme_builder(poly_object_cos.sub_poly(start_index = 1), red_vx, unified_precision = self.precision)
     poly_sin = polynomial_scheme_builder(poly_object_sin.sub_poly(start_index = 2), red_vx, unified_precision = self.precision)
     poly_cos.set_attributes(tag = "poly_cos", debug = debug_multi)
     poly_sin.set_attributes(tag = "poly_sin", debug = debug_multi, unbreakable = True)
@@ -260,9 +263,9 @@ class ML_SinCos(ML_Function("ml_cos")):
     mul_coeff_sin_hi = tabulated_sin*red_vx
     mul_coeff_sin_lo = FusedMultiplyAdd(tabulated_sin, red_vx, -mul_coeff_sin_hi)
     
-    mul_cos = Addition(mul_cos_x, mul_cos_y, precision = self.precision, tag = "mul_cos", debug = debug_multi)
-    mul_sin = Negation(Addition(mul_sin_x, mul_sin_y, precision = self.precision), precision = self.precision, tag = "mul_sin", debug = debug_multi)
-    mul_coeff_sin = Negation(Addition(mul_coeff_sin_hi, mul_coeff_sin_lo, precision = self.precision), precision = self.precision, tag = "mul_coeff_sin", debug = debug_multi)
+    mul_cos = Addition(mul_cos_x, mul_cos_y, precision = self.precision, tag = "mul_cos")#, debug = debug_multi)
+    mul_sin = Negation(Addition(mul_sin_x, mul_sin_y, precision = self.precision), precision = self.precision, tag = "mul_sin")#, debug = debug_multi)
+    mul_coeff_sin = Negation(Addition(mul_coeff_sin_hi, mul_coeff_sin_lo, precision = self.precision), precision = self.precision, tag = "mul_coeff_sin")#, debug = debug_multi)
 
 
     mul_cos_x.set_attributes(tag = "mul_cos_x", precision = self.precision)#, debug = debug_multi)
@@ -284,7 +287,7 @@ class ML_SinCos(ML_Function("ml_cos")):
     #######################################################################
     # payne and hanek argument reduction for large arguments
     ph_k = frac_pi_index
-    ph_frac_pi     = round(S2**ph_k / pi, 1200, sollya.RN)
+    ph_frac_pi     = round(S2**ph_k / pi, 1500, sollya.RN)
     ph_inv_frac_pi = pi / S2**ph_k 
     
     ph_statement, ph_acc, ph_acc_int = generate_payne_hanek(vx, ph_frac_pi, self.precision, n = 100, k = ph_k)
@@ -306,23 +309,18 @@ class ML_SinCos(ML_Function("ml_cos")):
       debug = debug_multi)
 
     C32 = Constant(2**(ph_k+1), precision = int_precision, tag = "C32")
-    ph_acc_int_red = Conversion(
-      Select(ph_acc_int < Constant(0, precision = int_precision), C32 + ph_acc_int  , ph_acc_int, precision = int_precision, tag = "ph_acc_int_red"),
-      precision = int_precision,
-      tag = "ph_acc_int_red",
-      debug = debug_multi
-    )
-
+    ph_acc_int_red = Select(ph_acc_int < C0, C32 + ph_acc_int  , ph_acc_int, precision = int_precision, tag = "ph_acc_int_red")
     if self.sin_output:
       lar_offset_k = Addition(
         ph_acc_int_red,
-        Constant(3 * S2**(frac_pi_index - 1), precision = int_precision),
+        C_offset,
         precision = int_precision,
         tag = "lar_offset_k"
       )
     else:
       lar_offset_k = ph_acc_int_red
-
+    
+    ph_acc_int_red.set_attributes(tag = "ph_acc_int_red", debug = debug_multi)
     lar_modk = BitLogicAnd(lar_offset_k, 2**(frac_pi_index+1) - 1, precision = int_precision, tag = "lar_modk", debug = debug_multi )
 
     lar_statement = Statement(
@@ -335,8 +333,9 @@ class ML_SinCos(ML_Function("ml_cos")):
         
     test_NaN_or_Inf = Test(vx, specifier = Test.IsInfOrNaN, likely = False, tag = "NaN_or_Inf", debug = debug_multi)
     return_NaN_or_Inf = Statement(Return(FP_QNaN(self.precision)))
+    
     scheme = ConditionBlock(test_NaN_or_Inf,
-        return_NaN_or_Inf,
+        Statement(ClearException(), return_NaN_or_Inf),
         Statement(
             modk,
             red_vx,
@@ -360,12 +359,6 @@ class ML_SinCos(ML_Function("ml_cos")):
       return sin(input_value)
     else:
       return cos(input_value)
-
-  # standard_test_cases =[[sollya.parse(x)] for x in  ["0x1.5d6fb52272d9bp+34", "0x1.2f6c2d822e4bdp+34", "0x1.c3cb885323b3ep+11"]]
-  standard_test_cases =[[sollya.parse(x)] for x in  ["0x1.313962p+32", "0x1.499f5cp+32", "0x1.927712p+40",
-   "0x1.ba30bap+40", "0x1.7e886ap+40", "0x1.e57acp+10", "0x1.5615fcp+10",]]
-
-
 
 if __name__ == "__main__":
   # auto-test

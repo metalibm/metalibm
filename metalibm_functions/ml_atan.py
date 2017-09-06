@@ -96,7 +96,6 @@ class ML_Atan(ML_Function("atan")):
       
       return inv_vx
       
-    #func_implementation = CodeFunction(self.function_name, output_format = self.precision)
     vx = self.implementation.add_input_variable("x", self.get_input_precision()) 
 
     sollya_precision = self.precision.get_sollya_object()
@@ -138,7 +137,7 @@ class ML_Atan(ML_Function("atan")):
     
     
     
-    set_bound = Statement(Return(sign*half_pi_cst))
+    set_bound = Return(sign*half_pi_cst)
     
     set_bound1 = Statement(
       ReferenceAssign(red_vx_std, -compute_reciprocal(abs_vx_std)),
@@ -224,37 +223,46 @@ class ML_Atan(ML_Function("atan")):
     const_load_hi = TableLoad(cons_table, const_index_std, 0, tag = "const_load_hi", debug = debug_multi)
     const_load_lo = TableLoad(cons_table, const_index_std, 1, tag = "const_load_lo", debug = debug_multi)
     
+    test_NaN_or_inf = Test(vx, specifier = Test.IsInfOrNaN, tag = "nan_or_inf", likely = False)
+    test_nan = Test(vx, specifier = Test.IsNaN, debug = debug_multi, tag = "is_nan_test", likely = False)
+    test_positive = Comparison(vx, 0, specifier = Comparison.GreaterOrEqual, debug = debug_multi, tag = "inf_sign", likely = False)
+                
+        
     result = const_load_hi - ((red_vx_std*(poly_even + poly_odd) - const_load_lo) - red_vx_std)
     result.set_attributes(tag = "result", debug = debug_multi)
-    scheme = Statement(
-      sign,
-      abs_vx_std,
-      red_vx_std,
-      const_index_std,
-      set_sign,
-      ConditionBlock(
-        test_bound,
-        set_bound,
-        ConditionBlock(
-          test_bound1,
-          set_bound1,
+    
+    std_scheme = Statement(
+          sign,
+          abs_vx_std,
+          red_vx_std,
+          const_index_std,
+          set_sign,
           ConditionBlock(
-            test_bound2,
-            set_bound2,
+            test_bound,
+            set_bound,
             ConditionBlock(
-              test_bound3,
-              set_bound3,
+              test_bound1,
+              set_bound1,
               ConditionBlock(
-                test_bound4,
-                set_bound4,
-                set_bound5
+                test_bound2,
+                set_bound2,
+                ConditionBlock(
+                  test_bound3,
+                  set_bound3,
+                  ConditionBlock(
+                    test_bound4,
+                    set_bound4,
+                    set_bound5
+                  )
+                )
               )
             )
-          )
+          ),
+          Return(sign*result)
         )
-      ),
-      Return(sign*result)
-    )
+    infty_return = ConditionBlock(test_positive, Return(half_pi_cst), Return(-half_pi_cst))
+    non_std_return = ConditionBlock(test_nan, Return(FP_QNaN(self.precision)), infty_return)
+    scheme = ConditionBlock(test_NaN_or_inf, Statement(ClearException(), non_std_return), std_scheme)
     return scheme
 
   def numeric_emulate(self, input_value):

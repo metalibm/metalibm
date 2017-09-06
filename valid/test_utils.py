@@ -40,7 +40,7 @@ class CommonTestScheme:
     result_list = [self.single_test(tc, debug = debug) for tc in self.argument_tc]
     success_count = [r.get_result() for r in result_list].count(True)
     failure_count = len(result_list) - success_count
-    overall_success = (success_count > 0) and (failure_count == 0)
+    overall_success = (success_count >= 0) and (failure_count == 0)
     function_name = self.get_title()
 
     if overall_success:

@@ -26,12 +26,13 @@ from metalibm_core.utility.gappa_utils import is_gappa_installed
 
 ## Newton-Raphson iteration object
 class NR_Iteration:
-  def __init__(self, value, approx, half_value):
+  def __init__(self, value, approx, half_value, precision, c_half):
     Attributes.set_default_rounding_mode(ML_RoundToNearest)
     Attributes.set_default_silent(True)
-
+    
+    
     self.square = approx * approx
-    mult = FMSN(half_value, self.square, 0.5)
+    mult = FMSN(half_value, self.square, c_half)
     self.new_approx =  FMA(approx, mult, approx)
 
     Attributes.unset_default_rounding_mode()
@@ -53,24 +54,19 @@ def propagate_format(optree, precision):
 
 def compute_isqrt(vx, init_approx, num_iter, debug_lftolx = None, precision = ML_Binary64):
 
-    h = 0.5 * vx
+    C_half = Constant(0.5, precision = precision)
+    h = C_half * vx
     h.set_attributes(tag = "h", debug = debug_multi, silent = True, rounding_mode = ML_RoundToNearest)
 
     current_approx = init_approx
     # correctly-rounded inverse computation
-
     for i in xrange(num_iter):
-        new_iteration = NR_Iteration(vx, current_approx, h)
+        new_iteration = NR_Iteration(vx, current_approx, h, precision, C_half)
         current_approx = new_iteration.get_new_approx()
         current_approx.set_attributes(tag = "iter_%d" % i, debug = debug_multi)
 
     final_approx = current_approx
     final_approx.set_attributes(tag = "final_approx", debug = debug_multi)
-
-    # multiplication correction iteration
-    # to get correctly rounded full square root
-    Attributes.set_default_silent(True)
-    Attributes.set_default_rounding_mode(ML_RoundToNearest)
 
     return final_approx
 
@@ -137,39 +133,51 @@ class ML_Isqrt(ML_Function("ml_isqrt")):
         kwords["arg_value"] = vx
         kwords["function_name"] = self.function_name
         return RaiseReturn(*args, **kwords)
+    
+    C0 = Constant(0, precision = self.precision)
+    C0_plus = Constant(FP_PlusZero(self.precision))
 
-
-    test_zero = Comparison(vx, 0, specifier = Comparison.Equal, likely = False, debug = debug_multi, tag = "Is_Zero", precision = ML_Bool)
     test_NaN = Test(vx, specifier = Test.IsNaN, likely = False, debug = debug_multi, tag = "is_NaN", precision = ML_Bool)
-    test_negative = Comparison(vx, 0, specifier = Comparison.Less, debug = debug_multi, tag = "is_Negative", precision = ML_Bool, likely = False)
+    test_negative = Comparison(vx, C0, specifier = Comparison.Less, debug = debug_multi, tag = "is_Negative", precision = ML_Bool, likely = False)
+    
+    test_zero = Comparison(vx, C0_plus, specifier = Comparison.Equal, likely = False, debug = debug_multi, tag = "Is_Zero", precision = ML_Bool)
     test_inf = Test(vx, specifier = Test.IsInfty, likely = False, debug = debug_multi, tag = "is_Inf", precision = ML_Bool)
-    test_NaN_or_Neg = LogicalOr(test_NaN, test_negative, precision = ML_Bool)
-
+    test_NaN_or_Neg = LogicalOr(test_NaN, test_negative, precision = ML_Bool, likely = False)
+    
+    test_NaN_or_Inf = Test(vx, specifier = Test.IsInfOrNaN, likely = False, debug = debug_multi, tag = "is_nan_or_inf", precision = ML_Bool)
+    test_negative_or_zero = Comparison(vx, C0, specifier = Comparison.LessOrEqual, debug = debug_multi, tag = "is_Negative_or_zero", precision = ML_Bool, likely = False)
+    
+    test_std = LogicalNot(LogicalOr(test_NaN_or_Inf, test_negative_or_zero, precision = ML_Bool, likely = False), precision = ML_Bool, likely = True)
+    
     return_PosZero = Statement(Return(FP_PlusInfty(self.precision)))
+    return_NegZero = Statement(Return(FP_MinusInfty(self.precision)))
     return_NaN_or_neg = Statement(Return(FP_QNaN(self.precision)))
-    return_inf = Statement(Return(FP_PlusZero(self.precision)))
-
-
+    return_inf = Statement(Return(C0))
+    
     NR_init = InverseSquareRootSeed(vx, precision = self.precision, tag = "sqrt_seed", debug = debug_multi)
-
     result = compute_isqrt(vx, NR_init, int(self.num_iter), precision = self.precision)
-
-    scheme = ConditionBlock(
-                test_zero,
-                return_PosZero,
+    
+    return_non_std = ConditionBlock(
+                test_NaN_or_Neg,
+                return_NaN_or_neg,
                 ConditionBlock(
-                    test_NaN_or_Neg,
-                    return_NaN_or_neg,
+                    test_inf,
+                    return_inf,
                     ConditionBlock(
-                        test_inf,
-                        return_inf,
-                        Return(result)
+                        test_zero,
+                        return_PosZero,
+                        return_NegZero
                     )
                 )
             )
 
-    return scheme
+    scheme = Statement(ConditionBlock(
+              test_std,
+              Statement(Return(result)),
+              Statement(return_non_std)
+              ))
 
+    return scheme
   def generate_emulate(self, result_ternary, result, mpfr_x, mpfr_rnd):
       """ generate the emulation code for ML_Log2 functions
           mpfr_x is a mpfr_t variable which should have the right precision
@@ -184,7 +192,6 @@ class ML_Isqrt(ML_Function("ml_isqrt")):
 
   def numeric_emulate(self, input):
         return 1/sollya.sqrt(input)
-
 
   standard_test_cases = [(1.651028399744791652636877188342623412609100341796875,)] # [sollya.parse(x)] for x in  ["+0.0", "-1*0.0", "2.0"]]
 

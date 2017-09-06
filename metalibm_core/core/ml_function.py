@@ -106,6 +106,7 @@ class ML_FunctionBasis(object):
              # Debug verbosity
              debug_flag = ArgDefault(False, 2),
              vector_size = ArgDefault(1, 2),
+             sub_vector_size = ArgDefault(None, 2),
              language = ArgDefault(C_Code, 2),
              auto_test = ArgDefault(False, 2),
              auto_test_range = ArgDefault(Interval(-1, 1), 2),
@@ -143,6 +144,7 @@ class ML_FunctionBasis(object):
     # Debug verbosity
     debug_flag    = ArgDefault.select_value([arg_template.debug, debug_flag])
     vector_size   = ArgDefault.select_value([arg_template.vector_size, vector_size])
+    sub_vector_size = ArgDefault.select_value([arg_template.sub_vector_size, sub_vector_size])
     language      = ArgDefault.select_value([arg_template.language, language])
     auto_test     = ArgDefault.select_value([arg_template.auto_test or arg_template.auto_test_execute, auto_test])
     auto_test_std = ArgDefault.select_value([arg_template.auto_test_std, auto_test_std])
@@ -173,6 +175,7 @@ class ML_FunctionBasis(object):
 
     # enable the computation of maximal error during functional testing
     self.compute_max_error = arg_template.compute_max_error
+    self.break_error = arg_template.break_error
 
     # enable and configure the generation of a performance bench
     self.bench_enabled = bench_test_number or bench_execute
@@ -199,6 +202,7 @@ class ML_FunctionBasis(object):
     self.debug_flag = debug_flag
 
     self.vector_size = vector_size
+    self.sub_vector_size = sub_vector_size
 
     # TODO: FIX which i/o precision to select
     # TODO: incompatible with fixed-point formats
@@ -420,7 +424,6 @@ class ML_FunctionBasis(object):
       opt_scheme = self.optimise_scheme(
         scheme, enable_subexpr_sharing = enable_subexpr_sharing
       )
-
       # pre-generation optimization
       for pass_tag in self.pre_gen_passes:
         pass_class = Pass.get_pass_by_tag(pass_tag)
@@ -431,7 +434,7 @@ class ML_FunctionBasis(object):
 
       if self.display_after_opt or display_after_opt:
         print "function %s, after opt " % code_function.get_name()
-        print opt_scheme.get_str(depth = None, display_precision = True, memoization_map = {})
+        print opt_scheme.get_str(depth = None, display_precision = True, memoization_map = {}, display_id=True)
 
     # generate auto-test wrapper
     if self.auto_test_enable:
@@ -665,7 +668,7 @@ class ML_FunctionBasis(object):
     vec_arg_list, vector_scheme, vector_mask = \
         self.vectorizer.vectorize_scheme(scalar_scheme, scalar_arg_list,
                                          vector_size, self.call_externalizer,
-                                         self.get_output_precision())
+                                         self.get_output_precision(), self.sub_vector_size)
 
     vector_output_format = self.vectorizer.vectorize_format(self.precision,
                                                             vector_size)
@@ -1002,12 +1005,18 @@ class ML_FunctionBasis(object):
     printf_max_function = FunctionObject("printf", [self.precision], ML_Void, printf_max_op)
 
     loop_increment = self.get_vector_size()
-
-    return_statement_break = Statement(
-        printf_input_function(*((vi,) + local_inputs + (local_result,))), 
-        self.accuracy_obj.get_output_print_call(self.function_name, output_values),
-        Return(Constant(1, precision = ML_Int32))
-    )
+    
+    if self.break_error:
+        return_statement_break = Statement(
+            printf_input_function(*((vi,) + local_inputs + (local_result,))), 
+            self.accuracy_obj.get_output_print_call(self.function_name, output_values)
+        )
+    else:
+        return_statement_break = Statement(
+            printf_input_function(*((vi,) + local_inputs + (local_result,))), 
+            self.accuracy_obj.get_output_print_call(self.function_name, output_values),
+            Return(Constant(1, precision = ML_Int32))
+        )
     
     test_loop = Loop(
       ReferenceAssign(vi, Constant(0, precision = ML_Int32)),
