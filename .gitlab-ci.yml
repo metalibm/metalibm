@@ -1,4 +1,4 @@
-image: registry.gitlab.com/metalibm-dev/metalibm/image:ci_image_gappa
+image: registry.gitlab.com/metalibm-dev/metalibm/image:ci_image_pylint
 
 before_script:
 
@@ -30,3 +30,8 @@ rtl_regression:
     - export PYTHONPATH=/app/local/python/lib/python
     - PYTHONPATH=$PWD:$PYTHONPATH  ML_SRC_DIR=$PWD python2.7 valid/hw_non_regression.py --debug
 
+lint:
+    stage: test
+    allow_failure: true
+    script:
+        - pylint metalibm_core/

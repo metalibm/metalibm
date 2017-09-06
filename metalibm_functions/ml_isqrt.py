@@ -51,7 +51,7 @@ def propagate_format(optree, precision):
         propagate_format(op_input, precision)
 
 
-def compute_sqrt(vx, init_approx, num_iter, debug_lftolx = None, precision = ML_Binary64):
+def compute_isqrt(vx, init_approx, num_iter, debug_lftolx = None, precision = ML_Binary64):
 
     h = 0.5 * vx
     h.set_attributes(tag = "h", debug = debug_multi, silent = True, rounding_mode = ML_RoundToNearest)
@@ -72,43 +72,11 @@ def compute_sqrt(vx, init_approx, num_iter, debug_lftolx = None, precision = ML_
     Attributes.set_default_silent(True)
     Attributes.set_default_rounding_mode(ML_RoundToNearest)
 
-    S = vx * final_approx
-    t5 = final_approx * h
-    H = 0.5 * final_approx
-    d = FMSN(S, S, vx)
-    t6 = FMSN(t5, final_approx, 0.5)
-    S1 = FMA(d, H, S)
-    H1 = FMA(t6, H, H)
-    d1 = FMSN(S1, S1, vx)
-    pR = FMA(d1, H1, S1)
-    d_last = FMSN(pR, pR, vx, silent = True, tag = "d_last")
-
-    S.set_attributes(tag = "S")
-    t5.set_attributes(tag = "t5")
-    H.set_attributes(tag = "H")
-    d.set_attributes(tag = "d")
-    t6.set_attributes(tag = "t6")
-    S1.set_attributes(tag = "S1")
-    H1.set_attributes(tag = "H1")
-    d1.set_attributes(tag = "d1")
-
-
-    Attributes.unset_default_silent()
-    Attributes.unset_default_rounding_mode()
-
-    R = FMA(d_last, H1, pR, rounding_mode = ML_GlobalRoundMode, tag = "NR_Result", debug = debug_multi)
-
-    # set precision
-    propagate_format(R, precision)
-    propagate_format(S1, precision)
-    propagate_format(H1, precision)
-    propagate_format(d1, precision)
-
-    return R
+    return final_approx
 
 
 
-class ML_Sqrt(ML_Function("ml_sqrt")):
+class ML_Isqrt(ML_Function("ml_isqrt")):
   def __init__(self,
              arg_template = DefaultArgTemplate,
              precision = ML_Binary32,
@@ -118,11 +86,11 @@ class ML_Sqrt(ML_Function("ml_sqrt")):
              fuse_fma = True,
              fast_path_extract = True,
              target = GenericProcessor(),
-             output_file = "my_sqrt.c",
-             function_name = "my_sqrt",
+             output_file = "my_isqrt.c",
+             function_name = "my_isqrt",
              language = C_Code,
              vector_size = 1,
-             num_iter = 1):
+             num_iter = 3):
 
     # initializing I/O precision
     precision = ArgDefault.select_value([arg_template.precision, precision])
@@ -131,7 +99,7 @@ class ML_Sqrt(ML_Function("ml_sqrt")):
 
     # initializing base class
     ML_FunctionBasis.__init__(self,
-      base_name = "sqrt",
+      base_name = "isqrt",
       function_name = function_name,
       output_file = output_file,
 
@@ -176,19 +144,19 @@ class ML_Sqrt(ML_Function("ml_sqrt")):
     test_negative = Comparison(vx, 0, specifier = Comparison.Less, debug = debug_multi, tag = "is_Negative", precision = ML_Bool, likely = False)
     test_inf = Test(vx, specifier = Test.IsInfty, likely = False, debug = debug_multi, tag = "is_Inf", precision = ML_Bool)
     test_NaN_or_Neg = LogicalOr(test_NaN, test_negative, precision = ML_Bool)
-    
+
+    return_PosZero = Statement(Return(FP_PlusInfty(self.precision)))
     return_NaN_or_neg = Statement(Return(FP_QNaN(self.precision)))
-    return_inf = Statement(Return(FP_PlusInfty(self.precision)))
+    return_inf = Statement(Return(FP_PlusZero(self.precision)))
 
 
-    # NR_init = 1
     NR_init = InverseSquareRootSeed(vx, precision = self.precision, tag = "sqrt_seed", debug = debug_multi)
 
-    result = compute_sqrt(vx, NR_init, int(self.num_iter), precision = self.precision)
+    result = compute_isqrt(vx, NR_init, int(self.num_iter), precision = self.precision)
 
     scheme = ConditionBlock(
                 test_zero,
-                Return(0),
+                return_PosZero,
                 ConditionBlock(
                     test_NaN_or_Neg,
                     return_NaN_or_neg,
@@ -207,7 +175,7 @@ class ML_Sqrt(ML_Function("ml_sqrt")):
           mpfr_x is a mpfr_t variable which should have the right precision
           mpfr_rnd is the rounding mode
       """
-      emulate_func_name = "mpfr_sqrt"
+      emulate_func_name = "mpfr_isqrt"
       emulate_func_op = FunctionOperator(emulate_func_name, arg_map = {0: FO_Arg(0), 1: FO_Arg(1), 2: FO_Arg(2)}, require_header = ["mpfr.h"])
       emulate_func   = FunctionObject(emulate_func_name, [ML_Mpfr_t, ML_Mpfr_t, ML_Int32], ML_Int32, emulate_func_op)
       mpfr_call = Statement(ReferenceAssign(result_ternary, emulate_func(result, mpfr_x, mpfr_rnd)))
@@ -215,18 +183,18 @@ class ML_Sqrt(ML_Function("ml_sqrt")):
       return mpfr_call
 
   def numeric_emulate(self, input):
-        return sollya.sqrt(input)
+        return 1/sollya.sqrt(input)
 
 
   standard_test_cases = [(1.651028399744791652636877188342623412609100341796875,)] # [sollya.parse(x)] for x in  ["+0.0", "-1*0.0", "2.0"]]
 
 if __name__ == "__main__":
 
-  arg_template = ML_NewArgTemplate(default_function_name = "new_sqrt", default_output_file = "new_sqrt.c")
-  arg_template.parser.add_argument("--num-iter", dest = "num_iter", action = "store", default = ArgDefault(1), help = "number of Newton-Raphson iterations")
+  arg_template = ML_NewArgTemplate(default_function_name = "new_isqrt", default_output_file = "new_isqrt.c")
+  arg_template.parser.add_argument("--num-iter", dest = "num_iter", action = "store", default = ArgDefault(3), help = "number of Newton-Raphson iterations")
   args = parse_arg_index_list = arg_template.arg_extraction()
 
 
-  ml_sqrt  = ML_Sqrt(args)
-  ml_sqrt.gen_implementation()
+  ml_isqrt  = ML_Isqrt(args)
+  ml_isqrt.gen_implementation()
 

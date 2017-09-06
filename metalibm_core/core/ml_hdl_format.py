@@ -53,10 +53,7 @@ def generic_get_vhdl_cst(value, bit_size):
 
 class RTL_FixedPointFormat(ML_Base_FixedPoint_Format):
   def __init__(self, integer_size, frac_size, signed = True, support_format = None, align = 0):
-    ML_Fixed_Format.__init__(self, support_format, align)
-    self.integer_size = integer_size
-    self.frac_size    = frac_size
-    self.signed       = signed
+    ML_Base_FixedPoint_Format.__init__(self, integer_size, frac_size, signed, support_format = support_format, align = align)
     name = ("" if self.signed else "U") + "INT" + str(self.get_bit_size()) 
     self.name[VHDL_Code] = name
 

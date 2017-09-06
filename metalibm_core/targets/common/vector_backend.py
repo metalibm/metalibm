@@ -570,6 +570,8 @@ vector_c_code_generation_table = {
         type_custom_match(FSM(v2float32), TCM(ML_TableFormat), FSM(v2int32), FSM(v2int32)): ML_VectorLib_Function("ML_VLOAD2D", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2), 4: "2"}, arity = 5),
         type_custom_match(FSM(v4float32), TCM(ML_TableFormat), FSM(v4int32)): ML_VectorLib_Function("ML_VLOAD", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: "4"}, arity = 4),
         type_custom_match(FSM(v4float32), TCM(ML_TableFormat), FSM(v4int32), FSM(v4int32)): ML_VectorLib_Function("ML_VLOAD2D", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2), 4: "4"}, arity = 5),
+        type_custom_match(FSM(v8float32), TCM(ML_TableFormat), FSM(v8int32), FSM(v8int32)): 
+					ML_VectorLib_Function("ML_VLOAD2D", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2), 4: "8"}, arity = 5),
         # double precision loading
         type_custom_match(FSM(v4float64), TCM(ML_TableFormat), FSM(v4int32)): ML_VectorLib_Function("ML_VLOAD", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: "4"}, arity = 4),
         type_custom_match(FSM(v4float64), TCM(ML_TableFormat), FSM(v4int32), FSM(v4int32)): ML_VectorLib_Function("ML_VLOAD2D", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2), 4: "4"}, arity = 5),
@@ -845,7 +847,10 @@ vector_c_code_generation_table = {
   Trunc: {
     None: {
       lambda optree: True: {
+        type_strict_match(v2float32, v2float32) : ML_VectorLib_Function("VECTORIZE_OP1", arg_map = {0: "truncf", 1: FO_ResultRef(0), 2: FO_Arg(0), 3: "2"}, arity = 1, output_precision = v2float32, require_header = ["math.h"]),
+        type_strict_match(v3float32, v3float32) : ML_VectorLib_Function("VECTORIZE_OP1", arg_map = {0: "truncf", 1: FO_ResultRef(0), 2: FO_Arg(0), 3: "3"}, arity = 1, output_precision = v3float32, require_header = ["math.h"]),
         type_strict_match(v4float32, v4float32) : ML_VectorLib_Function("VECTORIZE_OP1", arg_map = {0: "truncf", 1: FO_ResultRef(0), 2: FO_Arg(0), 3: "4"}, arity = 1, output_precision = v4float32, require_header = ["math.h"]),
+        type_strict_match(v8float32, v8float32) : ML_VectorLib_Function("VECTORIZE_OP1", arg_map = {0: "truncf", 1: FO_ResultRef(0), 2: FO_Arg(0), 3: "8"}, arity = 1, output_precision = v8float32, require_header = ["math.h"]),
       },
     },
   },
@@ -908,6 +913,16 @@ vector_c_code_generation_table = {
         type_strict_match(v3bool, v3bool): ML_VectorLib_Function("ml_vnotb3", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)}, arity = 1, output_precision = v3int32),
         type_strict_match(v4bool, v4bool): ML_VectorLib_Function("ml_vnotb4", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)}, arity = 1, output_precision = v4int32),
         type_strict_match(v8bool, v8bool): ML_VectorLib_Function("ml_vnotb8", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)}, arity = 1, output_precision = v8int32),
+      },
+    },
+  },
+  LogicalOr: {
+    None: {
+      lambda _: True: {
+        type_strict_match(v2bool, v2bool, v2bool): ML_VectorLib_Function("ml_vorb2", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v2int32),
+        type_strict_match(v3bool, v3bool, v3bool): ML_VectorLib_Function("ml_vorb3", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v3int32),
+        type_strict_match(v4bool, v4bool, v4bool): ML_VectorLib_Function("ml_vorb4", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v4int32),
+        type_strict_match(v8bool, v8bool, v8bool): ML_VectorLib_Function("ml_vorb8", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v8int32),
       },
     },
   },
@@ -996,6 +1011,23 @@ vector_c_code_generation_table = {
         type_strict_match(v8bool, v8float32): ML_VectorLib_Function("ml_vtestf8_is_nan_or_inf", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)}, arity = 1, output_precision = v8int32),
       },
     },
+    Test.IsInfty: {
+      lambda _: True: {
+        type_strict_match(v2bool, v2float32): ML_VectorLib_Function("ml_vtestf2_is_inf", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)}, arity = 1, output_precision = v2int32),
+        type_strict_match(v3bool, v3float32): ML_VectorLib_Function("ml_vtestf3_is_inf", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)}, arity = 1, output_precision = v3int32),
+        type_strict_match(v4bool, v4float32): ML_VectorLib_Function("ml_vtestf4_is_inf", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)}, arity = 1, output_precision = v4int32),
+        type_strict_match(v8bool, v8float32): ML_VectorLib_Function("ml_vtestf8_is_inf", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)}, arity = 1, output_precision = v8int32),
+      },
+    },
+    Test.IsNaN: {
+      lambda _: True: {
+        type_strict_match(v2bool, v2float32): ML_VectorLib_Function("ml_vtestf2_is_nan", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)}, arity = 1, output_precision = v2int32),
+        type_strict_match(v3bool, v3float32): ML_VectorLib_Function("ml_vtestf3_is_nan", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)}, arity = 1, output_precision = v3int32),
+        type_strict_match(v4bool, v4float32): ML_VectorLib_Function("ml_vtestf4_is_nan", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)}, arity = 1, output_precision = v4int32),
+        type_strict_match(v8bool, v8float32): ML_VectorLib_Function("ml_vtestf8_is_nan", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)}, arity = 1, output_precision = v8int32),
+      },
+    },
+    
     Test.IsSubnormal: {
       lambda _: True: {
         type_strict_match(v2bool, v2float32): ML_VectorLib_Function("ml_vtestf2_is_subnormal", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)}, arity = 1, output_precision = v2int32),

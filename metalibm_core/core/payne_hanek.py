@@ -64,9 +64,15 @@ def generate_payne_hanek(
     vx, frac_pi, precision, n = 100, k = 4, chunk_num = None, debug = False
   ):
   """ generate payne and hanek argument reduction for frac_pi * variable """
-  # determining integer format corresponding to 
-  # floating point precision argument
-  int_precision = precision.get_integer_format()
+  
+  sollya.roundingwarnings = sollya.off
+  debug_precision = debug_multi
+  int_precision = {
+    ML_Binary32 : ML_Int32,
+    ML_Binary64 : ML_Int64
+    }[precision]
+  
+  p = precision.get_field_size()
 
   # weight of the most significant digit of the constant
   cst_msb = floor(log2(abs(frac_pi)))
@@ -80,19 +86,12 @@ def generate_payne_hanek(
   chunk_number = int(ceil((cst_exp_range + chunk_size - 1) / chunk_size)) 
   scaling_factor = S2**-(chunk_size/2)
 
-  chunk_size_cst = Constant(chunk_size, precision = ML_Int32)
-  cst_msb_node   = Constant(cst_msb, precision = ML_Int32)
+  chunk_size_cst = Constant(chunk_size, precision = int_precision)
+  cst_msb_node   = Constant(cst_msb, precision = int_precision)
 
-  p = precision.get_field_size()
-
-  # adapting debug format to precision argument
-  debug_precision = {
-    ML_Binary32: debug_ftox, ML_Binary64: debug_lftolx
-  }[precision] if debug else None
-
-  # saving sollya's global precision
+  # Saving sollya's global precision
   old_global_prec = sollya.settings.prec
-  sollya.settings.prec (cst_exp_range + 100)
+  sollya.settings.prec (cst_exp_range + n)
 
   # table to store chunk of constant multiplicand
   cst_table = ML_NewTable(
@@ -123,32 +122,45 @@ def generate_payne_hanek(
     # storing scaled constant chunks
     cst_table[i][0] = local_cst / (local_scale**2)
     scale_table[i][0] = local_scale
+    # Updating constant value
     tmp_cst = tmp_cst - local_cst
 
+  # Computing which part of the constant we do not need to multiply
+  # In the following comments, vi represents the bit of frac_pi of weight 2**-i
+  
+  # Bits vi so that i <= (vx_exp - p + 1 -k)  are not needed, because they result
+  # in a multiple of 2pi and do not contribute to trig functions.    
+
   vx_exp = ExponentExtraction(vx)
-  msb_exp = -vx_exp + p - 1 + k
-  msb_exp.set_attributes(tag = "msb_exp", debug = (debugd if debug else None))
+  
+  msb_exp = -(vx_exp - p + 1 - k)
+  msb_exp.set_attributes(precision = int_precision, tag = "msb_exp", debug = debug_multi)
 
   # Select the highest index where the reduction should start
   msb_index = Select(cst_msb_node < msb_exp, 0, (cst_msb_node - msb_exp) / chunk_size_cst)
-  msb_index.set_attributes(tag = "msb_index", debug = (debugd if debug else None))
+  msb_index.set_attributes(tag = "msb_index", debug = debug_multi)
 
-  lsb_exp = -vx_exp + p - 1 -n
-  lsb_exp.set_attributes(tag = "lsb_exp", debug = (debugd if debug else None))
-  # Select the lowest index where the reduction should end
+  # For a desired accuracy of 2**-n, bits vi so that i >= (vx_exp + n + 4)  are not needed, because they contribute less than
+  # 2**-n to the result
+  
+  lsb_exp = -(vx_exp + n + 4)
+  lsb_exp.set_attributes(tag = "lsb_exp", debug = debug_multi)
+
+  # Index of the corresponding chunk
   lsb_index = (cst_msb_node - lsb_exp) / chunk_size_cst
-  lsb_index.set_attributes(tag = "lsb_index", debug = (debugd if debug else None))
+  lsb_index.set_attributes(tag = "lsb_index", debug = debug_multi)
 
-
+  # Splitting vx
   half_size = precision.get_field_size() / 2 + 1
 
   # hi part (most significant digit) of vx input
   vx_hi = TypeCast(BitLogicAnd(TypeCast(vx, precision = int_precision), Constant(~(2**half_size-1), precision = int_precision)), precision = precision) 
-  vx_hi.set_attributes(tag = "vx_hi", debug = debug_precision)
-  # lo part (least significant digit) of vx input
+  vx_hi.set_attributes(tag = "vx_hi_ph")#, debug = debug_multi)
+
   vx_lo = vx - vx_hi
-  vx_lo.set_attributes(tag = "vx_lo", debug = debug_precision)
-  # loop iterator variable
+  vx_lo.set_attributes(tag = "vx_lo_ph")#, debug = debug_multi)
+  
+# loop iterator variable	
   vi = Variable("i", precision = ML_Int32, var_type = Variable.Local)
   # step scaling factor
   half_scaling = Constant(S2**(-chunk_size/2), precision = precision)
@@ -186,17 +198,17 @@ def generate_payne_hanek(
   pre_exclude_hi.propagate_precision(ML_Int32, [cst_msb_node, vi, vx_exp, i1])
   Ck = Constant(k, precision = ML_Int32)
   exclude_hi = pre_exclude_hi <= Ck
-  exclude_hi.set_attributes(tag = "exclude_hi", debug = (debugd if debug else None))
+  exclude_hi.set_attributes(tag = "exclude_hi", debug = debug_multi)
 
   hi_mult_red = Select(exclude_hi, pre_hi_mult_red, Constant(0, precision = precision))
   hi_mult_int = Select(exclude_hi, pre_hi_mult_int, Constant(0, precision = int_precision))
 
   # lo part of the chunk reduction
   lo_mult = (vx_lo * sca_load) * (cst_load * sca_load)
-  lo_mult.set_attributes(tag = "lo_mult", debug = debug_precision)
-  lo_mult_int   = NearestInteger(lo_mult, precision = int_precision, tag = "lo_mult_int", debug = (debuglld if debug else None))
-  lo_mult_int_f = Conversion(lo_mult_int, precision = precision, tag = "lo_mult_int_f", debug = debug_precision)
-  lo_mult_red = (lo_mult - lo_mult_int_f).modify_attributes(tag = "lo_mult_red", debug = debug_precision)
+  lo_mult.set_attributes(tag = "lo_mult")#, debug = debug_multi)
+  lo_mult_int   = NearestInteger(lo_mult, precision = int_precision, tag = "lo_mult_int")#, debug = debug_multi
+  lo_mult_int_f = Conversion(lo_mult_int, precision = precision, tag = "lo_mult_int_f")#, debug = debug_multi)
+  lo_mult_red = (lo_mult - lo_mult_int_f).modify_attributes(tag = "lo_mult_red")#, debug = debug_multi)
 
   # accumulating fractional part
   acc_expr = (acc + hi_mult_red) + lo_mult_red
@@ -215,9 +227,8 @@ def generate_payne_hanek(
       ReferenceAssign(acc_int, int_expr + acc_expr_int),
   )
 
-
-  acc_expr.set_attributes(tag = "acc_expr", debug = debug_precision)
-  int_expr.set_attributes(tag = "int_expr", debug = (debuglld if debug else None))
+  acc_expr.set_attributes(tag = "acc_expr")#, debug = debug_multi)
+  int_expr.set_attributes(tag = "int_expr")#, debug = debug_multi)
 
   red_loop = Loop(init_loop,
       vi <= lsb_index,
@@ -228,7 +239,8 @@ def generate_payne_hanek(
           ReferenceAssign(vi, vi + 1)
         )
       )
-  result = Statement(lsb_index, msb_index, red_loop)
+      
+  result = Statement(lsb_index, msb_index, red_loop) 
 
   # restoring sollya's global precision
   sollya.settings.prec = old_global_prec

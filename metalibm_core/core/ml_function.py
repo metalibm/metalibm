@@ -151,6 +151,7 @@ class ML_FunctionBasis(object):
     bench_test_range = ArgDefault.select_value([arg_template.bench_test_range, bench_test_range])
     bench_test_number = ArgDefault.select_value([arg_template.bench_test_number, bench_test_number])
 
+    self.display_after_opt = arg_template.display_after_opt
 
     # enable/disable check_processor_support pass run
     self.check_processor_support = arg_template.check_processor_support
@@ -408,9 +409,6 @@ class ML_FunctionBasis(object):
         scalar_scheme, scalar_arg_list, self.get_vector_size()
       )
 
-
-
-
     for code_function in code_function_list:
       scheme = code_function.get_scheme()
       if display_after_gen:
@@ -423,10 +421,6 @@ class ML_FunctionBasis(object):
         scheme, enable_subexpr_sharing = enable_subexpr_sharing
       )
 
-      if display_after_opt:
-        print "function %s, after opt " % code_function.get_name()
-        print opt_scheme.get_str(depth = None, display_precision = True, memoization_map = {})
-
       # pre-generation optimization
       for pass_tag in self.pre_gen_passes:
         pass_class = Pass.get_pass_by_tag(pass_tag)
@@ -435,6 +429,9 @@ class ML_FunctionBasis(object):
         opt_scheme = pass_object.execute(opt_scheme)
       code_function.set_scheme(opt_scheme)
 
+      if self.display_after_opt or display_after_opt:
+        print "function %s, after opt " % code_function.get_name()
+        print opt_scheme.get_str(depth = None, display_precision = True, memoization_map = {})
 
     # generate auto-test wrapper
     if self.auto_test_enable:
@@ -1000,9 +997,18 @@ class ML_FunctionBasis(object):
 
     printf_error_op = FunctionOperator("printf", arg_map = {0: "\"max %s error is %s \\n \"" % (self.function_name, self.precision.get_display_format()), 1: FO_Arg(0)}, void_function = True) 
     printf_error_function = FunctionObject("printf", [self.precision], ML_Void, printf_error_op)
+    
+    printf_max_op = FunctionOperator("printf", arg_map = {0: "\"max %s error is reached at input number %s \\n \"" % (self.function_name, "%d"), 1: FO_Arg(0)}, void_function = True) 
+    printf_max_function = FunctionObject("printf", [self.precision], ML_Void, printf_max_op)
 
     loop_increment = self.get_vector_size()
 
+    return_statement_break = Statement(
+        printf_input_function(*((vi,) + local_inputs + (local_result,))), 
+        self.accuracy_obj.get_output_print_call(self.function_name, output_values),
+        Return(Constant(1, precision = ML_Int32))
+    )
+    
     test_loop = Loop(
       ReferenceAssign(vi, Constant(0, precision = ML_Int32)),
       vi < test_num_cst,
@@ -1010,11 +1016,7 @@ class ML_FunctionBasis(object):
         assignation_statement,
         ConditionBlock(
           failure_test,
-          Statement(
-            printf_input_function(*((vi,) + local_inputs + (local_result,))), 
-            self.accuracy_obj.get_output_print_call(self.function_name, output_values),
-            Return(Constant(1, precision = ML_Int32))
-          ),
+          return_statement_break,
         ),
         ReferenceAssign(vi, vi + loop_increment)
       ),
@@ -1024,31 +1026,38 @@ class ML_FunctionBasis(object):
 
     if self.compute_max_error:
       eval_error = Variable("max_error", precision = self.precision, var_type = Variable.Local)
+      max_input = Variable("max_input", precision = ML_Int32, var_type = Variable.Local)
+      max_result = Variable("max_result", precision = self.precision, var_type = Variable.Local)
+      max_vi = Variable("max_vi", precision = ML_Int32, var_type = Variable.Local)
       local_inputs  = tuple(TableLoad(input_tables[in_id], vi) for in_id in xrange(self.get_arity()))
 
       local_result  = tested_function(*local_inputs)
       stored_values = [TableLoad(output_table, vi, i) for i in xrange(self.accuracy_obj.get_num_output_value())]
-
+      local_error = self.accuracy_obj.compute_error(local_result, stored_values, relative = True)
+      error_comp = Comparison(local_error, eval_error, specifier = Comparison.Greater, precision = ML_Bool)
       error_loop = Loop(
         ReferenceAssign(vi, Constant(0, precision = ML_Int32)),
         vi < test_num_cst,
         Statement(
           assignation_statement,
-          ReferenceAssign(
-            eval_error,
-            Max(
-              self.accuracy_obj.compute_error(local_result, stored_values, relative = True),
-              eval_error,
-              precision = self.precision
-            )
-          ),
+          ConditionBlock(
+            error_comp,
+            Statement(
+              ReferenceAssign(eval_error, local_error),
+              ReferenceAssign(max_input, vi/loop_increment),
+              ReferenceAssign(max_vi, vi),
+              ReferenceAssign(max_result, local_result)              
+            ),
+            Statement()),
           ReferenceAssign(vi, vi + loop_increment)
         ),
       )
       test_statement.add(Statement(
         ReferenceAssign(eval_error, Constant(0, precision = self.precision)),
+        ReferenceAssign(max_input, Constant(0, precision = ML_Int32)),
         error_loop,
-        printf_error_function(eval_error)
+        printf_error_function(eval_error),
+        printf_max_function(max_input),
       ))
 
     # adding functional test_loop to test statement

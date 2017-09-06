@@ -56,10 +56,14 @@ def exclude_doubledouble(optree):
 def include_doubledouble(optree):
     return not exclude_doubledouble(optree)
 
+## Predicate excluding advanced matching cases for Multiplication
 def exclude_for_mult(optree):
-    return (optree.get_precision() != ML_DoubleDouble
-     and (optree.get_precision() == optree.get_input(0).get_precision())
-     and (optree.get_precision() == optree.get_input(1).get_precision()))
+		op_precision = optree.get_precision().get_match_format()
+		op0_precision = optree.get_input(0).get_precision().get_match_format()
+		op1_precision = optree.get_input(1).get_precision().get_match_format()
+		return (op_precision != ML_DoubleDouble
+		 and (op_precision == op0_precision)
+		 and (op_precision == op1_precision))
 def include_for_mult(optree):
     return not exclude_for_mult(optree)
 
@@ -312,33 +316,33 @@ c_code_generation_table = {
     },
     FusedMultiplyAdd: {
         FusedMultiplyAdd.Standard: {
-            lambda optree: std_cond(optree): {
+            lambda optree: fp_std_cond(optree): {
                 type_strict_match(ML_Binary32, ML_Binary32, ML_Binary32, ML_Binary32): Libm_Function("fmaf", arity = 3),
                 type_strict_match(ML_Binary64, ML_Binary64, ML_Binary64, ML_Binary64): Libm_Function("fma", arity = 3),
                 type_strict_match(ML_DoubleDouble, ML_Binary64, ML_Binary64, ML_Binary64): ML_Multi_Prec_Lib_Function("ml_fma_dd_d3", arity = 3, speed_measure = 66.5),
             },
         },
         FusedMultiplyAdd.Negate: {
-            lambda optree: std_cond(optree): {
+            lambda optree: fp_std_cond(optree): {
                 type_strict_match(ML_Binary32, ML_Binary32, ML_Binary32, ML_Binary32): SymbolOperator("-", arity = 1)(Libm_Function("fmaf", arity = 3, output_precision = ML_Binary32)),
                 type_strict_match(ML_Binary64, ML_Binary64, ML_Binary64, ML_Binary64): SymbolOperator("-", arity = 1)(Libm_Function("fma", arity = 3, output_precision = ML_Binary64)),
             },
         },
         FusedMultiplyAdd.SubtractNegate: {
-            lambda optree: std_cond(optree): {
+            lambda optree: fp_std_cond(optree): {
                 type_strict_match(ML_Binary32, ML_Binary32, ML_Binary32, ML_Binary32): Libm_Function("fmaf", arity = 3, output_precision = ML_Binary32)(SymbolOperator("-", arity = 1, output_precision = ML_Binary32)(FO_Arg(0)), FO_Arg(1), FO_Arg(2)),
                 type_strict_match(ML_Binary64, ML_Binary64, ML_Binary64, ML_Binary64): Libm_Function("fma", arity = 3, output_precision = ML_Binary64)(SymbolOperator("-", arity = 1, output_precision = ML_Binary64)(FO_Arg(0)), FO_Arg(1), FO_Arg(2)),
             },
         },
         FusedMultiplyAdd.Subtract: {
-            lambda optree: std_cond(optree): {
+            lambda optree: fp_std_cond(optree): {
                 type_strict_match(ML_Binary32, ML_Binary32, ML_Binary32, ML_Binary32): Libm_Function("fmaf", arity = 3, output_precision = ML_Binary32)(FO_Arg(0), FO_Arg(1), SymbolOperator("-", arity = 1, output_precision = ML_Binary32)(FO_Arg(2))),
                 type_strict_match(ML_Binary64, ML_Binary64, ML_Binary64, ML_Binary64): Libm_Function("fma", arity = 3, output_precision = ML_Binary64)(FO_Arg(0), FO_Arg(1), SymbolOperator("-", arity = 1, output_precision = ML_Binary64)(FO_Arg(2))),
             },
         },
     },
     Division: {
-        None: build_simplified_operator_generation([ML_Int32, ML_UInt32, ML_Binary32, ML_Binary64], 2, SymbolOperator("/", arity = 2)),
+        None: build_simplified_operator_generation([ML_Int64, ML_Int32, ML_UInt32, ML_Binary32, ML_Binary64], 2, SymbolOperator("/", arity = 2)),
     },
     Modulo: {
         None: build_simplified_operator_generation([ML_Int32, ML_UInt32, ML_Int64], 2, SymbolOperator("%", arity = 2)),
@@ -602,6 +606,7 @@ c_code_generation_table = {
         None: {
             lambda optree: True: {
                 type_strict_match(ML_DoubleDouble, ML_Binary64): ML_Multi_Prec_Lib_Function("ml_split_dd_d", arity = 1),
+                type_strict_match(ML_SingleSingle, ML_Binary32): ML_Multi_Prec_Lib_Function("ml_split_ds_s", arity = 1),
             },
         },
     },
@@ -609,6 +614,7 @@ c_code_generation_table = {
         ComponentSelection.Hi: {
             lambda optree: True: {
                 type_strict_match(ML_Binary64, ML_DoubleDouble): TemplateOperator("%s.hi", arity = 1), 
+                type_strict_match(ML_Binary32, ML_SingleSingle): TemplateOperator("%s.hi", arity = 1),
                 #type_strict_match(ML_Binary32, ML_Binary64): ComplexOperator(optree_modifier = lambda x: Conversion(x, precision = ML_Binary32)),
                 type_strict_match(ML_Binary32, ML_Binary64): IdentityOperator(),
             },
@@ -616,6 +622,7 @@ c_code_generation_table = {
         ComponentSelection.Lo: {
             lambda optree: True: {
                 type_strict_match(ML_Binary64, ML_DoubleDouble): TemplateOperator("%s.lo", arity = 1), 
+                type_strict_match(ML_Binary32, ML_SingleSingle): TemplateOperator("%s.lo", arity = 1),
                 type_strict_match(ML_Binary32, ML_Binary64): ComplexOperator(optree_modifier = lambda x: Conversion(Subtraction(x, Conversion(Conversion(x , precision = ML_Binary32), precision = ML_Binary64), precision = ML_Binary64), precision = ML_Binary32)),
             },
         },

@@ -31,8 +31,10 @@ class CodeFunction(object):
   def get_name(self):
     return self.name
 
-  def add_input_variable(self, name, vartype):
-    input_var = Variable(name, precision = vartype) 
+  def add_input_variable(self, name, vartype, **kw):
+    """ declares a new Variable with name @p name and format @p vartype
+        and registers it as an input variable """
+    input_var = Variable(name, precision = vartype, **kw) 
     self.arg_list.append(input_var)
     return input_var
 

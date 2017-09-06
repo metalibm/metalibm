@@ -1,0 +1,135 @@
+# -*- coding: utf-8 -*-
+
+import sys
+import random
+
+from sollya import S2
+
+from metalibm_core.core.ml_function import ML_Function, ML_FunctionBasis
+
+from metalibm_core.core.attributes import ML_Debug
+from metalibm_core.core.ml_operations import *
+
+from metalibm_core.core.ml_formats import *
+from metalibm_core.core.ml_complex_formats import *
+
+from metalibm_core.code_generation.c_code_generator import CCodeGenerator
+from metalibm_core.code_generation.generic_processor import GenericProcessor
+from metalibm_core.code_generation.mpfr_backend import MPFRProcessor
+from metalibm_core.code_generation.code_object import CodeObject
+from metalibm_core.code_generation.code_function import CodeFunction
+from metalibm_core.code_generation.code_constant import C_Code 
+from metalibm_core.core.ml_optimization_engine import OptimizationEngine
+from metalibm_core.core.polynomials import *
+from metalibm_core.core.ml_table import ML_Table, ML_NewTable
+
+from metalibm_core.code_generation.gappa_code_generator import GappaCodeGenerator
+
+from metalibm_core.utility.gappa_utils import execute_gappa_script_extract
+from metalibm_core.utility.ml_template import *
+
+from metalibm_core.utility.arg_utils import test_flag_option, extract_option_value  
+
+from metalibm_core.utility.debug_utils import *
+
+class ML_UT_ImplicitIntervalEval(ML_Function("ml_ut_implicit_interval_eval")):
+  def __init__(self, 
+                 arg_template,
+                 precision = ML_Binary32, 
+                 abs_accuracy = S2**-24, 
+                 libm_compliant = True, 
+                 debug_flag = False, 
+                 fuse_fma = True, 
+                 fast_path_extract = True,
+                 target = MPFRProcessor(), 
+                 output_file = "ut_implicit_interval_eval.c", 
+                 function_name = "ut_implicit_interval_eval"):
+    # precision argument extraction
+    precision = ArgDefault.select_value([arg_template.precision, precision])
+    io_precisions = [precision] * 2
+
+    # initializing base class
+    ML_FunctionBasis.__init__(self, 
+      base_name = "ut_implicit_interval_eval",
+      function_name = function_name,
+      output_file = output_file,
+
+      io_precisions = io_precisions,
+      abs_accuracy = None,
+      libm_compliant = libm_compliant,
+
+      processor = target,
+      fuse_fma = fuse_fma,
+      fast_path_extract = fast_path_extract,
+
+      debug_flag = debug_flag,
+      arg_template = arg_template,
+    )
+
+    self.precision = precision
+
+
+  def generate_scheme(self):
+    # map of expected interval values 
+    expected_interval = {}
+
+    vx_interval = Interval(-1, 1)
+    vx = self.implementation.add_input_variable("x", self.precision, interval = vx_interval)
+    expected_interval[vx] = vx_interval
+
+    cst = Constant(7, tag = "cst")
+    cst_interval = Interval(7)
+    expected_interval[cst] = cst_interval
+     
+    shl = BitLogicLeftShift(
+        NearestInteger(vx)
+        , 2, interval = 2 *  vx_interval,
+        tag = "shl"
+    )
+    shl_interval = 2 * vx_interval
+    expected_interval[shl] = shl_interval
+
+    r = vx + cst * vx + shl - cst 
+    r.set_attributes(tag = "r")
+
+    r_interval = vx_interval + cst_interval * vx_interval  + shl_interval - cst_interval
+    expected_interval[r] = r_interval 
+
+    for var in [vx, cst, r, shl]:
+        if var.get_interval() != expected_interval[var]:
+            Log.report(
+                Log.Error,
+                "unexpected interval for {}: got {}, expected {}".format(
+                    var.get_str(display_precision = True),
+                    var.get_interval(),
+                    expected_interval[var]
+                )
+            )
+        else: 
+            print "node {}: {} vs {}".format(var.get_tag(), var.get_interval(), expected_interval[var])
+
+    return Statement()
+
+  def numeric_emulate(self, input_value):
+    raise NotImplementedError
+
+
+def run_test(args):
+  ml_ut_implicit_interval_eval = ML_UT_ImplicitIntervalEval(args)
+  ml_ut_implicit_interval_eval.gen_implementation(
+    display_after_gen = True, display_after_opt = True
+  )
+  return True
+
+if __name__ == "__main__":
+  # auto-test
+  arg_template = ML_NewArgTemplate(
+    "new_ut_implicit_interval_eval",
+    default_output_file = "new_ut_implicit_interval_eval.c"
+  )
+  args = arg_template.arg_extraction()
+
+  if run_test(args):
+    exit(0)
+  else:
+    exit(1)

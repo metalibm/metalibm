@@ -577,12 +577,14 @@ def AbstractOperation_init(self, *ops, **init_map):
   if self.get_interval() == None:
       self.set_interval(self.range_function(self.inputs))
 
-def AbstractOperation_copy(self, copy_map = {}):
+def AbstractOperation_copy(self, copy_map = None):
   """ base function to copy an abstract operation object,
       copy_map is a memoization hashtable which can be use to factorize
       copies """
+  copy_map = {} if copy_map is None else copy_map
   # test for previous definition in memoization map
-  if self in copy_map: return copy_map[self]
+  if self in copy_map:
+    return copy_map[self]
   # else define a new and free copy
   new_copy = self.__class__(*tuple(op.copy(copy_map) for op in self.inputs), __copy = True)
   new_copy.attributes = self.attributes.get_copy()
@@ -725,6 +727,7 @@ class ComponentSelection(ArithmeticOperationConstructor("ComponentSelection", in
     class Lo(ComponentSelectionSpecifier): pass
 
     implicit_arg_precision = {
+        ML_SingleSingle: ML_Binary32,
         ML_DoubleDouble: ML_Binary64,
         ML_TripleDouble: ML_Binary64,
     }

@@ -36,15 +36,15 @@ class ML_Log2(ML_Function("ml_log2")):
                  fuse_fma = True, 
                  fast_path_extract = True,
                  target = GenericProcessor(), 
-                 output_file = "log2f.c", 
-                 function_name = "log2f"):
+                 output_file = "new_log2f.c", 
+                 function_name = "new_log2f"):
     # extracting precision argument from command line
     precision = ArgDefault.select_value([arg_template.precision, precision])
     io_precisions = [precision] * 2
 
     # initializing base class
     ML_FunctionBasis.__init__(self, 
-      base_name = "log2",
+      base_name = "new_log2",
       function_name = function_name,
       output_file = output_file,
 

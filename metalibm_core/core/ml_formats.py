@@ -126,6 +126,31 @@ class ML_Format(object):
       return False
 
 
+## format attribute wrapper 
+#  extend a base format with custom attributes
+class FormatAttributeWrapper(ML_Format):
+	def __init__(self, base_format, attribute_list):
+		self.base_format = base_format
+		self.attribute_list = attribute_list
+
+	def get_base_format(self):
+		return self.base_format.get_base_format()
+	def get_support_format(self):
+		return self.base_format.get_support_format()
+	def get_match_format(self):
+		return self.base_format.get_match_format()
+	def is_vector_format(self):
+		return self.base_format.is_vector_format()
+	def get_bit_size(self):
+		return self.base_format.get_bit_size()
+	def get_display_format(self, language = C_Code):
+		return self.base_format.get_display_format(language)
+	def get_name(self, language = C_Code):
+		str_list = self.attribute_list + [self.base_format.get_name(language = language)]
+		return " ".join(str_list)
+	def __str__(self):
+		return self.get_name(C_Code)
+
 ## Class of rounding mode type
 class ML_FloatingPoint_RoundingMode_Type(ML_Format):
     name_map = {None: "ml_rnd_mode_t", C_Code: "ml_rnd_mode_t", OpenCL_Code: "ml_rnd_mode_t"}
@@ -173,17 +198,13 @@ class ML_AbstractFormat(ML_Format):
         else:
             return str(cst_value)
 
+    def is_cst_decl_required(self):
+      return False
+
 ## ML object for exact format (no rounding involved)
 ML_Exact = ML_AbstractFormat("ML_Exact")
 
 
-## functor for abstract format construction
-def AbstractFormat_Builder(name, inheritance):
-    field_map = {
-        "name": name,
-        "__str__": lambda self: self.name[C_Code],
-    }
-    return type(name, (ML_AbstractFormat,) + inheritance, field_map)
 
 
 ## Ancestor class for instanciated formats
@@ -421,23 +442,28 @@ class VirtualFormat(ML_Format):
                base_format = None,
                support_format = None,
                get_cst = lambda self, value, language:
-               self.base_format.get_cst(value, language)
+               self.base_format.get_cst(value, language),
+               cst_decl_required = False
         ):
     ML_Format.__init__(self)
     self.support_format = support_format
     self.base_format    = base_format
     self.internal_get_cst = get_cst
+    # is constant declaration required
+    self.cst_decl_required = cst_decl_required
 
   def get_cst(self, cst_value, language = C_Code):
     return self.internal_get_cst(self, cst_value, language)
 
   ## return name for the format
   def get_name(self, language = C_Code):
+    raise NotImplementedError
     return self.base_format.get_name(language = language)
 
   ## return source code name for the format
   def get_code_name(self, language = C_Code):
-    return self.support_format.get_name(language = language)
+    code_name = self.support_format.get_name(language = language)
+    return code_name
 
   def set_support_format(self, _format):
     self.support_format = _format
@@ -450,16 +476,36 @@ class VirtualFormat(ML_Format):
 
   def get_support_format(self):
     return self.support_format
+  def get_signed(self):
+    return self.get_base_format().get_signed()
 
   def get_bit_size(self):
-    return self.base_format.get_bit_size()
+    return self.get_base_format().get_bit_size()
+  def is_cst_decl_required(self):
+    return self.cst_decl_required
+
+  def is_vector_format(self):
+    return False
+
+## Virtual format with no match forwarding
+class VirtualFormatNoForward(VirtualFormat):
+  def get_match_format(self):
+		return self
+
+class VirtualFormatNoBase(VirtualFormat):
+  def get_match_format(self):
+		return self
+  def get_base_format(self):
+		return self
+  def get_vector_format(self):
+        return False
 
 
 ## Ancestor to fixed-point format
-class ML_Fixed_Format(VirtualFormat):
+class ML_Fixed_Format(ML_Format):
     """ parent to every Metalibm's fixed-point class """
-    def __init__(self, support_format = None, align = 0):
-      VirtualFormat.__init__(self, support_format = support_format)
+    def __init__(self, align = 0):
+      ML_Format.__init__(self)
       # self.support_format must be an integer format
       # used to contain the fixed-point value
 
@@ -483,11 +529,12 @@ class ML_Fixed_Format(VirtualFormat):
       return self.support_right_align
 
 
-class ML_Base_FixedPoint_Format(ML_Fixed_Format):
+class ML_Base_FixedPoint_Format(ML_Fixed_Format, VirtualFormatNoBase):
     """ base class for standard integer format """
     def __init__(self, integer_size, frac_size, signed = True, support_format = None, align = 0):
         """ standard fixed-point format object initialization function """
-        ML_Fixed_Format.__init__(self, support_format, align)
+        ML_Fixed_Format.__init__(self, align)
+        VirtualFormatNoBase.__init__(self, support_format = support_format)
 
         self.integer_size = integer_size
         self.frac_size = frac_size
@@ -718,16 +765,25 @@ class ML_StringClass(ML_String_Format):
 ## Metalibm string format
 ML_String = ML_StringClass("char*", "%s", lambda self, s: "\"{}\"".format(s)) 
 
+## Predicate checking if @p precision is a standard integer format
 def is_std_integer_format(precision):
-  return precision in [ ML_Int8, ML_UInt8, ML_Int16, ML_UInt16,
-                        ML_Int32, ML_UInt32, ML_Int64, ML_UInt64,
-                        ML_Int128, ML_UInt128 ]
+	return isinstance(precision, ML_Standard_FixedPoint_Format) or \
+           isinstance(precision.get_base_format(), ML_Standard_FixedPoint_Format)
+  #return precision in [ ML_Int8, ML_UInt8, ML_Int16, ML_UInt16,
+  #                      ML_Int32, ML_UInt32, ML_Int64, ML_UInt64,
+  #                      ML_Int128, ML_UInt128 ]
 
 def is_std_signed_integer_format(precision):
-  return precision in [ ML_Int8, ML_Int16, ML_Int32, ML_Int64, ML_Int128 ]
+	return is_std_integer_format(precision) and \
+	       (precision.get_base_format().get_signed() or \
+            precision.get_signed())
+  #return precision in [ ML_Int8, ML_Int16, ML_Int32, ML_Int64, ML_Int128 ]
 
 def is_std_unsigned_integer_format(precision):
-  return precision in [ ML_UInt8, ML_UInt16, ML_UInt32, ML_UInt64, ML_UInt128 ]
+	return is_std_integer_format(precision) and \
+	       ((not precision.get_base_format().get_signed()) or \
+            (not precision.get_signed()))
+  #return precision in [ ML_UInt8, ML_UInt16, ML_UInt32, ML_UInt64, ML_UInt128 ]
 
 def get_std_integer_support_format(precision):
   """ return the ML's integer format to contains
@@ -754,11 +810,22 @@ def get_std_integer_support_format(precision):
   return format_map[precision.get_signed()][precision.get_c_bit_size()]
 
 
+## functor for abstract format construction
+def AbstractFormat_Builder(name, inheritance):
+    field_map = {
+        "name": name,
+        "__str__": lambda self: self.name[C_Code],
+    }
+    return type(name, (ML_AbstractFormat,) + inheritance, field_map)
+
+class ML_IntegerClass(ML_AbstractFormat, ML_Fixed_Format): pass
+class ML_FloatClass(ML_AbstractFormat, ML_FP_Format): pass
+class ML_AbstractBoolClass(ML_AbstractFormat, ML_Bool_Format): pass
 
 # abstract formats singleton
-ML_Integer          = AbstractFormat_Builder("ML_Integer",  (ML_Fixed_Format,))("ML_Integer")
-ML_Float            = AbstractFormat_Builder("ML_Float",    (ML_FP_Format,))("ML_Float")
-ML_AbstractBool     = AbstractFormat_Builder("MLAbstractBool",     (ML_Bool_Format,))("ML_AbstractBool")
+ML_Integer          = ML_IntegerClass("ML_Integer") #AbstractFormat_Builder("ML_Integer",  (ML_Fixed_Format,))("ML_Integer")
+ML_Float            = ML_FloatClass("ML_Float") #AbstractFormat_Builder("ML_Float",    (ML_FP_Format,))("ML_Float")
+ML_AbstractBool     = ML_AbstractBoolClass("ML_AbstractBool")#AbstractFormat_Builder("MLAbstractBool",     (ML_Bool_Format,))("ML_AbstractBool")
 
 
 
@@ -805,7 +872,7 @@ class ML_Compound_Integer_Format(ML_Compound_Format, ML_Fixed_Format):
 # compound binary floating-point format declaration
 ML_DoubleDouble = ML_Compound_FP_Format("ml_dd_t", ["hi", "lo"], [ML_Binary64, ML_Binary64], "", "", sollya.doubledouble)
 ML_TripleDouble = ML_Compound_FP_Format("ml_td_t", ["hi", "me", "lo"], [ML_Binary64, ML_Binary64, ML_Binary64], "", "", sollya.tripledouble)
-
+ML_SingleSingle = ML_Compound_FP_Format("ml_ds_t", ["hi", "lo"], [ML_Binary32, ML_Binary32], "", "", sollya.single)
 ###############################################################################
 #                     VECTOR FORMAT
 ###############################################################################
@@ -824,7 +891,8 @@ class ML_VectorFormat(ML_Format):
     return self.vector_size * self.scalar_format.get_bit_size()
 
   def __str__(self):
-    return "VEC_%s[%d]" % (self.scalar_format, self.vector_size)
+	  return self.get_code_name(language = C_Code)
+    # return "VEC_%s[%d]" % (self.scalar_format, self.vector_size)
 
   def get_scalar_format(self):
     return self.scalar_format

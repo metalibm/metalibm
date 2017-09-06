@@ -48,6 +48,9 @@ typedef struct {
     double lo;
 } ml_td_t;
 
-
+typedef struct {
+    float hi;
+    float lo;
+} ml_ds_t;
 
 #endif /** __ML_TYPES_H__ */

@@ -320,6 +320,7 @@ class DefaultEntityArgTemplate(DefaultArgTemplate):
     build_enable = False
 
 
+
 # Common ancestor for Argument Template class
 class ML_CommonArgTemplate(object):
     # constructor for ML_CommonArgTemplate

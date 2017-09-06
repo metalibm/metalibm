@@ -119,7 +119,7 @@ new_scheme_function_list = [
     [{"precision": ML_Binary32,
       "bench_function_name": "tanf",
       "target": target_instanciate("x86"),
-      "input_formats": [ML_Binary32],
+      "input_precisions": [ML_Binary32],
       "bench_execute": 1000,
       "bench_test_range": Interval(-1, 1)
     }, ]
