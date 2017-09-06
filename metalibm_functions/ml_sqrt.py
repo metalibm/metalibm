@@ -26,12 +26,12 @@ from metalibm_core.utility.gappa_utils import is_gappa_installed
 
 ## Newton-Raphson iteration object
 class NR_Iteration:
-  def __init__(self, value, approx, half_value):
+  def __init__(self, value, approx, half_value, c_half):
     Attributes.set_default_rounding_mode(ML_RoundToNearest)
     Attributes.set_default_silent(True)
 
     self.square = approx * approx
-    mult = FMSN(half_value, self.square, 0.5)
+    mult = FMSN(half_value, self.square, c_half)
     self.new_approx =  FMA(approx, mult, approx)
 
     Attributes.unset_default_rounding_mode()
@@ -52,15 +52,16 @@ def propagate_format(optree, precision):
 
 
 def compute_sqrt(vx, init_approx, num_iter, debug_lftolx = None, precision = ML_Binary64):
-
-    h = 0.5 * vx
+    
+    C_half = Constant(0.5, precision = precision)
+    h = C_half * vx
     h.set_attributes(tag = "h", debug = debug_multi, silent = True, rounding_mode = ML_RoundToNearest)
 
     current_approx = init_approx
     # correctly-rounded inverse computation
 
     for i in xrange(num_iter):
-        new_iteration = NR_Iteration(vx, current_approx, h)
+        new_iteration = NR_Iteration(vx, current_approx, h, C_half)
         current_approx = new_iteration.get_new_approx()
         current_approx.set_attributes(tag = "iter_%d" % i, debug = debug_multi)
 
@@ -74,9 +75,9 @@ def compute_sqrt(vx, init_approx, num_iter, debug_lftolx = None, precision = ML_
 
     S = vx * final_approx
     t5 = final_approx * h
-    H = 0.5 * final_approx
+    H = C_half * final_approx
     d = FMSN(S, S, vx)
-    t6 = FMSN(t5, final_approx, 0.5)
+    t6 = FMSN(t5, final_approx, C_half)
     S1 = FMA(d, H, S)
     H1 = FMA(t6, H, H)
     d1 = FMSN(S1, S1, vx)
@@ -170,36 +171,52 @@ class ML_Sqrt(ML_Function("ml_sqrt")):
         kwords["function_name"] = self.function_name
         return RaiseReturn(*args, **kwords)
 
-
-    test_zero = Comparison(vx, 0, specifier = Comparison.Equal, likely = False, debug = debug_multi, tag = "Is_Zero", precision = ML_Bool)
+    C0 = Constant(0, precision = self.precision)
+    
+    C0_plus = Constant(FP_PlusZero(self.precision))
+    C0_minus = Constant(FP_MinusZero(self.precision))
+    
+    
     test_NaN = Test(vx, specifier = Test.IsNaN, likely = False, debug = debug_multi, tag = "is_NaN", precision = ML_Bool)
-    test_negative = Comparison(vx, 0, specifier = Comparison.Less, debug = debug_multi, tag = "is_Negative", precision = ML_Bool, likely = False)
     test_inf = Test(vx, specifier = Test.IsInfty, likely = False, debug = debug_multi, tag = "is_Inf", precision = ML_Bool)
+    test_negative = Comparison(vx, C0, specifier = Comparison.Less, debug = debug_multi, tag = "is_Negative", precision = ML_Bool, likely = False)
+    test_NaN_or_Inf = Test(vx, specifier = Test.IsInfOrNaN, likely = False, debug = debug_multi, tag = "is_Inf_Or_Nan", precision = ML_Bool)
     test_NaN_or_Neg = LogicalOr(test_NaN, test_negative, precision = ML_Bool)
+    
+    test_std = LogicalNot(LogicalOr(test_NaN_or_Inf, test_negative, precision = ML_Bool, likely = False), precision = ML_Bool, likely = True)
+    
+    test_zero = Comparison(vx, C0, specifier = Comparison.Equal, likely = False, debug = debug_multi, tag = "Is_Zero", precision = ML_Bool)
     
     return_NaN_or_neg = Statement(Return(FP_QNaN(self.precision)))
     return_inf = Statement(Return(FP_PlusInfty(self.precision)))
+    
+    return_PosZero = Return(C0_plus)
+    return_NegZero = Return(C0_minus)
 
-
-    # NR_init = 1
     NR_init = InverseSquareRootSeed(vx, precision = self.precision, tag = "sqrt_seed", debug = debug_multi)
 
     result = compute_sqrt(vx, NR_init, int(self.num_iter), precision = self.precision)
 
-    scheme = ConditionBlock(
-                test_zero,
-                Return(0),
+    return_non_std = ConditionBlock(
+                test_NaN_or_Neg,
+                return_NaN_or_neg,
                 ConditionBlock(
-                    test_NaN_or_Neg,
-                    return_NaN_or_neg,
-                    ConditionBlock(
-                        test_inf,
-                        return_inf,
-                        Return(result)
-                    )
-                )
+                  test_inf,
+                  return_inf,
+                  ConditionBlock(
+                    test_zero,
+                    return_PosZero,
+                    return_NegZero
+                  )
+              )
             )
-
+    return_std = Return(result)
+    
+    scheme = ConditionBlock(
+      test_std,
+      return_std,
+      return_non_std
+    )
     return scheme
 
   def generate_emulate(self, result_ternary, result, mpfr_x, mpfr_rnd):

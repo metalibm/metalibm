@@ -86,8 +86,8 @@ def generate_payne_hanek(
   chunk_number = int(ceil((cst_exp_range + chunk_size - 1) / chunk_size)) 
   scaling_factor = S2**-(chunk_size/2)
 
-  chunk_size_cst = Constant(chunk_size, precision = int_precision)
-  cst_msb_node   = Constant(cst_msb, precision = int_precision)
+  chunk_size_cst = Constant(chunk_size, precision = ML_Int32)
+  cst_msb_node   = Constant(cst_msb, precision = ML_Int32)
 
   # Saving sollya's global precision
   old_global_prec = sollya.settings.prec
@@ -134,7 +134,7 @@ def generate_payne_hanek(
   vx_exp = ExponentExtraction(vx)
   
   msb_exp = -(vx_exp - p + 1 - k)
-  msb_exp.set_attributes(precision = int_precision, tag = "msb_exp", debug = debug_multi)
+  msb_exp.set_attributes(tag = "msb_exp", debug = debug_multi)
 
   # Select the highest index where the reduction should start
   msb_index = Select(cst_msb_node < msb_exp, 0, (cst_msb_node - msb_exp) / chunk_size_cst)

@@ -16,6 +16,13 @@ def is_leaf_no_Constant(optree):
 	return isinstance(optree, ML_LeafNode) and not isinstance(optree, Constant)
 
 
+def insert_conversion_when_required(op_input, final_precision):
+    if op_input.get_precision() != final_precision:
+        return Conversion(op_input, precision = final_precision)
+    else:
+        return op_input
+
+
 ## Generic vector promotion pass
 class Pass_Vector_Promotion(OptreeOptimization):
   pass_tag = "vector_promotion"
@@ -119,11 +126,8 @@ class Pass_Vector_Promotion(OptreeOptimization):
   #         In case of promoted-format, the return value may need to be 
   #         a conversion if the operation is not supported
   def promote_node(self, optree, parent_converted = False):
-    #if (parent_converted, optree) in self.memoization_map:
-    #  if parent_converted:
-    #  else:
-    #    return self.memoization_map[(parent_converted, optree)]
-    #else:
+    if (parent_converted, optree) in self.memoization_map:
+        return self.memoization_map[(parent_converted, optree)]
     if 1:
       new_optree = optree.copy(copy_map = self.copy_map)
       if self.does_target_support_promoted_op(optree):
@@ -135,14 +139,15 @@ class Pass_Vector_Promotion(OptreeOptimization):
         # must be converted back to initial format
         # before being returned
         if not parent_converted:
-          new_optree = Conversion(new_optree, precision = optree.get_precision())
+
+          new_optree = insert_conversion_when_required(new_optree, optree.get_precision()) # Conversion(new_optree, precision = optree.get_precision())
 
         return self.memoize(parent_converted, optree, new_optree)
       elif isinstance(optree, ML_NewTable):
         return self.memoize(parent_converted, optree, optree)
       elif is_leaf_no_Constant(optree):
         if parent_converted and optree.get_precision() in self.get_translation_table():
-          new_optree = Conversion(optree, precision = self.get_conv_format(optree.get_precision()))
+          new_optree = insert_conversion_when_required(new_optree, self.get_conv_format(optree.get_precision()))#Conversion(optree, precision = self.get_conv_format(optree.get_precision()))
           return self.memoize(parent_converted, optree, new_optree)
         elif parent_converted:
           raise NotImplementedError
@@ -159,7 +164,7 @@ class Pass_Vector_Promotion(OptreeOptimization):
         new_optree.inputs = new_inputs
 
         if parent_converted and optree.get_precision() in self.get_translation_table():
-          new_optree = Conversion(new_optree, precision = self.get_conv_format(optree.get_precision()))
+          new_optree = insert_conversion_when_required(new_optree, self.get_conv_format(optree.get_precision()))#Conversion(new_optree, precision = self.get_conv_format(optree.get_precision()))
           return new_optree
         elif parent_converted:
           print optree.get_precision()

@@ -90,19 +90,19 @@ class ML_Exp2(ML_Function("ml_exp2")):
     error_goal = S2**-1*local_ulp
     print "error goal: ", error_goal
 
-    sollya_prec_map = {ML_Binary32: sollya.binary32, ML_Binary64: sollya.binary64}
-    int_prec_map = {ML_Binary32: ML_Int32, ML_Binary64: ML_Int64}
+    sollya_precision = {ML_Binary32: sollya.binary32, ML_Binary64: sollya.binary64}[self.precision]
+    int_precision = {ML_Binary32: ML_Int32, ML_Binary64: ML_Int64}[self.precision]
 
     #Argument Reduction
-    vx_int = NearestInteger(vx, precision = self.precision, tag = 'vx_int', debug = debug_multi)
-    ivx = Conversion(vx_int, precision = int_prec_map[self.precision])
-    vx_r = vx - vx_int
+    vx_int = NearestInteger(vx, precision = int_precision, tag = 'vx_int', debug = debug_multi)
+    vx_intf = Conversion(vx_int, precision = self.precision)
+    vx_r = vx - vx_intf
     vx_r.set_attributes(tag = "vx_r", debug = debug_multi)
     degree = sup(guessdegree(2**(sollya.x), r_interval, error_goal)) + 2
     precision_list = [1] + [self.precision] * degree
 
 
-    exp_X = ExponentInsertion(ivx, tag = "exp_X", debug = debug_multi, precision = self.precision)
+    exp_X = ExponentInsertion(vx_int, tag = "exp_X", debug = debug_multi, precision = self.precision)
 
     #Polynomial Approx
     polynomial_scheme_builder = PolynomialSchemeEvaluator.generate_horner_scheme
@@ -116,44 +116,59 @@ class ML_Exp2(ML_Function("ml_exp2")):
 
 
     #Handling special cases
-    oflow_bound = self.precision.get_emax() + 1
+    oflow_bound = Constant(self.precision.get_emax() + 1, precision = self.precision)
     subnormal_bound = self.precision.get_emin_subnormal()
     uflow_bound = self.precision.get_emin_normal()
     print "oflow : ", oflow_bound
     #print "uflow : ", uflow_bound
     #print "sub : ", subnormal_bound
     test_overflow = Comparison(vx, oflow_bound, specifier = Comparison.GreaterOrEqual)
-    test_overflow.set_attributes(tag = "oflow_test", debug = debug_multi)
+    test_overflow.set_attributes(tag = "oflow_test", debug = debug_multi, likely = False, precision = ML_Bool)
 
     test_underflow = Comparison(vx, uflow_bound, specifier = Comparison.Less)
-    test_underflow.set_attributes(tag = "uflow_test", debug = debug_multi)
+    test_underflow.set_attributes(tag = "uflow_test", debug = debug_multi, likely = False, precision = ML_Bool)
 
     test_subnormal = Comparison(vx, subnormal_bound, specifier = Comparison.Greater)
-    test_subnormal.set_attributes(tag = "sub_test", debug = debug_multi)
+    test_subnormal.set_attributes(tag = "sub_test", debug = debug_multi, likely = False, precision = ML_Bool)
 
-    subnormal_offset = - (uflow_bound - ivx)
+    subnormal_offset = - (uflow_bound - vx_int)
     subnormal_offset.set_attributes( tag = "offset", debug = debug_multi)
     exp_offset = ExponentInsertion(subnormal_offset, precision = self.precision, debug = debug_multi, tag = "exp_offset")
     exp_min = ExponentInsertion(uflow_bound, precision = self.precision, debug = debug_multi, tag = "exp_min")
     subnormal_result = exp_offset*exp_min*poly + exp_offset*exp_min
-
+    
+    test_std = LogicalOr(test_overflow, test_underflow, precision = ML_Bool, tag = "std_test", likely = False)
+    
     #Reconstruction
     result = exp_X*poly + exp_X
     result.set_attributes(tag = "result", debug = debug_multi)
-
-    scheme = Statement(
+    
+    C0 = Constant(0, precision = self.precision)
+    
+    return_inf = Return(FP_PlusInfty(self.precision))
+    return_C0 = Return(C0)
+    return_sub = Return(subnormal_result)
+    return_std = Return(result)
+    
+    non_std_statement = Statement(
+      ConditionBlock(
+        test_overflow,
+        return_inf,
         ConditionBlock(
-            test_overflow,
-            Return(FP_PlusInfty(self.precision)),
-            ConditionBlock(
-                test_underflow,
-                ConditionBlock(
-                    test_subnormal,
-                    Return(subnormal_result),
-                    Return(0)
-                    ),
-                Return(result)
-            )))
+          test_subnormal,
+          return_sub,
+          return_C0
+          )
+        )
+      )
+      
+    scheme = Statement(
+      ConditionBlock(
+        test_std,
+        non_std_statement,
+        return_std
+      )
+    )
 
     return scheme
 
