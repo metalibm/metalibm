@@ -151,6 +151,7 @@ class ML_Log(ML_Function("ml_log")):
                 tag = 'exponent',
                 interval = self.precision.get_exponent_interval()),
             mask_to_add,
+            tag = 'modified_exponent',
             #interval = self.precision.get_exponent_interval() + mask_to_add.get_interval()
             )
     expf = Conversion(exponent,

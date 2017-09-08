@@ -77,8 +77,6 @@ def implicit_op(op):
     elif isinstance(op , str):
         return Constant(op, precision = ML_String)
     else:
-        import pdb
-        pdb.set_trace()
         print "ERROR: unsupported operand in implicit_op conversion ", op, op.__class__
         raise Exception()
 
@@ -877,9 +875,7 @@ class NearestInteger(ArithmeticOperationConstructor("NearestInteger", arity = 1,
 
 class Permute(ArithmeticOperationConstructor("Permute")):
     """ abstract word-permutations inside a vector operation """
-
-    def __init__(self, vector, imm8_reorder = [], **kwords):
-        super(Permute, self).__init__(vector, **kwords)
+    pass
 
 class FastReciprocal(ArithmeticOperationConstructor(
         "FastReciprocal", arity = 1,
@@ -956,6 +952,9 @@ class VectorUnpack(ArithmeticOperationConstructor("VectorUnpack",
 
     def get_name(self):
         return  "VectorUnpack.{}".format(self.specifier.name)
+
+    def get_codegen_key(self):
+        return self.specifier
 
 
 ## Compute the union of two intervals

@@ -197,7 +197,12 @@ _mm256_unpacklo_pd       = ImmIntrin("_mm256_permute_ps", arity = 2,
 # and we want to convert D0 | C0 | B0 | A0 to double
 def conversion_to_avx_mm256_cvtepi64_pd(optree):
     ymm0 = TypeCast(optree.get_input(0), precision = ML_AVX_m256_v8float32)
-    d1c1d0c0b1a1b0a0 = Permute(ymm0, [3, 1, 2, 0],
+    d1c1d0c0b1a1b0a0 = Permute(ymm0,
+                               Constant(
+                                   # Reorder [3, 2, 1, 0] -> [3, 1, 2, 0]
+                                   int('3120', base = 4),
+                                   precision = ML_Int32
+                                   ),
                                precision = ymm0.get_precision()) # __m256
     __m256d_d1c1d0c0b1a1b0a0 = TypeCast(d1c1d0c0b1a1b0a0,
                                         precision = ML_AVX_m256_v4float64)
@@ -215,6 +220,13 @@ def conversion_to_avx_mm256_cvtepi64_pd(optree):
     __m128i_d0c0b0a0 = TypeCast(d0c0b0a0, precision = ML_SSE_m128_v4int32)
     result = Conversion(__m128i_d0c0b0a0, precision = ML_AVX_m256_v4float64)
     return result
+
+# AVX typecast metablock from 4 float32 to 2 float64
+def _mm256_castps256_pd128(optree):
+    ymm0 = optree.get_input(0)
+    xmm0 = TypeCast(ymm0, precision = ML_SSE_m128_v4float32)
+    return TypeCast(xmm0, precision = ML_SSE_m128_v2float64)
+
 
 # AVX2 bitwise AND of 256 bits representing integer data
 _mm256_and_si256 = ImmIntrin("_mm256_and_si256", arity = 2,
@@ -643,6 +655,9 @@ sse2_c_code_generation_table = {
                 type_strict_match(ML_SSE_m128_v4int32, ML_SSE_m128_v2float64):
                     EmmIntrin("_mm_castpd_si128", arity = 1,
                               output_precision = ML_SSE_m128_v4int32),
+                type_strict_match(ML_SSE_m128_v2float64, ML_SSE_m128_v4float32):
+                    EmmIntrin("_mm_castps_pd", arity = 1,
+                              output_precision = ML_SSE_m128_v2float64),
             },
         },
     },
@@ -653,6 +668,20 @@ sse2_c_code_generation_table = {
                     ComplexOperator(optree_modifier = vector_constant_op),
                 type_strict_match(ML_SSE_m128_v4float32):
                     ComplexOperator(optree_modifier = vector_constant_op),
+            },
+        },
+    },
+    VectorUnpack: {
+        VectorUnpack.Hi: {
+            lambda optree: True: {
+                type_strict_match(*(3*(ML_SSE_m128_v2float64,))):
+                    _mm_unpackhi_pd,
+            },
+        },
+        VectorUnpack.Lo: {
+            lambda optree: True: {
+                type_strict_match(*(3*(ML_SSE_m128_v2float64,))):
+                    _mm_unpacklo_pd,
             },
         },
     },
@@ -958,8 +987,7 @@ avx_c_code_generation_table = {
     Permute: {
         None: {
             lambda optree: True: {
-                type_strict_match(ML_AVX_m256_v8float32, ML_AVX_m256_v8float32,
-                                  ML_Int32):
+                type_strict_match(ML_AVX_m256_v8float32, ML_AVX_m256_v8float32, ML_Int32):
                     _mm256_permute_ps,
             }
         },
@@ -1002,20 +1030,25 @@ avx_c_code_generation_table = {
                 type_strict_match(ML_SSE_m128_v2float64, ML_AVX_m256_v4float64):
                     ImmIntrin("_mm256_castpd256_pd128", arity = 1,
                               output_precision = ML_SSE_m128_v2float64),
+                type_strict_match(ML_SSE_m128_v4float32, ML_AVX_m256_v8float32):
+                    ImmIntrin("_mm256_castps256_ps128", arity = 1,
+                              output_precision = ML_SSE_m128_v4float32),
+                type_strict_match(ML_SSE_m128_v2float64, ML_AVX_m256_v8float32):
+                    ComplexOperator(optree_modifier = _mm256_castps256_pd128),
             },
         },
     },
     VectorUnpack: {
         VectorUnpack.Hi: {
             lambda optree: True: {
-                type_strict_match(*(3*(ML_SSE_m128_v2float64,))):
-                    _mm_unpackhi_pd,
+                type_strict_match(*(3*(ML_AVX_m256_v4float64,))):
+                    _mm256_unpackhi_pd,
             },
         },
         VectorUnpack.Lo: {
             lambda optree: True: {
-                type_strict_match(*(3*(ML_SSE_m128_v2float64,))):
-                    _mm_unpacklo_pd,
+                type_strict_match(*(3*(ML_AVX_m256_v4float64,))):
+                    _mm256_unpacklo_pd,
             },
         },
     },
