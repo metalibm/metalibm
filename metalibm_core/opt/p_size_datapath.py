@@ -4,25 +4,39 @@
     RTL entities """
 
 import sollya
+import operator
 
 from metalibm_core.utility.log_report import Log
 
 from metalibm_core.core.passes import OptreeOptimization, Pass
 from metalibm_core.core.ml_operations import (
     Comparison, Addition, Select, Constant, ML_LeafNode, Conversion,
-    Statement, ReferenceAssign
+    Statement, ReferenceAssign, BitLogicNegate, Subtraction,
+    SpecificOperation, Negation, BitLogicRightShift, BitLogicLeftShift, 
+    Min, Max, CountLeadingZeros, Multiplication,
+    LogicalOr, LogicalAnd
 )
+from metalibm_core.core.advanced_operations import FixedPointPosition
 from metalibm_core.core.ml_hdl_operations import (
-    Process, ComponentInstance 
+    Process, ComponentInstance, Concatenation, SubSignalSelection
 )
 from metalibm_core.opt.rtl_fixed_point_utils import (
     test_format_equality,
     solve_equal_formats
 )
-from metalibm_core.core.ml_formats import ML_Bool
+from metalibm_core.core.ml_formats import ML_Bool, ML_Integer
 from metalibm_core.core.ml_hdl_format import (
-    is_fixed_point, fixed_point
+    is_fixed_point, fixed_point, ML_StdLogic, ML_StdLogicVectorFormat
 )
+from metalibm_core.core.legalizer import (
+    legalize_fixed_point_subselection, fixed_point_position_legalizer,
+    evaluate_cst_graph
+)
+from metalibm_core.core.special_values import FP_SpecialValue
+
+from .opt_utils import evaluate_range
+
+from metalibm_core.utility.decorator import safe
 
 # The pass implemented in this file processes an optree and replaces
 #  each None precision by a std_logic_vector's like precision whose
@@ -32,48 +46,32 @@ from metalibm_core.core.ml_hdl_format import (
 # attributes will be used to determine output live range and tune
 # the output format
 
-## Assuming @p optree has no pre-defined range, recursively compute a range
-#  from the node inputs
-def evaluate_range(optree):
-    init_interval =  get_node_range(optree)
-    if not init_interval is None:
-        return init_interval
-    else:
-        args_interval = tuple(
-            evaluate_range(op) for op in
-                optree.get_inputs()
-        )
-        return optree.apply_bare_range_function(args_interval)
 
-## determine the live range value of a node
-def get_node_range(optree):
-    init_interval = optree.get_interval()
-    if not init_interval is None:
-        return init_interval
-    else:
-        precision = optree.get_precision()
-        if precision is None:
-            return evaluate_range(optree)
-        raise NotImplementedError
-        #elif isinstance(precision, ML_:
-        #    # unsigned case
-        #    bit_size = precision.get_bit_size()
-        #    return Interval(0, 2**bit_size-1)
-
-
-def size_addition(op0, op1):
-    pass
 
 ## determine generic operation precision
 def solve_format_BooleanOp(optree):
-    """ legalize BooleanOperation node """
+    """ legalize BooleanOperation precision
+
+        Args:
+            optree (BooleanOperation): input boolean node
+
+        Returns:
+            (ML_Format): legalized optree format
+    """
     if optree.get_precision() is None:
         optree.set_precision(ML_Bool)
     return optree.get_precision()
 
 ## Determine comparison node precision
 def solve_format_Comparison(optree):
-    """ Legalize Comparison node """
+    """ Legalize Comparison precision
+
+        Args:
+            optree (Comparison): input node
+
+        Returns:
+            (ML_Format) legalized node format
+    """
     assert isinstance(optree, Comparison)
     if optree.get_precision() is None:
         optree.set_precision(ML_Bool)
@@ -83,26 +81,65 @@ def solve_format_Comparison(optree):
     propagate_format_to_input(merge_format, optree, [0, 1])
     return solve_format_BooleanOp(optree)
 
-## determine Addition node precision
-def solve_format_Addition(optree):
-    """ Legalize Addition node """
-    assert isinstance(optree, Addition)
+def solve_format_CLZ(optree):
+    """ Legalize CountLeadingZeros precision
+    
+        Args:
+            optree (CountLeadingZeros): input node
+            
+        Returns:
+            ML_Format: legal format for CLZ
+    """
+    assert isinstance(optree, CountLeadingZeros)
+    op_input = optree.get_input(0)
+    input_precision = op_input.get_precision()
+
+    if is_fixed_point(input_precision):
+        if input_precision.get_signed():
+            Log.report(Log.Warning , "signed format in solve_format_CLZ")
+        # +1 for carry overflow
+        int_size = int(sollya.floor(sollya.log2(input_precision.get_bit_size()))) + 1 
+        frac_size = 0
+        return fixed_point(
+            int_size,
+            frac_size,
+            signed=False
+        )
+    else:
+        Log.report(Log.Warning , "unsupported format in solve_format_CLZ")
+        return optree.get_precision()
+
+
+def solve_format_ArithOperation(optree,
+    integer_size_func = lambda lhs_prec, rhs_prec: None,
+    frac_size_func = lambda lhs_prec, rhs_prec: None,
+    signed_func = lambda (lhs, lhs_prec), (rhs, rhs_prec): False
+    ):
+    """ determining fixed-point format for a generic 2-op arithmetic
+        operation (e.g. Multiplication, Addition, Subtraction)
+    """
     lhs = optree.get_input(0)
     rhs = optree.get_input(1)
     lhs_precision = lhs.get_precision()
     rhs_precision = rhs.get_precision()
 
+    abstract_operation = (lhs_precision is ML_Integer) and (rhs_precision is ML_Integer)
+    if abstract_operation:
+        return ML_Integer
+
+    if lhs_precision is ML_Integer:
+        cst_eval = evaluate_cst_graph(lhs, input_prec_solver = solve_format_rec)
+        lhs_precision = solve_format_Constant(Constant(cst_eval))
+
+    if rhs_precision is ML_Integer:
+        cst_eval = evaluate_cst_graph(rhs, input_prec_solver = solve_format_rec)
+        rhs_precision = solve_format_Constant(Constant(cst_eval))
+
     if is_fixed_point(lhs_precision) and is_fixed_point(rhs_precision):
         # +1 for carry overflow
-        int_size = max(
-            lhs_precision.get_integer_size(),
-            rhs_precision.get_integer_size()
-        ) + 1
-        frac_size = max(
-            lhs_precision.get_frac_size(),
-            rhs_precision.get_frac_size()
-        )
-        is_signed = lhs_precision.get_signed() or rhs_precision.get_signed()
+        int_size = integer_size_func(lhs_precision, rhs_precision)
+        frac_size = frac_size_func(lhs_precision, rhs_precision)
+        is_signed = signed_func((lhs, lhs_precision), (rhs, rhs_precision))
         return fixed_point(
             int_size,
             frac_size,
@@ -111,20 +148,211 @@ def solve_format_Addition(optree):
     else:
         return optree.get_precision()
 
+
+## determine Addition node precision
+def solve_format_Addition(optree):
+    """ Legalize Addition precision """
+    assert isinstance(optree, Addition)
+
+    return solve_format_ArithOperation(
+        optree,
+        lambda l, r: max(l.get_integer_size(), r.get_integer_size()) + 1,
+        lambda l, r: max(l.get_frac_size(), r.get_frac_size()),
+        lambda (l, lp), (r, rp): lp.get_signed() or rp.get_signed()
+    )
+
+
+## determine Multiplication node precision
+def solve_format_Multiplication(optree):
+    """ Legalize Multiplication node """
+    assert isinstance(optree, Multiplication)
+    lhs = optree.get_input(0)
+    rhs = optree.get_input(1)
+    lhs_precision = lhs.get_precision()
+    rhs_precision = rhs.get_precision()
+
+    return solve_format_ArithOperation(
+        optree,
+        lambda l, r: l.get_integer_size() + r.get_integer_size(),
+        lambda l, r: l.get_frac_size() + r.get_frac_size(),
+        lambda (l, lp), (r, rp): lp.get_signed() or rp.get_signed()
+    )
+
+
+def solve_format_Subtraction(optree):
+    """ Legalize Subtraction node
+
+        Args:
+            optree (Subtraction): input subtraction node
+
+        Returns:
+            Subtraction: legalize subtraction node
+    """
+    assert isinstance(optree, Subtraction)
+
+    def sub_integer_size(lhs, rhs):
+        int_inc = 1 if not lhs.get_signed() else 0
+        int_size = max(
+            lhs.get_integer_size(),
+            rhs.get_integer_size()
+        ) + int_inc
+        return int_size
+
+    def sub_signed_predicate((lhs, lhs_prec), (rhs, rhs_prec)):
+        """ determine whether subtraction output on a signed or
+            unsigned format """
+        left_range = evaluate_range(lhs)
+        right_range = evaluate_range(rhs)
+        result_range = safe(operator.__sub__)(left_range, right_range)
+        if result_range is None:
+            return True
+        elif sollya.inf(result_range) < 0:
+            return True
+        else:
+            return False
+
+
+    return solve_format_ArithOperation(
+        optree,
+        sub_integer_size,
+        lambda lp, rp: lp.get_frac_size() + rp.get_frac_size(),
+        sub_signed_predicate
+    )
+
+
+def solve_format_SpecificOperation(optree):
+    assert isinstance(optree, SpecificOperation)
+    specifier = optree.get_specifier()
+    if specifier == SpecificOperation.CopySign:
+        return ML_StdLogic
+    else: 
+        raise NotImplementedError
+
+def solve_format_bitwise_op(optree):
+    """ legalize format of bitwise logical operation
+
+        Args:
+            optree (ML_Operation): bitwise logical input node
+
+        Returns:
+            (ML_Format): legal format for input node
+    """
+    lhs = optree.get_input(0)
+    rhs = optree.get_input(1)
+    lhs_precision = lhs.get_precision()
+    rhs_precision = rhs.get_precision()
+
+    if is_fixed_point(lhs_precision) and is_fixed_point(rhs_precision):
+        assert(lhs_precision.get_integer_size() == rhs_precision.get_integer_size())
+        assert(lhs_precision.get_frac_size() == rhs_precision.get_frac_size())
+        return lhs_precision
+    else:
+        return optree.get_precision()
+
+def solve_format_BitLogicNegate(optree):
+    """ legalize format of bitwise logical operation
+
+        Args:
+            optree (ML_Operation): bitwise logical input node
+
+        Returns:
+            (ML_Format): legal format for input node
+    """
+    op_input = optree.get_input(0)
+    input_precision = op_input.get_precision()
+
+    return input_precision
+
+def solve_format_Negation(optree):
+    """ legalize format of bitwise logical operation
+
+        Args:
+            optree (ML_Operation): bitwise logical input node
+
+        Returns:
+            (ML_Format): legal format for input node
+    """
+    op_input = optree.get_input(0)
+    input_precision = op_input.get_precision()
+    # TODO: OPTIMIZATION, increment according to input range
+    #       rather than according to input bit-size
+    int_inc = 1 if not input_precision.get_signed() else 0
+
+    int_size = input_precision.get_integer_size() + int_inc
+    frac_size = input_precision.get_frac_size()
+
+    return fixed_point(int_size, frac_size, signed = True)
+
+def solve_format_shift(optree):
+    """ Legalize shift node """
+    assert isinstance(optree, BitLogicRightShift) or isinstance(optree, BitLogicLeftShift)
+    shift_input = optree.get_input(0)
+    shift_input_precision = shift_input.get_precision()
+    shift_amount = optree.get_input(1)
+
+    shift_amount_prec = shift_amount.get_precision()
+    if is_fixed_point(shift_amount_prec):
+        sa_range = evaluate_range(shift_amount)
+        if sollya.inf(sa_range) < 0:
+            Log.report(Log.Error, "shift amount of {} may be negative {}\n".format(
+                optree,
+                sa_range
+                )
+            )
+    if is_fixed_point(shift_input_precision):
+        return shift_input_precision
+    else:
+        return optree.get_precision()
+
 ## determine Constant node precision
 def solve_format_Constant(optree):
     """ Legalize Constant node """
     assert isinstance(optree, Constant)
     value = optree.get_value()
-    assert int(value) == value
-    abs_value = abs(value)
-    signed = value < 0
+    if FP_SpecialValue.is_special_value(value):
+        return optree.get_precision()
+    else:
+      # fixed-point format solving
+      assert int(value) == value
+      abs_value = abs(value)
+      signed = value < 0
+      int_size = max(int(sollya.ceil(sollya.log2(abs_value+1))), 0) + (1 if signed else 0)
+      frac_size = 0
+      if frac_size == 0 and int_size == 0:
+          int_size = 1
+      return fixed_point(int_size, frac_size, signed=signed)
 
-    int_size = int(sollya.ceil(sollya.log2(abs_value))) + (1 if signed else 0)
-    frac_size = 0
-    if frac_size == 0 and int_size == 0:
-        int_size = 1
-    return fixed_point(int_size, frac_size, signed=signed)
+def solve_format_FixedPointPosition(optree):
+    """ resolve the format of a FixedPointPosition Node """
+    assert isinstance(optree, FixedPointPosition)
+    return ML_Integer
+
+def solve_format_Concatenation(optree):
+    """ legalize Concatenation operation node """
+    if not optree.get_precision() is None:
+        return optree.get_precision()
+    else:
+        bit_size = reduce(lambda x, y: x + y, [op.get_precision().get_bit_size() for op in optree.get_inputs()], 0)
+        return fixed_point(bit_size, 0, signed = False)
+
+def solve_format_SubSignalSelection(optree):
+    """ Dummy legalization of SubSignalSelection operation node """
+    if optree.get_precision() is None:
+        select_input = optree.get_input(0)
+        input_prec = select_input.get_precision()
+
+        inf_index = evaluate_cst_graph(optree.get_inf_index(), input_prec_solver = solve_format_rec)
+        sup_index = evaluate_cst_graph(optree.get_sup_index(), input_prec_solver = solve_format_rec)
+
+        if is_fixed_point(input_prec):
+            frac_size = input_prec.get_frac_size() - inf_index
+            integer_size = input_prec.get_integer_size() - (input_prec.get_bit_size() - 1 - sup_index)
+            return fixed_point(integer_size, frac_size)
+        else:
+            return ML_StdLogicVectorFormat(sup_index - inf_index + 1)
+            
+    else:
+        return optree.get_precision()
 
 
 def format_set_if_undef(optree, new_format):
@@ -143,14 +371,19 @@ def solve_format_Select(optree):
     true_value = optree.get_input(1)
     false_value = optree.get_input(2)
     unified_format = solve_equal_formats([optree, true_value, false_value])
-    format_set_if_undef(optree, unified_format)
     format_set_if_undef(true_value, unified_format)
     format_set_if_undef(false_value, unified_format)
+    return format_set_if_undef(optree, unified_format)
 
-    optree.set_precision(unified_format)
-    true_value.set_precision(unified_format)
-    false_value.set_precision(unified_format)
-    return unified_format
+def solve_format_MinMax(optree):
+    """ legalize Min or Max node """
+    lhs_value = optree.get_input(0)
+    rhs_value = optree.get_input(1)
+    unified_format = solve_equal_formats([optree, lhs_value, rhs_value])
+    format_set_if_undef(lhs_value, unified_format)
+    format_set_if_undef(rhs_value, unified_format)
+    return format_set_if_undef(optree, unified_format)
+
 
 ## Test if @p optree is a Operation node propagating format
 #  if it does return the list of @p optree's input index
@@ -203,7 +436,9 @@ def propagate_format_to_input(new_format, optree, input_index_list):
                             str(new_format)
                         )
                     )
-                    op_input.set_precision(new_format)
+                    new_input = op_input.copy()
+                    new_input.set_precision(new_format)
+                    optree.set_input(op_index, new_input)
                 else:
                     Log.report(
                         Log.Error,
@@ -240,14 +475,15 @@ def solve_format_rec(optree, memoization_map=None):
         if isinstance(optree, Constant):
             new_format = solve_format_Constant(optree)
 
-        Log.report(Log.Info,
+        Log.report(Log.Verbose,
                    "new format {} determined for {}".format(
                        str(new_format), optree.get_str(display_precision=True)
                    )
                    )
 
         # updating optree format
-        optree.set_precision(new_format)
+        #optree.set_precision(new_format)
+        format_set_if_undef(optree, new_format)
         memoization_map[optree] = new_format
 
     elif isinstance(optree, Statement):
@@ -259,7 +495,6 @@ def solve_format_rec(optree, memoization_map=None):
         src = optree.get_input(1)
         src_precision = solve_format_rec(src)
         format_set_if_undef(dst, src_precision)
-        
     elif solve_skip_test(optree):
         pass
         return None
@@ -269,17 +504,41 @@ def solve_format_rec(optree, memoization_map=None):
         new_format = optree.get_precision()
         if not new_format is None:
             Log.report(
-                Log.Info,
+                Log.Verbose,
                 "format {} has already been determined for {}".format(
                     str(new_format), optree.get_str(display_precision=True)
                 )
             )
+        elif isinstance(optree, LogicalOr) or isinstance(optree, LogicalAnd):
+            new_format = solve_format_BooleanOp(optree)
         elif isinstance(optree, Comparison):
             new_format = solve_format_Comparison(optree)
+        elif isinstance(optree, CountLeadingZeros):
+            new_format = solve_format_CLZ(optree)
+        elif isinstance(optree, Multiplication):
+            new_format = solve_format_Multiplication(optree)
         elif isinstance(optree, Addition):
             new_format = solve_format_Addition(optree)
+        elif isinstance(optree, Subtraction):
+            new_format = solve_format_Subtraction(optree)
+        elif isinstance(optree, SpecificOperation):
+            new_format = solve_format_SpecificOperation(optree)
         elif isinstance(optree, Select):
             new_format = solve_format_Select(optree)
+        elif isinstance(optree, Min) or isinstance(optree, Max):
+            new_format = solve_format_MinMax(optree)
+        elif isinstance(optree, BitLogicNegate):
+            new_format = solve_format_BitLogicNegate(optree)
+        elif isinstance(optree, Negation):
+            new_format = solve_format_Negation(optree)
+        elif isinstance(optree, BitLogicRightShift) or isinstance(optree, BitLogicLeftShift):
+            new_format = solve_format_shift(optree)
+        elif isinstance(optree, Concatenation):
+            new_format = solve_format_Concatenation(optree)
+        elif isinstance(optree, SubSignalSelection):
+            new_format = solve_format_SubSignalSelection(optree)
+        elif isinstance(optree, FixedPointPosition):
+            new_format = solve_format_FixedPointPosition(optree)
         elif isinstance(optree, Conversion):
             Log.report(
                 Log.Error,
@@ -295,17 +554,20 @@ def solve_format_rec(optree, memoization_map=None):
             )
 
         # updating optree format
-        Log.report(Log.Info,
+        Log.report(Log.Verbose,
                    "new format {} determined for {}".format(
                        str(new_format), optree.get_str(display_precision=True)
                    )
                    )
-        optree.set_precision(new_format)
-        memoization_map[optree] = new_format
+        # optree.set_precision(new_format)
+        real_format = format_set_if_undef(optree, new_format)
+        memoization_map[optree] = real_format
 
         # format propagation
         prop_index_list = does_node_propagate_format(optree)
         propagate_format_to_input(new_format, optree, prop_index_list)
+
+        return optree.get_precision()
 
 ## Legalize the precision of a datapath by finely tuning the size
 #  of each operations (limiting width while preventing overflow)

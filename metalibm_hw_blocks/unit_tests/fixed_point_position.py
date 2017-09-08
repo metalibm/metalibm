@@ -5,10 +5,15 @@
 import sollya
 
 from sollya import parse as sollya_parse
+from sollya import Interval, inf, sup
 
 from metalibm_core.core.ml_operations import (
-    Comparison, Addition, Select, Constant, Conversion
+    Comparison, Addition, Select, Constant, Conversion, Min, Max,
+    Ceil, Floor, Trunc
 )
+from metalibm_core.core.advanced_operations import FixedPointPosition
+from metalibm_core.core.ml_hdl_operations import BitSelection
+
 from metalibm_core.code_generation.code_constant import VHDL_Code
 from metalibm_core.core.ml_formats import (
     ML_Int32
@@ -24,14 +29,17 @@ from metalibm_core.core.ml_hdl_format import fixed_point
 
 from metalibm_functions.unit_tests.utils import TestRunner
 
+from metalibm_core.opt.opt_utils import evaluate_range
+
 
 from metalibm_core.utility.rtl_debug_utils import (
     debug_std, debug_dec, debug_fixed
 )
 
 
-class AdaptativeEntity(ML_Entity("ml_adaptative_entity"), TestRunner):
-    """ Adaptative Entity unit-test """
+
+class UT_FixedPointPosition(ML_Entity("ml_ut_fixed_point_position"), TestRunner):
+    """ Range Eval Entity unit-test """
     @staticmethod
     def get_default_args(width=32, **kw):
         """ generate default argument template """
@@ -39,8 +47,8 @@ class AdaptativeEntity(ML_Entity("ml_adaptative_entity"), TestRunner):
             precision=ML_Int32,
             debug_flag=False,
             target=VHDLBackend(),
-            output_file="my_adapative_entity.vhd",
-            entity_name="my_adaptative_entity",
+            output_file="ut_fixed_point_position.vhd",
+            entity_name="ut_fixed_point_position",
             language=VHDL_Code,
             width=width,
             passes=[("beforecodegen:size_datapath")],
@@ -49,112 +57,103 @@ class AdaptativeEntity(ML_Entity("ml_adaptative_entity"), TestRunner):
     def __init__(self, arg_template=None):
         """ Initialize """
         # building default arg_template if necessary
-        arg_template = AdaptativeEntity.get_default_args() if \
+        arg_template = UT_FixedPointPosition.get_default_args() if \
             arg_template is None else arg_template
-        # initializing I/O precision
-        self.width = arg_template.width
-        precision = arg_template.precision
-        io_precisions = [precision] * 2
-        Log.report(
-            Log.Info,
-            "generating Adaptative Entity with width={}".format(self.width)
-        )
 
         # initializing base class
         ML_EntityBasis.__init__(self,
-                                base_name="adaptative_design",
+                                base_name="ut_fixed_point_position",
                                 arg_template=arg_template
                                 )
 
         self.accuracy = arg_template.accuracy
         self.precision = arg_template.precision
+        # extra width parameter
+        self.width = arg_template.width
 
     def generate_scheme(self):
         """ main scheme generation """
-        Log.report(Log.Info, "width parameter is {}".format(self.width))
+        
         int_size = 3
         frac_size = self.width - int_size
 
         input_precision = fixed_point(int_size, frac_size)
         output_precision = fixed_point(int_size, frac_size)
+
 
         # declaring main input variable
         var_x = self.implementation.add_input_signal("x", input_precision)
+
         var_y = self.implementation.add_input_signal("y", input_precision)
-        var_x.set_attributes(debug = debug_fixed)
-        var_y.set_attributes(debug = debug_fixed)
 
-        test = (var_x > 1)
-        test.set_attributes(tag = "test", debug = debug_std)
+        var_z = self.implementation.add_input_signal("z", input_precision)
 
-        large_add = (var_x + var_y)
+        abstract_formulae = var_x + var_y * var_z + 7
 
-        pre_result = Select(
-            test,
-            1,
-            large_add,
-            tag = "pre_result",
-            debug = debug_fixed
+        round_bit = BitSelection(
+            abstract_formulae,
+            FixedPointPosition(
+                abstract_formulae,
+                0,
+                align = FixedPointPosition.FromPointToLSB
+            ),
+        )
+        msb_bit = BitSelection(
+            abstract_formulae,
+            FixedPointPosition(
+                abstract_formulae,
+                0,
+                align = FixedPointPosition.FromMSBToLSB
+            )
+        )
+        lsb_bit = BitSelection(
+            abstract_formulae,
+            FixedPointPosition(
+                abstract_formulae,
+                0,
+                align = FixedPointPosition.FromLSBToLSB
+            )
         )
 
-        result = Conversion(pre_result, precision=output_precision)
+        self.implementation.add_output_signal("round", round_bit)
+        self.implementation.add_output_signal("msb", msb_bit)
+        self.implementation.add_output_signal("lsb", lsb_bit)
 
-        self.implementation.add_output_signal("vr_out", result)
 
         return [self.implementation]
 
-    standard_test_cases = [
-        ({"x": 2, "y": 2}, None),
-        ({"x": 1, "y": 2}, None),
-        ({"x": 0.5, "y": 2}, None),
-        ({"x": -1, "y": -1}, None),
-    ]
-
     def numeric_emulate(self, io_map):
         """ Meta-Function numeric emulation """
-        int_size = 3
-        frac_size = self.width - int_size
-        input_precision = fixed_point(int_size, frac_size)
-        output_precision = fixed_point(int_size, frac_size)
-
-        value_x = io_map["x"]
-        value_y = io_map["y"]
-        test = value_x > 1
-        large_add = output_precision.truncate(value_x + value_y)
-        result_value = 1 if test else large_add
-        result = {
-            "vr_out": result_value
-        }
-        print io_map, result
-        return result
+        raise NotImplementedError
 
 
     @staticmethod
     def __call__(args):
         # just ignore args here and trust default constructor?
         # seems like a bad idea.
-        ut_adaptative_entity = AdaptativeEntity(args)
-        ut_adaptative_entity.gen_implementation()
+        ut_fixed_point_position = UT_FixedPointPosition(args)
+        ut_fixed_point_position.gen_implementation()
 
         return True
 
-run_test = AdaptativeEntity
+run_test = UT_FixedPointPosition
 
 
 if __name__ == "__main__":
-        # auto-test
+    # auto-test
     main_arg_template = ML_EntityArgTemplate(
-        default_entity_name="new_adapt_entity",
-        default_output_file="mt_adapt_entity.vhd",
-        default_arg=AdaptativeEntity.get_default_args()
+        default_entity_name="ut_fixed_point_position",
+        default_output_file="ut_fixed_point_position.vhd",
+        default_arg=UT_FixedPointPosition.get_default_args()
     )
     main_arg_template.parser.add_argument(
         "--width", dest="width", type=int, default=32,
         help="set input width value (in bits)"
     )
+
     # argument extraction
     args = parse_arg_index_list = main_arg_template.arg_extraction()
 
-    ml_adaptative = AdaptativeEntity(args)
+    ml_range_eval = UT_FixedPointPosition(args)
 
-    ml_adaptative.gen_implementation()
+    ml_range_eval.gen_implementation()

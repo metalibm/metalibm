@@ -44,9 +44,10 @@ class UnitTestScheme(CommonTestScheme):
   def single_test(self, arg_tc, debug = False):
     runner = self.module.run_test
     test_desc = self.get_title()
-    print isinstance(runner, TestRunner)
+    print "runner isinstance of TestRunner: {}".format(isinstance(runner, TestRunner))
     if inspect.isclass(runner) and TestRunner in runner.__bases__:
       arg_template = runner.get_default_args(**arg_tc)
+      runner = runner.__call__
     else:
       arg_template = DefaultArgTemplate(**arg_tc) 
 

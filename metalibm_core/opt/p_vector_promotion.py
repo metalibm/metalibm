@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
 # optimization pass to promote a scalar/vector DAG into vector registers
 
-from metalibm_core.targets.intel.x86_processor import *
-
 from metalibm_core.core.ml_formats import *
 from metalibm_core.core.passes import OptreeOptimization, Pass
-from metalibm_core.core.ml_table import ML_NewTable
+from metalibm_core.core.ml_table import ML_NewTable, ML_TableFormat
+from metalibm_core.core.ml_operations import (
+    ML_LeafNode, VectorElementSelection, FunctionCall, Conversion, Constant
+)
 
 from metalibm_core.opt.p_check_support import Pass_CheckSupport
 

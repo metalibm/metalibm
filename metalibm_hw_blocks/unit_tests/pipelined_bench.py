@@ -7,7 +7,9 @@ import sollya
 from sollya import parse as sollya_parse
 
 from metalibm_core.core.ml_operations import (
-    Comparison, Addition, Select, Constant, Conversion
+    Comparison, Addition, Select, Constant, Conversion,
+    Min, Max,
+    Statement
 )
 from metalibm_core.code_generation.code_constant import VHDL_Code
 from metalibm_core.core.ml_formats import (
@@ -24,13 +26,16 @@ from metalibm_core.core.ml_hdl_format import fixed_point
 
 from metalibm_functions.unit_tests.utils import TestRunner
 
+from metalibm_core.opt.p_check_precision import Pass_CheckGeneric
+from metalibm_core.core.passes import PassScheduler
+
 
 from metalibm_core.utility.rtl_debug_utils import (
     debug_std, debug_dec, debug_fixed
 )
 
 
-class AdaptativeEntity(ML_Entity("ml_adaptative_entity"), TestRunner):
+class PipelinedBench(ML_Entity("ut_pipelined_bench_entity"), TestRunner):
     """ Adaptative Entity unit-test """
     @staticmethod
     def get_default_args(width=32, **kw):
@@ -43,13 +48,21 @@ class AdaptativeEntity(ML_Entity("ml_adaptative_entity"), TestRunner):
             entity_name="my_adaptative_entity",
             language=VHDL_Code,
             width=width,
-            passes=[("beforecodegen:size_datapath")],
+            passes=[
+                ("beforepipelining:dump_with_stages"),
+                ("beforepipelining:size_datapath"),
+                ("beforepipelining:dump_with_stages"),
+                ("beforepipelining:rtl_legalize"),
+                ("beforepipelining:dump_with_stages"),
+                ("beforepipelining:unify_pipeline_stages"),
+                ("beforepipelining:dump_with_stages"),
+                ],
         )
 
     def __init__(self, arg_template=None):
         """ Initialize """
         # building default arg_template if necessary
-        arg_template = AdaptativeEntity.get_default_args() if \
+        arg_template = PipelinedBench.get_default_args() if \
             arg_template is None else arg_template
         # initializing I/O precision
         self.width = arg_template.width
@@ -69,63 +82,54 @@ class AdaptativeEntity(ML_Entity("ml_adaptative_entity"), TestRunner):
         self.accuracy = arg_template.accuracy
         self.precision = arg_template.precision
 
+        int_size = 3
+        frac_size = 7
+
+        self.input_precision = fixed_point(int_size, frac_size)
+        self.output_precision = fixed_point(int_size, frac_size)
+
+
     def generate_scheme(self):
         """ main scheme generation """
-        Log.report(Log.Info, "width parameter is {}".format(self.width))
-        int_size = 3
-        frac_size = self.width - int_size
-
-        input_precision = fixed_point(int_size, frac_size)
-        output_precision = fixed_point(int_size, frac_size)
+        Log.report(Log.Info, "input_precision is {}".format(self.input_precision))
+        Log.report(Log.Info, "output_precision is {}".format(self.output_precision))
 
         # declaring main input variable
-        var_x = self.implementation.add_input_signal("x", input_precision)
-        var_y = self.implementation.add_input_signal("y", input_precision)
+        var_x = self.implementation.add_input_signal("x", self.input_precision)
+        var_y = self.implementation.add_input_signal("y", self.input_precision)
         var_x.set_attributes(debug = debug_fixed)
         var_y.set_attributes(debug = debug_fixed)
 
-        test = (var_x > 1)
-        test.set_attributes(tag = "test", debug = debug_std)
+        self.implementation.start_new_stage()
 
-        large_add = (var_x + var_y)
+        add = var_x + var_y
 
-        pre_result = Select(
-            test,
-            1,
-            large_add,
-            tag = "pre_result",
-            debug = debug_fixed
-        )
+        self.implementation.start_new_stage()
 
-        result = Conversion(pre_result, precision=output_precision)
+        sub = add - var_y
+
+        self.implementation.start_new_stage()
+
+        pre_result = sub - var_x
+
+        self.implementation.start_new_stage()
+
+        post_result = pre_result + var_x
+
+        result = Conversion(pre_result, precision=self.output_precision)
 
         self.implementation.add_output_signal("vr_out", result)
 
         return [self.implementation]
 
     standard_test_cases = [
-        ({"x": 2, "y": 2}, None),
-        ({"x": 1, "y": 2}, None),
-        ({"x": 0.5, "y": 2}, None),
-        ({"x": -1, "y": -1}, None),
     ]
 
     def numeric_emulate(self, io_map):
         """ Meta-Function numeric emulation """
-        int_size = 3
-        frac_size = self.width - int_size
-        input_precision = fixed_point(int_size, frac_size)
-        output_precision = fixed_point(int_size, frac_size)
-
-        value_x = io_map["x"]
-        value_y = io_map["y"]
-        test = value_x > 1
-        large_add = output_precision.truncate(value_x + value_y)
-        result_value = 1 if test else large_add
-        result = {
-            "vr_out": result_value
-        }
-        print io_map, result
+        vx = io_map["x"]
+        vy = io_map["y"]
+        result = {"vr_out": vx}
         return result
 
 
@@ -133,20 +137,19 @@ class AdaptativeEntity(ML_Entity("ml_adaptative_entity"), TestRunner):
     def __call__(args):
         # just ignore args here and trust default constructor?
         # seems like a bad idea.
-        ut_adaptative_entity = AdaptativeEntity(args)
+        ut_adaptative_entity = PipelinedBench(args)
         ut_adaptative_entity.gen_implementation()
-
         return True
 
-run_test = AdaptativeEntity
+run_test = PipelinedBench
 
 
 if __name__ == "__main__":
         # auto-test
     main_arg_template = ML_EntityArgTemplate(
-        default_entity_name="new_adapt_entity",
-        default_output_file="mt_adapt_entity.vhd",
-        default_arg=AdaptativeEntity.get_default_args()
+        default_entity_name="ut_pipelined_bench_entity",
+        default_output_file="ut_pipelined_bench_entity.vhd",
+        default_arg=PipelinedBench.get_default_args()
     )
     main_arg_template.parser.add_argument(
         "--width", dest="width", type=int, default=32,
@@ -155,6 +158,6 @@ if __name__ == "__main__":
     # argument extraction
     args = parse_arg_index_list = main_arg_template.arg_extraction()
 
-    ml_adaptative = AdaptativeEntity(args)
+    ut_pipelined_bench = PipelinedBench(args)
 
-    ml_adaptative.gen_implementation()
+    ut_pipelined_bench.gen_implementation()

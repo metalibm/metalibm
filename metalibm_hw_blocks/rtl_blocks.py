@@ -15,6 +15,18 @@ def zext(op,s):
   ext_precision  = ML_StdLogicVectorFormat(op_size + s)
   return ZeroExt(op, s, precision = ext_precision)
 
+## Wrapper for zero extension
+# @param op the input operation tree
+# @param s integer size of the extension
+# @return the Zero extended operation node
+def zext_to_size(op,s):
+  s = int(s)
+  op_size = op.get_precision().get_bit_size() 
+  assert s >= op_size
+  if s == op_size:
+    return op
+  ext_precision  = ML_StdLogicVectorFormat(s)
+  return ZeroExt(op, s - op_size, precision = ext_precision)
 
 ## Wrapper for sign extension
 def sext(op,s):
@@ -111,9 +123,10 @@ def fp_is_neg_inf(op):
 #  @return ML_Bool operation graph implementing predicates
 def fp_mant_is_zero(op):
   op_prec = op.get_precision().get_base_format()
+  op_support_prec = op.get_precision().get_support_format()
   mant_prec = ML_StdLogicVectorFormat(op_prec.get_field_size())
   mant = SubSignalSelection(
-    TypeCast(op, precision = mant_prec),
+    TypeCast(op, precision = op_support_prec),
     0, op_prec.get_field_size() - 1
   )
   return Equal(

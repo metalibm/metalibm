@@ -182,7 +182,9 @@ class ComponentInstance(AbstractOperationConstructor("ComponentInstance")):
 
 class ComponentObject(object):
   ##
+  # name (str) name of the component
   # @param io_map is a dict <Signal, Signal.Specifier>
+  # @param generator_object (CodeEntity): generator for the component
   def __init__(self, name, io_map, generator_object):
     self.name = name
     self.io_map = io_map
@@ -204,6 +206,9 @@ class ComponentObject(object):
 
   def __call__(self, *args, **kw):
     return ComponentInstance(self, *args, **kw)
+
+  def get_code_entity(self):
+    return self.generator_object
 
   def get_declaration(self):
     return self.generator_object.get_component_declaration()
@@ -275,35 +280,45 @@ class SignCast(TypeCast):
   def finish_copy(self, new_copy, copy_map = {}):
     new_copy.specifier = self.specifier
 
+def cst_promotion(value, precision = ML_Integer):
+    """ promote argument to Constant node with given precision if
+        it is not already a ML_Operation node """
+    if isinstance(value, ML_Operation):
+        return value
+    else:
+        return Constant(value, precision = precision)
+
 ## extract a sub-signal from inputs
 #  arguments are:
 #  @param arg input signal
 #  @param inf_index least significant index to start from in @p arg
 #  @param sup_index most significant index to stop at in @p arg
 #  @return sub-signal arg(inf_index to sup_index)
-class SubSignalSelection(AbstractOperationConstructor("SubSignalSelection")):
+class SubSignalSelection(AbstractOperationConstructor("SubSignalSelection", arity = 3)):
   def __init__(self, arg, inf_index, sup_index, **kw):
     if not "precision" in kw:
       kw["precision"] = ML_StdLogicVectorFormat(sup_index - inf_index + 1)
-    SubSignalSelection.__base__.__init__(self, arg, **kw)
-    self.inf_index = inf_index
-    self.sup_index = sup_index
+    inf_index = cst_promotion(inf_index, precision = ML_Integer)
+    sup_index = cst_promotion(sup_index, precision = ML_Integer)
+    SubSignalSelection.__base__.__init__(self, arg, inf_index, sup_index, **kw)
+    #self.inf_index = inf_index
+    #self.sup_index = sup_index
 
   def get_inf_index(self):
-    return self.inf_index
+    return self.get_input(1) #self.inf_index
   def get_sup_index(self):
-    return self.sup_index
+    return self.get_input(2) #self.sup_index
 
-  def finish_copy(self, new_copy, copy_map = {}):
-    new_copy.inf_index = self.inf_index
-    new_copy.sup_index = self.sup_index
+  #def finish_copy(self, new_copy, copy_map = {}):
+  #  new_copy.inf_index = self.inf_index
+  #  new_copy.sup_index = self.sup_index
 
 ## Wrapper for the generation of a bit selection operation
 #  from a multi-bit signal
 def BitSelection(optree, index, **kw):
   return VectorElementSelection(
     optree, 
-    Constant(index, precision = ML_Integer),
+    cst_promotion(index, precision = ML_Integer),
     precision = ML_StdLogic,
     **kw
   )

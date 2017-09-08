@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
-## @package ml_operations
-#  Metalibm Formats node precision 
+## @package ml_formats
+#  Metalibm Formats node precision
 
 ###############################################################################
 # This file is part of Kalray's Metalibm tool
@@ -13,13 +13,17 @@
 # author(s): Nicolas Brunie (nicolas.brunie@kalray.eu)
 ###############################################################################
 
-import sollya
-from ..utility.log_report import Log
-from ..code_generation.code_constant import *
+import operator
 import re
+
+import sollya
+from metalibm_core.utility.log_report import Log
+from metalibm_core.code_generation.code_constant import *
+from metalibm_core.core.special_values import FP_SpecialValue
 
 
 S2 = sollya.SollyaObject(2)
+
 
 ## \defgroup ml_formats ml_formats
 #  @{
@@ -219,7 +223,7 @@ class ML_FP_Format(ML_Format):
 class ML_Std_FP_Format(ML_FP_Format):
     """ standard floating-point format base class """
 
-    def __init__(self, bit_size, exponent_size, field_size, c_suffix, c_name, ml_support_prefix, c_display_format, sollya_object):
+    def __init__(self, bit_size, exponent_size, field_size, c_suffix, c_name, ml_support_prefix, c_display_format, sollya_object, union_field_suffix = None):
         ML_Format.__init__(self)
         self.name[C_Code] = c_name
         self.display_format[C_Code] = c_display_format
@@ -231,6 +235,14 @@ class ML_Std_FP_Format(ML_FP_Format):
         self.c_suffix = c_suffix
         self.ml_support_prefix = ml_support_prefix
         self.sollya_object = sollya_object
+        ## suffix used when selecting format in a support library union
+        self.union_field_suffix = union_field_suffix
+
+    def get_ml_support_prefix(self):
+        return self.ml_support_prefix
+    def get_union_field_suffix(self):
+        return self.union_field_suffix
+        
 
     ## return the sollya object encoding the format precision
     def get_sollya_object(self):
@@ -253,37 +265,49 @@ class ML_Std_FP_Format(ML_FP_Format):
     def get_emax(self):
         return 2**self.get_exponent_size() - 2 + self.get_bias()
 
+    def get_special_value_coding(self, sv, language = C_Code):
+        """ Generate integer coding for a special value number
+            in self format """
+        assert FP_SpecialValue.is_special_value(sv)
+        return sv.get_integer_coding()
+
     ## return the integer coding of @p value
     #  @param value numeric value to be converted
     #  @return value encoding (as an integer number)
     def get_integer_coding(self, value, language = C_Code):
-        value = sollya.round(value, self.get_sollya_object(), sollya.RN)
-        # FIXME: managing negative zero
-        sign = int(1 if value < 0 else 0)
-        value = abs(value)
-        if value == 0.0:
-          Log.report(Log.Warning, "+0.0 forced during get_integer_coding conversion")
-          exp_biased = 0
-          mant = 0
+        if FP_SpecialValue.is_special_value(value):
+            return self.get_special_value_coding(value, language)
         else:
-          exp        = int(sollya.floor(sollya.log2(value)))
-          exp_biased = int(exp - self.get_bias())
-          if exp < self.get_emin_normal():
-            exp_biased = 0
-            mant = int((value / S2**self.get_emin_subnormal()))
-          else:
-            mant = int((value / S2**exp - 1.0) / (S2**-self.get_field_size()))
-        return mant | (exp_biased << self.get_field_size()) | (sign << (self.get_field_size() + self.get_exponent_size()))
+            value = sollya.round(value, self.get_sollya_object(), sollya.RN)
+            # FIXME: managing negative zero
+            sign = int(1 if value < 0 else 0)
+            value = abs(value)
+            if value == 0.0:
+              Log.report(Log.Warning, "+0.0 forced during get_integer_coding conversion")
+              exp_biased = 0
+              mant = 0
+            else:
+              exp        = int(sollya.floor(sollya.log2(value)))
+              exp_biased = int(exp - self.get_bias())
+              if exp < self.get_emin_normal():
+                exp_biased = 0
+                mant = int((value / S2**self.get_emin_subnormal()))
+              else:
+                mant = int((value / S2**exp - 1.0) / (S2**-self.get_field_size()))
+            return mant | (exp_biased << self.get_field_size()) | (sign << (self.get_field_size() + self.get_exponent_size()))
 
     def get_value_from_integer_coding(self, value, base = 10):
       value = int(value, base)
-      mantissa = value & (2**self.get_field_size() - 1)
       exponent_field = ((value >> self.get_field_size()) & (2**self.get_exponent_size() - 1)) 
-      exponent = exponent_field + self.get_bias() + (1 if exponent_field == 0 else 0)
+      assert exponent_field != self.get_nanorinf_exp_field()
+      is_subnormal = (exponent_field == 0)
+      mantissa = value & (2**self.get_field_size() - 1)
+      exponent = exponent_field + self.get_bias() + (1 if is_subnormal else 0)
       sign_bit = value >> (self.get_field_size() + self.get_exponent_size())
       sign = -1.0 if sign_bit != 0 else 1.0
       mantissa_value = mantissa
-      return sign * S2**int(exponent) * (1.0 + mantissa_value * S2**-self.get_field_size())
+      implicit_digit = 0.0 if is_subnormal else 1.0
+      return sign * S2**int(exponent) * (implicit_digit + mantissa_value * S2**-self.get_field_size())
 
     # @return<SollyaObject> the format omega value, the maximal normal value
     def get_omega(self):
@@ -702,9 +726,9 @@ class ML_Custom_FixedPoint_Format(ML_Base_FixedPoint_Format):
 
 # Standard binary floating-point format declarations
 ## IEEE binary32 (fp32) single precision floating-point format
-ML_Binary32 = ML_Std_FP_Format(32, 8, 23, "f", "float", "fp32", "%a", sollya.binary32)
+ML_Binary32 = ML_Std_FP_Format(32, 8, 23, "f", "float", "fp32", "%a", sollya.binary32, union_field_suffix = "f")
 ## IEEE binary64 (fp64) double precision floating-point format
-ML_Binary64 = ML_Std_FP_Format(64, 11, 52, "", "double", "fp64", "%la", sollya.binary64)
+ML_Binary64 = ML_Std_FP_Format(64, 11, 52, "", "double", "fp64", "%la", sollya.binary64, union_field_suffix = "d")
 ML_Binary80 = ML_Std_FP_Format(80, 15, 64, "L", "long double", "fp80", "%la", sollya.binary80)
 ## IEEE binary16 (fp16) half precision floating-point format
 ML_Binary16 = ML_Std_FP_Format(16, 5, 10, "__ERROR__", "half", "fp16", "%a", sollya.binary16)
@@ -984,73 +1008,6 @@ v8uint32 = vector_format_builder("ml_uint8_t", "uint8", 8, ML_UInt32, compound_c
 
 ML_Void = ML_FormatConstructor(0, "void", "ERROR", lambda _: None)
 
-###############################################################################
-#                     FLOATING-POINT SPECIAL VALUES
-###############################################################################
-class FP_SpecialValue(object):
-  ml_support_name = "undefined"
-
-  """ parent to all floating-point constants """
-  suffix_table = {
-      ML_Binary32: ".f",
-      ML_Binary64: ".d",
-  }
-  support_prefix = {
-      ML_Binary32: "fp32",
-      ML_Binary64: "fp64",
-  }
-  def __init__(self, precision):
-    self.precision = precision
-
-  def get_c_cst(self):
-    prefix = self.support_prefix[self.precision]
-    suffix = self.suffix_table[self.precision]
-    return prefix + self.ml_support_name + suffix
-
-  def __str__(self):
-    return "%s" % (self.ml_support_name)
-
-  def get_precision(self):
-    return self.precision
-
-def FP_SpecialValue_get_c_cst(self):
-    prefix = self.support_prefix[self.precision]
-    suffix = self.suffix_table[self.precision]
-    return prefix + self.ml_support_name + suffix
-
-def FP_SpecialValue_init(self, precision):
-    self.precision = precision
-
-def FP_SpecialValue_get_str(self):
-    return "%s" % (self.ml_support_name)
-
-
-class FP_MathSpecialValue(FP_SpecialValue):
-  def get_c_cst(self):
-    return self.ml_support_name
-
-
-#class FP_PlusInfty(FP_SpecialValueBuilder("_sv_PlusInfty")):
-#    pass
-class FP_PlusInfty(FP_MathSpecialValue):
-  ml_support_name = "INFINITY"
-class FP_MinusInfty(FP_SpecialValue):
-  ml_support_name = "_sv_MinusInfty"
-class FP_PlusOmega(FP_SpecialValue):
-  ml_support_name = "_sv_PlusOmega"
-class FP_MinusOmega(FP_SpecialValue):
-  ml_support_name = "_sv_MinusOmega"
-class FP_PlusZero(FP_SpecialValue):
-  ml_support_name = "_sv_PlusZero"
-class FP_MinusZero(FP_SpecialValue):
-  ml_support_name = "_sv_MinusZero"
-class FP_QNaN(FP_MathSpecialValue):
-  ml_support_name = "NAN"
-#class FP_QNaN(FP_SpecialValueBuilder("_sv_QnaN")):
-#    pass
-class FP_SNaN(FP_SpecialValue):
-  ml_support_name = "_sv_SNaN"
-
 
 class FP_Context(object):
     """ Floating-Point context """
@@ -1066,5 +1023,10 @@ class FP_Context(object):
     def get_silent(self):
         return self.silent
 
-## @} 
+class FunctionFormat(object):
+    """ format for function object """
+    pass
+
+## @}
 # end of metalibm's Doxygen ml_formats group
+

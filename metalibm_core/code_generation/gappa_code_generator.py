@@ -98,7 +98,8 @@ class GappaCodeGenerator(object):
         code_object.add_hint(hypoth_code, goal_code, annotation_code, isApprox)
 
 
-    def generate_expr(self, code_object, optree, folded = True, result_var = None, initial = False, __exact = None, language = None, strip_outer_parenthesis = False):
+    # force_variable_storing is not supported
+    def generate_expr(self, code_object, optree, folded = True, result_var = None, initial = False, __exact = None, language = None, strip_outer_parenthesis = False, force_variable_storing = False):
         """ code generation function """
         #exact_value = exact or self.get_exact_mode()
 
@@ -234,6 +235,8 @@ class GappaCodeGenerator(object):
           result.strip_outer_parenthesis()
         return result
 
+    def generate_code_assignation(self, code_object, result_var, expr_code, final=True):
+        return self.generate_assignation(result_var, expr_code, final=final)
 
     def generate_assignation(self, result_var, expression_code, final = True):
         """ generate code for assignation of value <expression_code> to 

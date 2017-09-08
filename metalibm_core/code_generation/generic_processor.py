@@ -18,6 +18,7 @@ from ..utility.log_report import *
 from ..core.ml_formats import *
 from ..core.ml_table import *
 from ..core.ml_operations import *
+from ..core.legalizer import min_legalizer, max_legalizer
 
 from .generator_utility import *
 from .generator_utility import ConstantOperator
@@ -126,6 +127,36 @@ unsigned_integer_precision = {
 }
 
 c_code_generation_table = {
+    Max: {
+        None: {
+            lambda _: True: 
+                dict([
+                  (
+                    type_strict_match(precision, precision, precision),
+                    ComplexOperator(optree_modifier = max_legalizer)
+                  ) for precision in [
+                    ML_Int32, ML_UInt32, ML_Int64, ML_UInt64, \
+                    ML_Binary32, ML_Binary64
+                  ]
+                  ]
+                )
+        },
+    },
+    Min: {
+        None: {
+            lambda _: True: 
+                dict([
+                  (
+                    type_strict_match(precision, precision, precision),
+                    ComplexOperator(optree_modifier = min_legalizer)
+                  ) for precision in [
+                    ML_Int32, ML_UInt32, ML_Int64, ML_UInt64, \
+                    ML_Binary32, ML_Binary64
+                  ]
+                  ]
+                )
+        },
+    },
     Constant: {
         None: {
             lambda optree: True: {

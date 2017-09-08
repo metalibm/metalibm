@@ -24,11 +24,12 @@ def check_precision_validity(optree):
     return not optree.get_precision() is None
 
 ## Generic vector promotion pass
-class Pass_CheckPrecision(OptreeOptimization):
-  pass_tag = "check_precision"
-  def __init__(self, target):
-    OptreeOptimization.__init__(self, "check_precision pass", target)
+class Pass_CheckGeneric(OptreeOptimization):
+  pass_tag = "check_generic"
+  def __init__(self, target, check_function = lambda optree: True, description = "check_generic pass"):
+    OptreeOptimization.__init__(self, description, target)
     self.memoization_map = {}
+    self.check_function = check_function
 
   ## Recursively traverse operation graph from @p optree
   #  to check that every node has a defined precision
@@ -36,11 +37,11 @@ class Pass_CheckPrecision(OptreeOptimization):
     if optree in self.memoization_map: 
       return self.memoization_map[optree]
     else:
-      precision_validity = check_precision_validity(optree)
-      self.memoization_map[optree] = precision_validity
-      if not precision_validity:
+      check_result = self.check_function(optree)
+      self.memoization_map[optree] = check_result
+      if not check_result:
         Log.report(Log.Info, 
-          "the following node has no defined precision: {}".format(
+          "the following node check failed: {}".format(
             optree.get_str(
               depth = 2, 
               display_precision = True, 
@@ -50,11 +51,22 @@ class Pass_CheckPrecision(OptreeOptimization):
         )
       if not isinstance(optree, ML_LeafNode):
         for op_input in optree.get_inputs():
-          precision_validity &= self.execute(op_input)
-      return precision_validity
+          check_result &= self.execute(op_input)
+      return check_result
 
 
+
+## Generic vector promotion pass
+class Pass_CheckPrecision(Pass_CheckGeneric):
+  pass_tag = "check_precision"
+  def __init__(self, target):
+    Pass_CheckGeneric.__init__(self, target, check_precision_validity, "check_precision pass")
+    self.memoization_map = {}
+
+
+# register pass
+print "Registering check_generic pass"
+Pass.register(Pass_CheckGeneric)
 
 print "Registering check_precision pass"
-# register pass
 Pass.register(Pass_CheckPrecision)

@@ -44,9 +44,20 @@ def ordered_generation(gen_function, gen_list):
         result_list[index] = gen_function(arg)
     return result_list
 
+def default_process_arg_list(code_object, code_generator, arg_list):
+    return arg_list
+
 class ML_CG_Operator(object):
     """ parent class for all code generation operators """
-    def __init__(self, arity = 0, output_precision = None, pre_process = None, custom_generate_expr = None, force_folding = None, require_header = None, no_parenthesis = False, context_dependant = None, speed_measure = 0):
+    def __init__(self,
+            arity = 0, output_precision = None, pre_process = None,
+            custom_generate_expr = None, force_folding = None,
+            require_header = None, no_parenthesis = False,
+            context_dependant = None, speed_measure = 0,
+            force_input_variable = False,
+            ## process argument list before assembling code
+            process_arg_list = default_process_arg_list
+        ):
         # number of inputs expected for the operator
         self.arity = arity
         # is the operator part of the composition
@@ -57,12 +68,18 @@ class ML_CG_Operator(object):
         self.pre_process = pre_process
         # custom implementation of the generated_expr function
         self.custom_generate_expr = custom_generate_expr
-        # flag for force folding
+        # flag to force folding
         self.force_folding = force_folding
         # list of required header associated to the operator
         self.require_header = require_header if require_header else []
         # flag to enable/disable parenthesis generation
         self.no_parenthesis = no_parenthesis
+        ## if set, does not accept CodeExpression as input variables
+        #  (forces CodeVariable)
+        self.force_input_variable = force_input_variable
+        # argument processing between argument code generation
+        # and operator code assembling
+        self.process_arg_list = process_arg_list
         # 
         self.context_dependant = context_dependant
         self.speed_measure = speed_measure
@@ -70,9 +87,14 @@ class ML_CG_Operator(object):
         ## source file information about opertor instantitation
         self.sourceinfo = SourceInfo.retrieve_source_info(1)
 
+    def get_process_arg_list(self):
+        return self.process_arg_list
+
     def get_source_info(self):
         return self.sourceinfo
-        
+
+    def get_force_input_variable(self):
+        return self.force_input_variable
 
     def register_headers(self, code_object):
         for header in self.require_header: 
@@ -123,13 +145,14 @@ class CompoundOperator(ML_CG_Operator):
         return self.parent.get_speed_measure() + max([arg.get_speed_measure() for arg in self.args])
 
 
-    def generate_expr(self, code_generator, code_object, optree, arg_tuple, generate_pre_process = None, **kwords): #folded = True, result_var = None):
+    def generate_expr(self, code_generator, code_object, optree, arg_tuple, generate_pre_process = None, force_variable_storing = False, **kwords): #folded = True, result_var = None):
         """ composed expression generator """
         # registering headers
         self.register_headers(code_object)
         # generating list of arguments
         compound_arg = []
-        pre_arg_value = ordered_generation(lambda arg: code_generator.generate_expr(code_object, arg, **kwords), arg_tuple)
+        force_input_variable = self.get_force_input_variable()
+        pre_arg_value = ordered_generation(lambda arg: code_generator.generate_expr(code_object, arg, force_variable_storing = force_input_variable, **kwords), arg_tuple)
         # does a result appears as an argument (passed by reference)
         result_in_args = False
         for arg_function in self.args:
@@ -171,7 +194,8 @@ class CompoundOperator(ML_CG_Operator):
                     compound_arg.append(
                         arg_function.generate_expr(
                             code_generator, code_object, dummy_optree,
-                            arg_tuple, **kwords
+                            arg_tuple, force_variable_storing = force_input_variable,
+                            **kwords
                         )
                     )
                 elif isinstance(arg_function, ML_CG_Operator):
@@ -179,14 +203,16 @@ class CompoundOperator(ML_CG_Operator):
                         compound_arg.append(
                             arg_function.generate_expr(
                                 code_generator, code_object, dummy_optree,
-                                arg_tuple, **kwords
+                                arg_tuple, force_variable_storing = force_input_variable,
+                                **kwords
                             )
                         )
                     else:
                         compound_arg.append(
                             arg_function.assemble_code(
                                 code_generator, code_object, dummy_optree,
-                                pre_arg_value, **kwords
+                                pre_arg_value, force_variable_storing = force_input_variable,
+                                **kwords
                             )
                         )
         # assembling parent operator code
@@ -198,7 +224,9 @@ class CompoundOperator(ML_CG_Operator):
             code_generator, code_object, optree,
             compound_arg,
             generate_pre_process = generate_pre_process,
-            result_in_args = result_in_args, **kwords
+            result_in_args = result_in_args, 
+            force_variable_storing = force_input_variable,
+            **kwords
         )
 
 
@@ -209,21 +237,26 @@ class IdentityOperator(ML_CG_Operator):
         kwords["arity"] = 1
         ML_CG_Operator.__init__(self, **kwords)
 
-    def generate_expr(self, code_generator, code_object, optree, arg_tuple, generate_pre_process = None, **kwords):
+    def generate_expr(self, 
+            code_generator, code_object, optree, arg_tuple,
+            generate_pre_process = None, force_variable_storing = False,
+            **kwords
+        ):
         """ generate expression function """
         # registering headers
         self.register_headers(code_object)
+        force_input_variable = self.get_force_input_variable()
 
         if self.custom_generate_expr:
-            return self.custom_generate_expr(code_generator, code_object, optree, arg_tuple, generate_pre_process = generate_pre_process, **kwords)
+            return self.custom_generate_expr(code_generator, code_object, optree, arg_tuple, generate_pre_process = generate_pre_process, force_variable_storing = force_variable_storing, **kwords)
         else:
             # generating list of arguments
             #arg_result = [code_generator.generate_expr(code_object, arg, **kwords) for arg in arg_tuple]
-            arg_result = ordered_generation(lambda arg: code_generator.generate_expr(code_object, arg, **kwords), arg_tuple)
+            arg_result = ordered_generation(lambda arg: code_generator.generate_expr(code_object, arg, force_variable_storing = force_input_variable, **kwords), arg_tuple)
             # assembling parent operator code
-            return self.assemble_code(code_generator, code_object, optree, arg_result, generate_pre_process = generate_pre_process, **kwords)
+            return self.assemble_code(code_generator, code_object, optree, arg_result, generate_pre_process = generate_pre_process, force_variable_storing = force_input_variable, **kwords)
 
-    def assemble_code(self, code_generator, code_object, optree, var_arg_list, generate_pre_process = None, result_in_args = False, **kwords):
+    def assemble_code(self, code_generator, code_object, optree, var_arg_list, generate_pre_process = None, result_in_args = False, force_variable_storing = False, **kwords):
         """ base code assembly function """
         # registering headers
         self.register_headers(code_object)
@@ -233,13 +266,13 @@ class IdentityOperator(ML_CG_Operator):
 
         # generating assignation if required
         folded = kwords["folded"]
-        if self.get_force_folding() or (folded and self.get_force_folding() != False) or generate_pre_process != None: 
-            prefix = optree.get_tag(default = "tmp")
+        if force_variable_storing or self.get_force_folding() or (folded and self.get_force_folding() != False) or generate_pre_process != None: 
+            prefix = optree.get_tag(default = "id_tmp")
             result_var = kwords["result_var"]
             result_varname = result_var if result_var != None else code_object.get_free_var_name(optree.get_precision(), prefix = prefix)
             if generate_pre_process != None:
                 generate_pre_process(code_generator, code_object, optree, var_arg_list, **kwords)
-            code_object << code_generator.generate_assignation(result_varname, result_code) 
+            code_object << code_generator.generate_code_assignation(code_object, result_varname, result_code) 
             return CodeVariable(result_varname, optree.get_precision())
         else:
             if self.no_parenthesis:
@@ -258,22 +291,34 @@ class SymbolOperator(ML_CG_Operator):
 
 
 
-    def generate_expr(self, code_generator, code_object, optree, arg_tuple, generate_pre_process = None, **kwords):
+    def generate_expr(
+            self, code_generator, code_object, optree, arg_tuple,
+            generate_pre_process = None, force_variable_storing = False,
+            **kwords
+        ):
         """ generate expression function """
         # registering headers
         self.register_headers(code_object)
+        force_input_variable = self.get_force_input_variable()
 
         if self.custom_generate_expr:
-            return self.custom_generate_expr(self, code_generator, code_object, optree, arg_tuple, generate_pre_process = generate_pre_process, **kwords)
+            return self.custom_generate_expr(
+                self, code_generator, code_object, optree, arg_tuple,
+                generate_pre_process = generate_pre_process,
+                force_variable_storing = force_variable_storing, **kwords)
         else:
             # generating list of arguments
             #arg_result = [code_generator.generate_expr(code_object, arg, **kwords) for arg in arg_tuple]
-            arg_result = ordered_generation(lambda arg: code_generator.generate_expr(code_object, arg, **kwords), arg_tuple)
+            arg_result = ordered_generation(lambda arg: code_generator.generate_expr(code_object, arg, force_variable_storing = force_input_variable, **kwords), arg_tuple)
             # assembling parent operator code
-            return self.assemble_code(code_generator, code_object, optree, arg_result, generate_pre_process = generate_pre_process, **kwords)
+            return self.assemble_code(code_generator, code_object, optree, arg_result, generate_pre_process = generate_pre_process, force_variable_storing = force_variable_storing, **kwords)
 
 
-    def assemble_code(self, code_generator, code_object, optree, var_arg_list, generate_pre_process = None, **kwords):
+    def assemble_code(
+            self, code_generator, code_object, optree, var_arg_list,
+            generate_pre_process = None, force_variable_storing = False,
+            **kwords
+        ):
         """ base code assembly function """
         # registering headers
         self.register_headers(code_object)
@@ -289,13 +334,13 @@ class SymbolOperator(ML_CG_Operator):
             result_code = self.symbol.join([var_arg.get() for var_arg in var_arg_list])
 
         # generating assignation if required
-        if self.get_force_folding() or (kwords["folded"] and self.get_force_folding() != False) or generate_pre_process != None: 
+        if force_variable_storing or self.get_force_folding() or (kwords["folded"] and self.get_force_folding() != False) or generate_pre_process != None: 
             prefix = optree.get_tag(default = "tmp")
             result_var = kwords["result_var"]
             result_varname = result_var if result_var != None else code_object.get_free_var_name(optree.get_precision(), prefix = prefix)
             if generate_pre_process != None:
                 generate_pre_process(code_generator, code_object, optree, var_arg_list, **kwords)
-            code_object << code_generator.generate_assignation(result_varname, result_code) 
+            code_object << code_generator.generate_code_assignation(code_object, result_varname, result_code) 
             return CodeVariable(result_varname, optree.get_precision())
         else:
             if self.no_parenthesis:
@@ -314,7 +359,8 @@ class ConstantOperator(ML_CG_Operator):
 
     def generate_expr(
             self, code_generator, code_object, optree, arg_tuple,
-            generate_pre_process=None, language=C_Code, **kwords
+            generate_pre_process=None, language=C_Code,
+            force_variable_storing = False, **kwords
         ):
         """ generate expression function """
         # registering headers
@@ -324,12 +370,14 @@ class ConstantOperator(ML_CG_Operator):
         return self.assemble_code(
             code_generator, code_object, optree,
             generate_pre_process = generate_pre_process,
-            language=language,**kwords
+            language=language, force_variable_storing = force_variable_storing,
+            **kwords
         )
 
     def assemble_code(
             self, code_generator, code_object, optree,
             generate_pre_process = None, language=C_Code,
+            force_variable_storing = False,
             **kwords):
         """ base code assembly function """
         # registering headers
@@ -338,6 +386,7 @@ class ConstantOperator(ML_CG_Operator):
         precision = optree.get_precision()
 
         if code_generator.declare_cst or \
+            force_variable_storing or \
             self.force_decl or precision.is_cst_decl_required():
             cst_prefix = "cst" if optree.get_tag() is None else optree.get_tag()
             cst_varname = code_object.declare_cst(optree, prefix = cst_prefix)
@@ -493,7 +542,8 @@ class FunctionOperator(ML_CG_Operator):
     #  of the Operation Node @p optree
     def generate_expr(
             self, code_generator, code_object, optree, arg_tuple,
-            generate_pre_process = None, **kwords
+            generate_pre_process = None, force_variable_storing = False,
+            **kwords
         ):
         """ generate expression function """
         # registering headers
@@ -503,19 +553,24 @@ class FunctionOperator(ML_CG_Operator):
         if self.custom_generate_expr:
             return self.custom_generate_expr(
                 self, code_generator, code_object, optree, optree.inputs,
-                generate_pre_process = generate_pre_process, **kwords
+                generate_pre_process = generate_pre_process,
+                force_variable_storing = force_variable_storing,
+                **kwords
             )
         else:
             # generating list of arguments
             arg_result = ordered_generation(
                 lambda arg: code_generator.generate_expr(
-                    code_object, arg, **kwords
+                    code_object, arg, force_variable_storing = self.get_force_input_variable(),
+                    **kwords
                 ), arg_tuple
             )
             # assembling parent operator code
             return self.assemble_code(
                 code_generator, code_object, optree, arg_result,
-                generate_pre_process = generate_pre_process, **kwords
+                generate_pre_process = generate_pre_process,
+                force_variable_storing = force_variable_storing,
+                **kwords
             )
 
 
@@ -542,6 +597,7 @@ class FunctionOperator(ML_CG_Operator):
             self, code_generator, code_object,
             optree, var_arg_list,
             generate_pre_process = None, result_in_args = False,
+            force_variable_storing = False,
             **kwords
         ):
         """ base code assembly function """
@@ -587,6 +643,11 @@ class FunctionOperator(ML_CG_Operator):
                 result_args_map = result_args_map
             ) for index in xrange(total_arity)
         ]
+        result_arg_list = self.get_process_arg_list()(
+            code_object,
+            code_generator,
+            result_arg_list
+        )
         result_code = self.generate_call_code(result_arg_list)
 
         if result_in_args:
@@ -599,12 +660,12 @@ class FunctionOperator(ML_CG_Operator):
 
         else:
           # generating assignation if required
-          if self.get_force_folding() or (folded and self.get_force_folding() != False) or generate_pre_process != None:
+          if force_variable_storing or self.get_force_folding() or (folded and self.get_force_folding() != False) or generate_pre_process != None:
               prefix = optree.get_tag(default = "tmp")
               result_varname = result_var if result_var != None else code_object.get_free_var_name(optree.get_precision(), prefix = prefix)
               if generate_pre_process != None:
                   generate_pre_process(code_generator, code_object, optree, var_arg_list, **kwords)
-              code_object << code_generator.generate_assignation(result_varname, result_code) 
+              code_object << code_generator.generate_code_assignation(code_object, result_varname, result_code) 
               return CodeVariable(result_varname, optree.get_precision())
           else:
               return CodeExpression("%s" % result_code, optree.get_precision())
@@ -653,17 +714,19 @@ class AsmInlineOperator(ML_CG_Operator):
             return CodeExpression(self.arg_map[index], None)
 
 
-    def generate_expr(self, code_generator, code_object, optree, arg_tuple, generate_pre_process = None, **kwords):
+    def generate_expr(self, code_generator, code_object, optree, arg_tuple, generate_pre_process = None, force_variable_storing = False, **kwords):
         """ generate expression function """
         # registering headers
         self.register_headers(code_object)
+
+        force_input_variable = self.get_force_input_variable()
 
         if self.custom_generate_expr:
             return self.custom_generate_expr(code_generator, code_object, optree, arg_tuple, generate_pre_process = generate_pre_process, **kwords)
         else:
             # generating list of arguments
             #arg_result = [code_generator.generate_expr(code_object, arg, **kwords) for arg in arg_tuple]
-            arg_result = ordered_generation(lambda arg: code_generator.generate_expr(code_object, arg, **kwords), arg_tuple)
+            arg_result = ordered_generation(lambda arg: code_generator.generate_expr(code_object, arg, force_variable_storing = force_input_variable, **kwords), arg_tuple)
             # assembling parent operator code
             return self.assemble_code(code_generator, code_object, optree, arg_result, generate_pre_process = generate_pre_process, **kwords)
             #[self.get_arg_from_index(index, arg_result) for index in xrange(self.arity)], 
@@ -716,7 +779,11 @@ class RoundOperator(FunctionOperator):
         FunctionOperator.__init__(self, round_name, arity = 1, **kwords)
 
 
-    def assemble_code(self, code_generator, code_object, optree, var_arg_list, generate_pre_process = None, **kwords):
+    def assemble_code(
+            self, code_generator, code_object, optree, var_arg_list,
+            generate_pre_process = None,
+            force_variable_storing = False, **kwords
+        ):
         # registering headers
         self.register_headers(code_object)
 
@@ -727,17 +794,17 @@ class RoundOperator(FunctionOperator):
             # generating assignation if required
             folded = kwords["folded"]
             result_var = kwords["result_var"]
-            if self.get_force_folding() or (folded and self.get_force_folding() != False) or generate_pre_process != None: 
+            if force_variable_storing or self.get_force_folding() or (folded and self.get_force_folding() != False) or generate_pre_process != None: 
                 prefix = optree.get_tag(default = "tmp")
                 result_varname = result_var if result_var != None else code_object.get_free_var_name(optree.get_precision(), prefix = prefix)
                 if generate_pre_process != None:
                     generate_pre_process(code_generator, code_object, optree, var_arg_list, **kwords)
-                code_object << code_generator.generate_assignation(result_varname, result_code) 
+                code_object << code_generator.generate_code_assignation(code_object, result_varname, result_code) 
                 return CodeVariable(result_varname, optree.get_precision())
             else:
                 return CodeExpression("%s" % result_code, optree.get_precision())
         else:
-           return FunctionOperator.assemble_code(self, code_generator, code_object, optree, var_arg_list, generate_pre_process = generate_pre_process, **kwords) 
+           return FunctionOperator.assemble_code(self, code_generator, code_object, optree, var_arg_list, generate_pre_process = generate_pre_process, force_variable_storing = force_variable_storing, **kwords) 
         
 def type_all_match(*args, **kwords):
   """ match any type parameters """

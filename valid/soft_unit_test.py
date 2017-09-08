@@ -62,7 +62,7 @@ unit_test_list = [
     ut_block_lzcnt,
     [
       {"precision": ML_Int32, "auto_test_execute": 100}, 
-      {"precision": ML_Int64, "auto_test_execute": 100}, 
+      # {"precision": ML_Int64, "auto_test_execute": 100}, 
     ]
   ),
   UnitTestScheme(

@@ -45,6 +45,7 @@ def generic_get_vhdl_cst(value, bit_size):
   value = int(value)
   value &= int(2**bit_size - 1)
   assert bit_size > 0
+  assert value <= (2**bit_size - 1)
   if bit_size % 4 == 0:
     return "X\"%s\"" % hex(value)[2:].replace("L","").zfill(bit_size / 4)
   else:
@@ -66,7 +67,7 @@ class RTL_FixedPointFormat(ML_Base_FixedPoint_Format):
     return self.support_format.get_code_name(language)
 
   def is_cst_decl_required(self):
-    return True
+    return False
 
   def get_cst(self, cst_value, language = VHDL_Code):
     if language is VHDL_Code:
@@ -107,7 +108,7 @@ class ML_StdLogicVectorFormat(ML_Format):
     return generic_get_vhdl_cst(value, self.bit_size)
 
   def is_cst_decl_required(self):
-    return True
+    return False
 
 ## Class of single bit value format
 class ML_StdLogicClass(ML_Format):
@@ -134,11 +135,13 @@ ML_StdLogic = ML_StdLogicClass()
 
 
 ## Helper to build RTL fixed-point formats
-def fixed_point(int_size, frac_size, signed = True):
+def fixed_point(int_size, frac_size, signed = True, support_format = None):
+    """ Generate a fixed-point format """
+    support_format = support_format or ML_StdLogicVectorFormat(int_size + frac_size) 
     new_precision = RTL_FixedPointFormat(
         int_size, frac_size,
         signed = signed,
-        support_format = ML_StdLogicVectorFormat(int_size + frac_size)
+        support_format = support_format
     )
     return new_precision
 

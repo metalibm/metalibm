@@ -15,6 +15,10 @@ from metalibm_core.core.polynomials import *
 from metalibm_core.core.ml_table import ML_NewTable
 from metalibm_core.core.ml_complex_formats import ML_Mpfr_t
 
+from metalibm_core.core.special_values import (
+    FP_QNaN, FP_MinusInfty, FP_PlusInfty, FP_PlusZero
+)
+
 from metalibm_core.code_generation.generic_processor import GenericProcessor
 from metalibm_core.code_generation.generator_utility import FunctionOperator, FO_Result, FO_Arg
 

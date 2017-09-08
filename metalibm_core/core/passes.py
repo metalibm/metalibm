@@ -68,6 +68,10 @@ class PassScheduler:
     tag = "start"
   class Whenever:
     tag = "whenever"
+  class BeforePipelining: 
+    tag = "beforepipelining"
+  class AfterPipelining: 
+    tag = "afterpipelining"
   class JustBeforeCodeGen: 
     tag = "beforecodegen"
 
@@ -77,6 +81,8 @@ class PassScheduler:
       PassScheduler.Start.tag: PassScheduler.Start,
       PassScheduler.Whenever.tag: PassScheduler.Whenever,
       PassScheduler.JustBeforeCodeGen.tag: PassScheduler.JustBeforeCodeGen,
+      PassScheduler.BeforePipelining.tag: PassScheduler.BeforePipelining,
+      PassScheduler.AfterPipelining.tag: PassScheduler.AfterPipelining,
     }[tag]
 
   def __init__(self):
@@ -85,12 +91,20 @@ class PassScheduler:
       PassScheduler.Start: [],
       PassScheduler.Whenever: [],
       PassScheduler.JustBeforeCodeGen: [],
+      PassScheduler.BeforePipelining: [],
+      PassScheduler.AfterPipelining: [],
     }
     self.executed_passes = []
     self.ready_passes    = []
     self.waiting_pass_wrappers  = []
 
   def register_pass(self, pass_object, pass_dep = PassDependency(), pass_slot = None):
+    Log.report(Log.Info, 
+        "PassScheduler: registering pass {} at {}".format(
+            pass_object,
+            pass_slot
+        )
+    )
     self.pass_map[pass_slot].append(PassWrapper(pass_object, pass_dep)) 
 
   def get_executed_passes(self):
@@ -178,6 +192,8 @@ class Pass:
     if not tag in Pass.pass_map:
       print "registering pass {} associated to tag {}".format(pass_class, tag)
       Pass.pass_map[tag] = pass_class
+    else:
+      Log.report(Log.Error, "a pass with name {} has already been registered while trying to register {}".format(tag, pass_class))
 
   ## return the pass class associated with name @p tag
   #  @param tag[str] pass name
@@ -239,6 +255,19 @@ class PassDump(OptreeOptimization):
         depth = None, display_precision = True, memoization_map = {}
     )
 
+class PassDumpWithStages(OptreeOptimization):
+  pass_tag = "dump_with_stages"
+  def __init__(self, *args):
+    OptimizationPass.__init__(self, "dump_with_stages")
+
+  def execute(self, optree):
+    Log.report(Log.Info, "executing PassDumpWithStages")
+    print optree.get_str(
+        depth = None, display_precision = True, memoization_map = {},
+        custom_callback = lambda op: " [S={}] ".format(op.attributes.init_stage)
+    )
+
 # registering commidity pass
 Pass.register(PassQuit)
 Pass.register(PassDump)
+Pass.register(PassDumpWithStages)

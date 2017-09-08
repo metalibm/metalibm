@@ -29,16 +29,46 @@ from valid.unit_test import (
 
 import metalibm_hw_blocks.unit_tests.adaptative_size as ut_adaptative_size
 import metalibm_hw_blocks.unit_tests.report_test as ut_report_test
+import metalibm_hw_blocks.unit_tests.range_eval as ut_range_eval
+import metalibm_hw_blocks.unit_tests.fixed_point_position as ut_fixed_point_position
+import metalibm_hw_blocks.unit_tests.ut_special_values as ut_special_values
+import metalibm_hw_blocks.unit_tests.min_max_select as ut_min_max_select
+import metalibm_hw_blocks.unit_tests.unify_pipeline as ut_unify_pipeline
 
 unit_test_list = [
+  UnitTestScheme(
+    "basic min max select entity",
+    ut_min_max_select,
+    [{}]
+  ),
+  UnitTestScheme(
+    "basic special values arithmetic",
+    ut_special_values,
+    [{}]
+  ),
   UnitTestScheme(
     "basic fixed-point legalization pass",
     ut_adaptative_size,
     [{}]
   ),
   UnitTestScheme(
+    "basic fixed-point position ",
+    ut_fixed_point_position,
+    [{"width": 17}, {"width": 32}, {"width": 63}]
+  ),
+  UnitTestScheme(
     "basic message report test",
     ut_report_test,
+    [{}]
+  ),
+  UnitTestScheme(
+    "basic range evaluate test",
+    ut_range_eval,
+    [{}]
+  ),
+  UnitTestScheme(
+    "pipeline unification pass test",
+    ut_unify_pipeline,
     [{}]
   ),
 ]

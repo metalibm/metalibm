@@ -15,6 +15,9 @@ from metalibm_core.core.ml_function import ML_Function, ML_FunctionBasis, Defaul
 from metalibm_core.code_generation.generator_utility import FunctionOperator, FO_Result, FO_Arg
 from metalibm_core.core.ml_complex_formats import ML_Mpfr_t
 
+from metalibm_core.core.special_values import (
+    FP_QNaN, FP_MinusInfty, FP_PlusInfty, FP_PlusZero
+)
 
 from metalibm_core.utility.ml_template import *
 from metalibm_core.utility.log_report  import Log

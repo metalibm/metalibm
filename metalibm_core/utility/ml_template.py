@@ -320,6 +320,8 @@ class DefaultEntityArgTemplate(DefaultArgTemplate):
     exit_after_test = True
     # RTL elaboration
     build_enable = False
+    # pipelined deisgn
+    pipelined = False
 
 
 
@@ -476,7 +478,7 @@ class ML_CommonArgTemplate(object):
       final code generation")
         # list of
         self.parser.add_argument(
-            "--passes", default=[], action="store", dest="passes",
+            "--passes", default=default_arg.passes, action="store", dest="passes",
             type=lambda s: s.split(","), help="comma separated list \
       of slot:pass to be executed ")
         # disable check processor pass
@@ -539,6 +541,10 @@ class ML_EntityArgTemplate(ML_CommonArgTemplate):
         self.parser.add_argument(
             "--debug-file", dest="debug_file",
             action="store", help="help define output file for debug script"
+        )
+        self.parser.add_argument(
+            "--pipelined", dest = "pipelined",
+            action = "store", help = "define the number of pipeline stages"
         )
         self.parser.add_argument(
             "--no-exit",
