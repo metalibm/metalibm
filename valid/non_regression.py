@@ -33,7 +33,6 @@ from metalibm_core.targets.intel.x86_processor import (
         X86_AVX_Processor, X86_AVX2_Processor
         )
         
-from metalibm_core.targets.kalray.k1b_processor import K1B_Processor
 
 from metalibm_core.targets.intel.m128_promotion import Pass_M128_Promotion
 from metalibm_core.targets.intel.m256_promotion import Pass_M256_Promotion
@@ -41,8 +40,15 @@ from metalibm_core.utility.ml_template import target_instanciate
 
 from valid.test_utils import *
 
+try:
+    from metalibm_core.targets.kalray.k1b_processor import K1B_Processor
+    k1b_defined = True
+    k1b = K1B_Processor()
+except ImportError:
+    k1b_defined = False
+    k1b = None
+
 x86_avx2_processor = X86_AVX2_Processor()
-k1b = K1B_Processor()
 avx2_pass_m128_promotion = Pass_M128_Promotion(x86_avx2_processor)
 avx2_pass_m256_promotion = Pass_M256_Promotion(x86_avx2_processor)
 
@@ -110,39 +116,47 @@ new_scheme_function_list = [
     [
     {"precision": ML_Binary32, "function_name": "my_exp2", "auto_test": 100, "auto_test_execute": 100},
     {"precision": ML_Binary64, "function_name": "my_exp2", "auto_test": 100, "auto_test_execute": 100},
-    {"precision": ML_Binary32, "target": k1b, "function_name": "my_exp2", "auto_test": 100, "auto_test_execute": 100},
-    {"precision": ML_Binary64, "target": k1b, "function_name": "my_exp2", "auto_test": 100, "auto_test_execute": 100},
+    #{"precision": ML_Binary32, "target": k1b, "function_name": "my_exp2", "auto_test": 100, "auto_test_execute": 100},
+    #{"precision": ML_Binary64, "target": k1b, "function_name": "my_exp2", "auto_test": 100, "auto_test_execute": 100},
     ]
   ), 
   NewSchemeTest(
     "basic cubic square test",
     metalibm_functions.ml_cbrt.ML_Cbrt,
-    [{"precision": ML_Binary32, "target" : k1b}, {"precision": ML_Binary64, "target" : k1b}]
-  ), 
+    [
+        #{"precision": ML_Binary32, "target" : k1b},
+        #{"precision": ML_Binary64, "target" : k1b}
+    ]
+  ),
   NewSchemeTest(
     "basic square root test",
     metalibm_functions.ml_sqrt.ML_Sqrt,
-    [{"precision": ML_Binary32, "target" : k1b, "num_iter" : 1}, {"precision": ML_Binary64, "target" : k1b, "num_iter" : 1}]
+    [
+        #{"precision": ML_Binary32, "target" : k1b, "num_iter" : 1},
+        #{"precision": ML_Binary64, "target" : k1b, "num_iter" : 1}
+    ]
   ),
   NewSchemeTest(
     "auto execute sqrt test",
     metalibm_functions.ml_sqrt.ML_Sqrt,
     [
-    {"precision": ML_Binary32, "target": k1b, "function_name": "my_sqrt", "auto_test": 100, "auto_test_execute": 100, "num_iter" : 1},
-    {"precision": ML_Binary64, "target": k1b, "function_name": "my_sqrt", "auto_test": 100, "auto_test_execute": 100, "num_iter" : 1},
+    #{"precision": ML_Binary32, "target": k1b, "function_name": "my_sqrt", "auto_test": 100, "auto_test_execute": 100, "num_iter" : 1},
+    #{"precision": ML_Binary64, "target": k1b, "function_name": "my_sqrt", "auto_test": 100, "auto_test_execute": 100, "num_iter" : 1},
     ]
-  ), 
+  ),
   NewSchemeTest(
     "basic inverse square root test",
     metalibm_functions.ml_isqrt.ML_Isqrt,
-    [{"precision": ML_Binary32, "target" : k1b, "num_iter" : 3}, {"precision": ML_Binary64, "target" : k1b, "num_iter" : 3}]
-  ), 
+    [
+        #{"precision": ML_Binary32, "target" : k1b, "num_iter" : 3}, {"precision": ML_Binary64, "target" : k1b, "num_iter" : 3}
+    ]
+  ),
   NewSchemeTest(
     "auto execute isqrt test",
     metalibm_functions.ml_isqrt.ML_Isqrt,
     [
-    {"precision": ML_Binary32, "target": k1b, "function_name": "my_isqrt", "auto_test": 100, "auto_test_execute": 100, "num_iter" : 3},
-    {"precision": ML_Binary64, "target": k1b, "function_name": "my_isqrt", "auto_test": 100, "auto_test_execute": 100, "num_iter" : 3},
+    #{"precision": ML_Binary32, "target": k1b, "function_name": "my_isqrt", "auto_test": 100, "auto_test_execute": 100, "num_iter" : 3},
+    #{"precision": ML_Binary64, "target": k1b, "function_name": "my_isqrt", "auto_test": 100, "auto_test_execute": 100, "num_iter" : 3},
     ]
   ),
   NewSchemeTest(
@@ -158,13 +172,15 @@ new_scheme_function_list = [
   NewSchemeTest(
     "basic arctangent test",
     metalibm_functions.ml_atan.ML_Atan,
-    [{"precision": ML_Binary32, "target": k1b}, {"precision": ML_Binary64, "target": k1b}]
+    [
+        #{"precision": ML_Binary32, "target": k1b}, {"precision": ML_Binary64, "target": k1b}
+    ]
   ),
   NewSchemeTest(
     "auto execute atan test",
     metalibm_functions.ml_atan.ML_Atan,
     [
-    {"precision": ML_Binary32, "target": k1b, "function_name": "my_atan", "auto_test_execute": 100, "auto_test_std" : True},
+        #{"precision": ML_Binary32, "target": k1b, "function_name": "my_atan", "auto_test_execute": 100, "auto_test_std" : True},
     # {"precision": ML_Binary64, "target": k1b, "function_name": "my_atan", "auto_test_execute": 100, "auto_test_std" : True},
     ]
   ), 

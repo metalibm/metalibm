@@ -4,7 +4,11 @@ import sys
 
 import sollya
 
-from sollya import S2, Interval, ceil, floor, round, inf, sup, log, exp, expm1, log2, guessdegree, dirtyinfnorm, RN, RD, cbrt
+from sollya import S2, Interval, ceil, floor, round, inf, sup, log, exp, expm1, log2, guessdegree, dirtyinfnorm, RN, RD
+try:
+    from sollya import cbrt
+except ImportError:
+    from sollya_extra_functions import cbrt
 from sollya import parse as sollya_parse
 
 from metalibm_core.core.attributes import ML_Debug
