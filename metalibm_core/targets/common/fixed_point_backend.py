@@ -16,6 +16,7 @@ from metalibm_core.code_generation.generator_utility import *
 from metalibm_core.code_generation.complex_generator import *
 from metalibm_core.core.ml_formats import *
 from metalibm_core.core.ml_operations import *
+from metalibm_core.code_generation.abstract_backend import LOG_BACKEND_INIT
 from metalibm_core.code_generation.generic_processor import GenericProcessor
 
 from metalibm_core.core.target import TargetRegister
@@ -263,4 +264,4 @@ class FixedPointBackend(GenericProcessor):
   }
 
 # debug message
-print "Initializing fixed-point backend target"
+Log.report(LOG_BACKEND_INIT, "Initializing fixed-point backend target")
