@@ -124,7 +124,7 @@ class ML_FunctionBasis(object):
          ):
     # selecting argument values among defaults
     base_name = ArgDefault.select_value([base_name])
-    print "pre function_name: ", function_name, arg_template.function_name
+    Log.report(Log.Info, "pre function_name: {} {}".format(function_name, arg_template.function_name))
     function_name = ArgDefault.select_value([arg_template.function_name, function_name])
     print "function_name: ", function_name
     print "output_file: ", arg_template.output_file, output_file 
@@ -337,27 +337,22 @@ class ML_FunctionBasis(object):
     scheme = pre_scheme if copy is None else pre_scheme.copy(copy)
     # fusing FMA
     if self.fuse_fma:
-      if verbose: print "MDL fusing FMA"
+      Log.report(Log.Verbose, "MDL fusing FMA")
       scheme = self.opt_engine.fuse_multiply_add(scheme, silence = True)
 
-    if verbose: print "MDL abstract scheme"
+    Log.report(Log.Verbose, "MDL abstract scheme")
     self.opt_engine.instantiate_abstract_precision(scheme,
                                                    default_precision = None)
 
-    if verbose: print "MDL instantiated scheme"
+    Log.report(Log.Verbose, "MDL instantiated scheme")
     self.opt_engine.instantiate_precision(scheme, default_precision = None)
 
     if enable_subexpr_sharing:
-      if verbose: print "subexpression sharing"
+      Log.report(Log.Verbose, "subexpression sharing")
       self.opt_engine.subexpression_sharing(scheme)
 
-    if verbose: print "silencing operation"
+    Log.report(Log.Verbose, "silencing operation")
     self.opt_engine.silence_fp_operations(scheme)
-
-    # Too early
-    #if self.check_processor_support:
-    #  if verbose: print "checking processor support", self.language
-    #  self.opt_engine.check_processor_support(scheme, language = self.language)
 
     return scheme
 
@@ -471,8 +466,7 @@ class ML_FunctionBasis(object):
     # finally checking processor support
     if self.check_processor_support:
       for code_function in code_function_list:
-        verbose = True
-        if verbose: print "checking processor support", self.language
+        Log.report(Log.Verbose, "checking processor support {}".format(self.language))
         self.opt_engine.check_processor_support(code_function.get_scheme(), language = self.language)
 
     # generate C code to implement scheme
@@ -503,18 +497,19 @@ class ML_FunctionBasis(object):
       if (self.auto_test_enable or self.execute_trigger) and not build_result:
         test_command = " %s " % self.processor.get_execution_command(test_file)
         if self.auto_test_execute or self.execute_trigger:
-          print "VALIDATION %s " % self.get_name()
-          print test_command
+          Log.report(Log.Info, "VALIDATION {}, cmd: {} ".format(
+            self.get_name(), test_command
+          ))
           test_result = subprocess.call(test_command, shell = True)
           if not test_result:
-            print "VALIDATION SUCCESS"
+            Log.report(Log.Info, "VALIDATION SUCCESS")
           else:
-            print test_result
-            print "VALIDATION FAILURE"
+            Log.report(Log.Info, "VALIDATION FAILURE [{}]".format(test_result))
             sys.exit(1)
         else:
-          print "VALIDATION %s command line:" % self.get_name()
-          print test_command
+          Log.report(Log.Info, "VALIDATION {} command line: {}".format(
+            self.get_name(), test_command
+          ))
       elif build_result:
         Log.report(Log.Error, "build failed: {}".format(build_result))
 
@@ -529,18 +524,15 @@ class ML_FunctionBasis(object):
       {src_file} -o {bench_obj} -lm ".format(compiler = compiler, src_file = self.output_file, bench_obj = bench_obj, options = compiler_options) 
       bench_command += " && {} ".format(self.processor.get_execution_command(bench_obj))
       if self.bench_execute:
-        print "BENCH {}".format(self.get_name)
-        print bench_command
+        Log.report(Log.Info, "BENCH {}, cmd={}".format(self.get_name, bench_command))
         bench_result = subprocess.call(bench_command, shell = True)
         if not bench_result:
-          print "BENCH FINISHED"
+          Log.report(Log.Info, "BENCH FINISHED")
         else:
-          print bench_result
-          print "BENCH FAILURE"
+          Log.report(Log.Error, "BENCH FAILURE [{}]".format(bench_result))
           sys.exit(1)
       else:
-        print "BENCH %s command line:" % self.get_name()
-        print bench_command
+        Log.report(Log.Info, "BENCH {} command line: {}".forma(self.get_name(), bench_command))
 
 
   ## externalized an optree: generate a CodeFunction which compute the 
