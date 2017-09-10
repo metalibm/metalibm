@@ -7,7 +7,7 @@ import sollya
 
 from metalibm_core.utility.log_report import Log
 
-from metalibm_core.core.passes import OptreeOptimization, Pass
+from metalibm_core.core.passes import OptreeOptimization, Pass, LOG_PASS_INFO
 
 from metalibm_core.core.ml_operations import (
     ML_LeafNode, Select, Conversion, Comparison, Min, Max
@@ -127,6 +127,6 @@ class Pass_RTLLegalize(OptreeOptimization):
         """ pass execution """
         return legalize_operation_rec(optree, {})
 
-print "Registering size_datapath pass"
+Log.report(LOG_PASS_INFO, "Registering size_datapath pass")
 # register pass
 Pass.register(Pass_RTLLegalize)

@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 #
-from metalibm_core.core.passes import OptreeOptimization, Pass
+from metalibm_core.core.passes import OptreeOptimization, Pass, LOG_PASS_INFO
 from metalibm_core.core.ml_operations import *
+from metalibm_core.utility.log_report import Log
 
 
 ## Check support of operation graph on a given target
@@ -58,6 +59,6 @@ class Pass_CheckSupport(OptreeOptimization):
 
 
 
-print "Registering check_target_support pass"
+Log.report(LOG_PASS_INFO, "Registering check_target_support pass")
 # register pass
 Pass.register(Pass_CheckSupport)

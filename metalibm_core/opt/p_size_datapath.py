@@ -8,7 +8,7 @@ import operator
 
 from metalibm_core.utility.log_report import Log
 
-from metalibm_core.core.passes import OptreeOptimization, Pass
+from metalibm_core.core.passes import OptreeOptimization, Pass, LOG_PASS_INFO
 from metalibm_core.core.ml_operations import (
     Comparison, Addition, Select, Constant, ML_LeafNode, Conversion,
     Statement, ReferenceAssign, BitLogicNegate, Subtraction,
@@ -583,6 +583,6 @@ class Pass_SizeDatapath(OptreeOptimization):
         """ pass execution """
         return solve_format_rec(optree, {})
 
-print "Registering size_datapath pass"
+Log.report(LOG_PASS_INFO, "Registering size_datapath pass")
 # register pass
 Pass.register(Pass_SizeDatapath)

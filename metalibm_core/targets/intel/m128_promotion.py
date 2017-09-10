@@ -3,8 +3,10 @@
 
 from metalibm_core.targets.intel.x86_processor import *
 
+from metalibm_core.utility.log_report import Log
+
 from metalibm_core.core.ml_formats import *
-from metalibm_core.core.passes import OptreeOptimization, Pass
+from metalibm_core.core.passes import OptreeOptimization, Pass, LOG_PASS_INFO
 
 from metalibm_core.opt.p_vector_promotion import Pass_Vector_Promotion
 
@@ -32,6 +34,6 @@ class Pass_M128_Promotion(Pass_Vector_Promotion):
 
 
 
-print "Registering m128_conversion pass"
+Log.report(LOG_PASS_INFO, "Registering m128_conversion pass")
 # register pass
 Pass.register(Pass_M128_Promotion)

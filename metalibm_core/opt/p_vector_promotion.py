@@ -2,7 +2,7 @@
 # optimization pass to promote a scalar/vector DAG into vector registers
 
 from metalibm_core.core.ml_formats import *
-from metalibm_core.core.passes import OptreeOptimization, Pass
+from metalibm_core.core.passes import OptreeOptimization, Pass, LOG_PASS_INFO
 from metalibm_core.core.ml_table import ML_NewTable, ML_TableFormat
 from metalibm_core.core.ml_operations import (
     ML_LeafNode, VectorElementSelection, FunctionCall, Conversion, Constant
@@ -178,6 +178,6 @@ class Pass_Vector_Promotion(OptreeOptimization):
     return self.promote_node(optree)
 
 
-print "Registering vector_conversion pass"
+Log.report(LOG_PASS_INFO, "Registering vector_conversion pass")
 # register pass
 Pass.register(Pass_Vector_Promotion)
