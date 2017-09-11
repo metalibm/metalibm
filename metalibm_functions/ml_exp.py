@@ -171,7 +171,6 @@ class ML_Exponential(ML_Function("ml_exp")):
 
 
     local_ulp = sup(ulp(exp(approx_interval), self.precision))
-    print "ulp: ", local_ulp 
     Log.report(Log.Info, "accuracy: %s" % self.accuracy)
     if self.accuracy is ML_Faithful:
         error_goal = local_ulp
@@ -251,12 +250,7 @@ class ML_Exponential(ML_Function("ml_exp")):
 
         if is_gappa_installed():
             sub_poly_eval_error = -1.0
-            #print "gappacg :", gappacg.memoization_map, gappacg.exact_hint_map 
-            #print exact_hi_part.get_handle().get_node().get_str(depth = 0, memoization_map = {}, display_id = True)
-            #print exact_lo_part.get_handle().get_node().get_str(depth = 0, memoization_map = {}, display_id = True)
-            #print opt_sub_poly.get_str(depth = None, memoization_map = {}, display_id = True)
             sub_poly_eval_error = self.gappa_engine.get_eval_error_v2(self.opt_engine, opt_sub_poly, sub_poly_error_copy_map, gappa_filename = "%s_gappa_sub_poly.g" % self.function_name)
-            #poly_eval_error     = gappacg.get_eval_error_v2(opt_eng, opt_poly, poly_error_copy_map, gappa_filename = "gappa_poly.g")
 
             dichotomy_map = [
                 {
@@ -270,8 +264,6 @@ class ML_Exponential(ML_Function("ml_exp")):
                 },
             ]
             poly_eval_error_dico = self.gappa_engine.get_eval_error_v3(self.opt_engine, opt_poly, poly_error_copy_map, gappa_filename = "gappa_poly.g", dichotomy = dichotomy_map)
-            print "poly_eval_error_dico: ", poly_eval_error_dico
-            #sys.exit(1)
 
             poly_eval_error = max([sup(abs(err)) for err in poly_eval_error_dico])
         else:
@@ -294,7 +286,6 @@ class ML_Exponential(ML_Function("ml_exp")):
             if global_rel_poly_error == None or rel_poly_error > global_rel_poly_error:
                 global_rel_poly_error = rel_poly_error
                 global_poly_error = poly_error
-        print "global_rel_poly_error: ", global_rel_poly_error, global_rel_poly_error.__class__
         flag = error_goal > global_rel_poly_error
 
 

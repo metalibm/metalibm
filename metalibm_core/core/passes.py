@@ -3,6 +3,9 @@
 import sys
 from metalibm_core.utility.log_report import Log
 
+""" custom warning log level for pass management """
+LOG_PASS_INFO = Log.LogLevel("Info", "passes")
+
 ## Parent class for all pass dependency
 class PassDependency:
     ## test if the  @p self dependency is resolved
@@ -99,7 +102,7 @@ class PassScheduler:
     self.waiting_pass_wrappers  = []
 
   def register_pass(self, pass_object, pass_dep = PassDependency(), pass_slot = None):
-    Log.report(Log.Info, 
+    Log.report(LOG_PASS_INFO,
         "PassScheduler: registering pass {} at {}".format(
             pass_object,
             pass_slot
@@ -190,7 +193,7 @@ class Pass:
   def register(pass_class):
     tag = pass_class.pass_tag
     if not tag in Pass.pass_map:
-      print "registering pass {} associated to tag {}".format(pass_class, tag)
+      Log.report(LOG_PASS_INFO, "registering pass {} associated to tag {}".format(pass_class, tag))
       Pass.pass_map[tag] = pass_class
     else:
       Log.report(Log.Error, "a pass with name {} has already been registered while trying to register {}".format(tag, pass_class))
@@ -267,6 +270,7 @@ class PassDumpWithStages(OptreeOptimization):
         custom_callback = lambda op: " [S={}] ".format(op.attributes.init_stage)
     )
 
+Log.report(LOG_PASS_INFO, "registerting basic passes (Quit,Dump,DumpWithStages)")
 # registering commidity pass
 Pass.register(PassQuit)
 Pass.register(PassDump)

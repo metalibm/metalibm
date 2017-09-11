@@ -146,8 +146,12 @@ class VerboseAction(argparse.Action):
         super(VerboseAction, self).__init__(option_strings, dest, **kwargs)
 
     def __call__(self, parser, namespace, values, option_string=None):
-        print 'VerboseAction %r %r %r' % (namespace, values, option_string)
-        Log.enable_level(Log.Verbose)
+        for level_str in values.split(","):
+            if ":" in level_str:
+                level, sub_level = level_str.split(":")
+            else:
+                level, sub_level = level_str, None
+            Log.enable_level(level, sub_level=sub_level)
 
 # list the available targets
 
