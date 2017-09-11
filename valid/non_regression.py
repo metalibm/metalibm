@@ -65,7 +65,12 @@ new_scheme_function_list = [
   NewSchemeTest(
     "basic hyperbolic sine gen test",
     metalibm_functions.ml_sinh.ML_HyperbolicSine,
-    [{"precision": ML_Binary32}, {"precision": ML_Binary64}]
+    [
+        {"precision": ML_Binary32, "function_name": "my_sinhf",
+         "auto_test_execute": 1000},
+        {"precision": ML_Binary64, "function_name": "my_sinh",
+         "auto_test_execute": 1000}
+    ]
   ),
   NewSchemeTest(
     "basic hyperbolic tangent gen test",
@@ -75,14 +80,22 @@ new_scheme_function_list = [
   NewSchemeTest(
     "auto test hyperbolic cosine",
     metalibm_functions.ml_cosh.ML_HyperbolicCosine,
-    [{"function_name": "my_cosh", "precision": ML_Binary32, "auto_test": 100, "auto_test_execute": 100},
-    {"function_name": "my_cosh", "precision": ML_Binary64, "auto_test": 100, "auto_test_execute": 100},
+    [
+        {"function_name": "my_cosh", "precision": ML_Binary32,
+         "auto_test": 100, "auto_test_execute": 100},
+        {"function_name": "my_cosh", "precision": ML_Binary64,
+        "auto_test": 100, "auto_test_execute": 100},
     ]
   ),
   NewSchemeTest(
     "basic log test",
     metalibm_functions.ml_log.ML_Log,
-    [{"precision": ML_Binary32}, {"precision": ML_Binary64}]
+    [
+        {"precision": ML_Binary32, "function_name": "my_logf",
+         "auto_test_execute": 1000},
+        {"precision": ML_Binary64, "function_name": "my_log",
+         "auto_test_execute": 1000}
+    ]
   ),
   NewSchemeTest(
     "basic log1p test",
@@ -107,15 +120,21 @@ new_scheme_function_list = [
   NewSchemeTest(
     "auto execute exp test",
     metalibm_functions.ml_exp.ML_Exponential,
-    [{"precision": ML_Binary32, "function_name": "my_exp", "auto_test": 100, "auto_test_execute": 100},
+    [
+        {"precision": ML_Binary32, "function_name": "my_exp", "auto_test": 100,
+         "auto_test_execute": 1000},
+        {"precision": ML_Binary64, "function_name": "my_exp", "auto_test": 100,
+         "auto_test_execute": 1000},
     ]
   ), 
   NewSchemeTest(
     "auto execute exp2 test",
     metalibm_functions.ml_exp2_bis.ML_Exp2,
     [
-    {"precision": ML_Binary32, "function_name": "my_exp2", "auto_test": 100, "auto_test_execute": 100},
-    {"precision": ML_Binary64, "function_name": "my_exp2", "auto_test": 100, "auto_test_execute": 100},
+        {"precision": ML_Binary32, "function_name": "my_exp2", "auto_test": 100,
+        "auto_test_execute": 100},
+        {"precision": ML_Binary64, "function_name": "my_exp2", "auto_test": 100,
+         "auto_test_execute": 100},
     #{"precision": ML_Binary32, "target": k1b, "function_name": "my_exp2", "auto_test": 100, "auto_test_execute": 100},
     #{"precision": ML_Binary64, "target": k1b, "function_name": "my_exp2", "auto_test": 100, "auto_test_execute": 100},
     ]
