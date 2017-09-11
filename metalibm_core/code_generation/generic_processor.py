@@ -261,7 +261,7 @@ c_code_generation_table = {
                       lambda optree: BitLogicRightShift(
                         TypeCast(optree.get_input(0),
                                  precision = unsigned_integer_precision[optree.get_input(0).get_precision()],
-                                 tag = (optree.get_tag() or "") +" _srl_cast"
+                                 tag = (optree.get_tag() or "") +"_srl_cast"
                         ),
                         optree.get_input(1),
                         precision = optree.get_precision()
