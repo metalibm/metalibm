@@ -196,7 +196,11 @@ _mm256_unpacklo_pd       = ImmIntrin("_mm256_permute_ps", arity = 2,
 # Details : input vector looks like D1 D0 | C1 C0 | B1 B0 | A1 A0
 # and we want to convert D0 | C0 | B0 | A0 to double
 def conversion_to_avx_mm256_cvtepi64_pd(optree):
-    ymm0 = TypeCast(optree.get_input(0), precision = ML_AVX_m256_v8float32)
+    ymm0 = TypeCast(
+        optree.get_input(0),
+        precision=ML_AVX_m256_v8float32,
+        tag="avx_conv_cast"
+    )
     d1c1d0c0b1a1b0a0 = Permute(ymm0,
                                Constant(
                                    # Reorder [3, 2, 1, 0] -> [3, 1, 2, 0]
@@ -221,11 +225,11 @@ def conversion_to_avx_mm256_cvtepi64_pd(optree):
     result = Conversion(__m128i_d0c0b0a0, precision = ML_AVX_m256_v4float64)
     return result
 
-# AVX typecast metablock from 4 float32 to 2 float64
+## AVX typecast metablock from 4 float32 to 2 float64
 def _mm256_castps256_pd128(optree):
     ymm0 = optree.get_input(0)
-    xmm0 = TypeCast(ymm0, precision = ML_SSE_m128_v4float32)
-    return TypeCast(xmm0, precision = ML_SSE_m128_v2float64)
+    xmm0 = TypeCast(ymm0, precision=ML_SSE_m128_v4float32, tag = "castps256_lvl0")
+    return TypeCast(xmm0, precision=ML_SSE_m128_v2float64, tag = "castps256_lvl1")
 
 
 # AVX2 bitwise AND of 256 bits representing integer data
