@@ -4,7 +4,7 @@ import sys
 from metalibm_core.utility.log_report import Log
 
 """ custom warning log level for pass management """
-LOG_PASS_INFO = Log.LogLevel(Log.Info, "passes")
+LOG_PASS_INFO = Log.LogLevel("Info", "passes")
 
 ## Parent class for all pass dependency
 class PassDependency:
@@ -270,6 +270,7 @@ class PassDumpWithStages(OptreeOptimization):
         custom_callback = lambda op: " [S={}] ".format(op.attributes.init_stage)
     )
 
+Log.report(LOG_PASS_INFO, "registerting basic passes (Quit,Dump,DumpWithStages)")
 # registering commidity pass
 Pass.register(PassQuit)
 Pass.register(PassDump)
