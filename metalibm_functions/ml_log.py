@@ -193,18 +193,17 @@ class ML_Log(ML_Function("ml_log")):
         _log_inv_lo = TableLoad(log_table, table_index, 1, tag = "log_inv_lo", debug = debug_multi) 
         _log_inv_hi = TableLoad(log_table, table_index, 0, tag = "log_inv_hi", debug = debug_multi)
 
-        print "building mathematical polynomial"
+        Log.report(Log.Verbose, "building mathematical polynomial")
         approx_interval = Interval(-inv_err, inv_err)
         poly_degree = sup(guessdegree(log(1+sollya.x)/sollya.x, approx_interval, S2**-(self.precision.get_field_size()+1))) + 1
         global_poly_object = Polynomial.build_from_approximation(log(1+sollya.x)/sollya.x, poly_degree, [1] + [self.precision]*(poly_degree), approx_interval, sollya.absolute)
         poly_object = global_poly_object.sub_poly(start_index = 1)
 
-        print "generating polynomial evaluation scheme"
+        Log.report(Log.Verbose, "generating polynomial evaluation scheme")
         #_poly = PolynomialSchemeEvaluator.generate_horner_scheme(poly_object, _red_vx, unified_precision = self.precision)
         _poly = PolynomialSchemeEvaluator.generate_estrin_scheme(poly_object, _red_vx, unified_precision = self.precision)
 
         _poly.set_attributes(tag = "poly", debug = debug_multi)
-        print global_poly_object.get_sollya_object()
 
         corr_exp = Conversion(_vx_exp if exp_corr_factor == None else _vx_exp + exp_corr_factor, precision = self.precision)
         split_red_vx = Split(_red_vx, precision = ML_DoubleDouble, tag = "split_red_vx", debug = debug_multi) 
@@ -241,15 +240,7 @@ class ML_Log(ML_Function("ml_log")):
     vx_one = Equal(vx, 1.0, tag = "vx_one", likely = False, debug = debug_multi)
 
     # exp=-1 case
-    print "managing exp=-1 case"
-    #red_vx_2 = arg_red_index * vx_mant * 0.5
-    #approx_interval2 = Interval(0.5 - inv_err, 0.5 + inv_err)
-    #poly_degree2 = sup(guessdegree(log(x), approx_interval2, S2**-(self.precision.get_field_size()+1))) + 1
-    #poly_object2 = Polynomial.build_from_approximation(log(x), poly_degree, [self.precision]*(poly_degree+1), approx_interval2, absolute)
-    #print "poly_object2: ", poly_object2.get_sollya_object()
-    #poly2 = PolynomialSchemeEvaluator.generate_horner_scheme(poly_object2, red_vx_2, unified_precision = self.precision)
-    #poly2.set_attributes(tag = "poly2", debug = debug_lftolx)
-    #result2 = (poly2 - log_inv_hi - log_inv_lo)
+    Log.report(Log.Verbose, "managing exp=-1 case")
 
     result2 = (-log_inv_hi - log2_hi) + ((red_vx + poly * red_vx) - log2_lo - log_inv_lo)
     result2.set_attributes(tag = "result2", debug = debug_multi)
@@ -258,7 +249,7 @@ class ML_Log(ML_Function("ml_log")):
     S2100 = Constant(S2**100, precision = self.precision)
     result_subnormal, _, _, _, _, _ = compute_log(vx * S2100, exp_corr_factor = m100)
 
-    print "managing close to 1.0 cases"
+    Log.report(Log.Verbose,  "managing close to 1.0 cases")
     one_err = S2**-7
     approx_interval_one = Interval(-one_err, one_err)
     red_vx_one = vx - 1.0
@@ -272,7 +263,6 @@ class ML_Log(ML_Function("ml_log")):
 
 
     # main scheme
-    print "MDL scheme"
     pre_scheme = ConditionBlock(neg_input,
         Statement(
             ClearException(),
