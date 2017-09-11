@@ -174,6 +174,12 @@ _mm_unpackhi_pd       = EmmIntrin("_mm_unpackhi_pd", arity = 2,
 _mm_unpacklo_pd       = EmmIntrin("_mm_unpacklo_pd", arity = 2,
                                   output_precision = ML_SSE_m128_v2float64)
 
+# SSE4.1 instructions
+_mm_max_epi32 = SmmIntrin("_mm_max_epi32", arity = 2,
+                          output_precision = ML_SSE_m128_v4int32)
+_mm_mul_epi32 = SmmIntrin("_mm_mul_epi32", arity = 2,
+                          output_precision = ML_SSE_m128_v4int32),
+
 # AVX instructions
 _mm256_cvtepi32_pd       = ImmIntrin("_mm256_cvtepi32_pd", arity = 1,
                                      output_precision = ML_AVX_m256_v4float64)
@@ -236,7 +242,9 @@ def _mm256_castps256_pd128(optree):
     xmm0 = TypeCast(ymm0, precision=ML_SSE_m128_v4float32, tag = "castps256_lvl0")
     return TypeCast(xmm0, precision=ML_SSE_m128_v2float64, tag = "castps256_lvl1")
 
-
+# AVX2 instructions
+_mm256_max_epi32 = ImmIntrin("_mm256_max_epi32", arity = 2,
+                             output_precision = ML_AVX_m256_v8int32)
 # AVX2 bitwise AND of 256 bits representing integer data
 _mm256_and_si256 = ImmIntrin("_mm256_and_si256", arity = 2,
                              output_precision = ML_AVX_m256_v8int32)
@@ -768,11 +776,19 @@ ssse3_c_code_generation_table = {
 }
 
 sse41_c_code_generation_table = {
+    Max: {
+        None: {
+            lambda optree: True: {
+                type_strict_match(*(3*(ML_SSE_m128_v4int32,))):
+                    _mm_max_epi32,
+            }
+        },
+    },
     Multiplication: {
         None: {
             lambda optree: True: {
                 type_strict_match(*(3*(ML_SSE_m128_v4int32,))):
-                    XmmIntrin("_mm_mul_epi32", arity = 2),
+                    _mm_mul_epi32,
             },
         },
     },
@@ -1302,6 +1318,14 @@ avx2_c_code_generation_table = {
                         output_precision = ML_AVX_m256_v4float64
                         ),
             },
+        },
+    },
+    Max: {
+        None: {
+            lambda optree: True: {
+                type_strict_match(*(3*(ML_AVX_m256_v8int32,))):
+                    _mm256_max_epi32,
+            }
         },
     },
     Negation: {
