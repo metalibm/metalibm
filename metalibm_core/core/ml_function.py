@@ -124,12 +124,10 @@ class ML_FunctionBasis(object):
          ):
     # selecting argument values among defaults
     base_name = ArgDefault.select_value([base_name])
-    Log.report(Log.Info, "pre function_name: {} {}".format(function_name, arg_template.function_name))
     function_name = ArgDefault.select_value([arg_template.function_name, function_name])
-    print "function_name: ", function_name
-    print "output_file: ", arg_template.output_file, output_file 
+    Log.report(Log.Info, "function_name: {}".format(function_name))
+    Log.report(Log.Info, "output_file: {} {}".format(arg_template.output_file, output_file))
     output_file = ArgDefault.select_value([arg_template.output_file, output_file])
-    print output_file
     # Specification
     input_precisions = arg_template.input_precisions
     precision = arg_template.precision
