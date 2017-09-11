@@ -40,24 +40,25 @@ class Log(object):
     class LogLevelFilter(LogLevel):
         """ filtering log message """
         def match(self, tested_level):
-            if not tested_level.name == self.name:
+            if tested_level.name != self.name:
                 return False
-            elif self.sub_level is None or self.sub_level == tested_level.name:
+            elif self.sub_level is None or self.sub_level == tested_level.sub_level:
                 return True
             else:
                 return False
 
     # log levels definition
-    Warning = LogLevel("Warning")
-    Info    = LogLevel("Info")
-    Error   = LogLevel("Error")
-    Debug   = LogLevel("Debug")
-    Verbose = LogLevel("Verbose")
+    Warning = LogLevelFilter("Warning")
+    Info    = LogLevelFilter("Info")
+    Error   = LogLevelFilter("Error")
+    Debug   = LogLevelFilter("Debug")
+    Verbose = LogLevelFilter("Verbose")
 
     # list of enabled log levels
     enabled_levels = [
-        LogLevelFilter(Warning),
-        LogLevelFilter(Error)
+        Warning,
+        Error,
+        # LogLevelFilter("Info", "passes")
     ]
 
     @staticmethod
@@ -91,7 +92,7 @@ class Log(object):
     #  @param level log-level to be enabled
     @staticmethod
     def enable_level(level, sub_level=None):
-      Log.enabled_levels.append(LogLevelFilter(level,sub_level))
+      Log.enabled_levels.append(Log.LogLevelFilter(level,sub_level))
 
     ## disable display of the specific log level
     #  @param level log-level to be disabled
