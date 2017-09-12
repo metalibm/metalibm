@@ -175,7 +175,7 @@ _mm_unpacklo_pd       = EmmIntrin("_mm_permute_ps", arity = 2,
                                   output_precision = ML_SSE_m128_v2float64)
 
 # AVX instructions
-_mm256_cvtepi32_pd       = ImmIntrin("_mm256_cvtepi32_pd", arity = 2,
+_mm256_cvtepi32_pd       = ImmIntrin("_mm256_cvtepi32_pd", arity = 1,
                                      output_precision = ML_AVX_m256_v4float64)
 _mm256_extractf128_ps    = ImmIntrin("_mm256_extractf128_ps", arity = 2,
                                      output_precision = ML_SSE_m128_v4float32)
@@ -194,7 +194,12 @@ _mm256_unpacklo_pd       = ImmIntrin("_mm256_permute_ps", arity = 2,
 # with the condition that the 4 int64 fit in 4 int32 without overflow.
 # @param optree is a Conversion.
 # Details : input vector looks like D1 D0 | C1 C0 | B1 B0 | A1 A0
-# and we want to convert D0 | C0 | B0 | A0 to double
+# and we want to convert D0 | C0 | B0 | A0 to double. We do this in 4 steps:
+# 1: cast to 8 int32s
+# 2: permute 32-bit words to get lower-significance words next to each other
+# 3: extract the 2 lower words from high-256-bit part to form a vector of 4
+#    int32s corresponding to the lower parts of the 4 int64s.
+# 4: convert the 4 int32s to 4 float64s
 def conversion_to_avx_mm256_cvtepi64_pd(optree):
     ymm0 = TypeCast(
         optree.get_input(0),
@@ -1019,15 +1024,19 @@ avx_c_code_generation_table = {
     TypeCast: {
         None: {
             lambda optree: True: {
-                type_strict_match(ML_AVX_m256_v8float32, ML_AVX_m256_v8int32):
-                    ImmIntrin("_mm256_castsi256_ps", arity = 1,
-                              output_precision = ML_AVX_m256_v8float32),
+                type_strict_match_list(
+                    [ML_AVX_m256_v8float32],
+                    [ML_AVX_m256_v8int32, ML_AVX_m256_v4int64]
+                    ): ImmIntrin("_mm256_castsi256_ps", arity=1,
+                                 output_precision=ML_AVX_m256_v8float32),
                 type_strict_match(ML_AVX_m256_v8int32, ML_AVX_m256_v8float32):
                     ImmIntrin("_mm256_castps_si256", arity = 1,
                               output_precision = ML_AVX_m256_v8int32),
-                type_strict_match(ML_AVX_m256_v4float64, ML_AVX_m256_v4int64):
-                    ImmIntrin("_mm256_castsi256_pd", arity = 1,
-                              output_precision = ML_AVX_m256_v4float64),
+                type_strict_match_list(
+                    [ML_AVX_m256_v4float64],
+                    [ML_AVX_m256_v4int64, ML_AVX_m256_v8int32]
+                    ): ImmIntrin("_mm256_castsi256_pd", arity=1,
+                                 output_precision=ML_AVX_m256_v4float64),
                 type_strict_match(ML_AVX_m256_v4int64, ML_AVX_m256_v4float64):
                     ImmIntrin("_mm256_castpd_si256", arity = 1,
                               output_precision = ML_AVX_m256_v4int64),
