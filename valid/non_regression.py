@@ -48,6 +48,8 @@ except ImportError:
     k1b_defined = False
     k1b = None
 
+# target instanciation
+x86_processor = X86_Processor()
 x86_avx2_processor = X86_AVX2_Processor()
 avx2_pass_m128_promotion = Pass_M128_Promotion(x86_avx2_processor)
 avx2_pass_m256_promotion = Pass_M256_Promotion(x86_avx2_processor)
@@ -103,9 +105,22 @@ new_scheme_function_list = [
     [{"precision": ML_Binary32}, {"precision": ML_Binary64}]
   ),
   NewSchemeTest(
-    "basic log2 test",
+    "generic log2 test",
     metalibm_functions.ml_log2.ML_Log2,
-    [{"precision": ML_Binary32}, {"precision": ML_Binary64}]
+    [
+        {"precision": ML_Binary32},
+        {"precision": ML_Binary64, "auto_test_execute": 10000}
+    ]
+  ),
+  NewSchemeTest(
+    "x86 log2 test",
+    metalibm_functions.ml_log2.ML_Log2,
+    [
+        {"precision": ML_Binary32, "target": x86_processor,
+         "auto_test_execute": 10000},
+        {"precision": ML_Binary64, "target": x86_processor,
+         "auto_test_execute": 10000}
+    ]
   ),
   NewSchemeTest(
     "basic log10 test",
