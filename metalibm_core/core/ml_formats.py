@@ -218,6 +218,11 @@ class ML_InstanciatedFormat(ML_Format): pass
 class ML_FP_Format(ML_Format):
     """ parent to every Metalibm's floating-point class """
     pass
+    @staticmethod
+    def is_fp_format(precision):
+        """ generic predicate to test whether or not precision
+            is a floating-point format """
+        return isinstance(precision, ML_FP_Format)
 
 ## Ancestor class for standard (as defined in IEEE-754) floating-point formats
 class ML_Std_FP_Format(ML_FP_Format):
