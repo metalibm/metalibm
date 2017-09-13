@@ -171,7 +171,7 @@ _lzcnt_u64 = ImmIntrin("_lzcnt_u64", arity = 1,
 # SSE2 instructions
 _mm_unpackhi_pd       = EmmIntrin("_mm_unpackhi_pd", arity = 2,
                                   output_precision = ML_SSE_m128_v2float64)
-_mm_unpacklo_pd       = EmmIntrin("_mm_permute_ps", arity = 2,
+_mm_unpacklo_pd       = EmmIntrin("_mm_unpacklo_pd", arity = 2,
                                   output_precision = ML_SSE_m128_v2float64)
 
 # AVX instructions
@@ -187,7 +187,7 @@ _mm256_permute_ps        = ImmIntrin("_mm256_permute_ps", arity = 2,
                                      output_precision = ML_AVX_m256_v8float32)
 _mm256_unpackhi_pd       = ImmIntrin("_mm256_unpackhi_pd", arity = 2,
                                      output_precision = ML_AVX_m256_v4float64)
-_mm256_unpacklo_pd       = ImmIntrin("_mm256_permute_ps", arity = 2,
+_mm256_unpacklo_pd       = ImmIntrin("_mm256_unpacklo_pd", arity = 2,
                                      output_precision = ML_AVX_m256_v4float64)
 
 ## AVX conversion metablock from 4 int64 to 4 packed double,
