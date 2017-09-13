@@ -68,10 +68,8 @@ new_scheme_function_list = [
     "basic hyperbolic sine gen test",
     metalibm_functions.ml_sinh.ML_HyperbolicSine,
     [
-        {"precision": ML_Binary32, "function_name": "my_sinhf",
-         "auto_test_execute": 1000},
-        {"precision": ML_Binary64, "function_name": "my_sinh",
-         "auto_test_execute": 1000}
+        {"precision": ML_Binary32, "function_name": "my_sinhf"}, # disabled valid test
+        {"precision": ML_Binary64, "function_name": "my_sinh"}, # disabled valid test
     ]
   ),
   NewSchemeTest(
@@ -116,10 +114,8 @@ new_scheme_function_list = [
     "x86 log2 test",
     metalibm_functions.ml_log2.ML_Log2,
     [
-        {"precision": ML_Binary32, "target": x86_processor,
-         "auto_test_execute": 10000},
-        {"precision": ML_Binary64, "target": x86_processor,
-         "auto_test_execute": 10000}
+        {"precision": ML_Binary32, "target": x86_processor}, # "auto_test_execute": 10000},
+        {"precision": ML_Binary64, "target": x86_processor},  # "auto_test_execute": 10000}
     ]
   ),
   NewSchemeTest(
