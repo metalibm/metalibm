@@ -638,7 +638,7 @@ sse2_c_code_generation_table = {
                     ),
                 type_strict_match(*(2*(ML_SSE_m128_v2int64,))):
                     EmmIntrin("_mm_sub_epi64", arity = 2)(
-                        FO_Value("_mm_set1_epi64(0)", ML_SSE_m128_v2int64),
+                        FO_Value("_mm_set1_epi64x(0)", ML_SSE_m128_v2int64),
                         FO_Arg(0)
                     ),
             },
@@ -751,7 +751,7 @@ ssse3_c_code_generation_table = {
                     ),
                 type_strict_match(*(2*(ML_SSE_m128_v2int64,))):
                     EmmIntrin("_mm_sub_epi64", arity = 2)(
-                        FO_Value("_mm_set1_epi64(0)", ML_SSE_m128_v2int64),
+                        FO_Value("_mm_set1_epi64x(0)", ML_SSE_m128_v2int64),
                         FO_Arg(0)
                     ),
             },
@@ -1097,19 +1097,11 @@ avx2_c_code_generation_table = {
     BitArithmeticRightShift: {
         None: {
             lambda _: True: {
-                # XMM version
                 type_strict_match(*(3*(ML_SSE_m128_v4int32,))):
                     ImmIntrin("_mm_srav_epi32", arity = 2,
                               arg_map = {0: FO_Arg(0), 1: FO_Arg(1)}),
-                type_strict_match(*(3*(ML_SSE_m128_v2int64,))):
-                    ImmIntrin("_mm_srav_epi64", arity = 2,
-                              arg_map = {0: FO_Arg(0), 1: FO_Arg(1)}),
-                # YMM version
                 type_strict_match(*(3*(ML_AVX_m256_v8int32,))):
                     ImmIntrin("_mm256_srav_epi32", arity = 2,
-                              arg_map = {0: FO_Arg(0), 1: FO_Arg(1)}),
-                type_strict_match(*(3*(ML_AVX_m256_v4int64,))):
-                    ImmIntrin("_mm256_srav_epi64", arity = 2,
                               arg_map = {0: FO_Arg(0), 1: FO_Arg(1)}),
             },
         },
@@ -1339,7 +1331,7 @@ avx2_c_code_generation_table = {
                     ),
                 type_strict_match(*(2*(ML_AVX_m256_v4int64,))):
                     EmmIntrin("_mm256_sub_epi64", arity = 2)(
-                        FO_Value("_mm256_set1_epi64(0)", ML_AVX_m256_v4int64),
+                        FO_Value("_mm256_set1_epi64x(0)", ML_AVX_m256_v4int64),
                         FO_Arg(0)
                     ),
             },
@@ -1415,6 +1407,21 @@ avx2_c_code_generation_table = {
                                   FO_Arg(1),
                                   FO_Value("8", ML_Int32)
                                   ),
+            },
+        },
+    },
+}
+
+avx512_c_code_generation_table = {
+    BitArithmeticRightShift: {
+        None: {
+            lambda optree: True: {
+                type_strict_match(*(3*(ML_SSE_m128_v2int64,))):
+                    ImmIntrin("_mm_srav_epi64", arity = 2,
+                              arg_map = {0: FO_Arg(0), 1: FO_Arg(1)}),
+                type_strict_match(*(3*(ML_AVX_m256_v4int64,))):
+                    ImmIntrin("_mm256_srav_epi64", arity = 2,
+                              arg_map = {0: FO_Arg(0), 1: FO_Arg(1)}),
             },
         },
     },
