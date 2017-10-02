@@ -41,7 +41,34 @@ def normalize_map(weight_map):
     return weight_map
 
 
-class FPRandomGen(object):
+class RandomGenWeightCat(object):
+    """ Abstract random number generator using weighted 
+        categories """
+    def __init__(self, category_keys=None, weight_map=None):
+        self.category_keys = category_keys
+        self.weight_map = weight_map
+
+    def get_category_from_weight_index(self, weight_index):
+        """ returns the set category corresponding to weight_index """
+        for category in self.category_keys:
+            weight_index -= self.weight_map[category]
+            if weight_index <= 0.0:
+                return category
+        return self.category_keys[0]
+
+    def get_new_value_by_category(self, category):
+        raise NotImplementedError
+
+    def get_new_value(self):
+        """ Generate a new random value """
+        weight_index = self.random.random()
+        category = self.get_category_from_weight_index(weight_index)
+        return self.get_new_value_by_category(category)
+
+
+
+
+class FPRandomGen(RandomGenWeightCat):
     """ Random generator for floating-point numbers """
     @unique # pylint: disable=too-few-public-methods
     class Category(Enum):
@@ -67,13 +94,19 @@ class FPRandomGen(object):
 
         """
         self.precision = precision
-        self.weight_map = normalize_map({
+
+        weight_map = normalize_map({
             FPRandomGen.Category.SpecialValues: 0.1,
             FPRandomGen.Category.Subnormal: 0.2,
             FPRandomGen.Category.Normal: 0.7,
 
         } if weight_map is None else weight_map)
-        self.category_keys = self.weight_map.keys()
+        category_keys = self.weight_map.keys()
+        RandomGenWeightCat.__init__(
+            weight_map=weight_map, 
+            category_keys = category_keys
+        )
+
         self.random = random.Random(seed)
         self.sp_list = self.get_special_value_list()
 
@@ -127,20 +160,6 @@ class FPRandomGen(object):
         }
         gen_func = gen_map[category]
         return gen_func()
-
-    def get_category_from_weight_index(self, weight_index):
-        """ returns the set category corresponding to weight_index """
-        for category in self.category_keys:
-            weight_index -= self.weight_map[category]
-            if weight_index <= 0.0:
-                return category
-        return self.category_keys[0]
-
-    def get_new_value(self):
-        """ Generate a new random value """
-        weight_index = self.random.random()
-        category = self.get_category_from_weight_index(weight_index)
-        return self.get_new_value_by_category(category)
 
 
 # auto-test
