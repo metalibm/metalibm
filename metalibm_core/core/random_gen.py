@@ -66,6 +66,86 @@ class RandomGenWeightCat(object):
         return self.get_new_value_by_category(category)
 
 
+class IntRandomGen(RandomGenWeightCat):
+    """ Random generator for integer values (signed and unsigned) """
+    @unique
+    class Category(Enum):
+        """ Integer value categories """
+        MaxValue = 0
+        MinValue = 1
+        ZeroValue = 2
+        HighValue = 3
+        LowValue = 4
+        NearZero = 5
+        Standard = 6
+    def __init__(self, size=32, signed=True, seed=None):
+        """ Initializing Integer random generators """
+        int_weight_map = normalize_map({
+            IntRandomGen.Category.MaxValue: 0.01,
+            IntRandomGen.Category.MinValue: 0.01,
+            IntRandomGen.Category.ZeroValue: 0.01,
+            IntRandomGen.Category.HighValue: 0.07,
+            IntRandomGen.Category.LowValue: 0.07,
+            IntRandomGen.Category.NearZero: 0.07,
+            IntRandomGen.Category.Standard: 0.76,
+        })
+        category_keys = int_weight_map.keys()
+        RandomGenWeightCat.__init__(
+            self,
+            category_keys=category_keys,
+            weight_map=int_weight_map, 
+        )
+        self.signed = signed
+        self.size = size
+        self.random = random.Random(seed)
+        # subrange for fuzzing value around specific values
+        self.highlow_range = 2**(self.size / 5)
+
+    def gen_max_value(self):
+        """ generate the maximal format value """
+        power = self.size - (1 if self.signed else 0)
+        return S2**power - 1
+    def gen_min_value(self):
+        """ generate the minimal format value """
+        if self.signed:
+            return -S2**(self.size - 1)
+        else:
+            return self.gen_zero_value()
+    def gen_zero_value(self):
+        """ generate zero value """
+        return 0
+    def gen_high_value(self):
+        """ generate near maximal value """
+        return self.gen_max_value() - self.random.randrange(self.highlow_range)
+    def gen_low_value(self):
+        """ generate new minimal value """
+        return self.gen_min_value() + self.random.randrange(self.highlow_range)
+
+    def gen_near_zero(self):
+        """ generate near zero value """
+        if self.signed:
+            start_value = self.gen_zero_value() - self.highlow_range
+            random_offset = self.random.randrange(self.highlow_range * 2)
+            return start_value + random_offset
+        else:
+            return self.gen_low_value()
+    def gen_standard_value(self):
+        """ generate value arbitrarily in the whole format range """
+        return self.random.randrange(self.gen_min_value(), self.gen_max_value() + 1)
+
+    def get_new_value_by_category(self, category):
+        """ generate a new value within the given category """
+        gen_map = {
+            IntRandomGen.Category.MaxValue: self.gen_max_value,
+            IntRandomGen.Category.MinValue: self.gen_min_value,
+            IntRandomGen.Category.ZeroValue: self.gen_zero_value,
+            IntRandomGen.Category.HighValue: self.gen_high_value,
+            IntRandomGen.Category.LowValue: self.gen_low_value,
+            IntRandomGen.Category.NearZero: self.gen_near_zero,
+            IntRandomGen.Category.Standard: self.gen_standard_value,
+        }
+        gen_func = gen_map[category]
+        return gen_func()
 
 
 class FPRandomGen(RandomGenWeightCat):
