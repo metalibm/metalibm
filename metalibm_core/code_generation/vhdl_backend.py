@@ -14,7 +14,7 @@
 
 import operator
 
-from ..utility.log_report import *
+from ..utility.log_report import Log
 from .generator_utility import *
 from .complex_generator import *
 from .code_element import *
@@ -29,6 +29,8 @@ from ..core.legalizer import (
 )
 from ..core.advanced_operations import FixedPointPosition
 from metalibm_core.core.target import TargetRegister
+
+from metalibm_core.code_generation.abstract_backend import LOG_BACKEND_INIT
 
 from ..opt.p_size_datapath import solve_format_Constant
 
@@ -1311,7 +1313,7 @@ vhdl_code_generation_table = {
 
 
 class FormalBackend(AbstractBackend):
-    """ description of VHDL's Backend """
+    """ description of a formal Backend """
     target_name = "formal_backend"
     TargetRegister.register_new_target(target_name, lambda _: FormalBackend)
 
@@ -1323,7 +1325,7 @@ class FormalBackend(AbstractBackend):
 
     def __init__(self):
         AbstractBackend.__init__(self)
-        print "initializing Formal target"
+        Log.report(LOG_BACKEND_INIT, "initializing an instance of Formal target")
 
 
 class VHDLBackend(FormalBackend):
@@ -1338,4 +1340,4 @@ class VHDLBackend(FormalBackend):
 
     def __init__(self):
         AbstractBackend.__init__(self)
-        print "initializing VHDL target"
+        Log.report(LOG_BACKEND_INIT, "initializing an instance of VHDL target")

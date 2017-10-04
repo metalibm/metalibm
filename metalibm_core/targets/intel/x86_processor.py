@@ -10,17 +10,19 @@
 # author(s): Nicolas Brunie (nicolas.brunie@kalray.eu)
 ###############################################################################
 
-from metalibm_core.utility.log_report import *
+from metalibm_core.utility.log_report import Log
 from metalibm_core.code_generation.generator_utility import *
 from metalibm_core.code_generation.complex_generator import ComplexOperator
 from metalibm_core.core.ml_formats import *
 from metalibm_core.core.ml_complex_formats import ML_Pointer_Format
 from metalibm_core.core.ml_operations import *
-from metalibm_core.code_generation.generic_processor import GenericProcessor
 from metalibm_core.core.target import TargetRegister
 from metalibm_core.core.ml_table import ML_TableFormat
 
 from metalibm_core.targets.common.vector_backend import VectorBackend
+
+from metalibm_core.code_generation.abstract_backend import LOG_BACKEND_INIT
+from metalibm_core.code_generation.generic_processor import GenericProcessor
 
 ## TODO; change ML_SSE and ML_AVX format to be vector formats
 
@@ -1343,4 +1345,4 @@ class X86_AVX2_Processor(X86_AVX_Processor):
 
 
 # debug message
-print "initializing INTEL targets"
+Log.report(LOG_BACKEND_INIT, "initializing INTEL targets")

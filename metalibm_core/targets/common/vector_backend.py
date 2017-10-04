@@ -18,6 +18,7 @@ from metalibm_core.code_generation.complex_generator import *
 from metalibm_core.core.ml_formats import *
 from metalibm_core.core.ml_table import ML_TableFormat
 from metalibm_core.core.ml_operations import *
+from metalibm_core.code_generation.abstract_backend import LOG_BACKEND_INIT
 from metalibm_core.code_generation.generic_processor import GenericProcessor, LibFunctionConstructor
 
 from metalibm_core.core.target import TargetRegister
@@ -1103,6 +1104,5 @@ class VectorBackend(GenericProcessor):
       Log.report(Log.Verbose, "  %s " % parent_proc)
     Log.report(Log.Error, "the following operation is not supported by %s: \n%s" % (self.__class__, optree.get_str(depth = 2, display_precision = True, memoization_map = {}))) 
 
-      
 # debug message
-print "Initializing vector backend target"
+Log.report(LOG_BACKEND_INIT, "Initializing vector backend target")

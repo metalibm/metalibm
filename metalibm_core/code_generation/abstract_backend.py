@@ -14,7 +14,7 @@ import inspect
 
 from sollya import S2
 
-from ..utility.log_report import *
+from ..utility.log_report import Log
 from .generator_utility import *
 from .code_element import *
 from .complex_generator import *
@@ -22,6 +22,8 @@ from ..core.ml_formats import *
 from ..core.ml_table import ML_ApproxTable
 from ..core.ml_operations import *
 from .generator_helper import *
+
+LOG_BACKEND_INIT = Log.LogLevel(Log.Info, "backend_init")
 
 ## abstract backend class
 class AbstractBackend(object):

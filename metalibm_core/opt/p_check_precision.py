@@ -8,7 +8,7 @@ from metalibm_core.core.ml_operations import (
 from metalibm_core.core.ml_hdl_operations import (
     Process, Loop, ComponentInstance, Assert, Wait
 )
-from metalibm_core.core.passes import OptreeOptimization, Pass
+from metalibm_core.core.passes import OptreeOptimization, Pass, LOG_PASS_INFO
 
 
 ## Check if @p optree has a valid precision
@@ -65,8 +65,8 @@ class Pass_CheckPrecision(Pass_CheckGeneric):
 
 
 # register pass
-print "Registering check_generic pass"
+Log.report(LOG_PASS_INFO, "Registering check_generic pass")
 Pass.register(Pass_CheckGeneric)
 
-print "Registering check_precision pass"
+Log.report(LOG_PASS_INFO, "Registering check_precision pass")
 Pass.register(Pass_CheckPrecision)
