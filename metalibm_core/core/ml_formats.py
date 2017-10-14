@@ -655,6 +655,16 @@ class ML_Base_FixedPoint_Format(ML_Fixed_Format, VirtualFormatNoBase):
         else:
             return self.get_c_cst(cst_value)
 
+    def saturate(self, value):
+        """ Saturate value to stay within:
+            [self.get_min_value(), self.get_max_value()] """
+        if value > self.get_max_value():
+            return self.get_max_value()
+        elif value < self.get_min_value():
+            return self.get_min_value()
+        else:
+            return value
+
     def get_integer_coding(self, value, language = C_Code):
       assert value <= self.get_max_value()
       assert value >= self.get_min_value()
