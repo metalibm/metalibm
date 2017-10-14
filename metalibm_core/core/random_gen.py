@@ -166,7 +166,7 @@ class FPRandomGen(RandomGenWeightCat):
         FP_PlusOmega, FP_MinusOmega,
         FP_QNaN, FP_SNaN
     ]
-    def __init__(self, precision, weight_map=None, seed=None):
+    def __init__(self, precision, weight_map=None, seed=None, generation_map=None):
         """
             Args:
                 precision (ML_Format): floating-point format
@@ -181,11 +181,18 @@ class FPRandomGen(RandomGenWeightCat):
             FPRandomGen.Category.Normal: 0.7,
 
         } if weight_map is None else weight_map)
-        category_keys = self.weight_map.keys()
+        category_keys = weight_map.keys()
         RandomGenWeightCat.__init__(
+            self,
             weight_map=weight_map, 
             category_keys = category_keys
         )
+        self.generation_map = {
+            FPRandomGen.Category.SpecialValues: self.generate_special_value,
+            FPRandomGen.Category.Normal: self.generate_normal_number,
+            FPRandomGen.Category.Subnormal: self.generate_subnormal_number
+        }
+        self.generation_map.update(generation_map or {})
 
         self.random = random.Random(seed)
         self.sp_list = self.get_special_value_list()
@@ -233,13 +240,9 @@ class FPRandomGen(RandomGenWeightCat):
 
     def get_new_value_by_category(self, category):
         """ generate a new value from the given category """
-        gen_map = {
-            FPRandomGen.Category.SpecialValues: self.generate_special_value,
-            FPRandomGen.Category.Normal: self.generate_normal_number,
-            FPRandomGen.Category.Subnormal: self.generate_subnormal_number
-        }
-        gen_func = gen_map[category]
+        gen_func = self.generation_map[category]
         return gen_func()
+
 
 
 # auto-test

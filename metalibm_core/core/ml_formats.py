@@ -242,7 +242,6 @@ class ML_Std_FP_Format(ML_FP_Format):
         return self.ml_support_prefix
     def get_union_field_suffix(self):
         return self.union_field_suffix
-        
 
     ## return the sollya object encoding the format precision
     def get_sollya_object(self):
@@ -429,6 +428,9 @@ class ML_Std_FP_Format(ML_FP_Format):
                 }
         return uint_precision[self]
 
+
+def is_std_float(precision):
+    return isinstance(precision, ML_Std_FP_Format)
 
 ## Generic constructor for Metalibm formats
 class ML_FormatConstructor(ML_Format):
@@ -654,6 +656,16 @@ class ML_Base_FixedPoint_Format(ML_Fixed_Format, VirtualFormatNoBase):
             return self.get_gappa_cst(cst_value)
         else:
             return self.get_c_cst(cst_value)
+
+    def saturate(self, value):
+        """ Saturate value to stay within:
+            [self.get_min_value(), self.get_max_value()] """
+        if value > self.get_max_value():
+            return self.get_max_value()
+        elif value < self.get_min_value():
+            return self.get_min_value()
+        else:
+            return value
 
     def get_integer_coding(self, value, language = C_Code):
       assert value <= self.get_max_value()
