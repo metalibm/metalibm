@@ -19,7 +19,7 @@ import re
 import sollya
 from metalibm_core.utility.log_report import Log
 from metalibm_core.code_generation.code_constant import *
-from metalibm_core.core.special_values import FP_SpecialValue
+from metalibm_core.core.special_values import FP_SpecialValue, FP_PlusInfty, FP_MinusInfty
 
 
 S2 = sollya.SollyaObject(2)
@@ -276,6 +276,10 @@ class ML_Std_FP_Format(ML_FP_Format):
     def get_integer_coding(self, value, language = C_Code):
         if FP_SpecialValue.is_special_value(value):
             return self.get_special_value_coding(value, language)
+        elif value == ml_infty:
+            return self.get_special_value_coding(FP_PlusInfty(self), language)
+        elif value == -ml_infty:
+            return self.get_special_value_coding(FP_MinusInfty(self), language)
         else:
             value = sollya.round(value, self.get_sollya_object(), sollya.RN)
             # FIXME: managing negative zero
@@ -292,7 +296,7 @@ class ML_Std_FP_Format(ML_FP_Format):
                 exp_biased = 0
                 mant = int((value / S2**self.get_emin_subnormal()))
               else:
-                mant = int((value / S2**exp - 1.0) / (S2**-self.get_field_size()))
+                mant = int((value / S2**exp - 1.0) * (S2**self.get_field_size()))
             return mant | (exp_biased << self.get_field_size()) | (sign << (self.get_field_size() + self.get_exponent_size()))
 
     def get_value_from_integer_coding(self, value, base = 10):
