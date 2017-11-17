@@ -23,10 +23,8 @@ from metalibm_core.core.special_values import (
 )
 
 from metalibm_core.code_generation.generic_processor import GenericProcessor
-from metalibm_core.code_generation.gappa_code_generator import GappaCodeGenerator
 from metalibm_core.code_generation.generator_utility import FunctionOperator, FO_Result, FO_Arg
 
-from metalibm_core.utility.gappa_utils import execute_gappa_script_extract
 from metalibm_core.utility.ml_template import *
 from metalibm_core.utility.debug_utils import * 
 
@@ -111,11 +109,21 @@ class ML_Log2(ML_Function("ml_log2")):
 
     int_precision = self.precision.get_integer_format()
 
-    ## log2(x) is approximated by
-    #  log2(x) = log2(inv_seed(x) * x / inv_seed(x)
-    #          = log2(inv_seed(x) * x) - log2(inv_seed(x))
-    # x reduced to r in [1, 2[
+    # log2(vx)
+    # r = vx_mant
+    # e = vx_exp
+    # vx reduced to r in [1, 2[
+    # log2(vx) = log2(r * 2^e)
+    #          = log2(r) + e
+    #
+    ## log2(r) is approximated by
+    #  log2(r) = log2(inv_seed(r) * r / inv_seed(r)
+    #          = log2(inv_seed(r) * r) - log2(inv_seed(r))
     # inv_seed(r) in ]1/2, 1] => log2(inv_seed(r)) in ]-1, 0]
+    #
+    # inv_seed(r) * r ~ 1
+    # we can easily tabulate -log2(inv_seed(r))
+    #
 
     # retrieving processor inverse approximation table
     dummy_var = Variable("dummy", precision=self.precision)
@@ -136,7 +144,8 @@ class ML_Log2(ML_Function("ml_log2")):
         #inv_value = (1.0 + (inv_approx_table[i][0] / S2**9) ) * S2**-1
         #print inv_approx_table[i][0], inv_value
         inv_value = inv_approx_table[i][0]
-        value_high = round(log2(inv_value), self.precision.get_field_size() - (self.precision.get_exponent_size() + 1), sollya.RN)
+        value_high_bitsize = self.precision.get_field_size() - (self.precision.get_exponent_size() + 1)
+        value_high = round(log2(inv_value), value_high_bitsize, sollya.RN)
         value_low = round(log2(inv_value) - value_high, sollya_precision, sollya.RN)
         log_table[i][0] = value_high
         log_table[i][1] = value_low
@@ -152,6 +161,7 @@ class ML_Log2(ML_Function("ml_log2")):
         table_index.set_attributes(tag="table_index", debug=debuglld)
 
         # argument reduction
+        # Using AND -2 to exclude LSB set to 1 for Newton-Raphson convergence
         # TODO: detect if single operand inverse seed is supported by the targeted architecture
         pre_arg_red_index = TypeCast(
             BitLogicAnd(
@@ -159,29 +169,48 @@ class ML_Log2(ML_Function("ml_log2")):
                     DivisionSeed(
                         _vx_mant, precision=self.precision, tag="seed",
                         debug=debug_lftolx, silent=True
-                    ), precision=ML_UInt64),
-                Constant(-2, precision = ML_UInt64), precision = ML_UInt64), precision = self.precision, tag = "pre_arg_red_index", debug = debug_lftolx)
-        arg_red_index = Select(Equal(table_index, 0), 1.0, pre_arg_red_index, tag = "arg_red_index", debug = debug_lftolx)
+                    ), precision=ML_UInt64
+                ),
+                Constant(-2, precision=ML_UInt64), precision=ML_UInt64
+            ),
+            precision=self.precision, tag="pre_arg_red_index",
+            debug=debug_lftolx
+        )
+        arg_red_index = Select(
+            Equal(table_index, 0), 1.0, pre_arg_red_index,
+            tag="arg_red_index", debug=debug_lftolx
+        )
         _red_vx        = FMA(arg_red_index, _vx_mant, -1.0)
-        _red_vx.set_attributes(tag = "_red_vx", debug = debug_lftolx)
+        _red_vx.set_attributes(tag="_red_vx", debug=debug_lftolx)
         inv_err = S2**-inv_approx_table.index_size
         red_interval = Interval(1 - inv_err, 1 + inv_err)
 
         # return in case of standard (non-special) input
-        _log_inv_lo = TableLoad(log_table, table_index, 1, tag = "log_inv_lo", debug = debug_lftolx) 
-        _log_inv_hi = TableLoad(log_table, table_index, 0, tag = "log_inv_hi", debug = debug_lftolx)
+        _log_inv_lo = TableLoad(log_table, table_index, 1, tag="log_inv_lo", debug=debug_lftolx) 
+        _log_inv_hi = TableLoad(log_table, table_index, 0, tag="log_inv_hi", debug=debug_lftolx)
 
         Log.report(Log.Verbose, "building mathematical polynomial")
         approx_interval = Interval(-inv_err, inv_err)
-        poly_degree = sup(guessdegree(log2(1+sollya.x)/sollya.x, approx_interval, S2**-(self.precision.get_field_size()+1))) + 1
-        global_poly_object = Polynomial.build_from_approximation(log2(1+sollya.x)/sollya.x, poly_degree, [self.precision]*(poly_degree+1), approx_interval, sollya.absolute)
-        poly_object = global_poly_object.sub_poly(start_index = 0)
+        poly_degree = sup(guessdegree(log2(1+sollya.x)/sollya.x, approx_interval, S2**-(self.precision.get_field_size() * 1.1))) + 1
+        sollya.settings.display = sollya.hexadecimal
+        global_poly_object, approx_error = Polynomial.build_from_approximation_with_error(
+            log2(1+sollya.x)/sollya.x, poly_degree,
+            [self.precision]*(poly_degree+1),
+            approx_interval,
+            sollya.absolute,
+            error_function=lambda p, f, ai, mod, t: sollya.dirtyinfnorm(p - f, ai)
+        )
+        Log.report(Log.Info, "poly_degree={}, approx_error={}".format(poly_degree, approx_error))
+        poly_object = global_poly_object.sub_poly(start_index=1,offset=1)
+        #poly_object = global_poly_object.sub_poly(start_index=0,offset=0)
 
         Attributes.set_default_silent(True)
         Attributes.set_default_rounding_mode(ML_RoundToNearest)
 
         Log.report(Log.Verbose, "generating polynomial evaluation scheme")
-        _poly = PolynomialSchemeEvaluator.generate_horner_scheme(poly_object, _red_vx, unified_precision = self.precision)
+        pre_poly = PolynomialSchemeEvaluator.generate_horner_scheme(
+            poly_object, _red_vx, unified_precision = self.precision)
+        _poly = FMA(pre_poly, _red_vx, global_poly_object.get_cst_coeff(0, self.precision))
         _poly.set_attributes(tag = "poly", debug = debug_lftolx)
         Log.report(Log.Verbose, "sollya global_poly_object: {}".format(
             global_poly_object.get_sollya_object()
@@ -191,15 +220,10 @@ class ML_Log2(ML_Function("ml_log2")):
         ))
 
         corr_exp = _vx_exp if exp_corr_factor == None else _vx_exp + exp_corr_factor
-        split_red_vx = Split(_red_vx, precision = ML_DoubleDouble, tag = "split_red_vx", debug = debug_ddtolx) 
-        red_vx_hi = split_red_vx.hi
-        red_vx_lo = split_red_vx.lo
 
         Attributes.unset_default_rounding_mode()
         Attributes.unset_default_silent()
 
-        # result = _red_vx * poly - log_inv_hi - log_inv_lo + _vx_exp * log2_hi + _vx_exp * log2_lo
-        #pre_result = -_log_inv_hi + (_red_vx + (_red_vx * _poly + (- _log_inv_lo)))
         pre_result = -_log_inv_hi + (_red_vx * _poly + (- _log_inv_lo))
         pre_result.set_attributes(tag = "pre_result", debug = debug_lftolx)
         exact_log2_hi_exp = Conversion(corr_exp, precision = self.precision)
@@ -208,22 +232,40 @@ class ML_Log2(ML_Function("ml_log2")):
         return _result, _poly, _log_inv_lo, _log_inv_hi, _red_vx
 
     result, poly, log_inv_lo, log_inv_hi, red_vx = compute_log(vx)
-    result.set_attributes(tag = "result", debug = debug_lftolx)
+    result.set_attributes(tag = "result", debug=debug_lftolx)
 
-    neg_input = Comparison(vx, 0, likely = False, specifier = Comparison.Less, debug = debugd, tag = "neg_input")
-    vx_nan_or_inf = Test(vx, specifier = Test.IsInfOrNaN, likely = False, debug = debugd, tag = "nan_or_inf")
-    vx_snan = Test(vx, specifier = Test.IsSignalingNaN, likely = False, debug = debugd, tag = "snan")
-    vx_inf  = Test(vx, specifier = Test.IsInfty, likely = False, debug = debugd, tag = "inf")
-    vx_subnormal = Test(vx, specifier = Test.IsSubnormal, likely = False, debug = debugd, tag = "vx_subnormal")
-    vx_zero = Test(vx, specifier = Test.IsZero, likely = False, debug = debugd, tag = "vx_zero")
+    # specific input value predicate
+    neg_input = Comparison(vx, 0, likely=False, specifier=Comparison.Less,
+                debug=debugd, tag="neg_input")
+    vx_nan_or_inf=Test(vx, specifier=Test.IsInfOrNaN, likely=False,
+                       debug=debugd, tag="nan_or_inf")
+    vx_snan = Test(vx, specifier=Test.IsSignalingNaN, likely=False,
+                   debug=debugd, tag="vx_snan")
+    vx_inf  = Test(vx, specifier=Test.IsInfty, likely=False,
+                   debug=debugd, tag="vx_inf")
+    vx_subnormal = Test(vx, specifier=Test.IsSubnormal, likely=False,
+                        debug=debugd, tag="vx_subnormal")
+    vx_zero = Test(vx, specifier=Test.IsZero, likely=False,
+                   debug=debugd, tag="vx_zero")
 
-    exp_mone = Equal(vx_exp, -1, tag = "exp_minus_one", debug = debugd, likely = False)
+    exp_mone = Equal(vx_exp, -1, tag = "exp_minus_one", debug=debugd, likely=False)
     vx_one = Equal(vx, 1.0, tag = "vx_one", likely = False, debug = debugd)
 
-    # exp=-1 case
-
-    result2 = (-log_inv_hi - 1.0) + FMA(poly, red_vx, -log_inv_lo)
-    result2.set_attributes(tag = "result2", debug = debug_lftolx)
+    # Specific specific for the case exp == -1
+    # log2(x) = log2(m) - 1
+    #
+    # as m in [1, 2[, log2(m) in [0, 1[
+    # if r is close to 2, a catastrophic cancellation can occur
+    #
+    # r = seed(m)
+    # log2(x) = log2(seed(m) * m / seed(m)) - 1
+    #         = log2(seed(m) * m) - log2(seed(m)) - 1
+    #
+    # for m really close to 2 => seed(m) = 0.5
+    #     => log2(x) = log2(0.5 * m)
+    #                = 
+    result_exp_m1 = (-log_inv_hi - 1.0) + FMA(poly, red_vx, -log_inv_lo)
+    result_exp_m1.set_attributes(tag = "result_exp_m1", debug=debug_lftolx)
 
     m100 = -100
     S2100 = Constant(S2**100, precision = self.precision)
@@ -264,7 +306,7 @@ class ML_Log2(ML_Function("ml_log2")):
                 )
             ),
             ConditionBlock(vx_subnormal,
-                ConditionBlock(vx_zero, 
+                ConditionBlock(vx_zero,
                     Statement(
                         ClearException(),
                         Raise(ML_FPE_DivideByZero),
@@ -282,16 +324,9 @@ class ML_Log2(ML_Function("ml_log2")):
                         Return(FP_PlusZero(self.precision)),
                     ),
                     ConditionBlock(exp_mone,
-                        Return(result2),
+                        Return(result_exp_m1),
                         Return(result)
                     )
-                    #ConditionBlock(cond_one,
-                        #Return(new_result_one),
-                        #ConditionBlock(exp_mone,
-                            #Return(result2),
-                            #Return(result)
-                        #)
-                    #)
                 )
             )
         )
@@ -299,6 +334,8 @@ class ML_Log2(ML_Function("ml_log2")):
     scheme = Statement(result, pre_scheme)
     return scheme
 
+
+  standard_test_cases = [(sollya.parse("0x1.ffd6906acffc7p-1"),)]
 
   def numeric_emulate(self, input_value):
     """ Numeric emulation to generate expected value
