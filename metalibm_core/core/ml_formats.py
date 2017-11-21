@@ -894,6 +894,10 @@ class ML_Compound_Format(ML_Format):
             field_str_list.append(".%s = %s" % (field_name, field_format.get_c_cst(field_value)))
         return "{%s}" % (", ".join(field_str_list))
 
+    def get_gappa_cst(self, cst_value):
+        """ Constant generation in Gappa-language """
+        return str(cst_value)
+
 
 
 class ML_Compound_FP_Format(ML_Compound_Format, ML_FP_Format):
