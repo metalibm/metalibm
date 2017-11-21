@@ -873,6 +873,9 @@ class ML_Compound_Format(ML_Format):
         self.c_field_list = c_field_list
         self.field_format_list = field_format_list
 
+    def __str__(self):
+        return self.name[C_Code]
+
     ## return the sollya object encoding the format precision
     def get_sollya_object(self):
       return self.sollya_object
