@@ -1124,7 +1124,14 @@ class ML_FunctionBasis(object):
       test_loop = self.get_scalar_bench_wrapper(test_num, tested_function, input_tables, output_table)
 
     timer = Variable("timer", precision = ML_Int64, var_type = Variable.Local)
-    printf_timing_op = FunctionOperator("printf", arg_map = {0: "\"%s %%lld elts computed in %%lld cycles => %%.3f CPE \\n\"" % function_name, 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2)}, void_function = True) 
+    printf_timing_op = FunctionOperator(
+        "printf",
+        arg_map = {
+            0: "\"%s %%ld elts computed in %%ld cycles => %%.3f CPE \\n\"" % function_name,
+            1: FO_Arg(0), 2: FO_Arg(1),
+            3: FO_Arg(2)
+        }, void_function = True
+    )
     printf_timing_function = FunctionObject("printf", [ML_Int64, ML_Int64, ML_Binary64], ML_Void, printf_timing_op)
 
     # common test scheme between scalar and vector functions
@@ -1132,7 +1139,7 @@ class ML_FunctionBasis(object):
       ReferenceAssign(timer, self.processor.get_current_timestamp()),
       test_loop,
 
-      ReferenceAssign(timer, 
+      ReferenceAssign(timer,
         Subtraction(
           self.processor.get_current_timestamp(),
           timer,
