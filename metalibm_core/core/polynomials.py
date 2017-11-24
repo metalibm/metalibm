@@ -37,6 +37,10 @@ from .ml_formats import ML_Format, ML_FP_Format, ML_Fixed_Format
 def is_cgpe_available():
   return cpge_available
 
+class SollyaError(Exception):
+    """ Exception to indicate an error in pythonsollya """
+    pass
+
 class Polynomial(object):
     """ Mathematical polynomial object class """
 
@@ -105,6 +109,9 @@ class Polynomial(object):
             new_coeff_map[index - offset] = self.coeff_map[index]
         return Polynomial(new_coeff_map)
 
+    def get_cst_coeff(self, index, precision=None):
+        return Constant(self.coeff_map[index], precision=precision)
+
 
     def sub_poly_cond(self, monomial_cond = lambda i, c: True, offset = 0): 
         """ sub polynomial extraction, each monomial C*x^i verifying monomial_cond(i, C)
@@ -145,25 +152,33 @@ class Polynomial(object):
           else:
             precision_list.append(c)
         sollya_poly = sollya.fpminimax(function, poly_degree, precision_list, approx_interval, *modifiers)
+        if sollya_poly.is_error():
+            raise SollyaError()
         return Polynomial(sollya_poly)
 
 
     ## Approximation computation with built-in approximation error computation
-    #  @return a tuple poly_object, error: poly_object is a Polynomial 
-    #          approximating the given function on the given interval, 
+    #  @return a tuple poly_object, error: poly_object is a Polynomial
+    #          approximating the given function on the given interval,
     #          according to parameter indications, error is the approximation
     #          error on the interval
-    #  @param function mathematical function (pythonsollya object) describing the function to be approximated
+    #  @param function mathematical function (pythonsollya object) describing
+    #         the function to be approximated
     #  @param poly_degree the degree of the approximation polynomial request
     #  @param coeff_formats list of coefficient format (as expected by
     #         (python)sollya fpminimax function, which describes the format
     #         of each coefficient of the polynomial approximation
     #  @param approx_interval the interval where the approximation applies
-    #  @param modifiers tuple of extra arguments (see (python)sollya's fpminimax documentation for more information, e.g absolute)
-    #  @param kwords dictionnary of extra arguments for the approximation computation (e.g tightness, error_function)
+    #  @param modifiers tuple of extra arguments (see (python)sollya's fpminimax
+    #         documentation for more information, e.g absolute)
+    #  @param kwords dictionnary of extra arguments for the approximation
+    #         computation (e.g tightness, error_function)
     @staticmethod
-    def build_from_approximation_with_error(function, poly_degree, coeff_formats, approx_interval, *modifiers, **kwords): 
-        """ construct a polynomial object from a function approximation using sollya's fpminimax """
+    def build_from_approximation_with_error(
+            function, poly_degree, coeff_formats, approx_interval,
+            *modifiers, **kwords):
+        """ construct a polynomial object from a function approximation using
+            sollya's fpminimax """
         tightness = kwords["tightness"] if "tightness" in kwords else S2**-24
         error_function = kwords["error_function"] if "error_function" in kwords else lambda p, f, ai, mod, t: sollya.supnorm(p, f, ai, mod, t)
         precision_list = []
@@ -173,68 +188,102 @@ class Polynomial(object):
             else:
                 precision_list.append(c)
         sollya_poly = sollya.fpminimax(function, poly_degree, precision_list, approx_interval, *modifiers)
+        if sollya_poly.is_error():
+            print "function: {}, poly_degree: {}, precision_list: {}, approx_interval: {}, modifiers: {}".format(function, poly_degree, precision_list, approx_interval, modifiers)
+            raise SollyaError()
+
         fpnorm_modifiers = sollya.absolute if sollya.absolute in modifiers else sollya.relative
         #approx_error = sollya.supnorm(sollya_poly, function, approx_interval, fpnorm_modifiers, tightness)
         approx_error = error_function(sollya_poly, function, approx_interval, fpnorm_modifiers, tightness)
         return Polynomial(sollya_poly), approx_error
 
 def generate_power(variable, power, power_map = {}, precision = None):
-    """ generate variable^power, using power_map for memoization 
-        if precision is defined, every created operation is assigned that format """
-    if power in power_map:
-        return power_map[power]
-    else:
+    """ generate variable^power, using power_map for memoization
+        if precision is defined, every created operation is assigned
+        that format """
+    power_key = (power, precision)
+    try:
+        return power_map[power_key]
+    except KeyError:
         result = None
-        if power == 1:  
+        if power == 1:
             result = variable
         else:
             if power % 2 == 1:
-                sub_square = generate_power(variable, power - 1, power_map, precision = precision)
-                result_tag = "%s%d_" % (variable.get_tag() if variable.get_tag() else "X", power)
-                result = Multiplication(variable, sub_square, precision = precision, tag = result_tag)
+                sub_square = generate_power(
+                    variable, power - 1, power_map, precision=precision)
+                result_tag = "%s%d_" % (variable.get_tag() or "X", power)
+                result = Multiplication(variable, sub_square,
+                                        precision=precision, tag=result_tag)
             else:
-                sub_power = generate_power(variable, power / 2, power_map, precision = precision)
-                sub_square_tag = "%s%d_" % (variable.get_tag() if variable.get_tag() else "X", (power / 2) * 2)
-                sub_square = Multiplication(sub_power, sub_power, precision = precision, tag = sub_square_tag)
+                sub_power = generate_power(variable, power / 2, power_map,
+                                          precision=precision)
+                sub_square_tag = "%s%d_" % (variable.get_tag() or "X", (power / 2) * 2)
+                sub_square = Multiplication(sub_power, sub_power,
+                                            precision=precision,
+                                            tag=sub_square_tag)
                 result = sub_square
-        power_map[power] = result
+        # memoization
+        power_map[power_key] = result
         return result
 
 class PolynomialSchemeEvaluator(object):
     """ class for polynomial evaluation scheme generation """
 
     @staticmethod
-    def generate_horner_scheme(polynomial_object, variable, unified_precision = None, power_map_ = None, constant_precision = None):
+    def generate_horner_scheme(polynomial_object, variable,
+            unified_precision=None, power_map_=None, constant_precision = None):
         """ generate a Horner evaluation scheme for the polynomial <polynomial_object>
             on variable <variable>, arithmetic operation are performed in format 
             <unified_precision> if specified """
-        power_map = power_map_ if power_map_ != None else {}
-        coeff_list = polynomial_object.get_ordered_coeff_list()[::-1]
         cst_precision = unified_precision if constant_precision == None else constant_precision
+        coeff_list = [
+            (index, Constant(coeff, precision=cst_precision, tag="c_{}".format(index))) 
+            for (index, coeff) in polynomial_object.get_ordered_coeff_list()[::-1]
+        ]
+        return PolynomialSchemeEvaluator.generate_horner_scheme2(
+            coeff_list, variable, unified_precision,
+            power_map_, constant_precision)
+
+    @staticmethod
+    def generate_horner_scheme2(coeff_list, variable,
+            unified_precision=None, power_map_=None, constant_precision = None):
+        """ generate a Horner evaluation scheme for the list of pairs (coeff, index)
+            <coeff_list>
+            on variable <variable>, arithmetic operation are performed in format 
+            <unified_precision> if specified """
+        power_map = power_map_ if power_map_ != None else {}
+        cst_precision = unified_precision if constant_precision is None else constant_precision
         if len(coeff_list) == 0:
             return Constant(0)
         elif len(coeff_list) == 1:
             index, coeff = coeff_list[0]
             if index == 0:
-                return Constant(coeff, precision = cst_precision, tag = "coeff_%d" % index)
+                return coeff
             else:
-                return Multiplication(generate_power(variable, index, power_map, precision = unified_precision), Constant(coeff, precision = cst_precision), tag = "pm_%d" % index)
+                return Multiplication(
+                    generate_power(variable, index, power_map, precision = unified_precision),
+                    coeff, tag="pm_%d" % index
+                )
             
         current_index = coeff_list[0][0]
-        current_scheme = Constant(coeff_list[0][1], precision = cst_precision)
+        current_scheme = coeff_list[0][1]
         for index, coeff in coeff_list[1:-1]:
-            current_coeff = Constant(coeff, precision = cst_precision, tag = "coeff_%d" % index)
+            current_coeff = coeff 
 
             index_diff = current_index - index
             current_index = index
 
             diff_power = generate_power(variable, index_diff, power_map, precision = unified_precision)
-            mult_op = Multiplication(diff_power, current_scheme, precision = unified_precision, tag = "pm_%d" % index)
-            current_scheme = Addition(current_coeff, mult_op, precision = unified_precision, tag = "pa_%d" % index)
+            mult_op = Multiplication(diff_power, current_scheme, precision=unified_precision, tag="pm_%d" % index)
+            current_scheme = Addition(current_coeff, mult_op, precision=unified_precision, tag="pa_%d" % index)
         # last coefficient
         index, coeff = coeff_list[-1]
-        current_coeff = Constant(coeff, precision = cst_precision, tag = "coeff_%d" % index)
-        if (coeff == 1.0 or coeff == -1.0) and index <= 1:
+        current_coeff = coeff
+        def is_cst_with_value(coeff, value):
+            return isinstance(coeff, Constant) and coeff.get_value() == value
+        # operation optimization
+        if (is_cst_with_value(coeff, 1.0) or is_cst_with_value(coeff, -1.0)) and index <= 1:
             # generating FMA
             index_diff = current_index
 
@@ -243,13 +292,10 @@ class PolynomialSchemeEvaluator(object):
             if index == 0:
               current_scheme = Addition(current_coeff, mult_op, precision = unified_precision, tag = "pa_%d" % index)
             elif index == 1:
-              if coeff == 1.0:
+              if is_cst_with_value(coeff, 1.0):
                 current_scheme = Addition(variable, mult_op, precision = unified_precision, tag = "pa_%d" % index)
-              elif coeff == -1.0:
+              elif is_cst_with_value(coeff,-1.0):
                 current_scheme = Subtraction(mult_op, variable, precision = unified_precision, tag = "pa_%d" % index)
-
-            
-
 
         else:
             index_diff = current_index - index
@@ -264,6 +310,29 @@ class PolynomialSchemeEvaluator(object):
                 current_scheme = Multiplication(last_power, current_scheme, precision = unified_precision)
 
         return current_scheme
+
+    @staticmethod
+    def generate_adaptative_horner_scheme(poly_object, variable,
+            error_constraint,
+            out_precision=None,
+            start_precision=None,
+            approx_interval=None):
+        """ Generate a horner evaluation scheme for poly_object
+            which enforces the error_constraint : the overall evaluation
+            error must be less than error_constraint"""
+        # setting output precision
+        out_precision = out_precision or variable.get_precision()
+        # setting start precision (higher degree monomial)
+        start_precision = start_precision or variable.get_precision()
+        # setting approximation interval
+        approx_interval = approx_interval or variable.get_interval()
+        # coefficients in reverse order
+        coeff_list = poly_object.get_ordered_coeff_list()[::-1]
+        # initial approx
+        highest_coeff = coeff_list.pop(0)
+        initial_error_constraint = error_constraint
+        raise NotImplementedError
+
 
     @staticmethod
     def generate_estrin_scheme(polynomial_object, variable, unified_precision, power_map_ = None):
