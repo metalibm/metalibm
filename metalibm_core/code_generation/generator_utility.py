@@ -770,6 +770,9 @@ class RoundOperator(FunctionOperator):
             round_name = "float<ieee_64, " + directions_strings[direction] + ">"
           elif precision == ML_Binary32:
             round_name = "float<ieee_32, " + directions_strings[direction] + ">"
+          elif precision == ML_DoubleDouble:
+            Log.report(Log.Warning, "rounding operator to ml_dd used (approximated)")
+            round_name = "float<102, -1022, {}>".format(directions_strings[direction])
           else:
             raise ValueError("Unknow floating point precision: ", precision)
         elif isinstance(precision, ML_Fixed_Format):
