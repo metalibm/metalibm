@@ -24,6 +24,7 @@ import metalibm_functions.ml_tanh
 import metalibm_functions.ml_sincos
 import metalibm_functions.ml_atan
 import metalibm_functions.external_bench
+import metalibm_functions.ml_tanh
 
 from metalibm_core.core.ml_formats import ML_Binary32, ML_Binary64, ML_Int32
 from metalibm_core.targets.common.vector_backend import VectorBackend
@@ -32,7 +33,7 @@ from metalibm_core.targets.intel.x86_processor import (
         X86_SSE3_Processor, X86_SSSE3_Processor, X86_SSE41_Processor,
         X86_AVX_Processor, X86_AVX2_Processor
         )
-        
+
 
 from metalibm_core.targets.intel.m128_promotion import Pass_M128_Promotion
 from metalibm_core.targets.intel.m256_promotion import Pass_M256_Promotion
@@ -59,6 +60,11 @@ avx2_pass_m256_promotion = Pass_M256_Promotion(x86_avx2_processor)
 #   Each object requires a title, a function constructor and a list
 #   of test cases (each is a dictionnary of parameters -> values)
 new_scheme_function_list = [
+  NewSchemeTest(
+    "basic hyperbolic cosine gen test",
+    metalibm_functions.ml_tanh.ML_HyperbolicTangent,
+    [{"precision": ML_Binary32}]
+  ),
   NewSchemeTest(
     "basic hyperbolic cosine gen test",
     metalibm_functions.ml_cosh.ML_HyperbolicCosine,
