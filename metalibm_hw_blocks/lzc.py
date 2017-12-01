@@ -107,7 +107,7 @@ class ML_LeadingZeroCounter(ML_Entity("ml_lzc")):
     )
     lzc_process = Process(
       Statement(
-        ReferenceAssign(vr_out, Constant(self.width, precision = precision)),
+        ReferenceAssign(tmp_lzc, Constant(self.width, precision = precision)),
         lzc_loop,
         ReferenceAssign(vr_out, tmp_lzc)
       ),
