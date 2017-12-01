@@ -281,6 +281,28 @@ class IdentityOperator(ML_CG_Operator):
                 return CodeExpression("(%s)" % result_code, optree.get_precision())
 
 
+class TransparentOperator(IdentityOperator):
+    """ Identity operator which never assign a temporary variable """
+    def assemble_code(
+            self, code_generator, code_object, optree,
+            var_arg_list, generate_pre_process=None,
+            result_in_args=False, force_variable_storing=False,
+            **kwords):
+        """ base code assembly function """
+        # registering headers
+        self.register_headers(code_object)
+
+        # generating result code
+        result_code = "".join([var_arg.get() for var_arg in var_arg_list])
+
+        # generating assignation if required
+        folded = kwords["folded"]
+        if self.no_parenthesis:
+            return CodeExpression("%s" % result_code, optree.get_precision())
+        else:
+            return CodeExpression("(%s)" % result_code, optree.get_precision())
+
+
 class SymbolOperator(ML_CG_Operator):
     """ symbol operator generator """
     def __init__(self, symbol, lspace = " ", rspace = " ", inverse = False, **kwords):

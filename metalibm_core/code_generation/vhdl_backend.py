@@ -1056,7 +1056,8 @@ vhdl_code_generation_table = {
     Replication: {
         None: {
             lambda optree: True:  {
-                type_custom_match(FSM(ML_StdLogic), FSM(ML_StdLogic)): IdentityOperator(),
+                type_custom_match(FSM(ML_StdLogic), FSM(ML_StdLogic)): 
+                    TransparentOperator(), # IdentityOperator(),
                 type_custom_match(TCM(ML_StdLogicVectorFormat), FSM(ML_StdLogic), FSM(ML_Integer)): TemplateOperatorFormat("(0 to {1} - 1  => {0:s})", arity=2),
             },
         },
@@ -1150,39 +1151,39 @@ vhdl_code_generation_table = {
         None: {
             lambda optree: True: {
                 type_custom_match(FSM(ML_Binary16), TCM(ML_StdLogicVectorFormat)):
-					IdentityOperator(output_precision=ML_Binary16, no_parenthesis=True),
+					TransparentOperator(output_precision=ML_Binary16, no_parenthesis=True),
                 type_custom_match(FSM(ML_Binary16), FSM(ML_Binary16)):
-					IdentityOperator(output_precision=ML_Binary16, no_parenthesis=True),
+					TransparentOperator(output_precision=ML_Binary16, no_parenthesis=True),
                 type_custom_match(MCSTDLOGICV, FSM(ML_Binary16)):
-					IdentityOperator(no_parenthesis=True),
+					TransparentOperator(no_parenthesis=True),
 
                 type_custom_match(FSM(ML_Binary32), TCM(ML_StdLogicVectorFormat)):
-					IdentityOperator(output_precision=ML_Binary32, no_parenthesis=True),
+					TransparentOperator(output_precision=ML_Binary32, no_parenthesis=True),
                 type_custom_match(FSM(ML_Binary32), FSM(ML_Binary32)):
-					IdentityOperator(output_precision=ML_Binary32, no_parenthesis=True),
+					TransparentOperator(output_precision=ML_Binary32, no_parenthesis=True),
                 type_custom_match(MCSTDLOGICV, FSM(ML_Binary32)):
-					IdentityOperator(no_parenthesis=True),
+					TransparentOperator(no_parenthesis=True),
 
                 type_custom_match(FSM(ML_Binary64), TCM(ML_StdLogicVectorFormat)):
-					IdentityOperator(output_precision=ML_Binary64, no_parenthesis=True),
+					TransparentOperator(output_precision=ML_Binary64, no_parenthesis=True),
                 type_custom_match(FSM(ML_Binary64), FSM(ML_Binary64)):
-					IdentityOperator(output_precision=ML_Binary64, no_parenthesis=True),
+					TransparentOperator(output_precision=ML_Binary64, no_parenthesis=True),
                 type_custom_match(MCSTDLOGICV, FSM(ML_Binary64)):
-					IdentityOperator(no_parenthesis=True),
+					TransparentOperator(no_parenthesis=True),
 
                 type_custom_match(MCSTDLOGICV, MCFixedPoint):
-                    IdentityOperator(no_parenthesis=True),
+                    TransparentOperator(no_parenthesis=True),
                 type_custom_match(MCFixedPoint, MCSTDLOGICV):
-                    IdentityOperator(no_parenthesis=True),
+                    TransparentOperator(no_parenthesis=True),
                 type_custom_match(MCFixedPoint, FSM(ML_StdLogic)):
-                    IdentityOperator(no_parenthesis=True),
+                    TransparentOperator(no_parenthesis=True),
                 type_custom_match(FSM(ML_StdLogic), MCFixedPoint):
-                    IdentityOperator(no_parenthesis=True),
+                    TransparentOperator(no_parenthesis=True),
 
                 type_custom_match(MCFixedPoint, MCFixedPoint):
                     ComplexOperator(optree_modifier = fixed_cast_legalizer),
                 type_custom_match(MCSTDLOGICV, MCSTDLOGICV):
-                    IdentityOperator()
+                    TransparentOperator()
             },
         },
     },
