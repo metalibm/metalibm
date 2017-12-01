@@ -311,16 +311,19 @@ def solve_format_Constant(optree):
     value = optree.get_value()
     if FP_SpecialValue.is_special_value(value):
         return optree.get_precision()
+    elif not optree.get_precision() is None:
+        # if precision is already set (manually forced), returns it
+        return optree.get_precision()
     else:
-      # fixed-point format solving
-      assert int(value) == value
-      abs_value = abs(value)
-      signed = value < 0
-      int_size = max(int(sollya.ceil(sollya.log2(abs_value+1))), 0) + (1 if signed else 0)
-      frac_size = 0
-      if frac_size == 0 and int_size == 0:
-          int_size = 1
-      return fixed_point(int_size, frac_size, signed=signed)
+        # fixed-point format solving
+        assert int(value) == value
+        abs_value = abs(value)
+        signed = value < 0
+        int_size = max(int(sollya.ceil(sollya.log2(abs_value+1))), 0) + (1 if signed else 0)
+        frac_size = 0
+        if frac_size == 0 and int_size == 0:
+            int_size = 1
+        return fixed_point(int_size, frac_size, signed=signed)
 
 def solve_format_FixedPointPosition(optree):
     """ resolve the format of a FixedPointPosition Node """
