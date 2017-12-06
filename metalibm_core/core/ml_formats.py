@@ -575,16 +575,6 @@ class ML_Base_FixedPoint_Format(ML_Fixed_Format, VirtualFormatNoBase):
         self.frac_size = frac_size
         self.signed = signed
 
-        # guess the minimal bit_size required in the c repesentation
-        bit_size = integer_size + frac_size
-        if bit_size < 1 or bit_size > 128:
-            raise ValueError("integer_size+frac_size must be between 1 and 128 (is "+str(bit_size)+")")
-        possible_c_bit_sizes = [8, 16, 32, 64, 128]
-        self.c_bit_size = next(n for n in possible_c_bit_sizes if n >= bit_size)
-        c_name = ("" if self.signed else "u") + "int" + str(self.c_bit_size) + "_t"
-        c_display_format = "%\"PRIx" + str(self.c_bit_size) + "\""
-        self.name[C_Code] = c_name
-        self.display_format[C_Code] = c_display_format
 
     ## @return size (in bits) of the integer part of @p self formats
     #          may be negative to indicate a right shift of the fractionnal
@@ -703,11 +693,34 @@ class ML_Base_FixedPoint_Format(ML_Fixed_Format, VirtualFormatNoBase):
         return str(cst_value)
 
 
+class ML_Base_SW_FixedPoint_Format(ML_Base_FixedPoint_Format):
+    """ Base Fixed-Point format for software implementation,
+        try to infer the required size of C-format to support
+        this format """
+    def __init__(self, integer_size, frac_size, signed=True, support_format=None, align=0):
+        ML_Base_FixedPoint_Format.__init__(
+            self,
+            integer_size,
+            frac_size,
+            signed,
+            support_format
+        )
+        # guess the minimal bit_size required in the c repesentation
+        bit_size = integer_size + frac_size
+        if bit_size < 1 or bit_size > 128:
+            raise ValueError("integer_size+frac_size must be between 1 and 128 (is "+str(bit_size)+")")
+        possible_c_bit_sizes = [8, 16, 32, 64, 128]
+        self.c_bit_size = next(n for n in possible_c_bit_sizes if n >= bit_size)
+        c_name = ("" if self.signed else "u") + "int" + str(self.c_bit_size) + "_t"
+        c_display_format = "%\"PRIx" + str(self.c_bit_size) + "\""
+        self.name[C_Code] = c_name
+        self.display_format[C_Code] = c_display_format
+
 
 ## Ancestor to standard (meaning integers)  fixed-point format
-class ML_Standard_FixedPoint_Format(ML_Base_FixedPoint_Format):
+class ML_Standard_FixedPoint_Format(ML_Base_SW_FixedPoint_Format):
   def __init__(self, integer_size, frac_size, signed = True):
-    ML_Base_FixedPoint_Format.__init__(self, integer_size, frac_size, signed = signed, support_format = self, align = 0)
+    ML_Base_SW_FixedPoint_Format.__init__(self, integer_size, frac_size, signed = signed, support_format = self, align = 0)
 
   ## use 0 as the LSB weight to round in sollya
   def get_sollya_object(self):
@@ -722,7 +735,7 @@ class ML_Standard_FixedPoint_Format(ML_Base_FixedPoint_Format):
   def __str__(self):
     return self.name[C_Code]
 
-class ML_Custom_FixedPoint_Format(ML_Base_FixedPoint_Format):
+class ML_Custom_FixedPoint_Format(ML_Base_SW_FixedPoint_Format):
     def __eq__(self, other):
         return (type(self) == type(other)) and (self.__dict__ == other.__dict__)
 

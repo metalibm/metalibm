@@ -163,22 +163,28 @@ def generate_pipeline_stage(entity):
 
     # adding stage forward process
     clk = entity.get_clk_input()
+    clock_statement = Statement()
     for stage_id in sorted(retime_map.stage_forward.keys()):
-        stage_block = ConditionBlock(
-            LogicalAnd(
-                Event(clk, precision=ML_Bool),
-                Comparison(
-                    clk,
-                    Constant(1, precision=ML_StdLogic),
-                    specifier=Comparison.Equal,
-                    precision=ML_Bool
-                ),
+            stage_statement = Statement(
+                *tuple(assign for assign in retime_map.stage_forward[stage_id]))
+            clock_statement.add(stage_statement)
+    # To meet simulation / synthesis tools, we build
+    # a single if clock predicate block which contains all
+    # the stage register allocation
+    clock_block = ConditionBlock(
+        LogicalAnd(
+            Event(clk, precision=ML_Bool),
+            Comparison(
+                clk,
+                Constant(1, precision=ML_StdLogic),
+                specifier=Comparison.Equal,
                 precision=ML_Bool
             ),
-            Statement(
-                *tuple(assign for assign in retime_map.stage_forward[stage_id]))
-        )
-        process_statement.add(stage_block)
+            precision=ML_Bool
+        ),
+        clock_statement
+    )
+    process_statement.add(clock_block)
     pipeline_process = Process(process_statement, sensibility_list=[clk])
     for op in retime_map.pre_statement:
         pipeline_process.add_to_pre_statement(op)
