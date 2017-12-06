@@ -148,7 +148,7 @@ class ML_HyperbolicSine(ML_Function("ml_sinh")):
         vx: Variable("vx", interval = Interval(0, 715), precision = self.precision),
         k: Variable("k", interval = Interval(0, 1024), precision = self.precision)
       })
-    print "r_eval_error: ", r_eval_error
+    Log.report(Log.Verbose, "r_eval_error: ", r_eval_error)
 
     approx_interval = Interval(-arg_reg_value, arg_reg_value)
     error_goal_approx = 2**-(self.precision.get_precision())
@@ -201,7 +201,7 @@ class ML_HyperbolicSine(ML_Function("ml_sinh")):
 
     poly_object, poly_approx_error = Polynomial.build_from_approximation_with_error(exp(sollya.x), poly_degree, precision_list, approx_interval, sollya.absolute, error_function = error_function)
 
-    print "poly_approx_error: ", poly_approx_error, float(log2(poly_approx_error))
+    Log.report(Log.Verbose, "poly_approx_error: {}, {}".format(poly_approx_error, float(log2(poly_approx_error))))
 
     polynomial_scheme_builder = PolynomialSchemeEvaluator.generate_horner_scheme
     poly_pos = polynomial_scheme_builder(poly_object.sub_poly(start_index = 1), r, unified_precision = self.precision)

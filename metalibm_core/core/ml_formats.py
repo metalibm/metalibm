@@ -218,6 +218,11 @@ class ML_InstanciatedFormat(ML_Format): pass
 class ML_FP_Format(ML_Format):
     """ parent to every Metalibm's floating-point class """
     pass
+    @staticmethod
+    def is_fp_format(precision):
+        """ generic predicate to test whether or not precision
+            is a floating-point format """
+        return isinstance(precision, ML_FP_Format)
 
 ## Ancestor class for standard (as defined in IEEE-754) floating-point formats
 class ML_Std_FP_Format(ML_FP_Format):
@@ -884,6 +889,9 @@ class ML_Compound_Format(ML_Format):
         self.c_field_list = c_field_list
         self.field_format_list = field_format_list
 
+    def __str__(self):
+        return self.name[C_Code]
+
     ## return the sollya object encoding the format precision
     def get_sollya_object(self):
       return self.sollya_object
@@ -901,6 +909,10 @@ class ML_Compound_Format(ML_Format):
             tmp_cst = cst_value - field_value
             field_str_list.append(".%s = %s" % (field_name, field_format.get_c_cst(field_value)))
         return "{%s}" % (", ".join(field_str_list))
+
+    def get_gappa_cst(self, cst_value):
+        """ Constant generation in Gappa-language """
+        return str(cst_value)
 
 
 

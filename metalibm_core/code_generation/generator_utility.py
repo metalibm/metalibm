@@ -770,6 +770,9 @@ class RoundOperator(FunctionOperator):
             round_name = "float<ieee_64, " + directions_strings[direction] + ">"
           elif precision == ML_Binary32:
             round_name = "float<ieee_32, " + directions_strings[direction] + ">"
+          elif precision == ML_DoubleDouble:
+            Log.report(Log.Warning, "rounding operator to ml_dd used (approximated)")
+            round_name = "float<102, -1022, {}>".format(directions_strings[direction])
           else:
             raise ValueError("Unknow floating point precision: ", precision)
         elif isinstance(precision, ML_Fixed_Format):
@@ -903,7 +906,10 @@ def type_function_match(*arg_tuple, **kwords): #optree = None):
     return type_strict_match(*arg_tuple)
 
 
-def build_simplified_operator_generation_nomap(precision_list, arity, operator, result_precision = None, explicit_rounding = False, match_function = type_strict_match, extend_exact = False, cond = lambda optree: True):
+def build_simplified_operator_generation_nomap(
+        precision_list, arity, operator, result_precision=None,
+        explicit_rounding=False, match_function=type_strict_match,
+        extend_exact=False, cond=lambda optree: True):
     """ generate a code generation table for the interfaces describes in precision_list """
     result_map = {}
     for precision_hint in precision_list:
@@ -919,5 +925,20 @@ def build_simplified_operator_generation_nomap(precision_list, arity, operator, 
             result_map[type_result_match(ML_Exact)] = operator
     return result_map
 
-def build_simplified_operator_generation(precision_list, arity, operator, result_precision = None, explicit_rounding = False, match_function = type_strict_match, extend_exact = False, cond = lambda optree: True):
-  return {cond: build_simplified_operator_generation_nomap(precision_list, arity, operator, result_precision, explicit_rounding, match_function, extend_exact, cond)}
+def build_simplified_operator_generation(
+        precision_list, arity, operator, result_precision=None,
+        explicit_rounding=False, match_function=type_strict_match,
+        extend_exact=False, cond=lambda optree: True):
+    """ precision_list list of precision to be supported
+        arity number of operands of the operator
+        result_precision format of the operator result
+        explicit_rounding force explicit rounding
+        match_function function to be used for format comparison
+        cond is a lambda function optree -> boolean used as predicate to select the implementation
+    
+    """
+    return {
+        cond: build_simplified_operator_generation_nomap(
+            precision_list, arity, operator, result_precision,
+            explicit_rounding, match_function, extend_exact, cond)
+    }
