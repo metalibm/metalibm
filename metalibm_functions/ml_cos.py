@@ -13,6 +13,7 @@ from metalibm_core.core.ml_function import ML_Function, ML_FunctionBasis, Defaul
 from metalibm_core.core.attributes import ML_Debug
 from metalibm_core.core.ml_operations import *
 from metalibm_core.core.ml_formats import *
+from metalibm_core.core.special_values import FP_QNaN, FP_PlusInfty, FP_PlusZero
 from metalibm_core.code_generation.generic_processor import GenericProcessor
 from metalibm_core.core.polynomials import *
 from metalibm_core.core.ml_table import ML_NewTable
@@ -32,44 +33,27 @@ from metalibm_core.utility.gappa_utils import is_gappa_installed
 
 class ML_Cosine(ML_Function("ml_cos")):
   """ Implementation of cosinus function """
-  def __init__(self, 
-               arg_template = DefaultArgTemplate,
-               precision = ML_Binary32, 
-               accuracy  = ML_Faithful,
-               libm_compliant = True, 
-               debug_flag = False, 
-               fuse_fma = True, 
-               fast_path_extract = True,
-               target = GenericProcessor(), 
-               output_file = "cosf.c", 
-               function_name = "cosf", 
-               language = C_Code,
-               vector_size = 1):
-    # initializing I/O precision
-    precision = ArgDefault.select_value([arg_template.precision, precision])
-    io_precisions = [precision] * 2
-
+  def __init__(self, args=DefaultArgTemplate): 
     # initializing base class
     ML_FunctionBasis.__init__(self, 
-      base_name = "cos",
-      function_name = function_name,
-      output_file = output_file,
-
-      io_precisions = io_precisions,
-      abs_accuracy = None,
-      libm_compliant = libm_compliant,
-
-      processor = target,
-      fuse_fma = fuse_fma,
-      fast_path_extract = fast_path_extract,
-
-      debug_flag = debug_flag,
-      language = language,
-      vector_size = vector_size,
-      arg_template = arg_template
+        args
     )
-    self.accuracy  = accuracy
-    self.precision = precision
+    self.accuracy  = args.accuracy
+
+
+  @staticmethod
+  def get_default_args(**kw):
+    """ Return a structure containing the arguments for ML_Cosine,
+        builtin from a default argument mapping overloaded with @p kw """
+    default_args_cos = {
+        "output_file": "my_cosf.c",
+        "function_name": "my_cosf",
+        "precision": ML_Binary32,
+        "accuracy": ML_Faithful,
+        "target": GenericProcessor()
+    }
+    default_args_cos.update(kw)
+    return DefaultArgTemplate(**default_args_cos)
 
 
   def generate_emulate(self, result, mpfr_x, mpfr_rnd):
@@ -405,7 +389,7 @@ class ML_Cosine(ML_Function("ml_cos")):
 
 if __name__ == "__main__":
   # auto-test
-  arg_template = ML_NewArgTemplate(default_function_name = "new_cos", default_output_file = "new_cos.c" )
+  arg_template = ML_NewArgTemplate(default_arg=ML_Cosine.get_default_args())
   # argument extraction 
   args = arg_template.arg_extraction()
 

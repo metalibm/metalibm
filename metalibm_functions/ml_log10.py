@@ -33,41 +33,24 @@ from metalibm_core.utility.arg_utils import test_flag_option, extract_option_val
 from metalibm_core.utility.debug_utils import *
 
 class ML_Log10(ML_Function("log10")):
-  def __init__(self, 
-             arg_template = DefaultArgTemplate,
-             precision = ML_Binary32, 
-             abs_accuracy = S2**-24, 
-             libm_compliant = True, 
-             debug_flag = False, 
-             fuse_fma = True, 
-             fast_path_extract = True,
-             target = GenericProcessor(), 
-             output_file = None, 
-             function_name = None):
-
-    # extracting precision argument from command line
-    precision = ArgDefault.select_value([arg_template.precision, precision])
-    io_precisions = [precision] * 2
-
+  def __init__(self, args):
     # initializing base class
-    ML_FunctionBasis.__init__(self, 
-      base_name = "log10",
-      function_name = function_name,
-      output_file = output_file,
+    ML_FunctionBasis.__init__(self, args)
 
-      io_precisions = io_precisions,
-      abs_accuracy = None,
-      libm_compliant = libm_compliant,
 
-      processor = target,
-      fuse_fma = fuse_fma,
-      fast_path_extract = fast_path_extract,
-
-      debug_flag = debug_flag,
-      arg_template = arg_template
-    )
-
-    self.precision = precision
+  @staticmethod
+  def get_default_args(**kw):
+    """ Return a structure containing the arguments for ML_Log10,
+        builtin from a default argument mapping overloaded with @p kw """
+    default_args_log10 = {
+        "output_file": "my_log10f.c",
+        "function_name": "my_log10f",
+        "precision": ML_Binary32,
+        "accuracy": ML_Faithful,
+        "target": GenericProcessor()
+    }
+    default_args_log10.update(kw)
+    return DefaultArgTemplate(**default_args_log10)
 
   def generate_emulate(self, result, mpfr_x, mpfr_rnd):
     """ generate the emulation code for ML_Log2 functions
@@ -315,7 +298,7 @@ class ML_Log10(ML_Function("log10")):
 
 if __name__ == "__main__":
   # auto-test
-  arg_template = ML_NewArgTemplate(default_function_name = "new_log", default_output_file = "new_log.c" )
+  arg_template = ML_NewArgTemplate(default_arg=ML_Log10.get_default_args())
   args = arg_template.arg_extraction()
 
 

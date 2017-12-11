@@ -32,30 +32,29 @@ from metalibm_core.utility.gappa_utils import is_gappa_installed
 
 class ML_ExternalBench(ML_Function("ml_external_bench")):
   """ Implementation of external bench function wrapper """
-  def __init__(self, 
-             arg_template = DefaultArgTemplate, 
-               precision = ML_Binary32, 
-               output_file = "bench.c", 
-               function_name = "bench_wrapper", 
-               ):
-    arity = len(arg_template.input_precisions)
-
+  def __init__(self, args=DefaultArgTemplate):
+    #arity = len(arg_template.input_precisions)
     # initializing base class
-    ML_FunctionBasis.__init__(self, 
-      base_name = "bench",
-      function_name = function_name,
-      output_file = output_file,
-      arity = arity,
-      arg_template = arg_template
-    )
-    # initializing I/O precision
+    ML_FunctionBasis.__init__(self, args)
+    # initializing specific properties
+    self.headers = args.headers
+    self.libraries = args.libraries
+    self.bench_function_name = args.bench_function_name
+    self.emulate = args.emulate
 
-    self.headers = arg_template.headers
-    self.libraries = arg_template.libraries
-    self.bench_function_name = arg_template.bench_function_name
-
-    self.emulate = arg_template.emulate
-
+  @staticmethod
+  def get_default_args(**kw):
+    """ Return a structure containing the arguments for ML_ExternalBench
+        builtin from a default argument mapping overloaded with @p kw """
+    default_args_exp = {
+        "output_file": "bench.c",
+        "function_name": "bench_wrapper",
+        "precision": ML_Binary32,
+        "accuracy": ML_Faithful,
+        "target": GenericProcessor()
+    }
+    default_args_exp.update(kw)
+    return DefaultArgTemplate(**default_args_exp)
 
 
   def generate_scheme(self): 
@@ -79,21 +78,29 @@ class ML_ExternalBench(ML_Function("ml_external_bench")):
 
 if __name__ == "__main__":
   # auto-test
-  arg_template = ML_NewArgTemplate(default_function_name = "bench_wrapper", default_output_file = "bench.c" )
+  arg_template = ML_NewArgTemplate(default_arg=ML_ExternalBench.get_default_args())
   def precision_list_parser(s):
     return [precision_parser(p) for p in s.split(",")]
 
-  # argument extraction 
-  arg_template.get_parser().add_argument("--function", dest = "bench_function_name", default = "expf", action = "store", type = str, help = "name of the function to be benched")
-  #arg_template.get_parser().add_argument("--input-formats", dest = "input_formats", default = [ML_Binary32], action = "store", type = precision_list_parser, help = "comma separated list of input precision")
-  arg_template.get_parser().add_argument("--headers", dest = "headers", default = [], action = "store", type = lambda s: s.split(","), help = "comma separated list of required headers")
-  arg_template.get_parser().add_argument("--libraries", dest = "libraries", default = [], action = "store", type = lambda s: s.split(","), help = "comma separated list of required libraries")
+  # argument extraction
+  arg_template.get_parser().add_argument(
+    "--function", dest="bench_function_name", default="expf",
+    action="store", type=str, help="name of the function to be benched")
+  arg_template.get_parser().add_argument(
+    "--headers", dest="headers", default=[], action="store",
+    type=lambda s: s.split(","),
+    help="comma separated list of required headers")
+  arg_template.get_parser().add_argument(
+    "--libraries", dest="libraries", default=[], action="store",
+    type=lambda s: s.split(","),
+    help="comma separated list of required libraries")
+
   def local_eval(s):
     return eval(s)
-  arg_template.get_parser().add_argument("--emulate", dest = "emulate", default = lambda x: x, action = "store", type = local_eval, help = "function numeric emulation")
-
+  arg_template.get_parser().add_argument(
+    "--emulate", dest="emulate", default=lambda x: x, action="store",
+    type=local_eval, help="function numeric emulation")
 
   args = arg_template.arg_extraction()
-
   ml_sincos = ML_ExternalBench(args)
   ml_sincos.gen_implementation()

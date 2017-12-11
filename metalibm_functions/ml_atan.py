@@ -14,6 +14,7 @@ from metalibm_core.core.ml_function import ML_Function, ML_FunctionBasis, Defaul
 from metalibm_core.core.attributes import ML_Debug
 from metalibm_core.core.ml_operations import *
 from metalibm_core.core.ml_formats import *
+from metalibm_core.core.special_values import FP_QNaN
 from metalibm_core.core.precisions import ML_Faithful, ML_CorrectlyRounded
 from metalibm_core.code_generation.generic_processor import GenericProcessor
 from metalibm_core.core.polynomials import *
@@ -35,41 +36,23 @@ sollya.showmessagenumbers = sollya.on
 
 
 class ML_Atan(ML_Function("atan")):
-  def __init__(self,
-              arg_template = DefaultArgTemplate,
-                precision = ML_Binary32,
-                accuracy  = ML_CorrectlyRounded,
-                libm_compliant = True,
-                debug_flag = False,
-                fuse_fma = True,
-                fast_path_extract = True,
-                target = GenericProcessor(),
-                output_file = "ml_atan.c",
-                function_name = "ml_atan"):
-                
-    # initializing I/O precision
-    precision = ArgDefault.select_value([arg_template.precision, precision])            
-    io_precisions = [precision] * 2
-
+  def __init__(self, arg_template=DefaultArgTemplate):
     # initializing base class
-    ML_FunctionBasis.__init__(self, 
-      base_name = "atan",
-      function_name = function_name,
-      output_file = output_file,
+    ML_FunctionBasis.__init__(self, args) 
 
-      io_precisions = io_precisions,
-      abs_accuracy = None,
-      libm_compliant = libm_compliant,
-
-      processor = target,
-      fuse_fma = fuse_fma,
-      fast_path_extract = fast_path_extract,
-
-      debug_flag = debug_flag,
-      arg_template = arg_template
-    )
-
-    self.precision = precision
+  @staticmethod
+  def get_default_args(**kw):
+    """ Return a structure containing the arguments for ML_Atan,
+        builtin from a default argument mapping overloaded with @p kw """
+    default_args_exp = {
+        "output_file": "my_atan.c",
+        "function_name": "my_atan",
+        "precision": ML_Binary32,
+        "accuracy": ML_Faithful,
+        "target": GenericProcessor()
+    }
+    default_args_exp.update(kw)
+    return DefaultArgTemplate(**default_args_exp)
     
     
   def generate_emulate(self, result, mpfr_x, mpfr_rnd):
@@ -269,9 +252,12 @@ class ML_Atan(ML_Function("atan")):
     return atan(input_value)
 
   standard_test_cases =[[sollya.parse(x)] for x in  ["0x1.107a78p+0", "0x1.9e75a6p+0" ]]
+
+
+
 if __name__ == "__main__":
     # auto-test
-    arg_template = ML_NewArgTemplate(default_function_name = "new_atan", default_output_file = "new_atan.c" )
+    arg_template = ML_NewArgTemplate(default_arg=ML_Atan.get_default_args())
     args = arg_template.arg_extraction()
     ml_atan = ML_Atan(args)
     ml_atan.gen_implementation()

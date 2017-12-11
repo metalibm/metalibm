@@ -18,6 +18,12 @@ from metalibm_core.core.ml_optimization_engine import OptimizationEngine
 from metalibm_core.core.polynomials import *
 from metalibm_core.core.ml_table import ML_NewTable
 
+from metalibm_core.utility.debug_utils import debug_lftolx
+
+from metalibm_core.core.special_values import (
+    FP_QNaN
+)
+
 from metalibm_core.code_generation.gappa_code_generator import GappaCodeGenerator
 
 from metalibm_core.utility.gappa_utils import execute_gappa_script_extract

@@ -16,6 +16,7 @@ from metalibm_core.core.ml_formats import *
 from metalibm_core.core.polynomials import *
 from metalibm_core.core.ml_table import ML_NewTable
 
+from metalibm_core.core.precisions import ML_Faithful
 from metalibm_core.core.special_values import (
     FP_QNaN, FP_MinusInfty, FP_PlusInfty, FP_PlusZero
 )
@@ -34,40 +35,23 @@ from metalibm_core.utility.ml_template import ML_NewArgTemplate, ArgDefault
 from metalibm_core.utility.debug_utils import * 
 
 class ML_Log1p(ML_Function("ml_log1p")):
-  def __init__(self, 
-               arg_template = DefaultArgTemplate,
-               precision = ML_Binary32, 
-               abs_accuracy = S2**-24, 
-               libm_compliant = True, 
-               debug_flag = False, 
-               fuse_fma = True, 
-               fast_path_extract = True,
-               target = GenericProcessor(), 
-               output_file = "log1pf.c", 
-               function_name = "log1pf"):
-    # extracting precision argument from command line
-    precision = ArgDefault.select_value([arg_template.precision, precision])
-    io_precisions = [precision] * 2
+  def __init__(self, args):
+    ML_FunctionBasis.__init__(self, args)
 
-    ML_FunctionBasis.__init__(
-      self, 
-      base_name = "log1p",
-      function_name = function_name,
-      output_file = output_file,
 
-      io_precisions = io_precisions,
-      abs_accuracy = None,
-      libm_compliant = libm_compliant,
-
-      processor = target,
-      fuse_fma = fuse_fma,
-      fast_path_extract = fast_path_extract,
-
-      debug_flag = debug_flag,
-      arg_template = arg_template
-    )
-
-    self.precision = precision
+  @staticmethod
+  def get_default_args(**kw):
+    """ Return a structure containing the arguments for ML_Log1p,
+        builtin from a default argument mapping overloaded with @p kw """
+    default_args_log1p = {
+        "output_file": "my_log1p.c",
+        "function_name": "my_log1pf",
+        "precision": ML_Binary32,
+        "accuracy": ML_Faithful,
+        "target": GenericProcessor()
+    }
+    default_args_log1p.update(kw)
+    return DefaultArgTemplate(**default_args_log1p)
 
   def generate_scheme(self):
     vx = self.implementation.add_input_variable("x", self.precision) 
@@ -256,7 +240,7 @@ class ML_Log1p(ML_Function("ml_log1p")):
 
 if __name__ == "__main__":
     # auto-test
-    arg_template = ML_NewArgTemplate(default_function_name = "new_log1p", default_output_file = "new_log1p.c" )
+    arg_template = ML_NewArgTemplate(default_arg=ML_Log1p.get_default_args())
     args = arg_template.arg_extraction()
 
 

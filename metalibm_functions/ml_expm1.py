@@ -16,6 +16,8 @@ from metalibm_core.core.ml_function import ML_Function, ML_FunctionBasis, Defaul
 from metalibm_core.code_generation.generator_utility import FunctionOperator, FO_Result, FO_Arg
 from metalibm_core.core.ml_complex_formats import ML_Mpfr_t
 
+from metalibm_core.core.special_values import FP_PlusInfty, FP_QNaN
+
 
 from metalibm_core.utility.ml_template import *
 from metalibm_core.utility.log_report  import Log
@@ -26,33 +28,25 @@ from metalibm_core.utility.gappa_utils import is_gappa_installed
 
 
 class ML_ExponentialM1_Red(ML_Function("ml_expm1")):
-  def __init__(self, 
-             arg_template = DefaultArgTemplate, 
-             precision = ML_Binary32, 
-             accuracy  = ML_Faithful,
-             target = GenericProcessor(), 
-             output_file = "my_expm1.c", 
-             function_name = "my_expm1",
-             ):
-    # initializing I/O precision
-    precision = ArgDefault.select_value([arg_template.precision, precision])
-    io_precisions = [precision] * 2
-
+  def __init__(self, args):
     # initializing base class
-    ML_FunctionBasis.__init__(self, 
-      base_name = "expm1",
-      function_name = function_name,
-      output_file = output_file,
+    ML_FunctionBasis.__init__(self, args)
+    self.accuracy  = args.accuracy
 
-      io_precisions = io_precisions,
 
-      processor = target,
-
-      arg_template = arg_template
-    )
-
-    self.accuracy  = accuracy
-    self.precision = precision
+  @staticmethod
+  def get_default_args(**kw):
+    """ Return a structure containing the arguments for ML_ExponentialM1_Red,
+        builtin from a default argument mapping overloaded with @p kw """
+    default_args_expm1 = {
+        "output_file": "my_expm1.c",
+        "function_name": "my_expm1",
+        "precision": ML_Binary32,
+        "accuracy": ML_Faithful,
+        "target": GenericProcessor()
+    }
+    default_args_expm1.update(kw)
+    return DefaultArgTemplate(**default_args_expm1)
 
   def generate_scheme(self):
     # declaring target and instantiating optimization engine
@@ -243,8 +237,8 @@ class ML_ExponentialM1_Red(ML_Function("ml_expm1")):
 
 if __name__ == "__main__":
     # auto-test
-    arg_template = ML_NewArgTemplate(default_function_name = "new_expm1", default_output_file = "new_expm1.c" )
-    # argument extraction 
+    arg_template = ML_NewArgTemplate(default_arg=ML_ExponentialM1_Red.get_default_args())
+    # argument extraction
     args = parse_arg_index_list = arg_template.arg_extraction()
  
     ml_expm1_red         = ML_ExponentialM1_Red(args)

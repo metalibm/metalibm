@@ -31,45 +31,26 @@ from metalibm_core.utility.gappa_utils import is_gappa_installed
 
 
 class ML_Cbrt(ML_Function("ml_cbrt")):
-  def __init__(self, 
-             arg_template = DefaultArgTemplate, 
-             precision = ML_Binary32, 
-             accuracy  = ML_Faithful,
-             libm_compliant = True, 
-             debug_flag = False, 
-             fuse_fma = True, 
-             fast_path_extract = True,
-             target = GenericProcessor(), 
-             output_file = "my_cbrt.c", 
-             function_name = "my_cbrt",
-             language = C_Code,
-             vector_size = 1):
-    # initializing I/O precision
-    precision = ArgDefault.select_value([arg_template.precision, precision])
-    io_precisions = [precision] * 2
-
+  def __init__(self, args=DefaultArgTemplate):
     # initializing base class
-    ML_FunctionBasis.__init__(self, 
-      base_name = "cbrt",
-      function_name = function_name,
-      output_file = output_file,
+    ML_FunctionBasis.__init__(self, args) 
+    # initializing accuracy property
+    self.accuracy  = args.accuracy
 
-      io_precisions = io_precisions,
-      abs_accuracy = None,
-      libm_compliant = libm_compliant,
 
-      processor = target,
-      fuse_fma = fuse_fma,
-      fast_path_extract = fast_path_extract,
-
-      debug_flag = debug_flag,
-      language = language,
-      vector_size = vector_size,
-      arg_template = arg_template
-    )
-
-    self.accuracy  = accuracy
-    self.precision = precision
+  @staticmethod
+  def get_default_args(**kw):
+    """ Return a structure containing the arguments for ML_Cbrt,
+        builtin from a default argument mapping overloaded with @p kw """
+    default_args_cbrt = {
+        "output_file": "my_cbrt.c",
+        "function_name": "my_cbrt",
+        "precision": ML_Binary32,
+        "accuracy": ML_Faithful,
+        "target": GenericProcessor()
+    }
+    default_args_cbrt.update(kw)
+    return DefaultArgTemplate(**default_args_cbrt)
 
   def generate_scheme(self):
     # declaring main input variable
@@ -203,10 +184,9 @@ class ML_Cbrt(ML_Function("ml_cbrt")):
 
 if __name__ == "__main__":
     # auto-test
-    arg_template = ML_NewArgTemplate(default_function_name = "new_cosh", default_output_file = "new_cosh.c" )
+    arg_template = ML_NewArgTemplate(default_arg=ML_Cbrt.get_default_args())
     # argument extraction 
     args = arg_template.arg_extraction()
 
     ml_cbrt          = ML_Cbrt(args)
-
     ml_cbrt.gen_implementation()
