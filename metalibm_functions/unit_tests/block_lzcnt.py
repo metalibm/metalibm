@@ -23,20 +23,24 @@ from metalibm_core.opt.ml_blocks import generate_count_leading_zeros
 from metalibm_functions.unit_tests.utils import TestRunner
 
 class ML_UT_Lzcnt(ML_Function("ml_lzcnt"), TestRunner):
-  def __init__(self,
-      arg_template = DefaultArgTemplate(
-        output_file = "ut_block_lzcnt.c",
-        function_name = "ut_lzcnt",
-        precision = ML_Int32,
-        auto_test_range = Interval(0, 2**31),
-        auto_test_execute = 1000)
-      ):
-    # initializing I/O precision
-    self.precision = arg_template.precision
-
+  def __init__(self, args=DefaultArgTemplate):
     # initializing base class
-    ML_FunctionBasis.__init__(self, arg_template = arg_template)
+    ML_FunctionBasis.__init__(self, args)
 
+
+  @staticmethod
+  def get_default_args(**kw):
+    """ Return a structure containing the arguments for current class,
+        builtin from a default argument mapping overloaded with @p kw """
+    default_args = {
+        "output_file": "ut_block_lzcnt.c",
+        "function_name": "ut_lzcnt",
+        "precision": ML_Int32,
+        "auto_test_range": Interval(0, 2**31),
+        "auto_test_execute": 1000,
+    }
+    default_args.update(kw)
+    return DefaultArgTemplate(**default_args)
 
   def generate_scheme(self):
     vx = self.implementation.add_input_variable("x", self.precision)
@@ -76,11 +80,7 @@ run_test = ML_UT_Lzcnt
 
 if __name__ == "__main__":
   # auto-test
-  arg_template = ML_NewArgTemplate(
-      default_function_name = "new_lzcnt",
-      default_output_file = "new_lzcnt.c",
-      default_arg = DefaultArgTemplate(precision = ML_Int32)
-      )
+  arg_template = ML_NewArgTemplate(default_args=ML_UT_Lzcnt.get_default_args())
   # Overwrite default args by command line args if any
   args = arg_template.arg_extraction()
 
