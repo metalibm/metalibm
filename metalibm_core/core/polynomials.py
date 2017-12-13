@@ -405,7 +405,7 @@ class PolynomialSchemeEvaluator(object):
                 ] # True/False list for coefficients
         cgpe = CgpeDriver()
         # XXX latencies for add/mul could be retrieved from target specs...
-        scheme = cgpe.get_fastest_scheme(degree, cgpe_coeff_list)
+        scheme = cgpe.get_low_latency_scheme(degree, cgpe_coeff_list)
         del cgpe # Safer because of internal issues not fixed yet.
 
         print "CGPE scheme is: {}".format(scheme)

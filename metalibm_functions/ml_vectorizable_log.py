@@ -4,7 +4,7 @@
 import sys
 
 import sollya # sollya.RN, sollya.absolute, sollya.x
-from sollya import (S2, Interval, round, sup, log, log2, guessdegree)
+from sollya import (S2, Interval, round, sup, log, log1p, guessdegree)
 
 from metalibm_core.core.ml_function import (ML_Function, ML_FunctionBasis,
                                             DefaultArgTemplate)
@@ -66,16 +66,27 @@ class ML_Log(ML_Function("ml_log")):
     print "MDL table"
     table_index_size = 7 # to be abstracted somehow
     dimensions = [2**table_index_size]
-    init_log2 = [
-            round(log2(1 + float(i) / dimensions[0])
-                - (2**(self.precision.exponent_size - 1) - 1),
-                self.precision.field_size, sollya.RN)
+    init_log1p_hi = [
+            round(log1p(float(i) / dimensions[0]),
+                  self.precision.get_mantissa_size(),
+                  sollya.RN)
             for i in xrange(dimensions[0])
             ]
-    log2_table = ML_NewTable(dimensions = dimensions,
-            storage_precision = self.precision,
-            init_data = init_log2,
-            tag = 'ml_log2_table')
+    log1p_table_hi = ML_NewTable(dimensions = dimensions,
+                                 storage_precision = self.precision,
+                                 init_data = init_log1p_hi,
+                                 tag = 'ml_log1p_table_high')
+
+    init_log1p_lo = [
+            round(log1p(float(i) / dimensions[0]) - init_log1p_hi[i],
+                  self.precision.get_mantissa_size(),
+                  sollya.RN)
+            for i in xrange(dimensions[0])
+            ]
+    log1p_table_lo = ML_NewTable(dimensions = dimensions,
+                                 storage_precision = self.precision,
+                                 init_data = init_log1p_lo,
+                                 tag = 'ml_log1p_table_low')
 
     print 'MDL unified denormal handling'
     vx_as_int = TypeCast(vx, precision = int_prec, tag = 'vx_as_int')
@@ -143,7 +154,9 @@ class ML_Log(ML_Function("ml_log")):
             invx_bits,
             table_index_mask,
             tag = 'table_index')
-    log2_1_p_rcp_x = TableLoad(log2_table, table_index, tag = 'log2_1_p_rcp_x',
+    log1p_ri_hi = TableLoad(log1p_table_hi, table_index, tag = 'log1p_ri_hi',
+            debug = debug_multi)
+    log1p_ri_lo = TableLoad(log1p_table_lo, table_index, tag = 'log1p_ri_lo',
             debug = debug_multi)
     exponent = Addition(
             BitLogicRightShift(invx_bits,
@@ -198,7 +211,7 @@ class ML_Log(ML_Function("ml_log")):
             tag = 'log1pu_poly',
             debug = debug_lftolx)
 
-    logx = nlog2 * (log2_1_p_rcp_x + expf) + log1pu_poly
+    logx = nlog2 * (expf + self.precision.get_bias()) + (log1p_ri_hi + log1p_ri_lo) + log1pu_poly
 
     scheme = Return(logx, precision = self.precision)
 
