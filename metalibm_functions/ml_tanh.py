@@ -11,6 +11,8 @@ from sollya import (
 from metalibm_core.core.ml_function import (
     ML_Function, ML_FunctionBasis, DefaultArgTemplate
 )
+from metalibm_core.core.ml_formats import ML_Binary32, ML_Int32
+from metalibm_core.core.precisions import ML_Faithful
 
 from metalibm_core.core.polynomials import (
     Polynomial, PolynomialSchemeEvaluator, SollyaError
@@ -23,17 +25,15 @@ from metalibm_core.core.ml_operations import (
 )
 from metalibm_core.core.ml_table import ML_NewTable
 
+from metalibm_core.code_generation.generic_processor import GenericProcessor
 
 from metalibm_core.utility.ml_template import ML_NewArgTemplate, ArgDefault
 from metalibm_core.utility.log_report  import Log
-from metalibm_core.core.ml_formats import ML_Int32
 
 # disabling sollya's rounding warning
 sollya.roundingwarnings = sollya.off
 sollya.verbosity = 0
 sollya.showmessagenumbers = sollya.on
-
-
 
 
 def piecewise_approximation(
@@ -154,13 +154,25 @@ def piecewise_approximation(
 #  approximation scheme
 class ML_HyperbolicTangent(ML_Function("ml_tanh")):
     """ Implementation of hyperbolic tangent function """
-    def __init__(self,
-                 arg_template = DefaultArgTemplate,
-                 ):
+    def __init__(self, args=DefaultArgTemplate):
         # initializing base class
         ML_FunctionBasis.__init__(self,
-          arg_template = arg_template
+          args
         )
+
+    @staticmethod
+    def get_default_args(**kw):
+        """ Return a structure containing the arguments for ML_HyperbolicTangent,
+            builtin from a default argument mapping overloaded with @p kw """
+        default_args_tanh = {
+            "output_file": "my_tanh.c",
+            "function_name": "my_tanh",
+            "precision": ML_Binary32,
+            "accuracy": ML_Faithful,
+            "target": GenericProcessor()
+        }
+        default_args_tanh.update(kw)
+        return DefaultArgTemplate(**default_args_tanh)
 
     def generate_approx_poly_near_zero(self, function, high_bound, error_bound, variable):
         """ Generate polynomial approximation scheme """
@@ -299,8 +311,7 @@ class ML_HyperbolicTangent(ML_Function("ml_tanh")):
 if __name__ == "__main__":
     # building argument template for main generation
     arg_template = ML_NewArgTemplate(
-        default_function_name="new_tanh",
-        default_output_file = "new_tanh.c"
+        default_arg=ML_HyperbolicTangent.get_default_args()
     )
 
     # argument extraction

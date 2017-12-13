@@ -20,7 +20,6 @@ import metalibm_functions.ml_isqrt
 import metalibm_functions.ml_vectorizable_log
 import metalibm_functions.ml_cosh
 import metalibm_functions.ml_sinh
-import metalibm_functions.ml_tanh
 import metalibm_functions.ml_sincos
 import metalibm_functions.ml_atan
 import metalibm_functions.external_bench
@@ -62,11 +61,6 @@ avx2_pass_m256_promotion = Pass_M256_Promotion(x86_avx2_processor)
 new_scheme_function_list = [
   NewSchemeTest(
     "basic hyperbolic cosine gen test",
-    metalibm_functions.ml_tanh.ML_HyperbolicTangent,
-    [{"precision": ML_Binary32}]
-  ),
-  NewSchemeTest(
-    "basic hyperbolic cosine gen test",
     metalibm_functions.ml_cosh.ML_HyperbolicCosine,
     [{"precision": ML_Binary32}, {"precision": ML_Binary64}]
   ),
@@ -81,7 +75,8 @@ new_scheme_function_list = [
   NewSchemeTest(
     "basic hyperbolic tangent gen test",
     metalibm_functions.ml_tanh.ML_HyperbolicTangent,
-    [{"precision": ML_Binary32}, {"precision": ML_Binary64}]
+    [{"precision": ML_Binary32, "auto_test_execute": 1000},
+    {"precision": ML_Binary64}]
   ),
   NewSchemeTest(
     "auto test hyperbolic cosine",
@@ -143,7 +138,7 @@ new_scheme_function_list = [
         {"precision": ML_Binary64, "function_name": "my_exp", "auto_test": 100,
          "auto_test_execute": 1000},
     ]
-  ), 
+  ),
   NewSchemeTest(
     "auto execute exp2 test",
     metalibm_functions.ml_exp2_bis.ML_Exp2,

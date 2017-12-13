@@ -39,42 +39,25 @@ sollya.showmessagenumbers = sollya.on
 #  approximation scheme
 class ML_SinCos(ML_Function("ml_cos")):
   """ Implementation of cosinus function """
-  def __init__(self,
-             arg_template = DefaultArgTemplate,
-               precision = ML_Binary32,
-               accuracy  = ML_CorrectlyRounded,
-               libm_compliant = True,
-               debug_flag = False,
-               fuse_fma = True,
-               fast_path_extract = True,
-               target = GenericProcessor(),
-               output_file = "ml_sincos.c",
-               function_name = "ml_sincos",
-               sin_output = True):
-    # initializing I/O precision
-    precision = ArgDefault.select_value([arg_template.precision, precision])
-    io_precisions = [precision] * 2
-
+  def __init__(self, args=DefaultArgTemplate):
     # initializing base class
-    ML_FunctionBasis.__init__(self,
-      base_name = "sincos",
-      function_name = function_name,
-      output_file = output_file,
+    ML_FunctionBasis.__init__(self, args)
+    self.sin_output = args.sin_output
 
-      io_precisions = io_precisions,
-      abs_accuracy = None,
-      libm_compliant = libm_compliant,
-
-      processor = target,
-      fuse_fma = fuse_fma,
-      fast_path_extract = fast_path_extract,
-
-      debug_flag = debug_flag,
-      arg_template = arg_template
-    )
-    self.precision = precision
-    self.sin_output = sin_output
-
+  @staticmethod
+  def get_default_args(**kw):
+    """ Return a structure containing the arguments for ML_SinCos,
+        builtin from a default argument mapping overloaded with @p kw """
+    default_args_sincos = {
+        "output_file": "my_sincos.c",
+        "function_name": "my_sincos",
+        "precision": ML_Binary32,
+        "accuracy": ML_Faithful,
+        "target": GenericProcessor(),
+        "sin_output": False
+    }
+    default_args_sincos.update(kw)
+    return DefaultArgTemplate(**default_args_sincos)
 
 
   def generate_emulate(self, result_ternary, result, mpfr_x, mpfr_rnd):
@@ -364,9 +347,12 @@ class ML_SinCos(ML_Function("ml_cos")):
 
 if __name__ == "__main__":
   # auto-test
-  arg_template = ML_NewArgTemplate(default_function_name = "new_sincos", default_output_file = "new_sincos.c" )
+  arg_template = ML_NewArgTemplate(default_arg=ML_SinCos.get_default_args())
   # argument extraction
-  arg_template.get_parser().add_argument("--sin", dest = "sin_output", default = False, const = True, action = "store_const", help = "select sine output (default is cosine)")
+  arg_template.get_parser().add_argument(
+    "--sin", dest="sin_output", default=False, const=True,
+    action="store_const", help="select sine output (default is cosine)")
+
   args = arg_template.arg_extraction()
-  ml_sincos = ML_SinCos(args, sin_output = args.sin_output)
+  ml_sincos = ML_SinCos(args)
   ml_sincos.gen_implementation()

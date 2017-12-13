@@ -110,49 +110,26 @@ def compute_sqrt(vx, init_approx, num_iter, debug_lftolx = None, precision = ML_
 
 
 class ML_Sqrt(ML_Function("ml_sqrt")):
-  def __init__(self,
-             arg_template = DefaultArgTemplate,
-             precision = ML_Binary32,
-             accuracy  = ML_CorrectlyRounded,
-             libm_compliant = True,
-             debug_flag = False,
-             fuse_fma = True,
-             fast_path_extract = True,
-             target = GenericProcessor(),
-             output_file = "my_sqrt.c",
-             function_name = "my_sqrt",
-             language = C_Code,
-             vector_size = 1,
-             num_iter = 1):
-
-    # initializing I/O precision
-    precision = ArgDefault.select_value([arg_template.precision, precision])
-    num_iter  = ArgDefault.select_value([arg_template.num_iter, num_iter])
-    io_precisions = [precision] * 2
-
+  def __init__(self, args=DefaultArgTemplate):
     # initializing base class
-    ML_FunctionBasis.__init__(self,
-      base_name = "sqrt",
-      function_name = function_name,
-      output_file = output_file,
+    ML_FunctionBasis.__init__(self, args)
+    self.accuracy  = args.accuracy
+    self.num_iter = args.num_iter
 
-      io_precisions = io_precisions,
-      abs_accuracy = None,
-      libm_compliant = libm_compliant,
 
-      processor = target,
-      fuse_fma = fuse_fma,
-      fast_path_extract = fast_path_extract,
-
-      debug_flag = debug_flag,
-      language = language,
-      vector_size = vector_size,
-      arg_template = arg_template
-    )
-
-    self.accuracy  = accuracy
-    self.precision = precision
-    self.num_iter = num_iter
+  @staticmethod
+  def get_default_args(**kw):
+    """ Return a structure containing the arguments for ML_Sqrt,
+        builtin from a default argument mapping overloaded with @p kw """
+    default_args_sqrt = {
+        "output_file": "my_sqrtf.c",
+        "function_name": "my_sqrtf",
+        "precision": ML_Binary32,
+        "accuracy": ML_Faithful,
+        "target": GenericProcessor()
+    }
+    default_args_sqrt.update(kw)
+    return DefaultArgTemplate(**default_args_sqrt)
 
   def generate_scheme(self):
     # declaring target and instantiating optimization engine

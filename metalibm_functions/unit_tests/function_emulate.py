@@ -31,40 +31,26 @@ from metalibm_core.utility.arg_utils import test_flag_option, extract_option_val
 from metalibm_core.utility.debug_utils import * 
 
 class ML_UT_FunctionFormat(ML_Function("ml_ut_function_format")):
-  def __init__(self, 
-                 arg_template,
-                 precision = ML_Binary32, 
-                 abs_accuracy = S2**-24, 
-                 libm_compliant = True, 
-                 debug_flag = False, 
-                 fuse_fma = True, 
-                 fast_path_extract = True,
-                 target = MPFRProcessor(), 
-                 output_file = "ut_function_format.c", 
-                 function_name = "ut_function_format"):
-    # precision argument extraction
-    precision = ArgDefault.select_value([arg_template.precision, precision])
-    io_precisions = [precision] * 2
+  def __init__(self, args=DefaultArgTemplate):
+    ML_FunctionBasis.__init__(self, args)
 
-    # initializing base class
-    ML_FunctionBasis.__init__(self, 
-      base_name = "log10",
-      function_name = function_name,
-      output_file = output_file,
 
-      io_precisions = io_precisions,
-      abs_accuracy = None,
-      libm_compliant = libm_compliant,
-
-      processor = target,
-      fuse_fma = fuse_fma,
-      fast_path_extract = fast_path_extract,
-
-      debug_flag = debug_flag,
-      arg_template = arg_template
-    )
-
-    self.precision = precision
+  @staticmethod
+  def get_default_args(**kw):
+    """ Return a structure containing the arguments for current class,
+        builtin from a default argument mapping overloaded with @p kw """
+    default_args = {
+        "output_file": "ut_function_emulate.c",
+        "function_name": "ut_function_emulate",
+        "precision": ML_Binary32,
+        "libm_compliant": True,
+        "debug_flag": False,
+        "fuse_fma": True,
+        "fast_path_extract": True,
+        "target": MPFRProcessor(),
+    }
+    default_args.update(kw)
+    return DefaultArgTemplate(**default_args)
 
 
   def generate_scheme(self):
@@ -91,7 +77,7 @@ def run_test(args):
 
 if __name__ == "__main__":
   # auto-test
-  arg_template = ML_NewArgTemplate("new_ut_function_format", default_output_file = "new_ut_function_format.c" )
+  arg_template = ML_NewArgTemplate(default_args=ML_UT_FunctionFormat.get_default_args())
   args = arg_template.arg_extraction()
 
   if run_test(args):

@@ -138,7 +138,7 @@ unit_test_list = [
   UnitTestScheme(
     "multi ary function",
     ut_multi_ary_function,
-    [{"input_formats": [ML_Int32, ML_Int32, ML_Int32], "precision": ML_Int32, "bench_execute": 100, "target": target_instanciate("x86")}],
+    [{"input_precisions": [ML_Int32, ML_Int32, ML_Int32], "precision": ML_Int32, "bench_execute": 100, "target": target_instanciate("x86")}],
   ),
   UnitTestScheme(
     "entity pass scheduling",

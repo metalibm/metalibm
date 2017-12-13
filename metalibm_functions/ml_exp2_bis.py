@@ -27,45 +27,27 @@ from metalibm_core.utility.gappa_utils import is_gappa_installed
 
 
 class ML_Exp2(ML_Function("ml_exp2")):
-  def __init__(self,
-             arg_template = DefaultArgTemplate,
-             precision = ML_Binary32,
-             accuracy  = ML_Faithful,
-             libm_compliant = True,
-             debug_flag = False,
-             fuse_fma = True,
-             fast_path_extract = True,
-             target = GenericProcessor(),
-             output_file = "my_exp2.c",
-             function_name = "my_exp2",
-             language = C_Code,
-             vector_size = 1):
-    # initializing I/O precision
-    precision = ArgDefault.select_value([arg_template.precision, precision])
-    io_precisions = [precision] * 2
-
+  def __init__(self, args=DefaultArgTemplate):
     # initializing base class
     ML_FunctionBasis.__init__(self,
-      base_name = "exp2",
-      function_name = function_name,
-      output_file = output_file,
-
-      io_precisions = io_precisions,
-      abs_accuracy = None,
-      libm_compliant = libm_compliant,
-
-      processor = target,
-      fuse_fma = fuse_fma,
-      fast_path_extract = fast_path_extract,
-
-      debug_flag = debug_flag,
-      language = language,
-      vector_size = vector_size,
-      arg_template = arg_template
+      args
     )
+    self.accuracy  = args.accuracy
 
-    self.accuracy  = accuracy
-    self.precision = precision
+
+  @staticmethod
+  def get_default_args(**kw):
+    """ Return a structure containing the arguments for ML_Exponential,
+        builtin from a default argument mapping overloaded with @p kw """
+    default_args_exp2 = {
+        "output_file": "my_exp2.c",
+        "function_name": "exp2f",
+        "precision": ML_Binary32,
+        "accuracy": ML_Faithful,
+        "target": GenericProcessor()
+    }
+    default_args_exp2.update(kw)
+    return DefaultArgTemplate(**default_args_exp2)
 
   def generate_scheme(self):
     # declaring target and instantiating optimization engine
@@ -192,7 +174,7 @@ class ML_Exp2(ML_Function("ml_exp2")):
 
 if __name__ == "__main__":
     # auto-test
-    arg_template = ML_NewArgTemplate(default_function_name = "new_exp2", default_output_file = "new_exp2.c" )
+    arg_template = ML_NewArgTemplate(default_arg=ML_Exp2.get_default_args())
     # argument extraction
     args = parse_arg_index_list = arg_template.arg_extraction()
 

@@ -27,47 +27,28 @@ from metalibm_core.code_generation.gappa_code_generator import GappaCodeGenerato
 from metalibm_core.utility.gappa_utils import execute_gappa_script_extract
 from metalibm_core.utility.ml_template import *
 
-from metalibm_core.utility.arg_utils import test_flag_option, extract_option_value  
+from metalibm_core.utility.arg_utils import test_flag_option, extract_option_value
 
-from metalibm_core.utility.debug_utils import * 
 
 class ML_UT_NewArgTemplate(ML_Function("ml_ut_new_arg_template")):
-  def __init__(self, 
-                 arg_template,
-                 precision = ML_Binary32, 
-                 abs_accuracy = S2**-24, 
-                 libm_compliant = True, 
-                 debug_flag = False, 
-                 fuse_fma = True, 
-                 fast_path_extract = True,
-                 target = MPFRProcessor(), 
-                 output_file = "ut_new_arg_template.c", 
-                 function_name = "ut_new_arg_template",
-                 auto_test = False):
-    # extracting precision argument from command line
-    precision = ArgDefault.select_value([arg_template.precision, precision])
-    io_precisions = [precision] * 2
-
+  def __init__(self, args=DefaultArgTemplate):
     # initializing base class
-    ML_FunctionBasis.__init__(self, 
-      base_name = "ut_new_arg_template",
-      function_name = function_name,
-      output_file = output_file,
+    ML_FunctionBasis.__init__(self, args)
 
-      io_precisions = io_precisions,
-      abs_accuracy = None,
-      libm_compliant = libm_compliant,
 
-      processor = target,
-      fuse_fma = fuse_fma,
-      fast_path_extract = fast_path_extract,
-
-      arg_template = arg_template,
-
-      debug_flag = debug_flag
-    )
-
-    self.precision = precision
+  @staticmethod
+  def get_default_args(**kw):
+    """ Return a structure containing the arguments for current class,
+        builtin from a default argument mapping overloaded with @p kw """
+    default_args = {
+        "output_file": "ut_new_arg_template.c",
+        "function_name": "ut_new_arg_template",
+        "precision": ML_Binary32,
+        "accuracy": ML_Faithful,
+        "target": MPFRProcessor()
+    }
+    default_args.update(kw)
+    return DefaultArgTemplate(**default_args)
 
   def numeric_emulate(self, input_value):
     return input_value + input_value * input_value
@@ -85,10 +66,10 @@ def run_test(args):
   ml_ut_new_arg_template = ML_UT_NewArgTemplate(args)
   ml_ut_new_arg_template.gen_implementation(display_after_gen = True, display_after_opt = True)
   return True
-  
+
 
 if __name__ == "__main__":
-  arg_template = ML_NewArgTemplate("new_ut_new_arg_template")
+  arg_template = ML_NewArgTemplate(default_args=ML_UT_NewArgTemplate.get_default_args())
   args = arg_template.arg_extraction()
 
   if run_test(args):

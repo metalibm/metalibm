@@ -26,17 +26,24 @@ from metalibm_core.utility.ml_template import *
 from metalibm_core.utility.debug_utils import *
 
 class ML_Log(ML_Function("ml_log")):
-  def __init__(self,
-               arg_template=DefaultArgTemplate,
-               output_file="ml_log.c",
-               function_name="ml_log"):
+  def __init__(self, args=DefaultArgTemplate):
     # initializing base class
-    ML_FunctionBasis.__init__(self,
-            base_name = "log",
-            function_name = function_name,
-            output_file = output_file,
-            arg_template = arg_template)
+    ML_FunctionBasis.__init__(self, args)
 
+
+  @staticmethod
+  def get_default_args(**kw):
+    """ Return a structure containing the arguments for ML_Log,
+        builtin from a default argument mapping overloaded with @p kw """
+    default_args_log = {
+        "output_file": "LOG.c",
+        "function_name": "LOG",
+        "precision": ML_Binary32,
+        "accuracy": ML_Faithful,
+        "target": GenericProcessor()
+    }
+    default_args_log.update(kw)
+    return DefaultArgTemplate(**default_args_log)
 
   def generate_scheme(self):
     """Produce an abstract scheme for the logarithm.
@@ -193,8 +200,7 @@ class ML_Log(ML_Function("ml_log")):
 if __name__ == "__main__":
   # auto-test
   arg_template = ML_NewArgTemplate(
-          default_function_name = "LOG",
-          default_output_file = "LOG.c" )
+          default_arg=ML_Log.get_default_args())
   args = arg_template.arg_extraction()
 
   ml_log = ML_Log(args)

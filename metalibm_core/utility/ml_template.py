@@ -235,17 +235,19 @@ class ArgDefault(object):
 
 class DefaultArgTemplate:
     base_name = "unknown_function"
-    function_name = None
-    output_file = None
+    function_name = "undef_function"
+    output_file = "undef.c"
     # metalim engine settings
     display_after_opt = False
     display_after_gen = False
     verbose_enable = False
+    # 
+    arity = 1
     # output/intermediate format Specification
     precision = ML_Binary32
+    input_precisions = None
     # list of input precisions
     # None <=> [self.precision] * self.get_arity()
-    input_precisions = None
     abs_accuracy = None
     accuracy = ML_Faithful
     libm_compliant = True
@@ -257,6 +259,7 @@ class DefaultArgTemplate:
     dot_product_enabled = False
     # Debug verbosity
     debug = False
+    # Vector related parameters
     vector_size = 1
     sub_vector_size = None
     language = C_Code
@@ -346,8 +349,14 @@ class ML_CommonArgTemplate(object):
             help="disable FMA-like operation fusion")
         self.parser.add_argument(
             "--output", action="store", dest="output_file",
-            default=self.default_output_file,
+            default=default_arg.output_file,
             help="set output file")
+
+        self.parser.add_argument(
+            "--arity", dest="arity",
+            action="store", 
+            default=default_arg.arity,
+            help="function arity (number of inputs)")
 
         self.parser.add_argument(
             "--precision", dest="precision", type=precision_parser,
@@ -444,7 +453,7 @@ class ML_CommonArgTemplate(object):
             help="enable the generation of a performance bench")
         self.parser.add_argument(
             "--bench-execute", dest="bench_execute", action="store",
-            nargs='?', const=1000, type=int, default=ArgDefault(False),
+            nargs='?', const=1000, type=int, default=default_arg.bench_execute,
             help="enable the generation and execution of a performance bench")
         self.parser.add_argument(
             "--bench-range", dest="bench_test_range", action="store",
@@ -562,16 +571,15 @@ class ML_EntityArgTemplate(ML_CommonArgTemplate):
 # new argument template based on argparse module
 class ML_NewArgTemplate(ML_CommonArgTemplate):
     def __init__(
-            self, default_function_name,
-            default_output_file="ml_func_gen.c",
+            self, #default_function_name,
             default_arg=DefaultArgTemplate
         ):
-        self.default_output_file = default_output_file
-        self.default_function_name = default_function_name
+        #self.default_output_file = default_output_file
+        #self.default_function_name = default_function_name
 
         parser = argparse.ArgumentParser(
-            " Metalibm %s function generation script" % \
-            self.default_function_name)
+            " Metalibm {} function generation script".format(
+            default_arg.function_name))
         ML_CommonArgTemplate.__init__(self, parser, default_arg=default_arg)
         self.parser.add_argument(
             "--libm", dest="libm_compliant", action="store_const",
@@ -579,8 +587,8 @@ class ML_NewArgTemplate(ML_CommonArgTemplate):
             help="generate libm compliante code"
         )
         self.parser.add_argument(
-            "--fname", dest="function_name", default=ArgDefault(
-            self.default_function_name), help="set function name"
+            "--fname", dest="function_name", 
+            default=default_arg.function_name, help="set function name"
         )
         self.parser.add_argument("--target", dest="target", action="store",
             type=target_instanciate, default="none",

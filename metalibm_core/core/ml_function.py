@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+
 
 ###############################################################################
 # This file is part of Kalray's Metalibm tool
@@ -27,14 +27,14 @@ from metalibm_core.code_generation.generic_processor import GenericProcessor
 from metalibm_core.code_generation.mpfr_backend import MPFRProcessor
 from metalibm_core.code_generation.c_code_generator import CCodeGenerator
 from metalibm_core.code_generation.code_constant import C_Code
-from metalibm_core.code_generation.generator_utility import *
+#from metalibm_core.code_generation.generator_utility import *
 from metalibm_core.core.passes import Pass
 
 from metalibm_core.code_generation.gappa_code_generator import GappaCodeGenerator
 
 from metalibm_core.utility.log_report import Log
 from metalibm_core.utility.debug_utils import *
-from metalibm_core.utility.ml_template import ArgDefault, DefaultArgTemplate
+from metalibm_core.utility.ml_template import DefaultArgTemplate
 
 import random
 import subprocess
@@ -76,155 +76,86 @@ class ML_FunctionBasis(object):
   name = "function_basis"
 
   ## constructor
-  #  @param base_name string function name (without precision considerations)
-  #  @param function_name
-  #  @param output_file string name of source code output file
-  #  @param io_precisions input/output ML_Format list
-  #  @param abs_accuracy absolute accuracy
-  #  @param libm_compliant boolean flag indicating whether or not the
-  #         function should be compliant with standard libm specification
-  #         (wrt exception, error ...)
-  #  @param processor GenericProcessor instance, target of the implementation
-  #  @param fuse_fma boolean flag indicating whether or not fusing
-  #         Multiply+Add optimization must be applied
-  #  @param fast_path_extract boolean flag indicating whether or not fast
-  #         path extraction optimization must be applied
-  #  @param debug_flag boolean flag, indicating whether or not debug code
-  #         must be generated
-  def __init__(self,
-             # Naming
-             base_name = ArgDefault("unknown_function", 2),
-             function_name= ArgDefault(None, 2),
-             output_file = ArgDefault(None, 2),
-             # Specification
-             abs_accuracy = ArgDefault(None, 2),
-             libm_compliant = ArgDefault(True, 2),
-             # Optimization parameters
-             processor = ArgDefault(GenericProcessor(), 2),
-             fuse_fma = ArgDefault(False, 2), 
-             fast_path_extract = ArgDefault(True, 2),
-             # Debug verbosity
-             debug_flag = ArgDefault(False, 2),
-             vector_size = ArgDefault(1, 2),
-             sub_vector_size = ArgDefault(None, 2),
-             language = ArgDefault(C_Code, 2),
-             auto_test = ArgDefault(False, 2),
-             auto_test_range = ArgDefault(Interval(-1, 1), 2),
-             auto_test_std = ArgDefault(False, 2),
-             #bench_enabled = ArgDefault(False, 2),
-             bench_execute   = ArgDefault(False, 2),
-             bench_test_number = ArgDefault(0, 2),
-             bench_test_range  = ArgDefault(Interval(0, 1), 2),
-
-             arity = 1,
-             
-             arg_template = DefaultArgTemplate,
-             # deprecated
-             io_precisions = None,
-         ):
+  #   @param all arguments are transmittaed throughs @p arguments object which 
+  #          should inherit from DefaultArgTemplate
+  def __init__(self, args=DefaultArgTemplate):
     # selecting argument values among defaults
-    base_name = ArgDefault.select_value([base_name])
-    function_name = ArgDefault.select_value([arg_template.function_name, function_name])
-    Log.report(Log.Info, "function_name: {}".format(function_name))
-    Log.report(Log.Info, "output_file: {} {}".format(arg_template.output_file, output_file))
-    output_file = ArgDefault.select_value([arg_template.output_file, output_file])
-    # Specification
-    input_precisions = arg_template.input_precisions
-    precision = arg_template.precision
-    abs_accuracy = ArgDefault.select_value([abs_accuracy])
-    libm_compliant = ArgDefault.select_value([arg_template.libm_compliant, libm_compliant])
-    accuracy = ArgDefault.select_value([arg_template.accuracy])
-
-    # Optimization parameters
-    processor = ArgDefault.select_value([arg_template.target, processor])
-    fuse_fma = ArgDefault.select_value([arg_template.fuse_fma, fuse_fma])
-    fast_path_extract = ArgDefault.select_value([arg_template.fast_path_extract, fast_path_extract])
-    # Debug verbosity
-    debug_flag    = ArgDefault.select_value([arg_template.debug, debug_flag])
-    vector_size   = ArgDefault.select_value([arg_template.vector_size, vector_size])
-    sub_vector_size = ArgDefault.select_value([arg_template.sub_vector_size, sub_vector_size])
-    language      = ArgDefault.select_value([arg_template.language, language])
-    auto_test     = ArgDefault.select_value([arg_template.auto_test or arg_template.auto_test_execute, auto_test])
-    auto_test_std = ArgDefault.select_value([arg_template.auto_test_std, auto_test_std])
-    #bench_enabled = ArgDefault.select_value([arg_template.bench_enabled, bench_enabled])
-    bench_execute = ArgDefault.select_value([arg_template.bench_execute, bench_execute])
-    bench_test_range = ArgDefault.select_value([arg_template.bench_test_range, bench_test_range])
-    bench_test_number = ArgDefault.select_value([arg_template.bench_test_number, bench_test_number])
-
-    self.display_after_opt = arg_template.display_after_opt
+    self.display_after_opt = args.display_after_opt
 
     # enable/disable check_processor_support pass run
-    self.check_processor_support = arg_template.check_processor_support
-    self.pre_gen_passes = arg_template.pre_gen_passes
+    self.check_processor_support = args.check_processor_support
+    self.pre_gen_passes = args.pre_gen_passes
 
-    self.arity = arity
-    self.precision = precision
+    self.arity = args.arity
+    self.precision = args.precision
     # io_precisions must be:
     #     -> a list
     # XOR -> None to select [se;f.precision] * self.get_arity()
-    self.input_precisions = [self.precision] * self.get_arity() if input_precisions is None else input_precisions
+    self.input_precisions = [self.precision] * self.get_arity() if args.input_precisions is None else args.input_precisions
 
     # enable the generation of numeric/functionnal auto-test
-    self.auto_test_enable = (auto_test != False or auto_test_std != False)
-    self.auto_test_number = auto_test
-    self.auto_test_execute = ArgDefault.select_value([arg_template.auto_test_execute])
-    self.auto_test_range = ArgDefault.select_value([arg_template.auto_test_range, auto_test_range])
-    self.auto_test_std   = auto_test_std 
+    self.auto_test_enable = (args.auto_test != False or args.auto_test_std != False or args.auto_test_execute != False)
+    self.auto_test_number = args.auto_test
+    self.auto_test_execute = args.auto_test_execute
+    self.auto_test_range = args.auto_test_range
+    self.auto_test_std   = args.auto_test_std 
 
     # enable the computation of maximal error during functional testing
-    self.compute_max_error = arg_template.compute_max_error
-    self.break_error = arg_template.break_error
+    self.compute_max_error = args.compute_max_error
+    self.break_error = args.break_error
 
     # enable and configure the generation of a performance bench
-    self.bench_enabled = bench_test_number or bench_execute
-    self.bench_execute = bench_execute != 0
-    self.bench_test_number = bench_test_number or bench_execute
-    self.bench_test_range = bench_test_range
+    self.bench_enabled = args.bench_test_number or args.bench_execute
+    self.bench_execute = args.bench_execute != 0
+    self.bench_test_number = args.bench_test_number or args.bench_execute
+    self.bench_test_range = args.bench_test_range
 
     # source building
-    self.build_enable = arg_template.build_enable
+    self.build_enable = args.build_enable
     # binary execution
-    self.execute_trigger = arg_template.execute_trigger
+    self.execute_trigger = args.execute_trigger
 
-    self.language = language
+    self.language = args.language
 
     Log.report(Log.Info, "auto test: {}, {}, {}, {}".format(self.auto_test_enable, self.auto_test_number, self.auto_test_execute, self.auto_test_range))
 
     # Naming logic, using provided information if available, otherwise deriving from base_name
     # base_name is e.g. exp
     # function_name is e.g. expf or expd or whatever 
-    self.function_name = function_name if function_name else libc_naming(base_name, [self.precision] + self.input_precisions)
+    self.function_name = args.function_name if args.function_name else libc_naming(args.base_name, [self.precision] + self.input_precisions)
 
-    self.output_file = output_file if output_file else self.function_name + ".c"
+    self.output_file = args.output_file if args.output_file else self.function_name + ".c"
 
-    self.debug_flag = debug_flag
+    self.debug_flag = args.debug
 
-    self.vector_size = vector_size
-    self.sub_vector_size = sub_vector_size
+    self.vector_size = args.vector_size
+    self.sub_vector_size = args.sub_vector_size
 
     # TODO: FIX which i/o precision to select
     # TODO: incompatible with fixed-point formats
     # self.sollya_precision = self.get_output_precision().get_sollya_object()
 
-    self.abs_accuracy = abs_accuracy if abs_accuracy else S2**(-self.get_output_precision().get_precision())
-    self.libm_compliant = libm_compliant
-    self.accuracy_obj = accuracy(self.get_output_precision())
+    # self.abs_accuracy = args.abs_accuracy if args.abs_accuracy else S2**(-self.get_output_precision().get_precision())
+    self.libm_compliant = args.libm_compliant
+    self.accuracy_obj = args.accuracy(self.get_output_precision())
     
-    self.processor = processor
+    self.processor = args.target
 
-    self.fuse_fma = fuse_fma
-    self.dot_product_enabled = arg_template.dot_product_enabled
-    self.fast_path_extract = fast_path_extract
+    self.fuse_fma = args.fuse_fma
+    self.dot_product_enabled = args.dot_product_enabled
+    self.fast_path_extract = args.fast_path_extract
 
-    self.implementation = CodeFunction(self.function_name, output_format = self.get_output_precision())
-    self.opt_engine = OptimizationEngine(self.processor, dot_product_enabled = self.dot_product_enabled)
-    self.gappa_engine = GappaCodeGenerator(self.processor, declare_cst = True, disable_debug = True)
-
-    self.C_code_generator = CCodeGenerator(self.processor, declare_cst = False, disable_debug = not self.debug_flag, libm_compliant = self.libm_compliant, language = self.language)
+    # instance of CodeFunction containing the function implementation
+    self.implementation = CodeFunction(self.function_name, output_format=self.get_output_precision())
+    # instance of OptimizationEngine
+    self.opt_engine = OptimizationEngine(self.processor, dot_product_enabled=self.dot_product_enabled)
+    # instance of GappaCodeGenerator to perform inline proofs
+    self.gappa_engine = GappaCodeGenerator(self.processor, declare_cst=True, disable_debug=True)
+    # instance of Code Generation to generate source code
+    self.C_code_generator = CCodeGenerator(self.processor, declare_cst=False, disable_debug=not self.debug_flag, libm_compliant=self.libm_compliant, language=self.language)
     uniquifier = self.function_name
-    self.main_code_object = NestedCode(self.C_code_generator, static_cst = True, uniquifier = "{0}_".format(self.function_name))
-
-    self.call_externalizer = CallExternalizer(self.main_code_object)
+    # main code object
+    self.main_code_object = NestedCode(self.C_code_generator, static_cst=True, uniquifier="{0}_".format(self.function_name))
 
   def get_accuracy(self):
     return self.accuracy_obj
@@ -235,7 +166,8 @@ class ML_FunctionBasis(object):
   ## generate a default argument template
   #  may be overloaded by sub-class to provide
   #  a meta-function specific default argument structure
-  def get_default_args(self, **args):
+  @staticmethod
+  def get_default_args(**args):
     return DefaultArgTemplate(**args)
 
   ## Return function's arity (number of input arguments)
@@ -392,9 +324,18 @@ class ML_FunctionBasis(object):
     output_stream.write(self.result.get(self.C_code_generator))
     output_stream.close()
 
-  def gen_implementation(self, display_after_gen = False,
-                         display_after_opt = False,
-                         enable_subexpr_sharing = True):
+  def gen_implementation(self, display_after_gen=False,
+                         display_after_opt=False,
+                         enable_subexpr_sharing=True):
+    """ generate implementation 
+
+        Args:
+            display_after_gen enable (bool): I.R dump after generation
+            display_after_opt enable (bool): I.R dump after optimization
+            enable_subexpr_sharing (bool): I.R enable sub-expression sharing
+               optimization 
+
+        """
     # generate scheme
     code_function_list = self.generate_function_list()
     if self.get_vector_size() != 1:
@@ -539,7 +480,9 @@ class ML_FunctionBasis(object):
   # @param arg_list list of ML_Operation objects to be used as arguments
   # @return pair ML_Operation, CodeFunction
   def externalize_call(self, optree, arg_list, tag = "foo", result_format = None, name_factory = None):
-    ext_function = self.call_externalizer.externalize_call(optree, arg_list, tag, result_format)
+    # Call externalizer engine
+    call_externalizer = CallExternalizer(self.get_main_code_object())
+    ext_function = call_externalizer.externalize_call(optree, arg_list, tag, result_format)
     return ext_function.get_function_object()(*arg_list), ext_function
 
 
@@ -586,6 +529,11 @@ class ML_FunctionBasis(object):
   ## Generate a C-compatible wrapper for a vectorized scheme 
   #  @p vector_scheme by testing vector mask element and branching
   #  to scalar callback when necessary
+  #
+  #  @param vector_size number of element in a vector
+  #  @param vector_arg_list
+  #  @param vector_scheme
+  #  @param vector_mask
   def generate_c_vector_wrapper(self, vector_size, vec_arg_list, vector_scheme, vector_mask, vec_res, scalar_callback):
 
     vi = Variable("i", precision = ML_Int32, var_type = Variable.Local)
@@ -647,7 +595,9 @@ class ML_FunctionBasis(object):
 
     callback_name = self.uniquify_name("scalar_callback")
 
-    scalar_callback_function = self.call_externalizer.externalize_call(scalar_scheme, scalar_arg_list, callback_name, self.precision)
+    # Call externalizer engine
+    call_externalizer = CallExternalizer(self.get_main_code_object())
+    scalar_callback_function = call_externalizer.externalize_call(scalar_scheme, scalar_arg_list, callback_name, self.precision)
 
     print "[SV] optimizing Scalar scheme"
     scalar_scheme = self.optimise_scheme(scalar_scheme)
@@ -657,7 +607,7 @@ class ML_FunctionBasis(object):
     print "[SV] vectorizing scheme"
     vec_arg_list, vector_scheme, vector_mask = \
         self.vectorizer.vectorize_scheme(scalar_scheme, scalar_arg_list,
-                                         vector_size, self.call_externalizer,
+                                         vector_size, call_externalizer,
                                          self.get_output_precision(), self.sub_vector_size)
 
     vector_output_format = self.vectorizer.vectorize_format(self.precision,
@@ -733,6 +683,7 @@ class ML_FunctionBasis(object):
     low_input = inf(test_range)
     high_input = sup(test_range)
     auto_test = CodeFunction("main", output_format = ML_Int32)
+
 
     tested_function    = self.implementation.get_function_object()
     function_name      = self.implementation.get_name()
@@ -979,6 +930,7 @@ class ML_FunctionBasis(object):
     assignation_statement = Statement()
     vi = Variable("i", precision = ML_Int32, var_type = Variable.Local)
     test_num_cst = Constant(test_num, precision = ML_Int32, tag = "test_num")
+
 
     local_inputs  = tuple(TableLoad(input_tables[in_id], vi) for in_id in xrange(self.get_arity()))
     local_result = tested_function(*local_inputs)
@@ -1237,9 +1189,9 @@ class ML_FunctionBasis(object):
     )
     return test_loop
 
-  @staticmethod
+  #@staticmethod
   def get_name():
-    return ML_FunctionBasis.function_name
+    return self.function_name
 
   # list of input to be used for standard test validation
   standard_test_cases = []
@@ -1249,7 +1201,7 @@ class ML_FunctionBasis(object):
 #  child class with specific function_name value
 def ML_Function(name):
   new_class = type(name, (ML_FunctionBasis,), {"function_name": name})
-  new_class.get_name = staticmethod(lambda: name) 
+  new_class.get_name = staticmethod(lambda: name)
   return new_class
 
 # end of Doxygen's ml_function group

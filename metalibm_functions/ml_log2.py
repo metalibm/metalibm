@@ -29,30 +29,24 @@ from metalibm_core.utility.ml_template import *
 from metalibm_core.utility.debug_utils import * 
 
 class ML_Log2(ML_Function("ml_log2")):
-  def __init__(self, 
-                 arg_template = DefaultArgTemplate,
-                 precision = ML_Binary32, 
-                 abs_accuracy = S2**-24, 
-                 target = GenericProcessor(), 
-                 output_file = "new_log2f.c", 
-                 function_name = "new_log2f"):
-    # extracting precision argument from command line
-    precision = ArgDefault.select_value([arg_template.precision, precision])
-    io_precisions = [precision] * 2
-
+  def __init__(self, args=DefaultArgTemplate):
     # initializing base class
-    ML_FunctionBasis.__init__(self, 
-      base_name = "new_log2",
+    ML_FunctionBasis.__init__(self, args)
 
-      io_precisions = io_precisions,
-      abs_accuracy = None,
 
-      processor = target,
-
-      arg_template = arg_template
-    )
-
-    self.precision = precision
+  @staticmethod
+  def get_default_args(**kw):
+    """ Return a structure containing the arguments for ML_Log2,
+        builtin from a default argument mapping overloaded with @p kw """
+    default_args_log2 = {
+        "output_file": "my_log2f.c",
+        "function_name": "my_log2f",
+        "precision": ML_Binary32,
+        "accuracy": ML_Faithful,
+        "target": GenericProcessor()
+    }
+    default_args_log2.update(kw)
+    return DefaultArgTemplate(**default_args_log2)
 
 
   def generate_emulate(self, result, mpfr_x, mpfr_rnd):
@@ -346,7 +340,7 @@ class ML_Log2(ML_Function("ml_log2")):
 
 if __name__ == "__main__":
   # auto-test
-  arg_template = ML_NewArgTemplate(default_function_name="new_log2", default_output_file="new_log2.c" )
+  arg_template = ML_NewArgTemplate(default_arg=ML_Log2.get_default_args())
   args = arg_template.arg_extraction()
 
   ml_log2          = ML_Log2(args)

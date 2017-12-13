@@ -28,45 +28,25 @@ from metalibm_core.utility.gappa_utils import is_gappa_installed
 
 
 class ML_HyperbolicCosine(ML_Function("ml_cosh")):
-  def __init__(self, 
-             arg_template = DefaultArgTemplate, 
-             precision = ML_Binary32, 
-             accuracy  = ML_Faithful,
-             libm_compliant = True, 
-             debug_flag = False, 
-             fuse_fma = True, 
-             fast_path_extract = True,
-             target = GenericProcessor(), 
-             output_file = "my_cosh.c", 
-             function_name = "my_cosh",
-             language = C_Code,
-             vector_size = 1):
-    # initializing I/O precision
-    precision = ArgDefault.select_value([arg_template.precision, precision])
-    io_precisions = [precision] * 2
-
+  def __init__(self, args=DefaultArgTemplate): 
     # initializing base class
-    ML_FunctionBasis.__init__(self, 
-      base_name = "cosh",
-      function_name = function_name,
-      output_file = output_file,
+    ML_FunctionBasis.__init__(self, args=args) 
 
-      io_precisions = io_precisions,
-      abs_accuracy = None,
-      libm_compliant = libm_compliant,
-
-      processor = target,
-      fuse_fma = fuse_fma,
-      fast_path_extract = fast_path_extract,
-
-      debug_flag = debug_flag,
-      language = language,
-      vector_size = vector_size,
-      arg_template = arg_template
-    )
-
-    self.accuracy  = accuracy
-    self.precision = precision
+  @staticmethod
+  def get_default_args(**args):
+    """ Generate a default argument structure set specifically for
+        the Hyperbolic Cosine """
+    default_cosh_args = {
+        "precision": ML_Binary32,
+        "accuracy": ML_Faithful,
+        "target": GenericProcessor(),
+        "output_file": "my_cosh.c",
+        "function_name": "my_cosh",
+        "language": C_Code,
+        "vector_size": 1
+    }
+    default_cosh_args.update(args)
+    return DefaultArgTemplate(**default_cosh_args)
 
   def generate_scheme(self):
     # declaring target and instantiating optimization engine
@@ -258,7 +238,9 @@ class ML_HyperbolicCosine(ML_Function("ml_cosh")):
 
 if __name__ == "__main__":
     # auto-test
-    arg_template = ML_NewArgTemplate(default_function_name = "new_cosh", default_output_file = "new_cosh.c" )
+    arg_template = ML_NewArgTemplate(
+        default_arg=ML_HyperbolicCosine.get_default_args()
+    )
     # argument extraction 
     args = parse_arg_index_list = arg_template.arg_extraction()
 

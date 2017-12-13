@@ -28,47 +28,28 @@ from metalibm_core.utility.ml_template import *
 
 from metalibm_core.utility.arg_utils import test_flag_option, extract_option_value  
 
-from metalibm_core.utility.debug_utils import * 
-
-
-
 
 class ML_UT_VectorCode(ML_Function("ml_ut_vector_code")):
-  def __init__(self, 
-                 arg_template,
-                 precision = ML_Binary32, 
-                 abs_accuracy = S2**-24, 
-                 libm_compliant = True, 
-                 debug_flag = False, 
-                 fuse_fma = True, 
-                 fast_path_extract = True,
-                 target = FixedPointBackend(), 
-                 output_file = "ut_vector_code.c", 
-                 function_name = "ut_vector_code"):
-    # precision argument extraction
-    precision = ArgDefault.select_value([arg_template.precision, precision])
-    io_precisions = [precision] * 2
-
+  def __init__(self, args=DefaultArgTemplate): 
     # initializing base class
-    ML_FunctionBasis.__init__(self, 
-      base_name = "ut_vector_code",
-      function_name = function_name,
-      output_file = output_file,
+    ML_FunctionBasis.__init__(self, args) 
 
-      io_precisions = io_precisions,
-      abs_accuracy = None,
-      libm_compliant = libm_compliant,
 
-      processor = target,
-      fuse_fma = fuse_fma,
-      fast_path_extract = fast_path_extract,
-
-      debug_flag = debug_flag,
-      arg_template = arg_template
-    )
-
-    self.precision = precision
-
+  @staticmethod
+  def get_default_args(**kw):
+    """ Return a structure containing the arguments for current class,
+        builtin from a default argument mapping overloaded with @p kw """
+    default_args = {
+        "output_file": "ut_vector_code.c",
+        "function_name": "ut_vector_code",
+        "precision": ML_Binary32,
+        "target": FixedPointBackend(),
+        "fast_path_extract": True,
+        "fuse_fma": True,
+        "libm_compliant": True
+    }
+    default_args.update(kw)
+    return DefaultArgTemplate(**default_args)
 
   def generate_function_list(self):
     # declaring function input variable
@@ -104,7 +85,7 @@ def run_test(args):
 
 if __name__ == "__main__":
   # auto-test
-  arg_template = ML_NewArgTemplate("new_ut_vector_code", default_output_file = "new_ut_vector_code.c" )
+  arg_template = ML_NewArgTemplate(default_args=ML_UT_VectorCode.get_default_args())
   args = arg_template.arg_extraction()
 
 
