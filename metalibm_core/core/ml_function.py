@@ -324,9 +324,18 @@ class ML_FunctionBasis(object):
     output_stream.write(self.result.get(self.C_code_generator))
     output_stream.close()
 
-  def gen_implementation(self, display_after_gen = False,
-                         display_after_opt = False,
-                         enable_subexpr_sharing = True):
+  def gen_implementation(self, display_after_gen=False,
+                         display_after_opt=False,
+                         enable_subexpr_sharing=True):
+    """ generate implementation 
+
+        Args:
+            display_after_gen enable (bool): I.R dump after generation
+            display_after_opt enable (bool): I.R dump after optimization
+            enable_subexpr_sharing (bool): I.R enable sub-expression sharing
+               optimization 
+
+        """
     # generate scheme
     code_function_list = self.generate_function_list()
     if self.get_vector_size() != 1:
@@ -471,7 +480,9 @@ class ML_FunctionBasis(object):
   # @param arg_list list of ML_Operation objects to be used as arguments
   # @return pair ML_Operation, CodeFunction
   def externalize_call(self, optree, arg_list, tag = "foo", result_format = None, name_factory = None):
-    ext_function = self.call_externalizer.externalize_call(optree, arg_list, tag, result_format)
+    # Call externalizer engine
+    call_externalizer = CallExternalizer(self.get_main_code_object())
+    ext_function = call_externalizer.externalize_call(optree, arg_list, tag, result_format)
     return ext_function.get_function_object()(*arg_list), ext_function
 
 
@@ -518,6 +529,11 @@ class ML_FunctionBasis(object):
   ## Generate a C-compatible wrapper for a vectorized scheme 
   #  @p vector_scheme by testing vector mask element and branching
   #  to scalar callback when necessary
+  #
+  #  @param vector_size number of element in a vector
+  #  @param vector_arg_list
+  #  @param vector_scheme
+  #  @param vector_mask
   def generate_c_vector_wrapper(self, vector_size, vec_arg_list, vector_scheme, vector_mask, vec_res, scalar_callback):
 
     vi = Variable("i", precision = ML_Int32, var_type = Variable.Local)
@@ -579,7 +595,9 @@ class ML_FunctionBasis(object):
 
     callback_name = self.uniquify_name("scalar_callback")
 
-    scalar_callback_function = self.call_externalizer.externalize_call(scalar_scheme, scalar_arg_list, callback_name, self.precision)
+    # Call externalizer engine
+    call_externalizer = CallExternalizer(self.get_main_code_object())
+    scalar_callback_function = call_externalizer.externalize_call(scalar_scheme, scalar_arg_list, callback_name, self.precision)
 
     print "[SV] optimizing Scalar scheme"
     scalar_scheme = self.optimise_scheme(scalar_scheme)
@@ -589,7 +607,7 @@ class ML_FunctionBasis(object):
     print "[SV] vectorizing scheme"
     vec_arg_list, vector_scheme, vector_mask = \
         self.vectorizer.vectorize_scheme(scalar_scheme, scalar_arg_list,
-                                         vector_size, self.call_externalizer,
+                                         vector_size, call_externalizer,
                                          self.get_output_precision(), self.sub_vector_size)
 
     vector_output_format = self.vectorizer.vectorize_format(self.precision,
@@ -665,6 +683,7 @@ class ML_FunctionBasis(object):
     low_input = inf(test_range)
     high_input = sup(test_range)
     auto_test = CodeFunction("main", output_format = ML_Int32)
+
 
     tested_function    = self.implementation.get_function_object()
     function_name      = self.implementation.get_name()
@@ -911,6 +930,7 @@ class ML_FunctionBasis(object):
     assignation_statement = Statement()
     vi = Variable("i", precision = ML_Int32, var_type = Variable.Local)
     test_num_cst = Constant(test_num, precision = ML_Int32, tag = "test_num")
+
 
     local_inputs  = tuple(TableLoad(input_tables[in_id], vi) for in_id in xrange(self.get_arity()))
     local_result = tested_function(*local_inputs)
@@ -1169,9 +1189,9 @@ class ML_FunctionBasis(object):
     )
     return test_loop
 
-  @staticmethod
+  #@staticmethod
   def get_name():
-    return ML_FunctionBasis.function_name
+    return self.function_name
 
   # list of input to be used for standard test validation
   standard_test_cases = []
@@ -1181,7 +1201,7 @@ class ML_FunctionBasis(object):
 #  child class with specific function_name value
 def ML_Function(name):
   new_class = type(name, (ML_FunctionBasis,), {"function_name": name})
-  new_class.get_name = staticmethod(lambda: name) 
+  new_class.get_name = staticmethod(lambda: name)
   return new_class
 
 # end of Doxygen's ml_function group
