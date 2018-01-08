@@ -1197,7 +1197,7 @@ def CompSpecBuilder(name, opcode, symbol):
     return type(name, (ComparisonSpecifier,), field_map)
   
 
-## Comparision operator
+## Comparison operator
 class Comparison(ArithmeticOperationConstructor("Comparison", arity = 2, inheritance = [BooleanOperation, SpecifierOperation])):
     """ Abstract Comparison operation """
     Equal          = CompSpecBuilder("Equal", "eq", "==")

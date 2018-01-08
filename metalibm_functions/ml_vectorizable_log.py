@@ -56,120 +56,240 @@ class ML_Log(ML_Function("ml_log")):
     int_prec = self.precision.get_integer_format()
     uint_prec = self.precision.get_unsigned_integer_format()
 
-    # The denormalized mask is defined as:
+    print "MDL constants"
+    table_index_size = 7 # to be abstracted somehow
+    table_dimensions = [2**table_index_size]
+    field_size = Constant(self.precision.get_field_size(),
+                          precision = int_prec)
+    log2_hi = Constant(
+            round(log(2), precision, sollya.RN),
+            precision = self.precision,
+            tag = 'log2_hi'
+            )
+    log2_lo = Constant(
+            round(log(2) - round(log(2), precision, sollya.RN),
+                  precision, sollya.RN),
+            precision = self.precision,
+            tag = 'log2_lo'
+            )
+    # The subnormal mask is defined as:
     # 2^(e_min + 2) * (1 - 2^(-precision))
     # e.g. for binary32: 2^(-126 + 2) * (1 - 2^(-24))
-    denorm_mask = Constant(value = 0x017fffff if self.precision == ML_Binary32
+    subnormal_mask = Constant(value = 0x017fffff if self.precision == ML_Binary32
                            else 0x002fffffffffffff, precision = int_prec,
-                           tag = "denorm_mask")
+                           tag = "subnormal_mask")
+    fp_one = Constant(1.0, precision = self.precision, tag = 'fp_one')
+    fp_one_as_uint = TypeCast(fp_one, precision = uint_prec,
+                              tag = 'fp_one_as_uint')
+    int_zero = Constant(0, precision = int_prec, tag = 'int_zero')
+    table_mantissa_half_ulp = Constant(
+            1 << (self.precision.field_size - table_index_size - 1),
+            precision = int_prec
+            )
+    table_s_exp_index_mask = Constant(
+            ~((table_mantissa_half_ulp.get_value() << 1) - 1),
+            precision = uint_prec
+            )
 
     print "MDL table"
-    table_index_size = 7 # to be abstracted somehow
-    dimensions = [2**table_index_size]
     init_log1p_hi = [
-            round(log1p(float(i) / dimensions[0]),
+            round(log1p(float(i) / table_dimensions[0]),
                   self.precision.get_mantissa_size(),
                   sollya.RN)
-            for i in xrange(dimensions[0])
+            for i in xrange(table_dimensions[0])
             ]
-    log1p_table_hi = ML_NewTable(dimensions = dimensions,
+    log1p_table_hi = ML_NewTable(dimensions = table_dimensions,
                                  storage_precision = self.precision,
                                  init_data = init_log1p_hi,
                                  tag = 'ml_log1p_table_high')
 
     init_log1p_lo = [
-            round(log1p(float(i) / dimensions[0]) - init_log1p_hi[i],
+            round(log1p(float(i) / table_dimensions[0]) - init_log1p_hi[i],
                   self.precision.get_mantissa_size(),
                   sollya.RN)
-            for i in xrange(dimensions[0])
+            for i in xrange(table_dimensions[0])
             ]
-    log1p_table_lo = ML_NewTable(dimensions = dimensions,
+    log1p_table_lo = ML_NewTable(dimensions = table_dimensions,
                                  storage_precision = self.precision,
                                  init_data = init_log1p_lo,
                                  tag = 'ml_log1p_table_low')
 
-    print 'MDL unified denormal handling'
+    print 'MDL unified subnormal handling'
     vx_as_int = TypeCast(vx, precision = int_prec, tag = 'vx_as_int')
     vx_as_uint = TypeCast(vx, precision = uint_prec, tag = 'vx_as_uint')
     # Avoid the 0.0 case
     denorm = vx_as_int - 1
-    is_normal = denorm >= denorm_mask
+    is_normal = denorm >= subnormal_mask
     # hazardous conversion is_normal is a boolean
-    is_denormal = Select(is_normal, Constant(0, precision = int_prec), Constant(-1, precision = int_prec))
-    # is_denormal = is_normal - 1
-    #is_denormal = Conversion(denorm < denorm_mask, precision = int_prec)
+    is_subnormal = Select(
+            is_normal,
+            Constant(0, precision = int_prec),
+            Constant(-1, precision = int_prec)
+            )
+    # is_subnormal = is_normal - 1
+    #is_subnormal = Conversion(denorm < subnormal_mask, precision = int_prec)
 
-    # NO BRANCH, INTEGER BASED DENORMAL AND LARGE EXPONENT HANDLING
+    #################################################
+    # Vectorizable integer based subnormal handling #
+    #################################################
     # 1. lzcnt
-    lzcount = generate_count_leading_zeros(vx_as_int)
-    max8 = Max(8, lzcount) # Max of lzcnt and 8
+    # custom lzcount-like for subnormal numbers using FPU (see draft article)
+    Zi = BitLogicOr(vx_as_uint, fp_one_as_uint, precision = uint_prec)
+    Zf = Subtraction(
+            TypeCast(Zi, precision = self.precision),
+            fp_one,
+            precision = self.precision
+            )
+    # Zf exponent is -(nlz(x) - exponent_size).
     # 2. compute shift value
-    shift = max8 -  8
-    # 3. shift left
-    res = BitLogicLeftShift(vx_as_int, shift)
-    # 4. set exponent to the right value
-    tmp0 = 25 - shift
-    tmp1 = BitLogicAnd(tmp0, is_denormal)
-    tmp2 = BitLogicLeftShift(tmp1, 23)
-    exponent = tmp2 - (1 << 24) # tmp2 - 2^24
+    # Vectorial comparison on x86+sse/avx is going to look like
+    # '|0x00|0xff|0x00|0x00|' and that's why we use Negate.
+    # But for a scalar code generation, comparison will rather be either 0 or
+    # something different from 0 (*unspecified*, but often assumed to be 1).
+    # Thus this mask below won't be correct for a scalar implementation...
+    # FIXME: Can we know the backend that will be called and choose in
+    # consequence? Should we make something arch-agnostic instead?
+    def RawExponentExtraction(f):
+        """Get the raw (biased) exponent of f.
+        Only if f is a positive floating-point number.
+        """
+        return BitLogicRightShift(
+                TypeCast(f, precision = uint_prec),
+                Constant(
+                    f.get_precision().get_field_size(),
+                    precision = uint_prec
+                    ),
+                precision = int_prec
+                )
 
-    normal_vx_as_int = res + exponent
+    mask = BitLogicNegate(
+            TypeCast(
+                Comparison(
+                    RawExponentExtraction(vx),
+                    int_zero,
+                    specifier = Comparison.NotEqual
+                    ),
+                precision = uint_prec
+                ),
+            precision = uint_prec,
+            tag = 'mask'
+            )
+    n_value = BitLogicAnd(
+            TypeCast(
+                Addition(
+                    RawExponentExtraction(Zf),
+                    Constant(
+                        self.precision.get_bias(),
+                        precision = int_prec
+                        ),
+                    precision = int_prec
+                    ),
+                precision = uint_prec
+                ),
+            mask,
+            precision = uint_prec
+            )
+    value = Negation(TypeCast(n_value, precision = int_prec))
+
+    # 3. shift left
+    renormalized_mantissa = BitLogicLeftShift(vx_as_int, value)
+    # 4. set exponent to the right value
+    # Compute the exponent to add : (p-1)-(value) + 1 = p-1-value
+    # The final "+ 1" comes from the fact that once renormalized, the
+    # floating-point datum has a biased exponent of 1
+    tmp0 = Subtraction(
+            field_size,
+            value,
+            precision = int_prec
+            )
+    # Set the value to 0 if the number is not subnormal
+    tmp1 = BitLogicAnd(tmp0, is_subnormal)
+    renormalized_exponent = BitLogicLeftShift(
+            tmp1,
+            field_size,
+            )
+
+    normal_vx_as_int = renormalized_mantissa + renormalized_exponent
     normal_vx = TypeCast(normal_vx_as_int, precision = self.precision,
                          tag = 'normal_vx')
-    cst_n2 = Constant(-2, precision = int_prec)
-    cst_25 = Constant(25, precision = int_prec)
-    mask_to_add = Addition(BitLogicAnd(is_denormal, cst_25),
-                           cst_n2,
-                           interval = Interval(-2, 23))
 
-    invx = FastReciprocal(normal_vx, tag = 'invx', precision = self.precision)
-    if not self.processor.is_supported_operation(invx):
-        # An approximation table could be used instead.
-        invx = Division(1.0, normal_vx, tag = 'invx')
+    alpha = BitLogicAnd(field_size, is_subnormal)
+    # XXX Extract the mantissa, see if this is supported in the x86 vector
+    # backend or if it still uses the support_lib.
+    vx_mantissa = MantissaExtraction(normal_vx, precision = self.precision)
 
     print "MDL scheme"
-    exponent = ExponentExtraction(invx, precision = self.precision,
-            tag = 'exponent')
-    nlog2 = Constant(round(-log(2), precision, sollya.RN),
-            precision = self.precision,
-            tag = 'nlog2')
+    # TODO if binary64 precision, also use FastReciprocal and not Division
+    rcp_m = FastReciprocal(vx_mantissa, tag = 'rcp_m', precision = self.precision)
+    if not self.processor.is_supported_operation(rcp_m):
+        # FIXME An approximation table could be used instead but for vector
+        # implementations another GATHER would be required.
+        # However this may well be better than a division...
+        # See also: using binary32 FastReciprocal for approximating 1/m when m
+        # is a binary64.
+        rcp_m = Division(fp_one, vx_mantissa, tag = 'rcp_m')
 
-    table_mantissa_half_ulp = \
-            1 << (self.precision.field_size - table_index_size - 1)
-    invx_round = TypeCast(invx, precision = int_prec, tag = 'invx_int') \
-            + table_mantissa_half_ulp
-    table_s_exp_index_mask = ~((table_mantissa_half_ulp << 1) - 1)
-    invx_fast_rndn = BitLogicAnd(
-            invx_round,
+    # exponent is normally either 0 or -1, since m is in [1, 2). Possible
+    # optimization?
+    exponent = ExponentExtraction(rcp_m, precision = self.precision,
+            tag = 'exponent')
+
+    ri_round = TypeCast(
+            Addition(
+                TypeCast(rcp_m, precision = int_prec),
+                table_mantissa_half_ulp,
+                precision = int_prec
+                ),
+            precision = uint_prec
+            )
+    ri_fast_rndn = BitLogicAnd(
+            ri_round,
             table_s_exp_index_mask,
-            tag = 'invx_fast_rndn'
+            tag = 'ri_fast_rndn',
+            precision = uint_prec
             )
-    # u should be optimized as an FMA
-    u = normal_vx * TypeCast(invx_fast_rndn, precision = self.precision) - 1.0
-    u.set_attributes(tag = 'u')
-    unneeded_bits = self.precision.field_size - table_index_size
-    invx_bits = BitLogicRightShift(invx_fast_rndn, unneeded_bits)
-    table_index_mask = (1 << table_index_size) - 1
+    # u = m * ri - 1
+    u = FusedMultiplyAdd(
+            vx_mantissa,
+            TypeCast(ri_fast_rndn, precision = self.precision),
+            fp_one,
+            specifier = FusedMultiplyAdd.Subtract,
+            tag = 'u'
+            )
+    unneeded_bits = Constant(
+            self.precision.field_size - table_index_size,
+            precision = int_prec
+            )
+    ri_bits = BitLogicRightShift(
+            ri_fast_rndn,
+            unneeded_bits,
+            precision = uint_prec
+            )
+    table_index_mask = Constant(
+            (1 << table_index_size) - 1,
+            precision = uint_prec
+            )
     table_index = BitLogicAnd(
-            invx_bits,
+            ri_bits,
             table_index_mask,
-            tag = 'table_index')
-    log1p_ri_hi = TableLoad(log1p_table_hi, table_index, tag = 'log1p_ri_hi',
-            debug = debug_multi)
-    log1p_ri_lo = TableLoad(log1p_table_lo, table_index, tag = 'log1p_ri_lo',
-            debug = debug_multi)
-    exponent = Addition(
-            BitLogicRightShift(invx_bits,
-                table_index_size,
-                tag = 'exponent',
-                interval = self.precision.get_exponent_interval()),
-            mask_to_add,
-            tag = 'modified_exponent',
-            #interval = self.precision.get_exponent_interval() + mask_to_add.get_interval()
+            tag = 'table_index',
+            precision = uint_prec
             )
-    expf = Conversion(exponent,
-            precision = self.precision,
-            tag = 'expf')
+    tbl_hi = TableLoad(log1p_table_hi, table_index, tag = 'tbl_hi',
+                       debug = debug_multi)
+    tbl_lo = TableLoad(log1p_table_lo, table_index, tag = 'tbl_lo',
+                       debug = debug_multi)
+    exponent = Addition(
+            BitLogicRightShift(ri_bits,
+                table_index_size, tag = 'exponent',
+                interval = self.precision.get_exponent_interval()),
+            alpha,
+            tag = 'modified_exponent',
+            #interval = self.precision.get_exponent_interval() \
+            #        + alpha.get_interval()
+            )
+    fp_exponent = Conversion(exponent, precision = self.precision,
+            tag = 'fp_exponent')
 
     print 'MDL polynomial approximation'
     sollya_function = log(1 + sollya.x)
@@ -211,9 +331,50 @@ class ML_Log(ML_Function("ml_log")):
             tag = 'log1pu_poly',
             debug = debug_lftolx)
 
-    logx = nlog2 * (expf + self.precision.get_bias()) + (log1p_ri_hi + log1p_ri_lo) + log1pu_poly
+    def Mul211(x, y):
+        zh = Multiplication(x, y)
+        zl = FusedMultiplyAdd(x, y, zh, specifier = FusedMultiplyAdd.Subtract)
+        return zh, zl
 
-    scheme = Return(logx, precision = self.precision)
+    def Add211(x, y):
+        zh = Addition(x, y)
+        t1 = Subtraction(zh, x)
+        zl = Subtraction(y, t1)
+        return zh, zl
+
+    def Mul212(x, yh, yl):
+        t1, t2 = Mul211(x, yh)
+        t3 = Multiplication(x, yl)
+        t4 = Addition(t2, t3)
+        return Add211(t1, t4)
+
+    def Add222(xh, xl, yh, yl):
+        r = Addition(xh, yh)
+        s1 = Subtraction(xh, r)
+        s2 = Addition(s1, yh)
+        s3 = Addition(s2, yl)
+        s = Addition(s3, xl)
+        zh = Addition(r, s)
+        zl = Addition(Subtraction(r, zh), s)
+        return zh, zl
+
+    def Add122(xh, xl, yh, yl):
+        zh, _ = Add222(xh, xl, yh, yl)
+        return zh
+
+    # Compute log(2) * (e + tau - alpha)
+    log2e_hi, log2e_lo = Mul212(fp_exponent, log2_hi, log2_lo)
+
+    # Add log1p(u)
+    # FIXME log1pu_lo does not exist (poly generated a binary32 result only)
+    log1pu_lo = Constant(0, precision = self.precision)
+    tmp_res_hi, tmp_res_lo = Add222(log2e_hi, log2e_lo, log1pu_poly, log1pu_lo)
+
+
+    # Add -log(2^(tau)/m) approximation retrieved by two table lookups
+    logx_hi = Add122(tmp_res_hi, tmp_res_lo, tbl_hi, tbl_lo)
+
+    scheme = Return(logx_hi, precision = self.precision)
 
     return scheme
 
