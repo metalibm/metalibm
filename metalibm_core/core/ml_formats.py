@@ -939,9 +939,19 @@ class ML_Compound_Integer_Format(ML_Compound_Format, ML_Fixed_Format):
   pass
 
 # compound binary floating-point format declaration
-ML_DoubleDouble = ML_Compound_FP_Format("ml_dd_t", ["hi", "lo"], [ML_Binary64, ML_Binary64], "", "", sollya.doubledouble)
-ML_TripleDouble = ML_Compound_FP_Format("ml_td_t", ["hi", "me", "lo"], [ML_Binary64, ML_Binary64, ML_Binary64], "", "", sollya.tripledouble)
-ML_SingleSingle = ML_Compound_FP_Format("ml_ds_t", ["hi", "lo"], [ML_Binary32, ML_Binary32], "", "", sollya.single)
+ML_DoubleDouble = ML_Compound_FP_Format("ml_dd_t", ["hi", "lo"],
+                                        [ML_Binary64, ML_Binary64],
+                                        "", "",
+                                        sollya.doubledouble)
+ML_TripleDouble = ML_Compound_FP_Format("ml_td_t", ["hi", "me", "lo"],
+                                        [ML_Binary64, ML_Binary64,
+                                            ML_Binary64],
+                                        "", "",
+                                        sollya.tripledouble)
+ML_SingleSingle = ML_Compound_FP_Format("ml_ds_t", ["hi", "lo"],
+                                        [ML_Binary32, ML_Binary32],
+                                        "", "",
+                                        2*ML_Binary32.get_mantissa_size() + 1)
 ###############################################################################
 #                     VECTOR FORMAT
 ###############################################################################

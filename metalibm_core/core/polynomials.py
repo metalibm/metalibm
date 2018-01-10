@@ -418,16 +418,20 @@ class PolynomialSchemeEvaluator(object):
                 # We make use of CGPE --no-indices-contraction option
                 index = int(node.name[1:]) # First char is 'a'
                 value = polynomial_object.coeff_map[index]
-                return Constant(value, tag="poly_coeff{}".format(index))
+                return Constant(value, tag="poly_coeff{}".format(index),
+                                precision = constant_precision)
             elif isinstance(node, CgpeAdd):
                 return Addition(cgpe_to_metalibm(node.op1),
-                        cgpe_to_metalibm(node.op2), tag='poly_add')
+                        cgpe_to_metalibm(node.op2), tag='poly_add',
+                        unified_precision = unified_precision)
             elif isinstance(node, CgpeMul):
                 return Multiplication(cgpe_to_metalibm(node.op1),
-                        cgpe_to_metalibm(node.op2), tag='poly_mul')
+                        cgpe_to_metalibm(node.op2), tag='poly_mul',
+                        unified_precision = unified_precision)
             elif isinstance(node, CgpeSub):
                 return Subtraction(cgpe_to_metalibm(node.op1),
-                        cgpe_to_metalibm(node.op2), tag='poly_sub')
+                        cgpe_to_metalibm(node.op2), tag='poly_sub',
+                        unified_precision = unified_precision)
             elif isinstance(node, CgpePolynomialScheme):
                 return cgpe_to_metalibm(node.root)
             else:

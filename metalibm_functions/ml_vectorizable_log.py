@@ -50,6 +50,9 @@ class ML_Log(ML_Function("ml_log")):
 
     This abstract scheme will be used by the code generation backend.
     """
+    if self.precision not in [ML_Binary32, ML_Binary64]:
+        Log.report(Log.Warning, "The demanded precision is not supported")
+
     vx = self.implementation.add_input_variable("x", self.precision)
 
     precision = self.precision.sollya_object
@@ -75,9 +78,13 @@ class ML_Log(ML_Function("ml_log")):
     # The subnormal mask is defined as:
     # 2^(e_min + 2) * (1 - 2^(-precision))
     # e.g. for binary32: 2^(-126 + 2) * (1 - 2^(-24))
-    subnormal_mask = Constant(value = 0x017fffff if self.precision == ML_Binary32
-                           else 0x002fffffffffffff, precision = int_prec,
-                           tag = "subnormal_mask")
+    subnormal_mask = Constant(
+            value = 0x017fffff if self.precision == ML_Binary32
+            else 0x002fffffffffffff if self.precision == ML_Binary64
+            else None,
+            precision = int_prec,
+            tag = "subnormal_mask"
+            )
     fp_one = Constant(1.0, precision = self.precision, tag = 'fp_one')
     fp_one_as_uint = TypeCast(fp_one, precision = uint_prec,
                               tag = 'fp_one_as_uint')
@@ -307,30 +314,35 @@ class ML_Log(ML_Function("ml_log")):
     poly_object = Polynomial.build_from_approximation(
             sollya_function,
             range(1, poly_degree + 1), # Force 1st coeff to 0
-            [self.precision]*(poly_degree),
+            # Emulate double-self.precision coefficient formats
+            [self.precision.get_mantissa_size()*2 + 1]*poly_degree,
             approx_interval,
             sollya.absolute,
             0) # Force the first coefficient to 0
 
     print poly_object
 
+    constant_precision = ML_SingleSingle if self.precision == ML_Binary32 \
+            else ML_DoubleDouble if self.precision == ML_Binary64 \
+            else None
     if is_cgpe_available():
-      log1pu_poly = PolynomialSchemeEvaluator.generate_cgpe_scheme(
-              poly_object,
-              u,
-              unified_precision = self.precision,
-              )
+        log1pu_poly = PolynomialSchemeEvaluator.generate_cgpe_scheme(
+                poly_object,
+                u,
+                unified_precision = self.precision,
+                constant_precision = constant_precision
+                )
     else:
-      Log.report(Log.Warning, "CGPE not available, falling back to std poly evaluator")
-      log1pu_poly = PolynomialSchemeEvaluator.generate_horner_scheme(
-              poly_object,
-              u,
-              unified_precision = self.precision,
-              )
-    log1pu_poly.set_attributes(
-            tag = 'log1pu_poly',
-            debug = debug_lftolx)
+        Log.report(Log.Warning,
+                "CGPE not available, falling back to std poly evaluator")
+        log1pu_poly = PolynomialSchemeEvaluator.generate_horner_scheme(
+                poly_object,
+                u,
+                unified_precision = self.precision,
+                constant_precision = constant_precision
+                )
 
+    # XXX Dirty implementation of double-(self.precision) poly
     def Mul211(x, y):
         zh = Multiplication(x, y)
         zl = FusedMultiplyAdd(x, y, zh, specifier = FusedMultiplyAdd.Subtract)
@@ -348,6 +360,16 @@ class ML_Log(ML_Function("ml_log")):
         t4 = Addition(t2, t3)
         return Add211(t1, t4)
 
+    def Mul222(xh, xl, yh, yl):
+        ph = Multiplication(xh, yh)
+        pl = FMS(xh, yh, ph)
+        pl = FMA(xh, yl, pl)
+        pl = FMA(xl, yh, pl)
+        zh = Addition(ph, pl)
+        zl = Subtraction(ph, zh)
+        zl = Addition(zl, pl)
+        return zh, zl
+
     def Add222(xh, xl, yh, yl):
         r = Addition(xh, yh)
         s1 = Subtraction(xh, r)
@@ -362,13 +384,57 @@ class ML_Log(ML_Function("ml_log")):
         zh, _ = Add222(xh, xl, yh, yl)
         return zh
 
+    def dirty_poly_node_conversion(node, variable):
+        if node is variable:
+            return variable, None
+        elif isinstance(node, Constant):
+            value = node.get_value()
+            value_hi = round(value, precision, sollya.RN)
+            value_lo =  value - value_hi
+            ch = Constant(
+                    value_hi,
+                    tag = node.get_tag() + "hi",
+                    precision = self.precision)
+            cl = Constant(
+                    value_lo,
+                    tag = node.get_tag() + "lo",
+                    precision = self.precision
+                    )
+            return ch, cl
+
+        inputs = node.get_inputs()
+        if isinstance(node, Addition):
+            op1h, op1l = dirty_poly_node_conversion(inputs[0], variable)
+            op2h, op2l = dirty_poly_node_conversion(inputs[1], variable)
+            return Add222(op1h, op1l, op2h, op2l)
+        if isinstance(node, Subtraction):
+            op1h, op1l = dirty_poly_node_conversion(inputs[0], variable)
+            op2h, op2l = dirty_poly_node_conversion(inputs[1], variable)
+            return Sub222(op1h, op1l, op2h, op2l)
+        elif isinstance(node, Multiplication):
+            op1h, op1l = dirty_poly_node_conversion(inputs[0], variable)
+            op2h, op2l = dirty_poly_node_conversion(inputs[1], variable)
+            if op1l is None:
+                if op2l is None:
+                    return Mul211(op1h, op2h)
+                else:
+                    return Mul212(op1h, op2h, op2l)
+            else:
+                if op2l is None:
+                    return Mul212(op2h, op1h, op1l)
+                else:
+                    return Mul222(op1h, op1l, op2h, op2l)
+
+    log1pu_poly_hi, log1pu_poly_lo = dirty_poly_node_conversion(log1pu_poly, u)
+    log1pu_poly_hi.set_attributes(tag = 'log1pu_poly_hi')
+    log1pu_poly_lo.set_attributes(tag = 'log1pu_poly_lo')
+
     # Compute log(2) * (e + tau - alpha)
     log2e_hi, log2e_lo = Mul212(fp_exponent, log2_hi, log2_lo)
 
     # Add log1p(u)
-    # FIXME log1pu_lo does not exist (poly generated a binary32 result only)
-    log1pu_lo = Constant(0, precision = self.precision)
-    tmp_res_hi, tmp_res_lo = Add222(log2e_hi, log2e_lo, log1pu_poly, log1pu_lo)
+    tmp_res_hi, tmp_res_lo = Add222(log2e_hi, log2e_lo,
+                                    log1pu_poly_hi, log1pu_poly_lo)
 
 
     # Add -log(2^(tau)/m) approximation retrieved by two table lookups
