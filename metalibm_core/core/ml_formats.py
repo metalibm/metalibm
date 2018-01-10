@@ -520,8 +520,7 @@ class VirtualFormat(ML_Format):
     return self.cst_decl_required
 
   def is_vector_format(self):
-      return False if self.get_base_format() is None \
-              else self.get_base_format().is_vector_format()
+      return False
 
 ## Virtual format with no match forwarding
 class VirtualFormatNoForward(VirtualFormat):
