@@ -682,7 +682,7 @@ class ML_Base_FixedPoint_Format(ML_Fixed_Format, VirtualFormatNoBase):
         """ C-language constant generation """
         try:
           encoded_value = int(cst_value * sollya.S2**self.frac_size)
-        except ValueError as e:
+        except (ValueError, TypeError) as e:
           print e, cst_value, self.frac_size
           Log.report(Log.Error, "Error during constant conversion to sollya object")
           
