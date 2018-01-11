@@ -4,7 +4,8 @@
 import sys
 
 import sollya # sollya.RN, sollya.absolute, sollya.x
-from sollya import (S2, Interval, round, sup, log, log1p, guessdegree)
+from sollya import (floor, guessdegree, Interval, log, log1p, round, S2, sqrt,
+                    sup)
 
 from metalibm_core.core.ml_function import (ML_Function, ML_FunctionBasis,
                                             DefaultArgTemplate)
@@ -89,6 +90,7 @@ class ML_Log(ML_Function("ml_log")):
     fp_one_as_uint = TypeCast(fp_one, precision = uint_prec,
                               tag = 'fp_one_as_uint')
     int_zero = Constant(0, precision = int_prec, tag = 'int_zero')
+    int_one  = Constant(1, precision = int_prec, tag = 'int_one')
     table_mantissa_half_ulp = Constant(
             1 << (self.precision.field_size - table_index_size - 1),
             precision = int_prec
@@ -99,21 +101,27 @@ class ML_Log(ML_Function("ml_log")):
             )
 
     print "MDL table"
-    init_log1p_hi = [
-            round(log1p(float(i) / table_dimensions[0]),
-                  self.precision.get_mantissa_size(),
-                  sollya.RN)
+    # The table holds approximations of -log(2^tau * r_i) so we first compute
+    # the index value for which tau changes from 2 to 0.
+    cut = sqrt(2)
+    tau_index_limit = floor(table_dimensions[0] * (cut - 1))
+    init_logtbl_hi = [
+            round(-log1p(float(i) / table_dimensions[0])
+                + (0 if i <= cut else log(2)),
+                self.precision.get_mantissa_size(),
+                sollya.RN)
             for i in xrange(table_dimensions[0])
             ]
     log1p_table_hi = ML_NewTable(dimensions = table_dimensions,
                                  storage_precision = self.precision,
-                                 init_data = init_log1p_hi,
+                                 init_data = init_logtbl_hi,
                                  tag = 'ml_log1p_table_high')
 
     init_log1p_lo = [
-            round(log1p(float(i) / table_dimensions[0]) - init_log1p_hi[i],
-                  self.precision.get_mantissa_size(),
-                  sollya.RN)
+            round(-log1p(float(i) / table_dimensions[0])
+                + (0 if i <= cut else log(2)) - init_logtbl_hi[i],
+                self.precision.get_mantissa_size(),
+                sollya.RN)
             for i in xrange(table_dimensions[0])
             ]
     log1p_table_lo = ML_NewTable(dimensions = table_dimensions,
@@ -151,40 +159,57 @@ class ML_Log(ML_Function("ml_log")):
     # 2. compute shift value
     # Vectorial comparison on x86+sse/avx is going to look like
     # '|0x00|0xff|0x00|0x00|' and that's why we use Negate.
-    # But for a scalar code generation, comparison will rather be either 0 or
-    # something different from 0 (*unspecified*, but often assumed to be 1).
-    # Thus this mask below won't be correct for a scalar implementation...
+    # But for scalar code generation, comparison will rather be either 0 or 1
+    # in C. Thus mask below won't be correct for a scalar implementation.
     # FIXME: Can we know the backend that will be called and choose in
     # consequence? Should we make something arch-agnostic instead?
-    def RawExponentExtraction(f):
+    def DirtyExponentExtraction(f):
         """Get the raw (biased) exponent of f.
         Only if f is a positive floating-point number.
         """
+        recast_f = TypeCast(f, precision = int_prec) \
+                if f.get_precision() != int_prec else f
         return BitLogicRightShift(
-                TypeCast(f, precision = uint_prec),
-                Constant(
-                    f.get_precision().get_field_size(),
-                    precision = uint_prec
-                    ),
+                recast_f,
+                field_size,
                 precision = int_prec
                 )
 
+    # Mask for vector implementations or x86 intrinsics backend.
     mask = BitLogicNegate(
             TypeCast(
-                Comparison(
-                    RawExponentExtraction(vx),
-                    int_zero,
-                    specifier = Comparison.NotEqual
+                Conversion(
+                    Comparison(
+                        DirtyExponentExtraction(vx),
+                        int_zero,
+                        specifier = Comparison.NotEqual,
+                        ),
+                    precision = int_prec
                     ),
-                precision = uint_prec
-                ),
+                precision = uint_prec),
             precision = uint_prec,
             tag = 'mask'
             )
+    # Mask for scalar implementations in standard C.
+    #mask = TypeCast(
+    #        Addition(
+    #            Constant(~0, precision = int_prec),
+    #            Conversion(
+    #                Comparison(
+    #                    DirtyExponentExtraction(vx),
+    #                    int_zero,
+    #                    specifier = Comparison.NotEqual,
+    #                    ),
+    #                precision = int_prec
+    #                ),
+    #            precision = int_prec
+    #            ),
+    #        precision = uint_prec
+    #        )
     n_value = BitLogicAnd(
             TypeCast(
                 Addition(
-                    RawExponentExtraction(Zf),
+                    DirtyExponentExtraction(Zf),
                     Constant(
                         self.precision.get_bias(),
                         precision = int_prec
@@ -282,21 +307,41 @@ class ML_Log(ML_Function("ml_log")):
             tag = 'table_index',
             precision = uint_prec
             )
+    # Compute tau using the tau_index_limit value, works only with the x86 or
+    # vector backends
+    tmp = Conversion(
+            Comparison(
+                table_index,
+                Constant(tau_index_limit, precision = int_prec),
+                specifier = Comparison.Greater
+                ),
+            precision = int_prec
+            )
+    tau = Addition(
+            tmp,
+            int_one,
+            precision = int_prec
+            )
     tbl_hi = TableLoad(log1p_table_hi, table_index, tag = 'tbl_hi',
                        debug = debug_multi)
     tbl_lo = TableLoad(log1p_table_lo, table_index, tag = 'tbl_lo',
                        debug = debug_multi)
-    exponent = Addition(
+    # Compute exponent e + tau - alpha
+    tmp_eptau = Addition(
             BitLogicRightShift(ri_bits,
                 table_index_size, tag = 'exponent',
                 interval = self.precision.get_exponent_interval()),
+            tau,
+            tag = 'tmp_eptau',
+            precision = int_prec
+            )
+    exponent = Subtraction(
+            tmp_eptau,
             alpha,
-            tag = 'modified_exponent',
-            #interval = self.precision.get_exponent_interval() \
-            #        + alpha.get_interval()
+            precision = int_prec
             )
     fp_exponent = Conversion(exponent, precision = self.precision,
-            tag = 'fp_exponent')
+                             tag = 'fp_exponent')
 
     print 'MDL polynomial approximation'
     sollya_function = log(1 + sollya.x)
