@@ -178,7 +178,7 @@ _mm_unpacklo_pd       = EmmIntrin("_mm_unpacklo_pd", arity = 2,
 _mm_max_epi32 = SmmIntrin("_mm_max_epi32", arity = 2,
                           output_precision = ML_SSE_m128_v4int32)
 _mm_mul_epi32 = SmmIntrin("_mm_mul_epi32", arity = 2,
-                          output_precision = ML_SSE_m128_v4int32),
+                          output_precision = ML_SSE_m128_v4int32)
 
 # AVX instructions
 _mm256_cvtepi32_pd       = ImmIntrin("_mm256_cvtepi32_pd", arity = 1,
