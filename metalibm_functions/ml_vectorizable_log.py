@@ -139,8 +139,8 @@ class ML_Log(ML_Function("ml_log")):
     is_subnormal = Select(
             is_normal,
             Constant(0, precision = int_prec),
-            Constant(-1, precision = int_prec)
-            )
+            Constant(-1, precision = int_prec),
+            tag="is_subnormal")
     # is_subnormal = is_normal - 1
     #is_subnormal = Conversion(denorm < subnormal_mask, precision = int_prec)
 
@@ -149,12 +149,12 @@ class ML_Log(ML_Function("ml_log")):
     #################################################
     # 1. lzcnt
     # custom lzcount-like for subnormal numbers using FPU (see draft article)
-    Zi = BitLogicOr(vx_as_uint, fp_one_as_uint, precision = uint_prec)
+    Zi = BitLogicOr(vx_as_uint, fp_one_as_uint, precision = uint_prec, tag="Zi")
     Zf = Subtraction(
             TypeCast(Zi, precision = self.precision),
             fp_one,
-            precision = self.precision
-            )
+            precision = self.precision,
+            tag="Zf")
     # Zf exponent is -(nlz(x) - exponent_size).
     # 2. compute shift value
     # Vectorial comparison on x86+sse/avx is going to look like
@@ -219,9 +219,9 @@ class ML_Log(ML_Function("ml_log")):
                 precision = uint_prec
                 ),
             mask,
-            precision = uint_prec
-            )
-    value = Negation(TypeCast(n_value, precision = int_prec))
+            precision = uint_prec,
+            tag="n_value")
+    value = Negation(TypeCast(n_value, precision = int_prec), tag="value")
 
     # 3. shift left
     renormalized_mantissa = BitLogicLeftShift(vx_as_int, value)
@@ -232,8 +232,8 @@ class ML_Log(ML_Function("ml_log")):
     tmp0 = Subtraction(
             field_size,
             value,
-            precision = int_prec
-            )
+            precision = int_prec,
+            tag="tmp0")
     # Set the value to 0 if the number is not subnormal
     tmp1 = BitLogicAnd(tmp0, is_subnormal)
     renormalized_exponent = BitLogicLeftShift(
