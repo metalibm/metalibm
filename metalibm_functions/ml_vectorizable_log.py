@@ -19,6 +19,7 @@ from metalibm_core.opt.ml_blocks import (generate_count_leading_zeros,
                                          generate_fasttwosum)
 
 from metalibm_core.code_generation.generic_processor import GenericProcessor
+from metalibm_core.targets.common.vector_backend import VectorBackend
 from metalibm_core.code_generation.generator_utility import (FunctionOperator,
                                                              FO_Result, FO_Arg)
 
@@ -52,13 +53,29 @@ class ML_Log(ML_Function("ml_log")):
     This abstract scheme will be used by the code generation backend.
     """
     if self.precision not in [ML_Binary32, ML_Binary64]:
-        Log.report(Log.Warning, "The demanded precision is not supported")
+        Log.report(Log.Error, "The demanded precision is not supported")
 
     vx = self.implementation.add_input_variable("x", self.precision)
 
     precision = self.precision.sollya_object
     int_prec = self.precision.get_integer_format()
     uint_prec = self.precision.get_unsigned_integer_format()
+
+    # bool2int conversion helper functions
+    def bool_convert(optree, precision, true_value, false_value):
+        """ Implement conversion between boolean node (ML_Bool)
+            and specific values """
+        return Select(
+            optree,
+            Constant(true_value, precision=precision),
+            Constant(false_value, precision=precision),
+            precision=precision
+        )
+
+    def default_bool_convert(optree, precision=None):
+        return bool_convert(optree, precision, -1, 0) \
+                if isinstance(self.processor, VectorBackend) \
+                else bool_convert(optree, precision, 1, 0)
 
     print "MDL constants"
     table_index_size = 7 # to be abstracted somehow
@@ -77,16 +94,12 @@ class ML_Log(ML_Function("ml_log")):
             precision = self.precision,
             tag = 'log2_lo'
             )
-    # The subnormal mask is defined as:
-    # 2^(e_min + 2) * (1 - 2^(-precision))
-    # e.g. for binary32: 2^(-126 + 2) * (1 - 2^(-24))
-    subnormal_mask = Constant(
-            value = 0x017fffff if self.precision == ML_Binary32
-            else 0x002fffffffffffff if self.precision == ML_Binary64
-            else None,
-            precision = int_prec,
-            tag = "subnormal_mask"
-            )
+    # subnormal_mask aims at trapping positive subnormals except zero.
+    # That's why we will subtract 1 to the integer bitstring of the input, and
+    # then compare for Less (strict) the resulting integer bitstring to this
+    # mask, e.g.  0x7fffff for binary32.
+    subnormal_mask = Constant((1 << self.precision.get_field_size()) - 1,
+                              precision = int_prec, tag = 'subnormal_mask')
     fp_one = Constant(1.0, precision = self.precision, tag = 'fp_one')
     fp_one_as_uint = TypeCast(fp_one, precision = uint_prec,
                               tag = 'fp_one_as_uint')
@@ -107,16 +120,14 @@ class ML_Log(ML_Function("ml_log")):
     cut = sqrt(2.)
     tau_index_limit = floor(table_dimensions[0] * (2./cut - 1))
     sollya_logtbl = [
-            round(-log1p(float(i) / table_dimensions[0])
-                + (0 if i <= tau_index_limit else log(2.)),
-                2*self.precision.get_mantissa_size() + 1,
-                sollya.RN)
+            -log1p(float(i) / table_dimensions[0])
+            + (0 if i <= tau_index_limit else log(2.))
             for i in xrange(table_dimensions[0])
             ]
     init_logtbl_hi = [
             round(sollya_logtbl[i],
-                self.precision.get_mantissa_size(),
-                sollya.RN)
+                  self.precision.get_mantissa_size(),
+                  sollya.RN)
             for i in xrange(table_dimensions[0])
             ]
     log1p_table_hi = ML_NewTable(dimensions = table_dimensions,
@@ -126,8 +137,8 @@ class ML_Log(ML_Function("ml_log")):
 
     init_logtbl_lo = [
             round(sollya_logtbl[i] - init_logtbl_hi[i],
-                self.precision.get_mantissa_size(),
-                sollya.RN)
+                  self.precision.get_mantissa_size(),
+                  sollya.RN)
             for i in xrange(table_dimensions[0])
             ]
     log1p_table_lo = ML_NewTable(dimensions = table_dimensions,
@@ -138,17 +149,13 @@ class ML_Log(ML_Function("ml_log")):
     print 'MDL unified subnormal handling'
     vx_as_int = TypeCast(vx, precision = int_prec, tag = 'vx_as_int')
     vx_as_uint = TypeCast(vx, precision = uint_prec, tag = 'vx_as_uint')
-    # Avoid the 0.0 case
-    denorm = vx_as_int - 1
-    is_normal = denorm >= subnormal_mask
-    # hazardous conversion is_normal is a boolean
-    is_subnormal = Select(
-            is_normal,
-            Constant(0, precision = int_prec),
-            Constant(-1, precision = int_prec),
-            tag="is_subnormal")
-    # is_subnormal = is_normal - 1
-    #is_subnormal = Conversion(denorm < subnormal_mask, precision = int_prec)
+    # Avoid the 0.0 case by subtracting 1 from vx_as_int
+    tmp = (vx_as_int - 1) < subnormal_mask
+    is_subnormal = default_bool_convert(
+            tmp, # Will catch negative values as well as NaNs with sign bit set
+            precision = int_prec,
+            )
+    is_subnormal.set_attributes(tag = "is_subnormal")
 
     #################################################
     # Vectorizable integer based subnormal handling #
@@ -181,67 +188,20 @@ class ML_Log(ML_Function("ml_log")):
                 precision = int_prec
                 )
 
-    def bool_convert(optree, precision, true_value, false_value):
-        """ Implement conversion between boolean node (ML_Bool)
-            and specific values """
-        return Select(
-            optree,
-            Constant(true_value, precision=precision),
-            Constant(false_value, precision=precision),
-            precision=precision
-        )
-
-    def default_bool_convert(optree, precision=None):
-        return bool_convert(optree, precision, -1, 0)
-
-
-    # Mask for vector implementations or x86 intrinsics backend.
-    #mask = BitLogicNegate(
-    #        TypeCast(
-    #            Conversion(
-    #                Comparison(
-    #                    DirtyExponentExtraction(vx),
-    #                    int_zero,
-    #                    specifier = Comparison.NotEqual,
-    #                    ),
-    #                precision = int_prec
-    #                ),
-    #            precision = uint_prec),
-    #        precision = uint_prec,
-    #        tag = 'mask'
-    #        )
-    # Mask for scalar implementations in standard C.
-    mask = TypeCast(
+    n_value = BitLogicAnd(
             Addition(
-                Constant(~0, precision = int_prec),
-                default_bool_convert(
-                    Comparison(
-                        DirtyExponentExtraction(vx),
-                        int_zero,
-                        specifier = Comparison.NotEqual,
-                        ),
+                DirtyExponentExtraction(Zf),
+                Constant(
+                    self.precision.get_bias(),
                     precision = int_prec
                     ),
                 precision = int_prec
-                ),
-            precision = uint_prec
-            )
-    n_value = BitLogicAnd(
-            TypeCast(
-                Addition(
-                    DirtyExponentExtraction(Zf),
-                    Constant(
-                        self.precision.get_bias(),
-                        precision = int_prec
-                        ),
-                    precision = int_prec
                     ),
-                precision = uint_prec
-                ),
-            mask,
-            precision = uint_prec,
-            tag="n_value")
-    value = Negation(TypeCast(n_value, precision = int_prec), tag="value")
+            is_subnormal,
+            precision = int_prec,
+            tag = "n_value"
+            )
+    value = Negation(n_value, tag="value")
 
     # 3. shift left
     renormalized_mantissa = BitLogicLeftShift(vx_as_int, value)
@@ -320,8 +280,11 @@ class ML_Log(ML_Function("ml_log")):
             precision = uint_prec,
             tag = "ri_bits"
             )
+    # Retrieve mantissa's MSBs + first bit of exponent, for tau computation in case
+    # exponent is 0 (i.e. biased 127, i.e. first bit of exponent is set.).
+    # In this particular case, i = 0 but tau is 1
     table_index_mask = Constant(
-            (1 << table_index_size) - 1,
+            (1 << (table_index_size + 1)) - 1,
             precision = uint_prec
             )
     table_index = BitLogicAnd(
@@ -330,25 +293,28 @@ class ML_Log(ML_Function("ml_log")):
             tag = 'table_index',
             precision = uint_prec
             )
-    # Compute tau using the tau_index_limit value, works only with the x86 or
-    # vector backends
+    # Compute tau using the tau_index_limit value.
     tmp = default_bool_convert(
             Comparison(
                 table_index,
                 Constant(tau_index_limit, precision = uint_prec),
-                specifier = Comparison.LessOrEqual
+                specifier = Comparison.Greater
+                if isinstance(self.processor, VectorBackend)
+                else Comparison.LessOrEqual
                 ),
-            precision=int_prec
+            precision = int_prec
             )
-    # Uncomment below for intrinsics backend
-    #tau = Addition(
-    #        tmp,
-    #        int_one,
-    #        precision = int_prec
-    #        )
-    # Uncomment below for generic backend
-    tau = tmp
+    # A true tmp will typically be -1 for VectorBackends, but 1 for standard C.
+    tau = Addition(tmp, int_one, precision = int_prec) \
+            if isinstance(self.processor, VectorBackend) \
+            else tmp
     tau.set_attributes(tag = 'tau')
+    # Update table_index: keep only table_index_size bits
+    table_index = BitLogicAnd(
+            table_index,
+            Constant((1 << table_index_size) - 1, precision = uint_prec),
+            precision = uint_prec
+            )
 
     tbl_hi = TableLoad(log1p_table_hi, table_index, tag = 'tbl_hi',
                        debug = debug_multi)
@@ -373,11 +339,7 @@ class ML_Log(ML_Function("ml_log")):
             tag = 'tmp_eptau',
             precision = int_prec
             )
-    exponent = Subtraction(
-            tmp_eptau,
-            alpha,
-            precision = int_prec
-            )
+    exponent = Subtraction(tmp_eptau, alpha, precision = int_prec)
     fp_exponent = Conversion(exponent, precision = self.precision,
                              tag = 'fp_exponent')
 
@@ -482,19 +444,16 @@ class ML_Log(ML_Function("ml_log")):
         elif isinstance(node, Constant):
             value = node.get_value()
             value_hi = round(value, precision, sollya.RN)
-            value_lo =  value - value_hi
-            ch = Constant(
-                    value_hi,
-                    tag = node.get_tag() + "hi",
-                    precision = self.precision)
-            cl = Constant(
-                    value_lo,
-                    tag = node.get_tag() + "lo",
-                    precision = self.precision
-                    ) if value_lo != 0 else None
+            value_lo = round(value - value_hi, precision, sollya.RN)
+            ch = Constant(value_hi,
+                          tag = node.get_tag() + "hi",
+                          precision = self.precision)
+            cl = Constant(value_lo,
+                          tag = node.get_tag() + "lo",
+                          precision = self.precision
+                          ) if value_lo != 0 else None
             if cl is None:
                 Log.report(Log.Info, "simplified constant")
-                print 'simplified a constant'
             return ch, cl
         else:
             # Case of Addition or Multiplication nodes:
