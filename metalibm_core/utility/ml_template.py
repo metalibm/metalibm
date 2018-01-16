@@ -13,7 +13,9 @@
 """ command-line argument templates """
 
 import sys
+import os
 import argparse
+import traceback
 
 from sollya import Interval
 
@@ -116,8 +118,24 @@ def target_parser(target_name):
 
 
 def target_instanciate(target_name):
-    """ instanciate target object from target string name """
-    return target_parser(target_name)()
+    """ instanciate target object from target string 
+        Args:
+            target_name (str): name of the target to instantiate
+            
+        Return:
+            target object instance
+    """
+    target_class = target_parser(target_name)
+    try:
+        target_object = target_class()
+    except Exception as e:
+        exc_type, exc_obj, exc_tb = sys.exc_info()
+        fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+        print(exc_type, fname, exc_tb.tb_lineno)
+        print traceback.print_exc()
+        Log.report(Log.Error, "failed to build target object")
+        raise
+    return target_object
 
 
 def language_parser(language_str):
