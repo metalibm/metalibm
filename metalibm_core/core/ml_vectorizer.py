@@ -81,9 +81,9 @@ class StaticVectorizer(object):
       else:
         return VectorAssembling(*args, precision = precision, tag = tag)
 
-    def extract_const(dict):
+    def extract_const(in_dict):
       result_dict = {}
-      for keys, values in dict.items():
+      for keys, values in in_dict.items():
         if isinstance(keys, Constant):
           result_dict.update({keys:values})
       return result_dict
