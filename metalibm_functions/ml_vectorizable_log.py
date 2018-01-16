@@ -175,16 +175,30 @@ class ML_Log(ML_Function("ml_log")):
                 precision = int_prec
                 )
 
+    def bool_convert(optree, precision, true_value, false_value):
+        """ Implement conversion between boolean node (ML_Bool)
+            and specific values """
+        return Select(
+            optree,
+            Constant(true_value, precision=precision),
+            Constant(false_value, precision=precision),
+            precision=precision
+        )
+
+    def default_bool_convert(optree, precision=None):
+        return bool_convert(optree, precision, -1, 0)
+
+
     # Mask for vector implementations or x86 intrinsics backend.
     mask = BitLogicNegate(
             TypeCast(
-                Conversion(
+                default_bool_convert(
                     Comparison(
                         DirtyExponentExtraction(vx),
                         int_zero,
                         specifier = Comparison.NotEqual,
                         ),
-                    precision = int_prec
+                    precision=int_prec
                     ),
                 precision = uint_prec),
             precision = uint_prec,
@@ -309,7 +323,7 @@ class ML_Log(ML_Function("ml_log")):
             )
     # Compute tau using the tau_index_limit value, works only with the x86 or
     # vector backends
-    tmp = Conversion(
+    tmp = default_bool_convert(
             Comparison(
                 table_index,
                 Constant(tau_index_limit, precision = int_prec),
