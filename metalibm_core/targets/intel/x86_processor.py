@@ -254,7 +254,7 @@ _mm256_and_si256 = ImmIntrin("_mm256_and_si256", arity = 2,
 ## check that list if made of only a single value replicated
 #  in each element
 def uniform_list_check(value_list):
-	return reduce(lambda acc, value: acc and value == value_list[0], value_list, True)
+	return reduce((lambda acc, value: acc and value == value_list[0]), value_list, True)
 
 # check whether @p optree is a uniform vector constant
 def uniform_vector_constant_check(optree):
