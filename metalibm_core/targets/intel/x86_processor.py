@@ -422,7 +422,7 @@ sse_c_code_generation_table = {
                     #  (FunctionOperator("GET_VEC_FIELD_ADDR", arity = 1, output_precision = ML_Pointer_Format(ML_Binary32))(FO_Result(0)), FO_Arg(0)),
                 type_strict_match(v4uint32, ML_SSE_m128_v4uint32):
                     TemplateOperatorFormat(
-                        "_mm_store_si128(GET_VEC_FIELD_ADDR({}), {})",
+                        "_mm_store_si128((__m128i*)GET_VEC_FIELD_ADDR({}), {})",
                         arity = 1,
                         arg_map = {0: FO_Result(0), 1: FO_Arg(0)},
                         require_header = ["emmintrin.h"]
