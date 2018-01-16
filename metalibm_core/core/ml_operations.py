@@ -466,6 +466,10 @@ class ML_ArithmeticOperation(AbstractOperation):
 class ML_LeafNode(AbstractOperation): 
     pass
 
+def is_leaf_node(node):
+    """ Test if node is a leaf one (with no input) """
+    return isinstance(node, ML_LeafNode)
+
 ## Constant node class
 class Constant(ML_LeafNode):
     ## Initializer
