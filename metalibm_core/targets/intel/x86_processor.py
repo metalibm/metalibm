@@ -78,15 +78,15 @@ ML_SSE_m128_v1int32  = VirtualFormatNoForward(ML_Int32, ML_SSE_m128i, get_sse_sc
 ML_SSE_m128_v1int64  = VirtualFormatNoForward(ML_Int64, ML_SSE_m128i, get_sse_scalar_cst, True)
 
 ## format for packed 4 fp32 in a XMM 128-bit register
-ML_SSE_m128_v4float32 = vector_format_builder("__m128", None, 4, ML_Binary32)
+ML_SSE_m128_v4float32 = vector_format_builder("__m128", None, 4, ML_Binary32, cst_callback = get_sse_vector_float_cst)
 ## format for packed 2 fp64 in a XMM 128-bit register
 ML_SSE_m128_v2float64 = vector_format_builder("__m128d", None, 2, ML_Binary64)
 ## format for packed 4 int32 in a XMM 128-bit register
-ML_SSE_m128_v4int32   = vector_format_builder("__m128i",  None, 4, ML_Int32)
+ML_SSE_m128_v4int32   = vector_format_builder("__m128i",  None, 4, ML_Int32, cst_callback = get_sse_vector_int_cst)
 ## format for packed 2 int64 in a XMM 128-bit register
 ML_SSE_m128_v2int64   = vector_format_builder("__m128i",  None, 2, ML_Int64)
 ## format for packed 4 uint32 in a XMM 128-bit register
-ML_SSE_m128_v4uint32  = vector_format_builder("__m128i",  None, 4, ML_UInt32)
+ML_SSE_m128_v4uint32  = vector_format_builder("__m128i",  None, 4, ML_UInt32, cst_callback = get_sse_vector_int_cst)
 ## format for packed 2 uint64 in a XMM 128-bit register
 ML_SSE_m128_v2uint64  = vector_format_builder("__m128i",  None, 2, ML_UInt64)
 
