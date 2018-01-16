@@ -29,6 +29,40 @@ from metalibm_core.code_generation.generic_processor import GenericProcessor
 def get_sse_scalar_cst(format_object, value, language = C_Code):
 	base_format = format_object.get_base_format()
 	return "{{{}}}/*sse*/".format(base_format.get_cst(value, language))
+def get_sse_vector_float_cst(format_object, value, language=C_Code):
+    """ Generate vector constant value for SSE vector format """
+    scalar_format = format_object.get_scalar_format()
+    value_list = ["{}".format(scalar_format.get_cst(svalue, language)) for svalue in value]
+    return "{{{}}}/* sse */".format(", ".join(value_list))
+
+def signed2unsigned(value, width=32):
+    """ convert a signed value to it's 2 complement unsigned
+        encoding """
+    if value >= 0:
+        return int(value)
+    else:
+        return int(value + 2**(width) )
+def unsigned2signed(value, width=32):
+    """ convert an unsigned value representing the 2's complement
+        encoding of a signed value to its numerical signed value """
+    msb = value >> (width - 1)
+    return int(value - msb * 2**width)
+
+def get_sse_vector_int_cst(format_object, value, language=C_Code):
+    """ integer constant must be packed as 64-bit signed values if built by gcc
+    """
+    scalar_format = format_object.get_scalar_format()
+    scalar_w = scalar_format.get_bit_size()
+    compound_cst = reduce((lambda acc, x: (acc * 2**scalar_w + signed2unsigned(x, scalar_w))), value[::-1], 0) 
+    component_w = 64
+    value_list = []
+    while compound_cst != 0:
+        component_abs_value = compound_cst % 2**component_w
+        compound_cst >>= component_w
+        value_list.append(unsigned2signed(component_abs_value, component_w))
+
+    value_enc_list = ["{}".format(ML_Int64.get_cst(value, language)) for value in value_list]
+    return "{{{}}}/* sse */".format(", ".join(value_enc_list))
 
 ML_SSE_m128  = ML_FormatConstructor(128, "__m128", None, lambda v: None)
 ML_SSE_m128i = ML_FormatConstructor(128, "__m128i", None, lambda v: None)
