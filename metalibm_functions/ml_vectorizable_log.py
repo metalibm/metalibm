@@ -5,7 +5,7 @@ import sys
 
 import sollya # sollya.RN, sollya.absolute, sollya.x
 from sollya import (floor, guessdegree, Interval, log, log1p, round, S2, sqrt,
-                    sup)
+                    sup, _x_)
 
 from metalibm_core.core.ml_function import (ML_Function, ML_FunctionBasis,
                                             DefaultArgTemplate)
@@ -64,7 +64,8 @@ class ML_Log(ML_Function("ml_log")):
     table_index_size = 7 # to be abstracted somehow
     table_dimensions = [2**table_index_size]
     field_size = Constant(self.precision.get_field_size(),
-                          precision = int_prec)
+                          precision = int_prec,
+                          tag = 'field_size')
     log2_hi = Constant(
             round(log(2), precision, sollya.RN),
             precision = self.precision,
@@ -103,11 +104,17 @@ class ML_Log(ML_Function("ml_log")):
     print "MDL table"
     # The table holds approximations of -log(2^tau * r_i) so we first compute
     # the index value for which tau changes from 2 to 0.
-    cut = sqrt(2)
-    tau_index_limit = floor(table_dimensions[0] * (cut - 1))
-    init_logtbl_hi = [
+    cut = sqrt(2.)
+    tau_index_limit = floor(table_dimensions[0] * (2./cut - 1))
+    sollya_logtbl = [
             round(-log1p(float(i) / table_dimensions[0])
-                + (0 if i <= cut else log(2)),
+                + (0 if i <= tau_index_limit else log(2.)),
+                2*self.precision.get_mantissa_size() + 1,
+                sollya.RN)
+            for i in xrange(table_dimensions[0])
+            ]
+    init_logtbl_hi = [
+            round(sollya_logtbl[i],
                 self.precision.get_mantissa_size(),
                 sollya.RN)
             for i in xrange(table_dimensions[0])
@@ -117,16 +124,15 @@ class ML_Log(ML_Function("ml_log")):
                                  init_data = init_logtbl_hi,
                                  tag = 'ml_log1p_table_high')
 
-    init_log1p_lo = [
-            round(-log1p(float(i) / table_dimensions[0])
-                + (0 if i <= cut else log(2)) - init_logtbl_hi[i],
+    init_logtbl_lo = [
+            round(sollya_logtbl[i] - init_logtbl_hi[i],
                 self.precision.get_mantissa_size(),
                 sollya.RN)
             for i in xrange(table_dimensions[0])
             ]
     log1p_table_lo = ML_NewTable(dimensions = table_dimensions,
                                  storage_precision = self.precision,
-                                 init_data = init_log1p_lo,
+                                 init_data = init_logtbl_lo,
                                  tag = 'ml_log1p_table_low')
 
     print 'MDL unified subnormal handling'
@@ -190,24 +196,8 @@ class ML_Log(ML_Function("ml_log")):
 
 
     # Mask for vector implementations or x86 intrinsics backend.
-    mask = BitLogicNegate(
-            TypeCast(
-                default_bool_convert(
-                    Comparison(
-                        DirtyExponentExtraction(vx),
-                        int_zero,
-                        specifier = Comparison.NotEqual,
-                        ),
-                    precision=int_prec
-                    ),
-                precision = uint_prec),
-            precision = uint_prec,
-            tag = 'mask'
-            )
-    # Mask for scalar implementations in standard C.
-    #mask = TypeCast(
-    #        Addition(
-    #            Constant(~0, precision = int_prec),
+    #mask = BitLogicNegate(
+    #        TypeCast(
     #            Conversion(
     #                Comparison(
     #                    DirtyExponentExtraction(vx),
@@ -216,10 +206,26 @@ class ML_Log(ML_Function("ml_log")):
     #                    ),
     #                precision = int_prec
     #                ),
-    #            precision = int_prec
-    #            ),
-    #        precision = uint_prec
+    #            precision = uint_prec),
+    #        precision = uint_prec,
+    #        tag = 'mask'
     #        )
+    # Mask for scalar implementations in standard C.
+    mask = TypeCast(
+            Addition(
+                Constant(~0, precision = int_prec),
+                Conversion(
+                    Comparison(
+                        DirtyExponentExtraction(vx),
+                        int_zero,
+                        specifier = Comparison.NotEqual,
+                        ),
+                    precision = int_prec
+                    ),
+                precision = int_prec
+                ),
+            precision = uint_prec
+            )
     n_value = BitLogicAnd(
             TypeCast(
                 Addition(
@@ -259,7 +265,7 @@ class ML_Log(ML_Function("ml_log")):
     normal_vx = TypeCast(normal_vx_as_int, precision = self.precision,
                          tag = 'normal_vx')
 
-    alpha = BitLogicAnd(field_size, is_subnormal)
+    alpha = BitLogicAnd(field_size, is_subnormal, tag = 'alpha')
     # XXX Extract the mantissa, see if this is supported in the x86 vector
     # backend or if it still uses the support_lib.
     vx_mantissa = MantissaExtraction(normal_vx, precision = self.precision)
@@ -327,25 +333,40 @@ class ML_Log(ML_Function("ml_log")):
     tmp = default_bool_convert(
             Comparison(
                 table_index,
-                Constant(tau_index_limit, precision=uint_prec),
-                specifier = Comparison.Greater
+                Constant(tau_index_limit, precision = uint_prec),
+                specifier = Comparison.LessOrEqual
                 ),
-            precision = int_prec
+            precision=int_prec
             )
-    tau = Addition(
-            tmp,
-            int_one,
-            precision = int_prec
-            )
+    # Uncomment below for intrinsics backend
+    #tau = Addition(
+    #        tmp,
+    #        int_one,
+    #        precision = int_prec
+    #        )
+    # Uncomment below for generic backend
+    tau = tmp
+    tau.set_attributes(tag = 'tau')
+
     tbl_hi = TableLoad(log1p_table_hi, table_index, tag = 'tbl_hi',
                        debug = debug_multi)
     tbl_lo = TableLoad(log1p_table_lo, table_index, tag = 'tbl_lo',
                        debug = debug_multi)
-    # Compute exponent e + tau - alpha
+    # Compute exponent e + tau - alpha, but first subtract the bias.
     tmp_eptau = Addition(
-            BitLogicRightShift(TypeCast(ri_bits, precision=int_prec),
-                table_index_size, tag = 'exponent',
-                interval = self.precision.get_exponent_interval()),
+            Addition(
+                BitLogicRightShift(
+                    normal_vx_as_int,
+                    field_size,
+                    tag = 'exponent',
+                    interval = self.precision.get_exponent_interval(),
+                    precision = int_prec
+                    ),
+                Constant(
+                    self.precision.get_bias(),
+                    precision = int_prec
+                    ),
+                ),
             tau,
             tag = 'tmp_eptau',
             precision = int_prec
@@ -373,12 +394,12 @@ class ML_Log(ML_Function("ml_log")):
             )
     poly_object = Polynomial.build_from_approximation(
             sollya_function,
-            range(1, poly_degree + 1), # Force 1st coeff to 0
+            range(2, poly_degree + 1), # Force 1st 2 coeffs to 0 and 1, resp.
             # Emulate double-self.precision coefficient formats
-            [self.precision.get_mantissa_size()*2 + 1]*poly_degree,
+            [self.precision.get_mantissa_size()*2 + 1]*(poly_degree - 1),
             approx_interval,
             sollya.absolute,
-            0) # Force the first coefficient to 0
+            0 + sollya._x_) # Force the first 2 coefficients to 0 and 1, resp.
 
     print poly_object
 
@@ -430,6 +451,15 @@ class ML_Log(ML_Function("ml_log")):
         zl = Addition(zl, pl)
         return zh, zl
 
+    def Add212(xh, yh, yl):
+        r = Addition(xh, yh)
+        s1 = Subtraction(xh, r)
+        s2 = Addition(s1, yh)
+        s = Addition(s2, yl)
+        zh = Addition(r, s)
+        zl = Addition(Subtraction(r, zh), s)
+        return zh, zl
+
     def Add222(xh, xl, yh, yl):
         r = Addition(xh, yh)
         s1 = Subtraction(xh, r)
@@ -459,31 +489,36 @@ class ML_Log(ML_Function("ml_log")):
                     value_lo,
                     tag = node.get_tag() + "lo",
                     precision = self.precision
-                    )
+                    ) if value_lo != 0 else None
+            if cl is None:
+                Log.report(Log.Info, "simplified constant")
+                print 'simplified a constant'
             return ch, cl
+        else:
+            # Case of Addition or Multiplication nodes:
+            # 1. retrieve inputs
+            # 2. dirty convert inputs recursively
+            # 3. forward to the right metamacro
+            inputs = node.get_inputs()
+            op1h, op1l = dirty_poly_node_conversion(inputs[0], variable)
+            op2h, op2l = dirty_poly_node_conversion(inputs[1], variable)
+            if isinstance(node, Addition):
+                return Add222(op1h, op1l, op2h, op2l) \
+                        if op1l is not None and op2l is not None \
+                        else Add212(op1h, op2h, op2l) \
+                        if op1l is None and op2l is not None \
+                        else Add212(op2h, op1h, op1l) \
+                        if op2l is None and op1l is not None \
+                        else Add211(op1h, op2h)
 
-        inputs = node.get_inputs()
-        if isinstance(node, Addition):
-            op1h, op1l = dirty_poly_node_conversion(inputs[0], variable)
-            op2h, op2l = dirty_poly_node_conversion(inputs[1], variable)
-            return Add222(op1h, op1l, op2h, op2l)
-        if isinstance(node, Subtraction):
-            op1h, op1l = dirty_poly_node_conversion(inputs[0], variable)
-            op2h, op2l = dirty_poly_node_conversion(inputs[1], variable)
-            return Sub222(op1h, op1l, op2h, op2l)
-        elif isinstance(node, Multiplication):
-            op1h, op1l = dirty_poly_node_conversion(inputs[0], variable)
-            op2h, op2l = dirty_poly_node_conversion(inputs[1], variable)
-            if op1l is None:
-                if op2l is None:
-                    return Mul211(op1h, op2h)
-                else:
-                    return Mul212(op1h, op2h, op2l)
-            else:
-                if op2l is None:
-                    return Mul212(op2h, op1h, op1l)
-                else:
-                    return Mul222(op1h, op1l, op2h, op2l)
+            elif isinstance(node, Multiplication):
+                return Mul222(op1h, op1l, op2h, op2l) \
+                        if op1l is not None and op2l is not None \
+                        else Mul212(op1h, op2h, op2l) \
+                        if op1l is None and op2l is not None \
+                        else Mul212(op2h, op1h, op1l) \
+                        if op2l is None and op1l is not None \
+                        else Mul211(op1h, op2h)
 
     log1pu_poly_hi, log1pu_poly_lo = dirty_poly_node_conversion(log1pu_poly, u)
     log1pu_poly_hi.set_attributes(tag = 'log1pu_poly_hi')
@@ -499,6 +534,7 @@ class ML_Log(ML_Function("ml_log")):
 
     # Add -log(2^(tau)/m) approximation retrieved by two table lookups
     logx_hi = Add122(tmp_res_hi, tmp_res_lo, tbl_hi, tbl_lo)
+    logx_hi.set_attributes(tag = 'logx_hi')
 
     scheme = Return(logx_hi, precision = self.precision)
 
