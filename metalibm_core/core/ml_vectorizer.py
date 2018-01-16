@@ -51,17 +51,24 @@ class StaticVectorizer(object):
     # @param optree ML_Operation object root of the input operation graph
     # @param variable_mapping dict ML_Operation -> ML_Operation 
     #        mapping a variable to its sub-graph
+    # @param processed_map dictionnary of node -> mapping storing already processed node
     # @return an updated version of optree with variables replaced
     #         by the corresponding sub-graph if any
-    def instanciate_variable(optree, variable_mapping):
-      if isinstance(optree, Variable) and optree in variable_mapping:
-        return variable_mapping[optree]
-      elif isinstance(optree, ML_LeafNode):
-        return optree
-      else:
-        for index, op_in in enumerate(optree.get_inputs()):
-          optree.set_input(index, instanciate_variable(op_in, variable_mapping))
-        return optree
+    def instanciate_variable(optree, variable_mapping, processed_map=None):
+        processed_map = {} if processed_map is None else processed_map
+        if optree in processed_map:
+            return processed_map[optree]
+        elif isinstance(optree, Variable) and optree in variable_mapping:
+            processed_map[optree] = variable_mapping[optree]
+            return variable_mapping[optree]
+        elif isinstance(optree, ML_LeafNode):
+            processed_map[optree] = optree
+            return optree
+        else:
+            for index, op_in in enumerate(optree.get_inputs()):
+                optree.set_input(index, instanciate_variable(op_in, variable_mapping, processed_map))
+            processed_map[optree] = optree
+            return optree
 
     vectorized_path = self.opt_engine.extract_vectorizable_path(optree, fallback_policy)
     linearized_most_likely_path = vectorized_path.linearized_optree
