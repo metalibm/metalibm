@@ -257,6 +257,7 @@ c_code_generation_table = {
                     and is_std_integer_format(dst_type)
                     and is_std_signed_integer_format(op0_type)
                     and is_std_integer_format(op1_type)
+                    and op0_type in unsigned_integer_precision
                     ) : ComplexOperator(
                       lambda optree: BitLogicRightShift(
                         TypeCast(optree.get_input(0),
