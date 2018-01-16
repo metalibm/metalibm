@@ -403,13 +403,14 @@ sse_c_code_generation_table = {
                 type_strict_match(ML_SSE_m128_v4uint32, v4uint32):
                     XmmIntrin("_mm_load_si128", arity = 1,
                               output_precision = ML_SSE_m128_v4uint32)(
+                              __m128ip_cast_operator( 
                                   TemplateOperatorFormat(
                                       "GET_VEC_FIELD_ADDR({})", arity = 1,
                                       output_precision = ML_Pointer_Format(
                                           ML_UInt32
                                           )
                                       )
-                                  ),
+                                  )),
                 # m128 float vector to ML's generic vector format
                 type_strict_match(v4float32, ML_SSE_m128_v4float32):
                     TemplateOperatorFormat(
