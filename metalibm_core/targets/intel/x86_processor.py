@@ -1118,6 +1118,16 @@ avx2_c_code_generation_table = {
             },
         },
     },
+    Multiplication: {
+        None: {
+            lambda optree: True: {
+                type_strict_match(*(3*(ML_AVX_m256_v8int32,))):
+                    ImmIntrin("_mm256_mul_epi32", arity = 2),
+                type_strict_match(*(3*(ML_AVX_m256_v4int64,))):
+                    ImmIntrin("_mm256_mul_epi64", arity = 2),
+            },
+        },
+    },
     BitArithmeticRightShift: {
         None: {
             lambda _: True: {
