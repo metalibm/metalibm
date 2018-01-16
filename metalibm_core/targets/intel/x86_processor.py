@@ -1014,6 +1014,14 @@ avx_c_code_generation_table = {
             },
         },
     },
+    NearestInteger: {
+        None: {
+            lambda optree: True: {
+                type_strict_match(ML_AVX_m256_v8int32, ML_AVX_m256_v8float32):
+                    ImmIntrin("_mm256_cvtps_epi32", arity = 1),
+            },
+        },
+    },
     Negation: {
         None: {
             lambda optree: True: {
