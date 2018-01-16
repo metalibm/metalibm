@@ -368,6 +368,12 @@ sse_c_code_generation_table = {
                 type_strict_match(*(3*(ML_SSE_m128_v4float32,))):
                     XmmIntrin("_mm_or_ps", arity = 2,
                               output_precision = ML_SSE_m128_v4float32),
+                type_strict_match(*(3*(ML_SSE_m128_v4uint32,))):
+                    XmmIntrin("_mm_or_si128", arity = 2,
+                              output_precision = ML_SSE_m128_v4uint32),
+                type_strict_match(*(3*(ML_SSE_m128_v4int32,))):
+                    XmmIntrin("_mm_or_si128", arity = 2,
+                              output_precision = ML_SSE_m128_v4int32),
             },
         },
     },
