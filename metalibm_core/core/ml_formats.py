@@ -1025,9 +1025,10 @@ class ML_FloatingPointVectorFormat(ML_CompoundVectorFormat, ML_FP_Format):
 #  @param scalar_format ML_Format object, format of a vector's element
 #  @param sollya_precision pythonsollya object, sollya precision to be used for computation
 #  @param compound_constructor ML_Compound_Format child class used to build the result format
+#  @param cst_callback function (self, value, language) -> str, used to generate constant value code
 def vector_format_builder(c_format_name, opencl_format_name, vector_size,
-                          scalar_format, sollya_precision = None,
-                          compound_constructor = ML_FloatingPointVectorFormat, cst_callback = None):
+                          scalar_format, sollya_precision=None,
+                          compound_constructor=ML_FloatingPointVectorFormat, cst_callback=None):
   return compound_constructor(c_format_name, opencl_format_name, vector_size,
                               scalar_format, sollya_precision, cst_callback)
 
