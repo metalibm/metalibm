@@ -343,7 +343,7 @@ class ML_Log(ML_Function("ml_log")):
                        debug = debug_multi)
     # Compute exponent e + tau - alpha
     tmp_eptau = Addition(
-            BitLogicRightShift(ri_bits,
+            BitLogicRightShift(TypeCast(ri_bits, precision=int_prec),
                 table_index_size, tag = 'exponent',
                 interval = self.precision.get_exponent_interval()),
             tau,
