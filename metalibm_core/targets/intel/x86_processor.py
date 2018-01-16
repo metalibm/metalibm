@@ -399,6 +399,17 @@ sse_c_code_generation_table = {
                                           )
                                       )
                                   ),
+                # m128 float vector from ML's generic vector format
+                type_strict_match(ML_SSE_m128_v4uint32, v4uint32):
+                    XmmIntrin("_mm_load_si128", arity = 1,
+                              output_precision = ML_SSE_m128_v4uint32)(
+                                  TemplateOperatorFormat(
+                                      "GET_VEC_FIELD_ADDR({})", arity = 1,
+                                      output_precision = ML_Pointer_Format(
+                                          ML_UInt32
+                                          )
+                                      )
+                                  ),
                 # m128 float vector to ML's generic vector format
                 type_strict_match(v4float32, ML_SSE_m128_v4float32):
                     TemplateOperatorFormat(
@@ -409,6 +420,13 @@ sse_c_code_generation_table = {
                         ),
                     #XmmIntrin("_mm_store_ps", arity = 2, arg_map = {0: FO_Result(0), 1: FO_Arg(0)})
                     #  (FunctionOperator("GET_VEC_FIELD_ADDR", arity = 1, output_precision = ML_Pointer_Format(ML_Binary32))(FO_Result(0)), FO_Arg(0)),
+                type_strict_match(v4uint32, ML_SSE_m128_v4uint32):
+                    TemplateOperatorFormat(
+                        "_mm_store_si128(GET_VEC_FIELD_ADDR({}), {})",
+                        arity = 1,
+                        arg_map = {0: FO_Result(0), 1: FO_Arg(0)},
+                        require_header = ["emmintrin.h"]
+                        ),
             },
         },
     },
