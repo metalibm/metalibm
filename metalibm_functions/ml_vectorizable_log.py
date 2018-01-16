@@ -304,8 +304,9 @@ class ML_Log(ML_Function("ml_log")):
             )
     unneeded_bits = Constant(
             self.precision.field_size - table_index_size,
-            precision = int_prec
+            precision=uint_prec
             )
+    assert self.precision.field_size - table_index_size >= 0
     ri_bits = BitLogicRightShift(
             ri_fast_rndn,
             unneeded_bits,
@@ -326,7 +327,7 @@ class ML_Log(ML_Function("ml_log")):
     tmp = default_bool_convert(
             Comparison(
                 table_index,
-                Constant(tau_index_limit, precision = int_prec),
+                Constant(tau_index_limit, precision=uint_prec),
                 specifier = Comparison.Greater
                 ),
             precision = int_prec
