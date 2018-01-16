@@ -489,6 +489,33 @@ sse_c_code_generation_table = {
             },
         },
     },
+    TableLoad: {
+        None: {
+            lambda optree: True: {
+                # XMM version
+                type_custom_match(FSM(ML_SSE_m128_v1float32),
+                                  TCM(ML_TableFormat),
+                                  FSM(ML_Int32)):
+                    XmmIntrin("_mm_load_ss", arity = 1,
+                        output_precision = ML_SSE_m128_v1float32)(
+                            TemplateOperatorFormat(
+                                "(float*)&{}[{}]", arity=2,
+                                output_precision=ML_Pointer_Format(ML_Binary32)
+                            )
+                        ),
+                type_custom_match(FSM(ML_SSE_m128_v1float32),
+                                  TCM(ML_TableFormat),
+                                  FSM(ML_SSE_m128_v1int32)):
+                    XmmIntrin("_mm_load_ss", arity = 1,
+                        output_precision = ML_SSE_m128_v1float32)(
+                            TemplateOperatorFormat(
+                                "(float*)&{}[_mm_cvtsi128_si32({})]", arity=2,
+                                output_precision=ML_Pointer_Format(ML_Binary32)
+                            )
+                        ),
+            },
+        },
+    },
 }
 
 sse2_c_code_generation_table = {
