@@ -214,7 +214,7 @@ class ML_Log(ML_Function("ml_log")):
     mask = TypeCast(
             Addition(
                 Constant(~0, precision = int_prec),
-                Conversion(
+                default_bool_convert(
                     Comparison(
                         DirtyExponentExtraction(vx),
                         int_zero,
