@@ -318,6 +318,20 @@ DEF_ML_VECTOR_COMPARATOR_OP2(ml_comp_le_u4, ml_bool4_t, ml_uint4_t, 4, <=)
 DEF_ML_VECTOR_COMPARATOR_OP2(ml_comp_eq_u4, ml_bool4_t, ml_uint4_t, 4, ==)
 DEF_ML_VECTOR_COMPARATOR_OP2(ml_comp_ne_u4, ml_bool4_t, ml_uint4_t, 4, !=)
 
+DEF_ML_VECTOR_COMPARATOR_OP2(ml_comp_gt_l4, ml_bool4_t, ml_long4_t, 4, >)
+DEF_ML_VECTOR_COMPARATOR_OP2(ml_comp_ge_l4, ml_bool4_t, ml_long4_t, 4, >=)
+DEF_ML_VECTOR_COMPARATOR_OP2(ml_comp_lt_l4, ml_bool4_t, ml_long4_t, 4, <)
+DEF_ML_VECTOR_COMPARATOR_OP2(ml_comp_le_l4, ml_bool4_t, ml_long4_t, 4, <=)
+DEF_ML_VECTOR_COMPARATOR_OP2(ml_comp_eq_l4, ml_bool4_t, ml_long4_t, 4, ==)
+DEF_ML_VECTOR_COMPARATOR_OP2(ml_comp_ne_l4, ml_bool4_t, ml_long4_t, 4, !=)
+
+DEF_ML_VECTOR_COMPARATOR_OP2(ml_comp_gt_ul4, ml_bool4_t, ml_ulong4_t, 4, >)
+DEF_ML_VECTOR_COMPARATOR_OP2(ml_comp_ge_ul4, ml_bool4_t, ml_ulong4_t, 4, >=)
+DEF_ML_VECTOR_COMPARATOR_OP2(ml_comp_lt_ul4, ml_bool4_t, ml_ulong4_t, 4, <)
+DEF_ML_VECTOR_COMPARATOR_OP2(ml_comp_le_ul4, ml_bool4_t, ml_ulong4_t, 4, <=)
+DEF_ML_VECTOR_COMPARATOR_OP2(ml_comp_eq_ul4, ml_bool4_t, ml_ulong4_t, 4, ==)
+DEF_ML_VECTOR_COMPARATOR_OP2(ml_comp_ne_ul4, ml_bool4_t, ml_ulong4_t, 4, !=)
+
 /** 8-element vector comparison */
 DEF_ML_VECTOR_COMPARATOR_OP2(ml_comp_gt_f8, ml_bool8_t, ml_float8_t, 8, >)
 DEF_ML_VECTOR_COMPARATOR_OP2(ml_comp_ge_f8, ml_bool8_t, ml_float8_t, 8, >=)

@@ -21,7 +21,10 @@ class Pass_M128_Promotion(Pass_Vector_Promotion):
     ML_Binary64: ML_SSE_m128_v1float64,
     v2float64:   ML_SSE_m128_v2float64,
     v4float32:   ML_SSE_m128_v4float32,
+    v2int64:     ML_SSE_m128_v2int64,
     v4int32:     ML_SSE_m128_v4int32,
+    v2uint64:    ML_SSE_m128_v2uint64,
+    v4uint32:    ML_SSE_m128_v4uint32,
     ML_Int32:    ML_SSE_m128_v1int32,
   }
 

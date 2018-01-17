@@ -466,6 +466,10 @@ class ML_ArithmeticOperation(AbstractOperation):
 class ML_LeafNode(AbstractOperation): 
     pass
 
+def is_leaf_node(node):
+    """ Test if node is a leaf one (with no input) """
+    return isinstance(node, ML_LeafNode)
+
 ## Constant node class
 class Constant(ML_LeafNode):
     ## Initializer
@@ -733,7 +737,7 @@ class SpecifierOperation(object):
         """ return code generation specific key """
         return self.specifier
 
-class ComponentSelectionSpecifier: pass
+class ComponentSelectionSpecifier(object): pass
 
 class Split(ArithmeticOperationConstructor("Split", arity = 1)):
     pass
@@ -806,7 +810,7 @@ class FusedMultiplyAdd(ArithmeticOperationConstructor("FusedMultiplyAdd", inheri
     class DotProductNegate(FMASpecifier_Builder("DotProductNegate", 4, lambda _self, ops: ops[0] * ops[1] - ops[2] * ops[3])):
         """ op0 * op1 - op2 * op3 """
         pass
-        
+
     def __init__(self, *args, **kwords):
         self.specifier = attr_init(kwords, "specifier", FusedMultiplyAdd.Standard)
         # indicates wheter a base operation commutation has been processed
@@ -860,6 +864,9 @@ class Division(ArithmeticOperationConstructor("Division", range_function = lambd
     """ abstract addition """
     pass
 
+class Extract(ArithmeticOperationConstructor("Extract")):
+    """ abstract word or vector extract-from-vector operation """
+    pass
 
 class Modulo(ArithmeticOperationConstructor("Modulo", range_function = lambda self, ops: safe(operator.__mod__)(ops[0], ops[1]))):
     """ abstract modulo operation """
@@ -868,6 +875,10 @@ class Modulo(ArithmeticOperationConstructor("Modulo", range_function = lambda se
 
 class NearestInteger(ArithmeticOperationConstructor("NearestInteger", arity = 1, range_function = lambda self, ops: safe(nearestint)(ops[0]))): 
     """ abstract addition """
+    pass
+
+class Permute(ArithmeticOperationConstructor("Permute")):
+    """ abstract word-permutations inside a vector operation """
     pass
 
 class FastReciprocal(ArithmeticOperationConstructor(
@@ -931,6 +942,24 @@ class TableLoad(ArithmeticOperationConstructor("TableLoad", arity = 2, range_fun
 class TableStore(ArithmeticOperationConstructor("TableStore", arity = 3, range_function = lambda self, ops: None)):
     """ abstract store to a table operation """
     pass
+
+class VectorUnpack(ArithmeticOperationConstructor("VectorUnpack",
+                   inheritance = [SpecifierOperation])):
+    """ abstract vector unpacking operation """
+    # High and Low specifiers for Unpack operation
+    class Hi(object): name = 'Hi'
+    class Lo(object): name = 'Lo'
+
+    def __init__(self, *args, **kwords):
+        self.specifier = attr_init(kwords, "specifier", VectorUnpack.Lo)
+        super(VectorUnpack, self).__init__(*args, **kwords)
+
+    def get_name(self):
+        return  "VectorUnpack.{}".format(self.specifier.name)
+
+    def get_codegen_key(self):
+        return self.specifier
+
 
 ## Compute the union of two intervals
 def interval_union(int0, int1):
@@ -1172,7 +1201,7 @@ def CompSpecBuilder(name, opcode, symbol):
     return type(name, (ComparisonSpecifier,), field_map)
   
 
-## Comparision operator
+## Comparison operator
 class Comparison(ArithmeticOperationConstructor("Comparison", arity = 2, inheritance = [BooleanOperation, SpecifierOperation])):
     """ Abstract Comparison operation """
     Equal          = CompSpecBuilder("Equal", "eq", "==")

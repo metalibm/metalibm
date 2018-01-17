@@ -123,7 +123,7 @@ unit_test_list = [
   UnitTestScheme(
     "m128 conversion test",
     ut_m128_conversion,
-    [{"pre_gen_passes": ["m128_promotion"], "target": target_instanciate("x86_avx2")}],
+    [{"pre_gen_passes": ["m128_promotion"], "target": target_instanciate("x86_avx2"), "vector_size": 4, "auto_test_execute": 100}],
   ),
   UnitTestScheme(
     "new table test",

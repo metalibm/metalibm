@@ -51,17 +51,24 @@ class StaticVectorizer(object):
     # @param optree ML_Operation object root of the input operation graph
     # @param variable_mapping dict ML_Operation -> ML_Operation 
     #        mapping a variable to its sub-graph
+    # @param processed_map dictionnary of node -> mapping storing already processed node
     # @return an updated version of optree with variables replaced
     #         by the corresponding sub-graph if any
-    def instanciate_variable(optree, variable_mapping):
-      if isinstance(optree, Variable) and optree in variable_mapping:
-        return variable_mapping[optree]
-      elif isinstance(optree, ML_LeafNode):
-        return optree
-      else:
-        for index, op_in in enumerate(optree.get_inputs()):
-          optree.set_input(index, instanciate_variable(op_in, variable_mapping))
-        return optree
+    def instanciate_variable(optree, variable_mapping, processed_map=None):
+        processed_map = {} if processed_map is None else processed_map
+        if optree in processed_map:
+            return processed_map[optree]
+        elif isinstance(optree, Variable) and optree in variable_mapping:
+            processed_map[optree] = variable_mapping[optree]
+            return variable_mapping[optree]
+        elif isinstance(optree, ML_LeafNode):
+            processed_map[optree] = optree
+            return optree
+        else:
+            for index, op_in in enumerate(optree.get_inputs()):
+                optree.set_input(index, instanciate_variable(op_in, variable_mapping, processed_map))
+            processed_map[optree] = optree
+            return optree
 
     vectorized_path = self.opt_engine.extract_vectorizable_path(optree, fallback_policy)
     linearized_most_likely_path = vectorized_path.linearized_optree
@@ -81,9 +88,9 @@ class StaticVectorizer(object):
       else:
         return VectorAssembling(*args, precision = precision, tag = tag)
 
-    def extract_const(dict):
+    def extract_const(in_dict):
       result_dict = {}
-      for keys, values in dict.items():
+      for keys, values in in_dict.items():
         if isinstance(keys, Constant):
           result_dict.update({keys:values})
       return result_dict
@@ -159,6 +166,18 @@ class StaticVectorizer(object):
         3: v3int32,
         4: v4int32,
         8: v8int32
+      },
+      ML_UInt64: {
+        2: v2uint64,
+        3: v3uint64,
+        4: v4uint64,
+        8: v8uint64
+      },
+      ML_Int64: {
+        2: v2int64,
+        3: v3int64,
+        4: v4int64,
+        8: v8int64
       },
       ML_Bool: {
         2: v2bool,

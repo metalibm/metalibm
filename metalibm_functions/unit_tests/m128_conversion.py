@@ -41,7 +41,8 @@ class ML_UT_M128Conversion(ML_Function("ml_ut_m128_conversion")):
         "target": X86_AVX2_Processor(),
         "fast_path_extract": True,
         "fuse_fma": True,
-        "libm_compliant": True
+        "libm_compliant": True,
+        "pre_gen_passes": ["m128_promotion"], 
     }
     default_args.update(kw)
     return DefaultArgTemplate(**default_args)
@@ -75,6 +76,8 @@ class ML_UT_M128Conversion(ML_Function("ml_ut_m128_conversion")):
       precision = ML_Int32
     )
 
+    index = BitLogicRightShift(index, Constant(1, precision=ML_Int32), precision=ML_Int32)
+
     table_value = TableLoad(table, index, precision = self.precision)
 
     int_tree = Multiplication(
@@ -100,10 +103,11 @@ class ML_UT_M128Conversion(ML_Function("ml_ut_m128_conversion")):
         specifier = FusedMultiplyAdd.Subtract,
         precision = self.precision
       ),
-      precision = self.precision
+      precision = self.precision,
+      tag="result"
     )
 
-    scheme = Return(result, precision = self.precision)
+    scheme = Return(result, precision=self.precision, debug=debug_multi)
 
     # conv_pass = Pass_M128_Promotion(self.processor)
     # new_scheme = conv_pass.execute(scheme)
@@ -112,7 +116,7 @@ class ML_UT_M128Conversion(ML_Function("ml_ut_m128_conversion")):
 
   def numeric_emulate(self, x):
     index = int(sollya.nearestint(x)) % 16
-    table_value = index
+    table_value = index >> 1
     add_xx = sollya.round(x + x, self.precision.get_sollya_object(), sollya.RN)
     mult   = sollya.round(add_xx * x, self.precision.get_sollya_object(), sollya.RN)
     cst    = sollya.round(1.1, self.precision.get_sollya_object(), sollya.RN)
@@ -130,7 +134,7 @@ def run_test(args):
 
 if __name__ == "__main__":
   # auto-test
-  arg_template = ML_NewArgTemplate(default_args=ML_UT_M128Conversion.get_default_args())
+  arg_template = ML_NewArgTemplate(default_arg=ML_UT_M128Conversion.get_default_args())
   args = arg_template.arg_extraction()
 
 

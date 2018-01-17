@@ -520,7 +520,7 @@ class VirtualFormat(ML_Format):
     return self.cst_decl_required
 
   def is_vector_format(self):
-    return False
+      return False
 
 ## Virtual format with no match forwarding
 class VirtualFormatNoForward(VirtualFormat):
@@ -682,7 +682,7 @@ class ML_Base_FixedPoint_Format(ML_Fixed_Format, VirtualFormatNoBase):
         """ C-language constant generation """
         try:
           encoded_value = int(cst_value * sollya.S2**self.frac_size)
-        except ValueError as e:
+        except (ValueError, TypeError) as e:
           print e, cst_value, self.frac_size
           Log.report(Log.Error, "Error during constant conversion to sollya object")
           
@@ -731,6 +731,9 @@ class ML_Standard_FixedPoint_Format(ML_Base_SW_FixedPoint_Format):
   def round_sollya_object(self, value, round_mode = sollya.RN):
     # TBD: support other rounding mode
     return sollya.nearestint(value)
+
+  def __repr__(self):
+      return self.name[C_Code]
 
   def __str__(self):
     return self.name[C_Code]
@@ -826,7 +829,8 @@ ML_String = ML_StringClass("char*", "%s", lambda self, s: "\"{}\"".format(s))
 ## Predicate checking if @p precision is a standard integer format
 def is_std_integer_format(precision):
 	return isinstance(precision, ML_Standard_FixedPoint_Format) or \
-           isinstance(precision.get_base_format(), ML_Standard_FixedPoint_Format)
+           isinstance(precision.get_base_format(), ML_Standard_FixedPoint_Format) and \
+           not precision.is_vector_format()
   #return precision in [ ML_Int8, ML_UInt8, ML_Int16, ML_UInt16,
   #                      ML_Int32, ML_UInt32, ML_Int64, ML_UInt64,
   #                      ML_Int128, ML_UInt128 ]
@@ -935,9 +939,19 @@ class ML_Compound_Integer_Format(ML_Compound_Format, ML_Fixed_Format):
   pass
 
 # compound binary floating-point format declaration
-ML_DoubleDouble = ML_Compound_FP_Format("ml_dd_t", ["hi", "lo"], [ML_Binary64, ML_Binary64], "", "", sollya.doubledouble)
-ML_TripleDouble = ML_Compound_FP_Format("ml_td_t", ["hi", "me", "lo"], [ML_Binary64, ML_Binary64, ML_Binary64], "", "", sollya.tripledouble)
-ML_SingleSingle = ML_Compound_FP_Format("ml_ds_t", ["hi", "lo"], [ML_Binary32, ML_Binary32], "", "", sollya.single)
+ML_DoubleDouble = ML_Compound_FP_Format("ml_dd_t", ["hi", "lo"],
+                                        [ML_Binary64, ML_Binary64],
+                                        "", "",
+                                        sollya.doubledouble)
+ML_TripleDouble = ML_Compound_FP_Format("ml_td_t", ["hi", "me", "lo"],
+                                        [ML_Binary64, ML_Binary64,
+                                            ML_Binary64],
+                                        "", "",
+                                        sollya.tripledouble)
+ML_SingleSingle = ML_Compound_FP_Format("ml_ds_t", ["hi", "lo"],
+                                        [ML_Binary32, ML_Binary32],
+                                        "", "",
+                                        2*ML_Binary32.get_mantissa_size() + 1)
 ###############################################################################
 #                     VECTOR FORMAT
 ###############################################################################
@@ -1011,9 +1025,10 @@ class ML_FloatingPointVectorFormat(ML_CompoundVectorFormat, ML_FP_Format):
 #  @param scalar_format ML_Format object, format of a vector's element
 #  @param sollya_precision pythonsollya object, sollya precision to be used for computation
 #  @param compound_constructor ML_Compound_Format child class used to build the result format
+#  @param cst_callback function (self, value, language) -> str, used to generate constant value code
 def vector_format_builder(c_format_name, opencl_format_name, vector_size,
-                          scalar_format, sollya_precision = None,
-                          compound_constructor = ML_FloatingPointVectorFormat, cst_callback = None):
+                          scalar_format, sollya_precision=None,
+                          compound_constructor=ML_FloatingPointVectorFormat, cst_callback=None):
   return compound_constructor(c_format_name, opencl_format_name, vector_size,
                               scalar_format, sollya_precision, cst_callback)
 
@@ -1032,8 +1047,8 @@ v3bool  = vector_format_builder("ml_bool3_t", "int3", 3, ML_Bool, compound_const
 v4bool  = vector_format_builder("ml_bool4_t", "int4", 4, ML_Bool, compound_constructor = ML_IntegerVectorFormat)
 v8bool  = vector_format_builder("ml_bool8_t", "int8", 8, ML_Bool, compound_constructor = ML_IntegerVectorFormat)
 
-v2int32  = vector_format_builder("ml_int2_t", "int2", 2,  ML_Int32, compound_constructor = ML_IntegerVectorFormat)
-v3int32  = vector_format_builder("ml_int3_t", "int3", 3,  ML_Int32, compound_constructor = ML_IntegerVectorFormat)
+v2int32  = vector_format_builder("ml_int2_t", "int2", 2, ML_Int32, compound_constructor = ML_IntegerVectorFormat)
+v3int32  = vector_format_builder("ml_int3_t", "int3", 3, ML_Int32, compound_constructor = ML_IntegerVectorFormat)
 v4int32  = vector_format_builder("ml_int4_t", "int4", 4, ML_Int32, compound_constructor = ML_IntegerVectorFormat)
 v8int32  = vector_format_builder("ml_int8_t", "int8", 8, ML_Int32, compound_constructor = ML_IntegerVectorFormat)
 
@@ -1041,6 +1056,16 @@ v2uint32 = vector_format_builder("ml_uint2_t", "uint2", 2, ML_UInt32, compound_c
 v3uint32 = vector_format_builder("ml_uint3_t", "uint3", 3, ML_UInt32, compound_constructor = ML_IntegerVectorFormat)
 v4uint32 = vector_format_builder("ml_uint4_t", "uint4", 4, ML_UInt32, compound_constructor = ML_IntegerVectorFormat)
 v8uint32 = vector_format_builder("ml_uint8_t", "uint8", 8, ML_UInt32, compound_constructor = ML_IntegerVectorFormat)
+
+v2int64  = vector_format_builder("ml_long2_t", "long2", 2, ML_Int64, compound_constructor = ML_IntegerVectorFormat)
+v3int64  = vector_format_builder("ml_long3_t", "long3", 3, ML_Int64, compound_constructor = ML_IntegerVectorFormat)
+v4int64  = vector_format_builder("ml_long4_t", "long4", 4, ML_Int64, compound_constructor = ML_IntegerVectorFormat)
+v8int64  = vector_format_builder("ml_long8_t", "long8", 8, ML_Int64, compound_constructor = ML_IntegerVectorFormat)
+
+v2uint64 = vector_format_builder("ml_long2_t", "ulong2", 2, ML_UInt64, compound_constructor = ML_IntegerVectorFormat)
+v3uint64 = vector_format_builder("ml_long3_t", "ulong3", 3, ML_UInt64, compound_constructor = ML_IntegerVectorFormat)
+v4uint64 = vector_format_builder("ml_long4_t", "ulong4", 4, ML_UInt64, compound_constructor = ML_IntegerVectorFormat)
+v8uint64 = vector_format_builder("ml_long8_t", "ulong8", 8, ML_UInt64, compound_constructor = ML_IntegerVectorFormat)
 
 
 ###############################################################################
