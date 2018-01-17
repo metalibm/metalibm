@@ -569,6 +569,8 @@ sse2_c_code_generation_table = {
             lambda optree: True: {
                 type_strict_match(*(3*(ML_SSE_m128_v4int32,))):
                     EmmIntrin("_mm_and_si128", arity = 2),
+                type_strict_match(*(3*(ML_SSE_m128_v4uint32,))):
+                    EmmIntrin("_mm_and_si128", arity = 2),
             },
         },
     },
