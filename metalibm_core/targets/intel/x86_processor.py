@@ -646,6 +646,14 @@ sse2_c_code_generation_table = {
                                   FO_Arg(0),
                                   _mm_set1_epi64x(FO_Arg(1))
                                   ),
+                type_strict_match(ML_SSE_m128_v4uint32,
+                                  ML_SSE_m128_v4uint32,
+                                  ML_Int32):
+                    EmmIntrin("_mm_srai_epi32", arity = 2,
+                              arg_map = {0: FO_Arg(0), 1: FO_Arg(1)})(
+                                  FO_Arg(0),
+                                  _mm_set1_epi64x(FO_Arg(1))
+                                  ),
                 # TODO the last argument is a scalar here, see documentation on
                 # _mm_srl_epi32. We need to make sure that the last vector is a
                 # constant that can be changed into either an imm8 (above) or
