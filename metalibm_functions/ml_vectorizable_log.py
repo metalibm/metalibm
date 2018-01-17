@@ -310,13 +310,15 @@ class ML_Log(ML_Function("ml_log")):
             )
     unneeded_bits = Constant(
             self.precision.field_size - table_index_size,
-            precision=uint_prec
+            precision=uint_prec,
+            tag="unneeded_bits"
             )
     assert self.precision.field_size - table_index_size >= 0
     ri_bits = BitLogicRightShift(
             ri_fast_rndn,
             unneeded_bits,
-            precision = uint_prec
+            precision = uint_prec,
+            tag = "ri_bits"
             )
     table_index_mask = Constant(
             (1 << table_index_size) - 1,
