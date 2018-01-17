@@ -761,6 +761,11 @@ sse2_c_code_generation_table = {
                 type_strict_match(ML_SSE_m128_v2float64, ML_SSE_m128_v4float32):
                     EmmIntrin("_mm_castps_pd", arity = 1,
                               output_precision = ML_SSE_m128_v2float64),
+                # transparent cast
+                type_strict_match(ML_SSE_m128_v4uint32, ML_SSE_m128_v4int32):
+                    TransparentOperator(),
+                type_strict_match(ML_SSE_m128_v4int32, ML_SSE_m128_v4uint32):
+                    TransparentOperator(),
             },
         },
     },
