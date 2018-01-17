@@ -743,12 +743,21 @@ sse2_c_code_generation_table = {
     TypeCast: {
         None: {
             lambda optree: True: {
+                # 32-bit signed version
                 type_strict_match(ML_SSE_m128_v4float32, ML_SSE_m128_v4int32):
                     EmmIntrin("_mm_castsi128_ps", arity = 1,
                               output_precision = ML_SSE_m128_v4float32),
                 type_strict_match(ML_SSE_m128_v4int32, ML_SSE_m128_v4float32):
                     EmmIntrin("_mm_castps_si128", arity = 1,
                               output_precision = ML_SSE_m128_v4int32),
+                # 32-bit unsigned version
+                type_strict_match(ML_SSE_m128_v4float32, ML_SSE_m128_v4uint32):
+                    EmmIntrin("_mm_castsi128_ps", arity = 1,
+                              output_precision = ML_SSE_m128_v4float32),
+                type_strict_match(ML_SSE_m128_v4uint32, ML_SSE_m128_v4float32):
+                    EmmIntrin("_mm_castps_si128", arity = 1,
+                              output_precision = ML_SSE_m128_v4uint32),
+                # 64-bit versions
                 type_strict_match(ML_SSE_m128_v2float64, ML_SSE_m128_v2int64):
                     EmmIntrin("_mm_castsi128_pd", arity = 1,
                               output_precision = ML_SSE_m128_v2float64),
