@@ -402,12 +402,9 @@ sse_c_code_generation_table = {
                 type_strict_match(*(3*(ML_SSE_m128_v4float32,))):
                     XmmIntrin("_mm_or_ps", arity = 2,
                               output_precision = ML_SSE_m128_v4float32),
-                type_strict_match(*(3*(ML_SSE_m128_v4uint32,))):
-                    XmmIntrin("_mm_or_si128", arity = 2,
-                              output_precision = ML_SSE_m128_v4uint32),
-                type_strict_match(*(3*(ML_SSE_m128_v4int32,))):
-                    XmmIntrin("_mm_or_si128", arity = 2,
-                              output_precision = ML_SSE_m128_v4int32),
+                type_strict_match(*(3*(ML_SSE_m128_v2float64,))):
+                    XmmIntrin("_mm_or_pd", arity = 2,
+                              output_precision = ML_SSE_m128_v2float64),
             },
         },
     },
@@ -578,7 +575,17 @@ sse2_c_code_generation_table = {
         None: {
             lambda optree: True: {
                 type_strict_match(*(3*(ML_SSE_m128_v4int32,))):
-                    EmmIntrin("_mm_or_si128", arity = 2),
+                    EmmIntrin("_mm_or_si128", arity = 2,
+                              output_precision = ML_SSE_m128_v4int32),
+                type_strict_match(*(3*(ML_SSE_m128_v4uint32,))):
+                    EmmIntrin("_mm_or_si128", arity = 2,
+                              output_precision = ML_SSE_m128_v4uint32),
+                type_strict_match(*(3*(ML_SSE_m128_v2int64,))):
+                    EmmIntrin("_mm_or_si128", arity = 2,
+                              output_precision = ML_SSE_m128_v2int64),
+                type_strict_match(*(3*(ML_SSE_m128_v2uint64,))):
+                    EmmIntrin("_mm_or_si128", arity = 2,
+                              output_precision = ML_SSE_m128_v2uint64),
             },
         },
     },
@@ -957,6 +964,18 @@ avx_c_code_generation_table = {
             },
         },
     },
+    BitLogicOr: {
+        None: {
+            lambda optree: True: {
+                type_strict_match(*(3*(ML_AVX_m256_v8float32,))):
+                    ImmIntrin("_mm256_or_ps", arity = 2,
+                              output_precision = ML_AVX_m256_v8float32),
+                type_strict_match(*(3*(ML_AVX_m256_v4float64,))):
+                    ImmIntrin("_mm256_or_pd", arity = 2,
+                              output_precision = ML_AVX_m256_v4float64),
+            },
+        },
+    },
     Conversion: {
         None: {
             lambda _: True: {
@@ -1003,8 +1022,10 @@ avx_c_code_generation_table = {
                         arg_map = {0: FO_Result(0), 1: FO_Arg(0)},
                         require_header = ["immintrin.h"]
                         ),
-                type_strict_match(v8int32, ML_AVX_m256_v8int32):
-                    TemplateOperatorFormat(
+                type_strict_match_list(
+                    [v8int32, v8uint32],
+                    [ML_AVX_m256_v8int32, ML_AVX_m256_v8uint32]
+                    ): TemplateOperatorFormat(
                         "_mm256_store_si256((__m256i*){0}, {1})",
                         arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)},
                         void_function = True,
@@ -1163,9 +1184,14 @@ avx_c_code_generation_table = {
                     [ML_AVX_m256_v8int32, ML_AVX_m256_v4int64]
                     ): ImmIntrin("_mm256_castsi256_ps", arity=1,
                                  output_precision=ML_AVX_m256_v8float32),
+                # Signed
                 type_strict_match(ML_AVX_m256_v8int32, ML_AVX_m256_v8float32):
                     ImmIntrin("_mm256_castps_si256", arity = 1,
                               output_precision = ML_AVX_m256_v8int32),
+                # Unsigned
+                type_strict_match(ML_AVX_m256_v8uint32, ML_AVX_m256_v8float32):
+                    ImmIntrin("_mm256_castps_si256", arity = 1,
+                              output_precision = ML_AVX_m256_v8uint32),
                 type_strict_match_list(
                     [ML_AVX_m256_v4float64],
                     [ML_AVX_m256_v4int64, ML_AVX_m256_v8int32]
@@ -1209,6 +1235,25 @@ avx2_c_code_generation_table = {
                     ImmIntrin("_mm256_add_epi32", arity = 2),
                 type_strict_match(*(3*(ML_AVX_m256_v4int64,))):
                     ImmIntrin("_mm256_add_epi64", arity = 2),
+            },
+        },
+    },
+    BitLogicOr: {
+        None: {
+            lambda optree: True: {
+                type_strict_match(*(3*(ML_AVX_m256_v8int32,))):
+                    ImmIntrin("_mm256_or_si256", arity = 2,
+                              output_precision = ML_AVX_m256_v8int32),
+                type_strict_match(*(3*(ML_AVX_m256_v8uint32,))):
+                    ImmIntrin("_mm256_or_si256", arity = 2,
+                              output_precision = ML_AVX_m256_v8uint32),
+                type_strict_match(*(3*(ML_AVX_m256_v4int64,))):
+                    ImmIntrin("_mm256_or_si256", arity = 2,
+                              output_precision = ML_AVX_m256_v4int64),
+                type_strict_match(*(3*(ML_AVX_m256_v4uint64,))):
+                    ImmIntrin("_mm256_or_si256", arity = 2,
+                              output_precision = ML_AVX_m256_v4uint64),
+
             },
         },
     },
