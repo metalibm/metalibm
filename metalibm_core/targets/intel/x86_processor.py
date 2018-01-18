@@ -401,6 +401,49 @@ def pred_vector_select_one_zero(optree):
         return cst_pred
 
 
+def invert_comp_specifier(comp_specifier):
+    inverse_map = {
+        Comparison.Equal: Comparison.NotEqual,
+        Comparison.Less: Comparison.GreaterOrEqual,
+        Comparison.LessOrEqual: Comparison.Greater,
+        Comparison.NotEqual: Comparison.Equal,
+        Comparison.Greater: Comparison.LessOrEqual,
+        Comparison.GreaterOrEqual: Comparison.Less,
+    }
+    return inverse_map[comp_specifier]
+
+def generate_sse_select_boolean_value(cond, precision, negate=False):
+    """ Negate indicates that condition must be reverse 0 is the value 
+        which should be returned when cond is False 
+        and -1 when cond is True """
+    assert isinstance(cond, Comparison)
+    specifier_map = {
+        Comparison.Equal: "eq",
+        Comparison.GreaterOrEqual: "ge",
+        Comparison.Greater: "gt",
+        Comparison.NotEqual: "neq",
+        Comparison.LessOrEqual: "le",
+        Comparison.Less: "lt",
+    }
+    SIGNED_PREDICATE_LIST = [
+        Comparison.GreaterOrEqual, Comparison.Greater,
+        Comparison.Less, Comparison.LessOrEqual
+    ]
+    scalar_precision = precision.get_scalar_format()
+    if is_std_unsigned_integer_format(scalar_precision) and cond.specifier in SIGNED_PREDICATE_LIST:
+        Log.report(Log.Warning, "Generating code for unsigned comparison with signed specifier in generate_sse_select_boolean_value")
+    format_suffix = {
+        ML_SSE_m128_v4int32: "epi32",
+        ML_SSE_m128_v4uint32: "epi32",
+        ML_SSE_m128_v4float32: "ps",
+    }
+    cond_specifier = cond.specifier
+    return XmmIntrin(
+        "_mm_cmp{}_{}".format(specifier_map[(cond_specifier if not negate else invert_comp_specifier(cond_specifier))], format_suffix[precision]),
+        output_precision = precision,
+        arity=2)
+
+
 sse_c_code_generation_table = {
     Addition: {
         None: {
