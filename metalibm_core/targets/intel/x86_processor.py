@@ -24,6 +24,7 @@ from metalibm_core.targets.common.vector_backend import VectorBackend
 
 from metalibm_core.code_generation.abstract_backend import LOG_BACKEND_INIT
 from metalibm_core.code_generation.generic_processor import GenericProcessor
+from metalibm_core.code_generation.complex_generator import DynamicOperator                                                            
 
 ## TODO; change ML_SSE and ML_AVX format to be vector formats
 
