@@ -302,12 +302,16 @@ class ML_Log(ML_Function("ml_log")):
                 if isinstance(self.processor, VectorBackend)
                 else Comparison.LessOrEqual
                 ),
-            precision = int_prec
+            precision = uint_prec
             )
     # A true tmp will typically be -1 for VectorBackends, but 1 for standard C.
-    tau = Addition(tmp, int_one, precision = int_prec) \
+    int_unsigned_one = Constant(1, precision=uint_prec)
+    tau = TypeCast(
+        Addition(tmp, int_unsigned_one, precision = uint_prec) \
             if isinstance(self.processor, VectorBackend) \
-            else tmp
+            else tmp,
+            precision=int_prec
+        )
     tau.set_attributes(tag = 'tau')
     # Update table_index: keep only table_index_size bits
     table_index = BitLogicAnd(

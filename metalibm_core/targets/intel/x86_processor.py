@@ -821,6 +821,8 @@ sse2_c_code_generation_table = {
                     EmmIntrin("_mm_add_epi32", arity = 2),
                 type_strict_match(*(3*(ML_SSE_m128_v4int32,))):
                     EmmIntrin("_mm_add_epi32", arity = 2),
+                type_strict_match(*(3*(ML_SSE_m128_v4uint32,))):
+                    EmmIntrin("_mm_add_epi32", arity = 2),
             },
         },
     },
