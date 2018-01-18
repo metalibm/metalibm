@@ -488,6 +488,25 @@ sse_c_code_generation_table = {
                         arg_map = {0: FO_Result(0), 1: FO_Arg(0)},
                         require_header = ["emmintrin.h"]
                         ),
+                # signed integer format
+                type_strict_match(ML_SSE_m128_v4int32, v4int32):
+                    XmmIntrin("_mm_load_si128", arity = 1,
+                              output_precision = ML_SSE_m128_v4int32)(
+                              __m128ip_cast_operator( 
+                                  TemplateOperatorFormat(
+                                      "GET_VEC_FIELD_ADDR({})", arity = 1,
+                                      output_precision = ML_Pointer_Format(
+                                          ML_Int32
+                                          )
+                                      )
+                                  )),
+                type_strict_match(v4int32, ML_SSE_m128_v4int32):
+                    TemplateOperatorFormat(
+                        "_mm_store_si128((__m128i*)GET_VEC_FIELD_ADDR({}), {})",
+                        arity = 1,
+                        arg_map = {0: FO_Result(0), 1: FO_Arg(0)},
+                        require_header = ["emmintrin.h"]
+                        ),
             },
         },
     },
