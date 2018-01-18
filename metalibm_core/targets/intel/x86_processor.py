@@ -18,6 +18,7 @@ from metalibm_core.core.ml_complex_formats import ML_Pointer_Format
 from metalibm_core.core.ml_operations import *
 from metalibm_core.core.target import TargetRegister
 from metalibm_core.core.ml_table import ML_TableFormat
+from metalibm_core.core.polynomials import is_cst_with_value
 
 from metalibm_core.targets.common.vector_backend import VectorBackend
 
@@ -371,6 +372,31 @@ __m128ip_cast_operator = TemplateOperatorFormat(
         )
 
 _mm_fmadd_ss = x86_fma_intrinsic_builder("_mm_fmadd_ss")
+
+def is_vector_cst_with_value(optree, value):
+    if not isinstance(optree, Constant):
+        return False
+    else:
+        return all(map(lambda v: v == value, optree.get_value()))
+
+
+def pred_vector_select_one_zero(optree):
+    """ Predicate returns True if and only if
+        optree is Select(cond, -1, 0) or Select(cond, 0, -1) 
+        False otherwise """
+    if not isinstance(optree, Select):
+        return False
+    elif not isinstance(optree.get_input(0), Comparison):
+        return False
+    elif not optree.get_precision().is_vector_format():
+        return False
+    else:
+        lhs = optree.get_input(1)
+        rhs = optree.get_input(2)
+        cst_pred = (is_vector_cst_with_value(lhs, -1) and is_vector_cst_with_value(rhs, 0)) or \
+               (is_vector_cst_with_value(lhs, 0) and is_vector_cst_with_value(rhs, -1))
+        return cst_pred
+
 
 sse_c_code_generation_table = {
     Addition: {
