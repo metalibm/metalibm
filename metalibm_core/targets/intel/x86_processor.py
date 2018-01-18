@@ -445,6 +445,10 @@ def generate_sse_select_boolean_value(cond, precision, negate=False):
 
 
 
+
+def generate_sse_comparison(optree):
+    return generate_sse_select_boolean_value(optree, optree.get_precision())
+
 def squash_sse_cst_select(optree):
     """ Convert Select(cond, 0, -1) into cond 
         and Select(cond, -1, 0) into not(cond) """
@@ -474,6 +478,27 @@ def squash_sse_cst_select(optree):
         return wrapper(new_cond)
     else:
         raise NotImplementedError
+
+
+def expand_sse_comparison(optree):
+    """ SSE only supports eq/gt/lt predicate for integer comparison, 
+        thus all other must be expanded """
+    assert isinstance(optree, Comparison)
+    lhs = optree.get_input(0)
+    rhs = optree.get_input(1)
+    op_prec = optree.get_precision()
+    if optree.specifier is Comparison.LessOrEqual:
+        return BitLogicOr(
+            Comparison(lhs, rhs, specifier=Comparison.Less, precision=op_prec),
+            Comparison(lhs, rhs, specifier=Comparison.Equal, precision=op_prec),
+            precision=op_prec
+        )
+    if optree.specifier is Comparison.NotEqual:
+        return BitLogicOr(
+            Comparison(lhs, rhs, specifier=Comparison.Less, precision=op_prec),
+            Comparison(lhs, rhs, specifier=Comparison.Greater, precision=op_prec),
+            precision=op_prec
+        )
 
 
 def error_raise_fct(*args):
