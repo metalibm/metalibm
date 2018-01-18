@@ -475,6 +475,13 @@ def squash_sse_cst_select(optree):
     else:
         raise NotImplementedError
 
+
+def error_raise_fct(*args):
+    raise NotImplementedError
+
+ERROR_OPERATOR = DynamicOperator(error_raise_fct)
+            
+
 sse_c_code_generation_table = {
     Addition: {
         None: {
