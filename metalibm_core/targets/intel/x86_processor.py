@@ -444,6 +444,37 @@ def generate_sse_select_boolean_value(cond, precision, negate=False):
         arity=2)
 
 
+
+def squash_sse_cst_select(optree):
+    """ Convert Select(cond, 0, -1) into cond 
+        and Select(cond, -1, 0) into not(cond) """
+    assert isinstance(optree, Select)
+    cond = optree.get_input(0)
+    lhs = optree.get_input(1)
+    rhs = optree.get_input(2)
+    op_prec = optree.get_precision()
+    assert lhs.get_precision() == rhs.get_precision()
+    if op_prec != lhs.get_precision():
+        result_prec = lhs.get_precision()
+        wrapper = lambda op: TypeCast(op, precision=op_prec)
+    else:
+        result_prec = op_prec
+        wrapper = lambda op: op
+
+
+    cond_lhs = cond.get_input(0)
+    cond_rhs = cond.get_input(1)
+    new_cond = cond.copy(copy_map={cond_lhs: cond_lhs, cond_rhs: cond_rhs})
+    new_cond.set_precision(result_prec)
+
+    if is_vector_cst_with_value(lhs, -1) and is_vector_cst_with_value(rhs, 0):
+        return wrapper(new_cond)
+    elif is_vector_cst_with_value(lhs, 0) and is_vector_cst_with_value(rhs, -1):
+        new_cond.specifier = invert_comp_specifier(cond.specifier)
+        return wrapper(new_cond)
+    else:
+        raise NotImplementedError
+
 sse_c_code_generation_table = {
     Addition: {
         None: {
