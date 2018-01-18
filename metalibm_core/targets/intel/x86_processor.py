@@ -508,6 +508,102 @@ ERROR_OPERATOR = DynamicOperator(error_raise_fct)
             
 
 sse_c_code_generation_table = {
+    Comparison: {
+        Comparison.NotEqual: {
+            lambda _: True: {
+                type_strict_match(ML_SSE_m128_v4int32, ML_SSE_m128_v4int32, ML_SSE_m128_v4int32): 
+                    ComplexOperator(expand_sse_comparison),
+                type_strict_match(ML_SSE_m128_v4uint32, ML_SSE_m128_v4uint32, ML_SSE_m128_v4uint32): 
+                    ComplexOperator(expand_sse_comparison),
+                type_strict_match(ML_SSE_m128_v4float32, ML_SSE_m128_v4float32, ML_SSE_m128_v4float32): 
+                    DynamicOperator(generate_sse_comparison),
+                # 3 Dummy operators used to allow m128_promotion to promote squashable comparison
+                type_strict_match(ML_SSE_m128_v4bool, ML_SSE_m128_v4int32, ML_SSE_m128_v4int32): 
+                    ERROR_OPERATOR,
+                type_strict_match(ML_SSE_m128_v4bool, ML_SSE_m128_v4uint32, ML_SSE_m128_v4uint32): 
+                    ERROR_OPERATOR,
+                type_strict_match(ML_SSE_m128_v4bool, ML_SSE_m128_v4float32, ML_SSE_m128_v4float32): 
+                    ERROR_OPERATOR,
+            }
+        },
+        Comparison.Equal: {
+            lambda _: True: {
+                type_strict_match_or_list([
+                        (ML_SSE_m128_v4int32, ML_SSE_m128_v4int32, ML_SSE_m128_v4int32),
+                        (ML_SSE_m128_v4uint32, ML_SSE_m128_v4uint32, ML_SSE_m128_v4uint32),
+                        (ML_SSE_m128_v4float32, ML_SSE_m128_v4float32, ML_SSE_m128_v4float32)]):
+                    DynamicOperator(generate_sse_comparison),
+                # 3 Dummy operators used to allow m128_promotion to promote squashable comparison
+                type_strict_match_or_list([
+                        (ML_SSE_m128_v4bool, ML_SSE_m128_v4int32, ML_SSE_m128_v4int32), 
+                        (ML_SSE_m128_v4bool, ML_SSE_m128_v4uint32, ML_SSE_m128_v4uint32),
+                        (ML_SSE_m128_v4bool, ML_SSE_m128_v4float32, ML_SSE_m128_v4float32)]):
+                    ERROR_OPERATOR,
+            }
+        },
+        Comparison.LessOrEqual: {
+            lambda _: True: {
+                type_strict_match_or_list([
+                        (ML_SSE_m128_v4int32, ML_SSE_m128_v4int32, ML_SSE_m128_v4int32),
+                        (ML_SSE_m128_v4uint32, ML_SSE_m128_v4uint32, ML_SSE_m128_v4uint32)
+                    ]):
+                    ComplexOperator(expand_sse_comparison),
+                type_strict_match(ML_SSE_m128_v4float32, ML_SSE_m128_v4float32, ML_SSE_m128_v4float32):
+                    DynamicOperator(generate_sse_comparison),
+                # 3 Dummy operators used to allow m128_promotion to promote squashable comparison
+                type_strict_match_or_list([
+                        (ML_SSE_m128_v4bool, ML_SSE_m128_v4int32, ML_SSE_m128_v4int32), 
+                        (ML_SSE_m128_v4bool, ML_SSE_m128_v4uint32, ML_SSE_m128_v4uint32),
+                        (ML_SSE_m128_v4bool, ML_SSE_m128_v4float32, ML_SSE_m128_v4float32)]):
+                    ERROR_OPERATOR,
+            }
+        },
+        Comparison.Less: {
+            lambda _: True: {
+                type_strict_match_or_list([
+                        (ML_SSE_m128_v4int32, ML_SSE_m128_v4int32, ML_SSE_m128_v4int32),
+                        (ML_SSE_m128_v4uint32, ML_SSE_m128_v4uint32, ML_SSE_m128_v4uint32),
+                        (ML_SSE_m128_v4float32, ML_SSE_m128_v4float32, ML_SSE_m128_v4float32)]):
+                    DynamicOperator(generate_sse_comparison),
+                # 3 Dummy operators used to allow m128_promotion to promote squashable comparison
+                type_strict_match_or_list([
+                        (ML_SSE_m128_v4bool, ML_SSE_m128_v4int32, ML_SSE_m128_v4int32), 
+                        (ML_SSE_m128_v4bool, ML_SSE_m128_v4uint32, ML_SSE_m128_v4uint32),
+                        (ML_SSE_m128_v4bool, ML_SSE_m128_v4float32, ML_SSE_m128_v4float32)]):
+                    ERROR_OPERATOR,
+            }
+        },
+        Comparison.Greater: {
+            lambda _: True: {
+                type_strict_match_or_list([
+                        (ML_SSE_m128_v4int32, ML_SSE_m128_v4int32, ML_SSE_m128_v4int32),
+                        (ML_SSE_m128_v4uint32, ML_SSE_m128_v4uint32, ML_SSE_m128_v4uint32),
+                        (ML_SSE_m128_v4float32, ML_SSE_m128_v4float32, ML_SSE_m128_v4float32)]):
+                    DynamicOperator(generate_sse_comparison),
+                # 3 Dummy operators used to allow m128_promotion to promote squashable comparison
+                type_strict_match_or_list([
+                        (ML_SSE_m128_v4bool, ML_SSE_m128_v4int32, ML_SSE_m128_v4int32), 
+                        (ML_SSE_m128_v4bool, ML_SSE_m128_v4uint32, ML_SSE_m128_v4uint32),
+                        (ML_SSE_m128_v4bool, ML_SSE_m128_v4float32, ML_SSE_m128_v4float32)]):
+                    ERROR_OPERATOR,
+            }
+        },
+        Comparison.GreaterOrEqual: {
+            lambda _: True: {
+                type_strict_match_or_list([
+                        (ML_SSE_m128_v4int32, ML_SSE_m128_v4int32, ML_SSE_m128_v4int32),
+                        (ML_SSE_m128_v4uint32, ML_SSE_m128_v4uint32, ML_SSE_m128_v4uint32),
+                        (ML_SSE_m128_v4float32, ML_SSE_m128_v4float32, ML_SSE_m128_v4float32)]):
+                    DynamicOperator(generate_sse_comparison),
+                # 3 Dummy operators used to allow m128_promotion to promote squashable comparison
+                type_strict_match_or_list([
+                        (ML_SSE_m128_v4bool, ML_SSE_m128_v4int32, ML_SSE_m128_v4int32), 
+                        (ML_SSE_m128_v4bool, ML_SSE_m128_v4uint32, ML_SSE_m128_v4uint32),
+                        (ML_SSE_m128_v4bool, ML_SSE_m128_v4float32, ML_SSE_m128_v4float32)]):
+                    ERROR_OPERATOR,
+            }
+        },
+    },
     Addition: {
         None: {
             lambda _: True: {
