@@ -37,7 +37,7 @@ class ML_UT_M128Boolean(ML_Function("ml_ut_m128_boolean")):
     default_args = {
         "output_file": "ut_m128_boolean.c",
         "function_name": "ut_m128_boolean",
-        "precision": ML_Binary32,
+        "precision": ML_Int32,
         "target": X86_AVX2_Processor(),
         "fast_path_extract": True,
         "fuse_fma": True,
