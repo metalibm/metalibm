@@ -975,6 +975,12 @@ sse2_c_code_generation_table = {
                         "_mm_srl_epi32", arity = 2,
                         arg_map = {0: FO_Arg(0), 1: FO_Arg(1)}
                     )(FO_Arg(0), FO_Arg(1)),
+                # TODO: using signed primitives for unsigned formats
+                type_strict_match(*(3*(ML_SSE_m128_v4uint32,))):
+                    EmmIntrin(
+                        "_mm_srl_epi32", arity = 2,
+                        arg_map = {0: FO_Arg(0), 1: FO_Arg(1)}
+                    )(FO_Arg(0), FO_Arg(1)),
             },
         },
     },
