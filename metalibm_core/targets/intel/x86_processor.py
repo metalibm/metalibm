@@ -537,6 +537,28 @@ def expand_sse_comparison(optree):
             precision=op_prec
         )
 
+def expand_vec_mantissa_extraction(optree):
+    """ Expand a vector MantissaExtraction operation into its
+        And & Or counterparts """
+    assert isinstance(optree, MantissaExtraction)
+    op_in = optree.get_input(0)
+    precision = optree.get_precision()
+    bias = precision.get_scalar_format().get_bias()
+    p = precision.get_scalar_format().get_precision()
+    def build_vec_cst(cst_value, precision):
+        vec_size = precision.get_vector_size()
+        return Constant([cst_value] * vec_size, precision=precision)
+    return BitLogicOr(
+        BitLogicAnd(
+            op_in,
+            build_vec_cst(-(S2**(1 + bias) - S2**(1 + bias - p)), precision),
+            precision=precision
+        ),
+        build_vec_cst(1.0, precision),
+        precision=precision,
+        tag="exp_mant_extraction"
+    )
+
 
 def error_raise_fct(*args):
     raise NotImplementedError
@@ -556,6 +578,14 @@ sse_c_code_generation_table = {
                     ComplexOperator(squash_sse_cst_select),
             },
         },
+    },
+    MantissaExtraction: {
+        None: {
+            lambda _: True: {
+                type_strict_match(ML_SSE_m128_v4float32, ML_SSE_m128_v4float32):
+                    ComplexOperator(optree_modifier=expand_vec_mantissa_extraction),
+            },
+        }
     },
     Comparison: {
         Comparison.NotEqual: {
@@ -1246,6 +1276,14 @@ sse41_c_code_generation_table = {
 }
 
 avx_c_code_generation_table = {
+    MantissaExtraction: {
+        None: {
+            lambda _: True: {
+                type_strict_match(ML_AVX_m256_v8float32, ML_AVX_m256_v8float32):
+                    ComplexOperator(optree_modifier=expand_vec_mantissa_extraction),
+            },
+        }
+    },
     Addition: {
         None: {
             lambda optree: True: {
