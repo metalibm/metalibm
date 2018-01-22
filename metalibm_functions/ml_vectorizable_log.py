@@ -283,41 +283,44 @@ class ML_Log(ML_Function("ml_log")):
     # Retrieve mantissa's MSBs + first bit of exponent, for tau computation in case
     # exponent is 0 (i.e. biased 127, i.e. first bit of exponent is set.).
     # In this particular case, i = 0 but tau is 1
+    # table_index does not need to be as long as uint_prec might be,
+    # try and keep it the size of size_t.
+    size_t_prec = ML_UInt32
     table_index_mask = Constant(
             (1 << (table_index_size + 1)) - 1,
-            precision = uint_prec
+            precision = size_t_prec
             )
     table_index = BitLogicAnd(
-            ri_bits,
+            Conversion(ri_bits, precision = size_t_prec),
             table_index_mask,
             tag = 'table_index',
-            precision = uint_prec
+            precision = size_t_prec
             )
     # Compute tau using the tau_index_limit value.
     tmp = default_bool_convert(
             Comparison(
                 table_index,
-                Constant(tau_index_limit, precision = uint_prec),
+                Constant(tau_index_limit, precision = size_t_prec),
                 specifier = Comparison.Greater
                 if isinstance(self.processor, VectorBackend)
                 else Comparison.LessOrEqual
                 ),
-            precision = uint_prec
+            precision = size_t_prec
             )
     # A true tmp will typically be -1 for VectorBackends, but 1 for standard C.
-    int_unsigned_one = Constant(1, precision=uint_prec)
-    tau = TypeCast(
-        Addition(tmp, int_unsigned_one, precision = uint_prec) \
-            if isinstance(self.processor, VectorBackend) \
+    int_unsigned_one = Constant(1, precision = size_t_prec)
+    tau = Conversion(
+        Addition(tmp, int_unsigned_one, precision = size_t_prec)
+            if isinstance(self.processor, VectorBackend)
             else tmp,
-            precision=int_prec
+            precision = int_prec
         )
     tau.set_attributes(tag = 'tau')
     # Update table_index: keep only table_index_size bits
     table_index = BitLogicAnd(
             table_index,
-            Constant((1 << table_index_size) - 1, precision = uint_prec),
-            precision = uint_prec
+            Constant((1 << table_index_size) - 1, precision = size_t_prec),
+            precision = size_t_prec
             )
 
     tbl_hi = TableLoad(log1p_table_hi, table_index, tag = 'tbl_hi',
