@@ -1433,7 +1433,8 @@ avx_c_code_generation_table = {
             },
             # AVX-based conversion of 4 int64 to 4 float64, valid if inputs fit
             # into 4 int32.
-            lambda optree: optree.get_input(0).get_interval() \
+            lambda optree: optree.get_input(0).get_interval() is not None \
+                    and optree.get_input(0).get_interval() \
                     in Interval(-2**31, 2**31 - 1): {
                 type_strict_match(ML_AVX_m256_v4float64, ML_AVX_m256_v4int64):
                     ComplexOperator(
