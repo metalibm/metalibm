@@ -3,7 +3,7 @@
 
 import sys
 
-import sollya # sollya.RN, sollya.absolute, sollya.x
+import sollya
 from sollya import (floor, guessdegree, Interval, log, log1p, round, S2, sqrt,
                     sup, _x_)
 
@@ -79,7 +79,8 @@ class ML_Log(ML_Function("ml_log")):
 
     print "MDL constants"
     table_index_size = 7 # to be abstracted somehow
-    table_dimensions = [2**table_index_size]
+    table_nb_elements = 2**(table_index_size)
+    table_dimensions = [2*table_nb_elements]  # two values are stored for each element
     field_size = Constant(self.precision.get_field_size(),
                           precision = int_prec,
                           tag = 'field_size')
@@ -118,33 +119,30 @@ class ML_Log(ML_Function("ml_log")):
     # The table holds approximations of -log(2^tau * r_i) so we first compute
     # the index value for which tau changes from 2 to 0.
     cut = sqrt(2.)
-    tau_index_limit = floor(table_dimensions[0] * (2./cut - 1))
+    tau_index_limit = floor(table_nb_elements * (2./cut - 1))
     sollya_logtbl = [
-            -log1p(float(i) / table_dimensions[0])
+            -log1p(float(i) / table_nb_elements)
             + (0 if i <= tau_index_limit else log(2.))
-            for i in xrange(table_dimensions[0])
+            for i in xrange(table_nb_elements)
             ]
+    # ...
     init_logtbl_hi = [
             round(sollya_logtbl[i],
                   self.precision.get_mantissa_size(),
                   sollya.RN)
-            for i in xrange(table_dimensions[0])
-            ]
-    log1p_table_hi = ML_NewTable(dimensions = table_dimensions,
-                                 storage_precision = self.precision,
-                                 init_data = init_logtbl_hi,
-                                 tag = 'ml_log1p_table_high')
-
+            for i in xrange(table_nb_elements)
+    ]
     init_logtbl_lo = [
             round(sollya_logtbl[i] - init_logtbl_hi[i],
                   self.precision.get_mantissa_size(),
                   sollya.RN)
-            for i in xrange(table_dimensions[0])
-            ]
-    log1p_table_lo = ML_NewTable(dimensions = table_dimensions,
-                                 storage_precision = self.precision,
-                                 init_data = init_logtbl_lo,
-                                 tag = 'ml_log1p_table_low')
+            for i in xrange(table_nb_elements)
+    ]
+    init_logtbl = [tmp[i] for i in xrange(len(init_logtbl_hi)) for tmp in [init_logtbl_hi, init_logtbl_lo]]
+    log1p_table = ML_NewTable(dimensions = table_dimensions,
+                              storage_precision = self.precision,
+                              init_data = init_logtbl,
+                              tag = 'ml_log1p_table')
 
     print 'MDL unified subnormal handling'
     vx_as_int = TypeCast(vx, precision = int_prec, tag = 'vx_as_int')
@@ -218,7 +216,7 @@ class ML_Log(ML_Function("ml_log")):
     tmp1 = BitLogicAnd(tmp0, is_subnormal)
     renormalized_exponent = BitLogicLeftShift(
             tmp1,
-            field_size,
+            field_size
             )
 
     normal_vx_as_int = renormalized_mantissa + renormalized_exponent
@@ -243,8 +241,8 @@ class ML_Log(ML_Function("ml_log")):
 
     # exponent is normally either 0 or -1, since m is in [1, 2). Possible
     # optimization?
-    exponent = ExponentExtraction(rcp_m, precision = self.precision,
-            tag = 'exponent')
+    # exponent = ExponentExtraction(rcp_m, precision = self.precision,
+    #         tag = 'exponent')
 
     ri_round = TypeCast(
             Addition(
@@ -317,15 +315,29 @@ class ML_Log(ML_Function("ml_log")):
         )
     tau.set_attributes(tag = 'tau')
     # Update table_index: keep only table_index_size bits
-    table_index = BitLogicAnd(
+    table_index_hi = BitLogicAnd(
             table_index,
             Constant((1 << table_index_size) - 1, precision = size_t_prec),
             precision = size_t_prec
             )
-
-    tbl_hi = TableLoad(log1p_table_hi, table_index, tag = 'tbl_hi',
+    # table_index_hi = table_index_hi << 1
+    table_index_hi = BitLogicLeftShift(
+            table_index_hi,
+            Constant(1, precision = uint_prec),
+            precision = uint_prec,
+            tag = "table_index_hi"
+            )
+    # table_index_lo = table_index_hi + 1
+    table_index_lo = Addition(
+            table_index_hi,
+            Constant(1, precision = uint_prec),
+            precision = uint_prec,
+            tag = "table_index_lo"
+            )
+    
+    tbl_hi = TableLoad(log1p_table, table_index_hi, tag = 'tbl_hi',
                        debug = debug_multi)
-    tbl_lo = TableLoad(log1p_table_lo, table_index, tag = 'tbl_lo',
+    tbl_lo = TableLoad(log1p_table, table_index_lo, tag = 'tbl_lo',
                        debug = debug_multi)
     # Compute exponent e + tau - alpha, but first subtract the bias.
     tmp_eptau = Addition(
@@ -340,7 +352,7 @@ class ML_Log(ML_Function("ml_log")):
                 Constant(
                     self.precision.get_bias(),
                     precision = int_prec
-                    ),
+                    )
                 ),
             tau,
             tag = 'tmp_eptau',
@@ -352,9 +364,18 @@ class ML_Log(ML_Function("ml_log")):
 
     print 'MDL polynomial approximation'
     sollya_function = log(1 + sollya.x)
-    arg_red_mag = 2**(-table_index_size)
+    # arg_red_mag = 2**(-table_index_size)
+    # approx_interval = Interval(-arg_red_mag, arg_red_mag)
+    boundrcp = 1.5 * 2**(-12)           # ... see Intel intrinsics guide
+    if self.precision in [ML_Binary64]:
+      if not self.processor.is_supported_operation(rcp_m):
+        boundrcp = (1+boundrcp)*(1+2**(-24)) - 1
+      else:
+        boundrcp = 2**(-14)             # ... see Intel intrinsics guide
+    arg_red_mag = boundrcp + 2**(-table_index_size-1) + boundrcp * 2**(-table_index_size-1)
     approx_interval = Interval(-arg_red_mag, arg_red_mag)
-    max_eps = 2**-(self.precision.get_field_size() + 10)
+    # max_eps = 2**-(self.precision.get_field_size() + 10)
+    max_eps = 2**-(2*(self.precision.get_field_size()+1))
     print "max acceptable error for polynomial = {}".format(float.hex(max_eps))
     poly_degree = sup(
             guessdegree(
