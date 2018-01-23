@@ -721,6 +721,12 @@ sse_c_code_generation_table = {
     Conversion: {
         None: {
             lambda _: True: {
+                # not supported in SSE (else fallback on generic erroneous
+                # implementation
+                type_strict_match(ML_Int32, ML_SSE_m128_v1int32):
+                    ERROR_OPERATOR,
+                type_strict_match(ML_UInt32, ML_SSE_m128_v1int32):
+                    ERROR_OPERATOR,
                 type_strict_match(ML_SSE_m128_v1float32, ML_Binary32):
                     _mm_set_ss,
                 type_strict_match(ML_Binary32, ML_SSE_m128_v1float32):

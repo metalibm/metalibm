@@ -129,7 +129,7 @@ unit_test_list = [
   UnitTestScheme(
     "m128 boolean test",
     ut_m128_boolean,
-    [{"pre_gen_passes": ["m128_promotion"], "target": target_instanciate("x86_sse"), "vector_size": 4, "auto_test_execute": 100, "precision": ML_Int32}],
+    [{"pre_gen_passes": ["m128_promotion"], "target": target_instanciate("x86_sse2"), "vector_size": 4, "auto_test_execute": 100, "precision": ML_Int32}],
   ),
   UnitTestScheme(
     "new table test",
