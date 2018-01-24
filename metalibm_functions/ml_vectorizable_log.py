@@ -151,7 +151,8 @@ class ML_Log(ML_Function("ml_log")):
     vx_as_int = TypeCast(vx, precision = int_prec, tag = 'vx_as_int')
     vx_as_uint = TypeCast(vx, precision = uint_prec, tag = 'vx_as_uint')
     # Avoid the 0.0 case by subtracting 1 from vx_as_int
-    tmp = (vx_as_int - 1) < subnormal_mask
+    tmp = Comparison(vx_as_int - 1, subnormal_mask,
+                     specifier = Comparison.Less)
     is_subnormal = default_bool_convert(
             tmp, # Will catch negative values as well as NaNs with sign bit set
             precision = int_prec,
@@ -291,6 +292,7 @@ class ML_Log(ML_Function("ml_log")):
     # table_index does not need to be as long as uint_prec might be,
     # try and keep it the size of size_t.
     size_t_prec = ML_UInt32
+    signed_size_t_prec = ML_Int32
     table_index_mask = Constant(
             (1 << (table_index_size + 1)) - 1,
             precision = size_t_prec
@@ -304,18 +306,17 @@ class ML_Log(ML_Function("ml_log")):
     # Compute tau using the tau_index_limit value.
     tmp = default_bool_convert(
             Comparison(
-                table_index,
-                Constant(tau_index_limit, precision = size_t_prec),
+                TypeCast(table_index, precision = signed_size_t_prec),
+                Constant(tau_index_limit, precision = signed_size_t_prec),
                 specifier = Comparison.Greater
                 if isinstance(self.processor, VectorBackend)
                 else Comparison.LessOrEqual
                 ),
-            precision = size_t_prec
+            precision = signed_size_t_prec
             )
     # A true tmp will typically be -1 for VectorBackends, but 1 for standard C.
-    int_unsigned_one = Constant(1, precision = size_t_prec)
     tau = Conversion(
-        Addition(tmp, int_unsigned_one, precision = size_t_prec)
+        Addition(tmp, int_one, precision = signed_size_t_prec)
             if isinstance(self.processor, VectorBackend)
             else tmp,
             precision = int_prec
