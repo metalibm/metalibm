@@ -20,8 +20,6 @@ from metalibm_core.opt.ml_blocks import (generate_count_leading_zeros,
 
 from metalibm_core.code_generation.generic_processor import GenericProcessor
 from metalibm_core.targets.common.vector_backend import VectorBackend
-from metalibm_core.code_generation.generator_utility import (FunctionOperator,
-                                                             FO_Result, FO_Arg)
 
 from metalibm_core.utility.gappa_utils import execute_gappa_script_extract
 from metalibm_core.utility.ml_template import *
@@ -229,15 +227,19 @@ class ML_Log(ML_Function("ml_log")):
     vx_mantissa = MantissaExtraction(normal_vx, precision = self.precision)
 
     print "MDL scheme"
-    # TODO if binary64 precision, also use FastReciprocal and not Division
-    rcp_m = FastReciprocal(vx_mantissa, tag = 'rcp_m', precision = self.precision)
+    rcp_m = FastReciprocal(vx_mantissa, precision = self.precision)
     if not self.processor.is_supported_operation(rcp_m):
-        # FIXME An approximation table could be used instead but for vector
-        # implementations another GATHER would be required.
-        # However this may well be better than a division...
-        # See also: using binary32 FastReciprocal for approximating 1/m when m
-        # is a binary64.
-        rcp_m = Division(fp_one, vx_mantissa, tag = 'rcp_m')
+        if self.precision == ML_Binary64:
+            # Try using a binary32 FastReciprocal
+            binary32_m = Conversion(vx_mantissa, precision = ML_Binary32)
+            rcp_m = FastReciprocal(binary32_m, precision = ML_Binary32)
+            rcp_m = Conversion(rcp_m, precision = ML_Binary64)
+        if not self.processor.is_supported_operation(rcp_m):
+            # FIXME An approximation table could be used instead but for vector
+            # implementations another GATHER would be required.
+            # However this may well be better than a division...
+            rcp_m = Division(fp_one, vx_mantissa, precision = self.precision)
+    rcp_m.set_attributes(tag = 'rcp_m')
 
     # exponent is normally either 0 or -1, since m is in [1, 2). Possible
     # optimization?
@@ -323,18 +325,18 @@ class ML_Log(ML_Function("ml_log")):
     # table_index_hi = table_index_hi << 1
     table_index_hi = BitLogicLeftShift(
             table_index_hi,
-            Constant(1, precision = uint_prec),
-            precision = uint_prec,
+            Constant(1, precision = size_t_prec),
+            precision = size_t_prec,
             tag = "table_index_hi"
             )
     # table_index_lo = table_index_hi + 1
     table_index_lo = Addition(
             table_index_hi,
-            Constant(1, precision = uint_prec),
-            precision = uint_prec,
+            Constant(1, precision = size_t_prec),
+            precision = size_t_prec,
             tag = "table_index_lo"
             )
-    
+
     tbl_hi = TableLoad(log1p_table, table_index_hi, tag = 'tbl_hi',
                        debug = debug_multi)
     tbl_lo = TableLoad(log1p_table, table_index_lo, tag = 'tbl_lo',
