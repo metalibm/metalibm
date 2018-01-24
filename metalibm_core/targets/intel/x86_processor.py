@@ -26,8 +26,6 @@ from metalibm_core.code_generation.abstract_backend import LOG_BACKEND_INIT
 from metalibm_core.code_generation.generic_processor import GenericProcessor
 from metalibm_core.code_generation.complex_generator import DynamicOperator
 
-## TODO; change ML_SSE and ML_AVX format to be vector formats
-
 def get_sse_scalar_cst(format_object, value, language = C_Code):
 	base_format = format_object.get_base_format()
 	return "{{{}}}/*sse*/".format(base_format.get_cst(value, language))
@@ -69,6 +67,9 @@ def get_sse_vector_int_cst(format_object, value, language=C_Code):
 ML_SSE_m128  = ML_FormatConstructor(128, "__m128", None, lambda v: None)
 ML_SSE_m128i = ML_FormatConstructor(128, "__m128i", None, lambda v: None)
 ML_SSE_m128d = ML_FormatConstructor(128, "__m128d", None, lambda v: None)
+ML_AVX_m256  = ML_FormatConstructor(256, "__m256", None, lambda v: None)
+ML_AVX_m256i = ML_FormatConstructor(256, "__m256i", None, lambda v: None)
+ML_AVX_m256d = ML_FormatConstructor(256, "__m256d", None, lambda v: None)
 
 ## format for a single fp32 stored in a XMM 128-bit register
 ML_SSE_m128_v1float32 = VirtualFormatNoForward(ML_Binary32, ML_SSE_m128, get_sse_scalar_cst, True)
@@ -81,6 +82,8 @@ ML_SSE_m128_v1int64  = VirtualFormatNoForward(ML_Int64, ML_SSE_m128i, get_sse_sc
 
 # virtual boolean format
 ML_SSE_m128_v4bool  = VirtualFormatNoForward(ML_Bool, ML_SSE_m128i, get_sse_scalar_cst, True)
+ML_AVX_m256_v8bool  = VirtualFormatNoForward(ML_Bool, ML_AVX_m256i,
+                                             get_sse_scalar_cst, True)
 
 ## format for packed 2 fp32 in a XMM 128-bit register
 ML_SSE_m128_v2float32 = vector_format_builder("__m128", None, 2, ML_Binary32,
@@ -326,17 +329,32 @@ _mm256_and_si256 = ImmIntrin("_mm256_and_si256", arity = 2,
 
 
 
-## check that list if made of only a single value replicated
-#  in each element
+## check that list if made of only a single value replicated in each element
 def uniform_list_check(value_list):
 	return reduce((lambda acc, value: acc and value == value_list[0]), value_list, True)
 
-# check whether @p optree is a uniform vector constant
+## check whether @p optree is a uniform vector constant
 def uniform_vector_constant_check(optree):
-	if isinstance(optree, Constant) and not optree.get_precision() is None and optree.get_precision().is_vector_format():
-		return uniform_list_check(optree.get_value())
-	else:
-		return False
+    if isinstance(optree, Constant) and not optree.get_precision() is None \
+            and optree.get_precision().is_vector_format():
+        return uniform_list_check(optree.get_value())
+    else:
+        return False
+
+## check whether @p optree is a bit shift by a uniform vector constant
+def uniform_shift_check(optree):
+    if (isinstance(optree, BitLogicLeftShift)
+            or isinstance(optree, BitLogicRightShift)
+            or isinstance(optree, BitArithmeticRightShift)):
+        return uniform_vector_constant_check(optree.get_input(1)) \
+                or not optree.get_input(1).get_precision().is_vector_format()
+    else:
+        return False
+
+## check whether @p optree is not a bit shift by a uniform vector constant
+def variable_shift_check(optree):
+    return not uniform_shift_check(optree)
+
 
 ## If optree is vector uniform constant modify it to be a
 #  conversion between a scalar constant and a vector
@@ -347,7 +365,7 @@ def vector_constant_op(optree):
 	if uniform_list_check(cst_value_v):
 		scalar_format = op_format.get_scalar_format()
 		scalar_cst = Constant(cst_value_v[0], precision = scalar_format)
-		## TODO: Conversion class may be changed to VectorBoardCast
+		## TODO: Conversion class may be changed to VectorBroadCast
 		return Conversion(scalar_cst, precision = op_format)
 	else:
 		raise NotImplementedError
@@ -467,21 +485,47 @@ def generate_sse_select_boolean_value(cond, precision, negate=False):
         Comparison.Less, Comparison.LessOrEqual
     ]
     scalar_precision = precision.get_scalar_format()
-    if is_std_unsigned_integer_format(scalar_precision) and cond.specifier in SIGNED_PREDICATE_LIST:
-        Log.report(Log.Warning, "Generating code for unsigned comparison with signed specifier in generate_sse_select_boolean_value")
+    if is_std_unsigned_integer_format(scalar_precision) \
+            and cond.specifier in SIGNED_PREDICATE_LIST:
+        Log.report(Log.Warning,
+                   "Generating code for unsigned comparison with signed " \
+                           "specifier in generate_sse_select_boolean_value")
     format_suffix = {
         ML_SSE_m128_v4int32: "epi32",
         ML_SSE_m128_v4uint32: "epi32",
         ML_SSE_m128_v4float32: "ps",
+
+        ML_AVX_m256_v8int32: "epi32",
+        ML_AVX_m256_v8uint32: "epi32",
+        ML_AVX_m256_v8float32: "ps",
     }
-    cond_specifier = cond.specifier
-    return XmmIntrin(
-        "_mm_cmp{}_{}".format(specifier_map[(cond_specifier if not negate else invert_comp_specifier(cond_specifier))], format_suffix[precision]),
-        output_precision = precision,
-        arity=2)
+    format_prefix = {
+        ML_SSE_m128_v4int32: "mm",
+        ML_SSE_m128_v4uint32: "mm",
+        ML_SSE_m128_v4float32: "mm",
 
+        ML_AVX_m256_v8int32: "mm256",
+        ML_AVX_m256_v8uint32: "mm256",
+        ML_AVX_m256_v8float32: "mm256",
+    }
+    intrinsic_builder = {
+        ML_SSE_m128_v4int32: XmmIntrin,
+        ML_SSE_m128_v4uint32: XmmIntrin,
+        ML_SSE_m128_v4float32: XmmIntrin,
 
+        ML_AVX_m256_v8int32: ImmIntrin,
+        ML_AVX_m256_v8uint32: ImmIntrin,
+        ML_AVX_m256_v8float32: ImmIntrin,
+    }
+    cond_specifier = cond.specifier if not negate \
+            else invert_comp_specifier(cond_specifier)
 
+    return intrinsic_builder[precision](
+            "_{}_cmp{}_{}".format(format_prefix[precision],
+                                  specifier_map[cond_specifier],
+                                  format_suffix[precision]),
+            output_precision = precision, arity = 2
+            )
 
 def generate_sse_comparison(optree):
     return generate_sse_select_boolean_value(optree, optree.get_precision())
@@ -531,6 +575,38 @@ def expand_sse_comparison(optree):
             precision=op_prec
         )
     if optree.specifier is Comparison.NotEqual:
+        return BitLogicOr(
+            Comparison(lhs, rhs, specifier=Comparison.Less, precision=op_prec),
+            Comparison(lhs, rhs, specifier=Comparison.Greater, precision=op_prec),
+            precision=op_prec
+        )
+
+# TODO refactor this asap
+def expand_avx_comparison(optree):
+    """ AVX2 only supports eq/gt predicates for integer comparison,
+        thus all other must be expanded """
+    assert isinstance(optree, Comparison)
+    lhs = optree.get_input(0)
+    rhs = optree.get_input(1)
+    op_prec = optree.get_precision()
+    if optree.specifier is Comparison.LessOrEqual:
+        return BitLogicOr(
+            Comparison(lhs, rhs, specifier=Comparison.Less, precision=op_prec),
+            Comparison(lhs, rhs, specifier=Comparison.Equal, precision=op_prec),
+            precision=op_prec
+        )
+    elif optree.specifier is Comparison.Less:
+        return BitLogicNegate(
+                BitLogicOr(
+                    Comparison(lhs, rhs, specifier = Comparison.Greater,
+                        precision = op_prec),
+                    Comparison(lhs, rhs, specifier = Comparison.Equal,
+                        precision = op_prec),
+                    precision = op_prec
+                    ),
+                precision = op_prec
+                )
+    elif optree.specifier is Comparison.NotEqual:
         return BitLogicOr(
             Comparison(lhs, rhs, specifier=Comparison.Less, precision=op_prec),
             Comparison(lhs, rhs, specifier=Comparison.Greater, precision=op_prec),
@@ -722,7 +798,7 @@ sse_c_code_generation_table = {
         None: {
             lambda _: True: {
                 # not supported in SSE (else fallback on generic erroneous
-                # implementation
+                # implementation)
                 type_strict_match(ML_Int32, ML_SSE_m128_v1int32):
                     ERROR_OPERATOR,
                 type_strict_match(ML_UInt32, ML_SSE_m128_v1int32):
@@ -942,82 +1018,81 @@ sse2_c_code_generation_table = {
     },
     BitLogicLeftShift: {
         None: {
-            lambda optree: True: {
-                type_strict_match(ML_SSE_m128_v4int32,
-                                  ML_SSE_m128_v4int32,
-                                  ML_Int32):
-                    EmmIntrin(
-                        "_mm_slli_epi32", arity = 2,
-                        arg_map = {0: FO_Arg(0), 1: FO_Arg(1)}
-                    )(FO_Arg(0), _mm_set1_epi64x(FO_Arg(1))),
-                # TODO the last argument is a scalar here, see documentation on
-                # _mm_sll_epi32. We need to make sure that the last vector is a
-                # constant that can be changed into either an imm8 (above) or
-                # an ML_SSE_m128_v1int32
-                type_strict_match(*(3*(ML_SSE_m128_v4int32,))):
-                    EmmIntrin(
-                        "_mm_sll_epi32", arity = 2,
-                        arg_map = {0: FO_Arg(0), 1: FO_Arg(1)}
-                    )(FO_Arg(0), FO_Arg(1)),
+            uniform_shift_check: {
+                type_strict_match_list(
+                    [ML_SSE_m128_v4int32, ML_SSE_m128_v4uint32,],
+                    [ML_SSE_m128_v4int32, ML_SSE_m128_v4uint32,],
+                    [ML_Int32, ML_UInt32,]):
+                    EmmIntrin("_mm_slli_epi32", arity = 2,
+                              arg_map = {0: FO_Arg(0), 1: FO_Arg(1)})(
+                                  FO_Arg(0), FO_Arg(1)),
+                # TODO the last argument is a scalar on 64 bits here, see
+                # documentation on _mm_sll_epi32. We need to make sure that the
+                # last vector is a constant that can be changed into either an
+                # imm8 (above) or an ML_SSE_m128_v1[u]int64.
+                type_strict_match_list(*(3*([ ML_SSE_m128_v4int32,
+                    ML_SSE_m128_v4uint32, ],))):
+                    EmmIntrin("_mm_sll_epi32", arity = 2,
+                              arg_map = {0: FO_Arg(0), 1: FO_Arg(1)})(
+                                  FO_Arg(0), FO_Arg(1)),
+                type_strict_match_list(*(3*([ ML_SSE_m128_v2int64,
+                    ML_SSE_m128_v2uint64, ],))):
+                    EmmIntrin("_mm_sll_epi64", arity = 2,
+                              arg_map = {0: FO_Arg(0), 1: FO_Arg(1)})(
+                                  FO_Arg(0), FO_Arg(1)),
             },
         },
     },
     BitLogicRightShift: {
         None: {
-            lambda optree: True: {
-                type_strict_match(ML_SSE_m128_v4int32,
-                                  ML_SSE_m128_v4int32,
-                                  ML_Int32):
-                    EmmIntrin(
-                        "_mm_srli_epi32", arity = 2,
-                        arg_map = {0: FO_Arg(0), 1: FO_Arg(1)}
-                    )(FO_Arg(0), FO_Arg(1)),
+            uniform_shift_check: {
+                type_strict_match_list(
+                    [ML_SSE_m128_v4int32, ML_SSE_m128_v4uint32,],
+                    [ML_SSE_m128_v4int32, ML_SSE_m128_v4uint32,],
+                    [ML_Int32, ML_UInt32,]):
+                    EmmIntrin("_mm_srli_epi32", arity = 2,
+                              arg_map = {0: FO_Arg(0), 1: FO_Arg(1)})(
+                                  FO_Arg(0), FO_Arg(1)
+                                  ),
                 # TODO the last argument is a scalar here, see documentation on
                 # _mm_srl_epi32. We need to make sure that the last vector is a
                 # constant that can be changed into either an imm8 (above) or
                 # an ML_SSE_m128_v1int32
                 type_strict_match(*(3*(ML_SSE_m128_v4int32,))):
-                    EmmIntrin(
-                        "_mm_srl_epi32", arity = 2,
-                        arg_map = {0: FO_Arg(0), 1: FO_Arg(1)}
-                    )(FO_Arg(0), FO_Arg(1)),
+                    EmmIntrin("_mm_srl_epi32", arity = 2,
+                              arg_map = {0: FO_Arg(0), 1: FO_Arg(1)})(
+                                  FO_Arg(0), FO_Arg(1)
+                                  ),
                 # TODO: using signed primitives for unsigned formats
                 type_strict_match(*(3*(ML_SSE_m128_v4uint32,))):
-                    EmmIntrin(
-                        "_mm_srl_epi32", arity = 2,
-                        arg_map = {0: FO_Arg(0), 1: FO_Arg(1)}
-                    )(FO_Arg(0), FO_Arg(1)),
+                    EmmIntrin("_mm_srl_epi32", arity = 2,
+                              arg_map = {0: FO_Arg(0), 1: FO_Arg(1)})(
+                                  FO_Arg(0), FO_Arg(1)
+                                  ),
             },
         },
     },
     BitArithmeticRightShift: {
         None: {
-            lambda optree: True: {
-                type_strict_match(ML_SSE_m128_v4int32,
-                                  ML_SSE_m128_v4int32,
-                                  ML_Int32):
+            uniform_shift_check: {
+                type_strict_match_list(
+                    [ ML_SSE_m128_v4int32, ML_SSE_m128_v4uint32 ],
+                    [ ML_SSE_m128_v4int32, ML_SSE_m128_v4uint32 ],
+                    [ ML_Int32, ML_UInt32 ]
+                    ):
                     EmmIntrin("_mm_srai_epi32", arity = 2,
                               arg_map = {0: FO_Arg(0), 1: FO_Arg(1)})(
-                                  FO_Arg(0),
-                                  _mm_set1_epi64x(FO_Arg(1))
-                                  ),
-                type_strict_match(ML_SSE_m128_v4uint32,
-                                  ML_SSE_m128_v4uint32,
-                                  ML_Int32):
-                    EmmIntrin("_mm_srai_epi32", arity = 2,
-                              arg_map = {0: FO_Arg(0), 1: FO_Arg(1)})(
-                                  FO_Arg(0),
-                                  _mm_set1_epi64x(FO_Arg(1))
+                                  FO_Arg(0), FO_Arg(1)
                                   ),
                 # TODO the last argument is a scalar here, see documentation on
                 # _mm_srl_epi32. We need to make sure that the last vector is a
                 # constant that can be changed into either an imm8 (above) or
                 # an ML_SSE_m128_v1int32
                 type_strict_match(*(3*(ML_SSE_m128_v4int32,))):
-                    EmmIntrin(
-                        "_mm_sra_epi32", arity = 2,
-                        arg_map = {0: FO_Arg(0), 1: FO_Arg(1)}
-                    )(FO_Arg(0), FO_Arg(1)),
+                    EmmIntrin("_mm_sra_epi32", arity = 2,
+                              arg_map = {0: FO_Arg(0), 1: FO_Arg(1)})(
+                                  FO_Arg(0), FO_Arg(1)
+                                  ),
             },
         },
     },
@@ -1052,7 +1127,7 @@ sse2_c_code_generation_table = {
                                 output_precision = ML_Pointer_Format(ML_Int32)
                                 )
                             )),
-								# broadcast implemented as conversions
+                # broadcast implemented as conversions
                 type_strict_match(ML_SSE_m128_v4int32, ML_Int32):
                     XmmIntrin("_mm_set1_epi32", arity = 1),
                 type_strict_match(ML_SSE_m128_v4float32, ML_Binary32):
@@ -1406,9 +1481,11 @@ avx_c_code_generation_table = {
                                 )
                             ),
                 type_strict_match(ML_AVX_m256_v8int32, ML_Int32):
-                    XmmIntrin("_mm256_set1_epi32", arity = 1),
+                    ImmIntrin("_mm256_set1_epi32", arity = 1),
+                type_strict_match(ML_AVX_m256_v8uint32, ML_UInt32):
+                    ImmIntrin("_mm256_set1_epi32", arity = 1),
                 type_strict_match(ML_AVX_m256_v8float32, ML_Binary32):
-                    XmmIntrin("_mm256_set1_ps", arity = 1),
+                    ImmIntrin("_mm256_set1_ps", arity = 1),
                 type_strict_match(ML_AVX_m256_v4int64, v4int64):
                     ImmIntrin(
                         "_mm256_load_si256", arity = 1,
@@ -1524,13 +1601,16 @@ avx_c_code_generation_table = {
     Constant: {
         None: {
             uniform_vector_constant_check: {
-                type_strict_match(ML_AVX_m256_v8int32):
+                type_strict_match_list([
+                    ML_AVX_m256_v8int32, ML_AVX_m256_v8uint32,
+                    ML_AVX_m256_v4int64, ML_AVX_m256_v4uint64,
+                    ML_AVX_m256_v8float32, ML_AVX_m256_v4float64,
+                    ML_AVX_m256_v8bool,
+                    ]):
                     ComplexOperator(optree_modifier = vector_constant_op),
-                type_strict_match(ML_AVX_m256_v8float32):
-                    ComplexOperator(optree_modifier = vector_constant_op),
-                },
             },
         },
+    },
     TypeCast: {
         None: {
             lambda optree: True: {
@@ -1596,6 +1676,19 @@ avx_c_code_generation_table = {
     },
 }
 
+## Generate a bit shift optree by an immediate value using @p optree inputs.
+def generate_avx2_uniform_shift(optree):
+    assert (isinstance(optree, BitArithmeticRightShift)
+            or isinstance(optree, BitLogicLeftShift)
+            or isinstance(optree, BitLogicRightShift)) \
+                and isinstance(optree.get_input(1), Constant)
+
+    shift_builder = optree.__class__
+    return shift_builder(optree.get_input(0),
+                         Constant(optree.get_input(1).get_value()[0],
+                                  precision = ML_Int32),
+                         precision = optree.get_precision())
+
 avx2_c_code_generation_table = {
     Addition: {
         None: {
@@ -1603,6 +1696,10 @@ avx2_c_code_generation_table = {
                 type_strict_match(*(3*(ML_AVX_m256_v8int32,))):
                     ImmIntrin("_mm256_add_epi32", arity = 2),
                 type_strict_match(*(3*(ML_AVX_m256_v4int64,))):
+                    ImmIntrin("_mm256_add_epi64", arity = 2),
+                type_strict_match(*(3*(ML_AVX_m256_v8uint32,))):
+                    ImmIntrin("_mm256_add_epi32", arity = 2),
+                type_strict_match(*(3*(ML_AVX_m256_v4uint64,))):
                     ImmIntrin("_mm256_add_epi64", arity = 2),
             },
         },
@@ -1637,7 +1734,35 @@ avx2_c_code_generation_table = {
     },
     BitArithmeticRightShift: {
         None: {
-            lambda _: True: {
+            uniform_shift_check: {
+                # Shift by a constant less than the input bitsize
+                # TODO check that constant value is in the valid range.
+                type_strict_match_list(
+                    *(2*([ ML_AVX_m256_v8int32, ML_AVX_m256_v8uint32, ],)
+                        + ([ML_Int32, ML_UInt32 ],))
+                    ):
+                    ImmIntrin("_mm256_srai_epi32", arity = 2,
+                              arg_map = {0: FO_Arg(0), 1: FO_Arg(1)}),
+                type_strict_match_list(
+                    *(2*([ ML_AVX_m256_v4int64, ML_AVX_m256_v4uint64, ],)
+                        + ([ML_Int32, ML_UInt32 ],))
+                    ):
+                    ImmIntrin("_mm256_srai_epi64", arity = 2,
+                              arg_map = {0: FO_Arg(0), 1: FO_Arg(1)}),
+                # Modify optree to use an immediate value (better performance)
+                type_strict_match_list(
+                    *(3*([ ML_AVX_m256_v8int32, ML_AVX_m256_v8uint32, ],))
+                    ):
+                    ComplexOperator(generate_avx2_uniform_shift),
+                type_strict_match_list(
+                    *(3*([ ML_AVX_m256_v4int64, ML_AVX_m256_v4uint64, ],))
+                    ):
+                    ComplexOperator(generate_avx2_uniform_shift),
+            },
+            variable_shift_check: {
+                # XMM version. Note: there's no YMM intrinsic available for
+                # 64-bit integer arithmetic right shift. This comes with
+                # AVX-512.
                 type_strict_match(*(3*(ML_SSE_m128_v4int32,))):
                     ImmIntrin("_mm_srav_epi32", arity = 2,
                               arg_map = {0: FO_Arg(0), 1: FO_Arg(1)}),
@@ -1650,34 +1775,60 @@ avx2_c_code_generation_table = {
     BitLogicAnd: {
         None: {
             lambda optree: True: {
-                type_strict_match(*(3*(ML_AVX_m256_v8int32,))):
-                    _mm256_and_si256,
-                type_strict_match(*(3*(ML_AVX_m256_v4int64,))):
+                type_strict_match_list(*(3*([
+                    ML_AVX_m256_v8int32, ML_AVX_m256_v8uint32,
+                    ML_AVX_m256_v4int64, ML_AVX_m256_v4uint64,
+                    ML_AVX_m256_v4uint32, ML_AVX_m256_v4int32,
+                    ],))):
                     _mm256_and_si256,
             },
         },
     },
     BitLogicLeftShift: {
         None: {
-          lambda _: True: {
-            # TODO implement fixed bit shift (sll, slli)
-            # Variable bit shift is only available with AVX2
-            # XMM version
-            type_strict_match(*(3*(ML_SSE_m128_v4int32,))):
-                ImmIntrin("_mm_sllv_epi32", arity = 2,
-                          arg_map = {0: FO_Arg(0), 1: FO_Arg(1)}),
-            type_strict_match(*(3*(ML_SSE_m128_v2int64,))):
-                ImmIntrin("_mm_sllv_epi64", arity = 2,
-                          arg_map = {0: FO_Arg(0), 1: FO_Arg(1)}),
-            # YMM version
-            type_strict_match(*(3*(ML_AVX_m256_v8int32,))):
-                ImmIntrin("_mm256_sllv_epi32", arity = 2,
-                          arg_map = {0: FO_Arg(0), 1: FO_Arg(1)}),
-            type_strict_match(*(3*(ML_AVX_m256_v4int64,))):
-                ImmIntrin("_mm256_sllv_epi64", arity = 2,
-                          arg_map = {0: FO_Arg(0), 1: FO_Arg(1)}),
-          },
-      },
+            uniform_shift_check: {
+                # Shift by a constant less than the input bitsize
+                # TODO check that constant value is in the valid range.
+                type_strict_match_list(*(2*([ ML_AVX_m256_v8int32,
+                    ML_AVX_m256_v8uint32, ],) + ([ML_Int32, ML_UInt32 ],))):
+                    ImmIntrin("_mm256_slli_epi32", arity = 2,
+                              arg_map = {0: FO_Arg(0), 1: FO_Arg(1)}),
+                type_strict_match_list(*(2*([ ML_AVX_m256_v4int64,
+                    ML_AVX_m256_v4uint64, ],) + ([ML_Int32, ML_UInt32 ],))):
+                    ImmIntrin("_mm256_slli_epi64", arity = 2,
+                              arg_map = {0: FO_Arg(0), 1: FO_Arg(1)}),
+                # Shift by uniform vector constant (higher latency)
+                type_strict_match_list(
+                    *(3*([ ML_AVX_m256_v8int32, ML_AVX_m256_v8uint32, ],))
+                    ):
+                    ComplexOperator(generate_avx2_uniform_shift),
+                type_strict_match_list(
+                    *(3*([ ML_AVX_m256_v4int64, ML_AVX_m256_v4uint64, ],))
+                    ):
+                    ComplexOperator(generate_avx2_uniform_shift),
+            },
+            variable_shift_check: {
+                # Variable bit shift is only available with AVX2
+                # XMM version
+                type_strict_match_list(*(3*([ ML_SSE_m128_v4int32,
+                    ML_SSE_m128_v4uint32, ],))):
+                    ImmIntrin("_mm_sllv_epi32", arity = 2,
+                              arg_map = {0: FO_Arg(0), 1: FO_Arg(1)}),
+                type_strict_match_list(*(3*([ ML_SSE_m128_v2int64,
+                    ML_SSE_m128_v2uint64, ],))):
+                    ImmIntrin("_mm_sllv_epi64", arity = 2,
+                              arg_map = {0: FO_Arg(0), 1: FO_Arg(1)}),
+                # YMM version
+                type_strict_match_list(*(3*([ ML_AVX_m256_v8int32,
+                    ML_AVX_m256_v8uint32, ],))):
+                    ImmIntrin("_mm256_sllv_epi32", arity = 2,
+                              arg_map = {0: FO_Arg(0), 1: FO_Arg(1)}),
+                type_strict_match_list(*(3*([ ML_AVX_m256_v4int64,
+                    ML_AVX_m256_v4uint64, ],))):
+                    ImmIntrin("_mm256_sllv_epi64", arity = 2,
+                              arg_map = {0: FO_Arg(0), 1: FO_Arg(1)}),
+            },
+        },
     },
     BitLogicNegate: {
         None: {
@@ -1699,23 +1850,114 @@ avx2_c_code_generation_table = {
     },
     BitLogicRightShift: {
         None: {
-          lambda optree: True: {
-            # XMM version
-            type_strict_match(*(3*(ML_SSE_m128_v4int32,))):
-                ImmIntrin("_mm_srlv_epi32", arity = 2,
-                          arg_map = {0: FO_Arg(0), 1: FO_Arg(1)}),
-            type_strict_match(*(3*(ML_SSE_m128_v2int64,))):
-                ImmIntrin("_mm_srlv_epi64", arity = 2,
-                          arg_map = {0: FO_Arg(0), 1: FO_Arg(1)}),
-            # YMM version
-            type_strict_match(*(3*(ML_AVX_m256_v8int32,))):
-                ImmIntrin("_mm256_srlv_epi32", arity = 2,
-                          arg_map = {0: FO_Arg(0), 1: FO_Arg(1)}),
-            type_strict_match(*(3*(ML_AVX_m256_v4int64,))):
-                ImmIntrin("_mm256_srlv_epi64", arity = 2,
-                          arg_map = {0: FO_Arg(0), 1: FO_Arg(1)}),
-          },
-      },
+            uniform_shift_check: {
+                # Shift by a constant less than the input bitsize
+                # TODO check that constant value is in the valid range.
+                type_strict_match_list(
+                    *(2*([ ML_AVX_m256_v8int32, ML_AVX_m256_v8uint32, ],)
+                        + ([ML_Int32, ML_UInt32 ],))
+                    ):
+                    ImmIntrin("_mm256_srli_epi32", arity = 2,
+                              arg_map = {0: FO_Arg(0), 1: FO_Arg(1)}),
+                type_strict_match_list(
+                    *(2*([ ML_AVX_m256_v4int64, ML_AVX_m256_v4uint64, ],)
+                        + ([ML_Int32, ML_UInt32 ],))):
+                    ImmIntrin("_mm256_srli_epi64", arity = 2,
+                              arg_map = {0: FO_Arg(0), 1: FO_Arg(1)}),
+                # Shift by uniform vector constant (higher latency)
+                type_strict_match_list(
+                    *(3*([ ML_AVX_m256_v8int32, ML_AVX_m256_v8uint32, ],))
+                    ):
+                    ComplexOperator(generate_avx2_uniform_shift),
+                type_strict_match_list(
+                    *(3*([ ML_AVX_m256_v4int64, ML_AVX_m256_v4uint64, ],))
+                    ):
+                    ComplexOperator(generate_avx2_uniform_shift),
+            },
+            variable_shift_check: {
+                # XMM version
+                type_strict_match(*(3*(ML_SSE_m128_v4int32,))):
+                    ImmIntrin("_mm_srlv_epi32", arity = 2,
+                              arg_map = {0: FO_Arg(0), 1: FO_Arg(1)}),
+                type_strict_match(*(3*(ML_SSE_m128_v2int64,))):
+                    ImmIntrin("_mm_srlv_epi64", arity = 2,
+                              arg_map = {0: FO_Arg(0), 1: FO_Arg(1)}),
+                # YMM version
+                type_strict_match_list(
+                    *(3*([ ML_AVX_m256_v8int32, ML_AVX_m256_v8uint32 ],))
+                    ):
+                    ImmIntrin("_mm256_srlv_epi32", arity = 2,
+                              arg_map = {0: FO_Arg(0), 1: FO_Arg(1)}),
+                type_strict_match(
+                    *(3*([ ML_AVX_m256_v4int64, ML_AVX_m256_v4uint64 ],))
+                    ):
+                    ImmIntrin("_mm256_srlv_epi64", arity = 2,
+                              arg_map = {0: FO_Arg(0), 1: FO_Arg(1)}),
+            },
+        },
+    },
+    Comparison: {
+        Comparison.Equal: {
+            lambda _: True: {
+                type_strict_match_or_list([
+                    3*(ML_AVX_m256_v8int32,),
+                    3*(ML_AVX_m256_v8uint32,),
+                    3*(ML_AVX_m256_v8float32,)]):
+                    DynamicOperator(generate_sse_comparison),
+                # 3 Dummy operators used to allow m128_promotion to promote
+                # squashable comparison
+                type_strict_match_or_list([
+                    3*(ML_AVX_m256_v8bool,),
+                    3*(ML_AVX_m256_v8bool,),
+                    3*(ML_AVX_m256_v8bool,)]):
+                    ERROR_OPERATOR,
+            },
+        },
+        Comparison.Greater: {
+            lambda _: True: {
+                type_strict_match_or_list([
+                    3*(ML_AVX_m256_v8int32,),
+                    3*(ML_AVX_m256_v8uint32,),
+                    3*(ML_AVX_m256_v8float32,),
+                    3*(ML_AVX_m256_v4float64,),
+                    ]):
+                    # TODO change naming
+                    DynamicOperator(generate_sse_comparison),
+                # 3 Dummy operators used to allow m256_promotion to promote
+                # squashable comparison
+                type_strict_match_or_list([(
+                    ML_AVX_m256_v8bool, ML_AVX_m256_v8int32,
+                    ML_AVX_m256_v8int32),
+                    (ML_AVX_m256_v8bool, ML_AVX_m256_v8uint32,
+                        ML_AVX_m256_v8uint32),
+                    (ML_AVX_m256_v8bool, ML_AVX_m256_v8float32,
+                        ML_AVX_m256_v8float32)]):
+                    ERROR_OPERATOR,
+            },
+        },
+        Comparison.Less: {
+            lambda _: True: {
+                type_strict_match_or_list([ 3*(ML_AVX_m256_v8int32,),
+                                            3*(ML_AVX_m256_v8uint32,) ]):
+                    ComplexOperator(expand_avx_comparison),
+                type_strict_match_or_list([
+                    3*(ML_AVX_m256_v8int32,),
+                    3*(ML_AVX_m256_v8uint32,),
+                    3*(ML_AVX_m256_v8float32,),
+                    ]):
+                DynamicOperator(generate_sse_comparison),
+                # 3 Dummy operators used to allow m128_promotion to promote
+                # squashable comparison
+                type_strict_match_or_list([(
+                    ML_AVX_m256_v8bool, ML_AVX_m256_v8int32,
+                    ML_AVX_m256_v8int32),
+                    (ML_AVX_m256_v8bool, ML_AVX_m256_v8uint32,
+                        ML_AVX_m256_v8uint32),
+                    (ML_AVX_m256_v8bool, ML_AVX_m256_v8float32,
+                        ML_AVX_m256_v8float32)]):
+                ERROR_OPERATOR,
+            },
+        },
     },
     CountLeadingZeros: {
         None: {
@@ -1878,6 +2120,20 @@ avx2_c_code_generation_table = {
             },
         },
     },
+    Select: {
+        None: {
+            pred_vector_select_one_zero: {
+                type_strict_match(ML_AVX_m256_v8int32, ML_AVX_m256_v8bool,
+                                  ML_AVX_m256_v8int32, ML_AVX_m256_v8int32):
+                    # TODO update the naming to reflect AVX support
+                    ComplexOperator(squash_sse_cst_select),
+                type_strict_match(ML_AVX_m256_v8uint32, ML_AVX_m256_v8bool,
+                                  ML_AVX_m256_v8uint32, ML_AVX_m256_v8uint32):
+                    # TODO update the naming to reflect AVX support
+                    ComplexOperator(squash_sse_cst_select),
+            },
+        },
+    },
     Subtraction: {
         None: {
             lambda optree: True: {
@@ -2000,6 +2256,7 @@ avx512_c_code_generation_table = {
     BitArithmeticRightShift: {
         None: {
             lambda optree: True: {
+                # YMM version. The XMM version is available since AVX2.
                 type_strict_match(*(3*(ML_SSE_m128_v2int64,))):
                     ImmIntrin("_mm_srav_epi64", arity = 2,
                               arg_map = {0: FO_Arg(0), 1: FO_Arg(1)}),

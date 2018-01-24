@@ -23,6 +23,7 @@ class Pass_M256_Promotion(Pass_Vector_Promotion):
     v8int32:     ML_AVX_m256_v8int32,
     v4uint64:    ML_AVX_m256_v4uint64,
     v8uint32:    ML_AVX_m256_v8uint32,
+    v8bool:      ML_AVX_m256_v8bool,
   }
 
   def get_translation_table(self):

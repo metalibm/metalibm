@@ -125,7 +125,7 @@ class StaticVectorizer(object):
       # no validity condition for vectorization (always valid)
       if len(validity_list) == 0:
         Log.report(Log.Info, "empty validity list encountered during vectorization")
-        sub_vector_mask = Constant(True, precision = ML_Bool) 
+        sub_vector_mask = Constant(True, precision = ML_Bool)
       else:
         sub_vector_mask = and_merge_conditions(validity_list).copy(arg_list_copy)
 
