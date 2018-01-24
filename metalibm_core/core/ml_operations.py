@@ -466,6 +466,26 @@ class ML_ArithmeticOperation(AbstractOperation):
 class ML_LeafNode(AbstractOperation): 
     pass
 
+def is_interval_compatible_object(value):
+    """ predicate testing if value is an object from
+        a numerical class compatible with sollya.Interval
+        constructor
+
+        Args:
+            value (object): object to be tested
+        Return
+            boolean: True if object is compatible with Interval, False otherwise
+    """
+    if not(isinstance(value, bool)) and isinstance(value, int):
+        return True
+    elif isinstance(value, float):
+        return True
+    elif isinstance(value, SollyaObject):
+        # TODO: very permissive
+        return True
+    else:
+        return False
+
 def is_leaf_node(node):
     """ Test if node is a leaf one (with no input) """
     return isinstance(node, ML_LeafNode)
@@ -480,7 +500,9 @@ class Constant(ML_LeafNode):
         AbstractOperation.__init__(self, **init_map)
         self.value = value
         # attribute fields initialization
-        if isinstance(value, int) or isinstance(value, float) or isinstance(value, SollyaObject):
+        # Gitlab's Issue#16 as bool is a sub-class of int, it must be excluded
+        # explicitly
+        if is_interval_compatible_object(value):
             self.attributes.set_interval(Interval(value))
 
 
