@@ -15,8 +15,13 @@ from metalibm_core.core.ml_formats import *
 from metalibm_core.core.polynomials import *
 from metalibm_core.core.ml_table import ML_NewTable
 from metalibm_core.core.ml_complex_formats import ML_Mpfr_t
-from metalibm_core.opt.ml_blocks import (generate_count_leading_zeros,
-                                         generate_fasttwosum)
+from metalibm_core.opt.ml_blocks import (
+    generate_count_leading_zeros, generate_fasttwosum,
+    Add222, Add122, Add212, Add211, Mul212, Mul211, Mul222
+)
+from metalibm_core.opt.p_expand_multi_precision import (
+    dirty_multi_node_expand
+)
 
 from metalibm_core.code_generation.generic_processor import GenericProcessor
 from metalibm_core.targets.common.vector_backend import VectorBackend
@@ -418,98 +423,9 @@ class ML_Log(ML_Function("ml_log")):
                 )
 
     # XXX Dirty implementation of double-(self.precision) poly
-    def Mul211(x, y):
-        zh = Multiplication(x, y)
-        zl = FusedMultiplyAdd(x, y, zh, specifier = FusedMultiplyAdd.Subtract)
-        return zh, zl
-
-    def Add211(x, y):
-        zh = Addition(x, y)
-        t1 = Subtraction(zh, x)
-        zl = Subtraction(y, t1)
-        return zh, zl
-
-    def Mul212(x, yh, yl):
-        t1, t2 = Mul211(x, yh)
-        t3 = Multiplication(x, yl)
-        t4 = Addition(t2, t3)
-        return Add211(t1, t4)
-
-    def Mul222(xh, xl, yh, yl):
-        ph = Multiplication(xh, yh)
-        pl = FMS(xh, yh, ph)
-        pl = FMA(xh, yl, pl)
-        pl = FMA(xl, yh, pl)
-        zh = Addition(ph, pl)
-        zl = Subtraction(ph, zh)
-        zl = Addition(zl, pl)
-        return zh, zl
-
-    def Add212(xh, yh, yl):
-        r = Addition(xh, yh)
-        s1 = Subtraction(xh, r)
-        s2 = Addition(s1, yh)
-        s = Addition(s2, yl)
-        zh = Addition(r, s)
-        zl = Addition(Subtraction(r, zh), s)
-        return zh, zl
-
-    def Add222(xh, xl, yh, yl):
-        r = Addition(xh, yh)
-        s1 = Subtraction(xh, r)
-        s2 = Addition(s1, yh)
-        s3 = Addition(s2, yl)
-        s = Addition(s3, xl)
-        zh = Addition(r, s)
-        zl = Addition(Subtraction(r, zh), s)
-        return zh, zl
-
-    def Add122(xh, xl, yh, yl):
-        zh, _ = Add222(xh, xl, yh, yl)
-        return zh
-
     def dirty_poly_node_conversion(node, variable):
-        if node is variable:
-            return variable, None
-        elif isinstance(node, Constant):
-            value = node.get_value()
-            value_hi = round(value, precision, sollya.RN)
-            value_lo = round(value - value_hi, precision, sollya.RN)
-            ch = Constant(value_hi,
-                          tag = node.get_tag() + "hi",
-                          precision = self.precision)
-            cl = Constant(value_lo,
-                          tag = node.get_tag() + "lo",
-                          precision = self.precision
-                          ) if value_lo != 0 else None
-            if cl is None:
-                Log.report(Log.Info, "simplified constant")
-            return ch, cl
-        else:
-            # Case of Addition or Multiplication nodes:
-            # 1. retrieve inputs
-            # 2. dirty convert inputs recursively
-            # 3. forward to the right metamacro
-            inputs = node.get_inputs()
-            op1h, op1l = dirty_poly_node_conversion(inputs[0], variable)
-            op2h, op2l = dirty_poly_node_conversion(inputs[1], variable)
-            if isinstance(node, Addition):
-                return Add222(op1h, op1l, op2h, op2l) \
-                        if op1l is not None and op2l is not None \
-                        else Add212(op1h, op2h, op2l) \
-                        if op1l is None and op2l is not None \
-                        else Add212(op2h, op1h, op1l) \
-                        if op2l is None and op1l is not None \
-                        else Add211(op1h, op2h)
-
-            elif isinstance(node, Multiplication):
-                return Mul222(op1h, op1l, op2h, op2l) \
-                        if op1l is not None and op2l is not None \
-                        else Mul212(op1h, op2h, op2l) \
-                        if op1l is None and op2l is not None \
-                        else Mul212(op2h, op1h, op1l) \
-                        if op2l is None and op1l is not None \
-                        else Mul211(op1h, op2h)
+        return dirty_multi_node_expand(
+            node, self.precision, mem_map={variable: (variable, None)})
 
     log1pu_poly_hi, log1pu_poly_lo = dirty_poly_node_conversion(log1pu_poly, u)
     log1pu_poly_hi.set_attributes(tag = 'log1pu_poly_hi')
