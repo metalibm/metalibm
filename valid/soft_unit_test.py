@@ -41,6 +41,7 @@ import metalibm_functions.unit_tests.vector_code as ut_vector_code
 import metalibm_functions.unit_tests.call_externalization as ut_call_externalization
 import metalibm_functions.unit_tests.auto_test as ut_auto_test
 import metalibm_functions.unit_tests.m128_conversion as ut_m128_conversion
+import metalibm_functions.unit_tests.m128_boolean as ut_m128_boolean
 import metalibm_functions.unit_tests.new_table as ut_new_table
 import metalibm_functions.unit_tests.multi_ary_function as ut_multi_ary_function
 import metalibm_functions.unit_tests.entity_pass as ut_entity_pass
@@ -124,6 +125,11 @@ unit_test_list = [
     "m128 conversion test",
     ut_m128_conversion,
     [{"pre_gen_passes": ["m128_promotion"], "target": target_instanciate("x86_avx2"), "vector_size": 4, "auto_test_execute": 100}],
+  ),
+  UnitTestScheme(
+    "m128 boolean test",
+    ut_m128_boolean,
+    [{"pre_gen_passes": ["m128_promotion"], "target": target_instanciate("x86_sse2"), "vector_size": 4, "auto_test_execute": 100, "precision": ML_Int32}],
   ),
   UnitTestScheme(
     "new table test",

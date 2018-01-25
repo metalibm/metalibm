@@ -15,6 +15,18 @@ import sollya
 from sollya import S2, SollyaObject, coeff
 from ..utility.log_report import Log
 
+
+def is_cst_with_value(coeff, value):
+    """ Predicate testing if coeff is a constant node with numerical value value
+
+        Args:
+            coeff (ML_Operation): node to be tested
+            value (int, float, ...): numerical value 
+        Return:
+            bool: True if coeff is Constant(value), False otherwise
+    """
+    return isinstance(coeff, Constant) and coeff.get_value() == value
+
 try:
   from cgpe import (
           PolynomialScheme as CgpePolynomialScheme,
@@ -305,8 +317,6 @@ class PolynomialSchemeEvaluator(object):
         # last coefficient
         index, coeff = coeff_list[-1]
         current_coeff = coeff
-        def is_cst_with_value(coeff, value):
-            return isinstance(coeff, Constant) and coeff.get_value() == value
         # operation optimization
         if (is_cst_with_value(coeff, 1.0) or is_cst_with_value(coeff, -1.0)) and index <= 1:
             # generating FMA

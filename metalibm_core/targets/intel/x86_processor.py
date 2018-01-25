@@ -18,11 +18,13 @@ from metalibm_core.core.ml_complex_formats import ML_Pointer_Format
 from metalibm_core.core.ml_operations import *
 from metalibm_core.core.target import TargetRegister
 from metalibm_core.core.ml_table import ML_TableFormat
+from metalibm_core.core.polynomials import is_cst_with_value
 
 from metalibm_core.targets.common.vector_backend import VectorBackend
 
 from metalibm_core.code_generation.abstract_backend import LOG_BACKEND_INIT
 from metalibm_core.code_generation.generic_processor import GenericProcessor
+from metalibm_core.code_generation.complex_generator import DynamicOperator
 
 ## TODO; change ML_SSE and ML_AVX format to be vector formats
 
@@ -53,7 +55,7 @@ def get_sse_vector_int_cst(format_object, value, language=C_Code):
     """
     scalar_format = format_object.get_scalar_format()
     scalar_w = scalar_format.get_bit_size()
-    compound_cst = reduce((lambda acc, x: (acc * 2**scalar_w + signed2unsigned(x, scalar_w))), value[::-1], 0) 
+    compound_cst = reduce((lambda acc, x: (acc * 2**scalar_w + signed2unsigned(x, scalar_w))), value[::-1], 0)
     component_w = 64
     value_list = []
     while compound_cst != 0:
@@ -77,31 +79,70 @@ ML_SSE_m128_v1int32  = VirtualFormatNoForward(ML_Int32, ML_SSE_m128i, get_sse_sc
 ## format for single 1 int64 in a XMM 128-bit register
 ML_SSE_m128_v1int64  = VirtualFormatNoForward(ML_Int64, ML_SSE_m128i, get_sse_scalar_cst, True)
 
+# virtual boolean format
+ML_SSE_m128_v4bool  = VirtualFormatNoForward(ML_Bool, ML_SSE_m128i, get_sse_scalar_cst, True)
+
+## format for packed 2 fp32 in a XMM 128-bit register
+ML_SSE_m128_v2float32 = vector_format_builder("__m128", None, 2, ML_Binary32,
+        cst_callback = get_sse_vector_float_cst)
 ## format for packed 4 fp32 in a XMM 128-bit register
-ML_SSE_m128_v4float32 = vector_format_builder("__m128", None, 4, ML_Binary32, cst_callback = get_sse_vector_float_cst)
+ML_SSE_m128_v4float32 = vector_format_builder("__m128", None, 4, ML_Binary32,
+        cst_callback = get_sse_vector_float_cst)
 ## format for packed 2 fp64 in a XMM 128-bit register
 ML_SSE_m128_v2float64 = vector_format_builder("__m128d", None, 2, ML_Binary64)
+## format for packed 2 int32 in a XMM 128-bit register
+ML_SSE_m128_v2int32 = vector_format_builder("__m128i", None, 2, ML_Int32,
+        cst_callback = get_sse_vector_int_cst,
+        compound_constructor = ML_IntegerVectorFormat)
 ## format for packed 4 int32 in a XMM 128-bit register
-ML_SSE_m128_v4int32   = vector_format_builder("__m128i",  None, 4, ML_Int32, cst_callback = get_sse_vector_int_cst)
+ML_SSE_m128_v4int32   = vector_format_builder("__m128i", None, 4, ML_Int32,
+        cst_callback = get_sse_vector_int_cst,
+        compound_constructor = ML_IntegerVectorFormat)
 ## format for packed 2 int64 in a XMM 128-bit register
-ML_SSE_m128_v2int64   = vector_format_builder("__m128i",  None, 2, ML_Int64)
+ML_SSE_m128_v2int64   = vector_format_builder("__m128i", None, 2, ML_Int64,
+        cst_callback = get_sse_vector_int_cst,
+        compound_constructor = ML_IntegerVectorFormat)
+## format for packed 2 uint32 in a XMM 128-bit register
+ML_SSE_m128_v2uint32  = vector_format_builder("__m128i", None, 2, ML_UInt32,
+        cst_callback = get_sse_vector_int_cst,
+        compound_constructor = ML_IntegerVectorFormat)
 ## format for packed 4 uint32 in a XMM 128-bit register
-ML_SSE_m128_v4uint32  = vector_format_builder("__m128i",  None, 4, ML_UInt32, cst_callback = get_sse_vector_int_cst)
+ML_SSE_m128_v4uint32  = vector_format_builder("__m128i", None, 4, ML_UInt32,
+        cst_callback = get_sse_vector_int_cst,
+        compound_constructor = ML_IntegerVectorFormat)
 ## format for packed 2 uint64 in a XMM 128-bit register
-ML_SSE_m128_v2uint64  = vector_format_builder("__m128i",  None, 2, ML_UInt64)
+ML_SSE_m128_v2uint64  = vector_format_builder("__m128i", None, 2, ML_UInt64,
+        cst_callback = get_sse_vector_int_cst,
+        compound_constructor = ML_IntegerVectorFormat)
 
 ## format for packed 8 fp32 in a YMM 256-bit register
-ML_AVX_m256_v8float32 = vector_format_builder("__m256",  None, 8, ML_Binary32)
+ML_AVX_m256_v8float32 = vector_format_builder("__m256", None, 8, ML_Binary32)
 ## format for packed 4 fp64 in a YMM 256-bit register
 ML_AVX_m256_v4float64 = vector_format_builder("__m256d", None, 4, ML_Binary64)
+## format for packed 4 int32 in a YMM 256-bit register
+ML_AVX_m256_v4int32  = vector_format_builder("__m256i", None, 4, ML_Int32,
+        cst_callback = get_sse_vector_int_cst,
+        compound_constructor = ML_IntegerVectorFormat)
 ## format for packed 8 int32 in a YMM 256-bit register
-ML_AVX_m256_v8int32   = vector_format_builder("__m256i", None, 8, ML_Int32)
+ML_AVX_m256_v8int32   = vector_format_builder("__m256i", None, 8, ML_Int32,
+        cst_callback = get_sse_vector_int_cst,
+        compound_constructor = ML_IntegerVectorFormat)
 ## format for packed 4 int64 in a YMM 256-bit register
-ML_AVX_m256_v4int64   = vector_format_builder("__m256i", None, 4, ML_Int64)
+ML_AVX_m256_v4int64   = vector_format_builder("__m256i", None, 4, ML_Int64,
+        cst_callback = get_sse_vector_int_cst,
+        compound_constructor = ML_IntegerVectorFormat)
+## format for packed 4 uint32 in a YMM 256-bit register
+ML_AVX_m256_v4uint32 = vector_format_builder("__m256i", None, 4, ML_UInt32,
+        cst_callback = get_sse_vector_int_cst,
+        compound_constructor = ML_IntegerVectorFormat)
 ## format for packed 8 uint32 in a YMM 256-bit register
-ML_AVX_m256_v8uint32  = vector_format_builder("__m256i", None, 8, ML_UInt32)
+ML_AVX_m256_v8uint32  = vector_format_builder("__m256i", None, 8, ML_UInt32,
+        cst_callback = get_sse_vector_int_cst,
+        compound_constructor = ML_IntegerVectorFormat)
 ## format for packed 4 uint64 in a YMM 256-bit register
-ML_AVX_m256_v4uint64  = vector_format_builder("__m256i", None, 4, ML_UInt64)
+ML_AVX_m256_v4uint64  = vector_format_builder("__m256i", None, 4, ML_UInt64,
+        cst_callback = get_sse_vector_int_cst,
+        compound_constructor = ML_IntegerVectorFormat)
 
 
 ## Wrapper for intel x86_sse intrinsics
@@ -372,7 +413,276 @@ __m128ip_cast_operator = TemplateOperatorFormat(
 
 _mm_fmadd_ss = x86_fma_intrinsic_builder("_mm_fmadd_ss")
 
+def is_vector_cst_with_value(optree, value):
+    if not isinstance(optree, Constant):
+        return False
+    else:
+        return all(map(lambda v: v == value, optree.get_value()))
+
+
+def pred_vector_select_one_zero(optree):
+    """ Predicate returns True if and only if
+        optree is Select(cond, -1, 0) or Select(cond, 0, -1)
+        False otherwise """
+    if not isinstance(optree, Select):
+        return False
+    elif not isinstance(optree.get_input(0), Comparison):
+        return False
+    elif not optree.get_precision().is_vector_format():
+        return False
+    else:
+        lhs = optree.get_input(1)
+        rhs = optree.get_input(2)
+        cst_pred = (is_vector_cst_with_value(lhs, -1) and is_vector_cst_with_value(rhs, 0)) or \
+               (is_vector_cst_with_value(lhs, 0) and is_vector_cst_with_value(rhs, -1))
+        return cst_pred
+
+
+def invert_comp_specifier(comp_specifier):
+    inverse_map = {
+        Comparison.Equal: Comparison.NotEqual,
+        Comparison.Less: Comparison.GreaterOrEqual,
+        Comparison.LessOrEqual: Comparison.Greater,
+        Comparison.NotEqual: Comparison.Equal,
+        Comparison.Greater: Comparison.LessOrEqual,
+        Comparison.GreaterOrEqual: Comparison.Less,
+    }
+    return inverse_map[comp_specifier]
+
+def generate_sse_select_boolean_value(cond, precision, negate=False):
+    """ Negate indicates that condition must be reverse 0 is the value
+        which should be returned when cond is False
+        and -1 when cond is True """
+    assert isinstance(cond, Comparison)
+    specifier_map = {
+        Comparison.Equal: "eq",
+        Comparison.GreaterOrEqual: "ge",
+        Comparison.Greater: "gt",
+        Comparison.NotEqual: "neq",
+        Comparison.LessOrEqual: "le",
+        Comparison.Less: "lt",
+    }
+    SIGNED_PREDICATE_LIST = [
+        Comparison.GreaterOrEqual, Comparison.Greater,
+        Comparison.Less, Comparison.LessOrEqual
+    ]
+    scalar_precision = precision.get_scalar_format()
+    if is_std_unsigned_integer_format(scalar_precision) and cond.specifier in SIGNED_PREDICATE_LIST:
+        Log.report(Log.Warning, "Generating code for unsigned comparison with signed specifier in generate_sse_select_boolean_value")
+    format_suffix = {
+        ML_SSE_m128_v4int32: "epi32",
+        ML_SSE_m128_v4uint32: "epi32",
+        ML_SSE_m128_v4float32: "ps",
+    }
+    cond_specifier = cond.specifier
+    return XmmIntrin(
+        "_mm_cmp{}_{}".format(specifier_map[(cond_specifier if not negate else invert_comp_specifier(cond_specifier))], format_suffix[precision]),
+        output_precision = precision,
+        arity=2)
+
+
+
+
+def generate_sse_comparison(optree):
+    return generate_sse_select_boolean_value(optree, optree.get_precision())
+
+def squash_sse_cst_select(optree):
+    """ Convert Select(cond, 0, -1) into cond
+        and Select(cond, -1, 0) into not(cond) """
+    assert isinstance(optree, Select)
+    cond = optree.get_input(0)
+    lhs = optree.get_input(1)
+    rhs = optree.get_input(2)
+    op_prec = optree.get_precision()
+    assert lhs.get_precision() == rhs.get_precision()
+    if op_prec != lhs.get_precision():
+        result_prec = lhs.get_precision()
+        wrapper = lambda op: TypeCast(op, precision=op_prec)
+    else:
+        result_prec = op_prec
+        wrapper = lambda op: op
+
+
+    cond_lhs = cond.get_input(0)
+    cond_rhs = cond.get_input(1)
+    new_cond = cond.copy(copy_map={cond_lhs: cond_lhs, cond_rhs: cond_rhs})
+    new_cond.set_precision(result_prec)
+
+    if is_vector_cst_with_value(lhs, -1) and is_vector_cst_with_value(rhs, 0):
+        return wrapper(new_cond)
+    elif is_vector_cst_with_value(lhs, 0) and is_vector_cst_with_value(rhs, -1):
+        new_cond.specifier = invert_comp_specifier(cond.specifier)
+        return wrapper(new_cond)
+    else:
+        raise NotImplementedError
+
+
+def expand_sse_comparison(optree):
+    """ SSE only supports eq/gt/lt predicate for integer comparison,
+        thus all other must be expanded """
+    assert isinstance(optree, Comparison)
+    lhs = optree.get_input(0)
+    rhs = optree.get_input(1)
+    op_prec = optree.get_precision()
+    if optree.specifier is Comparison.LessOrEqual:
+        return BitLogicOr(
+            Comparison(lhs, rhs, specifier=Comparison.Less, precision=op_prec),
+            Comparison(lhs, rhs, specifier=Comparison.Equal, precision=op_prec),
+            precision=op_prec
+        )
+    if optree.specifier is Comparison.NotEqual:
+        return BitLogicOr(
+            Comparison(lhs, rhs, specifier=Comparison.Less, precision=op_prec),
+            Comparison(lhs, rhs, specifier=Comparison.Greater, precision=op_prec),
+            precision=op_prec
+        )
+
+def expand_vec_mantissa_extraction(optree):
+    """ Expand a vector MantissaExtraction operation into its
+        And & Or counterparts """
+    assert isinstance(optree, MantissaExtraction)
+    op_in = optree.get_input(0)
+    precision = optree.get_precision()
+    bias = precision.get_scalar_format().get_bias()
+    p = precision.get_scalar_format().get_precision()
+    def build_vec_cst(cst_value, precision):
+        vec_size = precision.get_vector_size()
+        return Constant([cst_value] * vec_size, precision=precision)
+    return BitLogicOr(
+        BitLogicAnd(
+            op_in,
+            build_vec_cst(-(S2**(1 + bias) - S2**(1 + bias - p)), precision),
+            precision=precision
+        ),
+        build_vec_cst(1.0, precision),
+        precision=precision,
+        tag="exp_mant_extraction"
+    )
+
+
+def error_raise_fct(*args):
+    raise NotImplementedError
+
+ERROR_OPERATOR = DynamicOperator(error_raise_fct)
+
+
 sse_c_code_generation_table = {
+    Select: {
+        None: {
+            pred_vector_select_one_zero: {
+                type_strict_match(ML_SSE_m128_v4int32, ML_SSE_m128_v4bool, ML_SSE_m128_v4int32, ML_SSE_m128_v4int32):
+                    #DynamicOperator(generate_sse_select),
+                    ComplexOperator(squash_sse_cst_select),
+                type_strict_match(ML_SSE_m128_v4uint32, ML_SSE_m128_v4bool, ML_SSE_m128_v4uint32, ML_SSE_m128_v4uint32):
+                    #DynamicOperator(generate_sse_select),
+                    ComplexOperator(squash_sse_cst_select),
+            },
+        },
+    },
+    MantissaExtraction: {
+        None: {
+            lambda _: True: {
+                type_strict_match(ML_SSE_m128_v4float32, ML_SSE_m128_v4float32):
+                    ComplexOperator(optree_modifier=expand_vec_mantissa_extraction),
+            },
+        }
+    },
+    Comparison: {
+        Comparison.NotEqual: {
+            lambda _: True: {
+                type_strict_match(ML_SSE_m128_v4int32, ML_SSE_m128_v4int32, ML_SSE_m128_v4int32):
+                    ComplexOperator(expand_sse_comparison),
+                type_strict_match(ML_SSE_m128_v4uint32, ML_SSE_m128_v4uint32, ML_SSE_m128_v4uint32):
+                    ComplexOperator(expand_sse_comparison),
+                type_strict_match(ML_SSE_m128_v4float32, ML_SSE_m128_v4float32, ML_SSE_m128_v4float32):
+                    DynamicOperator(generate_sse_comparison),
+                # 3 Dummy operators used to allow m128_promotion to promote squashable comparison
+                type_strict_match(ML_SSE_m128_v4bool, ML_SSE_m128_v4int32, ML_SSE_m128_v4int32):
+                    ERROR_OPERATOR,
+                type_strict_match(ML_SSE_m128_v4bool, ML_SSE_m128_v4uint32, ML_SSE_m128_v4uint32):
+                    ERROR_OPERATOR,
+                type_strict_match(ML_SSE_m128_v4bool, ML_SSE_m128_v4float32, ML_SSE_m128_v4float32):
+                    ERROR_OPERATOR,
+            }
+        },
+        Comparison.Equal: {
+            lambda _: True: {
+                type_strict_match_or_list([
+                        (ML_SSE_m128_v4int32, ML_SSE_m128_v4int32, ML_SSE_m128_v4int32),
+                        (ML_SSE_m128_v4uint32, ML_SSE_m128_v4uint32, ML_SSE_m128_v4uint32),
+                        (ML_SSE_m128_v4float32, ML_SSE_m128_v4float32, ML_SSE_m128_v4float32)]):
+                    DynamicOperator(generate_sse_comparison),
+                # 3 Dummy operators used to allow m128_promotion to promote squashable comparison
+                type_strict_match_or_list([
+                        (ML_SSE_m128_v4bool, ML_SSE_m128_v4int32, ML_SSE_m128_v4int32),
+                        (ML_SSE_m128_v4bool, ML_SSE_m128_v4uint32, ML_SSE_m128_v4uint32),
+                        (ML_SSE_m128_v4bool, ML_SSE_m128_v4float32, ML_SSE_m128_v4float32)]):
+                    ERROR_OPERATOR,
+            }
+        },
+        Comparison.LessOrEqual: {
+            lambda _: True: {
+                type_strict_match_or_list([
+                        (ML_SSE_m128_v4int32, ML_SSE_m128_v4int32, ML_SSE_m128_v4int32),
+                        (ML_SSE_m128_v4uint32, ML_SSE_m128_v4uint32, ML_SSE_m128_v4uint32)
+                    ]):
+                    ComplexOperator(expand_sse_comparison),
+                type_strict_match(ML_SSE_m128_v4float32, ML_SSE_m128_v4float32, ML_SSE_m128_v4float32):
+                    DynamicOperator(generate_sse_comparison),
+                # 3 Dummy operators used to allow m128_promotion to promote squashable comparison
+                type_strict_match_or_list([
+                        (ML_SSE_m128_v4bool, ML_SSE_m128_v4int32, ML_SSE_m128_v4int32),
+                        (ML_SSE_m128_v4bool, ML_SSE_m128_v4uint32, ML_SSE_m128_v4uint32),
+                        (ML_SSE_m128_v4bool, ML_SSE_m128_v4float32, ML_SSE_m128_v4float32)]):
+                    ERROR_OPERATOR,
+            }
+        },
+        Comparison.Less: {
+            lambda _: True: {
+                type_strict_match_or_list([
+                        (ML_SSE_m128_v4int32, ML_SSE_m128_v4int32, ML_SSE_m128_v4int32),
+                        (ML_SSE_m128_v4uint32, ML_SSE_m128_v4uint32, ML_SSE_m128_v4uint32),
+                        (ML_SSE_m128_v4float32, ML_SSE_m128_v4float32, ML_SSE_m128_v4float32)]):
+                    DynamicOperator(generate_sse_comparison),
+                # 3 Dummy operators used to allow m128_promotion to promote squashable comparison
+                type_strict_match_or_list([
+                        (ML_SSE_m128_v4bool, ML_SSE_m128_v4int32, ML_SSE_m128_v4int32),
+                        (ML_SSE_m128_v4bool, ML_SSE_m128_v4uint32, ML_SSE_m128_v4uint32),
+                        (ML_SSE_m128_v4bool, ML_SSE_m128_v4float32, ML_SSE_m128_v4float32)]):
+                    ERROR_OPERATOR,
+            }
+        },
+        Comparison.Greater: {
+            lambda _: True: {
+                type_strict_match_or_list([
+                        (ML_SSE_m128_v4int32, ML_SSE_m128_v4int32, ML_SSE_m128_v4int32),
+                        (ML_SSE_m128_v4uint32, ML_SSE_m128_v4uint32, ML_SSE_m128_v4uint32),
+                        (ML_SSE_m128_v4float32, ML_SSE_m128_v4float32, ML_SSE_m128_v4float32)]):
+                    DynamicOperator(generate_sse_comparison),
+                # 3 Dummy operators used to allow m128_promotion to promote squashable comparison
+                type_strict_match_or_list([
+                        (ML_SSE_m128_v4bool, ML_SSE_m128_v4int32, ML_SSE_m128_v4int32),
+                        (ML_SSE_m128_v4bool, ML_SSE_m128_v4uint32, ML_SSE_m128_v4uint32),
+                        (ML_SSE_m128_v4bool, ML_SSE_m128_v4float32, ML_SSE_m128_v4float32)]):
+                    ERROR_OPERATOR,
+            }
+        },
+        Comparison.GreaterOrEqual: {
+            lambda _: True: {
+                type_strict_match_or_list([
+                        (ML_SSE_m128_v4int32, ML_SSE_m128_v4int32, ML_SSE_m128_v4int32),
+                        (ML_SSE_m128_v4uint32, ML_SSE_m128_v4uint32, ML_SSE_m128_v4uint32),
+                        (ML_SSE_m128_v4float32, ML_SSE_m128_v4float32, ML_SSE_m128_v4float32)]):
+                    DynamicOperator(generate_sse_comparison),
+                # 3 Dummy operators used to allow m128_promotion to promote squashable comparison
+                type_strict_match_or_list([
+                        (ML_SSE_m128_v4bool, ML_SSE_m128_v4int32, ML_SSE_m128_v4int32),
+                        (ML_SSE_m128_v4bool, ML_SSE_m128_v4uint32, ML_SSE_m128_v4uint32),
+                        (ML_SSE_m128_v4bool, ML_SSE_m128_v4float32, ML_SSE_m128_v4float32)]):
+                    ERROR_OPERATOR,
+            }
+        },
+    },
     Addition: {
         None: {
             lambda _: True: {
@@ -402,18 +712,21 @@ sse_c_code_generation_table = {
                 type_strict_match(*(3*(ML_SSE_m128_v4float32,))):
                     XmmIntrin("_mm_or_ps", arity = 2,
                               output_precision = ML_SSE_m128_v4float32),
-                type_strict_match(*(3*(ML_SSE_m128_v4uint32,))):
-                    XmmIntrin("_mm_or_si128", arity = 2,
-                              output_precision = ML_SSE_m128_v4uint32),
-                type_strict_match(*(3*(ML_SSE_m128_v4int32,))):
-                    XmmIntrin("_mm_or_si128", arity = 2,
-                              output_precision = ML_SSE_m128_v4int32),
+                type_strict_match(*(3*(ML_SSE_m128_v2float64,))):
+                    XmmIntrin("_mm_or_pd", arity = 2,
+                              output_precision = ML_SSE_m128_v2float64),
             },
         },
     },
     Conversion: {
         None: {
             lambda _: True: {
+                # not supported in SSE (else fallback on generic erroneous
+                # implementation
+                type_strict_match(ML_Int32, ML_SSE_m128_v1int32):
+                    ERROR_OPERATOR,
+                type_strict_match(ML_UInt32, ML_SSE_m128_v1int32):
+                    ERROR_OPERATOR,
                 type_strict_match(ML_SSE_m128_v1float32, ML_Binary32):
                     _mm_set_ss,
                 type_strict_match(ML_Binary32, ML_SSE_m128_v1float32):
@@ -437,7 +750,7 @@ sse_c_code_generation_table = {
                 type_strict_match(ML_SSE_m128_v4uint32, v4uint32):
                     XmmIntrin("_mm_load_si128", arity = 1,
                               output_precision = ML_SSE_m128_v4uint32)(
-                              __m128ip_cast_operator( 
+                              __m128ip_cast_operator(
                                   TemplateOperatorFormat(
                                       "GET_VEC_FIELD_ADDR({})", arity = 1,
                                       output_precision = ML_Pointer_Format(
@@ -462,6 +775,28 @@ sse_c_code_generation_table = {
                         arg_map = {0: FO_Result(0), 1: FO_Arg(0)},
                         require_header = ["emmintrin.h"]
                         ),
+                # signed integer format
+                type_strict_match(ML_SSE_m128_v4int32, v4int32):
+                    XmmIntrin("_mm_load_si128", arity = 1,
+                              output_precision = ML_SSE_m128_v4int32)(
+                              __m128ip_cast_operator(
+                                  TemplateOperatorFormat(
+                                      "GET_VEC_FIELD_ADDR({})", arity = 1,
+                                      output_precision = ML_Pointer_Format(
+                                          ML_Int32
+                                          )
+                                      )
+                                  )),
+                type_strict_match(v4int32, ML_SSE_m128_v4int32):
+                    TemplateOperatorFormat(
+                        "_mm_store_si128((__m128i*)GET_VEC_FIELD_ADDR({}), {})",
+                        arity = 1,
+                        arg_map = {0: FO_Result(0), 1: FO_Arg(0)},
+                        require_header = ["emmintrin.h"]
+                        ),
+                # identity operators
+                lambda dst_type, src_type, **kwords: dst_type == src_type:
+                    IdentityOperator(),
             },
         },
     },
@@ -561,6 +896,8 @@ sse2_c_code_generation_table = {
                     EmmIntrin("_mm_add_epi32", arity = 2),
                 type_strict_match(*(3*(ML_SSE_m128_v4int32,))):
                     EmmIntrin("_mm_add_epi32", arity = 2),
+                type_strict_match(*(3*(ML_SSE_m128_v4uint32,))):
+                    EmmIntrin("_mm_add_epi32", arity = 2),
             },
         },
     },
@@ -569,6 +906,8 @@ sse2_c_code_generation_table = {
             lambda optree: True: {
                 type_strict_match(*(3*(ML_SSE_m128_v4int32,))):
                     EmmIntrin("_mm_and_si128", arity = 2),
+                type_strict_match(*(3*(ML_SSE_m128_v4uint32,))):
+                    EmmIntrin("_mm_and_si128", arity = 2),
             },
         },
     },
@@ -576,7 +915,17 @@ sse2_c_code_generation_table = {
         None: {
             lambda optree: True: {
                 type_strict_match(*(3*(ML_SSE_m128_v4int32,))):
-                    EmmIntrin("_mm_or_si128", arity = 2),
+                    EmmIntrin("_mm_or_si128", arity = 2,
+                              output_precision = ML_SSE_m128_v4int32),
+                type_strict_match(*(3*(ML_SSE_m128_v4uint32,))):
+                    EmmIntrin("_mm_or_si128", arity = 2,
+                              output_precision = ML_SSE_m128_v4uint32),
+                type_strict_match(*(3*(ML_SSE_m128_v2int64,))):
+                    EmmIntrin("_mm_or_si128", arity = 2,
+                              output_precision = ML_SSE_m128_v2int64),
+                type_strict_match(*(3*(ML_SSE_m128_v2uint64,))):
+                    EmmIntrin("_mm_or_si128", arity = 2,
+                              output_precision = ML_SSE_m128_v2uint64),
             },
         },
     },
@@ -632,6 +981,12 @@ sse2_c_code_generation_table = {
                         "_mm_srl_epi32", arity = 2,
                         arg_map = {0: FO_Arg(0), 1: FO_Arg(1)}
                     )(FO_Arg(0), FO_Arg(1)),
+                # TODO: using signed primitives for unsigned formats
+                type_strict_match(*(3*(ML_SSE_m128_v4uint32,))):
+                    EmmIntrin(
+                        "_mm_srl_epi32", arity = 2,
+                        arg_map = {0: FO_Arg(0), 1: FO_Arg(1)}
+                    )(FO_Arg(0), FO_Arg(1)),
             },
         },
     },
@@ -640,6 +995,14 @@ sse2_c_code_generation_table = {
             lambda optree: True: {
                 type_strict_match(ML_SSE_m128_v4int32,
                                   ML_SSE_m128_v4int32,
+                                  ML_Int32):
+                    EmmIntrin("_mm_srai_epi32", arity = 2,
+                              arg_map = {0: FO_Arg(0), 1: FO_Arg(1)})(
+                                  FO_Arg(0),
+                                  _mm_set1_epi64x(FO_Arg(1))
+                                  ),
+                type_strict_match(ML_SSE_m128_v4uint32,
+                                  ML_SSE_m128_v4uint32,
                                   ML_Int32):
                     EmmIntrin("_mm_srai_epi32", arity = 2,
                               arg_map = {0: FO_Arg(0), 1: FO_Arg(1)})(
@@ -743,12 +1106,21 @@ sse2_c_code_generation_table = {
     TypeCast: {
         None: {
             lambda optree: True: {
+                # 32-bit signed version
                 type_strict_match(ML_SSE_m128_v4float32, ML_SSE_m128_v4int32):
                     EmmIntrin("_mm_castsi128_ps", arity = 1,
                               output_precision = ML_SSE_m128_v4float32),
                 type_strict_match(ML_SSE_m128_v4int32, ML_SSE_m128_v4float32):
                     EmmIntrin("_mm_castps_si128", arity = 1,
                               output_precision = ML_SSE_m128_v4int32),
+                # 32-bit unsigned version
+                type_strict_match(ML_SSE_m128_v4float32, ML_SSE_m128_v4uint32):
+                    EmmIntrin("_mm_castsi128_ps", arity = 1,
+                              output_precision = ML_SSE_m128_v4float32),
+                type_strict_match(ML_SSE_m128_v4uint32, ML_SSE_m128_v4float32):
+                    EmmIntrin("_mm_castps_si128", arity = 1,
+                              output_precision = ML_SSE_m128_v4uint32),
+                # 64-bit versions
                 type_strict_match(ML_SSE_m128_v2float64, ML_SSE_m128_v2int64):
                     EmmIntrin("_mm_castsi128_pd", arity = 1,
                               output_precision = ML_SSE_m128_v2float64),
@@ -761,6 +1133,11 @@ sse2_c_code_generation_table = {
                 type_strict_match(ML_SSE_m128_v2float64, ML_SSE_m128_v4float32):
                     EmmIntrin("_mm_castps_pd", arity = 1,
                               output_precision = ML_SSE_m128_v2float64),
+                # transparent cast
+                type_strict_match(ML_SSE_m128_v4uint32, ML_SSE_m128_v4int32):
+                    TransparentOperator(),
+                type_strict_match(ML_SSE_m128_v4int32, ML_SSE_m128_v4uint32):
+                    TransparentOperator(),
             },
         },
     },
@@ -911,6 +1288,14 @@ sse41_c_code_generation_table = {
 }
 
 avx_c_code_generation_table = {
+    MantissaExtraction: {
+        None: {
+            lambda _: True: {
+                type_strict_match(ML_AVX_m256_v8float32, ML_AVX_m256_v8float32):
+                    ComplexOperator(optree_modifier=expand_vec_mantissa_extraction),
+            },
+        }
+    },
     Addition: {
         None: {
             lambda optree: True: {
@@ -929,6 +1314,18 @@ avx_c_code_generation_table = {
                               output_precision = ML_AVX_m256_v8float32),
                 type_strict_match(*(3*(ML_AVX_m256_v4float64,))):
                     ImmIntrin("_mm256_and_pd", arity = 2,
+                              output_precision = ML_AVX_m256_v4float64),
+            },
+        },
+    },
+    BitLogicOr: {
+        None: {
+            lambda optree: True: {
+                type_strict_match(*(3*(ML_AVX_m256_v8float32,))):
+                    ImmIntrin("_mm256_or_ps", arity = 2,
+                              output_precision = ML_AVX_m256_v8float32),
+                type_strict_match(*(3*(ML_AVX_m256_v4float64,))):
+                    ImmIntrin("_mm256_or_pd", arity = 2,
                               output_precision = ML_AVX_m256_v4float64),
             },
         },
@@ -979,8 +1376,10 @@ avx_c_code_generation_table = {
                         arg_map = {0: FO_Result(0), 1: FO_Arg(0)},
                         require_header = ["immintrin.h"]
                         ),
-                type_strict_match(v8int32, ML_AVX_m256_v8int32):
-                    TemplateOperatorFormat(
+                type_strict_match_list(
+                    [v8int32, v8uint32],
+                    [ML_AVX_m256_v8int32, ML_AVX_m256_v8uint32]
+                    ): TemplateOperatorFormat(
                         "_mm256_store_si256((__m256i*){0}, {1})",
                         arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)},
                         void_function = True,
@@ -1040,7 +1439,8 @@ avx_c_code_generation_table = {
             },
             # AVX-based conversion of 4 int64 to 4 float64, valid if inputs fit
             # into 4 int32.
-            lambda optree: optree.get_input(0).get_interval() \
+            lambda optree: optree.get_input(0).get_interval() is not None \
+                    and optree.get_input(0).get_interval() \
                     in Interval(-2**31, 2**31 - 1): {
                 type_strict_match(ML_AVX_m256_v4float64, ML_AVX_m256_v4int64):
                     ComplexOperator(
@@ -1134,30 +1534,49 @@ avx_c_code_generation_table = {
     TypeCast: {
         None: {
             lambda optree: True: {
+                # binary32<->[u]int32
                 type_strict_match_list(
                     [ML_AVX_m256_v8float32],
-                    [ML_AVX_m256_v8int32, ML_AVX_m256_v4int64]
-                    ): ImmIntrin("_mm256_castsi256_ps", arity=1,
-                                 output_precision=ML_AVX_m256_v8float32),
+                    [ML_AVX_m256_v8int32, ML_AVX_m256_v8uint32]
+                    ): ImmIntrin("_mm256_castsi256_ps", arity = 1,
+                                 output_precision = ML_AVX_m256_v8float32),
+                # Signed output
                 type_strict_match(ML_AVX_m256_v8int32, ML_AVX_m256_v8float32):
                     ImmIntrin("_mm256_castps_si256", arity = 1,
                               output_precision = ML_AVX_m256_v8int32),
+                # Unsigned output
+                type_strict_match(ML_AVX_m256_v8uint32, ML_AVX_m256_v8float32):
+                    ImmIntrin("_mm256_castps_si256", arity = 1,
+                              output_precision = ML_AVX_m256_v8uint32),
+                # binary64<->[u]int64
                 type_strict_match_list(
                     [ML_AVX_m256_v4float64],
-                    [ML_AVX_m256_v4int64, ML_AVX_m256_v8int32]
-                    ): ImmIntrin("_mm256_castsi256_pd", arity=1,
-                                 output_precision=ML_AVX_m256_v4float64),
+                    [ML_AVX_m256_v4int64, ML_AVX_m256_v4uint64]
+                    ): ImmIntrin("_mm256_castsi256_pd", arity = 1,
+                                 output_precision = ML_AVX_m256_v4float64),
+                # Signed output
                 type_strict_match(ML_AVX_m256_v4int64, ML_AVX_m256_v4float64):
                     ImmIntrin("_mm256_castpd_si256", arity = 1,
                               output_precision = ML_AVX_m256_v4int64),
+                # Unsigned output
+                type_strict_match(ML_AVX_m256_v4uint64, ML_AVX_m256_v4float64):
+                    ImmIntrin("_mm256_castpd_si256", arity = 1,
+                              output_precision = ML_AVX_m256_v4uint64),
+                # YMM<->XMM (losing higher words)
                 type_strict_match(ML_SSE_m128_v2float64, ML_AVX_m256_v4float64):
                     ImmIntrin("_mm256_castpd256_pd128", arity = 1,
                               output_precision = ML_SSE_m128_v2float64),
                 type_strict_match(ML_SSE_m128_v4float32, ML_AVX_m256_v8float32):
                     ImmIntrin("_mm256_castps256_ps128", arity = 1,
                               output_precision = ML_SSE_m128_v4float32),
+                # binary32 YMM-> binary64 XMM (losing 6 higher words)
                 type_strict_match(ML_SSE_m128_v2float64, ML_AVX_m256_v8float32):
                     ComplexOperator(optree_modifier = _mm256_castps256_pd128),
+                # transparent cast
+                type_strict_match(ML_AVX_m256_v8uint32, ML_AVX_m256_v8int32):
+                    TransparentOperator(),
+                type_strict_match(ML_AVX_m256_v8int32, ML_AVX_m256_v8uint32):
+                    TransparentOperator(),
             },
         },
     },
@@ -1185,6 +1604,24 @@ avx2_c_code_generation_table = {
                     ImmIntrin("_mm256_add_epi32", arity = 2),
                 type_strict_match(*(3*(ML_AVX_m256_v4int64,))):
                     ImmIntrin("_mm256_add_epi64", arity = 2),
+            },
+        },
+    },
+    BitLogicOr: {
+        None: {
+            lambda optree: True: {
+                type_strict_match(*(3*(ML_AVX_m256_v8int32,))):
+                    ImmIntrin("_mm256_or_si256", arity = 2,
+                              output_precision = ML_AVX_m256_v8int32),
+                type_strict_match(*(3*(ML_AVX_m256_v8uint32,))):
+                    ImmIntrin("_mm256_or_si256", arity = 2,
+                              output_precision = ML_AVX_m256_v8uint32),
+                type_strict_match(*(3*(ML_AVX_m256_v4int64,))):
+                    ImmIntrin("_mm256_or_si256", arity = 2,
+                              output_precision = ML_AVX_m256_v4int64),
+                type_strict_match(*(3*(ML_AVX_m256_v4uint64,))):
+                    ImmIntrin("_mm256_or_si256", arity = 2,
+                              output_precision = ML_AVX_m256_v4uint64),
             },
         },
     },
@@ -1454,10 +1891,13 @@ avx2_c_code_generation_table = {
     TableLoad: {
         None: {
             lambda optree: True: {
-                # XMM version
+                # XMM version with 32-bit indices
                 type_custom_match(FSM(ML_SSE_m128_v4float32),
                                   TCM(ML_TableFormat),
-                                  FSM(ML_SSE_m128_v4int32)):
+                                  type_strict_match_list([
+                                      ML_SSE_m128_v4uint32,
+                                      ML_SSE_m128_v4int32,
+                                      ])):
                     ImmIntrin("_mm_i32gather_ps", arity = 3,
                         output_precision = ML_SSE_m128_v4float32)(
                             FO_Arg(0),
@@ -1466,7 +1906,10 @@ avx2_c_code_generation_table = {
                             ),
                 type_custom_match(FSM(ML_SSE_m128_v2float64),
                                   TCM(ML_TableFormat),
-                                  FSM(ML_SSE_m128_v2float64)):
+                                  type_strict_match_list([
+                                      ML_SSE_m128_v2uint32,
+                                      ML_SSE_m128_v2int32,
+                                      ])):
                     ImmIntrin("_mm_i32gather_pd", arity = 3,
                         output_precision = ML_SSE_m128_v4float32)(
                             FO_Arg(0),
@@ -1476,7 +1919,10 @@ avx2_c_code_generation_table = {
                 # YMM version with 32-bit indices
                 type_custom_match(FSM(ML_AVX_m256_v8float32),
                                   TCM(ML_TableFormat),
-                                  FSM(ML_AVX_m256_v8int32)):
+                                  type_strict_match_list([
+                                      ML_AVX_m256_v8uint32,
+                                      ML_AVX_m256_v8int32,
+                                      ])):
                     ImmIntrin("_mm256_i32gather_ps", arity = 3,
                               output_precision = ML_AVX_m256_v8float32)(
                                   FO_Arg(0),
@@ -1485,9 +1931,37 @@ avx2_c_code_generation_table = {
                                   ),
                 type_custom_match(FSM(ML_AVX_m256_v4float64),
                                   TCM(ML_TableFormat),
-                                  FSM(ML_AVX_m256_v8int32)):
+                                  type_strict_match_list([
+                                      ML_AVX_m256_v4uint32,
+                                      ML_AVX_m256_v4int32,
+                                      ])):
                     ImmIntrin("_mm256_i32gather_pd", arity = 3,
                               output_precision = ML_AVX_m256_v4float64)(
+                                  FO_Arg(0),
+                                  FO_Arg(1),
+                                  FO_Value("8", ML_Int32)
+                                  ),
+                # XMM version with 64-bit indices
+                type_custom_match(FSM(ML_SSE_m128_v2float32),
+                                  TCM(ML_TableFormat),
+                                  type_strict_match_list([
+                                      ML_SSE_m128_v2uint64,
+                                      ML_SSE_m128_v2int64,
+                                      ])):
+                    ImmIntrin("_mm_i64gather_ps", arity = 3,
+                              output_precision = ML_SSE_m128_v2float32)(
+                                  FO_Arg(0),
+                                  FO_Arg(1),
+                                  FO_Value("4", ML_Int32)
+                                  ),
+                type_custom_match(FSM(ML_SSE_m128_v2float64),
+                                  TCM(ML_TableFormat),
+                                  type_strict_match_list([
+                                      ML_SSE_m128_v2uint64,
+                                      ML_SSE_m128_v2int64,
+                                      ])):
+                    ImmIntrin("_mm_i64gather_pd", arity = 3,
+                              output_precision = ML_SSE_m128_v2float64)(
                                   FO_Arg(0),
                                   FO_Arg(1),
                                   FO_Value("8", ML_Int32)
@@ -1495,7 +1969,10 @@ avx2_c_code_generation_table = {
                 # YMM version with 64-bit indices
                 type_custom_match(FSM(ML_SSE_m128_v4float32),
                                   TCM(ML_TableFormat),
-                                  FSM(ML_AVX_m256_v4int64)):
+                                  type_strict_match_list([
+                                      ML_AVX_m256_v4uint64,
+                                      ML_AVX_m256_v4int64,
+                                      ])):
                     ImmIntrin("_mm256_i64gather_ps", arity = 3,
                               output_precision = ML_SSE_m128_v4float32)(
                                   FO_Arg(0),
@@ -1504,8 +1981,11 @@ avx2_c_code_generation_table = {
                                   ),
                 type_custom_match(FSM(ML_AVX_m256_v4float64),
                                   TCM(ML_TableFormat),
-                                  FSM(ML_AVX_m256_v4int64)):
-                    ImmIntrin("_mm256_i32gather_pd", arity = 3,
+                                  type_strict_match_list([
+                                      ML_AVX_m256_v4uint64,
+                                      ML_AVX_m256_v4int64,
+                                      ])):
+                    ImmIntrin("_mm256_i64gather_pd", arity = 3,
                               output_precision = ML_AVX_m256_v4float64)(
                                   FO_Arg(0),
                                   FO_Arg(1),

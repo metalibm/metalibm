@@ -881,6 +881,16 @@ class type_strict_match_list(object):
             return False
         return True
 
+def type_strict_match_or_list(type_tuple_list):
+    """ Return a function which match strictly any of the tuple within
+        type_tuple_list """
+    def match_function(*arg_tuple, **kw):
+        for constraint_tuple in type_tuple_list:
+            if constraint_tuple == arg_tuple:
+                return True
+        return False
+    return match_function
+
 class type_fixed_match(object):
     """ type_strict_match + match any instance of ML_Fixed_Format to 
         ML_Fixed_Format descriptor """
@@ -891,8 +901,8 @@ class type_fixed_match(object):
         return reduce(lambda acc, v: acc and (v[0] == v[1] or (v[0] == ML_Fixed_Format)) and isinstance(v[1], ML_Fixed_Format), zip(self.type_tuple, arg_tuple))
 
 class type_custom_match(object):
-    """ type_strict_match + match any instance of ML_Fixed_Format to 
-        ML_Fixed_Format descriptor """
+    """ Callable class that checks whether all arguments match with their
+        respective custom matching function. """
     def __init__(self, *type_tuple):
         self.type_tuple = type_tuple
 

@@ -490,6 +490,9 @@ class VirtualFormat(ML_Format):
   def get_cst(self, cst_value, language = C_Code):
     return self.internal_get_cst(self, cst_value, language)
 
+  def __str__(self):
+    return "{}/{}".format(str(self.base_format), self.support_format)
+
   ## return name for the format
   def get_name(self, language = C_Code):
     raise NotImplementedError
