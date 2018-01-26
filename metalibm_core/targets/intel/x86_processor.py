@@ -517,6 +517,27 @@ def generate_sse_select_boolean_value(cond, precision, negate=False):
         ML_AVX_m256_v8uint32: "mm256",
         ML_AVX_m256_v8float32: "mm256",
     }
+    cond_specifier = cond.specifier
+    return XmmIntrin(
+        "_{}_cmp{}_{}".format(format_prefix[precision], specifier_map[(cond_specifier if not negate else invert_comp_specifier(cond_specifier))], format_suffix[precision]),
+        output_precision = precision,
+        arity=2)
+
+
+
+        ML_AVX_m256_v8int32: "epi32",
+        ML_AVX_m256_v8uint32: "epi32",
+        ML_AVX_m256_v8float32: "ps",
+    }
+    format_prefix = {
+        ML_SSE_m128_v4int32: "mm",
+        ML_SSE_m128_v4uint32: "mm",
+        ML_SSE_m128_v4float32: "mm",
+
+        ML_AVX_m256_v8int32: "mm256",
+        ML_AVX_m256_v8uint32: "mm256",
+        ML_AVX_m256_v8float32: "mm256",
+    }
     intrinsic_builder = {
         ML_SSE_m128_v4int32: XmmIntrin,
         ML_SSE_m128_v4uint32: XmmIntrin,
