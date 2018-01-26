@@ -592,20 +592,6 @@ def expand_sse_comparison(optree):
     else:
         raise NotImplementedError
 
-def expand_avx_comparison(optree):
-    """ """
-    lhs = optree.get_input(0)
-    rhs = optree.get_input(1)
-    op_prec = optree.get_precision()
-    if optree.specifier is Comparison.Less:
-        # swaping inputs
-        return Comparison(rhs, lhs, specifier=Comparison.Greater, precision=op_prec)
-    elif optree.specifier is Comparison.GreaterOrEqual:
-        # swaping inputs
-        return  Comparison(rhs, lhs, specifier=Comparison.LessOrEqual, precision=op_prec)
-    else:
-        return expand_sse_comparison(optree)
-
 # TODO refactor this asap
 def expand_avx_comparison(optree):
     """ AVX2 only supports eq/gt predicates for integer comparison,
@@ -637,6 +623,9 @@ def expand_avx_comparison(optree):
             Comparison(lhs, rhs, specifier=Comparison.Greater, precision=op_prec),
             precision=op_prec
         )
+    else:
+        raise NotImplementedError
+
 
 def expand_vec_mantissa_extraction(optree):
     """ Expand a vector MantissaExtraction operation into its
