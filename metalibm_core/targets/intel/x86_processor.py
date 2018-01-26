@@ -1414,6 +1414,16 @@ sse41_c_code_generation_table = {
 }
 
 avx_c_code_generation_table = {
+    Select: {
+        None: {
+            pred_vector_select_one_zero: {
+                type_strict_match(ML_AVX_m256_v8int32, ML_AVX_m256_v8bool, ML_AVX_m256_v8int32, ML_AVX_m256_v8int32):
+                    ComplexOperator(squash_sse_cst_select),
+                type_strict_match(ML_AVX_m256_v8uint32, ML_AVX_m256_v8bool, ML_AVX_m256_v8uint32, ML_AVX_m256_v8uint32):
+                    ComplexOperator(squash_sse_cst_select),
+            },
+        },
+    },
     MantissaExtraction: {
         None: {
             lambda _: True: {
