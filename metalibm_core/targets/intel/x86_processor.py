@@ -1523,7 +1523,7 @@ avx_c_code_generation_table = {
                         ),
                 #type_strict_match(*((ML_SSE_m128_v4int32,) + 4*(ML_Int32,))):
                 #    ImmIntrin("_mm256_set_epi32", arity = 4),
-                type_strict_match(ML_AVX_m256_v8int32, v8int32):
+                type_strict_match_list([ML_AVX_m256_v8int32, ML_AVX_m256_v8uint32], [v8int32, v8uint32]):
                     ImmIntrin(
                         "_mm256_load_si256", arity = 1,
                         output_precision = ML_AVX_m256_v8int32
