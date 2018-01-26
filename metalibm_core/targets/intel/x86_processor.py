@@ -873,6 +873,11 @@ sse_c_code_generation_table = {
                 # identity operators
                 lambda dst_type, src_type, **kwords: dst_type == src_type:
                     IdentityOperator(),
+                # signed/unsigned conversions
+                type_strict_match(ML_SSE_m128_v4int32, ML_SSE_m128_v4uint32):
+                    TransparentOperator(),
+                type_strict_match(ML_SSE_m128_v4uint32, ML_SSE_m128_v4int32):
+                    TransparentOperator(),
             },
         },
     },
