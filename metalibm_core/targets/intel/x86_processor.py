@@ -604,12 +604,15 @@ def expand_sse_comparison(optree):
             Comparison(lhs, rhs, specifier=Comparison.Equal, precision=op_prec),
             precision=op_prec
         )
-    if optree.specifier is Comparison.NotEqual:
+    elif optree.specifier is Comparison.NotEqual:
         return BitLogicOr(
             Comparison(lhs, rhs, specifier=Comparison.Less, precision=op_prec),
             Comparison(lhs, rhs, specifier=Comparison.Greater, precision=op_prec),
             precision=op_prec
         )
+    else:
+        raise NotImplementedError
+
 
 # TODO refactor this asap
 def expand_avx_comparison(optree):
