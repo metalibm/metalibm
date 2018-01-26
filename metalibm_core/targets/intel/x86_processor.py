@@ -147,6 +147,15 @@ ML_AVX_m256_v4uint64  = vector_format_builder("__m256i", None, 4, ML_UInt64,
         cst_callback = get_sse_vector_int_cst,
         compound_constructor = ML_IntegerVectorFormat)
 
+# virtual boolean format
+ML_AVX_m256_v8bool  = vector_format_builder(
+    "__m256i", None, 8, ML_Bool)
+    #,
+    #cst_callback = get_sse_vector_int_cst,
+    #compound_constructor = ML_IntegerVectorFormat)
+
+
+#VirtualFormatNoForward(ML_Bool, ML_AVX_m256i, get_sse_scalar_cst, True)
 
 ## Wrapper for intel x86_sse intrinsics
 #  defined in <xmmintrin.h> header

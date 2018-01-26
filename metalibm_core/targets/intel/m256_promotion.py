@@ -20,6 +20,7 @@ class Pass_M256_Promotion(Pass_Vector_Promotion):
     v4float64:   ML_AVX_m256_v4float64,
     v8float32:   ML_AVX_m256_v8float32,
     v4int64:     ML_AVX_m256_v4int64,
+    v8bool:      ML_AVX_m256_v8bool,
     v8int32:     ML_AVX_m256_v8int32,
     v4uint64:    ML_AVX_m256_v4uint64,
     v8uint32:    ML_AVX_m256_v8uint32,
