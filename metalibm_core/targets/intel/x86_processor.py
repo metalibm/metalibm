@@ -1574,6 +1574,11 @@ avx_c_code_generation_table = {
                         ),
                 type_strict_match(ML_AVX_m256_v4float64, ML_SSE_m128_v4int32):
                     _mm256_cvtepi32_pd,
+                # signed/unsigned conversions
+                type_strict_match(ML_AVX_m256_v8int32, ML_AVX_m256_v8uint32):
+                    TransparentOperator(),
+                type_strict_match(ML_AVX_m256_v8uint32, ML_AVX_m256_v8int32):
+                    TransparentOperator(),
             },
             # AVX-based conversion of 4 int64 to 4 float64, valid if inputs fit
             # into 4 int32.
