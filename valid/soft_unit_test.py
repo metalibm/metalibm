@@ -21,7 +21,7 @@ from metalibm_core.targets import *
 import metalibm_core.code_generation.mpfr_backend
 
 from metalibm_core.utility.ml_template import target_instanciate
-from metalibm_core.core.ml_formats import ML_Int32, ML_Int16, ML_Int64
+from metalibm_core.core.ml_formats import ML_Int32, ML_Int16, ML_Int64, ML_Binary32
 
 from valid.unit_test import (
     UnitTestScheme
@@ -42,6 +42,7 @@ import metalibm_functions.unit_tests.call_externalization as ut_call_externaliza
 import metalibm_functions.unit_tests.auto_test as ut_auto_test
 import metalibm_functions.unit_tests.m128_conversion as ut_m128_conversion
 import metalibm_functions.unit_tests.m128_boolean as ut_m128_boolean
+import metalibm_functions.unit_tests.m128_debug as ut_m128_debug
 import metalibm_functions.unit_tests.new_table as ut_new_table
 import metalibm_functions.unit_tests.multi_ary_function as ut_multi_ary_function
 import metalibm_functions.unit_tests.entity_pass as ut_entity_pass
@@ -130,6 +131,11 @@ unit_test_list = [
     "m128 boolean test",
     ut_m128_boolean,
     [{"pre_gen_passes": ["m128_promotion"], "target": target_instanciate("x86_sse2"), "vector_size": 4, "auto_test_execute": 100, "precision": ML_Int32}],
+  ),
+  UnitTestScheme(
+    "m128 debug test",
+    ut_m128_debug,
+    [{"pre_gen_passes": ["m128_promotion"], "target": target_instanciate("x86_avx2"), "vector_size": 4, "auto_test_execute": 10, "auto_test": 10, "precision": ML_Binary32, "debug": True}],
   ),
   UnitTestScheme(
     "new table test",
