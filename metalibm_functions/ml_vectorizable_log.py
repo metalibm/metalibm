@@ -81,7 +81,9 @@ class ML_Log(ML_Function("ml_log")):
                 else bool_convert(optree, precision, 1, 0)
 
     print "MDL constants"
-    table_index_size = 7 # to be abstracted somehow
+    cgpe_scheme_idx = int(args.cgpe_index)
+    table_index_size = int(args.tbl_index_size)
+    #
     table_nb_elements = 2**(table_index_size)
     table_dimensions = [2*table_nb_elements]  # two values are stored for each element
     field_size = Constant(self.precision.get_field_size(),
@@ -158,6 +160,10 @@ class ML_Log(ML_Function("ml_log")):
             precision = int_prec,
             )
     is_subnormal.set_attributes(tag = "is_subnormal")
+    if not(isinstance(self.processor, VectorBackend)):
+      is_subnormal = Subtraction(Constant(0, precision = int_prec),
+                                 is_subnormal,
+                                 precision = int_prec)
 
     #################################################
     # Vectorizable integer based subnormal handling #
@@ -203,31 +209,32 @@ class ML_Log(ML_Function("ml_log")):
             precision = int_prec,
             tag = "n_value"
             )
-    value = Negation(n_value, tag="value")
+    alpha = Negation(n_value, tag="alpha")
 
     # 3. shift left
-    renormalized_mantissa = BitLogicLeftShift(vx_as_int, value)
+    # renormalized_mantissa = BitLogicLeftShift(vx_as_int, value)
+    normal_vx_as_int = BitLogicLeftShift(vx_as_int, alpha)
     # 4. set exponent to the right value
     # Compute the exponent to add : (p-1)-(value) + 1 = p-1-value
     # The final "+ 1" comes from the fact that once renormalized, the
     # floating-point datum has a biased exponent of 1
-    tmp0 = Subtraction(
-            field_size,
-            value,
-            precision = int_prec,
-            tag="tmp0")
+    #tmp0 = Subtraction(
+    #        field_size,
+    #        value,
+    #        precision = int_prec,
+    #        tag="tmp0")
     # Set the value to 0 if the number is not subnormal
-    tmp1 = BitLogicAnd(tmp0, is_subnormal)
-    renormalized_exponent = BitLogicLeftShift(
-            tmp1,
-            field_size
-            )
+    #tmp1 = BitLogicAnd(tmp0, is_subnormal)
+    #renormalized_exponent = BitLogicLeftShift(
+    #        tmp1,
+    #        field_size
+    #        )
 
-    normal_vx_as_int = renormalized_mantissa + renormalized_exponent
+    #normal_vx_as_int = renormalized_mantissa + renormalized_exponent
     normal_vx = TypeCast(normal_vx_as_int, precision = self.precision,
                          tag = 'normal_vx')
 
-    alpha = BitLogicAnd(field_size, is_subnormal, tag = 'alpha')
+    # alpha = BitLogicAnd(field_size, is_subnormal, tag = 'alpha')
     # XXX Extract the mantissa, see if this is supported in the x86 vector
     # backend or if it still uses the support_lib.
     vx_mantissa = MantissaExtraction(normal_vx, precision = self.precision)
@@ -411,7 +418,7 @@ class ML_Log(ML_Function("ml_log")):
                 poly_object,
                 u,
                 unified_precision = self.precision,
-                constant_precision = constant_precision
+                constant_precision = constant_precision, scheme_id = cgpe_scheme_idx
                 )
     else:
         Log.report(Log.Warning,
@@ -455,6 +462,10 @@ if __name__ == "__main__":
   # auto-test
   arg_template = ML_NewArgTemplate(
           default_arg=ML_Log.get_default_args())
+  #
+  arg_template.get_parser().add_argument("--table-index-size", dest = "tbl_index_size", action = "store", default = 7, help = "table index size (default: 7)")
+  arg_template.get_parser().add_argument("--cgpe-scheme-index", dest = "cgpe_index", action = "store", default = 0, help = "CGPE scheme index (default: 0)")
+  #
   args = arg_template.arg_extraction()
 
   ml_log = ML_Log(args)
