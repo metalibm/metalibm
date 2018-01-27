@@ -1312,8 +1312,8 @@ ssse3_c_code_generation_table = {
                 # 32-bit integer negation using SSSE3 sign_epi32 instruction
                 type_strict_match(*(2*(ML_SSE_m128_v4int32,))):
                     TmmIntrin("_mm_sign_epi32", arity = 2)(
-                        FO_Value("_mm_set1_epi32(-1)", ML_SSE_m128_v4int32),
-                        FO_Arg(0)
+                        FO_Arg(0),
+                        FO_Value("_mm_set1_epi32(-1)", ML_SSE_m128_v4int32)
                     ),
             },
         },
@@ -1356,8 +1356,8 @@ ssse3_c_code_generation_table = {
                 # 32-bit integer negation using SSSE3 sign_epi32 instruction
                 type_strict_match(*(2*(ML_SSE_m128_v4int32,))):
                     TmmIntrin("_mm_sign_epi32", arity = 2)(
-                        FO_Value("_mm_set1_epi32(-1)", ML_SSE_m128_v4int32),
-                        FO_Arg(0)
+                        FO_Arg(0),
+                        FO_Value("_mm_set1_epi32(-1)", ML_SSE_m128_v4int32)
                     ),
             },
         },
