@@ -66,8 +66,18 @@ class ML_MultiDebug(ML_Debug):
     self.debug_object_map = debug_object_map
     self.key_function = key_function
 
-  def select_object(self, optree): 
-    return self.debug_object_map[self.key_function(optree)]
+  def select_object(self, optree):
+    """ Select debug_object corresponding to input optree
+       in ML_MultiDebug debug_object_map dict """
+    dbg_key = self.key_function(optree)
+    try:
+        return self.debug_object_map[dbg_key]
+    except KeyError:
+        Log.report(
+            Log.Error,
+            "unable to found key({}) in debug_object_map".format(dbg_key)
+        )
+
 
   ## Declare a new mapping between @p debug_key and @p debug_object
   def add_mapping(self, debug_key, debug_object):
