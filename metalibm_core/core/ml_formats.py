@@ -98,8 +98,10 @@ class ML_Format(object):
     def get_display_format(self, language = C_Code):
         if language in self.display_format:
             return self.display_format[language]
-        else:
+        elif C_Code in self.display_format:
             return self.display_format[C_Code]
+        else:
+            return "ERROR_FORMAT"
 
     ## return the format's bit-size
     def get_bit_size(self):

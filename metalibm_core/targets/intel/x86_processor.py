@@ -10,15 +10,18 @@
 # author(s): Nicolas Brunie (nicolas.brunie@kalray.eu)
 ###############################################################################
 
-from metalibm_core.utility.log_report import Log
 from metalibm_core.code_generation.generator_utility import *
 from metalibm_core.code_generation.complex_generator import ComplexOperator
+
 from metalibm_core.core.ml_formats import *
 from metalibm_core.core.ml_complex_formats import ML_Pointer_Format
 from metalibm_core.core.ml_operations import *
 from metalibm_core.core.target import TargetRegister
 from metalibm_core.core.ml_table import ML_TableFormat
-from metalibm_core.core.polynomials import is_cst_with_value
+from metalibm_core.core.attributes import ML_Debug
+
+from metalibm_core.utility.log_report import Log
+from metalibm_core.utility.debug_utils import debug_multi
 
 from metalibm_core.targets.common.vector_backend import VectorBackend
 
@@ -77,6 +80,7 @@ ML_SSE_m128_v1float32 = VirtualFormatNoForward(ML_Binary32, ML_SSE_m128, get_sse
 ML_SSE_m128_v1float64 = VirtualFormatNoForward(ML_Binary64, ML_SSE_m128d, get_sse_scalar_cst, True)
 ## format for a single int32 stored in a XMM 128-bit register
 ML_SSE_m128_v1int32  = VirtualFormatNoForward(ML_Int32, ML_SSE_m128i, get_sse_scalar_cst, True)
+ML_SSE_m128_v1uint32  = VirtualFormatNoForward(ML_UInt32, ML_SSE_m128i, get_sse_scalar_cst, True)
 ## format for single 1 int64 in a XMM 128-bit register
 ML_SSE_m128_v1int64  = VirtualFormatNoForward(ML_Int64, ML_SSE_m128i, get_sse_scalar_cst, True)
 
@@ -117,6 +121,36 @@ ML_SSE_m128_v4uint32  = vector_format_builder("__m128i", None, 4, ML_UInt32,
 ML_SSE_m128_v2uint64  = vector_format_builder("__m128i", None, 2, ML_UInt64,
         cst_callback = get_sse_vector_int_cst,
         compound_constructor = ML_IntegerVectorFormat)
+
+# debug-format for SSE format
+debug_sse_vfloat32  = ML_Debug(
+    display_format="{%.3f, %.3f, %.3f, %.3f}",
+    require_header=["ml_utils.h", "smmintrin.h"],
+    pre_process=lambda v: ", ".join("float_from_32b_encoding(_mm_extract_ps({v}, {i}))".format(v=v,i=i) for i in xrange(4))
+)
+debug_sse_vint32  = ML_Debug(
+    display_format="{%d, %d, %d, %d}",
+    require_header=["ml_utils.h", "smmintrin.h"],
+    pre_process=lambda v: ", ".join("_mm_extract_epi32({v}, {i})".format(v=v,i=i) for i in xrange(4))
+)
+# unsigned version
+debug_sse_vuint32  = ML_Debug(
+    display_format="{%u, %u, %u, %u}",
+    require_header=["ml_utils.h", "smmintrin.h"],
+    pre_process=lambda v: ", ".join("_mm_extract_epi32({v}, {i})".format(v=v,i=i) for i in xrange(4))
+)
+# registering ML_SSE_m128_v<i>float32 specific format
+debug_multi.add_mapping(ML_SSE_m128_v4float32, debug_sse_vfloat32)
+debug_multi.add_mapping(ML_SSE_m128_v2float32, debug_sse_vfloat32)
+debug_multi.add_mapping(ML_SSE_m128_v1float32, debug_sse_vfloat32)
+# registering ML_SSE_m128_v<i>int32 specific format
+debug_multi.add_mapping(ML_SSE_m128_v4int32, debug_sse_vint32)
+debug_multi.add_mapping(ML_SSE_m128_v2int32, debug_sse_vint32)
+debug_multi.add_mapping(ML_SSE_m128_v1int32, debug_sse_vint32)
+# registering ML_SSE_m128_v<i>uint32 specific format
+debug_multi.add_mapping(ML_SSE_m128_v4uint32, debug_sse_vuint32)
+debug_multi.add_mapping(ML_SSE_m128_v2uint32, debug_sse_vuint32)
+debug_multi.add_mapping(ML_SSE_m128_v1uint32, debug_sse_vuint32)
 
 ## format for packed 8 fp32 in a YMM 256-bit register
 ML_AVX_m256_v8float32 = vector_format_builder("__m256", None, 8, ML_Binary32)
