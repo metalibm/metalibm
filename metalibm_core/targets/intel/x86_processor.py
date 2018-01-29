@@ -695,10 +695,8 @@ sse_c_code_generation_table = {
         None: {
             pred_vector_select_one_zero: {
                 type_strict_match(ML_SSE_m128_v4int32, ML_SSE_m128_v4bool, ML_SSE_m128_v4int32, ML_SSE_m128_v4int32):
-                    #DynamicOperator(generate_sse_select),
                     ComplexOperator(squash_sse_cst_select),
                 type_strict_match(ML_SSE_m128_v4uint32, ML_SSE_m128_v4bool, ML_SSE_m128_v4uint32, ML_SSE_m128_v4uint32):
-                    #DynamicOperator(generate_sse_select),
                     ComplexOperator(squash_sse_cst_select),
             },
         },
