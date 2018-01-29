@@ -619,5 +619,6 @@ DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vmantissa_extraction_f8, ml_float8_t, ml_float8_
 /** Vector element-wise load (gather) for 2D table */
 #define ML_VLOAD2D(result,table,addr0,addr1,size) {\
   unsigned __k; for (__k = 0; __k < size; ++__k) (result)->_[__k] = table[(addr0)._[__k]][(addr1)._[__k]]; };
+/** Implicit vector conversion */
 #define ML_VCONV(dst,src,size) {\
   unsigned __k; for (__k = 0; __k < size; ++__k) (dst)->_[__k] = (src)._[__k]; };
