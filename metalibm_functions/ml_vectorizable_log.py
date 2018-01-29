@@ -34,6 +34,9 @@ class ML_Log(ML_Function("ml_log")):
   def __init__(self, args=DefaultArgTemplate):
     # initializing base class
     ML_FunctionBasis.__init__(self, args)
+    # function specific arguments
+    self.cgpe_index = args.cgpe_index
+    self.tbl_index_size = args.tbl_index_size
 
 
   @staticmethod
@@ -45,7 +48,9 @@ class ML_Log(ML_Function("ml_log")):
         "function_name": "LOG",
         "precision": ML_Binary32,
         "accuracy": ML_Faithful,
-        "target": GenericProcessor()
+        "target": GenericProcessor(),
+        "cgpe_index": 0,
+        "tbl_index_size": 7,
     }
     default_args_log.update(kw)
     return DefaultArgTemplate(**default_args_log)
@@ -81,8 +86,8 @@ class ML_Log(ML_Function("ml_log")):
                 else bool_convert(optree, precision, 1, 0)
 
     print "MDL constants"
-    cgpe_scheme_idx = int(args.cgpe_index)
-    table_index_size = int(args.tbl_index_size)
+    cgpe_scheme_idx = int(self.cgpe_index)
+    table_index_size = int(self.tbl_index_size)
     #
     table_nb_elements = 2**(table_index_size)
     table_dimensions = [2*table_nb_elements]  # two values are stored for each element
