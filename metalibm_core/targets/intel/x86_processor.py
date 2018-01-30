@@ -1457,7 +1457,6 @@ avx_c_code_generation_table = {
                     ML_AVX_m256_v8int32, ML_AVX_m256_v8uint32,
                     ML_AVX_m256_v4int64, ML_AVX_m256_v4uint64,
                     ML_AVX_m256_v8float32, ML_AVX_m256_v4float64,
-                    ML_AVX_m256_v8bool,
                     ]):
                     ComplexOperator(optree_modifier = vector_constant_op),
             },
@@ -1974,9 +1973,9 @@ avx2_c_code_generation_table = {
                 # 3 Dummy operators used to allow m128_promotion to promote
                 # squashable comparison
                 type_strict_match_or_list([
-                    3*(ML_AVX_m256_v8bool,),
-                    3*(ML_AVX_m256_v8bool,),
-                    3*(ML_AVX_m256_v8bool,)]):
+                    (ML_AVX_m256_v8bool, ML_AVX_m256_v8uint32, ML_AVX_m256_v8uint32),
+                    (ML_AVX_m256_v8bool, ML_AVX_m256_v8int32, ML_AVX_m256_v8int32),
+                    ]):
                     ERROR_OPERATOR,
             },
         },
