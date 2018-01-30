@@ -51,6 +51,16 @@ def unsigned2signed(value, width=32):
     msb = value >> (width - 1)
     return int(value - msb * 2**width)
 
+
+def get_sseavx_vector_bool_cst(format_object, value, language=C_Code):
+    """ Convert the list of constant boolean values <value> into constant 
+        code for SSE/AVX vectors
+    """
+    # ML_(SSE/AVX>_v<i>bool is not a pratical format, it should not appear
+    # during code generation (including constant generation)
+    Log.report(Log.Error, "ML_(SSE/AVX>_v<i>bool format should not generate code") 
+    raise NotImplementedError
+
 def get_sse_vector_int_cst(format_object, value, language=C_Code):
     """ integer constant must be packed as 64-bit signed values if built by gcc
     """
@@ -83,11 +93,6 @@ ML_SSE_m128_v1int32  = VirtualFormatNoForward(ML_Int32, ML_SSE_m128i, get_sse_sc
 ML_SSE_m128_v1uint32  = VirtualFormatNoForward(ML_UInt32, ML_SSE_m128i, get_sse_scalar_cst, True)
 ## format for single 1 int64 in a XMM 128-bit register
 ML_SSE_m128_v1int64  = VirtualFormatNoForward(ML_Int64, ML_SSE_m128i, get_sse_scalar_cst, True)
-
-# virtual boolean format
-ML_SSE_m128_v4bool  = VirtualFormatNoForward(ML_Bool, ML_SSE_m128i, get_sse_scalar_cst, True)
-ML_AVX_m256_v8bool  = VirtualFormatNoForward(ML_Bool, ML_AVX_m256i,
-                                             get_sse_scalar_cst, True)
 
 ## format for packed 2 fp32 in a XMM 128-bit register
 ML_SSE_m128_v2float32 = vector_format_builder("__m128", None, 2, ML_Binary32,
@@ -181,15 +186,12 @@ ML_AVX_m256_v4uint64  = vector_format_builder("__m256i", None, 4, ML_UInt64,
         cst_callback = get_sse_vector_int_cst,
         compound_constructor = ML_IntegerVectorFormat)
 
-# virtual boolean format
-ML_AVX_m256_v8bool  = vector_format_builder(
-    "__m256i", None, 8, ML_Bool)
-    #,
-    #cst_callback = get_sse_vector_int_cst,
-    #compound_constructor = ML_IntegerVectorFormat)
+# virtual vector boolean format
+ML_SSE_m128_v4bool = VirtualFormatNoForward(
+    v4bool, ML_SSE_m128i, get_sseavx_vector_bool_cst, True)
 
-
-#VirtualFormatNoForward(ML_Bool, ML_AVX_m256i, get_sse_scalar_cst, True)
+ML_AVX_m256_v8bool  = VirtualFormatNoForward(
+    v8bool, ML_AVX_m256i, get_sseavx_vector_bool_cst, True)
 
 ## Wrapper for intel x86_sse intrinsics
 #  defined in <xmmintrin.h> header
