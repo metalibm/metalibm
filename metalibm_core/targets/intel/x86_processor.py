@@ -1414,24 +1414,6 @@ sse41_c_code_generation_table = {
 }
 
 avx_c_code_generation_table = {
-    Select: {
-        None: {
-            pred_vector_select_one_zero: {
-                type_strict_match(ML_AVX_m256_v8int32, ML_AVX_m256_v8bool, ML_AVX_m256_v8int32, ML_AVX_m256_v8int32):
-                    ComplexOperator(squash_sse_cst_select),
-                type_strict_match(ML_AVX_m256_v8uint32, ML_AVX_m256_v8bool, ML_AVX_m256_v8uint32, ML_AVX_m256_v8uint32):
-                    ComplexOperator(squash_sse_cst_select),
-            },
-        },
-    },
-    MantissaExtraction: {
-        None: {
-            lambda _: True: {
-                type_strict_match(ML_AVX_m256_v8float32, ML_AVX_m256_v8float32):
-                    ComplexOperator(optree_modifier=expand_vec_mantissa_extraction),
-            },
-        }
-    },
     Addition: {
         None: {
             lambda optree: True: {
@@ -1463,6 +1445,19 @@ avx_c_code_generation_table = {
                 type_strict_match(*(3*(ML_AVX_m256_v4float64,))):
                     ImmIntrin("_mm256_or_pd", arity = 2,
                               output_precision = ML_AVX_m256_v4float64),
+            },
+        },
+    },
+    Constant: {
+        None: {
+            uniform_vector_constant_check: {
+                type_strict_match_list([
+                    ML_AVX_m256_v8int32, ML_AVX_m256_v8uint32,
+                    ML_AVX_m256_v4int64, ML_AVX_m256_v4uint64,
+                    ML_AVX_m256_v8float32, ML_AVX_m256_v4float64,
+                    ML_AVX_m256_v8bool,
+                    ]):
+                    ComplexOperator(optree_modifier = vector_constant_op),
             },
         },
     },
@@ -1609,6 +1604,14 @@ avx_c_code_generation_table = {
             },
         },
     },
+    MantissaExtraction: {
+        None: {
+            lambda _: True: {
+                type_strict_match(ML_AVX_m256_v8float32, ML_AVX_m256_v8float32):
+                    ComplexOperator(optree_modifier=expand_vec_mantissa_extraction),
+            },
+        }
+    },
     Multiplication: {
         None: {
             lambda optree: True: {
@@ -1661,19 +1664,6 @@ avx_c_code_generation_table = {
                     ImmIntrin("_mm256_sub_ps", arity = 2),
                 type_strict_match(*(3*(ML_AVX_m256_v4float64,))):
                     ImmIntrin("_mm256_sub_pd", arity = 2),
-            },
-        },
-    },
-    Constant: {
-        None: {
-            uniform_vector_constant_check: {
-                type_strict_match_list([
-                    ML_AVX_m256_v8int32, ML_AVX_m256_v8uint32,
-                    ML_AVX_m256_v4int64, ML_AVX_m256_v4uint64,
-                    ML_AVX_m256_v8float32, ML_AVX_m256_v4float64,
-                    ML_AVX_m256_v8bool,
-                    ]):
-                    ComplexOperator(optree_modifier = vector_constant_op),
             },
         },
     },
