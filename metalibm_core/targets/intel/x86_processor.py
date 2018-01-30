@@ -1756,102 +1756,6 @@ def generate_avx2_uniform_shift(optree):
                          precision = optree.get_precision())
 
 avx2_c_code_generation_table = {
-    Comparison: {
-        Comparison.NotEqual: {
-            lambda _: True: {
-                type_strict_match(ML_AVX_m256_v8int32, ML_AVX_m256_v8int32, ML_AVX_m256_v8int32):
-                    ComplexOperator(expand_avx_comparison),
-                type_strict_match(ML_AVX_m256_v8uint32, ML_AVX_m256_v8uint32, ML_AVX_m256_v8uint32):
-                    ComplexOperator(expand_avx_comparison),
-                type_strict_match(ML_AVX_m256_v8float32, ML_AVX_m256_v8float32, ML_AVX_m256_v8float32):
-                    DynamicOperator(generate_sse_comparison),
-                # 3 Dummy operators used to allow m128_promotion to promote squashable comparison
-                type_strict_match(ML_AVX_m256_v8bool, ML_AVX_m256_v8int32, ML_AVX_m256_v8int32):
-                    ERROR_OPERATOR,
-                type_strict_match(ML_AVX_m256_v8bool, ML_AVX_m256_v8uint32, ML_AVX_m256_v8uint32):
-                    ERROR_OPERATOR,
-                type_strict_match(ML_AVX_m256_v8bool, ML_AVX_m256_v8float32, ML_AVX_m256_v8float32):
-                    ERROR_OPERATOR,
-            }
-        },
-        Comparison.Equal: {
-            lambda _: True: {
-                type_strict_match_or_list([
-                        (ML_AVX_m256_v8int32, ML_AVX_m256_v8int32, ML_AVX_m256_v8int32),
-                        (ML_AVX_m256_v8uint32, ML_AVX_m256_v8uint32, ML_AVX_m256_v8uint32),
-                        (ML_AVX_m256_v8float32, ML_AVX_m256_v8float32, ML_AVX_m256_v8float32)]):
-                    DynamicOperator(generate_sse_comparison),
-                # 3 Dummy operators used to allow m128_promotion to promote squashable comparison
-                type_strict_match_or_list([
-                        (ML_AVX_m256_v8bool, ML_AVX_m256_v8int32, ML_AVX_m256_v8int32),
-                        (ML_AVX_m256_v8bool, ML_AVX_m256_v8uint32, ML_AVX_m256_v8uint32),
-                        (ML_AVX_m256_v8bool, ML_AVX_m256_v8float32, ML_AVX_m256_v8float32)]):
-                    ERROR_OPERATOR,
-            }
-        },
-        Comparison.LessOrEqual: {
-            lambda _: True: {
-                type_strict_match_or_list([
-                        (ML_AVX_m256_v8int32, ML_AVX_m256_v8int32, ML_AVX_m256_v8int32),
-                        (ML_AVX_m256_v8uint32, ML_AVX_m256_v8uint32, ML_AVX_m256_v8uint32)
-                    ]):
-                    ComplexOperator(expand_avx_comparison),
-                type_strict_match(ML_AVX_m256_v8float32, ML_AVX_m256_v8float32, ML_AVX_m256_v8float32):
-                    DynamicOperator(generate_sse_comparison),
-                # 3 Dummy operators used to allow m128_promotion to promote squashable comparison
-                type_strict_match_or_list([
-                        (ML_AVX_m256_v8bool, ML_AVX_m256_v8int32, ML_AVX_m256_v8int32),
-                        (ML_AVX_m256_v8bool, ML_AVX_m256_v8uint32, ML_AVX_m256_v8uint32),
-                        (ML_AVX_m256_v8bool, ML_AVX_m256_v8float32, ML_AVX_m256_v8float32)]):
-                    ERROR_OPERATOR,
-            }
-        },
-        Comparison.Less: {
-            lambda _: True: {
-                type_strict_match_or_list([
-                        (ML_AVX_m256_v8int32, ML_AVX_m256_v8int32, ML_AVX_m256_v8int32),
-                        (ML_AVX_m256_v8uint32, ML_AVX_m256_v8uint32, ML_AVX_m256_v8uint32),
-                        (ML_AVX_m256_v8float32, ML_AVX_m256_v8float32, ML_AVX_m256_v8float32)]):
-                    ComplexOperator(expand_avx_comparison),
-                # 3 Dummy operators used to allow m128_promotion to promote squashable comparison
-                type_strict_match_or_list([
-                        (ML_AVX_m256_v8bool, ML_AVX_m256_v8int32, ML_AVX_m256_v8int32),
-                        (ML_AVX_m256_v8bool, ML_AVX_m256_v8uint32, ML_AVX_m256_v8uint32),
-                        (ML_AVX_m256_v8bool, ML_AVX_m256_v8float32, ML_AVX_m256_v8float32)]):
-                    ERROR_OPERATOR,
-            }
-        },
-        Comparison.Greater: {
-            lambda _: True: {
-                type_strict_match_or_list([
-                        (ML_AVX_m256_v8int32, ML_AVX_m256_v8int32, ML_AVX_m256_v8int32),
-                        (ML_AVX_m256_v8uint32, ML_AVX_m256_v8uint32, ML_AVX_m256_v8uint32),
-                        (ML_AVX_m256_v8float32, ML_AVX_m256_v8float32, ML_AVX_m256_v8float32)]):
-                    DynamicOperator(generate_sse_comparison),
-                # 3 Dummy operators used to allow m128_promotion to promote squashable comparison
-                type_strict_match_or_list([
-                        (ML_AVX_m256_v8bool, ML_AVX_m256_v8int32, ML_AVX_m256_v8int32),
-                        (ML_AVX_m256_v8bool, ML_AVX_m256_v8uint32, ML_AVX_m256_v8uint32),
-                        (ML_AVX_m256_v8bool, ML_AVX_m256_v8float32, ML_AVX_m256_v8float32)]):
-                    ERROR_OPERATOR,
-            }
-        },
-        Comparison.GreaterOrEqual: {
-            lambda _: True: {
-                type_strict_match_or_list([
-                        (ML_AVX_m256_v8int32, ML_AVX_m256_v8int32, ML_AVX_m256_v8int32),
-                        (ML_AVX_m256_v8uint32, ML_AVX_m256_v8uint32, ML_AVX_m256_v8uint32),
-                        (ML_AVX_m256_v8float32, ML_AVX_m256_v8float32, ML_AVX_m256_v8float32)]):
-                    ComplexOperator(expand_avx_comparison),
-                # 3 Dummy operators used to allow m128_promotion to promote squashable comparison
-                type_strict_match_or_list([
-                        (ML_AVX_m256_v8bool, ML_AVX_m256_v8int32, ML_AVX_m256_v8int32),
-                        (ML_AVX_m256_v8bool, ML_AVX_m256_v8uint32, ML_AVX_m256_v8uint32),
-                        (ML_AVX_m256_v8bool, ML_AVX_m256_v8float32, ML_AVX_m256_v8float32)]):
-                    ERROR_OPERATOR,
-            }
-        },
-    },
     Addition: {
         None: {
             lambda optree: True: {
@@ -2061,12 +1965,23 @@ avx2_c_code_generation_table = {
         },
     },
     Comparison: {
+        Comparison.NotEqual: {
+            lambda _: True: {
+                type_strict_match(ML_AVX_m256_v8int32, ML_AVX_m256_v8int32, ML_AVX_m256_v8int32):
+                    ComplexOperator(expand_avx_comparison),
+                type_strict_match(ML_AVX_m256_v8uint32, ML_AVX_m256_v8uint32, ML_AVX_m256_v8uint32):
+                    ComplexOperator(expand_avx_comparison),
+                # 3 Dummy operators used to allow m128_promotion to promote squashable comparison
+                type_strict_match(ML_AVX_m256_v8bool, ML_AVX_m256_v8int32, ML_AVX_m256_v8int32):
+                    ERROR_OPERATOR,
+                type_strict_match(ML_AVX_m256_v8bool, ML_AVX_m256_v8uint32, ML_AVX_m256_v8uint32):
+                    ERROR_OPERATOR,
+            },
+        },
         Comparison.Equal: {
             lambda _: True: {
-                type_strict_match_or_list([
-                    3*(ML_AVX_m256_v8int32,),
-                    3*(ML_AVX_m256_v8uint32,),
-                    3*(ML_AVX_m256_v8float32,)]):
+                type_strict_match_or_list([ 3*(ML_AVX_m256_v8int32,),
+                                            3*(ML_AVX_m256_v8uint32,), ]):
                     DynamicOperator(generate_sse_comparison),
                 # 3 Dummy operators used to allow m128_promotion to promote
                 # squashable comparison
@@ -2079,23 +1994,32 @@ avx2_c_code_generation_table = {
         },
         Comparison.Greater: {
             lambda _: True: {
-                type_strict_match_or_list([
-                    3*(ML_AVX_m256_v8int32,),
-                    3*(ML_AVX_m256_v8uint32,),
-                    3*(ML_AVX_m256_v8float32,),
-                    3*(ML_AVX_m256_v4float64,),
-                    ]):
-                    # TODO change naming
+                type_strict_match_or_list([ 3*(ML_AVX_m256_v8int32,),
+                                            3*(ML_AVX_m256_v8uint32,), ]):
+                    # TODO rename generate_sse_comparison to reflect AVX
+                    # support?
                     DynamicOperator(generate_sse_comparison),
                 # 3 Dummy operators used to allow m256_promotion to promote
                 # squashable comparison
-                type_strict_match_or_list([(
-                    ML_AVX_m256_v8bool, ML_AVX_m256_v8int32,
-                    ML_AVX_m256_v8int32),
-                    (ML_AVX_m256_v8bool, ML_AVX_m256_v8uint32,
-                        ML_AVX_m256_v8uint32),
-                    (ML_AVX_m256_v8bool, ML_AVX_m256_v8float32,
-                        ML_AVX_m256_v8float32)]):
+                type_strict_match_or_list([
+                    (ML_AVX_m256_v8bool, ML_AVX_m256_v8int32, ML_AVX_m256_v8int32),
+                    (ML_AVX_m256_v8bool, ML_AVX_m256_v8uint32, ML_AVX_m256_v8uint32),
+                    ]):
+                    ERROR_OPERATOR,
+            },
+        },
+        Comparison.GreaterOrEqual: {
+            lambda _: True: {
+                type_strict_match_or_list([
+                    (ML_AVX_m256_v8int32, ML_AVX_m256_v8int32, ML_AVX_m256_v8int32),
+                    (ML_AVX_m256_v8uint32, ML_AVX_m256_v8uint32, ML_AVX_m256_v8uint32),
+                    ]):
+                    ComplexOperator(expand_avx_comparison),
+                # 3 Dummy operators used to allow m128_promotion to promote squashable comparison
+                type_strict_match_or_list([
+                    (ML_AVX_m256_v8bool, ML_AVX_m256_v8int32, ML_AVX_m256_v8int32),
+                    (ML_AVX_m256_v8bool, ML_AVX_m256_v8uint32, ML_AVX_m256_v8uint32),
+                    ]):
                     ERROR_OPERATOR,
             },
         },
@@ -2104,22 +2028,28 @@ avx2_c_code_generation_table = {
                 type_strict_match_or_list([ 3*(ML_AVX_m256_v8int32,),
                                             3*(ML_AVX_m256_v8uint32,) ]):
                     ComplexOperator(expand_avx_comparison),
-                type_strict_match_or_list([
-                    3*(ML_AVX_m256_v8int32,),
-                    3*(ML_AVX_m256_v8uint32,),
-                    3*(ML_AVX_m256_v8float32,),
-                    ]):
-                DynamicOperator(generate_sse_comparison),
                 # 3 Dummy operators used to allow m128_promotion to promote
                 # squashable comparison
-                type_strict_match_or_list([(
-                    ML_AVX_m256_v8bool, ML_AVX_m256_v8int32,
-                    ML_AVX_m256_v8int32),
-                    (ML_AVX_m256_v8bool, ML_AVX_m256_v8uint32,
-                        ML_AVX_m256_v8uint32),
-                    (ML_AVX_m256_v8bool, ML_AVX_m256_v8float32,
-                        ML_AVX_m256_v8float32)]):
+                type_strict_match_or_list([
+                    (ML_AVX_m256_v8bool, ML_AVX_m256_v8int32, ML_AVX_m256_v8int32),
+                    (ML_AVX_m256_v8bool, ML_AVX_m256_v8uint32, ML_AVX_m256_v8uint32),
+                    ]):
                 ERROR_OPERATOR,
+            },
+        },
+        Comparison.LessOrEqual: {
+            lambda _: True: {
+                type_strict_match_or_list([
+                    (ML_AVX_m256_v8int32, ML_AVX_m256_v8int32, ML_AVX_m256_v8int32),
+                    (ML_AVX_m256_v8uint32, ML_AVX_m256_v8uint32, ML_AVX_m256_v8uint32)
+                    ]):
+                    ComplexOperator(expand_avx_comparison),
+                # 3 Dummy operators used to allow m128_promotion to promote squashable comparison
+                type_strict_match_or_list([
+                    (ML_AVX_m256_v8bool, ML_AVX_m256_v8int32, ML_AVX_m256_v8int32),
+                    (ML_AVX_m256_v8bool, ML_AVX_m256_v8uint32, ML_AVX_m256_v8uint32),
+                    ]):
+                    ERROR_OPERATOR,
             },
         },
     },
