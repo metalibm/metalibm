@@ -1749,15 +1749,11 @@ avx2_c_code_generation_table = {
     Addition: {
         None: {
             lambda optree: True: {
-                type_strict_match(*(3*(ML_AVX_m256_v8int32,))):
+                type_strict_match_or_list([ 3*(ML_AVX_m256_v8int32,),
+                                            3*(ML_AVX_m256_v8uint32,) ]):
                     ImmIntrin("_mm256_add_epi32", arity = 2),
-                type_strict_match(*(3*(ML_AVX_m256_v8uint32,))):
-                    ImmIntrin("_mm256_add_epi32", arity = 2),
-                type_strict_match(*(3*(ML_AVX_m256_v4int64,))):
-                    ImmIntrin("_mm256_add_epi64", arity = 2),
-                type_strict_match(*(3*(ML_AVX_m256_v8uint32,))):
-                    ImmIntrin("_mm256_add_epi32", arity = 2),
-                type_strict_match(*(3*(ML_AVX_m256_v4uint64,))):
+                type_strict_match_or_list([ 3*(ML_AVX_m256_v4int64,),
+                                            3*(ML_AVX_m256_v4uint64,) ]):
                     ImmIntrin("_mm256_add_epi64", arity = 2),
             },
         },
