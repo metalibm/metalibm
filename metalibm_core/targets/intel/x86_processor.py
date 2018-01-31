@@ -1369,6 +1369,8 @@ sse41_c_code_generation_table = {
     },
 }
 
+sse42_c_code_generation_table = {}
+
 avx_c_code_generation_table = {
     Addition: {
         None: {
@@ -2437,7 +2439,24 @@ class X86_SSE41_Processor(X86_SSSE3_Processor):
                 + ['-msse4.1']
 
 
-class X86_AVX_Processor(X86_SSE41_Processor):
+class X86_SSE42_Processor(X86_SSE41_Processor):
+    target_name = "x86_sse42"
+    TargetRegister.register_new_target(target_name,
+                                       lambda _: X86_SSE42_Processor)
+
+    code_generation_table = {
+        C_Code: sse42_c_code_generation_table,
+    }
+
+    def __init__(self):
+        super(X86_SSE42_Processor, self).__init__()
+
+    def get_compilation_options(self):
+        return super(X86_SSE42_Processor, self).get_compilation_options() \
+                + ['-msse4.2']
+
+
+class X86_AVX_Processor(X86_SSE42_Processor):
     target_name = "x86_avx"
     TargetRegister.register_new_target(target_name,
                                        lambda _: X86_AVX_Processor)
