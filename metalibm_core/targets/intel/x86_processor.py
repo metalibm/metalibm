@@ -2420,20 +2420,6 @@ class X86_SSSE3_Processor(X86_SSE3_Processor):
               + ['-mssse3']
 
 
-class X86_SSSE3_Processor(X86_SSE2_Processor):
-    target_name = "x86_ssse3"
-    TargetRegister.register_new_target(target_name, lambda _: X86_SSSE3_Processor)
-
-    code_generation_table = {
-        C_Code: ssse3_c_code_generation_table,
-    }
-
-    def __init__(self):
-        X86_SSE_Processor.__init__(self)
-
-    def get_compilation_options(self):
-      return super(X86_SSSE3_Processor, self).get_compilation_options() + ["-mssse3"]
-
 class X86_SSE41_Processor(X86_SSSE3_Processor):
     target_name = "x86_sse41"
     TargetRegister.register_new_target(target_name,
