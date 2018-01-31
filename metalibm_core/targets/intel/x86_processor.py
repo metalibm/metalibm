@@ -53,12 +53,12 @@ def unsigned2signed(value, width=32):
 
 
 def get_sseavx_vector_bool_cst(format_object, value, language=C_Code):
-    """ Convert the list of constant boolean values <value> into constant 
+    """ Convert the list of constant boolean values <value> into constant
         code for SSE/AVX vectors
     """
-    # ML_(SSE/AVX>_v<i>bool is not a pratical format, it should not appear
+    # ML_<SSE/AVX>_v<i>bool is not a pratical format, it should not appear
     # during code generation (including constant generation)
-    Log.report(Log.Error, "ML_(SSE/AVX>_v<i>bool format should not generate code") 
+    Log.report(Log.Error, "ML_(SSE/AVX>_v<i>bool format should not generate code")
     raise NotImplementedError
 
 def get_sse_vector_int_cst(format_object, value, language=C_Code):
@@ -1320,50 +1320,6 @@ ssse3_c_code_generation_table = {
             },
         },
     },
-    Negation: {
-        None: {
-            lambda optree: True: {
-                # Float negation
-                type_strict_match(*(2*(ML_SSE_m128_v4float32,))):
-                    EmmIntrin("_mm_xor_ps", arity = 2)(
-                        FO_Arg(0),
-                        FO_Value("_mm_set1_ps(-0.0f)", ML_SSE_m128_v4float32)
-                    ),
-                type_strict_match(*(2*(ML_SSE_m128_v2float64,))):
-                    EmmIntrin("_mm_xor_pd", arity = 2)(
-                        FO_Value("_mm_set1_pd(-0.0f)", ML_SSE_m128_v2float64),
-                        FO_Arg(0)
-                    ),
-                # Integer negation
-                type_strict_match(*(2*(ML_SSE_m128_v4int32,))):
-                    EmmIntrin("_mm_sub_epi32", arity = 2)(
-                        FO_Value("_mm_set1_epi32(0)", ML_SSE_m128_v4int32),
-                        FO_Arg(0)
-                    ),
-                type_strict_match(*(2*(ML_SSE_m128_v2int64,))):
-                    EmmIntrin("_mm_sub_epi64", arity = 2)(
-                        FO_Value("_mm_set1_epi64x(0)", ML_SSE_m128_v2int64),
-                        FO_Arg(0)
-                    ),
-            },
-        },
-    },
-}
-
-ssse3_c_code_generation_table = {
-    Negation: {
-        None: {
-            lambda optree: True: {
-                # Float negation is handled by SSE2 instructions
-                # 32-bit integer negation using SSSE3 sign_epi32 instruction
-                type_strict_match(*(2*(ML_SSE_m128_v4int32,))):
-                    TmmIntrin("_mm_sign_epi32", arity = 2)(
-                        FO_Arg(0),
-                        FO_Value("_mm_set1_epi32(-1)", ML_SSE_m128_v4int32)
-                    ),
-            },
-        },
-    },
 }
 
 sse41_c_code_generation_table = {
@@ -1390,12 +1346,10 @@ sse41_c_code_generation_table = {
                     _mm_round_ss_rn,
                 type_strict_match(*(2*(ML_SSE_m128_v1float64,))):
                     _mm_round_sd_rn,
-
                 type_strict_match(ML_Binary32, ML_Binary32):
                     _mm_cvtss_f32(_mm_round_ss_rn(_mm_set_ss(FO_Arg(0)))),
                 type_strict_match(ML_Binary64, ML_Binary64):
                     _mm_cvtsd_f64(_mm_round_sd_rn(_mm_set_sd(FO_Arg(0)))),
-
                 type_strict_match(*(2*(ML_SSE_m128_v4float32,))):
                     SmmIntrin("_mm_round_ps", arity = 1,
                               arg_map = {0: FO_Arg(0),
