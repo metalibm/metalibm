@@ -471,7 +471,7 @@ class ML_FunctionBasis(object):
           Log.report(Log.Error, "BENCH FAILURE [{}]".format(bench_result))
           sys.exit(1)
       else:
-        Log.report(Log.Info, "BENCH {} command line: {}".forma(self.get_name(), bench_command))
+        Log.report(Log.Info, "BENCH {} command line: {}".format(self.get_name(), bench_command))
 
 
   ## externalized an optree: generate a CodeFunction which compute the 
