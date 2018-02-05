@@ -628,8 +628,8 @@ def expand_sse_comparison(optree):
     else:
         raise NotImplementedError
 
-# TODO refactor this asap
-def expand_avx_comparison(optree):
+# TODO refactor this asap with above function
+def expand_avx2_comparison(optree):
     """ AVX2 only supports eq/gt predicates for integer comparison,
         thus all other must be expanded """
     assert isinstance(optree, Comparison)
@@ -637,28 +637,32 @@ def expand_avx_comparison(optree):
     rhs = optree.get_input(1)
     op_prec = optree.get_precision()
     if optree.specifier is Comparison.LessOrEqual:
+        # x ≤ y <=> (x < y) || (x == y)
         return BitLogicOr(
             Comparison(lhs, rhs, specifier=Comparison.Less, precision=op_prec),
             Comparison(lhs, rhs, specifier=Comparison.Equal, precision=op_prec),
             precision=op_prec
         )
     elif optree.specifier is Comparison.Less:
+        # cmplt x, y <=> cmpgt y, x
+        return Comparison(rhs, lhs, specifier = Comparison.Greater,
+                          precision = op_prec)
+    elif optree.specifier is Comparison.NotEqual:
+        # x ≠ y <=> !(x == y)
         return BitLogicNegate(
-                BitLogicOr(
-                    Comparison(lhs, rhs, specifier = Comparison.Greater,
-                        precision = op_prec),
-                    Comparison(lhs, rhs, specifier = Comparison.Equal,
-                        precision = op_prec),
-                    precision = op_prec
-                    ),
+                Comparison(lhs, rhs, specifier = Comparison.Equal,
+                           precision = op_prec),
                 precision = op_prec
                 )
-    elif optree.specifier is Comparison.NotEqual:
+    elif optree.specifier is Comparison.GreaterOrEqual:
+        # x ≥ y <=> (x > y) || (x == y)
         return BitLogicOr(
-            Comparison(lhs, rhs, specifier=Comparison.Less, precision=op_prec),
-            Comparison(lhs, rhs, specifier=Comparison.Greater, precision=op_prec),
-            precision=op_prec
-        )
+                Comparison(lhs, rhs, specifier = Comparison.Greater,
+                           precision = op_prec),
+                Comparison(lhs, rhs, specifier = Comparison.Equal,
+                           precision = op_prec),
+                precision = op_prec
+                )
     else:
         raise NotImplementedError
 
@@ -1910,10 +1914,11 @@ avx2_c_code_generation_table = {
     Comparison: {
         Comparison.NotEqual: {
             lambda _: True: {
-                type_strict_match(ML_AVX_m256_v8int32, ML_AVX_m256_v8int32, ML_AVX_m256_v8int32):
-                    ComplexOperator(expand_avx_comparison),
-                type_strict_match(ML_AVX_m256_v8uint32, ML_AVX_m256_v8uint32, ML_AVX_m256_v8uint32):
-                    ComplexOperator(expand_avx_comparison),
+                type_strict_match_or_list([ 3*(ML_AVX_m256_v8int32,),
+                                            3*(ML_AVX_m256_v8uint32,),
+                                            3*(ML_AVX_m256_v4int64,),
+                                            3*(ML_AVX_m256_v4uint64,) ]):
+                    ComplexOperator(expand_avx2_comparison),
                 # 3 Dummy operators used to allow m128_promotion to promote squashable comparison
                 type_strict_match(ML_AVX_m256_v8bool, ML_AVX_m256_v8int32, ML_AVX_m256_v8int32):
                     ERROR_OPERATOR,
@@ -1957,7 +1962,7 @@ avx2_c_code_generation_table = {
                     (ML_AVX_m256_v8int32, ML_AVX_m256_v8int32, ML_AVX_m256_v8int32),
                     (ML_AVX_m256_v8uint32, ML_AVX_m256_v8uint32, ML_AVX_m256_v8uint32),
                     ]):
-                    ComplexOperator(expand_avx_comparison),
+                    ComplexOperator(expand_avx2_comparison),
                 # 3 Dummy operators used to allow m128_promotion to promote squashable comparison
                 type_strict_match_or_list([
                     (ML_AVX_m256_v8bool, ML_AVX_m256_v8int32, ML_AVX_m256_v8int32),
@@ -1970,7 +1975,7 @@ avx2_c_code_generation_table = {
             lambda _: True: {
                 type_strict_match_or_list([ 3*(ML_AVX_m256_v8int32,),
                                             3*(ML_AVX_m256_v8uint32,) ]):
-                    ComplexOperator(expand_avx_comparison),
+                    ComplexOperator(expand_avx2_comparison),
                 # 3 Dummy operators used to allow m128_promotion to promote
                 # squashable comparison
                 type_strict_match_or_list([
@@ -1986,7 +1991,7 @@ avx2_c_code_generation_table = {
                     (ML_AVX_m256_v8int32, ML_AVX_m256_v8int32, ML_AVX_m256_v8int32),
                     (ML_AVX_m256_v8uint32, ML_AVX_m256_v8uint32, ML_AVX_m256_v8uint32)
                     ]):
-                    ComplexOperator(expand_avx_comparison),
+                    ComplexOperator(expand_avx2_comparison),
                 # 3 Dummy operators used to allow m128_promotion to promote squashable comparison
                 type_strict_match_or_list([
                     (ML_AVX_m256_v8bool, ML_AVX_m256_v8int32, ML_AVX_m256_v8int32),
