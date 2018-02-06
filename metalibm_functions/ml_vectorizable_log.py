@@ -67,23 +67,25 @@ class ML_Log(ML_Function("ml_log")):
 
     precision = self.precision.sollya_object
     int_prec = self.precision.get_integer_format()
+    Log.report(Log.Info, "int_prec is %s" % int_prec)
     uint_prec = self.precision.get_unsigned_integer_format()
 
     # bool2int conversion helper functions
-    def bool_convert(optree, precision, true_value, false_value):
+    def bool_convert(optree, precision, true_value, false_value, **kw):
         """ Implement conversion between boolean node (ML_Bool)
             and specific values """
         return Select(
             optree,
             Constant(true_value, precision=precision),
             Constant(false_value, precision=precision),
-            precision=precision
+            precision=precision,
+            **kw
         )
 
-    def default_bool_convert(optree, precision=None):
-        return bool_convert(optree, precision, -1, 0) \
+    def default_bool_convert(optree, precision=None, **kw):
+        return bool_convert(optree, precision, -1, 0, **kw) \
                 if isinstance(self.processor, VectorBackend) \
-                else bool_convert(optree, precision, 1, 0)
+                else bool_convert(optree, precision, 1, 0, **kw)
 
     print "MDL constants"
     cgpe_scheme_idx = int(self.cgpe_index)
