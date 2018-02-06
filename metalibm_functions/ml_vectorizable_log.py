@@ -165,6 +165,7 @@ class ML_Log(ML_Function("ml_log")):
     is_subnormal = default_bool_convert(
             tmp, # Will catch negative values as well as NaNs with sign bit set
             precision = int_prec,
+            tag="is_subnormal"
             )
     is_subnormal.set_attributes(tag = "is_subnormal")
     if not(isinstance(self.processor, VectorBackend)):
@@ -209,9 +210,9 @@ class ML_Log(ML_Function("ml_log")):
                 Constant(
                     self.precision.get_bias(),
                     precision = int_prec
-                    ),
+                ),
                 precision = int_prec
-                    ),
+            ),
             is_subnormal,
             precision = int_prec,
             tag = "n_value"
@@ -326,14 +327,16 @@ class ML_Log(ML_Function("ml_log")):
                 if isinstance(self.processor, VectorBackend)
                 else Comparison.LessOrEqual
                 ),
-            precision = signed_size_t_prec
+            precision = signed_size_t_prec,
+            tag="tmp"
             )
     # A true tmp will typically be -1 for VectorBackends, but 1 for standard C.
     tau = Conversion(
         Addition(tmp, int_one, precision = signed_size_t_prec)
             if isinstance(self.processor, VectorBackend)
             else tmp,
-            precision = int_prec
+            precision=int_prec,
+            tag="pre_tau"
         )
     tau.set_attributes(tag = 'tau')
     # Update table_index: keep only table_index_size bits
