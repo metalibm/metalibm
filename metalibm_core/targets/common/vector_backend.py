@@ -617,6 +617,11 @@ vector_c_code_generation_table = {
         type_custom_match(FSM(v4float64), TCM(ML_TableFormat), FSM(v4int32), FSM(v4int32)): ML_VectorLib_Function("ML_VLOAD2D", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2), 4: "4"}, arity = 5),
         type_custom_match(FSM(v2float64), TCM(ML_TableFormat), FSM(v2int32)): ML_VectorLib_Function("ML_VLOAD", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: "2"}, arity = 4),
         type_custom_match(FSM(v2float64), TCM(ML_TableFormat), FSM(v2int32), FSM(v2int32)): ML_VectorLib_Function("ML_VLOAD2D", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2), 4: "2"}, arity = 5),
+        # double precision loading with unsigned index
+        type_custom_match(FSM(v4float64), TCM(ML_TableFormat), FSM(v4uint32)):
+            ML_VectorLib_Function("ML_VLOAD", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: "4"}, arity = 4),
+        type_custom_match(FSM(v4float64), TCM(ML_TableFormat), FSM(v4uint32), FSM(v4uint32)):
+            ML_VectorLib_Function("ML_VLOAD2D", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2), 4: "4"}, arity = 5),
       },
     },
   },
@@ -909,6 +914,10 @@ vector_c_code_generation_table = {
         type_strict_match(v2float32, v2float64) :  ML_VectorLib_Function("ML_VCONV", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: "2"}, arity = 3),
         type_strict_match(v4float32, v4float64) :  ML_VectorLib_Function("ML_VCONV", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: "4"}, arity = 3),
         type_strict_match(v4float64, v4float32) :  ML_VectorLib_Function("ML_VCONV", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: "4"}, arity = 3),
+        # cross size conversion
+        type_strict_match(v4uint32, v4uint64) :  ML_VectorLib_Function("ML_VCONV", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: "4"}, arity = 3),
+        type_strict_match(v4int64, v4int32) :  ML_VectorLib_Function("ML_VCONV", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: "4"}, arity = 3),
+        type_strict_match(v4float64, v4int64) :  ML_VectorLib_Function("ML_VCONV", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: "4"}, arity = 3),
       },
     },
   },
@@ -967,6 +976,10 @@ vector_c_code_generation_table = {
               # 4-element integer variants
               type_strict_match(v4uint32, v4int32) : ML_VectorLib_Function("VECTORIZE_OP1", arg_map = {0: "(uint32_t)", 1: FO_ResultRef(0), 2: FO_Arg(0), 3: "2"}, arity = 1, output_precision = v4uint32),
               type_strict_match(v4int32, v4uint32) : ML_VectorLib_Function("VECTORIZE_OP1", arg_map = {0: "(int32_t)", 1: FO_ResultRef(0), 2: FO_Arg(0), 3: "2"}, arity = 1, output_precision = v4int32),
+
+              # 4-element 64-bit integer variants
+              type_strict_match(v4uint64, v4int64) : ML_VectorLib_Function("VECTORIZE_OP1", arg_map = {0: "(uint64_t)", 1: FO_ResultRef(0), 2: FO_Arg(0), 3: "2"}, arity = 1, output_precision = v4uint32),
+              type_strict_match(v4int64, v4uint64) : ML_VectorLib_Function("VECTORIZE_OP1", arg_map = {0: "(int64_t)", 1: FO_ResultRef(0), 2: FO_Arg(0), 3: "2"}, arity = 1, output_precision = v4int32),
 
               #ML_Utils_Function("float_from_32b_encoding", arity = 1),
               #type_strict_match(ML_Binary32, ML_UInt32): ML_Utils_Function("float_from_32b_encoding", arity = 1),
