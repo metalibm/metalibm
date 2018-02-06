@@ -1067,10 +1067,10 @@ v3int64  = vector_format_builder("ml_long3_t", "long3", 3, ML_Int64, compound_co
 v4int64  = vector_format_builder("ml_long4_t", "long4", 4, ML_Int64, compound_constructor = ML_IntegerVectorFormat)
 v8int64  = vector_format_builder("ml_long8_t", "long8", 8, ML_Int64, compound_constructor = ML_IntegerVectorFormat)
 
-v2uint64 = vector_format_builder("ml_long2_t", "ulong2", 2, ML_UInt64, compound_constructor = ML_IntegerVectorFormat)
-v3uint64 = vector_format_builder("ml_long3_t", "ulong3", 3, ML_UInt64, compound_constructor = ML_IntegerVectorFormat)
-v4uint64 = vector_format_builder("ml_long4_t", "ulong4", 4, ML_UInt64, compound_constructor = ML_IntegerVectorFormat)
-v8uint64 = vector_format_builder("ml_long8_t", "ulong8", 8, ML_UInt64, compound_constructor = ML_IntegerVectorFormat)
+v2uint64 = vector_format_builder("ml_ulong2_t", "ulong2", 2, ML_UInt64, compound_constructor = ML_IntegerVectorFormat)
+v3uint64 = vector_format_builder("ml_ulong3_t", "ulong3", 3, ML_UInt64, compound_constructor = ML_IntegerVectorFormat)
+v4uint64 = vector_format_builder("ml_ulong4_t", "ulong4", 4, ML_UInt64, compound_constructor = ML_IntegerVectorFormat)
+v8uint64 = vector_format_builder("ml_ulong8_t", "ulong8", 8, ML_UInt64, compound_constructor = ML_IntegerVectorFormat)
 
 
 ###############################################################################
