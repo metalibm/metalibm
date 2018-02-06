@@ -332,7 +332,7 @@ class ML_Log(ML_Function("ml_log")):
             )
     # A true tmp will typically be -1 for VectorBackends, but 1 for standard C.
     tau = Conversion(
-        Addition(tmp, int_one, precision = signed_size_t_prec)
+        Addition(tmp, Constant(1, precision=signed_size_t_prec), precision = signed_size_t_prec, tag="pre_add")
             if isinstance(self.processor, VectorBackend)
             else tmp,
             precision=int_prec,
