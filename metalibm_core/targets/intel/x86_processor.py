@@ -1528,6 +1528,13 @@ avx_c_code_generation_table = {
                     ImmIntrin("_mm256_set1_epi32", arity = 1),
                 type_strict_match(ML_AVX_m256_v8float32, ML_Binary32):
                     ImmIntrin("_mm256_set1_ps", arity = 1),
+                type_strict_match(ML_AVX_m256_v4float64, ML_Binary64):
+                    ImmIntrin("_mm256_set1_pd", arity = 1),
+                type_strict_match(ML_AVX_m256_v4int64, ML_Int64):
+                    ImmIntrin("_mm256_set1_epi64x", arity = 1),
+                # TODO: CLEAN unsigned mix up
+                type_strict_match(ML_AVX_m256_v4uint64, ML_UInt64):
+                    ImmIntrin("_mm256_set1_epi64x", arity = 1),
                 type_strict_match(ML_AVX_m256_v4int64, v4int64):
                     ImmIntrin(
                         "_mm256_load_si256", arity = 1,
