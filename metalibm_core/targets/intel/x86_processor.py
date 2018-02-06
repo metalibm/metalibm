@@ -1570,6 +1570,8 @@ avx_c_code_generation_table = {
             lambda _: True: {
                 type_strict_match(ML_AVX_m256_v8float32, ML_AVX_m256_v8float32):
                     ComplexOperator(optree_modifier=expand_vec_mantissa_extraction),
+                type_strict_match(ML_AVX_m256_v4float64, ML_AVX_m256_v4float64):
+                    ComplexOperator(optree_modifier=expand_vec_mantissa_extraction),
             },
         }
     },
