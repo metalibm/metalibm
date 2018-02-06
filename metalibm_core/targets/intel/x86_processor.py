@@ -1504,6 +1504,24 @@ avx_c_code_generation_table = {
                                     )
                                 )
                             ),
+                type_strict_match(ML_AVX_m256_v4uint64, v4uint64):
+                    ImmIntrin(
+                        "_mm256_load_si256", arity = 1,
+                        output_precision = ML_AVX_m256_v4uint64
+                        )(TemplateOperatorFormat(
+                            "(__m256i*){}", arity = 1,
+                            output_precision = ML_Pointer_Format(
+                                ML_AVX_m256_v4uint64
+                                )
+                            )(
+                                TemplateOperatorFormat(
+                                    "GET_VEC_FIELD_ADDR({})", arity = 1,
+                                    output_precision = ML_Pointer_Format(
+                                        ML_UInt64
+                                        )
+                                    )
+                                )
+                            ),
                 type_strict_match(ML_AVX_m256_v8int32, ML_Int32):
                     ImmIntrin("_mm256_set1_epi32", arity = 1),
                 type_strict_match(ML_AVX_m256_v8uint32, ML_UInt32):
