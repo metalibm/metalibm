@@ -1477,6 +1477,13 @@ avx_c_code_generation_table = {
                         void_function = True,
                         require_header = ['immintrin.h']
                         ),
+                type_strict_match(v4uint64, ML_AVX_m256_v4uint64): 
+                    TemplateOperatorFormat(
+                        "_mm256_store_si256((__m256i*){0}, {1})",
+                        arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)},
+                        void_function = True,
+                        require_header = ['immintrin.h']
+                        ),
                 #type_strict_match(*((ML_SSE_m128_v4int32,) + 4*(ML_Int32,))):
                 #    ImmIntrin("_mm256_set_epi32", arity = 4),
                 type_strict_match_list([ML_AVX_m256_v8int32, ML_AVX_m256_v8uint32], [v8int32, v8uint32]):
