@@ -15,11 +15,11 @@
 
 from sollya import Interval
 
-from ml_operations import (
+from .ml_operations import (
     ML_LeafNode, BitLogicAnd, BitLogicRightShift, TypeCast, Constant
 )
-from attributes import Attributes, attr_init
-from ml_formats import (
+from .attributes import Attributes, attr_init
+from .ml_formats import (
     ML_Int32, ML_Int64, ML_UInt32, ML_UInt64, ML_Format, ML_FP_Format)
 from ..code_generation.code_constant import *
 
@@ -37,15 +37,15 @@ def create_multi_dim_array(dimensions, init_data = None):
     """ create a multi dimension array """
     if len(dimensions) == 1:
         if init_data != None:
-            return [init_data[i] for i in xrange(dimensions[0])]
+            return [init_data[i] for i in range(dimensions[0])]
         else:
-            return [None for i in xrange(dimensions[0])]
+            return [None for i in range(dimensions[0])]
     else:
         dim = dimensions[0]
         if init_data != None:
-            return [create_multi_dim_array(dimensions[1:], init_data[i]) for i in xrange(dim)]
+            return [create_multi_dim_array(dimensions[1:], init_data[i]) for i in range(dim)]
         else:
-            return [create_multi_dim_array(dimensions[1:]) for i in xrange(dim)]
+            return [create_multi_dim_array(dimensions[1:]) for i in range(dim)]
 
 
 ## return the C encoding of the array @table whose dimension tuple is @p dimensions
@@ -137,9 +137,9 @@ class ML_Table(ML_LeafNode):
     def get_interval(self):
         def build_range_set(dimensions, prefix = []):
           if len(dimensions) == 1:
-            return [(prefix + [i]) for i in xrange(dimensions[0])]
+            return [(prefix + [i]) for i in range(dimensions[0])]
           else:
-            return sum([build_range_set(dimensions[1:], prefix = prefix + [i]) for i in xrange(dimensions[0])], [])
+            return sum([build_range_set(dimensions[1:], prefix = prefix + [i]) for i in range(dimensions[0])], [])
 
         def get_rec_index(table, range_tuple):
           if len(range_tuple) == 1:

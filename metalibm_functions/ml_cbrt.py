@@ -142,7 +142,7 @@ class ML_Cbrt(ML_Function("ml_cbrt")):
 
     current_approx = init_approx
 
-    for i in xrange(num_iteration):
+    for i in range(num_iteration):
       #current_approx = cbrt_newton_iteration(current_approx, reduced_vx, inverse_red_vx) 
       current_approx = cbrt_newton_iteration(current_approx, vx, inverse_vx) 
 

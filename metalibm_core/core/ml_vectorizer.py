@@ -41,7 +41,7 @@ class StaticVectorizer(object):
       if len(condition_list) == 1:
         return condition_list[0]
       else:
-        half_size = len(condition_list) / 2
+        half_size = int(len(condition_list) / 2)
         first_half  = and_merge_conditions(condition_list[:half_size])
         second_half = and_merge_conditions(condition_list[half_size:])
         return LogicalAnd(first_half, second_half, precision = bool_precision)
@@ -98,7 +98,7 @@ class StaticVectorizer(object):
     vec_arg_dict = dict((arg_node, Variable("vec_%s" % arg_node.get_tag(), precision = self.vectorize_format(arg_node.get_precision(), vector_size))) for arg_node in arg_list)
     constant_dict = {}
 
-    for i in xrange(vector_size / sub_vector_size):
+    for i in range(int(vector_size / sub_vector_size)):
       if sub_vector_size == vector_size :
         arg_list_copy = dict((arg_node, Variable("vec_%s" % arg_node.get_tag() , precision = arg_node.get_precision())) for arg_node in arg_list)
         sub_vec_arg_list = [arg_list_copy[arg_node] for arg_node in arg_list]
@@ -206,10 +206,10 @@ class StaticVectorizer(object):
       if self.is_vectorizable(optree):
         optree_precision = optree.get_precision()
         if optree_precision is None:
-          print optree.get_str(display_precision = True, memoization_map = {})
+          print(optree.get_str(display_precision = True, memoization_map = {}))
         optree.set_precision(self.vectorize_format(optree.get_precision(), vector_size))
         if isinstance(optree, Constant):
-          optree.set_value([optree.get_value() for i in xrange(vector_size)])
+          optree.set_value([optree.get_value() for i in range(vector_size)])
         elif isinstance(optree, Variable):
           # TODO: does not take into account intermediary variables
           pass

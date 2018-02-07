@@ -8,7 +8,9 @@
 
 """ Version information for Metalibm """
 
-import commands, inspect, os
+import inspect
+import os
+import subprocess
 
 
 def extract_git_hash():
@@ -17,9 +19,9 @@ def extract_git_hash():
     script_dir = os.path.dirname(
       os.path.abspath(inspect.getfile(inspect.currentframe()))
     )
-    git_sha = commands.getoutput("""cd '%s' > /dev/null && \
+    git_sha = subprocess.call("""cd '%s' > /dev/null && \
             git log -n 1 --pretty=format:"%%H" && \
-            cd '%s' > /dev/null """ % (script_dir, cwd))
+            cd '%s' > /dev/null """ % (script_dir, cwd), shell=True)
     return git_sha
 
 GIT_SHA = extract_git_hash()

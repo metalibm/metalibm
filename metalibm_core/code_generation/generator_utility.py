@@ -10,6 +10,7 @@
 # author(s): Nicolas Brunie (nicolas.brunie@kalray.eu)
 ###############################################################################
 
+from functools import reduce
 
 from ..utility.log_report import Log
 from ..core.ml_formats import *
@@ -38,7 +39,10 @@ def ordered_generation(gen_function, gen_list):
     for index, arg in enumerate(gen_list):
         index_map[index] = arg
         ordered_arg_list.append((index, arg))
-    ordered_arg_list.sort(key = (lambda (index, arg): arg.get_index()))
+    def local_key(p):
+        index, arg = p
+        return arg.get_index()
+    ordered_arg_list.sort(key=local_key)
     result_list = [None] * len(gen_list)
     for index, arg in ordered_arg_list:
         result_list[index] = gen_function(arg)
@@ -185,7 +189,7 @@ class CompoundOperator(ML_CG_Operator):
                 if dummy_precision == None:
                     dummy_precision = code_generator.get_unknown_precision()
                     if dummy_precision == None:
-                        print optree.get_str(depth = 2, display_precision = True) # Error display
+                        print(optree.get_str(depth = 2, display_precision = True)) # Error display
                         Log.report(Log.Error, "unknown output precision in compound operator")
             
                 dummy_optree = DummyTree("carg", dummy_precision)
@@ -499,7 +503,7 @@ class FunctionOperator(ML_CG_Operator):
         ML_CG_Operator.__init__(self, **kwords)
         self.function_name = function_name
         self.arg_map = None if self.arity is ML_VarArity else dict(
-                [(i, FO_Arg(i)) for i in xrange(self.arity)]
+                [(i, FO_Arg(i)) for i in range(self.arity)]
             ) if arg_map == None else (arg_map if arg_map else {})
         self.total_arity = None if self.arg_map == None else len(self.arg_map)
         self.pre_process = pre_process
@@ -631,7 +635,7 @@ class FunctionOperator(ML_CG_Operator):
         result_var = kwords["result_var"]
 
         arg_map = dict([
-            (i, FO_Arg(i)) for i in xrange(
+            (i, FO_Arg(i)) for i in range(
                 len(optree.inputs))]
         ) if self.arity is ML_VarArity else self.arg_map
         total_arity = len(optree.inputs) if self.arity is ML_VarArity \
@@ -663,7 +667,7 @@ class FunctionOperator(ML_CG_Operator):
                 var_arg_list,
                 arg_map = arg_map,
                 result_args_map = result_args_map
-            ) for index in xrange(total_arity)
+            ) for index in range(total_arity)
         ]
         result_arg_list = self.get_process_arg_list()(
             code_object,
@@ -720,7 +724,7 @@ class AsmInlineOperator(ML_CG_Operator):
         """ symbol operator initialization function """
         ML_CG_Operator.__init__(self, arity)
         self.asm_template = asm_template
-        self.arg_map = dict([(0, FO_Result(0))] + [(i+1, FO_Arg(i)) for i in xrange(arity)]) if arg_map == None else arg_map
+        self.arg_map = dict([(0, FO_Result(0))] + [(i+1, FO_Arg(i)) for i in range(arity)]) if arg_map == None else arg_map
         # total arity
         self.total_arity = arity + output_num
 
@@ -751,7 +755,7 @@ class AsmInlineOperator(ML_CG_Operator):
             arg_result = ordered_generation(lambda arg: code_generator.generate_expr(code_object, arg, force_variable_storing = force_input_variable, **kwords), arg_tuple)
             # assembling parent operator code
             return self.assemble_code(code_generator, code_object, optree, arg_result, generate_pre_process = generate_pre_process, **kwords)
-            #[self.get_arg_from_index(index, arg_result) for index in xrange(self.arity)], 
+            #[self.get_arg_from_index(index, arg_result) for index in range(self.arity)], 
 
 
 
@@ -765,7 +769,7 @@ class AsmInlineOperator(ML_CG_Operator):
         result_varname = result_var if result_var != None else code_object.get_free_var_name(optree.get_precision(), prefix = prefix)
 
         # generating result code
-        template_content = tuple([self.get_arg_from_index(index, var_arg_list, [result_varname]).get() for index in xrange(self.total_arity)])
+        template_content = tuple([self.get_arg_from_index(index, var_arg_list, [result_varname]).get() for index in range(self.total_arity)])
         result_code = None
         result_code = self.asm_template % template_content 
 
@@ -921,7 +925,11 @@ class type_relax_match(object):
         self.type_tuple = type_tuple
 
     def __call__(self, *arg_tuple, **kwords):
-        return reduce(lambda acc, v: acc and (v[0] == v[1] or v[1] == ML_Exact), zip(self.type_tuple, arg_tuple))
+        acc = True
+        for v in zip(self.type_tuple, arg_tuple):
+            acc = acc and (v[0] == v[1] or v[1] == ML_Exact)
+        return acc
+        # return reduce(lambda acc, v: acc and (v[0] == v[1] or v[1] == ML_Exact), zip(self.type_tuple, arg_tuple))
 
 class type_result_match(object):
     def __init__(self, result_type):

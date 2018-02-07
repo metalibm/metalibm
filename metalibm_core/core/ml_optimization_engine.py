@@ -34,7 +34,7 @@ def merge_abstract_format(*args):
     if has_integer: return ML_Integer
     if has_bool: return ML_AbstractBool
     else:
-        print [str(arg) for arg in args]
+        print([str(arg) for arg in args])
         Log.report(Log.Error, "unknown formats while merging abstract format tuple")
 
 
@@ -432,7 +432,7 @@ class OptimizationEngine(object):
 
     def propagate_format_to_cst(self, optree, new_optree_format, index_list = []):
         """ propagate new_optree_format to Constant operand of <optree> with abstract precision """
-        index_list = xrange(len(optree.inputs)) if index_list == [] else index_list
+        index_list = range(len(optree.inputs)) if index_list == [] else index_list
         for index in index_list:
             inp = optree.inputs[index]
             if isinstance(inp, Constant) and isinstance(inp.get_precision(), ML_AbstractFormat):
@@ -447,13 +447,13 @@ class OptimizationEngine(object):
             try:
                 arg_bit_size = arg.get_precision().get_bit_size()
             except:
-                print "ERROR in get_bit_size during merge_abstract_format"
-                print "optree: "
-                print optree.get_inputs()
-                print optree.get_precision()
-                print optree.get_str(display_precision = True, memoization_map = {}) # Exception print
-                print "arg: "
-                print arg.get_precision(), arg.get_str(display_precision = True, memoization_map = {}) # Exception print
+                print("ERROR in get_bit_size during merge_abstract_format")
+                print("optree: ")
+                print(optree.get_inputs())
+                print(optree.get_precision())
+                print(optree.get_str(display_precision = True, memoization_map = {})) # Exception print
+                print("arg: ")
+                print(arg.get_precision(), arg.get_str(display_precision = True, memoization_map = {})) # Exception print
 
                 raise Exception()
             if arg_bit_size > max_binary_size:
@@ -1006,7 +1006,7 @@ class OptimizationEngine(object):
     def check_processor_support(self, optree, memoization_map = {}, debug = False, language = C_Code):
         """ check if all precision-instantiated operation are supported by the processor """
         if debug:
-          print "checking processor support: ", self.processor.__class__ # Debug print
+          print("checking processor support: ", self.processor.__class__) # Debug print
         if  optree in memoization_map:
             return True
         if not isinstance(optree, ML_LeafNode):
@@ -1040,7 +1040,7 @@ class OptimizationEngine(object):
                     match_found = False
                     for result_type_cond in type_escalation[optree.__class__]:
                         if result_type_cond(optree.get_precision()): 
-                            for op_index in xrange(len(optree.inputs)):
+                            for op_index in range(len(optree.inputs)):
                                 op = optree.inputs[op_index]
                                 for op_type_cond in type_escalation[optree.__class__][result_type_cond]:
                                     if op_type_cond(op.get_precision()): 
@@ -1067,10 +1067,10 @@ class OptimizationEngine(object):
                             memoization_map[optree] = True
                             return True
                         
-                    print optree # Error print
-                    print "pre escalation: ", old_list # Error print
-                    print self.processor.get_operation_keys(optree) # Error print
-                    print optree.get_str(display_precision = True, display_id = True, memoization_map = {}) # Error print
+                    print(optree) # Error print
+                    print("pre escalation: ", old_list) # Error print
+                    print(self.processor.get_operation_keys(optree)) # Error print
+                    print(optree.get_str(display_precision = True, display_id = True, memoization_map = {})) # Error print
                     Log.report(Log.Error, "unsupported operation\n")
         # memoization
         memoization_map[optree] = True

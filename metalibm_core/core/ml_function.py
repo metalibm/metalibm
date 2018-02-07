@@ -350,9 +350,9 @@ class ML_FunctionBasis(object):
     for code_function in code_function_list:
       scheme = code_function.get_scheme()
       if display_after_gen:
-        print "function %s, after gen " % code_function.get_name()
-        print scheme.get_str(depth = None, display_precision = True,
-                             memoization_map = {})
+        print("function %s, after gen " % code_function.get_name())
+        print(scheme.get_str(depth = None, display_precision = True,
+                             memoization_map = {}))
 
       # optimize scheme
       opt_scheme = self.optimise_scheme(
@@ -367,8 +367,8 @@ class ML_FunctionBasis(object):
       code_function.set_scheme(opt_scheme)
 
       if self.display_after_opt or display_after_opt:
-        print "function %s, after opt " % code_function.get_name()
-        print opt_scheme.get_str(depth = None, display_precision = True, memoization_map = {}, display_id=True)
+        print("function %s, after opt " % code_function.get_name())
+        print(opt_scheme.get_str(depth = None, display_precision = True, memoization_map = {}, display_id=True))
 
     # generate auto-test wrapper
     if self.auto_test_enable:
@@ -491,7 +491,7 @@ class ML_FunctionBasis(object):
   #  to scalar callback when necessary
   def generate_opencl_vector_wrapper(self, vector_size, vec_arg_list, vector_scheme, vector_mask, vec_res, scalar_callback):
     unrolled_cond_allocation = Statement()
-    for i in xrange(vector_size):
+    for i in range(vector_size):
       elt_index = Constant(i)
       vec_elt_arg_tuple = tuple(VectorElementSelection(vec_arg, elt_index, precision = self.precision) for vec_arg in vec_arg_list)
       unrolled_cond_allocation.add(
@@ -599,12 +599,12 @@ class ML_FunctionBasis(object):
     call_externalizer = CallExternalizer(self.get_main_code_object())
     scalar_callback_function = call_externalizer.externalize_call(scalar_scheme, scalar_arg_list, callback_name, self.precision)
 
-    print "[SV] optimizing Scalar scheme"
+    print("[SV] optimizing Scalar scheme")
     scalar_scheme = self.optimise_scheme(scalar_scheme)
 
     scalar_callback          = scalar_callback_function.get_function_object()
 
-    print "[SV] vectorizing scheme"
+    print("[SV] vectorizing scheme")
     vec_arg_list, vector_scheme, vector_mask = \
         self.vectorizer.vectorize_scheme(scalar_scheme, scalar_arg_list,
                                          vector_size, call_externalizer,
@@ -628,7 +628,7 @@ class ML_FunctionBasis(object):
 
     self.get_main_code_object().add_header("support_lib/ml_vector_format.h")
 
-    print "[SV] building vectorized main statement"
+    print("[SV] building vectorized main statement")
     if no_scalar_fallback_required(vector_mask):
       function_scheme = Statement(
         Return(vector_scheme)
@@ -648,7 +648,7 @@ class ML_FunctionBasis(object):
     # dummy scheme to make functionnal code generation
     self.implementation.set_scheme(function_scheme)
 
-    print "[SV] end of generate_function_list"
+    print("[SV] end of generate_function_list")
     return [scalar_callback_function, self.implementation]
 
 
@@ -716,7 +716,7 @@ class ML_FunctionBasis(object):
         dimensions = [test_total], 
         storage_precision = self.get_input_precision(i), 
         tag = self.uniquify_name("input_table_arg%d" % i)
-      ) for i in xrange(self.get_arity())
+      ) for i in range(self.get_arity())
     ]
     ## output values required to check results are stored in output table
     num_output_value = self.accuracy_obj.get_num_output_value()
@@ -731,7 +731,7 @@ class ML_FunctionBasis(object):
       # standard test cases
       for i in range(num_std_case):
         input_list = []
-        for in_id in xrange(self.get_arity()):
+        for in_id in range(self.get_arity()):
           input_value = self.get_input_precision(in_id).round_sollya_object(self.standard_test_cases[i][0], RN)
           input_list.append(input_value)
         test_case_list.append(tuple(input_list))
@@ -740,7 +740,7 @@ class ML_FunctionBasis(object):
     # random test cases
     for i in range(test_num):
       input_list = []
-      for in_id in xrange(self.get_arity()):
+      for in_id in range(self.get_arity()):
         input_value = random.uniform(low_input, high_input)
         input_value = self.precision.round_sollya_object(input_value, RN)
         input_list.append(input_value)
@@ -750,11 +750,11 @@ class ML_FunctionBasis(object):
     # of all inputs
     for table_index, input_tuple in enumerate(test_case_list):
       # storing inputs
-      for in_id in xrange(self.get_arity()):
+      for in_id in range(self.get_arity()):
         input_tables[in_id][table_index] = input_tuple[in_id]
       # computing and storing output values
       output_values = self.accuracy_obj.get_output_check_value(self, input_tuple)
-      for o in xrange(num_output_value):
+      for o in range(num_output_value):
         output_table[table_index][o] = output_values[o]
 
     if self.implementation.get_output_format().is_vector_format():
@@ -783,7 +783,7 @@ class ML_FunctionBasis(object):
       (1, FO_Arg(0)), # error index
       (2 + self.get_arity(), FO_Arg(1 + self.get_arity())) # output
     ] + 
-    [(2 + i, FO_Arg(1 + i)) for i in xrange(self.get_arity())] # arguments
+    [(2 + i, FO_Arg(1 + i)) for i in range(self.get_arity())] # arguments
     )
     printf_op = FunctionOperator("printf", arg_map = printf_arg_mapping, void_function = True) 
     printf_input_function = FunctionObject("printf", [ML_Int32] + self.get_input_precisions() + [self.precision], ML_Void, printf_op)
@@ -806,11 +806,11 @@ class ML_FunctionBasis(object):
         "vec_x_{}".format(i) , 
         precision = vector_format, 
         var_type = Variable.Local
-      ) for i in xrange(self.get_arity())
+      ) for i in range(self.get_arity())
     ]
     for input_index, local_input in enumerate(local_inputs):
       assignation_statement.push(local_input)
-      for k in xrange(self.get_vector_size()):
+      for k in range(self.get_vector_size()):
         elt_assign = ReferenceAssign(VectorElementSelection(local_input, k), TableLoad(input_tables[input_index], vi + k))
         assignation_statement.push(elt_assign)
 
@@ -823,11 +823,11 @@ class ML_FunctionBasis(object):
     printf_input_function = self.get_printf_input_function()
 
     # comparison with expected
-    for k in xrange(self.get_vector_size()):
-      elt_inputs  = [VectorElementSelection(local_inputs[input_id], k) for input_id in xrange(self.get_arity())]
+    for k in range(self.get_vector_size()):
+      elt_inputs  = [VectorElementSelection(local_inputs[input_id], k) for input_id in range(self.get_arity())]
       elt_result = VectorElementSelection(local_result, k)
 
-      output_values = [TableLoad(output_table, vi + k, i) for i in xrange(self.accuracy_obj.get_num_output_value())]
+      output_values = [TableLoad(output_table, vi + k, i) for i in range(self.accuracy_obj.get_num_output_value())]
 
       failure_test = self.accuracy_obj.get_output_check_test(elt_result, output_values)
 
@@ -867,12 +867,12 @@ class ML_FunctionBasis(object):
           "vec_x_{}".format(i) , 
           precision = vector_format, 
           var_type = Variable.Local
-        ) for i in xrange(self.get_arity())
+        ) for i in range(self.get_arity())
       ]
       assignation_statement = Statement()
       for input_index, local_input in enumerate(local_inputs):
         assignation_statement.push(local_input)
-        for k in xrange(self.get_vector_size()):
+        for k in range(self.get_vector_size()):
           elt_assign = ReferenceAssign(VectorElementSelection(local_input, k), TableLoad(input_tables[input_index], vi + k))
           assignation_statement.push(elt_assign)
 
@@ -880,11 +880,11 @@ class ML_FunctionBasis(object):
       local_result = tested_function(*local_inputs)
 
       comp_statement = Statement()
-      for k in xrange(self.get_vector_size()):
-        elt_inputs = [VectorElementSelection(local_inputs[input_id], k) for input_id in xrange(self.get_arity())]
+      for k in range(self.get_vector_size()):
+        elt_inputs = [VectorElementSelection(local_inputs[input_id], k) for input_id in range(self.get_arity())]
         elt_result = VectorElementSelection(local_result, Constant(k, precision = ML_Integer))
 
-        output_values = [TableLoad(output_table, vi + k, i) for i in xrange(self.accuracy_obj.get_num_output_value())]
+        output_values = [TableLoad(output_table, vi + k, i) for i in range(self.accuracy_obj.get_num_output_value())]
 
         local_error = self.accuracy_obj.compute_error(elt_result, output_values, relative = True)
 
@@ -932,9 +932,9 @@ class ML_FunctionBasis(object):
     test_num_cst = Constant(test_num, precision = ML_Int32, tag = "test_num")
 
 
-    local_inputs  = tuple(TableLoad(input_tables[in_id], vi) for in_id in xrange(self.get_arity()))
+    local_inputs  = tuple(TableLoad(input_tables[in_id], vi) for in_id in range(self.get_arity()))
     local_result = tested_function(*local_inputs)
-    output_values = [TableLoad(output_table, vi, i) for i in xrange(self.accuracy_obj.get_num_output_value())]
+    output_values = [TableLoad(output_table, vi, i) for i in range(self.accuracy_obj.get_num_output_value())]
 
     failure_test = self.accuracy_obj.get_output_check_test(local_result, output_values)
 
@@ -980,10 +980,10 @@ class ML_FunctionBasis(object):
       max_input = Variable("max_input", precision = ML_Int32, var_type = Variable.Local)
       max_result = Variable("max_result", precision = self.precision, var_type = Variable.Local)
       max_vi = Variable("max_vi", precision = ML_Int32, var_type = Variable.Local)
-      local_inputs  = tuple(TableLoad(input_tables[in_id], vi) for in_id in xrange(self.get_arity()))
+      local_inputs  = tuple(TableLoad(input_tables[in_id], vi) for in_id in range(self.get_arity()))
 
       local_result  = tested_function(*local_inputs)
-      stored_values = [TableLoad(output_table, vi, i) for i in xrange(self.accuracy_obj.get_num_output_value())]
+      stored_values = [TableLoad(output_table, vi, i) for i in range(self.accuracy_obj.get_num_output_value())]
       local_error = self.accuracy_obj.compute_error(local_result, stored_values, relative = True)
       error_comp = Comparison(local_error, eval_error, specifier = Comparison.Greater, precision = ML_Bool)
       error_loop = Loop(
@@ -1056,14 +1056,14 @@ class ML_FunctionBasis(object):
         storage_precision = self.get_input_precision(i), 
         tag = self.uniquify_name("input_table_arg%d" %i)
       )
-      for i in xrange(self.get_arity())
+      for i in range(self.get_arity())
     ]
     ## (low, high) are store in output table
     output_table = ML_NewTable(dimensions = [test_total], storage_precision = self.precision, tag = self.uniquify_name("output_table"), empty = True)
 
     # random test cases
     for i in range(test_num):
-      for in_id in xrange(self.get_arity()):
+      for in_id in range(self.get_arity()):
         input_value = random.uniform(low_input, high_input)
         input_value = self.precision.round_sollya_object(input_value, RN)
         input_tables[in_id][i] = input_value
@@ -1130,11 +1130,11 @@ class ML_FunctionBasis(object):
         "vec_x_{}".format(i) , 
         precision = vector_format, 
         var_type = Variable.Local
-      ) for i in xrange(self.get_arity())
+      ) for i in range(self.get_arity())
     ]
     for input_index, local_input in enumerate(local_inputs):
       assignation_statement.push(local_input)
-      for k in xrange(self.get_vector_size()):
+      for k in range(self.get_vector_size()):
         elt_assign = ReferenceAssign(VectorElementSelection(local_input, k), TableLoad(input_tables[input_index], vi + k))
         assignation_statement.push(elt_assign)
 
@@ -1145,7 +1145,7 @@ class ML_FunctionBasis(object):
     store_statement = Statement()
 
     # comparison with expected
-    for k in xrange(self.get_vector_size()):
+    for k in range(self.get_vector_size()):
       elt_result = VectorElementSelection(local_result, k)
 
       # TODO: change to use aligned linear vector store
@@ -1174,7 +1174,7 @@ class ML_FunctionBasis(object):
     vi = Variable("i", precision = ML_Int32, var_type = Variable.Local)
     test_num_cst = Constant(test_num, precision = ML_Int32, tag = "test_num")
 
-    local_inputs  = tuple(TableLoad(input_tables[in_id], vi) for in_id in xrange(self.get_arity()))
+    local_inputs  = tuple(TableLoad(input_tables[in_id], vi) for in_id in range(self.get_arity()))
     local_result = tested_function(*local_inputs)
 
     loop_increment = 1

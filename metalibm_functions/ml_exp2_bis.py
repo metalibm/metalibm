@@ -69,9 +69,9 @@ class ML_Exp2(ML_Function("ml_exp2")):
     r_interval = Interval(-0.5, 0.5)
 
     local_ulp = sup(ulp(2**r_interval, self.precision))
-    print "ulp: ", local_ulp
+    print("ulp: ", local_ulp)
     error_goal = S2**-1*local_ulp
-    print "error goal: ", error_goal
+    print("error goal: ", error_goal)
 
     sollya_precision = {ML_Binary32: sollya.binary32, ML_Binary64: sollya.binary64}[self.precision]
     int_precision = {ML_Binary32: ML_Int32, ML_Binary64: ML_Int64}[self.precision]
@@ -92,7 +92,7 @@ class ML_Exp2(ML_Function("ml_exp2")):
 
     poly_object, poly_error = Polynomial.build_from_approximation_with_error(2**(sollya.x) - 1 , degree, precision_list, r_interval, sollya.absolute)
     Log.report(Log.Info, "Poly : %s" % poly_object)
-    print "poly_error : ", poly_error
+    print("poly_error : ", poly_error)
     poly = polynomial_scheme_builder(poly_object.sub_poly(start_index = 1), vx_r, unified_precision = self.precision)
     poly.set_attributes(tag = "poly", debug = debug_multi)
 
@@ -102,7 +102,7 @@ class ML_Exp2(ML_Function("ml_exp2")):
     oflow_bound = Constant(self.precision.get_emax() + 1, precision = self.precision)
     subnormal_bound = self.precision.get_emin_subnormal()
     uflow_bound = self.precision.get_emin_normal()
-    print "oflow : ", oflow_bound
+    print("oflow : ", oflow_bound)
     #print "uflow : ", uflow_bound
     #print "sub : ", subnormal_bound
     test_overflow = Comparison(vx, oflow_bound, specifier = Comparison.GreaterOrEqual)

@@ -148,11 +148,11 @@ class AbstractBackend(object):
                             src_file = inspect.getsourcefile(condition)
                             _, lineno = inspect.getsourcelines(condition)
                             ic_id = 0
-                            print "verified by condition @ {}:{}".format(src_file, lineno)
+                            print("verified by condition @ {}:{}".format(src_file, lineno))
                             for interface_condition in op_map[language][op_class][codegen_key][condition]:
-                                print "  interface_condition @{}:{}/{} {}".format(src_file, lineno, ic_id, interface_condition(*interface, optree = optree)) 
+                                print("  interface_condition @{}:{}/{} {}".format(src_file, lineno, ic_id, interface_condition(*interface, optree = optree))) 
                                 ic_id += 1
-                      print op_map[language][op_class][codegen_key].keys()
+                      print(op_map[language][op_class][codegen_key].keys())
                       Log.report(Log.Info, "unsupported condition key for %s" % optree.get_str(display_precision = True))
                     return False
 

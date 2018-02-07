@@ -273,7 +273,7 @@ class ML_Exponential(ML_Function("ml_exp")):
         global_poly_error     = None
         global_rel_poly_error = None
 
-        for case_index in xrange(3):
+        for case_index in range(3):
             poly_error = poly_approx_error + poly_eval_error_dico[case_index]
             rel_poly_error = sup(abs(poly_error / exp(approx_interval_split[case_index])))
             if global_rel_poly_error == None or rel_poly_error > global_rel_poly_error:

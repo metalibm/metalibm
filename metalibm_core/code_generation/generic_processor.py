@@ -927,4 +927,4 @@ class GenericProcessor(AbstractBackend):
 
 
 if __name__ == "__main__":
-    print FunctionOperator("ml_is_nan_or_inff", arity = 1).arg_map
+    print(FunctionOperator("ml_is_nan_or_inff", arity = 1).arg_map)

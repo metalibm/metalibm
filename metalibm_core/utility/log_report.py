@@ -29,7 +29,7 @@ class Log(object):
 
     @staticmethod
     def set_break_on_error(value):
-      print "setting break on error ", value
+      print("setting break on error ", value)
       Log.break_on_error = value
 
     class LogLevel(object):
@@ -76,9 +76,9 @@ class Log(object):
         if Log.log_stream:
             Log.log_stream.write(msg + eol)
             if Log.dump_stdout:
-              print "%s: %s" % (level.name, msg)
+              print("%s: %s" % (level.name, msg))
         elif Log.filter_log_level(Log.enabled_levels, level):
-            print "%s: %s" % (level.name, msg)
+            print("%s: %s" % (level.name, msg))
         if level is Log.Error:
             if Log.break_on_error:
               pdb.set_trace()

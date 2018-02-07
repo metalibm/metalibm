@@ -47,7 +47,7 @@ def generic_get_vhdl_cst(value, bit_size):
   assert bit_size > 0
   assert value <= (2**bit_size - 1)
   if bit_size % 4 == 0:
-    return "X\"%s\"" % hex(value)[2:].replace("L","").zfill(bit_size / 4)
+    return "X\"%s\"" % hex(value)[2:].replace("L","").zfill(bit_size // 4)
   else:
     return "\"%s\"" % bin(value)[2:].replace("L","").zfill(bit_size)
 

@@ -11,7 +11,7 @@
 ###############################################################################
 
 import re
-import commands
+import subprocess
 import sys
 import pdb
 
@@ -239,11 +239,11 @@ class MultiSymbolTable(object):
         for table_tag in init_required_list:
             code_object += self.table_list[table_tag].generate_initialization(code_generator)
         return code_object
-        
+
 
 def get_git_tag():
     """ extract git commit tag """
-    git_tag = commands.getoutput("git log -n 1")
+    git_tag = subprocess.call("git log -n 1")
     return git_tag
 
 

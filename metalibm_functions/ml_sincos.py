@@ -198,7 +198,7 @@ class ML_SinCos(ML_Function("ml_cos")):
     table_index_size = frac_pi_index+1
     cos_table = ML_NewTable(dimensions = [2**table_index_size, 1], storage_precision = self.precision, tag = self.uniquify_name("cos_table"))
 
-    for i in xrange(2**(frac_pi_index+1)):
+    for i in range(2**(frac_pi_index+1)):
       local_x = i*pi/S2**frac_pi_index
       cos_local = round(cos(local_x), self.precision.get_sollya_object(), sollya.RN)
       cos_table[i][0] = cos_local
@@ -211,8 +211,8 @@ class ML_SinCos(ML_Function("ml_cos")):
     poly_degree_cos   = sup(guessdegree(cos(sollya.x), approx_interval, S2**-self.precision.get_precision()) + 2) 
     poly_degree_sin   = sup(guessdegree(sin(sollya.x)/sollya.x, approx_interval, S2**-self.precision.get_precision()) + 2) 
     
-    poly_degree_cos_list = range(0, poly_degree_cos + 3)
-    poly_degree_sin_list = range(0, poly_degree_sin + 3)
+    poly_degree_cos_list = range(0, int(poly_degree_cos) + 3)
+    poly_degree_sin_list = range(0, int(poly_degree_sin) + 3)
 
     # cosine polynomial: limiting first and second coefficient precision to 1-bit
     poly_cos_prec_list = [self.precision] * len(poly_degree_cos_list)

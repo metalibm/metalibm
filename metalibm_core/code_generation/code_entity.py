@@ -172,7 +172,7 @@ class CodeEntity(object):
 
   ## @return function implementation (ML_Operation DAG)
   def get_scheme(self):
-    return Statement(*tuple(self.process_list + self.get_output_assign()))
+    return Statement(*tuple(self.process_list + list(self.get_output_assign())))
 
   def get_definition(self, code_generator, language, folded = True, static_cst = False):
     code_object = NestedCode(code_generator, static_cst = static_cst, code_ctor = VHDLCodeObject)

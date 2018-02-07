@@ -89,7 +89,7 @@ class ML_UT_ImplicitIntervalEval(ML_Function("ml_ut_implicit_interval_eval")):
                 )
             )
         else: 
-            print "node {}: {} vs {}".format(var.get_tag(), var.get_interval(), expected_interval[var])
+            print("node {}: {} vs {}".format(var.get_tag(), var.get_interval(), expected_interval[var]))
 
     return Statement()
 

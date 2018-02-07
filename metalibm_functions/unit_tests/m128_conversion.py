@@ -62,7 +62,7 @@ class ML_UT_M128Conversion(ML_Function("ml_ut_m128_conversion")):
       dimensions = [table_size],
       storage_precision = self.precision
     )
-    for i in xrange(table_size):
+    for i in range(table_size):
       table[i] = i
 
     index = NearestInteger(

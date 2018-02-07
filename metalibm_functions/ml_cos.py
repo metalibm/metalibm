@@ -160,7 +160,7 @@ class ML_Cosine(ML_Function("ml_cos")):
     index_relative = []
 
     poly_object_vector = [None] * 2**(frac_pi_index+1)
-    for i in xrange(2**(frac_pi_index+1)):
+    for i in range(2**(frac_pi_index+1)):
       sub_func = cos(sollya.x+i*pi/S2**frac_pi_index)
       degree = int(sup(guessdegree(sub_func, approx_interval, error_goal_approx))) + 1
 
@@ -198,7 +198,7 @@ class ML_Cosine(ML_Function("ml_cos")):
 
     poly_scheme_vector = [None] * (2**(frac_pi_index+1))
 
-    for i in xrange(2**(frac_pi_index+1)):
+    for i in range(2**(frac_pi_index+1)):
       poly_object = poly_object_vector[i]
       poly_precision = self.precision
       if i == 3 or i == 5 or i == 7 or i == 9: 
@@ -274,10 +274,10 @@ class ML_Cosine(ML_Function("ml_cos")):
 
     switch_map = {}
     if 0:
-      for i in xrange(2**(frac_pi_index+1)):
+      for i in range(2**(frac_pi_index+1)):
         switch_map[i] = Return(poly_scheme_vector[i])
     else:
-      for i in xrange(2**(frac_pi_index-1)):
+      for i in range(2**(frac_pi_index-1)):
         switch_case = (i, half - i)
         #switch_map[i]      = Return(poly_scheme_vector[i])
         #switch_map[half-i] = Return(-poly_scheme_vector[i])
@@ -332,7 +332,7 @@ class ML_Cosine(ML_Function("ml_cos")):
     lar_upm = {}
     lar_switch_map = {}
     approx_interval = Interval(-0.5, 0.5)
-    for i in xrange(2**(lar_k+1)):
+    for i in range(2**(lar_k+1)):
       frac_pi = pi / S2**lar_k
       func = cos(frac_pi * i + frac_pi * sollya.x)
       

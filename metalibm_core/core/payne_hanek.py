@@ -115,7 +115,7 @@ def generate_payne_hanek(
   # this loop divide the digits of frac_pi into chunks 
   # the chunk lsb weight is given by a shift from 
   # cst_msb, multiple of the chunk index
-  for i in xrange(chunk_number):
+  for i in range(chunk_number):
     value_div_factor = S2**(chunk_size * (i+1) - cst_msb)
     local_cst = int(tmp_cst * value_div_factor) / value_div_factor 
     local_scale = (scaling_factor**i)
@@ -154,7 +154,7 @@ def generate_payne_hanek(
   half_size = precision.get_field_size() / 2 + 1
 
   # hi part (most significant digit) of vx input
-  vx_hi = TypeCast(BitLogicAnd(TypeCast(vx, precision = int_precision), Constant(~(2**half_size-1), precision = int_precision)), precision = precision) 
+  vx_hi = TypeCast(BitLogicAnd(TypeCast(vx, precision = int_precision), Constant(~int(2**half_size-1), precision = int_precision)), precision = precision) 
   vx_hi.set_attributes(tag = "vx_hi_ph")#, debug = debug_multi)
 
   vx_lo = vx - vx_hi

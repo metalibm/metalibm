@@ -65,6 +65,6 @@ class MPFRProcessor(GenericProcessor):
 
   def __init__(self):
     GenericProcessor.__init__(self)
-    print "initializing MPFR target"
+    print("initializing MPFR target")
     tab = self.simplified_rec_op_map[C_Code][Conversion][None]
       

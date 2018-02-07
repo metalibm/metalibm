@@ -64,7 +64,7 @@ class ML_LeadingZeroCounter(ML_Entity("ml_lzc")):
     def count_leading_zero(v, w):
       tmp = v
       lzc = -1
-      for i in xrange(w):
+      for i in range(w):
         if tmp & 2**(w - 1 - i):
           return i
       return w

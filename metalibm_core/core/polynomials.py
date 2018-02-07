@@ -80,7 +80,7 @@ class Polynomial(object):
 
         elif isinstance(init_object, SollyaObject):
             self.degree = sollya.degree(init_object)
-            for index in xrange(self.degree+1):
+            for index in range(int(self.degree)+1):
                 coeff_value = coeff(init_object, index)
                 if coeff_value != 0:
                   self.coeff_map[index] = coeff_value
@@ -105,11 +105,11 @@ class Polynomial(object):
         """ degree getter """
         return self.degree
 
-    def sub_poly(self, start_index = 0, stop_index = None, offset = 0):
+    def sub_poly(self, start_index=0, stop_index=None, offset = 0):
         """ sub polynomial extraction """
         new_coeff_map = {}
         end_index = self.degree + 1 if stop_index == None else stop_index + 1
-        for index in range(start_index, end_index):
+        for index in range(int(start_index), int(end_index)):
             if not index in self.coeff_map: continue
             new_coeff_map[index - offset] = self.coeff_map[index]
         return Polynomial(new_coeff_map)
@@ -226,7 +226,7 @@ class Polynomial(object):
                 precision_list.append(c)
         sollya_poly = sollya.fpminimax(function, poly_degree, precision_list, approx_interval, *modifiers)
         if sollya_poly.is_error():
-            print "function: {}, poly_degree: {}, precision_list: {}, approx_interval: {}, modifiers: {}".format(function, poly_degree, precision_list, approx_interval, modifiers)
+            print("function: {}, poly_degree: {}, precision_list: {}, approx_interval: {}, modifiers: {}".format(function, poly_degree, precision_list, approx_interval, modifiers))
             raise SollyaError()
 
         fpnorm_modifiers = sollya.absolute if sollya.absolute in modifiers else sollya.relative
@@ -253,7 +253,7 @@ def generate_power(variable, power, power_map = {}, precision = None):
                 result = Multiplication(variable, sub_square,
                                         precision=precision, tag=result_tag)
             else:
-                sub_power = generate_power(variable, power / 2, power_map,
+                sub_power = generate_power(variable, power // 2, power_map,
                                           precision=precision)
                 sub_square_tag = "%s%d_" % (variable.get_tag() or "X", (power / 2) * 2)
                 sub_square = Multiplication(sub_power, sub_power,
@@ -384,7 +384,7 @@ class PolynomialSchemeEvaluator(object):
         else:
             min_degree = int(polynomial_object.get_min_monomial_degree())
             max_degree = int(polynomial_object.get_degree())
-            poly_degree = (max_degree - min_degree + 2) / 2 + min_degree - 1
+            poly_degree = (max_degree - min_degree + 2) // 2 + min_degree - 1
             offset_degree = poly_degree + 1 - min_degree
             sub_poly_lo = polynomial_object.sub_poly(stop_index = poly_degree)
             sub_poly_hi = polynomial_object.sub_poly(start_index = poly_degree + 1, offset = offset_degree)
@@ -424,7 +424,7 @@ class PolynomialSchemeEvaluator(object):
             scheme = schemes[scheme_id]
         del cgpe # Safer because of internal issues not fixed yet.
 
-        print "CGPE scheme is: {}".format(scheme)
+        print("CGPE scheme is: {}".format(scheme))
 
         def cgpe_to_metalibm(node):
             """Traverse the AST and convert nodes to Metalibm nodes."""
