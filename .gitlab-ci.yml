@@ -1,4 +1,4 @@
-image: registry.gitlab.com/metalibm-dev/metalibm/image:ci_image_pylint
+image: registry.gitlab.com/metalibm-dev/metalibm/image:python3_master
 
 before_script:
 
@@ -29,6 +29,34 @@ rtl_regression:
     - export LD_LIBRARY_PATH=/app/local/lib/
     - export PYTHONPATH=/app/local/python/lib/python
     - PYTHONPATH=$PWD:$PYTHONPATH  ML_SRC_DIR=$PWD python2.7 valid/hw_non_regression.py --debug
+
+soft_unit_tests_py3:
+  script:
+    - export PATH=/app/local/bin:$PATH
+    - export LD_LIBRARY_PATH=/app/local/lib/
+    - export PYTHONPATH=/app/local/lib/python3.4/site-packages/
+    - PYTHONPATH=$PWD:$PYTHONPATH ML_SRC_DIR=$PWD python3 valid/soft_unit_test.py --debug
+
+rtl_unit_tests_py3:
+  script:
+    - export PATH=/app/local/bin:$PATH
+    - export LD_LIBRARY_PATH=/app/local/lib/
+    - export PYTHONPATH=/app/local/lib/python3.4/site-packages/
+    - PYTHONPATH=$PWD:$PYTHONPATH ML_SRC_DIR=$PWD python3 valid/rtl_unit_test.py --debug
+
+non_regression_py3:
+  script:
+    - export PATH=/app/local/bin:$PATH
+    - export LD_LIBRARY_PATH=/app/local/lib/
+    - export PYTHONPATH=/app/local/lib/python3.4/site-packages/
+    - PYTHONPATH=$PWD:$PYTHONPATH  ML_SRC_DIR=$PWD python3 valid/non_regression.py --debug
+
+rtl_regression_py3:
+  script:
+    - export PATH=/app/local/bin:$PATH
+    - export LD_LIBRARY_PATH=/app/local/lib/
+    - export PYTHONPATH=/app/local/lib/python3.4/site-packages/
+    - PYTHONPATH=$PWD:$PYTHONPATH  ML_SRC_DIR=$PWD python3 valid/hw_non_regression.py --debug
 
 lint:
     stage: test
