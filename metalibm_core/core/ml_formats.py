@@ -106,7 +106,7 @@ class ML_Format(object):
     ## return the format's bit-size
     def get_bit_size(self):
         """ <abstract> return the bit size of the format (if it exists) """
-        print self # Exception ML_NotImplemented print
+        print(self) # Exception ML_NotImplemented print
         raise NotImplementedError
 
     def is_cst_decl_required(self):
@@ -529,15 +529,17 @@ class VirtualFormat(ML_Format):
 
 ## Virtual format with no match forwarding
 class VirtualFormatNoForward(VirtualFormat):
-  def get_match_format(self):
-		return self
+    def get_match_format(self):
+        return self
 
 class VirtualFormatNoBase(VirtualFormat):
-  def get_match_format(self):
-		return self
-  def get_base_format(self):
-		return self
-  def get_vector_format(self):
+    """ Virtual format class which does not point towards a distinct
+        base format """
+    def get_match_format(self):
+        return self
+    def get_base_format(self):
+        return self
+    def get_vector_format(self):
         return False
 
 
@@ -688,7 +690,7 @@ class ML_Base_FixedPoint_Format(ML_Fixed_Format, VirtualFormatNoBase):
         try:
           encoded_value = int(cst_value * sollya.S2**self.frac_size)
         except (ValueError, TypeError) as e:
-          print e, cst_value, self.frac_size
+          print(e, cst_value, self.frac_size)
           Log.report(Log.Error, "Error during constant conversion to sollya object")
           
         return ("" if self.signed else "U") + "INT" + str(self.c_bit_size) + "_C(" + str(encoded_value) + ")"
@@ -997,13 +999,13 @@ class ML_VectorFormat(ML_Format):
 class ML_CompoundVectorFormat(ML_VectorFormat, ML_Compound_Format):
   def __init__(self, c_format_name, opencl_format_name, vector_size, scalar_format, sollya_precision = None, cst_callback = None):
     ML_VectorFormat.__init__(self, scalar_format, vector_size, c_format_name)
-    ML_Compound_Format.__init__(self, c_format_name, ["_[%d]" % i for i in xrange(vector_size)], [scalar_format for i in xrange(vector_size)], "", "", sollya_precision)
+    ML_Compound_Format.__init__(self, c_format_name, ["_[%d]" % i for i in range(vector_size)], [scalar_format for i in range(vector_size)], "", "", sollya_precision)
     # registering OpenCL-C format name
     self.name[OpenCL_Code] = opencl_format_name
     self.cst_callback = cst_callback
 
   def get_cst_default(self, cst_value, language = C_Code):
-    elt_value_list = [self.scalar_format.get_cst(cst_value[i], language = language) for i in xrange(self.vector_size)]
+    elt_value_list = [self.scalar_format.get_cst(cst_value[i], language = language) for i in range(self.vector_size)]
     if language is C_Code:
       return "{._ = {%s}}" % (", ".join(elt_value_list))
     elif language is OpenCL_Code:

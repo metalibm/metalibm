@@ -20,7 +20,7 @@ class Pass_CheckSupport(OptreeOptimization):
   def check_processor_support(self, optree, memoization_map = {}, debug = False):
     """ check if all precision-instantiated operation are supported by the processor """
     if debug:
-      print "checking processor support: ", self.get_target().__class__ # Debug print
+      print("checking processor support: ", self.get_target().__class__) # Debug print
     if  optree in memoization_map:
       return True
     if not isinstance(optree, ML_LeafNode):
@@ -46,8 +46,8 @@ class Pass_CheckSupport(OptreeOptimization):
           # TODO: assert case is integer constant
           self.check_processor_support(op, memoization_map, debug = debug)
       elif not self.get_target().is_supported_operation(optree, debug = debug):
-        print self.processor.get_operation_keys(optree) # Error print
-        print optree.get_str(display_precision = True, display_id = True, memoization_map = {}) # Error print
+        print(self.processor.get_operation_keys(optree)) # Error print
+        print(optree.get_str(display_precision = True, display_id = True, memoization_map = {})) # Error print
         Log.report(Log.Error, "unsupported operation\n")
     # memoization
     memoization_map[optree] = True

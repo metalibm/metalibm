@@ -93,8 +93,8 @@ def piecewise_approximation(
                     sollya.absolute,
                     error_function=error_function
                 )
-            except SollyaError, err:
-                print "degree: {}".format(degree)
+            except SollyaError as err:
+                print("degree: {}".format(degree))
                 raise err
         for ci in range(degree+1):
             if ci in poly_object.coeff_map:
@@ -183,7 +183,7 @@ class ML_HyperbolicTangent(ML_Function("ml_tanh")):
         local_function = function / sollya.x
 
         degree = sollya.sup(sollya.guessdegree(local_function, approx_interval, error_bound))
-        degree_list = range(0, degree+1, 1)
+        degree_list = range(0, int(degree)+1, 1)
 
         poly_object, approx_error = Polynomial.build_from_approximation_with_error(
             function / sollya.x,

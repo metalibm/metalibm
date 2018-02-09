@@ -61,7 +61,7 @@ class ML_UT_NewTable(ML_Function("ml_ut_new_table")):
     row_size   = 2
 
     new_table = ML_NewTable(dimensions = [table_size, row_size], storage_precision = self.precision)
-    for i in xrange(table_size):
+    for i in range(table_size):
       new_table[i][0]= i 
       new_table[i][1]= i + 1
 
@@ -98,8 +98,7 @@ class ML_UT_NewTable(ML_Function("ml_ut_new_table")):
     return scheme
 
   def numeric_emulate(self, input_value):
-    table = [[i, i+1] for i in xrange(16)]
-    print input_value
+    table = [[i, i+1] for i in range(16)]
     index = int(input_value) % 16
     lo = table[index][0]
     hi = table[index][1]

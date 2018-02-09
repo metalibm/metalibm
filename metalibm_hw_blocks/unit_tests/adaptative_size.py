@@ -125,7 +125,7 @@ class AdaptativeEntity(ML_Entity("ml_adaptative_entity"), TestRunner):
         result = {
             "vr_out": result_value
         }
-        print io_map, result
+        print(io_map, result)
         return result
 
 

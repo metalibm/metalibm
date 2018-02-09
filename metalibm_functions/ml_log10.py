@@ -146,16 +146,16 @@ class ML_Log10(ML_Function("log10")):
         _log_inv_lo = TableLoad(log_table, table_index, 1, tag = "log_inv_lo", debug = debug_lftolx) 
         _log_inv_hi = TableLoad(log_table, table_index, 0, tag = "log_inv_hi", debug = debug_lftolx)
 
-        print "building mathematical polynomial"
+        print("building mathematical polynomial")
         approx_interval = Interval(-inv_err, inv_err)
         poly_degree = sup(guessdegree(log10(1+sollya.x)/sollya.x, approx_interval, S2**-(self.precision.get_field_size()+1))) + 1
         global_poly_object = Polynomial.build_from_approximation(log10(1+x)/x, poly_degree, [self.precision]*(poly_degree+1), approx_interval, sollya.absolute)
         poly_object = global_poly_object#.sub_poly(start_index = 1)
 
-        print "generating polynomial evaluation scheme"
+        print("generating polynomial evaluation scheme")
         _poly = PolynomialSchemeEvaluator.generate_horner_scheme(poly_object, _red_vx, unified_precision = self.precision)
         _poly.set_attributes(tag = "poly", debug = debug_lftolx)
-        print global_poly_object.get_sollya_object()
+        print(global_poly_object.get_sollya_object())
 
         corr_exp = Conversion(_vx_exp if exp_corr_factor == None else _vx_exp + exp_corr_factor, precision = self.precision)
         split_red_vx = Split(_red_vx, precision = ML_DoubleDouble, tag = "split_red_vx", debug = debug_ddtolx) 
@@ -192,7 +192,7 @@ class ML_Log10(ML_Function("log10")):
     # computing gappa error
     if is_gappa_installed():
       poly_eval_error = self.get_eval_error(result, eval_error_map)
-      print "poly_eval_error: ", poly_eval_error
+      print("poly_eval_error: ", poly_eval_error)
 
 
     neg_input = Comparison(vx, 0, likely = False, specifier = Comparison.Less, debug = debugd, tag = "neg_input")
@@ -206,7 +206,7 @@ class ML_Log10(ML_Function("log10")):
     vx_one = Equal(vx, 1.0, tag = "vx_one", likely = False, debug = debugd)
 
     # exp=-1 case
-    print "managing exp=-1 case"
+    print("managing exp=-1 case")
     #red_vx_2 = arg_red_index * vx_mant * 0.5
     #approx_interval2 = Interval(0.5 - inv_err, 0.5 + inv_err)
     #poly_degree2 = sup(guessdegree(log(x), approx_interval2, S2**-(self.precision.get_field_size()+1))) + 1
@@ -225,7 +225,7 @@ class ML_Log10(ML_Function("log10")):
     S2100 = Constant(S2**100, precision = self.precision)
     result_subnormal, _, _, _, _, _, _ = compute_log(vx * S2100, exp_corr_factor = m100)
 
-    print "managing close to 1.0 cases"
+    print("managing close to 1.0 cases")
     one_err = S2**-7
     approx_interval_one = Interval(-one_err, one_err)
     red_vx_one = vx - 1.0
@@ -239,7 +239,7 @@ class ML_Log10(ML_Function("log10")):
 
 
     # main scheme
-    print "MDL scheme"
+    print("MDL scheme")
     pre_scheme = ConditionBlock(neg_input,
         Statement(
             ClearException(),

@@ -131,18 +131,18 @@ ML_SSE_m128_v2uint64  = vector_format_builder("__m128i", None, 2, ML_UInt64,
 debug_sse_vfloat32  = ML_Debug(
     display_format="{%.3f, %.3f, %.3f, %.3f}",
     require_header=["ml_utils.h", "smmintrin.h"],
-    pre_process=lambda v: ", ".join("float_from_32b_encoding(_mm_extract_ps({v}, {i}))".format(v=v,i=i) for i in xrange(4))
+    pre_process=lambda v: ", ".join("float_from_32b_encoding(_mm_extract_ps({v}, {i}))".format(v=v,i=i) for i in range(4))
 )
 debug_sse_vint32  = ML_Debug(
     display_format="{%d, %d, %d, %d}",
     require_header=["ml_utils.h", "smmintrin.h"],
-    pre_process=lambda v: ", ".join("_mm_extract_epi32({v}, {i})".format(v=v,i=i) for i in xrange(4))
+    pre_process=lambda v: ", ".join("_mm_extract_epi32({v}, {i})".format(v=v,i=i) for i in range(4))
 )
 # unsigned version
 debug_sse_vuint32  = ML_Debug(
     display_format="{%u, %u, %u, %u}",
     require_header=["ml_utils.h", "smmintrin.h"],
-    pre_process=lambda v: ", ".join("_mm_extract_epi32({v}, {i})".format(v=v,i=i) for i in xrange(4))
+    pre_process=lambda v: ", ".join("_mm_extract_epi32({v}, {i})".format(v=v,i=i) for i in range(4))
 )
 # registering ML_SSE_m128_v<i>float32 specific format
 debug_multi.add_mapping(ML_SSE_m128_v4float32, debug_sse_vfloat32)
@@ -465,7 +465,7 @@ def v4_to_m128_modifier(optree):
         conv_input,
         Constant(i, precision = ML_Integer),
         precision = elt_precision
-        ) for i in xrange(4)]
+        ) for i in range(4)]
     return Conversion(elts[0], elts[1], elts[2], elts[3],
                       precision = optree.get_precision())
 

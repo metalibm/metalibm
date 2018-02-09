@@ -133,7 +133,7 @@ class ML_Log2(ML_Function("ml_log2")):
     # value for index 0 is set to 0.0
     log_table[0][0] = 0.0
     log_table[0][1] = 0.0
-    for i in xrange(1, 2**table_index_size):
+    for i in range(1, 2**table_index_size):
         #inv_value = (1.0 + (self.processor.inv_approx_table[i] / S2**9) + S2**-52) * S2**-1
         #inv_value = (1.0 + (inv_approx_table[i][0] / S2**9) ) * S2**-1
         #print inv_approx_table[i][0], inv_value

@@ -170,10 +170,10 @@ class Pass_Vector_Promotion(OptreeOptimization):
           new_optree = insert_conversion_when_required(new_optree, self.get_conv_format(optree.get_precision()))#Conversion(new_optree, precision = self.get_conv_format(optree.get_precision()))
           return new_optree
         elif parent_converted:
-          print optree.get_precision()
+          print(optree.get_precision())
           raise NotImplementedError
         return self.memoize(parent_converted, optree, new_optree)
-          
+
 
   # standard Opt pass API
   def execute(self, optree):

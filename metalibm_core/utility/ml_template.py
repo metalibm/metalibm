@@ -132,7 +132,7 @@ def target_instanciate(target_name):
         exc_type, exc_obj, exc_tb = sys.exc_info()
         fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
         print(exc_type, fname, exc_tb.tb_lineno)
-        print traceback.print_exc()
+        print(traceback.print_exc())
         Log.report(Log.Error, "failed to build target object")
         raise
     return target_object
@@ -176,7 +176,7 @@ class VerboseAction(argparse.Action):
 
 def list_targets():
     for target_name in target_map:
-        print "{}:\n  {}".format(target_name, target_map[target_name])
+        print("{}:\n  {}".format(target_name, target_map[target_name]))
 
 
 class TargetInfoAction(argparse.Action):
@@ -201,9 +201,9 @@ class PassListAction(argparse.Action):
             option_strings, dest, nargs=0, **kwargs)
 
     def __call__(self, parser, namespace, values, option_string=None):
-        print "list of registered passes"
+        print("list of registered passes")
         for tag in Pass.get_pass_tag_list():
-            print "  {}: {}".format(tag, Pass.get_pass_by_tag(tag))
+            print("  {}: {}".format(tag, Pass.get_pass_by_tag(tag)))
         exit(0)
 
 # Command line action to set break on error in load module
@@ -216,7 +216,7 @@ class MLDebugAction(argparse.Action):
         super(MLDebugAction, self).__init__(option_strings, dest, **kwargs)
 
     def __call__(self, parser, namespace, values, option_string=None):
-        print 'MLDebugAction %r %r %r' % (namespace, values, option_string)
+        print('MLDebugAction %r %r %r' % (namespace, values, option_string))
         ml_debug_bool = bool(values)
         setattr(namespace, "ml_debug", ml_debug_bool)
         Log.set_break_on_error(ml_debug_bool)
@@ -743,12 +743,12 @@ class ML_ArgTemplate(object):
 
     def display_help(self):
         spacew = max(len(o) for o in self.help_map)
-        print "option list:"
+        print("option list:")
         for option_name in self.help_map:
-            print "  %s %s %s" % (
+            print("  %s %s %s" % (
                 option_name, " " * (spacew - len(option_name)),
                 self.help_map[option_name]
-            )
+            ))
 
     def check_args(self, parse_arg, exit_on_info=True):
         """ check that all options on command line have been parse
@@ -762,7 +762,7 @@ class ML_ArgTemplate(object):
             help_map=self.help_map,
             help_str="display the list of supported targets"
         )
-        for i in xrange(1, len(sys.argv)):
+        for i in range(1, len(sys.argv)):
             if not i in parse_arg:
                 self.display_help()
                 Log.report(
@@ -777,10 +777,10 @@ class ML_ArgTemplate(object):
         if target_info_flag:
             spacew = max(len(v) for v in target_map)
             for target_name in target_map:
-                print "%s: %s %s " % (
+                print("%s: %s %s " % (
                     target_name, " " * (spacew - len(target_name)),
                     target_map[target_name]
-                )
+                ))
             if exit_on_info:
                 sys.exit(0)
                 return None
@@ -788,4 +788,4 @@ class ML_ArgTemplate(object):
 
 if __name__ == "__main__":
     for target_name in target_map:
-        print target_name, ": ", target_map[target_name]
+        print(target_name, ": ", target_map[target_name])

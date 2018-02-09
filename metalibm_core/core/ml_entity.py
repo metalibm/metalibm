@@ -115,11 +115,11 @@ class ML_EntityBasis(object):
          ):
     # selecting argument values among defaults
     base_name = ArgDefault.select_value([base_name])
-    print "pre entity_name: ", entity_name, arg_template.entity_name
+    Log.report(Log.Info, "pre entity_name: %s %s " % (entity_name, arg_template.entity_name))
     entity_name = ArgDefault.select_value([arg_template.entity_name, entity_name])
-    print "entity_name: ", entity_name
-    print "output_file: ", arg_template.output_file, output_file 
-    print "debug_file:  ", arg_template.debug_file
+    Log.report(Log.Info, "entity_name: %s " % entity_name)
+    Log.report(Log.Info, "output_file: %s %s " % (arg_template.output_file, output_file))
+    Log.report(Log.Info, "debug_file:  %s "% arg_template.debug_file)
     output_file = ArgDefault.select_value([arg_template.output_file, output_file])
     debug_file  = arg_template.debug_file
     # Specification
@@ -407,19 +407,19 @@ class ML_EntityBasis(object):
     for code_entity in code_entity_list:
       scheme = code_entity.get_scheme()
       if display_after_gen or self.display_after_gen:
-        print "function %s, after gen " % code_entity.get_name()
-        print scheme.get_str(depth = None, display_precision = True, memoization_map = {})
+        print("function %s, after gen " % code_entity.get_name())
+        print(scheme.get_str(depth = None, display_precision = True, memoization_map = {}))
 
       # optimize scheme
       opt_scheme = self.optimise_scheme(scheme, enable_subexpr_sharing = enable_subexpr_sharing)
 
       if display_after_opt or self.display_after_opt:
-        print "function %s, after opt " % code_entity.get_name()
-        print scheme.get_str(depth = None, display_precision = True, memoization_map = {})
+        print("function %s, after opt " % code_entity.get_name())
+        print(scheme.get_str(depth = None, display_precision = True, memoization_map = {}))
 
       
 
-    print "Applying passes just before codegen"
+    print("Applying passes just before codegen")
     code_entity_list = self.pass_scheduler.get_full_execute_from_slot(
       code_entity_list, 
       PassScheduler.JustBeforeCodeGen,
@@ -431,10 +431,10 @@ class ML_EntityBasis(object):
 
     if self.auto_test_execute:
       # rtl elaboration
-      print "Elaborating {}".format(self.output_file)
+      print("Elaborating {}".format(self.output_file))
       elab_cmd = "vlib work && vcom -2008 {}".format(self.output_file)
       elab_result = subprocess.call(elab_cmd, shell = True)
-      print "Elaboration result: ", elab_result
+      print("Elaboration result: ", elab_result)
       # debug cmd
       debug_cmd = "do {debug_file};".format(debug_file = self.debug_file) if self.debug_flag else "" 
       debug_cmd += " exit;" if self.exit_after_test else ""
@@ -448,7 +448,7 @@ class ML_EntityBasis(object):
         Log.report(Log.Info, "simulation success")
 
     elif self.build_enable:
-      print "Elaborating {}".format(self.output_file)
+      print("Elaborating {}".format(self.output_file))
       elab_cmd = "vlib work && vcom -2008 {}".format(self.output_file)
       elab_result = subprocess.call(elab_cmd, shell = True)
       if elab_result:

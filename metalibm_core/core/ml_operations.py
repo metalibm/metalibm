@@ -77,7 +77,7 @@ def implicit_op(op):
     elif isinstance(op , str):
         return Constant(op, precision = ML_String)
     else:
-        print "ERROR: unsupported operand in implicit_op conversion ", op, op.__class__
+        print("ERROR: unsupported operand in implicit_op conversion ", op, op.__class__)
         raise Exception()
 
 
@@ -177,9 +177,15 @@ class AbstractOperation(ML_Operation):
     def __div__(self, op):
         """ implicit division operation between AbstractOperation """
         return Division(self, implicit_op(op))
+    def __truediv__(self, op):
+        """ implicit division operation between AbstractOperation """
+        return Division(self, implicit_op(op))
         
     ## 2-Operand implicit commuted division operator
     def __rdiv__(self, op):
+        """ implicit reflexive division operation between AbstractOperation """
+        return Division(implicit_op(op), self)
+    def __rtruediv__(self, op):
         """ implicit reflexive division operation between AbstractOperation """
         return Division(implicit_op(op), self)
         
@@ -431,8 +437,8 @@ class AbstractOperation(ML_Operation):
     #  @param copy_map dictionnary of previously built copy, if a node is found within this table, table's value is returned as copy result
     #  @return node's copy (newly generated or memoized)
     def copy(self, copy_map = {}):
-        print "Error: copy not implemented"
-        print self, self.__class__
+        print("Error: copy not implemented")
+        print(self, self.__class__)
         raise NotImplementedError
 
     ## propagate given precision
@@ -1490,7 +1496,7 @@ class FunctionCall(AbstractOperationConstructor("FunctionCall")):
     @staticmethod
     def propagate_format_to_cst(optree):
         """ propagate new_optree_format to Constant operand of <optree> with abstract precision """
-        index_list = xrange(len(optree.inputs)) 
+        index_list = range(len(optree.inputs)) 
         for index in index_list:
             inp = optree.inputs[index]
             new_optree_format = optree.get_function_object().get_arg_precision(index)
@@ -1647,4 +1653,4 @@ if __name__ == "__main__":
   # TODO: to be fixed
   for name, obj in inspect.getmembers(sys.modules[__name__]):
     if inspect.isclass(obj) and isinstance(obj, ML_Operation):
-      print "operation class: ", obj
+      print("operation class: ", obj)

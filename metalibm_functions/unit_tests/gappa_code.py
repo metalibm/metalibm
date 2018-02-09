@@ -106,7 +106,7 @@ class ML_UT_GappaCode(ML_Function("ml_ut_gappa_code")):
     gappa_result = execute_gappa_script_extract(gappa_code.get(self.gappa_engine))
 
 
-    print "eval error: ", gappa_result["goal"], gappa_result["new_goal"]
+    print("eval error: ", gappa_result["goal"], gappa_result["new_goal"])
 
     # dummy scheme to make functionnal code generation
     scheme = Statement(Return(vx))

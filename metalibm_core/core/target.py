@@ -16,7 +16,7 @@ class TargetRegister(object):
     @staticmethod
     def get_target_name_list():
         for target_name in TargetRegister.target_map:
-            print target_name
+            print(target_name)
 
     @staticmethod
     def get_target_by_name(target_name):

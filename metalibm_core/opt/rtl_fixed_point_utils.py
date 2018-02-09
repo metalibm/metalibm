@@ -12,6 +12,9 @@
 # description: Utilities for fixed-point node manipulation
 ###############################################################################
 
+# python3 legacy compatibility
+from functools import reduce
+
 from metalibm_core.utility.log_report import Log
 from metalibm_core.core.ml_hdl_format import is_fixed_point, fixed_point
 from metalibm_core.core.ml_formats import ML_Integer

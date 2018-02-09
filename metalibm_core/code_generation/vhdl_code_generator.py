@@ -536,7 +536,7 @@ class VHDLCodeGenerator(object):
             return "%s\n" % symbol_object.get_declaration()
 
         else:
-            print symbol_object.__class__
+            print(symbol_object.__class__)
             raise NotImplementedError
 
     def generate_initialization(self, symbol, symbol_object, initial = True, final = True):

@@ -126,7 +126,7 @@ class ML_FastSinCos(ML_Function("ml_fast_cos")):
     # cosine and sine fused table
     fused_table = ML_NewTable(dimensions = [2**table_size_log, 2], storage_precision = storage_precision, tag = "fast_lib_shared_table") # self.uniquify_name("cossin_table"))
     # filling table
-    for i in xrange(2**table_size_log):
+    for i in range(2**table_size_log):
       local_x = i / S2**table_size_log * S2**max_bound_log
 
       cos_local = cos(local_x) # nearestint(cos(local_x) * S2**storage_precision.get_frac_size())

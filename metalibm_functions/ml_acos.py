@@ -104,7 +104,7 @@ class ML_Acos(ML_Function("acos")):
       local_error = int(log2(sup(abs(local_error / acos(1 - local_approx_interval)))))
       coeff_table
       print local_approx_interval, local_error
-      for d in xrange(local_degree):
+      for d in range(local_degree):
         coeff_table[i][d] = sollya.coeff(local_poly_object.get_sollya_object(), d) 
 
     table_index = BitLogicRightShift(vx, vx.get_precision().get_field_size() - field_index_size) - (exp_lo << field_index_size)

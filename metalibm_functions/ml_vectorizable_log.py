@@ -87,7 +87,7 @@ class ML_Log(ML_Function("ml_log")):
                 if isinstance(self.processor, VectorBackend) \
                 else bool_convert(optree, precision, 1, 0, **kw)
 
-    print "MDL constants"
+    print("MDL constants")
     cgpe_scheme_idx = int(self.cgpe_index)
     table_index_size = int(self.tbl_index_size)
     #
@@ -127,7 +127,7 @@ class ML_Log(ML_Function("ml_log")):
             precision = uint_prec
             )
 
-    print "MDL table"
+    print("MDL table")
     # The table holds approximations of -log(2^tau * r_i) so we first compute
     # the index value for which tau changes from 2 to 0.
     cut = sqrt(2.)
@@ -135,28 +135,28 @@ class ML_Log(ML_Function("ml_log")):
     sollya_logtbl = [
             -log1p(float(i) / table_nb_elements)
             + (0 if i <= tau_index_limit else log(2.))
-            for i in xrange(table_nb_elements)
+            for i in range(table_nb_elements)
             ]
     # ...
     init_logtbl_hi = [
             round(sollya_logtbl[i],
                   self.precision.get_mantissa_size(),
                   sollya.RN)
-            for i in xrange(table_nb_elements)
+            for i in range(table_nb_elements)
     ]
     init_logtbl_lo = [
             round(sollya_logtbl[i] - init_logtbl_hi[i],
                   self.precision.get_mantissa_size(),
                   sollya.RN)
-            for i in xrange(table_nb_elements)
+            for i in range(table_nb_elements)
     ]
-    init_logtbl = [tmp[i] for i in xrange(len(init_logtbl_hi)) for tmp in [init_logtbl_hi, init_logtbl_lo]]
+    init_logtbl = [tmp[i] for i in range(len(init_logtbl_hi)) for tmp in [init_logtbl_hi, init_logtbl_lo]]
     log1p_table = ML_NewTable(dimensions = table_dimensions,
                               storage_precision = self.precision,
                               init_data = init_logtbl,
                               tag = 'ml_log1p_table')
 
-    print 'MDL unified subnormal handling'
+    print('MDL unified subnormal handling')
     vx_as_int = TypeCast(vx, precision = int_prec, tag = 'vx_as_int')
     vx_as_uint = TypeCast(vx, precision = uint_prec, tag = 'vx_as_uint')
     # Avoid the 0.0 case by subtracting 1 from vx_as_int
@@ -247,7 +247,7 @@ class ML_Log(ML_Function("ml_log")):
     # backend or if it still uses the support_lib.
     vx_mantissa = MantissaExtraction(normal_vx, precision = self.precision)
 
-    print "MDL scheme"
+    print("MDL scheme")
     rcp_m = FastReciprocal(vx_mantissa, precision = self.precision)
     if not self.processor.is_supported_operation(rcp_m):
         if self.precision == ML_Binary64:
@@ -387,7 +387,7 @@ class ML_Log(ML_Function("ml_log")):
     fp_exponent = Conversion(exponent, precision = self.precision,
                              tag = 'fp_exponent')
 
-    print 'MDL polynomial approximation'
+    print('MDL polynomial approximation')
     sollya_function = log(1 + sollya.x)
     # arg_red_mag = 2**(-table_index_size)
     # approx_interval = Interval(-arg_red_mag, arg_red_mag)
@@ -401,7 +401,7 @@ class ML_Log(ML_Function("ml_log")):
     approx_interval = Interval(-arg_red_mag, arg_red_mag)
     # max_eps = 2**-(self.precision.get_field_size() + 10)
     max_eps = 2**-(2*(self.precision.get_field_size()+1))
-    print "max acceptable error for polynomial = {}".format(float.hex(max_eps))
+    print("max acceptable error for polynomial = {}".format(float.hex(max_eps)))
     poly_degree = sup(
             guessdegree(
                 sollya_function,
@@ -411,14 +411,14 @@ class ML_Log(ML_Function("ml_log")):
             )
     poly_object = Polynomial.build_from_approximation(
             sollya_function,
-            range(2, poly_degree + 1), # Force 1st 2 coeffs to 0 and 1, resp.
+            range(2, int(poly_degree) + 1), # Force 1st 2 coeffs to 0 and 1, resp.
             # Emulate double-self.precision coefficient formats
             [self.precision.get_mantissa_size()*2 + 1]*(poly_degree - 1),
             approx_interval,
             sollya.absolute,
             0 + sollya._x_) # Force the first 2 coefficients to 0 and 1, resp.
 
-    print poly_object
+    print(poly_object)
 
     constant_precision = ML_SingleSingle if self.precision == ML_Binary32 \
             else ML_DoubleDouble if self.precision == ML_Binary64 \

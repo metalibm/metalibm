@@ -112,7 +112,7 @@ class ML_Log(ML_Function("ml_log")):
     integer_precision = {ML_Binary32: ML_UInt32, ML_Binary64: ML_UInt64}[self.precision]
 
 
-    for i in xrange(1, 2**table_index_size):
+    for i in range(1, 2**table_index_size):
         #inv_value = (1.0 + (self.processor.inv_approx_table[i] / S2**9) + S2**-52) * S2**-1
         inv_value = inv_approx_table[i][0] # (1.0 + (inv_approx_table[i][0] / S2**9) ) * S2**-1
         value_high = round(log(inv_value), self.precision.get_field_size() - (self.precision.get_exponent_size() + 1), sollya.RN)
