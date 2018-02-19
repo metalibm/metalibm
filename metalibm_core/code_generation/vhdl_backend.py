@@ -331,12 +331,13 @@ def fixed_conversion_modifier(optree):
             result_raw, -frac_ext_size,
             result_raw.get_precision().get_bit_size() - 1
         )
-    forward_attributes(optree, result_raw)
+    #forward_attributes(optree, result_raw)
     result = TypeCast(
         result_raw,
         precision=conv_precision,
-        tag = "final_fixed_conv_result"
+        tag="final_fixed_conv_result"
     )
+    forward_attributes(optree, result)
     return result
 
 def legalizing_fixed_shift_amount(shift_amount):
@@ -590,16 +591,20 @@ def fixed_point_mul_modifier(optree):
     lhs_prec = lhs.get_precision().get_base_format()
     rhs_prec = rhs.get_precision().get_base_format()
 
+    # if lhs and rhs operand sign, an exta MSB digit must be added
+    extra_sign_digit = 1 if lhs_prec.get_signed() ^ rhs_prec.get_signed() else 0
+
     optree_prec = optree.get_precision().get_base_format()
     # max, optree_prec.get_frac_size())
     result_frac_size = (lhs_prec.get_frac_size() + rhs_prec.get_frac_size())
     # max, optree_prec.get_integer_size())
     result_integer_size = (lhs_prec.get_integer_size() +
-                           rhs_prec.get_integer_size())
+                           rhs_prec.get_integer_size() +
+                           extra_sign_digit)
     #assert optree_prec.get_frac_size() >= result_frac_size
     #assert optree_prec.get_integer_size() >= result_integer_size
     lhs_casted = TypeCast(
-        lhs, 
+        lhs,
         precision=ML_StdLogicVectorFormat(
             lhs_prec.get_bit_size()
         ), init_stage=init_stage,
@@ -608,14 +613,15 @@ def fixed_point_mul_modifier(optree):
     lhs_casted = SignCast(lhs_casted, precision=lhs_casted.get_precision(
     ), specifier=SignCast.Signed if lhs_prec.get_signed() else SignCast.Unsigned)
     rhs_casted = TypeCast(
-        rhs, 
+        rhs,
         precision=ML_StdLogicVectorFormat(
             rhs_prec.get_bit_size()
         ), init_stage=init_stage,
         tag = "mul_rhs_casted",
     )
-    rhs_casted = SignCast(rhs_casted, precision=rhs_casted.get_precision(
-    ), specifier=SignCast.Signed if rhs_prec.get_signed() else SignCast.Unsigned)
+    rhs_casted = SignCast(
+        rhs_casted, precision=rhs_casted.get_precision(),
+        specifier=SignCast.Signed if rhs_prec.get_signed() else SignCast.Unsigned)
 
     mult_prec = ML_StdLogicVectorFormat(result_frac_size + result_integer_size)
     print "Multiplication {}: {} x {} = {} bits".format(
@@ -632,7 +638,9 @@ def fixed_point_mul_modifier(optree):
         init_stage=init_stage
     )
     # adapting raw result to output format
-    return adapt_fixed_optree(raw_result, (result_integer_size, result_frac_size), optree)
+    return adapt_fixed_optree(
+        raw_result, (result_integer_size, result_frac_size), optree
+    )
 
 
 def fixed_point_add_modifier(optree):
@@ -890,7 +898,8 @@ vhdl_code_generation_table = {
         None: {
             lambda optree: True: {
                 type_custom_match(MCSTDLOGICV, MCSTDLOGICV, MCSTDLOGICV): SymbolOperator("*", arity=2, force_folding=True),
-                type_custom_match(MCFixedPoint, MCFixedPoint, MCFixedPoint): ComplexOperator(optree_modifier=fixed_point_mul_modifier),
+                type_custom_match(MCFixedPoint, MCFixedPoint, MCFixedPoint):
+                    ComplexOperator(optree_modifier=fixed_point_mul_modifier),
             },
         },
     },
