@@ -323,5 +323,28 @@ def BitSelection(optree, index, **kw):
     **kw
   )
 
+## Wrapper for single bit node equality
+def equal_to(optree, cst_value):
+    return Equal(
+        optree,
+        Constant(cst_value, precision=ML_StdLogic),
+        precision = ML_Bool
+    )
+
+## Logical/Boolean operand list reduction
+def logical_reduce(op_list, op_ctor=LogicalOr, precision=ML_Bool):
+    local_list = [op for op in op_list]
+    while len(local_list) > 1:
+        op0 = local_list.pop(0)
+        op1 = local_list.pop(0)
+        local_list.append(
+            op_ctor(op0, op1, precision=precision)
+        )
+    return local_list[0]
+
+## Specialization of logical reduce to OR operation
+logical_or_reduce  = lambda op_list: logical_reduce(op_list, LogicalOr, ML_Bool)
+## Specialization of logical reduce to AND operation
+logical_and_reduce = lambda op_list: logical_reduce(op_list, LogicalAnd, ML_Bool)
 ## @} 
 # end of metalibm's Doxygen ml_hdl_operations group
