@@ -476,7 +476,7 @@ if __name__ == "__main__":
     arg_template = ML_EntityArgTemplate(default_entity_name = "new_fp_div", default_output_file = "ml_fp_div.vhd", default_arg = FP_Divider.get_default_args() )
     # extra command line arguments
 
-    arg_template.parser.add_argument("--pipelined", dest = "pipelined", action = "store_const", default = False, const = True, help = "enable operator pipelining")
+    #arg_template.parser.add_argument("--pipelined", dest = "pipelined", action = "store_const", default = False, const = True, help = "enable operator pipelining")
     # argument extraction 
     args = parse_arg_index_list = arg_template.arg_extraction()
 
