@@ -171,9 +171,11 @@ def solve_format_Multiplication(optree):
     lhs_precision = lhs.get_precision()
     rhs_precision = rhs.get_precision()
 
+    extra_sign_digit = 1 if rhs_precision.get_signed() ^ lhs_precision.get_signed() else 0
+
     return solve_format_ArithOperation(
         optree,
-        lambda l, r: l.get_integer_size() + r.get_integer_size(),
+        lambda l, r: l.get_integer_size() + r.get_integer_size() + extra_sign_digit,
         lambda l, r: l.get_frac_size() + r.get_frac_size(),
         lambda (l, lp), (r, rp): lp.get_signed() or rp.get_signed()
     )
