@@ -132,7 +132,7 @@ class OpUnitBench(object):
                         precision=self.output_precision,
                         unbreakable = True
                     )
-        for i in xrange(unroll_factor - 1):
+        for i in range(unroll_factor - 1):
             local_inputs = tuple([local_result] + var_inputs[1:])
             local_result = self.op_class(
                 *local_inputs, precision=self.output_precision, unbreakable = True

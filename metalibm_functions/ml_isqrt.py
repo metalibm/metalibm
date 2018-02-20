@@ -9,6 +9,10 @@ from sollya import S2, Interval, ceil, floor, round, inf, sup, log, exp, expm1, 
 
 from metalibm_core.core.attributes import ML_Debug
 from metalibm_core.core.ml_operations import *
+from metalibm_core.core.special_values import (
+    FP_PlusZero, FP_PlusInfty, FP_MinusInfty, FP_QNaN
+)
+
 from metalibm_core.core.ml_formats import *
 from metalibm_core.core.ml_table import ML_NewTable
 from metalibm_core.code_generation.generic_processor import GenericProcessor
@@ -60,7 +64,7 @@ def compute_isqrt(vx, init_approx, num_iter, debug_lftolx = None, precision = ML
 
     current_approx = init_approx
     # correctly-rounded inverse computation
-    for i in xrange(num_iter):
+    for i in range(num_iter):
         new_iteration = NR_Iteration(vx, current_approx, h, precision, C_half)
         current_approx = new_iteration.get_new_approx()
         current_approx.set_attributes(tag = "iter_%d" % i, debug = debug_multi)
@@ -73,49 +77,27 @@ def compute_isqrt(vx, init_approx, num_iter, debug_lftolx = None, precision = ML
 
 
 class ML_Isqrt(ML_Function("ml_isqrt")):
-  def __init__(self,
-             arg_template = DefaultArgTemplate,
-             precision = ML_Binary32,
-             accuracy  = ML_CorrectlyRounded,
-             libm_compliant = True,
-             debug_flag = False,
-             fuse_fma = True,
-             fast_path_extract = True,
-             target = GenericProcessor(),
-             output_file = "my_isqrt.c",
-             function_name = "my_isqrt",
-             language = C_Code,
-             vector_size = 1,
-             num_iter = 3):
-
-    # initializing I/O precision
-    precision = ArgDefault.select_value([arg_template.precision, precision])
-    num_iter  = ArgDefault.select_value([arg_template.num_iter, num_iter])
-    io_precisions = [precision] * 2
-
+  def __init__(self, args):
     # initializing base class
-    ML_FunctionBasis.__init__(self,
-      base_name = "isqrt",
-      function_name = function_name,
-      output_file = output_file,
+    ML_FunctionBasis.__init__(self, args)
+    self.accuracy  = args.accuracy
+    self.num_iter = args.num_iter
 
-      io_precisions = io_precisions,
-      abs_accuracy = None,
-      libm_compliant = libm_compliant,
 
-      processor = target,
-      fuse_fma = fuse_fma,
-      fast_path_extract = fast_path_extract,
-
-      debug_flag = debug_flag,
-      language = language,
-      vector_size = vector_size,
-      arg_template = arg_template
-    )
-
-    self.accuracy  = accuracy
-    self.precision = precision
-    self.num_iter = num_iter
+  @staticmethod
+  def get_default_args(**kw):
+    """ Return a structure containing the arguments for ML_Isqrt,
+        builtin from a default argument mapping overloaded with @p kw """
+    default_args_isqrt = {
+        "output_file": "my_isqrt.c",
+        "function_name": "my_isqrt",
+        "precision": ML_Binary32,
+        "accuracy": ML_Faithful,
+        "num_iter": 4,
+        "target": GenericProcessor()
+    }
+    default_args_isqrt.update(kw)
+    return DefaultArgTemplate(**default_args_isqrt)
 
   def generate_scheme(self):
     # declaring target and instantiating optimization engine
@@ -197,10 +179,11 @@ class ML_Isqrt(ML_Function("ml_isqrt")):
 
 if __name__ == "__main__":
 
-  arg_template = ML_NewArgTemplate(default_function_name = "new_isqrt", default_output_file = "new_isqrt.c")
-  arg_template.parser.add_argument("--num-iter", dest = "num_iter", action = "store", default = ArgDefault(3), help = "number of Newton-Raphson iterations")
-  args = parse_arg_index_list = arg_template.arg_extraction()
-
+  arg_template = ML_NewArgTemplate(default_arg=ML_Isqrt.get_default_args())
+  arg_template.parser.add_argument(
+    "--num-iter", dest="num_iter", action="store", default=3, type=int,
+    help="number of Newton-Raphson iterations")
+  args = arg_template.arg_extraction()
 
   ml_isqrt  = ML_Isqrt(args)
   ml_isqrt.gen_implementation()

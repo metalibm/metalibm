@@ -88,9 +88,11 @@ class Pass_Vector_Promotion(OptreeOptimization):
       codegen_key = optree.get_codegen_key()
       return op_class, interface, codegen_key
 
-    support_status = self.target.is_supported_operation(optree, key_getter = key_getter)
+    support_status = self.target.is_supported_operation(optree, key_getter=key_getter)
     if not support_status:
       Log.report(Log.Verbose, "not supported in vector_promotion: {}".format(optree.get_str(depth = 2, display_precision = True, memoization_map = {})))
+      op, formats, specifier = key_getter(None, optree)
+      Log.report(Log.Verbose, "with key: {}, {}, {}".format(str(op), [str(f) for f in formats], str(specifier)))
     return support_status
 
   ## memoize converted     
@@ -168,10 +170,10 @@ class Pass_Vector_Promotion(OptreeOptimization):
           new_optree = insert_conversion_when_required(new_optree, self.get_conv_format(optree.get_precision()))#Conversion(new_optree, precision = self.get_conv_format(optree.get_precision()))
           return new_optree
         elif parent_converted:
-          print optree.get_precision()
+          print(optree.get_precision())
           raise NotImplementedError
         return self.memoize(parent_converted, optree, new_optree)
-          
+
 
   # standard Opt pass API
   def execute(self, optree):

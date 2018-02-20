@@ -468,8 +468,9 @@ def fixed_comparison_modifier(optree):
 # to match format of @optree
 
 
-def adapt_fixed_optree(raw_optree, (integer_size, frac_size), optree):
+def adapt_fixed_optree(raw_optree, integer_frac_size, optree):
     # extracting params
+    integer_size, frac_size = integer_frac_size
     optree_prec = optree.get_precision()
     init_stage = optree.attributes.get_dyn_attribute("init_stage")
 
@@ -624,12 +625,12 @@ def fixed_point_mul_modifier(optree):
         specifier=SignCast.Signed if rhs_prec.get_signed() else SignCast.Unsigned)
 
     mult_prec = ML_StdLogicVectorFormat(result_frac_size + result_integer_size)
-    print "Multiplication {}: {} x {} = {} bits".format(
+    print("Multiplication {}: {} x {} = {} bits".format(
         optree.get_tag(),
         lhs_casted.get_precision().get_bit_size(),
         rhs_casted.get_precision().get_bit_size(),
         mult_prec.get_bit_size()
-    )
+    ))
     raw_result = Multiplication(
         lhs_casted,
         rhs_casted,

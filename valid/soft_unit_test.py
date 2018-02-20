@@ -21,7 +21,7 @@ from metalibm_core.targets import *
 import metalibm_core.code_generation.mpfr_backend
 
 from metalibm_core.utility.ml_template import target_instanciate
-from metalibm_core.core.ml_formats import ML_Int32, ML_Int16, ML_Int64
+from metalibm_core.core.ml_formats import ML_Int32, ML_Int16, ML_Int64, ML_Binary32
 
 from valid.unit_test import (
     UnitTestScheme
@@ -41,6 +41,8 @@ import metalibm_functions.unit_tests.vector_code as ut_vector_code
 import metalibm_functions.unit_tests.call_externalization as ut_call_externalization
 import metalibm_functions.unit_tests.auto_test as ut_auto_test
 import metalibm_functions.unit_tests.m128_conversion as ut_m128_conversion
+import metalibm_functions.unit_tests.m128_boolean as ut_m128_boolean
+import metalibm_functions.unit_tests.m128_debug as ut_m128_debug
 import metalibm_functions.unit_tests.new_table as ut_new_table
 import metalibm_functions.unit_tests.multi_ary_function as ut_multi_ary_function
 import metalibm_functions.unit_tests.entity_pass as ut_entity_pass
@@ -123,7 +125,17 @@ unit_test_list = [
   UnitTestScheme(
     "m128 conversion test",
     ut_m128_conversion,
-    [{"pre_gen_passes": ["m128_promotion"], "target": target_instanciate("x86_avx2")}],
+    [{"pre_gen_passes": ["m128_promotion"], "target": target_instanciate("x86_avx2"), "vector_size": 4, "auto_test_execute": 100}],
+  ),
+  UnitTestScheme(
+    "m128 boolean test",
+    ut_m128_boolean,
+    [{"pre_gen_passes": ["m128_promotion"], "target": target_instanciate("x86_sse2"), "vector_size": 4, "auto_test_execute": 100, "precision": ML_Int32}],
+  ),
+  UnitTestScheme(
+    "m128 debug test",
+    ut_m128_debug,
+    [{"pre_gen_passes": ["m128_promotion"], "target": target_instanciate("x86_avx2"), "vector_size": 4, "auto_test_execute": 10, "auto_test": 10, "precision": ML_Binary32, "debug": True}],
   ),
   UnitTestScheme(
     "new table test",
@@ -138,7 +150,7 @@ unit_test_list = [
   UnitTestScheme(
     "multi ary function",
     ut_multi_ary_function,
-    [{"input_formats": [ML_Int32, ML_Int32, ML_Int32], "precision": ML_Int32, "bench_execute": 100, "target": target_instanciate("x86")}],
+    [{"input_precisions": [ML_Int32, ML_Int32, ML_Int32], "precision": ML_Int32, "bench_execute": 100, "target": target_instanciate("x86")}],
   ),
   UnitTestScheme(
     "entity pass scheduling",
@@ -152,7 +164,7 @@ unit_test_list = [
 class ListUnitTestAction(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
         for test in  unit_test_list:
-          print test.get_tag_title()
+          print(test.get_tag_title())
         exit(0)
 
 
@@ -195,11 +207,11 @@ for test_scheme in args.test_list:
 
 # Printing test summary for new scheme
 for result in result_details:
-  print result.get_details()
+  print(result.get_details())
 
 if success:
-  print "OVERALL SUCCESS"
+  print("OVERALL SUCCESS")
   exit(0)
 else:
-  print "OVERALL FAILURE"
+  print("OVERALL FAILURE")
   exit(1)

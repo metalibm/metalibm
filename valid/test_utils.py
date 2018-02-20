@@ -57,7 +57,7 @@ class NewSchemeTest(CommonTestScheme):
 
   ## Build an argument template from dict
   def build_arg_template(self, **kw):
-    return DefaultArgTemplate(**kw)
+    return self.ctor.get_default_args(**kw)
 
   def single_test(self, arg_tc, debug = False):
     function_name = self.get_title()

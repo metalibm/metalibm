@@ -4,7 +4,7 @@ import sys
 
 import sollya
 
-from sollya import S2, Interval, ceil, floor, round 
+from sollya import S2, Interval, ceil, floor, round
 from sollya import parse as sollya_parse
 
 from metalibm_core.core.attributes import ML_Debug
@@ -33,9 +33,20 @@ from metalibm_core.utility.rtl_debug_utils import (
 )
 
 
-## Generate the code for a single step of a newton-Raphson 
+## Generate the code for a single step of a newton-Raphson
 #  iteration
-def generate_NR_iteration(recp_input, previous_approx, (mult_int_size, mult_frac_size), (error_int_size, error_frac_size), (tmp_approx_int_size, tmp_approx_frac_size), (approx_int_size, approx_frac_size), implementation, pipelined = 0, tag_suffix = ""):
+def generate_NR_iteration(
+        recp_input, previous_approx,
+        mult_int_frac_size,
+        error_int_frac_size,
+        tmp_approx_int_frac_size,
+        approx_int_frac_size,
+        implementation, pipelined=0, tag_suffix=""):
+    # unpacking input tuple (python2 / python3 compatibility)
+    (mult_int_size, mult_frac_size) = mult_int_frac_size
+    (error_int_size, error_frac_size) = error_int_frac_size
+    (tmp_approx_int_size, tmp_approx_frac_size) = tmp_approx_int_frac_size
+    (approx_int_size, approx_frac_size) = approx_int_frac_size
     # creating required formats
     it_mult_precision = RTL_FixedPointFormat(
       mult_int_size, mult_frac_size,
@@ -161,7 +172,7 @@ class FP_Divider(ML_Entity("fp_div")):
 
     # declaring reciprocal approximation table
     inv_approx_table = ML_NewTable(dimensions = [2**approx_index_size], storage_precision = approx_precision, tag = "inv_approx_table")
-    for i in xrange(2**approx_index_size):
+    for i in range(2**approx_index_size):
       num_input = 1 + i * S2**-approx_index_size
       table_value = io_precision.get_base_format().round_sollya_object(1 / num_input)
       inv_approx_table[i] = table_value

@@ -15,11 +15,12 @@
 
 from sollya import Interval
 
-from ml_operations import (
+from .ml_operations import (
     ML_LeafNode, BitLogicAnd, BitLogicRightShift, TypeCast, Constant
 )
-from attributes import Attributes, attr_init
-from ml_formats import ML_Int32, ML_Int64, ML_UInt32, ML_UInt64, ML_Format
+from .attributes import Attributes, attr_init
+from .ml_formats import (
+    ML_Int32, ML_Int64, ML_UInt32, ML_UInt64, ML_Format, ML_FP_Format)
 from ..code_generation.code_constant import *
 
 from ..utility.source_info import SourceInfo
@@ -36,15 +37,15 @@ def create_multi_dim_array(dimensions, init_data = None):
     """ create a multi dimension array """
     if len(dimensions) == 1:
         if init_data != None:
-            return [init_data[i] for i in xrange(dimensions[0])]
+            return [init_data[i] for i in range(dimensions[0])]
         else:
-            return [None for i in xrange(dimensions[0])]
+            return [None for i in range(dimensions[0])]
     else:
         dim = dimensions[0]
         if init_data != None:
-            return [create_multi_dim_array(dimensions[1:], init_data[i]) for i in xrange(dim)]
+            return [create_multi_dim_array(dimensions[1:], init_data[i]) for i in range(dim)]
         else:
-            return [create_multi_dim_array(dimensions[1:]) for i in xrange(dim)]
+            return [create_multi_dim_array(dimensions[1:]) for i in range(dim)]
 
 
 ## return the C encoding of the array @table whose dimension tuple is @p dimensions
@@ -136,9 +137,9 @@ class ML_Table(ML_LeafNode):
     def get_interval(self):
         def build_range_set(dimensions, prefix = []):
           if len(dimensions) == 1:
-            return [(prefix + [i]) for i in xrange(dimensions[0])]
+            return [(prefix + [i]) for i in range(dimensions[0])]
           else:
-            return sum([build_range_set(dimensions[1:], prefix = prefix + [i]) for i in xrange(dimensions[0])], [])
+            return sum([build_range_set(dimensions[1:], prefix = prefix + [i]) for i in range(dimensions[0])], [])
 
         def get_rec_index(table, range_tuple):
           if len(range_tuple) == 1:
@@ -191,12 +192,24 @@ class ML_Table(ML_LeafNode):
 
 
 def generic_index_function(index_size, variable):
-    inter_precision = {32: ML_Int32, 64: ML_Int64}[variable.get_precision().get_bit_size()]
-
-    index_mask   = Constant(2**index_size - 1, precision = inter_precision)
-    shift_amount = Constant(variable.get_precision().get_field_size() - index_size, precision = ML_UInt32) 
-
-    return BitLogicAnd(BitLogicRightShift(TypeCast(variable, precision = inter_precision), shift_amount, precision = inter_precision), index_mask, precision = inter_precision) 
+    """ Build an indexing node for a table assuming index 
+        must be build from floating-point input variable 
+        and index is expected to be the index_size-th most significant
+        bits of variable """
+    assert ML_FP_Format.is_fp_format(variable.get_precision())
+    # determining integer format whose size matches variable's floating-point format
+    int_precision = {32: ML_Int32, 64: ML_Int64}[variable.get_precision().get_bit_size()]
+    # building an index mask from the index_size
+    index_mask   = Constant(2**index_size - 1, precision = int_precision)
+    shift_amount = Constant(
+        variable.get_precision().get_field_size() - index_size, precision=ML_UInt32
+    ) 
+    return BitLogicAnd(
+        BitLogicRightShift(
+            TypeCast(variable, precision=int_precision),
+            shift_amount, precision=int_precision
+        ),
+        index_mask, precision=int_precision) 
 
         
 ## New Table class
@@ -219,11 +232,10 @@ class ML_NewTable(ML_Table):
 #  This class has source-info information to retrieve declaration location
 class ML_ApproxTable(ML_NewTable):
     str_name = "ApproxTable"
-    def __init__(self, **kwords):
+    def __init__(self, index_size=7, index_function=None, **kwords):
         ML_NewTable.__init__(self, **kwords)
-        index_size = attr_init(kwords, "index_size", 7)
         self.index_size = index_size
-        index_function = attr_init(kwords, "index_function", lambda variable: generic_index_function(index_size, variable))
+        index_function = index_function or (lambda variable: generic_index_function(index_size, variable))
         self.index_function = index_function
         self.sourceinfo = SourceInfo.retrieve_source_info(0)
 

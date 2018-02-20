@@ -339,7 +339,7 @@ if __name__ == "__main__":
     for op in op_map:
         for lhs in value_list:
             for rhs in value_list:
-                print "{} {} {} = ".format(lhs, op, rhs),
-                print "{}".format(op_map[op](lhs, rhs))
-            
+                print( "{} {} {} = ".format(lhs, op, rhs))
+                print("{}".format(op_map[op](lhs, rhs)))
+
 

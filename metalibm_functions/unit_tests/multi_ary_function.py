@@ -20,21 +20,22 @@ from metalibm_core.utility.ml_template import *
 from metalibm_core.utility.debug_utils import * 
 
 class ML_UT_MultiAryFunction(ML_Function("ml_ut_multi_ary_function")):
-  def __init__(self, 
-                 arg_template,
-                 output_file = "ut_multi_ary_function.c", 
-                 function_name = "ut_multi_ary_function"):
+  def __init__(self, args=DefaultArgTemplate): 
     # initializing base class
-    ML_FunctionBasis.__init__(self, 
-      base_name = "ut_multi_ary_function",
-      function_name = function_name,
-      output_file = output_file,
+    ML_FunctionBasis.__init__(self, args) 
 
-      arity = 3,
 
-      arg_template = arg_template,
-    )
-
+  @staticmethod
+  def get_default_args(**kw):
+    """ Return a structure containing the arguments for current class,
+        builtin from a default argument mapping overloaded with @p kw """
+    default_args = {
+        "output_file": "ut_multi_ary_function.c",
+        "function_name": "ut_multi_ary_function",
+        "arity": 3,
+    }
+    default_args.update(kw)
+    return DefaultArgTemplate(**default_args)
 
 
   def generate_scheme(self):
@@ -56,15 +57,21 @@ class ML_UT_MultiAryFunction(ML_Function("ml_ut_multi_ary_function")):
   def numeric_emulate(self, x, y, z):
     return x * y + z
 
+  @staticmethod
+  def __call__(args):
+    # just ignore args here and trust default constructor? seems like a bad idea.
+    ml_ut_multiary_function = ML_UT_MultiAryFunction(args)
+    ml_ut_multiary_function.gen_implementation()
 
-def run_test(args):
-  ml_ut_multi_ary_function = ML_UT_MultiAryFunction(args)
-  ml_ut_multi_ary_function.gen_implementation(display_after_gen = True, display_after_opt = True)
-  return True
+    return True
+
+
+run_test = ML_UT_MultiAryFunction
+
 
 if __name__ == "__main__":
   # auto-test
-  arg_template = ML_NewArgTemplate("new_ut_multi_ary_function", default_output_file = "new_ut_multi_ary_function.c" )
+  arg_template = ML_NewArgTemplate(default_args=ML_UT_MultiAryFunction.get_default_args())
   args = arg_template.arg_extraction()
 
   if run_test(args):

@@ -9,6 +9,7 @@ from sollya import S2, Interval, round, inf, sup, log, exp, expm1, log2, guessde
 from metalibm_core.core.attributes import ML_Debug
 from metalibm_core.core.ml_operations import *
 from metalibm_core.core.ml_formats import *
+from metalibm_core.core.precisions import ML_Faithful
 from metalibm_core.code_generation.generic_processor import GenericProcessor
 from metalibm_core.core.polynomials import *
 from metalibm_core.core.ml_function import ML_Function, ML_FunctionBasis, DefaultArgTemplate
@@ -19,7 +20,7 @@ from metalibm_core.core.special_values import (
     FP_QNaN, FP_MinusInfty, FP_PlusInfty, FP_PlusZero
 )
 
-from metalibm_core.utility.ml_template import *
+from metalibm_core.utility.ml_template import ML_NewArgTemplate
 from metalibm_core.utility.log_report  import Log
 from metalibm_core.utility.debug_utils import *
 from metalibm_core.utility.num_utils   import ulp
@@ -28,33 +29,24 @@ from metalibm_core.utility.gappa_utils import is_gappa_installed
 
 
 class ML_Exponential(ML_Function("ml_exp")):
-  def __init__(self, 
-             arg_template = DefaultArgTemplate, 
-             precision = ML_Binary32, 
-             accuracy  = ML_Faithful,
-             target = GenericProcessor(), 
-             output_file = "my_exp.c", 
-             function_name = "my_exp",
-             ):
-    # initializing I/O precision
-    precision = ArgDefault.select_value([arg_template.precision, precision])
-    io_precisions = [precision] * 2
-
+  def __init__(self, args=DefaultArgTemplate): 
     # initializing base class
-    ML_FunctionBasis.__init__(self, 
-      base_name = "exp",
-      function_name = function_name,
-      output_file = output_file,
+    ML_FunctionBasis.__init__(self, args)
+    self.accuracy = args.accuracy
 
-      io_precisions = io_precisions,
-
-      processor = target,
-
-      arg_template = arg_template
-    )
-
-    self.accuracy  = accuracy
-    self.precision = precision
+  @staticmethod
+  def get_default_args(**kw):
+    """ Return a structure containing the arguments for ML_Exponential,
+        builtin from a default argument mapping overloaded with @p kw """
+    default_args_exp = {
+        "output_file": "my_exp.c",
+        "function_name": "my_exp",
+        "precision": ML_Binary32,
+        "accuracy": ML_Faithful,
+        "target": GenericProcessor()
+    }
+    default_args_exp.update(kw)
+    return DefaultArgTemplate(**default_args_exp)
 
   def generate_scheme(self):
     # declaring target and instantiating optimization engine
@@ -171,6 +163,7 @@ class ML_Exponential(ML_Function("ml_exp")):
 
 
     local_ulp = sup(ulp(exp(approx_interval), self.precision))
+    # FIXME refactor error_goal from accuracy
     Log.report(Log.Info, "accuracy: %s" % self.accuracy)
     if self.accuracy is ML_Faithful:
         error_goal = local_ulp
@@ -280,7 +273,7 @@ class ML_Exponential(ML_Function("ml_exp")):
         global_poly_error     = None
         global_rel_poly_error = None
 
-        for case_index in xrange(3):
+        for case_index in range(3):
             poly_error = poly_approx_error + poly_eval_error_dico[case_index]
             rel_poly_error = sup(abs(poly_error / exp(approx_interval_split[case_index])))
             if global_rel_poly_error == None or rel_poly_error > global_rel_poly_error:
@@ -348,7 +341,7 @@ class ML_Exponential(ML_Function("ml_exp")):
 
 if __name__ == "__main__":
     # auto-test
-    arg_template = ML_NewArgTemplate(default_function_name = "new_exp", default_output_file = "new_exp.c" )
+    arg_template = ML_NewArgTemplate(default_arg=ML_Exponential.get_default_args())
     # argument extraction 
     args = parse_arg_index_list = arg_template.arg_extraction()
 

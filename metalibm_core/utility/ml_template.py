@@ -13,7 +13,9 @@
 """ command-line argument templates """
 
 import sys
+import os
 import argparse
+import traceback
 
 from sollya import Interval
 
@@ -116,8 +118,24 @@ def target_parser(target_name):
 
 
 def target_instanciate(target_name):
-    """ instanciate target object from target string name """
-    return target_parser(target_name)()
+    """ instanciate target object from target string 
+        Args:
+            target_name (str): name of the target to instantiate
+            
+        Return:
+            target object instance
+    """
+    target_class = target_parser(target_name)
+    try:
+        target_object = target_class()
+    except Exception as e:
+        exc_type, exc_obj, exc_tb = sys.exc_info()
+        fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+        print(exc_type, fname, exc_tb.tb_lineno)
+        print(traceback.print_exc())
+        Log.report(Log.Error, "failed to build target object")
+        raise
+    return target_object
 
 
 def language_parser(language_str):
@@ -158,7 +176,7 @@ class VerboseAction(argparse.Action):
 
 def list_targets():
     for target_name in target_map:
-        print "{}:\n  {}".format(target_name, target_map[target_name])
+        print("{}:\n  {}".format(target_name, target_map[target_name]))
 
 
 class TargetInfoAction(argparse.Action):
@@ -183,9 +201,9 @@ class PassListAction(argparse.Action):
             option_strings, dest, nargs=0, **kwargs)
 
     def __call__(self, parser, namespace, values, option_string=None):
-        print "list of registered passes"
+        print("list of registered passes")
         for tag in Pass.get_pass_tag_list():
-            print "  {}: {}".format(tag, Pass.get_pass_by_tag(tag))
+            print("  {}: {}".format(tag, Pass.get_pass_by_tag(tag)))
         exit(0)
 
 # Command line action to set break on error in load module
@@ -198,7 +216,7 @@ class MLDebugAction(argparse.Action):
         super(MLDebugAction, self).__init__(option_strings, dest, **kwargs)
 
     def __call__(self, parser, namespace, values, option_string=None):
-        print 'MLDebugAction %r %r %r' % (namespace, values, option_string)
+        print('MLDebugAction %r %r %r' % (namespace, values, option_string))
         ml_debug_bool = bool(values)
         setattr(namespace, "ml_debug", ml_debug_bool)
         Log.set_break_on_error(ml_debug_bool)
@@ -235,17 +253,19 @@ class ArgDefault(object):
 
 class DefaultArgTemplate:
     base_name = "unknown_function"
-    function_name = None
-    output_file = None
+    function_name = "undef_function"
+    output_file = "undef.c"
     # metalim engine settings
     display_after_opt = False
     display_after_gen = False
     verbose_enable = False
+    # 
+    arity = 1
     # output/intermediate format Specification
     precision = ML_Binary32
+    input_precisions = None
     # list of input precisions
     # None <=> [self.precision] * self.get_arity()
-    input_precisions = None
     abs_accuracy = None
     accuracy = ML_Faithful
     libm_compliant = True
@@ -257,6 +277,7 @@ class DefaultArgTemplate:
     dot_product_enabled = False
     # Debug verbosity
     debug = False
+    # Vector related parameters
     vector_size = 1
     sub_vector_size = None
     language = C_Code
@@ -346,8 +367,14 @@ class ML_CommonArgTemplate(object):
             help="disable FMA-like operation fusion")
         self.parser.add_argument(
             "--output", action="store", dest="output_file",
-            default=self.default_output_file,
+            default=default_arg.output_file,
             help="set output file")
+
+        self.parser.add_argument(
+            "--arity", dest="arity",
+            action="store", 
+            default=default_arg.arity,
+            help="function arity (number of inputs)")
 
         self.parser.add_argument(
             "--precision", dest="precision", type=precision_parser,
@@ -444,7 +471,7 @@ class ML_CommonArgTemplate(object):
             help="enable the generation of a performance bench")
         self.parser.add_argument(
             "--bench-execute", dest="bench_execute", action="store",
-            nargs='?', const=1000, type=int, default=ArgDefault(False),
+            nargs='?', const=1000, type=int, default=default_arg.bench_execute,
             help="enable the generation and execution of a performance bench")
         self.parser.add_argument(
             "--bench-range", dest="bench_test_range", action="store",
@@ -562,16 +589,15 @@ class ML_EntityArgTemplate(ML_CommonArgTemplate):
 # new argument template based on argparse module
 class ML_NewArgTemplate(ML_CommonArgTemplate):
     def __init__(
-            self, default_function_name,
-            default_output_file="ml_func_gen.c",
+            self, #default_function_name,
             default_arg=DefaultArgTemplate
         ):
-        self.default_output_file = default_output_file
-        self.default_function_name = default_function_name
+        #self.default_output_file = default_output_file
+        #self.default_function_name = default_function_name
 
         parser = argparse.ArgumentParser(
-            " Metalibm %s function generation script" % \
-            self.default_function_name)
+            " Metalibm {} function generation script".format(
+            default_arg.function_name))
         ML_CommonArgTemplate.__init__(self, parser, default_arg=default_arg)
         self.parser.add_argument(
             "--libm", dest="libm_compliant", action="store_const",
@@ -579,8 +605,8 @@ class ML_NewArgTemplate(ML_CommonArgTemplate):
             help="generate libm compliante code"
         )
         self.parser.add_argument(
-            "--fname", dest="function_name", default=ArgDefault(
-            self.default_function_name), help="set function name"
+            "--fname", dest="function_name", 
+            default=default_arg.function_name, help="set function name"
         )
         self.parser.add_argument("--target", dest="target", action="store",
             type=target_instanciate, default="none",
@@ -717,12 +743,12 @@ class ML_ArgTemplate(object):
 
     def display_help(self):
         spacew = max(len(o) for o in self.help_map)
-        print "option list:"
+        print("option list:")
         for option_name in self.help_map:
-            print "  %s %s %s" % (
+            print("  %s %s %s" % (
                 option_name, " " * (spacew - len(option_name)),
                 self.help_map[option_name]
-            )
+            ))
 
     def check_args(self, parse_arg, exit_on_info=True):
         """ check that all options on command line have been parse
@@ -736,7 +762,7 @@ class ML_ArgTemplate(object):
             help_map=self.help_map,
             help_str="display the list of supported targets"
         )
-        for i in xrange(1, len(sys.argv)):
+        for i in range(1, len(sys.argv)):
             if not i in parse_arg:
                 self.display_help()
                 Log.report(
@@ -751,10 +777,10 @@ class ML_ArgTemplate(object):
         if target_info_flag:
             spacew = max(len(v) for v in target_map)
             for target_name in target_map:
-                print "%s: %s %s " % (
+                print("%s: %s %s " % (
                     target_name, " " * (spacew - len(target_name)),
                     target_map[target_name]
-                )
+                ))
             if exit_on_info:
                 sys.exit(0)
                 return None
@@ -762,4 +788,4 @@ class ML_ArgTemplate(object):
 
 if __name__ == "__main__":
     for target_name in target_map:
-        print target_name, ": ", target_map[target_name]
+        print(target_name, ": ", target_map[target_name])

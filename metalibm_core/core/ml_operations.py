@@ -77,7 +77,7 @@ def implicit_op(op):
     elif isinstance(op , str):
         return Constant(op, precision = ML_String)
     else:
-        print "ERROR: unsupported operand in implicit_op conversion ", op, op.__class__
+        print("ERROR: unsupported operand in implicit_op conversion ", op, op.__class__)
         raise Exception()
 
 
@@ -177,9 +177,15 @@ class AbstractOperation(ML_Operation):
     def __div__(self, op):
         """ implicit division operation between AbstractOperation """
         return Division(self, implicit_op(op))
+    def __truediv__(self, op):
+        """ implicit division operation between AbstractOperation """
+        return Division(self, implicit_op(op))
         
     ## 2-Operand implicit commuted division operator
     def __rdiv__(self, op):
+        """ implicit reflexive division operation between AbstractOperation """
+        return Division(implicit_op(op), self)
+    def __rtruediv__(self, op):
         """ implicit reflexive division operation between AbstractOperation """
         return Division(implicit_op(op), self)
         
@@ -431,8 +437,8 @@ class AbstractOperation(ML_Operation):
     #  @param copy_map dictionnary of previously built copy, if a node is found within this table, table's value is returned as copy result
     #  @return node's copy (newly generated or memoized)
     def copy(self, copy_map = {}):
-        print "Error: copy not implemented"
-        print self, self.__class__
+        print("Error: copy not implemented")
+        print(self, self.__class__)
         raise NotImplementedError
 
     ## propagate given precision
@@ -466,6 +472,30 @@ class ML_ArithmeticOperation(AbstractOperation):
 class ML_LeafNode(AbstractOperation): 
     pass
 
+def is_interval_compatible_object(value):
+    """ predicate testing if value is an object from
+        a numerical class compatible with sollya.Interval
+        constructor
+
+        Args:
+            value (object): object to be tested
+        Return
+            boolean: True if object is compatible with Interval, False otherwise
+    """
+    if not(isinstance(value, bool)) and isinstance(value, int):
+        return True
+    elif isinstance(value, float):
+        return True
+    elif isinstance(value, SollyaObject):
+        # TODO: very permissive
+        return True
+    else:
+        return False
+
+def is_leaf_node(node):
+    """ Test if node is a leaf one (with no input) """
+    return isinstance(node, ML_LeafNode)
+
 ## Constant node class
 class Constant(ML_LeafNode):
     ## Initializer
@@ -476,7 +506,9 @@ class Constant(ML_LeafNode):
         AbstractOperation.__init__(self, **init_map)
         self.value = value
         # attribute fields initialization
-        if isinstance(value, int) or isinstance(value, float) or isinstance(value, SollyaObject):
+        # Gitlab's Issue#16 as bool is a sub-class of int, it must be excluded
+        # explicitly
+        if is_interval_compatible_object(value):
             self.attributes.set_interval(Interval(value))
 
 
@@ -733,7 +765,7 @@ class SpecifierOperation(object):
         """ return code generation specific key """
         return self.specifier
 
-class ComponentSelectionSpecifier: pass
+class ComponentSelectionSpecifier(object): pass
 
 class Split(ArithmeticOperationConstructor("Split", arity = 1)):
     pass
@@ -806,7 +838,7 @@ class FusedMultiplyAdd(ArithmeticOperationConstructor("FusedMultiplyAdd", inheri
     class DotProductNegate(FMASpecifier_Builder("DotProductNegate", 4, lambda _self, ops: ops[0] * ops[1] - ops[2] * ops[3])):
         """ op0 * op1 - op2 * op3 """
         pass
-        
+
     def __init__(self, *args, **kwords):
         self.specifier = attr_init(kwords, "specifier", FusedMultiplyAdd.Standard)
         # indicates wheter a base operation commutation has been processed
@@ -860,6 +892,9 @@ class Division(ArithmeticOperationConstructor("Division", range_function = lambd
     """ abstract addition """
     pass
 
+class Extract(ArithmeticOperationConstructor("Extract")):
+    """ abstract word or vector extract-from-vector operation """
+    pass
 
 class Modulo(ArithmeticOperationConstructor("Modulo", range_function = lambda self, ops: safe(operator.__mod__)(ops[0], ops[1]))):
     """ abstract modulo operation """
@@ -868,6 +903,10 @@ class Modulo(ArithmeticOperationConstructor("Modulo", range_function = lambda se
 
 class NearestInteger(ArithmeticOperationConstructor("NearestInteger", arity = 1, range_function = lambda self, ops: safe(nearestint)(ops[0]))): 
     """ abstract addition """
+    pass
+
+class Permute(ArithmeticOperationConstructor("Permute")):
+    """ abstract word-permutations inside a vector operation """
     pass
 
 class FastReciprocal(ArithmeticOperationConstructor(
@@ -931,6 +970,24 @@ class TableLoad(ArithmeticOperationConstructor("TableLoad", arity = 2, range_fun
 class TableStore(ArithmeticOperationConstructor("TableStore", arity = 3, range_function = lambda self, ops: None)):
     """ abstract store to a table operation """
     pass
+
+class VectorUnpack(ArithmeticOperationConstructor("VectorUnpack",
+                   inheritance = [SpecifierOperation])):
+    """ abstract vector unpacking operation """
+    # High and Low specifiers for Unpack operation
+    class Hi(object): name = 'Hi'
+    class Lo(object): name = 'Lo'
+
+    def __init__(self, *args, **kwords):
+        self.specifier = attr_init(kwords, "specifier", VectorUnpack.Lo)
+        super(VectorUnpack, self).__init__(*args, **kwords)
+
+    def get_name(self):
+        return  "VectorUnpack.{}".format(self.specifier.name)
+
+    def get_codegen_key(self):
+        return self.specifier
+
 
 ## Compute the union of two intervals
 def interval_union(int0, int1):
@@ -1172,7 +1229,7 @@ def CompSpecBuilder(name, opcode, symbol):
     return type(name, (ComparisonSpecifier,), field_map)
   
 
-## Comparision operator
+## Comparison operator
 class Comparison(ArithmeticOperationConstructor("Comparison", arity = 2, inheritance = [BooleanOperation, SpecifierOperation])):
     """ Abstract Comparison operation """
     Equal          = CompSpecBuilder("Equal", "eq", "==")
@@ -1439,7 +1496,7 @@ class FunctionCall(AbstractOperationConstructor("FunctionCall")):
     @staticmethod
     def propagate_format_to_cst(optree):
         """ propagate new_optree_format to Constant operand of <optree> with abstract precision """
-        index_list = xrange(len(optree.inputs)) 
+        index_list = range(len(optree.inputs)) 
         for index in index_list:
             inp = optree.inputs[index]
             new_optree_format = optree.get_function_object().get_arg_precision(index)
@@ -1596,4 +1653,4 @@ if __name__ == "__main__":
   # TODO: to be fixed
   for name, obj in inspect.getmembers(sys.modules[__name__]):
     if inspect.isclass(obj) and isinstance(obj, ML_Operation):
-      print "operation class: ", obj
+      print("operation class: ", obj)

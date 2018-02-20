@@ -39,41 +39,25 @@ sollya.showmessagenumbers = sollya.on
 #  approximation scheme
 class ML_HyperbolicSine(ML_Function("ml_sinh")):
   """ Implementation of tangent function """
-  def __init__(self,
-             arg_template = DefaultArgTemplate,
-               precision = ML_Binary32,
-               accuracy  = ML_CorrectlyRounded,
-               libm_compliant = True,
-               debug_flag = False,
-               fuse_fma = True,
-               fast_path_extract = True,
-               target = GenericProcessor(),
-               output_file = "ml_sinh.c",
-               function_name = "ml_sinh",
-               sin_output = True):
-    # initializing I/O precision
-    precision = ArgDefault.select_value([arg_template.precision, precision])
-    io_precisions = [precision] * 2
-
+  def __init__(self, args=DefaultArgTemplate):
     # initializing base class
     ML_FunctionBasis.__init__(self,
-      base_name = "sinh",
-      function_name = function_name,
-      output_file = output_file,
-
-      io_precisions = io_precisions,
-      abs_accuracy = None,
-      libm_compliant = libm_compliant,
-
-      processor = target,
-      fuse_fma = fuse_fma,
-      fast_path_extract = fast_path_extract,
-
-      debug_flag = debug_flag,
-      arg_template = arg_template
+        args
     )
-    self.precision = precision
 
+  @staticmethod
+  def get_default_args(**kw):
+    """ Return a structure containing the arguments for ML_HyperbolicSine,
+        builtin from a default argument mapping overloaded with @p kw """
+    default_args_sinh = {
+        "output_file": "my_sinh.c",
+        "function_name": "my_sinh",
+        "precision": ML_Binary32,
+        "accuracy": ML_Faithful,
+        "target": GenericProcessor()
+    }
+    default_args_sinh.update(kw)
+    return DefaultArgTemplate(**default_args_sinh)
 
 
   def generate_emulate(self, result_ternary, result, mpfr_x, mpfr_rnd):
@@ -148,7 +132,7 @@ class ML_HyperbolicSine(ML_Function("ml_sinh")):
         vx: Variable("vx", interval = Interval(0, 715), precision = self.precision),
         k: Variable("k", interval = Interval(0, 1024), precision = self.precision)
       })
-    print "r_eval_error: ", r_eval_error
+    Log.report(Log.Verbose, "r_eval_error: ", r_eval_error)
 
     approx_interval = Interval(-arg_reg_value, arg_reg_value)
     error_goal_approx = 2**-(self.precision.get_precision())
@@ -201,7 +185,7 @@ class ML_HyperbolicSine(ML_Function("ml_sinh")):
 
     poly_object, poly_approx_error = Polynomial.build_from_approximation_with_error(exp(sollya.x), poly_degree, precision_list, approx_interval, sollya.absolute, error_function = error_function)
 
-    print "poly_approx_error: ", poly_approx_error, float(log2(poly_approx_error))
+    Log.report(Log.Verbose, "poly_approx_error: {}, {}".format(poly_approx_error, float(log2(poly_approx_error))))
 
     polynomial_scheme_builder = PolynomialSchemeEvaluator.generate_horner_scheme
     poly_pos = polynomial_scheme_builder(poly_object.sub_poly(start_index = 1), r, unified_precision = self.precision)
@@ -270,7 +254,7 @@ class ML_HyperbolicSine(ML_Function("ml_sinh")):
 
 if __name__ == "__main__":
   # auto-test
-  arg_template = ML_NewArgTemplate(default_function_name = "new_sinh", default_output_file = "new_sinh.c" )
+  arg_template = ML_NewArgTemplate(default_arg=ML_HyperbolicSine.get_default_args())
   # argument extraction
   args = arg_template.arg_extraction()
   ml_sinh = ML_HyperbolicSine(args)

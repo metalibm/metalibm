@@ -115,13 +115,13 @@ class AbstractBackend(object):
             Log.report(Log.Verbose, "Tested architecture(s) for language %s:" % language)
             for parent_proc in self.parent_architecture:
               Log.report(Log.Verbose, "  %s " % parent_proc)
-            Log.report(Log.Error, "the following operation is not supported by %s: \n%s" % (self.__class__, optree.get_str(depth = 2, display_precision = True, memoization_map = {}))) 
-        
+            Log.report(Log.Error, "the following operation is not supported by %s: \n%s" % (self.__class__, optree.get_str(depth = 2, display_precision = True, memoization_map = {})))
+
     def is_map_supported_operation(self, op_map, optree, language = C_Code, debug = False,  key_getter = lambda self, optree: self.get_operation_keys(optree)):
         """ return wheter or not the operation performed by optree has a local implementation """
         op_class, interface, codegen_key = key_getter(self, optree)
 
-        if not language in op_map: 
+        if not language in op_map:
             # unsupported language
             if debug: Log.Report(Log.Info, "unsupported language for %s" % optree.get_str())
             return False
@@ -148,11 +148,11 @@ class AbstractBackend(object):
                             src_file = inspect.getsourcefile(condition)
                             _, lineno = inspect.getsourcelines(condition)
                             ic_id = 0
-                            print "verified by condition @ {}:{}".format(src_file, lineno)
+                            print("verified by condition @ {}:{}".format(src_file, lineno))
                             for interface_condition in op_map[language][op_class][codegen_key][condition]:
-                                print "  interface_condition @{}:{}/{} {}".format(src_file, lineno, ic_id, interface_condition(*interface, optree = optree)) 
+                                print("  interface_condition @{}:{}/{} {}".format(src_file, lineno, ic_id, interface_condition(*interface, optree = optree))) 
                                 ic_id += 1
-                      print op_map[language][op_class][codegen_key].keys()
+                      print(op_map[language][op_class][codegen_key].keys())
                       Log.report(Log.Info, "unsupported condition key for %s" % optree.get_str(display_precision = True))
                     return False
 

@@ -156,7 +156,7 @@ class RangeEvalEntity(ML_Entity("ml_range_eval_entity"), TestRunner):
         for var in [cst, var_x, var_y, mult, large_add, reduced_result, select_result, conv_ceil, conv_floor]:
             interval = evaluate_range(var)
             expected = expected_interval[var]
-            print "{}: {} vs expected {}".format(var.get_tag(), interval, expected)
+            print("{}: {} vs expected {}".format(var.get_tag(), interval, expected))
             assert not interval is None
             assert interval == expected 
 

@@ -124,7 +124,7 @@ class ML_Division(object):
         Attributes.set_default_rounding_mode(ML_RoundToNearest)
         Attributes.set_default_silent(True)
 
-        for i in xrange(num_iteration):
+        for i in range(num_iteration):
             new_iteration = NR_Iteration(current_approx, scaled_vy, force_fma = False if (i != num_iteration - 1) else True)
             inv_iteration_list.append(new_iteration)
             current_approx = new_iteration.get_new_approx()
@@ -145,7 +145,7 @@ class ML_Division(object):
         current_approx.set_attributes(tag = "final_approx", debug = debug_lftolx)
         current_div_approx = scaled_vx * current_approx
         num_dividend_mult_iteration = 1
-        for i in xrange(num_dividend_mult_iteration):
+        for i in range(num_dividend_mult_iteration):
             current_div_approx = dividend_mult(current_div_approx, current_approx, scaled_vx, scaled_vy, i)
 
 

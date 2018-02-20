@@ -113,7 +113,7 @@ def solve_format_CLZ(optree):
 def solve_format_ArithOperation(optree,
     integer_size_func = lambda lhs_prec, rhs_prec: None,
     frac_size_func = lambda lhs_prec, rhs_prec: None,
-    signed_func = lambda (lhs, lhs_prec), (rhs, rhs_prec): False
+    signed_func = lambda lhs, lhs_prec, rhs, rhs_prec: False
     ):
     """ determining fixed-point format for a generic 2-op arithmetic
         operation (e.g. Multiplication, Addition, Subtraction)
@@ -139,7 +139,7 @@ def solve_format_ArithOperation(optree,
         # +1 for carry overflow
         int_size = integer_size_func(lhs_precision, rhs_precision)
         frac_size = frac_size_func(lhs_precision, rhs_precision)
-        is_signed = signed_func((lhs, lhs_precision), (rhs, rhs_precision))
+        is_signed = signed_func(lhs, lhs_precision, rhs, rhs_precision)
         return fixed_point(
             int_size,
             frac_size,
@@ -158,7 +158,7 @@ def solve_format_Addition(optree):
         optree,
         lambda l, r: max(l.get_integer_size(), r.get_integer_size()) + 1,
         lambda l, r: max(l.get_frac_size(), r.get_frac_size()),
-        lambda (l, lp), (r, rp): lp.get_signed() or rp.get_signed()
+        lambda l, lp, r, rp: lp.get_signed() or rp.get_signed()
     )
 
 
@@ -177,7 +177,7 @@ def solve_format_Multiplication(optree):
         optree,
         lambda l, r: l.get_integer_size() + r.get_integer_size() + extra_sign_digit,
         lambda l, r: l.get_frac_size() + r.get_frac_size(),
-        lambda (l, lp), (r, rp): lp.get_signed() or rp.get_signed()
+        lambda l, lp, r, rp: lp.get_signed() or rp.get_signed()
     )
 
 
@@ -200,7 +200,7 @@ def solve_format_Subtraction(optree):
         ) + int_inc
         return int_size
 
-    def sub_signed_predicate((lhs, lhs_prec), (rhs, rhs_prec)):
+    def sub_signed_predicate(lhs, lhs_prec, rhs, rhs_prec):
         """ determine whether subtraction output on a signed or
             unsigned format """
         left_range = evaluate_range(lhs)

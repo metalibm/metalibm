@@ -140,7 +140,7 @@ class UTSpecialValues(ML_Entity("ut_special_values"), TestRunner):
         for var in [cst, var_x, var_y, mult, large_add, reduced_result, select_result, conv_ceil, conv_floor]:
             interval = evaluate_range(var)
             expected = expected_interval[var]
-            print "{}: {} vs expected {}".format(var.get_tag(), interval, expected)
+            print("{}: {} vs expected {}".format(var.get_tag(), interval, expected))
             assert not interval is None
             assert interval == expected 
 
@@ -182,8 +182,7 @@ class UTSpecialValues(ML_Entity("ut_special_values"), TestRunner):
         for op in op_map:
             for lhs in value_list:
                 for rhs in value_list:
-                    print "{} {} {} = ".format(lhs, op, rhs),
-                    print "{}".format(op_map[op](lhs, rhs))
+                    print("{} {} {} = {}".format(lhs, op, rhs, op_map[op](lhs, rhs)))
 
         return True
 

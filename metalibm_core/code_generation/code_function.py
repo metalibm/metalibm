@@ -61,7 +61,7 @@ class CodeFunction(object):
 
   def build_function_operator(self):
     function_arg_map = {}
-    for i in xrange(len(self.arg_list)):
+    for i in range(len(self.arg_list)):
       function_arg_map[i] = FO_Arg(i)
     return FunctionOperator(self.name, arg_map = function_arg_map)
 

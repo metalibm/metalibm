@@ -41,7 +41,7 @@ class StaticVectorizer(object):
       if len(condition_list) == 1:
         return condition_list[0]
       else:
-        half_size = len(condition_list) / 2
+        half_size = int(len(condition_list) / 2)
         first_half  = and_merge_conditions(condition_list[:half_size])
         second_half = and_merge_conditions(condition_list[half_size:])
         return LogicalAnd(first_half, second_half, precision = bool_precision)
@@ -51,17 +51,24 @@ class StaticVectorizer(object):
     # @param optree ML_Operation object root of the input operation graph
     # @param variable_mapping dict ML_Operation -> ML_Operation 
     #        mapping a variable to its sub-graph
+    # @param processed_map dictionnary of node -> mapping storing already processed node
     # @return an updated version of optree with variables replaced
     #         by the corresponding sub-graph if any
-    def instanciate_variable(optree, variable_mapping):
-      if isinstance(optree, Variable) and optree in variable_mapping:
-        return variable_mapping[optree]
-      elif isinstance(optree, ML_LeafNode):
-        return optree
-      else:
-        for index, op_in in enumerate(optree.get_inputs()):
-          optree.set_input(index, instanciate_variable(op_in, variable_mapping))
-        return optree
+    def instanciate_variable(optree, variable_mapping, processed_map=None):
+        processed_map = {} if processed_map is None else processed_map
+        if optree in processed_map:
+            return processed_map[optree]
+        elif isinstance(optree, Variable) and optree in variable_mapping:
+            processed_map[optree] = variable_mapping[optree]
+            return variable_mapping[optree]
+        elif isinstance(optree, ML_LeafNode):
+            processed_map[optree] = optree
+            return optree
+        else:
+            for index, op_in in enumerate(optree.get_inputs()):
+                optree.set_input(index, instanciate_variable(op_in, variable_mapping, processed_map))
+            processed_map[optree] = optree
+            return optree
 
     vectorized_path = self.opt_engine.extract_vectorizable_path(optree, fallback_policy)
     linearized_most_likely_path = vectorized_path.linearized_optree
@@ -81,9 +88,9 @@ class StaticVectorizer(object):
       else:
         return VectorAssembling(*args, precision = precision, tag = tag)
 
-    def extract_const(dict):
+    def extract_const(in_dict):
       result_dict = {}
-      for keys, values in dict.items():
+      for keys, values in in_dict.items():
         if isinstance(keys, Constant):
           result_dict.update({keys:values})
       return result_dict
@@ -91,7 +98,7 @@ class StaticVectorizer(object):
     vec_arg_dict = dict((arg_node, Variable("vec_%s" % arg_node.get_tag(), precision = self.vectorize_format(arg_node.get_precision(), vector_size))) for arg_node in arg_list)
     constant_dict = {}
 
-    for i in xrange(vector_size / sub_vector_size):
+    for i in range(int(vector_size / sub_vector_size)):
       if sub_vector_size == vector_size :
         arg_list_copy = dict((arg_node, Variable("vec_%s" % arg_node.get_tag() , precision = arg_node.get_precision())) for arg_node in arg_list)
         sub_vec_arg_list = [arg_list_copy[arg_node] for arg_node in arg_list]
@@ -118,7 +125,7 @@ class StaticVectorizer(object):
       # no validity condition for vectorization (always valid)
       if len(validity_list) == 0:
         Log.report(Log.Info, "empty validity list encountered during vectorization")
-        sub_vector_mask = Constant(True, precision = ML_Bool) 
+        sub_vector_mask = Constant(True, precision = ML_Bool)
       else:
         sub_vector_mask = and_merge_conditions(validity_list).copy(arg_list_copy)
 
@@ -160,6 +167,18 @@ class StaticVectorizer(object):
         4: v4int32,
         8: v8int32
       },
+      ML_UInt64: {
+        2: v2uint64,
+        3: v3uint64,
+        4: v4uint64,
+        8: v8uint64
+      },
+      ML_Int64: {
+        2: v2int64,
+        3: v3int64,
+        4: v4int64,
+        8: v8int64
+      },
       ML_Bool: {
         2: v2bool,
         3: v3bool,
@@ -187,10 +206,10 @@ class StaticVectorizer(object):
       if self.is_vectorizable(optree):
         optree_precision = optree.get_precision()
         if optree_precision is None:
-          print optree.get_str(display_precision = True, memoization_map = {})
+          print(optree.get_str(display_precision = True, memoization_map = {}))
         optree.set_precision(self.vectorize_format(optree.get_precision(), vector_size))
         if isinstance(optree, Constant):
-          optree.set_value([optree.get_value() for i in xrange(vector_size)])
+          optree.set_value([optree.get_value() for i in range(vector_size)])
         elif isinstance(optree, Variable):
           # TODO: does not take into account intermediary variables
           pass

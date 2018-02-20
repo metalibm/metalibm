@@ -3,7 +3,7 @@ import os
 
 
 def target_validity_test(target_name):
-    return os.path.isdir(target_name)
+    return os.path.isdir(target_name) and target_name != "__pycache__"
 
 # dynamically search for installed targets
 targets_dirname = os.path.dirname(os.path.realpath(__file__))
@@ -15,4 +15,4 @@ __all__ = target_list
 # listing submodule
 
 if __name__ == "__main__":
-    print "target_list: ", target_list
+    print("target_list: ", target_list)

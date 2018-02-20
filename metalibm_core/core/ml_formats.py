@@ -98,13 +98,15 @@ class ML_Format(object):
     def get_display_format(self, language = C_Code):
         if language in self.display_format:
             return self.display_format[language]
-        else:
+        elif C_Code in self.display_format:
             return self.display_format[C_Code]
+        else:
+            return "ERROR_FORMAT"
 
     ## return the format's bit-size
     def get_bit_size(self):
         """ <abstract> return the bit size of the format (if it exists) """
-        print self # Exception ML_NotImplemented print
+        print(self) # Exception ML_NotImplemented print
         raise NotImplementedError
 
     def is_cst_decl_required(self):
@@ -218,6 +220,11 @@ class ML_InstanciatedFormat(ML_Format): pass
 class ML_FP_Format(ML_Format):
     """ parent to every Metalibm's floating-point class """
     pass
+    @staticmethod
+    def is_fp_format(precision):
+        """ generic predicate to test whether or not precision
+            is a floating-point format """
+        return isinstance(precision, ML_FP_Format)
 
 ## Ancestor class for standard (as defined in IEEE-754) floating-point formats
 class ML_Std_FP_Format(ML_FP_Format):
@@ -485,6 +492,9 @@ class VirtualFormat(ML_Format):
   def get_cst(self, cst_value, language = C_Code):
     return self.internal_get_cst(self, cst_value, language)
 
+  def __str__(self):
+    return "{}/{}".format(str(self.base_format), self.support_format)
+
   ## return name for the format
   def get_name(self, language = C_Code):
     raise NotImplementedError
@@ -515,19 +525,21 @@ class VirtualFormat(ML_Format):
     return self.cst_decl_required
 
   def is_vector_format(self):
-    return False
+      return False
 
 ## Virtual format with no match forwarding
 class VirtualFormatNoForward(VirtualFormat):
-  def get_match_format(self):
-		return self
+    def get_match_format(self):
+        return self
 
 class VirtualFormatNoBase(VirtualFormat):
-  def get_match_format(self):
-		return self
-  def get_base_format(self):
-		return self
-  def get_vector_format(self):
+    """ Virtual format class which does not point towards a distinct
+        base format """
+    def get_match_format(self):
+        return self
+    def get_base_format(self):
+        return self
+    def get_vector_format(self):
         return False
 
 
@@ -677,8 +689,8 @@ class ML_Base_FixedPoint_Format(ML_Fixed_Format, VirtualFormatNoBase):
         """ C-language constant generation """
         try:
           encoded_value = int(cst_value * sollya.S2**self.frac_size)
-        except ValueError as e:
-          print e, cst_value, self.frac_size
+        except (ValueError, TypeError) as e:
+          print(e, cst_value, self.frac_size)
           Log.report(Log.Error, "Error during constant conversion to sollya object")
           
         return ("" if self.signed else "U") + "INT" + str(self.c_bit_size) + "_C(" + str(encoded_value) + ")"
@@ -726,6 +738,9 @@ class ML_Standard_FixedPoint_Format(ML_Base_SW_FixedPoint_Format):
   def round_sollya_object(self, value, round_mode = sollya.RN):
     # TBD: support other rounding mode
     return sollya.nearestint(value)
+
+  def __repr__(self):
+      return self.name[C_Code]
 
   def __str__(self):
     return self.name[C_Code]
@@ -821,7 +836,8 @@ ML_String = ML_StringClass("char*", "%s", lambda self, s: "\"{}\"".format(s))
 ## Predicate checking if @p precision is a standard integer format
 def is_std_integer_format(precision):
 	return isinstance(precision, ML_Standard_FixedPoint_Format) or \
-           isinstance(precision.get_base_format(), ML_Standard_FixedPoint_Format)
+           isinstance(precision.get_base_format(), ML_Standard_FixedPoint_Format) and \
+           not precision.is_vector_format()
   #return precision in [ ML_Int8, ML_UInt8, ML_Int16, ML_UInt16,
   #                      ML_Int32, ML_UInt32, ML_Int64, ML_UInt64,
   #                      ML_Int128, ML_UInt128 ]
@@ -897,6 +913,9 @@ class ML_Compound_Format(ML_Format):
         self.c_field_list = c_field_list
         self.field_format_list = field_format_list
 
+    def __str__(self):
+        return self.name[C_Code]
+
     ## return the sollya object encoding the format precision
     def get_sollya_object(self):
       return self.sollya_object
@@ -915,6 +934,10 @@ class ML_Compound_Format(ML_Format):
             field_str_list.append(".%s = %s" % (field_name, field_format.get_c_cst(field_value)))
         return "{%s}" % (", ".join(field_str_list))
 
+    def get_gappa_cst(self, cst_value):
+        """ Constant generation in Gappa-language """
+        return str(cst_value)
+
 
 
 class ML_Compound_FP_Format(ML_Compound_Format, ML_FP_Format):
@@ -923,9 +946,19 @@ class ML_Compound_Integer_Format(ML_Compound_Format, ML_Fixed_Format):
   pass
 
 # compound binary floating-point format declaration
-ML_DoubleDouble = ML_Compound_FP_Format("ml_dd_t", ["hi", "lo"], [ML_Binary64, ML_Binary64], "", "", sollya.doubledouble)
-ML_TripleDouble = ML_Compound_FP_Format("ml_td_t", ["hi", "me", "lo"], [ML_Binary64, ML_Binary64, ML_Binary64], "", "", sollya.tripledouble)
-ML_SingleSingle = ML_Compound_FP_Format("ml_ds_t", ["hi", "lo"], [ML_Binary32, ML_Binary32], "", "", sollya.single)
+ML_DoubleDouble = ML_Compound_FP_Format("ml_dd_t", ["hi", "lo"],
+                                        [ML_Binary64, ML_Binary64],
+                                        "", "",
+                                        sollya.doubledouble)
+ML_TripleDouble = ML_Compound_FP_Format("ml_td_t", ["hi", "me", "lo"],
+                                        [ML_Binary64, ML_Binary64,
+                                            ML_Binary64],
+                                        "", "",
+                                        sollya.tripledouble)
+ML_SingleSingle = ML_Compound_FP_Format("ml_ds_t", ["hi", "lo"],
+                                        [ML_Binary32, ML_Binary32],
+                                        "", "",
+                                        2*ML_Binary32.get_mantissa_size() + 1)
 ###############################################################################
 #                     VECTOR FORMAT
 ###############################################################################
@@ -966,13 +999,13 @@ class ML_VectorFormat(ML_Format):
 class ML_CompoundVectorFormat(ML_VectorFormat, ML_Compound_Format):
   def __init__(self, c_format_name, opencl_format_name, vector_size, scalar_format, sollya_precision = None, cst_callback = None):
     ML_VectorFormat.__init__(self, scalar_format, vector_size, c_format_name)
-    ML_Compound_Format.__init__(self, c_format_name, ["_[%d]" % i for i in xrange(vector_size)], [scalar_format for i in xrange(vector_size)], "", "", sollya_precision)
+    ML_Compound_Format.__init__(self, c_format_name, ["_[%d]" % i for i in range(vector_size)], [scalar_format for i in range(vector_size)], "", "", sollya_precision)
     # registering OpenCL-C format name
     self.name[OpenCL_Code] = opencl_format_name
     self.cst_callback = cst_callback
 
   def get_cst_default(self, cst_value, language = C_Code):
-    elt_value_list = [self.scalar_format.get_cst(cst_value[i], language = language) for i in xrange(self.vector_size)]
+    elt_value_list = [self.scalar_format.get_cst(cst_value[i], language = language) for i in range(self.vector_size)]
     if language is C_Code:
       return "{._ = {%s}}" % (", ".join(elt_value_list))
     elif language is OpenCL_Code:
@@ -999,9 +1032,10 @@ class ML_FloatingPointVectorFormat(ML_CompoundVectorFormat, ML_FP_Format):
 #  @param scalar_format ML_Format object, format of a vector's element
 #  @param sollya_precision pythonsollya object, sollya precision to be used for computation
 #  @param compound_constructor ML_Compound_Format child class used to build the result format
+#  @param cst_callback function (self, value, language) -> str, used to generate constant value code
 def vector_format_builder(c_format_name, opencl_format_name, vector_size,
-                          scalar_format, sollya_precision = None,
-                          compound_constructor = ML_FloatingPointVectorFormat, cst_callback = None):
+                          scalar_format, sollya_precision=None,
+                          compound_constructor=ML_FloatingPointVectorFormat, cst_callback=None):
   return compound_constructor(c_format_name, opencl_format_name, vector_size,
                               scalar_format, sollya_precision, cst_callback)
 
@@ -1020,8 +1054,8 @@ v3bool  = vector_format_builder("ml_bool3_t", "int3", 3, ML_Bool, compound_const
 v4bool  = vector_format_builder("ml_bool4_t", "int4", 4, ML_Bool, compound_constructor = ML_IntegerVectorFormat)
 v8bool  = vector_format_builder("ml_bool8_t", "int8", 8, ML_Bool, compound_constructor = ML_IntegerVectorFormat)
 
-v2int32  = vector_format_builder("ml_int2_t", "int2", 2,  ML_Int32, compound_constructor = ML_IntegerVectorFormat)
-v3int32  = vector_format_builder("ml_int3_t", "int3", 3,  ML_Int32, compound_constructor = ML_IntegerVectorFormat)
+v2int32  = vector_format_builder("ml_int2_t", "int2", 2, ML_Int32, compound_constructor = ML_IntegerVectorFormat)
+v3int32  = vector_format_builder("ml_int3_t", "int3", 3, ML_Int32, compound_constructor = ML_IntegerVectorFormat)
 v4int32  = vector_format_builder("ml_int4_t", "int4", 4, ML_Int32, compound_constructor = ML_IntegerVectorFormat)
 v8int32  = vector_format_builder("ml_int8_t", "int8", 8, ML_Int32, compound_constructor = ML_IntegerVectorFormat)
 
@@ -1029,6 +1063,16 @@ v2uint32 = vector_format_builder("ml_uint2_t", "uint2", 2, ML_UInt32, compound_c
 v3uint32 = vector_format_builder("ml_uint3_t", "uint3", 3, ML_UInt32, compound_constructor = ML_IntegerVectorFormat)
 v4uint32 = vector_format_builder("ml_uint4_t", "uint4", 4, ML_UInt32, compound_constructor = ML_IntegerVectorFormat)
 v8uint32 = vector_format_builder("ml_uint8_t", "uint8", 8, ML_UInt32, compound_constructor = ML_IntegerVectorFormat)
+
+v2int64  = vector_format_builder("ml_long2_t", "long2", 2, ML_Int64, compound_constructor = ML_IntegerVectorFormat)
+v3int64  = vector_format_builder("ml_long3_t", "long3", 3, ML_Int64, compound_constructor = ML_IntegerVectorFormat)
+v4int64  = vector_format_builder("ml_long4_t", "long4", 4, ML_Int64, compound_constructor = ML_IntegerVectorFormat)
+v8int64  = vector_format_builder("ml_long8_t", "long8", 8, ML_Int64, compound_constructor = ML_IntegerVectorFormat)
+
+v2uint64 = vector_format_builder("ml_ulong2_t", "ulong2", 2, ML_UInt64, compound_constructor = ML_IntegerVectorFormat)
+v3uint64 = vector_format_builder("ml_ulong3_t", "ulong3", 3, ML_UInt64, compound_constructor = ML_IntegerVectorFormat)
+v4uint64 = vector_format_builder("ml_ulong4_t", "ulong4", 4, ML_UInt64, compound_constructor = ML_IntegerVectorFormat)
+v8uint64 = vector_format_builder("ml_ulong8_t", "ulong8", 8, ML_UInt64, compound_constructor = ML_IntegerVectorFormat)
 
 
 ###############################################################################

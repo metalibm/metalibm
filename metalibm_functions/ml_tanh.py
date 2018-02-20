@@ -4,293 +4,317 @@ import sys
 
 import sollya
 
-from sollya import S2, Interval, ceil, floor, round, inf, sup, log, exp, expm1, log2, tanh, guessdegree, dirtyinfnorm, RN, atanh, RD
-from sollya import parse as sollya_parse
+from sollya import (
+     S2, Interval, tanh
+)
 
-from metalibm_core.core.attributes import ML_Debug
-from metalibm_core.core.ml_operations import *
-from metalibm_core.core.ml_formats import *
+from metalibm_core.core.ml_function import (
+    ML_Function, ML_FunctionBasis, DefaultArgTemplate
+)
+from metalibm_core.core.ml_formats import ML_Binary32, ML_Int32
+from metalibm_core.core.precisions import ML_Faithful
+
+from metalibm_core.core.polynomials import (
+    Polynomial, PolynomialSchemeEvaluator, SollyaError
+)
+from metalibm_core.core.special_values import FP_PlusInfty
+from metalibm_core.core.ml_operations import (
+    Return, Subtraction, TableLoad, Constant, NearestInteger, Multiplication,
+    Division, Addition, Conversion, Max, Min,
+    Abs, Negation, Select
+)
 from metalibm_core.core.ml_table import ML_NewTable
+
 from metalibm_core.code_generation.generic_processor import GenericProcessor
-from metalibm_core.core.polynomials import *
-from metalibm_core.core.ml_function import ML_Function, ML_FunctionBasis, DefaultArgTemplate
-from metalibm_core.code_generation.generator_utility import FunctionOperator, FO_Result, FO_Arg
-from metalibm_core.core.ml_complex_formats import ML_Mpfr_t
 
-
-from metalibm_core.utility.ml_template import *
+from metalibm_core.utility.ml_template import ML_NewArgTemplate, ArgDefault
 from metalibm_core.utility.log_report  import Log
-from metalibm_core.utility.debug_utils import *
-from metalibm_core.utility.num_utils   import ulp
-from metalibm_core.utility.gappa_utils import is_gappa_installed
+
+# disabling sollya's rounding warning
+sollya.roundingwarnings = sollya.off
+sollya.verbosity = 0
+sollya.showmessagenumbers = sollya.on
 
 
-
-class ML_HyperbolicTangent(ML_Function("ml_tanh")):
-  def __init__(self, 
-             arg_template = DefaultArgTemplate, 
-             precision = ML_Binary32, 
-             accuracy  = ML_Faithful,
-             libm_compliant = True, 
-             debug_flag = False, 
-             fuse_fma = True, 
-             fast_path_extract = True,
-             target = GenericProcessor(), 
-             output_file = "my_tanh.c", 
-             function_name = "my_tanh",
-             language = C_Code,
-             vector_size = 1):
-    # initializing I/O precision
-    precision = ArgDefault.select_value([arg_template.precision, precision])
-    io_precisions = [precision] * 2
-
-    # initializing base class
-    ML_FunctionBasis.__init__(self, 
-      base_name = "tanh",
-      function_name = function_name,
-      output_file = output_file,
-
-      io_precisions = io_precisions,
-      abs_accuracy = None,
-      libm_compliant = libm_compliant,
-
-      processor = target,
-      fuse_fma = fuse_fma,
-      fast_path_extract = fast_path_extract,
-
-      debug_flag = debug_flag,
-      language = language,
-      vector_size = vector_size,
-      arg_template = arg_template
+def piecewise_approximation(
+        function,
+        variable,
+        precision,
+        bound_low=-1.0,
+        bound_high=1.0,
+        num_intervals=16,
+        max_degree=2,
+        error_threshold=sollya.S2**-24):
+    """ To be documented """
+    # table to store coefficients of the approximation on each segment
+    coeff_table = ML_NewTable(
+        dimensions=[num_intervals,max_degree+1],
+        storage_precision=precision,
+        tag="coeff_table"
     )
 
-    self.accuracy  = accuracy
-    self.precision = precision
+    error_function = lambda p, f, ai, mod, t: sollya.dirtyinfnorm(p - f, ai)
+    max_approx_error = 0.0
+    interval_size = (bound_high - bound_low) / num_intervals
+    print("interval_size: {}".format(float(interval_size)))
 
-  def generate_scheme(self):
-    
-    def compute_reciprocal(vx):
-        inv_seed = DivisionSeed(vx, precision = self.precision, tag = "inv_seed", debug = debug_multi)
-        nr_1 = 2*inv_seed - vx*inv_seed*inv_seed
-        nr_2 = 2*nr_1 - vx*nr_1*nr_1
-        nr_3 =2*nr_2 - vx*nr_2*nr_2
-        inv_vx = 2*nr_3 - vx*nr_3*nr_3
-        
-        return inv_vx
-    
-    
-    # declaring target and instantiating optimization engine
+    for i in range(num_intervals):
+        subint_low = bound_low + i * interval_size
+        subint_high = bound_low + (i+1) * interval_size
 
-    vx = self.implementation.add_input_variable("x", self.precision) 
+        #local_function = function(sollya.x)
+        #local_interval = Interval(subint_low, subint_high)
+        local_function = function(sollya.x + subint_low)
+        local_interval = Interval(-interval_size, interval_size)
 
-    Log.set_dump_stdout(True)
-    
-    # local overloading of RaiseReturn operation
-    def ExpRaiseReturn(*args, **kwords):
-        kwords["arg_value"] = vx
-        kwords["function_name"] = self.function_name
-        return RaiseReturn(*args, **kwords)
-        
-    sollya_precision = self.precision.get_sollya_object()
-      
-    int_precision = {
-        ML_Binary32 : ML_Int32,
-        ML_Binary64 : ML_Int64
-      }[self.precision]
-      
-    hi_precision = self.precision.get_field_size() - 12
-    index_size = 3
-    
-    if self.precision is ML_Binary32:
-      bound = 9
-    else:
-      bound = 22
-    
-    test_sign = Comparison(vx, 0, specifier = Comparison.Less, precision = ML_Bool, debug = debug_multi, tag = "Is_Negative")
-    neg_vx = -vx
-    
-    sign = Variable("sign", precision = self.precision, var_type = Variable.Local)
-    
-    set_sign = Statement(
-        ConditionBlock(test_sign,
-          Statement(ReferenceAssign(vx, 2*neg_vx), ReferenceAssign(sign, -1)),
-          Statement(ReferenceAssign(vx, 2*vx), ReferenceAssign(sign, 1))
-      ))
-  
-    sollya_prec_map = {ML_Binary32: sollya.binary32, ML_Binary64: sollya.binary64}
-    
-    # Constants
-    
-    log_2 = round(log(2), sollya_prec_map[self.precision], sollya.RN)
-    invlog2 = round(1/log(2), sollya_prec_map[self.precision], sollya.RN)
-    
-    interval_vx = Interval(0, bound)
-    interval_fk = interval_vx * invlog2
-    interval_k = Interval(floor(inf(interval_fk)), ceil(sup(interval_fk)))
-    
-    log2_hi_precision = self.precision.get_field_size() - 4
-    log2_hi = round(log(2), log2_hi_precision, sollya.RN)
-    log2_lo = round(log(2) - log2_hi, sollya_prec_map[self.precision], sollya.RN)
+        local_degree = sollya.guessdegree(local_function, local_interval, error_threshold) 
+        degree = min(max_degree, local_degree)
 
-
-    # Reduction
-    
-    unround_k = vx * invlog2
-    k = NearestInteger(unround_k, precision = self.precision, tag = "k")
-    ik = NearestInteger(unround_k, precision = ML_Int32, debug = debug_multi, tag = "ik")
-    exact_pre_mul = (k * log2_hi)
-    exact_pre_mul.set_attributes(exact = True)
-    exact_hi_part = vx - exact_pre_mul
-    exact_hi_part.set_attributes(exact = True, prevent_optimization = True)
-    exact_lo_part = - k * log2_lo
-    exact_lo_part.set_attributes(prevent_optimization = True)
-    
-    r = exact_hi_part + exact_lo_part
-    # z = s - exact_hi_part
-    # t = exact_lo_part - z
-    # r = s + t
-    
-    r.set_attributes(tag = "r", debug = debug_multi)
-    
-    r_interval = Interval(-log_2/S2, log_2/S2)
-    r_interval_tanh = Interval(0, 0.48)
-    r_interval_tanh2 = Interval(0.48, 0.52)
-    r_interval_tanh3 = Interval(0.52, 0.9)
-    r_interval_tanh4 = Interval(0.9, 1)
-    
-    local_ulp = sup(ulp(exp(r_interval), self.precision))
-    
-    print "ulp: ", local_ulp 
-    error_goal = S2**-1*local_ulp
-    print "error goal: ", error_goal 
-    
-    # Polynomial Approx
-    error_function = lambda p, f, ai, mod, t: dirtyinfnorm(f - p, ai)
-    Log.report(Log.Info, "\033[33;1m Building polynomial \033[0m\n")
-    
-    poly_degree = sup(guessdegree(expm1(sollya.x), r_interval, error_goal) + 1)
-    poly_degree_tanh = sup(guessdegree(tanh(sollya.x), r_interval_tanh, error_goal) + 4)
-    poly_degree_tanh2 = sup(guessdegree(tanh(sollya.x), r_interval_tanh2, error_goal)+ 2)
-    poly_degree_tanh3 = sup(guessdegree(tanh(sollya.x), r_interval_tanh3, error_goal)+ 4)
-    poly_degree_tanh4 = sup(guessdegree(tanh(sollya.x), r_interval_tanh4, error_goal)+ 2)
-    
-    polynomial_scheme_builder = PolynomialSchemeEvaluator.generate_horner_scheme
-    poly_degree_list = range(0, poly_degree)
-    poly_degree_list_tanh = range(0, poly_degree_tanh)
-    poly_degree_list_tanh2 = range(0, poly_degree_tanh2)
-    poly_degree_list_tanh3 = range(0, poly_degree_tanh3)
-    poly_degree_list_tanh4 = range(0, poly_degree_tanh4)
-    
-    precision_list = [self.precision] *(len(poly_degree_list) + 1)
-    precision_list_tanh = [self.precision] *(len(poly_degree_list_tanh) + 1)
-    precision_list_tanh2 = [self.precision] *(len(poly_degree_list_tanh2) + 1)
-    precision_list_tanh3 = [self.precision] *(len(poly_degree_list_tanh3) + 1)
-    precision_list_tanh4 = [self.precision] *(len(poly_degree_list_tanh4) + 1)
-    
-    poly_object, poly_approx_error = Polynomial.build_from_approximation_with_error(expm1(sollya.x), poly_degree, precision_list, r_interval, sollya.absolute, error_function = error_function)
-    poly_object_tanh, poly_approx_error_tanh = Polynomial.build_from_approximation_with_error(tanh(sollya.x), poly_degree_tanh, precision_list_tanh, r_interval_tanh, sollya.absolute, error_function = error_function)
-    poly_object_tanh2, poly_approx_error_tanh2 = Polynomial.build_from_approximation_with_error(tanh(sollya.x), poly_degree_tanh2, precision_list_tanh2, r_interval_tanh2, sollya.absolute, error_function = error_function)
-    poly_object_tanh3, poly_approx_error_tanh3 = Polynomial.build_from_approximation_with_error(tanh(sollya.x), poly_degree_tanh3, precision_list_tanh3, r_interval_tanh3, sollya.absolute, error_function = error_function)
-    poly_object_tanh4, poly_approx_error_tanh4 = Polynomial.build_from_approximation_with_error(tanh(sollya.x), poly_degree_tanh4, precision_list_tanh4, r_interval_tanh4, sollya.absolute, error_function = error_function)
-    
-    print "poly_approx_error: ", poly_approx_error, float(log2(poly_approx_error))
-    print "poly_approx_error_tanh: ", poly_approx_error_tanh, float(log2(poly_approx_error_tanh))
-    print "poly_approx_error_tanh2: ", poly_approx_error_tanh2, float(log2(poly_approx_error_tanh2))
-    print "poly_approx_error_tanh3: ", poly_approx_error_tanh3, float(log2(poly_approx_error_tanh3))
-    print "poly_approx_error_tanh4: ", poly_approx_error_tanh4, float(log2(poly_approx_error_tanh4))
-    
-    sub_poly = poly_object.sub_poly(start_index = 2)
-    Log.report(Log.Info, "Poly : %s" % sub_poly)
-    pre_sub_poly = polynomial_scheme_builder(sub_poly, r, unified_precision = self.precision)
-    poly = r + pre_sub_poly
-    poly.set_attributes(tag = "poly", debug = debug_multi)
-    
-    exp_k = ExponentInsertion(ik, tag = "exp_k", debug = debug_multi, precision = self.precision)
-    exp_mk = ExponentInsertion(-ik, tag = "exp_mk", debug = debug_multi, precision = self.precision)
-    
-    diff = 1 - exp_mk
-    diff.set_attributes(tag = "diff", debug = debug_multi) 
-
-    std_result = exp_k * ( poly + diff )
-    
-    result1 = std_result + 2 
-    result2 = 2 * compute_reciprocal(result1)
-    result = 1 - result2
-    result.set_attributes(tag = "result", debug = debug_multi)
-    
-    result_tanh = polynomial_scheme_builder(poly_object_tanh, 0.5*vx, unified_precision = self.precision)
-    result_tanh.set_attributes(tag = "result_tanh", debug = debug_multi)
-    
-    result_tanh2 = polynomial_scheme_builder(poly_object_tanh2, 0.5*vx, unified_precision = self.precision)
-    result_tanh2.set_attributes(tag = "result_tanh2", debug = debug_multi)
-    
-    result_tanh3 = polynomial_scheme_builder(poly_object_tanh3, 0.5*vx, unified_precision = self.precision)
-    result_tanh3.set_attributes(tag = "result_tanh3", debug = debug_multi)
-    
-    result_tanh4 = polynomial_scheme_builder(poly_object_tanh4, 0.5*vx, unified_precision = self.precision)
-    result_tanh4.set_attributes(tag = "result_tanh4", debug = debug_multi)
-    # ov_value 
-    ov_value = bound
-    ov_flag = Comparison(vx*0.5, Constant(ov_value, precision = self.precision), specifier = Comparison.Greater, tag = "ov_flag", debug = debug_multi)
-    
-    test_interval = Comparison(vx*0.5, 1, specifier = Comparison.Greater, precision = ML_Bool)
-    test_interval2 = Comparison(vx*0.5, 0.48, specifier = Comparison.Greater, precision = ML_Bool)
-    test_interval3 = Comparison(vx*0.5, 0.52, specifier = Comparison.Greater, precision = ML_Bool)
-    test_interval4 = Comparison(vx*0.5, 0.9, specifier = Comparison.Greater, precision = ML_Bool)
-    # main scheme
-    scheme = Statement(
-                sign,
-                set_sign,
-                ConditionBlock(
-                  ov_flag,
-                  Return(sign*Constant(1.0, precision = self.precision)),
-                  ConditionBlock(
-                    test_interval,
-                    Return(sign*result),
-                    ConditionBlock(
-                      test_interval4,
-                      Return(result_tanh4),
-                      ConditionBlock(
-                        test_interval3,
-                        Return(result_tanh3),
-                        ConditionBlock(
-                          test_interval2,
-                          Return(result_tanh2),
-                          Return(result_tanh)
-                        )
-                      )
-                    )
-                  )
+        if function(subint_low) == 0.0:
+            # if the lower bound is a zero to the function, we
+            # need to force value=0 for the constant coefficient
+            # and extend the approximation interval
+            degree_list = range(1, degree+1)
+            poly_object, approx_error = Polynomial.build_from_approximation_with_error(
+                function(sollya.x),
+                degree_list,
+                [precision] * len(degree_list),
+                Interval(-subint_high,subint_high),
+                sollya.absolute,
+                error_function=error_function
+            )
+        else:
+            try:
+                poly_object, approx_error = Polynomial.build_from_approximation_with_error(
+                    local_function,
+                    degree,
+                    [precision] * (degree + 1),
+                    local_interval,
+                    sollya.absolute,
+                    error_function=error_function
                 )
-              )
+            except SollyaError as err:
+                print("degree: {}".format(degree))
+                raise err
+        for ci in range(degree+1):
+            if ci in poly_object.coeff_map:
+                coeff_table[i][ci] = poly_object.coeff_map[ci]
+            else:
+                coeff_table[i][ci] = 0.0
 
-      
-    return scheme
+        max_approx_error = max(max_approx_error,abs(approx_error))
+    # computing offset
+    diff = Subtraction(
+        variable,
+        Constant(bound_low, precision=precision),
+        tag="diff",
+        precision=precision
+    )
+    # delta = bound_high - bound_low
+    delta_ratio = Constant(num_intervals / (bound_high - bound_low), precision=precision)
+    # computing table index
+    # index = nearestint(diff / delta * <num_intervals>)
+    index = Max(0,
+        Min(
+            NearestInteger(
+                Multiplication(
+                    diff,
+                    delta_ratio,
+                    precision=precision
+                ),
+                precision=ML_Int32
+            ),
+            num_intervals - 1
+        ),
+        tag="index",
+        debug=True,
+        precision=ML_Int32
+    )
+    poly_var = Subtraction(
+        diff,
+        Multiplication(
+            Conversion(index, precision=precision),
+            Constant(interval_size, precision=precision)
+        ),
+        precision=precision,
+        tag="poly_var",
+        debug=True
+    )
+    # generating indexed polynomial
+    coeffs = [(ci, TableLoad(coeff_table, index, ci)) for ci in range(degree+1)][::-1]
+    poly_scheme = PolynomialSchemeEvaluator.generate_horner_scheme2(
+        coeffs,
+        poly_var,
+        precision, {}, precision
+    )
+    return poly_scheme, max_approx_error
 
-  def generate_emulate(self, result_ternary, result, mpfr_x, mpfr_rnd):
-    """ generate the emulation code for ML_Log2 functions
-        mpfr_x is a mpfr_t variable which should have the right precision
-        mpfr_rnd is the rounding mode
-    """
-    emulate_func_name = "mpfr_tanh"
-    emulate_func_op = FunctionOperator(emulate_func_name, arg_map = {0: FO_Arg(0), 1: FO_Arg(1), 2: FO_Arg(2)}, require_header = ["mpfr.h"]) 
-    emulate_func   = FunctionObject(emulate_func_name, [ML_Mpfr_t, ML_Mpfr_t, ML_Int32], ML_Int32, emulate_func_op)
-    mpfr_call = Statement(ReferenceAssign(result_ternary, emulate_func(result, mpfr_x, mpfr_rnd)))
 
-    return mpfr_call
+## Implementation of sine or cosine sharing a common
+#  approximation scheme
+class ML_HyperbolicTangent(ML_Function("ml_tanh")):
+    """ Implementation of hyperbolic tangent function """
+    def __init__(self, args=DefaultArgTemplate):
+        # initializing base class
+        ML_FunctionBasis.__init__(self,
+          args
+        )
 
-  def numeric_emulate(self, input_value):
-    return tanh(input_value)
+    @staticmethod
+    def get_default_args(**kw):
+        """ Return a structure containing the arguments for ML_HyperbolicTangent,
+            builtin from a default argument mapping overloaded with @p kw """
+        default_args_tanh = {
+            "output_file": "my_tanh.c",
+            "function_name": "my_tanh",
+            "precision": ML_Binary32,
+            "accuracy": ML_Faithful,
+            "target": GenericProcessor()
+        }
+        default_args_tanh.update(kw)
+        return DefaultArgTemplate(**default_args_tanh)
 
-  standard_test_cases =[[sollya_parse(x)] for x in  ["0x1.d7df94p-7", "0x1.efc2cp-6"]]
+    def generate_approx_poly_near_zero(self, function, high_bound, error_bound, variable):
+        """ Generate polynomial approximation scheme """
+        error_function = lambda p, f, ai, mod, t: sollya.dirtyinfnorm(p - f, ai)
+        # Some issues encountered when 0 is one of the interval bound
+        # so we use a symetric interval around it
+        approx_interval = Interval(-high_bound, high_bound)
+        local_function = function / sollya.x
+
+        degree = sollya.sup(sollya.guessdegree(local_function, approx_interval, error_bound))
+        degree_list = range(0, int(degree)+1, 1)
+
+        poly_object, approx_error = Polynomial.build_from_approximation_with_error(
+            function / sollya.x,
+            degree_list,
+            [1] + [self.precision] * (len(degree_list) - 1),
+            approx_interval, sollya.absolute,
+            error_function = error_function
+        )
+        Log.report(Log.Info, "approximation poly: {}\n  with error {}".format(
+                poly_object, approx_error
+            )
+        )
+
+        poly_scheme = Multiplication(
+            variable,
+            PolynomialSchemeEvaluator.generate_horner_scheme(
+                poly_object,
+                variable,
+                self.precision
+            )
+        )
+        return poly_scheme, approx_error
+
+    def generate_scheme(self):
+        """ Generating implementation script for hyperic tangent
+            meta-function """
+        # registering the single input variable to the function
+        vx = self.implementation.add_input_variable("x", self.precision)
+
+        #Log.set_dump_stdout(True)
+        # tanh(x) = sinh(x) / cosh(x)
+        #         = (e^x - e^-x) / (e^x + e^-x)
+        #         = (e^(2x) - 1) / (e^(2x) + 1)
+        #   when x -> +inf, tanh(x) -> 1
+        #   when x -> -inf, tanh(x) -> -1
+        #   ~0 e^x    ~ 1 + x - x^2 / 2 + x^3 / 6 + ...
+        #      e^(-x) ~ 1 - x - x^2 / 2- x^3/6 + ...
+        #   when x -> 0, tanh(x) ~ (2 (x + x^3/6 + ...)) / (2 - x^2 + ...) ~ x
+        # We can divide the input interval into 3 parts
+        # positive, around 0, and finally negative
+
+        # Possible argument reduction
+        # x = m.2^E = k * log(2) + r
+        # (k != 0) => tanh(x) = (2k * e^(2r) - 1) / (2k * e^(2r) + 1)
+        #                     = (1 - 1 * e^(-2r) / 2k) / (1 + e^(-2r) / 2k)
+        #
+        # tanh(x) = (e^(2x) - 1) / (e^(2x) + 1)
+        #         = (e^(2x) + 1 - 1- 1) / (e^(2x) + 1)
+        #         = 1 - 2 / (e^(2x) + 1)
+
+        # tanh is odd so we reduce the computation to the absolute value of
+        # vx
+        abs_vx = Abs(vx,precision=self.precision)
+
+        # if p is the expected output precision
+        # x > (p+2) * log(2) / 2 => tanh(x) = 1 - eps
+        #   where eps < 1/2 * 2^-p
+        p = self.precision.get_mantissa_size()
+        high_bound = (p+2) * sollya.log(2) / 2
+        near_zero_bound = 0.125
+        interval_num = 1024
+
+        interval_size = (high_bound - near_zero_bound) / (1024)
+        new_interval_size = sollya.S2**int(sollya.log2(interval_size))
+        interval_num *= 2
+        high_bound = new_interval_size * interval_num + near_zero_bound
+
+        # Near 0 approximation
+        near_zero_scheme, near_zero_error = self.generate_approx_poly_near_zero(
+            sollya.tanh(sollya.x),
+            near_zero_bound,
+            S2**-p,
+            abs_vx
+        )
+
+        # approximation parameters
+        poly_degree = 5
+        approx_interval = Interval(near_zero_bound, high_bound)
+
+        sollya.settings.points = 117
+
+        approx_scheme, approx_error = piecewise_approximation(
+            sollya.tanh,
+            abs_vx,
+            self.precision,
+            bound_low=near_zero_bound,
+            bound_high=high_bound,
+            num_intervals=interval_num,
+            max_degree=5,
+            error_threshold=sollya.S2**-p
+        )
+        Log.report(Log.Warning, "approx_error={}".format(approx_error))
+
+        complete_scheme = Select(
+            abs_vx < near_zero_bound,
+            near_zero_scheme,
+            Select(
+                abs_vx < high_bound,
+                approx_scheme,
+                Constant(1.0,precision=self.precision)
+            )
+        )
+
+        Log.report(Log.Info, "\033[33;1m generating implementation scheme \033[0m")
+        scheme = Return(
+            Select(
+                vx<0,Negation(complete_scheme),complete_scheme
+            ), precision=self.precision)
+        return scheme
+
+    def numeric_emulate(self, input_value):
+        return tanh(input_value)
+
+    standard_test_cases =[
+        [sollya.parse(x)] for x in  [
+        "-0x1.572306p+0",
+        "0x1.af0bf2p+1",
+        "-0x1.af0bf2p+1",
+        "-0x1.51b618p-13",
+        "0x1.ffb99ep-1"
+    ]]
+
 
 
 if __name__ == "__main__":
-    # auto-test
-    arg_template = ML_NewArgTemplate(default_function_name = "new_tanh", default_output_file = "new_tanh.c" )
-    # argument extraction 
-    args = parse_arg_index_list = arg_template.arg_extraction()
+    # building argument template for main generation
+    arg_template = ML_NewArgTemplate(
+        default_arg=ML_HyperbolicTangent.get_default_args()
+    )
 
-    ml_tanh          = ML_HyperbolicTangent(args)
-
+    # argument extraction
+    args = arg_template.arg_extraction()
+    ml_tanh = ML_HyperbolicTangent(args)
     ml_tanh.gen_implementation()

@@ -2,10 +2,10 @@
 
 ###############################################################################
 # This file is part of Kalray's Metalibm tool
-# Copyright (2013-2015)
+# Copyright (2013-2018)
 # All rights reserved
-# created:          Oct 6th, 2015
-# last-modified:    
+# created:          Oct  6th, 2015
+# last-modified:    Feb  7th, 2018
 #
 # description: implement a fixed point backend for Metalibm
 # author(s): Nicolas Brunie (nicolas.brunie@kalray.eu)

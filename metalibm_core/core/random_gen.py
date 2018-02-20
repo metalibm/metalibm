@@ -248,10 +248,10 @@ class FPRandomGen(RandomGenWeightCat):
 # auto-test
 if __name__ == "__main__":
     RG = FPRandomGen(ml_formats.ML_Binary32)
-    for i in xrange(20):
+    for i in range(20):
         value = RG.get_new_value()
         print value
     RG = FPRandomGen(ml_formats.ML_Binary64)
-    for i in xrange(20):
+    for i in range(20):
         value = RG.get_new_value()
         print value

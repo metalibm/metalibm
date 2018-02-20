@@ -2,7 +2,7 @@
 
 # Instances (see valid/unit_test.py
 # 1.  --pre-gen-passes m128_promotion --target x86_avx2
-# 
+#
 
 import sys
 
@@ -13,21 +13,23 @@ from metalibm_core.core.ml_function import ML_Function, ML_FunctionBasis
 from metalibm_core.core.attributes import ML_Debug
 from metalibm_core.core.ml_operations import *
 from metalibm_core.core.ml_formats import *
-from metalibm_core.core.ml_complex_formats import * 
+from metalibm_core.core.ml_complex_formats import *
 from metalibm_core.core.ml_table import ML_NewTable
 
-from metalibm_core.code_generation.code_constant import C_Code 
+from metalibm_core.code_generation.code_constant import C_Code
 
-from metalibm_core.utility.ml_template import *
-from metalibm_core.utility.debug_utils import * 
+from metalibm_core.utility.ml_template import (
+    DefaultArgTemplate, ML_NewArgTemplate
+)
+from metalibm_core.utility.debug_utils import debug_multi
 
 from metalibm_core.targets.intel.x86_processor import X86_AVX2_Processor
 
 
-class ML_UT_M128Conversion(ML_Function("ml_ut_m128_conversion")):
-  def __init__(self, args=DefaultArgTemplate): 
+class ML_UT_M128_Debug(ML_Function("ml_ut_m128_debug")):
+  def __init__(self, args=DefaultArgTemplate):
     # initializing base class
-    ML_FunctionBasis.__init__(self, args) 
+    ML_FunctionBasis.__init__(self, args)
 
 
   @staticmethod
@@ -41,8 +43,9 @@ class ML_UT_M128Conversion(ML_Function("ml_ut_m128_conversion")):
         "target": X86_AVX2_Processor(),
         "fast_path_extract": True,
         "fuse_fma": True,
+        "debug": True,
         "libm_compliant": True,
-        "pre_gen_passes": ["m128_promotion"], 
+        "pre_gen_passes": ["m128_promotion"],
     }
     default_args.update(kw)
     return DefaultArgTemplate(**default_args)
@@ -71,12 +74,20 @@ class ML_UT_M128Conversion(ML_Function("ml_ut_m128_conversion")):
     )
     # index = index % table_size = index & (2**index_size - 1)
     index = BitLogicAnd(
-      index,
-      Constant(2**index_size - 1, precision = ML_Int32),
-      precision = ML_Int32
+      TypeCast(index,precision=ML_UInt32),
+      Constant(2**index_size - 1, precision = ML_UInt32),
+      precision=ML_UInt32,
+      tag="uindex",
+      debug=debug_multi
     )
 
-    index = BitLogicRightShift(index, Constant(1, precision=ML_Int32), precision=ML_Int32)
+    index = BitLogicRightShift(
+        TypeCast(index, precision=ML_Int32),
+        Constant(1, precision=ML_Int32),
+        tag="index",
+        debug=debug_multi,
+        precision=ML_Int32
+    )
 
     table_value = TableLoad(table, index, precision = self.precision)
 
@@ -96,14 +107,19 @@ class ML_UT_M128Conversion(ML_Function("ml_ut_m128_conversion")):
         Addition(
             cst,
             Conversion(int_tree, precision = self.precision),
-            precision = self.precision
+            precision=self.precision,
+            debug=debug_multi,
+            tag="fadd"
         ),
         mult,
         add_xx,
-        specifier = FusedMultiplyAdd.Subtract,
-        precision = self.precision
+        specifier=FusedMultiplyAdd.Subtract,
+        precision=self.precision,
+        tag="fused",
+        debug=debug_multi
       ),
-      precision = self.precision,
+      precision=self.precision,
+      debug=debug_multi,
       tag="result"
     )
 
@@ -128,13 +144,13 @@ class ML_UT_M128Conversion(ML_Function("ml_ut_m128_conversion")):
 
 
 def run_test(args):
-  ml_ut_m128_conversion = ML_UT_M128Conversion(args)
-  ml_ut_m128_conversion.gen_implementation()
+  ml_ut_m128_debug = ML_UT_M128_Debug(args)
+  ml_ut_m128_debug.gen_implementation()
   return True
 
 if __name__ == "__main__":
   # auto-test
-  arg_template = ML_NewArgTemplate(default_arg=ML_UT_M128Conversion.get_default_args())
+  arg_template = ML_NewArgTemplate(default_arg=ML_UT_M128_Debug.get_default_args())
   args = arg_template.arg_extraction()
 
 

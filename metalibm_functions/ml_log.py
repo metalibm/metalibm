@@ -27,40 +27,24 @@ from metalibm_core.utility.ml_template import *
 from metalibm_core.utility.debug_utils import * 
 
 class ML_Log(ML_Function("ml_log")):
-  def __init__(self, 
-               arg_template = DefaultArgTemplate,
-               precision = ML_Binary32, 
-               abs_accuracy = S2**-24, 
-               libm_compliant = True, 
-               debug_flag = False, 
-               fuse_fma = True, 
-               fast_path_extract = True,
-               target = GenericProcessor(), 
-               output_file = "my_log.c", 
-               function_name = "my_log"):
-    # initializing I/O precision
-    precision = ArgDefault.select_value([arg_template.precision, precision])
-    io_precisions = [precision] * 2
-
+  def __init__(self, args):
     # initializing base class
-    ML_FunctionBasis.__init__(self, 
-      base_name = "log",
-      function_name = function_name,
-      output_file = output_file,
+    ML_FunctionBasis.__init__(self, args)
 
-      io_precisions = io_precisions,
-      abs_accuracy = None,
-      libm_compliant = libm_compliant,
 
-      processor = target,
-      fuse_fma = fuse_fma,
-      fast_path_extract = fast_path_extract,
-
-      debug_flag = debug_flag,
-      arg_template = arg_template
-    )
-
-    self.precision = precision
+  @staticmethod
+  def get_default_args(**kw):
+    """ Return a structure containing the arguments for ML_Log,
+        builtin from a default argument mapping overloaded with @p kw """
+    default_args_log = {
+        "output_file": "my_logf.c",
+        "function_name": "my_log",
+        "precision": ML_Binary32,
+        "accuracy": ML_Faithful,
+        "target": GenericProcessor()
+    }
+    default_args_log.update(kw)
+    return DefaultArgTemplate(**default_args_log)
 
   def generate_emulate(self, result_ternary, result, mpfr_x, mpfr_rnd):
     """ generate the emulation code for ML_Log2 functions
@@ -128,7 +112,7 @@ class ML_Log(ML_Function("ml_log")):
     integer_precision = {ML_Binary32: ML_UInt32, ML_Binary64: ML_UInt64}[self.precision]
 
 
-    for i in xrange(1, 2**table_index_size):
+    for i in range(1, 2**table_index_size):
         #inv_value = (1.0 + (self.processor.inv_approx_table[i] / S2**9) + S2**-52) * S2**-1
         inv_value = inv_approx_table[i][0] # (1.0 + (inv_approx_table[i][0] / S2**9) ) * S2**-1
         value_high = round(log(inv_value), self.precision.get_field_size() - (self.precision.get_exponent_size() + 1), sollya.RN)
@@ -323,9 +307,8 @@ class ML_Log(ML_Function("ml_log")):
 
 if __name__ == "__main__":
   # auto-test
-  arg_template = ML_NewArgTemplate(default_function_name = "new_log", default_output_file = "new_log.c" )
+  arg_template = ML_NewArgTemplate(default_arg=ML_Log.get_default_args())
   args = arg_template.arg_extraction()
-
 
   ml_log          = ML_Log(args)
 

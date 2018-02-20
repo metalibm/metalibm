@@ -72,7 +72,7 @@ def compute_sqrt(vx, init_approx, num_iter, debug_lftolx = None, precision = ML_
     # correctly-rounded inverse computation
     num_iteration = num_iter
     inv_iteration_list = []
-    for i in xrange(num_iteration):
+    for i in range(num_iteration):
         new_iteration = NR_Iteration(vx, current_approx, h)
         inv_iteration_list.append(new_iteration)
         current_approx = new_iteration.get_new_approx()

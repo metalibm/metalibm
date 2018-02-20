@@ -77,7 +77,7 @@ unit_test_list = [
 class ListUnitTestAction(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
         for test in  unit_test_list:
-          print test.get_tag_title()
+          print(test.get_tag_title())
         exit(0)
 
 
@@ -122,11 +122,11 @@ for test_scheme in args.test_list:
 
 # Printing test summary for new scheme
 for result in result_details:
-  print result.get_details()
+  print(result.get_details())
 
 if success:
-  print "OVERALL SUCCESS"
+  print("OVERALL SUCCESS")
   exit(0)
 else:
-  print "OVERALL FAILURE"
+  print("OVERALL FAILURE")
   exit(1)

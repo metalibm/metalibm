@@ -13,6 +13,7 @@
 ###############################################################################
 
 import os
+import sys
 import inspect
 
 class SourceInfo:
@@ -25,7 +26,11 @@ class SourceInfo:
         return "{}:{}".format(filename, self.lineno)
 
     @staticmethod
-    def retrieve_source_info(extra_depth = 0):
-        frame = inspect.currentframe(2 + extra_depth)
-        frameinfo = inspect.getframeinfo(frame)
-        return SourceInfo(frameinfo.filename, frameinfo.lineno)
+    def retrieve_source_info(extra_depth=0):
+        current_frame = inspect.currentframe()
+        frame = inspect.getouterframes(current_frame)[2 + extra_depth]
+        frameinfo = frame # inspect.getframeinfo(frame)
+        if sys.version_info >= (3, 5):
+            return SourceInfo(frameinfo.filename, frameinfo.lineno)
+        else:
+            return SourceInfo(frameinfo[1], frameinfo[2])
