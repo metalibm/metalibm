@@ -132,7 +132,7 @@ class FP_Divider(ML_Entity("fp_div")):
     io_precision = VirtualFormat(base_format = self.precision, support_format = ML_StdLogicVectorFormat(self.precision.get_bit_size()), get_cst = get_virtual_cst)
 
     # declaring main input variable
-    vx = self.implementation.add_input_signal("x", io_precision) 
+    vx = self.implementation.add_input_signal("x", io_precision)
 
     if self.pipelined:
       self.implementation.add_input_signal("reset", ML_StdLogic)
@@ -146,7 +146,7 @@ class FP_Divider(ML_Entity("fp_div")):
 
     # mantissa extraction
     mant_vx = MantissaExtraction(vx, precision = mant_vx_precision, tag = "mant_vx")
-    # exponent extraction 
+    # exponent extraction
     exp_vx = ExponentExtraction(vx, precision = exp_vx_precision, tag = "exp_vx", debug = debug_dec)
 
     approx_index_size = 8
@@ -220,23 +220,26 @@ class FP_Divider(ML_Entity("fp_div")):
     last_it_precision = RTL_FixedPointFormat(
       2,
       p - 1,
-      support_format = ML_StdLogicVectorFormat(2 + p - 1)
+      support_format=ML_StdLogicVectorFormat(2 + p - 1)
     )
 
     pre_last_it_input = zext(mant_vx, 1)
-    last_it_input = TypeCast(pre_last_it_input, precision = last_it_precision, tag = "last_it_input", debug = debug_fixed)
+    last_it_input = TypeCast(
+        pre_last_it_input, precision=last_it_precision,
+        tag="last_it_input", debug=debug_fixed
+    )
 
     final_approx = generate_NR_iteration(
       last_it_input,
       final_approx,
-      # mult-precision 
-      (2, 2 * p - 1),   
+      # mult-precision
+      (2, 2 * p - 1),
       # error precision
-      (- (3 * approx_index_size) / 2, approx_index_size * 2 + p - 1), 
-      # mult approx mult precision 
-      (2, approx_index_size * 2 + p - 1), 
+      (- (3 * approx_index_size) / 2, approx_index_size * 2 + p - 1),
+      # mult approx mult precision
+      (2, approx_index_size * 2 + p - 1),
       # approx precision
-      (2, p), 
+      (2, p),
       self.implementation,
       pipelined = 2 if self.pipelined else 0,
       tag_suffix = "_third"
@@ -473,11 +476,13 @@ class FP_Divider(ML_Entity("fp_div")):
 
 if __name__ == "__main__":
     # auto-test
-    arg_template = ML_EntityArgTemplate(default_entity_name = "new_fp_div", default_output_file = "ml_fp_div.vhd", default_arg = FP_Divider.get_default_args() )
+    arg_template = ML_EntityArgTemplate(
+        default_entity_name="new_fp_div",
+        default_output_file="ml_fp_div.vhd",
+        default_arg=FP_Divider.get_default_args() )
     # extra command line arguments
 
-    #arg_template.parser.add_argument("--pipelined", dest = "pipelined", action = "store_const", default = False, const = True, help = "enable operator pipelining")
-    # argument extraction 
+    # argument extraction
     args = parse_arg_index_list = arg_template.arg_extraction()
 
     ml_hw_div      = FP_Divider(args)
