@@ -506,14 +506,23 @@ class FP_Divider(ML_Entity("fp_div")):
 
   def numeric_emulate(self, io_map):
     vx = io_map["x"]
+    rnd_mode_i = io_map["rnd_mode"]
+
+    rnd_mode = {
+        0: sollya.RN,
+        1: sollya.RU,
+        2: sollya.RD,
+        3: sollya.RZ
+    }[rnd_mode_i]
     result = {}
-    result["vr_out"] = sollya.round(1.0 / vx, self.precision.get_sollya_object(), sollya.RN)
+    result["vr_out"] = sollya.round(1.0 / vx, self.precision.get_sollya_object(), rnd_mode)
     return result
 
   #standard_test_cases = [({"x": 1.0, "y": (S2**-11 + S2**-17)}, None)]
   standard_test_cases = [
-    ({"x": sollya.parse("0x1.24f608p0")}, None),
-    ({"x": 1.5}, None),
+    ({"x": 2.0, "rnd_mode": 0}, None),
+    ({"x": sollya.parse("0x1.24f608p0"), "rnd_mode": 0}, None),
+    ({"x": 1.5, "rnd_mode": 0}, None),
   ]
 
 
