@@ -325,6 +325,9 @@ def BitSelection(optree, index, **kw):
 
 ## Wrapper for single bit node equality
 def equal_to(optree, cst_value):
+    if not(isinstance(cst_value, int) or isinstance(cst_value, sollya.SollyaObject)):
+        Log.report(Log.Error, "cst_value {} in equal_to MUST be a numeric constant".format(cst_value))
+
     return Equal(
         optree,
         Constant(cst_value, precision=ML_StdLogic),
