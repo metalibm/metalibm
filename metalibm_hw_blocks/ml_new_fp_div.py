@@ -15,6 +15,9 @@ from metalibm_core.code_generation.vhdl_backend import VHDLBackend
 from metalibm_core.core.polynomials import *
 from metalibm_core.core.ml_entity import ML_Entity, ML_EntityBasis, DefaultEntityArgTemplate
 
+from metalibm_core.core.advanced_operations import (
+    FixedPointPosition
+)
 
 from metalibm_core.utility.ml_template import *
 from metalibm_core.utility.log_report  import Log
@@ -32,6 +35,9 @@ from metalibm_core.utility.rtl_debug_utils import (
     debug_fixed, debug_dec, debug_std, debug_hex
 )
 
+from metalibm_core.targets.kalray.k1c_fp_utils import (
+    rnd_mode_format, rnd_rne, rnd_ru, rnd_rd, rnd_rz
+)
 
 ## Generate the code for a single step of a newton-Raphson
 #  iteration
@@ -146,6 +152,8 @@ class FP_Divider(ML_Entity("fp_div")):
 
     # declaring main input variable
     vx = self.implementation.add_input_signal("x", io_precision)
+    # rounding mode input
+    rnd_mode = self.implementation.add_input_signal("rnd_mode", rnd_mode_format)
 
     if self.pipelined:
       self.implementation.add_input_signal("reset", ML_StdLogic)
@@ -281,13 +289,7 @@ class FP_Divider(ML_Entity("fp_div")):
     # Inserting post-input pipeline stage
     if self.pipelined: self.implementation.start_new_stage()
 
-
-    final_approx.set_attributes(tag = "final_approx", debug = debug_fixed)
-
-    # bit indexes to select mantissa from final_approximation
-    pre_mant_size = min(self.precision.get_field_size(), final_approx.get_precision().get_frac_size()) 
-    final_approx_frac_msb_index = final_approx.get_precision().get_frac_size() - 1
-    final_approx_frac_lsb_index = final_approx.get_precision().get_frac_size() - pre_mant_size
+    final_approx.set_attributes(tag="final_approx", debug=debug_fixed)
 
     last_approx_norm = final_approx
 
@@ -303,9 +305,7 @@ class FP_Divider(ML_Entity("fp_div")):
 
     # extracting bit to determine if result should be left-shifted and
     # exponent incremented
-    cst_index = Constant(final_approx.get_precision().get_frac_size(), precision = ML_Integer)
     not_decrement = offset_bit
-    logic_1 = Constant(1, precision=ML_StdLogic)
 
     final_approx_reduced = SubSignalSelection(
           final_approx,
@@ -334,7 +334,7 @@ class FP_Divider(ML_Entity("fp_div")):
 
     # unrounded mantissa field excluding leading digit
     unrounded_mant_field = Select(
-      equal_to(not_decrement, logic_1),
+      equal_to(not_decrement, 1),
       final_approx_reduced,
       final_approx_reduced_shifted,
       precision=fixed_point(p, 0, signed=False),
@@ -351,16 +351,16 @@ class FP_Divider(ML_Entity("fp_div")):
         )
         return bit_sel
 
-    least_bit = Select(
-      equal_to(not_decrement, logic_1),
+    mant_lsb = Select(
+      equal_to(not_decrement, 1),
       get_bit(final_approx, p),
       get_bit(final_approx, p - 1),
       precision = ML_StdLogic,
-      tag = "least_bit",
+      tag = "mant_lsb",
       debug = debug_std,
     )
     round_bit = Select(
-      equal_to(not_decrement, logic_1),
+      equal_to(not_decrement, 1),
       get_bit(final_approx, p - 1),
       get_bit(final_approx, p - 2),
       precision = ML_StdLogic,
@@ -368,40 +368,40 @@ class FP_Divider(ML_Entity("fp_div")):
       debug = debug_std,
     )
     sticky_bit_input = Select(
-      equal_to(not_decrement, logic_1),
-      0,
-      SubSignalSelection(
-        final_approx,
-        FixedPointPosition(
+        equal_to(not_decrement, 1),
+        SubSignalSelection(
             final_approx,
-            p,
-            align=FixedPointPosition.FromMSBToLSB
+            0,
+            FixedPointPosition(
+                    final_approx,
+                    p,
+                    align=FixedPointPosition.FromMSBToLSB
+            ),
+            precision=None,
+            tag="sticky_bit_input"
         ),
-        precision=None,
-        tag="sticky_bit_input"
-      ),
-      SubSignalSelection(
-        final_approx,
-        FixedPointPosition(
+        SubSignalSelection(
             final_approx,
-            p-1,
-            align=FixedPointPosition.FromMSBToLSB
+            0,
+            FixedPointPosition(
+                    final_approx,
+                    p-1,
+                    align=FixedPointPosition.FromMSBToLSB
+            ),
+            precision=None,
+            tag="sticky_bit_input"
         ),
-        precision=None,
-        tag="sticky_bit_input"
-      ),
-      precision = ML_StdLogicVectorFormat(final_approx_frac_lsb_index - 1)
     )
     sticky_bit = Select(
-      Equal(
-        sticky_bit_input,
-        Constant(0, precision = ML_StdLogicVectorFormat(final_approx_frac_lsb_index - 1))
-      ),
-      Constant(0, precision = ML_StdLogic),
-      Constant(1, precision = ML_StdLogic),
-      precision = ML_StdLogic,
-      tag="sticky_bit",
-      debug=debug_std
+        Equal(
+            sticky_bit_input,
+            Constant(0, precision=None)
+        ),
+        Constant(0, precision = ML_StdLogic),
+        Constant(1, precision = ML_StdLogic),
+        precision = ML_StdLogic,
+        tag="sticky_bit",
+        debug=debug_std
     )
     # TODO: manage leading digit (in case of subnormal result)
     pre_result = unrounded_mant_field
@@ -416,7 +416,7 @@ class FP_Divider(ML_Entity("fp_div")):
     res_exp = Subtraction(
         neg_exp,
         Select(
-          Comparison(not_decrement, logic_1, specifier = Comparison.Equal, precision = ML_Bool),
+          equal_to(not_decrement, 1),
           Constant(0, precision = exp_fixed_precision),
           Constant(-1, precision = exp_fixed_precision),
           precision=None
@@ -429,18 +429,21 @@ class FP_Divider(ML_Entity("fp_div")):
         FixedPointPosition(
             res_exp,
             0,
-            align=FixedPointPosition.FromMSBToLSB
+            align=FixedPointPosition.FromPointToLSB,
+            tag="res_exp_field LSB"
         ),
         FixedPointPosition(
             res_exp,
             exp_size - 1,
-            align=FixedPointPosition.FromMSBToLSB
+            align=FixedPointPosition.FromPointToLSB,
+            tag="res_exp_field MSB"
         ),
+        precision=None,
         tag="res_exp_field",
-        debug=debug_field
+        # debug=debug_fixed
     )
 
-    res_sign = CopySign(vx, precision=ML_StdLogic)
+    result_sign = CopySign(vx, precision=ML_StdLogic)
 
     exp_mant_precision = ML_StdLogicVectorFormat(io_precision.get_bit_size() - 1)
 
@@ -462,11 +465,17 @@ class FP_Divider(ML_Entity("fp_div")):
     )
 
     # Precision for result without sign
-    unsigned_result_prec = fixed_point(p=exp_size)
+    unsigned_result_prec = fixed_point((p-1)+exp_size, 0)
+
+    unrounded_mant_field_nolsb = Conversion(
+        unrounded_mant_field,
+        precision=fixed_point(p-1,0,signed=False),
+        tag="unrounded_mant_field_nolsb",
+    )
 
     pre_rounded_unsigned_result = Concatenation(
         res_exp_field,
-        unrounded_mant_field,
+        unrounded_mant_field_nolsb,
         precision=unsigned_result_prec,
         tag="pre_rounded_unsigned_result"
     )
@@ -479,8 +488,11 @@ class FP_Divider(ML_Entity("fp_div")):
 
     vr_out = TypeCast(
       Concatenation(
-        res_sign,
-        unsigned_result_rounded,
+        result_sign,
+        TypeCast(
+            unsigned_result_rounded,
+            precision=ML_StdLogicVectorFormat(p-1+exp_size)
+        ),
         precision=ML_StdLogicVectorFormat(io_precision.get_bit_size())
       ),
       precision = io_precision,
