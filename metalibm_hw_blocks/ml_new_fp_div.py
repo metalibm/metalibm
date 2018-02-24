@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import sys
+import random
 
 import sollya
 
@@ -15,8 +16,16 @@ from metalibm_core.code_generation.vhdl_backend import VHDLBackend
 from metalibm_core.core.polynomials import *
 from metalibm_core.core.ml_entity import ML_Entity, ML_EntityBasis, DefaultEntityArgTemplate
 
+from metalibm_core.core.random_gen import FPRandomGen
 from metalibm_core.core.advanced_operations import (
     FixedPointPosition
+)
+from metalibm_core.core.special_values import (
+    FP_SpecialValue,
+    is_nan,
+    is_plus_infty, is_minus_infty, is_sv_omega,
+    is_plus_zero, is_minus_zero,
+    FP_QNaN, FP_PlusInfty,
 )
 
 from metalibm_core.utility.ml_template import *
@@ -113,14 +122,16 @@ def generate_NR_iteration(
 
 
 class FP_Divider(ML_Entity("fp_div")):
-  def __init__(self, 
-             arg_template = DefaultEntityArgTemplate, 
+  def __init__(self,
+             arg_template = DefaultEntityArgTemplate,
              ):
 
     # initializing base class
-    ML_EntityBasis.__init__(self, 
+    ML_EntityBasis.__init__(self,
       arg_template = arg_template
     )
+    self.disable_sub_testing = arg_template.disable_sub_testing
+    self.disable_sv_testing = arg_template.disable_sv_testing
 
     self.pipelined = arg_template.pipelined
 
@@ -515,9 +526,33 @@ class FP_Divider(ML_Entity("fp_div")):
 
     return [self.implementation]
 
+  def init_test_generator(self):
+      """ Initialize test case generator """
+      weight_map = {
+          FPRandomGen.Category.SpecialValues: 0.0 if self.disable_sv_testing else 0.1,
+          FPRandomGen.Category.Subnormal: 0.0 if self.disable_sub_testing else 0.2,
+          FPRandomGen.Category.Normal: 0.7,
+      }
+      self.input_generator = FPRandomGen(self.precision, weight_map=weight_map)
+
+  def generate_test_case(self, input_signals, io_map, index, test_range = None):
+      """ specific test case generation for K1C TCA BLAU """
+      rnd_mode = random.randrange(4)
+
+      input_values = {
+          "rnd_mode": rnd_mode,
+          "x": self.input_generator.get_new_value()
+      }
+      return input_values
+
+
   def numeric_emulate(self, io_map):
     vx = io_map["x"]
     rnd_mode_i = io_map["rnd_mode"]
+
+    def div_numeric_emulate(vx):
+        sollya_format = self.precision.get_sollya_object()
+        return sollya.round(1.0 / vx, sollya_format, rnd_mode)
 
     rnd_mode = {
         0: sollya.RN,
@@ -525,9 +560,21 @@ class FP_Divider(ML_Entity("fp_div")):
         2: sollya.RD,
         3: sollya.RZ
     }[rnd_mode_i]
+    value_mapping = {
+        is_plus_infty: lambda _: 0.0,
+        is_nan: lambda _: FP_QNaN(self.precision),
+        is_minus_infty: lambda _: FP_QNaN(self.precision),
+        is_plus_zero: lambda _: FP_PlusInfty(self.precision),
+        is_minus_zero: lambda _: FP_MinusInfty(self.precision),
+        is_sv_omega: lambda op: lambda _: div_numeric_emulate(op.get_value()),
+        lambda op: not(FP_SpecialValue.is_special_value(op)): div_numeric_emulate,
+    }
     result = {}
-    result["vr_out"] = sollya.round(1.0 / vx, self.precision.get_sollya_object(), rnd_mode)
-    return result
+    for predicate in value_mapping:
+        if predicate(vx):
+            result["vr_out"] = value_mapping[predicate](vx)
+            return result
+    Log.report(Log.Error, "no predicate fits {} in numeric_emulate\n".format(vx))
 
   #standard_test_cases = [({"x": 1.0, "y": (S2**-11 + S2**-17)}, None)]
   standard_test_cases = [
@@ -544,6 +591,14 @@ if __name__ == "__main__":
         default_output_file="ml_fp_div.vhd",
         default_arg=FP_Divider.get_default_args() )
     # extra command line arguments
+    arg_template.parser.add_argument(
+        "--disable-sub-test", dest="disable_sub_testing", action="store_const",
+        const=True, default=False,
+        help="disabling generation of subnormal input during testing")
+    arg_template.parser.add_argument(
+        "--disable-sv-test", dest="disable_sv_testing", action="store_const",
+        const=True, default=False,
+        help="disabling generation of special values input during testing")
 
     # argument extraction
     args = parse_arg_index_list = arg_template.arg_extraction()
