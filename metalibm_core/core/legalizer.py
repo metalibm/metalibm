@@ -168,18 +168,22 @@ def legalize_fixed_point_subselection(optree, input_prec_solver = default_prec_s
     assert not inf_index is None and not sup_index is None
     input_format = ML_StdLogicVectorFormat(sub_input.get_precision().get_bit_size())
     output_format = ML_StdLogicVectorFormat(sup_index - inf_index + 1)
-    result = TypeCast(
-        SubSignalSelection(
-            TypeCast(
-                sub_input,
-                precision = input_format
-            ),
-            inf_index,
-            sup_index,
-            precision = output_format
+    subselect = SubSignalSelection(
+        TypeCast(
+            sub_input,
+            precision = input_format
         ),
+        inf_index,
+        sup_index,
+        precision = output_format
+    )
+    result = TypeCast(
+        subselect,
         precision = optree.get_precision(),
     )
+    # TypeCast may be simplified during code generation so attributes
+    # may also be forwarded to previous node
+    forward_attributes(optree, subselect)
     forward_attributes(optree, result)
     return result
 
