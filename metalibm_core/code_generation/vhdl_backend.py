@@ -302,7 +302,13 @@ def fixed_conversion_modifier(optree):
     arg_precision = arg.get_precision()
     assert is_fixed_point(conv_precision)
     assert is_fixed_point(arg_precision)
-    assert (conv_precision.get_signed() and arg_precision.get_signed()) or not arg_precision.get_signed()
+    if not ((conv_precision.get_signed() and arg_precision.get_signed()) or not arg_precision.get_signed()):
+        print evaluate_range(arg)
+        Log.report(
+            Log.Error,
+            "incompatible input -> output precision signedess in fixed_conversion_modifier:\n"
+            "  input is {}, output is {}".format(arg_precision, conv_precision)
+        )
     result = arg
     raw_arg_precision = ML_StdLogicVectorFormat(
         arg_precision.get_bit_size()
@@ -776,7 +782,10 @@ def fixed_cast_legalizer(optree):
     input_prec = cast_input.get_precision()
     assert is_fixed_point(out_prec) and is_fixed_point(input_prec)
     if input_prec.get_bit_size() != out_prec.get_bit_size():
-        Log.report(Log.Error, "fixed_cast_legalizer only support same size I/O")
+        Log.report(Log.Error, "fixed_cast_legalizer only support same size I/O, input is {}\n, output is {}".format(
+            cast_input.get_str(display_precision=True),
+            optree.get_str(display_precision=True)
+        ))
         raise NotImplementedError
     else:
         # Using an exchange format derived from ML_StdLogicVectorFormat
