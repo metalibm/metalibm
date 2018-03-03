@@ -103,7 +103,15 @@ def fixed_point_position_legalizer(optree, input_prec_solver = default_prec_solv
     assert isinstance(optree, FixedPointPosition)
     fixed_input = optree.get_input(0)
     fixed_precision = input_prec_solver(fixed_input)
-    assert is_fixed_point(fixed_precision)
+    if not is_fixed_point(fixed_precision):
+        Log.report(
+            Log.Error,
+            "in fixed_point_position_legalizer: precision of {} should be fixed-point but is {}".format(
+                fixed_input.get_str(),
+                fixed_precision
+            )
+        )
+            
 
     position = optree.get_input(1).get_value()
 
