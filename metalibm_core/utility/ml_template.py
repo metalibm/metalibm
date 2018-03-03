@@ -31,6 +31,8 @@ from ..targets import *
 from ..code_generation.code_constant import *
 from ..core.passes import Pass
 
+from ..core.ml_hdl_format import fixed_point
+
 from metalibm_core.code_generation.vhdl_backend import VHDLBackend
 
 # import optimization passes
@@ -78,12 +80,12 @@ def precision_parser(precision_str):
     if precision_str in precision_map:
         return precision_map[precision_str]
     else:
-        fixed_format = ML_Custom_FixedPoint_Format.parse_from_string(
-            precision_str)
-        if fixed_format is None:
-            return eval(precision_str)
-        else:
+        fixed_format_match = ML_Custom_FixedPoint_Format.match(precision_str)
+        if fixed_format_match:
+            fixed_format = ML_Custom_FixedPoint_Format.parse_from_match(fixed_format_match)
             return fixed_format
+        else:
+            return eval(precision_str)
 
 # Parse list of formats
 #  @param format_str comma separated list of formats
