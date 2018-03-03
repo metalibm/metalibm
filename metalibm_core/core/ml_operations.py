@@ -957,7 +957,7 @@ class Return(AbstractOperationConstructor("Return", arity = 1, range_function = 
 ## Memory Load from a Multi-Dimensional 
 #  The first argument is the table, following arguments
 #  are the table index in each dimension (from 1 to ...)
-class TableLoad(ArithmeticOperationConstructor("TableLoad", arity = 2, range_function = lambda self, ops: None)):
+class TableLoad(ArithmeticOperationConstructor("TableLoad", arity = 2, range_function = lambda self, ops: ops[0])):
     """ abstract load from a table operation """
     pass
 
