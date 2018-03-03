@@ -746,26 +746,39 @@ class ML_Standard_FixedPoint_Format(ML_Base_SW_FixedPoint_Format):
     return self.name[C_Code]
 
 class ML_Custom_FixedPoint_Format(ML_Base_SW_FixedPoint_Format):
+    """ Custom fixed-point format class """
     def __eq__(self, other):
+        """ equality predicate for custom fixed-point format object """
         return (type(self) == type(other)) and (self.__dict__ == other.__dict__)
 
     def __ne__(self, other):
+        """ unequality predicate for custom fixed-point format object """
         return not (self == other)
+
+    @staticmethod
+    def match(format_str):
+        """ returns None if format_str does not match the class pattern
+            or a re.match if it does """
+        return re.match("(?P<name>F[US])\((?P<integer>-?[\d]+),(?P<frac>-?[\d]+)\)",format_str)
+
+    @staticmethod
+    def parse_from_match(format_match):
+        """ Parse the description of a class format and generates
+            the format object """
+        assert not format_match is None
+        name = format_match.group("name")
+        int_size = int(format_match.group("integer"))
+        frac_size = int(format_match.group("frac"))
+        is_signed = (name == "FS")
+        return ML_Custom_FixedPoint_Format(int_size, frac_size, signed=is_signed)
 
     ## parse a string describing a ML_Custom_FixedPoint_Format object
     #  @param format_str string describing the format object
     #  @return the format instance converted from the string
     @staticmethod
     def parse_from_string(format_str):
-      format_match = re.match("(?P<name>F[US])\((?P<integer>-?[\d]+),(?P<frac>-?[\d]+)\)",format_str)
-      if format_match is None:
-        return None
-      else:
-        name = format_match.group("name")
-        signed = (name == "FS")
-        if not name in ["FS", "FU"]:
-          return None
-        return ML_Custom_FixedPoint_Format(int(format_match.group("integer")), int(format_match.group("frac")), signed = signed)
+        format_match = ML_Custom_FixedPoint_Format.match(format_str)
+        return ML_Custom_FixedPoint_Format.parse_from_match(format_match)
 
 
 # Standard binary floating-point format declarations
