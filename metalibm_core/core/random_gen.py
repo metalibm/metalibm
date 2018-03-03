@@ -148,6 +148,75 @@ class IntRandomGen(RandomGenWeightCat):
         return gen_func()
 
 
+class FixedPointRandomGen(IntRandomGen):
+    def __init__(self, int_size=1, frac_size=31, signed=True, seed=None):
+        """ Initializing Integer random generators """
+        int_weight_map = normalize_map({
+            IntRandomGen.Category.MaxValue: 0.01,
+            IntRandomGen.Category.MinValue: 0.01,
+            IntRandomGen.Category.ZeroValue: 0.01,
+            IntRandomGen.Category.HighValue: 0.07,
+            IntRandomGen.Category.LowValue: 0.07,
+            IntRandomGen.Category.NearZero: 0.07,
+            IntRandomGen.Category.Standard: 0.76,
+        })
+        category_keys = int_weight_map.keys()
+        RandomGenWeightCat.__init__(
+            self,
+            category_keys=category_keys,
+            weight_map=int_weight_map, 
+        )
+        self.signed = signed
+        self.int_size = int_size
+        self.frac_size = frac_size
+        self.size = int_size + frac_size
+        self.random = random.Random(seed)
+        # subrange for fuzzing value around specific values
+        self.highlow_range = 2**(self.size / 5)
+
+    def scale(self, value):
+        return value * S2**-self.frac_size
+
+    def gen_max_value(self, scale=True):
+        """ generate the maximal format value """
+        scale_func = (lambda x: self.scale(x)) if scale else (lambda x: x)
+        power = self.size - (1 if self.signed else 0)
+        return scale_func(S2**power - 1) 
+    def gen_min_value(self, scale=True):
+        """ generate the minimal format value """
+        scale_func = (lambda x: self.scale(x)) if scale else (lambda x: x)
+        if self.signed:
+            return scale_func(-S2**(self.size - 1))
+        else:
+            return scale_func(self.gen_zero_value())
+    def gen_zero_value(self):
+        """ generate zero value """
+        return 0
+    def gen_high_value(self):
+        """ generate near maximal value """
+        return self.scale(self.gen_max_value(scale=False) - self.random.randrange(self.highlow_range))
+    def gen_low_value(self):
+        """ generate new minimal value """
+        return self.scale(self.gen_min_value(scale=False) + self.random.randrange(self.highlow_range))
+
+    def gen_near_zero(self):
+        """ generate near zero value """
+        if self.signed:
+            start_value = self.gen_zero_value() - self.highlow_range
+            random_offset = self.random.randrange(self.highlow_range * 2)
+            return self.scale(start_value + random_offset)
+        else:
+            return self.scale(self.gen_low_value())
+    def gen_standard_value(self):
+        """ generate value arbitrarily in the whole format range """
+        return self.scale(
+            self.random.randrange(
+                self.gen_min_value(scale=False),
+                self.gen_max_value(scale=False) + 1
+            )
+        )
+
+
 class FPRandomGen(RandomGenWeightCat):
     """ Random generator for floating-point numbers """
     @unique # pylint: disable=too-few-public-methods
