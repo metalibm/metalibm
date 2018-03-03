@@ -148,6 +148,29 @@ def solve_format_ArithOperation(optree,
     else:
         return optree.get_precision()
 
+def addsub_signed_predicate(lhs, lhs_prec, rhs, rhs_prec, op=operator.__sub__, default=True):
+    """ determine whether subtraction output on a signed or
+        unsigned format """
+    left_range = evaluate_range(lhs)
+    right_range = evaluate_range(rhs)
+    result_range = safe(op)(left_range, right_range)
+    print "sub_signed_predicate result_range={}".format(result_range)
+    if result_range is None:
+        return default
+    elif sollya.inf(result_range) < 0:
+        return True
+    else:
+        return False
+def sub_signed_predicate(lhs, lhs_prec, rhs, rhs_prec):
+    """ determine whether subtraction output on a signed or
+        unsigned format """
+    return addsub_signed_predicate(lhs, lhs_prec, rhs, rhs_prec, op=operator.__sub__)
+
+def add_signed_predicate(lhs, lhs_prec, rhs, rhs_prec):
+    """ determine whether subtraction output on a signed or
+        unsigned format """
+    return addsub_signed_predicate(lhs, lhs_prec, rhs, rhs_prec, op=operator.__add__, default=False)
+
 
 ## determine Addition node precision
 def solve_format_Addition(optree):
@@ -158,7 +181,7 @@ def solve_format_Addition(optree):
         optree,
         lambda l, r: max(l.get_integer_size(), r.get_integer_size()) + 1,
         lambda l, r: max(l.get_frac_size(), r.get_frac_size()),
-        lambda l, lp, r, rp: lp.get_signed() or rp.get_signed()
+        add_signed_predicate
     )
 
 
@@ -199,19 +222,6 @@ def solve_format_Subtraction(optree):
             rhs.get_integer_size()
         ) + int_inc
         return int_size
-
-    def sub_signed_predicate(lhs, lhs_prec, rhs, rhs_prec):
-        """ determine whether subtraction output on a signed or
-            unsigned format """
-        left_range = evaluate_range(lhs)
-        right_range = evaluate_range(rhs)
-        result_range = safe(operator.__sub__)(left_range, right_range)
-        if result_range is None:
-            return True
-        elif sollya.inf(result_range) < 0:
-            return True
-        else:
-            return False
 
 
     return solve_format_ArithOperation(
@@ -484,12 +494,14 @@ def solve_format_rec(optree, memoization_map=None):
                    "new format {} determined for {}".format(
                        str(new_format), optree.get_str(display_precision=True)
                    )
-                   )
+        )
 
         # updating optree format
         #optree.set_precision(new_format)
         format_set_if_undef(optree, new_format)
         memoization_map[optree] = new_format
+
+        return optree.get_precision()
 
     elif isinstance(optree, Statement):
         for op_input in optree.get_inputs():
