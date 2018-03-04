@@ -154,7 +154,6 @@ def addsub_signed_predicate(lhs, lhs_prec, rhs, rhs_prec, op=operator.__sub__, d
     left_range = evaluate_range(lhs)
     right_range = evaluate_range(rhs)
     result_range = safe(op)(left_range, right_range)
-    print "sub_signed_predicate result_range={}".format(result_range)
     if result_range is None:
         return default
     elif sollya.inf(result_range) < 0:
