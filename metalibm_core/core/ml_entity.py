@@ -4,20 +4,28 @@
 # This file is part of New Metalibm tool
 # Copyright (2016-)
 # All rights reserved
-# created:          Nov 17th, 2016    
-# last-modified:    May  9th, 2017
+# created:          Nov 17th, 2016
+# last-modified:    Mar 06th, 2018
 #
 # author(s):   Nicolas Brunie (nibrunie@gmail.com)
 # decription:  Declare and implement a class to manage
 #              hardware (vhdl like) entities
 ###############################################################################
 
-from sollya import *
 
-from metalibm_core.core.ml_formats import *
+import sollya
+
+from sollya import Interval, S2
+
 from metalibm_core.core.ml_optimization_engine import OptimizationEngine
-from metalibm_core.core.ml_operations import *  
-from metalibm_core.core.ml_hdl_operations import *  
+from metalibm_core.core.ml_operations import (
+    Statement, ReferenceAssign, Constant, Comparison, ConditionBlock,
+    LogicalNot, Conversion, TypeCast
+)
+from metalibm_core.core.ml_hdl_operations import (
+    Process, Signal, Wait, Report, Concatenation, Assert
+)
+from metalibm_core.core.ml_formats import ML_Binary32, ML_Bool, ML_String
 from metalibm_core.core.ml_table import ML_Table
 from metalibm_core.core.ml_complex_formats import ML_Mpfr_t
 from metalibm_core.core.ml_call_externalizer import CallExternalizer
@@ -25,20 +33,30 @@ from metalibm_core.core.ml_vectorizer import StaticVectorizer
 
 from metalibm_core.core.precisions import ML_Faithful
 
-from metalibm_core.code_generation.code_object import NestedCode, VHDLCodeObject, CodeObject
+from metalibm_core.core.ml_hdl_format import (
+    ML_StdLogicVectorFormat, ML_StdLogic
+)
+
+from metalibm_core.code_generation.code_object import (
+    NestedCode, VHDLCodeObject, CodeObject
+)
 from metalibm_core.code_generation.code_entity import CodeEntity
 from metalibm_core.code_generation.vhdl_backend import VHDLBackend
 from metalibm_core.code_generation.vhdl_code_generator import VHDLCodeGenerator
 from metalibm_core.code_generation.code_constant import VHDL_Code
-from metalibm_core.code_generation.generator_utility import *
 
-from metalibm_core.core.passes import *
+from metalibm_core.core.passes import (
+    PassScheduler, PassDependency, Pass, AfterPassById
+)
 
-from metalibm_core.code_generation.gappa_code_generator import GappaCodeGenerator
+from metalibm_core.code_generation.gappa_code_generator import (
+    GappaCodeGenerator
+)
 
 from metalibm_core.utility.log_report import Log
-from metalibm_core.utility.debug_utils import *
-from metalibm_core.utility.ml_template import ArgDefault, DefaultEntityArgTemplate
+from metalibm_core.utility.ml_template import (
+    ArgDefault, DefaultEntityArgTemplate
+)
 
 from metalibm_core.opt.p_pipelining import generate_pipeline_stage
 
@@ -60,7 +78,7 @@ def generate_random_fixed_value(precision):
     hi_value = precision.get_max_value()
     value = random.uniform(
       lo_value,
-      hi_value 
+      hi_value
     )
     rounded_value = precision.round_sollya_object(value)
     return rounded_value
@@ -70,7 +88,7 @@ def generate_random_fixed_value(precision):
 
 
 # return a random value in the given @p interval
-# Samplin is done uniformly on value exponent, 
+# Samplin is done uniformly on value exponent,
 # not on the value itself
 def random_log_sample(interval):
   lo = inf(interval)
@@ -80,7 +98,7 @@ def random_log_sample(interval):
 debug_utils_lib = """proc get_fixed_value {value weight} {
   return [expr $value * pow(2.0, $weight)]
 }\n"""
-  
+
 
 ## Base class for all metalibm function (metafunction)
 class ML_EntityBasis(object):
@@ -88,21 +106,25 @@ class ML_EntityBasis(object):
 
   ## constructor
   #  @param base_name string function name (without precision considerations)
-  #  @param function_name 
+  #  @param function_name
   #  @param output_file string name of source code output file
   #  @param debug_file string name of debug script output file
   #  @param io_precisions input/output ML_Format list
   #  @param abs_accuracy absolute accuracy
-  #  @param libm_compliant boolean flag indicating whether or not the function should be compliant with standard libm specification (wrt exception, error ...)
-  #  @param fast_path_extract boolean flag indicating whether or not fast path extraction optimization must be applied
-  #  @param debug_flag boolean flag, indicating whether or not debug code must be generated 
+  #  @param libm_compliant boolean flag indicating whether or not the function
+  #                        should be compliant with standard libm specification
+  #                        (wrt exception, error ...)
+  #  @param fast_path_extract boolean flag indicating whether or not fast
+  #                           path extraction optimization must be applied
+  #  @param debug_flag boolean flag, indicating whether or not debug code
+  #                    must be generated
   def __init__(self,
              # Naming
              base_name = ArgDefault("unknown_entity", 2),
              entity_name= ArgDefault(None, 2),
              output_file = ArgDefault(None, 2),
              # Specification
-             io_precisions = ArgDefault([ML_Binary32], 2), 
+             io_precisions = ArgDefault([ML_Binary32], 2),
              abs_accuracy = ArgDefault(None, 2),
              libm_compliant = ArgDefault(True, 2),
              # Optimization parameters
@@ -111,7 +133,7 @@ class ML_EntityBasis(object):
              # Debug verbosity
              debug_flag = ArgDefault(False, 2),
              language = ArgDefault(VHDL_Code, 2),
-             arg_template = DefaultEntityArgTemplate 
+             arg_template = DefaultEntityArgTemplate
          ):
     # selecting argument values among defaults
     base_name = ArgDefault.select_value([base_name])
@@ -231,9 +253,6 @@ class ML_EntityBasis(object):
     raise NotImplementedError
 
 
-
-
-
   # try to extract 'clk' input or create it if
   # it does not exist
   def get_clk_input(self):
@@ -243,8 +262,6 @@ class ML_EntityBasis(object):
     else:
       return self.implementation.add_input_signal('clk', ML_StdLogic)
 
-
-      
 
   def get_output_precision(self):
     return self.io_precisions[0]
