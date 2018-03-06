@@ -530,7 +530,11 @@ class ML_EntityBasis(object):
         input_signals[input_tag] = input_signal
     for output_port in self.implementation.get_output_port():
       output_tag = output_port.get_tag()
-      output_signal = Signal(output_tag + "_o", precision = output_port.get_precision(), var_type = Signal.Local)
+      output_signal = Signal(
+        output_tag + "_o",
+        precision=output_port.get_precision(),
+        var_type=Signal.Local
+      )
       io_map[output_tag] = output_signal
       output_signals[output_tag] = output_signal
 
@@ -546,11 +550,22 @@ class ML_EntityBasis(object):
 
     # Appending standard test cases if required
     if self.auto_test_std:
-      tc_list += self.standard_test_cases 
+      tc_list += self.standard_test_cases
 
     for i in range(test_num):
       input_values = self.generate_test_case(input_signals, io_map, i, test_range)
       tc_list.append((input_values,None))
+
+    def compute_results(tc):
+        """ update test case with output values if required """
+        input_values, output_values = tc
+        if output_values is None:
+            return input_values, self.numeric_emulate(input_values)
+        else:
+            return tc
+
+    # filling output values
+    tc_list = [compute_results(tc) for tc in tc_list]
 
     for input_values, output_values in tc_list:
       input_msg = ""
@@ -565,21 +580,20 @@ class ML_EntityBasis(object):
         value_msg += " / " + hex(input_signal.get_precision().get_base_format().get_integer_coding(input_value))
         input_msg += " {}={} ".format(input_tag, value_msg)
       test_statement.add(Wait(time_step * self.stage_num))
-      # Computing output values when necessary
-      if output_values is None:
-        output_values = self.numeric_emulate(input_values)
       # Adding output value comparison
       for output_tag in output_signals:
         output_signal = output_signals[output_tag]
         output_value  = Constant(output_values[output_tag], precision = output_signal.get_precision())
-        value_msg = output_signal.get_precision().get_cst(output_values[output_tag], language = VHDL_Code).replace('"',"'")
-        value_msg += " / " + hex(output_signal.get_precision().get_base_format().get_integer_coding(output_values[output_tag]))
+        output_precision = output_signal.get_precision()
+        expected_dec = output_precision.get_cst(output_values[output_tag], language = VHDL_Code).replace('"',"'")
+        expected_hex = " / " + hex(output_precision.get_base_format().get_integer_coding(output_values[output_tag]))
+        value_msg = "{} / {}".format(expected_dec, expected_hex)
 
         test_pass_cond = Comparison(
-          output_signal,
-          output_value,
-          specifier = Comparison.Equal,
-          precision = ML_Bool
+            output_signal,
+            output_value,
+            specifier=Comparison.Equal,
+            precision=ML_Bool
         )
 
         test_statement.add(
