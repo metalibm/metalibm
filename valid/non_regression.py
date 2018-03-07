@@ -161,6 +161,9 @@ new_scheme_function_list = [
          "auto_test_execute": 1000},
         {"precision": ML_Binary64, "function_name": "my_exp", "auto_test": 100,
          "auto_test_execute": 1000},
+        {"precision": ML_Binary32, "function_name": "my_exp", "auto_test": 100,
+         "target": x86_avx2_processor,
+         "auto_test_execute": 1000},
     ]
   ),
   NewSchemeTest(
