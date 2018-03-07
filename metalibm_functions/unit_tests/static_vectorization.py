@@ -1,14 +1,35 @@
 # -*- coding: utf-8 -*-
 
 ###############################################################################
-# This file is part of Kalray's Metalibm tool
-# Copyright (2016)
-# All rights reserved
+# This file is part of metalibm (https://github.com/kalray/metalibm)
+###############################################################################
+# MIT License
+#
+# Copyright (c) 2018 Kalray
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+###############################################################################
 # created:          Feb  3rd, 2016
-# last-modified:    Feb  5th, 2016
+# last-modified:    Mar  7th, 2018
 #
 # author(s): Nicolas Brunie (nicolas.brunie@kalray.eu)
-# description: unit test for ML static vectorization 
+# description: unit test for ML static vectorization
 ###############################################################################
 
 
@@ -22,7 +43,7 @@ from metalibm_core.core.attributes import ML_Debug
 from metalibm_core.core.ml_operations import *
 
 from metalibm_core.core.ml_formats import *
-from metalibm_core.core.ml_complex_formats import * 
+from metalibm_core.core.ml_complex_formats import *
 
 from metalibm_core.code_generation.c_code_generator import CCodeGenerator
 from metalibm_core.code_generation.generic_processor import GenericProcessor
@@ -31,7 +52,7 @@ from metalibm_core.targets.common.fixed_point_backend import FixedPointBackend
 from metalibm_core.targets.common.vector_backend import VectorBackend
 from metalibm_core.code_generation.code_object import CodeObject
 from metalibm_core.code_generation.code_function import CodeFunction
-from metalibm_core.code_generation.code_constant import C_Code 
+from metalibm_core.code_generation.code_constant import C_Code
 from metalibm_core.core.ml_optimization_engine import OptimizationEngine
 
 from metalibm_core.core.ml_vectorizer import StaticVectorizer
