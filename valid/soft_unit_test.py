@@ -26,12 +26,10 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 ###############################################################################
-
-###############################################################################
 # created:          Jul  9th, 2017
-# last-modified:    Mar  6th, 2018
+# last-modified:    Mar  7th, 2018
 #
-# author(s): Nicolas Brunie (nibrunie@gmail.com)
+# Author(s): Nicolas Brunie <nbrunie@kalray.eu>
 # description: software source code unit testing
 ###############################################################################
 
