@@ -65,32 +65,6 @@ def get_sollya_from_long(v):
     power *= base
   return result
 
-## class for floating-point exception
-class ML_FloatingPointException: pass
-
-## class for type of floating-point exceptions
-class ML_FloatingPointException_Type(object):
-  ## dummy placeholder to generate C constant for FP exception (should raise error)
-  def get_cst(self, value, language = C_Code):
-    return "NONE"
-  def is_cst_decl_required(self):
-    return False
-  def get_match_format(self):
-    return self
-
-## ML object for floating-point exception type
-ML_FPE_Type = ML_FloatingPointException_Type()
-
-## ML object for floating-point underflow exception
-ML_FPE_Underflow    = ML_FloatingPointException()
-## ML object for floating-point overflow exception
-ML_FPE_Overflow     = ML_FloatingPointException()
-## ML object for floatingè-point inexact exception
-ML_FPE_Inexact      = ML_FloatingPointException()
-## ML object for floating-point invalid exception
-ML_FPE_Invalid      = ML_FloatingPointException()
-## ML object for floating-point divide by zero exception
-ML_FPE_DivideByZero = ML_FloatingPointException()
 
 
 ## Ancestor class for Metalibm's format classes
@@ -154,6 +128,33 @@ class ML_Format(object):
     def is_vector_format(self):
       return False
 
+
+## class for floating-point exception
+class ML_FloatingPointException: pass
+
+## class for type of floating-point exceptions
+class ML_FloatingPointException_Type(ML_Format):
+  ## dummy placeholder to generate C constant for FP exception (should raise error)
+  def get_cst(self, value, language = C_Code):
+    return "NONE"
+  def is_cst_decl_required(self):
+    return False
+  def get_match_format(self):
+    return self
+
+## ML object for floating-point exception type
+ML_FPE_Type = ML_FloatingPointException_Type()
+
+## ML object for floating-point underflow exception
+ML_FPE_Underflow    = ML_FloatingPointException()
+## ML object for floating-point overflow exception
+ML_FPE_Overflow     = ML_FloatingPointException()
+## ML object for floatingè-point inexact exception
+ML_FPE_Inexact      = ML_FloatingPointException()
+## ML object for floating-point invalid exception
+ML_FPE_Invalid      = ML_FloatingPointException()
+## ML object for floating-point divide by zero exception
+ML_FPE_DivideByZero = ML_FloatingPointException()
 
 ## format attribute wrapper 
 #  extend a base format with custom attributes
