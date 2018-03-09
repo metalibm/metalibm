@@ -1,0 +1,40 @@
+INSTALLATION
+============
+
+* Dependencies: (On apt-able systems)
+
+    sudo apt-get install  python-dev libmpfr-dev libfplll-dev libmpfi-dev libgmp-dev libxml2-dev cython
+
+* Installation procedure for standard users
+
+ The following downloads and install Sollya and CythonSollya
+    bash INSTALL
+ See inside the INSTALL script to skip some of these steps
+
+* Installation procedure for developers (enabling push capabilities)
+
+    LOGIN=<inria gforge login> sh INSTALL
+
+
+
+USAGE
+=====
+
+* From the metalibm-lugdunum directory: 
+    source metalibm_setup_env.bash
+    python2 metalibm_functions/ml_exp.py --help 
+
+* Example:
+    python2 metalibm_functions/ml_exp.py --target x86_avx2 --output x86_avx2_exp2d.c
+
+* Explore the other functions of this directory, e.g. :
+    python2 metalibm_functions/ml_log.py --help 
+    
+
+TEST
+====
+* Unit-testing:
+  python2 valid/unit_test.py
+
+* Non-regression tests:
+  python2 valid/non_regression.py

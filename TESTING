@@ -1,0 +1,37 @@
+# Testing metalibm
+
+
+# Unit tests:
+#   Those tests validate the basic internal functionnality of metalibm core
+# They are also used as simple examples for metalibm features
+#
+#   Each time is a new feature is added to metalibm, the corresponding unit test
+# should be implemented and added to the exec_unit_tests.sh to make sure the
+# feature is validated continuously against metalibm future developments
+#
+# This feature required that the ML_SRC_DIR points toward metalibm source directory
+###############################################################################
+# ALL UNIT TESTS MUST PASS BEFORE INTEGRATING INTO master BRANCH
+###############################################################################
+
+sh $ML_SRC_DIR/metalibm_functions/unit_tests/exec_unit_tests.sh || exit 1 
+
+# Non-regression:
+# Those test make sure meta functions are generated succesfully with the default arguments
+###############################################################################
+# ALL NON REGRESSION TESTS MUST PASS BEFORE INTEGRATING INTO master BRANCH
+###############################################################################
+
+python2 $ML_SRC_DIR/valid/non_regression.py || exit 1
+
+
+# Minimal functionnal testing
+# A small test of functionnal testing is provided through the auto-test(-execute) feature
+# This feature required that the ML_SRC_DIR points toward metalibm source directory
+# list of expected success tests
+python2 $ML_SRC_DIR/metalibm_functions/ml_exp.py --precision binary64 --auto-test-execute 1000 --auto-test-range "Interval(-100, 100)" || exit 1
+python2 $ML_SRC_DIR/metalibm_functions/ml_exp.py --precision binary32 --auto-test-execute 1000 --auto-test-range "Interval(-10, 10)" || exit 1
+python2 $ML_SRC_DIR/metalibm_functions/ml_log.py --precision binary64 --auto-test-execute 1000 --auto-test-range "Interval(0, 10e9)" || exit 1
+
+# list of expected failed tests
+# python2 $ML_SRC_DIR/metalibm_functions/ml_log.py --precision binary32 --auto-test-execute 1000 --auto-test-range "Interval(0, 100)" || exit 1

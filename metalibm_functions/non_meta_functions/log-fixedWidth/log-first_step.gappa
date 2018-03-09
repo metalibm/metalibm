@@ -1,0 +1,38 @@
+### Polynomial approx of log(1 + dz) ~= dz * P(dz):
+# Note: La dernièree multiplication par dz doit être fait exactement pour avoir
+# assez de chiffres significatifs lorsque dz est proche de zéro.
+# (ak: on a une erreur absolue de 2^-64, mais l'erreur relative est ~= 2^-64/M)
+# Le polynome est donné par sollya (see log-first_step.sollya)
+
+Pdz = 0xf.fffffffffffffa4p-4 - dz * (0x7.ffffffffeabf9c5p-4 - dz * (0x5.55554f70538f907p-4 - dz * 0x3.ff8278711338abap-4));
+P = dz * Pdz;
+
+# Evaluation du polynome en virgule fixe:
+# Les multiplications renvoient un fixed<-64-IMPLICIT_ZEROS> car dz est un
+#   fixed<-64-IMPLICIT_ZEROS> dont les IMPLICIT_ZEROS premiers bits sont à 0
+# On fait aussi attention au sens des arrondis, suivant qu'une soustraction ou une addition à lieu
+
+EPdz = fixed<-64,up>(0xf.fffffffffffffa4p-4
+        - fixed<-75,dn>(dz * fixed<-64,up>(0x7.ffffffffeabf9c5p-4
+         - fixed<-75,dn>(dz * fixed<-64,up>(0x5.55554f70538f907p-4
+          - fixed<-75,dn>(dz * 0x3.ff8278711338abap-4))))));
+EP = dz * EPdz;
+
+{
+	# see arg_reduction.gappa
+	@FIX(dz, -75)  # @FIX(dz,-64-IMPLICIT_ZEROS)
+	/\ dz in [0, 22605821628121023b-66]
+	
+	# S est la solution. l'interval exacte est prouvé par sollya dans log-first_step.sollya
+	/\ S -/ P in [-0x1.1b70cb183bcf71e3b4f8a4bf79f0f6538d5045p-56, 0x1.1b70cb183bcf71e3b4f8a4bf79f0f6538d5045p-56]
+
+	 ->
+	
+	EPdz -/ Pdz in ?
+	/\ S -/ P   in ?
+	/\ S -/ EP  in ?  # definit POLYNOMIAL_PREC (55 ici)
+}
+
+P ~ S;
+Pdz ~ EPdz;
+P ~ EP;
