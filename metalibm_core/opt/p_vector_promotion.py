@@ -1,13 +1,54 @@
 # -*- coding: utf-8 -*-
-# optimization pass to promote a scalar/vector DAG into vector registers
-
-from metalibm_core.targets.intel.x86_processor import *
+###############################################################################
+# This file is part of metalibm (https://github.com/kalray/metalibm)
+###############################################################################
+# MIT License
+#
+# Copyright (c) 2018 Kalray
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+###############################################################################
+# Desciprion: optimization pass to promote a scalar/vector DAG into vector
+#             registers
+###############################################################################
 
 from metalibm_core.core.ml_formats import *
-from metalibm_core.core.passes import OptreeOptimization, Pass
-from metalibm_core.core.ml_table import ML_NewTable
+from metalibm_core.core.passes import OptreeOptimization, Pass, LOG_PASS_INFO
+from metalibm_core.core.ml_table import ML_NewTable, ML_TableFormat
+from metalibm_core.core.ml_operations import (
+    ML_LeafNode, VectorElementSelection, FunctionCall, Conversion, Constant
+)
 
 from metalibm_core.opt.p_check_support import Pass_CheckSupport
+
+## Test if @p optree is a non-constant leaf node
+#  @param optree operation node to be tested
+#  @return boolean result of predicate evaluation
+def is_leaf_no_Constant(optree):
+	return isinstance(optree, ML_LeafNode) and not isinstance(optree, Constant)
+
+
+def insert_conversion_when_required(op_input, final_precision):
+    if op_input.get_precision() != final_precision:
+        return Conversion(op_input, precision = final_precision)
+    else:
+        return op_input
 
 
 ## Generic vector promotion pass
@@ -55,7 +96,7 @@ class Pass_Vector_Promotion(OptreeOptimization):
     # check that the output format is supported
     if not self.is_convertible_format(optree.get_precision()):
       return False
-    if isinstance(optree, ML_LeafNode) \
+    if is_leaf_no_Constant(optree) \
        or isinstance(optree, VectorElementSelection) \
        or isinstance(optree, FunctionCall):
       return False
@@ -69,14 +110,16 @@ class Pass_Vector_Promotion(OptreeOptimization):
     def key_getter(target_obj, optree):
       op_class = optree.__class__
       result_type = (self.get_conv_format(optree.get_precision().get_match_format()),)
-      arg_type = tuple((self.get_conv_format(arg.get_precision().get_match_format()) if not arg.get_precision() is None else None) for arg in optree.inputs)
+      arg_type = tuple((self.get_conv_format(arg.get_precision().get_match_format()) if not arg.get_precision() is None else None) for arg in optree.get_inputs())
       interface = result_type + arg_type
       codegen_key = optree.get_codegen_key()
       return op_class, interface, codegen_key
 
-    support_status = self.target.is_supported_operation(optree, key_getter = key_getter)
+    support_status = self.target.is_supported_operation(optree, key_getter=key_getter)
     if not support_status:
       Log.report(Log.Verbose, "not supported in vector_promotion: {}".format(optree.get_str(depth = 2, display_precision = True, memoization_map = {})))
+      op, formats, specifier = key_getter(None, optree)
+      Log.report(Log.Verbose, "with key: {}, {}, {}".format(str(op), [str(f) for f in formats], str(specifier)))
     return support_status
 
   ## memoize converted     
@@ -113,11 +156,8 @@ class Pass_Vector_Promotion(OptreeOptimization):
   #         In case of promoted-format, the return value may need to be 
   #         a conversion if the operation is not supported
   def promote_node(self, optree, parent_converted = False):
-    #if (parent_converted, optree) in self.memoization_map:
-    #  if parent_converted:
-    #  else:
-    #    return self.memoization_map[(parent_converted, optree)]
-    #else:
+    if (parent_converted, optree) in self.memoization_map:
+        return self.memoization_map[(parent_converted, optree)]
     if 1:
       new_optree = optree.copy(copy_map = self.copy_map)
       if self.does_target_support_promoted_op(optree):
@@ -129,14 +169,15 @@ class Pass_Vector_Promotion(OptreeOptimization):
         # must be converted back to initial format
         # before being returned
         if not parent_converted:
-          new_optree = Conversion(new_optree, precision = optree.get_precision())
+
+          new_optree = insert_conversion_when_required(new_optree, optree.get_precision()) # Conversion(new_optree, precision = optree.get_precision())
 
         return self.memoize(parent_converted, optree, new_optree)
       elif isinstance(optree, ML_NewTable):
         return self.memoize(parent_converted, optree, optree)
-      elif isinstance(optree, ML_LeafNode):
+      elif is_leaf_no_Constant(optree):
         if parent_converted and optree.get_precision() in self.get_translation_table():
-          new_optree = Conversion(optree, precision = self.get_conv_format(optree.get_precision()))
+          new_optree = insert_conversion_when_required(new_optree, self.get_conv_format(optree.get_precision()))#Conversion(optree, precision = self.get_conv_format(optree.get_precision()))
           return self.memoize(parent_converted, optree, new_optree)
         elif parent_converted:
           raise NotImplementedError
@@ -153,19 +194,19 @@ class Pass_Vector_Promotion(OptreeOptimization):
         new_optree.inputs = new_inputs
 
         if parent_converted and optree.get_precision() in self.get_translation_table():
-          new_optree = Conversion(new_optree, precision = self.get_conv_format(optree.get_precision()))
+          new_optree = insert_conversion_when_required(new_optree, self.get_conv_format(optree.get_precision()))#Conversion(new_optree, precision = self.get_conv_format(optree.get_precision()))
           return new_optree
         elif parent_converted:
-          print optree.get_precision()
+          print(optree.get_precision())
           raise NotImplementedError
         return self.memoize(parent_converted, optree, new_optree)
-          
+
 
   # standard Opt pass API
   def execute(self, optree):
     return self.promote_node(optree)
 
 
-print "Registering vector_conversion pass"
+Log.report(LOG_PASS_INFO, "Registering vector_conversion pass")
 # register pass
 Pass.register(Pass_Vector_Promotion)

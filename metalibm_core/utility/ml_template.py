@@ -1,11 +1,32 @@
 # -*- coding: utf-8 -*-
 
 ###############################################################################
-# This file is part of Kalray's Metalibm tool
-# Copyright (2014)
-# All rights reserved
-# created:          Apr 23th,  2014
-# last-modified:    Mar 16th, 2016
+# This file is part of metalibm (https://github.com/kalray/metalibm)
+###############################################################################
+# MIT License
+#
+# Copyright (c) 2018 Kalray
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+###############################################################################
+# created:          Apr 23th, 2014
+# last-modified:    Mar  7th, 2018
 #
 # author(s): Nicolas Brunie (nicolas.brunie@kalray.eu)
 ###############################################################################
@@ -13,7 +34,9 @@
 """ command-line argument templates """
 
 import sys
+import os
 import argparse
+import traceback
 
 from sollya import Interval
 
@@ -28,6 +51,8 @@ from ..core.target import TargetRegister
 from ..targets import *
 from ..code_generation.code_constant import *
 from ..core.passes import Pass
+
+from ..core.ml_hdl_format import fixed_point
 
 from metalibm_core.code_generation.vhdl_backend import VHDLBackend
 
@@ -76,12 +101,12 @@ def precision_parser(precision_str):
     if precision_str in precision_map:
         return precision_map[precision_str]
     else:
-        fixed_format = ML_Custom_FixedPoint_Format.parse_from_string(
-            precision_str)
-        if fixed_format is None:
-            return eval(precision_str)
-        else:
+        fixed_format_match = ML_Custom_FixedPoint_Format.match(precision_str)
+        if fixed_format_match:
+            fixed_format = ML_Custom_FixedPoint_Format.parse_from_match(fixed_format_match)
             return fixed_format
+        else:
+            return eval(precision_str)
 
 # Parse list of formats
 #  @param format_str comma separated list of formats
@@ -116,8 +141,24 @@ def target_parser(target_name):
 
 
 def target_instanciate(target_name):
-    """ instanciate target object from target string name """
-    return target_parser(target_name)()
+    """ instanciate target object from target string 
+        Args:
+            target_name (str): name of the target to instantiate
+            
+        Return:
+            target object instance
+    """
+    target_class = target_parser(target_name)
+    try:
+        target_object = target_class()
+    except Exception as e:
+        exc_type, exc_obj, exc_tb = sys.exc_info()
+        fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+        print(exc_type, fname, exc_tb.tb_lineno)
+        print(traceback.print_exc())
+        Log.report(Log.Error, "failed to build target object")
+        raise
+    return target_object
 
 
 def language_parser(language_str):
@@ -146,15 +187,19 @@ class VerboseAction(argparse.Action):
         super(VerboseAction, self).__init__(option_strings, dest, **kwargs)
 
     def __call__(self, parser, namespace, values, option_string=None):
-        print 'VerboseAction %r %r %r' % (namespace, values, option_string)
-        Log.enable_level(Log.Verbose)
+        for level_str in values.split(","):
+            if ":" in level_str:
+                level, sub_level = level_str.split(":")
+            else:
+                level, sub_level = level_str, None
+            Log.enable_level(level, sub_level=sub_level)
 
 # list the available targets
 
 
 def list_targets():
     for target_name in target_map:
-        print "{}:\n  {}".format(target_name, target_map[target_name])
+        print("{}:\n  {}".format(target_name, target_map[target_name]))
 
 
 class TargetInfoAction(argparse.Action):
@@ -179,9 +224,9 @@ class PassListAction(argparse.Action):
             option_strings, dest, nargs=0, **kwargs)
 
     def __call__(self, parser, namespace, values, option_string=None):
-        print "list of registered passes"
+        print("list of registered passes")
         for tag in Pass.get_pass_tag_list():
-            print "  {}: {}".format(tag, Pass.get_pass_by_tag(tag))
+            print("  {}: {}".format(tag, Pass.get_pass_by_tag(tag)))
         exit(0)
 
 # Command line action to set break on error in load module
@@ -194,7 +239,7 @@ class MLDebugAction(argparse.Action):
         super(MLDebugAction, self).__init__(option_strings, dest, **kwargs)
 
     def __call__(self, parser, namespace, values, option_string=None):
-        print 'MLDebugAction %r %r %r' % (namespace, values, option_string)
+        print('MLDebugAction %r %r %r' % (namespace, values, option_string))
         ml_debug_bool = bool(values)
         setattr(namespace, "ml_debug", ml_debug_bool)
         Log.set_break_on_error(ml_debug_bool)
@@ -231,17 +276,19 @@ class ArgDefault(object):
 
 class DefaultArgTemplate:
     base_name = "unknown_function"
-    function_name = None
-    output_file = None
+    function_name = "undef_function"
+    output_file = "undef.c"
     # metalim engine settings
     display_after_opt = False
     display_after_gen = False
     verbose_enable = False
+    # 
+    arity = 1
     # output/intermediate format Specification
     precision = ML_Binary32
+    input_precisions = None
     # list of input precisions
     # None <=> [self.precision] * self.get_arity()
-    input_precisions = None
     abs_accuracy = None
     accuracy = ML_Faithful
     libm_compliant = True
@@ -253,7 +300,9 @@ class DefaultArgTemplate:
     dot_product_enabled = False
     # Debug verbosity
     debug = False
+    # Vector related parameters
     vector_size = 1
+    sub_vector_size = None
     language = C_Code
     # auto-test properties
     auto_test = False
@@ -262,6 +311,7 @@ class DefaultArgTemplate:
     auto_test_std = False
     # enable max error computation
     compute_max_error = False
+    break_error = False
     # bench properties
     bench_execute = False
     bench_test_number = 0
@@ -318,6 +368,9 @@ class DefaultEntityArgTemplate(DefaultArgTemplate):
     exit_after_test = True
     # RTL elaboration
     build_enable = False
+    # pipelined deisgn
+    pipelined = False
+
 
 
 # Common ancestor for Argument Template class
@@ -337,8 +390,14 @@ class ML_CommonArgTemplate(object):
             help="disable FMA-like operation fusion")
         self.parser.add_argument(
             "--output", action="store", dest="output_file",
-            default=self.default_output_file,
+            default=default_arg.output_file,
             help="set output file")
+
+        self.parser.add_argument(
+            "--arity", dest="arity",
+            action="store", 
+            default=default_arg.arity,
+            help="function arity (number of inputs)")
 
         self.parser.add_argument(
             "--precision", dest="precision", type=precision_parser,
@@ -384,6 +443,11 @@ class ML_CommonArgTemplate(object):
             "--vector-size", dest="vector_size", type=int,
             default=default_arg.vector_size,
             help="define size of vector (1: scalar implemenation)")
+            
+        self.parser.add_argument(
+            "--sub-vector-size", dest="sub_vector_size", type=int,
+            default=default_arg.sub_vector_size,
+            help="define size of sub vector")
         # language selection
         self.parser.add_argument(
             "--language", dest="language", type=language_parser,
@@ -419,6 +483,10 @@ class ML_CommonArgTemplate(object):
             const=True, default=default_arg.compute_max_error,
             help="enable the computation of the maximum error "
                  "(if auto-test is enabled)")
+        self.parser.add_argument(
+            "--break_error", dest="break_error", action="store_const",
+            const=True, default=default_arg.break_error,
+            help="forces tester to continue when encountering an error")
         # performance bench related arguments
         self.parser.add_argument(
             "--bench", dest="bench_test_number", action="store", nargs='?',
@@ -426,7 +494,7 @@ class ML_CommonArgTemplate(object):
             help="enable the generation of a performance bench")
         self.parser.add_argument(
             "--bench-execute", dest="bench_execute", action="store",
-            nargs='?', const=1000, type=int, default=ArgDefault(False),
+            nargs='?', const=1000, type=int, default=default_arg.bench_execute,
             help="enable the generation and execution of a performance bench")
         self.parser.add_argument(
             "--bench-range", dest="bench_test_range", action="store",
@@ -464,7 +532,7 @@ class ML_CommonArgTemplate(object):
       final code generation")
         # list of
         self.parser.add_argument(
-            "--passes", default=[], action="store", dest="passes",
+            "--passes", default=default_arg.passes, action="store", dest="passes",
             type=lambda s: s.split(","), help="comma separated list \
       of slot:pass to be executed ")
         # disable check processor pass
@@ -529,6 +597,10 @@ class ML_EntityArgTemplate(ML_CommonArgTemplate):
             action="store", help="help define output file for debug script"
         )
         self.parser.add_argument(
+            "--pipelined", dest = "pipelined",
+            action = "store", help = "define the number of pipeline stages"
+        )
+        self.parser.add_argument(
             "--no-exit",
             action="store_const",
             dest="exit_after_test",
@@ -540,16 +612,15 @@ class ML_EntityArgTemplate(ML_CommonArgTemplate):
 # new argument template based on argparse module
 class ML_NewArgTemplate(ML_CommonArgTemplate):
     def __init__(
-            self, default_function_name,
-            default_output_file="ml_func_gen.c",
+            self, #default_function_name,
             default_arg=DefaultArgTemplate
         ):
-        self.default_output_file = default_output_file
-        self.default_function_name = default_function_name
+        #self.default_output_file = default_output_file
+        #self.default_function_name = default_function_name
 
         parser = argparse.ArgumentParser(
-            " Metalibm %s function generation script" % \
-            self.default_function_name)
+            " Metalibm {} function generation script".format(
+            default_arg.function_name))
         ML_CommonArgTemplate.__init__(self, parser, default_arg=default_arg)
         self.parser.add_argument(
             "--libm", dest="libm_compliant", action="store_const",
@@ -557,13 +628,19 @@ class ML_NewArgTemplate(ML_CommonArgTemplate):
             help="generate libm compliante code"
         )
         self.parser.add_argument(
-            "--fname", dest="function_name", default=ArgDefault(
-            self.default_function_name), help="set function name"
+            "--fname", dest="function_name", 
+            default=default_arg.function_name, help="set function name"
         )
         self.parser.add_argument("--target", dest="target", action="store",
             type=target_instanciate, default="none",
             help="select generation target"
         )
+        self.parser.add_argument(
+          "--execute", dest = "execute_trigger", action = "store_const",
+          const = True, default = default_arg.execute_trigger,
+          help = "trigger post-build execution"
+        )
+
 
 
 class ML_ArgTemplate(object):
@@ -689,12 +766,12 @@ class ML_ArgTemplate(object):
 
     def display_help(self):
         spacew = max(len(o) for o in self.help_map)
-        print "option list:"
+        print("option list:")
         for option_name in self.help_map:
-            print "  %s %s %s" % (
+            print("  %s %s %s" % (
                 option_name, " " * (spacew - len(option_name)),
                 self.help_map[option_name]
-            )
+            ))
 
     def check_args(self, parse_arg, exit_on_info=True):
         """ check that all options on command line have been parse
@@ -708,7 +785,7 @@ class ML_ArgTemplate(object):
             help_map=self.help_map,
             help_str="display the list of supported targets"
         )
-        for i in xrange(1, len(sys.argv)):
+        for i in range(1, len(sys.argv)):
             if not i in parse_arg:
                 self.display_help()
                 Log.report(
@@ -723,10 +800,10 @@ class ML_ArgTemplate(object):
         if target_info_flag:
             spacew = max(len(v) for v in target_map)
             for target_name in target_map:
-                print "%s: %s %s " % (
+                print("%s: %s %s " % (
                     target_name, " " * (spacew - len(target_name)),
                     target_map[target_name]
-                )
+                ))
             if exit_on_info:
                 sys.exit(0)
                 return None
@@ -734,4 +811,4 @@ class ML_ArgTemplate(object):
 
 if __name__ == "__main__":
     for target_name in target_map:
-        print target_name, ": ", target_map[target_name]
+        print(target_name, ": ", target_map[target_name])

@@ -1,7 +1,35 @@
 # -*- coding: utf-8 -*-
+###############################################################################
+# This file is part of metalibm (https://github.com/kalray/metalibm)
+###############################################################################
+# MIT License
+#
+# Copyright (c) 2018 Kalray
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+###############################################################################
 
 import sys
 from metalibm_core.utility.log_report import Log
+
+""" custom warning log level for pass management """
+LOG_PASS_INFO = Log.LogLevel("Info", "passes")
 
 ## Parent class for all pass dependency
 class PassDependency:
@@ -68,6 +96,10 @@ class PassScheduler:
     tag = "start"
   class Whenever:
     tag = "whenever"
+  class BeforePipelining: 
+    tag = "beforepipelining"
+  class AfterPipelining: 
+    tag = "afterpipelining"
   class JustBeforeCodeGen: 
     tag = "beforecodegen"
 
@@ -77,6 +109,8 @@ class PassScheduler:
       PassScheduler.Start.tag: PassScheduler.Start,
       PassScheduler.Whenever.tag: PassScheduler.Whenever,
       PassScheduler.JustBeforeCodeGen.tag: PassScheduler.JustBeforeCodeGen,
+      PassScheduler.BeforePipelining.tag: PassScheduler.BeforePipelining,
+      PassScheduler.AfterPipelining.tag: PassScheduler.AfterPipelining,
     }[tag]
 
   def __init__(self):
@@ -85,12 +119,20 @@ class PassScheduler:
       PassScheduler.Start: [],
       PassScheduler.Whenever: [],
       PassScheduler.JustBeforeCodeGen: [],
+      PassScheduler.BeforePipelining: [],
+      PassScheduler.AfterPipelining: [],
     }
     self.executed_passes = []
     self.ready_passes    = []
     self.waiting_pass_wrappers  = []
 
   def register_pass(self, pass_object, pass_dep = PassDependency(), pass_slot = None):
+    Log.report(LOG_PASS_INFO,
+        "PassScheduler: registering pass {} at {}".format(
+            pass_object,
+            pass_slot
+        )
+    )
     self.pass_map[pass_slot].append(PassWrapper(pass_object, pass_dep)) 
 
   def get_executed_passes(self):
@@ -176,8 +218,10 @@ class Pass:
   def register(pass_class):
     tag = pass_class.pass_tag
     if not tag in Pass.pass_map:
-      print "registering pass {} associated to tag {}".format(pass_class, tag)
+      Log.report(LOG_PASS_INFO, "registering pass {} associated to tag {}".format(pass_class, tag))
       Pass.pass_map[tag] = pass_class
+    else:
+      Log.report(Log.Error, "a pass with name {} has already been registered while trying to register {}".format(tag, pass_class))
 
   ## return the pass class associated with name @p tag
   #  @param tag[str] pass name
@@ -235,10 +279,24 @@ class PassDump(OptreeOptimization):
 
   def execute(self, optree):
     Log.report(Log.Info, "executing PassDump")
-    print optree.get_str(
+    print(optree.get_str(
         depth = None, display_precision = True, memoization_map = {}
-    )
+    ))
 
+class PassDumpWithStages(OptreeOptimization):
+  pass_tag = "dump_with_stages"
+  def __init__(self, *args):
+    OptimizationPass.__init__(self, "dump_with_stages")
+
+  def execute(self, optree):
+    Log.report(Log.Info, "executing PassDumpWithStages")
+    print(optree.get_str(
+        depth = None, display_precision = True, memoization_map = {},
+        custom_callback = lambda op: " [S={}] ".format(op.attributes.init_stage)
+    ))
+
+Log.report(LOG_PASS_INFO, "registerting basic passes (Quit,Dump,DumpWithStages)")
 # registering commidity pass
 Pass.register(PassQuit)
 Pass.register(PassDump)
+Pass.register(PassDumpWithStages)

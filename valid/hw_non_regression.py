@@ -1,4 +1,27 @@
 # -*- coding: utf-8 -*-
+# This file is part of metalibm (https://github.com/kalray/metalibm)
+
+# MIT License
+#
+# Copyright (c) 2018 Kalray
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
 
 import argparse
 import sys
@@ -77,7 +100,7 @@ for test in new_scheme_function_list:
 class ListTestAction(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
         for test in  new_scheme_function_list:
-          print test.get_tag_title()
+          print(test.get_tag_title())
         exit(0)
 
 # generate list of test object from string 
@@ -118,11 +141,11 @@ for test_scheme in args.test_list:
 
 # Printing test summary for new scheme
 for result in result_details:
-  print result.get_details()
+  print(result.get_details())
 
 if success:
-  print "OVERALL SUCCESS"
+  print("OVERALL SUCCESS")
   exit(0)
 else:
-  print "OVERALL FAILURE"
+  print("OVERALL FAILURE")
   exit(1)

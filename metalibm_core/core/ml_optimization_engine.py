@@ -1,10 +1,31 @@
 # -*- coding: utf-8 -*-
 ###############################################################################
-# This file is part of Kalray's Metalibm tool
-# Copyright (2013-2014)
-# All rights reserved
+# This file is part of metalibm (https://github.com/kalray/metalibm)
+###############################################################################
+# MIT License
+#
+# Copyright (c) 2018 Kalray
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+###############################################################################
 # created:          Mar 20th, 2014
-# last-modified:    Apr 14th, 2014
+# last-modified:    Mar  7th, 2018
 #
 # author(s): Nicolas Brunie (nicolas.brunie@kalray.eu)
 ###############################################################################
@@ -34,7 +55,7 @@ def merge_abstract_format(*args):
     if has_integer: return ML_Integer
     if has_bool: return ML_AbstractBool
     else:
-        print [str(arg) for arg in args]
+        print([str(arg) for arg in args])
         Log.report(Log.Error, "unknown formats while merging abstract format tuple")
 
 
@@ -50,6 +71,10 @@ abstract_typing_rule = {
     Negation:
         lambda optree, op0: merge_abstract_format(op0.get_precision()),
     Addition: 
+        lambda optree, op0, op1: merge_abstract_format(op0.get_precision(), op1.get_precision()), 
+    Max:
+        lambda optree, op0, op1: merge_abstract_format(op0.get_precision(), op1.get_precision()), 
+    Min:
         lambda optree, op0, op1: merge_abstract_format(op0.get_precision(), op1.get_precision()), 
     FusedMultiplyAdd: 
         lambda optree, *ops: merge_abstract_format(*tuple(op.get_precision() for op in ops)),
@@ -124,6 +149,10 @@ practical_typing_rule = {
         lambda backend, op, dprec: backend.merge_abstract_format(op, op.inputs),
     Negation:
         lambda backend, op, dprec: backend.merge_abstract_format(op, op.inputs),
+    Min:
+        lambda backend, op, dprec: backend.merge_abstract_format(op, op.inputs),
+    Max:
+        lambda backend, op, dprec: backend.merge_abstract_format(op, op.inputs),
     Addition: 
         lambda backend, op, dprec: backend.merge_abstract_format(op, op.inputs),
     Subtraction: 
@@ -195,6 +224,10 @@ practical_typing_rule = {
 }
 
 post_typing_process_rules = {
+    Min:
+        lambda backend, op: backend.propagate_format_to_cst(op, op.get_precision()), 
+    Max:
+        lambda backend, op: backend.propagate_format_to_cst(op, op.get_precision()), 
     Addition: 
         lambda backend, op: backend.propagate_format_to_cst(op, op.get_precision()), 
     Subtraction: 
@@ -325,32 +358,32 @@ def simplify_inverse(optree, processor):
 
 
 support_simplification = {
-    FusedMultiplyAdd: {
-        FusedMultiplyAdd.Standard: {
-            lambda optree: True: 
-                lambda optree, processor: Addition(Multiplication(optree.inputs[0], optree.inputs[1], precision = optree.get_precision()), optree.inputs[2], precision = optree.get_precision()),
-        },
-        FusedMultiplyAdd.Subtract: {
-            lambda optree: True: 
-                lambda optree, processor: Subtraction(Multiplication(optree.inputs[0], optree.inputs[1], precision = optree.get_precision()), optree.inputs[2], precision = optree.get_precision()),
-        },
-        FusedMultiplyAdd.Negate: {
-            lambda optree: True: 
-                lambda optree, processor: Negate(Addition(Multiplication(optree.inputs[0], optree.inputs[1], precision = optree.get_precision()), optree.inputs[2], precision = optree.get_precision()), precision = optree.get_precision()),
-        },
-        FusedMultiplyAdd.SubtractNegate: {
-            lambda optree: True: 
-                lambda optree, processor: Subtraction(optree.inputs[2], Multiplication(optree.inputs[0], optree.inputs[1], precision = optree.get_precision()), precision = optree.get_precision()),
-        },
-        FusedMultiplyAdd.DotProduct: {
-            lambda optree: True:
-                lambda optree, processor: Addition(Multiplication(optree.inputs[0], optree.inputs[1], precision = optree.get_precision()), Multiplication(optree.inputs[2], optree.inputs[3], precision = optree.get_precision()), precision = optree.get_precision()), 
-        },
-        FusedMultiplyAdd.DotProductNegate: {
-            lambda optree: True: 
-                lambda optree, processor: Subtraction(Multiplication(optree.inputs[0], optree.inputs[1], precision = optree.get_precision()), Multiplication(optree.inputs[2], optree.inputs[3], precision = optree.get_precision()), precision = optree.get_precision()), 
-        },
-    },
+    #FusedMultiplyAdd: {
+    #    FusedMultiplyAdd.Standard: {
+    #        lambda optree: True: 
+    #            lambda optree, processor: Addition(Multiplication(optree.inputs[0], optree.inputs[1], precision = optree.get_precision()), optree.inputs[2], precision = optree.get_precision()),
+    #    },
+    #    FusedMultiplyAdd.Subtract: {
+    #        lambda optree: True: 
+    #            lambda optree, processor: Subtraction(Multiplication(optree.inputs[0], optree.inputs[1], precision = optree.get_precision()), optree.inputs[2], precision = optree.get_precision()),
+    #    },
+    #    FusedMultiplyAdd.Negate: {
+    #        lambda optree: True: 
+    #            lambda optree, processor: Negate(Addition(Multiplication(optree.inputs[0], optree.inputs[1], precision = optree.get_precision()), optree.inputs[2], precision = optree.get_precision()), precision = optree.get_precision()),
+    #    },
+    #    FusedMultiplyAdd.SubtractNegate: {
+    #        lambda optree: True: 
+    #            lambda optree, processor: Subtraction(optree.inputs[2], Multiplication(optree.inputs[0], optree.inputs[1], precision = optree.get_precision()), precision = optree.get_precision()),
+    #    },
+    #    FusedMultiplyAdd.DotProduct: {
+    #        lambda optree: True:
+    #            lambda optree, processor: Addition(Multiplication(optree.inputs[0], optree.inputs[1], precision = optree.get_precision()), Multiplication(optree.inputs[2], optree.inputs[3], precision = optree.get_precision()), precision = optree.get_precision()), 
+    #    },
+    #    FusedMultiplyAdd.DotProductNegate: {
+    #        lambda optree: True: 
+    #            lambda optree, processor: Subtraction(Multiplication(optree.inputs[0], optree.inputs[1], precision = optree.get_precision()), Multiplication(optree.inputs[2], optree.inputs[3], precision = optree.get_precision()), precision = optree.get_precision()), 
+    #    },
+    #},
     Subtraction: {
       None: {
         lambda optree: True: 
@@ -420,7 +453,7 @@ class OptimizationEngine(object):
 
     def propagate_format_to_cst(self, optree, new_optree_format, index_list = []):
         """ propagate new_optree_format to Constant operand of <optree> with abstract precision """
-        index_list = xrange(len(optree.inputs)) if index_list == [] else index_list
+        index_list = range(len(optree.inputs)) if index_list == [] else index_list
         for index in index_list:
             inp = optree.inputs[index]
             if isinstance(inp, Constant) and isinstance(inp.get_precision(), ML_AbstractFormat):
@@ -435,13 +468,13 @@ class OptimizationEngine(object):
             try:
                 arg_bit_size = arg.get_precision().get_bit_size()
             except:
-                print "ERROR in get_bit_size during merge_abstract_format"
-                print "optree: "
-                print optree.get_inputs()
-                print optree.get_precision()
-                print optree.get_str(display_precision = True, memoization_map = {}) # Exception print
-                print "arg: "
-                print arg.get_precision(), arg.get_str(display_precision = True, memoization_map = {}) # Exception print
+                print("ERROR in get_bit_size during merge_abstract_format")
+                print("optree: ")
+                print(optree.get_inputs())
+                print(optree.get_precision())
+                print(optree.get_str(display_precision = True, memoization_map = {})) # Exception print
+                print("arg: ")
+                print(arg.get_precision(), arg.get_str(display_precision = True, memoization_map = {})) # Exception print
 
                 raise Exception()
             if arg_bit_size > max_binary_size:
@@ -994,7 +1027,7 @@ class OptimizationEngine(object):
     def check_processor_support(self, optree, memoization_map = {}, debug = False, language = C_Code):
         """ check if all precision-instantiated operation are supported by the processor """
         if debug:
-          print "checking processor support: ", self.processor.__class__ # Debug print
+          print("checking processor support: ", self.processor.__class__) # Debug print
         if  optree in memoization_map:
             return True
         if not isinstance(optree, ML_LeafNode):
@@ -1028,7 +1061,7 @@ class OptimizationEngine(object):
                     match_found = False
                     for result_type_cond in type_escalation[optree.__class__]:
                         if result_type_cond(optree.get_precision()): 
-                            for op_index in xrange(len(optree.inputs)):
+                            for op_index in range(len(optree.inputs)):
                                 op = optree.inputs[op_index]
                                 for op_type_cond in type_escalation[optree.__class__][result_type_cond]:
                                     if op_type_cond(op.get_precision()): 
@@ -1055,10 +1088,10 @@ class OptimizationEngine(object):
                             memoization_map[optree] = True
                             return True
                         
-                    print optree # Error print
-                    print "pre escalation: ", old_list # Error print
-                    print self.processor.get_operation_keys(optree) # Error print
-                    print optree.get_str(display_precision = True, display_id = True, memoization_map = {}) # Error print
+                    print(optree) # Error print
+                    print("pre escalation: ", old_list) # Error print
+                    print(self.processor.get_operation_keys(optree)) # Error print
+                    print(optree.get_str(display_precision = True, display_id = True, memoization_map = {})) # Error print
                     Log.report(Log.Error, "unsupported operation\n")
         # memoization
         memoization_map[optree] = True

@@ -1,10 +1,38 @@
 # -*- coding: utf-8 -*-
 
-# This file is part of the Metalibm project
-# author(s): Nicolas Brunie (nibrunie@gmail.com)
+###############################################################################
+# This file is part of metalibm (https://github.com/kalray/metalibm)
+###############################################################################
+# MIT License
+#
+# Copyright (c) 2018 Kalray
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+###############################################################################
+
+###############################################################################
+# author(s): Nicolas Brunie (nbrunie@kalray.eu)
 #
 # Description: Utility for Metalibm validation
-# Created:     March 6th, 2017
+# Created:           March 6th, 2017
+# Last Modified:     March 6th, 2018
+###############################################################################
 
 from metalibm_core.core.ml_function import DefaultArgTemplate
 
@@ -40,7 +68,7 @@ class CommonTestScheme:
     result_list = [self.single_test(tc, debug = debug) for tc in self.argument_tc]
     success_count = [r.get_result() for r in result_list].count(True)
     failure_count = len(result_list) - success_count
-    overall_success = (success_count > 0) and (failure_count == 0)
+    overall_success = (success_count >= 0) and (failure_count == 0)
     function_name = self.get_title()
 
     if overall_success:
@@ -57,7 +85,7 @@ class NewSchemeTest(CommonTestScheme):
 
   ## Build an argument template from dict
   def build_arg_template(self, **kw):
-    return DefaultArgTemplate(**kw)
+    return self.ctor.get_default_args(**kw)
 
   def single_test(self, arg_tc, debug = False):
     function_name = self.get_title()

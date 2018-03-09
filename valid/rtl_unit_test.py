@@ -2,13 +2,37 @@
 """ Software source code unit testing """
 
 ###############################################################################
-# This file is part of New Metalibm tool
-# Copyrights Nicolas Brunie (2017-)
-# All rights reserved
-# created:          Jul  9th, 2017
-# last-modified:    Jul  9th, 2017
+# This file is part of metalibm (https://github.com/kalray/metalibm)
+###############################################################################
+# MIT License
 #
-# author(s): Nicolas Brunie (nibrunie@gmail.com)
+# Copyright (c) 2018 Kalray
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+###############################################################################
+
+
+###############################################################################
+# created:          Jul  9th, 2017
+# last-modified:    Mar  6th, 201_
+#
+# author(s): Nicolas Brunie (nbrunie@kalray.eu)
 # description: software source code unit testing
 ###############################################################################
 
@@ -29,16 +53,46 @@ from valid.unit_test import (
 
 import metalibm_hw_blocks.unit_tests.adaptative_size as ut_adaptative_size
 import metalibm_hw_blocks.unit_tests.report_test as ut_report_test
+import metalibm_hw_blocks.unit_tests.range_eval as ut_range_eval
+import metalibm_hw_blocks.unit_tests.fixed_point_position as ut_fixed_point_position
+import metalibm_hw_blocks.unit_tests.ut_special_values as ut_special_values
+import metalibm_hw_blocks.unit_tests.min_max_select as ut_min_max_select
+import metalibm_hw_blocks.unit_tests.unify_pipeline as ut_unify_pipeline
 
 unit_test_list = [
+  UnitTestScheme(
+    "basic min max select entity",
+    ut_min_max_select,
+    [{}]
+  ),
+  UnitTestScheme(
+    "basic special values arithmetic",
+    ut_special_values,
+    [{}]
+  ),
   UnitTestScheme(
     "basic fixed-point legalization pass",
     ut_adaptative_size,
     [{}]
   ),
   UnitTestScheme(
+    "basic fixed-point position ",
+    ut_fixed_point_position,
+    [{"width": 17}, {"width": 32}, {"width": 63}]
+  ),
+  UnitTestScheme(
     "basic message report test",
     ut_report_test,
+    [{}]
+  ),
+  UnitTestScheme(
+    "basic range evaluate test",
+    ut_range_eval,
+    [{}]
+  ),
+  UnitTestScheme(
+    "pipeline unification pass test",
+    ut_unify_pipeline,
     [{}]
   ),
 ]
@@ -47,7 +101,7 @@ unit_test_list = [
 class ListUnitTestAction(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
         for test in  unit_test_list:
-          print test.get_tag_title()
+          print(test.get_tag_title())
         exit(0)
 
 
@@ -92,11 +146,11 @@ for test_scheme in args.test_list:
 
 # Printing test summary for new scheme
 for result in result_details:
-  print result.get_details()
+  print(result.get_details())
 
 if success:
-  print "OVERALL SUCCESS"
+  print("OVERALL SUCCESS")
   exit(0)
 else:
-  print "OVERALL FAILURE"
+  print("OVERALL FAILURE")
   exit(1)

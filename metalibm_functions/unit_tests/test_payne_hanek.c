@@ -2,8 +2,8 @@
 #include <stdio.h>
 #include <inttypes.h>
 #include <support_lib/ml_utils.h>
-
-double new_ut_payne_hanek(double x);
+#include <math.h>
+#include "new_ut_payne_hanek.c"
 
 #define TEST_NUM 10
 
@@ -37,15 +37,18 @@ double expected[TEST_NUM] = {
 int main(int argc, char** argv) {
 
   unsigned i;
+  int err;
   for (i = 0; i < TEST_NUM; i++) {
     double result = new_ut_payne_hanek(test_input[i]);
     if (result != expected[i]) {
       printf("ERROR test %d: %"PRIx64" vs %"PRIx64"[exp]\n", i, double_to_64b_encoding(result), double_to_64b_encoding(expected[i]));
-      return 1;
+      err |= 1;
     }
   }
-
-  printf("TEST SUCCESS\n");
-
+  if (!err)
+    printf("TEST SUCCESS\n");
+  else
+    printf("TEST FAILED\n");
+  
   return 0;
 }

@@ -1,5 +1,32 @@
 # -*- coding: utf-8 -*-
 
+###############################################################################
+# This file is part of metalibm (https://github.com/kalray/metalibm)
+###############################################################################
+# MIT License
+#
+# Copyright (c) 2018 Kalray
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+###############################################################################
+# last-modified:    Mar  7th, 2018
+###############################################################################
 """ Unitary bench to infer micro-architecture
     performance measurement """
 
@@ -18,16 +45,19 @@ from metalibm_core.core.ml_operations import (
     FunctionObject, Subtraction, Division, Conversion,
     Return
 )
+
 import metalibm_core.core.ml_operations as metaop
+
 from metalibm_core.core.ml_formats import (
-    ML_Binary64, ML_Binary32, ML_Int32, ML_Int64, ML_Void
+    ML_Binary64, ML_Binary32, ML_Int32, ML_Int64, ML_Void,
+    FormatAttributeWrapper, ML_Fixed_Format, ML_FP_Format
 )
 from metalibm_core.code_generation.generator_utility import (
     FunctionOperator, FO_Arg
 )
 
 from metalibm_core.utility.ml_template import (
-    ML_NewArgTemplate,
+    ML_NewArgTemplate, precision_parser
 )
 
 
@@ -68,7 +98,13 @@ class OpUnitBench(object):
         ]
 
         var_inputs = [
-            Variable("var_%d" % i, precision=precision, var_type=Variable.Local)
+            Variable(
+                            "var_%d" % i,
+                            precision = FormatAttributeWrapper(
+                                precision, ["volatile"]
+                            ),
+                            var_type=Variable.Local
+                        )
             for i, precision in enumerate(self.input_precisions)
         ]
 
@@ -76,7 +112,7 @@ class OpUnitBench(object):
             "printf",
             arg_map={
                 0: "\"%s[%s] %%lld elts computed "\
-                   "in %%lld cycles => %%.3f CPE \\n\"" %
+                   "in %%lld cycles =>\\n     %%.3f CPE \\n\"" %
                 (
                     self.bench_name,
                     self.output_precision.get_display_format()
@@ -119,11 +155,15 @@ class OpUnitBench(object):
         # elementary operation latency
         local_inputs = tuple(var_inputs)
         local_result = self.op_class(
-            *local_inputs, precision=self.output_precision)
-        for i in xrange(unroll_factor - 1):
+            *local_inputs, 
+                        precision=self.output_precision,
+                        unbreakable = True
+                    )
+        for i in range(unroll_factor - 1):
             local_inputs = tuple([local_result] + var_inputs[1:])
             local_result = self.op_class(
-                *local_inputs, precision=self.output_precision)
+                *local_inputs, precision=self.output_precision, unbreakable = True
+                        )
         # renormalisation
         local_result = self.renorm_function(local_result)
 
@@ -174,59 +214,98 @@ class OpUnitBench(object):
 
         return test_scheme
 
+def is_fp_format(precision):
+  return isinstance(precision.get_base_format(), ML_FP_Format)
+def is_int_format(precision):
+  return isinstance(precision.get_base_format(), ML_Fixed_Format)
 
-OPERATOR_BENCH_LIST = [
-    lambda precision:
-    OpUnitBench(
-        metaop.Addition, "Addition %s" % precision, 2, Interval(-1, 1),
-        output_precision=precision, input_precisions=[precision] * 2
-    ),
-    lambda precision:
-    OpUnitBench(
-        metaop.Subtraction, "Subtraction %s" % precision, 2, Interval(-1, 1),
-        output_precision=precision, input_precisions=[precision] * 2),
-    lambda precision:
-    OpUnitBench(
-        metaop.Multiplication, "Multiplication %s" % precision, 2,
-        Interval(0.9999, 1.0001),
-        output_precision=precision, input_precisions=[precision] * 2
-    ),
-    lambda precision:
-    OpUnitBench(
-        metaop.Division, "Division %s" %
-        precision, 2, Interval(0.9999, 1.0001)),
-]
+def predicate_is_fp_op(op_class, output_precision, input_precisions):
+  return is_fp_format(output_precision)
+def predicate_is_int_op(op_class, output_precision, input_precisions):
+  return is_int_format(output_precision)
 
-INT_OPERATOR_BENCH_LIST = [
-    lambda precision:
-    OpUnitBench(
-        metaop.Addition, "Addition %s" % precision, 2, Interval(-1000, 100),
-        output_precision=precision, input_precisions=[precision] * 2),
-    lambda precision:
-    OpUnitBench(
-        metaop.Subtraction, "Subtraction %s" % precision, 2,
-        Interval(-1000, 1000),
-        output_precision=precision, input_precisions=[precision] * 2
-    ),
-    lambda precision:
-    OpUnitBench(
-        metaop.Multiplication, "Multiplication %s" % precision, 2,
-        Interval(-1000, 1000), output_precision=precision,
-        input_precisions=[precision] * 2
-    ),
-    lambda precision:
-    OpUnitBench(
-        metaop.Division, "Division %s" % precision, 2,
-        Interval(
-            - S2** (precision.get_bit_size() - 1),
-              S2**(precision.get_bit_size() - 1)
-        )
-    ),
-]
+OPERATOR_BENCH_MAP = {
+  metaop.Addition:
+    {
+    predicate_is_fp_op:
+      lambda precision:
+      OpUnitBench(
+          metaop.Addition, "Addition %s" % precision, 2, Interval(-1, 1),
+          output_precision=precision, input_precisions=[precision] * 2
+      ),
+    predicate_is_int_op:
+      lambda precision:
+      OpUnitBench(
+          metaop.Addition, "Addition %s" % precision, 2, Interval(-1000, 1000),
+          output_precision=precision, input_precisions=[precision] * 2
+      ),
+  },
+  metaop.Subtraction: {
+    predicate_is_fp_op:
+      lambda precision:
+      OpUnitBench(
+          metaop.Subtraction, "Subtraction %s" % precision, 2, Interval(-1, 1),
+          output_precision=precision, input_precisions=[precision] * 2
+      ),
+    predicate_is_int_op:
+      lambda precision:
+        OpUnitBench(
+            metaop.Subtraction, "Subtraction %s" % precision, 2,
+            Interval(-1000, 1000),
+            output_precision=precision, input_precisions=[precision] * 2
+        ),
+  },
+  metaop.Multiplication: {
+    predicate_is_fp_op:
+      lambda precision:
+      OpUnitBench(
+          metaop.Multiplication, "Multiplication %s" % precision, 2,
+          Interval(0.9999, 1.0001),
+          output_precision=precision, input_precisions=[precision] * 2
+      ),
+    predicate_is_int_op:
+      lambda precision:
+      OpUnitBench(
+          metaop.Multiplication, "Multiplication %s" % precision, 2,
+          Interval(-1000, 1000), 
+                  output_precision=precision,
+          input_precisions=[precision] * 2
+      ),
+  },
+  metaop.FusedMultiplyAdd: {
+    predicate_is_fp_op:
+      lambda precision:
+      OpUnitBench(
+          metaop.FusedMultiplyAdd, "FusedMultiplyAdd %s" % precision, 3,
+          Interval(0.9999, 1.0001),
+          output_precision=precision, input_precisions=[precision] * 3
+      ),
+  },
+  metaop.Division: {
+    predicate_is_fp_op:
+      lambda precision:
+      OpUnitBench(
+          metaop.Division, "Division %s" % precision, 2,
+					Interval(0.9999, 1.0001),
+					output_precision = precision,
+					input_precisions = [precision] * 2
+			),
+    predicate_is_int_op:
+      lambda precision:
+      OpUnitBench(
+          metaop.Division, "Division %s" % precision, 2,
+          Interval(
+              - S2** (precision.get_bit_size() - 1),
+                S2**(precision.get_bit_size() - 1)
+          ),
+          output_precision=precision,
+          input_precisions=[precision] * 2
+      ),
+  },
+}
 
-
-class UnitBench(ML_Function("ml_external_bench")):
-    """ Implementation of external bench function wrapper """
+class UnitBench(ML_Function("ml_unit_bench")):
+    """ Implementation of unitary operation node bench """
 
     def __init__(self,
                  arg_template=DefaultArgTemplate,
@@ -246,6 +325,8 @@ class UnitBench(ML_Function("ml_external_bench")):
         # number of basic iteration
         self.test_num = arg_template.test_num
         self.unroll_factor = arg_template.unroll_factor
+        # dict of operations to be benched
+        self.operation_map = arg_template.operation_map
 
 
     @staticmethod
@@ -266,20 +347,69 @@ class UnitBench(ML_Function("ml_external_bench")):
 
         bench_statement = metaop.Statement()
         # floating-point bench
-        for precision in [ML_Binary32, ML_Binary64]:
-            for op_bench in OPERATOR_BENCH_LIST:
-                bench_statement.add(op_bench(precision).generate_bench(
-                    self.processor, test_num, unroll_factor))
-        # integer bench
-        for precision in [ML_Int32, ML_Int64]:
-            for op_bench in INT_OPERATOR_BENCH_LIST:
-                bench_statement.add(op_bench(precision).generate_bench(
+        for op_class in self.operation_map:
+          for output_precision in self.operation_map[op_class]:
+            for predicate in OPERATOR_BENCH_MAP[op_class]:
+              if predicate(op_class, output_precision, None):
+                op_bench = OPERATOR_BENCH_MAP[op_class][predicate]
+                bench_statement.add(op_bench(output_precision).generate_bench(
                     self.processor, test_num, unroll_factor))
         bench_statement.add(Return(0))
 
         return bench_statement
 
 
+def operation_parser(s):
+    """ Convert a string into an operation class
+
+        Args:
+            s (str): input string to be converted
+
+        Returns:
+            class: child of ML_Operation
+
+        Examples:
+            >>> operation_parse("add")
+            Addition
+    """
+    return {
+        "add": metaop.Addition,
+        "mul": metaop.Multiplication,
+        "sub": metaop.Subtraction,
+        "div": metaop.Division,
+        "fma": metaop.FusedMultiplyAdd
+    }[s]
+
+def operation_map_parser(s):
+    """ Convert a operation map string description into the corresponding
+        dictionnary 
+
+        Args:
+            s (str): operation map string decription
+
+        Returns:
+            dict: map of (operation_class -> list of format)
+
+        Example:
+            >>> operation_map_parser("binary32,int32:add,mul;int64:div")
+            {
+                Addition: [ML_Binary32, ML_Int32],
+                Multiplication: [ML_Binary64],
+                Division: [ML_Int64]
+            }
+    """
+    op_map = {}
+    level0_list = s.split(";")
+    for entry in level0_list:
+        formats, ops = entry.split(':')
+        formats = [precision_parser(f) for f in formats.split(',')]
+        ops = [operation_parser(o) for o in ops.split(',')]
+        for op in ops:
+            if not op in op_map:
+                op_map[op] = []
+            for f in formats:
+                op_map[op].append(f)
+    return op_map
 
 if __name__ == "__main__":
     # auto-test
@@ -296,6 +426,12 @@ if __name__ == "__main__":
     arg_template.get_parser().add_argument(
         "--unroll-factor", dest="unroll_factor",
         default=10, action="store", type=int, help="number of basic iteration"
+    )
+
+    # TODO: on-going
+    arg_template.get_parser().add_argument(
+       "--operations", dest="operation_map", default="binary64,binary32:add,mul",
+        action="store", type=operation_map_parser, help="number of basic iteration"
     )
 
     ARGS = arg_template.arg_extraction()

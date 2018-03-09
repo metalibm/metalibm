@@ -1,20 +1,41 @@
 # -*- coding: utf-8 -*-
 
 ###############################################################################
-# This file is part of Metalibm 
-# Copyrights Nicolas Brunie (2016)
-# All rights reserved
-# created:          Nov 17th, 2016
-# last-modified:    Nov 17th, 2016
+# This file is part of metalibm (https://github.com/kalray/metalibm)
+###############################################################################
+# MIT License
 #
-# author(s): Nicolas Brunie (nibrunie@gmail.com)
+# Copyright (c) 2018 Kalray
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+###############################################################################
+# created:          Nov 17th, 2016
+# last-modified:    Mar  7th, 2018
+#
+# author(s): Nicolas Brunie (nbrunie@kalray.eu)
 ###############################################################################
 
 import inspect
 
 from sollya import S2
 
-from ..utility.log_report import *
+from ..utility.log_report import Log
 from .generator_utility import *
 from .code_element import *
 from .complex_generator import *
@@ -22,6 +43,8 @@ from ..core.ml_formats import *
 from ..core.ml_table import ML_ApproxTable
 from ..core.ml_operations import *
 from .generator_helper import *
+
+LOG_BACKEND_INIT = Log.LogLevel(Log.Info, "backend_init")
 
 ## abstract backend class
 class AbstractBackend(object):
@@ -113,13 +136,13 @@ class AbstractBackend(object):
             Log.report(Log.Verbose, "Tested architecture(s) for language %s:" % language)
             for parent_proc in self.parent_architecture:
               Log.report(Log.Verbose, "  %s " % parent_proc)
-            Log.report(Log.Error, "the following operation is not supported by %s: \n%s" % (self.__class__, optree.get_str(depth = 2, display_precision = True, memoization_map = {}))) 
-        
+            Log.report(Log.Error, "the following operation is not supported by %s: \n%s" % (self.__class__, optree.get_str(depth = 2, display_precision = True, memoization_map = {})))
+
     def is_map_supported_operation(self, op_map, optree, language = C_Code, debug = False,  key_getter = lambda self, optree: self.get_operation_keys(optree)):
         """ return wheter or not the operation performed by optree has a local implementation """
         op_class, interface, codegen_key = key_getter(self, optree)
 
-        if not language in op_map: 
+        if not language in op_map:
             # unsupported language
             if debug: Log.Report(Log.Info, "unsupported language for %s" % optree.get_str())
             return False
@@ -146,11 +169,11 @@ class AbstractBackend(object):
                             src_file = inspect.getsourcefile(condition)
                             _, lineno = inspect.getsourcelines(condition)
                             ic_id = 0
-                            print "verified by condition @ {}:{}".format(src_file, lineno)
+                            print("verified by condition @ {}:{}".format(src_file, lineno))
                             for interface_condition in op_map[language][op_class][codegen_key][condition]:
-                                print "  interface_condition @{}:{}/{} {}".format(src_file, lineno, ic_id, interface_condition(*interface, optree = optree)) 
+                                print("  interface_condition @{}:{}/{} {}".format(src_file, lineno, ic_id, interface_condition(*interface, optree = optree))) 
                                 ic_id += 1
-                      print op_map[language][op_class][codegen_key].keys()
+                      print(op_map[language][op_class][codegen_key].keys())
                       Log.report(Log.Info, "unsupported condition key for %s" % optree.get_str(display_precision = True))
                     return False
 
@@ -174,7 +197,7 @@ class AbstractBackend(object):
         """ return code_generation_table key corresponding to the operation performed by <optree> """
         op_class = optree.__class__
         result_type = (optree.get_precision().get_match_format(),)
-        arg_type = tuple((arg.get_precision().get_match_format() if not arg.get_precision() is None else None) for arg in optree.inputs)
+        arg_type = tuple((arg.get_precision().get_match_format() if not arg.get_precision() is None else None) for arg in optree.get_inputs())
         interface = result_type + arg_type
         codegen_key = optree.get_codegen_key()
         return op_class, interface, codegen_key

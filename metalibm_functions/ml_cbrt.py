@@ -1,10 +1,42 @@
 # -*- coding: utf-8 -*-
 
+###############################################################################
+# This file is part of metalibm (https://github.com/kalray/metalibm)
+###############################################################################
+# MIT License
+#
+# Copyright (c) 2018 Kalray
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+###############################################################################
+# last-modified:    Mar  7th, 2018
+# Author(s): Nicolas Brunie <nbrunie@kalray.eu>
+###############################################################################
 import sys
 
 import sollya
 
-from sollya import S2, Interval, ceil, floor, round, inf, sup, log, exp, expm1, log2, guessdegree, dirtyinfnorm, RN, RD, cbrt
+from sollya import S2, Interval, ceil, floor, round, inf, sup, log, exp, expm1, log2, guessdegree, dirtyinfnorm, RN, RD
+try:
+    from sollya import cbrt
+except ImportError:
+    from sollya_extra_functions import cbrt
 from sollya import parse as sollya_parse
 
 from metalibm_core.core.attributes import ML_Debug
@@ -27,45 +59,26 @@ from metalibm_core.utility.gappa_utils import is_gappa_installed
 
 
 class ML_Cbrt(ML_Function("ml_cbrt")):
-  def __init__(self, 
-             arg_template = DefaultArgTemplate, 
-             precision = ML_Binary32, 
-             accuracy  = ML_Faithful,
-             libm_compliant = True, 
-             debug_flag = False, 
-             fuse_fma = True, 
-             fast_path_extract = True,
-             target = GenericProcessor(), 
-             output_file = "my_cbrt.c", 
-             function_name = "my_cbrt",
-             language = C_Code,
-             vector_size = 1):
-    # initializing I/O precision
-    precision = ArgDefault.select_value([arg_template.precision, precision])
-    io_precisions = [precision] * 2
-
+  def __init__(self, args=DefaultArgTemplate):
     # initializing base class
-    ML_FunctionBasis.__init__(self, 
-      base_name = "cbrt",
-      function_name = function_name,
-      output_file = output_file,
+    ML_FunctionBasis.__init__(self, args) 
+    # initializing accuracy property
+    self.accuracy  = args.accuracy
 
-      io_precisions = io_precisions,
-      abs_accuracy = None,
-      libm_compliant = libm_compliant,
 
-      processor = target,
-      fuse_fma = fuse_fma,
-      fast_path_extract = fast_path_extract,
-
-      debug_flag = debug_flag,
-      language = language,
-      vector_size = vector_size,
-      arg_template = arg_template
-    )
-
-    self.accuracy  = accuracy
-    self.precision = precision
+  @staticmethod
+  def get_default_args(**kw):
+    """ Return a structure containing the arguments for ML_Cbrt,
+        builtin from a default argument mapping overloaded with @p kw """
+    default_args_cbrt = {
+        "output_file": "my_cbrt.c",
+        "function_name": "my_cbrt",
+        "precision": ML_Binary32,
+        "accuracy": ML_Faithful,
+        "target": GenericProcessor()
+    }
+    default_args_cbrt.update(kw)
+    return DefaultArgTemplate(**default_args_cbrt)
 
   def generate_scheme(self):
     # declaring main input variable
@@ -157,7 +170,7 @@ class ML_Cbrt(ML_Function("ml_cbrt")):
 
     current_approx = init_approx
 
-    for i in xrange(num_iteration):
+    for i in range(num_iteration):
       #current_approx = cbrt_newton_iteration(current_approx, reduced_vx, inverse_red_vx) 
       current_approx = cbrt_newton_iteration(current_approx, vx, inverse_vx) 
 
@@ -199,10 +212,9 @@ class ML_Cbrt(ML_Function("ml_cbrt")):
 
 if __name__ == "__main__":
     # auto-test
-    arg_template = ML_NewArgTemplate(default_function_name = "new_cosh", default_output_file = "new_cosh.c" )
+    arg_template = ML_NewArgTemplate(default_arg=ML_Cbrt.get_default_args())
     # argument extraction 
     args = arg_template.arg_extraction()
 
     ml_cbrt          = ML_Cbrt(args)
-
     ml_cbrt.gen_implementation()

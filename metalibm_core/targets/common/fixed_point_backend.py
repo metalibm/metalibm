@@ -1,11 +1,33 @@
 # -*- coding: utf-8 -*-
 
 ###############################################################################
-# This file is part of Kalray's Metalibm tool
-# Copyright (2013-2015)
+# This file is part of metalibm (https://github.com/kalray/metalibm)
+###############################################################################
+# MIT License
+#
+# Copyright (c) 2018 Kalray
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+###############################################################################
 # All rights reserved
-# created:          Oct 6th, 2015
-# last-modified:    
+# created:          Oct  6th, 2015
+# last-modified:    Mar  7th, 2018
 #
 # description: implement a fixed point backend for Metalibm
 # author(s): Nicolas Brunie (nicolas.brunie@kalray.eu)
@@ -16,6 +38,7 @@ from metalibm_core.code_generation.generator_utility import *
 from metalibm_core.code_generation.complex_generator import *
 from metalibm_core.core.ml_formats import *
 from metalibm_core.core.ml_operations import *
+from metalibm_core.code_generation.abstract_backend import LOG_BACKEND_INIT
 from metalibm_core.code_generation.generic_processor import GenericProcessor
 
 from metalibm_core.core.target import TargetRegister
@@ -263,4 +286,4 @@ class FixedPointBackend(GenericProcessor):
   }
 
 # debug message
-print "Initializing fixed-point backend target"
+Log.report(LOG_BACKEND_INIT, "Initializing fixed-point backend target")

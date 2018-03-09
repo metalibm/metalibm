@@ -2,27 +2,47 @@
 """ Utilities for unit-testing """
 
 ###############################################################################
-# This file is part of New Metalibm tool
-# Copyrights Nicolas Brunie (2016-)
-# All rights reserved
-# created:          
-# last-modified:    Jul  9th, 2017
+# This file is part of metalibm (https://github.com/kalray/metalibm)
+###############################################################################
+# MIT License
 #
-# author(s): Nicolas Brunie (nibrunie@gmail.com)
+# Copyright (c) 2018 Kalray
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+###############################################################################
+
+###############################################################################
+# created:
+# last-modified:    Mar  6th, 2018
+#
+# author(s): Nicolas Brunie (nbrunie@kalray.eu)
 # description: utilities for unit testing
 ###############################################################################
 
 import argparse
 import inspect
 
-
 from valid.test_utils import *
 
 from metalibm_core.core.ml_formats import ML_Int32, ML_Int16, ML_Int64
 
-
 from metalibm_functions.unit_tests.utils import TestRunner
-
 
 
 ## Object to describe a unit-test
@@ -44,9 +64,10 @@ class UnitTestScheme(CommonTestScheme):
   def single_test(self, arg_tc, debug = False):
     runner = self.module.run_test
     test_desc = self.get_title()
-    print isinstance(runner, TestRunner)
+    print("runner isinstance of TestRunner: {}".format(isinstance(runner, TestRunner)))
     if inspect.isclass(runner) and TestRunner in runner.__bases__:
       arg_template = runner.get_default_args(**arg_tc)
+      runner = runner.__call__
     else:
       arg_template = DefaultArgTemplate(**arg_tc) 
 

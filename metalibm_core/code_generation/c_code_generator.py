@@ -1,11 +1,32 @@
 # -*- coding: utf-8 -*-
 
 ###############################################################################
-# This file is part of Kalray's Metalibm tool
-# Copyright (2013)
-# All rights reserved
+# This file is part of metalibm (https://github.com/kalray/metalibm)
+###############################################################################
+# MIT License
+#
+# Copyright (c) 2018 Kalray
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+###############################################################################
 # created:          Dec 24th, 2013
-# last-modified:    Apr 2nd,  2014
+# last-modified:    Mar  7th, 2018
 #
 # author(s): Nicolas Brunie (nicolas.brunie@kalray.eu)
 ###############################################################################
@@ -14,7 +35,12 @@
 from ..utility.log_report import Log
 
 # TODO clean long import list
-from ..core.ml_operations import Variable, Constant, ConditionBlock, Return, TableLoad, Statement, Loop, SpecificOperation, ExceptionOperation, ClearException, NoResultOperation, SwitchBlock, FunctionObject, ReferenceAssign, BooleanOperation
+from ..core.ml_operations import (
+    Variable, Constant, ConditionBlock, Return, TableLoad, Statement,\
+    Loop, SpecificOperation, ExceptionOperation, ClearException, \
+    NoResultOperation, SwitchBlock, FunctionObject, ReferenceAssign, \
+    BooleanOperation
+)
 from ..core.ml_table import ML_Table, ML_NewTable
 from ..core.ml_formats import *
 from ..core.attributes import ML_Debug
@@ -77,8 +103,8 @@ class CCodeGenerator(object):
         """ register memoization value <code_value> for entry <optree> """
         self.memoization_map[0][optree] = code_value
 
-
-    def generate_expr(self, code_object, optree, folded = True, result_var = None, initial = False, language = None):
+    # force_variable_storing is not supported yet
+    def generate_expr(self, code_object, optree, folded = True, result_var = None, initial = False, language = None, force_variable_storing = False):
         """ code generation function """
         language = self.language if language is None else language
 
@@ -97,33 +123,6 @@ class CCodeGenerator(object):
               result = CodeVariable(final_var, optree.get_precision())
             else:
               result = CodeVariable(optree.get_tag(), optree.get_precision())
-
-        elif isinstance(optree, Constant):
-            precision = optree.get_precision()
-            if self.declare_cst or optree.get_precision().is_cst_decl_required():
-                cst_prefix = "cst" if optree.get_tag() is None else optree.get_tag()
-                cst_varname = code_object.declare_cst(optree, prefix = cst_prefix)
-                result = CodeVariable(cst_varname, precision)
-            else:
-                if precision is ML_Integer:
-                    result = CodeExpression("%d" % optree.get_value(), precision)
-                else:
-                    try:
-                        result = CodeExpression(
-                            precision.get_cst(
-                                optree.get_value(), language = language
-                            ), precision
-                        )
-                    except:
-                        result = CodeExpression(
-                            precision.get_cst(
-                                optree.get_value(), language = language
-                            ), precision
-                        )
-                        Log.report(
-                            Log.Error,
-                            "Error during get_cst call for Constant: %s " % optree.get_str(display_precision = True)
-                        ) # Exception print
 
         elif isinstance(optree, ML_NewTable):
             # Implementing LeafNode ML_NewTable generation support
@@ -293,6 +292,9 @@ class CCodeGenerator(object):
                     self.generate_expr(code_object, op, folded = folded, initial = True, language = language)
 
             return None
+        elif isinstance(optree, Constant):
+            generate_pre_process = self.generate_clear_exception if optree.get_clearprevious() else None
+            result = self.processor.generate_expr(self, code_object, optree, [], generate_pre_process = generate_pre_process, folded = folded, result_var = result_var, language = language)
 
         else:
             generate_pre_process = self.generate_clear_exception if optree.get_clearprevious() else None
@@ -317,6 +319,9 @@ class CCodeGenerator(object):
         #generate_pre_process(code_generator, code_object, optree, var_arg_list, **kwords)
         self.generate_expr(code_object, ClearException(), language = language)
 
+    def generate_code_assignation(self, code_object, result_var, expr_code, final=True):
+        return self.generate_assignation(result_var, expr_code, final=final)
+
 
     def generate_assignation(self, result_var, expression_code, final = True):
         """ generate code for assignation of value <expression_code> to 
@@ -331,12 +336,12 @@ class CCodeGenerator(object):
 
     def generate_declaration(self, symbol, symbol_object, initial = True, final = True):
         if isinstance(symbol_object, Constant):
-            initial_symbol = (symbol_object.get_precision().get_name(language = self.language) + " ") if initial else ""
+            initial_symbol = (symbol_object.get_precision().get_code_name(language = self.language) + " ") if initial else ""
             final_symbol = ";\n" if final else ""
             return "%s%s = %s%s" % (initial_symbol, symbol, symbol_object.get_precision().get_cst(symbol_object.get_value(), language = self.language), final_symbol) 
 
         elif isinstance(symbol_object, Variable):
-            initial_symbol = (symbol_object.get_precision().get_name(language = self.language) + " ") if initial else ""
+            initial_symbol = (symbol_object.get_precision().get_code_name(language = self.language) + " ") if initial else ""
             final_symbol = ";\n" if final else ""
             return "%s%s%s" % (initial_symbol, symbol, final_symbol) 
 
@@ -357,7 +362,7 @@ class CCodeGenerator(object):
             return "%s\n" % symbol_object.get_declaration()
 
         else:
-            print symbol_object.__class__
+            print(symbol_object.__class__)
             raise NotImplementedError
 
     def generate_initialization(self, symbol, symbol_object, initial = True, final = True):

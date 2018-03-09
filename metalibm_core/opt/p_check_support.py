@@ -1,7 +1,32 @@
 # -*- coding: utf-8 -*-
+###############################################################################
+# This file is part of metalibm (https://github.com/kalray/metalibm)
+###############################################################################
+# MIT License
 #
-from metalibm_core.core.passes import OptreeOptimization, Pass
+# Copyright (c) 2018 Kalray
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+###############################################################################
+from metalibm_core.core.passes import OptreeOptimization, Pass, LOG_PASS_INFO
 from metalibm_core.core.ml_operations import *
+from metalibm_core.utility.log_report import Log
 
 
 ## Check support of operation graph on a given target
@@ -19,7 +44,7 @@ class Pass_CheckSupport(OptreeOptimization):
   def check_processor_support(self, optree, memoization_map = {}, debug = False):
     """ check if all precision-instantiated operation are supported by the processor """
     if debug:
-      print "checking processor support: ", self.get_target().__class__ # Debug print
+      print("checking processor support: ", self.get_target().__class__) # Debug print
     if  optree in memoization_map:
       return True
     if not isinstance(optree, ML_LeafNode):
@@ -45,8 +70,8 @@ class Pass_CheckSupport(OptreeOptimization):
           # TODO: assert case is integer constant
           self.check_processor_support(op, memoization_map, debug = debug)
       elif not self.get_target().is_supported_operation(optree, debug = debug):
-        print self.processor.get_operation_keys(optree) # Error print
-        print optree.get_str(display_precision = True, display_id = True, memoization_map = {}) # Error print
+        print(self.processor.get_operation_keys(optree)) # Error print
+        print(optree.get_str(display_precision = True, display_id = True, memoization_map = {})) # Error print
         Log.report(Log.Error, "unsupported operation\n")
     # memoization
     memoization_map[optree] = True
@@ -58,6 +83,6 @@ class Pass_CheckSupport(OptreeOptimization):
 
 
 
-print "Registering check_target_support pass"
+Log.report(LOG_PASS_INFO, "Registering check_target_support pass")
 # register pass
 Pass.register(Pass_CheckSupport)

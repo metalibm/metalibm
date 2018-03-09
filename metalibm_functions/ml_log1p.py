@@ -1,5 +1,32 @@
 # -*- coding: utf-8 -*-
 
+###############################################################################
+# This file is part of metalibm (https://github.com/kalray/metalibm)
+###############################################################################
+# MIT License
+#
+# Copyright (c) 2018 Kalray
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+###############################################################################
+# last-modified:    Mar  7th, 2018
+###############################################################################
 import sys
 
 import sollya
@@ -16,6 +43,11 @@ from metalibm_core.core.ml_formats import *
 from metalibm_core.core.polynomials import *
 from metalibm_core.core.ml_table import ML_NewTable
 
+from metalibm_core.core.precisions import ML_Faithful
+from metalibm_core.core.special_values import (
+    FP_QNaN, FP_MinusInfty, FP_PlusInfty, FP_PlusZero
+)
+
 from metalibm_core.code_generation.c_code_generator import CCodeGenerator
 from metalibm_core.code_generation.generic_processor import GenericProcessor
 from metalibm_core.code_generation.code_object import CodeObject
@@ -30,40 +62,23 @@ from metalibm_core.utility.ml_template import ML_NewArgTemplate, ArgDefault
 from metalibm_core.utility.debug_utils import * 
 
 class ML_Log1p(ML_Function("ml_log1p")):
-  def __init__(self, 
-               arg_template = DefaultArgTemplate,
-               precision = ML_Binary32, 
-               abs_accuracy = S2**-24, 
-               libm_compliant = True, 
-               debug_flag = False, 
-               fuse_fma = True, 
-               fast_path_extract = True,
-               target = GenericProcessor(), 
-               output_file = "log1pf.c", 
-               function_name = "log1pf"):
-    # extracting precision argument from command line
-    precision = ArgDefault.select_value([arg_template.precision, precision])
-    io_precisions = [precision] * 2
+  def __init__(self, args):
+    ML_FunctionBasis.__init__(self, args)
 
-    ML_FunctionBasis.__init__(
-      self, 
-      base_name = "log1p",
-      function_name = function_name,
-      output_file = output_file,
 
-      io_precisions = io_precisions,
-      abs_accuracy = None,
-      libm_compliant = libm_compliant,
-
-      processor = target,
-      fuse_fma = fuse_fma,
-      fast_path_extract = fast_path_extract,
-
-      debug_flag = debug_flag,
-      arg_template = arg_template
-    )
-
-    self.precision = precision
+  @staticmethod
+  def get_default_args(**kw):
+    """ Return a structure containing the arguments for ML_Log1p,
+        builtin from a default argument mapping overloaded with @p kw """
+    default_args_log1p = {
+        "output_file": "my_log1p.c",
+        "function_name": "my_log1pf",
+        "precision": ML_Binary32,
+        "accuracy": ML_Faithful,
+        "target": GenericProcessor()
+    }
+    default_args_log1p.update(kw)
+    return DefaultArgTemplate(**default_args_log1p)
 
   def generate_scheme(self):
     vx = self.implementation.add_input_variable("x", self.precision) 
@@ -96,7 +111,7 @@ class ML_Log1p(ML_Function("ml_log1p")):
     log_table = ML_NewTable(dimensions = [2**table_index_size, 2], storage_precision = self.precision)
     log_table[0][0] = 0.0
     log_table[0][1] = 0.0
-    for i in xrange(1, 2**table_index_size):
+    for i in range(1, 2**table_index_size):
         #inv_value = (1.0 + (self.processor.inv_approx_table[i] / S2**9) + S2**-52) * S2**-1
         inv_value = (1.0 + (inv_approx_table[i][0] / S2**9) ) * S2**-1
         value_high = round(log(inv_value), self.precision.get_field_size() - (self.precision.get_exponent_size() + 1), sollya.RN)
@@ -115,7 +130,7 @@ class ML_Log1p(ML_Function("ml_log1p")):
     ctz_poly_degree = sup(guessdegree(log1p(sollya.x)/sollya.x, ctz_interval, S2**-(self.precision.get_field_size()+1))) + 1
     ctz_poly_object = Polynomial.build_from_approximation(log1p(sollya.x)/sollya.x, ctz_poly_degree, [self.precision]*(ctz_poly_degree+1), ctz_interval, sollya.absolute)
 
-    print "generating polynomial evaluation scheme"
+    print("generating polynomial evaluation scheme")
     ctz_poly = PolynomialSchemeEvaluator.generate_horner_scheme(ctz_poly_object, vx, unified_precision = self.precision)
     ctz_poly.set_attributes(tag = "ctz_poly", debug = debug_lftolx)
 
@@ -166,16 +181,16 @@ class ML_Log1p(ML_Function("ml_log1p")):
 
     inv_err = S2**-6 # TODO: link to target DivisionSeed precision
 
-    print "building mathematical polynomial"
+    print("building mathematical polynomial")
     approx_interval = Interval(-inv_err, inv_err)
     poly_degree = sup(guessdegree(log(1+sollya.x)/sollya.x, approx_interval, S2**-(self.precision.get_field_size()+1))) + 1
     global_poly_object = Polynomial.build_from_approximation(log(1+sollya.x)/sollya.x, poly_degree, [self.precision]*(poly_degree+1), approx_interval, sollya.absolute)
     poly_object = global_poly_object.sub_poly(start_index = 1)
 
-    print "generating polynomial evaluation scheme"
+    print("generating polynomial evaluation scheme")
     _poly = PolynomialSchemeEvaluator.generate_horner_scheme(poly_object, red_vxp1, unified_precision = self.precision)
     _poly.set_attributes(tag = "poly", debug = debug_lftolx)
-    print global_poly_object.get_sollya_object()
+    print(global_poly_object.get_sollya_object())
 
 
     vxp1_inv_exp = ExponentExtraction(vxp1_inv, tag = "vxp1_inv_exp", debug = debugd)
@@ -208,7 +223,7 @@ class ML_Log1p(ML_Function("ml_log1p")):
 
 
     # main scheme
-    print "MDL scheme"
+    print("MDL scheme")
     pre_scheme = ConditionBlock(neg_input,
         Statement(
             ClearException(),
@@ -252,7 +267,7 @@ class ML_Log1p(ML_Function("ml_log1p")):
 
 if __name__ == "__main__":
     # auto-test
-    arg_template = ML_NewArgTemplate(default_function_name = "new_log1p", default_output_file = "new_log1p.c" )
+    arg_template = ML_NewArgTemplate(default_arg=ML_Log1p.get_default_args())
     args = arg_template.arg_extraction()
 
 

@@ -1,271 +1,252 @@
 # -*- coding: utf-8 -*-
 
+###############################################################################
+# This file is part of metalibm (https://github.com/kalray/metalibm)
+###############################################################################
+# MIT License
+#
+# Copyright (c) 2018 Kalray
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+###############################################################################
+# last-modified:    Mar  7th, 2018
+###############################################################################
 import sys
 
-from sollya import (
-        S2, Interval, ceil, floor, round, inf, sup, pi, log, exp, cos, sin,
-        guessdegree
-)
+import sollya
 
-from core.attributes import ML_Debug
-from core.ml_operations import *
-from core.ml_formats import *
-from code_generation.c_code_generator import CCodeGenerator
-from code_generation.generic_processor import GenericProcessor
-from code_generation.code_object import CodeObject
-from code_generation.code_element import CodeFunction
-from code_generation.code_constant import C_Code 
-from core.ml_optimization_engine import OptimizationEngine
-from core.polynomials import *
-from core.ml_table import ML_NewTable
+from sollya import S2, Interval, ceil, floor, round, inf, sup, log, exp, expm1, log2, guessdegree, dirtyinfnorm, RN
 
-from kalray_proprietary.k1a_processor import K1A_Processor
-from kalray_proprietary.k1b_processor import K1B_Processor
-
-from code_generation.x86_processor import X86_FMA_Processor, X86_SSE_Processor
-from code_generation.gappa_code_generator import GappaCodeGenerator
-
-from utility.gappa_utils import execute_gappa_script_extract
-from utility.log_report import Log
-from utility.common import test_flag_option, extract_option_value  
-
-from ml_functions.ml_template import ML_ArgTemplate
+from metalibm_core.core.attributes import ML_Debug
+from metalibm_core.core.ml_operations import *
+from metalibm_core.core.ml_formats import *
+from metalibm_core.core.ml_table import ML_NewTable
+from metalibm_core.code_generation.generic_processor import GenericProcessor
+from metalibm_core.core.polynomials import *
+from metalibm_core.core.ml_function import ML_Function, ML_FunctionBasis, DefaultArgTemplate
+from metalibm_core.code_generation.generator_utility import FunctionOperator, FO_Result, FO_Arg
+from metalibm_core.core.ml_complex_formats import ML_Mpfr_t
 
 
+from metalibm_core.utility.ml_template import *
+from metalibm_core.utility.log_report  import Log
+from metalibm_core.utility.debug_utils import *
+from metalibm_core.utility.num_utils   import ulp
+from metalibm_core.utility.gappa_utils import is_gappa_installed
 
-class ML_Sqrt(object):
-    def __init__(self, 
-                 precision = ML_Binary32, 
-                 abs_accuracy = S2**-24, 
-                 libm_compliant = True, 
-                 debug_flag = False, 
-                 fuse_fma = True, 
-                 num_iter = 3,
-                 fast_path_extract = True,
-                 target = GenericProcessor(), 
-                 output_file = "sqrtf.c", 
-                 function_name = "sqrtf",
-                 dot_product_enabled = False):
-        # declaring target and instantiating OptimizationEngine
-        processor = target
-        self.dot_product_enabled = dot_product_enabled
-        opt_eng = OptimizationEngine(processor, dot_product_enabled = self.dot_product_enabled)
+## Newton-Raphson iteration object
+class NR_Iteration:
+  def __init__(self, value, approx, half_value, c_half):
+    Attributes.set_default_rounding_mode(ML_RoundToNearest)
+    Attributes.set_default_silent(True)
 
-        # declaring CodeFunction and retrieving input variable
-        self.precision = precision
-        self.function_name = function_name
-        exp_implementation = CodeFunction(self.function_name, output_format = precision)
-        pre_vx = exp_implementation.add_input_variable("x", precision) 
+    self.square = approx * approx
+    mult = FMSN(half_value, self.square, c_half)
+    self.new_approx =  FMA(approx, mult, approx)
+
+    Attributes.unset_default_rounding_mode()
+    Attributes.unset_default_silent()
 
 
-        # local overloading of RaiseReturn operation
-        def SqrtRaiseReturn(*args, **kwords):
-            kwords["arg_value"] = pre_vx
-            kwords["function_name"] = self.function_name
-            return RaiseReturn(*args, **kwords)
+  def get_new_approx(self):
+    return self.new_approx
 
-        class NR_Iteration(object):
-            def __init__(self, value, approx, half_value):
-                self.square = approx * approx
-                error_mult = self.square * half_value
-                self.error = 0.5 - error_mult
-                approx_mult = self.error * approx
-                self.new_approx = approx + approx_mult 
-
-                self.square.set_attributes(silent = True, rounding_mode = ML_RoundToNearest)
-                error_mult.set_attributes(silent = True, rounding_mode = ML_RoundToNearest)
-                self.error.set_attributes(silent = True, rounding_mode = ML_RoundToNearest)
-                approx_mult.set_attributes(silent = True, rounding_mode = ML_RoundToNearest)
-                self.new_approx.set_attributes(silent = True, rounding_mode = ML_RoundToNearest)
+## propagate @p precision on @p optree on all operands with
+#  no precision (None) set, applied recursively
+def propagate_format(optree, precision):
+  if optree.get_precision() is None:
+    optree.set_precision(precision)
+    if not isinstance(optree, ML_LeafNode):
+      for op_input in optree.get_inputs():
+        propagate_format(op_input, precision)
 
 
-            def get_new_approx(self):
-                return self.new_approx
+def compute_sqrt(vx, init_approx, num_iter, debug_lftolx = None, precision = ML_Binary64):
+    
+    C_half = Constant(0.5, precision = precision)
+    h = C_half * vx
+    h.set_attributes(tag = "h", debug = debug_multi, silent = True, rounding_mode = ML_RoundToNearest)
 
-            def get_hint_rules(self, gcg, gappa_code, exact):
-                pass
+    current_approx = init_approx
+    # correctly-rounded inverse computation
 
-        debugf = ML_Debug(display_format = "%f")
-        debuglf = ML_Debug(display_format = "%lf")
-        debugx = ML_Debug(display_format = "%x")
-        debuglx = ML_Debug(display_format = "%lx")
-        debugd = ML_Debug(display_format = "%d")
-        debug_ftox_fp64 = ML_Debug(display_format = "%\"PRIx64\"", pre_process = lambda v: "double_to_64b_encoding(%s)" % v)
-        debug_ftox_fp32 = ML_Debug(display_format = "%\"PRIx32\"", pre_process = lambda v: "float_to_32b_encoding(%s)" % v)
-        debug_lftolx = debug_ftox_fp64 if self.precision == ML_Binary64 else debug_ftox_fp32
+    for i in range(num_iter):
+        new_iteration = NR_Iteration(vx, current_approx, h, C_half)
+        current_approx = new_iteration.get_new_approx()
+        current_approx.set_attributes(tag = "iter_%d" % i, debug = debug_multi)
 
-        debug_dec = debugf if self.precision == ML_Binary32 else debuglf
+    final_approx = current_approx
+    final_approx.set_attributes(tag = "final_approx", debug = debug_multi)
 
-        ex = ExponentExtraction(pre_vx, tag = "ex", debug = debugd)
-        equal_comp = Equal(Modulo(ex, 2), 0)
-        even_ex = Select(equal_comp, ex, ex - 1, tag = "even_ex", debug = debugd)
-        pre_scale_factor = ExponentInsertion(-(even_ex/2), tag = "pre_scale_factor", debug = debug_lftolx) 
-        pre_scale_mult = (pre_vx * pre_scale_factor)
-        pre_scale_mult.set_attributes(silent = True)
-        vx = pre_scale_mult* pre_scale_factor
-        vx.set_attributes(tag = "vx", debug = debug_lftolx)
-        scale_factor = ExponentInsertion(even_ex / 2, tag = "scale_factor", debug = debug_lftolx)
+    # multiplication correction iteration
+    # to get correctly rounded full square root
+    Attributes.set_default_silent(True)
+    Attributes.set_default_rounding_mode(ML_RoundToNearest)
 
-        # computing the inverse square root
-        init_approx = None
-        # forcing vx precision to make processor support test
-        vx.set_precision(self.precision)
-        init_approx_precision = InverseSquareRootSeed(vx, precision = self.precision, tag = "seed", debug = debugf)
-        if not processor.is_supported_operation(init_approx_precision):
-            if self.precision != ML_Binary32:
-                px = Conversion(vx, precision = ML_Binary32, tag = "px", debug=debugf) 
-                init_approx_fp32 = Conversion(InverseSquareRootSeed(px, precision = ML_Binary32, tag = "seed_fp32", debug = debugf), precision = self.precision, tag = "seed_ext", debug = debug_lftolx)
-                if not processor.is_supported_operation(init_approx_fp32):
-                    Log.report(Log.Error, "The target %s does not implement inverse square root seed" % processor)
-                else:
-                    init_approx = init_approx_fp32
-            else:
-                Log.report(Log.Error, "The target %s does not implement inverse square root seed" % processor)
-        else:
-            init_approx = init_approx_precision
-        h = 0.5 * vx
-        h.set_attributes(tag = "h", debug = debug_lftolx)
+    S = vx * final_approx
+    t5 = final_approx * h
+    H = C_half * final_approx
+    d = FMSN(S, S, vx)
+    t6 = FMSN(t5, final_approx, C_half)
+    S1 = FMA(d, H, S)
+    H1 = FMA(t6, H, H)
+    d1 = FMSN(S1, S1, vx)
+    pR = FMA(d1, H1, S1)
+    d_last = FMSN(pR, pR, vx, silent = True, tag = "d_last")
+
+    S.set_attributes(tag = "S")
+    t5.set_attributes(tag = "t5")
+    H.set_attributes(tag = "H")
+    d.set_attributes(tag = "d")
+    t6.set_attributes(tag = "t6")
+    S1.set_attributes(tag = "S1")
+    H1.set_attributes(tag = "H1")
+    d1.set_attributes(tag = "d1")
 
 
-        current_approx = init_approx 
-        # correctly-rounded inverse computation
-        num_iteration = num_iter
-        inv_iteration_list = []
-        for i in xrange(num_iteration):
-            new_iteration = NR_Iteration(vx, current_approx, h)
-            inv_iteration_list.append(new_iteration)
-            current_approx = new_iteration.get_new_approx()
-            current_approx.set_attributes(tag = "iter_%d" % i, debug = debug_dec)
+    Attributes.unset_default_silent()
+    Attributes.unset_default_rounding_mode()
 
-        final_approx = current_approx
-        final_approx.set_attributes(tag = "final_approx", debug = debug_lftolx)
+    R = FMA(d_last, H1, pR, rounding_mode = ML_GlobalRoundMode, tag = "NR_Result", debug = debug_multi)
 
-        # multiplication correction iteration
-        # to get correctly rounded full square root
-        Attributes.set_default_silent(True)
-        Attributes.set_default_rounding_mode(ML_RoundToNearest)
-        S = vx * final_approx
-        S.set_attributes(tag = "S", debug = debug_lftolx)
-        t5 = final_approx * h
-        t5.set_attributes(tag = "t5", debug = debug_lftolx)
-        H = 0.5 * final_approx
-        H.set_attributes(tag = "H", debug = debug_lftolx)
-        d = vx - S * S
-        #d = FMSN(S, S, vx)
-        d.set_attributes(tag = "d", debug = debug_lftolx)
-        t6 = 0.5 - t5 * final_approx
-        t6.set_attributes(tag = "t6", debug = debug_lftolx)
-        S1 = S + d * H
-        S1.set_attributes(tag = "S1", debug = debug_lftolx)
-        H1 = H + t6 * H
-        H1.set_attributes(tag = "H1", debug = debug_lftolx)
-        #d1 = vx - S1 * S1
-        d1 = FMSN(S1, S1, vx) #, clearprevious = True)
-        d1.set_attributes(tag = "d1", debug = debug_lftolx)
-        Attributes.unset_default_silent()
-        Attributes.unset_default_rounding_mode()
-        #R  = S1 + d1 * H1 
-        R = FMA(d1, H1, S1, rounding_mode = ML_GlobalRoundMode)
+    # set precision
+    propagate_format(R, precision)
+    propagate_format(S1, precision)
+    propagate_format(H1, precision)
+    propagate_format(d1, precision)
 
-        d_last = FMSN(R, R, vx, silent = True, tag = "d_last", debug = debug_lftolx)
-
-        result = R * scale_factor
-        result.set_attributes(tag = "result", debug = debug_lftolx, clearprevious = True)
+    return R
 
 
-        x_inf_or_nan = Test(pre_vx, specifier = Test.IsInfOrNaN, likely = False, tag = "x_inf_or_nan", debug = debugd)
-        x_zero = Test(pre_vx, specifier = Test.IsZero, likely = False, tag = "x_zero", debug = debugd)
-        x_inf = Test(pre_vx, specifier = Test.IsInfty, likely = False, tag = "x_inf", debug = debugd)
-        x_nan = Test(pre_vx, specifier = Test.IsNaN, likely = False, tag = "x_nan", debug = debugd)
-        x_snan = Test(pre_vx, specifier = Test.IsSignalingNaN, likely = False, tag = "x_snan", debug = debugd)
-        x_neg = Comparison(pre_vx, 0, specifier = Comparison.Less, likely = False)
-        x_nan_or_neg = x_nan | x_neg
 
-        return_neg = Statement(ClearException(), SqrtRaiseReturn(ML_FPE_Invalid, return_value = FP_QNaN(self.precision)))
+class ML_Sqrt(ML_Function("ml_sqrt")):
+  def __init__(self, args=DefaultArgTemplate):
+    # initializing base class
+    ML_FunctionBasis.__init__(self, args)
+    self.accuracy  = args.accuracy
+    self.num_iter = args.num_iter
 
-        # x inf and y inf 
-        pre_scheme = ConditionBlock(x_zero,
-            Statement(ClearException(), Return(pre_vx)),
-            ConditionBlock(x_nan,
-                ConditionBlock(x_snan, 
-                    Statement(ClearException(), SqrtRaiseReturn(ML_FPE_Invalid, return_value = FP_QNaN(self.precision))),
-                    Statement(ClearException(), Return(FP_QNaN(self.precision)))
-                ),
-                ConditionBlock(x_neg, 
-                    return_neg,
-                    ConditionBlock(x_inf,
-                        Return(pre_vx),
-                        Statement(
-                            ConditionBlock(Comparison(d_last, 0, specifier = Comparison.NotEqual, likely = True),
-                                Raise(ML_FPE_Inexact)
-                            ),
-                            Return(result)
-                        )
-                    )
-                )
+
+  @staticmethod
+  def get_default_args(**kw):
+    """ Return a structure containing the arguments for ML_Sqrt,
+        builtin from a default argument mapping overloaded with @p kw """
+    default_args_sqrt = {
+        "output_file": "my_sqrtf.c",
+        "function_name": "my_sqrtf",
+        "precision": ML_Binary32,
+        "accuracy": ML_Faithful,
+        "target": GenericProcessor()
+    }
+    default_args_sqrt.update(kw)
+    return DefaultArgTemplate(**default_args_sqrt)
+
+  def generate_scheme(self):
+    # declaring target and instantiating optimization engine
+
+    vx = self.implementation.add_input_variable("x", self.precision)
+    vx.set_attributes(precision = self.precision, tag = "vx", debug =debug_multi)
+    Log.set_dump_stdout(True)
+
+    Log.report(Log.Info, "\033[33;1m Generating implementation scheme \033[0m")
+    if self.debug_flag:
+        Log.report(Log.Info, "\033[31;1m debug has been enabled \033[0;m")
+
+    # local overloading of RaiseReturn operation
+    def SqrtRaiseReturn(*args, **kwords):
+        kwords["arg_value"] = vx
+        kwords["function_name"] = self.function_name
+        return RaiseReturn(*args, **kwords)
+
+    C0 = Constant(0, precision = self.precision)
+    
+    C0_plus = Constant(FP_PlusZero(self.precision))
+    C0_minus = Constant(FP_MinusZero(self.precision))
+    
+    
+    test_NaN = Test(vx, specifier = Test.IsNaN, likely = False, debug = debug_multi, tag = "is_NaN", precision = ML_Bool)
+    test_inf = Test(vx, specifier = Test.IsInfty, likely = False, debug = debug_multi, tag = "is_Inf", precision = ML_Bool)
+    test_negative = Comparison(vx, C0, specifier = Comparison.Less, debug = debug_multi, tag = "is_Negative", precision = ML_Bool, likely = False)
+    test_NaN_or_Inf = Test(vx, specifier = Test.IsInfOrNaN, likely = False, debug = debug_multi, tag = "is_Inf_Or_Nan", precision = ML_Bool)
+    test_NaN_or_Neg = LogicalOr(test_NaN, test_negative, precision = ML_Bool)
+    
+    test_std = LogicalNot(LogicalOr(test_NaN_or_Inf, test_negative, precision = ML_Bool, likely = False), precision = ML_Bool, likely = True)
+    
+    test_zero = Comparison(vx, C0, specifier = Comparison.Equal, likely = False, debug = debug_multi, tag = "Is_Zero", precision = ML_Bool)
+    
+    return_NaN_or_neg = Statement(Return(FP_QNaN(self.precision)))
+    return_inf = Statement(Return(FP_PlusInfty(self.precision)))
+    
+    return_PosZero = Return(C0_plus)
+    return_NegZero = Return(C0_minus)
+
+    NR_init = InverseSquareRootSeed(vx, precision = self.precision, tag = "sqrt_seed", debug = debug_multi)
+
+    result = compute_sqrt(vx, NR_init, int(self.num_iter), precision = self.precision)
+
+    return_non_std = ConditionBlock(
+                test_NaN_or_Neg,
+                return_NaN_or_neg,
+                ConditionBlock(
+                  test_inf,
+                  return_inf,
+                  ConditionBlock(
+                    test_zero,
+                    return_PosZero,
+                    return_NegZero
+                  )
+              )
             )
-        )
-        rnd_mode = GetRndMode()
-        scheme = Statement(rnd_mode, SetRndMode(ML_RoundToNearest), S1, H1, d1, SetRndMode(rnd_mode), result, pre_scheme)
+    return_std = Return(result)
+    
+    scheme = ConditionBlock(
+      test_std,
+      return_std,
+      return_non_std
+    )
+    return scheme
+
+  def generate_emulate(self, result_ternary, result, mpfr_x, mpfr_rnd):
+      """ generate the emulation code for ML_Log2 functions
+          mpfr_x is a mpfr_t variable which should have the right precision
+          mpfr_rnd is the rounding mode
+      """
+      emulate_func_name = "mpfr_sqrt"
+      emulate_func_op = FunctionOperator(emulate_func_name, arg_map = {0: FO_Arg(0), 1: FO_Arg(1), 2: FO_Arg(2)}, require_header = ["mpfr.h"])
+      emulate_func   = FunctionObject(emulate_func_name, [ML_Mpfr_t, ML_Mpfr_t, ML_Int32], ML_Int32, emulate_func_op)
+      mpfr_call = Statement(ReferenceAssign(result_ternary, emulate_func(result, mpfr_x, mpfr_rnd)))
+
+      return mpfr_call
+
+  def numeric_emulate(self, input):
+        return sollya.sqrt(input)
 
 
-        # fusing FMA
-        if fuse_fma:
-            print "MDL fusing FMA"
-            scheme = opt_eng.fuse_multiply_add(scheme, silence = True)
-
-        print "MDL abstract scheme"
-        opt_eng.instantiate_abstract_precision(scheme, None)
-
-        print "MDL instantiated scheme"
-        opt_eng.instantiate_precision(scheme, default_precision = self.precision)
-
-        print "subexpression sharing"
-        opt_eng.subexpression_sharing(scheme)
-
-        print "silencing DAG"
-        opt_eng.silence_fp_operations(scheme)
-
-        # registering scheme as function implementation
-        exp_implementation.set_scheme(scheme)
-
-        #print scheme.get_str(depth = None, display_precision = True)
-
-        # check processor support
-        if not opt_eng.check_processor_support(scheme):
-            Log.report(Log.Error, "unsupported operation error")
-
-        # factorizing fast path
-        #opt_eng.factorize_fast_path(scheme)
-        
-        cg = CCodeGenerator(processor, declare_cst = False, disable_debug = not debug_flag, libm_compliant = libm_compliant)
-        self.result = exp_implementation.get_definition(cg, C_Code, static_cst = True)
-        self.result.add_header("math.h")
-        self.result.add_header("stdio.h")
-        self.result.add_header("inttypes.h")
-        self.result.add_header("support_lib/ml_special_values.h")
-
-        output_stream = open(output_file, "w")
-        output_stream.write(self.result.get(cg))
-        output_stream.close()
-
-
+  standard_test_cases = [(1.651028399744791652636877188342623412609100341796875,)] # [sollya.parse(x)] for x in  ["+0.0", "-1*0.0", "2.0"]]
 
 if __name__ == "__main__":
-    # auto-test
-    num_iter        = int(extract_option_value("--num-iter", "3"))
 
-    arg_template = ML_ArgTemplate(default_function_name = "sqrt", default_output_file = "sqrt.c")
-    arg_template.sys_arg_extraction()
+  arg_template = ML_NewArgTemplate(default_function_name = "new_sqrt", default_output_file = "new_sqrt.c")
+  arg_template.parser.add_argument("--num-iter", dest = "num_iter", action = "store", default = ArgDefault(1), help = "number of Newton-Raphson iterations")
+  args = parse_arg_index_list = arg_template.arg_extraction()
 
 
-    ml_sqrt          = ML_Sqrt(arg_template.precision, 
-                                  libm_compliant            = arg_template.libm_compliant, 
-                                  debug_flag                = arg_template.debug_flag, 
-                                  target                    = arg_template.target, 
-                                  fuse_fma                  = arg_template.fuse_fma, 
-                                  fast_path_extract         = arg_template.fast_path,
-                                  num_iter                  = num_iter,
-                                  function_name             = arg_template.function_name,
-                                  output_file               = arg_template.output_file,
-                                  dot_product_enabled       = arg_template.dot_product_enabled)
+  ml_sqrt  = ML_Sqrt(args)
+  ml_sqrt.gen_implementation()
+

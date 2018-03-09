@@ -1,17 +1,45 @@
 # -*- coding: utf-8 -*-
 
+###############################################################################
+# This file is part of metalibm (https://github.com/kalray/metalibm)
+###############################################################################
+# MIT License
+#
+# Copyright (c) 2018 Kalray
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+###############################################################################
+# last-modified:    Mar  7th, 2018
+# Author(s): Nicolas Brunie <nbrunie@kalray.eu>
+###############################################################################
 import sys
 
 import sollya
 
-from sollya import S2, Interval, ceil, floor, round, inf, sup, log, exp, expm1, log2, guessdegree, dirtyinfnorm, RN, RD, cbrt
+from sollya import S2, Interval, ceil, floor, round, inf, sup, log, exp, expm1, log2, guessdegree, dirtyinfnorm, RN, RD
 from sollya import parse as sollya_parse
 
 from metalibm_core.core.attributes import ML_Debug
 from metalibm_core.core.ml_operations import *
 from metalibm_core.core.ml_formats import *
 from metalibm_core.core.ml_table import ML_Table
-from metalibm_core.code_generation.vhdl_backend import VHDLBackend
+import metalibm_core.code_generation.vhdl_backend as vhdl_backend
 from metalibm_core.core.polynomials import *
 from metalibm_core.core.ml_entity import ML_Entity, ML_EntityBasis, DefaultEntityArgTemplate
 from metalibm_core.code_generation.generator_utility import FunctionOperator, FO_Result, FO_Arg
@@ -23,6 +51,8 @@ from metalibm_core.utility.debug_utils import *
 from metalibm_core.utility.num_utils   import ulp
 from metalibm_core.utility.gappa_utils import is_gappa_installed
 
+from metalibm_core.utility.rtl_debug_utils import debug_dec
+
 
 from metalibm_core.core.ml_hdl_format import *
 from metalibm_core.core.ml_hdl_operations import *
@@ -33,7 +63,7 @@ class ML_LeadingZeroCounter(ML_Entity("ml_lzc")):
     return DefaultEntityArgTemplate( 
              precision = ML_Int32, 
              debug_flag = False, 
-             target = VHDLBackend(), 
+             target = vhdl_backend.VHDLBackend(), 
              output_file = "my_lzc.vhd", 
              entity_name = "my_lzc",
              language = VHDL_Code,
@@ -62,7 +92,7 @@ class ML_LeadingZeroCounter(ML_Entity("ml_lzc")):
     def count_leading_zero(v, w):
       tmp = v
       lzc = -1
-      for i in xrange(w):
+      for i in range(w):
         if tmp & 2**(w - 1 - i):
           return i
       return w
@@ -78,9 +108,10 @@ class ML_LeadingZeroCounter(ML_Entity("ml_lzc")):
     # declaring main input variable
     vx = self.implementation.add_input_signal("x", input_precision) 
     vr_out = Signal("lzc", precision = precision, var_type = Variable.Local)
+    tmp_lzc = Variable("tmp_lzc", precision = precision, var_type = Variable.Local)
     iterator = Variable("i", precision = ML_Integer, var_type = Variable.Local)
     lzc_loop = RangeLoop(
-      iterator, 
+      iterator,
       Interval(0, self.width - 1),
       ConditionBlock(
         Comparison(
@@ -90,11 +121,11 @@ class ML_LeadingZeroCounter(ML_Entity("ml_lzc")):
           precision = ML_Bool
         ),
         ReferenceAssign(
-          vr_out, 
+          tmp_lzc,
           Conversion(
             Subtraction(
               Constant(self.width - 1, precision = ML_Integer),
-              iterator, 
+              iterator,
               precision = ML_Integer
             ),
           precision = precision),
@@ -104,14 +135,14 @@ class ML_LeadingZeroCounter(ML_Entity("ml_lzc")):
     )
     lzc_process = Process(
       Statement(
-        ReferenceAssign(vr_out, Constant(self.width, precision = precision)),
-        lzc_loop, 
+        ReferenceAssign(tmp_lzc, Constant(self.width, precision = precision)),
+        lzc_loop,
+        ReferenceAssign(vr_out, tmp_lzc)
       ),
       sensibility_list = [vx]
     )
 
     self.implementation.add_process(lzc_process)
-    
 
     self.implementation.add_output_signal("vr_out", vr_out)
 
@@ -119,6 +150,47 @@ class ML_LeadingZeroCounter(ML_Entity("ml_lzc")):
 
   standard_test_cases =[sollya_parse(x) for x in  ["1.1", "1.5"]]
 
+def vhdl_legalize_count_leading_zeros(optree):
+    """ Legalize a CountLeadingZeros node into a valid vhdl 
+        implementation
+
+        Args:
+            optree (CountLeadingZeros): input node
+
+        Return:
+            ML_Operation: legal operation graph to implement LZC
+    """
+    lzc_format = optree.get_precision()
+    lzc_input = optree.get_input(0)
+    lzc_width = lzc_input.get_precision().get_bit_size()
+
+    lzc_args = ML_LeadingZeroCounter.get_default_args(width = lzc_width)
+    LZC_entity = ML_LeadingZeroCounter(lzc_args)
+    lzc_entity_list = LZC_entity.generate_scheme()
+    lzc_implementation = LZC_entity.get_implementation()
+
+    lzc_component = lzc_implementation.get_component_object()
+
+    lzc_tag = optree.get_tag() if not optree.get_tag() is None else "lzc_signal"
+
+    # LZC output value signal
+    lzc_signal = Signal(
+        lzc_tag, precision = lzc_format,
+        var_type = Signal.Local, debug = debug_dec
+    )
+    lzc_value = PlaceHolder(
+        lzc_signal,
+        lzc_component(io_map = {
+            "x": lzc_input, 
+            "vr_out": lzc_signal
+        }, tag = "lzc_i"), tag = "place_holder"
+    )
+    # returing PlaceHolder as valid leading zero count result
+    return lzc_value
+
+
+Log.report(Log.Info, "installing ML_LeadingZeroCounter legalizer in vhdl backend")
+vhdl_backend.handle_LZC_legalizer.optree_modifier = vhdl_legalize_count_leading_zeros
 
 if __name__ == "__main__":
     # auto-test

@@ -1,5 +1,33 @@
 # -*- coding: utf-8 -*-
 
+###############################################################################
+# This file is part of metalibm (https://github.com/kalray/metalibm)
+###############################################################################
+# MIT License
+#
+# Copyright (c) 2018 Kalray
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+###############################################################################
+# last-modified:    Mar  7th, 2018
+# Author(s): Nicolas Brunie <nbrunie@kalray.eu>
+###############################################################################
 import sys
 
 import sollya
@@ -16,6 +44,7 @@ from metalibm_core.core.polynomials import *
 from metalibm_core.core.ml_function import ML_Function, ML_FunctionBasis, DefaultArgTemplate
 from metalibm_core.code_generation.generator_utility import FunctionOperator, FO_Result, FO_Arg
 from metalibm_core.core.ml_complex_formats import ML_Mpfr_t
+from metalibm_core.core.special_values import FP_PlusInfty
 
 
 from metalibm_core.utility.ml_template import *
@@ -27,45 +56,25 @@ from metalibm_core.utility.gappa_utils import is_gappa_installed
 
 
 class ML_HyperbolicCosine(ML_Function("ml_cosh")):
-  def __init__(self, 
-             arg_template = DefaultArgTemplate, 
-             precision = ML_Binary32, 
-             accuracy  = ML_Faithful,
-             libm_compliant = True, 
-             debug_flag = False, 
-             fuse_fma = True, 
-             fast_path_extract = True,
-             target = GenericProcessor(), 
-             output_file = "my_cosh.c", 
-             function_name = "my_cosh",
-             language = C_Code,
-             vector_size = 1):
-    # initializing I/O precision
-    precision = ArgDefault.select_value([arg_template.precision, precision])
-    io_precisions = [precision] * 2
-
+  def __init__(self, args=DefaultArgTemplate): 
     # initializing base class
-    ML_FunctionBasis.__init__(self, 
-      base_name = "cosh",
-      function_name = function_name,
-      output_file = output_file,
+    ML_FunctionBasis.__init__(self, args=args) 
 
-      io_precisions = io_precisions,
-      abs_accuracy = None,
-      libm_compliant = libm_compliant,
-
-      processor = target,
-      fuse_fma = fuse_fma,
-      fast_path_extract = fast_path_extract,
-
-      debug_flag = debug_flag,
-      language = language,
-      vector_size = vector_size,
-      arg_template = arg_template
-    )
-
-    self.accuracy  = accuracy
-    self.precision = precision
+  @staticmethod
+  def get_default_args(**args):
+    """ Generate a default argument structure set specifically for
+        the Hyperbolic Cosine """
+    default_cosh_args = {
+        "precision": ML_Binary32,
+        "accuracy": ML_Faithful,
+        "target": GenericProcessor(),
+        "output_file": "my_cosh.c",
+        "function_name": "my_cosh",
+        "language": C_Code,
+        "vector_size": 1
+    }
+    default_cosh_args.update(args)
+    return DefaultArgTemplate(**default_cosh_args)
 
   def generate_scheme(self):
     # declaring target and instantiating optimization engine
@@ -124,7 +133,7 @@ class ML_HyperbolicCosine(ML_Function("ml_cosh")):
         vx: Variable("vx", interval = Interval(0, 715), precision = self.precision),
         k: Variable("k", interval = Interval(0, 1024), precision = self.precision)
       })
-    print "r_eval_error: ", r_eval_error
+    print("r_eval_error: ", r_eval_error)
 
     approx_interval = Interval(-arg_reg_value, arg_reg_value)
     error_goal_approx = 2**-(self.precision.get_precision())
@@ -177,7 +186,7 @@ class ML_HyperbolicCosine(ML_Function("ml_cosh")):
 
     poly_object, poly_approx_error = Polynomial.build_from_approximation_with_error(exp(sollya.x), poly_degree, precision_list, approx_interval, sollya.absolute, error_function = error_function)
 
-    print "poly_approx_error: ", poly_approx_error, float(log2(poly_approx_error))
+    print("poly_approx_error: ", poly_approx_error, float(log2(poly_approx_error)))
 
     polynomial_scheme_builder = PolynomialSchemeEvaluator.generate_horner_scheme
     poly_pos = polynomial_scheme_builder(poly_object.sub_poly(start_index = 1), r, unified_precision = self.precision)
@@ -257,7 +266,9 @@ class ML_HyperbolicCosine(ML_Function("ml_cosh")):
 
 if __name__ == "__main__":
     # auto-test
-    arg_template = ML_NewArgTemplate(default_function_name = "new_cosh", default_output_file = "new_cosh.c" )
+    arg_template = ML_NewArgTemplate(
+        default_arg=ML_HyperbolicCosine.get_default_args()
+    )
     # argument extraction 
     args = parse_arg_index_list = arg_template.arg_extraction()
 

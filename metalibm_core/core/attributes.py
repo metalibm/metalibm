@@ -4,11 +4,35 @@
 #  Operation Node attributes (decorator)
 
 ###############################################################################
-# This file is part of Kalray's Metalibm tool
-# Copyright (2013-2014)
-# All rights reserved
+# This file is part of metalibm (https://github.com/kalray/metalibm)
+###############################################################################
+# MIT License
+#
+# Copyright (c) 2018 Kalray
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+###############################################################################
+
+###############################################################################
+# This file is part of Metalibm tool
 # created:          Dec 23rd, 2013
-# last-modified:    Apr 18th, 2014
+# last-modified:    Mar  8th, 2018
 #
 # author(s): Nicolas Brunie (nicolas.brunie@kalray.eu)
 ###############################################################################
@@ -66,8 +90,18 @@ class ML_MultiDebug(ML_Debug):
     self.debug_object_map = debug_object_map
     self.key_function = key_function
 
-  def select_object(self, optree): 
-    return self.debug_object_map[self.key_function(optree)]
+  def select_object(self, optree):
+    """ Select debug_object corresponding to input optree
+       in ML_MultiDebug debug_object_map dict """
+    dbg_key = self.key_function(optree)
+    try:
+        return self.debug_object_map[dbg_key]
+    except KeyError:
+        Log.report(
+            Log.Error,
+            "unable to found key({}) in debug_object_map".format(dbg_key)
+        )
+
 
   ## Declare a new mapping between @p debug_key and @p debug_object
   def add_mapping(self, debug_key, debug_object):

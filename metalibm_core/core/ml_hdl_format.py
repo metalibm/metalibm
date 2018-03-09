@@ -3,13 +3,36 @@
 """ HDL description specific formats (for RTL and signals) """
 
 ###############################################################################
-# This file is part of New Metalibm tool
-# Copyrights Nicolas Brunie (2016)
-# All rights reserved
-# created:          Nov 20th, 2016
-# last-modified:    Nov 20th, 2016
+# This file is part of metalibm (https://github.com/kalray/metalibm)
+###############################################################################
+# MIT License
 #
-# author(s): Nicolas Brunie (nibrunie@gmail.com)
+# Copyright (c) 2018 Kalray
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+###############################################################################
+
+###############################################################################
+# created:          Nov 20th, 2016
+# last-modified:    Mar  8th, 2018
+#
+# author(s): Nicolas Brunie (nbrunie@kalray.eu)
 # description: Declaration of Node formats for hardware designs
 ###############################################################################
 
@@ -45,18 +68,16 @@ def generic_get_vhdl_cst(value, bit_size):
   value = int(value)
   value &= int(2**bit_size - 1)
   assert bit_size > 0
+  assert value <= (2**bit_size - 1)
   if bit_size % 4 == 0:
-    return "X\"%s\"" % hex(value)[2:].replace("L","").zfill(bit_size / 4)
+    return "X\"%s\"" % hex(value)[2:].replace("L","").zfill(bit_size // 4)
   else:
     return "\"%s\"" % bin(value)[2:].replace("L","").zfill(bit_size)
 
 
 class RTL_FixedPointFormat(ML_Base_FixedPoint_Format):
   def __init__(self, integer_size, frac_size, signed = True, support_format = None, align = 0):
-    ML_Fixed_Format.__init__(self, support_format, align)
-    self.integer_size = integer_size
-    self.frac_size    = frac_size
-    self.signed       = signed
+    ML_Base_FixedPoint_Format.__init__(self, integer_size, frac_size, signed, support_format = support_format, align = align)
     name = ("" if self.signed else "U") + "INT" + str(self.get_bit_size()) 
     self.name[VHDL_Code] = name
 
@@ -69,7 +90,7 @@ class RTL_FixedPointFormat(ML_Base_FixedPoint_Format):
     return self.support_format.get_code_name(language)
 
   def is_cst_decl_required(self):
-    return True
+    return False
 
   def get_cst(self, cst_value, language = VHDL_Code):
     if language is VHDL_Code:
@@ -110,7 +131,7 @@ class ML_StdLogicVectorFormat(ML_Format):
     return generic_get_vhdl_cst(value, self.bit_size)
 
   def is_cst_decl_required(self):
-    return True
+    return False
 
 ## Class of single bit value format
 class ML_StdLogicClass(ML_Format):
@@ -137,11 +158,13 @@ ML_StdLogic = ML_StdLogicClass()
 
 
 ## Helper to build RTL fixed-point formats
-def fixed_point(int_size, frac_size, signed = True):
+def fixed_point(int_size, frac_size, signed = True, support_format = None):
+    """ Generate a fixed-point format """
+    support_format = support_format or ML_StdLogicVectorFormat(int_size + frac_size) 
     new_precision = RTL_FixedPointFormat(
         int_size, frac_size,
         signed = signed,
-        support_format = ML_StdLogicVectorFormat(int_size + frac_size)
+        support_format = support_format
     )
     return new_precision
 

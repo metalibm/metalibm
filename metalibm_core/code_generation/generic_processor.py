@@ -1,11 +1,32 @@
 # -*- coding: utf-8 -*-
 
 ###############################################################################
-# This file is part of Kalray's Metalibm tool
-# Copyright (2013-2014)
-# All rights reserved
+# This file is part of metalibm (https://github.com/kalray/metalibm)
+###############################################################################
+# MIT License
+#
+# Copyright (c) 2018 Kalray
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+###############################################################################
 # created:          Dec 24th, 2013
-# last-modified:    May 16th, 2017
+# last-modified:    Mar  7th, 2018
 #
 # author(s): Nicolas Brunie (nicolas.brunie@kalray.eu)
 ###############################################################################
@@ -18,8 +39,10 @@ from ..utility.log_report import *
 from ..core.ml_formats import *
 from ..core.ml_table import *
 from ..core.ml_operations import *
+from ..core.legalizer import min_legalizer, max_legalizer
 
 from .generator_utility import *
+from .generator_utility import ConstantOperator
 from .code_element import *
 from .complex_generator import *
 from .generator_helper import *
@@ -55,10 +78,14 @@ def exclude_doubledouble(optree):
 def include_doubledouble(optree):
     return not exclude_doubledouble(optree)
 
+## Predicate excluding advanced matching cases for Multiplication
 def exclude_for_mult(optree):
-    return (optree.get_precision() != ML_DoubleDouble
-     and (optree.get_precision() == optree.get_input(0).get_precision())
-     and (optree.get_precision() == optree.get_input(1).get_precision()))
+		op_precision = optree.get_precision().get_match_format()
+		op0_precision = optree.get_input(0).get_precision().get_match_format()
+		op1_precision = optree.get_input(1).get_precision().get_match_format()
+		return (op_precision != ML_DoubleDouble
+		 and (op_precision == op0_precision)
+		 and (op_precision == op1_precision))
 def include_for_mult(optree):
     return not exclude_for_mult(optree)
 
@@ -121,6 +148,43 @@ unsigned_integer_precision = {
 }
 
 c_code_generation_table = {
+    Max: {
+        None: {
+            lambda _: True: 
+                dict([
+                  (
+                    type_strict_match(precision, precision, precision),
+                    ComplexOperator(optree_modifier = max_legalizer)
+                  ) for precision in [
+                    ML_Int32, ML_UInt32, ML_Int64, ML_UInt64, \
+                    ML_Binary32, ML_Binary64
+                  ]
+                  ]
+                )
+        },
+    },
+    Min: {
+        None: {
+            lambda _: True: 
+                dict([
+                  (
+                    type_strict_match(precision, precision, precision),
+                    ComplexOperator(optree_modifier = min_legalizer)
+                  ) for precision in [
+                    ML_Int32, ML_UInt32, ML_Int64, ML_UInt64, \
+                    ML_Binary32, ML_Binary64
+                  ]
+                  ]
+                )
+        },
+    },
+    Constant: {
+        None: {
+            lambda optree: True: {
+                type_custom_match(type_all_match): ConstantOperator(),
+            }
+        },
+    },
     Select: {
         None: {
             lambda optree: True: 
@@ -214,10 +278,13 @@ c_code_generation_table = {
                     and is_std_integer_format(dst_type)
                     and is_std_signed_integer_format(op0_type)
                     and is_std_integer_format(op1_type)
+                    and op0_type in unsigned_integer_precision
                     ) : ComplexOperator(
                       lambda optree: BitLogicRightShift(
                         TypeCast(optree.get_input(0),
-                                 precision = unsigned_integer_precision[optree.get_input(0).get_precision()]),
+                                 precision = unsigned_integer_precision[optree.get_input(0).get_precision()],
+                                 tag = (optree.get_tag() or "") +"_srl_cast"
+                        ),
                         optree.get_input(1),
                         precision = optree.get_precision()
                         )
@@ -247,8 +314,9 @@ c_code_generation_table = {
                       lambda optree: BitArithmeticRightShift(
                         TypeCast(optree.get_input(0),
                                  precision = signed_integer_precision[optree.get_input(0).get_precision()]),
-                        optree.get_input(1),
-                        precision = optree.get_precision()
+                            optree.get_input(1),
+                            precision = optree.get_precision(),
+                            tag = (optree.get_tag() or "") + "_sra_cast"
                         )
                       )
             },
@@ -297,40 +365,45 @@ c_code_generation_table = {
         None: {
           exclude_for_mult: build_simplified_operator_generation_nomap([ML_Binary32, ML_Binary64, ML_Int8, ML_UInt8, ML_Int16, ML_UInt16, ML_Int32, ML_UInt32, ML_Int64, ML_UInt64, ML_Int128,ML_UInt128], 2, SymbolOperator("*", arity = 2, speed_measure = 2.0), cond = exclude_doubledouble),
           include_for_mult: {
-            type_strict_match(ML_DoubleDouble, ML_Binary64, ML_Binary64): ML_Multi_Prec_Lib_Function("ml_mult_dd_d2", arity = 2, output_precision = ML_DoubleDouble),
-            type_std_integer_match: ComplexOperator(optree_modifier = full_mul_modifier, backup_operator = SymbolOperator("*", arity = 2)),
+            type_strict_match(ML_DoubleDouble, ML_Binary64, ML_Binary64): 
+                ML_Multi_Prec_Lib_Function(
+                    "ml_mult_dd_d2", arity=2, output_precision=ML_DoubleDouble),
+            type_std_integer_match:
+                ComplexOperator(
+                    optree_modifier=full_mul_modifier,
+                    backup_operator=SymbolOperator("*", arity=2)),
         }
       }
     },
     FusedMultiplyAdd: {
         FusedMultiplyAdd.Standard: {
-            lambda optree: std_cond(optree): {
+            lambda optree: fp_std_cond(optree): {
                 type_strict_match(ML_Binary32, ML_Binary32, ML_Binary32, ML_Binary32): Libm_Function("fmaf", arity = 3),
                 type_strict_match(ML_Binary64, ML_Binary64, ML_Binary64, ML_Binary64): Libm_Function("fma", arity = 3),
                 type_strict_match(ML_DoubleDouble, ML_Binary64, ML_Binary64, ML_Binary64): ML_Multi_Prec_Lib_Function("ml_fma_dd_d3", arity = 3, speed_measure = 66.5),
             },
         },
         FusedMultiplyAdd.Negate: {
-            lambda optree: std_cond(optree): {
+            lambda optree: fp_std_cond(optree): {
                 type_strict_match(ML_Binary32, ML_Binary32, ML_Binary32, ML_Binary32): SymbolOperator("-", arity = 1)(Libm_Function("fmaf", arity = 3, output_precision = ML_Binary32)),
                 type_strict_match(ML_Binary64, ML_Binary64, ML_Binary64, ML_Binary64): SymbolOperator("-", arity = 1)(Libm_Function("fma", arity = 3, output_precision = ML_Binary64)),
             },
         },
         FusedMultiplyAdd.SubtractNegate: {
-            lambda optree: std_cond(optree): {
+            lambda optree: fp_std_cond(optree): {
                 type_strict_match(ML_Binary32, ML_Binary32, ML_Binary32, ML_Binary32): Libm_Function("fmaf", arity = 3, output_precision = ML_Binary32)(SymbolOperator("-", arity = 1, output_precision = ML_Binary32)(FO_Arg(0)), FO_Arg(1), FO_Arg(2)),
                 type_strict_match(ML_Binary64, ML_Binary64, ML_Binary64, ML_Binary64): Libm_Function("fma", arity = 3, output_precision = ML_Binary64)(SymbolOperator("-", arity = 1, output_precision = ML_Binary64)(FO_Arg(0)), FO_Arg(1), FO_Arg(2)),
             },
         },
         FusedMultiplyAdd.Subtract: {
-            lambda optree: std_cond(optree): {
+            lambda optree: fp_std_cond(optree): {
                 type_strict_match(ML_Binary32, ML_Binary32, ML_Binary32, ML_Binary32): Libm_Function("fmaf", arity = 3, output_precision = ML_Binary32)(FO_Arg(0), FO_Arg(1), SymbolOperator("-", arity = 1, output_precision = ML_Binary32)(FO_Arg(2))),
                 type_strict_match(ML_Binary64, ML_Binary64, ML_Binary64, ML_Binary64): Libm_Function("fma", arity = 3, output_precision = ML_Binary64)(FO_Arg(0), FO_Arg(1), SymbolOperator("-", arity = 1, output_precision = ML_Binary64)(FO_Arg(2))),
             },
         },
     },
     Division: {
-        None: build_simplified_operator_generation([ML_Int32, ML_UInt32, ML_Binary32, ML_Binary64], 2, SymbolOperator("/", arity = 2)),
+        None: build_simplified_operator_generation([ML_Int64, ML_Int32, ML_UInt32, ML_Binary32, ML_Binary64], 2, SymbolOperator("/", arity = 2)),
     },
     Modulo: {
         None: build_simplified_operator_generation([ML_Int32, ML_UInt32, ML_Int64], 2, SymbolOperator("%", arity = 2)),
@@ -635,61 +708,109 @@ c_code_generation_table = {
 
 gappa_code_generation_table = {
     Negation: {
-        None: build_simplified_operator_generation([ML_Int64, ML_UInt64, ML_Int32, ML_UInt32, ML_Binary32, ML_Binary64], 1, SymbolOperator("-", arity = 1), explicit_rounding = True, match_function = type_relax_match, extend_exact = True),
+        None: build_simplified_operator_generation(
+            [ML_Int64, ML_UInt64, ML_Int32, ML_UInt32,
+            ML_Binary32, ML_Binary64], 1,
+            SymbolOperator("-", arity=1),
+            explicit_rounding=True, match_function=type_relax_match,
+            extend_exact=True),
     },
     Addition: {
-        None: build_simplified_operator_generation([ML_Int64, ML_UInt64, ML_Int32, ML_UInt32, ML_Binary32, ML_Binary64], 2, SymbolOperator("+", arity = 2), explicit_rounding = True, match_function = type_relax_match, extend_exact = True),
+        None: build_simplified_operator_generation(
+            [ML_DoubleDouble, ML_Int64, ML_UInt64, ML_Int32,
+            ML_UInt32, ML_Binary32, ML_Binary64], 2,
+            SymbolOperator("+", arity=2), explicit_rounding=True,
+            match_function=type_relax_match, extend_exact=True),
     },
     Subtraction: {
-        None: build_simplified_operator_generation([ML_Int64, ML_UInt64, ML_Int32, ML_UInt32, ML_Binary32, ML_Binary64], 2, SymbolOperator("-", arity = 2), explicit_rounding = True, match_function = type_relax_match, extend_exact = True),
+        None: build_simplified_operator_generation(
+            [ML_DoubleDouble, ML_Int64, ML_UInt64, ML_Int32,
+            ML_UInt32, ML_Binary32, ML_Binary64], 2, 
+            SymbolOperator("-", arity=2), explicit_rounding=True,
+            match_function=type_relax_match, extend_exact=True),
     },
     Multiplication: {
-        None: build_simplified_operator_generation([ML_Int64, ML_UInt64, ML_Int32, ML_UInt32, ML_Binary32, ML_Binary64], 2, SymbolOperator("*", arity = 2, no_parenthesis = True), explicit_rounding = True, match_function = type_relax_match, extend_exact = True),
+        None: build_simplified_operator_generation(
+            [ML_DoubleDouble, ML_Int64, ML_UInt64, ML_Int32,
+            ML_UInt32, ML_Binary32, ML_Binary64,
+            (ML_DoubleDouble, ML_Binary64, ML_DoubleDouble)
+            ], 2,
+            SymbolOperator("*", arity=2, no_parenthesis=True),
+            explicit_rounding=True, match_function=type_relax_match,
+            extend_exact=True),
     },
     Division: {
         None: {
             lambda optree: True: {
-                lambda *args, **kwords: True: SymbolOperator("/", arity = 2),
+                lambda *args, **kwords: True: SymbolOperator("/", arity=2),
             },
         },
     },
     FusedMultiplyAdd: {
         FusedMultiplyAdd.Standard: {
             lambda optree: not optree.get_commutated(): {
-                type_strict_match(ML_Binary32, ML_Binary32, ML_Binary32, ML_Binary32): RoundOperator(ML_Binary32)(SymbolOperator("+", arity = 2, force_folding = False)(SymbolOperator("*", arity = 2, no_parenthesis = True,  force_folding = False)(FO_Arg(0), FO_Arg(1)), FO_Arg(2))),
-                type_strict_match(ML_Binary64, ML_Binary64, ML_Binary64, ML_Binary64): RoundOperator(ML_Binary64)(SymbolOperator("+", arity = 2, force_folding = False)(SymbolOperator("*", arity = 2, no_parenthesis = True,  force_folding = False)(FO_Arg(0), FO_Arg(1)), FO_Arg(2))),
-                type_result_match(ML_Exact): SymbolOperator("+", arity = 2, force_folding = False)(SymbolOperator("*", arity = 2, no_parenthesis = True,  force_folding = False)(FO_Arg(0), FO_Arg(1)), FO_Arg(2)),
+                type_strict_match(
+                    ML_Binary32, ML_Binary32, ML_Binary32, ML_Binary32):
+                        RoundOperator(ML_Binary32)(
+                            SymbolOperator("+", arity=2, force_folding=False)(
+                                SymbolOperator("*", arity=2, no_parenthesis=True,
+                                               force_folding=False)
+                                    (FO_Arg(0), FO_Arg(1)), FO_Arg(2))),
+                type_strict_match(
+                    ML_Binary64, ML_Binary64, ML_Binary64, ML_Binary64):
+                        RoundOperator(ML_Binary64)(
+                            SymbolOperator("+", arity=2, force_folding=False)(
+                                SymbolOperator("*", arity=2, no_parenthesis=True,
+                                               force_folding=False)(
+                                        FO_Arg(0), FO_Arg(1)), FO_Arg(2))),
+                type_result_match(ML_Exact): 
+                    SymbolOperator("+", arity=2, force_folding=False)(
+                        SymbolOperator("*", arity=2, no_parenthesis=True,
+                                force_folding=False)(FO_Arg(0), FO_Arg(1)), FO_Arg(2)),
             },
             lambda optree: optree.get_commutated(): {
-                type_strict_match(ML_Binary32, ML_Binary32, ML_Binary32, ML_Binary32): RoundOperator(ML_Binary32)(SymbolOperator("+", arity = 2, force_folding = False)(FO_Arg(2), SymbolOperator("*", arity = 2, no_parenthesis = True,  force_folding = False)(FO_Arg(0), FO_Arg(1)))),
-                type_strict_match(ML_Binary64, ML_Binary64, ML_Binary64, ML_Binary64): RoundOperator(ML_Binary64)(SymbolOperator("+", arity = 2, force_folding = False)(FO_Arg(2), SymbolOperator("*", arity = 2, no_parenthesis = True,  force_folding = False)(FO_Arg(0), FO_Arg(1)))),
-                type_result_match(ML_Exact): SymbolOperator("+", arity = 2, force_folding = False)(FO_Arg(2), SymbolOperator("*", arity = 2, no_parenthesis = True,  force_folding = False)(FO_Arg(0), FO_Arg(1))),
+                type_strict_match(ML_Binary32, ML_Binary32, ML_Binary32, ML_Binary32):
+                    RoundOperator(ML_Binary32)(
+                        SymbolOperator("+", arity=2, force_folding=False)(
+                            FO_Arg(2), SymbolOperator("*", arity=2, no_parenthesis=True,
+                            force_folding=False)(FO_Arg(0), FO_Arg(1)))),
+                type_strict_match(ML_Binary64, ML_Binary64, ML_Binary64, ML_Binary64):
+                    RoundOperator(ML_Binary64)(
+                        SymbolOperator("+", arity=2, force_folding=False)(
+                            FO_Arg(2), SymbolOperator(
+                                "*", arity=2, no_parenthesis=True, force_folding=False
+                            )(FO_Arg(0), FO_Arg(1)))),
+                type_result_match(ML_Exact): 
+                    SymbolOperator("+", arity=2, force_folding=False)(
+                        FO_Arg(2), SymbolOperator(
+                            "*", arity=2, no_parenthesis=True, force_folding=False)(
+                                FO_Arg(0), FO_Arg(1))),
             },
         },
         FusedMultiplyAdd.Negate: {
             lambda optree: not optree.get_commutated(): {
-                type_relax_match(ML_Binary32, ML_Binary32, ML_Binary32, ML_Binary32): RoundOperator(ML_Binary32)(SymbolOperator("-", arity = 1, force_folding = False)(SymbolOperator("+", arity = 2, force_folding = False)(SymbolOperator("*", no_parenthesis = True, arity = 2, force_folding = False)(FO_Arg(0), FO_Arg(1)), FO_Arg(2)))),
-                type_relax_match(ML_Binary64, ML_Binary64, ML_Binary64, ML_Binary64): RoundOperator(ML_Binary64)(SymbolOperator("-", arity = 1, force_folding = False)(SymbolOperator("+", arity = 2, force_folding = False)(SymbolOperator("*", no_parenthesis = True, arity = 2, force_folding = False)(FO_Arg(0), FO_Arg(1)), FO_Arg(2)))),
-                type_relax_match(ML_Exact): SymbolOperator("-", arity = 1, force_folding = False)(SymbolOperator("+", arity = 2, force_folding = False)(SymbolOperator("*", no_parenthesis = True, arity = 2, force_folding = False)(FO_Arg(0), FO_Arg(1)), FO_Arg(2))),
+                type_relax_match(ML_Binary32, ML_Binary32, ML_Binary32, ML_Binary32): RoundOperator(ML_Binary32)(SymbolOperator("-", arity=1, force_folding=False)(SymbolOperator("+", arity=2, force_folding=False)(SymbolOperator("*", no_parenthesis=True, arity=2, force_folding=False)(FO_Arg(0), FO_Arg(1)), FO_Arg(2)))),
+                type_relax_match(ML_Binary64, ML_Binary64, ML_Binary64, ML_Binary64): RoundOperator(ML_Binary64)(SymbolOperator("-", arity=1, force_folding=False)(SymbolOperator("+", arity=2, force_folding=False)(SymbolOperator("*", no_parenthesis=True, arity=2, force_folding=False)(FO_Arg(0), FO_Arg(1)), FO_Arg(2)))),
+                type_relax_match(ML_Exact): SymbolOperator("-", arity=1, force_folding=False)(SymbolOperator("+", arity=2, force_folding=False)(SymbolOperator("*", no_parenthesis=True, arity=2, force_folding=False)(FO_Arg(0), FO_Arg(1)), FO_Arg(2))),
             },
         },
         FusedMultiplyAdd.Subtract: {
             lambda optree: not optree.get_commutated(): {
-                type_relax_match(ML_Binary32, ML_Binary32, ML_Binary32, ML_Binary32): RoundOperator(ML_Binary32)(SymbolOperator("-", arity = 2, force_folding = False)(SymbolOperator("*", no_parenthesis = True, arity = 2, force_folding = False)(FO_Arg(0), FO_Arg(1)), FO_Arg(2))),
-                type_relax_match(ML_Binary64, ML_Binary64, ML_Binary64, ML_Binary64): RoundOperator(ML_Binary64)(SymbolOperator("-", arity = 2, force_folding = False)(SymbolOperator("*", no_parenthesis = True, arity = 2, force_folding = False)(FO_Arg(0), FO_Arg(1)), FO_Arg(2))),
-                type_result_match(ML_Exact): SymbolOperator("-", arity = 2, force_folding = False)(SymbolOperator("*", no_parenthesis = True, arity = 2, force_folding = False)(FO_Arg(0), FO_Arg(1)), FO_Arg(2)),
+                type_relax_match(ML_Binary32, ML_Binary32, ML_Binary32, ML_Binary32): RoundOperator(ML_Binary32)(SymbolOperator("-", arity=2, force_folding=False)(SymbolOperator("*", no_parenthesis=True, arity=2, force_folding=False)(FO_Arg(0), FO_Arg(1)), FO_Arg(2))),
+                type_relax_match(ML_Binary64, ML_Binary64, ML_Binary64, ML_Binary64): RoundOperator(ML_Binary64)(SymbolOperator("-", arity=2, force_folding=False)(SymbolOperator("*", no_parenthesis=True, arity=2, force_folding=False)(FO_Arg(0), FO_Arg(1)), FO_Arg(2))),
+                type_result_match(ML_Exact): SymbolOperator("-", arity=2, force_folding=False)(SymbolOperator("*", no_parenthesis=True, arity=2, force_folding=False)(FO_Arg(0), FO_Arg(1)), FO_Arg(2)),
             },
         },
         FusedMultiplyAdd.SubtractNegate: {
             lambda optree: not optree.get_commutated(): {
-                type_relax_match(ML_Binary32, ML_Binary32, ML_Binary32, ML_Binary32): RoundOperator(ML_Binary32)(SymbolOperator("+", arity = 2, force_folding = False)(SymbolOperator("-", arity=1, force_folding = False)(SymbolOperator("*", arity = 2, no_parenthesis = True, force_folding = False)(FO_Arg(0), FO_Arg(1))), FO_Arg(2))),
-                type_relax_match(ML_Binary64, ML_Binary64, ML_Binary64, ML_Binary64): RoundOperator(ML_Binary64)(SymbolOperator("+", arity = 2, force_folding = False)(SymbolOperator("-", arity=1, force_folding = False)(SymbolOperator("*", arity = 2, no_parenthesis = True, force_folding = False)(FO_Arg(0), FO_Arg(1))), FO_Arg(2))),
-                type_result_match(ML_Exact): SymbolOperator("+", arity = 2, force_folding = False)(SymbolOperator("-", arity=1, force_folding = False)(SymbolOperator("*", arity = 2, no_parenthesis = True, force_folding = False)(FO_Arg(0), FO_Arg(1))), FO_Arg(2)),
+                type_relax_match(ML_Binary32, ML_Binary32, ML_Binary32, ML_Binary32): RoundOperator(ML_Binary32)(SymbolOperator("+", arity=2, force_folding=False)(SymbolOperator("-", arity=1, force_folding=False)(SymbolOperator("*", arity=2, no_parenthesis=True, force_folding=False)(FO_Arg(0), FO_Arg(1))), FO_Arg(2))),
+                type_relax_match(ML_Binary64, ML_Binary64, ML_Binary64, ML_Binary64): RoundOperator(ML_Binary64)(SymbolOperator("+", arity=2, force_folding=False)(SymbolOperator("-", arity=1, force_folding=False)(SymbolOperator("*", arity=2, no_parenthesis=True, force_folding=False)(FO_Arg(0), FO_Arg(1))), FO_Arg(2))),
+                type_result_match(ML_Exact): SymbolOperator("+", arity=2, force_folding=False)(SymbolOperator("-", arity=1, force_folding=False)(SymbolOperator("*", arity=2, no_parenthesis=True, force_folding=False)(FO_Arg(0), FO_Arg(1))), FO_Arg(2)),
             },
             lambda optree: optree.get_commutated(): {
-                type_relax_match(ML_Binary32, ML_Binary32, ML_Binary32, ML_Binary32): RoundOperator(ML_Binary32)(SymbolOperator("-", arity = 2, force_folding = False)(FO_Arg(2), SymbolOperator("*", arity = 2, no_parenthesis = True, force_folding = False)(FO_Arg(0), FO_Arg(1)))),
-                type_relax_match(ML_Binary64, ML_Binary64, ML_Binary64, ML_Binary64): RoundOperator(ML_Binary64)(SymbolOperator("-", arity = 2, force_folding = False)(FO_Arg(2), SymbolOperator("*", arity = 2, no_parenthesis = True, force_folding = False)(FO_Arg(0), FO_Arg(1)))),
-                type_result_match(ML_Exact): SymbolOperator("-", arity = 2, force_folding = False)(FO_Arg(2), SymbolOperator("*", arity = 2, no_parenthesis = True, force_folding = False)(FO_Arg(0), FO_Arg(1))),
+                type_relax_match(ML_Binary32, ML_Binary32, ML_Binary32, ML_Binary32): RoundOperator(ML_Binary32)(SymbolOperator("-", arity=2, force_folding=False)(FO_Arg(2), SymbolOperator("*", arity=2, no_parenthesis=True, force_folding=False)(FO_Arg(0), FO_Arg(1)))),
+                type_relax_match(ML_Binary64, ML_Binary64, ML_Binary64, ML_Binary64): RoundOperator(ML_Binary64)(SymbolOperator("-", arity=2, force_folding=False)(FO_Arg(2), SymbolOperator("*", arity=2, no_parenthesis=True, force_folding=False)(FO_Arg(0), FO_Arg(1)))),
+                type_result_match(ML_Exact): SymbolOperator("-", arity=2, force_folding=False)(FO_Arg(2), SymbolOperator("*", arity=2, no_parenthesis=True, force_folding=False)(FO_Arg(0), FO_Arg(1))),
             },
         },
     },
@@ -748,7 +869,15 @@ generic_inv_approx_table = ML_ApproxTable(
     storage_precision = ML_Binary32,
     init_data = [
         [((1.0 + (t_value / S2**9) ) * S2**-1)] for t_value in 
-    [508, 500, 492, 485, 477, 470, 463, 455, 448, 441, 434, 428, 421, 414, 408, 401, 395, 389, 383, 377, 371, 365, 359, 353, 347, 342, 336, 331, 326, 320, 315, 310, 305, 300, 295, 290, 285, 280, 275, 271, 266, 261, 257, 252, 248, 243, 239, 235, 231, 226, 222, 218, 214, 210, 206, 202, 198, 195, 191, 187, 183, 180, 176, 172, 169, 165, 162, 158, 155, 152, 148, 145, 142, 138, 135, 132, 129, 126, 123, 120, 117, 114, 111, 108, 105, 102, 99, 96, 93, 91, 88, 85, 82, 80, 77, 74, 72, 69, 67, 64, 62, 59, 57, 54, 52, 49, 47, 45, 42, 40, 38, 35, 33, 31, 29, 26, 24, 22, 20, 18, 15, 13, 11, 9, 7, 5, 3, 0]
+    [508, 500, 492, 485, 477, 470, 463, 455, 448, 441, 434, 428, 421, 414, 408,
+     401, 395, 389, 383, 377, 371, 365, 359, 353, 347, 342, 336, 331, 326, 320,
+     315, 310, 305, 300, 295, 290, 285, 280, 275, 271, 266, 261, 257, 252, 248,
+     243, 239, 235, 231, 226, 222, 218, 214, 210, 206, 202, 198, 195, 191, 187,
+     183, 180, 176, 172, 169, 165, 162, 158, 155, 152, 148, 145, 142, 138, 135,
+     132, 129, 126, 123, 120, 117, 114, 111, 108, 105, 102, 99, 96, 93, 91, 88,
+     85, 82, 80, 77, 74, 72, 69, 67, 64, 62, 59, 57, 54, 52, 49, 47, 45, 42, 40,
+     38, 35, 33, 31, 29, 26, 24, 22, 20, 18, 15, 13, 11, 9, 7, 5, 3, 0
+    ]
     ]
 )
 
@@ -819,4 +948,4 @@ class GenericProcessor(AbstractBackend):
 
 
 if __name__ == "__main__":
-    print FunctionOperator("ml_is_nan_or_inff", arity = 1).arg_map
+    print(FunctionOperator("ml_is_nan_or_inff", arity = 1).arg_map)

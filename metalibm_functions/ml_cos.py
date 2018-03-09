@@ -1,5 +1,32 @@
 # -*- coding: utf-8 -*-
 
+###############################################################################
+# This file is part of metalibm (https://github.com/kalray/metalibm)
+###############################################################################
+# MIT License
+#
+# Copyright (c) 2018 Kalray
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+###############################################################################
+# last-modified:    Mar  7th, 2018
+###############################################################################
 import sys
 import sollya
 
@@ -13,6 +40,7 @@ from metalibm_core.core.ml_function import ML_Function, ML_FunctionBasis, Defaul
 from metalibm_core.core.attributes import ML_Debug
 from metalibm_core.core.ml_operations import *
 from metalibm_core.core.ml_formats import *
+from metalibm_core.core.special_values import FP_QNaN, FP_PlusInfty, FP_PlusZero
 from metalibm_core.code_generation.generic_processor import GenericProcessor
 from metalibm_core.core.polynomials import *
 from metalibm_core.core.ml_table import ML_NewTable
@@ -32,44 +60,27 @@ from metalibm_core.utility.gappa_utils import is_gappa_installed
 
 class ML_Cosine(ML_Function("ml_cos")):
   """ Implementation of cosinus function """
-  def __init__(self, 
-               arg_template = DefaultArgTemplate,
-               precision = ML_Binary32, 
-               accuracy  = ML_Faithful,
-               libm_compliant = True, 
-               debug_flag = False, 
-               fuse_fma = True, 
-               fast_path_extract = True,
-               target = GenericProcessor(), 
-               output_file = "cosf.c", 
-               function_name = "cosf", 
-               language = C_Code,
-               vector_size = 1):
-    # initializing I/O precision
-    precision = ArgDefault.select_value([arg_template.precision, precision])
-    io_precisions = [precision] * 2
-
+  def __init__(self, args=DefaultArgTemplate): 
     # initializing base class
     ML_FunctionBasis.__init__(self, 
-      base_name = "cos",
-      function_name = function_name,
-      output_file = output_file,
-
-      io_precisions = io_precisions,
-      abs_accuracy = None,
-      libm_compliant = libm_compliant,
-
-      processor = target,
-      fuse_fma = fuse_fma,
-      fast_path_extract = fast_path_extract,
-
-      debug_flag = debug_flag,
-      language = language,
-      vector_size = vector_size,
-      arg_template = arg_template
+        args
     )
-    self.accuracy  = accuracy
-    self.precision = precision
+    self.accuracy  = args.accuracy
+
+
+  @staticmethod
+  def get_default_args(**kw):
+    """ Return a structure containing the arguments for ML_Cosine,
+        builtin from a default argument mapping overloaded with @p kw """
+    default_args_cos = {
+        "output_file": "my_cosf.c",
+        "function_name": "my_cosf",
+        "precision": ML_Binary32,
+        "accuracy": ML_Faithful,
+        "target": GenericProcessor()
+    }
+    default_args_cos.update(kw)
+    return DefaultArgTemplate(**default_args_cos)
 
 
   def generate_emulate(self, result, mpfr_x, mpfr_rnd):
@@ -176,7 +187,7 @@ class ML_Cosine(ML_Function("ml_cos")):
     index_relative = []
 
     poly_object_vector = [None] * 2**(frac_pi_index+1)
-    for i in xrange(2**(frac_pi_index+1)):
+    for i in range(2**(frac_pi_index+1)):
       sub_func = cos(sollya.x+i*pi/S2**frac_pi_index)
       degree = int(sup(guessdegree(sub_func, approx_interval, error_goal_approx))) + 1
 
@@ -214,7 +225,7 @@ class ML_Cosine(ML_Function("ml_cos")):
 
     poly_scheme_vector = [None] * (2**(frac_pi_index+1))
 
-    for i in xrange(2**(frac_pi_index+1)):
+    for i in range(2**(frac_pi_index+1)):
       poly_object = poly_object_vector[i]
       poly_precision = self.precision
       if i == 3 or i == 5 or i == 7 or i == 9: 
@@ -290,10 +301,10 @@ class ML_Cosine(ML_Function("ml_cos")):
 
     switch_map = {}
     if 0:
-      for i in xrange(2**(frac_pi_index+1)):
+      for i in range(2**(frac_pi_index+1)):
         switch_map[i] = Return(poly_scheme_vector[i])
     else:
-      for i in xrange(2**(frac_pi_index-1)):
+      for i in range(2**(frac_pi_index-1)):
         switch_case = (i, half - i)
         #switch_map[i]      = Return(poly_scheme_vector[i])
         #switch_map[half-i] = Return(-poly_scheme_vector[i])
@@ -348,7 +359,7 @@ class ML_Cosine(ML_Function("ml_cos")):
     lar_upm = {}
     lar_switch_map = {}
     approx_interval = Interval(-0.5, 0.5)
-    for i in xrange(2**(lar_k+1)):
+    for i in range(2**(lar_k+1)):
       frac_pi = pi / S2**lar_k
       func = cos(frac_pi * i + frac_pi * sollya.x)
       
@@ -405,7 +416,7 @@ class ML_Cosine(ML_Function("ml_cos")):
 
 if __name__ == "__main__":
   # auto-test
-  arg_template = ML_NewArgTemplate(default_function_name = "new_cos", default_output_file = "new_cos.c" )
+  arg_template = ML_NewArgTemplate(default_arg=ML_Cosine.get_default_args())
   # argument extraction 
   args = arg_template.arg_extraction()
 

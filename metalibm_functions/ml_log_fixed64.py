@@ -1,5 +1,32 @@
 # -*- coding: utf-8 -*-
 
+###############################################################################
+# This file is part of metalibm (https://github.com/kalray/metalibm)
+###############################################################################
+# MIT License
+#
+# Copyright (c) 2018 Kalray
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+###############################################################################
+# last-modified:    Mar  7th, 2018
+###############################################################################
 import sys
 
 import sollya
@@ -271,11 +298,11 @@ class ML_Log(ML_Function("ml_log")):
 
     min_size1 = 1
     max_size1 = floor(log(memory_limit/17)/log(2)).getConstantAsInt()
-    for size1 in xrange(max_size1, min_size1-1, -1):
+    for size1 in range(max_size1, min_size1-1, -1):
       
       min_prec1 = size1
       max_prec1 = 12 + size1
-      for prec1 in xrange(min_prec1,max_prec1+1):
+      for prec1 in range(min_prec1,max_prec1+1):
         
         # we need sizeof_table1 and mid_interval for the bound on size2 and prec2
         first_arg_reduc = self.eval_argument_reduction(size1, prec1, prec1, prec1)
@@ -294,10 +321,10 @@ class ML_Log(ML_Function("ml_log")):
         # (because they are modified inside the body of the loop, for the next iteration of size2)
         min_prec2 = 0
         max_prec2 = 12 + max_size2 - prec1
-        for size2 in xrange(max_size2,min_size2-1,-1):
+        for size2 in range(max_size2,min_size2-1,-1):
           
           max_prec2 = min(max_prec2, 12 + size2 - prec1)
-          for prec2 in xrange(max_prec2,min_prec2-1,-1):
+          for prec2 in range(max_prec2,min_prec2-1,-1):
             
             #print '=====\t\033[1m{}\033[0m({}/{}),\t\033[1m{}\033[0m({}/{}),\t\033[1m{}\033[0m({}/{}),\t\033[1m{}\033[0m({}/{})\t====='.format(size1,min_size1,max_size1,prec1,min_prec1,max_prec1,size2,min_size2,max_size2,prec2,min_prec2,max_prec2)
             #print resource.getrusage(resource.RUSAGE_SELF).ru_maxrss #memory used by the programm
@@ -372,7 +399,7 @@ class ML_Log(ML_Function("ml_log")):
     log_table_1 = ML_NewTable(dimensions = [arg_reduc['length_table1']],
                            storage_precision = ML_Custom_FixedPoint_Format(11, 128-11, False),
                            tag = self.uniquify_name("log_table_1"))
-    for i in xrange(0, arg_reduc['length_table1']-1):
+    for i in range(0, arg_reduc['length_table1']-1):
       x1 = 1 + i/S2*arg_reduc['size1']
       inv_x1 = ceil(S2**arg_reduc['prec1']/x1)*S2**arg_reduc['prec1']
       log_x1 = floor(log(x1) * S2**(128-11))*S2**(11-128)
@@ -386,7 +413,7 @@ class ML_Log(ML_Function("ml_log")):
     log_table_2 = ML_NewTable(dimensions = [arg_reduc['length_table2']],
                            storage_precision = ML_Custom_FixedPoint_Format(11, 128-11, False),
                            tag = self.uniquify_name("log_table_2"))
-    for i in xrange(0, arg_reduc['length_table2']-1):
+    for i in range(0, arg_reduc['length_table2']-1):
       y1 = 1 + i/S2**arg_reduc['size2']
       inv_y1 = ceil(S2**arg_reduc['prec2']/x1) * S2**arg_reduc['prec2']
       log_y1 = floor(log(inv_y1) * S2**(128-11))*S2**(11-128)

@@ -1,10 +1,38 @@
 # -*- coding: utf-8 -*-
 
+###############################################################################
+# This file is part of metalibm (https://github.com/kalray/metalibm)
+###############################################################################
+# MIT License
+#
+# Copyright (c) 2018 Kalray
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+###############################################################################
+# last-modified:    Mar  7th, 2018
+# Author(s): Nicolas Brunie <nbrunie@kalray.eu>
+###############################################################################
 import sys
 
 import sollya
 
-from sollya import S2, Interval, ceil, floor, round, inf, sup, log, exp, expm1, log2, guessdegree, dirtyinfnorm, RN, RD, cbrt
+from sollya import S2, Interval, floor, round, log2 
 from sollya import parse as sollya_parse
 
 from metalibm_core.core.attributes import ML_Debug
@@ -42,15 +70,11 @@ class FP_MPFMA(ML_Entity("fp_mpfma")):
              arg_template = DefaultEntityArgTemplate, 
              precision = ML_Binary32, 
              accuracy  = ML_Faithful,
-             libm_compliant = True, 
              debug_flag = False, 
-             fuse_fma = True, 
-             fast_path_extract = True,
              target = VHDLBackend(), 
              output_file = "fp_mpfma.vhd", 
              entity_name = "fp_mpfma",
              language = VHDL_Code,
-             vector_size = 1,
              acc_prec = None,
              pipelined = False):
     # initializing I/O precision
@@ -67,8 +91,6 @@ class FP_MPFMA(ML_Entity("fp_mpfma")):
       abs_accuracy = None,
 
       backend = target,
-      fuse_fma = fuse_fma,
-      fast_path_extract = fast_path_extract,
 
       debug_flag = debug_flag,
       language = language,
@@ -254,8 +276,8 @@ class FP_MPFMA(ML_Entity("fp_mpfma")):
     )
 
     mant_ext_size = max_exp_diff
-    print "mant_ext_size: ", max_exp_diff
-    print "datapath_full_width: ", datapath_full_width
+    print("mant_ext_size: %d" % max_exp_diff)
+    print("datapath_full_width: %d" % datapath_full_width)
     shift_prec = ML_StdLogicVectorFormat(datapath_full_width)
     mant_vz_ext = rzext(mant_vz, mant_ext_size)
     shifted_mant_vz = BitLogicRightShift(mant_vz_ext, mant_shift, precision = shift_prec, tag = "shifted_mant_vz", debug = debug_std)
@@ -355,18 +377,18 @@ class FP_MPFMA(ML_Entity("fp_mpfma")):
     # as the same sign as the product
     res_sign = BitLogicXor(add_is_negative, sign_xy, precision = ML_StdLogic, tag = "res_sign")
 
-    print "pre lzc stage: ", self.implementation.get_current_stage()
+    print("pre lzc stage: %d " % self.implementation.get_current_stage())
     # adding pipeline stage after addition computation
     if self.pipelined: self.implementation.start_new_stage()
 
-    print "lzc stage: ", self.implementation.get_current_stage()
+    print("lzc stage: %d " % self.implementation.get_current_stage())
 
     # Precision for leading zero count
     lzc_width = int(floor(log2(datapath_full_width + 1)) + 1)
     lzc_prec = ML_StdLogicVectorFormat(lzc_width)
 
     current_stage = self.implementation.get_current_stage()
-    print "saving current_stage: ", current_stage
+    print("saving current_stage: %d" % current_stage)
 
     lzc_args = ML_LeadingZeroCounter.get_default_args(width = (datapath_full_width + 1))
     LZC_entity = ML_LeadingZeroCounter(lzc_args)

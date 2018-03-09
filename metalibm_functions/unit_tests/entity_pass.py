@@ -1,10 +1,38 @@
 # -*- coding: utf-8 -*-
 
+###############################################################################
+# This file is part of metalibm (https://github.com/kalray/metalibm)
+###############################################################################
+# MIT License
+#
+# Copyright (c) 2018 Kalray
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+###############################################################################
+# last-modified:    Mar  7th, 2018
+# Author(s): Nicolas Brunie <nbrunie@kalray.eu>
+###############################################################################
 import sys
 
 import sollya
 
-from sollya import S2, Interval, ceil, floor, round, inf, sup, log, exp, expm1, log2, guessdegree, dirtyinfnorm, RN, RD, cbrt
+from sollya import S2, Interval, ceil, floor, round, inf, sup, log, exp, expm1, log2, guessdegree, dirtyinfnorm, RN, RD
 from sollya import parse as sollya_parse
 
 from metalibm_core.core.attributes import ML_Debug
@@ -39,7 +67,7 @@ class LocalPass(OptimizationPass):
     self.final_id = final_id
 
   def execute(self, optree):
-    print "executing pass {}".format(self.descriptor)
+    print("executing pass {}".format(self.descriptor))
     executed_id_list.append(self.final_id)
     return optree
 
@@ -117,7 +145,7 @@ class ML_UT_EntityPass(ML_Entity("ml_lzc"), TestRunner):
     def count_leading_zero(v, w):
       tmp = v
       lzc = -1
-      for i in xrange(w):
+      for i in range(w):
         if tmp & 2**(w - 1 - i):
           return i
       return w
@@ -191,8 +219,7 @@ class ML_UT_EntityPass(ML_Entity("ml_lzc"), TestRunner):
 
     expected_id_list = [2, 5, 3, 4]
 
-    print "expected_id_list: ", expected_id_list
-    print "executed_id_list: ", executed_id_list
+    print("expected_id_list: ", expected_id_list)
     assert reduce(
       lambda lhs, rhs: lhs and rhs,
       [exp == real for exp,real in zip(executed_id_list, expected_id_list)], 
@@ -217,8 +244,7 @@ if __name__ == "__main__":
 
     expected_id_list = [2, 5, 3, 4]
 
-    print "expected_id_list: ", expected_id_list
-    print "executed_id_list: ", executed_id_list
+    print("expected_id_list: ", expected_id_list)
     assert reduce(
       lambda lhs, rhs: lhs and rhs,
       [exp == real for exp,real in zip(executed_id_list, expected_id_list)], 

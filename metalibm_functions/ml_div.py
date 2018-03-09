@@ -1,5 +1,32 @@
 # -*- coding: utf-8 -*-
 
+###############################################################################
+# This file is part of metalibm (https://github.com/kalray/metalibm)
+###############################################################################
+# MIT License
+#
+# Copyright (c) 2018 Kalray
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+###############################################################################
+# last-modified:    Mar  7th, 2018
+###############################################################################
 import sys
 
 from sollya import S2, Interval
@@ -124,7 +151,7 @@ class ML_Division(object):
         Attributes.set_default_rounding_mode(ML_RoundToNearest)
         Attributes.set_default_silent(True)
 
-        for i in xrange(num_iteration):
+        for i in range(num_iteration):
             new_iteration = NR_Iteration(current_approx, scaled_vy, force_fma = False if (i != num_iteration - 1) else True)
             inv_iteration_list.append(new_iteration)
             current_approx = new_iteration.get_new_approx()
@@ -145,7 +172,7 @@ class ML_Division(object):
         current_approx.set_attributes(tag = "final_approx", debug = debug_lftolx)
         current_div_approx = scaled_vx * current_approx
         num_dividend_mult_iteration = 1
-        for i in xrange(num_dividend_mult_iteration):
+        for i in range(num_dividend_mult_iteration):
             current_div_approx = dividend_mult(current_div_approx, current_approx, scaled_vx, scaled_vy, i)
 
 

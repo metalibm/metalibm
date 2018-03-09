@@ -1,3 +1,32 @@
+# -*- coding: utf-8 -*-
+###############################################################################
+# This file is part of metalibm (https://github.com/kalray/metalibm)
+###############################################################################
+# MIT License
+#
+# Copyright (c) 2018 Kalray
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+###############################################################################
+# last-modified:    Mar  7th, 2018
+# Author(s): Nicolas Brunie <nbrunie@kalray.eu>
+###############################################################################
 from metalibm_core.core.ml_formats import *
 from metalibm_core.core.ml_hdl_format import *
 from metalibm_core.core.ml_hdl_operations import *
@@ -15,6 +44,18 @@ def zext(op,s):
   ext_precision  = ML_StdLogicVectorFormat(op_size + s)
   return ZeroExt(op, s, precision = ext_precision)
 
+## Wrapper for zero extension
+# @param op the input operation tree
+# @param s integer size of the extension
+# @return the Zero extended operation node
+def zext_to_size(op,s):
+  s = int(s)
+  op_size = op.get_precision().get_bit_size() 
+  assert s >= op_size
+  if s == op_size:
+    return op
+  ext_precision  = ML_StdLogicVectorFormat(s)
+  return ZeroExt(op, s - op_size, precision = ext_precision)
 
 ## Wrapper for sign extension
 def sext(op,s):
@@ -111,9 +152,10 @@ def fp_is_neg_inf(op):
 #  @return ML_Bool operation graph implementing predicates
 def fp_mant_is_zero(op):
   op_prec = op.get_precision().get_base_format()
+  op_support_prec = op.get_precision().get_support_format()
   mant_prec = ML_StdLogicVectorFormat(op_prec.get_field_size())
   mant = SubSignalSelection(
-    TypeCast(op, precision = mant_prec),
+    TypeCast(op, precision = op_support_prec),
     0, op_prec.get_field_size() - 1
   )
   return Equal(

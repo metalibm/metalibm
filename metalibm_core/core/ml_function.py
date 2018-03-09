@@ -1,11 +1,34 @@
 # -*- coding: utf-8 -*-
 
 ###############################################################################
-# This file is part of Kalray's Metalibm tool
-# Copyright (2016)
-# All rights reserved
+# This file is part of metalibm (https://github.com/kalray/metalibm)
+###############################################################################
+# MIT License
+#
+# Copyright (c) 2018 Kalray
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+###############################################################################
+
+###############################################################################
 # created:          
-# last-modified:    Feb  5th, 2016
+# last-modified:    Mar  7th, 2018
 #
 # author(s): Nicolas Brunie (nicolas.brunie@kalray.eu)
 ###############################################################################
@@ -27,14 +50,14 @@ from metalibm_core.code_generation.generic_processor import GenericProcessor
 from metalibm_core.code_generation.mpfr_backend import MPFRProcessor
 from metalibm_core.code_generation.c_code_generator import CCodeGenerator
 from metalibm_core.code_generation.code_constant import C_Code
-from metalibm_core.code_generation.generator_utility import *
+#from metalibm_core.code_generation.generator_utility import *
 from metalibm_core.core.passes import Pass
 
 from metalibm_core.code_generation.gappa_code_generator import GappaCodeGenerator
 
 from metalibm_core.utility.log_report import Log
 from metalibm_core.utility.debug_utils import *
-from metalibm_core.utility.ml_template import ArgDefault, DefaultArgTemplate
+from metalibm_core.utility.ml_template import DefaultArgTemplate
 
 import random
 import subprocess
@@ -76,152 +99,86 @@ class ML_FunctionBasis(object):
   name = "function_basis"
 
   ## constructor
-  #  @param base_name string function name (without precision considerations)
-  #  @param function_name
-  #  @param output_file string name of source code output file
-  #  @param io_precisions input/output ML_Format list
-  #  @param abs_accuracy absolute accuracy
-  #  @param libm_compliant boolean flag indicating whether or not the
-  #         function should be compliant with standard libm specification
-  #         (wrt exception, error ...)
-  #  @param processor GenericProcessor instance, target of the implementation
-  #  @param fuse_fma boolean flag indicating whether or not fusing
-  #         Multiply+Add optimization must be applied
-  #  @param fast_path_extract boolean flag indicating whether or not fast
-  #         path extraction optimization must be applied
-  #  @param debug_flag boolean flag, indicating whether or not debug code
-  #         must be generated
-  def __init__(self,
-             # Naming
-             base_name = ArgDefault("unknown_function", 2),
-             function_name= ArgDefault(None, 2),
-             output_file = ArgDefault(None, 2),
-             # Specification
-             abs_accuracy = ArgDefault(None, 2),
-             libm_compliant = ArgDefault(True, 2),
-             # Optimization parameters
-             processor = ArgDefault(GenericProcessor(), 2),
-             fuse_fma = ArgDefault(False, 2), 
-             fast_path_extract = ArgDefault(True, 2),
-             # Debug verbosity
-             debug_flag = ArgDefault(False, 2),
-             vector_size = ArgDefault(1, 2),
-             language = ArgDefault(C_Code, 2),
-             auto_test = ArgDefault(False, 2),
-             auto_test_range = ArgDefault(Interval(-1, 1), 2),
-             auto_test_std = ArgDefault(False, 2),
-             #bench_enabled = ArgDefault(False, 2),
-             bench_execute   = ArgDefault(False, 2),
-             bench_test_number = ArgDefault(0, 2),
-             bench_test_range  = ArgDefault(Interval(0, 1), 2),
-
-             arity = 1,
-             
-             arg_template = DefaultArgTemplate,
-             # deprecated
-             io_precisions = None,
-         ):
+  #   @param all arguments are transmittaed throughs @p arguments object which 
+  #          should inherit from DefaultArgTemplate
+  def __init__(self, args=DefaultArgTemplate):
     # selecting argument values among defaults
-    base_name = ArgDefault.select_value([base_name])
-    print "pre function_name: ", function_name, arg_template.function_name
-    function_name = ArgDefault.select_value([arg_template.function_name, function_name])
-    print "function_name: ", function_name
-    print "output_file: ", arg_template.output_file, output_file 
-    output_file = ArgDefault.select_value([arg_template.output_file, output_file])
-    print output_file
-    # Specification
-    input_precisions = arg_template.input_precisions
-    precision = arg_template.precision
-    abs_accuracy = ArgDefault.select_value([abs_accuracy])
-    libm_compliant = ArgDefault.select_value([arg_template.libm_compliant, libm_compliant])
-    accuracy = ArgDefault.select_value([arg_template.accuracy])
-
-    # Optimization parameters
-    processor = ArgDefault.select_value([arg_template.target, processor])
-    fuse_fma = ArgDefault.select_value([arg_template.fuse_fma, fuse_fma])
-    fast_path_extract = ArgDefault.select_value([arg_template.fast_path_extract, fast_path_extract])
-    # Debug verbosity
-    debug_flag    = ArgDefault.select_value([arg_template.debug, debug_flag])
-    vector_size   = ArgDefault.select_value([arg_template.vector_size, vector_size])
-    language      = ArgDefault.select_value([arg_template.language, language])
-    auto_test     = ArgDefault.select_value([arg_template.auto_test or arg_template.auto_test_execute, auto_test])
-    auto_test_std = ArgDefault.select_value([arg_template.auto_test_std, auto_test_std])
-    #bench_enabled = ArgDefault.select_value([arg_template.bench_enabled, bench_enabled])
-    bench_execute = ArgDefault.select_value([arg_template.bench_execute, bench_execute])
-    bench_test_range = ArgDefault.select_value([arg_template.bench_test_range, bench_test_range])
-    bench_test_number = ArgDefault.select_value([arg_template.bench_test_number, bench_test_number])
-
+    self.display_after_opt = args.display_after_opt
 
     # enable/disable check_processor_support pass run
-    self.check_processor_support = arg_template.check_processor_support
-    self.pre_gen_passes = arg_template.pre_gen_passes
+    self.check_processor_support = args.check_processor_support
+    self.pre_gen_passes = args.pre_gen_passes
 
-    self.arity = arity
-    self.precision = precision
+    self.arity = args.arity
+    self.precision = args.precision
     # io_precisions must be:
     #     -> a list
     # XOR -> None to select [se;f.precision] * self.get_arity()
-    self.input_precisions = [self.precision] * self.get_arity() if input_precisions is None else input_precisions
+    self.input_precisions = [self.precision] * self.get_arity() if args.input_precisions is None else args.input_precisions
 
     # enable the generation of numeric/functionnal auto-test
-    self.auto_test_enable = (auto_test != False or auto_test_std != False)
-    self.auto_test_number = auto_test
-    self.auto_test_execute = ArgDefault.select_value([arg_template.auto_test_execute])
-    self.auto_test_range = ArgDefault.select_value([arg_template.auto_test_range, auto_test_range])
-    self.auto_test_std   = auto_test_std 
+    self.auto_test_enable = (args.auto_test != False or args.auto_test_std != False or args.auto_test_execute != False)
+    self.auto_test_number = args.auto_test
+    self.auto_test_execute = args.auto_test_execute
+    self.auto_test_range = args.auto_test_range
+    self.auto_test_std   = args.auto_test_std 
 
     # enable the computation of maximal error during functional testing
-    self.compute_max_error = arg_template.compute_max_error
+    self.compute_max_error = args.compute_max_error
+    self.break_error = args.break_error
 
     # enable and configure the generation of a performance bench
-    self.bench_enabled = bench_test_number or bench_execute
-    self.bench_execute = bench_execute != 0
-    self.bench_test_number = bench_test_number or bench_execute
-    self.bench_test_range = bench_test_range
+    self.bench_enabled = args.bench_test_number or args.bench_execute
+    self.bench_execute = args.bench_execute != 0
+    self.bench_test_number = args.bench_test_number or args.bench_execute
+    self.bench_test_range = args.bench_test_range
 
     # source building
-    self.build_enable = arg_template.build_enable
+    self.build_enable = args.build_enable
     # binary execution
-    self.execute_trigger = arg_template.execute_trigger
+    self.execute_trigger = args.execute_trigger
 
-    self.language = language
+    self.language = args.language
 
     Log.report(Log.Info, "auto test: {}, {}, {}, {}".format(self.auto_test_enable, self.auto_test_number, self.auto_test_execute, self.auto_test_range))
 
     # Naming logic, using provided information if available, otherwise deriving from base_name
     # base_name is e.g. exp
     # function_name is e.g. expf or expd or whatever 
-    self.function_name = function_name if function_name else libc_naming(base_name, [self.precision] + self.input_precisions)
+    self.function_name = args.function_name if args.function_name else libc_naming(args.base_name, [self.precision] + self.input_precisions)
 
-    self.output_file = output_file if output_file else self.function_name + ".c"
+    self.output_file = args.output_file if args.output_file else self.function_name + ".c"
 
-    self.debug_flag = debug_flag
+    self.debug_flag = args.debug
 
-    self.vector_size = vector_size
+    self.vector_size = args.vector_size
+    self.sub_vector_size = args.sub_vector_size
 
     # TODO: FIX which i/o precision to select
     # TODO: incompatible with fixed-point formats
     # self.sollya_precision = self.get_output_precision().get_sollya_object()
 
-    self.abs_accuracy = abs_accuracy if abs_accuracy else S2**(-self.get_output_precision().get_precision())
-    self.libm_compliant = libm_compliant
-    self.accuracy_obj = accuracy(self.get_output_precision())
+    # self.abs_accuracy = args.abs_accuracy if args.abs_accuracy else S2**(-self.get_output_precision().get_precision())
+    self.libm_compliant = args.libm_compliant
+    self.accuracy_obj = args.accuracy(self.get_output_precision())
     
-    self.processor = processor
+    self.processor = args.target
 
-    self.fuse_fma = fuse_fma
-    self.dot_product_enabled = arg_template.dot_product_enabled
-    self.fast_path_extract = fast_path_extract
+    self.fuse_fma = args.fuse_fma
+    self.dot_product_enabled = args.dot_product_enabled
+    self.fast_path_extract = args.fast_path_extract
 
-    self.implementation = CodeFunction(self.function_name, output_format = self.get_output_precision())
-    self.opt_engine = OptimizationEngine(self.processor, dot_product_enabled = self.dot_product_enabled)
-    self.gappa_engine = GappaCodeGenerator(self.processor, declare_cst = True, disable_debug = True)
-
-    self.C_code_generator = CCodeGenerator(self.processor, declare_cst = False, disable_debug = not self.debug_flag, libm_compliant = self.libm_compliant, language = self.language)
+    # instance of CodeFunction containing the function implementation
+    self.implementation = CodeFunction(self.function_name, output_format=self.get_output_precision())
+    # instance of OptimizationEngine
+    self.opt_engine = OptimizationEngine(self.processor, dot_product_enabled=self.dot_product_enabled)
+    # instance of GappaCodeGenerator to perform inline proofs
+    self.gappa_engine = GappaCodeGenerator(self.processor, declare_cst=True, disable_debug=True)
+    # instance of Code Generation to generate source code
+    self.C_code_generator = CCodeGenerator(self.processor, declare_cst=False, disable_debug=not self.debug_flag, libm_compliant=self.libm_compliant, language=self.language)
     uniquifier = self.function_name
-    self.main_code_object = NestedCode(self.C_code_generator, static_cst = True, uniquifier = "{0}_".format(self.function_name))
-
-    self.call_externalizer = CallExternalizer(self.main_code_object)
+    # main code object
+    self.main_code_object = NestedCode(self.C_code_generator, static_cst=True, uniquifier="{0}_".format(self.function_name))
 
   def get_accuracy(self):
     return self.accuracy_obj
@@ -232,7 +189,8 @@ class ML_FunctionBasis(object):
   ## generate a default argument template
   #  may be overloaded by sub-class to provide
   #  a meta-function specific default argument structure
-  def get_default_args(self, **args):
+  @staticmethod
+  def get_default_args(**args):
     return DefaultArgTemplate(**args)
 
   ## Return function's arity (number of input arguments)
@@ -332,27 +290,22 @@ class ML_FunctionBasis(object):
     scheme = pre_scheme if copy is None else pre_scheme.copy(copy)
     # fusing FMA
     if self.fuse_fma:
-      if verbose: print "MDL fusing FMA"
+      Log.report(Log.Verbose, "MDL fusing FMA")
       scheme = self.opt_engine.fuse_multiply_add(scheme, silence = True)
 
-    if verbose: print "MDL abstract scheme"
+    Log.report(Log.Verbose, "MDL abstract scheme")
     self.opt_engine.instantiate_abstract_precision(scheme,
                                                    default_precision = None)
 
-    if verbose: print "MDL instantiated scheme"
+    Log.report(Log.Verbose, "MDL instantiated scheme")
     self.opt_engine.instantiate_precision(scheme, default_precision = None)
 
     if enable_subexpr_sharing:
-      if verbose: print "subexpression sharing"
+      Log.report(Log.Verbose, "subexpression sharing")
       self.opt_engine.subexpression_sharing(scheme)
 
-    if verbose: print "silencing operation"
+    Log.report(Log.Verbose, "silencing operation")
     self.opt_engine.silence_fp_operations(scheme)
-
-    # Too early
-    #if self.check_processor_support:
-    #  if verbose: print "checking processor support", self.language
-    #  self.opt_engine.check_processor_support(scheme, language = self.language)
 
     return scheme
 
@@ -394,9 +347,18 @@ class ML_FunctionBasis(object):
     output_stream.write(self.result.get(self.C_code_generator))
     output_stream.close()
 
-  def gen_implementation(self, display_after_gen = False,
-                         display_after_opt = False,
-                         enable_subexpr_sharing = True):
+  def gen_implementation(self, display_after_gen=False,
+                         display_after_opt=False,
+                         enable_subexpr_sharing=True):
+    """ generate implementation 
+
+        Args:
+            display_after_gen enable (bool): I.R dump after generation
+            display_after_opt enable (bool): I.R dump after optimization
+            enable_subexpr_sharing (bool): I.R enable sub-expression sharing
+               optimization 
+
+        """
     # generate scheme
     code_function_list = self.generate_function_list()
     if self.get_vector_size() != 1:
@@ -408,25 +370,17 @@ class ML_FunctionBasis(object):
         scalar_scheme, scalar_arg_list, self.get_vector_size()
       )
 
-
-
-
     for code_function in code_function_list:
       scheme = code_function.get_scheme()
       if display_after_gen:
-        print "function %s, after gen " % code_function.get_name()
-        print scheme.get_str(depth = None, display_precision = True,
-                             memoization_map = {})
+        print("function %s, after gen " % code_function.get_name())
+        print(scheme.get_str(depth = None, display_precision = True,
+                             memoization_map = {}))
 
       # optimize scheme
       opt_scheme = self.optimise_scheme(
         scheme, enable_subexpr_sharing = enable_subexpr_sharing
       )
-
-      if display_after_opt:
-        print "function %s, after opt " % code_function.get_name()
-        print opt_scheme.get_str(depth = None, display_precision = True, memoization_map = {})
-
       # pre-generation optimization
       for pass_tag in self.pre_gen_passes:
         pass_class = Pass.get_pass_by_tag(pass_tag)
@@ -435,6 +389,9 @@ class ML_FunctionBasis(object):
         opt_scheme = pass_object.execute(opt_scheme)
       code_function.set_scheme(opt_scheme)
 
+      if self.display_after_opt or display_after_opt:
+        print("function %s, after opt " % code_function.get_name())
+        print(opt_scheme.get_str(depth = None, display_precision = True, memoization_map = {}, display_id=True))
 
     # generate auto-test wrapper
     if self.auto_test_enable:
@@ -471,8 +428,7 @@ class ML_FunctionBasis(object):
     # finally checking processor support
     if self.check_processor_support:
       for code_function in code_function_list:
-        verbose = True
-        if verbose: print "checking processor support", self.language
+        Log.report(Log.Verbose, "checking processor support {}".format(self.language))
         self.opt_engine.check_processor_support(code_function.get_scheme(), language = self.language)
 
     # generate C code to implement scheme
@@ -503,18 +459,19 @@ class ML_FunctionBasis(object):
       if (self.auto_test_enable or self.execute_trigger) and not build_result:
         test_command = " %s " % self.processor.get_execution_command(test_file)
         if self.auto_test_execute or self.execute_trigger:
-          print "VALIDATION %s " % self.get_name()
-          print test_command
+          Log.report(Log.Info, "VALIDATION {}, cmd: {} ".format(
+            self.get_name(), test_command
+          ))
           test_result = subprocess.call(test_command, shell = True)
           if not test_result:
-            print "VALIDATION SUCCESS"
+            Log.report(Log.Info, "VALIDATION SUCCESS")
           else:
-            print test_result
-            print "VALIDATION FAILURE"
+            Log.report(Log.Info, "VALIDATION FAILURE [{}]".format(test_result))
             sys.exit(1)
         else:
-          print "VALIDATION %s command line:" % self.get_name()
-          print test_command
+          Log.report(Log.Info, "VALIDATION {} command line: {}".format(
+            self.get_name(), test_command
+          ))
       elif build_result:
         Log.report(Log.Error, "build failed: {}".format(build_result))
 
@@ -529,18 +486,15 @@ class ML_FunctionBasis(object):
       {src_file} -o {bench_obj} -lm ".format(compiler = compiler, src_file = self.output_file, bench_obj = bench_obj, options = compiler_options) 
       bench_command += " && {} ".format(self.processor.get_execution_command(bench_obj))
       if self.bench_execute:
-        print "BENCH {}".format(self.get_name)
-        print bench_command
+        Log.report(Log.Info, "BENCH {}, cmd={}".format(self.get_name, bench_command))
         bench_result = subprocess.call(bench_command, shell = True)
         if not bench_result:
-          print "BENCH FINISHED"
+          Log.report(Log.Info, "BENCH FINISHED")
         else:
-          print bench_result
-          print "BENCH FAILURE"
+          Log.report(Log.Error, "BENCH FAILURE [{}]".format(bench_result))
           sys.exit(1)
       else:
-        print "BENCH %s command line:" % self.get_name()
-        print bench_command
+        Log.report(Log.Info, "BENCH {} command line: {}".format(self.get_name(), bench_command))
 
 
   ## externalized an optree: generate a CodeFunction which compute the 
@@ -549,7 +503,9 @@ class ML_FunctionBasis(object):
   # @param arg_list list of ML_Operation objects to be used as arguments
   # @return pair ML_Operation, CodeFunction
   def externalize_call(self, optree, arg_list, tag = "foo", result_format = None, name_factory = None):
-    ext_function = self.call_externalizer.externalize_call(optree, arg_list, tag, result_format)
+    # Call externalizer engine
+    call_externalizer = CallExternalizer(self.get_main_code_object())
+    ext_function = call_externalizer.externalize_call(optree, arg_list, tag, result_format)
     return ext_function.get_function_object()(*arg_list), ext_function
 
 
@@ -558,7 +514,7 @@ class ML_FunctionBasis(object):
   #  to scalar callback when necessary
   def generate_opencl_vector_wrapper(self, vector_size, vec_arg_list, vector_scheme, vector_mask, vec_res, scalar_callback):
     unrolled_cond_allocation = Statement()
-    for i in xrange(vector_size):
+    for i in range(vector_size):
       elt_index = Constant(i)
       vec_elt_arg_tuple = tuple(VectorElementSelection(vec_arg, elt_index, precision = self.precision) for vec_arg in vec_arg_list)
       unrolled_cond_allocation.add(
@@ -596,6 +552,11 @@ class ML_FunctionBasis(object):
   ## Generate a C-compatible wrapper for a vectorized scheme 
   #  @p vector_scheme by testing vector mask element and branching
   #  to scalar callback when necessary
+  #
+  #  @param vector_size number of element in a vector
+  #  @param vector_arg_list
+  #  @param vector_scheme
+  #  @param vector_mask
   def generate_c_vector_wrapper(self, vector_size, vec_arg_list, vector_scheme, vector_mask, vec_res, scalar_callback):
 
     vi = Variable("i", precision = ML_Int32, var_type = Variable.Local)
@@ -657,18 +618,20 @@ class ML_FunctionBasis(object):
 
     callback_name = self.uniquify_name("scalar_callback")
 
-    scalar_callback_function = self.call_externalizer.externalize_call(scalar_scheme, scalar_arg_list, callback_name, self.precision)
+    # Call externalizer engine
+    call_externalizer = CallExternalizer(self.get_main_code_object())
+    scalar_callback_function = call_externalizer.externalize_call(scalar_scheme, scalar_arg_list, callback_name, self.precision)
 
-    print "[SV] optimizing Scalar scheme"
+    print("[SV] optimizing Scalar scheme")
     scalar_scheme = self.optimise_scheme(scalar_scheme)
 
     scalar_callback          = scalar_callback_function.get_function_object()
 
-    print "[SV] vectorizing scheme"
+    print("[SV] vectorizing scheme")
     vec_arg_list, vector_scheme, vector_mask = \
         self.vectorizer.vectorize_scheme(scalar_scheme, scalar_arg_list,
-                                         vector_size, self.call_externalizer,
-                                         self.get_output_precision())
+                                         vector_size, call_externalizer,
+                                         self.get_output_precision(), self.sub_vector_size)
 
     vector_output_format = self.vectorizer.vectorize_format(self.precision,
                                                             vector_size)
@@ -688,7 +651,7 @@ class ML_FunctionBasis(object):
 
     self.get_main_code_object().add_header("support_lib/ml_vector_format.h")
 
-    print "[SV] building vectorized main statement"
+    print("[SV] building vectorized main statement")
     if no_scalar_fallback_required(vector_mask):
       function_scheme = Statement(
         Return(vector_scheme)
@@ -708,7 +671,7 @@ class ML_FunctionBasis(object):
     # dummy scheme to make functionnal code generation
     self.implementation.set_scheme(function_scheme)
 
-    print "[SV] end of generate_function_list"
+    print("[SV] end of generate_function_list")
     return [scalar_callback_function, self.implementation]
 
 
@@ -744,6 +707,7 @@ class ML_FunctionBasis(object):
     high_input = sup(test_range)
     auto_test = CodeFunction("main", output_format = ML_Int32)
 
+
     tested_function    = self.implementation.get_function_object()
     function_name      = self.implementation.get_name()
 
@@ -775,7 +739,7 @@ class ML_FunctionBasis(object):
         dimensions = [test_total], 
         storage_precision = self.get_input_precision(i), 
         tag = self.uniquify_name("input_table_arg%d" % i)
-      ) for i in xrange(self.get_arity())
+      ) for i in range(self.get_arity())
     ]
     ## output values required to check results are stored in output table
     num_output_value = self.accuracy_obj.get_num_output_value()
@@ -790,7 +754,7 @@ class ML_FunctionBasis(object):
       # standard test cases
       for i in range(num_std_case):
         input_list = []
-        for in_id in xrange(self.get_arity()):
+        for in_id in range(self.get_arity()):
           input_value = self.get_input_precision(in_id).round_sollya_object(self.standard_test_cases[i][0], RN)
           input_list.append(input_value)
         test_case_list.append(tuple(input_list))
@@ -799,7 +763,7 @@ class ML_FunctionBasis(object):
     # random test cases
     for i in range(test_num):
       input_list = []
-      for in_id in xrange(self.get_arity()):
+      for in_id in range(self.get_arity()):
         input_value = random.uniform(low_input, high_input)
         input_value = self.precision.round_sollya_object(input_value, RN)
         input_list.append(input_value)
@@ -809,11 +773,11 @@ class ML_FunctionBasis(object):
     # of all inputs
     for table_index, input_tuple in enumerate(test_case_list):
       # storing inputs
-      for in_id in xrange(self.get_arity()):
+      for in_id in range(self.get_arity()):
         input_tables[in_id][table_index] = input_tuple[in_id]
       # computing and storing output values
       output_values = self.accuracy_obj.get_output_check_value(self, input_tuple)
-      for o in xrange(num_output_value):
+      for o in range(num_output_value):
         output_table[table_index][o] = output_values[o]
 
     if self.implementation.get_output_format().is_vector_format():
@@ -842,7 +806,7 @@ class ML_FunctionBasis(object):
       (1, FO_Arg(0)), # error index
       (2 + self.get_arity(), FO_Arg(1 + self.get_arity())) # output
     ] + 
-    [(2 + i, FO_Arg(1 + i)) for i in xrange(self.get_arity())] # arguments
+    [(2 + i, FO_Arg(1 + i)) for i in range(self.get_arity())] # arguments
     )
     printf_op = FunctionOperator("printf", arg_map = printf_arg_mapping, void_function = True) 
     printf_input_function = FunctionObject("printf", [ML_Int32] + self.get_input_precisions() + [self.precision], ML_Void, printf_op)
@@ -865,11 +829,11 @@ class ML_FunctionBasis(object):
         "vec_x_{}".format(i) , 
         precision = vector_format, 
         var_type = Variable.Local
-      ) for i in xrange(self.get_arity())
+      ) for i in range(self.get_arity())
     ]
     for input_index, local_input in enumerate(local_inputs):
       assignation_statement.push(local_input)
-      for k in xrange(self.get_vector_size()):
+      for k in range(self.get_vector_size()):
         elt_assign = ReferenceAssign(VectorElementSelection(local_input, k), TableLoad(input_tables[input_index], vi + k))
         assignation_statement.push(elt_assign)
 
@@ -882,11 +846,11 @@ class ML_FunctionBasis(object):
     printf_input_function = self.get_printf_input_function()
 
     # comparison with expected
-    for k in xrange(self.get_vector_size()):
-      elt_inputs  = [VectorElementSelection(local_inputs[input_id], k) for input_id in xrange(self.get_arity())]
+    for k in range(self.get_vector_size()):
+      elt_inputs  = [VectorElementSelection(local_inputs[input_id], k) for input_id in range(self.get_arity())]
       elt_result = VectorElementSelection(local_result, k)
 
-      output_values = [TableLoad(output_table, vi + k, i) for i in xrange(self.accuracy_obj.get_num_output_value())]
+      output_values = [TableLoad(output_table, vi + k, i) for i in range(self.accuracy_obj.get_num_output_value())]
 
       failure_test = self.accuracy_obj.get_output_check_test(elt_result, output_values)
 
@@ -926,12 +890,12 @@ class ML_FunctionBasis(object):
           "vec_x_{}".format(i) , 
           precision = vector_format, 
           var_type = Variable.Local
-        ) for i in xrange(self.get_arity())
+        ) for i in range(self.get_arity())
       ]
       assignation_statement = Statement()
       for input_index, local_input in enumerate(local_inputs):
         assignation_statement.push(local_input)
-        for k in xrange(self.get_vector_size()):
+        for k in range(self.get_vector_size()):
           elt_assign = ReferenceAssign(VectorElementSelection(local_input, k), TableLoad(input_tables[input_index], vi + k))
           assignation_statement.push(elt_assign)
 
@@ -939,11 +903,11 @@ class ML_FunctionBasis(object):
       local_result = tested_function(*local_inputs)
 
       comp_statement = Statement()
-      for k in xrange(self.get_vector_size()):
-        elt_inputs = [VectorElementSelection(local_inputs[input_id], k) for input_id in xrange(self.get_arity())]
+      for k in range(self.get_vector_size()):
+        elt_inputs = [VectorElementSelection(local_inputs[input_id], k) for input_id in range(self.get_arity())]
         elt_result = VectorElementSelection(local_result, Constant(k, precision = ML_Integer))
 
-        output_values = [TableLoad(output_table, vi + k, i) for i in xrange(self.accuracy_obj.get_num_output_value())]
+        output_values = [TableLoad(output_table, vi + k, i) for i in range(self.accuracy_obj.get_num_output_value())]
 
         local_error = self.accuracy_obj.compute_error(elt_result, output_values, relative = True)
 
@@ -990,9 +954,10 @@ class ML_FunctionBasis(object):
     vi = Variable("i", precision = ML_Int32, var_type = Variable.Local)
     test_num_cst = Constant(test_num, precision = ML_Int32, tag = "test_num")
 
-    local_inputs  = tuple(TableLoad(input_tables[in_id], vi) for in_id in xrange(self.get_arity()))
+
+    local_inputs  = tuple(TableLoad(input_tables[in_id], vi) for in_id in range(self.get_arity()))
     local_result = tested_function(*local_inputs)
-    output_values = [TableLoad(output_table, vi, i) for i in xrange(self.accuracy_obj.get_num_output_value())]
+    output_values = [TableLoad(output_table, vi, i) for i in range(self.accuracy_obj.get_num_output_value())]
 
     failure_test = self.accuracy_obj.get_output_check_test(local_result, output_values)
 
@@ -1000,9 +965,24 @@ class ML_FunctionBasis(object):
 
     printf_error_op = FunctionOperator("printf", arg_map = {0: "\"max %s error is %s \\n \"" % (self.function_name, self.precision.get_display_format()), 1: FO_Arg(0)}, void_function = True) 
     printf_error_function = FunctionObject("printf", [self.precision], ML_Void, printf_error_op)
+    
+    printf_max_op = FunctionOperator("printf", arg_map = {0: "\"max %s error is reached at input number %s \\n \"" % (self.function_name, "%d"), 1: FO_Arg(0)}, void_function = True) 
+    printf_max_function = FunctionObject("printf", [self.precision], ML_Void, printf_max_op)
 
     loop_increment = self.get_vector_size()
-
+    
+    if self.break_error:
+        return_statement_break = Statement(
+            printf_input_function(*((vi,) + local_inputs + (local_result,))), 
+            self.accuracy_obj.get_output_print_call(self.function_name, output_values)
+        )
+    else:
+        return_statement_break = Statement(
+            printf_input_function(*((vi,) + local_inputs + (local_result,))), 
+            self.accuracy_obj.get_output_print_call(self.function_name, output_values),
+            Return(Constant(1, precision = ML_Int32))
+        )
+    
     test_loop = Loop(
       ReferenceAssign(vi, Constant(0, precision = ML_Int32)),
       vi < test_num_cst,
@@ -1010,11 +990,7 @@ class ML_FunctionBasis(object):
         assignation_statement,
         ConditionBlock(
           failure_test,
-          Statement(
-            printf_input_function(*((vi,) + local_inputs + (local_result,))), 
-            self.accuracy_obj.get_output_print_call(self.function_name, output_values),
-            Return(Constant(1, precision = ML_Int32))
-          ),
+          return_statement_break,
         ),
         ReferenceAssign(vi, vi + loop_increment)
       ),
@@ -1024,31 +1000,38 @@ class ML_FunctionBasis(object):
 
     if self.compute_max_error:
       eval_error = Variable("max_error", precision = self.precision, var_type = Variable.Local)
-      local_inputs  = tuple(TableLoad(input_tables[in_id], vi) for in_id in xrange(self.get_arity()))
+      max_input = Variable("max_input", precision = ML_Int32, var_type = Variable.Local)
+      max_result = Variable("max_result", precision = self.precision, var_type = Variable.Local)
+      max_vi = Variable("max_vi", precision = ML_Int32, var_type = Variable.Local)
+      local_inputs  = tuple(TableLoad(input_tables[in_id], vi) for in_id in range(self.get_arity()))
 
       local_result  = tested_function(*local_inputs)
-      stored_values = [TableLoad(output_table, vi, i) for i in xrange(self.accuracy_obj.get_num_output_value())]
-
+      stored_values = [TableLoad(output_table, vi, i) for i in range(self.accuracy_obj.get_num_output_value())]
+      local_error = self.accuracy_obj.compute_error(local_result, stored_values, relative = True)
+      error_comp = Comparison(local_error, eval_error, specifier = Comparison.Greater, precision = ML_Bool)
       error_loop = Loop(
         ReferenceAssign(vi, Constant(0, precision = ML_Int32)),
         vi < test_num_cst,
         Statement(
           assignation_statement,
-          ReferenceAssign(
-            eval_error,
-            Max(
-              self.accuracy_obj.compute_error(local_result, stored_values, relative = True),
-              eval_error,
-              precision = self.precision
-            )
-          ),
+          ConditionBlock(
+            error_comp,
+            Statement(
+              ReferenceAssign(eval_error, local_error),
+              ReferenceAssign(max_input, vi/loop_increment),
+              ReferenceAssign(max_vi, vi),
+              ReferenceAssign(max_result, local_result)              
+            ),
+            Statement()),
           ReferenceAssign(vi, vi + loop_increment)
         ),
       )
       test_statement.add(Statement(
         ReferenceAssign(eval_error, Constant(0, precision = self.precision)),
+        ReferenceAssign(max_input, Constant(0, precision = ML_Int32)),
         error_loop,
-        printf_error_function(eval_error)
+        printf_error_function(eval_error),
+        printf_max_function(max_input),
       ))
 
     # adding functional test_loop to test statement
@@ -1096,14 +1079,14 @@ class ML_FunctionBasis(object):
         storage_precision = self.get_input_precision(i), 
         tag = self.uniquify_name("input_table_arg%d" %i)
       )
-      for i in xrange(self.get_arity())
+      for i in range(self.get_arity())
     ]
     ## (low, high) are store in output table
     output_table = ML_NewTable(dimensions = [test_total], storage_precision = self.precision, tag = self.uniquify_name("output_table"), empty = True)
 
     # random test cases
     for i in range(test_num):
-      for in_id in xrange(self.get_arity()):
+      for in_id in range(self.get_arity()):
         input_value = random.uniform(low_input, high_input)
         input_value = self.precision.round_sollya_object(input_value, RN)
         input_tables[in_id][i] = input_value
@@ -1116,7 +1099,14 @@ class ML_FunctionBasis(object):
       test_loop = self.get_scalar_bench_wrapper(test_num, tested_function, input_tables, output_table)
 
     timer = Variable("timer", precision = ML_Int64, var_type = Variable.Local)
-    printf_timing_op = FunctionOperator("printf", arg_map = {0: "\"%s %%lld elts computed in %%lld cycles => %%.3f CPE \\n\"" % function_name, 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2)}, void_function = True) 
+    printf_timing_op = FunctionOperator(
+        "printf",
+        arg_map = {
+            0: "\"%s %%ld elts computed in %%ld cycles => %%.3f CPE \\n\"" % function_name,
+            1: FO_Arg(0), 2: FO_Arg(1),
+            3: FO_Arg(2)
+        }, void_function = True
+    )
     printf_timing_function = FunctionObject("printf", [ML_Int64, ML_Int64, ML_Binary64], ML_Void, printf_timing_op)
 
     # common test scheme between scalar and vector functions
@@ -1124,7 +1114,7 @@ class ML_FunctionBasis(object):
       ReferenceAssign(timer, self.processor.get_current_timestamp()),
       test_loop,
 
-      ReferenceAssign(timer, 
+      ReferenceAssign(timer,
         Subtraction(
           self.processor.get_current_timestamp(),
           timer,
@@ -1163,11 +1153,11 @@ class ML_FunctionBasis(object):
         "vec_x_{}".format(i) , 
         precision = vector_format, 
         var_type = Variable.Local
-      ) for i in xrange(self.get_arity())
+      ) for i in range(self.get_arity())
     ]
     for input_index, local_input in enumerate(local_inputs):
       assignation_statement.push(local_input)
-      for k in xrange(self.get_vector_size()):
+      for k in range(self.get_vector_size()):
         elt_assign = ReferenceAssign(VectorElementSelection(local_input, k), TableLoad(input_tables[input_index], vi + k))
         assignation_statement.push(elt_assign)
 
@@ -1178,7 +1168,7 @@ class ML_FunctionBasis(object):
     store_statement = Statement()
 
     # comparison with expected
-    for k in xrange(self.get_vector_size()):
+    for k in range(self.get_vector_size()):
       elt_result = VectorElementSelection(local_result, k)
 
       # TODO: change to use aligned linear vector store
@@ -1207,7 +1197,7 @@ class ML_FunctionBasis(object):
     vi = Variable("i", precision = ML_Int32, var_type = Variable.Local)
     test_num_cst = Constant(test_num, precision = ML_Int32, tag = "test_num")
 
-    local_inputs  = tuple(TableLoad(input_tables[in_id], vi) for in_id in xrange(self.get_arity()))
+    local_inputs  = tuple(TableLoad(input_tables[in_id], vi) for in_id in range(self.get_arity()))
     local_result = tested_function(*local_inputs)
 
     loop_increment = 1
@@ -1222,9 +1212,9 @@ class ML_FunctionBasis(object):
     )
     return test_loop
 
-  @staticmethod
+  #@staticmethod
   def get_name():
-    return ML_FunctionBasis.function_name
+    return self.function_name
 
   # list of input to be used for standard test validation
   standard_test_cases = []
@@ -1234,7 +1224,7 @@ class ML_FunctionBasis(object):
 #  child class with specific function_name value
 def ML_Function(name):
   new_class = type(name, (ML_FunctionBasis,), {"function_name": name})
-  new_class.get_name = staticmethod(lambda: name) 
+  new_class.get_name = staticmethod(lambda: name)
   return new_class
 
 # end of Doxygen's ml_function group

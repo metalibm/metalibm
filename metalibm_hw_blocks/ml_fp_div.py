@@ -1,10 +1,38 @@
 # -*- coding: utf-8 -*-
 
+###############################################################################
+# This file is part of metalibm (https://github.com/kalray/metalibm)
+###############################################################################
+# MIT License
+#
+# Copyright (c) 2018 Kalray
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+###############################################################################
+# last-modified:    Mar  7th, 2018
+# Author(s): Nicolas Brunie <nbrunie@kalray.eu>
+###############################################################################
 import sys
 
 import sollya
 
-from sollya import S2, Interval, ceil, floor, round, inf, sup, log, exp, expm1, log2, guessdegree, dirtyinfnorm, RN, RD, cbrt
+from sollya import S2, Interval, ceil, floor, round
 from sollya import parse as sollya_parse
 
 from metalibm_core.core.attributes import ML_Debug
@@ -33,9 +61,20 @@ from metalibm_core.utility.rtl_debug_utils import (
 )
 
 
-## Generate the code for a single step of a newton-Raphson 
+## Generate the code for a single step of a newton-Raphson
 #  iteration
-def generate_NR_iteration(recp_input, previous_approx, (mult_int_size, mult_frac_size), (error_int_size, error_frac_size), (tmp_approx_int_size, tmp_approx_frac_size), (approx_int_size, approx_frac_size), implementation, pipelined = 0, tag_suffix = ""):
+def generate_NR_iteration(
+        recp_input, previous_approx,
+        mult_int_frac_size,
+        error_int_frac_size,
+        tmp_approx_int_frac_size,
+        approx_int_frac_size,
+        implementation, pipelined=0, tag_suffix=""):
+    # unpacking input tuple (python2 / python3 compatibility)
+    (mult_int_size, mult_frac_size) = mult_int_frac_size
+    (error_int_size, error_frac_size) = error_int_frac_size
+    (tmp_approx_int_size, tmp_approx_frac_size) = tmp_approx_int_frac_size
+    (approx_int_size, approx_frac_size) = approx_int_frac_size
     # creating required formats
     it_mult_precision = RTL_FixedPointFormat(
       mult_int_size, mult_frac_size,
@@ -132,7 +171,7 @@ class FP_Divider(ML_Entity("fp_div")):
     io_precision = VirtualFormat(base_format = self.precision, support_format = ML_StdLogicVectorFormat(self.precision.get_bit_size()), get_cst = get_virtual_cst)
 
     # declaring main input variable
-    vx = self.implementation.add_input_signal("x", io_precision) 
+    vx = self.implementation.add_input_signal("x", io_precision)
 
     if self.pipelined:
       self.implementation.add_input_signal("reset", ML_StdLogic)
@@ -146,7 +185,7 @@ class FP_Divider(ML_Entity("fp_div")):
 
     # mantissa extraction
     mant_vx = MantissaExtraction(vx, precision = mant_vx_precision, tag = "mant_vx")
-    # exponent extraction 
+    # exponent extraction
     exp_vx = ExponentExtraction(vx, precision = exp_vx_precision, tag = "exp_vx", debug = debug_dec)
 
     approx_index_size = 8
@@ -161,7 +200,7 @@ class FP_Divider(ML_Entity("fp_div")):
 
     # declaring reciprocal approximation table
     inv_approx_table = ML_NewTable(dimensions = [2**approx_index_size], storage_precision = approx_precision, tag = "inv_approx_table")
-    for i in xrange(2**approx_index_size):
+    for i in range(2**approx_index_size):
       num_input = 1 + i * S2**-approx_index_size
       table_value = io_precision.get_base_format().round_sollya_object(1 / num_input)
       inv_approx_table[i] = table_value
@@ -220,23 +259,26 @@ class FP_Divider(ML_Entity("fp_div")):
     last_it_precision = RTL_FixedPointFormat(
       2,
       p - 1,
-      support_format = ML_StdLogicVectorFormat(2 + p - 1)
+      support_format=ML_StdLogicVectorFormat(2 + p - 1)
     )
 
     pre_last_it_input = zext(mant_vx, 1)
-    last_it_input = TypeCast(pre_last_it_input, precision = last_it_precision, tag = "last_it_input", debug = debug_fixed)
+    last_it_input = TypeCast(
+        pre_last_it_input, precision=last_it_precision,
+        tag="last_it_input", debug=debug_fixed
+    )
 
     final_approx = generate_NR_iteration(
       last_it_input,
       final_approx,
-      # mult-precision 
-      (2, 2 * p - 1),   
+      # mult-precision
+      (2, 2 * p - 1),
       # error precision
-      (- (3 * approx_index_size) / 2, approx_index_size * 2 + p - 1), 
-      # mult approx mult precision 
-      (2, approx_index_size * 2 + p - 1), 
+      (- (3 * approx_index_size) / 2, approx_index_size * 2 + p - 1),
+      # mult approx mult precision
+      (2, approx_index_size * 2 + p - 1),
       # approx precision
-      (2, p), 
+      (2, p),
       self.implementation,
       pipelined = 2 if self.pipelined else 0,
       tag_suffix = "_third"
@@ -473,11 +515,13 @@ class FP_Divider(ML_Entity("fp_div")):
 
 if __name__ == "__main__":
     # auto-test
-    arg_template = ML_EntityArgTemplate(default_entity_name = "new_fp_div", default_output_file = "ml_fp_div.vhd", default_arg = FP_Divider.get_default_args() )
+    arg_template = ML_EntityArgTemplate(
+        default_entity_name="new_fp_div",
+        default_output_file="ml_fp_div.vhd",
+        default_arg=FP_Divider.get_default_args() )
     # extra command line arguments
 
-    arg_template.parser.add_argument("--pipelined", dest = "pipelined", action = "store_const", default = False, const = True, help = "enable operator pipelining")
-    # argument extraction 
+    # argument extraction
     args = parse_arg_index_list = arg_template.arg_extraction()
 
     ml_hw_div      = FP_Divider(args)

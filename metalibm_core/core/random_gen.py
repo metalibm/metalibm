@@ -1,0 +1,352 @@
+# -*- coding: utf-8 -*-
+""" metalibm_core.core.random_gen Random value generation """
+
+###############################################################################
+# This file is part of metalibm (https://github.com/kalray/metalibm)
+###############################################################################
+# MIT License
+#
+# Copyright (c) 2018 Kalray
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+###############################################################################
+
+try:
+    from enum import Enum, unique
+except ImportError:
+    class Enum(object): pass
+
+    def unique(fct):
+        """ Fallback for unique decorator when unique is not defined """
+        return fct
+import random
+
+from sollya import SollyaObject, S2
+
+from metalibm_core.core.special_values import (
+    NumericValue,
+    FP_PlusInfty, FP_MinusInfty, FP_PlusZero, FP_MinusZero,
+    FP_PlusOmega, FP_MinusOmega, FP_QNaN, FP_SNaN
+)
+
+
+import metalibm_core.core.ml_formats as ml_formats
+
+
+def normalize_map(weight_map):
+    """ Ensure that every weight in map is positive and adds up to 1.0.
+        Works inplace
+    """
+    total = 0.0
+    # summing
+    for key in weight_map:
+        weight = weight_map[key]
+        assert weight >= 0
+        total += weight
+    # normalizing
+    normalization_factor = float(total)
+    assert normalization_factor > 0
+    for key in weight_map:
+        weight_map[key] = weight_map[key] / normalization_factor
+    return weight_map
+
+
+class RandomGenWeightCat(object):
+    """ Abstract random number generator using weighted 
+        categories """
+    def __init__(self, category_keys=None, weight_map=None):
+        self.category_keys = category_keys
+        self.weight_map = weight_map
+
+    def get_category_from_weight_index(self, weight_index):
+        """ returns the set category corresponding to weight_index """
+        for category in self.category_keys:
+            weight_index -= self.weight_map[category]
+            if weight_index <= 0.0:
+                return category
+        return self.category_keys[0]
+
+    def get_new_value_by_category(self, category):
+        raise NotImplementedError
+
+    def get_new_value(self):
+        """ Generate a new random value """
+        weight_index = self.random.random()
+        category = self.get_category_from_weight_index(weight_index)
+        return self.get_new_value_by_category(category)
+
+
+class IntRandomGen(RandomGenWeightCat):
+    """ Random generator for integer values (signed and unsigned) """
+    @unique
+    class Category(Enum):
+        """ Integer value categories """
+        MaxValue = 0
+        MinValue = 1
+        ZeroValue = 2
+        HighValue = 3
+        LowValue = 4
+        NearZero = 5
+        Standard = 6
+    def __init__(self, size=32, signed=True, seed=None):
+        """ Initializing Integer random generators """
+        int_weight_map = normalize_map({
+            IntRandomGen.Category.MaxValue: 0.01,
+            IntRandomGen.Category.MinValue: 0.01,
+            IntRandomGen.Category.ZeroValue: 0.01,
+            IntRandomGen.Category.HighValue: 0.07,
+            IntRandomGen.Category.LowValue: 0.07,
+            IntRandomGen.Category.NearZero: 0.07,
+            IntRandomGen.Category.Standard: 0.76,
+        })
+        category_keys = int_weight_map.keys()
+        RandomGenWeightCat.__init__(
+            self,
+            category_keys=category_keys,
+            weight_map=int_weight_map, 
+        )
+        self.signed = signed
+        self.size = size
+        self.random = random.Random(seed)
+        # subrange for fuzzing value around specific values
+        self.highlow_range = 2**(self.size / 5)
+
+    def gen_max_value(self):
+        """ generate the maximal format value """
+        power = self.size - (1 if self.signed else 0)
+        return S2**power - 1
+    def gen_min_value(self):
+        """ generate the minimal format value """
+        if self.signed:
+            return -S2**(self.size - 1)
+        else:
+            return self.gen_zero_value()
+    def gen_zero_value(self):
+        """ generate zero value """
+        return 0
+    def gen_high_value(self):
+        """ generate near maximal value """
+        return self.gen_max_value() - self.random.randrange(self.highlow_range)
+    def gen_low_value(self):
+        """ generate new minimal value """
+        return self.gen_min_value() + self.random.randrange(self.highlow_range)
+
+    def gen_near_zero(self):
+        """ generate near zero value """
+        if self.signed:
+            start_value = self.gen_zero_value() - self.highlow_range
+            random_offset = self.random.randrange(self.highlow_range * 2)
+            return start_value + random_offset
+        else:
+            return self.gen_low_value()
+    def gen_standard_value(self):
+        """ generate value arbitrarily in the whole format range """
+        return self.random.randrange(self.gen_min_value(), self.gen_max_value() + 1)
+
+    def get_new_value_by_category(self, category):
+        """ generate a new value within the given category """
+        gen_map = {
+            IntRandomGen.Category.MaxValue: self.gen_max_value,
+            IntRandomGen.Category.MinValue: self.gen_min_value,
+            IntRandomGen.Category.ZeroValue: self.gen_zero_value,
+            IntRandomGen.Category.HighValue: self.gen_high_value,
+            IntRandomGen.Category.LowValue: self.gen_low_value,
+            IntRandomGen.Category.NearZero: self.gen_near_zero,
+            IntRandomGen.Category.Standard: self.gen_standard_value,
+        }
+        gen_func = gen_map[category]
+        return gen_func()
+
+
+class FixedPointRandomGen(IntRandomGen):
+    def __init__(self, int_size=1, frac_size=31, signed=True, seed=None):
+        """ Initializing Integer random generators """
+        int_weight_map = normalize_map({
+            IntRandomGen.Category.MaxValue: 0.01,
+            IntRandomGen.Category.MinValue: 0.01,
+            IntRandomGen.Category.ZeroValue: 0.01,
+            IntRandomGen.Category.HighValue: 0.07,
+            IntRandomGen.Category.LowValue: 0.07,
+            IntRandomGen.Category.NearZero: 0.07,
+            IntRandomGen.Category.Standard: 0.76,
+        })
+        category_keys = int_weight_map.keys()
+        RandomGenWeightCat.__init__(
+            self,
+            category_keys=category_keys,
+            weight_map=int_weight_map, 
+        )
+        self.signed = signed
+        self.int_size = int_size
+        self.frac_size = frac_size
+        self.size = int_size + frac_size
+        self.random = random.Random(seed)
+        # subrange for fuzzing value around specific values
+        self.highlow_range = 2**(self.size / 5)
+
+    def scale(self, value):
+        return value * S2**-self.frac_size
+
+    def gen_max_value(self, scale=True):
+        """ generate the maximal format value """
+        scale_func = (lambda x: self.scale(x)) if scale else (lambda x: x)
+        power = self.size - (1 if self.signed else 0)
+        return scale_func(S2**power - 1) 
+    def gen_min_value(self, scale=True):
+        """ generate the minimal format value """
+        scale_func = (lambda x: self.scale(x)) if scale else (lambda x: x)
+        if self.signed:
+            return scale_func(-S2**(self.size - 1))
+        else:
+            return scale_func(self.gen_zero_value())
+    def gen_zero_value(self):
+        """ generate zero value """
+        return 0
+    def gen_high_value(self):
+        """ generate near maximal value """
+        return self.scale(self.gen_max_value(scale=False) - self.random.randrange(self.highlow_range))
+    def gen_low_value(self):
+        """ generate new minimal value """
+        return self.scale(self.gen_min_value(scale=False) + self.random.randrange(self.highlow_range))
+
+    def gen_near_zero(self):
+        """ generate near zero value """
+        if self.signed:
+            start_value = self.gen_zero_value() - self.highlow_range
+            random_offset = self.random.randrange(self.highlow_range * 2)
+            return self.scale(start_value + random_offset)
+        else:
+            return self.scale(self.gen_low_value())
+    def gen_standard_value(self):
+        """ generate value arbitrarily in the whole format range """
+        return self.scale(
+            self.random.randrange(
+                self.gen_min_value(scale=False),
+                self.gen_max_value(scale=False) + 1
+            )
+        )
+
+
+class FPRandomGen(RandomGenWeightCat):
+    """ Random generator for floating-point numbers """
+    @unique # pylint: disable=too-few-public-methods
+    class Category(Enum):
+        """ Value set category """
+        ##  Special value category
+        SpecialValues = 0
+        ## Subnormal numbers category
+        Subnormal = 1
+        ## Normal numbers category
+        Normal = 2
+
+    special_value_ctor = [
+        FP_PlusInfty, FP_MinusInfty,
+        FP_PlusZero, FP_MinusZero,
+        FP_PlusOmega, FP_MinusOmega,
+        FP_QNaN, FP_SNaN
+    ]
+    def __init__(self, precision, weight_map=None, seed=None, generation_map=None):
+        """
+            Args:
+                precision (ML_Format): floating-point format
+                weight_map (dict): map category -> weigth
+
+        """
+        self.precision = precision
+
+        weight_map = normalize_map({
+            FPRandomGen.Category.SpecialValues: 0.1,
+            FPRandomGen.Category.Subnormal: 0.2,
+            FPRandomGen.Category.Normal: 0.7,
+
+        } if weight_map is None else weight_map)
+        category_keys = weight_map.keys()
+        RandomGenWeightCat.__init__(
+            self,
+            weight_map=weight_map, 
+            category_keys = category_keys
+        )
+        self.generation_map = {
+            FPRandomGen.Category.SpecialValues: self.generate_special_value,
+            FPRandomGen.Category.Normal: self.generate_normal_number,
+            FPRandomGen.Category.Subnormal: self.generate_subnormal_number
+        }
+        self.generation_map.update(generation_map or {})
+
+        self.random = random.Random(seed)
+        self.sp_list = self.get_special_value_list()
+
+
+    def get_special_value_list(self):
+        """ Returns a list a special values in the generator precision """
+        return  [
+            sp_class(self.precision) for sp_class in
+            FPRandomGen.special_value_ctor
+        ]
+
+    def generate_special_value(self):
+        """ Generate a single special value """
+        sp_index = self.random.randrange(len(self.sp_list))
+        return self.sp_list[sp_index]
+
+    def generate_sign(self):
+        """ Generate a random sign value {-1.0, 1.0} """
+        return SollyaObject(-1.0) if self.random.randrange(2) == 1 else \
+               SollyaObject(1.0)
+
+    def generate_normal_number(self):
+        """ Generate a single value in the normal range """
+        field_size = self.precision.get_field_size()
+        exp = self.random.randrange(
+            self.precision.get_emin_normal(),
+            self.precision.get_emax() + 1
+        )
+        sign = self.generate_sign()
+        field = self.random.randrange(2**field_size)
+        mantissa = 1.0 + field * S2**-self.precision.get_field_size()
+        return NumericValue(mantissa * sign * S2**exp)
+
+    def generate_subnormal_number(self):
+        """ Generate a single subnormal value """
+        field_size = self.precision.get_field_size()
+        # a subnormal has the same exponent as the minimal normal
+        # but without implicit 1.0 digit
+        exp = self.precision.get_emin_normal()
+        sign = self.generate_sign()
+        field = self.random.randrange(2**field_size)
+        mantissa = 0.0 + field * S2**-self.precision.get_field_size()
+        return NumericValue(mantissa * sign * S2**exp)
+
+    def get_new_value_by_category(self, category):
+        """ generate a new value from the given category """
+        gen_func = self.generation_map[category]
+        return gen_func()
+
+
+
+# auto-test
+if __name__ == "__main__":
+    RG = FPRandomGen(ml_formats.ML_Binary32)
+    for i in range(20):
+        value = RG.get_new_value()
+        print value
+    RG = FPRandomGen(ml_formats.ML_Binary64)
+    for i in range(20):
+        value = RG.get_new_value()
+        print value

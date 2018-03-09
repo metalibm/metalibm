@@ -1,18 +1,39 @@
 # -*- coding: utf-8 -*-
 
 ###############################################################################
-# This file is part of Kalray's Metalibm tool
-# Copyright (2013)
-# All rights reserved
+# This file is part of metalibm (https://github.com/kalray/metalibm)
+###############################################################################
+# MIT License
+#
+# Copyright (c) 2018 Kalray
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+###############################################################################
 # created:          Apr  7th, 2014
-# last-modified:    Apr  7th, 2014
+# last-modified:    Mar  7th, 2018
 #
 # author(s): Nicolas Brunie (nicolas.brunie@kalray.eu)
 ###############################################################################
 
-import commands
 import re
 import subprocess
+import sys
 
 import sollya
 
@@ -33,7 +54,14 @@ def execute_gappa_script_extract(gappa_code, gappa_filename = "gappa_tmp.g"):
     gappa_stream = open(gappa_filename, "w")
     gappa_stream.write(gappa_code)
     gappa_stream.close()
-    gappa_result = commands.getoutput("gappa %s" % gappa_filename)
+    gappa_cmd = "gappa {}".format(gappa_filename)
+    cmd_result = subprocess.check_output(gappa_cmd, stderr=subprocess.STDOUT, shell=True)
+    if sys.version_info >= (3, 0):
+        gappa_result = str(cmd_result, 'utf-8')
+    else:
+        gappa_result = str(cmd_result)
+    print("gappa_result: ")
+    print(gappa_result)
     start_result_index = gappa_result.index("Results")
     for result_line in gappa_result[start_result_index:].splitlines()[1:]:
         if not " in " in result_line: continue
@@ -42,7 +70,7 @@ def execute_gappa_script_extract(gappa_code, gappa_filename = "gappa_tmp.g"):
         interval_value = result_split[1].replace(" ", "")
         result[var] = parse_gappa_interval(interval_value)
     return result
-    
+
 
 ## Check if gappa binary is available in the execution environement
 def is_gappa_installed():

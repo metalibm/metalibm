@@ -4,28 +4,59 @@
 #  Metalibm Description Language basic Operation 
 
 ###############################################################################
-# This file is part of Kalray's Metalibm tool
-# Copyright (2013)
-# All rights reserved
+# This file is part of metalibm (https://github.com/kalray/metalibm)
+###############################################################################
+# MIT License
+#
+# Copyright (c) 2018 Kalray
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+###############################################################################
+
+###############################################################################
 # created:          Dec 23rd, 2013
-# last-modified:    Mar 20th, 2014
+# last-modified:    Mar  7th, 2018
 #
 # author(s): Nicolas Brunie (nicolas.brunie@kalray.eu)
 ###############################################################################
 
 
 import sys, inspect
+import operator
 
-from sollya import Interval, SollyaObject, nearestint, floor, ceil
+from sollya import Interval, SollyaObject, nearestint, floor, ceil, inf, sup
 import sollya
 
 from ..utility.log_report import Log
 from .attributes import Attributes, attr_init
 from .ml_formats import * # FP_SpecialValue, ML_FloatingPointException, ML_FloatingPoint_RoundingMode, ML_FPRM_Type, ML_FPE_Type
 
+from metalibm_core.utility.decorator import safe
+
 ## \defgroup ml_operations ml_operations
 #  @{
 
+
+def empty_range(*args):
+    """ empty live-range function: whichever the arguments
+        always return None """
+    return None
 
 ## merge abstract format function
 #  @return most generic abstract format to unify args formats 
@@ -69,7 +100,7 @@ def implicit_op(op):
     elif isinstance(op , str):
         return Constant(op, precision = ML_String)
     else:
-        print "ERROR: unsupported operand in implicit_op conversion ", op, op.__class__
+        print("ERROR: unsupported operand in implicit_op conversion ", op, op.__class__)
         raise Exception()
 
 
@@ -105,7 +136,8 @@ class AbstractOperation(ML_Operation):
     ## apply the @p self. bare_range_function to a tuple
     #  of intervals
     def apply_bare_range_function(self, intervals):
-        return self.bare_range_function(*intervals)
+        func = self.bare_range_function
+        return func(intervals)
 
 
     ## Operator for boolean negation of operands 
@@ -168,9 +200,15 @@ class AbstractOperation(ML_Operation):
     def __div__(self, op):
         """ implicit division operation between AbstractOperation """
         return Division(self, implicit_op(op))
+    def __truediv__(self, op):
+        """ implicit division operation between AbstractOperation """
+        return Division(self, implicit_op(op))
         
     ## 2-Operand implicit commuted division operator
     def __rdiv__(self, op):
+        """ implicit reflexive division operation between AbstractOperation """
+        return Division(implicit_op(op), self)
+    def __rtruediv__(self, op):
         """ implicit reflexive division operation between AbstractOperation """
         return Division(implicit_op(op), self)
         
@@ -384,7 +422,8 @@ class AbstractOperation(ML_Operation):
     def get_str(
             self, depth = 2, display_precision = False, 
             tab_level = 0, memoization_map = None, 
-            display_attribute = False, display_id = False
+            display_attribute = False, display_id = False,
+            custom_callback = lambda op: "",
         ):
         memoization_map = {} if memoization_map is None else memoization_map
         new_depth = None 
@@ -393,7 +432,7 @@ class AbstractOperation(ML_Operation):
                 return "" 
         new_depth = (depth - 1) if depth != None else None
             
-        tab_str = AbstractOperation.str_del * tab_level
+        tab_str = AbstractOperation.str_del * tab_level + custom_callback(self)
         silent_str = "[S]" if self.get_silent() else ""
         dbg_str = "[DBG]" if self.get_debug() else ""
         id_str     = ("[id=%x]" % id(self)) if display_id else ""
@@ -404,11 +443,11 @@ class AbstractOperation(ML_Operation):
         if self.arity == 1:
             precision_str = "" if not display_precision else "[%s]" % str(self.get_precision())
             memoization_map[self] = str_tag
-            return tab_str + "%s%s%s%s%s%s -------> %s\n%s" % (self.get_name(), precision_str, dbg_str, silent_str, id_str, attribute_str, str_tag, "".join(inp.get_str(new_depth, display_precision, tab_level = tab_level + 1, memoization_map = memoization_map, display_attribute = display_attribute, display_id = display_id) for inp in self.inputs))
+            return tab_str + "%s%s%s%s%s%s -------> %s\n%s" % (self.get_name(), precision_str, dbg_str, silent_str, id_str, attribute_str, str_tag, "".join(inp.get_str(new_depth, display_precision, tab_level = tab_level + 1, memoization_map = memoization_map, display_attribute = display_attribute, display_id = display_id, custom_callback = custom_callback) for inp in self.inputs))
         else:
             memoization_map[self] = str_tag
             precision_str = "" if not display_precision else "[%s]" % str(self.get_precision())
-            return tab_str + "%s%s%s%s%s%s ------> %s\n%s" % (self.get_name(), precision_str, dbg_str, silent_str, id_str, attribute_str, str_tag, "".join(inp.get_str(new_depth, display_precision, tab_level = tab_level + 1, memoization_map = memoization_map, display_attribute = display_attribute, display_id = display_id) for inp in self.inputs))
+            return tab_str + "%s%s%s%s%s%s ------> %s\n%s" % (self.get_name(), precision_str, dbg_str, silent_str, id_str, attribute_str, str_tag, "".join(inp.get_str(new_depth, display_precision, tab_level = tab_level + 1, memoization_map = memoization_map, display_attribute = display_attribute, display_id = display_id, custom_callback = custom_callback) for inp in self.inputs))
 
 
     ## virtual function, called after a node's copy
@@ -421,8 +460,8 @@ class AbstractOperation(ML_Operation):
     #  @param copy_map dictionnary of previously built copy, if a node is found within this table, table's value is returned as copy result
     #  @return node's copy (newly generated or memoized)
     def copy(self, copy_map = {}):
-        print "Error: copy not implemented"
-        print self, self.__class__
+        print("Error: copy not implemented")
+        print(self, self.__class__)
         raise NotImplementedError
 
     ## propagate given precision
@@ -456,6 +495,30 @@ class ML_ArithmeticOperation(AbstractOperation):
 class ML_LeafNode(AbstractOperation): 
     pass
 
+def is_interval_compatible_object(value):
+    """ predicate testing if value is an object from
+        a numerical class compatible with sollya.Interval
+        constructor
+
+        Args:
+            value (object): object to be tested
+        Return
+            boolean: True if object is compatible with Interval, False otherwise
+    """
+    if not(isinstance(value, bool)) and isinstance(value, int):
+        return True
+    elif isinstance(value, float):
+        return True
+    elif isinstance(value, SollyaObject):
+        # TODO: very permissive
+        return True
+    else:
+        return False
+
+def is_leaf_node(node):
+    """ Test if node is a leaf one (with no input) """
+    return isinstance(node, ML_LeafNode)
+
 ## Constant node class
 class Constant(ML_LeafNode):
     ## Initializer
@@ -466,7 +529,9 @@ class Constant(ML_LeafNode):
         AbstractOperation.__init__(self, **init_map)
         self.value = value
         # attribute fields initialization
-        if isinstance(value, int) or isinstance(value, float) or isinstance(value, SollyaObject):
+        # Gitlab's Issue#16 as bool is a sub-class of int, it must be excluded
+        # explicitly
+        if is_interval_compatible_object(value):
             self.attributes.set_interval(Interval(value))
 
 
@@ -480,13 +545,14 @@ class Constant(ML_LeafNode):
     def get_str(
             self, depth = None, display_precision = False, 
             tab_level = 0, memoization_map = None, 
-            display_attribute = False, display_id = False
+            display_attribute = False, display_id = False,
+            custom_callback = lambda op: "",
         ):
         memoization_map = {} if memoization_map is None else memoization_map
         precision_str = "" if not display_precision else "[%s]" % str(self.get_precision())
         attribute_str = "" if not display_attribute else self.attributes.get_str(tab_level = tab_level)
         id_str        = ("[id=%x]" % id(self)) if display_id else ""
-        return AbstractOperation.str_del * tab_level + "Cst(%s)%s%s%s\n" % (self.value, attribute_str, precision_str, id_str)
+        return AbstractOperation.str_del * tab_level + custom_callback(self) + "Cst(%s)%s%s%s\n" % (self.value, attribute_str, precision_str, id_str)
 
 
     def copy(self, copy_map = {}):
@@ -498,6 +564,12 @@ class Constant(ML_LeafNode):
         new_copy.attributes = self.attributes.get_copy()
         copy_map[self] = new_copy
         return new_copy
+
+    def get_codegen_key(self):
+        return None
+    ## return empty input list
+    def get_inputs(self):
+        return []
 
 
 ## class for Variable node, which contains a temporary state of the operation DAG
@@ -520,6 +592,7 @@ class AbstractVariable(ML_LeafNode):
     #  @param init_map standard ML_Operation attribute dictionnary initialization 
     def __init__(self, tag, **init_map):
         AbstractOperation.__init__(self, **init_map)
+        assert not tag is None
         self.attributes.set_tag(tag)
         # used to distinguish between input variables (without self.inputs) 
         # and intermediary variables 
@@ -532,14 +605,15 @@ class AbstractVariable(ML_LeafNode):
     ## generate string description of the Variable node
     def get_str(
             self, depth = None, display_precision = False, tab_level = 0, 
-            memoization_map = None, display_attribute = False, display_id = False
+            memoization_map = None, display_attribute = False, display_id = False,
+            custom_callback = lambda op: ""
         ):
         memoization_map = {} if memoization_map is None else memoization_map
 
         precision_str = "" if not display_precision else "[%s]" % str(self.get_precision())
         attribute_str = "" if not display_attribute else self.attributes.get_str(tab_level = tab_level)
         id_str        = ("[id=%x]" % id(self)) if display_id else ""
-        return AbstractOperation.str_del * tab_level + "Var(%s)%s%s%s\n" % (self.get_tag(), precision_str, attribute_str, id_str)
+        return AbstractOperation.str_del * tab_level + custom_callback(self) + "Var(%s)%s%s%s\n" % (self.get_tag(), precision_str, attribute_str, id_str)
 
 
     def copy(self, copy_map = {}):
@@ -571,12 +645,14 @@ def AbstractOperation_init(self, *ops, **init_map):
   if self.get_interval() == None:
       self.set_interval(self.range_function(self.inputs))
 
-def AbstractOperation_copy(self, copy_map = {}):
+def AbstractOperation_copy(self, copy_map = None):
   """ base function to copy an abstract operation object,
       copy_map is a memoization hashtable which can be use to factorize
       copies """
+  copy_map = {} if copy_map is None else copy_map
   # test for previous definition in memoization map
-  if self in copy_map: return copy_map[self]
+  if self in copy_map:
+    return copy_map[self]
   # else define a new and free copy
   new_copy = self.__class__(*tuple(op.copy(copy_map) for op in self.inputs), __copy = True)
   new_copy.attributes = self.attributes.get_copy()
@@ -625,7 +701,7 @@ def AbstractOperation_get_codegen_key(self):
 
 
 
-def GeneralOperationConstructor(name, arity = 2, range_function = None, error_function = None, inheritance = [], base_class = AbstractOperation):
+def GeneralOperationConstructor(name, arity = 2, range_function = empty_range, error_function = None, inheritance = [], base_class = AbstractOperation):
     """ meta-class constructor for abstract operation """
     field_map = {
         # operation initialization function assignation
@@ -648,11 +724,12 @@ def GeneralOperationConstructor(name, arity = 2, range_function = None, error_fu
     return type(name, (base_class,) + tuple(inheritance), field_map)
 
 
-def AbstractOperationConstructor(name, arity = 2, range_function = None, error_function = None, inheritance = []):
+def AbstractOperationConstructor(name, arity = 2, range_function = empty_range, error_function = None, inheritance = []):
     return GeneralOperationConstructor(name, arity = arity, range_function = range_function, error_function = error_function, inheritance = inheritance, base_class = AbstractOperation)
 
 
-def ArithmeticOperationConstructor(name, arity = 2, range_function = None, error_function = None, inheritance = []):
+
+def ArithmeticOperationConstructor(name, arity = 2, range_function = empty_range, error_function = None, inheritance = []):
     return GeneralOperationConstructor(name, arity = arity, range_function = range_function, error_function = error_function, inheritance = inheritance, base_class = ML_ArithmeticOperation)
 
 
@@ -688,19 +765,20 @@ class BitLogicLeftShift(ArithmeticOperationConstructor("BitLogicLeftShift", arit
 ## Absolute value operation
 #  Expects a single argument and returns
 #  its absolute value
-class Abs(ArithmeticOperationConstructor("Abs", range_function = lambda self, ops: abs(ops[0]))):
+class Abs(ArithmeticOperationConstructor("Abs", range_function = lambda self, ops: safe(abs)(ops[0]))):
     """ abstract absolute value operation """
     pass
 
 ## Unary negation value operation
 #  Expects a single argument and returns
 #  its opposite value
-class Negation(ArithmeticOperationConstructor("Negation", range_function = lambda self, ops: - ops[0])): 
+class Negation(ArithmeticOperationConstructor("Negation", range_function = lambda self, ops: safe(operator.__neg__)(ops[0]))): 
     """ abstract negation """
     pass
 
+
 ## 2-Operand arithmetic addition
-class Addition(ArithmeticOperationConstructor("Addition", range_function = lambda self, ops: ops[0] + ops[1])): 
+class Addition(ArithmeticOperationConstructor("Addition", range_function = lambda self, ops: safe(operator.__add__)(ops[0], ops[1]))): 
     """ abstract addition """
     pass
 
@@ -710,7 +788,7 @@ class SpecifierOperation(object):
         """ return code generation specific key """
         return self.specifier
 
-class ComponentSelectionSpecifier: pass
+class ComponentSelectionSpecifier(object): pass
 
 class Split(ArithmeticOperationConstructor("Split", arity = 1)):
     pass
@@ -743,7 +821,7 @@ class FMASpecifier(object):
     """ Common parent to all Test specifiers """
     pass
 
-def FMASpecifier_Builder(name, arity, range_function = None): 
+def FMASpecifier_Builder(name, arity, range_function = empty_range): 
     """ Test Specifier constructor """
     return type(name, (FMASpecifier,), {"arity": arity, "name": name, "range_function": staticmethod(range_function)})
 
@@ -783,7 +861,7 @@ class FusedMultiplyAdd(ArithmeticOperationConstructor("FusedMultiplyAdd", inheri
     class DotProductNegate(FMASpecifier_Builder("DotProductNegate", 4, lambda _self, ops: ops[0] * ops[1] - ops[2] * ops[3])):
         """ op0 * op1 - op2 * op3 """
         pass
-        
+
     def __init__(self, *args, **kwords):
         self.specifier = attr_init(kwords, "specifier", FusedMultiplyAdd.Standard)
         # indicates wheter a base operation commutation has been processed
@@ -823,29 +901,35 @@ def FMSN(op0, op1, op2, **kwords):
     return FusedMultiplyAdd(op0, op1, op2, **kwords)
 
 
-
-class Subtraction(ArithmeticOperationConstructor("Subtraction", range_function = lambda self, ops: ops[0] - ops[1])): 
+class Subtraction(ArithmeticOperationConstructor("Subtraction", range_function = lambda self, ops: safe(operator.__sub__)(ops[0], ops[1]))): 
     """ abstract addition """
     pass
 
 
-class Multiplication(ArithmeticOperationConstructor("Multiplication", range_function = lambda self, ops: ops[0] * ops[1])): 
+class Multiplication(ArithmeticOperationConstructor("Multiplication", range_function = lambda self, ops: safe(operator.__mul__)(ops[0], ops[1]))): 
     """ abstract addition """
     pass
 
 
-class Division(ArithmeticOperationConstructor("Division", range_function = lambda self, ops: ops[0] / ops[1])): 
+class Division(ArithmeticOperationConstructor("Division", range_function = lambda self, ops: safe(operator.__div__)(ops[0], ops[1]))): 
     """ abstract addition """
     pass
 
+class Extract(ArithmeticOperationConstructor("Extract")):
+    """ abstract word or vector extract-from-vector operation """
+    pass
 
-class Modulo(ArithmeticOperationConstructor("Modulo", range_function = lambda self, ops: ops[0] % ops[1])):
+class Modulo(ArithmeticOperationConstructor("Modulo", range_function = lambda self, ops: safe(operator.__mod__)(ops[0], ops[1]))):
     """ abstract modulo operation """
     pass
 
 
-class NearestInteger(ArithmeticOperationConstructor("NearestInteger", arity = 1, range_function = lambda self, ops: nearestint(ops[0]))): 
+class NearestInteger(ArithmeticOperationConstructor("NearestInteger", arity = 1, range_function = lambda self, ops: safe(nearestint)(ops[0]))): 
     """ abstract addition """
+    pass
+
+class Permute(ArithmeticOperationConstructor("Permute")):
+    """ abstract word-permutations inside a vector operation """
     pass
 
 class FastReciprocal(ArithmeticOperationConstructor(
@@ -860,14 +944,16 @@ class Ceil(ML_ArithmeticOperation):
   """ Round to integer upward """
   arity = 1
   name = "Ceil"
-  range_function = interval_func(lambda self, ops: ops[0])
+  range_function = interval_func(lambda self, ops: safe(sollya.ceil)(ops[0]))
+  bare_range_function = lambda self, ops: safe(sollya.ceil)(ops[0])
 
 ## Round to an integer value, rounding towards zero
 class Trunc(ML_ArithmeticOperation):
   """ Round to integer towards zero """
   arity = 1
   name = "Trunc"
-  range_function = interval_func(lambda self, ops: sollya.trunc(ops[0]))
+  range_function = interval_func(lambda self, ops: None)#safe(sollya.trunc)(ops[0]))
+  bare_range_function = lambda self, ops: None
 
 ## Round to an integer value, rounding towards zero
 #  returns the maximal integer less than or equal to the node's input
@@ -875,11 +961,12 @@ class Floor(ML_ArithmeticOperation):
   """ Round to integer downward """
   arity = 1
   name = "Floor"
-  range_function = interval_func(lambda self, ops: sollya.floor(ops[0]))
+  range_function = interval_func(lambda self, ops: safe(sollya.floor)(ops[0]))
+  bare_range_function = lambda self, ops: safe(sollya.floor)(ops[0])
 
 
 ## Compute the power of 2 of its unique operand
-class PowerOf2(ArithmeticOperationConstructor("PowerOf2", arity = 1, range_function = lambda self, ops: S2**ops[0])):
+class PowerOf2(ArithmeticOperationConstructor("PowerOf2", arity = 1, range_function = lambda self, ops: safe(operator.__pow__)(S2, ops[0]))):
     """ abstract power of 2 operation """
     pass
 
@@ -893,7 +980,7 @@ class Return(AbstractOperationConstructor("Return", arity = 1, range_function = 
 ## Memory Load from a Multi-Dimensional 
 #  The first argument is the table, following arguments
 #  are the table index in each dimension (from 1 to ...)
-class TableLoad(ArithmeticOperationConstructor("TableLoad", arity = 2, range_function = lambda self, ops: None)):
+class TableLoad(ArithmeticOperationConstructor("TableLoad", arity = 2, range_function = lambda self, ops: ops[0])):
     """ abstract load from a table operation """
     pass
 
@@ -907,6 +994,24 @@ class TableStore(ArithmeticOperationConstructor("TableStore", arity = 3, range_f
     """ abstract store to a table operation """
     pass
 
+class VectorUnpack(ArithmeticOperationConstructor("VectorUnpack",
+                   inheritance = [SpecifierOperation])):
+    """ abstract vector unpacking operation """
+    # High and Low specifiers for Unpack operation
+    class Hi(object): name = 'Hi'
+    class Lo(object): name = 'Lo'
+
+    def __init__(self, *args, **kwords):
+        self.specifier = attr_init(kwords, "specifier", VectorUnpack.Lo)
+        super(VectorUnpack, self).__init__(*args, **kwords)
+
+    def get_name(self):
+        return  "VectorUnpack.{}".format(self.specifier.name)
+
+    def get_codegen_key(self):
+        return self.specifier
+
+
 ## Compute the union of two intervals
 def interval_union(int0, int1):
     return Interval(min(inf(int0), inf(int1)), max(sup(int0), sup(int1)))
@@ -914,17 +1019,25 @@ def interval_union(int0, int1):
 ## Ternary selection operator: the first operand is a condition
 #  when True the node returns the 2nd operand else its returns the
 #  3rd operand
-class Select(ArithmeticOperationConstructor("Select", arity = 3, range_function = lambda self, ops: interval_union(ops[1], ops[2]))):
+class Select(ArithmeticOperationConstructor("Select", arity = 3, range_function = lambda self, ops: safe(interval_union)(ops[1], ops[2]))):
     pass
 
 
 ## Computes the maximum of its 2 operands
-def Max(op0, op1, **kwords):
-    return Select(Comparison(op0, op1, specifier = Comparison.Greater), op0, op1, **kwords)
+#def Max(op0, op1, **kwords):
+#    return Select(Comparison(op0, op1, specifier = Comparison.Greater), op0, op1, **kwords)
+
+def min_interval(a, b):
+    return Interval(min(inf(a), inf(b)), min(sup(a), sup(b)))
+def max_interval(a, b):
+    return Interval(max(inf(a), inf(b)), max(sup(a), sup(b)))
+
+class Min(ArithmeticOperationConstructor("Min", arity = 2, range_function = lambda self, ops: min_interval(ops[0], ops[1]))): pass
+class Max(ArithmeticOperationConstructor("Max", arity = 2, range_function = lambda self, ops: max_interval(ops[0], ops[1]))): pass
 
 ## Computes the minimum of its 2 operands
-def Min(op0, op1, **kwords):
-    return Select(Comparison(op0, op1, specifier = Comparison.Less), op0, op1, **kwords)
+# def Min(op0, op1, **kwords):
+#    return Select(Comparison(op0, op1, specifier = Comparison.Less), op0, op1, **kwords)
 
 ## Control-flow loop construction
 #  1st operand is a loop initialization block
@@ -1139,7 +1252,7 @@ def CompSpecBuilder(name, opcode, symbol):
     return type(name, (ComparisonSpecifier,), field_map)
   
 
-## Comparision operator
+## Comparison operator
 class Comparison(ArithmeticOperationConstructor("Comparison", arity = 2, inheritance = [BooleanOperation, SpecifierOperation])):
     """ Abstract Comparison operation """
     Equal          = CompSpecBuilder("Equal", "eq", "==")
@@ -1406,7 +1519,7 @@ class FunctionCall(AbstractOperationConstructor("FunctionCall")):
     @staticmethod
     def propagate_format_to_cst(optree):
         """ propagate new_optree_format to Constant operand of <optree> with abstract precision """
-        index_list = xrange(len(optree.inputs)) 
+        index_list = range(len(optree.inputs)) 
         for index in index_list:
             inp = optree.inputs[index]
             new_optree_format = optree.get_function_object().get_arg_precision(index)
@@ -1462,7 +1575,8 @@ class SwitchBlock(AbstractOperationConstructor("Switch", arity = 1)):
     def get_str(
             self, depth = 2, display_precision = False, 
             tab_level = 0, memoization_map = None,
-            display_attribute = False, display_id = False
+            display_attribute = False, display_id = False,
+            custom_callback = lambda optree: ""
         ):
         """ string conversion for operation graph 
             depth:                  number of level to be crossed (None: infty)
@@ -1475,7 +1589,7 @@ class SwitchBlock(AbstractOperationConstructor("Switch", arity = 1)):
                 return "" 
         new_depth = (depth - 1) if depth != None else None
             
-        tab_str = AbstractOperation.str_del * tab_level
+        tab_str = AbstractOperation.str_del * tab_level + custom_callback(self)
         silent_str = "[S]" if self.get_silent() else ""
         id_str     = ("[id=%x]" % id(self)) if display_id else ""
         attribute_str = "" if not display_attribute else self.attributes.get_str(tab_level = tab_level)
@@ -1485,7 +1599,7 @@ class SwitchBlock(AbstractOperationConstructor("Switch", arity = 1)):
         if 1:
             memoization_map[self] = str_tag
             precision_str = "" if not display_precision else "[%s]" % str(self.get_precision())
-            pre_str = tab_str + "%s%s%s%s%s ------> %s\n%s" % (self.get_name(), precision_str, silent_str, id_str, attribute_str, str_tag, "".join(inp.get_str(new_depth, display_precision, tab_level = tab_level + 1, memoization_map = memoization_map, display_attribute = display_attribute, display_id = display_id) for inp in self.inputs))
+            pre_str = tab_str + "%s%s%s%s%s ------> %s\n%s" % (self.get_name(), precision_str, silent_str, id_str, attribute_str, str_tag, "".join(inp.get_str(new_depth, display_precision, tab_level = tab_level + 1, memoization_map = memoization_map, display_attribute = display_attribute, display_id = display_id, custom_callback = custom_callback) for inp in self.inputs))
             for case in self.case_map:
                 case_str = ""
                 if isinstance(case, tuple):
@@ -1493,7 +1607,7 @@ class SwitchBlock(AbstractOperationConstructor("Switch", arity = 1)):
                 else:
                   case_str = "%s" % case
                 pre_str += "Case: %s" %  case_str #.get_str(new_depth, display_precision, tab_level = 0, memoization_map = memoization_map, display_attribute = display_attribute, display_id = display_id)
-                pre_str += "%s" %  self.case_map[case].get_str(new_depth, display_precision, tab_level = tab_level + 2, memoization_map = memoization_map, display_attribute = display_attribute, display_id = display_id)
+                pre_str += "%s" %  self.case_map[case].get_str(new_depth, display_precision, tab_level = tab_level + 2, memoization_map = memoization_map, display_attribute = display_attribute, display_id = display_id, custom_callback = custom_callback)
             return pre_str
 
 class VectorAssembling(ArithmeticOperationConstructor("VectorAssembling")): pass
@@ -1562,4 +1676,4 @@ if __name__ == "__main__":
   # TODO: to be fixed
   for name, obj in inspect.getmembers(sys.modules[__name__]):
     if inspect.isclass(obj) and isinstance(obj, ML_Operation):
-      print "operation class: ", obj
+      print("operation class: ", obj)

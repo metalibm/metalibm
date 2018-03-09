@@ -1,4 +1,5 @@
 #include "math.h"
+#include <stdbool.h>
 #include "ml_vector_format.h"
 #include "ml_utils.h"
 
@@ -210,6 +211,19 @@ DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vandb2, ml_bool2_t, int32_t, 2, &&)
 DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vandb4, ml_bool4_t, int32_t, 4, &&)
 DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vandb8, ml_bool8_t, int32_t, 8, &&)
 
+/** Vector logical or */
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vori2, ml_int2_t, int32_t, 2, ||)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vori4, ml_int4_t, int32_t, 4, ||)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vori8, ml_int8_t, int32_t, 8, ||)
+
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_voru2, ml_uint2_t, int32_t, 2, ||)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_voru4, ml_uint4_t, int32_t, 4, ||)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_voru8, ml_uint8_t, int32_t, 8, ||)
+
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vorb2, ml_bool2_t, int32_t, 2, ||)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vorb4, ml_bool4_t, int32_t, 4, ||)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vorb8, ml_bool8_t, int32_t, 8, ||)
+
 /** Vector bitwise and */
 DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vbwandi2, ml_int2_t, int32_t, 2, &)
 DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vbwandi4, ml_int4_t, int32_t, 4, &)
@@ -304,6 +318,20 @@ DEF_ML_VECTOR_COMPARATOR_OP2(ml_comp_le_u4, ml_bool4_t, ml_uint4_t, 4, <=)
 DEF_ML_VECTOR_COMPARATOR_OP2(ml_comp_eq_u4, ml_bool4_t, ml_uint4_t, 4, ==)
 DEF_ML_VECTOR_COMPARATOR_OP2(ml_comp_ne_u4, ml_bool4_t, ml_uint4_t, 4, !=)
 
+DEF_ML_VECTOR_COMPARATOR_OP2(ml_comp_gt_l4, ml_bool4_t, ml_long4_t, 4, >)
+DEF_ML_VECTOR_COMPARATOR_OP2(ml_comp_ge_l4, ml_bool4_t, ml_long4_t, 4, >=)
+DEF_ML_VECTOR_COMPARATOR_OP2(ml_comp_lt_l4, ml_bool4_t, ml_long4_t, 4, <)
+DEF_ML_VECTOR_COMPARATOR_OP2(ml_comp_le_l4, ml_bool4_t, ml_long4_t, 4, <=)
+DEF_ML_VECTOR_COMPARATOR_OP2(ml_comp_eq_l4, ml_bool4_t, ml_long4_t, 4, ==)
+DEF_ML_VECTOR_COMPARATOR_OP2(ml_comp_ne_l4, ml_bool4_t, ml_long4_t, 4, !=)
+
+DEF_ML_VECTOR_COMPARATOR_OP2(ml_comp_gt_ul4, ml_bool4_t, ml_ulong4_t, 4, >)
+DEF_ML_VECTOR_COMPARATOR_OP2(ml_comp_ge_ul4, ml_bool4_t, ml_ulong4_t, 4, >=)
+DEF_ML_VECTOR_COMPARATOR_OP2(ml_comp_lt_ul4, ml_bool4_t, ml_ulong4_t, 4, <)
+DEF_ML_VECTOR_COMPARATOR_OP2(ml_comp_le_ul4, ml_bool4_t, ml_ulong4_t, 4, <=)
+DEF_ML_VECTOR_COMPARATOR_OP2(ml_comp_eq_ul4, ml_bool4_t, ml_ulong4_t, 4, ==)
+DEF_ML_VECTOR_COMPARATOR_OP2(ml_comp_ne_ul4, ml_bool4_t, ml_ulong4_t, 4, !=)
+
 /** 8-element vector comparison */
 DEF_ML_VECTOR_COMPARATOR_OP2(ml_comp_gt_f8, ml_bool8_t, ml_float8_t, 8, >)
 DEF_ML_VECTOR_COMPARATOR_OP2(ml_comp_ge_f8, ml_bool8_t, ml_float8_t, 8, >=)
@@ -358,6 +386,14 @@ DEF_ML_VECTOR_TEST_FUNC_OP1(ml_vtestf8_is_nan, ml_bool8_t, ml_float8_t, 8, ml_is
 DEF_ML_VECTOR_TEST_FUNC_OP1(ml_vtestd2_is_nan, ml_bool2_t, ml_double2_t, 2, ml_is_nan)
 DEF_ML_VECTOR_TEST_FUNC_OP1(ml_vtestd4_is_nan, ml_bool4_t, ml_double4_t, 4, ml_is_nan)
 DEF_ML_VECTOR_TEST_FUNC_OP1(ml_vtestd8_is_nan, ml_bool8_t, ml_double8_t, 8, ml_is_nan)
+
+DEF_ML_VECTOR_TEST_FUNC_OP1(ml_vtestf2_is_inf, ml_bool2_t, ml_float2_t, 2, ml_is_inff)
+DEF_ML_VECTOR_TEST_FUNC_OP1(ml_vtestf4_is_inf, ml_bool4_t, ml_float4_t, 4, ml_is_inff)
+DEF_ML_VECTOR_TEST_FUNC_OP1(ml_vtestf8_is_inf, ml_bool8_t, ml_float8_t, 8, ml_is_inff)
+
+DEF_ML_VECTOR_TEST_FUNC_OP1(ml_vtestd2_is_inf, ml_bool2_t, ml_double2_t, 2, ml_is_inf)
+DEF_ML_VECTOR_TEST_FUNC_OP1(ml_vtestd4_is_inf, ml_bool4_t, ml_double4_t, 4, ml_is_inf)
+DEF_ML_VECTOR_TEST_FUNC_OP1(ml_vtestd8_is_inf, ml_bool8_t, ml_double8_t, 8, ml_is_inf)
 
 DEF_ML_VECTOR_TEST_FUNC_OP1(ml_vtestf2_is_subnormal, ml_bool2_t, ml_float2_t, 2, ml_is_subnormalf)
 DEF_ML_VECTOR_TEST_FUNC_OP1(ml_vtestf4_is_subnormal, ml_bool4_t, ml_float4_t, 4, ml_is_subnormalf)
@@ -443,6 +479,53 @@ static inline int ml_is_vmask8_not_all_zero(ml_bool8_t vop) {
          (vop._[7] != 0);
 }
 
+/** Vector Assembling functions **/
+#define DEF_ML_VECTOR_ASSEMBLY_FUNC_1_2(FUNC_NAME, RESULT_FORMAT, SCALAR_FORMAT) \
+static inline void FUNC_NAME(RESULT_FORMAT *r, SCALAR_FORMAT op1, SCALAR_FORMAT op2) {\
+    (*r)._[0] = op1; (*r)._[1] = op2;\
+}
+
+#define DEF_ML_VECTOR_ASSEMBLY_FUNC_1_4(FUNC_NAME, RESULT_FORMAT, SCALAR_FORMAT) \
+static inline void FUNC_NAME(RESULT_FORMAT *r, SCALAR_FORMAT op1, SCALAR_FORMAT op2, SCALAR_FORMAT op3, SCALAR_FORMAT op4) {\
+    (*r)._[0] = op1; (*r)._[1] = op2; (*r)._[2] = op3; (*r)._[3] = op4;\
+}
+
+#define DEF_ML_VECTOR_ASSEMBLY_FUNC_2_4(FUNC_NAME, RESULT_FORMAT, VECTOR_FORMAT) \
+static inline void FUNC_NAME(RESULT_FORMAT *r, VECTOR_FORMAT vop1, VECTOR_FORMAT vop2) {\
+  (*r)._[0] = vop1._[0]; (*r)._[1] = vop1._[1] ; (*r)._[2] = vop2._[0] ; (*r)._[3] = vop2._[1] ;\
+}
+
+#define DEF_ML_VECTOR_ASSEMBLY_FUNC_2_8(FUNC_NAME, RESULT_FORMAT, VECTOR_FORMAT) \
+static inline void FUNC_NAME(RESULT_FORMAT *r, VECTOR_FORMAT vop1, VECTOR_FORMAT vop2, VECTOR_FORMAT vop3, VECTOR_FORMAT vop4) {\
+  (*r)._[0] = vop1._[0]; (*r)._[1] = vop1._[1] ; (*r)._[2] = vop2._[0] ; (*r)._[3] = vop2._[1] ;\
+  (*r)._[4] = vop3._[0]; (*r)._[5] = vop3._[1] ; (*r)._[6] = vop4._[0] ; (*r)._[7] = vop4._[1] ;\
+}
+
+#define DEF_ML_VECTOR_ASSEMBLY_FUNC_4_8(FUNC_NAME, RESULT_FORMAT, VECTOR_FORMAT) \
+static inline void FUNC_NAME(RESULT_FORMAT *r, VECTOR_FORMAT vop1, VECTOR_FORMAT vop2) {\
+  (*r)._[0] = vop1._[0]; (*r)._[1] = vop1._[1] ; (*r)._[2] = vop1._[2] ; (*r)._[3] = vop1._[3] ;\
+  (*r)._[4] = vop2._[0]; (*r)._[5] = vop2._[1] ; (*r)._[6] = vop2._[2] ; (*r)._[7] = vop2._[3] ;\
+}
+
+DEF_ML_VECTOR_ASSEMBLY_FUNC_1_2(ml_vec_assembling_1_2_float, ml_float2_t, float)
+DEF_ML_VECTOR_ASSEMBLY_FUNC_1_2(ml_vec_assembling_1_2_int, ml_int2_t, int32_t)
+DEF_ML_VECTOR_ASSEMBLY_FUNC_1_2(ml_vec_assembling_1_2_bool, ml_bool2_t, bool)
+
+DEF_ML_VECTOR_ASSEMBLY_FUNC_1_4(ml_vec_assembling_1_4_float, ml_float4_t, float)
+DEF_ML_VECTOR_ASSEMBLY_FUNC_1_4(ml_vec_assembling_1_4_int, ml_int4_t, int32_t)
+DEF_ML_VECTOR_ASSEMBLY_FUNC_1_4(ml_vec_assembling_1_4_bool, ml_bool4_t, bool)
+
+DEF_ML_VECTOR_ASSEMBLY_FUNC_2_4(ml_vec_assembling_2_4_float, ml_float4_t, ml_float2_t)
+DEF_ML_VECTOR_ASSEMBLY_FUNC_2_4(ml_vec_assembling_2_4_int, ml_int4_t, ml_int2_t)
+DEF_ML_VECTOR_ASSEMBLY_FUNC_2_4(ml_vec_assembling_2_4_bool, ml_bool4_t, ml_bool2_t)
+
+DEF_ML_VECTOR_ASSEMBLY_FUNC_2_8(ml_vec_assembling_2_8_float, ml_float8_t, ml_float2_t)
+DEF_ML_VECTOR_ASSEMBLY_FUNC_2_8(ml_vec_assembling_2_8_int, ml_int8_t, ml_int2_t)
+DEF_ML_VECTOR_ASSEMBLY_FUNC_2_8(ml_vec_assembling_2_8_bool, ml_bool8_t, ml_bool2_t)
+
+DEF_ML_VECTOR_ASSEMBLY_FUNC_2_4(ml_vec_assembling_4_8_float, ml_float8_t, ml_float4_t)
+DEF_ML_VECTOR_ASSEMBLY_FUNC_2_4(ml_vec_assembling_4_8_int, ml_int8_t, ml_int4_t)
+DEF_ML_VECTOR_ASSEMBLY_FUNC_2_4(ml_vec_assembling_4_8_bool, ml_bool8_t, ml_bool4_t)
 
 /** Single Argument function with non-uniform formats */
 #define DEF_ML_VECTOR_NONUN_FUNC_OP1(FUNC_NAME, RESULT_FORMAT, VECTOR_FORMAT, VECTOR_SIZE, SCALAR_TEST_FUNC) \
@@ -452,7 +535,6 @@ static inline void FUNC_NAME(RESULT_FORMAT *r, VECTOR_FORMAT vop) {\
     (*r)._[i] = SCALAR_TEST_FUNC(vop._[i]);\
   };\
 }
-
 
 DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vnearbyintd2, ml_long2_t, ml_double2_t, 2, nearbyint)
 DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vnearbyintd4, ml_long4_t, ml_double4_t, 4, nearbyint)
@@ -537,5 +619,6 @@ DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vmantissa_extraction_f8, ml_float8_t, ml_float8_
 /** Vector element-wise load (gather) for 2D table */
 #define ML_VLOAD2D(result,table,addr0,addr1,size) {\
   unsigned __k; for (__k = 0; __k < size; ++__k) (result)->_[__k] = table[(addr0)._[__k]][(addr1)._[__k]]; };
+/** Implicit vector conversion */
 #define ML_VCONV(dst,src,size) {\
   unsigned __k; for (__k = 0; __k < size; ++__k) (dst)->_[__k] = (src)._[__k]; };

@@ -1,5 +1,32 @@
 # -*- coding: utf-8 -*-
 
+###############################################################################
+# This file is part of metalibm (https://github.com/kalray/metalibm)
+###############################################################################
+# MIT License
+#
+# Copyright (c) 2018 Kalray
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+###############################################################################
+# last-modified:    Mar  7th, 2018
+###############################################################################
 import sys
 
 import sollya
@@ -19,6 +46,10 @@ from metalibm_core.core.polynomials import *
 from metalibm_core.core.ml_table import ML_NewTable
 from metalibm_core.core.ml_complex_formats import ML_Mpfr_t
 
+from metalibm_core.core.special_values import (
+    FP_QNaN, FP_MinusInfty, FP_PlusInfty, FP_PlusZero
+)
+
 from metalibm_core.code_generation.gappa_code_generator import GappaCodeGenerator
 from metalibm_core.code_generation.generator_utility import FunctionOperator, FO_Result, FO_Arg
 
@@ -29,41 +60,24 @@ from metalibm_core.utility.arg_utils import test_flag_option, extract_option_val
 from metalibm_core.utility.debug_utils import *
 
 class ML_Log10(ML_Function("log10")):
-  def __init__(self, 
-             arg_template = DefaultArgTemplate,
-             precision = ML_Binary32, 
-             abs_accuracy = S2**-24, 
-             libm_compliant = True, 
-             debug_flag = False, 
-             fuse_fma = True, 
-             fast_path_extract = True,
-             target = GenericProcessor(), 
-             output_file = None, 
-             function_name = None):
-
-    # extracting precision argument from command line
-    precision = ArgDefault.select_value([arg_template.precision, precision])
-    io_precisions = [precision] * 2
-
+  def __init__(self, args):
     # initializing base class
-    ML_FunctionBasis.__init__(self, 
-      base_name = "log10",
-      function_name = function_name,
-      output_file = output_file,
+    ML_FunctionBasis.__init__(self, args)
 
-      io_precisions = io_precisions,
-      abs_accuracy = None,
-      libm_compliant = libm_compliant,
 
-      processor = target,
-      fuse_fma = fuse_fma,
-      fast_path_extract = fast_path_extract,
-
-      debug_flag = debug_flag,
-      arg_template = arg_template
-    )
-
-    self.precision = precision
+  @staticmethod
+  def get_default_args(**kw):
+    """ Return a structure containing the arguments for ML_Log10,
+        builtin from a default argument mapping overloaded with @p kw """
+    default_args_log10 = {
+        "output_file": "my_log10f.c",
+        "function_name": "my_log10f",
+        "precision": ML_Binary32,
+        "accuracy": ML_Faithful,
+        "target": GenericProcessor()
+    }
+    default_args_log10.update(kw)
+    return DefaultArgTemplate(**default_args_log10)
 
   def generate_emulate(self, result, mpfr_x, mpfr_rnd):
     """ generate the emulation code for ML_Log2 functions
@@ -159,16 +173,16 @@ class ML_Log10(ML_Function("log10")):
         _log_inv_lo = TableLoad(log_table, table_index, 1, tag = "log_inv_lo", debug = debug_lftolx) 
         _log_inv_hi = TableLoad(log_table, table_index, 0, tag = "log_inv_hi", debug = debug_lftolx)
 
-        print "building mathematical polynomial"
+        print("building mathematical polynomial")
         approx_interval = Interval(-inv_err, inv_err)
         poly_degree = sup(guessdegree(log10(1+sollya.x)/sollya.x, approx_interval, S2**-(self.precision.get_field_size()+1))) + 1
         global_poly_object = Polynomial.build_from_approximation(log10(1+x)/x, poly_degree, [self.precision]*(poly_degree+1), approx_interval, sollya.absolute)
         poly_object = global_poly_object#.sub_poly(start_index = 1)
 
-        print "generating polynomial evaluation scheme"
+        print("generating polynomial evaluation scheme")
         _poly = PolynomialSchemeEvaluator.generate_horner_scheme(poly_object, _red_vx, unified_precision = self.precision)
         _poly.set_attributes(tag = "poly", debug = debug_lftolx)
-        print global_poly_object.get_sollya_object()
+        print(global_poly_object.get_sollya_object())
 
         corr_exp = Conversion(_vx_exp if exp_corr_factor == None else _vx_exp + exp_corr_factor, precision = self.precision)
         split_red_vx = Split(_red_vx, precision = ML_DoubleDouble, tag = "split_red_vx", debug = debug_ddtolx) 
@@ -205,7 +219,7 @@ class ML_Log10(ML_Function("log10")):
     # computing gappa error
     if is_gappa_installed():
       poly_eval_error = self.get_eval_error(result, eval_error_map)
-      print "poly_eval_error: ", poly_eval_error
+      print("poly_eval_error: ", poly_eval_error)
 
 
     neg_input = Comparison(vx, 0, likely = False, specifier = Comparison.Less, debug = debugd, tag = "neg_input")
@@ -219,7 +233,7 @@ class ML_Log10(ML_Function("log10")):
     vx_one = Equal(vx, 1.0, tag = "vx_one", likely = False, debug = debugd)
 
     # exp=-1 case
-    print "managing exp=-1 case"
+    print("managing exp=-1 case")
     #red_vx_2 = arg_red_index * vx_mant * 0.5
     #approx_interval2 = Interval(0.5 - inv_err, 0.5 + inv_err)
     #poly_degree2 = sup(guessdegree(log(x), approx_interval2, S2**-(self.precision.get_field_size()+1))) + 1
@@ -238,7 +252,7 @@ class ML_Log10(ML_Function("log10")):
     S2100 = Constant(S2**100, precision = self.precision)
     result_subnormal, _, _, _, _, _, _ = compute_log(vx * S2100, exp_corr_factor = m100)
 
-    print "managing close to 1.0 cases"
+    print("managing close to 1.0 cases")
     one_err = S2**-7
     approx_interval_one = Interval(-one_err, one_err)
     red_vx_one = vx - 1.0
@@ -252,7 +266,7 @@ class ML_Log10(ML_Function("log10")):
 
 
     # main scheme
-    print "MDL scheme"
+    print("MDL scheme")
     pre_scheme = ConditionBlock(neg_input,
         Statement(
             ClearException(),
@@ -311,7 +325,7 @@ class ML_Log10(ML_Function("log10")):
 
 if __name__ == "__main__":
   # auto-test
-  arg_template = ML_NewArgTemplate(default_function_name = "new_log", default_output_file = "new_log.c" )
+  arg_template = ML_NewArgTemplate(default_arg=ML_Log10.get_default_args())
   args = arg_template.arg_extraction()
 
 

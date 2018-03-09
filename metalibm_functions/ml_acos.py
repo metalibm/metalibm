@@ -1,16 +1,47 @@
 # -*- coding: utf-8 -*-
 
+###############################################################################
+# This file is part of metalibm (https://github.com/kalray/metalibm)
+###############################################################################
+# MIT License
+#
+# Copyright (c) 2018 Kalray
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+###############################################################################
+# last-modified:    Mar  7th, 2018
+# Author(s): Nicolas Brunie <nbrunie@kalray.eu>
+###############################################################################
 import sys
 
 import sollya
 
 from sollya import S2, SollyaObject, Interval, log2, log10, acos, sup
 
-from metalibm_core.core.ml_function import ML_Function, ML_FunctionBasis
+from metalibm_core.core.ml_function import (
+    ML_Function, ML_FunctionBasis, DefaultArgTemplate
+)
 
 from metalibm_core.core.attributes import ML_Debug
 from metalibm_core.core.ml_operations import *
 from metalibm_core.core.ml_formats import *
+from metalibm_core.core.precisions import ML_Faithful
 from metalibm_core.code_generation.generic_processor import GenericProcessor
 from metalibm_core.core.polynomials import *
 from metalibm_core.core.ml_table import ML_NewTable
@@ -20,43 +51,30 @@ from metalibm_core.code_generation.gappa_code_generator import GappaCodeGenerato
 from metalibm_core.code_generation.generator_utility import FunctionOperator, FO_Result, FO_Arg
 
 from metalibm_core.utility.gappa_utils import execute_gappa_script_extract
-from metalibm_core.utility.ml_template import ML_ArgTemplate
+from metalibm_core.utility.ml_template import ML_NewArgTemplate
 
 from metalibm_core.utility.arg_utils import test_flag_option, extract_option_value  
 from metalibm_core.utility.debug_utils import *
 
 class ML_Acos(ML_Function("acos")):
-  def __init__(self, 
-             precision = ML_Binary32, 
-             abs_accuracy = S2**-24, 
-             libm_compliant = True, 
-             debug_flag = False, 
-             fuse_fma = True, 
-             fast_path_extract = True,
-             target = GenericProcessor(), 
-             output_file = None, 
-             function_name = None):
-
-    io_precisions = [precision] * 2
+  def __init__(self, args=DefaultArgTemplate): 
 
     # initializing base class
-    ML_FunctionBasis.__init__(self, 
-      base_name = "acos",
-      function_name = function_name,
-      output_file = output_file,
+    ML_FunctionBasis.__init__(self, args)
 
-      io_precisions = io_precisions,
-      abs_accuracy = None,
-      libm_compliant = libm_compliant,
-
-      processor = target,
-      fuse_fma = fuse_fma,
-      fast_path_extract = fast_path_extract,
-
-      debug_flag = debug_flag
-    )
-
-    self.precision = precision
+  @staticmethod
+  def get_default_args(**kw):
+    """ Return a structure containing the arguments for ML_Acos,
+        builtin from a default argument mapping overloaded with @p kw """
+    default_args_acos = {
+        "output_file": "my_exp.c",
+        "function_name": "my_exp",
+        "precision": ML_Binary32,
+        "accuracy": ML_Faithful,
+        "target": GenericProcessor()
+    }
+    default_args_acos.update(kw)
+    return DefaultArgTemplate(**default_args_acos)
 
   def generate_emulate(self, result, mpfr_x, mpfr_rnd):
     """ generate the emulation code for ML_Log2 functions
@@ -74,8 +92,6 @@ class ML_Acos(ML_Function("acos")):
   def generate_scheme(self):
     #func_implementation = CodeFunction(self.function_name, output_format = self.precision)
     vx = self.implementation.add_input_variable("x", self.get_input_precision()) 
-
-    sollya_precision = self.get_sollya_precision()
 
     # retrieving processor inverse approximation table
     #dummy_var = Variable("dummy", precision = self.precision)
@@ -112,11 +128,11 @@ class ML_Acos(ML_Function("acos")):
       lo_bound = (1.0 + (i % 2**field_index_size) * S2**-field_index_size) * S2**(i / 2**field_index_size - exp_lo)
       hi_bound = (1.0 + ((i % 2**field_index_size) + 1) * S2**-field_index_size) * S2**(i / 2**field_index_size - exp_lo)
       local_approx_interval = Interval(lo_bound, hi_bound)
-      local_poly_object, local_error = Polynomial.build_from_approximation_with_error(acos(1 - x), local_degree, [self.precision] * (local_degree+1), local_approx_interval, sollya.absolute)
+      local_poly_object, local_error = Polynomial.build_from_approximation_with_error(acos(1 - sollya.x), local_degree, [self.precision] * (local_degree+1), local_approx_interval, sollya.absolute)
       local_error = int(log2(sup(abs(local_error / acos(1 - local_approx_interval)))))
       coeff_table
       print local_approx_interval, local_error
-      for d in xrange(local_degree):
+      for d in range(local_degree):
         coeff_table[i][d] = sollya.coeff(local_poly_object.get_sollya_object(), d) 
 
     table_index = BitLogicRightShift(vx, vx.get_precision().get_field_size() - field_index_size) - (exp_lo << field_index_size)
@@ -152,16 +168,10 @@ class ML_Acos(ML_Function("acos")):
 
 if __name__ == "__main__":
   # auto-test
-  arg_template = ML_ArgTemplate(default_function_name = "new_acos", default_output_file = "new_acos.c" )
-  arg_template.sys_arg_extraction()
+  arg_template = ML_NewArgTemplate(
+    default_arg=ML_Acos.get_default_args())
+  args = arg_template.arg_extraction()
 
 
-  ml_acos          = ML_Acos(arg_template.precision, 
-                                libm_compliant            = arg_template.libm_compliant, 
-                                debug_flag                = arg_template.debug_flag, 
-                                target                    = arg_template.target, 
-                                fuse_fma                  = arg_template.fuse_fma, 
-                                fast_path_extract         = arg_template.fast_path,
-                                function_name             = arg_template.function_name,
-                                output_file               = arg_template.output_file)
+  ml_acos          = ML_Acos(args)
   ml_acos.gen_implementation()

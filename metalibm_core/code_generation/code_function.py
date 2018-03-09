@@ -1,11 +1,32 @@
 # -*- coding: utf-8 -*-
 
 ###############################################################################
-# This file is part of Kalray's Metalibm tool
-# Copyright (2016)
-# All rights reserved
+# This file is part of metalibm (https://github.com/kalray/metalibm)
+###############################################################################
+# MIT License
+#
+# Copyright (c) 2018 Kalray
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+###############################################################################
 # created:          Feb  1st, 2016
-# last-modified:    Feb  5th, 2016
+# last-modified:    Mar  7th, 2018
 #
 # author(s): Nicolas Brunie (nicolas.brunie@kalray.eu)
 ###############################################################################
@@ -31,8 +52,10 @@ class CodeFunction(object):
   def get_name(self):
     return self.name
 
-  def add_input_variable(self, name, vartype):
-    input_var = Variable(name, precision = vartype) 
+  def add_input_variable(self, name, vartype, **kw):
+    """ declares a new Variable with name @p name and format @p vartype
+        and registers it as an input variable """
+    input_var = Variable(name, precision = vartype, **kw) 
     self.arg_list.append(input_var)
     return input_var
 
@@ -59,7 +82,7 @@ class CodeFunction(object):
 
   def build_function_operator(self):
     function_arg_map = {}
-    for i in xrange(len(self.arg_list)):
+    for i in range(len(self.arg_list)):
       function_arg_map[i] = FO_Arg(i)
     return FunctionOperator(self.name, arg_map = function_arg_map)
 

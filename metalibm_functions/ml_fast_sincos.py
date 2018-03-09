@@ -1,10 +1,35 @@
 # -*- coding: utf-8 -*-
 
-# Description: fast and low accuracy sine and cosine implementation
+###############################################################################
+# This file is part of metalibm (https://github.com/kalray/metalibm)
+###############################################################################
+# MIT License
 #
-# Author(s): Nicolas Brunie (nicolas.brunie@kalray.eu)
-# Created:       December 16th, 2015
-# Last-modified: December 17th, 2015
+# Copyright (c) 2018 Kalray
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+###############################################################################
+# Created:          Dec 16th, 2015
+# last-modified:    Mar  7th, 2018
+# Author(s): Nicolas Brunie <nbrunie@kalray.eu>
+# Description: fast and low accuracy sine and cosine implementation
+###############################################################################
 
 import sys
 
@@ -126,7 +151,7 @@ class ML_FastSinCos(ML_Function("ml_fast_cos")):
     # cosine and sine fused table
     fused_table = ML_NewTable(dimensions = [2**table_size_log, 2], storage_precision = storage_precision, tag = "fast_lib_shared_table") # self.uniquify_name("cossin_table"))
     # filling table
-    for i in xrange(2**table_size_log):
+    for i in range(2**table_size_log):
       local_x = i / S2**table_size_log * S2**max_bound_log
 
       cos_local = cos(local_x) # nearestint(cos(local_x) * S2**storage_precision.get_frac_size())

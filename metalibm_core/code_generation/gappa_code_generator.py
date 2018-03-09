@@ -1,11 +1,32 @@
 # -*- coding: utf-8 -*-
 
 ###############################################################################
-# This file is part of Kalray's Metalibm tool
-# Copyright (2013)
-# All rights reserved
+# This file is part of metalibm (https://github.com/kalray/metalibm)
+###############################################################################
+# MIT License
+#
+# Copyright (c) 2018 Kalray
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+###############################################################################
 # created:          Dec 24th, 2013
-# last-modified:    Apr  7th, 2014
+# last-modified:    Mar  7th, 2018
 #
 # author(s): Nicolas Brunie (nicolas.brunie@kalray.eu)
 ###############################################################################
@@ -98,7 +119,8 @@ class GappaCodeGenerator(object):
         code_object.add_hint(hypoth_code, goal_code, annotation_code, isApprox)
 
 
-    def generate_expr(self, code_object, optree, folded = True, result_var = None, initial = False, __exact = None, language = None, strip_outer_parenthesis = False):
+    # force_variable_storing is not supported
+    def generate_expr(self, code_object, optree, folded = True, result_var = None, initial = False, __exact = None, language = None, strip_outer_parenthesis = False, force_variable_storing = False):
         """ code generation function """
         #exact_value = exact or self.get_exact_mode()
 
@@ -234,6 +256,8 @@ class GappaCodeGenerator(object):
           result.strip_outer_parenthesis()
         return result
 
+    def generate_code_assignation(self, code_object, result_var, expr_code, final=True):
+        return self.generate_assignation(result_var, expr_code, final=final)
 
     def generate_assignation(self, result_var, expression_code, final = True):
         """ generate code for assignation of value <expression_code> to 
@@ -392,8 +416,8 @@ class GappaCodeGenerator(object):
         # copying pre-operation tree
         goal = pre_goal.copy(variable_copy_map)
         goal.set_attributes(precision = goal_precision, tag = "goal")
-        print "goal: "
-        print goal.get_str(depth = 3, display_precision = True)
+        print("goal: ")
+        print(goal.get_str(depth = 3, display_precision = True))
 
         # updating handle
         if update_handle:

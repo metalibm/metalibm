@@ -4,13 +4,36 @@
 #  Metalibm Description Language HDL Operations 
 
 ###############################################################################
-# This file is part of New Metalibm tool
-# Copyrights Nicolas Brunie (2016)
-# All rights reserved
-# created:          Nov 17th, 2016
-# last-modified:    May  9th, 2017
+# This file is part of metalibm (https://github.com/kalray/metalibm)
+###############################################################################
+# MIT License
 #
-# author(s): Nicolas Brunie (nibrunie@gmail.com)
+# Copyright (c) 2018 Kalray
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+###############################################################################
+
+###############################################################################
+# created:          Nov 17th, 2016
+# last-modified:    Mar  7th, 2018
+#
+# author(s): Nicolas Brunie (nbrunie@kalray.eu)
 ###############################################################################
 
 
@@ -182,7 +205,9 @@ class ComponentInstance(AbstractOperationConstructor("ComponentInstance")):
 
 class ComponentObject(object):
   ##
+  # name (str) name of the component
   # @param io_map is a dict <Signal, Signal.Specifier>
+  # @param generator_object (CodeEntity): generator for the component
   def __init__(self, name, io_map, generator_object):
     self.name = name
     self.io_map = io_map
@@ -204,6 +229,9 @@ class ComponentObject(object):
 
   def __call__(self, *args, **kw):
     return ComponentInstance(self, *args, **kw)
+
+  def get_code_entity(self):
+    return self.generator_object
 
   def get_declaration(self):
     return self.generator_object.get_component_declaration()
@@ -275,38 +303,74 @@ class SignCast(TypeCast):
   def finish_copy(self, new_copy, copy_map = {}):
     new_copy.specifier = self.specifier
 
+def cst_promotion(value, precision = ML_Integer):
+    """ promote argument to Constant node with given precision if
+        it is not already a ML_Operation node """
+    if isinstance(value, ML_Operation):
+        return value
+    else:
+        return Constant(value, precision = precision)
+
 ## extract a sub-signal from inputs
 #  arguments are:
 #  @param arg input signal
 #  @param inf_index least significant index to start from in @p arg
 #  @param sup_index most significant index to stop at in @p arg
 #  @return sub-signal arg(inf_index to sup_index)
-class SubSignalSelection(AbstractOperationConstructor("SubSignalSelection")):
+class SubSignalSelection(AbstractOperationConstructor("SubSignalSelection", arity = 3)):
   def __init__(self, arg, inf_index, sup_index, **kw):
     if not "precision" in kw:
       kw["precision"] = ML_StdLogicVectorFormat(sup_index - inf_index + 1)
-    SubSignalSelection.__base__.__init__(self, arg, **kw)
-    self.inf_index = inf_index
-    self.sup_index = sup_index
+    inf_index = cst_promotion(inf_index, precision = ML_Integer)
+    sup_index = cst_promotion(sup_index, precision = ML_Integer)
+    SubSignalSelection.__base__.__init__(self, arg, inf_index, sup_index, **kw)
+    #self.inf_index = inf_index
+    #self.sup_index = sup_index
 
   def get_inf_index(self):
-    return self.inf_index
+    return self.get_input(1) #self.inf_index
   def get_sup_index(self):
-    return self.sup_index
+    return self.get_input(2) #self.sup_index
 
-  def finish_copy(self, new_copy, copy_map = {}):
-    new_copy.inf_index = self.inf_index
-    new_copy.sup_index = self.sup_index
+  #def finish_copy(self, new_copy, copy_map = {}):
+  #  new_copy.inf_index = self.inf_index
+  #  new_copy.sup_index = self.sup_index
 
 ## Wrapper for the generation of a bit selection operation
 #  from a multi-bit signal
 def BitSelection(optree, index, **kw):
   return VectorElementSelection(
     optree, 
-    Constant(index, precision = ML_Integer),
+    cst_promotion(index, precision = ML_Integer),
     precision = ML_StdLogic,
     **kw
   )
 
+## Wrapper for single bit node equality
+def equal_to(optree, cst_value):
+    if not(isinstance(cst_value, int) or isinstance(cst_value, sollya.SollyaObject)):
+        Log.report(Log.Error, "cst_value {} in equal_to MUST be a numeric constant".format(cst_value))
+
+    return Equal(
+        optree,
+        Constant(cst_value, precision=ML_StdLogic),
+        precision = ML_Bool
+    )
+
+## Logical/Boolean operand list reduction
+def logical_reduce(op_list, op_ctor=LogicalOr, precision=ML_Bool):
+    local_list = [op for op in op_list]
+    while len(local_list) > 1:
+        op0 = local_list.pop(0)
+        op1 = local_list.pop(0)
+        local_list.append(
+            op_ctor(op0, op1, precision=precision)
+        )
+    return local_list[0]
+
+## Specialization of logical reduce to OR operation
+logical_or_reduce  = lambda op_list: logical_reduce(op_list, LogicalOr, ML_Bool)
+## Specialization of logical reduce to AND operation
+logical_and_reduce = lambda op_list: logical_reduce(op_list, LogicalAnd, ML_Bool)
 ## @} 
 # end of metalibm's Doxygen ml_hdl_operations group
