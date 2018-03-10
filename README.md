@@ -3,8 +3,7 @@
 Metalibm is available under MIT Licence (see LICENSE file) from https://github.com/kalray/metalibm/
 
 ## INTEGRATION STATUS
-
-[![pipeline status](https://gitlab.com/nibrunie/metalibm_github/badges/dev/pipeline.svg)](https://gitlab.com/nibrunie/metalibm_github/commits/dev)
+master branch: [![pipeline status](https://gitlab.com/nibrunie/metalibm_github/badges/master/pipeline.svg)](https://gitlab.com/nibrunie/metalibm_github/commits/master)
 
 ## INSTALL
 
