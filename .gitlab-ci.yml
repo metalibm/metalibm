@@ -1,4 +1,4 @@
-image: registry.gitlab.com/nibrunie/metalibm_github:metalibm_ci
+image: registry.gitlab.com/nibrunie/metalibm:metalibm_ci
 
 before_script:
 
