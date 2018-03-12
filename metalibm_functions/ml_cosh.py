@@ -32,7 +32,10 @@ import sys
 
 import sollya
 
-from sollya import S2, Interval, ceil, floor, round, inf, sup, log, exp, expm1, log2, cosh, guessdegree, dirtyinfnorm, RN, acosh, RD
+from sollya import (
+    S2, Interval, ceil, floor, round, inf, sup, log, exp, expm1, log2, cosh,
+    guessdegree, dirtyinfnorm, RN, acosh, RD
+)
 from sollya import parse as sollya_parse
 
 from metalibm_core.core.attributes import ML_Debug
@@ -41,8 +44,12 @@ from metalibm_core.core.ml_formats import *
 from metalibm_core.core.ml_table import ML_NewTable
 from metalibm_core.code_generation.generic_processor import GenericProcessor
 from metalibm_core.core.polynomials import *
-from metalibm_core.core.ml_function import ML_Function, ML_FunctionBasis, DefaultArgTemplate
-from metalibm_core.code_generation.generator_utility import FunctionOperator, FO_Result, FO_Arg
+from metalibm_core.core.ml_function import (
+    ML_Function, ML_FunctionBasis, DefaultArgTemplate
+)
+from metalibm_core.code_generation.generator_utility import (
+    FunctionOperator, FO_Result, FO_Arg
+)
 from metalibm_core.core.ml_complex_formats import ML_Mpfr_t
 from metalibm_core.core.special_values import FP_PlusInfty
 
@@ -56,9 +63,9 @@ from metalibm_core.utility.gappa_utils import is_gappa_installed
 
 
 class ML_HyperbolicCosine(ML_Function("ml_cosh")):
-  def __init__(self, args=DefaultArgTemplate): 
+  def __init__(self, args=DefaultArgTemplate):
     # initializing base class
-    ML_FunctionBasis.__init__(self, args=args) 
+    ML_FunctionBasis.__init__(self, args=args)
 
   @staticmethod
   def get_default_args(**args):
@@ -79,7 +86,7 @@ class ML_HyperbolicCosine(ML_Function("ml_cosh")):
   def generate_scheme(self):
     # declaring target and instantiating optimization engine
 
-    vx = self.implementation.add_input_variable("x", self.precision) 
+    vx = self.implementation.add_input_variable("x", self.precision)
 
     Log.set_dump_stdout(True)
 
