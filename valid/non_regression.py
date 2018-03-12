@@ -110,7 +110,7 @@ new_scheme_function_list = [
   NewSchemeTest(
     "basic hyperbolic tangent gen test",
     metalibm_functions.ml_tanh.ML_HyperbolicTangent,
-    [{"precision": ML_Binary32, "auto_test_execute": 1000},
+    [{"precision": ML_Binary32, "auto_test": 1000, "execute": True},
     {"precision": ML_Binary64}]
   ),
   NewSchemeTest(
@@ -118,9 +118,9 @@ new_scheme_function_list = [
     metalibm_functions.ml_cosh.ML_HyperbolicCosine,
     [
         {"function_name": "my_cosh", "precision": ML_Binary32,
-         "auto_test": 100, "auto_test_execute": 100},
+         "auto_test": 100, "auto_test": 100, "execute": True},
         {"function_name": "my_cosh", "precision": ML_Binary64,
-        "auto_test": 100, "auto_test_execute": 100},
+        "auto_test": 100, "auto_test": 100, "execute": True},
     ]
   ),
   NewSchemeTest(
@@ -128,9 +128,9 @@ new_scheme_function_list = [
     metalibm_functions.ml_log.ML_Log,
     [
         {"precision": ML_Binary32, "function_name": "my_logf",
-         "auto_test_execute": 1000},
+         "auto_test": 1000, "execute": True},
         {"precision": ML_Binary64, "function_name": "my_log",
-         "auto_test_execute": 1000}
+         "auto_test": 1000, "execute": True}
     ]
   ),
   NewSchemeTest(
@@ -143,15 +143,15 @@ new_scheme_function_list = [
     metalibm_functions.ml_log2.ML_Log2,
     [
         {"precision": ML_Binary32},
-        {"precision": ML_Binary64, "auto_test_execute": 10000}
+        {"precision": ML_Binary64, "auto_test": 10000, "execute": True}
     ]
   ),
   NewSchemeTest(
     "x86 log2 test",
     metalibm_functions.ml_log2.ML_Log2,
     [
-        {"precision": ML_Binary32, "target": x86_processor}, # "auto_test_execute": 10000},
-        {"precision": ML_Binary64, "target": x86_processor},  # "auto_test_execute": 10000}
+        {"precision": ML_Binary32, "target": x86_processor},
+        {"precision": ML_Binary64, "target": x86_processor},
     ]
   ),
   NewSchemeTest(
@@ -169,12 +169,12 @@ new_scheme_function_list = [
     metalibm_functions.ml_exp.ML_Exponential,
     [
         {"precision": ML_Binary32, "function_name": "my_exp", "auto_test": 100,
-         "auto_test_execute": 1000},
+         "auto_test": 1000, "execute": True},
         {"precision": ML_Binary64, "function_name": "my_exp", "auto_test": 100,
-         "auto_test_execute": 1000},
+         "auto_test": 1000, "execute": True},
         {"precision": ML_Binary32, "function_name": "my_exp", "auto_test": 100,
          "target": x86_avx2_processor,
-         "auto_test_execute": 1000},
+         "auto_test": 1000, "execute": True},
     ]
   ),
   NewSchemeTest(
