@@ -45,7 +45,9 @@ from metalibm_core.core.ml_hdl_operations import (
     SubSignalSelection
 )
 from metalibm_core.core.advanced_operations import FixedPointPosition
-from metalibm_core.core.ml_formats import ML_Bool, ML_Integer
+from metalibm_core.core.ml_formats import (
+    ML_Bool, ML_Integer, v2bool, v3bool, v4bool, v8bool
+)
 from metalibm_core.core.ml_hdl_format import (
     is_fixed_point, ML_StdLogicVectorFormat
 )
@@ -54,6 +56,19 @@ from metalibm_core.opt.opt_utils import (
     forward_attributes, forward_stage_attributes
 )
 
+def get_compatible_bool_format(optree):
+    """ Return a boolean format whose vector-size is compatible
+        with optree format """
+    if optree.get_precision().is_vector_format():
+        return {
+            2: v2bool,
+            3: v3bool,
+            4: v4bool,
+            8: v8bool
+        }[optree.get_precision().get_vector_size()]
+    else:
+        return ML_Bool
+
 
 def minmax_legalizer_wrapper(predicate):
     """ Legalize a min/max node by converting it to a Select operation
@@ -61,16 +76,17 @@ def minmax_legalizer_wrapper(predicate):
     def minmax_legalizer(optree):
         op0 = optree.get_input(0)
         op1 = optree.get_input(1)
+        bool_prec = get_compatible_bool_format(optree)
         comp = Comparison(
-            op0, op1, specifier = predicate,
-            precision = ML_Bool,
-            tag = "minmax_pred"
+            op0, op1, specifier=predicate,
+            precision=bool_prec,
+            tag="minmax_pred"
         )
         # forward_stage_attributes(optree, comp)
         result = Select(
             comp,
             op0, op1,
-            precision = optree.get_precision()
+            precision=optree.get_precision()
         )
         forward_attributes(optree, result)
         return result
