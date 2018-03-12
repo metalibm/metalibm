@@ -86,7 +86,18 @@ new_scheme_function_list = [
   NewSchemeTest(
     "basic hyperbolic cosine gen test",
     metalibm_functions.ml_cosh.ML_HyperbolicCosine,
-    [{"precision": ML_Binary32}, {"precision": ML_Binary64}]
+    [{"precision": ML_Binary32, "auto_test": 128, "execute": True},
+     {"precision": ML_Binary64, "auto_test": 128, "execute": True}
+     ]
+  ),
+  NewSchemeTest(
+    "vector hyperbolic cosine gen test",
+    metalibm_functions.ml_cosh.ML_HyperbolicCosine,
+    [{"precision": ML_Binary32, "vector_size": 4, "auto_test": 128,
+      "execute": True, "target": VectorBackend()},
+    {"precision": ML_Binary32, "vector_size": 8, "auto_test": 128,
+    "execute": True, "target": VectorBackend()},
+     ]
   ),
   NewSchemeTest(
     "basic hyperbolic sine gen test",
