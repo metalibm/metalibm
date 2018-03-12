@@ -55,13 +55,12 @@ def execute_gappa_script_extract(gappa_code, gappa_filename = "gappa_tmp.g"):
     gappa_stream.write(gappa_code)
     gappa_stream.close()
     gappa_cmd = "gappa {}".format(gappa_filename)
-    cmd_result = subprocess.check_output(gappa_cmd, stderr=subprocess.STDOUT, shell=True)
+    cmd_result = subprocess.check_output(
+        gappa_cmd, stderr=subprocess.STDOUT, shell=True)
     if sys.version_info >= (3, 0):
         gappa_result = str(cmd_result, 'utf-8')
     else:
         gappa_result = str(cmd_result)
-    print("gappa_result: ")
-    print(gappa_result)
     start_result_index = gappa_result.index("Results")
     for result_line in gappa_result[start_result_index:].splitlines()[1:]:
         if not " in " in result_line: continue
