@@ -199,7 +199,23 @@ class VerboseAction(argparse.Action):
 
 def list_targets():
     for target_name in target_map:
-        print("{}:\n  {}".format(target_name, target_map[target_name]))
+        print("{color_prefix}{name}{color_suffix}:\n  {target_object}".format(
+            name=target_name,
+            target_object=target_map[target_name],
+            color_prefix=BColors.OKGREEN,
+            color_suffix=BColors.ENDC)
+        )
+
+class BColors:
+    """ Terminal colors """
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
 
 
 class TargetInfoAction(argparse.Action):
@@ -215,7 +231,6 @@ class TargetInfoAction(argparse.Action):
         exit(0)
         #setattr(namespace, "early_exit", True)
 
-
 class PassListAction(argparse.Action):
     def __init__(self, option_strings, dest, nargs=None, **kwargs):
         if nargs is not None:
@@ -226,7 +241,13 @@ class PassListAction(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
         print("list of registered passes")
         for tag in Pass.get_pass_tag_list():
-            print("  {}: {}".format(tag, Pass.get_pass_by_tag(tag)))
+            print("  {}{}{}: {}".format(
+                BColors.OKGREEN,
+                tag,
+                BColors.ENDC,
+                Pass.get_pass_by_tag(tag),
+                )
+            )
         exit(0)
 
 # Command line action to set break on error in load module
