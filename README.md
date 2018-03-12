@@ -50,7 +50,7 @@ Example of metafunctions can be found under the metalibm_functions directory.
 ## AUTHOR(S)
 
     Nicolas Brunie (nbrunie (AT) kalray.eu), Hugues de Lassus Saint-Geniès,
-    Marc Mezzaroba, Guillaume Gonnachon, Florent de Dinechin, Julien Le Maire,
+    Marc Mezzarobba, Guillaume Gonnachon, Florent de Dinechin, Julien Le Maire,
     Julien Villette, Guillaume Revy
 
     This work was supported by Kalray (kalrayinc.com) and other entities
