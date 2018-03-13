@@ -931,25 +931,36 @@ class FusedMultiplyAdd(SpecifierOperation, GeneralArithmeticOperation):
         arity = 3
         range_function = lambda optree, ops: ops[0] * ops[1] + ops[2]
     ## Subtract FMA op0 * op1 - op2
-    class Subtract(FMASpecifier_Builder("Subtract", 3, lambda optree, ops: ops[0] * ops[1] - ops[2])): 
+    class Subtract(FMASpecifier):
         """ op0 * op1 - op2 """
+        name = "Subtract"
+        arity = 3
+        range_function = lambda optree, ops: ops[0] * ops[1] - ops[2]
         pass
     ## Negate FMA - op0 * op1 - op2
-    class Negate(FMASpecifier_Builder("Negate", 3, lambda _self, ops: - ops[0] * ops[1] - ops[2])): 
+    class Negate(FMASpecifier):
         """ -op0 * op1 - op2 """
-        pass
+        name = "Negate"
+        arity = 3
+        range_function = lambda _self, ops: - ops[0] * ops[1] - ops[2]
     ## Subtract Negate FMA - op0 * op1 + op2
-    class SubtractNegate(FMASpecifier_Builder("SubtractNegate", 3, lambda _self, ops: - ops[0] * ops[1] + ops[2])):
+    class SubtractNegate(FMASpecifier):
         """ -op0 * op1 + op2 """
-        pass
+        name = "SubtractNegate"
+        arity = 3
+        range_function = lambda _self, ops: - ops[0] * ops[1] + ops[2]
     ## Dot Product op0 * op1 + op2 * op3
-    class DotProduct(FMASpecifier_Builder("DotProduct", 4, lambda _self, ops: ops[0] * ops[1] + ops[2] * ops[3])):
+    class DotProduct(FMASpecifier):
         """ op0 * op1 + op2 * op3 """
-        pass
+        name = "DotProduct"
+        arity = 4
+        range_function = lambda _self, ops: ops[0] * ops[1] + ops[2] * ops[3]
     ## Dot Product Negate op0 * op1 - op2 * op3
-    class DotProductNegate(FMASpecifier_Builder("DotProductNegate", 4, lambda _self, ops: ops[0] * ops[1] - ops[2] * ops[3])):
+    class DotProductNegate(FMASpecifier):
         """ op0 * op1 - op2 * op3 """
-        pass
+        name = "DotProductNegate"
+        arity = 4
+        range_function = lambda _self, ops: ops[0] * ops[1] - ops[2] * ops[3]
 
     def bare_range_function(self, ops):
         """ FMA's range_function is determined by specifiers """
