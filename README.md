@@ -41,6 +41,10 @@ Example of metafunctions can be found under the metalibm_functions directory.
 * Non-regression tests (hardware code generation):
   ``` python2 valid/hw_non_regression.py ```
 
+## DOCUMENTATION
+
+Metalibm Description Language is documented in doc/MDL.md
+
 ## Version History
 
 - Version **1.0.alpha**: Released March 12th, 2018: First official version
