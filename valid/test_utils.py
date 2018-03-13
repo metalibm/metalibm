@@ -39,9 +39,13 @@ from metalibm_core.core.ml_function import DefaultArgTemplate
 class TestResult:
   ## @param result boolean indicating success (True) or failure (False)
   #  @param details string with test information
-  def __init__(self, result, details):
+  #  @param 
+  # @param
+  def __init__(self, result, details, test_object=None, test_case=None):
     self.result = result
     self.details = details
+    self.test_object = test_object
+    self.test_case = test_case
 
   def get_result(self):
     return self.result
@@ -60,21 +64,44 @@ class CommonTestScheme:
   def get_title(self):
     return self.title
 
+  @property
+  def num_test(self):
+    return len(self.argument_tc)
+
   ## get a transform version of title with no space
   def get_tag_title(self):
     return self.title.replace(" ", "_")
 
-  def perform_all_test(self, debug = False):
-    result_list = [self.single_test(tc, debug = debug) for tc in self.argument_tc]
+  def perform_all_test_no_reduce(self, debug=False):
+    """ perform all test in CommonTestScheme and returns
+        raw TestResult list """
+    return [self.single_test(tc, debug = debug) for tc in self.argument_tc]
+
+  def get_success_count(self, result_list):
     success_count = [r.get_result() for r in result_list].count(True)
+    return success_count
+
+  def reduce_test_result(self, result_list):
+    """ Reduce a test result list to a single agglomerated test result """
+    success_count = self.get_success_count(result_list)
     failure_count = len(result_list) - success_count
     overall_success = (success_count >= 0) and (failure_count == 0)
     function_name = self.get_title()
 
     if overall_success:
-      return TestResult(True, "{} success ! ({}/{})".format(function_name, success_count, len(result_list)))
+      result_msg = "{} success ! ({}/{})".format(function_name, success_count, len(result_list))
+      return TestResult(True, result_msg)
     else:
-      return TestResult(False, "{} success ! ({}/{})\n {}".format(function_name, success_count, len(result_list), "\n".join(r.get_details() for r in result_list)))
+      result_msg = "{} success ! ({}/{})\n {}".format(
+            function_name, success_count, len(result_list), 
+            "\n".join(r.get_details() for r in result_list))
+      return TestResult(False, result_msg)
+
+  def perform_all_test(self, debug=False):
+    """ Perform all test of the scheme ahd then reduce test results
+        to a single object """
+    result_list = self.perform_all_test_no_reduce(debug)
+    return self.reduce_test_result(result_list)
 
 # Test object for new type meta function
 class NewSchemeTest(CommonTestScheme):
