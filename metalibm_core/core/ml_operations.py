@@ -903,13 +903,10 @@ class ComponentSelection(SpecifierOperation, GeneralArithmeticOperation):
                 self.set_precision(ComponentSelection.implicit_arg_precision[arg_precision])
 
 
-class FMASpecifier(object): 
+class FMASpecifier(object):
     """ Common parent to all Test specifiers """
     pass
 
-def FMASpecifier_Builder(name, arity, range_function = empty_range): 
-    """ Test Specifier constructor """
-    return type(name, (FMASpecifier,), {"arity": arity, "name": name, "range_function": staticmethod(range_function)})
 
 ## Fused Multiply-Add (FMA) operation
 #
@@ -1431,17 +1428,9 @@ class Test(SpecifierOperation, BooleanOperation, GeneralArithmeticOperation):
         BooleanOperation.finish_copy(self, new_copy, copy_map)
         new_copy.arity = self.arity
 
-class ComparisonSpecifier(object): pass
-def CompSpecBuilder(name, opcode, symbol):
-    field_map = {
-        # operation copy
-        "opcode": opcode,
-        "symbol": symbol,
-        # operation name
-        "get_opcode": (lambda self: self.opcode),
-        "get_symbol": (lambda self: self.symbol),
-    }
-    return type(name, (ComparisonSpecifier,), field_map)
+class ComparisonSpecifier(object):
+    opcode = "UNDEF ComparisonSpecifier opcode"
+    symbol = "UNDEF ComparisonSpecifier symbol"
 
 
 ## Comparison operator
@@ -1450,16 +1439,26 @@ class Comparison(BooleanOperation, SpecifierOperation, GeneralArithmeticOperatio
     name = "Comparison"
     arity = 2
 
-    Equal          = CompSpecBuilder("Equal", "eq", "==")
-    NotEqual       = CompSpecBuilder("NotEqual", "ne", "!=")
-    Less           = CompSpecBuilder("Less",  "lt", "<")
-    LessOrEqual    = CompSpecBuilder("LessOrEqual", "le", "<=")
-    Greater        = CompSpecBuilder("Greater", "gt", ">")
-    GreaterOrEqual = CompSpecBuilder("GreaterOrEqual", "ge", ">=")
-    LessSigned           = CompSpecBuilder("LessSigned",  "lt", "<")
-    LessOrEqualSigned    = CompSpecBuilder("LessOrEqualSigned", "le", "<=")
-    GreaterSigned        = CompSpecBuilder("GreaterSigned", "gt", ">")
-    GreaterOrEqualSigned = CompSpecBuilder("GreaterOrEqualSigned", "ge", ">=")
+    class Equal:
+        name, opcode, symbol = "Equal", "eq", "=="
+    class NotEqual:
+        name, opcode, symbol = "NotEqual", "ne", "!="
+    class Less:
+        name, opcode, symbol = "Less",  "lt", "<"
+    class LessOrEqual:
+        name, opcode, symbol = "LessOrEqual", "le", "<="
+    class Greater:
+        name, opcode, symbol = "Greater", "gt", ">"
+    class GreaterOrEqual:
+        name, opcode, symbol = "GreaterOrEqual", "ge", ">="
+    class LessSigned:
+        name, opcode, symbol =  "LessSigned",  "lt", "<"
+    class LessOrEqualSigned:
+        name, opcode, symbol = "LessOrEqualSigned", "le", "<="
+    class GreaterSigned:
+        name, opcode, symbol = "GreaterSigned", "gt", ">"
+    class GreaterOrEqualSigned:
+        name, opcode, symbol = "GreaterOrEqualSigned", "ge", ">="
 
 
     def __init__(self, *args, **kwords):
