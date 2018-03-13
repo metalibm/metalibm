@@ -1544,20 +1544,72 @@ def SO_Specifier_Builder(name, abstract_type_rule, instantiated_type_rule, arity
     return type(name, (SO_Specifier_Type,), field_map)
 
 
+def specific_abstract_type_rule(optree, *ops):
+    return ops[0].get_precision()
+def specific_instantiated_type_rule(backend, op, dprec):
+    return backend.merge_abstract_format(op, op.inputs)
+
+class SeedOperation(SO_Specifier_Type):
+    @staticmethod
+    def abstract_type_rule(optree, *ops):
+        return ops[0].get_precision()
+    @staticmethod
+    def instantiated_type_rule(backend, op, dprec):
+        return backend.merge_abstract_format(op, op.inputs)
 
 
 class SpecificOperation(SpecifierOperation, GeneralOperation):
     name = "SpecificOperation"
     # specifier init
-    DivisionSeed   = SO_Specifier_Builder("DivisionSeed", lambda optree, *ops: ops[0].get_precision(), lambda backend, op, dprec: backend.merge_abstract_format(op, op.inputs))  
-    InverseSquareRootSeed   = SO_Specifier_Builder("InverseSquareRootSeed", lambda optree, *ops: ops[0].get_precision(), lambda backend, op, dprec: backend.merge_abstract_format(op, op.inputs))  
-    Subnormalize      = SO_Specifier_Builder("Subnormalize", lambda optree, *ops: optree.get_precision(), lambda backend, op, dprec: op.get_precision())
-    GetRndMode        = SO_Specifier_Builder("GetRndMode", lambda optree, *ops: ML_FPRM_Type, lambda backend, op, dprec: ML_FPRM_Type)
-    CopySign          = SO_Specifier_Builder("CopySign", lambda optree, *ops: std_merge_abstract_format(ops[0].get_precision(), ops[1].get_precision()), lambda backend, op, dprec: backend.merge_abstract_format(op, op.inputs))
-    RoundedSignedOverflow = SO_Specifier_Builder("RoundedSignedOverflow", lambda optree, *ops: ops[0].get_precision(), lambda backend, op, dprec: backend.merge_abstract_format(op, op.inputs))
-    # dummy instantiated_type_rule function
-    ReadTimeStamp = SO_Specifier_Builder("ReadTimeStamp", lambda optree, *ops: optree.get_precision(), lambda backend, op, dprec: backend.merge_abstract_format(op, op.inputs))
+    class DivisionSeed(SeedOperation):
+        name = "DivisionSeed"
+    class InverseSquareRootSeed(SeedOperation):
+        name = "InverseSquareRootSeed"
 
+    class GetRndMode(SO_Specifier_Type):
+        name = "GetRndMode"
+        @staticmethod
+        def abstract_type_rule(optree, *ops):
+            return ML_FPRM_Type
+        @staticmethod
+        def instantiated_type_rule(backend, op, dprec):
+            return ML_FPRM_Type
+
+    class Subnormalize(SO_Specifier_Type):
+        name = "Subnormalize"
+        @staticmethod
+        def abstract_type_rule(optree, *ops):
+            return optree.get_precision()
+        @staticmethod
+        def instantiated_type_rule(backend, op, dprec):
+            return op.get_precision()
+
+    class CopySign(SO_Specifier_Type):
+        name = "CopySign"
+        @staticmethod
+        def abstract_type_rule(optree, *ops):
+            return std_merge_abstract_format(ops[0].get_precision(), ops[1].get_precision())
+        @staticmethod
+        def instantiated_type_rule(backend, op, dprec):
+            return backend.merge_abstract_format(op, op.inputs)
+
+    class RoundedSignedOverflow(SO_Specifier_Type):
+        name = "RoundedSignedOverflow"
+        @staticmethod
+        def abstract_type_rule(optree, *ops):
+            return ops[0].get_precision()
+        @staticmethod
+        def instantiated_type_rule(backend, op, dprec):
+            return backend.merge_abstract_format(op, op.inputs)
+
+    class ReadTimeStamp(SO_Specifier_Type):
+        name = "ReadTimeStamp"
+        @staticmethod
+        def abstract_type_rule(optree, *ops):
+            return optree.get_precision()
+        @staticmethod
+        def instantiated_type_rule(backend, op, dprec):
+            return backend.merge_abstract_format(op, op.inputs)
 
     def __init__(self, *args, **kwords):
         GeneralOperation.__init__(self, *args, **kwords)
