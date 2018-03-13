@@ -60,6 +60,10 @@ class AbstractBackend(object):
         self.simplified_rec_op_map = {}
         self.simplified_rec_op_map[C_Code] = self.generate_supported_op_map(language = C_Code)
 
+    def __str__(self):
+        """ Nice description string """
+        return self.target_name
+
     ## return the backend target name
     def get_target_name(sef):
         return self.target_name
