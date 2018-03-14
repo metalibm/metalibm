@@ -77,7 +77,7 @@ class Log(object):
 
     # list of enabled log levels
     enabled_levels = [
-        Warning,
+        # Warning,
         Error,
         # LogLevelFilter("Info", "passes")
     ]
