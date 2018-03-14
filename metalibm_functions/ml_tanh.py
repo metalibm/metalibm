@@ -83,7 +83,6 @@ def piecewise_approximation(
     error_function = lambda p, f, ai, mod, t: sollya.dirtyinfnorm(p - f, ai)
     max_approx_error = 0.0
     interval_size = (bound_high - bound_low) / num_intervals
-    print("interval_size: {}".format(float(interval_size)))
 
     for i in range(num_intervals):
         subint_low = bound_low + i * interval_size
