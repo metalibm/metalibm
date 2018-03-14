@@ -622,12 +622,12 @@ class ML_FunctionBasis(object):
     call_externalizer = CallExternalizer(self.get_main_code_object())
     scalar_callback_function = call_externalizer.externalize_call(scalar_scheme, scalar_arg_list, callback_name, self.precision)
 
-    print("[SV] optimizing Scalar scheme")
+    Log.report(Log.Info, "[SV] optimizing Scalar scheme")
     scalar_scheme = self.optimise_scheme(scalar_scheme)
 
     scalar_callback          = scalar_callback_function.get_function_object()
 
-    print("[SV] vectorizing scheme")
+    Log.report(Log.Info, "[SV] vectorizing scheme")
     vec_arg_list, vector_scheme, vector_mask = \
         self.vectorizer.vectorize_scheme(scalar_scheme, scalar_arg_list,
                                          vector_size, call_externalizer,
@@ -651,7 +651,7 @@ class ML_FunctionBasis(object):
 
     self.get_main_code_object().add_header("support_lib/ml_vector_format.h")
 
-    print("[SV] building vectorized main statement")
+    Log.report(Log.Info, "[SV] building vectorized main statement")
     if no_scalar_fallback_required(vector_mask):
       function_scheme = Statement(
         Return(vector_scheme)
@@ -671,7 +671,7 @@ class ML_FunctionBasis(object):
     # dummy scheme to make functionnal code generation
     self.implementation.set_scheme(function_scheme)
 
-    print("[SV] end of generate_function_list")
+    Log.report(Log.Info, "[SV] end of generate_function_list")
     return [scalar_callback_function, self.implementation]
 
 

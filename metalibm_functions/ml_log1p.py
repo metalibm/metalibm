@@ -130,7 +130,7 @@ class ML_Log1p(ML_Function("ml_log1p")):
     ctz_poly_degree = sup(guessdegree(log1p(sollya.x)/sollya.x, ctz_interval, S2**-(self.precision.get_field_size()+1))) + 1
     ctz_poly_object = Polynomial.build_from_approximation(log1p(sollya.x)/sollya.x, ctz_poly_degree, [self.precision]*(ctz_poly_degree+1), ctz_interval, sollya.absolute)
 
-    print("generating polynomial evaluation scheme")
+    Log.report(Log.Info, "generating polynomial evaluation scheme")
     ctz_poly = PolynomialSchemeEvaluator.generate_horner_scheme(ctz_poly_object, vx, unified_precision = self.precision)
     ctz_poly.set_attributes(tag = "ctz_poly", debug = debug_lftolx)
 
@@ -181,16 +181,16 @@ class ML_Log1p(ML_Function("ml_log1p")):
 
     inv_err = S2**-6 # TODO: link to target DivisionSeed precision
 
-    print("building mathematical polynomial")
+    Log.report(Log.Info, "building mathematical polynomial")
     approx_interval = Interval(-inv_err, inv_err)
     poly_degree = sup(guessdegree(log(1+sollya.x)/sollya.x, approx_interval, S2**-(self.precision.get_field_size()+1))) + 1
     global_poly_object = Polynomial.build_from_approximation(log(1+sollya.x)/sollya.x, poly_degree, [self.precision]*(poly_degree+1), approx_interval, sollya.absolute)
     poly_object = global_poly_object.sub_poly(start_index = 1)
 
-    print("generating polynomial evaluation scheme")
+    Log.report(Log.Info, "generating polynomial evaluation scheme")
     _poly = PolynomialSchemeEvaluator.generate_horner_scheme(poly_object, red_vxp1, unified_precision = self.precision)
     _poly.set_attributes(tag = "poly", debug = debug_lftolx)
-    print(global_poly_object.get_sollya_object())
+    Log.report(Log.Info, global_poly_object.get_sollya_object())
 
 
     vxp1_inv_exp = ExponentExtraction(vxp1_inv, tag = "vxp1_inv_exp", debug = debugd)
@@ -223,7 +223,7 @@ class ML_Log1p(ML_Function("ml_log1p")):
 
 
     # main scheme
-    print("MDL scheme")
+    Log.report(Log.Info, "MDL scheme")
     pre_scheme = ConditionBlock(neg_input,
         Statement(
             ClearException(),
