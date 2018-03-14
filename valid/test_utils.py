@@ -39,8 +39,8 @@ from metalibm_core.core.ml_function import DefaultArgTemplate
 class TestResult:
   ## @param result boolean indicating success (True) or failure (False)
   #  @param details string with test information
-  #  @param 
-  # @param
+  #  @param test_object CommonTestScheme object defining the test
+  #  @param test_case specific test parameters used in the test
   def __init__(self, result, details, test_object=None, test_case=None):
     self.result = result
     self.details = details
