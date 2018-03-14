@@ -43,15 +43,26 @@ import subprocess
 def extract_git_hash():
     """ extract current git sha1 """
     cwd = os.getcwd()
-    script_dir = os.path.dirname(
-      os.path.abspath(inspect.getfile(inspect.currentframe()))
+    script_dir = os.path.join(
+        os.path.dirname(
+          os.path.abspath(inspect.getfile(inspect.currentframe()))
+        ),
+        "..",
+        "..",
     )
-    git_sha = subprocess.call("""cd '%s' > /dev/null && \
-            git log -n 1 --pretty=format:"%%H" && \
-            cd '%s' > /dev/null """ % (script_dir, cwd), shell=True)
-    return git_sha
+    cmd = [sub for sub in """git -C {} log -n 1 --pretty=format:"%H" """.format(script_dir).split(" ") if sub != ""]
+
+    try:
+        git_sha_process = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+        git_sha = git_sha_process.stdout.read()
+        return git_sha
+    except:
+        return "<undefined>"
 
 GIT_SHA = extract_git_hash()
 VERSION_NUM = "1.0"
 VERSION_DESCRIPTION = "alpha"
 NOTES = """ metalibm core """
+
+if __name__ == "__main__":
+    print(extract_git_hash())
