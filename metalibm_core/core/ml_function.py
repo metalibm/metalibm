@@ -27,17 +27,21 @@
 ###############################################################################
 
 ###############################################################################
-# created:          
+# created:
 # last-modified:    Mar  7th, 2018
 #
 # author(s): Nicolas Brunie (nicolas.brunie@kalray.eu)
 ###############################################################################
 
+import os
+import random
+import subprocess
+
 from sollya import *
 
 from metalibm_core.core.ml_formats import *
 from metalibm_core.core.ml_optimization_engine import OptimizationEngine
-from metalibm_core.core.ml_operations import *  
+from metalibm_core.core.ml_operations import *
 from metalibm_core.core.ml_table import ML_NewTable
 from metalibm_core.core.ml_complex_formats import ML_Mpfr_t
 from metalibm_core.core.ml_call_externalizer import CallExternalizer
@@ -59,8 +63,6 @@ from metalibm_core.utility.log_report import Log
 from metalibm_core.utility.debug_utils import *
 from metalibm_core.utility.ml_template import DefaultArgTemplate
 
-import random
-import subprocess
 
 ## \defgroup ml_function ml_function
 ## @{
@@ -444,17 +446,26 @@ class ML_FunctionBasis(object):
         compiler_options += " -c  "
       else:
         src_list += [
-          "$ML_SRC_DIR/metalibm_core/support_lib/ml_libm_compatibility.c",
-          "$ML_SRC_DIR/metalibm_core/support_lib/ml_multi_prec_lib.c",
+          "%s/metalibm_core/support_lib/ml_libm_compatibility.c" % (os.environ["ML_SRC_DIR"]),
+          "%s/metalibm_core/support_lib/ml_multi_prec_lib.c" % (os.environ["ML_SRC_DIR"]),
         ]
       Log.report(Log.Info, "Compiler options: \"{}\"".format(compiler_options))
 
-      build_command = "{compiler} {options} -O2 -DML_DEBUG -I$ML_SRC_DIR/metalibm_core \
-      {src_files} -o {test_file} -lm ".format(compiler = compiler, src_files = (" ".join(src_list)), test_file = test_file, options = compiler_options) 
+      build_command = "{compiler} {options} -O2 -DML_DEBUG -I{ML_SRC_DIR}/metalibm_core \
+      {src_files} -o {test_file} -lm ".format(compiler = compiler, src_files = (" ".join(src_list)), test_file = test_file, options = compiler_options, ML_SRC_DIR=os.environ["ML_SRC_DIR"]) 
 
       Log.report(Log.Info, "Building source with command: {}".format(build_command))
-      build_result = subprocess.call(build_command, shell = True)
-      Log.report(Log.Info, "build result: {}".format(build_result))
+      def get_cmd_stdout(cmd):
+        cmd_process = subprocess.Popen(filter(None, cmd.split(" ")), stdout=subprocess.PIPE, env=os.environ.copy())
+        returncode = cmd_process.wait()
+        return returncode, cmd_process.stdout.read()
+
+      build_result, build_stdout = get_cmd_stdout(build_command)
+
+      if build_result:
+        Log.report(Log.Error, "build failed: \n {}".format(build_stdout))
+      else:
+        Log.report(Log.Info, "build result: {}\n{}".format(build_result, build_stdout))
 
       if (self.auto_test_enable or self.execute_trigger) and not build_result:
         test_command = " %s " % self.processor.get_execution_command(test_file)
@@ -462,12 +473,11 @@ class ML_FunctionBasis(object):
           Log.report(Log.Info, "VALIDATION {}, cmd: {} ".format(
             self.get_name(), test_command
           ))
-          test_result = subprocess.call(test_command, shell = True)
+          test_result, test_stdout = get_cmd_stdout(test_command)
           if not test_result:
             Log.report(Log.Info, "VALIDATION SUCCESS")
           else:
-            Log.report(Log.Info, "VALIDATION FAILURE [{}]".format(test_result))
-            sys.exit(1)
+            Log.report(Log.Error, "VALIDATION FAILURE [{}]\n{}".format(test_result, test_stdout))
         else:
           Log.report(Log.Info, "VALIDATION {} command line: {}".format(
             self.get_name(), test_command
