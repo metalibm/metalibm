@@ -63,3 +63,16 @@ lint:
     allow_failure: true
     script:
         - pylint metalibm_core/
+
+pages:
+  stage: deploy
+  script:
+    - export PATH=/app/local/bin:$PATH
+    - export LD_LIBRARY_PATH=/app/local/lib/
+    - export PYTHONPATH=/app/local/python/lib/python
+    - mkdir -p public
+    - PYTHONPATH=$PWD:$PYTHONPATH  ML_SRC_DIR=$PWD python2 valid/soft_coverage_test.py --report-only --output public/report.html
+  artifacts:
+    paths:
+    - public/
+    expire_in: 1 week
