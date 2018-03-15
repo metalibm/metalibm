@@ -78,8 +78,6 @@ NUM_AUTO_TEST = 1024 # to be divisible by standard vector length
 FUNCTION_LIST = [
     metalibm_functions.ml_cosh.ML_HyperbolicCosine,
     metalibm_functions.ml_sinh.ML_HyperbolicSine,
-]
-_ = [
     metalibm_functions.ml_tanh.ML_HyperbolicTangent,
     metalibm_functions.ml_exp.ML_Exponential,
     metalibm_functions.ml_log.ML_Log,
@@ -170,6 +168,7 @@ def print_report(msg):
 
 
 print_report("<html><body><div>")
+print_report("<b>Function generation test report:</b>")
 print_report("<p><ul>\n")
 for index, test_case in enumerate(test_list):
     nice_str = "; ".join("{}: {}".format(option, str(test_case[option])) for option in test_case)
@@ -195,7 +194,7 @@ for test_scheme in RESULT_MAP:
     msg = "<tr>\n\t\t<td>{:10}</td>\n".format(name[:10])
     for result in RESULT_MAP[test_scheme]:
         if result.get_result():
-            msg += color_cell(" OK ", "orange")
+            msg += color_cell(" OK ", "green")
         else:
             msg += color_cell(" KO ", "red")
     msg += "</tr>"
@@ -214,12 +213,12 @@ print_report("</p>\n<p>\n")
 
 if success:
     print_report("OVERALL SUCCESS")
-    exit(0)
 else:
     print_report("OVERALL FAILURE")
-    exit(1)
 print_report("</p>\n")
 
 print_report("</div></body></html>")
 
 OUTPUT_FILE.close()
+
+exit(0)
