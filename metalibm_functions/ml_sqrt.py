@@ -27,7 +27,8 @@
 ###############################################################################
 # last-modified:    Mar  7th, 2018
 ###############################################################################
-import sys
+
+
 import sollya
 
 
@@ -47,7 +48,7 @@ from metalibm_core.core.ml_formats import (
     ML_RoundToNearest, ML_GlobalRoundMode
 )
 from metalibm_core.core.ml_function import (
-    ML_Function, ML_FunctionBasis, DefaultArgTemplate
+    ML_FunctionBasis, DefaultArgTemplate
 )
 from metalibm_core.core.special_values import (
     FP_PlusZero, FP_MinusZero, FP_QNaN, FP_PlusInfty
@@ -59,8 +60,6 @@ from metalibm_core.code_generation.generic_processor import GenericProcessor
 from metalibm_core.utility.ml_template import ML_NewArgTemplate
 from metalibm_core.utility.log_report  import Log
 from metalibm_core.utility.debug_utils import debug_multi
-from metalibm_core.utility.num_utils   import ulp
-from metalibm_core.utility.gappa_utils import is_gappa_installed
 
 ## Newton-Raphson iteration object
 class NR_Iteration:
@@ -148,7 +147,9 @@ def compute_sqrt(vx, init_approx, num_iter, debug_lftolx = None, precision = ML_
 
 
 
-class ML_Sqrt(ML_Function("ml_sqrt")):
+class MetalibmSqrt(ML_FunctionBasis):
+    function_name = "ml_sqrt"
+
     def __init__(self, args=DefaultArgTemplate):
         # initializing base class
         ML_FunctionBasis.__init__(self, args)
@@ -158,7 +159,7 @@ class ML_Sqrt(ML_Function("ml_sqrt")):
 
     @staticmethod
     def get_default_args(**kw):
-        """ Return a structure containing the arguments for ML_Sqrt,
+        """ Return a structure containing the arguments for MetalibmSqrt,
             builtin from a default argument mapping overloaded with @p kw """
         default_args_sqrt = {
             "output_file": "my_sqrtf.c",
@@ -256,14 +257,14 @@ class ML_Sqrt(ML_Function("ml_sqrt")):
     standard_test_cases = [(1.651028399744791652636877188342623412609100341796875,)] # [sollya.parse(x)] for x in  ["+0.0", "-1*0.0", "2.0"]]
 
 if __name__ == "__main__":
-    arg_template = ML_NewArgTemplate(default_arg=ML_Sqrt.get_default_args())
+    ARG_TEMPLATE = ML_NewArgTemplate(default_arg=MetalibmSqrt.get_default_args())
     # TODO: should not be a command line argument but rather determined during generation
-    arg_template.parser.add_argument(
+    ARG_TEMPLATE.parser.add_argument(
       "--num-iter", dest="num_iter", action="store", default=1,
       help="number of Newton-Raphson iterations")
 
-    ARGS = arg_template.arg_extraction()
+    ARGS = ARG_TEMPLATE.arg_extraction()
 
-    ml_sqrt  = ML_Sqrt(ARGS)
-    ml_sqrt.gen_implementation()
+    ML_SQRT  = MetalibmSqrt(ARGS)
+    ML_SQRT.gen_implementation()
 
