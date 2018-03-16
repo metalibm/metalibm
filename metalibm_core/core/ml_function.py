@@ -162,7 +162,8 @@ class ML_FunctionBasis(object):
 
     # self.abs_accuracy = args.abs_accuracy if args.abs_accuracy else S2**(-self.get_output_precision().get_precision())
     self.libm_compliant = args.libm_compliant
-    self.accuracy_obj = args.accuracy(self.get_output_precision())
+    self.accuracy_class = args.accuracy
+    self.accuracy = args.accuracy(self.get_output_precision())
     
     self.processor = args.target
 
@@ -182,11 +183,6 @@ class ML_FunctionBasis(object):
     # main code object
     self.main_code_object = NestedCode(self.C_code_generator, static_cst=True, uniquifier="{0}_".format(self.function_name))
 
-  def get_accuracy(self):
-    return self.accuracy_obj
-  @property
-  def accuracy(self):
-    return self.accuracy_obj
   def get_vector_size(self):
     return self.vector_size
 
@@ -755,7 +751,7 @@ class ML_FunctionBasis(object):
       ) for i in range(self.get_arity())
     ]
     ## output values required to check results are stored in output table
-    num_output_value = self.accuracy_obj.get_num_output_value()
+    num_output_value = self.accuracy.get_num_output_value()
     output_table = ML_NewTable(dimensions = [test_total, num_output_value], storage_precision = self.precision, tag = self.uniquify_name("output_table"))
 
     # general index for input/output tables
@@ -789,7 +785,7 @@ class ML_FunctionBasis(object):
       for in_id in range(self.get_arity()):
         input_tables[in_id][table_index] = input_tuple[in_id]
       # computing and storing output values
-      output_values = self.accuracy_obj.get_output_check_value(self, input_tuple)
+      output_values = self.accuracy.get_output_check_value(self, input_tuple)
       for o in range(num_output_value):
         output_table[table_index][o] = output_values[o]
 
@@ -863,16 +859,16 @@ class ML_FunctionBasis(object):
       elt_inputs  = [VectorElementSelection(local_inputs[input_id], k) for input_id in range(self.get_arity())]
       elt_result = VectorElementSelection(local_result, k)
 
-      output_values = [TableLoad(output_table, vi + k, i) for i in range(self.accuracy_obj.get_num_output_value())]
+      output_values = [TableLoad(output_table, vi + k, i) for i in range(self.accuracy.get_num_output_value())]
 
-      failure_test = self.accuracy_obj.get_output_check_test(elt_result, output_values)
+      failure_test = self.accuracy.get_output_check_test(elt_result, output_values)
 
       comp_statement.push(
         ConditionBlock(
           failure_test,
           Statement(
             printf_input_function(*tuple([vi + k] + elt_inputs + [elt_result])), 
-            self.accuracy_obj.get_output_print_call(self.function_name, output_values),
+            self.accuracy.get_output_print_call(self.function_name, output_values),
             Return(Constant(1, precision = ML_Int32))
           )
         )
@@ -920,9 +916,9 @@ class ML_FunctionBasis(object):
         elt_inputs = [VectorElementSelection(local_inputs[input_id], k) for input_id in range(self.get_arity())]
         elt_result = VectorElementSelection(local_result, Constant(k, precision = ML_Integer))
 
-        output_values = [TableLoad(output_table, vi + k, i) for i in range(self.accuracy_obj.get_num_output_value())]
+        output_values = [TableLoad(output_table, vi + k, i) for i in range(self.accuracy.get_num_output_value())]
 
-        local_error = self.accuracy_obj.compute_error(elt_result, output_values, relative = True)
+        local_error = self.accuracy.compute_error(elt_result, output_values, relative = True)
 
         comp_statement.push(
           ReferenceAssign(
@@ -970,9 +966,9 @@ class ML_FunctionBasis(object):
 
     local_inputs  = tuple(TableLoad(input_tables[in_id], vi) for in_id in range(self.get_arity()))
     local_result = tested_function(*local_inputs)
-    output_values = [TableLoad(output_table, vi, i) for i in range(self.accuracy_obj.get_num_output_value())]
+    output_values = [TableLoad(output_table, vi, i) for i in range(self.accuracy.get_num_output_value())]
 
-    failure_test = self.accuracy_obj.get_output_check_test(local_result, output_values)
+    failure_test = self.accuracy.get_output_check_test(local_result, output_values)
 
     printf_input_function = self.get_printf_input_function()
 
@@ -987,12 +983,12 @@ class ML_FunctionBasis(object):
     if self.break_error:
         return_statement_break = Statement(
             printf_input_function(*((vi,) + local_inputs + (local_result,))), 
-            self.accuracy_obj.get_output_print_call(self.function_name, output_values)
+            self.accuracy.get_output_print_call(self.function_name, output_values)
         )
     else:
         return_statement_break = Statement(
             printf_input_function(*((vi,) + local_inputs + (local_result,))), 
-            self.accuracy_obj.get_output_print_call(self.function_name, output_values),
+            self.accuracy.get_output_print_call(self.function_name, output_values),
             Return(Constant(1, precision = ML_Int32))
         )
     
@@ -1019,8 +1015,8 @@ class ML_FunctionBasis(object):
       local_inputs  = tuple(TableLoad(input_tables[in_id], vi) for in_id in range(self.get_arity()))
 
       local_result  = tested_function(*local_inputs)
-      stored_values = [TableLoad(output_table, vi, i) for i in range(self.accuracy_obj.get_num_output_value())]
-      local_error = self.accuracy_obj.compute_error(local_result, stored_values, relative = True)
+      stored_values = [TableLoad(output_table, vi, i) for i in range(self.accuracy.get_num_output_value())]
+      local_error = self.accuracy.compute_error(local_result, stored_values, relative = True)
       error_comp = Comparison(local_error, eval_error, specifier = Comparison.Greater, precision = ML_Bool)
       error_loop = Loop(
         ReferenceAssign(vi, Constant(0, precision = ML_Int32)),
