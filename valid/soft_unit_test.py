@@ -36,13 +36,16 @@
 import sys
 import argparse
 
-from sollya import Interval
+from sollya import Interval, S2
 
 from metalibm_core.targets import *
 import metalibm_core.code_generation.mpfr_backend
 
 from metalibm_core.utility.ml_template import target_instanciate
 from metalibm_core.core.ml_formats import ML_Int32, ML_Int16, ML_Int64, ML_Binary32
+from metalibm_core.core.precisions import (
+    ML_CorrectlyRounded, ML_Faithful, dar, daa 
+)
 
 from valid.unit_test import (
     UnitTestScheme
@@ -69,6 +72,7 @@ import metalibm_functions.unit_tests.multi_ary_function as ut_multi_ary_function
 import metalibm_functions.unit_tests.entity_pass as ut_entity_pass
 import metalibm_functions.unit_tests.implicit_interval_eval as ut_implicit_interval_eval
 import metalibm_functions.unit_tests.legalize_sqrt as ut_legalize_sqrt
+import metalibm_functions.unit_tests.accuracies as ut_accuracies
 
 unit_test_list = [
   UnitTestScheme(
@@ -80,6 +84,16 @@ unit_test_list = [
     "legalization of InvSquareRoot operation",
     ut_legalize_sqrt,
     [{"auto_test": 100, "execute": True}],
+  ),
+  UnitTestScheme(
+    "accuracy option",
+    ut_legalize_sqrt,
+    [
+        {"auto_test": 100, "execute": True, "accuracy": ML_CorrectlyRounded},
+        {"auto_test": 100, "execute": True, "accuracy": ML_Faithful},
+        {"auto_test": 100, "execute": True, "accuracy": dar(S2**-8)},
+        {"auto_test": 100, "execute": True, "accuracy": daa(S2**-8)},
+    ],
   ),
   UnitTestScheme(
     "basic new arg template test",
