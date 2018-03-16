@@ -43,7 +43,7 @@ Example of metafunctions can be found under the metalibm_functions directory.
 
 ## DOCUMENTATION
 
-Metalibm Description Language is documented in doc/MDL.md
+Metalibm Description Language is documented in [doc/MDL.md](https://github.com/kalray/metalibm/blob/master/doc/MDL.md)
 
 ## Version History
 
