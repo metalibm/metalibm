@@ -184,6 +184,9 @@ class ML_FunctionBasis(object):
 
   def get_accuracy(self):
     return self.accuracy_obj
+  @property
+  def accuracy(self):
+    return self.accuracy_obj
   def get_vector_size(self):
     return self.vector_size
 
@@ -1223,7 +1226,7 @@ class ML_FunctionBasis(object):
     return test_loop
 
   #@staticmethod
-  def get_name():
+  def get_name(self):
     return self.function_name
 
   # list of input to be used for standard test validation
@@ -1234,7 +1237,6 @@ class ML_FunctionBasis(object):
 #  child class with specific function_name value
 def ML_Function(name):
   new_class = type(name, (ML_FunctionBasis,), {"function_name": name})
-  new_class.get_name = staticmethod(lambda: name)
   return new_class
 
 # end of Doxygen's ml_function group
