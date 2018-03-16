@@ -200,6 +200,11 @@ class AbstractBackend(object):
     def get_operation_keys(optree):
         """ return code_generation_table key corresponding to the operation performed by <optree> """
         op_class = optree.__class__
+        if optree.get_precision() is None:
+            Log.report(Log.Error, "Following optree has undefined({} precision: \n{}".format(
+                optree.get_precision(),
+                optree.get_str(display_precision=True, depth=2)
+            ))
         result_type = (optree.get_precision().get_match_format(),)
         arg_type = tuple((arg.get_precision().get_match_format() if not arg.get_precision() is None else None) for arg in optree.get_inputs())
         interface = result_type + arg_type
