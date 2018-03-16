@@ -44,7 +44,7 @@ from metalibm_core.core.ml_formats import *
 from metalibm_core.core.ml_table import ML_NewTable
 from metalibm_core.code_generation.generic_processor import GenericProcessor
 from metalibm_core.core.polynomials import *
-from metalibm_core.core.ml_function import ML_Function, ML_FunctionBasis, DefaultArgTemplate
+from metalibm_core.core.ml_function import  ML_FunctionBasis, DefaultArgTemplate
 from metalibm_core.code_generation.generator_utility import FunctionOperator, FO_Result, FO_Arg
 from metalibm_core.core.ml_complex_formats import ML_Mpfr_t
 
@@ -103,7 +103,9 @@ def compute_isqrt(vx, init_approx, num_iter, debug_lftolx = None, precision = ML
 
 
 
-class ML_Isqrt(ML_Function("ml_isqrt")):
+class ML_Isqrt(ML_FunctionBasis):
+  """ Reciprocal Square Root """
+  function_name = "ml_rsqrt"
   def __init__(self, args):
     # initializing base class
     ML_FunctionBasis.__init__(self, args)

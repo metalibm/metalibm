@@ -59,7 +59,6 @@ class ML_Exp2(ML_Function("ml_exp2")):
     ML_FunctionBasis.__init__(self,
       args
     )
-    self.accuracy  = args.accuracy
 
 
   @staticmethod

@@ -44,10 +44,13 @@ from metalibm_core.core.ml_formats import (
     ML_FPE_Invalid, ML_FPE_Overflow, ML_FPE_Underflow,
     ML_FPE_Inexact
 )
-from metalibm_core.core.precisions import ML_Faithful
+from metalibm_core.core.precisions import (
+    ML_Faithful, ML_CorrectlyRounded, ML_DegradedAccuracyAbsolute,
+    ML_DegradedAccuracyRelative
+)
 from metalibm_core.code_generation.generic_processor import GenericProcessor
 from metalibm_core.core.ml_function import (
-    ML_Function, ML_FunctionBasis, DefaultArgTemplate
+    ML_FunctionBasis, DefaultArgTemplate
 )
 from metalibm_core.core.polynomials import (
     PolynomialSchemeEvaluator, Polynomial
@@ -70,11 +73,11 @@ from metalibm_core.utility.num_utils   import ulp
 from metalibm_core.utility.gappa_utils import is_gappa_installed
 
 
-class ML_Exponential(ML_Function("ml_exp")):
+class ML_Exponential(ML_FunctionBasis):
+    function_name = "ml_exp"
     def __init__(self, args=DefaultArgTemplate):
         # initializing base class
         ML_FunctionBasis.__init__(self, args)
-        self.accuracy = args.accuracy
 
     @staticmethod
     def get_default_args(**kw):
@@ -233,9 +236,9 @@ class ML_Exponential(ML_Function("ml_exp")):
         local_ulp = sup(ulp(sollya.exp(approx_interval), self.precision))
         # FIXME refactor error_goal from accuracy
         Log.report(Log.Info, "accuracy: %s" % self.accuracy)
-        if self.accuracy is ML_Faithful:
+        if isinstance(self.accuracy, ML_Faithful):
             error_goal = local_ulp
-        elif self.accuracy is ML_CorrectlyRounded:
+        elif isinstance(self.accuracy, ML_CorrectlyRounded):
             error_goal = S2**-1 * local_ulp
         elif isinstance(self.accuracy, ML_DegradedAccuracyAbsolute):
             error_goal = self.accuracy.goal

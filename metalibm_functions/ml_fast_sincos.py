@@ -40,7 +40,7 @@ from sollya import (
         guessdegree
 )
 
-from metalibm_core.core.ml_function import ML_Function, ML_FunctionBasis
+from metalibm_core.core.ml_function import ML_FunctionBasis
 
 from metalibm_core.core.attributes import ML_Debug
 from metalibm_core.core.ml_operations import *
@@ -66,9 +66,10 @@ verbosity(0)
 ## Fast implementation of trigonometric function sine and cosine
 #  Focuses on speed rather than on accuracy. Accepts --accuracy
 #  and --input-interval options
-class ML_FastSinCos(ML_Function("ml_fast_cos")):
+class ML_FastSinCos(ML_FunctionBasis):
   """ Implementation of cosinus function """
-  def __init__(self, 
+  function_name = "ml_fast_cos"
+  def __init__(self,
                precision = ML_Binary32, 
                accuracy  = ML_Faithful,
                libm_compliant = True, 
@@ -83,10 +84,10 @@ class ML_FastSinCos(ML_Function("ml_fast_cos")):
                table_size_log = 8,
                cos_output = True):
     # initializing I/O precision
-    io_precisions = [result_precision, precision] 
+    io_precisions = [result_precision, precision]
 
     # initializing base class
-    ML_FunctionBasis.__init__(self, 
+    ML_FunctionBasis.__init__(self,
       base_name = "cos",
       function_name = function_name,
       output_file = output_file,
@@ -103,7 +104,6 @@ class ML_FastSinCos(ML_Function("ml_fast_cos")):
     )
     self.precision  = precision
     self.cos_output = cos_output
-    self.accuracy   = accuracy 
     self.input_interval = input_interval
     self.table_size_log = table_size_log
 

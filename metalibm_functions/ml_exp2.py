@@ -90,7 +90,6 @@ class ML_Exp2(ML_Function("ml_exp2")):
       arg_template = arg_template
     )
 
-    self.accuracy  = accuracy
     self.precision = precision
 
   def generate_scheme(self):

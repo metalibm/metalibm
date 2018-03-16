@@ -39,7 +39,7 @@ from metalibm_core.core.ml_formats import *
 from metalibm_core.code_generation.generic_processor import GenericProcessor
 from metalibm_core.core.polynomials import *
 from metalibm_core.core.ml_table import ML_NewTable
-from metalibm_core.core.ml_function import ML_Function, ML_FunctionBasis, DefaultArgTemplate
+from metalibm_core.core.ml_function import ML_FunctionBasis, DefaultArgTemplate
 from metalibm_core.code_generation.generator_utility import FunctionOperator, FO_Result, FO_Arg
 from metalibm_core.core.ml_complex_formats import ML_Mpfr_t
 
@@ -54,11 +54,11 @@ from metalibm_core.utility.gappa_utils import is_gappa_installed
 
 
 
-class ML_ExponentialM1_Red(ML_Function("ml_expm1")):
+class ML_ExponentialM1_Red(ML_FunctionBasis):
+  function_name = "ml_expm1"
   def __init__(self, args):
     # initializing base class
     ML_FunctionBasis.__init__(self, args)
-    self.accuracy  = args.accuracy
 
 
   @staticmethod
