@@ -163,6 +163,7 @@ class MetalibmSqrt(ML_FunctionBasis):
         default_args_sqrt = {
             "output_file": "my_sqrtf.c",
             "function_name": "my_sqrtf",
+            "num_iter": 3, 
             "precision": ML_Binary32,
             "accuracy": ML_Faithful,
             "target": GenericProcessor()
@@ -259,7 +260,7 @@ if __name__ == "__main__":
     ARG_TEMPLATE = ML_NewArgTemplate(default_arg=MetalibmSqrt.get_default_args())
     # TODO: should not be a command line argument but rather determined during generation
     ARG_TEMPLATE.parser.add_argument(
-      "--num-iter", dest="num_iter", action="store", default=1,
+      "--num-iter", dest="num_iter", action="store", default=3,
       help="number of Newton-Raphson iterations")
 
     ARGS = ARG_TEMPLATE.arg_extraction()
