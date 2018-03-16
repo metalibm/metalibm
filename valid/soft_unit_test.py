@@ -68,12 +68,18 @@ import metalibm_functions.unit_tests.new_table as ut_new_table
 import metalibm_functions.unit_tests.multi_ary_function as ut_multi_ary_function
 import metalibm_functions.unit_tests.entity_pass as ut_entity_pass
 import metalibm_functions.unit_tests.implicit_interval_eval as ut_implicit_interval_eval
+import metalibm_functions.unit_tests.legalize_sqrt as ut_legalize_sqrt
 
 unit_test_list = [
   UnitTestScheme(
     "implicit interval eval test",
     ut_implicit_interval_eval,
     [{}]
+  ),
+  UnitTestScheme(
+    "legalization of InvSquareRoot operation",
+    ut_legalize_sqrt,
+    [{"auto_test": 100, "execute": True}],
   ),
   UnitTestScheme(
     "basic new arg template test",
