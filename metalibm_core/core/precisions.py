@@ -52,6 +52,7 @@ class ML_FunctionPrecision(object):
   # @param emulated_function is an object with a numeric_emulate methode
   # @param input_values is a tuple of input values
   def get_output_check_value(self, emulated_function, input_values):
+    """ return the reference values required to check result """
     raise NotImplementedError
   ## return an Operation graph for testing if test_result
   #  fails numeric test defined by @p self accuracy and @p stored_outputs
@@ -69,47 +70,57 @@ class ML_FunctionPrecision(object):
     raise NotImplementedError
     
 class ML_TwoFactorPrecision(ML_FunctionPrecision):
-  def get_num_output_value(self):
-    return 2
-  def get_output_check_value(self, emulated_function, input_values):
-    low_bound  = self.precision.round_sollya_object(emulated_function.numeric_emulate(*input_values), sollya.RD)
-    high_bound = self.precision.round_sollya_object(emulated_function.numeric_emulate(*input_values), sollya.RU)
-    return low_bound, high_bound
+    """ Precision defined by two bounds (low and high) """
+    def get_num_output_value(self):
+        return 2
+    def get_check_value_low_bound(self, emulated_function, input_values):
+        """ return the low bound of the expected interval """
+        raise NotImplementedError
+    def get_check_value_high_bound(self, emulated_function, input_values):
+        """ return the high bound of the expected interval """
+        raise NotImplementedError
+    def get_output_check_value(self, emulated_function, input_values):
+        """ return the reference values required to check result """
+        low_bound = self.get_check_value_low_bound(emulated_function, input_values)
+        high_bound = self.get_check_value_high_bound(emulated_function, input_values)
+        return low_bound, high_bound
 
-  def compute_error(self, local_result, stored_outputs, relative = False):
-    precision = local_result.get_precision()
-    low_bound, high_bound = stored_outputs
-    error = Min(
-      Abs(Subtraction(local_result, low_bound, precision = precision), precision = precision),
-      Abs(Subtraction(local_result, high_bound, precision = precision), precision = precision),
-      precision = precision
-    )
-    if relative:
-      error = Abs(Division(error, local_result, precision = precision), precision = precision)
-    return error
+    def compute_error(self, local_result, stored_outputs, relative = False):
+        """ return MDL expression to compute error between local_result and 
+            stored_outputs """
+        precision = local_result.get_precision()
+        low_bound, high_bound = stored_outputs
+        error = Min(
+          Abs(Subtraction(local_result, low_bound, precision = precision), precision = precision),
+          Abs(Subtraction(local_result, high_bound, precision = precision), precision = precision),
+          precision = precision
+        )
+        if relative:
+            error = Abs(Division(error, local_result, precision = precision), precision = precision)
+        return error
 
-  def get_output_check_test(self, test_result, stored_outputs):
-    low_bound, high_bound = stored_outputs
-    failure_test = LogicalOr(
-      Comparison(test_result, low_bound, specifier = Comparison.Less),
-      Comparison(test_result, high_bound, specifier = Comparison.Greater)
-    )
-    return failure_test
-  def get_output_print_function(self, function_name, footer = "\\n"):
-    printf_op = FunctionOperator(
-      "printf", 
-      arg_map = {
-        0: "\"[{display_format};{display_format}]{footer}\"".format(display_format = self.precision.get_display_format(), footer = footer), 
-        1: FO_Arg(0), 
-        2: FO_Arg(1) 
-      }, void_function = True) 
-    printf_function = FunctionObject("printf", [self.precision] * 2, ML_Void, printf_op)
-    return printf_function
+    def get_output_check_test(self, test_result, stored_outputs):
+        low_bound, high_bound = stored_outputs
+        failure_test = LogicalOr(
+          Comparison(test_result, low_bound, specifier = Comparison.Less),
+          Comparison(test_result, high_bound, specifier = Comparison.Greater)
+        )
+        return failure_test
+    def get_output_print_function(self, function_name, footer = "\\n"):
+        printf_op = FunctionOperator(
+          "printf", 
+          arg_map = {
+            0: "\"[{display_format};{display_format}]{footer}\"".format(display_format = self.precision.get_display_format(), footer = footer), 
+            1: FO_Arg(0), 
+            2: FO_Arg(1) 
+          }, void_function = True) 
+        printf_function = FunctionObject("printf", [self.precision] * 2, ML_Void, printf_op)
+        return printf_function
 
-  def get_output_print_call(self, function_name, output_values, footer = "\\n"):
-    low, high = output_values
-    print_function = self.get_output_print_function(function_name, footer)
-    return print_function(low, high)
+    def get_output_print_call(self, function_name, output_values, footer = "\\n"):
+        low, high = output_values
+        print_function = self.get_output_print_function(function_name, footer)
+        return print_function(low, high)
 
 ## Correctly Rounded (error <= 0.5 ulp) rounding output precision indication
 class ML_CorrectlyRounded(ML_FunctionPrecision):
@@ -154,46 +165,63 @@ class ML_CorrectlyRounded(ML_FunctionPrecision):
 
 ## Faithful (error <= 1 ulp) rounding output precision indication
 class ML_Faithful(ML_TwoFactorPrecision):
-  pass
+    """ Faithful (abs(error) < 1 ulp) precision """ 
+    def get_check_value_low_bound(self, emulated_function, input_values):
+        low_bound  = self.precision.round_sollya_object(emulated_function.numeric_emulate(*input_values), sollya.RD)
+        return low_bound
+    def get_check_value_high_bound(self, emulated_function, input_values):
+        high_bound = self.precision.round_sollya_object(emulated_function.numeric_emulate(*input_values), sollya.RU)
+        return high_bound
 
 ## Degraded accuracy function output precision indication
 class ML_DegradedAccuracy(ML_TwoFactorPrecision):
-  def __init__(self, goal):
-    self.goal = goal
+    def __init__(self, goal):
+        # maxium error goal
+        self.goal = goal
 
-  def set_precision(self, precision):
-    self.precision = precision
-    return self
-    
+    def get_value_error_goal(self, value):
+        raise NotImplementedError
 
-  ## return the absolute or relative goal assocaited
-  #  with the accuracy object
-  def get_goal(self):
-    return self.goal
+    def get_check_value_cr(self, emulated_function, input_values):
+        """ return correctly rounded value """
+        return self.precision.round_sollya_object(
+            emulated_function.numeric_emulate(*input_values), sollya.RN)
+    def get_check_value_low_bound(self, emulated_function, input_values):
+        cr_value = self.get_check_value_cr(emulated_function, input_values)
+        value_goal = self.get_value_error_goal(cr_value)
+        return cr_value - value_goal
+    def get_check_value_high_bound(self, emulated_function, input_values):
+        cr_value = self.get_check_value_cr(emulated_function, input_values)
+        value_goal = self.get_value_error_goal(cr_value)
+        return cr_value + value_goal
+
+    def set_precision(self, precision):
+        self.precision = precision
+        return self
 
 ## Degraded accuracy with absoute error function output precision indication
 class ML_DegradedAccuracyAbsolute(ML_DegradedAccuracy, ):
-  """ absolute error accuracy """
-  def __init__(self, absolute_goal):
-    ML_DegradedAccuracy.__init__(self, absolute_goal)
+    """ absolute error accuracy """
+    def __init__(self, absolute_goal):
+        ML_DegradedAccuracy.__init__(self, absolute_goal)
 
-  def __str__(self):
-    return "ML_DegradedAccuracyAbsolute(%s)" % self.goal
+    def get_value_error_goal(self, value):
+        return abs(self.goal)
+
+    def __str__(self):
+        return "ML_DegradedAccuracyAbsolute(%s)" % self.goal
 
 ## Degraded accuracy with relative error function output precision indication
 class ML_DegradedAccuracyRelative(ML_DegradedAccuracy):
-  """ relative error accuracy """
-  def __init__(self, relative_goal):
-    ML_DegradedAccuracy.__init__(self, relative_goal)
+    """ relative error accuracy """
+    def __init__(self, relative_goal):
+        ML_DegradedAccuracy.__init__(self, relative_goal)
 
-  def __str__(self):
-    return "ML_DegradedAccuracyRelative(%s)" % self.goal
+    def get_value_error_goal(self, value):
+        return abs(self.goal * value)
 
-  def get_output_check_value(self, emulated_function, input_values):
-    low_bound  = self.precision.round_sollya_object(emulated_function.numeric_emulate(*input_value) * (1 - self.goal), sollya.RD)
-    high_bound = self.precision.round_sollya_object(emulated_function.numeric_emulate(*input_value) * (1 + self.goal), sollya.RU)
-    return low_bound, high_bound
-
+    def __str__(self):
+        return "ML_DegradedAccuracyRelative(%s)" % self.goal
 
 
 ## degraded absolute accuracy alias
