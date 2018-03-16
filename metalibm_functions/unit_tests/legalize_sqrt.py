@@ -43,6 +43,7 @@ from metalibm_core.core.ml_operations import *
 from metalibm_core.core.ml_formats import *
 from metalibm_core.core.ml_complex_formats import *
 from metalibm_core.core.ml_table import ML_NewTable
+from metalibm_core.core.precisions import dar
 
 from metalibm_core.code_generation.code_constant import C_Code
 
@@ -75,6 +76,8 @@ class ML_UT_LegalizeSqrt(ML_Function("ml_ut_legalize_sqrt")):
             "fuse_fma": True,
             "debug": True,
             "libm_compliant": True,
+            "test_range": Interval(S2**-8, S2**8),
+            "accuracy": dar(S2**-7),
         }
         default_args.update(kw)
         return DefaultArgTemplate(**default_args)
@@ -98,10 +101,11 @@ class ML_UT_LegalizeSqrt(ML_Function("ml_ut_legalize_sqrt")):
     def numeric_emulate(self, x):
         """ numeric emulation """
         # extracting mantissa from x
-        abs_x = abs(x)
-        mantissa = abs_x / S2**sollya.floor(sollya.log2(abs_x))
-        index = sollya.floor((mantissa - 1.0) * 2**8)
-        result = sollya.round(1/sollya.sqrt(1.0 + index * S2**-8), 9, sollya.RN)
+        # abs_x = abs(x)
+        # mantissa = abs_x / S2**sollya.floor(sollya.log2(abs_x))
+        # index = sollya.floor((mantissa - 1.0) * 2**8)
+        # result = sollya.round(1/sollya.sqrt(1.0 + index * S2**-8), 9, sollya.RN)
+        result = sollya.round(1/sollya.sqrt(x), 9, sollya.RN)
         return result
 
 
