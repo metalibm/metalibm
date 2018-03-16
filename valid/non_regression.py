@@ -199,7 +199,7 @@ new_scheme_function_list = [
   ),
   NewSchemeTest(
     "basic square root test",
-    metalibm_functions.ml_sqrt.ML_Sqrt,
+    metalibm_functions.ml_sqrt.MetalibmSqrt,
     [
         #{"precision": ML_Binary32, "target" : k1b, "num_iter" : 1},
         #{"precision": ML_Binary64, "target" : k1b, "num_iter" : 1}
@@ -207,7 +207,7 @@ new_scheme_function_list = [
   ),
   NewSchemeTest(
     "auto execute sqrt test",
-    metalibm_functions.ml_sqrt.ML_Sqrt,
+    metalibm_functions.ml_sqrt.MetalibmSqrt,
     [
     #{"precision": ML_Binary32, "target": k1b, "function_name": "my_sqrt", "auto_test": 100, "auto_test_execute": 100, "num_iter" : 1},
     #{"precision": ML_Binary64, "target": k1b, "function_name": "my_sqrt", "auto_test": 100, "auto_test_execute": 100, "num_iter" : 1},
