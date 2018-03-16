@@ -153,7 +153,6 @@ class MetalibmSqrt(ML_FunctionBasis):
     def __init__(self, args=DefaultArgTemplate):
         # initializing base class
         ML_FunctionBasis.__init__(self, args)
-        self.accuracy  = args.accuracy
         self.num_iter = args.num_iter
 
 

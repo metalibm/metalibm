@@ -45,7 +45,7 @@ from metalibm_core.core.ml_formats import *
 from metalibm_core.core.ml_table import ML_NewTable
 from metalibm_core.code_generation.generic_processor import GenericProcessor
 from metalibm_core.core.polynomials import *
-from metalibm_core.core.ml_function import ML_Function, ML_FunctionBasis, DefaultArgTemplate
+from metalibm_core.core.ml_function import ML_FunctionBasis, DefaultArgTemplate
 from metalibm_core.code_generation.generator_utility import FunctionOperator, FO_Result, FO_Arg
 from metalibm_core.core.ml_complex_formats import ML_Mpfr_t
 
@@ -58,12 +58,11 @@ from metalibm_core.utility.gappa_utils import is_gappa_installed
 
 
 
-class ML_Cbrt(ML_Function("ml_cbrt")):
+class ML_Cbrt(ML_FunctionBasis):
+  function_name = "ml_cbrt"
   def __init__(self, args=DefaultArgTemplate):
     # initializing base class
-    ML_FunctionBasis.__init__(self, args) 
-    # initializing accuracy property
-    self.accuracy  = args.accuracy
+    ML_FunctionBasis.__init__(self, args)
 
 
   @staticmethod

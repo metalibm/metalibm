@@ -31,7 +31,7 @@ from metalibm_core.core.attributes import ML_Debug
 from metalibm_core.core.ml_formats import *
 from metalibm_core.code_generation.generic_processor import GenericProcessor
 from metalibm_core.core.polynomials import *
-from metalibm_core.core.ml_function import ML_Function, ML_FunctionBasis, DefaultArgTemplate
+from metalibm_core.core.ml_function import ML_FunctionBasis, DefaultArgTemplate
 
 
 from metalibm_core.utility.ml_template import *
@@ -43,8 +43,9 @@ import metalibm_core.utility.ml_template as template
 
 
 
-class EmptyFunction(ML_Function("ml_empty_function")):
-  def __init__(self, 
+class EmptyFunction(ML_FunctionBasis):
+  function_name = "ml_empty_function"
+  def __init__(self,
              arg_template = DefaultArgTemplate, 
              precision = ML_Binary32, 
              accuracy  = ML_Faithful,
@@ -81,7 +82,6 @@ class EmptyFunction(ML_Function("ml_empty_function")):
       arg_template = arg_template
     )
 
-    self.accuracy  = accuracy
     self.precision = precision
 
 

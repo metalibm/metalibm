@@ -58,14 +58,14 @@ from metalibm_core.utility.gappa_utils import is_gappa_installed
 
 
 
-class ML_Cosine(ML_Function("ml_cos")):
+class ML_Cosine(ML_FunctionBasis)):
   """ Implementation of cosinus function """
-  def __init__(self, args=DefaultArgTemplate): 
+  function_name = "ml_cos"
+  def __init__(self, args=DefaultArgTemplate):
     # initializing base class
-    ML_FunctionBasis.__init__(self, 
+    ML_FunctionBasis.__init__(self,
         args
     )
-    self.accuracy  = args.accuracy
 
 
   @staticmethod
