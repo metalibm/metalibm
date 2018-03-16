@@ -48,6 +48,8 @@ from .complex_generator import *
 from .generator_helper import *
 from .abstract_backend import *
 
+from metalibm_core.utility.debug_utils import debug_multi
+
 def LibFunctionConstructor(require_header):
     def extend_kwords(kwords, ext_list):
         require_header_arg = [] if ((not "require_header" in kwords) or not kwords["require_header"]) else kwords["require_header"]
@@ -145,6 +147,70 @@ unsigned_integer_precision = {
   ML_Int32:  ML_UInt32,
   ML_Int64:  ML_UInt64,
   ML_Int128: ML_UInt128,
+}
+
+generic_inv_approx_table = ML_ApproxTable(
+    dimensions = [2**7], 
+    storage_precision = ML_Binary32,
+    init_data = [
+        [((1.0 + (t_value / S2**9) ) * S2**-1)] for t_value in 
+    [508, 500, 492, 485, 477, 470, 463, 455, 448, 441, 434, 428, 421, 414, 408,
+     401, 395, 389, 383, 377, 371, 365, 359, 353, 347, 342, 336, 331, 326, 320,
+     315, 310, 305, 300, 295, 290, 285, 280, 275, 271, 266, 261, 257, 252, 248,
+     243, 239, 235, 231, 226, 222, 218, 214, 210, 206, 202, 198, 195, 191, 187,
+     183, 180, 176, 172, 169, 165, 162, 158, 155, 152, 148, 145, 142, 138, 135,
+     132, 129, 126, 123, 120, 117, 114, 111, 108, 105, 102, 99, 96, 93, 91, 88,
+     85, 82, 80, 77, 74, 72, 69, 67, 64, 62, 59, 57, 54, 52, 49, 47, 45, 42, 40,
+     38, 35, 33, 31, 29, 26, 24, 22, 20, 18, 15, 13, 11, 9, 7, 5, 3, 0
+    ]
+    ]
+)
+
+invsqrt_approx_table = ML_ApproxTable(
+    dimensions = [2**8],
+    index_size=8,
+    storage_precision = ML_Binary32,
+    init_data = [
+        sollya.round(1/sollya.sqrt(1.0 + i * S2**-8), 9, sollya.RN) for i in range(2**8)
+    ]
+)
+
+def legalize_invsqrt_seed(optree):
+    """ Legalize an InverseSquareRootSeed optree """
+    assert isinstance(optree, SpecificOperation) and optree.specifier == SpecificOperation.InverseSquareRootSeed
+    op_input = optree.get_input(0)
+    table_index = invsqrt_approx_table.get_index_function()(op_input)
+    table_index.set_attributes(tag="invsqrt_index", debug=debug_multi)
+    return TableLoad(
+        invsqrt_approx_table,
+        table_index,
+        precision=optree.get_precision()
+    )
+
+generic_approx_table_map = {
+    None: { # language
+        SpecificOperation: {
+            SpecificOperation.DivisionSeed: {
+                lambda optree: True: {
+                    type_strict_match(ML_Binary32, ML_Binary32, ML_Binary32): generic_inv_approx_table,
+                    type_strict_match(ML_Binary64, ML_Binary64, ML_Binary64): generic_inv_approx_table,
+                },
+                lambda optree: not optree.get_silent(): {
+                    type_strict_match(ML_Binary32, ML_Binary32): generic_inv_approx_table,
+                    type_strict_match(ML_Binary64, ML_Binary64): generic_inv_approx_table,
+                },
+                lambda optree: optree.get_silent(): {
+                    type_strict_match(ML_Binary32, ML_Binary32): generic_inv_approx_table,
+                    type_strict_match(ML_Binary64, ML_Binary64): generic_inv_approx_table,
+                },
+            },
+            SpecificOperation.InverseSquareRootSeed: {
+                lambda optree: True: {
+                    type_strict_match(ML_Binary32, ML_Binary32): invsqrt_approx_table,
+                },
+            },
+        },
+    },
 }
 
 c_code_generation_table = {
@@ -653,15 +719,24 @@ c_code_generation_table = {
     SpecificOperation: {
         SpecificOperation.Subnormalize: {
             lambda optree: True: {
-                type_strict_match(ML_Binary64, ML_DoubleDouble, ML_Int32): FunctionOperator("ml_subnormalize_d_dd_i", arity = 2),
+                type_strict_match(ML_Binary64, ML_DoubleDouble, ML_Int32):
+                    FunctionOperator("ml_subnormalize_d_dd_i", arity = 2),
             },
         },
         SpecificOperation.CopySign: {
             lambda optree: True: {
-                type_strict_match(ML_Binary32, ML_Binary32, ML_Binary32): ML_Utils_Function("ml_copy_signf", arity = 2),
-                type_strict_match(ML_Binary64, ML_Binary64, ML_Binary64): ML_Utils_Function("ml_copy_sign", arity = 2),
+                type_strict_match(ML_Binary32, ML_Binary32, ML_Binary32):
+                    ML_Utils_Function("ml_copy_signf", arity = 2),
+                type_strict_match(ML_Binary64, ML_Binary64, ML_Binary64):
+                    ML_Utils_Function("ml_copy_sign", arity = 2),
             },
         },
+        SpecificOperation.InverseSquareRootSeed: {
+            lambda optree: True: {
+                type_strict_match(ML_Binary32, ML_Binary32):
+                    ComplexOperator(optree_modifier=legalize_invsqrt_seed),
+            },
+        }
     },
     Split: {
         None: {
@@ -864,48 +939,6 @@ gappa_code_generation_table = {
 }
 
 
-generic_inv_approx_table = ML_ApproxTable(
-    dimensions = [2**7, 1], 
-    storage_precision = ML_Binary32,
-    init_data = [
-        [((1.0 + (t_value / S2**9) ) * S2**-1)] for t_value in 
-    [508, 500, 492, 485, 477, 470, 463, 455, 448, 441, 434, 428, 421, 414, 408,
-     401, 395, 389, 383, 377, 371, 365, 359, 353, 347, 342, 336, 331, 326, 320,
-     315, 310, 305, 300, 295, 290, 285, 280, 275, 271, 266, 261, 257, 252, 248,
-     243, 239, 235, 231, 226, 222, 218, 214, 210, 206, 202, 198, 195, 191, 187,
-     183, 180, 176, 172, 169, 165, 162, 158, 155, 152, 148, 145, 142, 138, 135,
-     132, 129, 126, 123, 120, 117, 114, 111, 108, 105, 102, 99, 96, 93, 91, 88,
-     85, 82, 80, 77, 74, 72, 69, 67, 64, 62, 59, 57, 54, 52, 49, 47, 45, 42, 40,
-     38, 35, 33, 31, 29, 26, 24, 22, 20, 18, 15, 13, 11, 9, 7, 5, 3, 0
-    ]
-    ]
-)
-
-generic_approx_table_map = {
-    None: { # language
-        SpecificOperation: {
-            SpecificOperation.DivisionSeed: {
-                lambda optree: True: {
-                    type_strict_match(ML_Binary32, ML_Binary32, ML_Binary32): generic_inv_approx_table,
-                    type_strict_match(ML_Binary64, ML_Binary64, ML_Binary64): generic_inv_approx_table,
-                },
-                lambda optree: not optree.get_silent(): {
-                    type_strict_match(ML_Binary32, ML_Binary32): generic_inv_approx_table,
-                    type_strict_match(ML_Binary64, ML_Binary64): generic_inv_approx_table,
-                },
-                lambda optree: optree.get_silent(): {
-                    type_strict_match(ML_Binary32, ML_Binary32): generic_inv_approx_table,
-                    type_strict_match(ML_Binary64, ML_Binary64): generic_inv_approx_table,
-                },
-            },
-            #SpecificOperation.InverseSquareRootSeed: {
-            #    lambda optree: True: {
-            #        type_strict_match(ML_Binary32, ML_Binary32): invsqrt_approx_table,
-            #    },
-            #},
-        },
-    },
-}
 
 
 ## Generic C Capable Backend
