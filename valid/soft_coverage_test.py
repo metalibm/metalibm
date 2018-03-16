@@ -24,6 +24,7 @@
 # SOFTWARE.
 
 
+import datetime
 import argparse
 import sys
 import re
@@ -86,7 +87,7 @@ FUNCTION_LIST = [
     metalibm_functions.ml_log10.ML_Log10,
     metalibm_functions.ml_exp2_bis.ML_Exp2,
     metalibm_functions.ml_cbrt.ML_Cbrt,
-    metalibm_functions.ml_sqrt.ML_Sqrt,
+    metalibm_functions.ml_sqrt.MetalibmSqrt,
     metalibm_functions.ml_isqrt.ML_Isqrt,
     metalibm_functions.ml_sincos.ML_SinCos,
     metalibm_functions.ml_atan.ML_Atan,
@@ -216,6 +217,7 @@ if success:
 else:
     print_report("OVERALL FAILURE")
 print_report("</p>\n")
+print_report("generated: {}".format(datetime.datetime.today()))
 
 print_report("</div></body></html>")
 
