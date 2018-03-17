@@ -79,7 +79,7 @@ NUM_AUTO_TEST = 1024 # to be divisible by standard vector length
 FUNCTION_LIST = [
     metalibm_functions.ml_cosh.ML_HyperbolicCosine,
     metalibm_functions.ml_sinh.ML_HyperbolicSine,
-    metalibm_functions.ml_tanh.ML_HyperbolicTangent,
+    # metalibm_functions.ml_tanh.ML_HyperbolicTangent,
     metalibm_functions.ml_exp.ML_Exponential,
     metalibm_functions.ml_log.ML_Log,
     metalibm_functions.ml_log1p.ML_Log1p,
