@@ -31,6 +31,8 @@ Example of metafunctions can be found under the metalibm_functions directory.
 * Explore the other functions of this directory, e.g. :
 ``` python2 metalibm_functions/ml_log.py --help  ```
 
+A more comprehensive user documentation can be found in [doc/USERGUIDE.md](https://github.com/kalray/metalibm/blob/master/doc/USERGUIDE.md)
+
 
 ## TEST
 * Unit-testing (software code generation):
