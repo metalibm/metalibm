@@ -741,9 +741,9 @@ class TemplateOperatorFormat(FunctionOperator):
 
 
 class AsmInlineOperator(ML_CG_Operator):
-    def __init__(self, asm_template, arity = 2, arg_map = None, output_num = 1):
+    def __init__(self, asm_template, arity=2, arg_map=None, output_num=1, **kw):
         """ symbol operator initialization function """
-        ML_CG_Operator.__init__(self, arity)
+        ML_CG_Operator.__init__(self, arity, **kw)
         self.asm_template = asm_template
         self.arg_map = dict([(0, FO_Result(0))] + [(i+1, FO_Arg(i)) for i in range(arity)]) if arg_map == None else arg_map
         # total arity
