@@ -51,7 +51,11 @@ import metalibm_functions.external_bench
 import metalibm_functions.ml_tanh
 
 from metalibm_core.core.ml_formats import ML_Binary32, ML_Binary64, ML_Int32
+from metalibm_core.core.ml_function import (
+    BuildError, ValidError
+)
 from metalibm_core.targets.common.vector_backend import VectorBackend
+
 from metalibm_core.targets.intel.x86_processor import (
         X86_Processor, X86_SSE_Processor, X86_SSE2_Processor,
         X86_SSE3_Processor, X86_SSSE3_Processor, X86_SSE41_Processor,
@@ -96,22 +100,43 @@ FUNCTION_LIST = [
 
 global_test_list = []
 
+# instantiating target objects
+X86_AVX2 = X86_AVX2_Processor()
+GENERIC_PROCESSOR = GenericProcessor()
+X86_PROCESSOR = X86_Processor()
+VECTOR_BACKEND = VectorBackend()
+
+TARGET_OPTIONS_MAP = {
+    GENERIC_PROCESSOR: {},
+    X86_AVX2: {"passes": ["m128_promotion", "m256_promotion"]},
+    VECTOR_BACKEND: {},
+    X86_PROCESSOR: {},
+}
+
 # list of all possible test for a single function
 test_list = []
-for scalar_target in [GenericProcessor(), X86_Processor(), X86_AVX2_Processor()]:
+for scalar_target in [GENERIC_PROCESSOR, X86_PROCESSOR, X86_AVX2]:
     for precision in [ML_Binary32, ML_Binary64]:
-        test_list.append({
+        options = {
             "precision": precision,
             "target": scalar_target,
-        })
-for vector_target in [X86_AVX2_Processor(), VectorBackend()]:
+            "auto_test": NUM_AUTO_TEST,
+            "execute": True,
+        }
+        options.update(TARGET_OPTIONS_MAP[scalar_target])
+        test_list.append(options)
+for vector_target in [X86_AVX2, VECTOR_BACKEND]:
     for precision in [ML_Binary32, ML_Binary64]:
         for vector_size in [4, 8]:
-            test_list.append({
+            options = {
                 "precision": precision,
                 "target": vector_target,
-                "vector_size": vector_size
-            })
+                "vector_size": vector_size,
+                "auto_test": NUM_AUTO_TEST,
+                "execute": True,
+            }
+            options.update(TARGET_OPTIONS_MAP[vector_target])
+            test_list.append(options)
 
 for function in FUNCTION_LIST:
     test_case = NewSchemeTest(
@@ -185,7 +210,7 @@ header += "\n"
 print_report(header)
 
 def color_cell(msg, color="red", markup="td", indent="\t\t"):
-    return """{indent}<{markup} style="color:{color}">{msg}</{markup}>\n""".format(
+    return """{indent}<{markup} style="color:{color}; text-align: center">{msg}</{markup}>\n""".format(
         indent=indent, color=color, msg=msg, markup=markup
     )
 
@@ -195,7 +220,13 @@ for test_scheme in RESULT_MAP:
     msg = "<tr>\n\t\t<td>{:10}</td>\n".format(name[:10])
     for result in RESULT_MAP[test_scheme]:
         if result.get_result():
-            msg += color_cell(" OK ", "green")
+            msg += color_cell("  OK    ", "green")
+        elif isinstance(result.error, GenerationError):
+            msg += color_cell("  KO[G]  ", "red")
+        elif isinstance(result.error, BuildError):
+            msg += color_cell(" KO[B] ", "red")
+        elif isinstance(result.error, ValidError):
+            msg += color_cell(" KO[V] ", "orange")
         else:
             msg += color_cell(" KO ", "red")
     msg += "</tr>"
