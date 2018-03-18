@@ -1,6 +1,7 @@
 # Metalibm Description Language
 
-Metalibm Description Language (MDL) is the entry point for Metalibm
+Metalibm Description Language (MDL) is the entry point for Metalibm.
+An implementation is built using MDL and static generation allowed by the Metalibm framework (e.g. generating table content using pythonsollya). The power of metalibm lies on mixing mathematical and code generation tools to generate an efficient implementation.
 
 # Basics MDL constructs
 MDL is based on operation constructs such as **Addition**, **Multiplication**, **Variable**, **Constant** or **Return** for example.
