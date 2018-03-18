@@ -40,7 +40,7 @@ from metalibm_core.core.ml_operations import (
     Constant, Variable, Addition
 )
 from metalibm_core.core.ml_formats import (
-    ML_Binary32, ML_Int32, 
+    ML_Binary32, ML_Int32,
     ML_FPE_Invalid, ML_FPE_Overflow, ML_FPE_Underflow,
     ML_FPE_Inexact
 )
@@ -84,8 +84,8 @@ class ML_Exponential(ML_FunctionBasis):
         """ Return a structure containing the arguments for ML_Exponential,
             builtin from a default argument mapping overloaded with @p kw """
         default_args_exp = {
-            "output_file": "my_exp.c",
-            "function_name": "my_exp",
+            "output_file": "ml_exp.c",
+            "function_name": "ml_exp",
             "precision": ML_Binary32,
             "accuracy": ML_Faithful,
             "target": GenericProcessor()
@@ -100,14 +100,17 @@ class ML_Exponential(ML_FunctionBasis):
         Log.set_dump_stdout(True)
 
         Log.report(Log.Info, "\033[33;1m generating implementation scheme \033[0m")
-        if self.debug_flag: 
+        if self.debug_flag:
             Log.report(Log.Info, "\033[31;1m debug has been enabled \033[0;m")
 
         # local overloading of RaiseReturn operation
         def ExpRaiseReturn(*args, **kwords):
             kwords["arg_value"] = vx
             kwords["function_name"] = self.function_name
-            return RaiseReturn(*args, **kwords)
+            if self.libm_compliant:
+                return RaiseReturn(*args, **kwords)
+            else:
+                return Statement()
 
         test_nan_or_inf = Test(
             vx, specifier=Test.IsInfOrNaN, likely=False,
@@ -146,13 +149,13 @@ class ML_Exponential(ML_FunctionBasis):
 
         # exclusion of early overflow and underflow cases
         precision_emax      = self.precision.get_emax()
-        precision_max_value = S2 * S2**precision_emax 
+        precision_max_value = S2 * S2**precision_emax
         exp_overflow_bound  = sollya.ceil(log(precision_max_value))
         early_overflow_test = Comparison(
             vx, exp_overflow_bound,
             likely=False, specifier=Comparison.Greater)
         early_overflow_return = Statement(
-            ClearException(),
+            ClearException() if self.libm_compliant else Statement(),
             ExpRaiseReturn(
                 ML_FPE_Inexact, ML_FPE_Overflow,
                 return_value=FP_PlusInfty(self.precision)
@@ -167,7 +170,7 @@ class ML_Exponential(ML_FunctionBasis):
             vx, exp_underflow_bound,
             likely=False, specifier=Comparison.Less)
         early_underflow_return = Statement(
-            ClearException(),
+            ClearException() if self.libm_compliant else Statement(),
             ExpRaiseReturn(
                 ML_FPE_Inexact, ML_FPE_Underflow,
                 return_value=FP_PlusZero(self.precision)))
@@ -389,7 +392,12 @@ class ML_Exponential(ML_FunctionBasis):
 
         # main scheme
         Log.report(Log.Info, "\033[33;1m MDL scheme \033[0m")
-        scheme = ConditionBlock(test_nan_or_inf, Statement(ClearException(), specific_return), std_return)
+        scheme = ConditionBlock(
+            test_nan_or_inf,
+            Statement(
+                ClearException() if self.libm_compliant else Statement(), 
+                specific_return
+        ), std_return)
 
         return scheme
 
@@ -413,9 +421,9 @@ class ML_Exponential(ML_FunctionBasis):
 if __name__ == "__main__":
     # auto-test
     arg_template = ML_NewArgTemplate(default_arg=ML_Exponential.get_default_args())
-    # argument extraction 
-    args = parse_arg_index_list = arg_template.arg_extraction()
+    # argument extraction
+    args = arg_template.arg_extraction()
 
-    ml_exp          = ML_Exponential(args)
+    ml_exp = ML_Exponential(args)
 
     ml_exp.gen_implementation()
