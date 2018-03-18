@@ -68,6 +68,14 @@ from metalibm_core.utility.ml_template import DefaultArgTemplate
 ## @{
 
 
+class BuildError(Exception):
+    """ Exception to indicate that a build stage failed """
+    pass
+class ValidError(Exception):
+    """ Exception to indicate that a validation stage failed """
+    pass
+
+
 ## standardized function name geneation
 #  @param base_name string name of the mathematical function
 #  @param io_precisions list of output, input formats (outputs followed by inputs)
@@ -462,7 +470,10 @@ class ML_FunctionBasis(object):
       build_result, build_stdout = get_cmd_stdout(build_command)
 
       if build_result:
-        Log.report(Log.Error, "build failed: \n {}".format(build_stdout))
+        Log.report(
+            Log.Error, "build failed: \n {}".format(build_stdout),
+            error=BuildError()
+        )
       else:
         Log.report(Log.Info, "build result: {}\n{}".format(build_result, build_stdout))
 
@@ -476,13 +487,19 @@ class ML_FunctionBasis(object):
           if not test_result:
             Log.report(Log.Info, "VALIDATION SUCCESS")
           else:
-            Log.report(Log.Error, "VALIDATION FAILURE [{}]\n{}".format(test_result, test_stdout))
+            Log.report(
+                Log.Error, "VALIDATION FAILURE [{}]\n{}".format(test_result, test_stdout),
+                error=ValidError()
+            )
         else:
           Log.report(Log.Info, "VALIDATION {} command line: {}".format(
             self.get_name(), test_command
           ))
       elif build_result:
-        Log.report(Log.Error, "build failed: {}".format(build_result))
+        Log.report(
+            Log.Error, "build failed: {}".format(build_result),
+            error=BuildError()
+        )
 
     elif self.bench_enabled:
       compiler = self.processor.get_compiler()

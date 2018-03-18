@@ -34,18 +34,25 @@
 # Last Modified:     March 6th, 2018
 ###############################################################################
 
-from metalibm_core.core.ml_function import DefaultArgTemplate
+from metalibm_core.core.ml_function import (
+    DefaultArgTemplate, BuildError, ValidError
+)
+
+class GenerationError(Exception):
+    """ Exception indicating that an error occured during code generation """
+    pass
 
 class TestResult:
   ## @param result boolean indicating success (True) or failure (False)
   #  @param details string with test information
   #  @param test_object CommonTestScheme object defining the test
   #  @param test_case specific test parameters used in the test
-  def __init__(self, result, details, test_object=None, test_case=None):
+  def __init__(self, result, details, test_object=None, test_case=None, error=None):
     self.result = result
     self.details = details
     self.test_object = test_object
     self.test_case = test_case
+    self.error = error
 
   def get_result(self):
     return self.result
@@ -105,32 +112,34 @@ class CommonTestScheme:
 
 # Test object for new type meta function
 class NewSchemeTest(CommonTestScheme):
-  #  @param ctor MetaFunction constructor
-  def __init__(self, title, ctor, argument_tc):
-    CommonTestScheme.__init__(self, title, argument_tc)
-    self.ctor = ctor
+    #    @param ctor MetaFunction constructor
+    def __init__(self, title, ctor, argument_tc):
+        CommonTestScheme.__init__(self, title, argument_tc)
+        self.ctor = ctor
 
-  ## Build an argument template from dict
-  def build_arg_template(self, **kw):
-    return self.ctor.get_default_args(**kw)
+    ## Build an argument template from dict
+    def build_arg_template(self, **kw):
+        return self.ctor.get_default_args(**kw)
 
-  def single_test(self, arg_tc, debug = False):
-    function_name = self.get_title()
-    test_desc = "{}/{}".format(function_name, str(arg_tc))
-    arg_template = self.build_arg_template(**arg_tc) 
+    def single_test(self, arg_tc, debug = False):
+        function_name = self.get_title()
+        test_desc = "{}/{}".format(function_name, str(arg_tc))
+        arg_template = self.build_arg_template(**arg_tc)
 
-    if debug:
-      fct = self.ctor(arg_template)
-      fct.gen_implementation()
-    else:
-      try:
-        fct = self.ctor(arg_template)
-      except:
-        return TestResult(False, "{} ctor failed".format(test_desc))
-      try:
-        fct.gen_implementation()
-      except:
-        return TestResult(False, "{} gen_implementation failed".format(test_desc))
-      
-    return TestResult(True, "{} succeed".format(test_desc))
+        if debug:
+            fct = self.ctor(arg_template)
+            fct.gen_implementation()
+        else:
+            try:
+                fct = self.ctor(arg_template)
+            except:
+                return TestResult(False, "{} ctor failed".format(test_desc))
+            try:
+                fct.gen_implementation()
+            except (BuildError, ValidError) as e:
+                return TestResult(False, "{} gen_implementation failed".format(test_desc), error=e)
+            except:
+                return TestResult(False, "{} gen_implementation failed".format(test_desc), error=GenerationError())
+            
+        return TestResult(True, "{} succeed".format(test_desc))
 
