@@ -926,42 +926,53 @@ class FusedMultiplyAdd(SpecifierOperation, GeneralArithmeticOperation):
         """ op0 * op1 + op2 """
         name = "Standard"
         arity = 3
-        range_function = lambda optree, ops: ops[0] * ops[1] + ops[2]
+        @staticmethod
+        def range_function(optree, ops):
+            return ops[0] * ops[1] + ops[2]
     ## Subtract FMA op0 * op1 - op2
     class Subtract(FMASpecifier):
         """ op0 * op1 - op2 """
         name = "Subtract"
         arity = 3
-        range_function = lambda optree, ops: ops[0] * ops[1] - ops[2]
-        pass
+        @staticmethod
+        def range_function(optree, ops):
+            return ops[0] * ops[1] - ops[2]
     ## Negate FMA - op0 * op1 - op2
     class Negate(FMASpecifier):
         """ -op0 * op1 - op2 """
         name = "Negate"
         arity = 3
-        range_function = lambda _self, ops: - ops[0] * ops[1] - ops[2]
+        @staticmethod
+        def range_function(optree, ops):
+            return - ops[0] * ops[1] - ops[2]
     ## Subtract Negate FMA - op0 * op1 + op2
     class SubtractNegate(FMASpecifier):
         """ -op0 * op1 + op2 """
         name = "SubtractNegate"
         arity = 3
-        range_function = lambda _self, ops: - ops[0] * ops[1] + ops[2]
+        @staticmethod
+        def range_function(optree, ops):
+            return - ops[0] * ops[1] + ops[2]
     ## Dot Product op0 * op1 + op2 * op3
     class DotProduct(FMASpecifier):
         """ op0 * op1 + op2 * op3 """
         name = "DotProduct"
         arity = 4
-        range_function = lambda _self, ops: ops[0] * ops[1] + ops[2] * ops[3]
+        @staticmethod
+        def range_function(optree , ops):
+            return ops[0] * ops[1] + ops[2] * ops[3]
     ## Dot Product Negate op0 * op1 - op2 * op3
     class DotProductNegate(FMASpecifier):
         """ op0 * op1 - op2 * op3 """
         name = "DotProductNegate"
         arity = 4
-        range_function = lambda _self, ops: ops[0] * ops[1] - ops[2] * ops[3]
+        @staticmethod
+        def range_function(optree, opts):
+            return ops[0] * ops[1] - ops[2] * ops[3]
 
     def bare_range_function(self, ops):
         """ FMA's range_function is determined by specifiers """
-        return self.specifier.range_function(ops)
+        return self.specifier.range_function(self, ops)
 
     def __init__(self, *args, **kwords):
         self.specifier = attr_init(kwords, "specifier", FusedMultiplyAdd.Standard)
