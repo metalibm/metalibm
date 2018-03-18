@@ -370,7 +370,7 @@ class DefaultEntityArgTemplate(DefaultArgTemplate):
     precision = ML_Binary32
     io_precisions = None
     accuracy = ML_Faithful
-    libm_compliant = True
+    libm_compliant = False
     # Optimization parameters,
     backend = VHDLBackend()
     fuse_fma = None
@@ -632,7 +632,7 @@ class ML_NewArgTemplate(ML_CommonArgTemplate):
         ML_CommonArgTemplate.__init__(self, parser, default_arg=default_arg)
         self.parser.add_argument(
             "--libm", dest="libm_compliant", action="store_const",
-            const=True, default=ArgDefault(False),
+            const=True, default=False,
             help="generate libm compliante code"
         )
         self.parser.add_argument(
