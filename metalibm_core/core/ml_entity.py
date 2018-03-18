@@ -176,7 +176,7 @@ class ML_EntityBasis(object):
     # Debug verbosity
     debug_flag    = ArgDefault.select_value([arg_template.debug, debug_flag])
     language      = ArgDefault.select_value([arg_template.language, language])
-    auto_test     = arg_template.auto_test or arg_template.auto_test_execute
+    auto_test     = arg_template.auto_test
     auto_test_std = arg_template.auto_test_std
 
     self.precision = arg_template.precision
@@ -191,7 +191,6 @@ class ML_EntityBasis(object):
     ## enable the generation of numeric/functionnal auto-test
     self.auto_test_enable  = (auto_test != False or auto_test_std != False)
     self.auto_test_number  = auto_test
-    self.auto_test_execute = arg_template.auto_test_execute
     self.auto_test_range   = arg_template.auto_test_range
     self.auto_test_std     = auto_test_std 
 
@@ -200,6 +199,8 @@ class ML_EntityBasis(object):
 
     # enable post-generation RTL elaboration
     self.build_enable = arg_template.build_enable
+    # enable post-elaboration simulation
+    self.execute_trigger = arg_template.execute_trigger
 
     self.language = language
 
@@ -469,7 +470,7 @@ class ML_EntityBasis(object):
     # generate VHDL code to implement scheme
     self.generate_code(code_entity_list, language = self.language)
 
-    if self.auto_test_execute:
+    if self.execute_trigger:
       # rtl elaboration
       print("Elaborating {}".format(self.output_file))
       elab_cmd = "vlib work && vcom -2008 {}".format(self.output_file)

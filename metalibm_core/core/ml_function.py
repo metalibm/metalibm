@@ -76,6 +76,15 @@ class ValidError(Exception):
     pass
 
 
+def get_cmd_stdout(cmd):
+    """ execute cmd on a subprocess and return return-code and stdout
+        message """
+    cmd_process = subprocess.Popen(
+        filter(None, cmd.split(" ")), stdout=subprocess.PIPE, env=os.environ.copy())
+    returncode = cmd_process.wait()
+    return returncode, cmd_process.stdout.read()
+
+
 ## standardized function name geneation
 #  @param base_name string name of the mathematical function
 #  @param io_precisions list of output, input formats (outputs followed by inputs)
@@ -127,9 +136,8 @@ class ML_FunctionBasis(object):
     self.input_precisions = [self.precision] * self.get_arity() if args.input_precisions is None else args.input_precisions
 
     # enable the generation of numeric/functionnal auto-test
-    self.auto_test_enable = (args.auto_test != False or args.auto_test_std != False or args.auto_test_execute != False)
+    self.auto_test_enable = (args.auto_test != False or args.auto_test_std != False)
     self.auto_test_number = args.auto_test
-    self.auto_test_execute = args.auto_test_execute
     self.auto_test_range = args.auto_test_range
     self.auto_test_std   = args.auto_test_std 
 
@@ -138,9 +146,8 @@ class ML_FunctionBasis(object):
     self.break_error = args.break_error
 
     # enable and configure the generation of a performance bench
-    self.bench_enabled = args.bench_test_number or args.bench_execute
-    self.bench_execute = args.bench_execute != 0
-    self.bench_test_number = args.bench_test_number or args.bench_execute
+    self.bench_enabled = args.bench_test_number 
+    self.bench_test_number = args.bench_test_number
     self.bench_test_range = args.bench_test_range
 
     # source building
@@ -150,7 +157,7 @@ class ML_FunctionBasis(object):
 
     self.language = args.language
 
-    Log.report(Log.Info, "auto test: {}, {}, {}, {}".format(self.auto_test_enable, self.auto_test_number, self.auto_test_execute, self.auto_test_range))
+    Log.report(Log.Info, "auto test: {}, {}, {}".format(self.auto_test_enable, self.auto_test_number,  self.auto_test_range))
 
     # Naming logic, using provided information if available, otherwise deriving from base_name
     # base_name is e.g. exp
@@ -443,12 +450,16 @@ class ML_FunctionBasis(object):
     # generate C code to implement scheme
     self.generate_code(code_function_list, language = self.language)
 
-    if self.build_enable or self.auto_test_execute or self.execute_trigger:
+    build_trigger = self.build_enable or self.execute_trigger
+    link_trigger = self.execute_trigger
+
+    if build_trigger:
       compiler = self.processor.get_compiler()
       test_file = "./test_%s.bin" % self.function_name
-      compiler_options = " ".join(self.processor.get_compilation_options())
+      DEFAULT_OPTIONS = ["-O2", "-DML_DEBUG"]
+      compiler_options = " ".join(DEFAULT_OPTIONS + self.processor.get_compilation_options())
       src_list = [self.output_file]
-      if (not self.auto_test_execute) and (not self.execute_trigger):
+      if not(link_trigger):
         # build only, disable link
         compiler_options += " -c  "
       else:
@@ -458,14 +469,15 @@ class ML_FunctionBasis(object):
         ]
       Log.report(Log.Info, "Compiler options: \"{}\"".format(compiler_options))
 
-      build_command = "{compiler} {options} -O2 -DML_DEBUG -I{ML_SRC_DIR}/metalibm_core \
-      {src_files} -o {test_file} -lm ".format(compiler = compiler, src_files = (" ".join(src_list)), test_file = test_file, options = compiler_options, ML_SRC_DIR=os.environ["ML_SRC_DIR"]) 
+      build_command = "{compiler} {options} -I{ML_SRC_DIR}/metalibm_core \
+      {src_files} -o {test_file} -lm ".format(
+        compiler=compiler,
+        src_files = (" ".join(src_list)),
+        test_file=test_file,
+        options=compiler_options,
+        ML_SRC_DIR=os.environ["ML_SRC_DIR"]) 
 
       Log.report(Log.Info, "Building source with command: {}".format(build_command))
-      def get_cmd_stdout(cmd):
-        cmd_process = subprocess.Popen(filter(None, cmd.split(" ")), stdout=subprocess.PIPE, env=os.environ.copy())
-        returncode = cmd_process.wait()
-        return returncode, cmd_process.stdout.read()
 
       build_result, build_stdout = get_cmd_stdout(build_command)
 
@@ -477,50 +489,28 @@ class ML_FunctionBasis(object):
       else:
         Log.report(Log.Info, "build result: {}\n{}".format(build_result, build_stdout))
 
-      if (self.auto_test_enable or self.execute_trigger) and not build_result:
-        test_command = " %s " % self.processor.get_execution_command(test_file)
-        if self.auto_test_execute or self.execute_trigger:
-          Log.report(Log.Info, "VALIDATION {}, cmd: {} ".format(
-            self.get_name(), test_command
-          ))
-          test_result, test_stdout = get_cmd_stdout(test_command)
-          if not test_result:
-            Log.report(Log.Info, "VALIDATION SUCCESS")
-          else:
-            Log.report(
-                Log.Error, "VALIDATION FAILURE [{}]\n{}".format(test_result, test_stdout),
-                error=ValidError()
-            )
-        else:
-          Log.report(Log.Info, "VALIDATION {} command line: {}".format(
-            self.get_name(), test_command
-          ))
-      elif build_result:
+      # only executing if build was successful
+      if build_result:
         Log.report(
             Log.Error, "build failed: {}".format(build_result),
             error=BuildError()
         )
-
-    elif self.bench_enabled:
-      compiler = self.processor.get_compiler()
-      bench_obj = "./bench_%s.bin" % self.function_name
-      compiler_options = " ".join(self.processor.get_compilation_options())
-      Log.report(Log.Info, "Compiler options: \"{}\"".format(compiler_options))
-      bench_command =  "{compiler} {options} -O2 -DML_DEBUG -I$ML_SRC_DIR/metalibm_core \
-      $ML_SRC_DIR/metalibm_core/support_lib/ml_libm_compatibility.c  \
-      $ML_SRC_DIR/metalibm_core/support_lib/ml_multi_prec_lib.c \
-      {src_file} -o {bench_obj} -lm ".format(compiler = compiler, src_file = self.output_file, bench_obj = bench_obj, options = compiler_options) 
-      bench_command += " && {} ".format(self.processor.get_execution_command(bench_obj))
-      if self.bench_execute:
-        Log.report(Log.Info, "BENCH {}, cmd={}".format(self.get_name, bench_command))
-        bench_result = subprocess.call(bench_command, shell = True)
-        if not bench_result:
-          Log.report(Log.Info, "BENCH FINISHED")
+      elif self.execute_trigger:
+        test_command = " %s " % self.processor.get_execution_command(test_file)
+        Log.report(Log.Info, "VALIDATION {} command line: {}".format(
+          self.get_name(), test_command
+        ))
+        # executing test command
+        test_result, test_stdout = get_cmd_stdout(test_command)
+        if not test_result:
+          print(test_stdout)
+          Log.report(Log.Info, "VALIDATION SUCCESS")
         else:
-          Log.report(Log.Error, "BENCH FAILURE [{}]".format(bench_result))
-          sys.exit(1)
-      else:
-        Log.report(Log.Info, "BENCH {} command line: {}".format(self.get_name(), bench_command))
+          Log.report(
+              Log.Error, "VALIDATION FAILURE [{}]\n{}".format(test_result, test_stdout),
+              error=ValidError()
+          )
+
 
 
   ## externalized an optree: generate a CodeFunction which compute the 

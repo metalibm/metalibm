@@ -327,14 +327,12 @@ class DefaultArgTemplate:
     language = C_Code
     # auto-test properties
     auto_test = False
-    auto_test_execute = False
     auto_test_range = Interval(0, 1)
     auto_test_std = False
     # enable max error computation
     compute_max_error = False
     break_error = False
     # bench properties
-    bench_execute = False
     bench_test_number = 0
     bench_test_range = Interval(0, 1)
     bench_function_name = "undefined"
@@ -382,7 +380,6 @@ class DefaultEntityArgTemplate(DefaultArgTemplate):
     language = VHDL_Code
     # functional test related parameters
     auto_test = False
-    auto_test_execute = False
     auto_test_range = Interval(0, 1)
     auto_test_std = False
     # exit after test
@@ -480,12 +477,6 @@ class ML_CommonArgTemplate(object):
             const=10, type=int, default=default_arg.auto_test,
             help="enable the generation of a self-testing numerical/functionnal\
       bench")
-        self.parser.add_argument(
-            "--auto-test-execute", dest="auto_test_execute", action="store",
-            nargs='?', const=10, type=int,
-            default=default_arg.auto_test_execute,
-            help="enable the generation of a self-testing "
-                 "numerical/functionnal bench")
 
         self.parser.add_argument(
             "--auto-test-range", dest="auto_test_range", action="store",
@@ -513,10 +504,6 @@ class ML_CommonArgTemplate(object):
             "--bench", dest="bench_test_number", action="store", nargs='?',
             const=1000, type=int, default=default_arg.bench_test_number,
             help="enable the generation of a performance bench")
-        self.parser.add_argument(
-            "--bench-execute", dest="bench_execute", action="store",
-            nargs='?', const=1000, type=int, default=default_arg.bench_execute,
-            help="enable the generation and execution of a performance bench")
         self.parser.add_argument(
             "--bench-range", dest="bench_test_range", action="store",
             type=interval_parser, default=default_arg.bench_test_range,
