@@ -40,7 +40,7 @@ class Log(object):
     log_stream     = None
     dump_stdout    = False
     ## abort execution when an Error level message is reported
-    exit_on_error  = True
+    exit_on_error  = False
     ## Tribber PDB break when an Error level message is reported
     break_on_error = False
 
@@ -92,7 +92,7 @@ class Log(object):
         return False
 
     @staticmethod
-    def report(level, msg, eol = "\n"):
+    def report(level, msg, eol = "\n", error=None):
         """ report log message """
         if Log.log_stream:
             Log.log_stream.write(msg + eol)
@@ -103,11 +103,11 @@ class Log(object):
         if level is Log.Error:
             if Log.break_on_error:
               pdb.set_trace()
-              raise Exception()
+              raise error or Exception()
             elif Log.exit_on_error:
               sys.exit(1)
             else:
-              raise Exception()
+              raise error or Exception()
 
     ## enable display of the specific log level
     #  @param level log-level to be enabled
