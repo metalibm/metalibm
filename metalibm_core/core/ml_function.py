@@ -1070,7 +1070,7 @@ class ML_FunctionBasis(object):
   #  @param test_num   number of test to perform
   #  @param test_range numeric range for test's inputs
   #  @param debug enable debug mode
-  def generate_bench_wrapper(self, test_num = 10, test_range = Interval(-1.0, 1.0), debug = False):
+  def generate_bench_wrapper(self, test_num = 10, loop_num=100000, test_range = Interval(-1.0, 1.0), debug = False):
     low_input = inf(test_range)
     high_input = sup(test_range)
     auto_test = CodeFunction("main", output_format = ML_Int32)
@@ -1128,18 +1128,28 @@ class ML_FunctionBasis(object):
     printf_timing_op = FunctionOperator(
         "printf",
         arg_map = {
-            0: "\"%s %%ld elts computed in %%ld cycles => %%.3f CPE \\n\"" % function_name,
+            0: "\"%s %%\"PRIi64\" elts computed in %%\"PRIi64\" cycles => %%.3f CPE \\n\"" % function_name,
             1: FO_Arg(0), 2: FO_Arg(1),
             3: FO_Arg(2)
         }, void_function = True
     )
     printf_timing_function = FunctionObject("printf", [ML_Int64, ML_Int64, ML_Binary64], ML_Void, printf_timing_op)
 
+    vj = Variable("j", precision=ML_Int32, var_type=Variable.Local)
+    loop_num_cst = Constant(loop_num, precision=ML_Int32, tag="loop_num")
+    loop_increment = 1
+
     # common test scheme between scalar and vector functions
     test_scheme = Statement(
       ReferenceAssign(timer, self.processor.get_current_timestamp()),
-      test_loop,
-
+      Loop(
+          ReferenceAssign(vj, Constant(0, precision=ML_Int32)),
+          vj < loop_num_cst,
+          Statement(
+              test_loop,
+              ReferenceAssign(vj, vj + loop_increment)
+          )
+      ),
       ReferenceAssign(timer,
         Subtraction(
           self.processor.get_current_timestamp(),
@@ -1148,11 +1158,11 @@ class ML_FunctionBasis(object):
         )
       ),
       printf_timing_function(
-        Constant(test_num, precision = ML_Int64),
+        Constant(test_num * loop_num, precision = ML_Int64),
         timer,
         Division(
           Conversion(timer, precision = ML_Binary64),
-          Constant(test_num, precision = ML_Binary64),
+          Constant(test_num * loop_num, precision = ML_Binary64),
           precision = ML_Binary64
         )
       ),
