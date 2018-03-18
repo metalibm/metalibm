@@ -52,7 +52,10 @@ from metalibm_core.core.ml_table import ML_Table
 
 from metalibm_core.code_generation.gappa_code_generator import GappaCodeGenerator
 
-from metalibm_core.utility.gappa_utils import execute_gappa_script_extract
+from metalibm_core.utility.gappa_utils import (
+    execute_gappa_script_extract,
+    is_gappa_installed
+)
 from metalibm_core.utility.ml_template import *
 
 from metalibm_core.utility.debug_utils import * 
@@ -131,10 +134,11 @@ class ML_UT_GappaCode(ML_Function("ml_ut_gappa_code")):
     # executing gappa on the script generated from <gappa_code>
     # extract the result and store them into <gappa_result>
     # which is a dict indexed by the goals' tag
-    gappa_result = execute_gappa_script_extract(gappa_code.get(self.gappa_engine))
-
-
-    print("eval error: ", gappa_result["goal"], gappa_result["new_goal"])
+    if is_gappa_installed():
+        gappa_result = execute_gappa_script_extract(gappa_code.get(self.gappa_engine))
+        print("eval error: ", gappa_result["new_goal"])
+    else:
+        print("gappa was not installed: unable to check execute_gappa_script_extract")
 
     # dummy scheme to make functionnal code generation
     scheme = Statement(Return(vx))
@@ -148,7 +152,7 @@ def run_test(args):
 
 if __name__ == "__main__":
   # auto-test
-  arg_template = ML_NewArgTemplate(default_args=ML_UT_GappaCode.get_default_args())
+  arg_template = ML_NewArgTemplate(default_arg=ML_UT_GappaCode.get_default_args())
   args = arg_template.arg_extraction()
 
 
