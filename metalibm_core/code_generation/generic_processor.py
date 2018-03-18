@@ -251,6 +251,16 @@ generic_approx_table_map = {
         },
     },
 }
+clock_gettime_operator = AsmInlineOperator(
+"""{
+        struct timespec current_clock;
+        int err = clock_gettime(CLOCK_THREAD_CPUTIME_ID, &current_clock);
+        %s = current_clock.tv_nsec + 1e9 * (int64_t) current_clock.tv_sec;
+}""",
+    arg_map={0: FO_Result(0)},
+    arity=0,
+    require_header=["time.h"]
+)
 
 c_code_generation_table = {
     Max: {
@@ -775,6 +785,12 @@ c_code_generation_table = {
                 type_strict_match(ML_Binary32, ML_Binary32):
                     ComplexOperator(optree_modifier=legalize_invsqrt_seed),
             },
+        },
+        SpecificOperation.ReadTimeStamp: {
+            lambda _: True: {
+                type_strict_match(ML_Int64):
+                    clock_gettime_operator,
+            }
         }
     },
     Split: {
@@ -998,15 +1014,19 @@ class GenericProcessor(AbstractBackend):
   # approximation table map
   approx_table_map = generic_approx_table_map
 
+  ## Function returning a ML_Int64 timestamp of
+  #  the current processor clock value
+  def get_current_timestamp(self):
+      """ return MDL expression to extract current CPU timestamp value """
+      return SpecificOperation(
+              specifier = SpecificOperation.ReadTimeStamp,
+              precision = ML_Int64
+             )
+
   ## return the compiler command line program to use to build
   #  test programs
   def get_compiler(self):
     return GenericProcessor.default_compiler
-
-  ## Function returning a ML_Int64 timestamp of
-  #  the current processor clock value
-  def get_current_timestamp(self):
-    raise NotImplementedError
 
   def get_execution_command(self, test_file):
     return "./%s" % test_file
