@@ -60,10 +60,11 @@ from metalibm_core.core.ml_vectorizer import StaticVectorizer
 from metalibm_core.utility.ml_template import *
 
 
-class ML_UT_OpenCLCode(ML_Function("ml_ut_opencl_code")):
-  def __init__(self, args=DefaultArgTemplate): 
+class ML_UT_OpenCLCode(ML_FunctionBasis):
+  function_name = "ml_ut_opencl_code"
+  def __init__(self, args=DefaultArgTemplate):
     # initializing base class
-    ML_FunctionBasis.__init__(self, args) 
+    ML_FunctionBasis.__init__(self, args)
 
 
   @staticmethod
@@ -74,7 +75,7 @@ class ML_UT_OpenCLCode(ML_Function("ml_ut_opencl_code")):
         "output_file": "ut_opencl_code.c",
         "function_name": "ut_opencl_code",
         "precision": ML_Binary32,
-        "target": FixedPointBackend(),
+        "target": VectorBackend(),
         "vector_size": 2,
         "language": C_Code,
         "fast_path_extract": True,
@@ -119,7 +120,7 @@ def run_test(args):
 
 if __name__ == "__main__":
   # auto-test
-  arg_template = ML_NewArgTemplate(default_args=ML_UT_OpenCLCode.get_default_args())
+  arg_template = ML_NewArgTemplate(default_arg=ML_UT_OpenCLCode.get_default_args())
   args = arg_template.arg_extraction()
 
   if run_test(args):

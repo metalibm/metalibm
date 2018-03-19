@@ -52,8 +52,12 @@ from metalibm_core.core.ml_table import ML_Table
 
 from metalibm_core.code_generation.gappa_code_generator import GappaCodeGenerator
 
+from metalibm_core.core.precisions import ML_Faithful
+
 from metalibm_core.utility.gappa_utils import execute_gappa_script_extract
-from metalibm_core.utility.ml_template import *
+from metalibm_core.utility.ml_template import (
+    ML_NewArgTemplate, DefaultArgTemplate
+)
 
 from metalibm_core.utility.arg_utils import test_flag_option, extract_option_value
 
@@ -97,7 +101,7 @@ def run_test(args):
 
 
 if __name__ == "__main__":
-  arg_template = ML_NewArgTemplate(default_args=ML_UT_NewArgTemplate.get_default_args())
+  arg_template = ML_NewArgTemplate(default_arg=ML_UT_NewArgTemplate.get_default_args())
   args = arg_template.arg_extraction()
 
   if run_test(args):

@@ -74,7 +74,7 @@ class ML_UT_StaticVectorization(ML_Function("ml_ut_static_vectorization")):
         "output_file": "ut_static_vectorization.c",
         "function_name": "ut_static_vectorization",
         "precision": ML_Binary32,
-        "target": FixedPointBackend(),
+        "target": VectorBackend(),
         "fast_path_extract": True,
         "fuse_fma": True,
         "libm_compliant": True
@@ -116,7 +116,7 @@ def run_test(args):
 
 if __name__ == "__main__":
   # auto-test
-  arg_template = ML_NewArgTemplate(default_args=ML_UT_StaticVectorization.get_default_args())
+  arg_template = ML_NewArgTemplate(default_arg=ML_UT_StaticVectorization.get_default_args())
   args = arg_template.arg_extraction()
 
   if run_test(args):

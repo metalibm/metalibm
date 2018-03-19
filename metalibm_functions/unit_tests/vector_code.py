@@ -71,7 +71,7 @@ class ML_UT_VectorCode(ML_Function("ml_ut_vector_code")):
         "output_file": "ut_vector_code.c",
         "function_name": "ut_vector_code",
         "precision": ML_Binary32,
-        "target": FixedPointBackend(),
+        "target": VectorBackend(),
         "fast_path_extract": True,
         "fuse_fma": True,
         "libm_compliant": True
@@ -113,7 +113,7 @@ def run_test(args):
 
 if __name__ == "__main__":
   # auto-test
-  arg_template = ML_NewArgTemplate(default_args=ML_UT_VectorCode.get_default_args())
+  arg_template = ML_NewArgTemplate(default_arg=ML_UT_VectorCode.get_default_args())
   args = arg_template.arg_extraction()
 
 

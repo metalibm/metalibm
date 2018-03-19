@@ -115,7 +115,7 @@ def run_test(args):
 
 if __name__ == "__main__":
   # auto-test
-  arg_template = ML_NewArgTemplate(default_args=ML_UT_CallExternaliation.get_default_args())
+  arg_template = ML_NewArgTemplate(default_arg=ML_UT_CallExternaliation.get_default_args())
   args = arg_template.arg_extraction()
 
   if run_test(args):

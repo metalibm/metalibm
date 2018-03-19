@@ -57,18 +57,27 @@ from metalibm_core.utility.arg_utils import test_flag_option, extract_option_val
 from metalibm_core.utility.debug_utils import *
 
 class ML_UT_PayneHanek(ML_Function("ml_ut_payne_hanek")):
-  def __init__(self,
-                 arg_template,
-                 ):
+  def __init__(self, args):
     #precision = ArgDefault.select_value([arg_template.precision, precision])
     #io_precisions = [precision] * 2
 
     # initializing base class
-    ML_FunctionBasis.__init__(self,
-      arg_template = arg_template
-    )
+    ML_FunctionBasis.__init__(self, args)
 
-    #self.precision = precision
+  @staticmethod
+  def get_default_args(**kw):
+    """ Return a structure containing the arguments for current class,
+        builtin from a default argument mapping overloaded with @p kw """
+    default_args = {
+        "output_file": "ut_payne_hanek.c",
+        "function_name": "ut_payne_hanek",
+        "precision": ML_Binary64,
+        "fast_path_extract": True,
+        "fuse_fma": True,
+        "libm_compliant": True
+    }
+    default_args.update(kw)
+    return DefaultArgTemplate(**default_args)
 
 
   def generate_scheme(self):
@@ -96,7 +105,7 @@ class ML_UT_PayneHanek(ML_Function("ml_ut_payne_hanek")):
 
 if __name__ == "__main__":
   # auto-test
-  arg_template = ML_NewArgTemplate("new_ut_payne_hanek", default_output_file = "new_ut_payne_hanek.c" )
+  arg_template = ML_NewArgTemplate(default_arg=ML_UT_PayneHanek.get_default_args())
   args = arg_template.arg_extraction()
 
 
