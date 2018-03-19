@@ -66,7 +66,7 @@ sollya.showmessagenumbers = sollya.on
 class ML_Atan(ML_Function("atan")):
   def __init__(self, arg_template=DefaultArgTemplate):
     # initializing base class
-    ML_FunctionBasis.__init__(self, args) 
+    ML_FunctionBasis.__init__(self, arg_template) 
 
   @staticmethod
   def get_default_args(**kw):
