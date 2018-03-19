@@ -516,7 +516,7 @@ class ML_CommonArgTemplate(object):
             help="enable Verbose log level")
         self.parser.add_argument(
             "--target-info", dest="target_info_flag", action=TargetInfoAction,
-            const=True, default=ArgDefault(False),
+            const=True, default=False,
             help="display list of supported targets")
 
         self.parser.add_argument(
@@ -640,7 +640,7 @@ class ML_NewArgTemplate(ML_CommonArgTemplate):
             default=default_arg.function_name, help="set function name"
         )
         self.parser.add_argument("--target", dest="target", action="store",
-            type=target_instanciate, default="none",
+            type=target_instanciate, default=default_arg.target,
             help="select generation target"
         )
         self.parser.add_argument(
