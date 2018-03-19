@@ -490,12 +490,7 @@ class ML_FunctionBasis(object):
         Log.report(Log.Info, "build result: {}\n{}".format(build_result, build_stdout))
 
       # only executing if build was successful
-      if build_result:
-        Log.report(
-            Log.Error, "build failed: {}".format(build_result),
-            error=BuildError()
-        )
-      elif self.execute_trigger:
+      if not(build_result) and self.execute_trigger:
         test_command = " %s " % self.processor.get_execution_command(test_file)
         Log.report(Log.Info, "VALIDATION {} command line: {}".format(
           self.get_name(), test_command
