@@ -20,9 +20,10 @@ The following command line will generate code for single precision exponential
 The following command line will generate code for single precision exponential
  and a performance test bench with 1000 random inputs (wrapped in an outer loop
  for better measurement stability).
+
 ```python2 metalibm_functions/ml_exp.py --precision binary32 --bench 1000 --target x86 --output x86_exp2f.c ```
 
-Currently --bench and --auto-test options can not be combined.
+Note: --bench and --auto-test options can be combined.
 
 ### Building a function after generation
 
