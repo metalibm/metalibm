@@ -409,6 +409,12 @@ class ML_FunctionBasis(object):
         print("function %s, after opt " % code_function.get_name())
         print(opt_scheme.get_str(depth = None, display_precision = True, memoization_map = {}, display_id=True))
 
+    main_pre_statement = Statement()
+    main_statement = Statement()
+
+    CstError = Constant(1, precision=ML_Int32)
+    CstSuccess = Constant(0, precision=ML_Int32)
+
     # generate auto-test wrapper
     if self.auto_test_enable:
       auto_test_function_list = self.generate_test_wrapper(
@@ -422,10 +428,18 @@ class ML_FunctionBasis(object):
           scheme, enable_subexpr_sharing = enable_subexpr_sharing
         )
         code_function.set_scheme(opt_scheme)
-
+        test_call = code_function.build_function_object()()
+        main_pre_statement.add(test_call)
+        main_statement.add(
+            ConditionBlock(
+                test_call,
+               Return(CstError)
+            )
+        )
       # appending auto-test wrapper to general code_function_list
       code_function_list += auto_test_function_list
-    elif self.bench_enabled:
+
+    if self.bench_enabled:
       bench_function_list = self.generate_bench_wrapper(
         test_num = self.bench_test_number if self.bench_test_number else 1000,
         test_range = self.bench_test_range
@@ -437,9 +451,29 @@ class ML_FunctionBasis(object):
           scheme, enable_subexpr_sharing = enable_subexpr_sharing
         )
         code_function.set_scheme(opt_scheme)
+        bench_call = code_function.build_function_object()()
+        main_pre_statement.add(bench_call)
+        main_statement.add(
+            ConditionBlock(
+                bench_call,
+               Return(CstError)
+            )
+        )
 
       # appending bench wrapper to general code_function_list
       code_function_list += bench_function_list
+
+    # adding main function
+    if self.bench_enabled or self.auto_test_enable:
+        main_function = CodeFunction("main", output_format=ML_Int32)
+        main_function.set_scheme(
+            Statement(
+                main_pre_statement,
+                main_statement,
+                Return(CstSuccess)
+            )
+        )
+        code_function_list.append(main_function)
 
     # finally checking processor support
     if self.check_processor_support:
@@ -713,11 +747,10 @@ class ML_FunctionBasis(object):
   #  @param test_num   number of test to perform
   #  @param test_range numeric range for test's inputs
   #  @param debug enable debug mode
-  def generate_test_wrapper(self, test_num = 10, test_range = Interval(-1.0, 1.0), debug = False):
+  def generate_test_wrapper(self, test_num = 10, test_range=Interval(-1.0, 1.0), debug=False):
     low_input = inf(test_range)
     high_input = sup(test_range)
-    auto_test = CodeFunction("main", output_format = ML_Int32)
-
+    auto_test = CodeFunction("test_wrapper", output_format = ML_Int32)
 
     tested_function    = self.implementation.get_function_object()
     function_name      = self.implementation.get_name()
@@ -1058,7 +1091,7 @@ class ML_FunctionBasis(object):
   def generate_bench_wrapper(self, test_num = 10, loop_num=100000, test_range = Interval(-1.0, 1.0), debug = False):
     low_input = inf(test_range)
     high_input = sup(test_range)
-    auto_test = CodeFunction("main", output_format = ML_Int32)
+    auto_test = CodeFunction("bench_wrapper", output_format = ML_Int32)
 
     tested_function    = self.implementation.get_function_object()
     function_name      = self.implementation.get_name()
