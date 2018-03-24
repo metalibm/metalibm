@@ -49,13 +49,24 @@ from metalibm_core.core.ml_vectorizer import StaticVectorizer
 from metalibm_core.core.precisions import *
 
 from metalibm_core.code_generation.code_object import NestedCode
-from metalibm_core.code_generation.code_function import CodeFunction
+from metalibm_core.code_generation.code_function import (
+    CodeFunction, FunctionGroup
+)
 from metalibm_core.code_generation.generic_processor import GenericProcessor
 from metalibm_core.code_generation.mpfr_backend import MPFRProcessor
 from metalibm_core.code_generation.c_code_generator import CCodeGenerator
 from metalibm_core.code_generation.code_constant import C_Code
 #from metalibm_core.code_generation.generator_utility import *
-from metalibm_core.core.passes import Pass
+from metalibm_core.core.passes import (
+    Pass, PassScheduler, PassDependency, AfterPassById
+)
+
+from metalibm_core.opt.p_function_std import (
+    PassCheckProcessorSupport, PassSubExpressionSharing, PassFuseFMA
+)
+from metalibm_core.opt.p_function_typing import (
+    PassInstantiateAbstractPrecision, PassInstantiatePrecision,
+)
 
 from metalibm_core.code_generation.gappa_code_generator import GappaCodeGenerator
 
@@ -75,6 +86,41 @@ class ValidError(Exception):
     """ Exception to indicate that a validation stage failed """
     pass
 
+
+def build_code_function(src_list, bin_file, processor, link_trigger=False):
+    """ Build the code function for processor
+        Args:
+            src_list(list): list of source file (string)
+            bin_file(str): name of the binary file (build result)
+            processor: target
+            link_trigger: enable/disable binary link
+        Return:
+            bool, str (error, stdout) """
+    compiler = processor.get_compiler()
+    test_file = bin_file
+    DEFAULT_OPTIONS = ["-O2", "-DML_DEBUG"]
+    compiler_options = " ".join(DEFAULT_OPTIONS + processor.get_compilation_options())
+    if not(link_trigger):
+        # build only, disable link
+        compiler_options += " -c  "
+    else:
+        src_list += [
+            "%s/metalibm_core/support_lib/ml_libm_compatibility.c" % (os.environ["ML_SRC_DIR"]),
+            "%s/metalibm_core/support_lib/ml_multi_prec_lib.c" % (os.environ["ML_SRC_DIR"]),
+        ]
+    Log.report(Log.Info, "Compiler options: \"{}\"".format(compiler_options))
+
+    build_command = "{compiler} {options} -I{ML_SRC_DIR}/metalibm_core \
+    {src_files} -o {test_file} -lm ".format(
+        compiler=compiler,
+        src_files = (" ".join(src_list)),
+        test_file=test_file,
+        options=compiler_options,
+        ML_SRC_DIR=os.environ["ML_SRC_DIR"])
+
+    Log.report(Log.Info, "Building source with command: {}".format(build_command))
+    build_result, build_stdout = get_cmd_stdout(build_command)
+    return build_result, build_stdout
 
 def get_cmd_stdout(cmd):
     """ execute cmd on a subprocess and return return-code and stdout
@@ -198,6 +244,66 @@ class ML_FunctionBasis(object):
     # main code object
     self.main_code_object = NestedCode(self.C_code_generator, static_cst=True, uniquifier="{0}_".format(self.function_name))
 
+    # pass scheduler
+    # pass scheduler instanciation
+    self.pass_scheduler = PassScheduler(
+        pass_tag_list=[
+            PassScheduler.Start,
+            PassScheduler.Typing,
+            PassScheduler.Optimization, 
+            PassScheduler.JustBeforeCodeGen
+        ]
+    )
+
+    Log.report(Log.Info, "inserting sub-expr sharing pass\n")
+    self.pass_scheduler.register_pass(
+        PassSubExpressionSharing(self.processor),
+        pass_slot=PassScheduler.Optimization
+        )
+    #Log.report(Log.Info, "inserting fused fma pass\n")
+    #self.pass_scheduler.register_pass(
+    #    PassFuseFMA(self.processor, dot_product_enabled=self.dot_product_enabled),
+    #    pass_slot=PassScheduler.Optimization
+    #    )
+    Log.report(Log.Info, "inserting instantiate abstract precision pass\n")
+    pass_inst_abstract_prec = PassInstantiateAbstractPrecision(self.processor)
+    self.pass_scheduler.register_pass(
+        pass_inst_abstract_prec,
+        pass_slot=PassScheduler.Typing
+        )
+    Log.report(Log.Info, "inserting instantiate precision pass\n")
+    pass_inst_prec = PassInstantiatePrecision(self.processor, default_precision=None)
+    self.pass_scheduler.register_pass(
+        pass_inst_prec,
+        pass_dep = AfterPassById(pass_inst_abstract_prec.get_pass_id()),
+        pass_slot=PassScheduler.Typing
+        )
+    pass_dep = PassDependency()
+    for pass_tag in args.pre_gen_passes:
+      pass_slot = PassScheduler.JustBeforeCodeGen
+      pass_class  = Pass.get_pass_by_tag(pass_tag)
+      pass_object = pass_class(self.processor)
+      self.pass_scheduler.register_pass(pass_object, pass_dep=pass_dep, pass_slot=pass_slot)
+      # linearly linking pass in the order they appear
+      pass_dep = AfterPassById(pass_object.get_pass_id())
+    # empty pass dependency
+    pass_dep = PassDependency()
+    for pass_uplet in args.passes:
+      pass_slot_tag, pass_tag = pass_uplet.split(":")
+      pass_slot = PassScheduler.get_tag_class(pass_slot_tag)
+      pass_class  = Pass.get_pass_by_tag(pass_tag)
+      pass_object = pass_class(self.backend)
+      self.pass_scheduler.register_pass(pass_object, pass_dep=pass_dep, pass_slot=pass_slot)
+      # linearly linking pass in the order they appear
+      pass_dep = AfterPassById(pass_object.get_pass_id())
+
+    # appending check_processor_support pass after custom passes
+    Log.report(Log.Info, "inserting target support check pass\n")
+    self.pass_scheduler.register_pass(
+        PassCheckProcessorSupport(self.processor, self.language),
+        pass_slot=PassScheduler.JustBeforeCodeGen
+    )
+
   def get_vector_size(self):
     return self.vector_size
 
@@ -289,7 +395,7 @@ class ML_FunctionBasis(object):
   # @return main_scheme, [list of sub-CodeFunction object]
   def generate_function_list(self):
     self.implementation.set_scheme(self.generate_scheme())
-    return [self.implementation]
+    return FunctionGroup([self.implementation])
 
   ## submit operation node to a standard optimization procedure
   #  @param pre_scheme ML_Operation object to be optimized
@@ -298,7 +404,7 @@ class ML_FunctionBasis(object):
   #  @param enable_subexpr_sharing boolean flag, enables sub-expression sharing
   #         optimization
   #  @param verbose boolean flag, enable verbose mode
-  #  @return optimizated scheme 
+  #  @return optimizated scheme
   def optimise_scheme(self, pre_scheme, copy = None,
                       enable_subexpr_sharing = True, verbose = True):
     """ default scheme optimization """
@@ -326,7 +432,7 @@ class ML_FunctionBasis(object):
     return scheme
 
 
-  ## 
+  ##
   #  @return main code object associted with function implementation
   def get_main_code_object(self):
     return self.main_code_object
@@ -335,22 +441,30 @@ class ML_FunctionBasis(object):
   def generate_C(self, code_function_list):
     return self.generate_code(code_function_list, language = C_Code)
 
-  ## generate C code for function implenetation 
+  ## generate C code for function implenetation
   #  Code is generated within the main code object
   #  and dumped to a file named after implementation's name
   #  @param code_function_list list of CodeFunction to be generated (as sub-function )
   #  @return void
-  def generate_code(self, code_function_list, language = C_Code):
+  def generate_code(self, function_group, language = C_Code):
     """ Final C generation, once the evaluation scheme has been optimized"""
     # registering scheme as function implementation
     #self.implementation.set_scheme(scheme)
     # main code object
     code_object = self.get_main_code_object()
     self.result = code_object
-    for code_function in code_function_list:
-      self.result = code_function.add_definition(self.C_code_generator,
-                                                 language, code_object,
-                                                 static_cst = True)
+
+    def gen_code_function_code(fct_group, fct):
+        self.result = fct.add_definition(
+            self.C_code_generator,
+            language, code_object, static_cst=True)
+
+    function_group.apply_to_all_functions(gen_code_function_code)
+
+    #for code_function in code_function_list:
+    #  self.result = code_function.add_definition(self.C_code_generator,
+    #                                             language, code_object,
+    #                                             static_cst = True)
 
     # adding headers
     self.result.add_header("support_lib/ml_special_values.h")
@@ -366,48 +480,56 @@ class ML_FunctionBasis(object):
   def gen_implementation(self, display_after_gen=False,
                          display_after_opt=False,
                          enable_subexpr_sharing=True):
-    """ generate implementation 
+    """ generate implementation
 
         Args:
             display_after_gen enable (bool): I.R dump after generation
             display_after_opt enable (bool): I.R dump after optimization
             enable_subexpr_sharing (bool): I.R enable sub-expression sharing
-               optimization 
+               optimization
 
         """
     # generate scheme
-    code_function_list = self.generate_function_list()
+    function_group = self.generate_function_list()
+
+    ## apply @p pass_object optimization pass
+    #  to the scheme of each entity in code_entity_list
+    def execute_pass_on_fct_group(scheduler, pass_object, function_group):
+        """ execute an optimization pass on a function_group """
+        return pass_object.execute_on_fct_group(function_group)
+
+    Log.report(Log.Info, "Applying <Start> stage passes")
+    _ = self.pass_scheduler.get_full_execute_from_slot(
+      function_group,
+      PassScheduler.Start,
+      execute_pass_on_fct_group
+    )
+
+    # generate vector size
     if self.get_vector_size() != 1:
-      scalar_scheme = self.implementation.get_scheme()
-      scalar_arg_list = self.implementation.get_arg_list()
-      self.implementation.clear_arg_list()
+        scalar_scheme = self.implementation.get_scheme()
+        scalar_arg_list = self.implementation.get_arg_list()
+        self.implementation.clear_arg_list()
 
-      code_function_list = self.generate_vector_implementation(
-        scalar_scheme, scalar_arg_list, self.get_vector_size()
-      )
+        function_group = self.generate_vector_implementation(
+            scalar_scheme, scalar_arg_list, self.get_vector_size()
+        )
 
-    for code_function in code_function_list:
-      scheme = code_function.get_scheme()
-      if display_after_gen:
-        print("function %s, after gen " % code_function.get_name())
-        print(scheme.get_str(depth = None, display_precision = True,
-                             memoization_map = {}))
+    # format instantiation
+    Log.report(Log.Info, "Applying <Typing> stage passes")
+    _ = self.pass_scheduler.get_full_execute_from_slot(
+        function_group,
+        PassScheduler.Typing,
+        execute_pass_on_fct_group
+    )
 
-      # optimize scheme
-      opt_scheme = self.optimise_scheme(
-        scheme, enable_subexpr_sharing = enable_subexpr_sharing
-      )
-      # pre-generation optimization
-      for pass_tag in self.pre_gen_passes:
-        pass_class = Pass.get_pass_by_tag(pass_tag)
-        pass_object = pass_class(self.processor)
-        Log.report(Log.Info, "executing opt pass: {}".format(pass_tag))
-        opt_scheme = pass_object.execute(opt_scheme)
-      code_function.set_scheme(opt_scheme)
-
-      if self.display_after_opt or display_after_opt:
-        print("function %s, after opt " % code_function.get_name())
-        print(opt_scheme.get_str(depth = None, display_precision = True, memoization_map = {}, display_id=True))
+    # format instantiation
+    Log.report(Log.Info, "Applying <Optimization> stage passes")
+    _ = self.pass_scheduler.get_full_execute_from_slot(
+        function_group,
+        PassScheduler.Optimization,
+        execute_pass_on_fct_group
+    )
 
     main_pre_statement = Statement()
     main_statement = Statement()
@@ -417,51 +539,40 @@ class ML_FunctionBasis(object):
 
     # generate auto-test wrapper
     if self.auto_test_enable:
-      auto_test_function_list = self.generate_test_wrapper(
-        test_num = self.auto_test_number if self.auto_test_number else 0,
-        test_range = self.auto_test_range
-      )
-
-      for code_function in auto_test_function_list:
-        scheme = code_function.get_scheme()
-        opt_scheme = self.optimise_scheme(
-          scheme, enable_subexpr_sharing = enable_subexpr_sharing
+        auto_test_function_group = self.generate_test_wrapper(
+            test_num = self.auto_test_number if self.auto_test_number else 0,
+            test_range = self.auto_test_range
         )
-        code_function.set_scheme(opt_scheme)
-        test_call = code_function.build_function_object()()
-        main_pre_statement.add(test_call)
-        main_statement.add(
-            ConditionBlock(
-                test_call,
-               Return(CstError)
+        def add_fct_call_check_in_main(fct_group, code_function):
+            """ adding call to code_function with return value check
+                in main statement """
+            scheme = code_function.get_scheme()
+            opt_scheme = self.optimise_scheme(
+                scheme, enable_subexpr_sharing = enable_subexpr_sharing
             )
-        )
-      # appending auto-test wrapper to general code_function_list
-      code_function_list += auto_test_function_list
+            code_function.set_scheme(opt_scheme)
+            fct_call = code_function.build_function_object()()
+            main_pre_statement.add(fct_call)
+            main_statement.add(
+                ConditionBlock(
+                    fct_call,
+                    Return(CstError)
+                )
+            )
+
+        auto_test_function_group.apply_to_all_functions(add_fct_call_check_in_main)
+        # appending auto-test wrapper to general code_function_list
+        function_group.merge_with_group(auto_test_function_group)
 
     if self.bench_enabled:
-      bench_function_list = self.generate_bench_wrapper(
-        test_num = self.bench_test_number if self.bench_test_number else 1000,
-        test_range = self.bench_test_range
-      )
-
-      for code_function in bench_function_list:
-        scheme = code_function.get_scheme()
-        opt_scheme = self.optimise_scheme(
-          scheme, enable_subexpr_sharing = enable_subexpr_sharing
-        )
-        code_function.set_scheme(opt_scheme)
-        bench_call = code_function.build_function_object()()
-        main_pre_statement.add(bench_call)
-        main_statement.add(
-            ConditionBlock(
-                bench_call,
-               Return(CstError)
-            )
+        bench_function_group = self.generate_bench_wrapper(
+            test_num = self.bench_test_number if self.bench_test_number else 1000,
+            test_range = self.bench_test_range
         )
 
-      # appending bench wrapper to general code_function_list
-      code_function_list += bench_function_list
+        bench_function_group.apply_to_all_functions(add_fct_call_check_in_main)
+        # appending bench wrapper to general code_function_list
+        function_group.merge_with_group(bench_function_group)
 
     # adding main function
     if self.bench_enabled or self.auto_test_enable:
@@ -473,72 +584,53 @@ class ML_FunctionBasis(object):
                 Return(CstSuccess)
             )
         )
-        code_function_list.append(main_function)
+        function_group.add_core_function(main_function)
 
-    # finally checking processor support
-    if self.check_processor_support:
-      for code_function in code_function_list:
-        Log.report(Log.Verbose, "checking processor support {}".format(self.language))
-        self.opt_engine.check_processor_support(code_function.get_scheme(), language = self.language)
-
+    # format instantiation
+    Log.report(Log.Info, "Applying <JustBeforeCodeGen> stage passes")
+    _ = self.pass_scheduler.get_full_execute_from_slot(
+        function_group,
+        PassScheduler.JustBeforeCodeGen,
+        execute_pass_on_fct_group
+    )
     # generate C code to implement scheme
-    self.generate_code(code_function_list, language = self.language)
+    self.generate_code(function_group, language = self.language)
 
     build_trigger = self.build_enable or self.execute_trigger
     link_trigger = self.execute_trigger
 
     if build_trigger:
-      compiler = self.processor.get_compiler()
-      test_file = "./test_%s.bin" % self.function_name
-      DEFAULT_OPTIONS = ["-O2", "-DML_DEBUG"]
-      compiler_options = " ".join(DEFAULT_OPTIONS + self.processor.get_compilation_options())
-      src_list = [self.output_file]
-      if not(link_trigger):
-        # build only, disable link
-        compiler_options += " -c  "
-      else:
-        src_list += [
-          "%s/metalibm_core/support_lib/ml_libm_compatibility.c" % (os.environ["ML_SRC_DIR"]),
-          "%s/metalibm_core/support_lib/ml_multi_prec_lib.c" % (os.environ["ML_SRC_DIR"]),
-        ]
-      Log.report(Log.Info, "Compiler options: \"{}\"".format(compiler_options))
+        test_file = "./test_%s.bin" % self.function_name
+        build_result, build_stdout = build_code_function(
+            [self.output_file],
+            test_file, 
+            self.processor,
+            link_trigger)
 
-      build_command = "{compiler} {options} -I{ML_SRC_DIR}/metalibm_core \
-      {src_files} -o {test_file} -lm ".format(
-        compiler=compiler,
-        src_files = (" ".join(src_list)),
-        test_file=test_file,
-        options=compiler_options,
-        ML_SRC_DIR=os.environ["ML_SRC_DIR"]) 
-
-      Log.report(Log.Info, "Building source with command: {}".format(build_command))
-
-      build_result, build_stdout = get_cmd_stdout(build_command)
-
-      if build_result:
-        Log.report(
-            Log.Error, "build failed: \n {}".format(build_stdout),
-            error=BuildError()
-        )
-      else:
-        Log.report(Log.Info, "build result: {}\n{}".format(build_result, build_stdout))
-
-      # only executing if build was successful
-      if not(build_result) and self.execute_trigger:
-        test_command = " %s " % self.processor.get_execution_command(test_file)
-        Log.report(Log.Info, "VALIDATION {} command line: {}".format(
-          self.get_name(), test_command
-        ))
-        # executing test command
-        test_result, test_stdout = get_cmd_stdout(test_command)
-        if not test_result:
-          print(test_stdout)
-          Log.report(Log.Info, "VALIDATION SUCCESS")
+        if build_result:
+            Log.report(
+                Log.Error, "build failed: \n {}".format(build_stdout),
+                error=BuildError()
+            )
         else:
-          Log.report(
-              Log.Error, "VALIDATION FAILURE [{}]\n{}".format(test_result, test_stdout),
-              error=ValidError()
-          )
+            Log.report(Log.Info, "build result: {}\n{}".format(build_result, build_stdout))
+
+        # only executing if build was successful
+        if not(build_result) and self.execute_trigger:
+            test_command = " %s " % self.processor.get_execution_command(test_file)
+            Log.report(Log.Info, "VALIDATION {} command line: {}".format(
+                self.get_name(), test_command
+            ))
+            # executing test command
+            test_result, test_stdout = get_cmd_stdout(test_command)
+            if not test_result:
+                print(test_stdout)
+                Log.report(Log.Info, "VALIDATION SUCCESS")
+            else:
+                 Log.report(
+                    Log.Error, "VALIDATION FAILURE [{}]\n{}".format(test_result, test_stdout),
+                    error=ValidError()
+                )
 
 
 
@@ -716,8 +808,8 @@ class ML_FunctionBasis(object):
     # dummy scheme to make functionnal code generation
     self.implementation.set_scheme(function_scheme)
 
-    Log.report(Log.Info, "[SV] end of generate_function_list")
-    return [scalar_callback_function, self.implementation]
+    Log.report(Log.Info, "[SV] end of generate_vector_implementation")
+    return FunctionGroup([self.implementation], [scalar_callback_function])
 
 
   # Currently mostly empty, to be populated someday
@@ -838,7 +930,7 @@ class ML_FunctionBasis(object):
       Return(Constant(0, precision = ML_Int32))
     )
     auto_test.set_scheme(test_scheme)
-    return [auto_test]
+    return FunctionGroup([auto_test])
 
   ## return a FunctionObject display
   #  an error index, a list of argument values
@@ -1187,7 +1279,7 @@ class ML_FunctionBasis(object):
       Return(Constant(0, precision = ML_Int32))
     )
     auto_test.set_scheme(test_scheme)
-    return [auto_test]
+    return FunctionGroup([auto_test])
 
 
   ## generate a test loop for vector tests
