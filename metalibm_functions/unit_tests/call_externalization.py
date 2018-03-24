@@ -46,8 +46,8 @@ from metalibm_core.code_generation.generic_processor import GenericProcessor
 from metalibm_core.code_generation.mpfr_backend import MPFRProcessor
 from metalibm_core.targets.common.fixed_point_backend import FixedPointBackend
 from metalibm_core.code_generation.code_object import CodeObject
-from metalibm_core.code_generation.code_function import CodeFunction
-from metalibm_core.code_generation.code_constant import C_Code 
+from metalibm_core.code_generation.code_function import CodeFunction, FunctionGroup
+from metalibm_core.code_generation.code_constant import C_Code
 from metalibm_core.core.ml_optimization_engine import OptimizationEngine
 from metalibm_core.core.polynomials import *
 from metalibm_core.core.ml_table import ML_Table
@@ -104,7 +104,7 @@ class ML_UT_CallExternaliation(ML_Function("ml_ut_call_externalization")):
     scheme = Statement(result)
     self.implementation.set_scheme(scheme)
 
-    return [ext_function, ext_function2, self.implementation]
+    return FunctionGroup([self.implementation], [ext_function, ext_function2])
 
 
 def run_test(args):
