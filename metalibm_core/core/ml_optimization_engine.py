@@ -39,6 +39,7 @@ from .ml_operations import *
 from .ml_hdl_operations import *
 from .ml_formats import *
 
+import metalibm_core.opt.p_function_std as p_function_std
 import metalibm_core.opt.p_function_typing as p_function_typing
 
 
@@ -120,60 +121,6 @@ exactify_rule = {
 
 
 
-def simplify_inverse(optree, processor):
-    dummy_var = Variable("dummy_var_seed", precision = optree.get_precision())
-    dummy_div_seed = DivisionSeed(dummy_var, precision = optree.get_precision())
-    inv_approx_table = processor.get_recursive_implementation(dummy_div_seed, language = None, table_getter = lambda self: self.approx_table_map)
-
-    seed_input = optree.inputs[0]
-    c0 = Constant(0, precision = ML_Int32)
-
-    if optree.get_precision() == inv_approx_table.get_storage_precision():
-        return TableLoad(inv_approx_table, inv_approx_table.get_index_function()(seed_input), c0, precision = optree.get_precision()) 
-    else:
-        return Conversion(TableLoad(inv_approx_table, inv_approx_table.get_index_function()(seed_input), c0, precision = inv_approx_table.get_storage_precision()), precision = optree.get_precision()) 
-
-
-support_simplification = {
-    #FusedMultiplyAdd: {
-    #    FusedMultiplyAdd.Standard: {
-    #        lambda optree: True: 
-    #            lambda optree, processor: Addition(Multiplication(optree.inputs[0], optree.inputs[1], precision = optree.get_precision()), optree.inputs[2], precision = optree.get_precision()),
-    #    },
-    #    FusedMultiplyAdd.Subtract: {
-    #        lambda optree: True: 
-    #            lambda optree, processor: Subtraction(Multiplication(optree.inputs[0], optree.inputs[1], precision = optree.get_precision()), optree.inputs[2], precision = optree.get_precision()),
-    #    },
-    #    FusedMultiplyAdd.Negate: {
-    #        lambda optree: True: 
-    #            lambda optree, processor: Negate(Addition(Multiplication(optree.inputs[0], optree.inputs[1], precision = optree.get_precision()), optree.inputs[2], precision = optree.get_precision()), precision = optree.get_precision()),
-    #    },
-    #    FusedMultiplyAdd.SubtractNegate: {
-    #        lambda optree: True: 
-    #            lambda optree, processor: Subtraction(optree.inputs[2], Multiplication(optree.inputs[0], optree.inputs[1], precision = optree.get_precision()), precision = optree.get_precision()),
-    #    },
-    #    FusedMultiplyAdd.DotProduct: {
-    #        lambda optree: True:
-    #            lambda optree, processor: Addition(Multiplication(optree.inputs[0], optree.inputs[1], precision = optree.get_precision()), Multiplication(optree.inputs[2], optree.inputs[3], precision = optree.get_precision()), precision = optree.get_precision()), 
-    #    },
-    #    FusedMultiplyAdd.DotProductNegate: {
-    #        lambda optree: True: 
-    #            lambda optree, processor: Subtraction(Multiplication(optree.inputs[0], optree.inputs[1], precision = optree.get_precision()), Multiplication(optree.inputs[2], optree.inputs[3], precision = optree.get_precision()), precision = optree.get_precision()), 
-    #    },
-    #},
-    Subtraction: {
-      None: {
-        lambda optree: True: 
-          lambda optree, processor: Addition(optree.inputs[0], Negation(optree.inputs[1], precision = optree.inputs[1].get_precision()), precision = optree.get_precision())
-      },
-    },
-    SpecificOperation: {
-        SpecificOperation.DivisionSeed: {
-            lambda optree: True:
-                simplify_inverse,
-        },
-    },
-}
 
 
 
@@ -253,64 +200,8 @@ class OptimizationEngine(object):
                 self.cb_parent_tagging(op, parent_block = parent_block)
 
 
-    def subexpression_sharing(self, optree, sharing_map = {}, level_sharing_map = [{}], current_parent_list = []):
-        def search_level_map(optree):
-            """ search if optree has been defined among the active node """
-            for level in level_sharing_map:
-                if optree in level: return True
-            return False
-
-        def common_ancestor(parent_list_0, parent_list_1):
-            """ search the closest node of parent_list_0, 
-                also registered in parent_list_1 """
-            for b in parent_list_0[::-1]:
-                if b in parent_list_1:
-                    return b
-            return None
-
-        if isinstance(optree, ConditionBlock):
-            optree.set_parent_list(current_parent_list)
-            # condition
-            self.subexpression_sharing(optree.inputs[0], sharing_map, level_sharing_map, current_parent_list + [optree])
-            # branches
-            for op in optree.inputs[1:]:
-                self.subexpression_sharing(op, sharing_map, [{}] + level_sharing_map, current_parent_list + [optree])
-
-        elif isinstance(optree, SwitchBlock):
-            optree.set_parent_list(current_parent_list)
-
-            # switch value
-            self.subexpression_sharing(optree.inputs[0], sharing_map, level_sharing_map, current_parent_list + [optree])
-            # case_statement
-            case_map = optree.get_case_map()
-            for case in case_map:
-                op = case_map[case]
-                self.subexpression_sharing(op, sharing_map, [{}] + level_sharing_map, current_parent_list + [optree])
-
-        elif isinstance(optree, Statement):
-            if not optree.get_prevent_optimization(): 
-              for op in optree.inputs:
-                  self.subexpression_sharing(op, sharing_map, [{}] + level_sharing_map, current_parent_list)
-
-        elif isinstance(optree, Loop):
-            pass
-            #for op in optree.inputs:
-            #    self.subexpression_sharing(op, sharing_map, [{}] + level_sharing_map, current_parent_list)
-
-        elif isinstance(optree, ML_LeafNode):
-            pass
-        else:
-            if optree in sharing_map:
-                if not search_level_map(optree): 
-                    # parallel branch sharing possibility
-                    ancestor = common_ancestor(sharing_map[optree], current_parent_list)            
-                    if ancestor != None:
-                        ancestor.add_to_pre_statement(optree)
-            else:
-                sharing_map[optree] = current_parent_list
-                level_sharing_map[0][optree] = current_parent_list
-                for op in optree.inputs:
-                    self.subexpression_sharing(op, sharing_map, level_sharing_map, current_parent_list)
+    def subexpression_sharing(self, optree, sharing_map = None, level_sharing_map = [{}], current_parent_list = []):
+        return p_function_std.subexpression_sharing(optree, sharing_map, level_sharing_map, current_parent_list)
 
 
     def extract_fast_path(self, optree):
@@ -435,119 +326,13 @@ class OptimizationEngine(object):
             Log.report(Log.Error, "unsupported root for fast path factorization")
 
 
-    def fuse_multiply_add(self, optree, silence = False, memoization = {}):
-        """ whenever possible fuse a multiply and add/sub into a FMA/FMS """
-        if (isinstance(optree, Addition) or isinstance(optree, Subtraction)) and not optree.get_unbreakable():
-            if len(optree.inputs) != 2:
-                # more than 2-operand addition are not supported yet
-                optree.inputs = tuple(self.fuse_multiply_add(op, silence = silence, memoization = memoization) for op in optree.inputs)
-                return optree
-
-            else:
-                if optree in memoization: 
-                    return memoization[optree]
-
-                elif optree.get_unbreakable():
-                    optree.inputs = tuple(self.fuse_multiply_add(op, silence = silence, memoization = memoization) for op in optree.inputs)
-                    memoization[optree] = optree
-                    return optree
-
-                elif True in [(op.get_debug() != None and isinstance(op, Multiplication)) for op in optree.inputs]:
-                    # exclude node with debug operands
-                    optree.inputs = tuple(self.fuse_multiply_add(op, silence = silence, memoization = memoization) for op in optree.inputs)
-                    memoization[optree] = optree
-                    return optree
-
-                elif self.get_dot_product_enabled() and isinstance(optree.inputs[0], Multiplication) and isinstance(optree.inputs[1], Multiplication) and not optree.inputs[0].get_prevent_optimization() and not optree.inputs[1].get_prevent_optimization():
-                    specifier = FusedMultiplyAdd.DotProductNegate if isinstance(optree, Subtraction) else FusedMultiplyAdd.DotProduct 
-                    mult0 = self.fuse_multiply_add(optree.inputs[0].inputs[0], silence = silence, memoization = memoization)
-                    mult1 = self.fuse_multiply_add(optree.inputs[0].inputs[1], silence = silence, memoization = memoization)
-                    mult2 = self.fuse_multiply_add(optree.inputs[1].inputs[0], silence = silence, memoization = memoization)
-                    mult3 = self.fuse_multiply_add(optree.inputs[1].inputs[1], silence = silence, memoization = memoization)
-                    new_op = FusedMultiplyAdd(mult0, mult1, mult2, mult3, specifier = specifier)
-                    new_op.attributes = optree.attributes.get_light_copy()
-                    new_op.set_silent(silence)
-                    new_op.set_index(optree.get_index())
-                    # propagating exact attribute
-                    if optree.inputs[0].get_exact() and optree.inputs[1].get_exact() and optree.get_exact():
-                        new_op.set_exact(True)
-                    # modifying handle
-                    if self.change_handle: optree.get_handle().set_node(new_op)
-                    memoization[optree] = new_op
-                    return new_op
-
-                elif isinstance(optree.inputs[0], Multiplication) and not optree.inputs[0].get_prevent_optimization():
-                    specifier = FusedMultiplyAdd.Subtract if isinstance(optree, Subtraction) else FusedMultiplyAdd.Standard 
-                    mult0 = self.fuse_multiply_add(optree.inputs[0].inputs[0], silence = silence, memoization = memoization)
-                    mult1 = self.fuse_multiply_add(optree.inputs[0].inputs[1], silence = silence, memoization = memoization)
-                    addend = self.fuse_multiply_add(optree.inputs[1], silence = silence, memoization = memoization)
-
-                    new_op = FusedMultiplyAdd(mult0, mult1, addend, specifier = specifier)
-                    new_op.attributes = optree.attributes.get_light_copy()
-                    new_op.set_silent(silence)
-                    new_op.set_index(optree.get_index())
-
-                    # propagating exact attribute
-                    if optree.inputs[0].get_exact() and optree.get_exact():
-                        new_op.set_exact(True)
-
-                    # modifying handle
-                    if self.change_handle: optree.get_handle().set_node(new_op)
-
-                    memoization[optree] = new_op
-                    return new_op
-
-                elif isinstance(optree.inputs[1], Multiplication) and not optree.inputs[1].get_prevent_optimization():
-                    specifier = FusedMultiplyAdd.SubtractNegate if isinstance(optree, Subtraction) else FusedMultiplyAdd.Standard 
-                    mult0 = self.fuse_multiply_add(optree.inputs[1].inputs[0], silence = silence, memoization = memoization)
-                    mult1 = self.fuse_multiply_add(optree.inputs[1].inputs[1], silence = silence, memoization = memoization)
-                    addend = self.fuse_multiply_add(optree.inputs[0], silence = silence)
-                    new_op = FusedMultiplyAdd(mult0, mult1, addend, specifier = specifier)
-                    new_op.attributes = optree.attributes.get_light_copy()
-                    new_op.set_silent(silence)
-                    new_op.set_commutated(True)
-                    memoization[optree] = new_op
-
-                    new_op.set_index(optree.get_index())
-                    # propagating exact attribute
-                    if optree.inputs[1].get_exact() and optree.get_exact():
-                        new_op.set_exact(True)
-
-                    # modifying handle
-                    if self.change_handle: optree.get_handle().set_node(new_op)
-
-                    return new_op
-                else:
-                    optree.inputs = tuple(self.fuse_multiply_add(op, silence = silence, memoization = memoization) for op in optree.inputs)
-                    memoization[optree] = optree
-                    return optree
-        else:
-            if optree.get_extra_inputs() != []: 
-                optree.set_extra_inputs([self.fuse_multiply_add(op, silence = silence, memoization = memoization) for op in optree.get_extra_inputs()])
-
-            if isinstance(optree, ML_LeafNode):
-                memoization[optree] = optree
-                return optree
-            else:
-                optree.inputs = tuple(self.fuse_multiply_add(op, silence = silence, memoization = memoization) for op in optree.inputs)
-                memoization[optree] = optree
-                return optree
+    def fuse_multiply_add(self, optree, silence = False, memoization = None):
+        return p_function_std.fuse_multiply_add(
+            optree, silence, memoization, self.change_handle,
+            self.dot_product_enabled)
 
     def silence_fp_operations(self, optree, force = False, memoization_map = None):
-        memoization_map = {} if memoization_map is None else memoization_map
-        if optree in memoization_map:
-          return
-        else:
-          memoization_map[optree] = optree
-          if isinstance(optree, ML_LeafNode):
-              pass
-          else:
-              for op in optree.inputs:
-                  self.silence_fp_operations(op, force = force, memoization_map = memoization_map)
-              for op in optree.get_extra_inputs():
-                  self.silence_fp_operations(op, force = force, memoization_map = memoization_map)
-              if isinstance(optree, Multiplication) or isinstance(optree, Addition) or isinstance(optree, FusedMultiplyAdd) or isinstance(optree, Subtraction):
-                  if optree.get_silent() == None: optree.set_silent(True)
+        return p_function_std.silence_fp_operations(optree, force, memoization_map)
 
 
     def register_nodes_by_tag(self, optree, node_map = {}):
@@ -565,20 +350,6 @@ class OptimizationEngine(object):
             for op in optree.inputs:
                 self.register_nodes_by_tag(op, node_map)
 
-    def has_support_simplification(self, optree):
-        if optree.__class__ in support_simplification:
-            code_gen_key = optree.get_codegen_key()
-            if code_gen_key in support_simplification[optree.__class__]:
-                for cond in support_simplification[optree.__class__][code_gen_key]:
-                  if cond(optree): return True
-        return False
-
-    def get_support_simplification(self, optree):
-        code_gen_key = optree.get_codegen_key()
-        for cond in support_simplification[optree.__class__][code_gen_key]:
-            if cond(optree):
-                return support_simplification[optree.__class__][code_gen_key][cond](optree, self.processor)
-        Log.report(Log.Error, "support simplification mapping not found")
 
     def recursive_swap_format(self, optree, old_format, new_format, memoization_map = None):
       memoization_map = {} if memoization_map is None else memoization_map
