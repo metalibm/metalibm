@@ -1,11 +1,11 @@
 # Metalibm User Guide
 
 ## USAGE
-Example of metafunctions can be found under the metalibm_functions directory.
+Example of meta-functions can be found in the metalibm_functions directory.
 
 ### Generating a function
 
-* Example to generate a faithful (default) approximation of the exponential function for single precision and a x86 AVX2 target:
+Example to generate a faithful (default) approximation of the exponential function for single precision and a x86 AVX2 target:
 ```python2 metalibm_functions/ml_exp.py --precision binary32 --target x86_avx2 --output x86_avx2_exp2d.c ```
 
 ### Generating a function and its functionnal test bench
