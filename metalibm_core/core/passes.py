@@ -264,6 +264,32 @@ class OptreeOptimization(OptimizationPass):
   def execute(self, optree):
     raise NotImplemented
 
+
+class FunctionPass(OptreeOptimization):
+    """ pass which execute on functions node:
+        (ML_Operation, CodeFunction or FunctionGroup) """
+    def __init__(self, descriptor="", target=None):
+        OptreeOptimization.__init__(self, descriptor, target)
+
+    def execute_on_optree(self, optree, fct=None, fct_group=None, memoization_map=None):
+        raise NotImplementedError
+
+    def execute_on_function(self, fct, fct_group):
+        Log.report(Log.Info, "executing pass {} on fct {}".format(
+            self.pass_tag, fct.get_name()))
+        optree = fct.get_scheme()
+        memoization_map = {}
+        new_scheme = self.execute_on_optree(optree, fct, fct_group, memoization_map)
+        if not new_scheme is None:
+            fct.set_scheme(new_scheme)
+
+    def execute_on_fct_group(self, fct_group):
+        Log.report(Log.Info, "executing pass {} on fct group {}".format(self.pass_tag, fct_group))
+        def local_fct_apply(group, fct):
+            return self.execute_on_function(fct, group)
+        return fct_group.apply_to_all_functions(local_fct_apply)
+
+
 class PassQuit(OptreeOptimization):
   pass_tag = "quit"
   def __init__(self, *args):
