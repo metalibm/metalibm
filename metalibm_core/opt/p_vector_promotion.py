@@ -29,7 +29,7 @@
 ###############################################################################
 
 from metalibm_core.core.ml_formats import *
-from metalibm_core.core.passes import OptreeOptimization, Pass, LOG_PASS_INFO
+from metalibm_core.core.passes import FunctionPass, Pass, LOG_PASS_INFO
 from metalibm_core.core.ml_table import ML_NewTable, ML_TableFormat
 from metalibm_core.core.ml_operations import (
     ML_LeafNode, VectorElementSelection, FunctionCall, Conversion, Constant
@@ -52,7 +52,7 @@ def insert_conversion_when_required(op_input, final_precision):
 
 
 ## Generic vector promotion pass
-class Pass_Vector_Promotion(OptreeOptimization):
+class Pass_Vector_Promotion(FunctionPass):
   pass_tag = "vector_promotion"
   ## Return the translation table of formats
   #  to be used for promotion
@@ -60,7 +60,7 @@ class Pass_Vector_Promotion(OptreeOptimization):
     raise NotImplementedError
 
   def __init__(self, target):
-    OptreeOptimization.__init__(self, "vector promotion pass", target)
+    FunctionPass.__init__(self, "vector promotion pass", target)
     ## memoization map for promoted optree
     self.memoization_map = {}
     ## memoization map for converted promoted optree
@@ -203,7 +203,7 @@ class Pass_Vector_Promotion(OptreeOptimization):
 
 
   # standard Opt pass API
-  def execute(self, optree):
+  def execute_on_optree(self, optree, fct=None, fct_group=None, memoization_map=None):
     return self.promote_node(optree)
 
 
