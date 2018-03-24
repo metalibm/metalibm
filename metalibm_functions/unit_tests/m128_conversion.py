@@ -53,9 +53,9 @@ from metalibm_core.targets.intel.x86_processor import X86_AVX2_Processor
 
 
 class ML_UT_M128Conversion(ML_Function("ml_ut_m128_conversion")):
-  def __init__(self, args=DefaultArgTemplate): 
+  def __init__(self, args=DefaultArgTemplate):
     # initializing base class
-    ML_FunctionBasis.__init__(self, args) 
+    ML_FunctionBasis.__init__(self, args)
 
 
   @staticmethod
@@ -70,7 +70,7 @@ class ML_UT_M128Conversion(ML_Function("ml_ut_m128_conversion")):
         "fast_path_extract": True,
         "fuse_fma": True,
         "libm_compliant": True,
-        "pre_gen_passes": ["m128_promotion"], 
+        "pre_gen_passes": ["m128_promotion"],
     }
     default_args.update(kw)
     return DefaultArgTemplate(**default_args)
