@@ -293,7 +293,7 @@ class CodeObject(object):
 
     def __lshift__(self, added_code):
         """ implicit code insertion through << operator """
-        self.expanded_code += re.sub("\n", lambda _: ("\n" + self.tablevel * CodeObject.tab), added_code)
+        self.expanded_code += re.sub(" +\n", "\n", re.sub("\n", lambda _: ("\n" + self.tablevel * CodeObject.tab), added_code))
 
     def inc_level(self):
         """ increase indentation level """
