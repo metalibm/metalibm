@@ -1137,6 +1137,25 @@ class FunctionFormat(object):
     """ format for function object """
     pass
 
+
+def merge_abstract_format(*args):
+    """ return the most generic abstract format
+        to unify args formats """
+    has_float = False
+    has_integer = False
+    has_bool = False
+    for arg_type in args:
+        if isinstance(arg_type, ML_FP_Format): has_float = True
+        if isinstance(arg_type, ML_Fixed_Format): has_integer = True
+        if isinstance(arg_type, ML_Bool_Format): has_bool = True
+
+    if has_float: return ML_Float
+    if has_integer: return ML_Integer
+    if has_bool: return ML_AbstractBool
+    else:
+        print([str(arg) for arg in args])
+        Log.report(Log.Error, "unknown formats while merging abstract format tuple")
+
 ## @}
 # end of metalibm's Doxygen ml_formats group
 
