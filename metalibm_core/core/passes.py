@@ -113,15 +113,16 @@ class PassScheduler:
       PassScheduler.AfterPipelining.tag: PassScheduler.AfterPipelining,
     }[tag]
 
-  def __init__(self):
+  def __init__(self, pass_tag_list=None):
+    pass_tag_list = pass_tag_list or [
+        PassScheduler.Start, PassScheduler.Whenever, PassScheduler.JustBeforeCodeGen,
+        PassScheduler.BeforePipelining, PassScheduler.AfterPipelining
+    ]
     self.pass_map = {
       None: [], # should remain empty
-      PassScheduler.Start: [],
-      PassScheduler.Whenever: [],
-      PassScheduler.JustBeforeCodeGen: [],
-      PassScheduler.BeforePipelining: [],
-      PassScheduler.AfterPipelining: [],
     }
+    for pass_tag in pass_tag_list:
+        self.pass_map[pass_tag] = []
     self.executed_passes = []
     self.ready_passes    = []
     self.waiting_pass_wrappers  = []
