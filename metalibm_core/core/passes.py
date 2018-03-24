@@ -100,8 +100,14 @@ class PassScheduler:
     tag = "beforepipelining"
   class AfterPipelining: 
     tag = "afterpipelining"
+  class AfterTargetCheck:
+    tag = "aftertargetcheck"
   class JustBeforeCodeGen: 
     tag = "beforecodegen"
+  class Typing:
+    tag = "typing"
+  class Optimization:
+    tag = "optimization"
 
   @staticmethod
   def get_tag_class(tag):
