@@ -60,18 +60,18 @@ class Pass_CheckGeneric(OptreeOptimization):
   ## Recursively traverse operation graph from @p optree
   #  to check that every node has a defined precision
   def execute(self, optree):
-    if optree in self.memoization_map: 
+    if optree in self.memoization_map:
       return self.memoization_map[optree]
     else:
       check_result = self.check_function(optree)
       self.memoization_map[optree] = check_result
       if not check_result:
-        Log.report(Log.Info, 
+        Log.report(Log.Info,
           "the following node check failed: {}".format(
             optree.get_str(
-              depth = 2, 
-              display_precision = True, 
-              memoization_map = {}
+              depth=2,
+              display_precision=True,
+              memoization_map={}
             )
           )
         )
