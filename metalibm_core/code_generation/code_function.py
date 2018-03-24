@@ -39,7 +39,7 @@ from .code_constant import *
 
 class CodeFunction(object):
   """ function code object """
-  def __init__(self, name, arg_list = None, output_format = None, code_object = None, language = C_Code):
+  def __init__(self, name, arg_list=None, output_format=None, code_object=None, language=C_Code):
     """ code function initialization """
     self.name = name
     self.arg_list = arg_list if arg_list else []
@@ -124,3 +124,45 @@ class CodeFunction(object):
     code_generator.generate_expr(code_object, self.scheme, folded = folded, initial = False, language = language)
     code_object.close_level()
     return code_object
+
+class FunctionGroup(object):
+    """ group of multiple functions """
+    def __init__(self, core_function_list=None, sub_function_list=None):
+        self.core_function_list = [] if not(core_function_list) else core_function_list
+        self.sub_function_list = [] if not(sub_function_list) else sub_function_list
+
+    def add_sub_function(self, sub_function):
+        self.sub_function_list.append(sub_function)
+
+    def add_core_function(self, sub_function):
+        self.core_function_list.append(sub_function)
+
+    def apply_to_core_functions(self, routine):
+        for fct in self.core_function_list:
+            routine(self, fct)
+
+    def apply_to_sub_functions(self, routine):
+        for fct in self.sub_function_list:
+            routine(self, fct)
+
+    def apply_to_all_functions(self, routine):
+        self.apply_to_core_functions(routine)
+        self.apply_to_sub_functions(routine)
+        return self
+
+
+    def merge_with_group(self, subgroup, demote_sub_core=True):
+        """ Merge two FunctionGroup-s together (if demote_sub_core
+            is set, the argument core and sub function list are merged
+            into self sub function list, it unset core list are merged
+            together and sub list are merged together """
+        for sub_fct in subgroup.sub_function_list:
+            self.add_sub_function(sub_fct)
+        for sub_fct in subgroup.core_function_list:
+            if demote_sub_core:
+                self.add_sub_function(sub_fct)
+            else:
+                self.add_core_function(sub_fct)
+        return self
+        
+
