@@ -56,9 +56,9 @@ from metalibm_core.utility.ml_template import ML_NewArgTemplate
 from metalibm_core.utility.arg_utils import test_flag_option, extract_option_value  
 from metalibm_core.utility.debug_utils import *
 
-class ML_Acos(ML_Function("acos")):
-  def __init__(self, args=DefaultArgTemplate): 
-
+class ML_Acos(ML_FunctionBasis):
+  function_name = "ml_acos"
+  def __init__(self, args=DefaultArgTemplate):
     # initializing base class
     ML_FunctionBasis.__init__(self, args)
 
@@ -90,13 +90,10 @@ class ML_Acos(ML_Function("acos")):
 
 
   def generate_scheme(self):
-    #func_implementation = CodeFunction(self.function_name, output_format = self.precision)
-    vx = self.implementation.add_input_variable("x", self.get_input_precision()) 
+    """ generate scheme """
+    vx = self.implementation.add_input_variable("x", self.get_input_precision())
 
     # retrieving processor inverse approximation table
-    #dummy_var = Variable("dummy", precision = self.precision)
-    #dummy_div_seed = DivisionSeed(dummy_var, precision = self.precision)
-    #inv_approx_table = self.processor.get_recursive_implementation(dummy_div_seed, language = None, table_getter = lambda self: self.approx_table_map)
     lo_bound_global = SollyaObject(0.0)
     hi_bound_global = SollyaObject(0.75)
     approx_interval = Interval(lo_bound_global, hi_bound_global)
@@ -111,31 +108,29 @@ class ML_Acos(ML_Function("acos")):
     table_index_range = range(table_size)
 
     local_degree = 9
-    coeff_table = ML_NewTable(dimensions = [table_size, local_degree], storage_precision = self.precision)
-
-    #local_interval_size = approx_interval_size / SollyaObject(table_size)
-    #for i in table_index_range:
-    #  degree = 6
-    #  lo_bound = lo_bound_global + i * local_interval_size
-    #  hi_bound = lo_bound_global + (i+1) * local_interval_size
-    #  approx_interval = Interval(lo_bound, hi_bound)
-    #  local_poly_object, local_error = Polynomial.build_from_approximation_with_error(acos(x), degree, [self.precision] * (degree+1), approx_interval, absolute)
-    #  local_error = int(log2(sup(abs(local_error / acos(approx_interval)))))
-    #  print approx_interval, local_error
+    coeff_table = ML_NewTable(
+        dimensions=[table_size, local_degree],
+        storage_precision=self.precision)
 
     exp_lo = 2**exp_index_size
     for i in table_index_range:
       lo_bound = (1.0 + (i % 2**field_index_size) * S2**-field_index_size) * S2**(i / 2**field_index_size - exp_lo)
       hi_bound = (1.0 + ((i % 2**field_index_size) + 1) * S2**-field_index_size) * S2**(i / 2**field_index_size - exp_lo)
       local_approx_interval = Interval(lo_bound, hi_bound)
-      local_poly_object, local_error = Polynomial.build_from_approximation_with_error(acos(1 - sollya.x), local_degree, [self.precision] * (local_degree+1), local_approx_interval, sollya.absolute)
+      local_poly_object, local_error = Polynomial.build_from_approximation_with_error(
+        acos(1 - sollya.x),
+        local_degree,
+        [self.precision] * (local_degree+1),
+        local_approx_interval,
+        sollya.absolute)
       local_error = int(log2(sup(abs(local_error / acos(1 - local_approx_interval)))))
       coeff_table
-      print local_approx_interval, local_error
       for d in range(local_degree):
         coeff_table[i][d] = sollya.coeff(local_poly_object.get_sollya_object(), d) 
 
-    table_index = BitLogicRightShift(vx, vx.get_precision().get_field_size() - field_index_size) - (exp_lo << field_index_size)
+    table_index = BitLogicRightShift(
+        vx, vx.get_precision().get_field_size() - field_index_size
+    ) - (exp_lo << field_index_size)
 
 
 
