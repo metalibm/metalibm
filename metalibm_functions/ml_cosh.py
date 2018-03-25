@@ -210,8 +210,8 @@ class ML_HyperbolicCosine(ML_Function("ml_cosh")):
     k_plus = Max(Subtraction(k_hi, Constant(1, precision = int_precision), precision = int_precision, tag = "k_plus", debug = debug_multi), Constant(self.precision.get_emin_normal(), precision = int_precision))
     k_neg = Max(Subtraction(-k_hi, Constant(1, precision = int_precision), precision = int_precision, tag = "k_neg", debug = debug_multi), Constant(self.precision.get_emin_normal(), precision = int_precision))
 
-    pow_exp_pos = ExponentInsertion(k_plus, precision = self.precision)
-    pow_exp_neg = ExponentInsertion(k_neg, precision = self.precision)
+    pow_exp_pos = ExponentInsertion(k_plus, precision=self.precision, tag="pow_exp_pos", debug=debug_multi)
+    pow_exp_neg = ExponentInsertion(k_neg, precision=self.precision, tag="pow_exp_neg", debug=debug_multi)
 
     hi_terms = (pos_value_load_hi * pow_exp_pos + neg_value_load_hi * pow_exp_neg)
     hi_terms.set_attributes(tag = "hi_terms")
@@ -237,7 +237,7 @@ class ML_HyperbolicCosine(ML_Function("ml_cosh")):
 
     # ov_value 
     ov_value = round(acosh(self.precision.get_max_value()), self.precision.get_sollya_object(), RD)
-    ov_flag = Comparison(Abs(vx), Constant(ov_value, precision = self.precision), specifier = Comparison.Greater)
+    ov_flag = Comparison(Abs(vx), Constant(ov_value, precision = self.precision), specifier = Comparison.Greater, tag="ov_flag")
 
     # main scheme
     Log.report(Log.Info, "\033[33;1m MDL scheme \033[0m")
@@ -266,7 +266,7 @@ class ML_HyperbolicCosine(ML_Function("ml_cosh")):
   def numeric_emulate(self, input_value):
     return cosh(input_value)
 
-  standard_test_cases =[sollya_parse(x) for x in  ["1.705527","0.935715", "-0x1.e45322ap-1", "0x1.b8ef9f54p-1", "-0x1.b8ef9f54p-1", "0x1.b6fdb8a8p-1"]]
+  standard_test_cases =[(sollya_parse(x), None) for x in  ["1.705527","0.935715", "-0x1.e45322ap-1", "0x1.b8ef9f54p-1", "-0x1.b8ef9f54p-1", "0x1.b6fdb8a8p-1"]]
 
 
 if __name__ == "__main__":
