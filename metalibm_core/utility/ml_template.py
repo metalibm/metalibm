@@ -177,7 +177,17 @@ class ExceptionOnErrorAction(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
         print('ExceptionOnErrorAction %r %r %r' %
               (namespace, values, option_string))
-        Log.exit_on_error = False
+        Log.exit_on_error = bool(int(values))
+        raise Exception()
+
+class ExitOnErrorAction(argparse.Action):
+    """ Custom action for command-line command --exit-on-error """
+    def __init__(self, option_strings, dest, nargs=None, **kwargs):
+        super(ExitOnErrorAction, self).__init__(
+            option_strings, dest, nargs=nargs, **kwargs)
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        Log.exit_on_error = True
 
 
 class VerboseAction(argparse.Action):
@@ -522,9 +532,16 @@ class ML_CommonArgTemplate(object):
         self.parser.add_argument(
             "--exception-error", dest="exception_on_error",
             action=ExceptionOnErrorAction, const=True,
-            default=ArgDefault(False),
+            default=False,
             help="convert Fatal error to python Exception rather\
       than straight sys exit")
+
+        self.parser.add_argument(
+            "--exit-on-error", dest="exit_on_error",
+            action=ExitOnErrorAction, const=True,
+            default=False,
+            nargs=0,
+            help="convert Fatal error to sys exit rather than exception")
 
         self.parser.add_argument(
             "--ml-debug", dest="ml_debug", action=MLDebugAction, const=True,
