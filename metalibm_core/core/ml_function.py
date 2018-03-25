@@ -439,8 +439,7 @@ class ML_FunctionBasis(object):
   #  @return void
   def generate_code(self, function_group, language = C_Code):
     """ Final C generation, once the evaluation scheme has been optimized"""
-    # registering scheme as function implementation
-    #self.implementation.set_scheme(scheme)
+    Log.report(Log.Info, "Generating Source Code ")
     # main code object
     code_object = self.get_main_code_object()
     self.result = code_object
