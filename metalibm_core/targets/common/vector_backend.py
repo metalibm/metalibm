@@ -607,6 +607,24 @@ def type_uniform_op2_match(result_type, op0_type, op1_type, **kw):
         """
     return result_type == op0_type and op0_type == op1_type
 
+def type_uniform_op2_match_restrain(list_t):
+    """ Type matching predicate which check that a 2-operand operation
+        has identical type for both operand and results and that this type
+        is in <list_t> """
+    def local_match(result_type, op0_t, op1_t, **kw):
+        return type_uniform_op2_match(result_type, op0_t, op1_t, **kw) and result_type in list_t
+    return local_match
+
+""" List of standard vector format supported by the common.vector_backend """
+SUPPORTED_VECTOR_FORMATS = [
+    v2float32, v3float32, v4float32, v8float32,
+    v2float64, v3float64, v4float64, v8float64,
+    v2int32, v3int32, v4int32, v8int32,
+    v2int64, v3int64, v4int64, v8int64,
+    v2uint32, v3uint32, v4uint32, v8uint32,
+    v2uint64, v3uint64, v4uint64, v8uint64,
+]
+
 vector_c_code_generation_table = {
   VectorAssembling: {
     None: {
@@ -661,7 +679,7 @@ vector_c_code_generation_table = {
   Max: {
       None: {
           lambda _: True: {
-              type_uniform_op2_match:
+              type_uniform_op2_match_restrain(SUPPORTED_VECTOR_FORMATS):
                   ComplexOperator(optree_modifier=max_legalizer),
           }
       },
@@ -669,7 +687,7 @@ vector_c_code_generation_table = {
   Min: {
       None: {
           lambda _: True: {
-              type_uniform_op2_match:
+              type_uniform_op2_match_restrain(SUPPORTED_VECTOR_FORMATS):
                   ComplexOperator(optree_modifier=min_legalizer),
           }
       },
