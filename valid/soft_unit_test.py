@@ -166,17 +166,17 @@ unit_test_list = [
   UnitTestScheme(
     "m128 conversion test",
     ut_m128_conversion,
-    [{"pre_gen_passes": ["m128_promotion"], "target": target_instanciate("x86_avx2"), "vector_size": 4, "auto_test_execute": 100}],
+    [{"passes": ["beforecodegen:m128_promotion"], "target": target_instanciate("x86_avx2"), "vector_size": 4, "auto_test_execute": 100}],
   ),
   UnitTestScheme(
     "m128 boolean test",
     ut_m128_boolean,
-    [{"pre_gen_passes": ["m128_promotion"], "target": target_instanciate("x86_sse2"), "vector_size": 4, "auto_test_execute": 100, "precision": ML_Int32}],
+    [{"passes": ["beforecodegen:m128_promotion"], "target": target_instanciate("x86_sse2"), "vector_size": 4, "auto_test_execute": 100, "precision": ML_Int32}],
   ),
   UnitTestScheme(
     "m128 debug test",
     ut_m128_debug,
-    [{"pre_gen_passes": ["m128_promotion"], "target": target_instanciate("x86_avx2"), "vector_size": 4, "auto_test_execute": 10, "auto_test": 10, "precision": ML_Binary32, "debug": True}],
+    [{"passes": ["beforecodegen:m128_promotion"], "target": target_instanciate("x86_avx2"), "vector_size": 4, "auto_test_execute": 10, "auto_test": 10, "precision": ML_Binary32, "debug": True}],
   ),
   UnitTestScheme(
     "new table test",

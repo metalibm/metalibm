@@ -70,7 +70,7 @@ class ML_UT_M128Boolean(ML_Function("ml_ut_m128_boolean")):
         "fast_path_extract": True,
         "fuse_fma": True,
         "libm_compliant": True,
-        "pre_gen_pass": ["m128_promotion"], 
+        "passes": ["beforecodegen:m128_promotion"], 
     }
     default_args.update(kw)
     return DefaultArgTemplate(**default_args)

@@ -172,7 +172,6 @@ class ML_FunctionBasis(object):
 
     # enable/disable check_processor_support pass run
     self.check_processor_support = args.check_processor_support
-    self.pre_gen_passes = args.pre_gen_passes
 
     self.arity = args.arity
     self.precision = args.precision
@@ -278,14 +277,6 @@ class ML_FunctionBasis(object):
         pass_dep = AfterPassById(pass_inst_abstract_prec.get_pass_id()),
         pass_slot=PassScheduler.Typing
         )
-    pass_dep = PassDependency()
-    for pass_tag in args.pre_gen_passes:
-      pass_slot = PassScheduler.JustBeforeCodeGen
-      pass_class  = Pass.get_pass_by_tag(pass_tag)
-      pass_object = pass_class(self.processor)
-      self.pass_scheduler.register_pass(pass_object, pass_dep=pass_dep, pass_slot=pass_slot)
-      # linearly linking pass in the order they appear
-      pass_dep = AfterPassById(pass_object.get_pass_id())
     # empty pass dependency
     pass_dep = PassDependency()
     for pass_uplet in args.passes:

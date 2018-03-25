@@ -533,11 +533,6 @@ class ML_CommonArgTemplate(object):
             "--pass-info", action=PassListAction,
             help="list available optmization passes")
 
-        self.parser.add_argument(
-            "--pre-gen-pass", default=[], action="store",
-            dest="pre_gen_passes", type=lambda s: s.split(","),
-            help="comma separated list of pass to be executed just before\
-      final code generation")
         # list of
         self.parser.add_argument(
             "--passes", default=default_arg.passes, action="store", dest="passes",
