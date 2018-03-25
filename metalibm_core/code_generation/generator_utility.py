@@ -864,6 +864,10 @@ def type_std_integer_match(*arg, **kwords):
   """ check that argument are all integers """
   return all(map(is_std_integer_format, arg))
 
+def type_table_index_match(*arg, **kwords):
+  """ check that argument are all integers """
+  return all(map(is_table_index_format, arg))
+
 ## Type Class Match, used to described match-test function
 #  based on the class of the precision rather than the format itself
 class TCM(object):

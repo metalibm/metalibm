@@ -334,10 +334,12 @@ c_code_generation_table = {
             lambda optree: True: {
                 # TBD: add check on table format to make sure dimensions match expected
                 # 2-dimensional tables with integer indexes
-                type_custom_match(type_all_match, TCM(ML_TableFormat), type_std_integer_match, type_std_integer_match): TemplateOperatorFormat("{0}[{1}][{2}]", arity = 3), 
+                type_custom_match(type_all_match, TCM(ML_TableFormat), type_table_index_match, type_table_index_match):
+                    TemplateOperatorFormat("{0}[{1}][{2}]", arity = 3), 
                 # TBD: add check on table format to make sure dimensions match expected
                 # 1-dimension tables with integer indexes
-                type_custom_match(type_all_match, TCM(ML_TableFormat), type_std_integer_match): TemplateOperatorFormat("{0}[{1}]", arity = 2), 
+                type_custom_match(type_all_match, TCM(ML_TableFormat), type_table_index_match):
+                    TemplateOperatorFormat("{0}[{1}]", arity = 2), 
             },
         },
     },
@@ -346,10 +348,12 @@ c_code_generation_table = {
             lambda optree: True: {
                 # TBD: add check on table format to make sure dimensions match expected
                 # 2-dimensional tables with integer indexes
-                type_custom_match(FSM(ML_Void), type_all_match, TCM(ML_TableFormat), type_std_integer_match, type_std_integer_match): TemplateOperatorFormat("{1}[{2}][{3}] = {0}", arity = 4, void_function = True), 
+                type_custom_match(FSM(ML_Void), type_all_match, TCM(ML_TableFormat), type_table_index_match, type_table_index_match):
+                    TemplateOperatorFormat("{1}[{2}][{3}] = {0}", arity = 4, void_function = True), 
                 # TBD: add check on table format to make sure dimensions match expected
                 # 1-dimension tables with integer indexes
-                type_custom_match(FSM(ML_Void), type_all_match, TCM(ML_TableFormat), type_std_integer_match): TemplateOperatorFormat("{1}[{2}] = {0}", arity = 3, void_function = True), 
+                type_custom_match(FSM(ML_Void), type_all_match, TCM(ML_TableFormat), type_table_index_match):
+                    TemplateOperatorFormat("{1}[{2}] = {0}", arity = 3, void_function = True), 
             },
         },
     },
