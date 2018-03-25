@@ -283,7 +283,7 @@ class ML_FunctionBasis(object):
       pass_slot_tag, pass_tag = pass_uplet.split(":")
       pass_slot = PassScheduler.get_tag_class(pass_slot_tag)
       pass_class  = Pass.get_pass_by_tag(pass_tag)
-      pass_object = pass_class(self.backend)
+      pass_object = pass_class(self.processor)
       self.pass_scheduler.register_pass(pass_object, pass_dep=pass_dep, pass_slot=pass_slot)
       # linearly linking pass in the order they appear
       pass_dep = AfterPassById(pass_object.get_pass_id())
@@ -522,6 +522,14 @@ class ML_FunctionBasis(object):
         execute_pass_on_fct_group
     )
 
+    # format instantiation
+    Log.report(Log.Info, "Applying <JustBeforeCodeGen> stage passes")
+    _ = self.pass_scheduler.get_full_execute_from_slot(
+        function_group,
+        PassScheduler.JustBeforeCodeGen,
+        execute_pass_on_fct_group
+    )
+
     main_pre_statement = Statement()
     main_statement = Statement()
 
@@ -577,13 +585,6 @@ class ML_FunctionBasis(object):
         )
         function_group.add_core_function(main_function)
 
-    # format instantiation
-    Log.report(Log.Info, "Applying <JustBeforeCodeGen> stage passes")
-    _ = self.pass_scheduler.get_full_execute_from_slot(
-        function_group,
-        PassScheduler.JustBeforeCodeGen,
-        execute_pass_on_fct_group
-    )
     # generate C code to implement scheme
     self.generate_code(function_group, language = self.language)
 
