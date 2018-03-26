@@ -35,15 +35,15 @@ from metalibm_core.core.ml_operations import (
     Statement, ConditionBlock, ReferenceAssign,
     ConditionBlock, SwitchBlock, Abs, Select, Negation,
     Addition, Max, Min, FusedMultiplyAdd, Subtraction,
-    Multiplication, Division, FastReciprocal, Modulo, 
+    Multiplication, Division, Modulo,
     NearestInteger, ExponentInsertion, ExponentExtraction,
-    MantissaExtraction, RawSignExpExtraction, CountLeadingZeros, 
+    MantissaExtraction, RawSignExpExtraction, CountLeadingZeros,
     Comparison, Test, LogicalAnd, LogicalOr, LogicalNot,
-    BitLogicAnd, BitLogicOr, BitLogicXor, BitLogicNegate, 
-    BitLogicLeftShift, BitLogicRightShift, BitArithmeticRightShift, 
-    Return, TableLoad, SpecificOperation, ExceptionOperation, 
+    BitLogicAnd, BitLogicOr, BitLogicXor, BitLogicNegate,
+    BitLogicLeftShift, BitLogicRightShift, BitArithmeticRightShift,
+    Return, TableLoad, SpecificOperation, ExceptionOperation,
     NoResultOperation, Split, ComponentSelection, FunctionCall,
-    Conversion, DivisionSeed
+    Conversion, DivisionSeed, ReciprocalSquareRootSeed, ReciprocalSeed
 )
 from metalibm_core.core.ml_hdl_operations import (
     Process, Loop, ComponentInstance, Assert, Wait, PlaceHolder
@@ -77,8 +77,6 @@ abstract_typing_rule = {
         lambda optree, op0, op1: merge_abstract_format(op0.get_precision(), op1.get_precision()), 
     Division: 
         lambda optree, op0, op1: merge_abstract_format(op0.get_precision(), op1.get_precision()), 
-    FastReciprocal:
-        lambda optree, op0: ML_Binary32,
     Modulo: 
         lambda optree, op0, op1: merge_abstract_format(op0.get_precision(), op1.get_precision()), 
     NearestInteger: 
@@ -156,7 +154,11 @@ practical_typing_rule = {
         lambda backend, op, dprec: merge_ops_abstract_format(op, op.inputs),
     Division: 
         lambda backend, op, dprec: merge_ops_abstract_format(op, op.inputs),
-    FastReciprocal:
+    DivisionSeed:
+        lambda backend, op, dprec: merge_ops_abstract_format(op, op.inputs),
+    ReciprocalSeed:
+        lambda backend, op, dprec: merge_ops_abstract_format(op, op.inputs),
+    ReciprocalSquareRootSeed:
         lambda backend, op, dprec: merge_ops_abstract_format(op, op.inputs),
     Modulo: 
         lambda backend, op, dprec: merge_ops_abstract_format(op, op.inputs),

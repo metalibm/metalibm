@@ -277,12 +277,12 @@ class ML_Log(ML_Function("ml_log")):
     vx_mantissa = MantissaExtraction(normal_vx, precision = self.precision)
 
     Log.report(Log.Info, "MDL scheme")
-    rcp_m = FastReciprocal(vx_mantissa, precision = self.precision)
+    rcp_m = ReciprocalSeed(vx_mantissa, precision = self.precision)
     if not self.processor.is_supported_operation(rcp_m):
         if self.precision == ML_Binary64:
             # Try using a binary32 FastReciprocal
             binary32_m = Conversion(vx_mantissa, precision = ML_Binary32)
-            rcp_m = FastReciprocal(binary32_m, precision = ML_Binary32)
+            rcp_m = ReciprocalSeed(binary32_m, precision = ML_Binary32)
             rcp_m = Conversion(rcp_m, precision = ML_Binary64)
         if not self.processor.is_supported_operation(rcp_m):
             # FIXME An approximation table could be used instead but for vector

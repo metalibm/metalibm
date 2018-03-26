@@ -177,7 +177,7 @@ invsqrt_approx_table = ML_ApproxTable(
 
 def legalize_invsqrt_seed(optree):
     """ Legalize an InverseSquareRootSeed optree """
-    assert isinstance(optree, SpecificOperation) and optree.specifier == SpecificOperation.InverseSquareRootSeed
+    assert isinstance(optree, ReciprocalSquareRootSeed) 
     op_prec = optree.get_precision()
     # input = 1.m_hi-m_lo * 2^e
     # approx = 2^(-int(e/2)) * approx_insqrt(1.m_hi) * (e % 2 ? 1.0 : ~2**-0.5)
@@ -228,25 +228,25 @@ def legalize_invsqrt_seed(optree):
 
 generic_approx_table_map = {
     None: { # language
-        SpecificOperation: {
-            SpecificOperation.DivisionSeed: {
-                lambda optree: True: {
-                    type_strict_match(ML_Binary32, ML_Binary32, ML_Binary32): generic_inv_approx_table,
-                    type_strict_match(ML_Binary64, ML_Binary64, ML_Binary64): generic_inv_approx_table,
-                },
-                lambda optree: not optree.get_silent(): {
-                    type_strict_match(ML_Binary32, ML_Binary32): generic_inv_approx_table,
-                    type_strict_match(ML_Binary64, ML_Binary64): generic_inv_approx_table,
-                },
-                lambda optree: optree.get_silent(): {
-                    type_strict_match(ML_Binary32, ML_Binary32): generic_inv_approx_table,
-                    type_strict_match(ML_Binary64, ML_Binary64): generic_inv_approx_table,
-                },
+        DivisionSeed: {
+            lambda optree: True: {
+                type_strict_match(ML_Binary32, ML_Binary32, ML_Binary32): generic_inv_approx_table,
+                type_strict_match(ML_Binary64, ML_Binary64, ML_Binary64): generic_inv_approx_table,
             },
-            SpecificOperation.InverseSquareRootSeed: {
-                lambda optree: True: {
-                    type_strict_match(ML_Binary32, ML_Binary32): invsqrt_approx_table,
-                },
+        },
+        ReciprocalSeed: {
+            lambda optree: not optree.get_silent(): {
+                type_strict_match(ML_Binary32, ML_Binary32): generic_inv_approx_table,
+                type_strict_match(ML_Binary64, ML_Binary64): generic_inv_approx_table,
+            },
+            lambda optree: optree.get_silent(): {
+                type_strict_match(ML_Binary32, ML_Binary32): generic_inv_approx_table,
+                type_strict_match(ML_Binary64, ML_Binary64): generic_inv_approx_table,
+            },
+        },
+        ReciprocalSquareRootSeed: {
+            lambda optree: True: {
+                type_strict_match(ML_Binary32, ML_Binary32): invsqrt_approx_table,
             },
         },
     },
@@ -784,18 +784,20 @@ c_code_generation_table = {
                     ML_Utils_Function("ml_copy_sign", arity = 2),
             },
         },
-        SpecificOperation.InverseSquareRootSeed: {
-            lambda optree: True: {
-                type_strict_match(ML_Binary32, ML_Binary32):
-                    ComplexOperator(optree_modifier=legalize_invsqrt_seed),
-            },
-        },
         SpecificOperation.ReadTimeStamp: {
             lambda _: True: {
                 type_strict_match(ML_Int64):
                     clock_gettime_operator,
             }
         }
+    },
+    ReciprocalSquareRootSeed: {
+        None: {
+            lambda optree: True: {
+                type_strict_match(ML_Binary32, ML_Binary32):
+                    ComplexOperator(optree_modifier=legalize_invsqrt_seed),
+            },
+        },
     },
     Split: {
         None: {

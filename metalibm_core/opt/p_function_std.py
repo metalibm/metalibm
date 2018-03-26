@@ -35,13 +35,13 @@ from metalibm_core.core.ml_operations import (
     Statement, ConditionBlock, ReferenceAssign,
     ConditionBlock, SwitchBlock, Abs, Select, Negation,
     Addition, Max, Min, FusedMultiplyAdd, Subtraction,
-    Multiplication, Division, FastReciprocal, Modulo, 
+    Multiplication, Division, Modulo,
     NearestInteger, ExponentInsertion, ExponentExtraction,
-    MantissaExtraction, RawSignExpExtraction, CountLeadingZeros, 
+    MantissaExtraction, RawSignExpExtraction, CountLeadingZeros,
     Comparison, Test, LogicalAnd, LogicalOr, LogicalNot,
-    BitLogicAnd, BitLogicOr, BitLogicXor, BitLogicNegate, 
-    BitLogicLeftShift, BitLogicRightShift, BitArithmeticRightShift, 
-    Return, TableLoad, SpecificOperation, ExceptionOperation, 
+    BitLogicAnd, BitLogicOr, BitLogicXor, BitLogicNegate,
+    BitLogicLeftShift, BitLogicRightShift, BitArithmeticRightShift,
+    Return, TableLoad, SpecificOperation, ExceptionOperation,
     NoResultOperation, Split, ComponentSelection, FunctionCall,
     Conversion, DivisionSeed
 )
@@ -101,8 +101,8 @@ support_simplification = {
           lambda optree, processor: Addition(optree.inputs[0], Negation(optree.inputs[1], precision = optree.inputs[1].get_precision()), precision = optree.get_precision())
       },
     },
-    SpecificOperation: {
-        SpecificOperation.DivisionSeed: {
+    DivisionSeed: {
+        None: {
             lambda optree: True:
                 simplify_inverse,
         },

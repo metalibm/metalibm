@@ -1044,11 +1044,6 @@ class Permute(ArithmeticOperationConstructor("Permute")):
     """ abstract word-permutations inside a vector operation """
     pass
 
-class FastReciprocal(ArithmeticOperationConstructor(
-        "FastReciprocal", arity = 1,
-        range_function = lambda self, ops: 1 / ops[0])):
-    """ abstract fast reciprocal """
-    pass
 
 ## Round to an integer value, rounding towards zero
 #  returns the minimal integer greater than or equal to the node's input
@@ -1568,14 +1563,20 @@ class SeedOperation(SO_Specifier_Type):
     def instantiated_type_rule(backend, op, dprec):
         return backend.merge_abstract_format(op, op.inputs)
 
+class DivisionSeed(GeneralArithmeticOperation):
+    arity = 2
+    name = "DivisionSeed"
+class ReciprocalSeed(GeneralArithmeticOperation):
+    arity = 1
+    name = "ReciprocalSeed"
+class ReciprocalSquareRootSeed(GeneralArithmeticOperation):
+    arity = 1
+    name = "ReciprocalSeed"
+
 
 class SpecificOperation(SpecifierOperation, GeneralOperation):
     name = "SpecificOperation"
     # specifier init
-    class DivisionSeed(SeedOperation):
-        name = "DivisionSeed"
-    class InverseSquareRootSeed(SeedOperation):
-        name = "InverseSquareRootSeed"
 
     class GetRndMode(SO_Specifier_Type):
         name = "GetRndMode"
@@ -1691,14 +1692,6 @@ def RaiseReturn(*args, **kwords):
       kwords.update({"precision": ML_Void})
     kwords["specifier"] = ExceptionOperation.RaiseReturn
     return ExceptionOperation(*args, **kwords)
-
-def DivisionSeed(*args, **kwords):
-    kwords["specifier"] = SpecificOperation.DivisionSeed
-    return SpecificOperation(*args, **kwords)
-
-def InverseSquareRootSeed(*args, **kwords):
-    kwords["specifier"] = SpecificOperation.InverseSquareRootSeed
-    return SpecificOperation(*args, **kwords)
 
 def SaveFPContext(**kwords):
     kwords["specifier"] = NoResultOperation.SaveFPContext

@@ -99,7 +99,7 @@ class ML_Atan(ML_Function("atan")):
   def generate_scheme(self):
     
     def compute_reciprocal(vx):
-      inv_seed = DivisionSeed(vx, precision = self.precision, tag = "inv_seed", debug = debug_multi)
+      inv_seed = ReciprocalSeed(vx, precision = self.precision, tag = "inv_seed", debug = debug_multi)
       nr_1 = 2*inv_seed - vx*inv_seed*inv_seed
       nr_2 = 2*nr_1 - vx*nr_1*nr_1
       nr_3 =2*nr_2 - vx*nr_2*nr_2

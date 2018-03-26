@@ -148,7 +148,7 @@ class ML_Log2(ML_Function("ml_log2")):
 
     # retrieving processor inverse approximation table
     dummy_var = Variable("dummy", precision=self.precision)
-    dummy_div_seed = DivisionSeed(dummy_var, precision=self.precision)
+    dummy_div_seed = ReciprocalSeed(dummy_var, precision=self.precision)
     inv_approx_table = self.processor.get_recursive_implementation(
         dummy_div_seed, language=None,
         table_getter=lambda self: self.approx_table_map)
@@ -187,7 +187,7 @@ class ML_Log2(ML_Function("ml_log2")):
         pre_arg_red_index = TypeCast(
             BitLogicAnd(
                 TypeCast(
-                    DivisionSeed(
+                    ReciprocalSeed(
                         _vx_mant, precision=self.precision, tag="seed",
                         debug=debug_lftolx, silent=True
                     ), precision=ML_UInt64

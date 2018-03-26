@@ -214,7 +214,7 @@ class StaticVectorizer(object):
     var_flag   = isinstance(optree, Variable)
     if arith_flag or cst_flag or var_flag:
       return True
-    elif isinstance(optree, SpecificOperation) and optree.get_specifier() in [SpecificOperation.DivisionSeed, SpecificOperation.InverseSquareRootSeed]:
+    elif isinstance(optree, DivisionSeed) or isinstance(optree, ReciprocalSquareRootSeed):
       return True
     return False
 

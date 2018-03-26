@@ -955,7 +955,7 @@ sse_c_code_generation_table = {
             },
         },
     },
-    FastReciprocal: {
+    ReciprocalSeed: {
         None: {
             lambda _: True: {
                 type_strict_match(ML_SSE_m128_v4float32, ML_SSE_m128_v4float32):
@@ -1611,7 +1611,7 @@ avx_c_code_generation_table = {
             },
         },
     },
-    FastReciprocal: {
+    ReciprocalSeed: {
         None: {
             lambda _: True: {
                 type_strict_match(*(2*(ML_AVX_m256_v8float32,))):

@@ -103,7 +103,7 @@ class ML_Log1p(ML_Function("ml_log1p")):
 
     # retrieving processor inverse approximation table
     dummy_var = Variable("dummy", precision = self.precision)
-    dummy_div_seed = DivisionSeed(dummy_var, precision = self.precision)
+    dummy_div_seed = ReciprocalSeed(dummy_var, precision = self.precision)
     inv_approx_table = self.processor.get_recursive_implementation(dummy_div_seed, language = None, table_getter = lambda self: self.approx_table_map)
 
     # table creation
@@ -161,7 +161,7 @@ class ML_Log1p(ML_Function("ml_log1p")):
     vxp1.set_attributes(tag = "vxp1", debug = debug_lftolx)
     vxp1_exp = ExponentExtraction(vxp1, tag = "vxp1_exp", debug = debugd)
 
-    vxp1_inv = DivisionSeed(vxp1, precision = self.precision, tag = "vxp1_inv", debug = debug_lftolx, silent = True)
+    vxp1_inv = ReciprocalSeed(vxp1, precision = self.precision, tag = "vxp1_inv", debug = debug_lftolx, silent = True)
 
     vxp1_dirty_inv = ExponentInsertion(-vxp1_exp, precision = self.precision, tag = "vxp1_dirty_inv", debug = debug_lftolx)
 
