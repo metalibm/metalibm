@@ -164,7 +164,7 @@ class ML_Log2(ML_Function("ml_log2")):
         #inv_value = (1.0 + (self.processor.inv_approx_table[i] / S2**9) + S2**-52) * S2**-1
         #inv_value = (1.0 + (inv_approx_table[i][0] / S2**9) ) * S2**-1
         #print inv_approx_table[i][0], inv_value
-        inv_value = inv_approx_table[i][0]
+        inv_value = inv_approx_table[i]
         value_high_bitsize = self.precision.get_field_size() - (self.precision.get_exponent_size() + 1)
         value_high = round(log2(inv_value), value_high_bitsize, sollya.RN)
         value_low = round(log2(inv_value) - value_high, sollya_precision, sollya.RN)

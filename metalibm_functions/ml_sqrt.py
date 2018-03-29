@@ -39,7 +39,7 @@ from metalibm_core.core.ml_operations import (
     Test, Comparison,
     LogicalOr, LogicalNot,
     ConditionBlock, Return, Statement,
-    InverseSquareRootSeed,
+    ReciprocalSquareRootSeed,
 )
 from metalibm_core.core.attributes import Attributes
 from metalibm_core.core.ml_formats import (
@@ -220,7 +220,7 @@ class MetalibmSqrt(ML_FunctionBasis):
         return_PosZero = Return(C0_plus)
         return_NegZero = Return(C0_minus)
 
-        NR_init = InverseSquareRootSeed(
+        NR_init = ReciprocalSquareRootSeed(
             vx, precision=self.precision, tag="sqrt_seed",
             debug = debug_multi)
 
