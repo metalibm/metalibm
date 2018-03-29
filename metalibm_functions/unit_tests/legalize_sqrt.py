@@ -39,9 +39,10 @@ from sollya import S2, Interval
 
 from metalibm_core.core.ml_function import ML_Function, ML_FunctionBasis
 from metalibm_core.core.attributes import ML_Debug
-from metalibm_core.core.ml_operations import *
-from metalibm_core.core.ml_formats import *
-from metalibm_core.core.ml_complex_formats import *
+from metalibm_core.core.ml_operations import (
+    ReciprocalSquareRootSeed, Return
+)
+from metalibm_core.core.ml_formats import ML_Binary32
 from metalibm_core.core.ml_table import ML_NewTable
 from metalibm_core.core.precisions import dar
 
@@ -86,7 +87,7 @@ class ML_UT_LegalizeSqrt(ML_Function("ml_ut_legalize_sqrt")):
         # declaring function input variable
         vx = self.implementation.add_input_variable("x", self.precision)
 
-        approx = InverseSquareRootSeed(
+        approx = ReciprocalSquareRootSeed(
             vx, precision=self.precision,
             tag = "approx"
         )
