@@ -123,7 +123,7 @@ FUNCTION_LIST = [
     FunctionTest(metalibm_functions.generic_log.ML_GenericLog,[GEN_LOG2_ARGS]),
     FunctionTest(metalibm_functions.generic_log.ML_GenericLog,[GEN_LOG10_ARGS]),
 
-    FunctionTest(metalibm_functions.ml_log10.ML_Log10, [{}]),
+    FunctionTest(metalibm_functions.ml_log10.ML_Log10, [{"passes": ["beforecodegen:fuse_fma"]}]),
     FunctionTest(metalibm_functions.ml_cosh.ML_HyperbolicCosine, [{}]),
     FunctionTest(metalibm_functions.ml_sinh.ML_HyperbolicSine, [{}]),
     FunctionTest(metalibm_functions.ml_exp.ML_Exponential, [{}]),
