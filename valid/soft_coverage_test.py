@@ -29,6 +29,7 @@ import argparse
 import sys
 import re
 
+import sollya
 from sollya import Interval
 
 # import meta-function script from metalibm_functions directory
@@ -49,6 +50,9 @@ import metalibm_functions.ml_sincos
 import metalibm_functions.ml_atan
 import metalibm_functions.external_bench
 import metalibm_functions.ml_tanh
+import metalibm_functions.generic_log
+
+from metalibm_core.utility.log_report import Log
 
 from metalibm_core.core.ml_formats import ML_Binary32, ML_Binary64, ML_Int32
 from metalibm_core.core.ml_function import (
@@ -78,24 +82,60 @@ except ImportError:
     k1b_defined = False
     k1b = None
 
+class VerboseAction(argparse.Action):
+    def __init__(self, option_strings, dest, nargs=None, **kwargs):
+        if nargs is not None:
+            raise ValueError("nargs not allowed")
+        super(VerboseAction, self).__init__(option_strings, dest, **kwargs)
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        for level_str in values.split(","):
+            if ":" in level_str:
+                level, sub_level = level_str.split(":")
+            else:
+                level, sub_level = level_str, None
+            Log.enable_level(level, sub_level=sub_level)
+
+
 NUM_AUTO_TEST = 1024 # to be divisible by standard vector length
 
+class FunctionTest:
+    def __init__(self, ctor, arg_map_list):
+        """ FunctionTest constructor:
+
+            Args:
+                ctor(class): constructor of the meta-function
+                arg_map_list: list of dictionnaries
+
+        """
+        self.ctor = ctor
+        self.arg_map_list = arg_map_list
+
+GEN_LOG_ARGS = {"basis": sollya.exp(1), "function_name": "ml_genlog", "passes" : ["beforecodegen:fuse_fma"]}
+GEN_LOG2_ARGS =  {"basis": 2, "function_name": "ml_genlog2", "passes" : ["beforecodegen:fuse_fma"]}
+GEN_LOG10_ARGS =  {"basis": 10, "function_name": "ml_genlog10", "passes" : ["beforecodegen:fuse_fma"]}
+
 FUNCTION_LIST = [
-    metalibm_functions.ml_cosh.ML_HyperbolicCosine,
-    metalibm_functions.ml_sinh.ML_HyperbolicSine,
-    # metalibm_functions.ml_tanh.ML_HyperbolicTangent,
-    metalibm_functions.ml_exp.ML_Exponential,
-    metalibm_functions.ml_log.ML_Log,
-    metalibm_functions.ml_log1p.ML_Log1p,
-    metalibm_functions.ml_log2.ML_Log2,
-    metalibm_functions.ml_log10.ML_Log10,
-    metalibm_functions.ml_exp2_bis.ML_Exp2,
-    metalibm_functions.ml_cbrt.ML_Cbrt,
-    metalibm_functions.ml_sqrt.MetalibmSqrt,
-    metalibm_functions.ml_isqrt.ML_Isqrt,
-    metalibm_functions.ml_sincos.ML_SinCos,
-    metalibm_functions.ml_atan.ML_Atan,
-    metalibm_functions.ml_vectorizable_log.ML_Log,
+    # FunctionTest(metalibm_functions.ml_tanh.ML_HyperbolicTangent, [{}])
+    # FunctionTest(metalibm_functions.ml_atan.ML_Atan, [{}])
+
+    FunctionTest(metalibm_functions.generic_log.ML_GenericLog,[GEN_LOG_ARGS]),
+    FunctionTest(metalibm_functions.generic_log.ML_GenericLog,[GEN_LOG2_ARGS]),
+    FunctionTest(metalibm_functions.generic_log.ML_GenericLog,[GEN_LOG10_ARGS]),
+
+    FunctionTest(metalibm_functions.ml_log10.ML_Log10, [{}]),
+    FunctionTest(metalibm_functions.ml_cosh.ML_HyperbolicCosine, [{}]),
+    FunctionTest(metalibm_functions.ml_sinh.ML_HyperbolicSine, [{}]),
+    FunctionTest(metalibm_functions.ml_exp.ML_Exponential, [{}]),
+    FunctionTest(metalibm_functions.ml_log.ML_Log, [{}]),
+    FunctionTest(metalibm_functions.ml_log1p.ML_Log1p, [{}]),
+    FunctionTest(metalibm_functions.ml_log2.ML_Log2, [{}]),
+    FunctionTest(metalibm_functions.ml_exp2_bis.ML_Exp2, [{}]),
+    FunctionTest(metalibm_functions.ml_cbrt.ML_Cbrt, [{}]),
+    FunctionTest(metalibm_functions.ml_sqrt.MetalibmSqrt, [{}]),
+    FunctionTest(metalibm_functions.ml_isqrt.ML_Isqrt, [{}]),
+    FunctionTest(metalibm_functions.ml_sincos.ML_SinCos, [{}]),
+    FunctionTest(metalibm_functions.ml_vectorizable_log.ML_Log, [{}]),
 ]
 
 global_test_list = []
@@ -113,50 +153,68 @@ TARGET_OPTIONS_MAP = {
     X86_PROCESSOR: {},
 }
 
+SCALAR_TARGET_LIST = [GENERIC_PROCESSOR, X86_PROCESSOR, X86_AVX2]
+SCALAR_PRECISION_LIST = [ML_Binary32, ML_Binary64]
+
+VECTOR_TARGET_LIST = [VECTOR_BACKEND, X86_AVX2]
+VECTOR_PRECISION_LIST = [ML_Binary32, ML_Binary64]
+
 # list of all possible test for a single function
 test_list = []
-for scalar_target in [GENERIC_PROCESSOR, X86_PROCESSOR, X86_AVX2]:
-    for precision in [ML_Binary32, ML_Binary64]:
+for scalar_target in SCALAR_TARGET_LIST:
+    for precision in SCALAR_PRECISION_LIST:
         options = {
             "precision": precision,
             "target": scalar_target,
             "auto_test": NUM_AUTO_TEST,
-            "execute": True,
+            "execute_trigger": True,
         }
         options.update(TARGET_OPTIONS_MAP[scalar_target])
         test_list.append(options)
-for vector_target in [X86_AVX2, VECTOR_BACKEND]:
-    for precision in [ML_Binary32, ML_Binary64]:
+for vector_target in VECTOR_TARGET_LIST:
+    for precision in VECTOR_PRECISION_LIST:
         for vector_size in [4, 8]:
             options = {
                 "precision": precision,
                 "target": vector_target,
                 "vector_size": vector_size,
                 "auto_test": NUM_AUTO_TEST,
-                "execute": True,
+                "execute_trigger": True,
             }
             options.update(TARGET_OPTIONS_MAP[vector_target])
             test_list.append(options)
 
-for function in FUNCTION_LIST:
+for function_test in FUNCTION_LIST:
+    function = function_test.ctor
+    local_test_list = []
+    # updating copy
+    for test in test_list:
+        for sub_test in function_test.arg_map_list:
+            option = test.copy()
+            option.update(sub_test)
+            local_test_list.append(option)
     test_case = NewSchemeTest(
-        "test %s" % function,
+        function.get_default_args(**local_test_list[0]).function_name,
         function,
-        test_list
+        local_test_list
     )
     global_test_list.append(test_case)
 
 arg_parser = argparse.ArgumentParser(" Metalibm non-regression tests")
 # enable debug mode
-arg_parser.add_argument("--debug", dest = "debug", action = "store_const",
-                        default = False, const = True,
-                        help = "enable debug mode")
-arg_parser.add_argument("--report-only", dest = "report_only", action = "store_const",
-                        default = False, const = True,
-                        help = "limit display to final report")
-arg_parser.add_argument("--output", dest = "output", action = "store",
-                        default = "report.html",
-                        help = "define output file")
+arg_parser.add_argument("--debug", dest="debug", action="store_const",
+                        default=False, const=True,
+                        help="enable debug mode")
+arg_parser.add_argument("--report-only", dest="report_only", action="store_const",
+                        default=False, const=True,
+                        help="limit display to final report")
+arg_parser.add_argument("--output", dest="output", action="store",
+                        default="report.html",
+                        help="define output file")
+arg_parser.add_argument(
+    "--verbose", dest="verbose_enable", action=VerboseAction,
+    const=True, default=False,
+    help="enable Verbose log level")
 
 args = arg_parser.parse_args(sys.argv[1:])
 
@@ -202,7 +260,7 @@ for index, test_case in enumerate(test_list):
 
 print_report("</ul></p>\n\n")
 header = "<table border='1'>"
-header += "<th>{:10}</th>".format("function "[:10])
+header += "<th>{:10}</th>".format("function "[:20])
 header += "".join(["\t\t<th> {:2} </th>\n".format(i) for i in range(len(test_list))])
 header += "\n"
 #header += ("----------"+ "|----" * len(test_list))
@@ -215,12 +273,13 @@ def color_cell(msg, color="red", markup="td", indent="\t\t"):
     )
 
 # report dusplay
-for test_scheme in RESULT_MAP:
-    name = test_scheme.ctor.get_default_args().function_name
-    msg = "<tr>\n\t\t<td>{:10}</td>\n".format(name[:10])
+for test_scheme in sorted(RESULT_MAP.keys()):
+    # name = test_scheme.ctor.get_default_args().function_name
+    name = test_scheme.title
+    msg = "<tr>\n\t\t<td>{:15}</td>\n".format(name)
     for result in RESULT_MAP[test_scheme]:
         if result.get_result():
-            msg += color_cell("  OK    ", "green")
+            msg += color_cell("  OK[{}]    ".format(result.error), "green")
         elif isinstance(result.error, GenerationError):
             msg += color_cell("  KO[G]  ", "red")
         elif isinstance(result.error, BuildError):
@@ -228,7 +287,7 @@ for test_scheme in RESULT_MAP:
         elif isinstance(result.error, ValidError):
             msg += color_cell(" KO[V] ", "orange")
         else:
-            msg += color_cell(" KO ", "red")
+            msg += color_cell(" KO[{}] ".format(result.error), "red")
     msg += "</tr>"
     print_report(msg)
 
