@@ -222,7 +222,7 @@ def generic_index_function(index_size, variable):
     # building an index mask from the index_size
     index_mask   = Constant(2**index_size - 1, precision = int_precision)
     shift_amount = Constant(
-        variable.get_precision().get_field_size() - index_size, precision=ML_UInt32
+        variable.get_precision().get_field_size() - index_size, precision=ML_Int32
     ) 
     return BitLogicAnd(
         BitLogicRightShift(
