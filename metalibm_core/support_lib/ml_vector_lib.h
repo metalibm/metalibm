@@ -165,6 +165,10 @@ DEF_ML_VECTOR_PRIMITIVES_OP3(ml_vfmau2, ml_uint2_t, uint32_t, 2, *, +)
 DEF_ML_VECTOR_PRIMITIVES_OP3(ml_vfmau4, ml_uint4_t, uint32_t, 4, *, +)
 DEF_ML_VECTOR_PRIMITIVES_OP3(ml_vfmau8, ml_uint8_t, uint32_t, 8, *, +)
 
+DEF_ML_VECTOR_PRIMITIVES_OP3(ml_vfmsf2, ml_float2_t, float, 2, *, -)
+DEF_ML_VECTOR_PRIMITIVES_OP3(ml_vfmsf4, ml_float4_t, float, 4, *, -)
+DEF_ML_VECTOR_PRIMITIVES_OP3(ml_vfmsf8, ml_float8_t, float, 8, *, -)
+
 
 /** Vector Negate */
 DEF_ML_VECTOR_PRIMITIVES_OP1(ml_vnegf2, ml_float2_t, float, 2, -)
