@@ -522,6 +522,10 @@ def pred_vector_select_one_zero(optree):
                (is_vector_cst_with_value(lhs, 0) and is_vector_cst_with_value(rhs, -1))
         return cst_pred
 
+def not_pred_vector_select_one_zero(optree):
+    """ Negation of the predicate pred_vector_select_one_zero """
+    return not(pred_vector_select_one_zero(optree))
+
 
 def invert_comp_specifier(comp_specifier):
     inverse_map = {
@@ -628,6 +632,84 @@ def squash_sse_cst_select(optree):
         raise NotImplementedError
 
 
+def convert_select_to_logic(optree):
+    """ Convert Select(cond, a, b) into 
+        LogicalOr(
+            LogicalAnd(Select(cond, -1, 0), a),
+            LogicalAnd(Select(cond, 0, -1, b))
+        )
+    """
+    assert isinstance(optree, Select)
+    cond = optree.get_input(0)
+    lhs = optree.get_input(1)
+    rhs = optree.get_input(2)
+    prec = optree.get_precision()
+    result = BitLogicOr(
+        BitLogicAnd(
+            Select(
+                cond,
+                CM1,
+                C0,
+                precision=prec
+            ),
+            a,
+            precision=prec
+        ),
+        BitLogicAnd(
+            Select(
+                cond,
+                C0,
+                CM1,
+                precision=prec
+            ),
+            b,
+            precision=prec
+        ),
+        precision=prec
+    )
+    Log.report(
+        Log.Verbose, 
+        "legalizing Select(\n\t{},\n\t{}\n\t{}\n) into {}".format(
+            cond, lhs, rhs,
+            result
+        )
+    )
+    raise Exception()
+    return result
+    
+
+def linearize_2d_tableload(optree):
+    """ convert TableLoad(table, index_d0, index_d1) into TableLoad(table, index_d0 * dim(table)[1] + index_d1 """
+    assert isinstance(optree, TableLoad)
+    table = optree.get_input(0)
+    assert len(table.dimensions) >= 1
+    index_0 = optree.get_input(1)
+    index_1 = optree.get_input(1)
+    index_prec = index_0.get_precision()
+    prec = optree.get_precision()
+    result = TableLoad(
+        table,
+        Addition(
+            Multiplication(
+                index_0,
+                Constant(table.dimensions[1], precision=index_prec),
+                precsion=index_prec
+            ),
+            index_1,
+            precision=index_prec
+        ),
+        precision=prec
+    )
+    Log.report(
+        Log.Verbose,
+        "legalizing {} into {}".format(
+            optree.get_str(display_precision=True),
+            result.get_str(display_precision=True)
+        )
+    )
+    return result
+
+
 def expand_sse_comparison(optree):
     """ SSE only supports eq/gt/lt predicate for integer comparison,
         thus all other must be expanded """
@@ -727,6 +809,10 @@ sse_c_code_generation_table = {
                 type_strict_match(ML_SSE_m128_v4uint32, ML_SSE_m128_v4bool, ML_SSE_m128_v4uint32, ML_SSE_m128_v4uint32):
                     ComplexOperator(squash_sse_cst_select),
             },
+            not_pred_vector_select_one_zero: {
+                type_strict_match(ML_SSE_m128_v4float32, ML_SSE_m128_v4bool, ML_SSE_m128_v4float32, ML_SSE_m128_v4float32):
+                    ComplexOperator(convert_select_to_logic),
+            }
         },
     },
     MantissaExtraction: {
@@ -1044,6 +1130,16 @@ sse_c_code_generation_table = {
 }
 
 sse2_c_code_generation_table = {
+    Select: {
+        None: {
+            not_pred_vector_select_one_zero: {
+                type_strict_match(ML_SSE_m128_v4int32, ML_SSE_m128_v4bool, ML_SSE_m128_v4int32, ML_SSE_m128_v4int32):
+                    ComplexOperator(convert_select_to_logic),
+                type_strict_match(ML_SSE_m128_v4uint32, ML_SSE_m128_v4bool, ML_SSE_m128_v4uint32, ML_SSE_m128_v4uint32):
+                    ComplexOperator(convert_select_to_logic),
+            },
+        },
+    },
     Addition: {
         None: {
             lambda optree: True: {
@@ -2270,6 +2366,20 @@ avx2_c_code_generation_table = {
                             FO_Arg(1),
                             FO_Value("8", ML_Int32)
                             ),
+                # XMM version with 32-bit indices and 2 index table
+                type_custom_match(FSM(ML_SSE_m128_v4float32),
+                                  TCM(ML_TableFormat),
+                                  type_strict_match_list([
+                                      ML_SSE_m128_v4uint32,
+                                      ML_SSE_m128_v4int32,
+                                      ]),
+                                  type_strict_match_list([
+                                      ML_SSE_m128_v4uint32,
+                                      ML_SSE_m128_v4int32,
+                                      ])
+                                      
+                                ):
+                    ComplexOperator(linearize_2d_tableload),
                 # YMM version with 32-bit indices
                 type_custom_match(FSM(ML_AVX_m256_v8float32),
                                   TCM(ML_TableFormat),
@@ -2409,7 +2519,7 @@ class X86_Processor(VectorBackend):
     }
 
     def __init__(self):
-        GenericProcessor.__init__(self)
+        VectorBackend.__init__(self)
 
     def get_current_timestamp(self):
         return SpecificOperation(
