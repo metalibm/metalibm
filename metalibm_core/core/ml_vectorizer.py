@@ -38,6 +38,50 @@ from .ml_operations import *
 
 ## 
 class StaticVectorizer(object):
+  VECTORIZE_FORMAT_MAP = {
+      ML_Binary32: {
+        2: v2float32,
+        3: v3float32,
+        4: v4float32,
+        8: v8float32
+      },
+      ML_Binary64: {
+        2: v2float64,
+        3: v3float64,
+        4: v4float64,
+        8: v8float64
+      },
+      ML_UInt32: {
+        2: v2uint32,
+        3: v3uint32,
+        4: v4uint32,
+        8: v8uint32
+      },
+      ML_Int32: {
+        2: v2int32,
+        3: v3int32,
+        4: v4int32,
+        8: v8int32
+      },
+      ML_UInt64: {
+        2: v2uint64,
+        3: v3uint64,
+        4: v4uint64,
+        8: v8uint64
+      },
+      ML_Int64: {
+        2: v2int64,
+        3: v3int64,
+        4: v4int64,
+        8: v8int64
+      },
+      ML_Bool: {
+        2: v2bool,
+        3: v3bool,
+        4: v4bool,
+        8: v8bool
+      },
+  }
   ## initialize static vectorizer object
   #  @param OptimizationEngine object
   def __init__(self, opt_engine):
@@ -163,50 +207,7 @@ class StaticVectorizer(object):
 
 
   def vectorize_format(self, scalar_format, vector_size):
-    return {
-      ML_Binary32: {
-        2: v2float32,
-        3: v3float32,
-        4: v4float32,
-        8: v8float32
-      },
-      ML_Binary64: {
-        2: v2float64,
-        3: v3float64,
-        4: v4float64,
-        8: v8float64
-      },
-      ML_UInt32: {
-        2: v2uint32,
-        3: v3uint32,
-        4: v4uint32,
-        8: v8uint32
-      },
-      ML_Int32: {
-        2: v2int32,
-        3: v3int32,
-        4: v4int32,
-        8: v8int32
-      },
-      ML_UInt64: {
-        2: v2uint64,
-        3: v3uint64,
-        4: v4uint64,
-        8: v8uint64
-      },
-      ML_Int64: {
-        2: v2int64,
-        3: v3int64,
-        4: v4int64,
-        8: v8int64
-      },
-      ML_Bool: {
-        2: v2bool,
-        3: v3bool,
-        4: v4bool,
-        8: v8bool
-      },
-    }[scalar_format][vector_size]
+    return StaticVectorizer.VECTORIZE_FORMAT_MAP[scalar_format][vector_size]
 
   def is_vectorizable(self, optree):
     arith_flag = isinstance(optree, ML_ArithmeticOperation)
