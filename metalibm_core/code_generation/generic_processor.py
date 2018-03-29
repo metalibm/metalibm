@@ -151,19 +151,23 @@ unsigned_integer_precision = {
 
 generic_inv_approx_table = ML_ApproxTable(
     dimensions = [2**7], 
+    index_size=7,
     storage_precision = ML_Binary32,
     init_data = [
-        [((1.0 + (t_value / S2**9) ) * S2**-1)] for t_value in 
-    [508, 500, 492, 485, 477, 470, 463, 455, 448, 441, 434, 428, 421, 414, 408,
-     401, 395, 389, 383, 377, 371, 365, 359, 353, 347, 342, 336, 331, 326, 320,
-     315, 310, 305, 300, 295, 290, 285, 280, 275, 271, 266, 261, 257, 252, 248,
-     243, 239, 235, 231, 226, 222, 218, 214, 210, 206, 202, 198, 195, 191, 187,
-     183, 180, 176, 172, 169, 165, 162, 158, 155, 152, 148, 145, 142, 138, 135,
-     132, 129, 126, 123, 120, 117, 114, 111, 108, 105, 102, 99, 96, 93, 91, 88,
-     85, 82, 80, 77, 74, 72, 69, 67, 64, 62, 59, 57, 54, 52, 49, 47, 45, 42, 40,
-     38, 35, 33, 31, 29, 26, 24, 22, 20, 18, 15, 13, 11, 9, 7, 5, 3, 0
+        sollya.round(1/(1.0 + i * S2**-7), 9, sollya.RN) for i in range(2**7)
     ]
-    ]
+
+#        ((1.0 + (t_value / S2**9) ) * S2**-1) for t_value in 
+#    [508, 500, 492, 485, 477, 470, 463, 455, 448, 441, 434, 428, 421, 414, 408,
+#     401, 395, 389, 383, 377, 371, 365, 359, 353, 347, 342, 336, 331, 326, 320,
+#     315, 310, 305, 300, 295, 290, 285, 280, 275, 271, 266, 261, 257, 252, 248,
+#     243, 239, 235, 231, 226, 222, 218, 214, 210, 206, 202, 198, 195, 191, 187,
+#     183, 180, 176, 172, 169, 165, 162, 158, 155, 152, 148, 145, 142, 138, 135,
+#     132, 129, 126, 123, 120, 117, 114, 111, 108, 105, 102, 99, 96, 93, 91, 88,
+#     85, 82, 80, 77, 74, 72, 69, 67, 64, 62, 59, 57, 54, 52, 49, 47, 45, 42, 40,
+#     38, 35, 33, 31, 29, 26, 24, 22, 20, 18, 15, 13, 11, 9, 7, 5, 3, 0
+#    ]
+#    ]
 )
 
 invsqrt_approx_table = ML_ApproxTable(
@@ -226,27 +230,73 @@ def legalize_invsqrt_seed(optree):
         precision=op_prec
     )
 
+
+def legalize_reciprocal_seed(optree):
+    """ Legalize an ReciprocalSeed optree """
+    assert isinstance(optree, ReciprocalSeed) 
+    op_prec = optree.get_precision()
+    initial_prec = op_prec
+    back_convert = False
+    op_input = optree.get_input(0)
+    if op_prec != ML_Binary32:
+        op_input = Conversion(op_input, precision=ML_Binary32)
+        op_prec = ML_Binary32
+        back_convert = True
+    # input = 1.m_hi-m_lo * 2^e
+    # approx = 2^(-int(e/2)) * approx_insqrt(1.m_hi) * (e % 2 ? 1.0 : ~2**-0.5)
+
+    # TODO: fix integer precision selection
+    #       as we are in a late code generation stage, every node's precision
+    #       must be set
+    op_exp = ExponentExtraction(op_input, tag="op_exp", debug=debug_multi, precision=ML_Int32)
+    neg_exp = Negation(op_exp, precision=ML_Int32)
+    approx_exp = ExponentInsertion(neg_exp, tag="approx_exp", debug=debug_multi, precision=op_prec)
+    table_index = generic_inv_approx_table.get_index_function()(op_input)
+    table_index.set_attributes(tag="inv_index", debug=debug_multi)
+    approx = Multiplication(
+        TableLoad(
+            generic_inv_approx_table,
+            table_index,
+            precision=op_prec
+        ),
+        approx_exp,
+        tag="inv_approx",
+        debug=debug_multi,
+        precision=op_prec
+    )
+    if back_convert:
+        return Conversion(approx, precision=initial_prec)
+    else:
+        return approx
+
+
 generic_approx_table_map = {
     None: { # language
         DivisionSeed: {
-            lambda optree: True: {
-                type_strict_match(ML_Binary32, ML_Binary32, ML_Binary32): generic_inv_approx_table,
-                type_strict_match(ML_Binary64, ML_Binary64, ML_Binary64): generic_inv_approx_table,
+            None: {
+                lambda optree: True: {
+                    type_strict_match(ML_Binary32, ML_Binary32, ML_Binary32): generic_inv_approx_table,
+                    type_strict_match(ML_Binary64, ML_Binary64, ML_Binary64): generic_inv_approx_table,
+                },
             },
         },
         ReciprocalSeed: {
-            lambda optree: not optree.get_silent(): {
-                type_strict_match(ML_Binary32, ML_Binary32): generic_inv_approx_table,
-                type_strict_match(ML_Binary64, ML_Binary64): generic_inv_approx_table,
-            },
-            lambda optree: optree.get_silent(): {
-                type_strict_match(ML_Binary32, ML_Binary32): generic_inv_approx_table,
-                type_strict_match(ML_Binary64, ML_Binary64): generic_inv_approx_table,
+            None: {
+                lambda optree: not optree.get_silent(): {
+                    type_strict_match(ML_Binary32, ML_Binary32): generic_inv_approx_table,
+                    type_strict_match(ML_Binary64, ML_Binary64): generic_inv_approx_table,
+                },
+                lambda optree: optree.get_silent(): {
+                    type_strict_match(ML_Binary32, ML_Binary32): generic_inv_approx_table,
+                    type_strict_match(ML_Binary64, ML_Binary64): generic_inv_approx_table,
+                },
             },
         },
         ReciprocalSquareRootSeed: {
-            lambda optree: True: {
-                type_strict_match(ML_Binary32, ML_Binary32): invsqrt_approx_table,
+            None: {
+                lambda optree: True: {
+                    type_strict_match(ML_Binary32, ML_Binary32): invsqrt_approx_table,
+                },
             },
         },
     },
@@ -796,6 +846,16 @@ c_code_generation_table = {
             lambda optree: True: {
                 type_strict_match(ML_Binary32, ML_Binary32):
                     ComplexOperator(optree_modifier=legalize_invsqrt_seed),
+            },
+        },
+    },
+    ReciprocalSeed: {
+        None: {
+            lambda optree: True: {
+                type_strict_match(ML_Binary32, ML_Binary32):
+                    ComplexOperator(optree_modifier=legalize_reciprocal_seed),
+                type_strict_match(ML_Binary64, ML_Binary64):
+                    ComplexOperator(optree_modifier=legalize_reciprocal_seed),
             },
         },
     },
