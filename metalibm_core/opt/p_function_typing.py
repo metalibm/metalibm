@@ -395,7 +395,12 @@ def merge_ops_abstract_format(optree, args, default_precision = None):
         },
     }
     
-    result_format = merge_table[optree.get_precision()][max_binary_size]
+    try:
+        result_format = merge_table[optree.get_precision()][max_binary_size]
+    except KeyError:
+        Log.report(Log.Error, "unable to find record in merge_table for {}/{}".format(
+            optree.get_precision(), max_binary_size
+        ))
     return result_format
 
 
