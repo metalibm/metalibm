@@ -47,12 +47,13 @@ class TestResult:
   #  @param details string with test information
   #  @param test_object CommonTestScheme object defining the test
   #  @param test_case specific test parameters used in the test
-  def __init__(self, result, details, test_object=None, test_case=None, error=None):
+  def __init__(self, result, details, test_object=None, test_case=None, error=None, title=""):
     self.result = result
     self.details = details
     self.test_object = test_object
     self.test_case = test_case
     self.error = error
+    self.title = title
 
   def get_result(self):
     return self.result
@@ -133,13 +134,13 @@ class NewSchemeTest(CommonTestScheme):
             try:
                 fct = self.ctor(arg_template)
             except:
-                return TestResult(False, "{} ctor failed".format(test_desc))
+                return TestResult(False, "{} ctor failed".format(test_desc), title=self.title)
             try:
                 fct.gen_implementation()
             except (BuildError, ValidError) as e:
-                return TestResult(False, "{} gen_implementation failed".format(test_desc), error=e)
+                return TestResult(False, "{} gen_implementation failed".format(test_desc), error=e, title=self.title)
             except:
-                return TestResult(False, "{} gen_implementation failed".format(test_desc), error=GenerationError())
+                return TestResult(False, "{} gen_implementation failed".format(test_desc), error=GenerationError(), title=self.title)
             
-        return TestResult(True, "{} succeed".format(test_desc))
+        return TestResult(True, "{} succeed".format(test_desc), title=self.title)
 
