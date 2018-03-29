@@ -39,6 +39,7 @@ from metalibm_core.core.target import TargetRegister
 from metalibm_core.core.ml_formats import *
 from metalibm_core.core.ml_table import ML_TableFormat
 from metalibm_core.core.ml_operations import *
+from metalibm_core.core.ml_vectorizer import StaticVectorizer
 from metalibm_core.core.legalizer import (
     min_legalizer, max_legalizer
 )
@@ -147,14 +148,14 @@ vector_opencl_code_generation_table = {
         dict(
           sum(
           [
-            [
-              (type_strict_match(
-                  vector_type[scalar_type][vector_size],
-                  vector_type[scalar_type][vector_size],
-                  vector_type[scalar_type][vector_size]
-                ), SymbolOperator(" >> ", arity = 2)
-              ) for vector_size in supported_vector_size
-            ] for scalar_type in [ ML_Int32, ML_UInt32 ]
+                [
+                  (type_strict_match(
+                      vector_type[scalar_type][vector_size],
+                      vector_type[scalar_type][vector_size],
+                      vector_type[scalar_type][vector_size]
+                    ), SymbolOperator(" >> ", arity = 2)
+                  ) for vector_size in supported_vector_size
+                ] for scalar_type in [ ML_Int32, ML_UInt32]
           ], [])
         )
      }
@@ -615,6 +616,44 @@ def type_uniform_op2_match_restrain(list_t):
         return type_uniform_op2_match(result_type, op0_t, op1_t, **kw) and result_type in list_t
     return local_match
 
+
+def assemble_vector(scalar_results, vector_prec, threshold=4):
+    """ build a vector node from list scalar_results, 
+        sub-dividing in half, if vectors exceeds threshold """
+    if vector_size <= threshold:
+        return VectorAssembling(*tuple(scalar_results), precision=vector_prec)
+    else:
+        n = len(scalar_results)
+        hi_l = (n+1)/2
+        lo_l = n - hi_l
+        scalar_prec = vector_prec.get_scalar_format()
+        hi_format = StaticVectorizer.VECTORIZE_FORMAT_MAP[scalar_prec][hi_l]
+        lo_format = StaticVectorizer.VECTORIZE_FORMAT_MAP[scalar_prec][lo_l]
+        return VectorAssembling(
+            VectorAssembling(*tuple(scalar_results[:lo_l]),  precision=lo_format),
+            VectorAssembling(*tuple(scalar_results[lo_l:]), precision=hi_format),
+            precision=vector_prec
+        )
+
+def unroll_vector_class(op_class):
+    """ unroll the vector operation optree on n-element
+        as n scalar operation """
+    def unroll_vector_node(optree):
+        vector_prec = optree.get_precision()
+        vsize = vector_prec.get_vector_size()
+        out_prec = vector_prec.get_scalar_format()
+        scalar_ops = [
+            [
+                VectorElementSelection(
+                    op_i, Constant(elt_j, precision=ML_Integer),
+                    precision=op_i.get_precision().get_scalar_format()
+                )  for op_i in optree.get_inputs()
+            ] for elt_j in range(vsize)
+        ]
+        scalar_results = [op_class(*tuple(scalar_ops[i]), precision=out_prec) for i in range(vsize)]
+        return assemble_vector(scalar_results, vector_prec)
+    return unroll_vector_node
+
 """ List of standard vector format supported by the common.vector_backend """
 SUPPORTED_VECTOR_FORMATS = [
     v2float32, v3float32, v4float32, v8float32,
@@ -626,6 +665,20 @@ SUPPORTED_VECTOR_FORMATS = [
 ]
 
 vector_c_code_generation_table = {
+  ReciprocalSeed: {
+    None: {
+        lambda _: True: {
+            type_strict_match(v2float32, v2float32):
+                ComplexOperator(optree_modifier=unroll_vector_class(ReciprocalSeed)),
+            type_strict_match(v3float32, v3float32):
+                ComplexOperator(optree_modifier=unroll_vector_class(ReciprocalSeed)),
+            type_strict_match(v4float32, v4float32):
+                ComplexOperator(optree_modifier=unroll_vector_class(ReciprocalSeed)),
+            type_strict_match(v8float32, v8float32):
+                ComplexOperator(optree_modifier=unroll_vector_class(ReciprocalSeed)),
+        }
+    },
+  },
   VectorAssembling: {
     None: {
       lambda _: True: {
@@ -919,6 +972,19 @@ vector_c_code_generation_table = {
         type_strict_match(v8float32, v8float32, v8float32, v8float32): ML_VectorLib_Function("ml_vfmaf8", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2)}, arity = 2, output_precision = v8float32),
       },
     },
+    FusedMultiplyAdd.Subtract: {
+       lambda _: True: {
+        type_strict_match(v2float32, v2float32, v2float32, v2float32):
+            ML_VectorLib_Function("ml_vfmsf2", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2)}, arity = 2, output_precision = v2float32),
+        type_strict_match(v3float32, v3float32, v3float32, v3float32):
+            ML_VectorLib_Function("ml_vfmsf4", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2)}, arity = 2, output_precision = v3float32),
+        type_strict_match(v4float32, v4float32, v4float32, v4float32):
+            ML_VectorLib_Function("ml_vfmsf4", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2)}, arity = 2, output_precision = v4float32),
+        type_strict_match(v8float32, v8float32, v8float32, v8float32):
+            ML_VectorLib_Function("ml_vfmsf8", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2)}, arity = 2, output_precision = v8float32),
+      },
+
+    }
   },
   ExponentInsertion: {
     ExponentInsertion.Default: {
