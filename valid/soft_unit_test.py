@@ -73,8 +73,20 @@ import metalibm_functions.unit_tests.entity_pass as ut_entity_pass
 import metalibm_functions.unit_tests.implicit_interval_eval as ut_implicit_interval_eval
 import metalibm_functions.unit_tests.legalize_sqrt as ut_legalize_sqrt
 import metalibm_functions.unit_tests.accuracies as ut_accuracies
+import metalibm_functions.unit_tests.legalize_reciprocal_seed as ut_legalize_reciprocal_seed
+import metalibm_functions.unit_tests.fuse_fma as ut_fuse_fma
 
 unit_test_list = [
+  UnitTestScheme(
+    "legalize_reciprocal_seed",
+    ut_legalize_reciprocal_seed,
+    [{"auto_test": 1024, "execute_trigger": True, "accuracy": dar(S2**-6)}]
+  ),
+  UnitTestScheme(
+    "fuse_fma pass test",
+    ut_fuse_fma,
+    [{"passes": ["beforecodegen:fuse_fma"]}]
+  ),
   UnitTestScheme(
     "implicit interval eval test",
     ut_implicit_interval_eval,
