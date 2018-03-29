@@ -305,7 +305,7 @@ class PassQuit(OptreeOptimization):
   def execute(self, *args):
     sys.exit(1)
 
-class PassDump(OptreeOptimization):
+class PassDump(FunctionPass):
   pass_tag = "dump"
   def __init__(self, *args):
     OptimizationPass.__init__(self, "dump")
@@ -315,6 +315,9 @@ class PassDump(OptreeOptimization):
     print(optree.get_str(
         depth = None, display_precision = True, memoization_map = {}
     ))
+
+  def execute_on_optree(self, optree, fct=None, fct_group=None, memoization_map=None):
+    return self.execute(optree)
 
 class PassDumpWithStages(OptreeOptimization):
   pass_tag = "dump_with_stages"
