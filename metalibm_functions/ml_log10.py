@@ -75,6 +75,7 @@ class ML_Log10(ML_Function("log10")):
     default_args_log10 = {
         "output_file": "ml_log10f.c",
         "function_name": "ml_log10f",
+        "basis": 10,
         "precision": ML_Binary32,
         "accuracy": ML_Faithful,
         "target": GenericProcessor()
