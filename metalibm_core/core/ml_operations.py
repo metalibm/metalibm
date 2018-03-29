@@ -1044,6 +1044,12 @@ class Permute(ArithmeticOperationConstructor("Permute")):
     """ abstract word-permutations inside a vector operation """
     pass
 
+# Duplicate with DivisionSeed
+#class FastReciprocal(ArithmeticOperationConstructor(
+#        "FastReciprocal", arity = 1,
+#        range_function = lambda self, ops: 1 / ops[0])):
+#    """ abstract fast reciprocal """
+#    pass
 
 ## Round to an integer value, rounding towards zero
 #  returns the minimal integer greater than or equal to the node's input
@@ -1571,7 +1577,7 @@ class ReciprocalSeed(GeneralArithmeticOperation):
     name = "ReciprocalSeed"
 class ReciprocalSquareRootSeed(GeneralArithmeticOperation):
     arity = 1
-    name = "ReciprocalSeed"
+    name = "ReciprocalSquareRootSeed"
 
 
 class SpecificOperation(SpecifierOperation, GeneralOperation):
