@@ -186,6 +186,13 @@ def legalize_invsqrt_seed(optree):
     # input = 1.m_hi-m_lo * 2^e
     # approx = 2^(-int(e/2)) * approx_insqrt(1.m_hi) * (e % 2 ? 1.0 : ~2**-0.5)
     op_input = optree.get_input(0)
+    convert_back = False
+    approx_prec = ML_Binary32
+
+    if op_prec != approx_prec:
+        op_input = Conversion(op_input, precision=ML_Binary32)
+        convert_back = True
+
 
     # TODO: fix integer precision selection
     #       as we are in a late code generation stage, every node's precision
@@ -196,39 +203,43 @@ def legalize_invsqrt_seed(optree):
         Constant(2, precision=ML_Int32),
         precision=ML_Int32
     )
-    approx_exp = ExponentInsertion(neg_half_exp, tag="approx_exp", debug=debug_multi, precision=op_prec)
+    approx_exp = ExponentInsertion(neg_half_exp, tag="approx_exp", debug=debug_multi, precision=approx_prec)
     op_exp_parity = Modulo(
         op_exp, Constant(2, precision=ML_Int32), precision=ML_Int32)
     approx_exp_correction = Select(
         Equal(op_exp_parity, Constant(0, precision=ML_Int32)),
-        Constant(1.0, precision=op_prec),
+        Constant(1.0, precision=approx_prec),
         Select(
             Equal(op_exp_parity, Constant(-1, precision=ML_Int32)),
-            Constant(S2**0.5, precision=op_prec),
-            Constant(S2**-0.5, precision=op_prec),
-            precision=op_prec
+            Constant(S2**0.5, precision=approx_prec),
+            Constant(S2**-0.5, precision=approx_prec),
+            precision=approx_prec
         ),
-        precision=op_prec,
+        precision=approx_prec,
         tag="approx_exp_correction",
         debug=debug_multi
     )
     table_index = invsqrt_approx_table.get_index_function()(op_input)
     table_index.set_attributes(tag="invsqrt_index", debug=debug_multi)
-    return Multiplication(
+    approx = Multiplication(
         TableLoad(
             invsqrt_approx_table,
             table_index,
-            precision=optree.get_precision()
+            precision=approx_prec
         ),
         Multiplication(
             approx_exp_correction,
             approx_exp,
-            precision=op_prec
+            precision=approx_prec
         ),
         tag="invsqrt_approx",
         debug=debug_multi,
-        precision=op_prec
+        precision=approx_prec
     )
+    if approx_prec != op_prec:
+        return Conversion(approx, precision=op_prec)
+    else:
+        return approx
 
 
 def legalize_reciprocal_seed(optree):
@@ -845,6 +856,8 @@ c_code_generation_table = {
         None: {
             lambda optree: True: {
                 type_strict_match(ML_Binary32, ML_Binary32):
+                    ComplexOperator(optree_modifier=legalize_invsqrt_seed),
+                type_strict_match(ML_Binary64, ML_Binary64):
                     ComplexOperator(optree_modifier=legalize_invsqrt_seed),
             },
         },
