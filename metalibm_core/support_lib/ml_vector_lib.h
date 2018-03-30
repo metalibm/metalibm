@@ -139,6 +139,10 @@ DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsrlu2, ml_uint2_t, uint32_t, 2, >>)
 DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsrlu4, ml_uint4_t, uint32_t, 4, >>)
 DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsrlu8, ml_uint8_t, uint32_t, 8, >>)
 
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsrll2, ml_long2_t, uint64_t, 2, >>)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsrll4, ml_long4_t, uint64_t, 4, >>)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsrll8, ml_long8_t, uint64_t, 8, >>)
+
 /** Vector Arithmethic Right Shift */
 DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsrai2, ml_int2_t, int32_t, 2, >>)
 DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsrai4, ml_int4_t, int32_t, 4, >>)
@@ -236,6 +240,10 @@ DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vbwandi8, ml_int8_t, int32_t, 8, &)
 DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vbwandu2, ml_uint2_t, int32_t, 2, &)
 DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vbwandu4, ml_uint4_t, int32_t, 4, &)
 DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vbwandu8, ml_uint8_t, int32_t, 8, &)
+
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vbwandl2, ml_long2_t, int64_t, 2, &)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vbwandl4, ml_long4_t, int64_t, 4, &)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vbwandl8, ml_long8_t, int64_t, 8, &)
 
 /** Vector bitwise or */
 DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vbwori2, ml_int2_t, int32_t, 2, |)
@@ -611,6 +619,10 @@ DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vexp_extraction_f8, ml_int8_t, ml_float8_t, 8, m
 DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vmantissa_extraction_f2, ml_float2_t, ml_float2_t, 2, ml_mantissa_extraction_fp32)
 DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vmantissa_extraction_f4, ml_float4_t, ml_float4_t, 4, ml_mantissa_extraction_fp32)
 DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vmantissa_extraction_f8, ml_float8_t, ml_float8_t, 8, ml_mantissa_extraction_fp32)
+
+DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vmantissa_extraction_d2, ml_double2_t, ml_double2_t, 2, ml_mantissa_extraction_fp64)
+DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vmantissa_extraction_d4, ml_double4_t, ml_double4_t, 4, ml_mantissa_extraction_fp64)
+DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vmantissa_extraction_d8, ml_double8_t, ml_double8_t, 8, ml_mantissa_extraction_fp64)
 
 
 /** Vector element-wise selection */
