@@ -51,6 +51,8 @@ from metalibm_core.code_generation.abstract_backend import LOG_BACKEND_INIT
 from metalibm_core.code_generation.generic_processor import GenericProcessor
 from metalibm_core.code_generation.complex_generator import DynamicOperator
 
+from .x86_processor_table import x86_sse_approx_table_map
+
 def get_sse_scalar_cst(format_object, value, language = C_Code):
 	base_format = format_object.get_base_format()
 	return "{{{}}}/*sse*/".format(base_format.get_cst(value, language))
@@ -2536,6 +2538,10 @@ class X86_SSE_Processor(X86_Processor):
     code_generation_table = {
         C_Code: sse_c_code_generation_table,
     }
+
+    # approximation table map
+    approx_table_map = x86_sse_approx_table_map
+
 
     def __init__(self):
         super(X86_SSE_Processor, self).__init__()
