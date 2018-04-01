@@ -131,7 +131,7 @@ def silence_fp_operations(optree, force=False, memoization_map=None):
 
 def fuse_multiply_add(optree, silence=False, memoization=None, change_handle=True, dot_product_enabled=True):
     """ whenever possible fuse a multiply and add/sub into a FMA/FMS """
-    memoization = memoization or {}
+    memoization = memoization if not memoization is None else {}
     def local_fuse_fma(op):
         return fuse_multiply_add(op, silence, memoization, change_handle, dot_product_enabled)
     if (isinstance(optree, Addition) or isinstance(optree, Subtraction)) and not optree.get_unbreakable():
@@ -307,7 +307,7 @@ class PassSilenceFPOperation(FunctionPass):
 
     def execute_on_optree(self, optree, fct=None, fct_group=None, memoization_map=None): 
         """ Execute silence fp op pass on optree """
-        memoization_map = memoization_map or {}
+        memoization_map = memoization_map if not memoization_map is None else {}
         silence_fp_operations(scheme, self.force, memoization_map)
         return optree
 
@@ -324,7 +324,7 @@ class PassFuseFMA(FunctionPass):
 
 
     def execute_on_optree(self, optree, fct=None, fct_group=None, memoization_map=None): 
-        memoization_map = memoization_map or {}
+        memoization_map = memoization_map if not memoization_map is None else {}
         return fuse_multiply_add(
             optree, self.silence, memoization_map, self.change_handle,
             self.dot_product_enabled)
