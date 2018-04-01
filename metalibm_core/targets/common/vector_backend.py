@@ -1313,6 +1313,9 @@ vector_c_code_generation_table = {
         type_strict_match(v3bool, v3float32): ML_VectorLib_Function("ml_vtestf3_is_nan_or_inf", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)}, arity = 1, output_precision = v3int32),
         type_strict_match(v4bool, v4float32): ML_VectorLib_Function("ml_vtestf4_is_nan_or_inf", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)}, arity = 1, output_precision = v4int32),
         type_strict_match(v8bool, v8float32): ML_VectorLib_Function("ml_vtestf8_is_nan_or_inf", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)}, arity = 1, output_precision = v8int32),
+
+        type_strict_match(v4bool, v4float64):
+            ML_VectorLib_Function("ml_vtestd4_is_nan_or_inf", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)}, arity = 1, output_precision = v4bool),
       },
     },
     Test.IsInfty: {
@@ -1338,6 +1341,9 @@ vector_c_code_generation_table = {
         type_strict_match(v3bool, v3float32): ML_VectorLib_Function("ml_vtestf3_is_subnormal", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)}, arity = 1, output_precision = v3int32),
         type_strict_match(v4bool, v4float32): ML_VectorLib_Function("ml_vtestf4_is_subnormal", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)}, arity = 1, output_precision = v4int32),
         type_strict_match(v8bool, v8float32): ML_VectorLib_Function("ml_vtestf8_is_subnormal", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)}, arity = 1, output_precision = v8int32),
+        # double precision
+        type_strict_match(v4bool, v4float64):
+            ML_VectorLib_Function("ml_vtestd4_is_subnormal", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)}, arity = 1, output_precision = v4bool),
       },
     },
   },
