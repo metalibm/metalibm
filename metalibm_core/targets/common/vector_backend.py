@@ -113,6 +113,22 @@ scalar_type_letter = {
 
 supported_vector_size = [2, 3, 4, 8]
 
+
+def promote_operand(op_index, precision):
+    """ Promote operand operand with index <op_index>
+        to precision <precision> """
+    def promote(optree):
+        shift_amount = optree.get_input(op_index)
+        optree.set_input(
+            op_index,
+            Conversion(
+                shift_amount,
+                precision=precision
+            )
+        )
+        return optree
+    return promote
+
 ## Predicate to test if a VectorElementSelection
 #  is legal for the vector_backend_target, i.e.
 #  vector operand precision is a compound format
