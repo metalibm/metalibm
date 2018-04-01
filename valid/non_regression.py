@@ -37,7 +37,7 @@ import metalibm_functions.ml_log2
 import metalibm_functions.ml_log
 import metalibm_functions.ml_exp
 import metalibm_functions.ml_expm1
-import metalibm_functions.ml_exp2_bis
+import metalibm_functions.ml_exp2
 import metalibm_functions.ml_cbrt
 import metalibm_functions.ml_sqrt
 import metalibm_functions.ml_isqrt
@@ -179,7 +179,7 @@ new_scheme_function_list = [
   ),
   NewSchemeTest(
     "auto execute exp2 test",
-    metalibm_functions.ml_exp2_bis.ML_Exp2,
+    metalibm_functions.ml_exp2.ML_Exp2,
     [
         {"precision": ML_Binary32, "function_name": "my_exp2", "auto_test": 100,
         "auto_test_execute": 100},
