@@ -411,6 +411,10 @@ DEF_ML_VECTOR_TEST_FUNC_OP1(ml_vtestf2_is_subnormal, ml_bool2_t, ml_float2_t, 2,
 DEF_ML_VECTOR_TEST_FUNC_OP1(ml_vtestf4_is_subnormal, ml_bool4_t, ml_float4_t, 4, ml_is_subnormalf)
 DEF_ML_VECTOR_TEST_FUNC_OP1(ml_vtestf8_is_subnormal, ml_bool8_t, ml_float8_t, 8, ml_is_subnormalf)
 
+DEF_ML_VECTOR_TEST_FUNC_OP1(ml_vtestd2_is_subnormal, ml_bool2_t, ml_double2_t, 2, ml_is_subnormal)
+DEF_ML_VECTOR_TEST_FUNC_OP1(ml_vtestd4_is_subnormal, ml_bool4_t, ml_double4_t, 4, ml_is_subnormal)
+DEF_ML_VECTOR_TEST_FUNC_OP1(ml_vtestd8_is_subnormal, ml_bool8_t, ml_double8_t, 8, ml_is_subnormal)
+
 static inline int ml_is_vmask2_zero(ml_bool2_t vop) {
   return (vop._[0] == 0) && (vop._[1] == 0);
 }
