@@ -541,6 +541,7 @@ DEF_ML_VECTOR_ASSEMBLY_FUNC_1_2(ml_vec_assembling_1_2_bool, ml_bool2_t, bool)
 DEF_ML_VECTOR_ASSEMBLY_FUNC_1_4(ml_vec_assembling_1_4_float, ml_float4_t, float)
 DEF_ML_VECTOR_ASSEMBLY_FUNC_1_4(ml_vec_assembling_1_4_int, ml_int4_t, int32_t)
 DEF_ML_VECTOR_ASSEMBLY_FUNC_1_4(ml_vec_assembling_1_4_bool, ml_bool4_t, bool)
+DEF_ML_VECTOR_ASSEMBLY_FUNC_1_4(ml_vec_assembling_1_4_double, ml_double4_t, double)
 
 DEF_ML_VECTOR_ASSEMBLY_FUNC_2_4(ml_vec_assembling_2_4_float, ml_float4_t, ml_float2_t)
 DEF_ML_VECTOR_ASSEMBLY_FUNC_2_4(ml_vec_assembling_2_4_int, ml_int4_t, ml_int2_t)
@@ -550,9 +551,9 @@ DEF_ML_VECTOR_ASSEMBLY_FUNC_2_8(ml_vec_assembling_2_8_float, ml_float8_t, ml_flo
 DEF_ML_VECTOR_ASSEMBLY_FUNC_2_8(ml_vec_assembling_2_8_int, ml_int8_t, ml_int2_t)
 DEF_ML_VECTOR_ASSEMBLY_FUNC_2_8(ml_vec_assembling_2_8_bool, ml_bool8_t, ml_bool2_t)
 
-DEF_ML_VECTOR_ASSEMBLY_FUNC_2_4(ml_vec_assembling_4_8_float, ml_float8_t, ml_float4_t)
-DEF_ML_VECTOR_ASSEMBLY_FUNC_2_4(ml_vec_assembling_4_8_int, ml_int8_t, ml_int4_t)
-DEF_ML_VECTOR_ASSEMBLY_FUNC_2_4(ml_vec_assembling_4_8_bool, ml_bool8_t, ml_bool4_t)
+DEF_ML_VECTOR_ASSEMBLY_FUNC_4_8(ml_vec_assembling_4_8_float, ml_float8_t, ml_float4_t)
+DEF_ML_VECTOR_ASSEMBLY_FUNC_4_8(ml_vec_assembling_4_8_int, ml_int8_t, ml_int4_t)
+DEF_ML_VECTOR_ASSEMBLY_FUNC_4_8(ml_vec_assembling_4_8_bool, ml_bool8_t, ml_bool4_t)
 
 /** Single Argument function with non-uniform formats */
 #define DEF_ML_VECTOR_NONUN_FUNC_OP1(FUNC_NAME, RESULT_FORMAT, VECTOR_FORMAT, VECTOR_SIZE, SCALAR_TEST_FUNC) \
