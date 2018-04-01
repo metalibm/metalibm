@@ -57,7 +57,7 @@ from metalibm_core.code_generation.gappa_code_generator import GappaCodeGenerato
 from metalibm_core.utility.gappa_utils import execute_gappa_script_extract, is_gappa_installed
 from metalibm_core.utility.ml_template import *
 
-from metalibm_core.utility.debug_utils import *
+from metalibm_core.utility.debug_utils import debug_multi
 
 
 
@@ -111,9 +111,10 @@ class ML_GenericLog(ML_FunctionBasis):
         log2_hi = Constant(log2_hi_value, precision = self.precision)
         log2_lo = Constant(log2_lo_value, precision = self.precision)
 
-        vx_exp  = ExponentExtraction(vx, tag = "vx_exp", debug = debugd)
-
         int_precision = self.precision.get_integer_format()
+
+        vx_exp  = ExponentExtraction(vx, tag="vx_exp", debug=debug_multi)
+
 
 
         #---------------------
@@ -169,7 +170,7 @@ class ML_GenericLog(ML_FunctionBasis):
 
         def compute_log(_vx, exp_corr_factor = None):
             _vx_mant = MantissaExtraction(_vx, tag="_vx_mant", precision=self.precision, debug = debug_multi)
-            _vx_exp  = ExponentExtraction(_vx, tag="_vx_exp", debug = debugd)
+            _vx_exp  = ExponentExtraction(_vx, tag="_vx_exp", debug = debug_multi)
 
             table_index = inv_approx_table.index_function(_vx_mant)
 
@@ -298,14 +299,14 @@ class ML_GenericLog(ML_FunctionBasis):
               Log.report(Log.Info, "poly_eval_error: ", poly_eval_error)
 
 
-        neg_input = Comparison(vx, 0, likely = False, specifier = Comparison.Less, debug = debugd, tag = "neg_input")
-        vx_nan_or_inf = Test(vx, specifier = Test.IsInfOrNaN, likely = False, debug = debugd, tag = "nan_or_inf")
-        vx_snan = Test(vx, specifier = Test.IsSignalingNaN, likely = False, debug = debugd, tag = "snan")
-        vx_inf  = Test(vx, specifier = Test.IsInfty, likely = False, debug = debugd, tag = "inf")
-        vx_subnormal = Test(vx, specifier = Test.IsSubnormal, likely = False, debug = debugd, tag = "vx_subnormal")
-        vx_zero = Test(vx, specifier = Test.IsZero, likely = False, debug = debugd, tag = "vx_zero")
+        neg_input = Comparison(vx, 0, likely = False, specifier = Comparison.Less, debug = debug_multi, tag = "neg_input")
+        vx_nan_or_inf = Test(vx, specifier = Test.IsInfOrNaN, likely = False, debug = debug_multi, tag = "nan_or_inf")
+        vx_snan = Test(vx, specifier = Test.IsSignalingNaN, likely = False, debug = debug_multi, tag = "snan")
+        vx_inf  = Test(vx, specifier = Test.IsInfty, likely = False, debug = debug_multi, tag = "inf")
+        vx_subnormal = Test(vx, specifier = Test.IsSubnormal, likely = False, debug = debug_multi, tag = "vx_subnormal")
+        vx_zero = Test(vx, specifier = Test.IsZero, likely = False, debug = debug_multi, tag = "vx_zero")
 
-        exp_mone = Equal(vx_exp, -1, tag = "exp_minus_one", debug = debugd, likely = False)
+        exp_mone = Equal(vx_exp, -1, tag = "exp_minus_one", debug = debug_multi, likely = False)
 
         # exp=-1 case
         Log.report(Log.Info, "managing exp=-1 case")
