@@ -39,7 +39,7 @@ import metalibm_functions.ml_log2
 import metalibm_functions.ml_log
 import metalibm_functions.ml_exp
 import metalibm_functions.ml_expm1
-import metalibm_functions.ml_exp2_bis
+import metalibm_functions.ml_exp2
 import metalibm_functions.ml_cbrt
 import metalibm_functions.ml_sqrt
 import metalibm_functions.ml_isqrt
@@ -130,7 +130,7 @@ FUNCTION_LIST = [
     FunctionTest(metalibm_functions.ml_log.ML_Log, [{}]),
     FunctionTest(metalibm_functions.ml_log1p.ML_Log1p, [{}]),
     FunctionTest(metalibm_functions.ml_log2.ML_Log2, [{}]),
-    FunctionTest(metalibm_functions.ml_exp2_bis.ML_Exp2, [{}]),
+    FunctionTest(metalibm_functions.ml_exp2.ML_Exp2, [{}]),
     FunctionTest(metalibm_functions.ml_cbrt.ML_Cbrt, [{}]),
     FunctionTest(metalibm_functions.ml_sqrt.MetalibmSqrt, [{}]),
     FunctionTest(metalibm_functions.ml_isqrt.ML_Isqrt, [{}]),
