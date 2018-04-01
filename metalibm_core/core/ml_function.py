@@ -535,29 +535,29 @@ class ML_FunctionBasis(object):
     CstError = Constant(1, precision=ML_Int32)
     CstSuccess = Constant(0, precision=ML_Int32)
 
+    def add_fct_call_check_in_main(fct_group, code_function):
+        """ adding call to code_function with return value check
+            in main statement """
+        scheme = code_function.get_scheme()
+        opt_scheme = self.optimise_scheme(
+            scheme, enable_subexpr_sharing = enable_subexpr_sharing
+        )
+        code_function.set_scheme(opt_scheme)
+        fct_call = code_function.build_function_object()()
+        main_pre_statement.add(fct_call)
+        main_statement.add(
+            ConditionBlock(
+                fct_call,
+                Return(CstError)
+            )
+        )
+
     # generate auto-test wrapper
     if self.auto_test_enable:
         auto_test_function_group = self.generate_test_wrapper(
             test_num = self.auto_test_number if self.auto_test_number else 0,
             test_range = self.auto_test_range
         )
-        def add_fct_call_check_in_main(fct_group, code_function):
-            """ adding call to code_function with return value check
-                in main statement """
-            scheme = code_function.get_scheme()
-            opt_scheme = self.optimise_scheme(
-                scheme, enable_subexpr_sharing = enable_subexpr_sharing
-            )
-            code_function.set_scheme(opt_scheme)
-            fct_call = code_function.build_function_object()()
-            main_pre_statement.add(fct_call)
-            main_statement.add(
-                ConditionBlock(
-                    fct_call,
-                    Return(CstError)
-                )
-            )
-
         auto_test_function_group.apply_to_all_functions(add_fct_call_check_in_main)
         # appending auto-test wrapper to general code_function_list
         function_group.merge_with_group(auto_test_function_group)
