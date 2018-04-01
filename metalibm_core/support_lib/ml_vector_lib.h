@@ -23,6 +23,13 @@ static inline void FUNC_NAME(VECTOR_FORMAT *r, VECTOR_FORMAT vop0, VECTOR_FORMAT
     (*r)._[i] = vop0._[i] SCALAR_OP0 vop1._[i] SCALAR_OP1 vop2._[i];\
   };\
 }
+#define DEF_ML_VECTOR_PRIMITIVES_FUNC3(FUNC_NAME, VECTOR_FORMAT, SCALAR_FORMAT, VECTOR_SIZE, SCALAR_FUNC, SCALAR_OP0, SCALAR_OP1, SCALAR_OP2) \
+static inline void FUNC_NAME(VECTOR_FORMAT *r, VECTOR_FORMAT vop0, VECTOR_FORMAT vop1, VECTOR_FORMAT vop2) {\
+  unsigned i;\
+  for (i = 0; i < VECTOR_SIZE; ++i) {\
+    (*r)._[i] = SCALAR_FUNC(SCALAR_OP0(vop0._[i]), SCALAR_OP1(vop1._[i]), SCALAR_OP2( vop2._[i]));\
+  };\
+}
 #define DEF_ML_VECTOR_PRIMITIVES_OP2(FUNC_NAME, VECTOR_FORMAT, SCALAR_FORMAT, VECTOR_SIZE, SCALAR_OP) \
 static inline void FUNC_NAME(VECTOR_FORMAT *r, VECTOR_FORMAT vop0, VECTOR_FORMAT vop1) {\
   unsigned i;\
@@ -153,13 +160,13 @@ DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsrau4, ml_uint4_t, uint32_t, 4, >>)
 DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsrau8, ml_uint8_t, uint32_t, 8, >>)
 
 /** Vector Fused Multiply and Add */
-DEF_ML_VECTOR_PRIMITIVES_OP3(ml_vfmaf2, ml_float2_t, float, 2, *, +)
-DEF_ML_VECTOR_PRIMITIVES_OP3(ml_vfmaf4, ml_float4_t, float, 4, *, +)
-DEF_ML_VECTOR_PRIMITIVES_OP3(ml_vfmaf8, ml_float8_t, float, 8, *, +)
+DEF_ML_VECTOR_PRIMITIVES_FUNC3(ml_vfmaf2, ml_float2_t, float, 2, fmaf, +, +, +)
+DEF_ML_VECTOR_PRIMITIVES_FUNC3(ml_vfmaf4, ml_float4_t, float, 4, fmaf, +, +, +)
+DEF_ML_VECTOR_PRIMITIVES_FUNC3(ml_vfmaf8, ml_float8_t, float, 8, fmaf, +, +, +)
 
-DEF_ML_VECTOR_PRIMITIVES_OP3(ml_vfmad2, ml_double2_t, double, 2, *, +)
-DEF_ML_VECTOR_PRIMITIVES_OP3(ml_vfmad4, ml_double4_t, double, 4, *, +)
-DEF_ML_VECTOR_PRIMITIVES_OP3(ml_vfmad8, ml_double8_t, double, 8, *, +)
+DEF_ML_VECTOR_PRIMITIVES_FUNC3(ml_vfmad2, ml_double2_t, double, 2, fma, +, +, +)
+DEF_ML_VECTOR_PRIMITIVES_FUNC3(ml_vfmad4, ml_double4_t, double, 4, fma, +, +, +)
+DEF_ML_VECTOR_PRIMITIVES_FUNC3(ml_vfmad8, ml_double8_t, double, 8, fma, +, +, +)
 
 DEF_ML_VECTOR_PRIMITIVES_OP3(ml_vfmai2, ml_int2_t, int32_t, 2, *, +)
 DEF_ML_VECTOR_PRIMITIVES_OP3(ml_vfmai4, ml_int4_t, int32_t, 4, *, +)
@@ -169,9 +176,13 @@ DEF_ML_VECTOR_PRIMITIVES_OP3(ml_vfmau2, ml_uint2_t, uint32_t, 2, *, +)
 DEF_ML_VECTOR_PRIMITIVES_OP3(ml_vfmau4, ml_uint4_t, uint32_t, 4, *, +)
 DEF_ML_VECTOR_PRIMITIVES_OP3(ml_vfmau8, ml_uint8_t, uint32_t, 8, *, +)
 
-DEF_ML_VECTOR_PRIMITIVES_OP3(ml_vfmsf2, ml_float2_t, float, 2, *, -)
-DEF_ML_VECTOR_PRIMITIVES_OP3(ml_vfmsf4, ml_float4_t, float, 4, *, -)
-DEF_ML_VECTOR_PRIMITIVES_OP3(ml_vfmsf8, ml_float8_t, float, 8, *, -)
+DEF_ML_VECTOR_PRIMITIVES_FUNC3(ml_vfmsf2, ml_float2_t, float, 2, fmaf, +, +, -)
+DEF_ML_VECTOR_PRIMITIVES_FUNC3(ml_vfmsf4, ml_float4_t, float, 4, fmaf, +, +, -)
+DEF_ML_VECTOR_PRIMITIVES_FUNC3(ml_vfmsf8, ml_float8_t, float, 8, fmaf, +, +, -)
+
+DEF_ML_VECTOR_PRIMITIVES_FUNC3(ml_vfmsd2, ml_double2_t, double, 2, fma, +, +, -)
+DEF_ML_VECTOR_PRIMITIVES_FUNC3(ml_vfmsd4, ml_double4_t, double, 4, fma, +, +, -)
+DEF_ML_VECTOR_PRIMITIVES_FUNC3(ml_vfmsd8, ml_double8_t, double, 8, fma, +, +, -)
 
 
 /** Vector Negate */

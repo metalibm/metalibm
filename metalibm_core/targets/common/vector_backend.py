@@ -982,9 +982,12 @@ vector_c_code_generation_table = {
     FusedMultiplyAdd.Standard: {
        lambda _: True: {
         type_strict_match(v2float32, v2float32, v2float32, v2float32): ML_VectorLib_Function("ml_vfmaf2", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2)}, arity = 2, output_precision = v2float32),
-        type_strict_match(v3float32, v3float32, v3float32, v3float32): ML_VectorLib_Function("ml_vfmaf4", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2)}, arity = 2, output_precision = v3float32),
+        #type_strict_match(v3float32, v3float32, v3float32, v3float32): ML_VectorLib_Function("ml_vfmaf4", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2)}, arity = 2, output_precision = v3float32),
         type_strict_match(v4float32, v4float32, v4float32, v4float32): ML_VectorLib_Function("ml_vfmaf4", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2)}, arity = 2, output_precision = v4float32),
         type_strict_match(v8float32, v8float32, v8float32, v8float32): ML_VectorLib_Function("ml_vfmaf8", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2)}, arity = 2, output_precision = v8float32),
+        # double precision
+        type_strict_match(v4float64, v4float64, v4float64, v4float64):
+            ML_VectorLib_Function("ml_vfmad4", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2)}, arity = 2, output_precision = v4float64),
       },
     },
     FusedMultiplyAdd.Subtract: {
@@ -997,6 +1000,8 @@ vector_c_code_generation_table = {
             ML_VectorLib_Function("ml_vfmsf4", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2)}, arity = 2, output_precision = v4float32),
         type_strict_match(v8float32, v8float32, v8float32, v8float32):
             ML_VectorLib_Function("ml_vfmsf8", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2)}, arity = 2, output_precision = v8float32),
+        type_strict_match(v4float64, v4float64, v4float64, v4float64):
+            ML_VectorLib_Function("ml_vfmsd4", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2)}, arity = 2, output_precision = v4float64),
       },
 
     }
