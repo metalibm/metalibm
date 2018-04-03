@@ -166,19 +166,14 @@ def language_parser(language_str):
     return language_map[language_str]
 
 
-class ExceptionOnErrorAction(argparse.Action):
+class DisplayExceptionAction(argparse.Action):
     """ Exception action for command-line argument """
     def __init__(self, option_strings, dest, nargs=None, **kwargs):
-        if nargs is not None:
-            raise ValueError("nargs not allowed")
-        super(ExceptionOnErrorAction, self).__init__(
-            option_strings, dest, **kwargs)
+        super(DisplayExceptionAction, self).__init__(
+            option_strings, dest, nargs=nargs, **kwargs)
 
     def __call__(self, parser, namespace, values, option_string=None):
-        print('ExceptionOnErrorAction %r %r %r' %
-              (namespace, values, option_string))
-        Log.exit_on_error = bool(int(values))
-        raise Exception()
+        Log.exit_on_error = False
 
 class ExitOnErrorAction(argparse.Action):
     """ Custom action for command-line command --exit-on-error """
@@ -530,11 +525,10 @@ class ML_CommonArgTemplate(object):
             help="display list of supported targets")
 
         self.parser.add_argument(
-            "--exception-error", dest="exception_on_error",
-            action=ExceptionOnErrorAction, const=True,
-            default=False,
-            help="convert Fatal error to python Exception rather\
-      than straight sys exit")
+            "--display-exception-trace", dest="exception_on_error",
+            action=DisplayExceptionAction, const=False,
+            nargs=0,
+            help="Display the full Exception trace when an error occurs")
 
         self.parser.add_argument(
             "--exit-on-error", dest="exit_on_error",
