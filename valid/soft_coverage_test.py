@@ -281,13 +281,13 @@ def color_cell(msg, color="red", markup="td", indent="\t\t"):
     )
 
 # report dusplay
-for test_scheme in sorted(RESULT_MAP.keys()):
+for test_scheme in sorted(RESULT_MAP.keys(), key=(lambda ts: str.lower(ts.title))):
     # name = test_scheme.ctor.get_default_args().function_name
     name = test_scheme.title
     msg = "<tr>\n\t\t<td>{:15}</td>\n".format(name)
     for result in RESULT_MAP[test_scheme]:
         if result.get_result():
-            msg += color_cell("  OK[{}]    ".format(result.error), "green")
+            msg += color_cell("  OK    ", "green")
         elif isinstance(result.error, GenerationError):
             msg += color_cell("  KO[G]  ", "red")
         elif isinstance(result.error, BuildError):
