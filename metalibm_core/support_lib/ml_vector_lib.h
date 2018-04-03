@@ -384,6 +384,20 @@ DEF_ML_VECTOR_COMPARATOR_OP2(ml_comp_le_u8, ml_bool8_t, ml_uint8_t, 8, <=)
 DEF_ML_VECTOR_COMPARATOR_OP2(ml_comp_eq_u8, ml_bool8_t, ml_uint8_t, 8, ==)
 DEF_ML_VECTOR_COMPARATOR_OP2(ml_comp_ne_u8, ml_bool8_t, ml_uint8_t, 8, !=)
 
+DEF_ML_VECTOR_COMPARATOR_OP2(ml_comp_gt_l8, ml_bool8_t, ml_long8_t, 8, >)
+DEF_ML_VECTOR_COMPARATOR_OP2(ml_comp_ge_l8, ml_bool8_t, ml_long8_t, 8, >=)
+DEF_ML_VECTOR_COMPARATOR_OP2(ml_comp_lt_l8, ml_bool8_t, ml_long8_t, 8, <)
+DEF_ML_VECTOR_COMPARATOR_OP2(ml_comp_le_l8, ml_bool8_t, ml_long8_t, 8, <=)
+DEF_ML_VECTOR_COMPARATOR_OP2(ml_comp_eq_l8, ml_bool8_t, ml_long8_t, 8, ==)
+DEF_ML_VECTOR_COMPARATOR_OP2(ml_comp_ne_l8, ml_bool8_t, ml_long8_t, 8, !=)
+
+DEF_ML_VECTOR_COMPARATOR_OP2(ml_comp_gt_ul8, ml_bool8_t, ml_ulong8_t, 8, >)
+DEF_ML_VECTOR_COMPARATOR_OP2(ml_comp_ge_ul8, ml_bool8_t, ml_ulong8_t, 8, >=)
+DEF_ML_VECTOR_COMPARATOR_OP2(ml_comp_lt_ul8, ml_bool8_t, ml_ulong8_t, 8, <)
+DEF_ML_VECTOR_COMPARATOR_OP2(ml_comp_le_ul8, ml_bool8_t, ml_ulong8_t, 8, <=)
+DEF_ML_VECTOR_COMPARATOR_OP2(ml_comp_eq_ul8, ml_bool8_t, ml_ulong8_t, 8, ==)
+DEF_ML_VECTOR_COMPARATOR_OP2(ml_comp_ne_ul8, ml_bool8_t, ml_ulong8_t, 8, !=)
+
 
 /** Specific tests */
 #define DEF_ML_VECTOR_TEST_FUNC_OP1(FUNC_NAME, RESULT_FORMAT, VECTOR_FORMAT, VECTOR_SIZE, SCALAR_TEST_FUNC) \
