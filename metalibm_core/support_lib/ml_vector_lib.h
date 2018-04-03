@@ -569,6 +569,8 @@ DEF_ML_VECTOR_ASSEMBLY_FUNC_4_8(ml_vec_assembling_4_8_float, ml_float8_t, ml_flo
 DEF_ML_VECTOR_ASSEMBLY_FUNC_4_8(ml_vec_assembling_4_8_int, ml_int8_t, ml_int4_t)
 DEF_ML_VECTOR_ASSEMBLY_FUNC_4_8(ml_vec_assembling_4_8_bool, ml_bool8_t, ml_bool4_t)
 
+DEF_ML_VECTOR_ASSEMBLY_FUNC_4_8(ml_vec_assembling_4_8_double, ml_double8_t, ml_double4_t)
+
 /** Single Argument function with non-uniform formats */
 #define DEF_ML_VECTOR_NONUN_FUNC_OP1(FUNC_NAME, RESULT_FORMAT, VECTOR_FORMAT, VECTOR_SIZE, SCALAR_TEST_FUNC) \
 static inline void FUNC_NAME(RESULT_FORMAT *r, VECTOR_FORMAT vop) {\
@@ -639,6 +641,10 @@ DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vrintd8, ml_double8_t, ml_double8_t, 8, rint)
 DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vexp_insertion_f2, ml_float2_t, ml_int2_t, 2, ml_exp_insertion_fp32)
 DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vexp_insertion_f4, ml_float4_t, ml_int4_t, 4, ml_exp_insertion_fp32)
 DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vexp_insertion_f8, ml_float8_t, ml_int8_t, 8, ml_exp_insertion_fp32)
+
+DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vexp_insertion_d2, ml_double2_t, ml_long2_t, 2, ml_exp_insertion_fp64)
+DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vexp_insertion_d4, ml_double4_t, ml_long4_t, 4, ml_exp_insertion_fp64)
+DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vexp_insertion_d8, ml_double8_t, ml_long8_t, 8, ml_exp_insertion_fp64)
 
 /** Exponent extraction */
 DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vexp_extraction_f2, ml_int2_t, ml_float2_t, 2, ml_exp_extraction_dirty_fp32)
