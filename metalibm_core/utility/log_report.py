@@ -39,8 +39,9 @@ class Log(object):
     """ log report class """
     log_stream     = None
     dump_stdout    = False
-    ## abort execution when an Error level message is reported
-    exit_on_error  = False
+    ## disable display of Exception backtrace when Log.Error level message
+    #  is display
+    exit_on_error  = True
     ## Tribber PDB break when an Error level message is reported
     break_on_error = False
 
