@@ -232,6 +232,10 @@ NUM_TESTS = reduce(lambda acc, v: acc + v.num_test, global_test_list, 0)
 
 RESULT_MAP = {}
 
+
+# forcing exception cause to be raised
+Log.exit_on_error = False
+
 for test_scheme in global_test_list:
     test_results = test_scheme.perform_all_test_no_reduce(debug=args.debug)
     RESULT_MAP[test_scheme] = test_results
