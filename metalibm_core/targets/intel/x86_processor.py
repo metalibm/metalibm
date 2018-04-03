@@ -41,6 +41,7 @@ from metalibm_core.core.ml_operations import *
 from metalibm_core.core.target import TargetRegister
 from metalibm_core.core.ml_table import ML_TableFormat
 from metalibm_core.core.attributes import ML_Debug
+from metalibm_core.core.special_values import (FP_PlusZero, FP_MinusZero)
 
 from metalibm_core.utility.log_report import Log
 from metalibm_core.utility.debug_utils import debug_multi
@@ -53,9 +54,16 @@ from metalibm_core.code_generation.complex_generator import DynamicOperator
 
 from .x86_processor_table import x86_sse_approx_table_map
 
+
 def get_sse_scalar_cst(format_object, value, language = C_Code):
-	base_format = format_object.get_base_format()
-	return "{{{}}}/*sse*/".format(base_format.get_cst(value, language))
+    base_format = format_object.get_base_format()
+    if isinstance(value, FP_PlusZero):
+        value_str = base_format.get_cst(0, language)
+    elif isinstance(value, FP_MinusZero):
+        value_str = "-" + base_format.get_cst(0, language)
+    else:
+        value_str = base_format.get_cst(value, language)
+    return "{{{}}}/*sse*/".format(value_str)
 def get_sse_vector_float_cst(format_object, value, language=C_Code):
     """ Generate vector constant value for SSE vector format """
     scalar_format = format_object.get_scalar_format()
