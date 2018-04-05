@@ -104,6 +104,8 @@ language_map = {
     "opencl": OpenCL_Code,
     "gappa": Gappa_Code,
     "vhdl": VHDL_Code,
+
+    "ll": LLVM_IR_Code,
 }
 
 
@@ -205,7 +207,10 @@ def target_instanciate(target_name):
 
 def language_parser(language_str):
     """ string -> Language object conversion """
-    return language_map[language_str]
+    if not language_str in language_map:
+        Log.report(Log.Error, "unknown language %s" % language_str)
+    else:
+        return language_map[language_str]
 
 
 class DisplayExceptionAction(argparse.Action):
