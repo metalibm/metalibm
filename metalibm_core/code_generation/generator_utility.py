@@ -515,6 +515,7 @@ class FO_ResultRef(object):
 
 ## Code generation operator for function
 class FunctionOperator(ML_CG_Operator):
+    default_prefix = "tmp"
     def __init__(
             self, function_name, arg_map = None, pre_process = None,
             declare_prototype = None, void_function = False, **kwords
@@ -669,7 +670,7 @@ class FunctionOperator(ML_CG_Operator):
           if isinstance(arg, FO_Result) or isinstance(arg, FO_ResultRef):
             arg_index = arg.get_index()
             if not arg_index in result_args_map:
-                prefix = optree.get_tag(default = "tmp")
+                prefix = optree.get_tag(default=self.default_prefix)
                 result_varname = result_var if result_var != None \
                      else code_object.get_free_var_name(
                         optree.get_precision(), prefix = prefix
@@ -707,7 +708,7 @@ class FunctionOperator(ML_CG_Operator):
         else:
           # generating assignation if required
           if force_variable_storing or self.get_force_folding() or (folded and self.get_force_folding() != False) or generate_pre_process != None:
-              prefix = optree.get_tag(default = "tmp")
+              prefix = optree.get_tag(default=self.default_prefix)
               result_varname = result_var if result_var != None else code_object.get_free_var_name(optree.get_precision(), prefix = prefix)
               if generate_pre_process != None:
                   generate_pre_process(code_generator, code_object, optree, var_arg_list, **kwords)
