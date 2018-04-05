@@ -48,13 +48,16 @@ from metalibm_core.core.ml_call_externalizer import CallExternalizer
 from metalibm_core.core.ml_vectorizer import StaticVectorizer
 from metalibm_core.core.precisions import *
 
-from metalibm_core.code_generation.code_object import NestedCode
+from metalibm_core.code_generation.code_object import (
+    NestedCode, CodeObject, LLVMCodeObject
+)
 from metalibm_core.code_generation.code_function import (
     CodeFunction, FunctionGroup
 )
 from metalibm_core.code_generation.generic_processor import GenericProcessor
 from metalibm_core.code_generation.mpfr_backend import MPFRProcessor
 from metalibm_core.code_generation.c_code_generator import CCodeGenerator
+from metalibm_core.code_generation.llvm_ir_code_generator import LLVMIRCodeGenerator
 from metalibm_core.code_generation.code_constant import C_Code
 #from metalibm_core.code_generation.generator_utility import *
 from metalibm_core.core.passes import (
@@ -238,10 +241,19 @@ class ML_FunctionBasis(object):
     # instance of GappaCodeGenerator to perform inline proofs
     self.gappa_engine = GappaCodeGenerator(self.processor, declare_cst=True, disable_debug=True)
     # instance of Code Generation to generate source code
-    self.C_code_generator = CCodeGenerator(self.processor, declare_cst=False, disable_debug=not self.debug_flag, libm_compliant=self.libm_compliant, language=self.language)
+    CODE_GENERATOR_CLASS = self.get_codegen_class(self.language)
+    CODE_OBJECT_CLASS = self.get_codeobject_ctor(self.language)
+
+    self.main_code_generator = CODE_GENERATOR_CLASS(
+        self.processor, declare_cst=False, disable_debug=not self.debug_flag,
+        libm_compliant=self.libm_compliant, language=self.language
+    )
     uniquifier = self.function_name
     # main code object
-    self.main_code_object = NestedCode(self.C_code_generator, static_cst=True, uniquifier="{0}_".format(self.function_name))
+    self.main_code_object = NestedCode(
+        self.main_code_generator, static_cst=True,
+        uniquifier="{0}_".format(self.function_name),
+        code_ctor=CODE_OBJECT_CLASS)
 
     # pass scheduler
     # pass scheduler instanciation
@@ -294,6 +306,20 @@ class ML_FunctionBasis(object):
         PassCheckProcessorSupport(self.processor, self.language),
         pass_slot=PassScheduler.JustBeforeCodeGen
     )
+
+  def get_codegen_class(self, language):
+    """ return the code generator class associated with a given language """
+    return {
+        C_Code: CCodeGenerator,
+        OpenCL_Code: CCodeGenerator,
+    }[language]
+
+  def get_codeobject_ctor(self, language):
+    """ return the basic code object class associated with a given language """
+    return {
+        C_Code: CodeObject,
+        OpenCL_Code: CodeObject,
+    }[language]
 
   def get_vector_size(self):
     return self.vector_size
@@ -429,15 +455,16 @@ class ML_FunctionBasis(object):
     return self.main_code_object
 
 
-  def generate_C(self, code_function_list):
-    return self.generate_code(code_function_list, language = C_Code)
+  def generate_code(self, function_group, language):
+    if self.language == C_Code:
+        return self.generate_C_code(function_group, language=language)
 
   ## generate C code for function implenetation
   #  Code is generated within the main code object
   #  and dumped to a file named after implementation's name
   #  @param code_function_list list of CodeFunction to be generated (as sub-function )
   #  @return void
-  def generate_code(self, function_group, language = C_Code):
+  def generate_C_code(self, function_group, language = C_Code):
     """ Final C generation, once the evaluation scheme has been optimized"""
     Log.report(Log.Info, "Generating Source Code ")
     # main code object
@@ -446,13 +473,13 @@ class ML_FunctionBasis(object):
 
     def gen_code_function_code(fct_group, fct):
         self.result = fct.add_definition(
-            self.C_code_generator,
+            self.main_code_generator,
             language, code_object, static_cst=True)
 
     function_group.apply_to_all_functions(gen_code_function_code)
 
     #for code_function in code_function_list:
-    #  self.result = code_function.add_definition(self.C_code_generator,
+    #  self.result = code_function.add_definition(self.main_code_generator,
     #                                             language, code_object,
     #                                             static_cst = True)
 
@@ -464,7 +491,7 @@ class ML_FunctionBasis(object):
 
     Log.report(Log.Info, "Generating C code in " + self.output_file)
     output_stream = open(self.output_file, "w")
-    output_stream.write(self.result.get(self.C_code_generator))
+    output_stream.write(self.result.get(self.main_code_generator))
     output_stream.close()
 
   def gen_implementation(self, display_after_gen=False,

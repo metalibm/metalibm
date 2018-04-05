@@ -94,13 +94,31 @@ class CodeFunction(object):
   #  @param new_output_format ML_Format object indicated which format is returned by the function
   def set_output_format(self, new_output_format):
     self.output_format = new_output_format
-    
 
-  def get_declaration(self, final = True, language = None):
+  def get_C_declaration(self, final=True, language=C_Code):
     language = self.language if language is None else language
     arg_format_list = ", ".join("%s %s" % (inp.get_precision().get_name(language = language), inp.get_tag()) for inp in self.arg_list)
     final_symbol = ";" if final else ""
     return "%s %s(%s)%s" % (self.output_format.get_name(language = language), self.name, arg_format_list, final_symbol)
+
+  def get_LLVM_declaration(self, final=True, language=LLVM_IR_Code):
+    arg_format_list = ", ".join("%s %s" % (inp.get_precision().get_name(language = language), inp.get_tag()) for inp in self.arg_list)
+    return "declare %s @%s(%s)" % (self.output_format.get_name(language = language), self.name, arg_format_list)
+    
+  def get_declaration(self, code_generator, final=True, language=None):
+    language = self.language if language is None else language
+    return code_generator.get_function_declaration(
+        self.name, self.output_format, self.arg_list, final, language
+    )
+    
+
+  #def get_declaration(self, final = True, language = None):
+  #  if language is C_Code:
+  #      return self.get_C_declaration(final, language)
+  #  elif language is LLVM_IR_Code:
+  #      return self.get_LLVM_declaration(final, language)
+  #  else:
+  #      Log.report(Log.Error, "unknown language {} in get_declaration".format(language))
 
   ## define function implementation
   #  @param scheme ML_Operation object to be defined as function implementation
