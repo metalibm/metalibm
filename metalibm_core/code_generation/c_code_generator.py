@@ -380,6 +380,11 @@ class CCodeGenerator(object):
       else:
         return ""
 
+    def get_function_declaration(self, function_name, output_format, arg_list, final=True, language=C_Code):
+        """ generate function declaration code """
+        arg_format_list = ", ".join("%s %s" % (inp.get_precision().get_name(language = language), inp.get_tag()) for inp in arg_list)
+        final_symbol = ";" if final else ""
+        return "%s %s(%s)%s" % (output_format.get_name(language=language), function_name, arg_format_list, final_symbol)
 
     def generate_debug_msg(self, optree, result, code_object, debug_object = None):
         debug_object = optree.get_debug() if debug_object is None else debug_object
