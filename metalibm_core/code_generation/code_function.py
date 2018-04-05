@@ -130,14 +130,14 @@ class CodeFunction(object):
 
   def get_definition(self, code_generator, language, folded = True, static_cst = False):
     code_object = NestedCode(code_generator, static_cst = static_cst)
-    code_object << self.get_declaration(final = False, language = language)
+    code_object << self.get_declaration(code_generator, final=False, language=language)
     code_object.open_level()
     code_generator.generate_expr(code_object, self.scheme, folded = folded, initial = False, language = language)
     code_object.close_level()
     return code_object
 
   def add_definition(self, code_generator, language, code_object, folded = True, static_cst = False):
-    code_object << self.get_declaration(final = False, language = language)
+    code_object << self.get_declaration(code_generator, final=False, language=language)
     code_object.open_level()
     code_generator.generate_expr(code_object, self.scheme, folded = folded, initial = False, language = language)
     code_object.close_level()
