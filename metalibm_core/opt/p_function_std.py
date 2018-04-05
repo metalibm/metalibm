@@ -426,7 +426,7 @@ class PassCheckProcessorSupport(FunctionPass):
                         
                     print(optree) # Error print
                     print("pre escalation: ", old_list) # Error print
-                    print(self.processor.get_operation_keys(optree)) # Error print
+                    print(language, self.processor.get_operation_keys(optree)) # Error print
                     print(optree.get_str(display_precision = True, display_id = True, memoization_map = {})) # Error print
                     Log.report(Log.Error, "unsupported operation\n")
         # memoization
