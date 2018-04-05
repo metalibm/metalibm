@@ -312,6 +312,7 @@ class ML_FunctionBasis(object):
     return {
         C_Code: CCodeGenerator,
         OpenCL_Code: CCodeGenerator,
+        LLVM_IR_Code: LLVMIRCodeGenerator
     }[language]
 
   def get_codeobject_ctor(self, language):
@@ -319,6 +320,7 @@ class ML_FunctionBasis(object):
     return {
         C_Code: CodeObject,
         OpenCL_Code: CodeObject,
+        LLVM_IR_Code: LLVMCodeObject,
     }[language]
 
   def get_vector_size(self):
@@ -458,6 +460,33 @@ class ML_FunctionBasis(object):
   def generate_code(self, function_group, language):
     if self.language == C_Code:
         return self.generate_C_code(function_group, language=language)
+    elif self.language == LLVM_IR_Code:
+        return self.generate_LLVM_code(function_group, language=language)
+
+  def generate_LLVM_code(self, function_group, language = LLVM_IR_Code):
+    """ Final LLVM-IR generation, once the evaluation scheme has been optimized"""
+    Log.report(Log.Info, "Generating Source Code ")
+    # main code object
+    code_object = self.get_main_code_object()
+    self.result = code_object
+
+    def gen_code_function_code(fct_group, fct):
+        self.result = fct.add_definition(
+            self.main_code_generator,
+            language, code_object, static_cst=True)
+
+    function_group.apply_to_all_functions(gen_code_function_code)
+
+    #for code_function in code_function_list:
+    #  self.result = code_function.add_definition(self.main_code_generator,
+    #                                             language, code_object,
+    #                                             static_cst = True)
+
+    # adding headers
+    Log.report(Log.Info, "Generating LLVM-IR code in " + self.output_file)
+    output_stream = open(self.output_file, "w")
+    output_stream.write(self.result.get(self.main_code_generator))
+    output_stream.close()
 
   ## generate C code for function implenetation
   #  Code is generated within the main code object
