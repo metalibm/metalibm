@@ -31,21 +31,26 @@
 # author(s): Nicolas Brunie (nicolas.brunie@kalray.eu)
 ###############################################################################
 
-## Standard C class Code
-class C_Code(object):
-  def __str__(self):
-    return "C_Code"
 
-class Gappa_Code(object):
-  def __str__(self):
-    return "Gappa_Code"
+class CodeType(object):
+    def __str__(self):
+        return self.desc
+
+## Standard C class Code
+class C_Code(CodeType):
+    desc = "C_Code"
+
+class Gappa_Code(CodeType):
+    desc = "Gappa_Code"
 
 ## OpenCL-C class Code
-class OpenCL_Code(object):
-  def __str__(self):
-    return "OpenCL_Code"
+class OpenCL_Code(CodeType):
+    desc = "OpenCL_Code"
 
 ## VHDL (HW) class Code
-class VHDL_Code(object):
-  def __str__(self):
-    return "VHDL_Code"
+class VHDL_Code(CodeType):
+    desc = "VHDL_Code"
+
+class LLVM_IR_Code(CodeType):
+    """ LLVM intermediate representation code type """
+    desc = "LLVM_IR_Code"
