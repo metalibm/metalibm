@@ -40,7 +40,9 @@ import sollya
 
 from ..core.ml_operations import Variable
 from ..core.ml_hdl_operations import Signal
-from .code_constant import C_Code, Gappa_Code
+from .code_constant import (
+    C_Code, Gappa_Code, LLVM_IR_Code
+)
 from ..core.ml_formats import ML_GlobalRoundMode, ML_Fixed_Format, ML_FP_Format, FunctionFormat
 
 from ..utility import version_info as ml_version_info
@@ -334,6 +336,14 @@ class CodeObject(object):
         if not header_file in self.header_list:
             self.header_list.append(header_file)
 
+    def get_multiline_comment(self, comment_list):
+        result = "/**\n"
+        for comment in comment_list:
+            result += " * " + comment.replace("\n", "\n * ") + "\n"
+        result += "**/\n"
+        return result
+        
+
     def add_library(self, library_file):
         """ add a new library file """
         if not library_file in self.library_list:
@@ -347,10 +357,7 @@ class CodeObject(object):
             git_comment = "generated using metalibm %s \n sha1 git: %s \n" % (ml_version_info.VERSION_NUM, ml_version_info.GIT_SHA)
             self.header_comment.insert(0, git_comment)
         # generating header comments
-        result += "/**\n"
-        for comment in self.header_comment:
-            result += " * " + comment.replace("\n", "\n * ") + "\n"
-        result += "**/\n"
+        result += self.get_multiline_comment(self.header_comment)
 
         for header_file in self.header_list:
             result += """#include <%s>\n""" % (header_file)
@@ -528,6 +535,59 @@ class GappaCodeObject(CodeObject):
         parent_code << "\n\n"
         parent_code << self.gen_complete_goal()
         parent_code << self.gen_hint()
+
+class LLVMCodeObject(CodeObject):
+    def __init__(self, language, shared_tables=None, parent_tables=None, rounding_mode=ML_GlobalRoundMode, uniquifier="", main_code_level=None, var_ctor=None):
+        CodeObject.__init__(
+            self, LLVM_IR_Code, shared_tables, parent_tables, rounding_mode,
+            uniquifier, main_code_level, var_ctor)
+
+
+    def get_multiline_comment(self, comment_list):
+        result = ""
+        for comment in comment_list:
+            result += "; " + comment.replace("\n", "\n; ") + "\n"
+        return result
+
+    def get(self, code_generator, static_cst=False, static_table=False, headers=False, skip_function = True):
+        result = ""
+
+        if headers: 
+            result += self.generate_header_code()
+            result += "\n\n"
+
+        # symbol exclusion list
+        declaration_exclusion_list = [MultiSymbolTable.ConstantSymbol] if static_cst else []
+        declaration_exclusion_list += [MultiSymbolTable.TableSymbol] if static_table else []
+        declaration_exclusion_list += [MultiSymbolTable.VariableSymbol]
+        declaration_exclusion_list += [MultiSymbolTable.FunctionSymbol] if skip_function else []
+
+        # declaration generation
+        result += self.symbol_table.generate_declarations(code_generator, exclusion_list=declaration_exclusion_list)
+        result += self.symbol_table.generate_initializations(
+            code_generator,
+            init_required_list=[
+                MultiSymbolTable.ConstantSymbol, MultiSymbolTable.VariableSymbol
+            ]
+        )
+        result += "\n" if result != "" else ""
+        result += self.expanded_code
+        result += "\n\n"
+        return result
+
+    def push_into_parent_code(self, parent_code, code_generator, static_cst = False, static_table = False, headers = False, skip_function = False):
+        # symbol exclusion list
+        declaration_exclusion_list = [MultiSymbolTable.ConstantSymbol] if static_cst else []
+        declaration_exclusion_list += [MultiSymbolTable.TableSymbol] if static_table else []
+        declaration_exclusion_list += [MultiSymbolTable.VariableSymbol]
+        declaration_exclusion_list += [MultiSymbolTable.FunctionSymbol] if skip_function else []
+
+        # declaration generation
+        parent_code << self.symbol_table.generate_declarations(code_generator, exclusion_list = declaration_exclusion_list)
+        parent_code << self.symbol_table.generate_initializations(code_generator, init_required_list = [MultiSymbolTable.ConstantSymbol, MultiSymbolTable.VariableSymbol])
+        parent_code << "\n" 
+        parent_code << self.expanded_code
+        parent_code << "\n\n"
 
 
 class VHDLCodeObject(object):
