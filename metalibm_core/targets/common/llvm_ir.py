@@ -36,11 +36,15 @@ from sollya import S2
 
 
 from metalibm_core.core.ml_formats import (
-    ML_Int32, ML_Int64, ML_Binary32, ML_Binary64, v4float32, v4float64
+    ML_Int32, ML_Int64, ML_Binary32, ML_Binary64,
+    v2int32, v2int64, v2float32, v2float64,
+    v4int32, v4int64, v4float32, v4float64,
+    v8int32, v8int64, v8float32, v8float64,
 )
 from metalibm_core.core.target import TargetRegister
 from metalibm_core.core.ml_operations import (
-    Addition, Return
+    Addition, Subtraction, Multiplication,
+    Return
 )
 from metalibm_core.core.legalizer import min_legalizer, max_legalizer
 
@@ -57,6 +61,13 @@ from metalibm_core.code_generation.llvm_utils import llvm_ir_format
 from metalibm_core.utility.log_report import Log
 
 
+def llvm_ret_function(precision):
+    return LLVMIrFunctionOperator(
+        "ret", arity=1, void_function=True, output_precision=precision
+    )
+
+def llvm_op_function(name, precision, arity=2):
+    return LLVMIrFunctionOperator(name, arity=2, output_precision=precision)
 
 class LLVMIrFunctionOperator(FunctionOperator):
     default_prefix = "%tmp"
@@ -73,18 +84,93 @@ class LLVMIrFunctionOperator(FunctionOperator):
 llvm_ir_code_generation_table = {
     Addition: {
         None: {
-            lambda _: True: {
-                type_strict_match(ML_Int32, ML_Int32, ML_Int32):
-                    LLVMIrFunctionOperator("add", arity=2, output_precision=ML_Int32),
-            }
+            (lambda _: True):
+                dict(
+                [
+                    (
+                        type_strict_match(precision, precision, precision),
+                            llvm_op_function("add", precision)
+                    ) for precision in [
+                        ML_Int32, ML_Int64,
+                        v2int32, v4int32, v8int32,
+                        v2int64, v4int64, v8int64,
+                    ]
+                ] + [
+                    (
+                        type_strict_match(precision, precision, precision),
+                            llvm_op_function("fadd", precision),
+                    ) for precision in [
+                        ML_Binary32, ML_Binary64,
+                        v2float32, v4float32, v8float32,
+                        v2float64, v4float64, v8float64,
+                    ]
+                ]
+                )
+        },
+    },
+    Subtraction: {
+        None: {
+            (lambda _: True):
+                dict(
+                [
+                    (
+                        type_strict_match(precision, precision, precision),
+                            llvm_op_function("sub", precision)
+                    ) for precision in [
+                        ML_Int32, ML_Int64,
+                        v2int32, v4int32, v8int32,
+                        v2int64, v4int64, v8int64,
+                    ]
+                ] + [
+                    (
+                        type_strict_match(precision, precision, precision),
+                            llvm_op_function("fsub", precision),
+                    ) for precision in [
+                        ML_Binary32, ML_Binary64,
+                        v2float32, v4float32, v8float32,
+                        v2float64, v4float64, v8float64,
+                    ]
+                ]
+                )
+        },
+    },
+    Multiplication: {
+        None: {
+            (lambda _: True):
+                dict(
+                [
+                    (
+                        type_strict_match(precision, precision, precision),
+                            llvm_op_function("mul", precision)
+                    ) for precision in [
+                        ML_Int32, ML_Int64,
+                        v2int32, v4int32, v8int32,
+                        v2int64, v4int64, v8int64,
+                    ]
+                ] + [
+                    (
+                        type_strict_match(precision, precision, precision),
+                            llvm_op_function("fmul", precision),
+                    ) for precision in [
+                        ML_Binary32, ML_Binary64,
+                        v2float32, v4float32, v8float32,
+                        v2float64, v4float64, v8float64,
+                    ]
+                ]
+                )
         },
     },
     Return: {
         None: {
-            lambda _: True: {
-                type_strict_match(ML_Int32, ML_Int32):
-                    LLVMIrFunctionOperator("ret", arity=1, void_function=True, output_precision=ML_Int32),
-            }
+            lambda _: True:
+                dict(
+                    (
+                        type_strict_match(precision, precision),
+                        llvm_ret_function(precision)
+                    ) for precision in [
+                        ML_Int32, ML_Int64, ML_Binary32, ML_Binary64,
+                    ]
+                )
         },
     },
 }
