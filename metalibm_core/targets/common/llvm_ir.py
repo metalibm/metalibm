@@ -36,6 +36,7 @@ from sollya import S2
 
 
 from metalibm_core.core.ml_formats import (
+    ML_Bool, v4bool,
     ML_Int32, ML_Int64, ML_Binary32, ML_Binary64,
     v2int32, v2int64, v2float32, v2float64,
     v4int32, v4int64, v4float32, v4float64,
@@ -44,7 +45,8 @@ from metalibm_core.core.ml_formats import (
 from metalibm_core.core.target import TargetRegister
 from metalibm_core.core.ml_operations import (
     Addition, Subtraction, Multiplication,
-    Return
+    Comparison,
+    Return,
 )
 from metalibm_core.core.legalizer import min_legalizer, max_legalizer
 
@@ -65,6 +67,9 @@ def llvm_ret_function(precision):
     return LLVMIrFunctionOperator(
         "ret", arity=1, void_function=True, output_precision=precision
     )
+
+def llvm_fcomp_function(predicate, precision):
+    return LLVMIrFunctionOperator("fcmp {}".format(predicate), arity=2, output_precision=precision)
 
 def llvm_op_function(name, precision, arity=2):
     return LLVMIrFunctionOperator(name, arity=2, output_precision=precision)
@@ -169,6 +174,36 @@ llvm_ir_code_generation_table = {
                         llvm_ret_function(precision)
                     ) for precision in [
                         ML_Int32, ML_Int64, ML_Binary32, ML_Binary64,
+                    ]
+                )
+        },
+    },
+    Comparison: {
+        Comparison.Greater: {
+            lambda _: True :
+                dict(
+                    [(
+                        type_strict_match(ML_Bool, precision, precision),
+                        llvm_fcomp_function("ogt", precision)
+                    ) for precision in [
+                        ML_Binary32, ML_Binary64,
+                    ]] +
+                    [(
+                        type_strict_match(v4bool, precision, precision),
+                        llvm_fcomp_function("ogt", precision)
+                    ) for precision in [
+                        v4float32, v4float64,
+                    ]]
+                )
+        },
+        Comparison.Equal: {
+            lambda _: True :
+                dict(
+                    (
+                        type_strict_match(ML_Bool, precision, precision),
+                        llvm_fcomp_function("oeq", precision)
+                    ) for precision in [
+                        ML_Binary32, ML_Binary64,
                     ]
                 )
         },
