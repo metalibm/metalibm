@@ -70,7 +70,7 @@ class ML_UT_LLVMCode(ML_FunctionBasis):
         "target": LLVMBackend(),
         "language": LLVM_IR_Code,
         "fast_path_extract": True,
-        "fuse_fma": True,
+        "fuse_fma": False,
         "libm_compliant": True
     }
     default_args.update(kw)
@@ -80,9 +80,33 @@ class ML_UT_LLVMCode(ML_FunctionBasis):
   def generate_scheme(self):
     # declaring function input variable
     vx = self.implementation.add_input_variable("x", self.precision)
+    vy = self.implementation.add_input_variable("y", self.precision)
+
+    Cst0 = Constant(5, precision=self.precision)
+    Cst1 = Constant(7, precision=self.precision)
+    comp = Comparison(vx, vy, specifier=Comparison.Greater, precision=ML_Bool)
+    comp_eq = Comparison(vx, vy, specifier=Comparison.Equal, precision=ML_Bool)
 
     scheme = Statement(
-        Return(vx + Constant(5, precision=self.precision), precision=self.precision),
+        ConditionBlock(
+            comp,
+            Return(
+                vy,
+                precision=self.precision
+            ),
+            ConditionBlock(
+                comp_eq,      
+                Return(
+                    vx + vy * Cst0 - Cst1,
+                    precision=self.precision
+                )
+            )
+        ),
+        ConditionBlock(
+            comp_eq,
+            Return(Cst1 * vy, precision=self.precision)
+        ),
+        Return(vx * vy, precision=self.precision)
     )
 
     return scheme
