@@ -49,7 +49,7 @@ from metalibm_core.core.ml_vectorizer import StaticVectorizer
 from metalibm_core.core.precisions import *
 
 from metalibm_core.code_generation.code_object import (
-    NestedCode, CodeObject, LLVMCodeObject
+    NestedCode, CodeObject, LLVMCodeObject, MultiSymbolTable
 )
 from metalibm_core.code_generation.code_function import (
     CodeFunction, FunctionGroup
@@ -249,11 +249,22 @@ class ML_FunctionBasis(object):
         libm_compliant=self.libm_compliant, language=self.language
     )
     uniquifier = self.function_name
+    shared_symbol_list = [
+        MultiSymbolTable.ConstantSymbol,
+        MultiSymbolTable.TableSymbol,
+        MultiSymbolTable.FunctionSymbol,
+        MultiSymbolTable.EntitySymbol
+    ] 
+    if self.language is LLVM_IR_Code:
+        shared_symbol_list.append(MultiSymbolTable.VariableSymbol)
+        shared_symbol_list.append(MultiSymbolTable.LabelSymbol)
+    print shared_symbol_list
     # main code object
     self.main_code_object = NestedCode(
         self.main_code_generator, static_cst=True,
         uniquifier="{0}_".format(self.function_name),
-        code_ctor=CODE_OBJECT_CLASS)
+        code_ctor=CODE_OBJECT_CLASS,
+        shared_symbol_list=shared_symbol_list)
 
     # pass scheduler
     # pass scheduler instanciation
@@ -833,12 +844,13 @@ class ML_FunctionBasis(object):
       return isinstance(mask, Constant) and \
             reduce(lambda v, acc: (v and acc), mask.get_value(), True)
 
-    self.get_main_code_object().add_header("support_lib/ml_vector_format.h")
+    if self.language in [C_Code, OpenCL_Code]:
+        self.get_main_code_object().add_header("support_lib/ml_vector_format.h")
 
     Log.report(Log.Info, "[SV] building vectorized main statement")
     if no_scalar_fallback_required(vector_mask):
       function_scheme = Statement(
-        Return(vector_scheme)
+        Return(vector_scheme, precision=vector_output_format)
       )
     elif self.language is OpenCL_Code:
       function_scheme = self.generate_opencl_vector_wrapper(vector_size, vec_arg_list, vector_scheme, vector_mask, vec_res, scalar_callback)
