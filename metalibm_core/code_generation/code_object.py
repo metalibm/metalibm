@@ -277,6 +277,8 @@ def get_git_tag():
 
 class CodeObject(object):
     tab = "    "
+    level_header = "{\n"
+    level_footer = "}"
     def __init__(self, language, shared_tables = None, parent_tables = None, rounding_mode = ML_GlobalRoundMode, uniquifier = "", main_code_level = None, var_ctor = None):
         """ code object initialization """
         self.expanded_code = ""
@@ -314,15 +316,17 @@ class CodeObject(object):
         if self.expanded_code[-len(CodeObject.tab):] == CodeObject.tab:
             self.expanded_code = self.expanded_code[:-len(CodeObject.tab)]
 
-    def open_level(self, inc = True):
+    def open_level(self, inc=True, header=None):
         """ open nested block """
-        self << "{\n"
+        header = self.level_header if header is None else header
+        self << header # "{\n"
         if inc: self.inc_level()
 
-    def close_level(self, cr = "\n", inc = True):
+    def close_level(self, cr="\n", inc=True, footer=None):
         """ close nested block """
+        footer = self.level_footer if footer is None else footer
         if inc: self.dec_level()
-        self << "}%s" % cr
+        self << "%s%s" % (footer, cr)
 
     def link_level(self, transition = ""):
         """ close nested block """
