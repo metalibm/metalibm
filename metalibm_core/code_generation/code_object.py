@@ -127,6 +127,7 @@ class MultiSymbolTable(object):
     class SignalSymbol:  pass
     class ProtectedSymbol: pass
     class TableSymbol: pass
+    class LabelSymbol: pass
 
     def get_shared_table(self, symbol_tag, shared_tables):
         if symbol_tag in shared_tables: return shared_tables[symbol_tag]
@@ -153,9 +154,9 @@ class MultiSymbolTable(object):
         self.table_table = self.get_shared_table(MultiSymbolTable.TableSymbol, shared_tables)
         self.component_table = self.get_shared_table(MultiSymbolTable.ComponentSymbol, shared_tables)
         self.entity_table    = self.get_shared_table(MultiSymbolTable.EntitySymbol, shared_tables)
+        self.label_table = self.get_shared_table(MultiSymbolTable.LabelSymbol, shared_tables)
 
         self.parent_tables = parent_tables
-
 
         self.table_list = {
             MultiSymbolTable.ConstantSymbol: self.constant_table,
@@ -166,6 +167,7 @@ class MultiSymbolTable(object):
             MultiSymbolTable.TableSymbol: self.table_table,
             MultiSymbolTable.ComponentSymbol: self.component_table,
             MultiSymbolTable.EntitySymbol: self.entity_table,
+            MultiSymbolTable.LabelSymbol: self.label_table,
         }
 
         self.prefix_index = {}
