@@ -364,10 +364,8 @@ class CCodeGenerator(object):
 
         elif isinstance(symbol_object, FunctionObject):
             return "%s\n" % symbol_object.get_declaration()
-
         else:
-            print(symbol_object.__class__)
-            raise NotImplementedError
+            Log.report(Log.Error, "{} decl generation not-implemented".format(symbol_object), error=NotImplementedError)
 
     def generate_initialization(self, symbol, symbol_object, initial = True, final = True):
       if isinstance(symbol_object, Constant) or isinstance(symbol_object, Variable):
