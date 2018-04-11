@@ -766,13 +766,13 @@ class ML_FunctionBasis(object):
         # if there is not any zero in the mask. then
         # the vector result may be returned
         Test(
-          vector_mask, 
-          specifier = Test.IsMaskNotAnyZero, 
-          precision = ML_Bool, 
-          likely = True, 
+          vector_mask,
+          specifier = Test.IsMaskNotAnyZero,
+          precision = ML_Bool,
+          likely = True,
           debug = debug_multi
         ),
-        Return(vector_scheme),
+        Return(vector_scheme, precision=vector_scheme.get_precision()),
         Statement(
           ReferenceAssign(vec_res, vector_scheme),
           Loop(
@@ -784,7 +784,7 @@ class ML_FunctionBasis(object):
                   Likely(
                     VectorElementSelection(
                       vector_mask, vi, precision = ML_Bool
-                    ), 
+                    ),
                     None
                   ),
                   precision = ML_Bool
@@ -792,14 +792,14 @@ class ML_FunctionBasis(object):
                 ReferenceAssign(
                   VectorElementSelection(
                     vec_res, vi, precision = self.precision
-                  ), 
+                  ),
                   scalar_callback(*vec_elt_arg_tuple)
                 )
               ),
               ReferenceAssign(vi, vi + 1)
             ),
           ),
-          Return(vec_res)
+          Return(vec_res, precision=vec_res.get_precision())
         )
       )
     )
@@ -832,7 +832,8 @@ class ML_FunctionBasis(object):
                                                             vector_size)
 
 
-    vec_res = Variable("vec_res", precision = vector_output_format,
+    Log.report(Log.Info, "vector_output_format is {}".format(vector_output_format))
+    vec_res = Variable("vec_res", precision=vector_output_format,
                        var_type = Variable.Local)
 
 
