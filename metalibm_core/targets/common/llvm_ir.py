@@ -177,6 +177,8 @@ llvm_ir_code_generation_table = {
                         llvm_ret_function(precision)
                     ) for precision in [
                         ML_Int32, ML_Int64, ML_Binary32, ML_Binary64,
+                        v2float32, v4float32, v8float32,
+                        v2float64, v4float64, v8float64,
                     ]
                 )
         },
