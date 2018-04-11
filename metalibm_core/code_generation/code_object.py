@@ -567,10 +567,14 @@ class GappaCodeObject(CodeObject):
         parent_code << self.gen_hint()
 
 class LLVMCodeObject(CodeObject):
-    def __init__(self, language, shared_tables=None, parent_tables=None, rounding_mode=ML_GlobalRoundMode, uniquifier="", main_code_level=None, var_ctor=None):
+    
+    def __init__(self, language, shared_tables=None, parent_tables=None,
+                 rounding_mode=ML_GlobalRoundMode, uniquifier="",
+                 main_code_level=None, var_ctor=None):
         CodeObject.__init__(
             self, LLVM_IR_Code, shared_tables, parent_tables, rounding_mode,
-            uniquifier, main_code_level, var_ctor)
+            uniquifier, main_code_level, var_ctor
+        )
 
 
     def get_multiline_comment(self, comment_list):
@@ -589,8 +593,12 @@ class LLVMCodeObject(CodeObject):
         # symbol exclusion list
         declaration_exclusion_list = [MultiSymbolTable.ConstantSymbol] if static_cst else []
         declaration_exclusion_list += [MultiSymbolTable.TableSymbol] if static_table else []
-        declaration_exclusion_list += [MultiSymbolTable.VariableSymbol]
-        declaration_exclusion_list += [MultiSymbolTable.FunctionSymbol] if skip_function else []
+        # always exclude the following from llvm-ir code generation
+        declaration_exclusion_list += [
+            MultiSymbolTable.VariableSymbol, 
+            MultiSymbolTable.FunctionSymbol,
+            MultiSymbolTable.LabelSymbol
+        ]
 
         # declaration generation
         result += self.symbol_table.generate_declarations(code_generator, exclusion_list=declaration_exclusion_list)
@@ -605,12 +613,13 @@ class LLVMCodeObject(CodeObject):
         result += "\n\n"
         return result
 
-    def push_into_parent_code(self, parent_code, code_generator, static_cst = False, static_table = False, headers = False, skip_function = False):
+    def push_into_parent_code(self, parent_code, code_generator, static_cst = False, static_table = False, headers = False, skip_function=True):
         # symbol exclusion list
         declaration_exclusion_list = [MultiSymbolTable.ConstantSymbol] if static_cst else []
         declaration_exclusion_list += [MultiSymbolTable.TableSymbol] if static_table else []
         declaration_exclusion_list += [MultiSymbolTable.VariableSymbol]
-        declaration_exclusion_list += [MultiSymbolTable.FunctionSymbol] if skip_function else []
+        declaration_exclusion_list += [MultiSymbolTable.LabelSymbol]
+        declaration_exclusion_list += [MultiSymbolTable.FunctionSymbol] #if skip_function else []
 
         # declaration generation
         parent_code << self.symbol_table.generate_declarations(code_generator, exclusion_list = declaration_exclusion_list)
@@ -890,31 +899,46 @@ class NestedCode(object):
     def add_local_header(self, header_file):
         self.code_list[0].add_header(header_file)
 
+    def append_code(self, code):
+        self.code_list[0].append_code(code)
+        return self
+
     def __lshift__(self, added_code):
         self.code_list[0] << added_code
+        return self
 
     def add_comment(self, comment):
         self.code_list[0].add_comment(comment)
 
-    def open_level(self, extra_shared_tables = None, inc = True, var_ctor = None):
-        self.code_list[0].open_level(inc = inc)
+    def open_level(self, extra_shared_tables=None, inc=True, var_ctor=None, header=None):
+        """ Open a new level of code """
+        self.code_list[0].open_level(inc=inc, header=header)
         parent_tables = self.code_list[0].get_symbol_table().get_extended_dependency_table()
-        shared_tables = {
-            MultiSymbolTable.ConstantSymbol: self.get_cst_table(),
-            MultiSymbolTable.TableSymbol: self.get_table_table(),
-            MultiSymbolTable.FunctionSymbol: self.get_function_table(),
-            MultiSymbolTable.EntitySymbol: self.get_entity_table(),
-            MultiSymbolTable.ProtectedSymbol: self.get_protected_table(),
-        }
+
+        shared_tables = {}
+        # preparing sub-global shared tables
+        for global_symbol in self.global_tables:
+            shared_tables[global_symbol] = self.global_tables[global_symbol]
         if extra_shared_tables:
           for table_key in extra_shared_tables:
             shared_tables[table_key] = self.code_list[0].get_symbol_table().get_table(table_key)
-        self.code_list.insert(0, self.code_ctor(self.language, shared_tables, parent_tables = parent_tables, var_ctor = var_ctor))
+        # building a new code object for the sub-level
+        sublevel_code = self.code_ctor(
+            self.language, shared_tables,
+            parent_tables=parent_tables, var_ctor=var_ctor)
+        self.code_list.insert(0, sublevel_code)
 
-    def close_level(self, cr = "\n", inc = True):
+    @property
+    def static_cst(self):
+        return MultiSymbolTable.ConstantSymbol in self.global_tables
+    @property
+    def static_table(self):
+        return MultiSymbolTable.TableSymbol in self.global_tables
+
+    def close_level(self, cr = "\n", inc = True, footer=None):
         level_code = self.code_list.pop(0)
-        level_code.push_into_parent_code(self, self.code_generator, static_cst = self.static_cst, static_table = self.static_table, skip_function = True)
-        self.code_list[0].close_level(cr = cr, inc = inc)
+        level_code.push_into_parent_code(self, self.code_generator, static_cst = self.static_cst, static_table = self.static_table, skip_function = True) 
+        self.code_list[0].close_level(cr=cr, inc=inc, footer=footer)
 
     def inc_level(self):
         """ increase indentation level """
