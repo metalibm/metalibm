@@ -279,7 +279,7 @@ class OptimizationEngine(object):
                   else:
                     # else branch does not exists
                     return VectorizedPath(None, [])
-              elif len(optree.inputs) >= 2:
+              elif len(optree.inputs) >= 3:
                   # no likely identified => using fallback policy
                   if_branch = optree.inputs[1]
                   else_branch = optree.inputs[2]
