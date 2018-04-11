@@ -396,7 +396,7 @@ class CodeObject(object):
         free_var_name = self.symbol_table.get_free_name(var_type, prefix)
         # declare free var if required
         if declare:
-            self.symbol_table.declare_var_name(free_var_name, Variable(free_var_name, precision = var_type))
+            self.symbol_table.declare_var_name(free_var_name, var_ctor(free_var_name, precision = var_type))
         return free_var_name
 
     def declare_var_name(self, var_name, var_object):
@@ -840,51 +840,36 @@ class VHDLCodeObject(object):
 ## Nested code object
 #  language is derived from code_generator's language
 class NestedCode(object):
-    """ object to support multiple levels of nested code with local and global variable management """
+    """ object to support multiple levels of nested code with local and
+        global variable management """
     ##
     #  @param uniquifier <str> unifiquation prefix for name generation
-    def __init__(self, code_generator, static_cst = False, static_table = True, uniquifier = "", code_ctor = CodeObject, main_code_level = None, shared_symbol_list = None):
+    def __init__(self, code_generator, static_cst = False, static_table = True, uniquifier = "", code_ctor = CodeObject, main_code_level = None, shared_symbol_list = None, static_var=False):
         self.language = code_generator.language
         self.code_generator = code_generator
-
-        self.static_cst_table   = SymbolTable(uniquifier = uniquifier)
-        self.static_table_table = SymbolTable(uniquifier = uniquifier)
-        self.static_cst = static_cst
-        self.static_table = static_table
-
+        # name uniquifier
         self.uniquifier = uniquifier
-
         # constructor function for code levels
         self.code_ctor = code_ctor
 
-        self.static_function_table = SymbolTable(uniquifier = self.uniquifier)
-
-        # static table to store shared entities
-        self.static_entity_table = SymbolTable(uniquifier = self.uniquifier)
-
-        self.static_protected_table = SymbolTable(uniquifier=self.uniquifier)
-
+        # top-level global tables
+        self.global_tables = {}
         # defaulting list of shared symbol table to build
         # if none is defined
-        shared_symbol_list = [
+        self.global_symbol_list = [
             MultiSymbolTable.ConstantSymbol,
             MultiSymbolTable.TableSymbol,
             MultiSymbolTable.FunctionSymbol,
             MultiSymbolTable.EntitySymbol,
             MultiSymbolTable.ProtectedSymbol,
         ] if shared_symbol_list is None else shared_symbol_list
-        # Constructor of Shared table
-        shared_tables_ctor = {
-            MultiSymbolTable.ConstantSymbol: self.get_cst_table,
-            MultiSymbolTable.TableSymbol: self.get_table_table,
-            MultiSymbolTable.FunctionSymbol: self.get_function_table,
-            MultiSymbolTable.EntitySymbol: self.get_entity_table,
-            MultiSymbolTable.ProtectedSymbol: self.get_protected_table,
-        }
-        # Building share symbol
-        shared_tables = dict([(symbol, shared_tables_ctor[symbol]()) for symbol in shared_symbol_list])
 
-        self.main_code = self.code_ctor(self.language, shared_tables, uniquifier = self.uniquifier, main_code_level = True)
+        for symbol in self.global_symbol_list:
+            self.global_tables[symbol] = SymbolTable(uniquifier=uniquifier)
+
+        shared_tables = self.global_tables
+
+        self.main_code = self.code_ctor(self.language, shared_tables, uniquifier=self.uniquifier, main_code_level=True) 
         self.code_list = [self.main_code]
 
     @property
@@ -893,23 +878,6 @@ class NestedCode(object):
 
     def add_header_comment(self, comment):
         self.main_code.add_header_comment(comment)
-
-    def get_cst_table(self):
-        if self.static_cst: return self.static_cst_table
-        else: return SymbolTable(self.uniquifier)
-
-    def get_protected_table(self):
-        return self.static_protected_table
-
-    def get_table_table(self):
-        if self.static_table: return self.static_table_table
-        else: return SymbolTable(self.uniquifier)
-
-    def get_function_table(self):
-        return self.static_function_table
-
-    def get_entity_table(self):
-        return self.static_entity_table
 
     def add_header(self, header_file):
         self.main_code.add_header(header_file)
