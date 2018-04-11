@@ -32,10 +32,12 @@
 ###############################################################################
 
 from metalibm_core.core.ml_formats import (
-    ML_Int32, ML_Int64, ML_Binary32, ML_Binary64, v4float32, v4float64
+    ML_Int32, ML_Int64, ML_Binary32, ML_Binary64, v4float32, v4float64,
+    ML_Bool,
 )
 def llvm_ir_format(precision):
     return {
+        ML_Bool: "i1",
         ML_Int32: "i32",
         ML_Int64: "i64",
         ML_Binary32: "float",
