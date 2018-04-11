@@ -670,11 +670,11 @@ class VHDLCodeObject(object):
         if self.expanded_code[-len(CodeObject.tab):] == CodeObject.tab:
             self.expanded_code = self.expanded_code[:-len(CodeObject.tab)]
 
-    def open_level(self, inc = True):
+    def open_level(self, inc = True, header=None):
         """ open nested block """
         if inc: self.inc_level()
 
-    def close_level(self, cr = "\n", inc = True):
+    def close_level(self, cr = "\n", inc = True, footer=None):
         """ close nested block """
         if inc: self.dec_level()
 
