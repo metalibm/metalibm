@@ -300,9 +300,22 @@ class CodeObject(object):
     def get_symbol_table(self):
         return self.symbol_table
 
+    def reindent(self, line):
+        """ re indent code line <line> with proper current indentation level """
+        # inserting proper indentation level
+        codeline = re.sub("\n", lambda _: ("\n" + self.tablevel * CodeObject.tab), line)
+        # removing trailing whitespaces
+        codeline = re.sub(" +\n", "\n", codeline) 
+        return codeline
+
+    def append_code(self, code):
+        self.expanded_code += code
+        return self
+
     def __lshift__(self, added_code):
         """ implicit code insertion through << operator """
-        self.expanded_code += re.sub(" +\n", "\n", re.sub("\n", lambda _: ("\n" + self.tablevel * CodeObject.tab), added_code))
+        indented_code = self.reindent(added_code)
+        return self.append_code(indented_code)
 
     def inc_level(self):
         """ increase indentation level """
