@@ -223,6 +223,11 @@ class MultiSymbolTable(object):
         return cst_free_name
 
 
+    def declare_symbol_name(self, symbol_name, symbol_object, symbol_type):
+        """ Generic function to declare a symbol of a specified type """
+        self.table_list[symbol_type].declare_symbol(symbol_name, symbol_object)
+
+
     def declare_function_name(self, function_name, function_object):
         self.function_table.declare_symbol(function_name, function_object)
 
@@ -379,6 +384,12 @@ class CodeObject(object):
         for header_file in self.header_list:
             result += """#include <%s>\n""" % (header_file)
         return result
+
+    def get_free_symbol_name(self, symbol_type, symbol_format, prefix="cotmp", declare=True, symbol_ctor=Variable):
+        free_symbol_name = self.symbol_table.get_free_name(symbol_format, prefix)
+        if declare:
+            self.symbol_table.declare_symbol_name(free_symbol_name, symbol_ctor(free_symbol_name), symbol_type=symbol_type)
+        return free_symbol_name
 
     def get_free_var_name(self, var_type, prefix = "cotmp", declare = True, var_ctor = Variable):
         assert not var_type is None
@@ -948,6 +959,10 @@ class NestedCode(object):
         function_name = self.code_list[0].get_free_name(FunctionFormat(), prefix = prefix)
         self.code_list[0].declare_function(function_name, function_object)
         return function_name
+
+    def get_free_symbol_name(self, symbol_type, symbol_format, symbol_ctor, prefix="tmp", declare=True):
+        return self.code_list[0].get_free_symbol_name(symbol_type, symbol_format, prefix, declare, symbol_ctor=symbol_ctor)
+        
 
     def get_free_var_name(self, var_type, prefix = "tmpv", declare = True, var_ctor = None):
         # trying not to override code_list[0] default var_ctor
