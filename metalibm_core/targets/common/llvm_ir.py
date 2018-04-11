@@ -56,7 +56,10 @@ from metalibm_core.code_generation.generator_utility import (
 )
 from metalibm_core.code_generation.code_constant import LLVM_IR_Code
 from metalibm_core.code_generation.abstract_backend import (
-    AbstractBackend, LOG_BACKEND_INIT
+    LOG_BACKEND_INIT
+)
+from metalibm_core.code_generation.generic_processor import (
+    GenericProcessor
 )
 from metalibm_core.code_generation.llvm_utils import llvm_ir_format
 
@@ -214,7 +217,7 @@ llvm_ir_code_generation_table = {
 
 
 ## Generic C Capable Backend
-class LLVMBackend(AbstractBackend):
+class LLVMBackend(GenericProcessor):
     """ Generic class for instruction selection,
         corresponds to a portable C-implementation """
     target_name = "llvm"
@@ -229,7 +232,7 @@ class LLVMBackend(AbstractBackend):
     }
 
     def __init__(self, *args):
-        AbstractBackend.__init__(self, *args)
+        GenericProcessor.__init__(self, *args)
         self.simplified_rec_op_map[LLVM_IR_Code] = self.generate_supported_op_map(language=LLVM_IR_Code)
 
 
