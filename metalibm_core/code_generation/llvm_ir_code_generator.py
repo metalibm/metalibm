@@ -105,7 +105,6 @@ def llvm_ir_generate_condition_block(generator, optree, code_object, language, f
         else_label=else_label
     ) 
     def append_label(label):
-        print "adding label : ", label
         code_object.close_level(footer="", cr="")
         code_object << label << ":"
         code_object.open_level(header="") #, extra_shared_tables=[MultiSymbolTable.VariableSymbol])

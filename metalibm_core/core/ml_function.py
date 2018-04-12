@@ -258,7 +258,6 @@ class ML_FunctionBasis(object):
     if self.language is LLVM_IR_Code:
         shared_symbol_list.append(MultiSymbolTable.VariableSymbol)
         shared_symbol_list.append(MultiSymbolTable.LabelSymbol)
-    print shared_symbol_list
     # main code object
     self.main_code_object = NestedCode(
         self.main_code_generator, static_cst=True,
