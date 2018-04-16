@@ -560,6 +560,13 @@ class ML_CommonArgTemplate(object):
             const=True, default=default_arg.build_enable,
             help="enable RTL elaboration")
 
+        # trigger generated code execution / simulation
+        self.parser.add_argument(
+          "--execute", dest = "execute_trigger", action = "store_const",
+          const = True, default = default_arg.execute_trigger,
+          help = "trigger post-build execution"
+        )
+
     # Extract argument from the command-line (sys.argv)
     def arg_extraction(self):
         self.args = self.parser.parse_args(sys.argv[1:])
@@ -648,11 +655,6 @@ class ML_NewArgTemplate(ML_CommonArgTemplate):
         self.parser.add_argument("--target", dest="target", action="store",
             type=target_instanciate, default=default_arg.target,
             help="select generation target"
-        )
-        self.parser.add_argument(
-          "--execute", dest = "execute_trigger", action = "store_const",
-          const = True, default = default_arg.execute_trigger,
-          help = "trigger post-build execution"
         )
 
 
