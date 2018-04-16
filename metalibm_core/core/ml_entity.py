@@ -48,7 +48,9 @@ from metalibm_core.core.ml_operations import (
 from metalibm_core.core.ml_hdl_operations import (
     Process, Signal, Wait, Report, Concatenation, Assert
 )
-from metalibm_core.core.ml_formats import ML_Binary32, ML_Bool, ML_String
+from metalibm_core.core.ml_formats import (
+    ML_Binary32, ML_Bool, ML_String, ML_FP_Format
+)
 from metalibm_core.core.ml_table import ML_Table
 from metalibm_core.core.ml_complex_formats import ML_Mpfr_t
 from metalibm_core.core.ml_call_externalizer import CallExternalizer
@@ -90,7 +92,7 @@ def generate_random_fp_value(precision, inf, sup):
     """ Generate a random floating-point value of format precision """
     assert isinstance(precision, ML_FP_Format)
     value = random.uniform(0.5, 1.0) * S2**random.randrange(precision.get_emin_normal(), 1) * (sup - inf) + inf
-    rounded_value = precision.round_sollya_object(value, RN)
+    rounded_value = precision.round_sollya_object(value, sollya.RN)
     return rounded_value
 
 def generate_random_fixed_value(precision):
@@ -114,8 +116,8 @@ def generate_random_fixed_value(precision):
 # Samplin is done uniformly on value exponent,
 # not on the value itself
 def random_log_sample(interval):
-  lo = inf(interval)
-  hi = sup(interval)
+  lo = sollya.inf(interval)
+  hi = sollya.sup(interval)
 
 
 debug_utils_lib = """proc get_fixed_value {value weight} {
@@ -528,8 +530,8 @@ class ML_EntityBasis(object):
             dict: mapping (input tag -> numeric value)
     """
     # extracting test interval boundaries
-    low_input = inf(test_range)
-    high_input = sup(test_range)
+    low_input = sollya.inf(test_range)
+    high_input = sollya.sup(test_range)
     input_values = {}
     for input_tag in input_signals:
         input_signal = io_map[input_tag]
