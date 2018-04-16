@@ -89,8 +89,11 @@ def largest_format(format0, format1):
     elif format0.get_bit_size() == format1.get_bit_size():
         return format0
     else:
-        Log.report(Log.Error, "unable to determine largest format")
-        raise NotImplementedError
+        Log.report(
+            Log.Error,
+            "unable to determine largest format between {} and {}".format(
+                format0, format1
+            ), error=NotImplementedError)
 
 ## determine if there is a common format
 #  to unify format_list

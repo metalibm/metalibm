@@ -537,7 +537,9 @@ def solve_format_rec(optree, memoization_map=None):
         src_precision = solve_format_rec(src)
         format_set_if_undef(dst, src_precision)
     elif solve_skip_test(optree):
-        pass
+        Log.report(Log.Verbose, "[solve_format_rec] skipping: {}".format(
+            optree.get_str(display_precision=True, depth=2)
+        ))
         return None
     else:
         for op_input in optree.get_inputs():
