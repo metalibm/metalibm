@@ -325,7 +325,7 @@ def fixed_conversion_modifier(optree):
     assert is_fixed_point(arg_precision)
     if not ((conv_precision.get_signed() and arg_precision.get_signed()) or not arg_precision.get_signed()):
         Log.report(
-            Log.Error,
+            Log.Warning,
             "incompatible input -> output precision signedess in fixed_conversion_modifier:\n"
             "  input is {}, output is {}".format(arg_precision, conv_precision)
         )
