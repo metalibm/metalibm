@@ -66,7 +66,7 @@ class ML_Log(ML_Function("ml_log")):
     # function specific arguments
     self.cgpe_index = args.cgpe_index
     self.tbl_index_size = args.tbl_index_size
-
+    self.no_subnormal = args.no_subnormal
 
   @staticmethod
   def get_default_args(**kw):
@@ -140,8 +140,9 @@ class ML_Log(ML_Function("ml_log")):
     # That's why we will subtract 1 to the integer bitstring of the input, and
     # then compare for Less (strict) the resulting integer bitstring to this
     # mask, e.g.  0x7fffff for binary32.
-    subnormal_mask = Constant((1 << self.precision.get_field_size()) - 1,
-                              precision = int_prec, tag = 'subnormal_mask')
+    if self.no_subnormal == False:
+      subnormal_mask = Constant((1 << self.precision.get_field_size()) - 1,
+                                precision = int_prec, tag = 'subnormal_mask')
     fp_one = Constant(1.0, precision = self.precision, tag = 'fp_one')
     fp_one_as_uint = TypeCast(fp_one, precision = uint_prec,
                               tag = 'fp_one_as_uint')
@@ -187,41 +188,40 @@ class ML_Log(ML_Function("ml_log")):
 
     Log.report(Log.Info, 'MDL unified subnormal handling')
     vx_as_int = TypeCast(vx, precision = int_prec, tag = 'vx_as_int')
-    vx_as_uint = TypeCast(vx, precision = uint_prec, tag = 'vx_as_uint')
-    # Avoid the 0.0 case by subtracting 1 from vx_as_int
-    tmp = Comparison(vx_as_int - 1, subnormal_mask,
-                     specifier = Comparison.Less)
-    is_subnormal = default_bool_convert(
-            tmp, # Will catch negative values as well as NaNs with sign bit set
-            precision = int_prec,
-            tag="is_subnormal"
-            )
-    is_subnormal.set_attributes(tag = "is_subnormal")
-    if not(isinstance(self.processor, VectorBackend)):
-      is_subnormal = Subtraction(Constant(0, precision = int_prec),
-                                 is_subnormal,
-                                 precision = int_prec)
+    if self.no_subnormal == False:
+      vx_as_uint = TypeCast(vx, precision = uint_prec, tag = 'vx_as_uint')
+      # Avoid the 0.0 case by subtracting 1 from vx_as_int
+      tmp = Comparison(vx_as_int - 1, subnormal_mask,
+                       specifier = Comparison.Less)
+      is_subnormal = default_bool_convert(
+        tmp, # Will catch negative values as well as NaNs with sign bit set
+        precision = int_prec)
+      is_subnormal.set_attributes(tag = "is_subnormal")
+      if not(isinstance(self.processor, VectorBackend)):
+        is_subnormal = Subtraction(Constant(0, precision = int_prec),
+                                   is_subnormal,
+                                   precision = int_prec)
 
-    #################################################
-    # Vectorizable integer based subnormal handling #
-    #################################################
-    # 1. lzcnt
-    # custom lzcount-like for subnormal numbers using FPU (see draft article)
-    Zi = BitLogicOr(vx_as_uint, fp_one_as_uint, precision = uint_prec, tag="Zi")
-    Zf = Subtraction(
-            TypeCast(Zi, precision = self.precision),
-            fp_one,
-            precision = self.precision,
-            tag="Zf")
-    # Zf exponent is -(nlz(x) - exponent_size).
-    # 2. compute shift value
-    # Vectorial comparison on x86+sse/avx is going to look like
-    # '|0x00|0xff|0x00|0x00|' and that's why we use Negate.
-    # But for scalar code generation, comparison will rather be either 0 or 1
-    # in C. Thus mask below won't be correct for a scalar implementation.
-    # FIXME: Can we know the backend that will be called and choose in
-    # consequence? Should we make something arch-agnostic instead?
-    def DirtyExponentExtraction(f):
+      #################################################
+      # Vectorizable integer based subnormal handling #
+      #################################################
+      # 1. lzcnt
+      # custom lzcount-like for subnormal numbers using FPU (see draft article)
+      Zi = BitLogicOr(vx_as_uint, fp_one_as_uint, precision = uint_prec, tag="Zi")
+      Zf = Subtraction(
+        TypeCast(Zi, precision = self.precision),
+        fp_one,
+        precision = self.precision,
+        tag="Zf")
+      # Zf exponent is -(nlz(x) - exponent_size).
+      # 2. compute shift value
+      # Vectorial comparison on x86+sse/avx is going to look like
+      # '|0x00|0xff|0x00|0x00|' and that's why we use Negate.
+      # But for scalar code generation, comparison will rather be either 0 or 1
+      # in C. Thus mask below won't be correct for a scalar implementation.
+      # FIXME: Can we know the backend that will be called and choose in
+      # consequence? Should we make something arch-agnostic instead?
+      def DirtyExponentExtraction(f):
         """Get the raw (biased) exponent of f.
         Only if f is a positive floating-point number.
         """
@@ -230,43 +230,41 @@ class ML_Log(ML_Function("ml_log")):
         return BitLogicRightShift(
                 recast_f,
                 field_size,
-                precision = int_prec
-                )
-
-    n_value = BitLogicAnd(
-            Addition(
-                DirtyExponentExtraction(Zf),
-                Constant(
-                    self.precision.get_bias(),
-                    precision = int_prec
-                ),
-                precision = int_prec
-            ),
-            is_subnormal,
-            precision = int_prec,
-            tag = "n_value"
-            )
-    alpha = Negation(n_value, tag="alpha")
-
-    # 3. shift left
-    # renormalized_mantissa = BitLogicLeftShift(vx_as_int, value)
-    normal_vx_as_int = BitLogicLeftShift(vx_as_int, alpha)
-    # 4. set exponent to the right value
-    # Compute the exponent to add : (p-1)-(value) + 1 = p-1-value
-    # The final "+ 1" comes from the fact that once renormalized, the
-    # floating-point datum has a biased exponent of 1
-    #tmp0 = Subtraction(
-    #        field_size,
-    #        value,
-    #        precision = int_prec,
-    #        tag="tmp0")
-    # Set the value to 0 if the number is not subnormal
-    #tmp1 = BitLogicAnd(tmp0, is_subnormal)
-    #renormalized_exponent = BitLogicLeftShift(
-    #        tmp1,
-    #        field_size
-    #        )
-
+                precision = int_prec)
+      #
+      n_value = BitLogicAnd(
+        Addition(
+          DirtyExponentExtraction(Zf),
+          Constant(
+            self.precision.get_bias(),
+            precision = int_prec),
+          precision = int_prec),
+        is_subnormal,
+        precision = int_prec,
+        tag = "n_value")
+      alpha = Negation(n_value, tag="alpha")
+      #
+      # 3. shift left
+      # renormalized_mantissa = BitLogicLeftShift(vx_as_int, value)
+      normal_vx_as_int = BitLogicLeftShift(vx_as_int, alpha)
+      # 4. set exponent to the right value
+      # Compute the exponent to add : (p-1)-(value) + 1 = p-1-value
+      # The final "+ 1" comes from the fact that once renormalized, the
+      # floating-point datum has a biased exponent of 1
+      #tmp0 = Subtraction(
+      #        field_size,
+      #        value,
+      #        precision = int_prec,
+      #        tag="tmp0")
+      # Set the value to 0 if the number is not subnormal
+      #tmp1 = BitLogicAnd(tmp0, is_subnormal)
+      #renormalized_exponent = BitLogicLeftShift(
+      #        tmp1,
+      #        field_size
+      #        )
+    else: # no_subnormal == True
+      normal_vx_as_int = vx_as_int
+      
     #normal_vx_as_int = renormalized_mantissa + renormalized_exponent
     normal_vx = TypeCast(normal_vx_as_int, precision = self.precision,
                          tag = 'normal_vx')
@@ -394,25 +392,38 @@ class ML_Log(ML_Function("ml_log")):
     tbl_lo = TableLoad(log1p_table, table_index_lo, tag = 'tbl_lo',
                        debug = debug_multi)
     # Compute exponent e + tau - alpha, but first subtract the bias.
-    tmp_eptau = Addition(
-            Addition(
-                BitLogicRightShift(
-                    normal_vx_as_int,
-                    field_size,
-                    tag = 'exponent',
-                    interval = self.precision.get_exponent_interval(),
-                    precision = int_prec
-                    ),
-                Constant(
-                    self.precision.get_bias(),
-                    precision = int_prec
-                    )
-                ),
-            tau,
-            tag = 'tmp_eptau',
-            precision = int_prec
-            )
-    exponent = Subtraction(tmp_eptau, alpha, precision = int_prec)
+    if self.no_subnormal == False:
+      tmp_eptau = Addition(
+        Addition(
+          BitLogicRightShift(
+            normal_vx_as_int,
+            field_size,
+            tag = 'exponent',
+            interval = self.precision.get_exponent_interval(),
+            precision = int_prec),
+          Constant(
+            self.precision.get_bias(),
+            precision = int_prec)),
+        tau,
+        tag = 'tmp_eptau',
+        precision = int_prec)
+      exponent = Subtraction(tmp_eptau, alpha, precision = int_prec)
+    else:
+      exponent = Addition(
+        Addition(
+          BitLogicRightShift(
+            normal_vx_as_int,
+            field_size,
+            tag = 'exponent',
+            interval = self.precision.get_exponent_interval(),
+            precision = int_prec),
+          Constant(
+            self.precision.get_bias(),
+            precision = int_prec)),
+        tau,
+        tag = 'tmp_eptau',
+        precision = int_prec)
+    #
     fp_exponent = Conversion(exponent, precision = self.precision,
                              tag = 'fp_exponent')
 
@@ -504,6 +515,7 @@ if __name__ == "__main__":
   #
   arg_template.get_parser().add_argument("--table-index-size", dest = "tbl_index_size", action = "store", default = 7, help = "table index size (default: 7)")
   arg_template.get_parser().add_argument("--cgpe-scheme-index", dest = "cgpe_index", action = "store", default = 0, help = "CGPE scheme index (default: 0)")
+  arg_template.get_parser().add_argument("--no-subnormal", dest = "no_subnormal", action = "store_true", default = False, help = "no support for subnormal handling")
   #
   args = arg_template.arg_extraction()
 
