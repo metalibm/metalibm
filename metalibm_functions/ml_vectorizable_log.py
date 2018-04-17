@@ -28,13 +28,13 @@
 ###############################################################################
 # last-modified:    Mar  7th, 2018
 # Author(s):  Hugues de Lassus <hugues.de-lassus@univ-perp.fr>,
-#             Guillaume Revy <>
+#             Guillaume Revy <guillaume.revy@ens-lyon.org>
 ###############################################################################
 import sys
 
 import sollya
-from sollya import (floor, guessdegree, Interval, log, log1p, round, S2, sqrt,
-                    sup, _x_)
+from sollya import (floor, guessdegree, Interval, log, log2, log10, log1p, round, 
+                    S2, sqrt, sup, _x_)
 
 from metalibm_core.core.ml_function import (ML_Function, ML_FunctionBasis,
                                             DefaultArgTemplate)
@@ -67,6 +67,14 @@ class ML_Log(ML_Function("ml_log")):
     self.cgpe_index = args.cgpe_index
     self.tbl_index_size = args.tbl_index_size
     self.no_subnormal = args.no_subnormal
+    self.log_radix = args.log_radix
+    # .. update output and function name
+    if self.log_radix == '2':
+      self.output_file = "LOG2.c"
+      self.function_name = "LOG2"
+    elif self.log_radix == '10':
+      self.output_file = "LOG10.c"
+      self.function_name = "LOG10"
 
   @staticmethod
   def get_default_args(**kw):
@@ -125,17 +133,28 @@ class ML_Log(ML_Function("ml_log")):
     field_size = Constant(self.precision.get_field_size(),
                           precision = int_prec,
                           tag = 'field_size')
-    log2_hi = Constant(
-            round(log(2), precision, sollya.RN),
-            precision = self.precision,
-            tag = 'log2_hi'
-            )
-    log2_lo = Constant(
-            round(log(2) - round(log(2), precision, sollya.RN),
-                  precision, sollya.RN),
-            precision = self.precision,
-            tag = 'log2_lo'
-            )
+    if self.log_radix == 'e':
+      log2_hi = Constant(
+        round(log(2), precision, sollya.RN),
+        precision = self.precision,
+        tag = 'log2_hi')
+      log2_lo = Constant(
+        round(log(2) - round(log(2), precision, sollya.RN),
+              precision, sollya.RN),
+        precision = self.precision,
+        tag = 'log2_lo')
+    elif self.log_radix == '10':
+      log2_hi = Constant(
+        round(log10(2), precision, sollya.RN),
+        precision = self.precision,
+        tag = 'log2_hi')
+      log2_lo = Constant(
+        round(log10(2) - round(log10(2), precision, sollya.RN),
+              precision, sollya.RN),
+        precision = self.precision,
+        tag = 'log2_lo')
+    # ... if log_radix == '2' then log2(2) == 1
+    
     # subnormal_mask aims at trapping positive subnormals except zero.
     # That's why we will subtract 1 to the integer bitstring of the input, and
     # then compare for Less (strict) the resulting integer bitstring to this
@@ -159,14 +178,27 @@ class ML_Log(ML_Function("ml_log")):
 
     Log.report(Log.Info, "MDL table")
     # The table holds approximations of -log(2^tau * r_i) so we first compute
-    # the index value for which tau changes from 2 to 0.
+    # the index value for which tau changes from 1 to 0.
     cut = sqrt(2.)
     tau_index_limit = floor(table_nb_elements * (2./cut - 1))
-    sollya_logtbl = [
-            -log1p(float(i) / table_nb_elements)
-            + (0 if i <= tau_index_limit else log(2.))
-            for i in range(table_nb_elements)
-            ]
+    if self.log_radix == 'e':
+      sollya_logtbl = [
+        -log1p(float(i) / table_nb_elements)
+        + (0 if i <= tau_index_limit else log(2.))
+        for i in range(table_nb_elements)
+      ]
+    elif self.log_radix == '2':
+      sollya_logtbl = [
+        (-log1p(float(i) / table_nb_elements)
+        + (0 if i <= tau_index_limit else log(2.)))/log(2)
+        for i in range(table_nb_elements)
+      ]
+    elif self.log_radix == '10':
+      sollya_logtbl = [
+        (-log1p(float(i) / table_nb_elements)
+         + (0 if i <= tau_index_limit else log(2.)))/log(10)
+        for i in range(table_nb_elements)
+      ]
     # ...
     init_logtbl_hi = [
             round(sollya_logtbl[i],
@@ -428,7 +460,12 @@ class ML_Log(ML_Function("ml_log")):
                              tag = 'fp_exponent')
 
     Log.report(Log.Info, 'MDL polynomial approximation')
-    sollya_function = log(1 + sollya.x)
+    if self.log_radix == 'e':
+      sollya_function = log(1 + sollya.x)
+    elif self.log_radix == '2':
+      sollya_function = log2(1 + sollya.x)
+    elif self.log_radix == '10':
+      sollya_function = log10(1 + sollya.x)
     # arg_red_mag = 2**(-table_index_size)
     # approx_interval = Interval(-arg_red_mag, arg_red_mag)
     boundrcp = 1.5 * 2**(-12)           # ... see Intel intrinsics guide
@@ -449,14 +486,24 @@ class ML_Log(ML_Function("ml_log")):
                 max_eps,
                 )
             )
-    poly_object = Polynomial.build_from_approximation(
-            sollya_function,
-            range(2, int(poly_degree) + 1), # Force 1st 2 coeffs to 0 and 1, resp.
-            # Emulate double-self.precision coefficient formats
-            [self.precision.get_mantissa_size()*2 + 1]*(poly_degree - 1),
-            approx_interval,
-            sollya.absolute,
-            0 + sollya._x_) # Force the first 2 coefficients to 0 and 1, resp.
+    if self.log_radix == 'e':
+      poly_object = Polynomial.build_from_approximation(
+        sollya_function,
+        range(2, int(poly_degree) + 1), # Force 1st 2 coeffs to 0 and 1, resp.
+        # Emulate double-self.precision coefficient formats
+        [self.precision.get_mantissa_size()*2 + 1]*(poly_degree - 1),
+        approx_interval,
+        sollya.absolute,
+        0 + sollya._x_) # Force the first 2 coefficients to 0 and 1, resp.
+    else: # ... == '2' or '10'
+      poly_object = Polynomial.build_from_approximation(
+        sollya_function,
+        range(1, int(poly_degree) + 1), # Force 1st coeff to 0
+        # Emulate double-self.precision coefficient formats
+        [self.precision.get_mantissa_size()*2 + 1]*(poly_degree),
+        approx_interval,
+        sollya.absolute,
+        0) # Force the first coefficients to 0
 
     Log.report(Log.Info, poly_object)
 
@@ -490,12 +537,16 @@ class ML_Log(ML_Function("ml_log")):
     log1pu_poly_lo.set_attributes(tag = 'log1pu_poly_lo')
 
     # Compute log(2) * (e + tau - alpha)
-    log2e_hi, log2e_lo = Mul212(fp_exponent, log2_hi, log2_lo)
-
+    if self.log_radix != '2': # 'e' or '10'
+      log2e_hi, log2e_lo = Mul212(fp_exponent, log2_hi, log2_lo)
+   
     # Add log1p(u)
-    tmp_res_hi, tmp_res_lo = Add222(log2e_hi, log2e_lo,
-                                    log1pu_poly_hi, log1pu_poly_lo)
-
+    if self.log_radix != '2': # 'e' or '10'
+      tmp_res_hi, tmp_res_lo = Add222(log2e_hi, log2e_lo,
+                                      log1pu_poly_hi, log1pu_poly_lo)
+    else:
+      tmp_res_hi, tmp_res_lo = Add212(fp_exponent,
+                                      log1pu_poly_hi, log1pu_poly_lo)
 
     # Add -log(2^(tau)/m) approximation retrieved by two table lookups
     logx_hi = Add122(tmp_res_hi, tmp_res_lo, tbl_hi, tbl_lo)
@@ -506,13 +557,19 @@ class ML_Log(ML_Function("ml_log")):
     return scheme
 
   def numeric_emulate(self, input_value):
-    return log(input_value)
+    if self.log_radix == 'e':
+      return log(input_value)
+    elif self.log_radix == '2':
+      return log2(input_value)
+    elif self.log_radix == '10':
+      return log10(input_value)
 
 if __name__ == "__main__":
   # auto-test
   arg_template = ML_NewArgTemplate(
           default_arg=ML_Log.get_default_args())
   #
+  arg_template.get_parser().add_argument("--log-radix", dest = "log_radix", action = "store", default = 'e', choices=['2','e','10'], help = "table index size (default: 7)")
   arg_template.get_parser().add_argument("--table-index-size", dest = "tbl_index_size", action = "store", default = 7, help = "table index size (default: 7)")
   arg_template.get_parser().add_argument("--cgpe-scheme-index", dest = "cgpe_index", action = "store", default = 0, help = "CGPE scheme index (default: 0)")
   arg_template.get_parser().add_argument("--no-subnormal", dest = "no_subnormal", action = "store_true", default = False, help = "no support for subnormal handling")
