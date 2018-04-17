@@ -68,6 +68,7 @@ class ML_Log(ML_Function("ml_log")):
     self.tbl_index_size = args.tbl_index_size
     self.no_subnormal = args.no_subnormal
     self.no_fma = args.no_fma
+    self.no_rcp = args.no_rcp
     self.log_radix = args.log_radix
     # .. update output and function name
     if self.log_radix == '2':
@@ -218,6 +219,23 @@ class ML_Log(ML_Function("ml_log")):
                               storage_precision = self.precision,
                               init_data = init_logtbl,
                               tag = 'ml_log1p_table')
+    # ...
+    if self.no_rcp:
+      sollya_rcptbl = [
+        (1/((1+float(i)/table_nb_elements)+2**(-1-int(self.tbl_index_size))))
+        for i in range(table_nb_elements)
+      ]
+      init_rcptbl = [
+            round(sollya_rcptbl[i],
+                  int(self.tbl_index_size)+1, # self.precision.get_mantissa_size(),
+                  sollya.RN)
+            for i in range(table_nb_elements)
+      ]
+      rcp_table = ML_NewTable(dimensions = [table_nb_elements],
+                              storage_precision = self.precision,
+                              init_data = init_rcptbl,
+                              tag = 'ml_rcp_table')
+    # ...
 
     Log.report(Log.Info, 'MDL unified subnormal handling')
     vx_as_int = TypeCast(vx, precision = int_prec, tag = 'vx_as_int')
@@ -308,18 +326,25 @@ class ML_Log(ML_Function("ml_log")):
     vx_mantissa = MantissaExtraction(normal_vx, precision = self.precision)
 
     Log.report(Log.Info, "MDL scheme")
-    rcp_m = ReciprocalSeed(vx_mantissa, precision = self.precision)
-    if not self.processor.is_supported_operation(rcp_m):
+    if self.no_rcp == False:
+      rcp_m = ReciprocalSeed(vx_mantissa, precision = self.precision)
+      if not self.processor.is_supported_operation(rcp_m):
         if self.precision == ML_Binary64:
-            # Try using a binary32 FastReciprocal
-            binary32_m = Conversion(vx_mantissa, precision = ML_Binary32)
-            rcp_m = ReciprocalSeed(binary32_m, precision = ML_Binary32)
-            rcp_m = Conversion(rcp_m, precision = ML_Binary64)
+          # Try using a binary32 FastReciprocal
+          binary32_m = Conversion(vx_mantissa, precision = ML_Binary32)
+          rcp_m = ReciprocalSeed(binary32_m, precision = ML_Binary32)
+          rcp_m = Conversion(rcp_m, precision = ML_Binary64)
         if not self.processor.is_supported_operation(rcp_m):
-            # FIXME An approximation table could be used instead but for vector
-            # implementations another GATHER would be required.
-            # However this may well be better than a division...
-            rcp_m = Division(fp_one, vx_mantissa, precision = self.precision)
+          # FIXME An approximation table could be used instead but for vector
+          # implementations another GATHER would be required.
+          # However this may well be better than a division...
+          rcp_m = Division(fp_one, vx_mantissa, precision = self.precision)
+    else: # ... use a look-up table
+      rcp_shift = BitLogicLeftShift(normal_vx_as_int, self.precision.get_exponent_size() + 1)
+      rcp_idx = BitLogicRightShift(rcp_shift, self.precision.get_exponent_size() + 1 + self.precision.get_field_size() - int(self.tbl_index_size))
+      rcp_m = TableLoad(rcp_table, rcp_idx, tag = 'rcp_idx',
+                        debug = debug_multi)
+
     rcp_m.set_attributes(tag = 'rcp_m')
 
     # exponent is normally either 0 or -1, since m is in [1, 2). Possible
@@ -342,7 +367,16 @@ class ML_Log(ML_Function("ml_log")):
             precision = uint_prec
             )
     # u = m * ri - 1
-    if self.no_fma == False:
+    ul = None
+    if self.no_rcp == True: # ... u does not fit on a single word
+      tmp_u, tmp_ul = Mul211(vx_mantissa,         
+                             TypeCast(ri_fast_rndn, precision = self.precision), 
+                             fma = (self.no_fma == False))
+      fp_minus_one = Constant(-1.0, precision = self.precision, tag = 'fp_minus_one')
+      u, ul = Add212(fp_minus_one, tmp_u, tmp_ul)      
+      u.set_attributes(tag='uh')
+      ul.set_attributes(tag='ul')
+    elif self.no_fma == False:
       u = FusedMultiplyAdd(
         vx_mantissa,
         TypeCast(ri_fast_rndn, precision = self.precision),
@@ -486,9 +520,11 @@ class ML_Log(ML_Function("ml_log")):
       else:
         boundrcp = 2**(-14)             # ... see Intel intrinsics guide
     arg_red_mag = boundrcp + 2**(-table_index_size-1) + boundrcp * 2**(-table_index_size-1)
-    approx_interval = Interval(-arg_red_mag, arg_red_mag)
-    # max_eps = 2**-(self.precision.get_field_size() + 10)
-    max_eps = 2**-(2*(self.precision.get_field_size()+1))
+    if self.no_rcp == False:
+      approx_interval = Interval(-arg_red_mag, arg_red_mag)
+    else:
+      approx_interval = Interval(-2**(-int(self.tbl_index_size)+1),2**(-int(self.tbl_index_size)+1))
+    max_eps = 2**-(2*(self.precision.get_field_size()))
     Log.report(Log.Info, "max acceptable error for polynomial = {}".format(float.hex(max_eps)))
     poly_degree = sup(
             guessdegree(
@@ -539,10 +575,10 @@ class ML_Log(ML_Function("ml_log")):
                 )
 
     # XXX Dirty implementation of double-(self.precision) poly
-    def dirty_poly_node_conversion(node, variable, use_fma):
+    def dirty_poly_node_conversion(node, variable_h, variable_l, use_fma):
         return dirty_multi_node_expand(
-          node, self.precision, mem_map={variable: (variable, None)}, fma=use_fma)
-    log1pu_poly_hi, log1pu_poly_lo = dirty_poly_node_conversion(log1pu_poly, u, 
+          node, self.precision, mem_map={variable_h: (variable_h, variable_l)}, fma=use_fma)
+    log1pu_poly_hi, log1pu_poly_lo = dirty_poly_node_conversion(log1pu_poly, u, ul,
                                                                 use_fma=(self.no_fma == False))
 
     log1pu_poly_hi.set_attributes(tag = 'log1pu_poly_hi')
@@ -587,6 +623,7 @@ if __name__ == "__main__":
   arg_template.get_parser().add_argument("--cgpe-scheme-index", dest = "cgpe_index", action = "store", default = 0, help = "CGPE scheme index (default: 0)")
   arg_template.get_parser().add_argument("--no-subnormal", dest = "no_subnormal", action = "store_true", default = False, help = "no support for subnormal handling")
   arg_template.get_parser().add_argument("--disable-fma", dest = "no_fma", action = "store_true", default = False, help = "disable FMA instruction usage")
+  arg_template.get_parser().add_argument("--disable-rcp", dest = "no_rcp", action = "store_true", default = False, help = "disable RCP instruction usage")
   #
   args = arg_template.arg_extraction()
 
