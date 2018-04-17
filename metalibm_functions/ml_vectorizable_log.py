@@ -67,6 +67,7 @@ class ML_Log(ML_Function("ml_log")):
     self.cgpe_index = args.cgpe_index
     self.tbl_index_size = args.tbl_index_size
     self.no_subnormal = args.no_subnormal
+    self.no_fma = args.no_fma
     self.log_radix = args.log_radix
     # .. update output and function name
     if self.log_radix == '2':
@@ -341,13 +342,23 @@ class ML_Log(ML_Function("ml_log")):
             precision = uint_prec
             )
     # u = m * ri - 1
-    u = FusedMultiplyAdd(
-            vx_mantissa,
-            TypeCast(ri_fast_rndn, precision = self.precision),
-            fp_one,
-            specifier = FusedMultiplyAdd.Subtract,
-            tag = 'u'
-            )
+    if self.no_fma == False:
+      u = FusedMultiplyAdd(
+        vx_mantissa,
+        TypeCast(ri_fast_rndn, precision = self.precision),
+        fp_one,
+        specifier = FusedMultiplyAdd.Subtract,
+        tag = 'u')
+    else: # disable FMA
+      # tmph + tmpl = m * ri, where tmph ~ 1
+      tmph, tmpl = Mul211(vx_mantissa,         
+                          TypeCast(ri_fast_rndn, precision = self.precision), 
+                          fma = False)
+      # u_tmp = tmph - 1 ... exact due to Sterbenz
+      u_tmp = Subtraction(tmph, fp_one, precision = self.precision)
+      # u = u_tmp - tmpl ... exact since the result u is representable as a single word
+      u = Addition(u_tmp, tmpl, precision = self.precision, tag = 'u')
+    
     unneeded_bits = Constant(
             self.precision.field_size - table_index_size,
             precision=uint_prec,
@@ -528,17 +539,19 @@ class ML_Log(ML_Function("ml_log")):
                 )
 
     # XXX Dirty implementation of double-(self.precision) poly
-    def dirty_poly_node_conversion(node, variable):
+    def dirty_poly_node_conversion(node, variable, use_fma):
         return dirty_multi_node_expand(
-            node, self.precision, mem_map={variable: (variable, None)})
+          node, self.precision, mem_map={variable: (variable, None)}, fma=use_fma)
+    log1pu_poly_hi, log1pu_poly_lo = dirty_poly_node_conversion(log1pu_poly, u, 
+                                                                use_fma=(self.no_fma == False))
 
-    log1pu_poly_hi, log1pu_poly_lo = dirty_poly_node_conversion(log1pu_poly, u)
     log1pu_poly_hi.set_attributes(tag = 'log1pu_poly_hi')
     log1pu_poly_lo.set_attributes(tag = 'log1pu_poly_lo')
 
     # Compute log(2) * (e + tau - alpha)
     if self.log_radix != '2': # 'e' or '10'
-      log2e_hi, log2e_lo = Mul212(fp_exponent, log2_hi, log2_lo)
+      log2e_hi, log2e_lo = Mul212(fp_exponent, log2_hi, log2_lo, 
+                                  fma = (self.no_fma == False))
    
     # Add log1p(u)
     if self.log_radix != '2': # 'e' or '10'
@@ -573,6 +586,7 @@ if __name__ == "__main__":
   arg_template.get_parser().add_argument("--table-index-size", dest = "tbl_index_size", action = "store", default = 7, help = "table index size (default: 7)")
   arg_template.get_parser().add_argument("--cgpe-scheme-index", dest = "cgpe_index", action = "store", default = 0, help = "CGPE scheme index (default: 0)")
   arg_template.get_parser().add_argument("--no-subnormal", dest = "no_subnormal", action = "store_true", default = False, help = "no support for subnormal handling")
+  arg_template.get_parser().add_argument("--disable-fma", dest = "no_fma", action = "store_true", default = False, help = "disable FMA instruction usage")
   #
   args = arg_template.arg_extraction()
 

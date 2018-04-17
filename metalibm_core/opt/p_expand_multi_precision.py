@@ -42,7 +42,7 @@ from metalibm_core.opt.ml_blocks import (
 from metalibm_core.utility.log_report import Log
 
 
-def dirty_multi_node_expand(node, precision, mem_map=None):
+def dirty_multi_node_expand(node, precision, mem_map=None, fma=True):
     """ Dirty expand node into Hi and Lo part, storing
         already processed temporary values in mem_map """
     mem_map = mem_map or {}
@@ -72,8 +72,8 @@ def dirty_multi_node_expand(node, precision, mem_map=None):
         assert isinstance(node, Addition) or isinstance(node, Multiplication)
         lhs = node.get_input(0)
         rhs = node.get_input(1)
-        op1h, op1l = dirty_multi_node_expand(lhs, precision, mem_map)
-        op2h, op2l = dirty_multi_node_expand(rhs, precision, mem_map)
+        op1h, op1l = dirty_multi_node_expand(lhs, precision, mem_map, fma)
+        op2h, op2l = dirty_multi_node_expand(rhs, precision, mem_map, fma)
         if isinstance(node, Addition):
             result = Add222(op1h, op1l, op2h, op2l) \
                     if op1l is not None and op2l is not None \
@@ -86,13 +86,13 @@ def dirty_multi_node_expand(node, precision, mem_map=None):
             return result
 
         elif isinstance(node, Multiplication):
-            result = Mul222(op1h, op1l, op2h, op2l) \
+            result = Mul222(op1h, op1l, op2h, op2l, fma) \
                     if op1l is not None and op2l is not None \
-                    else Mul212(op1h, op2h, op2l) \
+                    else Mul212(op1h, op2h, op2l, fma) \
                     if op1l is None and op2l is not None \
-                    else Mul212(op2h, op1h, op1l) \
+                    else Mul212(op2h, op1h, op1l, fma) \
                     if op2l is None and op1l is not None \
-                    else Mul211(op1h, op2h)
+                    else Mul211(op1h, op2h, fma)
             mem_map[node] = result
             return result
 

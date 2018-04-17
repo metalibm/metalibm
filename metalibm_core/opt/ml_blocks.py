@@ -36,9 +36,9 @@
 from metalibm_core.core.ml_operations import (
     BitLogicRightShift, BitLogicAnd, BitArithmeticRightShift,
     Subtraction, BitLogicLeftShift, BitLogicNegate, Addition, Multiplication, 
-    FusedMultiplyAdd, FMS, FMA
+    FMS, FMA, Constant
 )
-
+from metalibm_core.core.ml_formats import ML_Binary32, ML_Binary64
 
 # Dynamic implementation of a vectorizable leading zero counter.
 # The algorithm is taken from the Hacker's Delight and works only for 32-bit
@@ -106,11 +106,34 @@ def generate_fasttwosum(vx, vy):
     e = Subtraction(vy, b)
     return s, e
    
-   
-def Mul211(x, y):
+def Split(a):
+    """... splitting algorithm for Dekker TwoMul"""
+    # if a.get_precision() == ML_Binary32:
+    s = Constant(4097, precision = a.get_precision(), tag = 'fp_split')
+    # elif a.get_precision() == ML_Binary64:
+    #    s = Constant(134217729, precision = a.get_precision(), tag = 'fp_split')
+    c = Multiplication(s, a)
+    tmp = Subtraction(a, c);
+    ah = Addition(tmp, c)
+    al = Subtraction(a, ah)
+    return ah, al
+
+def Mul211(x, y, fma=True):
     """ Multi-precision Multiplication HI, LO = x * y """
     zh = Multiplication(x, y)
-    zl = FusedMultiplyAdd(x, y, zh, specifier = FusedMultiplyAdd.Subtract)
+    if fma == True:
+        zl = FMS(x, y, zh)
+    else:
+        xh, xl = Split(x)
+        yh, yl = Split(y)
+        r1 = Multiplication(xh, yh)
+        r2 = Subtraction(r1, zh)
+        r3 = Multiplication(xh, yl)
+        r4 = Multiplication(xl, yh)
+        r5 = Multiplication(xl, yl)
+        r6 = Addition(r2, r3)
+        r7 = Addition(r6, r4)
+        zl = Addition(r7, r5)
     return zh, zl
 
 def Add211(x, y):
@@ -121,24 +144,32 @@ def Add211(x, y):
     zl = Subtraction(y, t1)
     return zh, zl
 
-def Mul212(x, yh, yl):
+def Mul212(x, yh, yl, fma=True):
     """ Multi-precision Multiplication:
         HI, LO = x * [yh:yl] """
-    t1, t2 = Mul211(x, yh)
+    t1, t2 = Mul211(x, yh, fma)
     t3 = Multiplication(x, yl)
     t4 = Addition(t2, t3)
     return Add211(t1, t4)
 
-def Mul222(xh, xl, yh, yl):
+def Mul222(xh, xl, yh, yl, fma=True):
     """ Multi-precision Multiplication:
         HI, LO = [xh:xl] * [yh:yl] """
-    ph = Multiplication(xh, yh)
-    pl = FMS(xh, yh, ph)
-    pl = FMA(xh, yl, pl)
-    pl = FMA(xl, yh, pl)
-    zh = Addition(ph, pl)
-    zl = Subtraction(ph, zh)
-    zl = Addition(zl, pl)
+    if fma == True:
+        ph = Multiplication(xh, yh)
+        pl = FMS(xh, yh, ph)
+        pl = FMA(xh, yl, pl)
+        pl = FMA(xl, yh, pl)
+        zh = Addition(ph, pl)
+        zl = Subtraction(ph, zh)
+        zl = Addition(zl, pl)
+    else:
+        t1, t2 = Mul211(xh, yh, fma)
+        t3 = Multiplication(xh, yl)
+        t4 = Multiplication(xl, yh)
+        t5 = Addition(t3, t4)
+        t6 = Addition(t2, t5)
+        zh, zl = Add211(t1, t6); 
     return zh, zl
 
 def Add212(xh, yh, yl):
