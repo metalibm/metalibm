@@ -1174,6 +1174,8 @@ vhdl_code_generation_table = {
                         arity=1,
                         force_folding=False, force_input_variable = True
                     ),
+                type_custom_match(MCFixedPoint, MCFixedPoint): 
+                    TransparentOperator(no_parenthesis=True),
             },
         },
         SignCast.Unsigned: {
@@ -1183,6 +1185,8 @@ vhdl_code_generation_table = {
                         "unsigned", arity=1, force_folding=False,
                         force_input_variable = True
                     ),
+                type_custom_match(MCFixedPoint, MCFixedPoint): 
+                    TransparentOperator(no_parenthesis=True),
             },
         },
     },
