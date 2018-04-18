@@ -43,7 +43,8 @@ from metalibm_core.core.ml_operations import (
 )
 from metalibm_core.core.advanced_operations import FixedPointPosition
 from metalibm_core.core.ml_hdl_operations import (
-    Process, ComponentInstance, Concatenation, SubSignalSelection
+    Process, ComponentInstance, Concatenation, SubSignalSelection,
+    SignCast,
 )
 from metalibm_core.opt.rtl_fixed_point_utils import (
     test_format_equality,
@@ -319,6 +320,23 @@ def solve_format_Negation(optree):
 
     return fixed_point(int_size, frac_size, signed = True)
 
+def solve_format_SignCast(optree):
+    """ Resolve the format for a SignCast node """
+    assert isinstance(optree, SignCast)
+    precision = optree.get_input(0).get_precision()
+    int_size = precision.get_integer_size()
+    frac_size = precision.get_frac_size()
+
+    if optree.specifier is SignCast.Signed:
+        signed_precision = fixed_point(int_size, frac_size, signed=True)
+        return signed_precision
+    elif optree.specifier is SignCast.Unsigned:
+        unsigned_precision = fixed_point(int_size, frac_size, signed=False)
+        return unsigned_precision
+    else:
+        Log.report(Log.Error, "unknown specifier {} in solve_format_SignCast".format(optree.specifier))
+        
+
 def solve_format_shift(optree):
     """ Legalize shift node """
     assert isinstance(optree, BitLogicRightShift) or isinstance(optree, BitLogicLeftShift)
@@ -582,6 +600,8 @@ def solve_format_rec(optree, memoization_map=None):
             new_format = solve_format_SubSignalSelection(optree)
         elif isinstance(optree, FixedPointPosition):
             new_format = solve_format_FixedPointPosition(optree)
+        elif isinstance(optree, SignCast):
+            new_format = solve_format_SignCast(optree)
         elif isinstance(optree, Conversion):
             Log.report(
                 Log.Error,
