@@ -90,6 +90,7 @@ class ML_Log(ML_Function("ml_log")):
         "target": GenericProcessor(),
         "cgpe_index": 0,
         "tbl_index_size": 7,
+        "no_subnormal": False,
     }
     default_args_log.update(kw)
     return DefaultArgTemplate(**default_args_log)
