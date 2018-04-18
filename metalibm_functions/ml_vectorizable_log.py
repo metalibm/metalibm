@@ -70,6 +70,7 @@ class ML_Log(ML_Function("ml_log")):
     self.no_fma = args.no_fma
     self.no_rcp = args.no_rcp
     self.log_radix = args.log_radix
+    self.force_division = args.force_division
     # .. update output and function name
     if self.log_radix == '2':
       self.output_file = "LOG2.c"
@@ -327,7 +328,9 @@ class ML_Log(ML_Function("ml_log")):
     vx_mantissa = MantissaExtraction(normal_vx, precision = self.precision)
 
     Log.report(Log.Info, "MDL scheme")
-    if self.no_rcp == False:
+    if self.force_division == True:
+      rcp_m = Division(fp_one, vx_mantissa, precision = self.precision)
+    elif self.no_rcp == False:
       rcp_m = ReciprocalSeed(vx_mantissa, precision = self.precision)
       if not self.processor.is_supported_operation(rcp_m):
         if self.precision == ML_Binary64:
@@ -345,7 +348,7 @@ class ML_Log(ML_Function("ml_log")):
       rcp_idx = BitLogicRightShift(rcp_shift, self.precision.get_exponent_size() + 1 + self.precision.get_field_size() - int(self.tbl_index_size))
       rcp_m = TableLoad(rcp_table, rcp_idx, tag = 'rcp_idx',
                         debug = debug_multi)
-
+    #  
     rcp_m.set_attributes(tag = 'rcp_m')
 
     # exponent is normally either 0 or -1, since m is in [1, 2). Possible
@@ -512,14 +515,16 @@ class ML_Log(ML_Function("ml_log")):
       sollya_function = log2(1 + sollya.x)
     elif self.log_radix == '10':
       sollya_function = log10(1 + sollya.x)
-    # arg_red_mag = 2**(-table_index_size)
-    # approx_interval = Interval(-arg_red_mag, arg_red_mag)
-    boundrcp = 1.5 * 2**(-12)           # ... see Intel intrinsics guide
-    if self.precision in [ML_Binary64]:
-      if not self.processor.is_supported_operation(rcp_m):
-        boundrcp = (1+boundrcp)*(1+2**(-24)) - 1
-      else:
-        boundrcp = 2**(-14)             # ... see Intel intrinsics guide
+    # ...
+    if self.force_division == True: # rcp accuracy is 2^(-p)
+      boundrcp = 2**(-self.precision.get_precision())
+    else:
+      boundrcp = 1.5 * 2**(-12)           # ... see Intel intrinsics guide
+      if self.precision in [ML_Binary64]:
+        if not self.processor.is_supported_operation(rcp_m):
+          boundrcp = (1+boundrcp)*(1+2**(-24)) - 1
+        else:
+          boundrcp = 2**(-14)             # ... see Intel intrinsics guide
     arg_red_mag = boundrcp + 2**(-table_index_size-1) + boundrcp * 2**(-table_index_size-1)
     if self.no_rcp == False:
       approx_interval = Interval(-arg_red_mag, arg_red_mag)
@@ -625,6 +630,7 @@ if __name__ == "__main__":
   arg_template.get_parser().add_argument("--no-subnormal", dest = "no_subnormal", action = "store_true", default = False, help = "no support for subnormal handling")
   arg_template.get_parser().add_argument("--disable-fma", dest = "no_fma", action = "store_true", default = False, help = "disable FMA instruction usage")
   arg_template.get_parser().add_argument("--disable-rcp", dest = "no_rcp", action = "store_true", default = False, help = "disable RCP instruction usage")
+  arg_template.get_parser().add_argument("--force-division", dest = "force_division", action = "store_true", default = False, help = "force division instead of RCP instuction usage (experimental only)")
   #
   args = arg_template.arg_extraction()
 
