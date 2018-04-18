@@ -184,7 +184,7 @@ def Add212(xh, yh, yl):
     return zh, zl
 
 def Add222(xh, xl, yh, yl):
-    """ Multi-precision Multiplication:
+    """ Multi-precision Addition:
         HI, LO = [xh:xl] + [yh:yl] """
     r = Addition(xh, yh)
     s1 = Subtraction(xh, r)
@@ -196,7 +196,7 @@ def Add222(xh, xl, yh, yl):
     return zh, zl
 
 def Add122(xh, xl, yh, yl):
-    """ Multi-precision Multiplication:
+    """ Multi-precision Addition:
         HI = [xh:xl] + [yh:yl] """
     zh, _ = Add222(xh, xl, yh, yl)
     return zh
