@@ -94,6 +94,7 @@ class ML_Log(ML_Function("ml_log")):
         "no_subnormal": False,
         "no_fma": False,
         "no_rcp": False,
+        "log_radix": 'e',
         "force_division": False,
     }
     default_args_log.update(kw)
