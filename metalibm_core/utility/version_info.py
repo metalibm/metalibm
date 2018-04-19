@@ -50,10 +50,10 @@ def extract_git_hash():
         "..",
         "..",
     )
-    cmd = [sub for sub in """git -C {} log -n 1 --pretty=format:"%H" """.format(script_dir).split(" ") if sub != ""]
+    cmd = [sub for sub in """git log -n 1 --pretty=format:"%H" """.split(" ") if sub != ""]
 
     try:
-        git_sha_process = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+        git_sha_process = subprocess.Popen(cmd, stdout=subprocess.PIPE, cwd=script_dir)
         git_sha = git_sha_process.stdout.read()
         return git_sha
     except:
