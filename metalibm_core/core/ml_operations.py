@@ -1235,6 +1235,8 @@ class TypeCast(GeneralArithmeticOperation):
     """ abstract conversion operation """
     name = "TypeCast"
     arity = 1
+    def bare_range_function(self, ops):
+        return None
 
 class Dereference(GeneralArithmeticOperation):
     """ abstract pointer derefence operation """
