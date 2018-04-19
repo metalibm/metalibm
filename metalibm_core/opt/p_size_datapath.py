@@ -194,7 +194,11 @@ def sub_signed_predicate(lhs, lhs_prec, rhs, rhs_prec):
 def add_signed_predicate(lhs, lhs_prec, rhs, rhs_prec):
     """ determine whether subtraction output on a signed or
         unsigned format """
-    return addsub_signed_predicate(lhs, lhs_prec, rhs, rhs_prec, op=operator.__add__, default=False)
+    if is_fixed_point(lhs_prec) and is_fixed_point(rhs_prec):
+        default = lhs_prec.get_signed() or rhs_prec.get_signed()
+    else:
+        default = True
+    return addsub_signed_predicate(lhs, lhs_prec, rhs, rhs_prec, op=operator.__add__, default=default)
 
 
 ## determine Addition node precision
