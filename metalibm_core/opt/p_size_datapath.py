@@ -39,7 +39,7 @@ from metalibm_core.core.ml_operations import (
     Statement, ReferenceAssign, BitLogicNegate, Subtraction,
     SpecificOperation, Negation, BitLogicRightShift, BitLogicLeftShift, 
     Min, Max, CountLeadingZeros, Multiplication,
-    LogicalOr, LogicalAnd
+    LogicalOr, LogicalAnd, LogicalNot
 )
 from metalibm_core.core.advanced_operations import FixedPointPosition
 from metalibm_core.core.ml_hdl_operations import (
@@ -570,7 +570,7 @@ def solve_format_rec(optree, memoization_map=None):
                     str(new_format), optree.get_str(display_precision=True)
                 )
             )
-        elif isinstance(optree, LogicalOr) or isinstance(optree, LogicalAnd):
+        elif isinstance(optree, LogicalOr) or isinstance(optree, LogicalAnd) or isinstance(optree, LogicalNot):
             new_format = solve_format_BooleanOp(optree)
         elif isinstance(optree, Comparison):
             new_format = solve_format_Comparison(optree)
