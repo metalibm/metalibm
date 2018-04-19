@@ -48,6 +48,9 @@ from ..core.legalizer import (
     min_legalizer, max_legalizer, fixed_point_position_legalizer,
     legalize_fixed_point_subselection, evaluate_cst_graph
 )
+from ..core.hdl_legalizer import (
+    mantissa_extraction_modifier
+)
 from ..core.advanced_operations import FixedPointPosition
 from metalibm_core.core.target import TargetRegister
 
@@ -194,60 +197,6 @@ def fixed_point_negation_modifier(optree):
         casted_negated,
         precision = op_format,
         tag = optree.get_tag() or "neg_casted_negated"
-    )
-    forward_attributes(optree, result)
-    return result
-
-
-# Optree generation function for MantissaExtraction
-def mantissa_extraction_modifier(optree):
-    init_stage = optree.attributes.get_dyn_attribute("init_stage")
-    op = optree.get_input(0)
-    tag = optree.get_tag() or "mant_extr"
-
-    op_precision = op.get_precision().get_base_format()
-    exp_prec = ML_StdLogicVectorFormat(op_precision.get_exponent_size())
-    field_prec = ML_StdLogicVectorFormat(op_precision.get_field_size())
-
-    exp_op = ExponentExtraction(
-        op, precision=exp_prec, init_stage=init_stage,
-        tag = tag + "_exp_extr"
-    )
-    field_op = SubSignalSelection(
-        TypeCast(
-            op,
-            precision=op.get_precision().get_support_format(),
-            init_stage=init_stage,
-            tag = tag + "_field_cast"
-        ), 0, op_precision.get_field_size() - 1, precision=field_prec,
-        init_stage=init_stage,
-        tag = tag + "_field"
-
-    )
-
-    implicit_digit = Select(
-        Comparison(
-            exp_op,
-            Constant(
-                op_precision.get_zero_exponent_value(),
-                precision=exp_prec,
-                init_stage=init_stage
-            ),
-            precision=ML_Bool,
-            specifier=Comparison.Equal,
-            init_stage=init_stage
-        ),
-        Constant(0, precision=ML_StdLogic),
-        Constant(1, precision=ML_StdLogic),
-        precision=ML_StdLogic,
-        tag=tag+"_implicit_digit",
-        init_stage=init_stage
-    )
-    result = Concatenation(
-        implicit_digit,
-        field_op,
-        precision=ML_StdLogicVectorFormat(op_precision.get_mantissa_size()),
-        init_stage=init_stage
     )
     forward_attributes(optree, result)
     return result
