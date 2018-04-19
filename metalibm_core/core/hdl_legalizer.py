@@ -33,12 +33,14 @@ from metalibm_core.core.ml_operations import (
     Select, Comparison, ExponentExtraction, MantissaExtraction,
     Constant, TypeCast
 )
+from metalibm_core.core.ml_formats import ML_Bool
 from metalibm_core.core.ml_hdl_operations import (
     SubSignalSelection, Concatenation
 )
 from metalibm_core.core.ml_hdl_format import (
     ML_StdLogicVectorFormat, ML_StdLogic
 )
+from metalibm_core.opt.opt_utils import forward_attributes
 
 # Optree generation function for MantissaExtraction
 def mantissa_extraction_modifier_from_fields(op, field_op, exp_is_zero, tag="mant_extr"):
