@@ -59,6 +59,8 @@ class VHDLCodeGenerator(object):
         self.libm_compliant = libm_compliant
         self.fp_context = FP_Context(rounding_mode = default_rounding_mode, silent = default_silent)
         self.language = language
+        # memoization map for debug wrappers
+        self.debug_map = {}
         Log.report(Log.Info, "VHDLCodeGenerator initialized with language: %s" % self.language)
 
     def check_fp_context(self, fp_context, rounding_mode, silent):
@@ -591,11 +593,20 @@ class VHDLCodeGenerator(object):
 
 
     def generate_debug_msg(self, optree, result, code_object, debug_object = None):
+      # TODO/FIXME: possible false positive in filterting generated node with tag
+      #    but there is an issue when filtering node by <optree>: possible duplication
+      #    of debug attributes between identity-related nodes (TypeCast, ...)
+      if optree.get_tag() in self.debug_map:
+        return
+      self.debug_map[optree.get_tag()] = True
       if isinstance(optree, Constant):
         return self.generate_debug_msg_for_cst(optree, result, code_object, debug_object)
       else:
         debug_object, display_format = self.extract_debug_object_format(optree, code_object, debug_object)
         if not isinstance(result, CodeVariable):
+          op_tag = optree.get_tag()
+          if op_tag is None:
+            Log.report(Log.Error, "debug node {} has no defined tag".format(optree.get_str(display_precision=True)))
           final_var = code_object.get_free_signal_name(optree.get_precision(), prefix = "dbg_"+ optree.get_tag())
           #code_object << "{} <= {};\n".format(final_var, result.get())
           code_object << self.generate_code_assignation(code_object, final_var, result.get())
