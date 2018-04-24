@@ -42,7 +42,10 @@ import re
 import sollya
 from metalibm_core.utility.log_report import Log
 from metalibm_core.code_generation.code_constant import *
-from metalibm_core.core.special_values import FP_SpecialValue, FP_PlusInfty, FP_MinusInfty
+from metalibm_core.core.special_values import (
+    FP_SpecialValue, FP_PlusInfty, FP_MinusInfty, FP_QNaN, FP_SNaN,
+    FP_PlusZero, FP_MinusZero, NumericValue
+)
 
 
 S2 = sollya.SollyaObject(2)
@@ -330,18 +333,38 @@ class ML_Std_FP_Format(ML_FP_Format):
                 mant = int((value / S2**exp - 1.0) * (S2**self.get_field_size()))
             return mant | (exp_biased << self.get_field_size()) | (sign << (self.get_field_size() + self.get_exponent_size()))
 
-    def get_value_from_integer_coding(self, value, base = 10):
-      value = int(value, base)
-      exponent_field = ((value >> self.get_field_size()) & (2**self.get_exponent_size() - 1)) 
-      assert exponent_field != self.get_nanorinf_exp_field()
-      is_subnormal = (exponent_field == 0)
-      mantissa = value & (2**self.get_field_size() - 1)
-      exponent = exponent_field + self.get_bias() + (1 if is_subnormal else 0)
-      sign_bit = value >> (self.get_field_size() + self.get_exponent_size())
-      sign = -1.0 if sign_bit != 0 else 1.0
-      mantissa_value = mantissa
-      implicit_digit = 0.0 if is_subnormal else 1.0
-      return sign * S2**int(exponent) * (implicit_digit + mantissa_value * S2**-self.get_field_size())
+    def get_value_from_integer_coding(self, value, base=10):
+        """ Convert a value binary encoded following IEEE-754 standard
+            to its floating-point numerical (or special) counterpart """
+        value = int(value, base)
+        exponent_field = ((value >> self.get_field_size()) & (2**self.get_exponent_size() - 1)) 
+        is_subnormal = (exponent_field == 0)
+        mantissa = value & (2**self.get_field_size() - 1)
+        sign_bit = value >> (self.get_field_size() + self.get_exponent_size())
+        if exponent_field == self.get_nanorinf_exp_field():
+            if mantissa == 0 and sign_bit:
+                return FP_MinusInfty(self)
+            elif mantissa == 0 and not(sign_bit):
+                return FP_PlusInfty(self)
+            else:
+                # NaN value
+                quiet_bit = mantissa >> (self.get_field_size() - 1)
+                if quiet_bit:
+                    return FP_QNaN(self)
+                else:
+                    return FP_SNaN(self)
+        elif exponent_field == 0 and mantissa == 0:
+            if sign_bit:
+                return FP_MinusZero(self)
+            else:
+                return FP_PlusZero(self)
+        else:
+            assert exponent_field != self.get_nanorinf_exp_field()
+            exponent = exponent_field + self.get_bias() + (1 if is_subnormal else 0)
+            sign = -1.0 if sign_bit != 0 else 1.0
+            mantissa_value = mantissa
+            implicit_digit = 0.0 if is_subnormal else 1.0
+            return NumericValue(sign * S2**int(exponent) * (implicit_digit + mantissa_value * S2**-self.get_field_size()))
 
     # @return<SollyaObject> the format omega value, the maximal normal value
     def get_omega(self):
