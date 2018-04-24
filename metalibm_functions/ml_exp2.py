@@ -67,8 +67,8 @@ class ML_Exp2(ML_FunctionBasis):
     """ Return a structure containing the arguments for ML_Exponential,
         builtin from a default argument mapping overloaded with @p kw """
     default_args_exp2 = {
-        "output_file": "my_exp2.c",
-        "function_name": "exp2f",
+        "output_file": "ml_exp2.c",
+        "function_name": "ml_exp2",
         "precision": ML_Binary32,
         "accuracy": ML_Faithful,
         "target": GenericProcessor()
@@ -159,7 +159,7 @@ class ML_Exp2(ML_FunctionBasis):
     return_C0 = Return(C0)
     return_sub = Return(subnormal_result)
     return_std = Return(result)
-    
+
     non_std_statement = Statement(
       ConditionBlock(
         test_overflow,
@@ -171,7 +171,7 @@ class ML_Exp2(ML_FunctionBasis):
           )
         )
       )
-      
+
     scheme = Statement(
       ConditionBlock(
         test_std,
