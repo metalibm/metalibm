@@ -56,7 +56,9 @@ from .ml_formats import (
     ML_AbstractFormat, ML_FloatingPoint_RoundingMode, ML_String,
     ML_Bool
 )
-from metalibm_core.code_generation.code_constant import C_Code
+from metalibm_core.code_generation.code_constant import (
+    C_Code, LLVM_IR_Code
+)
 
 from metalibm_core.utility.decorator import safe
 
@@ -1754,14 +1756,17 @@ class FunctionObject(object):
     def __call__(self, *args, **kwords):
         return FunctionCall(self, *args, **kwords)
 
-    def get_declaration(self, language = C_Code):
+    def get_declaration(self, language=C_Code):
         """ Generate code declaration for FunctionObject """
         out_prec = self.output_precision.get_name(language=language)
         fname = self.get_function_name()
         arg_prec_list = ", ".join(
-            arg.get_name(language = language) for arg in self.arg_list_precision
+            arg.get_name(language=language) for arg in self.arg_list_precision
         )
-        return "{out_prec} {fname}({arg_prec_list});".format(
+        # TODO: duplicate code with LLVM/C CodeGenerator ...
+        prefix = "@" if language is LLVM_IR_Code else ""
+        return "{out_prec} {prefix}{fname}({arg_prec_list});".format(
+            prefix=prefix,
             out_prec=out_prec,
             fname=fname,
             arg_prec_list=arg_prec_list
