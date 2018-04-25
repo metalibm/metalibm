@@ -286,6 +286,8 @@ class CodeObject(object):
     tab = "    "
     level_header = "{\n"
     level_footer = "}"
+    # Prefix added to every free variable name
+    GENERAL_PREFIX = ""
     def __init__(self, language, shared_tables = None, parent_tables = None, rounding_mode = ML_GlobalRoundMode, uniquifier = "", main_code_level = None, var_ctor = None):
         """ code object initialization """
         self.expanded_code = ""
@@ -395,8 +397,8 @@ class CodeObject(object):
 
     def get_free_var_name(self, var_type, prefix = "cotmp", declare = True, var_ctor = Variable):
         assert not var_type is None
-        free_var_name = self.symbol_table.get_free_name(var_type, prefix)
-        # declare free var if required
+        free_var_name = self.symbol_table.get_free_name(var_type, self.GENERAL_PREFIX + prefix)
+        # declare free var if required 
         if declare:
             self.symbol_table.declare_var_name(free_var_name, var_ctor(free_var_name, precision = var_type))
         return free_var_name
@@ -567,6 +569,7 @@ class GappaCodeObject(CodeObject):
         parent_code << self.gen_hint()
 
 class LLVMCodeObject(CodeObject):
+    GENERAL_PREFIX = "%"
     
     def __init__(self, language, shared_tables=None, parent_tables=None,
                  rounding_mode=ML_GlobalRoundMode, uniquifier="",
