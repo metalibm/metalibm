@@ -260,6 +260,13 @@ class AbstractOperation(ML_Operation):
     def get_precision(self):
         return self.attributes.get_precision()
 
+    @property
+    def precision(self):
+        return self.attributes.get_precision()
+    @precision.setter
+    def precision(self, value):
+        self.attributes.set_precision(value)
+
     ## set the node output precision
     def set_precision(self, new_precision):
         self.attributes.set_precision(new_precision)
