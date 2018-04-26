@@ -111,9 +111,9 @@ class ML_Exponential(ML_FunctionBasis):
             kwords["arg_value"] = vx
             kwords["function_name"] = self.function_name
             if self.libm_compliant:
-                return RaiseReturn(*args, **kwords)
+                return RaiseReturn(*args, precision=self.precision, **kwords)
             else:
-                return Statement()
+                return Return(kwords["return_value"], precision=self.precision)
 
         test_nan_or_inf = Test(
             vx, specifier=Test.IsInfOrNaN, likely=False,
@@ -135,8 +135,8 @@ class ML_Exponential(ML_FunctionBasis):
         infty_return = Statement(
             ConditionBlock(
                 test_positive,
-                Return(FP_PlusInfty(self.precision)),
-                Return(FP_PlusZero(self.precision))
+                Return(FP_PlusInfty(self.precision), precision=self.precision),
+                Return(FP_PlusZero(self.precision), precision=self.precision)
             )
         )
         # return in case of specific value input (NaN or inf)
@@ -145,7 +145,7 @@ class ML_Exponential(ML_FunctionBasis):
             ConditionBlock(
                 test_signaling_nan,
                 return_snan,
-                Return(FP_QNaN(self.precision))
+                Return(FP_QNaN(self.precision), precision=self.precision)
             ),
             infty_return)
         # return in case of standard (non-special) input
@@ -377,7 +377,7 @@ class ML_Exponential(ML_FunctionBasis):
         )
         late_overflow_result = (ExponentInsertion(diff_k, precision = self.precision) * poly) * ExponentInsertion(overflow_exp_offset, precision = self.precision)
         late_overflow_result.set_attributes(silent = False, tag = "late_overflow_result", debug = debug_multi, precision = self.precision)
-        late_overflow_return = ConditionBlock(Test(late_overflow_result, specifier = Test.IsInfty, likely = False), ExpRaiseReturn(ML_FPE_Overflow, return_value = FP_PlusInfty(self.precision)), Return(late_overflow_result))
+        late_overflow_return = ConditionBlock(Test(late_overflow_result, specifier = Test.IsInfty, likely = False), ExpRaiseReturn(ML_FPE_Overflow, return_value = FP_PlusInfty(self.precision)), Return(late_overflow_result, precision=self.precision))
 
         late_underflow_test = Comparison(k, self.precision.get_emin_normal(), specifier = Comparison.LessOrEqual, likely = False)
         underflow_exp_offset = 2 * self.precision.get_field_size()
@@ -393,13 +393,13 @@ class ML_Exponential(ML_FunctionBasis):
         late_underflow_result = (ExponentInsertion(corrected_exp, precision = self.precision) * poly) * ExponentInsertion(-underflow_exp_offset, precision = self.precision)
         late_underflow_result.set_attributes(debug = debug_multi, tag = "late_underflow_result", silent = False)
         test_subnormal = Test(late_underflow_result, specifier = Test.IsSubnormal)
-        late_underflow_return = Statement(ConditionBlock(test_subnormal, ExpRaiseReturn(ML_FPE_Underflow, return_value = late_underflow_result)), Return(late_underflow_result))
+        late_underflow_return = Statement(ConditionBlock(test_subnormal, ExpRaiseReturn(ML_FPE_Underflow, return_value = late_underflow_result)), Return(late_underflow_result, precision=self.precision))
 
         twok = ExponentInsertion(ik, tag = "exp_ik", debug = debug_multi, precision = self.precision)
         #std_result = twok * ((1 + exact_hi_part * pre_poly) + exact_lo_part * pre_poly) 
         std_result = twok * poly
         std_result.set_attributes(tag = "std_result", debug = debug_multi)
-        result_scheme = ConditionBlock(late_overflow_test, late_overflow_return, ConditionBlock(late_underflow_test, late_underflow_return, Return(std_result)))
+        result_scheme = ConditionBlock(late_overflow_test, late_overflow_return, ConditionBlock(late_underflow_test, late_underflow_return, Return(std_result, precision=self.precision)))
         std_return = ConditionBlock(early_overflow_test, early_overflow_return, ConditionBlock(early_underflow_test, early_underflow_return, result_scheme))
 
         # main scheme
@@ -409,7 +409,9 @@ class ML_Exponential(ML_FunctionBasis):
             Statement(
                 ClearException() if self.libm_compliant else Statement(), 
                 specific_return
-        ), std_return)
+            ),
+            std_return
+        )
 
         return scheme
 
