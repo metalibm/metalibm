@@ -596,10 +596,10 @@ class LLVMCodeObject(CodeObject):
         # symbol exclusion list
         declaration_exclusion_list = [MultiSymbolTable.ConstantSymbol] if static_cst else []
         declaration_exclusion_list += [MultiSymbolTable.TableSymbol] if static_table else []
+        declaration_exclusion_list += [MultiSymbolTable.FunctionSymbol] if skip_function else []
         # always exclude the following from llvm-ir code generation
         declaration_exclusion_list += [
             MultiSymbolTable.VariableSymbol, 
-            MultiSymbolTable.FunctionSymbol,
             MultiSymbolTable.LabelSymbol
         ]
 
@@ -613,7 +613,7 @@ class LLVMCodeObject(CodeObject):
         )
         result += "\n" if result != "" else ""
         result += self.expanded_code
-        result += "\n\n"
+        result += "\n"
         return result
 
     def push_into_parent_code(self, parent_code, code_generator, static_cst = False, static_table = False, headers = False, skip_function=True):
@@ -622,14 +622,14 @@ class LLVMCodeObject(CodeObject):
         declaration_exclusion_list += [MultiSymbolTable.TableSymbol] if static_table else []
         declaration_exclusion_list += [MultiSymbolTable.VariableSymbol]
         declaration_exclusion_list += [MultiSymbolTable.LabelSymbol]
-        declaration_exclusion_list += [MultiSymbolTable.FunctionSymbol] #if skip_function else []
+        declaration_exclusion_list += [MultiSymbolTable.FunctionSymbol] if skip_function else []
 
         # declaration generation
         parent_code << self.symbol_table.generate_declarations(code_generator, exclusion_list = declaration_exclusion_list)
         parent_code << self.symbol_table.generate_initializations(code_generator, init_required_list = [MultiSymbolTable.ConstantSymbol, MultiSymbolTable.VariableSymbol])
         parent_code << "\n" 
         parent_code << self.expanded_code
-        parent_code << "\n\n"
+        parent_code << "\n"
 
 
 class VHDLCodeObject(object):
