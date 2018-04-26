@@ -14,7 +14,6 @@
 # copies of the Software, and to permit persons to whom the Software is
 # furnished to do so, subject to the following conditions:
 #
-# The above copyright notice and this permission notice shall be included in all
 # copies or substantial portions of the Software.
 #
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -33,15 +32,36 @@
 
 from metalibm_core.core.ml_formats import (
     ML_Int32, ML_Int64, ML_Binary32, ML_Binary64, v4float32, v4float64,
-    ML_Bool,
+    v4int32, v4int64,
+    v2int32, v2int64, v2float32, v2float64,
+    v8int32, v8int64, v8float32, v8float64,
+    ML_Bool, v2bool, v4bool, v8bool,
 )
+from metalibm_core.utility.log_report import Log
 def llvm_ir_format(precision):
-    return {
-        ML_Bool: "i1",
-        ML_Int32: "i32",
-        ML_Int64: "i64",
-        ML_Binary32: "float",
-        ML_Binary64: "double",
-        v4float32: "<4 x float>",
-        v4float64: "<4 x double>",
-    }[precision]
+    """ Translate from Metalibm precision to string for LLVM-IR format """
+    try:
+        return {
+            ML_Bool: "i1",
+            v2bool: "<2 x i1>",
+            v4bool: "<4 x i1>",
+            v8bool: "<8 x i1>",
+            ML_Int32: "i32",
+            ML_Int64: "i64",
+            ML_Binary32: "float",
+            ML_Binary64: "double",
+            v2int32: "<2 x i32>",
+            v2int64: "<2 x i64>",
+            v2float32: "<2 x float>",
+            v2float64: "<2 x double>",
+            v4float32: "<4 x float>",
+            v4float64: "<4 x double>",
+            v4int32: "<4 x i32>",
+            v4int64: "<4 x i64>",
+            v8int32: "<8 x i32>",
+            v8float32: "<8 x float>",
+            v8int64: "<8 x i64>",
+            v8float64: "<8 x double>",
+        }[precision]
+    except KeyError:
+        Log.report(Log.Error, "unknown precision {} in llvm_ir_format".format(precision), error=KeyError)
