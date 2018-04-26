@@ -32,6 +32,7 @@
 ###############################################################################
 
 import sys
+import copy
 
 from ..core.ml_operations import (
     Variable, Constant, ConditionBlock, Return, TableLoad, Statement,
@@ -62,7 +63,7 @@ def get_free_label_name(code_object, prefix):
         prefix=prefix,
         declare=True)
 
-def llvm_ir_generate_condition_block(generator, optree, code_object, language, folded=False, next_block=None):
+def llvm_ir_generate_condition_block(generator, optree, code_object, language, folded=False, next_block=None, initial=False):
     condition = optree.inputs[0]
     if_branch = optree.inputs[1]
     else_branch = optree.inputs[2] if len(optree.inputs) > 2 else None
@@ -83,12 +84,17 @@ def llvm_ir_generate_condition_block(generator, optree, code_object, language, f
     if_label = get_free_label_name(code_object, "true_label")
 
     is_fallback_if = is_fallback_statement(if_branch) 
+    #print "if_fallback: ", is_fallback_if
+    #print if_branch.get_str(depth=None)
 
     if else_branch:
         # if there is an else branch then else label must be specific
         else_label = get_free_label_name(code_object, "false_label")
         # we need a end label if one (or more) of if/else is a fallback
-        is_fallback = is_fallback_if or is_fallback_statement(else_branch)
+        is_fallback_else = is_fallback_statement(else_branch)
+        #print "else_fallback: ", is_fallback_else
+        #print else_branch.get_str(depth=None)
+        is_fallback = is_fallback_if or is_fallback_else 
         if is_fallback:
             end_label = get_end_label() 
         else:
@@ -99,7 +105,7 @@ def llvm_ir_generate_condition_block(generator, optree, code_object, language, f
         else_label = get_end_label()
         end_label = else_label
 
-    code_object << "br i1 {cond} , label %{if_label}, label %{else_label}\n".format(
+    code_object << "br i1 {cond} , label %{if_label}, label %{else_label}".format(
         cond=cond_code.get(),
         if_label=if_label,
         else_label=else_label
@@ -148,12 +154,58 @@ def is_fallback_statement(optree):
         # if any of the sequential sub-statement is not a 
         # fallback then the overall statement is not one too
         for op in optree.get_inputs():
-            if not is_fallback_statement(optree):
+            if not is_fallback_statement(op):
                 return False
         return True
     else:
         return True
-                            
+
+
+def generate_llvm_cst(value, precision, precision_header=True):
+    """ Generate LLVM-IR code string to encode numerical value <value> """
+    if ML_FP_Format.is_fp_format(precision):
+        if FP_SpecialValue.is_special_value(value):
+            value = copy.copy(value)
+            value.precision = ML_Binary64
+            mask = ~(2**(ML_Binary64.get_field_size() - precision.get_field_size()) - 1) 
+            return "0x{value:x}".format(
+                # special constant must be 64-bit encoded in hexadecimal
+                value=(ML_Binary64.get_integer_coding(value) & mask)
+            )
+        else:
+            sollya.settings.display = sollya.decimal
+            value_str = str(precision.round_sollya_object(value))
+            if not "." in value_str:
+                # adding suffix ".0" if numeric value is an integer
+                value_str += ".0"
+            return value_str
+    elif is_std_integer_format(precision):
+        return "{value}".format(
+            # prec="" if not precision_header else llvm_ir_format(precision),
+            value=int(value)
+        )
+    else:
+        Log.report(Log.Error, "format {} not supported in LLVM-IR generate_llvm_cst".format(optree.precision))
+
+def generate_Constant_expr(optree):
+    """ generate LLVM-IR code to materialize Constant node """
+    assert isinstance(optree, Constant)
+    if optree.precision.is_vector_format():
+        cst_value = optree.get_value()
+        return CodeExpression(
+            "<{}>".format(
+                ", ".join(generate_llvm_cst(
+                        elt_value, optree.precision.get_scalar_format()
+                    ) for elt_value in cst_value
+                    )
+            ),
+            precision
+        )
+    else:
+        return CodeExpression(
+            generate_llvm_cst(optree.get_value(), optree.precision),
+            optree.precision
+        )
 
 class LLVMIRCodeGenerator(object):
     """ LLVM-IR language code generator """
@@ -213,7 +265,8 @@ class LLVMIRCodeGenerator(object):
 
         elif isinstance(optree, Constant):
             precision = optree.get_precision()
-            result = CodeExpression(precision.get_gappa_cst(optree.get_value()), precision)
+            result = generate_Constant_expr(optree)
+            #result = CodeExpression(precision.get_gappa_cst(optree.get_value()), precision)
 
         elif isinstance(optree, Statement):
             # all but last generation
@@ -234,7 +287,7 @@ class LLVMIRCodeGenerator(object):
         elif isinstance(optree, ConditionBlock):
             return llvm_ir_generate_condition_block(
                 self, optree, code_object, folded=folded, language=language,
-                next_block=next_block)
+                next_block=next_block, initial=initial)
 
         else:
             result = self.processor.generate_expr(self, code_object, optree, optree.inputs, folded = folded, result_var = result_var, language = self.language)
@@ -286,10 +339,11 @@ class LLVMIRCodeGenerator(object):
         elif isinstance(symbol_object, ML_Table):
             raise NotImplementedError
         elif isinstance(symbol_object, CodeFunction):
-            return "%s\n" % symbol_object.get_declaration()
+            return "%s\n" % symbol_object.get_LLVM_declaration()
+            #return "%s\n" % symbol_object.get_declaration()
 
         elif isinstance(symbol_object, FunctionObject):
-            return "%s\n" % symbol_object.get_declaration()
+            return "declare %s\n" % symbol_object.get_declaration(language=LLVM_IR_Code)
         elif isinstance(symbol_object, Label):
             return "ERROR<%s:>\n" % symbol_object.name
         else:
