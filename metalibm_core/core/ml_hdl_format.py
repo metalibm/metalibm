@@ -107,12 +107,23 @@ class RTL_FixedPointFormat(ML_Base_FixedPoint_Format):
 class ML_StdLogicVectorFormat(ML_Format):
   """ Format class for multiple bit signals """
   def __init__(self, bit_size, offset = 0, direction = StdLogicDirection.Downwards):
-    assert bit_size > 0
-    bit_size = int(bit_size)
-    offset   = int(offset)
     ML_Format.__init__(self)
-    self.bit_size = bit_size
-    self.name[VHDL_Code] = "std_logic_vector({direction_descriptor})".format(direction_descriptor = direction.get_descriptor(offset, offset + self.bit_size - 1))
+    try:
+        assert bit_size > 0
+        bit_size = int(bit_size)
+        offset   = int(offset)
+    except TypeError:
+        # bit_size, offset are in incompatible format, we switch to lazy
+        # resolution
+        bit_size = None
+        offset = None
+        self.name[VHDL_Code] = "UNSOLVED_FORMAT"
+        self.bit_size = None
+        self.resolved = False
+    else:
+        self.bit_size = bit_size
+        self.name[VHDL_Code] = "std_logic_vector({direction_descriptor})".format(direction_descriptor = direction.get_descriptor(offset, offset + self.bit_size - 1))
+        self.resolved = True
     self.display_format[VHDL_Code] = "%s"
 
   def __str__(self):
