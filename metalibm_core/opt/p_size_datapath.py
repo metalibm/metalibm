@@ -552,6 +552,7 @@ def solve_format_rec(optree, memoization_map=None):
     elif isinstance(optree, Statement):
         for op_input in optree.get_inputs():
             solve_format_rec(op_input)
+        memoization_map[optree] = None
         return None
     elif isinstance(optree, ReferenceAssign):
         dst = optree.get_input(0)
@@ -562,6 +563,7 @@ def solve_format_rec(optree, memoization_map=None):
         Log.report(Log.Verbose, "[solve_format_rec] skipping: {}".format(
             optree.get_str(display_precision=True, depth=2)
         ))
+        memoization_map[optree] = None
         return None
     else:
         for op_input in optree.get_inputs():
