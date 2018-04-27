@@ -152,6 +152,8 @@ class ML_StdLogicClass(ML_Format):
     return self.bit_size
   def get_support_format(self):
     return self
+  def get_integer_coding(self, value, language=VHDL_Code):
+    return int(value)
 
 ## std_logic type singleton
 ML_StdLogic = ML_StdLogicClass()
