@@ -151,7 +151,6 @@ def fixed_point_position_legalizer(optree, input_prec_solver = default_prec_solv
                 fixed_precision
             )
         )
-            
 
     position = optree.get_input(1).get_value()
 
@@ -165,9 +164,9 @@ def fixed_point_position_legalizer(optree, input_prec_solver = default_prec_solv
     }
     cst_value = value_computation_map[align]
     # display value
-    Log.report(Log.Info, "fixed-point position {tag} has been resolved to {value}".format(
-        tag = optree.get_tag(),
-        value = cst_value
+    Log.report(Log.LogLevel("FixedPoint"), "fixed-point position {tag} has been resolved to {value}".format(
+        tag=optree.get_tag(),
+        value=cst_value
         )
     )
     result = Constant(
