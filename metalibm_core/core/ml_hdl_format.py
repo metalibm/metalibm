@@ -41,6 +41,8 @@ import sollya
 from .ml_formats import ML_Format, ML_Base_FixedPoint_Format, ML_Fixed_Format
 from ..code_generation.code_constant import VHDL_Code
 
+from ..utility.log_report import Log
+
 ## Helper constant: 2 as a sollya object
 S2 = sollya.SollyaObject(2)
 
@@ -65,8 +67,11 @@ def get_2scomplement_neg(value, size):
 
 def generic_get_vhdl_cst(value, bit_size):
   #return "\"%s\"" % bin(value)[2:].zfill(self.bit_size)
-  value = int(value)
-  value &= int(2**bit_size - 1)
+  try:
+      value = int(value)
+      value &= int(2**bit_size - 1)
+  except TypeError:
+    Log.report(Log.Error, "unsupported value={}/bit_size={} in generic_get_vhdl_cst".format(value, bit_size), error=TypeError)
   assert bit_size > 0
   assert value <= (2**bit_size - 1)
   if bit_size % 4 == 0:
