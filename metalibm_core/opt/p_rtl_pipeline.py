@@ -72,8 +72,6 @@ def unify_stages_rec(optree, stage_id=None, memoization_map=None):
     memoization_map[optree] = stage_id
 
 
-## Legalize the precision of a datapath by finely tuning the size
-#  of each operations (limiting width while preventing overflow)
 class Pass_UnifyPipelineStages(OptreeOptimization):
     """ implementation of pipeline stage uniformisation """
     pass_tag = "unify_pipeline_stages"
