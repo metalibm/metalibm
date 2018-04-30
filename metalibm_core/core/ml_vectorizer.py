@@ -183,7 +183,6 @@ class StaticVectorizer(object):
       arg_list_copy.update(constant_dict)
       sub_vector_path = linearized_most_likely_path.copy(arg_list_copy)
       
-      # print sub_vector_path.get_str(depth = None, display_precision = True, memoization_map = {}, display_id = True)
       sub_vector_path = self.vector_replicate_scheme_in_place(sub_vector_path, sub_vector_size, vectorization_map)
       vector_paths.append(sub_vector_path)
 
@@ -228,7 +227,7 @@ class StaticVectorizer(object):
       if self.is_vectorizable(optree):
         optree_precision = optree.get_precision()
         if optree_precision is None:
-          print(optree.get_str(display_precision = True, memoization_map = {}))
+          print(optree)
         optree.set_precision(self.vectorize_format(optree.get_precision(), vector_size))
         if isinstance(optree, Constant):
           optree.set_value([optree.get_value() for i in range(vector_size)])
@@ -241,6 +240,6 @@ class StaticVectorizer(object):
         memoization_map[optree] = optree
         return optree
       else:
-        Log.report(Log.Info, "optree not vectorizable: {}".format(optree.get_str(display_precision = True)))
+        Log.report(Log.Info, "optree not vectorizable: {}", optree)
 
     

@@ -93,14 +93,18 @@ class Log(object):
         return False
 
     @staticmethod
-    def report(level, msg, eol = "\n", error=None):
+    def is_level_enabled(level):
+        return Log.filter_log_level(Log.enabled_levels, level)
+
+    @staticmethod
+    def report(level, msg, eol = "\n", error=None, *args, **kw):
         """ report log message """
         if Log.log_stream:
-            Log.log_stream.write(msg + eol)
+            Log.log_stream.write(msg.format(*args, **kw) + eol)
             if Log.dump_stdout:
-              print("%s: %s" % (level.name, msg))
+              print("%s: %s" % (level.name, msg.format(*args, **kw)))
         elif Log.filter_log_level(Log.enabled_levels, level):
-            print("%s: %s" % (level.name, msg))
+            print("%s: %s" % (level.name, msg.format(*args, **kw)))
         if level is Log.Error:
             if Log.break_on_error:
               pdb.set_trace()

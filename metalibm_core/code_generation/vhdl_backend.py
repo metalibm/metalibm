@@ -112,8 +112,10 @@ def zext_modifier(optree):
     ext_size = optree.ext_size
     assert ext_size >= 0
     if ext_size == 0:
-        Log.report(Log.Warning, "zext_modifer called with ext_size=0 on {}".format(
-            optree.get_str()))
+        Log.report(
+            Log.Warning, "zext_modifer called with ext_size=0 on {}",
+            optree
+            )
         return ext_input
     else:
         precision = ML_StdLogicVectorFormat(ext_size)
@@ -138,8 +140,10 @@ def sext_modifier(optree):
     ext_size = optree.ext_size
     ext_input = optree.get_input(0)
     if ext_size == 0:
-        Log.report(Log.Warning, "sext_modifer called with ext_size=0 on {}".format(
-            optree.get_str()))
+        Log.report(
+            Log.Warning, "sext_modifer called with ext_size=0 on {}",
+            optree
+            )
         return ext_input
     else:
         ext_precision = ML_StdLogicVectorFormat(
@@ -276,7 +280,8 @@ def fixed_conversion_modifier(optree):
         Log.report(
             Log.Warning,
             "incompatible input -> output precision signedess in fixed_conversion_modifier:\n"
-            "  input is {}, output is {}".format(arg_precision, conv_precision)
+            "  input is {}, output is {}",
+            arg_precision, conv_precision
         )
     result = arg
     raw_arg_precision = ML_StdLogicVectorFormat(
@@ -320,7 +325,12 @@ def legalizing_fixed_shift_amount(shift_amount):
     if is_fixed_point(precision):
         sa_range = evaluate_range(shift_amount)
         if inf(sa_range) < 0:
-            Log.report(Log.Error, "shift amount {} whose range has been evaluated to {} may take negative values".format(shift_amount.get_str(depth = 2, display_precision = True), sa_range))
+            Log.report(
+                Log.Error,
+                "shift amount {} whose range has been evaluated to {} may take negative values",
+                shift_amount,
+                sa_range
+            )
         # TODO support negative frac size via static amount shifting
         assert(precision.get_frac_size() == 0) 
         casted_format = ML_StdLogicVectorFormat(precision.get_bit_size())
@@ -751,10 +761,12 @@ def fixed_cast_legalizer(optree):
     input_prec = cast_input.get_precision()
     assert is_fixed_point(out_prec) and is_fixed_point(input_prec)
     if input_prec.get_bit_size() != out_prec.get_bit_size():
-        Log.report(Log.Error, "fixed_cast_legalizer only support same size I/O, input is {}\n, output is {}".format(
-            cast_input.get_str(display_precision=True),
-            optree.get_str(display_precision=True)
-        ))
+        Log.report(
+            Log.Error,
+            "fixed_cast_legalizer only support same size I/O, input is {}\n, output is {}",
+            cast_input,
+            optree,
+        )
         raise NotImplementedError
     else:
         # Using an exchange format derived from ML_StdLogicVectorFormat

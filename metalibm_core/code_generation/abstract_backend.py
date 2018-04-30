@@ -118,11 +118,10 @@ class AbstractBackend(object):
                         implementation = table[language][op_class][codegen_key][condition][interface_condition]
                         sourceinfo = implementation.get_source_info()
                         Log.report(
-                            Log.Verbose, 
-                             "optree {} to implementation @ {}".format(
-                                optree.get_str(display_precision = True),
-                                str(sourceinfo)
-                             )
+                            Log.Verbose,
+                            "optree {} to implementation @ {}",
+                            optree,
+                            str(sourceinfo)
                         )
                         return implementation
         return None
@@ -140,7 +139,12 @@ class AbstractBackend(object):
             Log.report(Log.Verbose, "Tested architecture(s) for language %s:" % language)
             for parent_proc in self.parent_architecture:
               Log.report(Log.Verbose, "  %s " % parent_proc)
-            Log.report(Log.Error, "the following operation is not supported by %s: \n%s" % (self.__class__, optree.get_str(depth = 2, display_precision = True, memoization_map = {})))
+            Log.report(
+                Log.Error,
+                "the following operation is not supported by {}: \n{}",
+                self.__class__,
+                optree
+            )
 
     def is_map_supported_operation(self, op_map, optree, language = C_Code, debug = False,  key_getter = lambda self, optree: self.get_operation_keys(optree)):
         """ return wheter or not the operation performed by optree has a local implementation """
@@ -148,16 +152,16 @@ class AbstractBackend(object):
 
         if not language in op_map:
             # unsupported language
-            if debug: Log.Report(Log.Info, "unsupported language for %s" % optree.get_str())
+            if debug: Log.Report(Log.Info, "unsupported language for {}", optree)
             return False
         else:
             if not op_class in op_map[language]:
                 # unsupported operation
-                if debug: Log.report(Log.Info, "unsupported operation class for %s" % optree.get_str())
+                if debug: Log.report(Log.Info, "unsupported operation class for {}", optree)
                 return False
             else:
                 if not codegen_key in op_map[language][op_class]:
-                    if debug: Log.report(Log.Info, "unsupported codegen key for %s" % optree.get_str())
+                    if debug: Log.report(Log.Info, "unsupported codegen key for {}", optree)
                     # unsupported codegen key
                     return False
                 else:
@@ -167,7 +171,7 @@ class AbstractBackend(object):
                                 if interface_condition(*interface, optree = optree): return True
                     # unsupported condition or interface type
                     if debug: 
-                      Log.report(Log.Info, "unsupported condition key for %s" % optree.get_str(display_precision = True))
+                      Log.report(Log.Info, "unsupported condition key for {}", optree)
                       for condition in op_map[language][op_class][codegen_key]:
                           if condition(optree):
                             src_file = inspect.getsourcefile(condition)
@@ -178,7 +182,7 @@ class AbstractBackend(object):
                                 print("  interface_condition @{}:{}/{} {}".format(src_file, lineno, ic_id, interface_condition(*interface, optree = optree))) 
                                 ic_id += 1
                       print(op_map[language][op_class][codegen_key].keys())
-                      Log.report(Log.Info, "unsupported condition key for %s" % optree.get_str(display_precision = True))
+                      Log.report(Log.Info, "unsupported condition key for {}", optree)
                     return False
 
     def is_local_supported_operation(self, optree, language = C_Code, table_getter = lambda self: self.code_generation_table, debug = False,  key_getter = lambda self, optree: self.get_operation_keys(optree)):
@@ -201,10 +205,11 @@ class AbstractBackend(object):
         """ return code_generation_table key corresponding to the operation performed by <optree> """
         op_class = optree.__class__
         if optree.get_precision() is None:
-            Log.report(Log.Error, "Following optree has undefined({} precision: \n{}".format(
+            Log.report(
+                Log.Error, "Following optree has undefined({} precision: \n{}",
                 optree.get_precision(),
-                optree.get_str(display_precision=True, depth=2)
-            ))
+                optree
+            )
         result_type = (optree.get_precision().get_match_format(),)
         arg_type = tuple((arg.get_precision().get_match_format() if not arg.get_precision() is None else None) for arg in optree.get_inputs())
         interface = result_type + arg_type

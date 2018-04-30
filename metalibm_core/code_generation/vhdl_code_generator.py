@@ -148,7 +148,7 @@ class VHDLCodeGenerator(object):
                       result = CodeExpression(precision.get_cst(optree.get_value(), language = language), precision)
                   except:
                     result = CodeExpression(precision.get_cst(optree.get_value(), language = language), precision)
-                    Log.report(Log.Error, "Error during get_cst call for Constant: %s " % optree.get_str(display_precision = True)) # Exception print
+                    Log.report(Log.Error, "Error during get_cst call for Constant: {} ", optree) # Exception print
 
 
         elif isinstance(optree, Assert):
@@ -323,7 +323,11 @@ class VHDLCodeGenerator(object):
             try:
               cond_likely = condition.get_likely()
             except AttributeError:
-              Log.report(Log.Error, " the following condition has no (usable) likely attribute: %s" % (condition.get_str(depth = 1, display_precision = True, memoization_map = {}))) 
+              Log.report(
+                Log.Error,
+                "The following condition has no (usable) likely attribute: {}",
+                condition
+              )
             code_object << "if %s then\n " % cond_code.get()
             #self.open_memoization_level()
             #code_object.open_level()
@@ -606,7 +610,9 @@ class VHDLCodeGenerator(object):
         if not isinstance(result, CodeVariable):
           op_tag = optree.get_tag()
           if op_tag is None:
-            Log.report(Log.Error, "debug node {} has no defined tag".format(optree.get_str(display_precision=True)))
+            Log.report(
+                Log.Error, "debug node {} has no defined tag", optree
+            )
           final_var = code_object.get_free_signal_name(optree.get_precision(), prefix = "dbg_"+ optree.get_tag())
           #code_object << "{} <= {};\n".format(final_var, result.get())
           code_object << self.generate_code_assignation(code_object, final_var, result.get())

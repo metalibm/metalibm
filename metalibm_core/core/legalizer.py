@@ -147,7 +147,7 @@ def fixed_point_position_legalizer(optree, input_prec_solver = default_prec_solv
         Log.report(
             Log.Error,
             "in fixed_point_position_legalizer: precision of {} should be fixed-point but is {}".format(
-                fixed_input.get_str(),
+                fixed_input,
                 fixed_precision
             )
         )

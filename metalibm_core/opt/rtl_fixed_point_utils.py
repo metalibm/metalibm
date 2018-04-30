@@ -107,14 +107,9 @@ def solve_equal_formats(optree_list):
     )
 
     if format_reduced is None:
-        Log.report(
-            Log.Info,
-            " precision of every item in list: {} is None:\n\t".format(
-                ", \n\t".join(
-                    op.get_str(display_precision = True) for op in optree_list
-                )
-            )
-        )
+        Log.report(Log.Info, "Precision of every item in following list is None:\n",
+        for op in optree_list:
+            Log.report(Log.Info, "\t{}", op)
         return None
     else:
         # test_format_equality_list(format_reduced, precision_list)
