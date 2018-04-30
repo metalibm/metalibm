@@ -138,7 +138,7 @@ def is_negation(optree):
 def default_prec_solver(optree):
     return optree.get_precision()
 
-def fixed_point_position_legalizer(optree, input_prec_solver = default_prec_solver):
+def fixed_point_position_legalizer(optree, input_prec_solver=default_prec_solver):
     """ Legalize a FixedPointPosition node to a constant """
     assert isinstance(optree, FixedPointPosition)
     fixed_input = optree.get_input(0)
@@ -176,7 +176,7 @@ def fixed_point_position_legalizer(optree, input_prec_solver = default_prec_solv
     forward_attributes(optree, result)
     return result
 
-def evaluate_cst_graph(optree, input_prec_solver = default_prec_solver):
+def evaluate_cst_graph(optree, input_prec_solver=default_prec_solver):
     """ evaluate a Operation Graph if its leaves are Constant """
     evaluation_map = {
         is_addition:

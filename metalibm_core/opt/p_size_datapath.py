@@ -139,7 +139,8 @@ def solve_format_CLZ(optree):
 def solve_format_ArithOperation(optree,
     integer_size_func = lambda lhs_prec, rhs_prec: None,
     frac_size_func = lambda lhs_prec, rhs_prec: None,
-    signed_func = lambda lhs, lhs_prec, rhs, rhs_prec: False
+    signed_func = lambda lhs, lhs_prec, rhs, rhs_prec: False,
+    format_solver=None
     ):
     """ determining fixed-point format for a generic 2-op arithmetic
         operation (e.g. Multiplication, Addition, Subtraction)
@@ -154,11 +155,11 @@ def solve_format_ArithOperation(optree,
         return ML_Integer
 
     if lhs_precision is ML_Integer:
-        cst_eval = evaluate_cst_graph(lhs, input_prec_solver = solve_format_rec)
+        cst_eval = evaluate_cst_graph(lhs, input_prec_solver=format_solver)
         lhs_precision = solve_format_Constant(Constant(cst_eval))
 
     if rhs_precision is ML_Integer:
-        cst_eval = evaluate_cst_graph(rhs, input_prec_solver = solve_format_rec)
+        cst_eval = evaluate_cst_graph(rhs, input_prec_solver=format_solver)
         rhs_precision = solve_format_Constant(Constant(cst_eval))
 
     if is_fixed_point(lhs_precision) and is_fixed_point(rhs_precision):
@@ -202,7 +203,7 @@ def add_signed_predicate(lhs, lhs_prec, rhs, rhs_prec):
 
 
 ## determine Addition node precision
-def solve_format_Addition(optree):
+def solve_format_Addition(optree, format_solver=None):
     """ Legalize Addition precision """
     assert isinstance(optree, Addition)
 
@@ -210,12 +211,13 @@ def solve_format_Addition(optree):
         optree,
         lambda l, r: max(l.get_integer_size(), r.get_integer_size()) + 1,
         lambda l, r: max(l.get_frac_size(), r.get_frac_size()),
-        add_signed_predicate
+        add_signed_predicate,
+        format_solver=format_solver
     )
 
 
 ## determine Multiplication node precision
-def solve_format_Multiplication(optree):
+def solve_format_Multiplication(optree, format_solver=None):
     """ Legalize Multiplication node """
     assert isinstance(optree, Multiplication)
     lhs = optree.get_input(0)
@@ -229,11 +231,12 @@ def solve_format_Multiplication(optree):
         optree,
         lambda l, r: l.get_integer_size() + r.get_integer_size() + extra_sign_digit,
         lambda l, r: l.get_frac_size() + r.get_frac_size(),
-        lambda l, lp, r, rp: lp.get_signed() or rp.get_signed()
+        lambda l, lp, r, rp: lp.get_signed() or rp.get_signed(),
+        format_solver=format_solver
     )
 
 
-def solve_format_Subtraction(optree):
+def solve_format_Subtraction(optree, format_solver=None):
     """ Legalize Subtraction node
 
         Args:
@@ -257,7 +260,8 @@ def solve_format_Subtraction(optree):
         optree,
         sub_integer_size,
         lambda lp, rp: lp.get_frac_size() + rp.get_frac_size(),
-        sub_signed_predicate
+        sub_signed_predicate,
+        format_solver=format_solver
     )
 
 
@@ -396,14 +400,14 @@ def solve_format_Concatenation(optree):
         bit_size = reduce(lambda x, y: x + y, [op.get_precision().get_bit_size() for op in optree.get_inputs()], 0)
         return fixed_point(bit_size, 0, signed = False)
 
-def solve_format_SubSignalSelection(optree):
+def solve_format_SubSignalSelection(optree, format_solver):
     """ Dummy legalization of SubSignalSelection operation node """
     if optree.get_precision() is None:
         select_input = optree.get_input(0)
         input_prec = select_input.get_precision()
 
-        inf_index = evaluate_cst_graph(optree.get_inf_index(), input_prec_solver = solve_format_rec)
-        sup_index = evaluate_cst_graph(optree.get_sup_index(), input_prec_solver = solve_format_rec)
+        inf_index = evaluate_cst_graph(optree.get_inf_index(), input_prec_solver=format_solver)
+        sup_index = evaluate_cst_graph(optree.get_sup_index(), input_prec_solver=format_solver)
 
         if is_fixed_point(input_prec):
             frac_size = input_prec.get_frac_size() - inf_index
@@ -492,10 +496,9 @@ def propagate_format_to_input(new_format, optree, input_index_list):
                 if format_does_fit(op_input, new_format):
                     Log.report(
                         Log.Info,
-                        "Simplify Constant Conversion {} to larger Constant: {}".format(
-                            op_input.get_str(display_precision=True),
-                            str(new_format)
-                        )
+                        "Simplify Constant Conversion {} to larger Constant: {}",
+                        op_input.get_str(display_precision=True) if Log.is_level_enabled(Log.Info) else "",
+                        str(new_format)
                     )
                     new_input = op_input.copy()
                     new_input.set_precision(new_format)
@@ -503,9 +506,8 @@ def propagate_format_to_input(new_format, optree, input_index_list):
                 else:
                     Log.report(
                         Log.Error,
-                        "Constant is about to be reduced to a too constrained format: {}".format(
-                            op_input.get_str(display_precision=True)
-                        )
+                        "Constant is about to be reduced to a too constrained format: {}",
+                        op_input.get_str(display_precision=True) if Log.is_level_enabled(Log.Error) else ""
                     )
             else:
                 new_input = Conversion(
@@ -523,120 +525,124 @@ def solve_skip_test(optree):
         return True
     return False
 
-## Recursively propagate information on operation node
-#  and tries to legalize every unknown formats
-def solve_format_rec(optree, memoization_map=None):
-    """ Recursively legalize formats from @p optree, using memoization_map
-        to store resolved results """
-    memoization_map = {} if memoization_map is None else memoization_map
-    if optree in memoization_map:
-        return memoization_map[optree]
-    elif isinstance(optree, ML_LeafNode):
-        new_format = optree.get_precision()
-        if isinstance(optree, Constant):
-            new_format = solve_format_Constant(optree)
+class FormatSolver:
+    def __init__(self):
+        self.memoization_map = {}
 
-        Log.report(Log.Verbose,
-                   "new format {} determined for {}".format(
-                       str(new_format), optree.get_str(display_precision=True)
-                   )
-        )
+    def __call__(self, optree):
+        """ legacy API used as input_prec_solver in evaluate_cst_graph """
+        return self.solve_format_rec(optree)
 
-        # updating optree format
-        #optree.set_precision(new_format)
-        format_set_if_undef(optree, new_format)
-        memoization_map[optree] = new_format
+    ## Recursively propagate information on operation node
+    #  and tries to legalize every unknown formats
+    def solve_format_rec(self, optree):
+        """ Recursively legalize formats from @p optree, using memoization_map
+            to store resolved results """
+        if optree in self.memoization_map:
+            return self.memoization_map[optree]
+        elif isinstance(optree, ML_LeafNode):
+            new_format = optree.get_precision()
+            if isinstance(optree, Constant):
+                new_format = solve_format_Constant(optree)
 
-        return optree.get_precision()
-
-    elif isinstance(optree, Statement):
-        for op_input in optree.get_inputs():
-            solve_format_rec(op_input)
-        memoization_map[optree] = None
-        return None
-    elif isinstance(optree, ReferenceAssign):
-        dst = optree.get_input(0)
-        src = optree.get_input(1)
-        src_precision = solve_format_rec(src)
-        format_set_if_undef(dst, src_precision)
-    elif solve_skip_test(optree):
-        Log.report(Log.Verbose, "[solve_format_rec] skipping: {}".format(
-            optree.get_str(display_precision=True, depth=2)
-        ))
-        memoization_map[optree] = None
-        return None
-    else:
-        for op_input in optree.get_inputs():
-            solve_format_rec(op_input)
-        new_format = optree.get_precision()
-        if not new_format is None:
-            Log.report(
-                Log.Verbose,
-                "format {} has already been determined for {}".format(
-                    str(new_format), optree.get_str(display_precision=True)
-                )
+            Log.report(Log.Verbose,
+                       "new format {} determined for {}",
+                      str(new_format), optree.get_str(display_precision=True) if Log.is_level_enabled(Log.Verbose) else ""
             )
-        elif isinstance(optree, LogicalOr) or isinstance(optree, LogicalAnd) or isinstance(optree, LogicalNot):
-            new_format = solve_format_BooleanOp(optree)
-        elif isinstance(optree, Comparison):
-            new_format = solve_format_Comparison(optree)
-        elif isinstance(optree, CountLeadingZeros):
-            new_format = solve_format_CLZ(optree)
-        elif isinstance(optree, Multiplication):
-            new_format = solve_format_Multiplication(optree)
-        elif isinstance(optree, Addition):
-            new_format = solve_format_Addition(optree)
-        elif isinstance(optree, Subtraction):
-            new_format = solve_format_Subtraction(optree)
-        elif isinstance(optree, SpecificOperation):
-            new_format = solve_format_SpecificOperation(optree)
-        elif isinstance(optree, Select):
-            new_format = solve_format_Select(optree)
-        elif isinstance(optree, Min) or isinstance(optree, Max):
-            new_format = solve_format_MinMax(optree)
-        elif isinstance(optree, BitLogicNegate):
-            new_format = solve_format_BitLogicNegate(optree)
-        elif isinstance(optree, Negation):
-            new_format = solve_format_Negation(optree)
-        elif isinstance(optree, BitLogicRightShift) or isinstance(optree, BitLogicLeftShift):
-            new_format = solve_format_shift(optree)
-        elif isinstance(optree, Concatenation):
-            new_format = solve_format_Concatenation(optree)
-        elif isinstance(optree, SubSignalSelection):
-            new_format = solve_format_SubSignalSelection(optree)
-        elif isinstance(optree, FixedPointPosition):
-            new_format = solve_format_FixedPointPosition(optree)
-        elif isinstance(optree, SignCast):
-            new_format = solve_format_SignCast(optree)
-        elif isinstance(optree, Conversion):
-            Log.report(
-                Log.Error,
-                "Conversion {} must have a defined format".format(
-                    optree.get_str()
-                )
+
+            # updating optree format
+            #optree.set_precision(new_format)
+            format_set_if_undef(optree, new_format)
+            self.memoization_map[optree] = new_format
+
+            return optree.get_precision()
+
+        elif isinstance(optree, Statement):
+            for op_input in optree.get_inputs():
+                self.solve_format_rec(op_input)
+            self.memoization_map[optree] = None
+            return None
+        elif isinstance(optree, ReferenceAssign):
+            dst = optree.get_input(0)
+            src = optree.get_input(1)
+            src_precision = self.solve_format_rec(src)
+            format_set_if_undef(dst, src_precision)
+        elif solve_skip_test(optree):
+            Log.report(Log.Verbose, "[solve_format_rec] skipping: {}",
+                optree.get_str(display_precision=True, depth=2) if Log.is_level_enabled(Log.Verbose) else ""
             )
+            self.memoization_map[optree] = None
+            return None
         else:
-            Log.report(
-                Log.Error,
-                "unsupported operation in solve_format_rec: {}".format(
-                    optree.get_str())
+            for op_input in optree.get_inputs():
+                self.solve_format_rec(op_input)
+            new_format = optree.get_precision()
+            if not new_format is None:
+                Log.report(
+                    Log.Verbose,
+                    "format {} has already been determined for {}",
+                    str(new_format), optree.get_str(display_precision=True) if Log.is_level_enabled(Log.Verbose) else ""
+                )
+            elif isinstance(optree, LogicalOr) or isinstance(optree, LogicalAnd) or isinstance(optree, LogicalNot):
+                new_format = solve_format_BooleanOp(optree)
+            elif isinstance(optree, Comparison):
+                new_format = solve_format_Comparison(optree)
+            elif isinstance(optree, CountLeadingZeros):
+                new_format = solve_format_CLZ(optree)
+            elif isinstance(optree, Multiplication):
+                new_format = solve_format_Multiplication(optree, format_solver=self)
+            elif isinstance(optree, Addition):
+                new_format = solve_format_Addition(optree, format_solver=self)
+            elif isinstance(optree, Subtraction):
+                new_format = solve_format_Subtraction(optree, format_solver=self)
+            elif isinstance(optree, SpecificOperation):
+                new_format = solve_format_SpecificOperation(optree)
+            elif isinstance(optree, Select):
+                new_format = solve_format_Select(optree)
+            elif isinstance(optree, Min) or isinstance(optree, Max):
+                new_format = solve_format_MinMax(optree)
+            elif isinstance(optree, BitLogicNegate):
+                new_format = solve_format_BitLogicNegate(optree)
+            elif isinstance(optree, Negation):
+                new_format = solve_format_Negation(optree)
+            elif isinstance(optree, BitLogicRightShift) or isinstance(optree, BitLogicLeftShift):
+                new_format = solve_format_shift(optree)
+            elif isinstance(optree, Concatenation):
+                new_format = solve_format_Concatenation(optree)
+            elif isinstance(optree, SubSignalSelection):
+                new_format = solve_format_SubSignalSelection(optree, self)
+            elif isinstance(optree, FixedPointPosition):
+                new_format = solve_format_FixedPointPosition(optree)
+            elif isinstance(optree, SignCast):
+                new_format = solve_format_SignCast(optree)
+            elif isinstance(optree, Conversion):
+                Log.report(
+                    Log.Error,
+                    "Conversion {} must have a defined format".format(
+                        optree.get_str()
+                    )
+                )
+            else:
+                Log.report(
+                    Log.Error,
+                    "unsupported operation in solve_format_rec: {}".format(
+                        optree.get_str())
+                )
+
+            # updating optree format
+            Log.report(Log.Verbose,
+                "new format {} determined for {}",
+                str(new_format), optree.get_str(display_precision=True) if Log.is_level_enabled(Log.Verbose) else ""
             )
+            # optree.set_precision(new_format)
+            real_format = format_set_if_undef(optree, new_format)
+            self.memoization_map[optree] = real_format
 
-        # updating optree format
-        Log.report(Log.Verbose,
-                   "new format {} determined for {}".format(
-                       str(new_format), optree.get_str(display_precision=True)
-                   )
-                   )
-        # optree.set_precision(new_format)
-        real_format = format_set_if_undef(optree, new_format)
-        memoization_map[optree] = real_format
+            # format propagation
+            prop_index_list = does_node_propagate_format(optree)
+            propagate_format_to_input(new_format, optree, prop_index_list)
 
-        # format propagation
-        prop_index_list = does_node_propagate_format(optree)
-        propagate_format_to_input(new_format, optree, prop_index_list)
-
-        return optree.get_precision()
+            return optree.get_precision()
 
 ## Legalize the precision of a datapath by finely tuning the size
 #  of each operations (limiting width while preventing overflow)
@@ -647,10 +653,11 @@ class Pass_SizeDatapath(OptreeOptimization):
     def __init__(self, target):
         """ pass initialization """
         OptreeOptimization.__init__(self, "size_datapath", target)
+        self.format_solver = FormatSolver()
 
     def execute(self, optree):
         """ pass execution """
-        return solve_format_rec(optree, {})
+        return self.format_solver.solve_format_rec(optree)
 
 Log.report(LOG_PASS_INFO, "Registering size_datapath pass")
 # register pass
