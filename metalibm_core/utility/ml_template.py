@@ -393,6 +393,9 @@ class DefaultEntityArgTemplate(DefaultArgTemplate):
     build_enable = False
     # pipelined deisgn
     pipelined = False
+    # pipeline register control
+    reset_pipeline = False
+    recirculate_pipeline = False
 
 
 
@@ -620,6 +623,14 @@ class ML_EntityArgTemplate(ML_CommonArgTemplate):
         self.parser.add_argument(
             "--pipelined", dest = "pipelined",
             action = "store", help = "define the number of pipeline stages"
+        )
+        self.parser.add_argument(
+            "--reset-pipeline", dest="reset_pipeline",
+            action="store_const", default=default_arg.reset_pipeline, const=True
+        )
+        self.parser.add_argument(
+            "--recirculate-pipeline", dest="recirculate_pipeline",
+            action="store_const", default=default_arg.recirculate_pipeline, const=True
         )
         self.parser.add_argument(
             "--no-exit",

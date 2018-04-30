@@ -208,7 +208,7 @@ class ML_EntityBasis(object):
 
     # Naming logic, using provided information if available, otherwise deriving from base_name
     # base_name is e.g. exp
-    # entity_name is e.g. expf or expd or whatever 
+    # entity_name is e.g. expf or expd or whatever
     self.entity_name = entity_name if entity_name else generic_naming(base_name, self.io_precisions)
 
     self.output_file = output_file if output_file else self.entity_name + ".vhd"
@@ -216,7 +216,7 @@ class ML_EntityBasis(object):
 
     # debug version
     self.debug_flag = debug_flag
-    # debug display 
+    # debug display
     self.display_after_gen = arg_template.display_after_gen
     self.display_after_opt = arg_template.display_after_opt
 
@@ -228,6 +228,11 @@ class ML_EntityBasis(object):
 
     # target selection
     self.backend = backend
+
+    # register control
+    self.reset_pipeline = arg_template.reset_pipeline
+    self.recirculate_pipeline = arg_template.recirculate_pipeline
+
 
     # optimization parameters
     self.fast_path_extract = fast_path_extract
@@ -254,6 +259,10 @@ class ML_EntityBasis(object):
       self.pass_scheduler.register_pass(pass_object, pass_dep = pass_dep, pass_slot = pass_slot)
       # linearly linking pass in the order they appear
       pass_dep = AfterPassById(pass_object.get_pass_id())
+
+    # TODO/FIXME: can be overloaded
+    self.reset_signal = self.implementation.add_input_signal("reset", ML_StdLogic)
+    self.recirculate_signal_map = {}
 
   def get_pass_scheduler(self):
     return self.pass_scheduler
@@ -330,6 +339,11 @@ class ML_EntityBasis(object):
   #  @return main code object associted with function implementation
   def get_main_code_object(self):
     return self.main_code_object
+
+  def get_recirculate_signal(self, stage_id):
+    """ generate / retrieve the signal used to recirculate
+        register at pipeline stage <stage_id> """
+    return self.recirculate_signal_map[stage_id]
 
 
   ## generate VHDL code for entity implenetation 
@@ -424,7 +438,7 @@ class ML_EntityBasis(object):
     #    )
     
     if self.pipelined:
-        self.stage_num = generate_pipeline_stage(self)
+        self.stage_num = generate_pipeline_stage(self, reset=self.reset_pipeline, recirculate=self.recirculate_pipeline)
     else:
         self.stage_num = 1
     Log.report(Log.Info, "there is/are {} pipeline stage(s)".format(self.stage_num)) 
