@@ -414,7 +414,7 @@ class AbstractOperation(ML_Operation):
     ## Add an extra (hidden) input to the operand's standard input
     def add_to_extra_inputs(self, extra_input):
         self.extra_inputs.append(extra_input)
-        
+
 
     ## change the node to mirror optree
     # by copying class, attributes, arity and inputs from optree to self
@@ -427,28 +427,34 @@ class AbstractOperation(ML_Operation):
         if isinstance(optree, SpecifierOperation):
             self.specifier = optree.specifier
 
+    def __str__(self):
+        """ Default conversion of a ML_Operation object to a string """
+        return self.get_str(display_precision=True)
 
-    ## string conversion 
+
+    ## string conversion
     #  @param  depth [integer/None] node depth where the display recursion stops
     #  @param  display_precision [boolean] enable/display node's precision display
     #  @param  tab_level number of tab to be inserted left to node's description
-    #  @param  memoization_map [dict] hastable to store previously described node (already generated node tag will be use rather than copying the full description)
+    #  @param  memoization_map [dict] hastable to store previously described
+    #          node (already generated node tag will be use rather than copying
+    #          the full description)
     #  @param  display_attribute [boolean] enable/disable display of node's attributes
     #  @param  display_id [boolean]  enable/disbale display of unique node identified
     #  @return a string describing the node
     def get_str(
-            self, depth = 2, display_precision = False, 
-            tab_level = 0, memoization_map = None, 
+            self, depth = 2, display_precision = False,
+            tab_level = 0, memoization_map = None,
             display_attribute = False, display_id = False,
             custom_callback = lambda op: "",
         ):
         memoization_map = {} if memoization_map is None else memoization_map
-        new_depth = None 
+        new_depth = None
         if depth != None:
-            if  depth < 0: 
-                return "" 
+            if  depth < 0:
+                return ""
         new_depth = (depth - 1) if depth != None else None
-            
+
         tab_str = AbstractOperation.str_del * tab_level + custom_callback(self)
         silent_str = "[S]" if self.get_silent() else ""
         dbg_str = "[DBG]" if self.get_debug() else ""

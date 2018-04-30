@@ -222,7 +222,11 @@ class CCodeGenerator(object):
               # TODO To be refined (for example Constant(True)
               #      should be associated with likely True
               cond_likely = None
-              Log.report(Log.Warning, " the following condition has no (usable) likely attribute: %s" % (condition.get_str(depth = 1, display_precision = True, memoization_map = {}))) 
+              Log.report(
+                Log.Warning,
+                " The following condition has no (usable) likely attribute: {}",
+                condition,
+              )
             if cond_likely in [True, False]:
                 code_object << "\nif (__builtin_expect(%s, %d)) " % (cond_code.get(), {True: 1, False: 0}[condition.get_likely()])
             else:
