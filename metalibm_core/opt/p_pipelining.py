@@ -177,7 +177,7 @@ def retime_op(op, retime_map):
     retime_map.addToProcessed(op)
 
 
-def generate_pipeline_stage(entity):
+def generate_pipeline_stage(entity, reset=False, recirculate=False):
     """ Process a entity to generate pipeline stages required """
     retiming_map = {}
     retime_map = RetimeMap()
@@ -192,26 +192,55 @@ def generate_pipeline_stage(entity):
     clk = entity.get_clk_input()
     clock_statement = Statement()
     for stage_id in sorted(retime_map.stage_forward.keys()):
-            stage_statement = Statement(
-                *tuple(assign for assign in retime_map.stage_forward[stage_id]))
-            clock_statement.add(stage_statement)
-    # To meet simulation / synthesis tools, we build
-    # a single if clock predicate block which contains all
-    # the stage register allocation
-    clock_block = ConditionBlock(
-        LogicalAnd(
-            Event(clk, precision=ML_Bool),
-            Comparison(
-                clk,
-                Constant(1, precision=ML_StdLogic),
-                specifier=Comparison.Equal,
+        stage_statement = Statement(
+            *tuple(assign for assign in retime_map.stage_forward[stage_id]))
+
+        if reset:
+            reset_statement = Statement()
+            for assign in retime_map.stage_forward[stage_id]:
+                target = assign.get_input(0)
+                reset_value = Constant(0, precision=target.get_precision())
+                reset_statement.push(ReferenceAssign(target, reset_value))
+
+            if recirculate:
+                # inserting recirculation condition
+                recirculate_signal = entity.get_recirculate_signal(stage_id) 
+                stage_statement = ConditionBlock(
+                    Comparison(
+                        recirculate_signal,
+                        Constant(0, precision=recirculate_signal.get_precision()),
+                        specifier=Comparison.Equal,
+                        precision=ML_Bool
+                    ),
+                    stage_statement
+                )
+                
+            stage_statement = ConditionBlock(
+                Comparison(
+                    entity.reset_signal, Constant(1, precision=ML_StdLogic), specifier=Comparison.Equal, precision=ML_Bool
+                ),
+                reset_statement,
+                stage_statement
+            )
+
+        # To meet simulation / synthesis tools, we build
+        # a single if clock predicate block per stage
+        clock_block = ConditionBlock(
+            LogicalAnd(
+                Event(clk, precision=ML_Bool),
+                Comparison(
+                    clk,
+                    Constant(1, precision=ML_StdLogic),
+                    specifier=Comparison.Equal,
+                    precision=ML_Bool
+                ),
                 precision=ML_Bool
             ),
-            precision=ML_Bool
-        ),
-        clock_statement
-    )
-    process_statement.add(clock_block)
+            stage_statement
+        )
+
+        clock_statement.add(clock_block)
+    process_statement.add(clock_statement)
     pipeline_process = Process(process_statement, sensibility_list=[clk])
     for op in retime_map.pre_statement:
         pipeline_process.add_to_pre_statement(op)
