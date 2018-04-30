@@ -107,7 +107,7 @@ def solve_equal_formats(optree_list):
     )
 
     if format_reduced is None:
-        Log.report(Log.Info, "Precision of every item in following list is None:\n",
+        Log.report(Log.Info, "Precision of every item in following list is None:\n")
         for op in optree_list:
             Log.report(Log.Info, "\t{}", op)
         return None
