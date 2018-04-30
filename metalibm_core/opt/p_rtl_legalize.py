@@ -42,7 +42,7 @@ from metalibm_core.core.ml_hdl_operations import SubSignalSelection
 from metalibm_core.core.ml_hdl_format import is_fixed_point
 
 from metalibm_core.opt.p_size_datapath import (
-    solve_format_Comparison, solve_format_rec
+    solve_format_Comparison, FormatSolver
 )
 
 from metalibm_core.core.legalizer import (
@@ -88,7 +88,7 @@ def legalize_Comparison(optree):
     return optree
 
 
-def legalize_single_operation(optree):
+def legalize_single_operation(optree, format_solver=None):
     if isinstance(optree, SubSignalSelection):
         new_optree = subsignalsection_legalizer(optree)
         return True, new_optree
@@ -103,39 +103,14 @@ def legalize_single_operation(optree):
         return True, new_optree
     elif isinstance(optree, Min):
         new_optree = minmax_legalizer_wrapper(Comparison.Less)(optree)
-        solve_format_rec(new_optree)
+        format_solver(new_optree)
         return True, new_optree
     elif isinstance(optree, Max):
         new_optree = minmax_legalizer_wrapper(Comparison.Greater)(optree)
-        solve_format_rec(new_optree)
+        format_solver(new_optree)
         return True, new_optree
     return False, optree
 
-
-def legalize_operation_rec(optree, memoization_map = None):
-    """ """
-    memoization_map = {} if memoization_map is None else memoization_map
-
-    # looking into memoization map
-    if optree in memoization_map:
-        return optree
-
-    # has the npde been modified ?
-    arg_changed = False
-
-    if isinstance(optree, ML_LeafNode):
-        pass
-    else:
-        for index, op_input in enumerate(optree.get_inputs()):
-            is_modified, new_node = legalize_operation_rec(op_input)
-            if is_modified:
-                optree.set_input(index, new_node)
-                arg_changed = True
-
-    local_changed, new_optree = legalize_single_operation(optree)
-
-    memoization_map[optree] = optree 
-    return local_changed or arg_changed, new_optree
 
 
 ## Legalize the precision of a datapath by finely tuning the size
@@ -147,10 +122,36 @@ class Pass_RTLLegalize(OptreeOptimization):
     def __init__(self, target):
         """ pass initialization """
         OptreeOptimization.__init__(self, "rtl_Legalize", target)
+        self.memoization_map = {}
+        self.format_solver = FormatSolver()
+
+    def legalize_operation_rec(self, optree):
+        """ """
+        # looking into memoization map
+        if optree in self.memoization_map:
+            return False, self.memoization_map[optree]
+
+        # has the npde been modified ?
+        arg_changed = False
+
+        if isinstance(optree, ML_LeafNode):
+            pass
+        else:
+            for index, op_input in enumerate(optree.get_inputs()):
+                is_modified, new_node = self.legalize_operation_rec(op_input)
+                if is_modified:
+                    optree.set_input(index, new_node)
+                    arg_changed = True
+
+        local_changed, new_optree = legalize_single_operation(optree, self.format_solver)
+
+        self.memoization_map[optree] = new_optree 
+        return (local_changed or arg_changed), new_optree
+
 
     def execute(self, optree):
         """ pass execution """
-        return legalize_operation_rec(optree, {})
+        return self.legalize_operation_rec(optree)
 
 Log.report(LOG_PASS_INFO, "Registering size_datapath pass")
 # register pass
