@@ -329,20 +329,14 @@ class VHDLCodeGenerator(object):
                 condition
               )
             code_object << "if %s then\n " % cond_code.get()
-            #self.open_memoization_level()
-            #code_object.open_level()
             code_object.inc_level()
             if_branch_code = self.generate_expr(code_object, if_branch, folded = False, language = language)
             code_object.dec_level()
-            #code_object.close_level(cr = "")
-            #self.close_memoization_level()
             if else_branch:
-                code_object << " else "
-                #code_object.open_level()
-                #self.open_memoization_level()
+                code_object << " else\n "
+                code_object.inc_level()
                 else_branch_code = self.generate_expr(code_object, else_branch, folded = True, language = language)
-                #code_object.close_level()
-                #self.close_memoization_level()
+                code_object.dec_level()
             else:
                #  code_object << "\n"
                pass
