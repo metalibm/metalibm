@@ -261,7 +261,8 @@ class ML_EntityBasis(object):
       pass_dep = AfterPassById(pass_object.get_pass_id())
 
     # TODO/FIXME: can be overloaded
-    self.reset_signal = self.implementation.add_input_signal("reset", ML_StdLogic)
+    if  self.reset_pipeline:
+        self.reset_signal = self.implementation.add_input_signal("reset", ML_StdLogic)
     self.recirculate_signal_map = {}
 
   def get_pass_scheduler(self):
