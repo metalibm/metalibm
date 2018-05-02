@@ -567,6 +567,68 @@ class ML_EntityBasis(object):
     """ Generic initialization of test case generator """
     return
 
+  def implement_test_case(self, io_map, input_values, output_signals, output_values, time_step):
+      """ Implement the test case check and assertion whose I/Os values
+          are described in input_values and output_values dict """
+      test_statement = Statement()
+      input_msg = ""
+      # Adding input setting
+      for input_tag in input_values:
+        input_signal = io_map[input_tag]
+        # FIXME: correct value generation depending on signal precision
+        input_value = input_values[input_tag]
+        test_statement.add(ReferenceAssign(input_signal, Constant(input_value, precision = input_signal.get_precision())))
+        value_msg = input_signal.get_precision().get_cst(input_value, language = VHDL_Code).replace('"',"'")
+        value_msg += " / " + hex(input_signal.get_precision().get_base_format().get_integer_coding(input_value))
+        input_msg += " {}={} ".format(input_tag, value_msg)
+      test_statement.add(Wait(time_step * self.stage_num))
+
+      # Adding output value comparison
+      for output_tag in output_signals:
+        output_signal = output_signals[output_tag]
+        output_value  = Constant(output_values[output_tag], precision = output_signal.get_precision())
+        output_precision = output_signal.get_precision()
+        expected_dec = output_precision.get_cst(output_values[output_tag], language = VHDL_Code).replace('"',"'")
+        expected_hex = " / " + hex(output_precision.get_base_format().get_integer_coding(output_values[output_tag]))
+        value_msg = "{} / {}".format(expected_dec, expected_hex)
+
+        test_pass_cond = Comparison(
+            output_signal,
+            output_value,
+            specifier=Comparison.Equal,
+            precision=ML_Bool
+        )
+
+        check_statement = ConditionBlock(
+            LogicalNot(
+                test_pass_cond,
+                precision = ML_Bool
+            ),
+            Report(
+                Concatenation(
+                    " result for {}: ".format(output_tag),
+                    Conversion(
+                        TypeCast(
+                            output_signal,
+                            precision = ML_StdLogicVectorFormat(
+                                output_signal.get_precision().get_bit_size()
+                            )
+                         ),
+                        precision = ML_String
+                        ),
+                    precision = ML_String
+                )
+            )
+        )
+        test_statement.add(check_statement)
+        assert_statement = Assert(
+          test_pass_cond,
+          "\"unexpected value for inputs {input_msg}, output {output_tag}, expecting {value_msg}, got: \"".format(input_msg = input_msg, output_tag = output_tag, value_msg = value_msg),
+          severity = Assert.Failure
+        )
+        test_statement.add(assert_statement)
+      return test_statement
+
   def generate_auto_test(self, test_num = 10, test_range = Interval(-1.0, 1.0), debug = False, time_step = 10):
     """ time_step: duration of a stage (in ns) """
     # instanciating tested component
@@ -626,67 +688,9 @@ class ML_EntityBasis(object):
     tc_list = [compute_results(tc) for tc in tc_list]
 
     for input_values, output_values in tc_list:
-      input_msg = ""
-
-      # Adding input setting
-      for input_tag in input_values:
-        input_signal = io_map[input_tag]
-        # FIXME: correct value generation depending on signal precision
-        input_value = input_values[input_tag]
-        test_statement.add(ReferenceAssign(input_signal, Constant(input_value, precision = input_signal.get_precision())))
-        value_msg = input_signal.get_precision().get_cst(input_value, language = VHDL_Code).replace('"',"'")
-        value_msg += " / " + hex(input_signal.get_precision().get_base_format().get_integer_coding(input_value))
-        input_msg += " {}={} ".format(input_tag, value_msg)
-      test_statement.add(Wait(time_step * self.stage_num))
-      # Adding output value comparison
-      for output_tag in output_signals:
-        output_signal = output_signals[output_tag]
-        output_value  = Constant(output_values[output_tag], precision = output_signal.get_precision())
-        output_precision = output_signal.get_precision()
-        expected_dec = output_precision.get_cst(output_values[output_tag], language = VHDL_Code).replace('"',"'")
-        expected_hex = " / " + hex(output_precision.get_base_format().get_integer_coding(output_values[output_tag]))
-        value_msg = "{} / {}".format(expected_dec, expected_hex)
-
-        test_pass_cond = Comparison(
-            output_signal,
-            output_value,
-            specifier=Comparison.Equal,
-            precision=ML_Bool
-        )
-
-        test_statement.add(
-            ConditionBlock(
-                LogicalNot(
-                    test_pass_cond,
-                    precision = ML_Bool
-                ),
-                Report(
-                    Concatenation(
-                        " result for {}: ".format(output_tag),
-                        Conversion(
-                            TypeCast(
-                                output_signal,
-                                precision = ML_StdLogicVectorFormat(
-                                    output_signal.get_precision().get_bit_size()
-                                )
-                             ),
-                            precision = ML_String
-                            ),
-                        precision = ML_String
-                    )
-                )
-            )
-        )
-        test_statement.add(
-          Assert(
-            test_pass_cond,
-            "\"unexpected value for inputs {input_msg}, output {output_tag}, expecting {value_msg}, got: \"".format(input_msg = input_msg, output_tag = output_tag, value_msg = value_msg),
-            severity = Assert.Failure
-          )
-        )
-
-
-
+      test_statement.add(
+          self.implement_test_case(io_map, input_values, output_signals, output_values, time_step)
+      )
 
     testbench = CodeEntity("testbench") 
     test_process = Process(
