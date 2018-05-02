@@ -97,7 +97,12 @@ class Log(object):
         return Log.filter_log_level(Log.enabled_levels, level)
 
     @staticmethod
-    def report(level, msg, eol = "\n", error=None, *args, **kw):
+    def report_custom(level, msg, eol="\n", error=None):
+        return Log.report(level, msg + eol, error=error)
+
+    @staticmethod
+    def report(level, msg, *args, **kw):
+        error = kw.pop("error", None)
         """ report log message """
         if Log.log_stream:
             Log.log_stream.write(msg.format(*args, **kw) + eol)
