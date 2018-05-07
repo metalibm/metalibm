@@ -239,16 +239,26 @@ def copy_sign_generator(optree):
 
 
 def sub_signal_generator(optree):
-    sign_input = optree.get_input(0)
+    op = optree.get_input(0)
     inf_index = evaluate_cst_graph(optree.get_inf_index())
     sup_index = evaluate_cst_graph(optree.get_sup_index())
-    range_direction = "to" if (inf_index == sup_index) else "downto"
-    return TemplateOperator(
-        "%s({sup_index} {direction} {inf_index})".format(
-            inf_index=inf_index, direction=range_direction,
-            sup_index=sup_index
-        ), arity=1, force_folding=True
-    )
+    if isinstance(op, Constant):
+        assert sup_index >= inf_index
+        value = op.get_value()
+        code_value = (value >> inf_index) & (2**(sup_index-inf_index+1) - 1)
+        return TemplateOperator(
+            ("\"{:0%db}\"" % (sup_index - inf_index + 1)).format(code_value),
+            arity=0, force_folding=True
+        )
+
+    else:
+        range_direction = "to" if (inf_index > sup_index) else "downto"
+        return TemplateOperator(
+            "%s({sup_index} {direction} {inf_index})".format(
+                inf_index=inf_index, direction=range_direction,
+                sup_index=sup_index
+            ), arity=1, force_folding=True
+        )
 
 def integer2fixed_conversion_modifier(optree):
     cst_graph = optree.get_input(0)
