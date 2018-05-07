@@ -407,14 +407,7 @@ class VHDLCodeGenerator(object):
             # linearizing table selection
             for tabid, value in enumerate(table.get_data()):
               code_object << "\t{} when {},\n".format(table.get_precision().get_storage_precision().get_cst(value),index.get_precision().get_cst(tabid))
-            # last_index = table_size - 1
-            # last cell
-            # code_object << "\t{} when {}".format(table.get_precision().get_storage_precision().get_cst(table.get_data()[last_index]),index.get_precision().get_cst(last_index))
 
-            #if 2**int(sollya.log2(table_size)) == table_size:
-            #  code_object << ";\n"
-            #else:
-            #  code_object << ",\n\t{} when others;\n".format(table.get_precision().get_storage_precision().get_cst(default_value))
             code_object << "\t{} when others;\n".format(table.get_precision().get_storage_precision().get_cst(default_value))
 
              # result is set 
