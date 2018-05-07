@@ -49,7 +49,7 @@ from metalibm_core.core.ml_hdl_operations import (
     Process, Signal, Wait, Report, Concatenation, Assert
 )
 from metalibm_core.core.ml_formats import (
-    ML_Binary32, ML_Bool, ML_String, ML_FP_Format
+    ML_Binary32, ML_Bool, ML_String, ML_FP_Format, ML_Fixed_Format
 )
 from metalibm_core.core.ml_table import ML_Table
 from metalibm_core.core.ml_complex_formats import ML_Mpfr_t
