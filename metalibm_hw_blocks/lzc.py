@@ -150,6 +150,9 @@ class ML_LeadingZeroCounter(ML_Entity("ml_lzc")):
 
   standard_test_cases =[sollya_parse(x) for x in  ["1.1", "1.5"]]
 
+# memoization map for ML_LeadingZeroCounter component objects
+LZC_COMPONENT_MAP = {}
+
 def vhdl_legalize_count_leading_zeros(optree):
     """ Legalize a CountLeadingZeros node into a valid vhdl 
         implementation
@@ -163,13 +166,18 @@ def vhdl_legalize_count_leading_zeros(optree):
     lzc_format = optree.get_precision()
     lzc_input = optree.get_input(0)
     lzc_width = lzc_input.get_precision().get_bit_size()
+    lzc_component_key = lzc_format, lzc_width
+    if lzc_component_key in LZC_COMPONENT_MAP:
+        lzc_component = LZC_COMPONENT_MAP[lzc_component_key]
+    else:
+        lzc_args = ML_LeadingZeroCounter.get_default_args(width = lzc_width)
+        LZC_entity = ML_LeadingZeroCounter(lzc_args)
+        lzc_entity_list = LZC_entity.generate_scheme()
+        lzc_implementation = LZC_entity.get_implementation()
 
-    lzc_args = ML_LeadingZeroCounter.get_default_args(width = lzc_width)
-    LZC_entity = ML_LeadingZeroCounter(lzc_args)
-    lzc_entity_list = LZC_entity.generate_scheme()
-    lzc_implementation = LZC_entity.get_implementation()
+        lzc_component = lzc_implementation.get_component_object()
 
-    lzc_component = lzc_implementation.get_component_object()
+        LZC_COMPONENT_MAP[lzc_component_key] = lzc_component
 
     lzc_tag = optree.get_tag() if not optree.get_tag() is None else "lzc_signal"
 
@@ -183,7 +191,7 @@ def vhdl_legalize_count_leading_zeros(optree):
         lzc_component(io_map = {
             "x": lzc_input, 
             "vr_out": lzc_signal
-        }, tag = "lzc_i"), tag = "place_holder"
+        }), tag = "place_holder"
     )
     # returing PlaceHolder as valid leading zero count result
     return lzc_value
