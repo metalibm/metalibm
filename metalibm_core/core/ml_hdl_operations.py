@@ -172,6 +172,7 @@ class RangeLoop(Loop):
     return self.loop_range
 
 class ComponentInstance(AbstractOperationConstructor("ComponentInstance")):
+  """ Instance of a sub-component """
   def __init__(self, component_object, *args, **kwords):
     ComponentInstance.__base__.__init__(self, *args, **kwords)
     self.component_object = component_object
@@ -204,6 +205,7 @@ class ComponentInstance(AbstractOperationConstructor("ComponentInstance")):
     return self.io_map
 
 class ComponentObject(object):
+  """ Type object for a sub-component """
   ##
   # name (str) name of the component
   # @param io_map is a dict <Signal, Signal.Specifier>
