@@ -825,6 +825,8 @@ vhdl_code_generation_table = {
             lambda optree: True: {
                 type_custom_match(MCFixedPoint, MCFixedPoint):
                     handle_LZC_legalizer,
+                type_custom_match(MCSTDLOGICV, MCSTDLOGICV):
+                    handle_LZC_legalizer,
             }
         },
     },
