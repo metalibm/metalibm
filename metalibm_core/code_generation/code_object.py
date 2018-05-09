@@ -850,6 +850,9 @@ class NestedCode(object):
         else:
           return self.code_list[0].get_free_var_name(var_type, prefix, declare, var_ctor)
 
+    def get_free_name(self, var_type, prefix="tmps"):
+        return self.code_list[0].get_free_name(var_type, prefix)
+
     def get_free_signal_name(self, signal_type, prefix = "stmp", declare = True):
         return self.code_list[0].get_free_signal_name(signal_type, prefix, declare)
 
