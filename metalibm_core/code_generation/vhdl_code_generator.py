@@ -300,6 +300,8 @@ class VHDLCodeGenerator(object):
             component_tag = optree.get_tag()
             if component_tag is None:
               component_tag = "{component_name}_i{instance_id}".format(component_name = component_name, instance_id = optree.get_instance_id())
+            # component tag uniquifying
+            component_tag = code_object.get_free_name(component_object, prefix=component_tag)
             mapped_io = {}
             for io_tag in io_map:
               mapped_io[io_tag] = self.generate_expr(code_object, io_map[io_tag], folded = True, language = language)
