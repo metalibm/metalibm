@@ -170,7 +170,7 @@ def vhdl_legalize_count_leading_zeros(optree):
     if lzc_component_key in LZC_COMPONENT_MAP:
         lzc_component = LZC_COMPONENT_MAP[lzc_component_key]
     else:
-        lzc_args = ML_LeadingZeroCounter.get_default_args(width = lzc_width)
+        lzc_args = ML_LeadingZeroCounter.get_default_args(width=lzc_width)
         LZC_entity = ML_LeadingZeroCounter(lzc_args)
         lzc_entity_list = LZC_entity.generate_scheme()
         lzc_implementation = LZC_entity.get_implementation()

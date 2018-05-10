@@ -31,6 +31,7 @@ from sollya import Interval
 
 # import meta-function script from metalibm_functions directory
 import metalibm_hw_blocks.lzc
+import metalibm_hw_blocks.lza
 import metalibm_hw_blocks.ml_fp_adder
 import metalibm_hw_blocks.ml_fp_mpfma
 import metalibm_hw_blocks.ml_fixed_mpfma
@@ -88,6 +89,14 @@ new_scheme_function_list = [
     metalibm_hw_blocks.ml_fp_div.FP_Divider,
     [
         {},
+    ]
+  ),
+  EntitySchemeTest(
+    "basic Leading Zero Anticipator",
+    metalibm_hw_blocks.lza.ML_LeadingZeroAnticipator,
+    [
+        {"width": 32}, {"width": 13},
+        {"width": 32, "signed": True}, {"width": 13, "signed": True},
     ]
   ),
 ]
