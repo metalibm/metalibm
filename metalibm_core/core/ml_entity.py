@@ -112,6 +112,67 @@ def generate_random_fixed_value(precision):
 ## @{
 
 
+
+# Helper function for test case implementations
+def get_input_assign(input_signal, input_value):
+    """ Get input assignation statement """
+    input_assign = ReferenceAssign(
+        input_signal,
+        Constant(input_value, precision=input_signal.get_precision())
+    )
+    return input_assign
+
+
+def get_input_msg(input_tag, input_signal, input_value):
+    """ generate input debug message """
+    value_msg = input_signal.get_precision().get_cst(
+      input_value, language = VHDL_Code
+    ).replace('"',"'")
+    value_msg += " / " + hex(
+      input_signal.get_precision().get_base_format().get_integer_coding(input_value)
+    )
+    return " {}={} ".format(input_tag, value_msg)
+
+def get_output_check_statement(output_signal, output_tag, output_value):
+    """ Generate output value check statement """
+    test_pass_cond = Comparison(
+        output_signal,
+        output_value,
+        specifier=Comparison.Equal,
+        precision=ML_Bool
+    )
+
+    check_statement = ConditionBlock(
+        LogicalNot(
+            test_pass_cond,
+            precision = ML_Bool
+        ),
+        Report(
+            Concatenation(
+                " result for {}: ".format(output_tag),
+                Conversion(
+                    TypeCast(
+                        output_signal,
+                        precision = ML_StdLogicVectorFormat(
+                            output_signal.get_precision().get_bit_size()
+                        )
+                     ),
+                    precision = ML_String
+                    ),
+                precision = ML_String
+            )
+        )
+    )
+    return test_pass_cond, check_statement
+
+def get_output_value_msg(output_signal, output_value):
+    """ generate message describing expected output value """
+    output_precision = output_signal.get_precision()
+    expected_dec = output_precision.get_cst(output_value, language=VHDL_Code).replace('"',"'")
+    expected_hex = " / " + hex(output_precision.get_base_format().get_integer_coding(output_value))
+    value_msg = "{} / {}".format(expected_dec, expected_hex)
+    return value_msg
+
 # return a random value in the given @p interval
 # Samplin is done uniformly on value exponent,
 # not on the value itself
@@ -577,49 +638,20 @@ class ML_EntityBasis(object):
         input_signal = io_map[input_tag]
         # FIXME: correct value generation depending on signal precision
         input_value = input_values[input_tag]
-        test_statement.add(ReferenceAssign(input_signal, Constant(input_value, precision = input_signal.get_precision())))
-        value_msg = input_signal.get_precision().get_cst(input_value, language = VHDL_Code).replace('"',"'")
-        value_msg += " / " + hex(input_signal.get_precision().get_base_format().get_integer_coding(input_value))
-        input_msg += " {}={} ".format(input_tag, value_msg)
+        test_statement.add(get_input_assign(input_signal, input_value))
+        input_msg += get_input_msg(input_tag, input_signal, input_value)
+
       test_statement.add(Wait(time_step * self.stage_num))
 
       # Adding output value comparison
       for output_tag in output_signals:
         output_signal = output_signals[output_tag]
-        output_value  = Constant(output_values[output_tag], precision = output_signal.get_precision())
-        output_precision = output_signal.get_precision()
-        expected_dec = output_precision.get_cst(output_values[output_tag], language = VHDL_Code).replace('"',"'")
-        expected_hex = " / " + hex(output_precision.get_base_format().get_integer_coding(output_values[output_tag]))
-        value_msg = "{} / {}".format(expected_dec, expected_hex)
+        output_value = output_values[output_tag]
+        output_cst_value  = Constant(output_value, precision=output_signal.get_precision())
 
-        test_pass_cond = Comparison(
-            output_signal,
-            output_value,
-            specifier=Comparison.Equal,
-            precision=ML_Bool
-        )
+        value_msg = get_output_value_msg(output_signal, output_value)
+        test_pass_cond, check_statement = get_output_check_statement(output_signal, output_tag, output_cst_value)
 
-        check_statement = ConditionBlock(
-            LogicalNot(
-                test_pass_cond,
-                precision = ML_Bool
-            ),
-            Report(
-                Concatenation(
-                    " result for {}: ".format(output_tag),
-                    Conversion(
-                        TypeCast(
-                            output_signal,
-                            precision = ML_StdLogicVectorFormat(
-                                output_signal.get_precision().get_bit_size()
-                            )
-                         ),
-                        precision = ML_String
-                        ),
-                    precision = ML_String
-                )
-            )
-        )
         test_statement.add(check_statement)
         assert_statement = Assert(
           test_pass_cond,
