@@ -59,7 +59,8 @@ from metalibm_core.core.ml_vectorizer import StaticVectorizer
 from metalibm_core.core.precisions import ML_Faithful
 
 from metalibm_core.core.ml_hdl_format import (
-    ML_StdLogicVectorFormat, ML_StdLogic
+    ML_StdLogicVectorFormat, ML_StdLogic,
+    is_fixed_point
 )
 
 from metalibm_core.code_generation.code_object import (
