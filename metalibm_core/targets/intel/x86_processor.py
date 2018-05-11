@@ -1201,6 +1201,24 @@ sse2_c_code_generation_table = {
                     },
         },
     },
+    LogicalOr: {
+        None: {
+            lambda optree: True: {
+                type_strict_match(*(3*(ML_SSE_m128_v4bool,))):
+                    XmmIntrin("_mm_or_si128", arity = 2,
+                              output_precision = ML_SSE_m128_v4bool),
+            },
+        },
+    },
+    LogicalAnd: {
+        None: {
+            lambda optree: True: {
+                type_strict_match(*(3*(ML_SSE_m128_v4bool,))):
+                    XmmIntrin("_mm_and_si128", arity = 2,
+                              output_precision = ML_SSE_m128_v4bool),
+            },
+        },
+    },
     BitLogicLeftShift: {
         None: {
             uniform_shift_check: {
@@ -1317,6 +1335,13 @@ sse2_c_code_generation_table = {
                     XmmIntrin("_mm_set1_epi32", arity = 1),
                 type_strict_match(ML_SSE_m128_v4float32, ML_Binary32):
                     XmmIntrin("_mm_set1_ps", arity = 1),
+                # boolean vectors
+                type_strict_match(v4bool, ML_SSE_m128_v4bool):
+                    TemplateOperatorFormat(
+                        "_mm_store_si128((__m128i*){0}, {1})",
+                        arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)},
+                        void_function = True
+                        ),
             },
         },
     },
