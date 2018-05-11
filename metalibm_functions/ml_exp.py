@@ -37,7 +37,7 @@ from sollya import (
 from metalibm_core.core.ml_operations import (
     Test, RaiseReturn, Comparison, Statement, NearestInteger,
     ConditionBlock, Return, ClearException, ExponentInsertion,
-    Constant, Variable, Addition
+    Constant, Variable, Addition, Subtraction
 )
 from metalibm_core.core.ml_formats import (
     ML_Binary32, ML_Int32,
@@ -193,7 +193,7 @@ class ML_Exponential(ML_FunctionBasis):
         unround_k = vx * invlog2
         unround_k.set_attributes(tag = "unround_k", debug = debug_multi)
         k = NearestInteger(unround_k, precision = self.precision, debug = debug_multi)
-        ik = NearestInteger(unround_k, precision = ML_Int32, debug = debug_multi, tag = "ik")
+        ik = NearestInteger(unround_k, precision = self.precision.get_integer_format(), debug = debug_multi, tag = "ik")
         ik.set_tag("ik")
         k.set_tag("k")
         exact_pre_mul = (k * log2_hi)
@@ -365,8 +365,13 @@ class ML_Exponential(ML_FunctionBasis):
             specifier=Comparison.Greater, likely=False,
             debug=debug_multi, tag="late_overflow_test")
         overflow_exp_offset = (self.precision.get_emax() - self.precision.get_field_size() / 2)
-        diff_k = ik - overflow_exp_offset 
-        diff_k.set_attributes(debug = debug_multi, tag = "diff_k", precision = ML_Int32)
+        diff_k = Subtraction(
+            ik,
+            Constant(overflow_exp_offset, precision=self.precision.get_integer_format()),
+            precision=self.precision.get_integer_format(),
+            debug=debug_multi,
+            tag="diff_k",
+        )
         late_overflow_result = (ExponentInsertion(diff_k, precision = self.precision) * poly) * ExponentInsertion(overflow_exp_offset, precision = self.precision)
         late_overflow_result.set_attributes(silent = False, tag = "late_overflow_result", debug = debug_multi, precision = self.precision)
         late_overflow_return = ConditionBlock(Test(late_overflow_result, specifier = Test.IsInfty, likely = False), ExpRaiseReturn(ML_FPE_Overflow, return_value = FP_PlusInfty(self.precision)), Return(late_overflow_result))
@@ -375,8 +380,12 @@ class ML_Exponential(ML_FunctionBasis):
         underflow_exp_offset = 2 * self.precision.get_field_size()
         corrected_exp = Addition( 
           ik,
-          underflow_exp_offset,
-          precision = ML_Int32
+          Constant(
+            underflow_exp_offset,
+            precision=self.precision.get_integer_format()
+          ),
+          precision=self.precision.get_integer_format(),
+          tag="corrected_exp"
         )
         late_underflow_result = (ExponentInsertion(corrected_exp, precision = self.precision) * poly) * ExponentInsertion(-underflow_exp_offset, precision = self.precision)
         late_underflow_result.set_attributes(debug = debug_multi, tag = "late_underflow_result", silent = False)
