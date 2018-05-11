@@ -63,6 +63,7 @@ from metalibm_core.core.ml_hdl_operations import *
 
 from metalibm_hw_blocks.lzc import ML_LeadingZeroCounter
 
+
 class ML_LeadingZeroAnticipator(ML_Entity("ml_lza")):
     @staticmethod
     def get_default_args(width=32, signed=False):
@@ -76,6 +77,105 @@ class ML_LeadingZeroAnticipator(ML_Entity("ml_lza")):
              width = width,
              signed = signed,
         )
+
+    @staticmethod
+    def generate_lza(lhs_input, rhs_input, lhs_signed=False, rhs_signed=False):
+        """ Generate LZA sub-graph
+            returning POSitive and NEGative leading zero counts,
+            lhs and rhs are assumed to be right aligned (LSB have identical weights) """
+        lhs_size = lhs_input.get_precision().get_bit_size()
+        rhs_size = rhs_input.get_precision().get_bit_size()
+
+        lhs_raw_format = ML_StdLogicVectorFormat(lhs_size)
+        lhs_fixed_format = fixed_point(lhs_size, 0, signed=lhs_signed)
+        rhs_raw_format = ML_StdLogicVectorFormat(rhs_size)
+        rhs_fixed_format = fixed_point(rhs_size, 0, signed=rhs_signed)
+
+        common_size = 1 + max(rhs_size, lhs_size)
+        common_fixed_format = fixed_point(
+            common_size, 0,
+            signed=(lhs_signed or rhs_signed)
+        )
+        common_raw_format = ML_StdLogicVectorFormat(common_size) 
+
+        lhs = TypeCast(
+            Conversion(
+                TypeCast(
+                    lhs_input,
+                    precision=lhs_fixed_format
+                ),
+                precision=common_fixed_format
+            ),
+            precision=common_raw_format
+        )
+        rhs = TypeCast(
+            Conversion(
+                TypeCast(
+                    rhs_input,
+                    precision=rhs_fixed_format
+                ),
+                precision=common_fixed_format
+            ),
+            precision=common_raw_format
+        )
+
+
+        # design based on "1 GHz Leading Zero Anticipator Using Independent
+        #                 Sign-Bit Determination Logic"
+        # by K. T. Lee and K. J. Nowka
+
+        propagate = BitLogicXor(
+            lhs, rhs,
+            tag="propagate",
+            precision=common_raw_format
+        )
+        kill = BitLogicAnd(
+            BitLogicNegate(lhs, precision=common_raw_format),
+            BitLogicNegate(rhs, precision=common_raw_format),
+            tag="kill",
+            precision=common_raw_format
+        )
+        generate_s = BitLogicAnd(
+            lhs, rhs,
+            tag="generate_s",
+            precision=common_raw_format
+        )
+
+        pos_signal = BitLogicNegate(
+            BitLogicXor(
+                SubSignalSelection(propagate, 1, common_size - 1),
+                SubSignalSelection(kill, 0, common_size - 2),
+                precision=ML_StdLogicVectorFormat(common_size - 1)
+            ),
+            tag="pos_signal",
+            debug=debug_std,
+            precision=ML_StdLogicVectorFormat(common_size-1)
+        )
+        neg_signal = BitLogicNegate(
+            BitLogicXor(
+                SubSignalSelection(propagate, 1, common_size - 1),
+                SubSignalSelection(generate_s, 0, common_size - 2),
+                precision=ML_StdLogicVectorFormat(common_size - 1)
+            ),
+            tag="neg_signal",
+            debug=debug_std,
+            precision=ML_StdLogicVectorFormat(common_size - 1)
+        )
+
+        lzc_width = int(floor(log2(common_size-1))) + 1
+        lzc_format = ML_StdLogicVectorFormat(lzc_width)
+
+        pos_lzc = CountLeadingZeros(
+            pos_signal,
+            tag="pos_lzc",
+            precision=lzc_format
+        )
+        neg_lzc = CountLeadingZeros(
+            neg_signal,
+            tag="neg_lzc",
+            precision=lzc_format
+        )
+        return pos_lzc, neg_lzc
 
     def __init__(self, arg_template = None):
         # building default arg_template if necessary
@@ -107,70 +207,8 @@ class ML_LeadingZeroAnticipator(ML_Entity("ml_lza")):
         fixed_precision_ext = fixed_point(ext_width, 0, signed=self.signed)
         input_precision = ML_StdLogicVectorFormat(ext_width)
 
-        vx = TypeCast(
-            Conversion(vx, precision=fixed_precision_ext),
-            precision=input_precision
-        )
-        vy = TypeCast(
-            Conversion(vy, precision=fixed_precision_ext),
-            precision=input_precision
-        )
-
-        # design based on "1 GHz Leading Zero Anticipator Using Independent
-        #                 Sign-Bit Determination Logic"
-        # by K. T. Lee and K. J. Nowka
-
-        propagate = BitLogicXor(
-            vx, vy,
-            tag="propagate",
-            precision=input_precision
-        )
-        kill = BitLogicAnd(
-            BitLogicNegate(vx, precision=input_precision),
-            BitLogicNegate(vy, precision=input_precision),
-            tag="kill",
-            precision=input_precision
-        )
-        generate_s = BitLogicAnd(
-            vx, vy,
-            tag="generate_s",
-            precision=input_precision
-        )
-
-        pos_signal = BitLogicNegate(
-            BitLogicXor(
-                SubSignalSelection(propagate, 1, ext_width - 1),
-                SubSignalSelection(kill, 0, ext_width - 2),
-                precision=ML_StdLogicVectorFormat(ext_width - 1)
-            ),
-            tag="pos_signal",
-            debug=debug_std,
-            precision=ML_StdLogicVectorFormat(ext_width-1)
-        )
-        neg_signal = BitLogicNegate(
-            BitLogicXor(
-                SubSignalSelection(propagate, 1, ext_width - 1),
-                SubSignalSelection(generate_s, 0, ext_width - 2),
-                precision=ML_StdLogicVectorFormat(ext_width-1)
-            ),
-            tag="neg_signal",
-            debug=debug_std,
-            precision=ML_StdLogicVectorFormat(ext_width-1)
-        )
-
-        lzc_width = int(floor(log2(ext_width-1))) + 1
-        Log.report(Log.Info, "width of lzc out is {}".format(lzc_width))
-        lzc_format = ML_StdLogicVectorFormat(lzc_width)
-
-        pos_lzc = CountLeadingZeros(
-            pos_signal,
-            tag="pos_lzc",
-            precision=lzc_format
-        )
-        neg_lzc = CountLeadingZeros(
-            neg_signal,
-            tag="neg_lzc",
-            precision=lzc_format
+        pos_lzc, neg_lzc = ML_LeadingZeroAnticipator.generate_lza(
+            vx, vy, lhs_signed=self.signed, rhs_signed=self.signed
         )
 
         self.implementation.add_output_signal("pos_lzc_o", pos_lzc)
