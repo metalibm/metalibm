@@ -729,6 +729,7 @@ c_code_generation_table = {
             lambda optree: True: {
                 type_strict_match(ML_Binary32, ML_Int32): ML_Utils_Function("ml_exp_insertion_no_offset_fp32", arity = 1), 
                 type_strict_match(ML_Binary64, ML_Int32): ML_Utils_Function("ml_exp_insertion_no_offset_fp64", arity = 1),
+                type_strict_match(ML_Binary64, ML_Int64): ML_Utils_Function("ml_exp_insertion_no_offset_fp64", arity=1),
             },
         },
     },
