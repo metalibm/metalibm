@@ -221,7 +221,7 @@ def conversion_generator(optree):
 #  @param dyn_operator string name of the operation
 def shift_generator(dyn_operator, optree):
     width = optree.get_precision().get_bit_size()
-    return TemplateOperator("conv_std_logic_vector({}(unsigned(%s), unsigned(%s)), {})".format(dyn_operator, width), arity=2, force_folding=True)
+    return TemplateOperator("conv_std_logic_vector({}(unsigned(%s), unsigned(%s)), {})".format(dyn_operator, width), arity=2, force_folding=True, force_input_variable=True)
 
 
 # @p optree 0-th input has ML_Bool precision and must be converted
