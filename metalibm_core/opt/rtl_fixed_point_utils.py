@@ -59,6 +59,10 @@ def test_format_equality(format0, format1):
             (format0.get_signed() == format1.get_signed())
     return False
 
+class FormatSolvingError(Exception):
+    """ unable to solve format """
+    pass
+
 ## generate the minimal format which fits both @p format0 and @p format1
 def largest_format(format0, format1):
     if is_fixed_point(format0) and is_fixed_point(format1):
@@ -93,18 +97,24 @@ def largest_format(format0, format1):
             Log.Error,
             "unable to determine largest format between {} and {}".format(
                 format0, format1
-            ), error=NotImplementedError)
+            ), error=FormatSolvingError)
 
 ## determine if there is a common format
 #  to unify format_list
 def solve_equal_formats(optree_list):
     precision_list = [op.get_precision() for op in optree_list]
 
-    format_reduced = reduce(
-        lambda f0, f1: largest_format(f0, f1),
-        precision_list,
-        precision_list[0]
-    )
+    try:
+        format_reduced = reduce(
+            lambda f0, f1: largest_format(f0, f1),
+            precision_list,
+            precision_list[0]
+        )
+    except FormatSolvingError:
+        print("format solving error optree list is: ")
+        for op in optree_list:
+            print(op.get_str(depth=2, display_precision=True))
+        Log.report(Log.Error, "end of list ", error=FormatSolvingError)
 
     if format_reduced is None:
         Log.report(Log.Info, "Precision of every item in following list is None:\n")

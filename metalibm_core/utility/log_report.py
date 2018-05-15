@@ -41,7 +41,7 @@ class Log(object):
     dump_stdout    = False
     ## disable display of Exception backtrace when Log.Error level message
     #  is display
-    exit_on_error  = True
+    exit_on_error  = False
     ## Tribber PDB break when an Error level message is reported
     break_on_error = False
 
