@@ -279,7 +279,7 @@ class BipartiteApprox(ML_Entity("bipartite_approx")):
         slope_delta = 1.0 / sollya.SollyaObject(2**alpha)
         delta_u = range_size * slope_delta * 2**-15
         Log.report(Log.Info, "computing slope value")
-        for i in xrange(2**alpha):
+        for i in range(2**alpha):
             # slope is computed at the middle of range_size interval
             slope_x = range_lo + (i+0.5) * range_size * slope_delta
             # TODO: gross approximation of derivatives
@@ -296,7 +296,7 @@ class BipartiteApprox(ML_Entity("bipartite_approx")):
             offset_x = 0.5 * range_rcp_steps * range_size
             # initial value is computed so that the piecewise linear
             # approximation intersects the function at iv_x + offset_x
-            iv_y = self.function(iv_x + offset_x) - offset_x * slope_table[slope_index]
+            iv_y = self.function(iv_x + offset_x) - offset_x * slope_table[int(slope_index)]
             initial_value = storage_format.round_sollya_object(iv_y)
             table_iv[i] = initial_value
 
@@ -321,7 +321,7 @@ class BipartiteApprox(ML_Entity("bipartite_approx")):
         # determining table of offset interval
         to_min = table_offset[0]
         to_max = table_offset[0]
-        for i in xrange(1, 2**(alpha+gamma)):
+        for i in range(1, 2**(alpha+gamma)):
             to_min = min(to_min, table_offset[i])
             to_max = max(to_max, table_offset[i])
         offset_interval = Interval(to_min, to_max)
@@ -340,7 +340,7 @@ class BipartiteApprox(ML_Entity("bipartite_approx")):
         table_offset.set_precision(offset_precision)
 
         # rounding table value
-        for i in xrange(1, 2**(alpha+gamma)):
+        for i in range(1, 2**(alpha+gamma)):
             table_offset[i] = offset_precision.round_sollya_object(table_offset[i])
 
         offset_value = TableLoad(
@@ -383,12 +383,12 @@ class BipartiteApprox(ML_Entity("bipartite_approx")):
                     local_error = abs(1 / (table_x) - approx_value)
                     approx_error = max(approx_error, local_error) 
         error_log2 = float(sollya.log2(approx_error))
-        print "approx_error is {}, error_log2 is {}".format(float(approx_error), error_log2)
+        print("approx_error is {}, error_log2 is {}".format(float(approx_error), error_log2))
 
         # table size
         table_iv_size = 2**(alpha+beta)
         table_offset_size = 2**(alpha+gamma)
-        print "tables' size are {} entries".format(table_iv_size + table_offset_size) 
+        print("tables' size are {} entries".format(table_iv_size + table_offset_size)) 
 
         return [self.implementation]
 
@@ -431,7 +431,7 @@ class BipartiteApprox(ML_Entity("bipartite_approx")):
             self.precision.get_frac_size(),
             rnd_mode
         )
-        print "numeric_emulate, ", io_map, result
+        print("numeric_emulate, ", io_map, result)
         return result
 
 

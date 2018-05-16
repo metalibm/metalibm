@@ -64,6 +64,8 @@ from .opt_utils import evaluate_range
 
 from metalibm_core.utility.decorator import safe
 
+from functools import reduce
+
 # The pass implemented in this file processes an optree and replaces
 #  each None precision by a std_logic_vector's like precision whose
 #  size has been adapted to avoid overflow
