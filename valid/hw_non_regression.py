@@ -36,6 +36,7 @@ import metalibm_hw_blocks.ml_fp_adder
 import metalibm_hw_blocks.ml_fp_mpfma
 import metalibm_hw_blocks.ml_fixed_mpfma
 import metalibm_hw_blocks.ml_fp_div
+import metalibm_hw_blocks.bipartite_approx
 
 from metalibm_core.core.ml_formats import  \
   ML_Binary16, ML_Binary32, ML_Binary64, ML_Int32
@@ -87,6 +88,13 @@ new_scheme_function_list = [
   EntitySchemeTest(
     "floating-point division",
     metalibm_hw_blocks.ml_fp_div.FP_Divider,
+    [
+        {},
+    ]
+  ),
+  EntitySchemeTest(
+    "bipartite approximation operator",
+    metalibm_hw_blocks.bipartite_approx.BipartiteApprox,
     [
         {},
     ]
