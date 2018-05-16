@@ -73,11 +73,24 @@ from metalibm_core.utility.rtl_debug_utils import (
     debug_fixed, debug_dec, debug_std, debug_hex
 )
 
-from metalibm_core.targets.kalray.k1c_fp_utils import (
-    rnd_mode_format, rnd_rne, rnd_ru, rnd_rd, rnd_rz
-)
 
 from metalibm_core.opt.opt_utils import evaluate_range
+
+# Rounding mode is one of:
+# 00: Rounding to nearest, ties to Even
+# 01: Rounding Up   (towards +infinity)
+# 10: Rounding Down (towards -infinity)
+# 11: Rounding Towards Zero
+rnd_mode_format = ML_StdLogicVectorFormat(2)
+rnd_rne = Constant(0, precision=rnd_mode_format, tag="rnd_rne")
+rnd_ru  = Constant(1, precision=rnd_mode_format, tag="rnd_ru")
+rnd_rd  = Constant(2, precision=rnd_mode_format, tag="rnd_rd")
+rnd_rz  = Constant(3, precision=rnd_mode_format, tag="rnd_rz")
+# because this module is imported before any scheme is generated, we
+# need to make sure extra attributes required for pipelining (namely
+#  init_stage and init_op) are properly initialized to a default value
+for cst in [rnd_rne, rnd_ru, rnd_rd, rnd_rz]:
+    cst.set_attributes(init_stage=None, init_op=None)
 
 def get_virtual_cst(prec, value, language):
     """ Generate coding of constant <value> in language assuming
