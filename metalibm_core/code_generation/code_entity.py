@@ -34,6 +34,8 @@
 #              entity
 ###############################################################################
 
+from metalibm_core.utility.log_report import Log
+
 from ..core.ml_operations import AbstractVariable, Variable, FunctionObject, Statement, ReferenceAssign
 from ..core.ml_hdl_operations import Signal, ComponentObject
 from .code_object import NestedCode
@@ -93,8 +95,13 @@ class CodeEntity(object):
     output_var = Signal(name, precision = output_node.get_precision(), var_type = Signal.Output)
     output_assign = ReferenceAssign(output_var, output_node)
     if name in self.output_map:
-        Log.report(Log.error, "pre-existing name {} in output_map".format(name))
+        Log.report(Log.Error, "pre-existing name {} in output_map".format(name))
     self.output_map[name] = output_assign
+  def set_output_signal(self, name, output_node):
+    """ Update the node associated with the output with name @p name """
+    if not name in self.output_map:
+        Log.report(Log.Error, "[set_output_signal] name {} not in output_map", name)
+    self.output_map[name].set_input(1, output_node)
 
   def get_input_by_tag(self, tag):
     if tag in self.arg_map:
