@@ -100,13 +100,39 @@ class ML_LeadingZeroCounter(ML_Entity("ml_lzc")):
     result["vr_out"] = count_leading_zero(io_map["x"], self.width)
     return result
 
-  def generate_scheme(self):
-    lzc_width = int(floor(log2(self.width))) + 1
-    Log.report(Log.Info, "width of lzc out is {}".format(lzc_width))
-    input_precision = ML_StdLogicVectorFormat(self.width)
-    precision = ML_StdLogicVectorFormat(lzc_width)
+  @staticmethod
+  def get_lzc_output_width(width):
+    """ Compute the size of a standard leading zero count result for
+        a width-bit output
+
+        @param width [int] input width
+        @return output width (in bits) """
+    return int(floor(log2(width))) + 1
+
+  def generate_interfaces(self):
     # declaring main input variable
+    input_precision = ML_StdLogicVectorFormat(self.width)
     vx = self.implementation.add_input_signal("x", input_precision) 
+    # declaring main output
+    lzc_width = ML_LeadingZeroCounter.get_lzc_output_width(self.width)
+    Log.report(Log.Info, "width of lzc out is {}".format(lzc_width))
+    precision = ML_StdLogicVectorFormat(lzc_width)
+    dummy_output = Signal("lzc", precision=precision, var_type=Variable.Local)
+    self.implementation.add_output_signal("vr_out", dummy_output)
+    self.input_vx = vx
+    return vx
+
+
+
+  def generate_scheme(self, skip_interface_gen=False):
+    # retrieving I/Os
+    if skip_interface_gen:
+        vx = self.input_vx
+    else:
+        vx = self.generate_interfaces()
+
+    lzc_width = ML_LeadingZeroCounter.get_lzc_output_width(self.width)
+    precision = ML_StdLogicVectorFormat(lzc_width)
     vr_out = Signal("lzc", precision = precision, var_type = Variable.Local)
     tmp_lzc = Variable("tmp_lzc", precision = precision, var_type = Variable.Local)
     iterator = Variable("i", precision = ML_Integer, var_type = Variable.Local)
@@ -144,7 +170,7 @@ class ML_LeadingZeroCounter(ML_Entity("ml_lzc")):
 
     self.implementation.add_process(lzc_process)
 
-    self.implementation.add_output_signal("vr_out", vr_out)
+    self.implementation.set_output_signal("vr_out", vr_out)
 
     return [self.implementation]
 
