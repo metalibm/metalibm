@@ -338,6 +338,7 @@ class ML_EntityBasis(object):
     return DefaultEntityArgTemplate(**kw)
 
   def get_implementation(self):
+    """ return meta-entity CodeEntity object """
     return self.implementation
 
   ## name generation
