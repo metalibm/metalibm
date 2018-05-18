@@ -58,6 +58,7 @@ import metalibm_hw_blocks.unit_tests.fixed_point_position as ut_fixed_point_posi
 import metalibm_hw_blocks.unit_tests.ut_special_values as ut_special_values
 import metalibm_hw_blocks.unit_tests.min_max_select as ut_min_max_select
 import metalibm_hw_blocks.unit_tests.unify_pipeline as ut_unify_pipeline
+import metalibm_hw_blocks.unit_tests.sub_components as ut_sub_components
 
 unit_test_list = [
   UnitTestScheme(
@@ -93,6 +94,11 @@ unit_test_list = [
   UnitTestScheme(
     "pipeline unification pass test",
     ut_unify_pipeline,
+    [{}]
+  ),
+  UnitTestScheme(
+    "sub-component instanciation",
+    ut_sub_components,
     [{}]
   ),
 ]
