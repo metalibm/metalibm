@@ -414,10 +414,11 @@ def solve_format_SubSignalSelection(optree, format_solver):
         if is_fixed_point(input_prec):
             frac_size = input_prec.get_frac_size() - inf_index
             integer_size = input_prec.get_integer_size() - (input_prec.get_bit_size() - 1 - sup_index)
+            if frac_size + integer_size <= 0:
+                Log.report(Log.Error, "range determined for SubSignalSelection format [{}:{}] has negative size: {}, optree is {}", integer_size, frac_size, integer_size + frac_size, optree)
             return fixed_point(integer_size, frac_size)
         else:
             return ML_StdLogicVectorFormat(sup_index - inf_index + 1)
-            
     else:
         return optree.get_precision()
 
