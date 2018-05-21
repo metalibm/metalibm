@@ -106,6 +106,49 @@ def copy_init_stage(src, dst):
     dst.attributes.init_stage = init_stage
 
 
+def shift_by_cst_legalizer(optree):
+    """ Transform a shift by a constant into a Concatenation of a subsignal
+        selection and a constant """
+    op = optree.get_input(0)
+    shift_amount_node = optree.get_input(1)
+    assert isinstance(shift_amount_node, Constant)
+    shift_amount = shift_amount_node.get_value()
+    full_format = ML_StdLogicVectorFormat(optree.get_precision().get_bit_size())
+    padding_format = ML_StdLogicVectorFormat(shift_amount)
+    if shift_amount == 0:
+        return op
+    else:
+        if isinstance(optree, BitLogicRightShift):
+            lo_index = shift_amount
+            hi_index = op.get_precision().get_bit_size() - 1
+            raw_result = Concatenation(
+                SubSignalSelection(
+                    op,
+                    lo_index,
+                    hi_index
+                ),
+                Constant(0, precision=padding_format),
+                precision=full_format
+            )
+        elif isinstance(optree, BitLogicLeftShift):
+            lo_index = 0
+            hi_index = op.get_precision().get_bit_size() - 1 - shift_amount
+            raw_result = Concatenation(
+                Constant(0, precision=padding_format),
+                SubSignalSelection(
+                    op,
+                    lo_index,
+                    hi_index
+                ),
+                precision=full_format
+            )
+        else:
+            raise NotImplementedError
+        return TypeCast(
+            raw_result,
+            precision=optree.get_precision(),
+        )
+
 def zext_modifier(optree):
     init_stage = optree.attributes.get_dyn_attribute("init_stage")
     ext_input = optree.get_input(0)
@@ -1210,9 +1253,19 @@ vhdl_code_generation_table = {
             lambda optree: True: {
                 type_custom_match(MCSTDLOGICV, MCSTDLOGICV, MCSTDLOGICV):
                     DynamicOperator(lambda optree: shift_generator("shr", optree)),
+                # FIXME/TODO: add is cst check on shift amount (ML_Integer format is not enough)
+                type_custom_match(MCSTDLOGICV, MCSTDLOGICV, FSM(ML_Integer)):
+                    ComplexOperator(optree_modifier=shift_by_cst_legalizer),
+                type_custom_match(MCFixedPoint, MCFixedPoint, FSM(ML_Integer)):
+                    ComplexOperator(optree_modifier=shift_by_cst_legalizer),
+
                 type_custom_match(MCFixedPoint, MCFixedPoint, MCSTDLOGICV):
                     ComplexOperator(
                         optree_modifier = fixed_shift_modifier(BitLogicRightShift)
+                    ),
+                type_custom_match(MCFixedPoint, MCFixedPoint, FSM(ML_Integer)):
+                    ComplexOperator(
+                        optree_modifier=fixed_shift_modifier(BitLogicRightShift)
                     ),
                 type_custom_match(MCFixedPoint, MCFixedPoint, MCFixedPoint):
                     ComplexOperator(
@@ -1229,6 +1282,12 @@ vhdl_code_generation_table = {
                     ComplexOperator(optree_modifier = fixed_shift_modifier(BitLogicLeftShift)),
                 type_custom_match(MCFixedPoint, MCFixedPoint, MCFixedPoint):
                     ComplexOperator(optree_modifier = fixed_shift_modifier(BitLogicLeftShift)),
+
+                # shifts by Integer constant
+                type_custom_match(MCSTDLOGICV, MCSTDLOGICV, FSM(ML_Integer)):
+                    ComplexOperator(optree_modifier=shift_by_cst_legalizer),
+                type_custom_match(MCFixedPoint, MCFixedPoint, FSM(ML_Integer)):
+                    ComplexOperator(optree_modifier=shift_by_cst_legalizer),
             },
         },
     },
