@@ -59,6 +59,7 @@ import metalibm_hw_blocks.unit_tests.ut_special_values as ut_special_values
 import metalibm_hw_blocks.unit_tests.min_max_select as ut_min_max_select
 import metalibm_hw_blocks.unit_tests.unify_pipeline as ut_unify_pipeline
 import metalibm_hw_blocks.unit_tests.sub_components as ut_sub_components
+import metalibm_hw_blocks.unit_tests.hw_shifts as ut_hw_shifts
 
 unit_test_list = [
   UnitTestScheme(
@@ -99,6 +100,11 @@ unit_test_list = [
   UnitTestScheme(
     "sub-component instanciation",
     ut_sub_components,
+    [{}]
+  ),
+  UnitTestScheme(
+    "dynamic and static shifts generation",
+    ut_hw_shifts,
     [{}]
   ),
 ]
