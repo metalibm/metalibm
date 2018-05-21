@@ -202,12 +202,30 @@ class CodeEntity(object):
   def get_scheme(self):
     return Statement(*tuple(self.process_list + list(self.get_output_assign())))
 
+  def declare_inputs(self, code_object):
+    for arg_name in self.arg_map:
+        arg = self.arg_map[arg_name]
+        code_object.declare_protected_symbol(arg_name, arg)
+  def declare_outputs(self, code_object):
+    for out_name in self.output_map:
+        out = self.output_map[out_name]
+        code_object.declare_protected_symbol(out_name, out)
+
+  def reserve_io_names(self, code_object):
+    """ reserve the name used by entity's I/Os signals / variables """
+    self.declare_inputs(code_object)
+    self.declare_outputs(code_object)
+
   def get_definition(self, code_generator, language, folded = True, static_cst = False):
     code_object = NestedCode(code_generator, static_cst = static_cst, code_ctor = VHDLCodeObject)
     code_object.add_local_header("ieee.std_logic_1164.all")
     code_object.add_local_header("ieee.std_logic_unsigned.all")
     code_object.add_local_header("ieee.numeric_std.all")
     code_object << self.get_declaration(final = False, language = language)
+
+    # reserving I/O names
+    self.reserve_io_names(code_object)
+
     code_object.open_level(inc = False)
     code_generator.generate_expr(code_object, self.get_scheme(), folded = folded, initial = False, language = language)
     code_object.close_level(inc = False)
@@ -216,6 +234,10 @@ class CodeEntity(object):
   def add_definition(self, code_generator, language, code_object, folded = True, static_cst = False):
     code_object << self.get_declaration(final = False, language = language)
     code_object << "architecture rtl of {entity_name} is\n".format(entity_name = self.name)
+
+    # reserving I/O names
+    self.reserve_io_names(code_object)
+
     code_object.open_level()
     code_generator.generate_expr(code_object, self.get_scheme(), folded = folded, initial = False, language = language)
     code_object.close_level()
