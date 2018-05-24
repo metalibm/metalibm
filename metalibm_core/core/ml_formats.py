@@ -315,6 +315,7 @@ class ML_Std_FP_Format(ML_FP_Format):
         elif value == -ml_infty:
             return self.get_special_value_coding(FP_MinusInfty(self), language)
         else:
+            pre_value = value
             value = sollya.round(value, self.get_sollya_object(), sollya.RN)
             # FIXME: managing negative zero
             sign = int(1 if value < 0 else 0)
@@ -324,7 +325,10 @@ class ML_Std_FP_Format(ML_FP_Format):
               exp_biased = 0
               mant = 0
             else:
-              exp        = int(sollya.floor(sollya.log2(value)))
+              try: 
+                exp        = int(sollya.floor(sollya.log2(value)))
+              except ValueError as e:
+                Log.report(Log.Error, "unable to compute int(sollya.floor(sollya.log2({}))), pre_value={}", value, pre_value, error=e)
               exp_biased = int(exp - self.get_bias())
               if exp < self.get_emin_normal():
                 exp_biased = 0
