@@ -64,6 +64,8 @@ def legalize_Select(optree):
     op0 = optree.get_input(1)
     op1 = optree.get_input(2)
     precision = optree.get_precision()
+    if precision is None:
+        Log.report(Log.Error, "None precision for Select:\n{}", optree)
     if op0.get_precision().get_bit_size() != precision.get_bit_size():
         optree.set_input(
             1,
