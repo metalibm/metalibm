@@ -383,7 +383,7 @@ def solve_format_Constant(optree):
         # fixed-point format solving
         frac_size = -1
         FRAC_THRESHOLD = 10 # maximum number of frac bit to be tested
-        for i in xrange(FRAC_THRESHOLD):
+        for i in range(FRAC_THRESHOLD):
             if int(value*2**i) == value * 2**i:
                 frac_size = i
                 break
