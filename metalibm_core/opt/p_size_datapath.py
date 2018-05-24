@@ -349,7 +349,7 @@ def solve_format_SignCast(optree):
 
 def solve_format_shift(optree):
     """ Legalize shift node """
-    assert isinstance(optree, BitLogicRightShift) or isinstance(optree, BitLogicLeftShift)
+    assert isinstance(optree, BitLogicRightShift) or isinstance(optree, BitLogicLeftShift) or isinstance(optree, BitArithmeticRightShift)
     shift_input = optree.get_input(0)
     shift_input_precision = shift_input.get_precision()
     shift_amount = optree.get_input(1)
@@ -608,7 +608,7 @@ class FormatSolver:
                 new_format = solve_format_BitLogicNegate(optree)
             elif isinstance(optree, Negation):
                 new_format = solve_format_Negation(optree)
-            elif isinstance(optree, BitLogicRightShift) or isinstance(optree, BitLogicLeftShift):
+            elif isinstance(optree, BitLogicRightShift) or isinstance(optree, BitLogicLeftShift) or isinstance(optree, BitArithmeticRightShift):
                 new_format = solve_format_shift(optree)
             elif isinstance(optree, Concatenation):
                 new_format = solve_format_Concatenation(optree)
