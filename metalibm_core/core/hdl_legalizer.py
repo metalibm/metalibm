@@ -38,9 +38,24 @@ from metalibm_core.core.ml_hdl_operations import (
     SubSignalSelection, Concatenation
 )
 from metalibm_core.core.ml_hdl_format import (
-    ML_StdLogicVectorFormat, ML_StdLogic
+    ML_StdLogicVectorFormat, ML_StdLogic, fixed_point
 )
 from metalibm_core.opt.opt_utils import forward_attributes
+
+def raw_fp_field_extraction(optree):
+    """ generate an operation sub-graph to extract the fp field
+        (mantissa without implicit digit) of a fp node """
+    size = optree.get_precision().get_base_format().get_bit_size()
+    field_size = optree.get_precision().get_base_format().get_field_size()
+    return TypeCast(
+        SubSignalSelection(
+            TypeCast(optree, precision=ML_StdLogicVectorFormat(size)),
+            0,
+            field_size - 1
+        ),
+        precision=fixed_point(field_size, 0, signed=False)
+    )
+
 
 # Optree generation function for MantissaExtraction
 def mantissa_extraction_modifier_from_fields(op, field_op, exp_is_zero, tag="mant_extr"):
