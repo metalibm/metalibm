@@ -118,6 +118,9 @@ def FP_SpecialValue_get_str(self):
 
 
 class FP_MathSpecialValue(FP_SpecialValue):
+    # define if the quiet bit (field MSB) is set for qNaN (True)
+    # or for sNaN (False)
+    QUIET_BIT_SET_FOR_QNAN = True
     def get_c_cst(self):
         return self.ml_support_name
 
@@ -297,8 +300,9 @@ class FP_QNaN(FP_MathSpecialValue):
     sign = 1
     field_size = self.get_base_precision().get_field_size()
     exp_size = self.get_base_precision().get_exponent_size()
-    ## field MSB is 0
-    mant = int(S2**(field_size - 1) - 1)
+    ## field MSB is set according to FP_MathSpecialValue.QUIET_BIT_SET_FOR_QNAN
+    quiet_bit = (1 << (field_size - 1)) if FP_MathSpecialValue.QUIET_BIT_SET_FOR_QNAN else 0
+    mant = int(S2**(field_size - 1) - 1) | quiet_bit
     return mant | (((sign << exp_size) | exp) << field_size)
   def __str__(self):
     return "qNaN"
@@ -311,15 +315,23 @@ class FP_SNaN(FP_SpecialValue):
     sign = 1
     field_size = self.get_base_precision().get_field_size()
     exp_size = self.get_base_precision().get_exponent_size()
-    ## field MSB is 1
-    mant = int(S2**(field_size) - 1 )
+    ## field MSB is set according to FP_MathSpecialValue.QUIET_BIT_SET_FOR_QNAN
+    quiet_bit = (1 << (field_size - 1)) if not FP_MathSpecialValue.QUIET_BIT_SET_FOR_QNAN else 0
+    mant = int(S2**(field_size - 1) - 1) | quiet_bit
     return mant | (((sign << exp_size) | exp) << field_size)
   def __str__(self):
     return "sNaN"
 
+def is_qnan(value):
+    """ testing if a value is an instance of a quiet NaN """
+    return isinstance(value, FP_QNaN) 
+def is_snan(value):
+    """ testing if a value is an instance of a signaling NaN """
+    return isinstance(value, FP_SNaN)
 def is_nan(value):
     """ testing if a value is an instance of a NaN """
-    return isinstance(value, FP_QNaN) or isinstance(value, FP_SNaN)
+    return is_qnan(value) or is_snan(value)
+
 def is_plus_zero(value):
     return isinstance(value, FP_PlusZero) 
 def is_minus_zero(value):

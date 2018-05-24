@@ -378,6 +378,10 @@ class ML_Std_FP_Format(ML_FP_Format):
     def get_max_value(self):
         return self.get_omega()
 
+    def get_min_normal_value(self):
+        """ return the minimal normal number in @p self format """
+        return S2**self.get_emin_normal()
+
     ## return the exponent field corresponding to 
     #  a special value (inf or NaN)
     def get_nanorinf_exp_field(self):
