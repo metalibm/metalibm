@@ -51,28 +51,17 @@ class VHDLCodeGenerator(object):
     language = C_Code
 
     """ C language code generator """
-    def __init__(self, processor, declare_cst = False, disable_debug = False, libm_compliant = False, default_rounding_mode = ML_GlobalRoundMode, default_silent = None, language = C_Code):
+    def __init__(self, processor, declare_cst = False, disable_debug = False, libm_compliant = False, default_silent = None, language = C_Code):
         self.memoization_map = [{}]
         self.processor = processor
         self.declare_cst = declare_cst
         self.disable_debug = disable_debug
         self.libm_compliant = libm_compliant
-        self.fp_context = FP_Context(rounding_mode = default_rounding_mode, silent = default_silent)
         self.language = language
         # memoization map for debug wrappers
         self.debug_map = {}
         Log.report(Log.Info, "VHDLCodeGenerator initialized with language: %s" % self.language)
 
-    def check_fp_context(self, fp_context, rounding_mode, silent):
-        """ check required fp_context compatibility with
-            current fp context """
-        return rounding_mode == fp_context.get_rounding_mode() and silent == fp_context.get_silent()
-
-    def adapt_fp_context(self, code_object, old_fp_context, new_fp_context):
-        if old_fp_context.get_rounding_mode() != new_fp_context.get_rounding_mode():
-            if old_fp_context.get_rounding_mode() == ML_GlobalRoundMode:
-                # TODO
-                pass
 
 
     def get_unknown_precision(self):
