@@ -410,6 +410,11 @@ class ML_EntityBasis(object):
     return self.recirculate_signal_map[stage_id]
 
 
+  def is_main_entity(self, entity):
+    """ Overloadable predicate to determine which sub entities should be
+        considered principal """
+    return True
+
   ## generate VHDL code for entity implenetation 
   #  Code is generated within the main code object
   #  and dumped to a file named after implementation's name
@@ -433,6 +438,10 @@ class ML_EntityBasis(object):
       if code_entity in generated_entity:
         continue
       entity_code_object = NestedCode(self.vhdl_code_generator, static_cst = False, uniquifier = "{0}_".format(self.entity_name), code_ctor = VHDLCodeObject)
+      if self.is_main_entity(code_entity):
+        self.vhdl_code_generator.disable_debug = not self.debug_flag
+      else:
+        self.vhdl_code_generator.disable_debug = True
       result = code_entity.add_definition(self.vhdl_code_generator, language, entity_code_object, static_cst = False)
       result.add_library("ieee")
       result.add_header("ieee.std_logic_1164.all")
@@ -444,6 +453,7 @@ class ML_EntityBasis(object):
 
       # adding the entities encountered during code generation
       # for future generation
+      # TODO: document
       extra_entity_list = [
             comp_object.get_code_entity() for comp_object in
                 entity_code_object.get_entity_list()
