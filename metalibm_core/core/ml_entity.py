@@ -152,9 +152,10 @@ def get_output_check_statement(output_signal, output_tag, output_value):
             Concatenation(
                 " result for {}: ".format(output_tag),
                 Conversion(
+                    output_signal if output_signal.get_precision() is ML_StdLogic else
                     TypeCast(
                         output_signal,
-                        precision = ML_StdLogicVectorFormat(
+                        precision=ML_StdLogicVectorFormat(
                             output_signal.get_precision().get_bit_size()
                         )
                      ),

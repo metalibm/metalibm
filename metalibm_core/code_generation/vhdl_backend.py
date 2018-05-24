@@ -1143,10 +1143,12 @@ vhdl_code_generation_table = {
                 type_custom_match(MCSTDLOGICV, MCSTDLOGICV):
                     ComplexOperator(optree_modifier = conversion_legalizer),
                 type_strict_match(ML_StdLogic, ML_Bool):
-                ComplexOperator(
-                    optree_modifier=conversion_from_bool_generator),
+                    ComplexOperator(
+                        optree_modifier=conversion_from_bool_generator),
                 type_custom_match(FSM(ML_String), TCM(ML_StdLogicVectorFormat)):
-                FunctionOperator("to_hstring", arity=1, force_folding=False),
+                    FunctionOperator("to_hstring", arity=1, force_folding=False),
+                type_custom_match(FSM(ML_String), FSM(ML_StdLogic)):
+                    FunctionOperator("std_logic'image", arity=1, force_folding=False),
                 # fixed-point conversion support
                 type_custom_match(MCFixedPoint, MCFixedPoint):
                     ComplexOperator(optree_modifier=fixed_conversion_modifier),
