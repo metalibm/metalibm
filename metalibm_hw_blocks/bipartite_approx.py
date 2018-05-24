@@ -125,8 +125,8 @@ def get_fixed_slice(
 
 def get_fixed_type_from_interval(interval, precision):
     """ generate a fixed-point format which can encode
-        interval without overflow, and which spans
-        precision bits """
+        @p interval without overflow, and which spans
+        @p precision bits """
     lo = inf(interval)
     hi = sup(interval)
     signed = True if lo < 0 else False
@@ -162,7 +162,6 @@ class BipartiteApprox(ML_Entity("bipartite_approx")):
     def get_default_args(**kw):
         """ generate default argument structure for BipartiteApprox """
         default_dict = {
-            "precision": ML_Binary32,
             "target": VHDLBackend(),
             "output_file": "my_bipartite_approx.vhd",
             "entity_name": "my_bipartie_approx",
@@ -209,16 +208,23 @@ class BipartiteApprox(ML_Entity("bipartite_approx")):
         range_lo = sollya.inf(self.interval)
         f_hi = self.function(range_hi)
         f_lo = self.function(range_lo)
+        # fixed by format used for reduced_x
+        range_size = range_hi - range_lo
+        range_size_log2 = int(sollya.log2(range_size))
+        assert 2**range_size_log2 == range_size
+
+        print("range_size_log2={}".format(range_size_log2))
 
         reduced_x = Conversion(
-            vx - range_lo,
+            BitLogicRightShift(
+                vx - range_lo,
+                range_size_log2
+            ),
             precision=fixed_point(0,alpha+beta+gamma,signed=False),
             tag="reduced_x",
             debug=debug_fixed
         )
 
-        # fixed by format used for reduced_x
-        range_size = 1.0 # range_hi - range_lo
 
         alpha_index = get_fixed_slice(
             reduced_x, 0, alpha-1,
@@ -348,9 +354,10 @@ class BipartiteApprox(ML_Entity("bipartite_approx")):
         )
 
         offset_precision = get_fixed_type_from_interval(
-            offset_interval, 20
+            offset_interval, 16
         )
-        table_offset.set_precision(offset_precision)
+        print("offset_precision is {} ({} bits)".format(offset_precision, offset_precision.get_bit_size()))
+        table_offset.get_precision().storage_precision = offset_precision
 
         # rounding table value
         for i in range(1, 2**(alpha+gamma)):
