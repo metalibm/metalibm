@@ -122,24 +122,40 @@ def shift_by_cst_legalizer(optree):
             lo_index = shift_amount
             hi_index = op.get_precision().get_bit_size() - 1
             raw_result = Concatenation(
+                Constant(0, precision=padding_format),
                 SubSignalSelection(
                     op,
                     lo_index,
                     hi_index
                 ),
-                Constant(0, precision=padding_format),
+                precision=full_format
+            )
+        elif isinstance(optree, BitArithmeticRightShift):
+            lo_index = shift_amount
+            hi_index = op.get_precision().get_bit_size() - 1
+            sign_digit = BitSelection(op, hi_index)
+            raw_result = Concatenation(
+                Replication(
+                    sign_digit, Constant(shift_amount, precision=ML_Integer),
+                    precision=padding_format
+                ),
+                SubSignalSelection(
+                    op,
+                    lo_index,
+                    hi_index
+                ),
                 precision=full_format
             )
         elif isinstance(optree, BitLogicLeftShift):
             lo_index = 0
             hi_index = op.get_precision().get_bit_size() - 1 - shift_amount
             raw_result = Concatenation(
-                Constant(0, precision=padding_format),
                 SubSignalSelection(
                     op,
                     lo_index,
                     hi_index
                 ),
+                Constant(0, precision=padding_format),
                 precision=full_format
             )
         else:
@@ -1245,6 +1261,14 @@ vhdl_code_generation_table = {
                     ComplexOperator(optree_modifier = fixed_cast_legalizer),
                 type_custom_match(MCSTDLOGICV, MCSTDLOGICV):
                     TransparentOperator()
+            },
+        },
+    },
+    BitArithmeticRightShift: {
+        None: {
+            lambda optree: True: {
+                type_custom_match(MCFixedPoint, MCFixedPoint, FSM(ML_Integer)):
+                    ComplexOperator(optree_modifier=shift_by_cst_legalizer),
             },
         },
     },
