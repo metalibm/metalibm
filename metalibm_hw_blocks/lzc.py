@@ -59,13 +59,13 @@ from metalibm_core.core.ml_hdl_operations import *
 
 class ML_LeadingZeroCounter(ML_Entity("ml_lzc")):
   @staticmethod
-  def get_default_args(width = 32):
+  def get_default_args(width=32, entity_name="my_lzc"):
     return DefaultEntityArgTemplate( 
              precision = ML_Int32, 
              debug_flag = False, 
              target = vhdl_backend.VHDLBackend(), 
              output_file = "my_lzc.vhd", 
-             entity_name = "my_lzc",
+             entity_name = entity_name,
              language = VHDL_Code,
              width = width,
            )
@@ -196,7 +196,7 @@ def vhdl_legalize_count_leading_zeros(optree):
     if lzc_component_key in LZC_COMPONENT_MAP:
         lzc_component = LZC_COMPONENT_MAP[lzc_component_key]
     else:
-        lzc_args = ML_LeadingZeroCounter.get_default_args(width=lzc_width)
+        lzc_args = ML_LeadingZeroCounter.get_default_args(width=lzc_width, entity_name="ml_lzc_%d" % lzc_width)
         LZC_entity = ML_LeadingZeroCounter(lzc_args)
         lzc_entity_list = LZC_entity.generate_scheme()
         lzc_implementation = LZC_entity.get_implementation()
