@@ -38,6 +38,7 @@ from metalibm_core.core.ml_operations import (
     Comparison, Addition, Select, Constant, ML_LeafNode, Conversion,
     Statement, ReferenceAssign, BitLogicNegate, Subtraction,
     SpecificOperation, Negation, BitLogicRightShift, BitLogicLeftShift, 
+    BitArithmeticRightShift,
     Min, Max, CountLeadingZeros, Multiplication,
     LogicalOr, LogicalAnd, LogicalNot
 )
