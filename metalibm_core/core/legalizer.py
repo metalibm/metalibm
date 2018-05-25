@@ -214,7 +214,7 @@ def legalize_fixed_point_subselection(optree, input_prec_solver = default_prec_s
         ),
         inf_index,
         sup_index,
-        precision = output_format
+        precision=output_format
     )
     result = TypeCast(
         subselect,

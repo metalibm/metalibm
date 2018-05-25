@@ -129,6 +129,7 @@ class CodeEntity(object):
     return self.current_stage
   def start_new_stage(self):
     self.set_current_stage(self.current_stage + 1)
+    return self.current_stage
   def set_current_stage(self, stage_id = 0):
     self.current_stage = stage_id
     self.init_stage_attribute.default_value = self.current_stage

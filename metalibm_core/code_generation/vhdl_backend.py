@@ -331,8 +331,8 @@ def bool2fixed_conversion_modifier(optree):
     op_prec = optree.get_precision()
     result = Select(
         bool_value,
-        Constant(1, precision = op_prec), 
-        Constant(0, precision = op_prec), 
+        Constant(1, precision = op_prec),
+        Constant(0, precision = op_prec),
         precision = op_prec
     )
     forward_attributes(optree, result)
@@ -401,7 +401,7 @@ def legalizing_fixed_shift_amount(shift_amount):
                 sa_range
             )
         # TODO support negative frac size via static amount shifting
-        assert(precision.get_frac_size() == 0) 
+        assert(precision.get_frac_size() == 0)
         casted_format = ML_StdLogicVectorFormat(precision.get_bit_size())
         casted_sa = TypeCast(
             shift_amount,
@@ -806,7 +806,7 @@ def conversion_legalizer(optree):
         elif conv_input_size > out_size:
             result = SubSignalSelection(
                 conv_input,
-                0, 
+                0,
                 out_size - 1,
                 precision = optree.get_precision()
             )
@@ -1075,8 +1075,10 @@ vhdl_code_generation_table = {
     ZeroExt: {
         None: {
             lambda _: True: {
-                type_custom_match(TCM(ML_StdLogicVectorFormat), TCM(ML_StdLogicVectorFormat)): ComplexOperator(optree_modifier=zext_modifier),
-                type_custom_match(MCSTDLOGICV, FSM(ML_StdLogic)): TemplateOperatorFormat("(0 => {0}, others => '0')", arity=1, force_folding=True),
+                type_custom_match(TCM(ML_StdLogicVectorFormat), TCM(ML_StdLogicVectorFormat)):
+                    ComplexOperator(optree_modifier=zext_modifier),
+                type_custom_match(MCSTDLOGICV, FSM(ML_StdLogic)):
+                    TemplateOperatorFormat("(0 => {0}, others => '0')", arity=1, force_folding=True),
             },
         }
     },
@@ -1357,9 +1359,9 @@ vhdl_code_generation_table = {
                 type_custom_match(MCSTDLOGICV, MCSTDLOGICV, type_strict_match(ML_Integer), type_strict_match(ML_Integer)):
                     DynamicOperator(sub_signal_generator),
                 type_custom_match(MCFixedPoint, MCFixedPoint, type_strict_match(ML_Integer), type_strict_match(ML_Integer)): 
-                    ComplexOperator(optree_modifier = legalize_fixed_point_subselection),
+                    ComplexOperator(optree_modifier=legalize_fixed_point_subselection),
                 type_custom_match(MCSTDLOGICV, MCFixedPoint, type_strict_match(ML_Integer), type_strict_match(ML_Integer)): 
-                    ComplexOperator(optree_modifier = legalize_fixed_point_subselection),
+                    ComplexOperator(optree_modifier=legalize_fixed_point_subselection),
             },
         },
     },
