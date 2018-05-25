@@ -497,12 +497,12 @@ class ML_EntityBasis(object):
 
     Log.report(Log.Info, "Applying passes just before pipelining")
     code_entity_list = self.pass_scheduler.get_full_execute_from_slot(
-      code_entity_list, 
+      code_entity_list,
       PassScheduler.BeforePipelining,
       entity_execute_pass
     )
 
-    #print "before pipelining dump: " 
+    #print "before pipelining dump: "
     #for code_entity in code_entity_list:
     #    scheme = code_entity.get_scheme()
     #    print scheme.get_str(
@@ -511,7 +511,7 @@ class ML_EntityBasis(object):
     #        memoization_map = {},
     #        custom_callback = lambda op: " [S={}] ".format(op.attributes.init_stage)
     #    )
-    
+
     if self.pipelined:
         self.stage_num = generate_pipeline_stage(self, reset=self.reset_pipeline, recirculate=self.recirculate_pipeline)
     else:
@@ -587,7 +587,7 @@ class ML_EntityBasis(object):
         Log.report(Log.Error, "failed to elaborate [{}]".format(elab_result))
       else:
         Log.report(Log.Info, "elaboration success")
-    
+
 
   # Currently mostly empty, to be populated someday
   def gen_emulation_code(self, precode, code, postcode):
@@ -597,8 +597,8 @@ class ML_EntityBasis(object):
     Takes the input and output names from input_list and output_list.
     Must postfix output names with "ref_", "ref_ru_", "ref_rd_"
 
-    This class method performs commonly used initializations. 
-    It initializes the MPFR versions of the inputs and outputs, 
+    This class method performs commonly used initializations.
+    It initializes the MPFR versions of the inputs and outputs,
     with the same names prefixed with "mp" and possibly postfixed with "rd" and "ru".
 
     It should be overloaded by actual metafunctions, and called by the overloading function. 
@@ -611,10 +611,10 @@ class ML_EntityBasis(object):
   def generate_test_case(self, input_signals, io_map, index, test_range = Interval(-1.0, 1.0)):
     """ generic test case generation: generate a random input
         with index @p index
-        
+
         Args:
             index (int): integer index of the test case
-            
+
         Returns:
             dict: mapping (input tag -> numeric value)
     """
@@ -737,7 +737,7 @@ class ML_EntityBasis(object):
           self.implement_test_case(io_map, input_values, output_signals, output_values, time_step)
       )
 
-    testbench = CodeEntity("testbench") 
+    testbench = CodeEntity("testbench")
     test_process = Process(
       test_statement,
       # end of test
