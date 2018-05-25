@@ -177,7 +177,7 @@ def retime_op(op, retime_map):
     retime_map.addToProcessed(op)
 
 
-def generate_pipeline_stage(entity, reset=False, recirculate=False):
+def generate_pipeline_stage(entity, reset=False, recirculate=False, one_process_per_stage=True):
     """ Process a entity to generate pipeline stages required """
     retiming_map = {}
     retime_map = RetimeMap()
@@ -191,6 +191,10 @@ def generate_pipeline_stage(entity, reset=False, recirculate=False):
     # adding stage forward process
     clk = entity.get_clk_input()
     clock_statement = Statement()
+    # handle towards the first clock Process (in generation order)
+    # which must be the one whose pre_statement is filled with 
+    # signal required to be generated outside the processes
+    first_process = False
     for stage_id in sorted(retime_map.stage_forward.keys()):
         stage_statement = Statement(
             *tuple(assign for assign in retime_map.stage_forward[stage_id]))
@@ -239,12 +243,22 @@ def generate_pipeline_stage(entity, reset=False, recirculate=False):
             stage_statement
         )
 
-        clock_statement.add(clock_block)
-    process_statement.add(clock_statement)
-    pipeline_process = Process(process_statement, sensibility_list=[clk])
+        if one_process_per_stage:
+            clock_process = Process(clock_block, sensibility_list=[clk])
+            entity.implementation.add_process(clock_process)
+            first_process = first_process or clock_process
+        else:
+            clock_statement.add(clock_block)
+    if one_process_per_stage:
+        pass
+    else:
+        process_statement.add(clock_statement)
+        pipeline_process = Process(process_statement, sensibility_list=[clk])
+        entity.implementation.add_process(pipeline_process)
+        first_process = pipeline_process
+    # statement that gather signals which must be pre-computed
     for op in retime_map.pre_statement:
-        pipeline_process.add_to_pre_statement(op)
-    entity.implementation.add_process(pipeline_process)
+        first_process.add_to_pre_statement(op)
     stage_num = len(retime_map.stage_forward.keys())
     #print "there are %d pipeline stages" % (stage_num)
     return stage_num 
