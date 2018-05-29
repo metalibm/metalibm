@@ -32,6 +32,8 @@
 from metalibm_core.core.attributes import ML_Debug, ML_AdvancedDebug, ML_MultiDebug
 from metalibm_core.core.ml_formats import *
 
+from metalibm_core.utility.log_report import Log
+
 ## Helper for debug enabling with binary value display
 debug_std          = ML_Debug(display_format = " -radix 2 ")
 ## Helper for debug enabling with decimal value display
@@ -47,7 +49,10 @@ debug_cst_dec      = ML_Debug(display_format = " ")
 #  fixed-point value
 def fixed_debug_pre_process(value_name, optree):
   fixed_prec = optree.get_precision()
-  signed_attr = "-signed" if fixed_prec.get_signed() else "-unsigned"
+  try:
+      signed_attr = "-signed" if fixed_prec.get_signed() else "-unsigned"
+  except AttributeError:
+      Log.report(Log.Error, "unknown attribute signed for format {} of node:\n{}", fixed_prec, optree, error=AttributeError) 
   return "echo [get_fixed_value [examine -value {signed_attr} {value}] {weight}]".format(signed_attr = signed_attr, value = value_name, weight = -fixed_prec.get_frac_size())
 
 ## Debug attributes specific for Fixed-Point values
