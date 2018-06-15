@@ -51,6 +51,9 @@ from metalibm_core.core.ml_hdl_operations import (
 from metalibm_core.core.passes import (
     Pass, LOG_PASS_INFO, FunctionPass
 )
+from metalibm_core.core.bb_operations import (
+    UnconditionalBranch, ConditionalBranch, BasicBlock
+)
 
 
 
@@ -374,6 +377,12 @@ class PassCheckProcessorSupport(FunctionPass):
                 self.check_processor_support(optree.get_pre_statement(), memoization_map, debug = debug, language = language)
                 pass
             elif isinstance(optree, Statement):
+                pass
+            elif isinstance(optree, ConditionalBranch):
+                pass
+            elif isinstance(optree, UnconditionalBranch):
+                pass
+            elif isinstance(optree, BasicBlock):
                 pass
             elif isinstance(optree, Loop):
                 pass
