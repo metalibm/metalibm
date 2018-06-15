@@ -39,6 +39,7 @@ from metalibm_core.core.ml_formats import (
     ML_Bool,
     v2bool, v4bool, v8bool,
     ML_Int32, ML_Int64, ML_Binary32, ML_Binary64,
+    ML_Int128, ML_Int256,
     v2int32, v2int64, v2float32, v2float64,
     v4int32, v4int64, v4float32, v4float64,
     v8int32, v8int64, v8float32, v8float64,
@@ -205,7 +206,7 @@ def generate_comp_mapping(predicate, fdesc, idesc):
              type_strict_match_list([ML_Bool, ML_Int32], [precision], [precision]),
              llvm_icomp_function(idesc, precision)
          ) for precision in [
-             ML_Int32, ML_Int64,
+             ML_Int32, ML_Int64, ML_Int128, ML_Int256
          ]] +
          # vectorial integer comparison mapping
          [(

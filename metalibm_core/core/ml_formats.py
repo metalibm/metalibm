@@ -872,6 +872,7 @@ ML_UInt64   = ML_Standard_FixedPoint_Format(64, 0, False)
 ML_Int128    = ML_Standard_FixedPoint_Format(128, 0, True)
 ML_UInt128   = ML_Standard_FixedPoint_Format(128, 0, False)
 
+ML_Int256    = ML_Standard_FixedPoint_Format(256, 0, True)
 
 def bool_get_c_cst(self, cst_value):
   if cst_value:
