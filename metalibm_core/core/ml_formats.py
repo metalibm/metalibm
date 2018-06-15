@@ -784,13 +784,14 @@ class ML_Base_SW_FixedPoint_Format(ML_Base_FixedPoint_Format):
         # guess the minimal bit_size required in the c repesentation
         bit_size = integer_size + frac_size
         if bit_size < 1 or bit_size > 128:
-            raise ValueError("integer_size+frac_size must be between 1 and 128 (is "+str(bit_size)+")")
-        possible_c_bit_sizes = [8, 16, 32, 64, 128]
-        self.c_bit_size = next(n for n in possible_c_bit_sizes if n >= bit_size)
-        c_name = ("" if self.signed else "u") + "int" + str(self.c_bit_size) + "_t"
-        c_display_format = "%\"PRIx" + str(self.c_bit_size) + "\""
-        self.name[C_Code] = c_name
-        self.display_format[C_Code] = c_display_format
+            Log.report(Log.Warning, "unsupported bit_size {} in ML_Base_SW_FixedPoint_Format".format(bit_size))
+        else:
+            possible_c_bit_sizes = [8, 16, 32, 64, 128]
+            self.c_bit_size = next(n for n in possible_c_bit_sizes if n >= bit_size)
+            c_name = ("" if self.signed else "u") + "int" + str(self.c_bit_size) + "_t"
+            c_display_format = "%\"PRIx" + str(self.c_bit_size) + "\""
+            self.name[C_Code] = c_name
+            self.display_format[C_Code] = c_display_format
 
 
 ## Ancestor to standard (meaning integers)  fixed-point format
