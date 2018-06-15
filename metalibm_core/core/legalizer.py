@@ -47,7 +47,12 @@ from metalibm_core.core.ml_hdl_operations import (
 )
 from metalibm_core.core.advanced_operations import FixedPointPosition
 from metalibm_core.core.ml_formats import (
+    ML_Int32, ML_Int64,
     ML_Bool, ML_Integer, v2bool, v3bool, v4bool, v8bool,
+    v2int32, v4int32, v8int32,
+    v2int64, v4int64, v8int64,
+    v2float32, v4float32, v8float32,
+    v2float64, v4float64, v8float64,
     is_std_integer_format, ML_FP_Format,
 )
 from metalibm_core.core.ml_hdl_format import (
@@ -234,6 +239,15 @@ def subsignalsection_legalizer(optree, input_prec_solver = default_prec_solver):
     else:
         return optree
 
+def vectorize_cst(value, cst_precision):
+    """ if cst_precision is a vector format return a list uniformly initialized
+        with value whose size macthes the vector size of cst_precision, else
+        return the scalar value """
+    if cst_precision.is_vector_format():
+        return [value] * cst_precision.get_vector_size()
+    else:
+        return value
+
 def generate_field_extraction(optree, precision, lo_index, hi_index):
     """ extract bit-field optree[lo_index:hi_index-1] and cast to precision """
     if optree.precision != precision:
@@ -242,11 +256,13 @@ def generate_field_extraction(optree, precision, lo_index, hi_index):
     if lo_index != 0:
         result = BitLogicRightShift(
             optree,
-            Constant(lo_index, precision=precision),
+            Constant(vectorize_cst(lo_index, precision), precision=precision),
             precision=precision
         )
     if (hi_index - lo_index + 1) != precision.get_bit_size():
-        mask = Constant(2**(hi_index-lo_index+1) - 1, precision=precision)
+        mask = Constant(
+            vectorize_cst(2**(hi_index-lo_index+1) - 1, precision),
+            precision=precision)
         result = BitLogicAnd(
             result,
             mask,
@@ -255,12 +271,27 @@ def generate_field_extraction(optree, precision, lo_index, hi_index):
     return result
 
 def generate_exp_extraction(optree):
-    int_precision = optree.precision.get_integer_format()
+    if optree.precision.is_vector_format():
+        base_precision = optree.precision.get_scalar_format()
+        int_precision = {
+            v2float32: v2int32,
+            v2float64: v2int64,
+
+            v4float32: v4int32,
+            v4float64: v4int64,
+
+            v8float32: v8int32,
+            v8float64: v8int64,
+        }[optree.precision]
+        #base_precision.get_integer_format()
+    else:
+        base_precision = optree.precision
+        int_precision = base_precision.get_integer_format()
     return generate_field_extraction(
         optree,
         int_precision,
-        optree.precision.get_field_size(),
-        optree.precision.get_field_size() + optree.precision.get_exponent_size() - 1
+        base_precision.get_field_size(),
+        base_precision.get_field_size() + base_precision.get_exponent_size() - 1
     )
 
 def generate_raw_mantissa_extraction(optree):
@@ -277,15 +308,28 @@ def legalize_exp_insertion(result_precision):
         operations """
     def legalizer(exp_insertion_node):
         optree = exp_insertion_node.get_input(0)
-        assert is_std_integer_format(optree.precision)
+        if result_precision.is_vector_format():
+            scalar_format = optree.precision.get_scalar_format()
+            vector_size = optree.precision.get_vector_size()
+            bias_cst = [-result_precision.get_scalar_format().get_bias()] * vector_size
+            shift_cst = [result_precision.get_scalar_format().get_field_size()] * vector_size
+        else:
+            scalar_format = optree.precision
+            bias_cst = -result_precision.get_bias() 
+            shift_cst = result_precision.get_field_size()
+        assert is_std_integer_format(scalar_format)
         biased_exponent = Addition(
             optree,
-            Constant(-result_precision.get_bias(), precision=optree.precision),
+            Constant(
+                bias_cst,
+                precision=optree.precision),
             precision=optree.precision
         )
         result = BitLogicLeftShift(
             biased_exponent,
-            Constant(result_precision.get_field_size(), precision=optree.precision),
+            Constant(
+                shift_cst,
+                precision=optree.precision),
             precision=optree.precision
         )
         return TypeCast(
@@ -299,104 +343,128 @@ def legalize_test(optree):
         node """
     op_input = optree.get_input(0)
     predicate = optree.specifier
-    int_precision = op_input.precision.get_integer_format()
+    test_bool_format = get_compatible_bool_format(op_input)
+    if op_input.precision.is_vector_format():
+        input_scalar_precision = op_input.precision.get_scalar_format()
+        vector_size = op_input.precision.get_vector_size() 
+        int_precision = {
+            ML_Int32: {
+                2: v2int32,
+                4: v4int32,
+                8: v8int32,
+            },
+            ML_Int64: {
+                2: v2int64,
+                4: v4int64,
+                8: v8int64,
+            }
+        }[input_scalar_precision.get_integer_format()][vector_size]
+        nanorinf_cst =  [input_scalar_precision.get_nanorinf_exp_field()] * vector_size
+        zero_cst = [0] * vector_size
+        one_cst = [1] * vector_size
+    else:
+        input_scalar_precision = op_input.precision
+        int_precision = input_scalar_precision.get_integer_format()
+        nanorinf_cst =  input_scalar_precision.get_nanorinf_exp_field()
+        zero_cst = 0
+        one_cst = 1
     if predicate is Test.IsInfOrNaN:
         return Comparison(
             generate_exp_extraction(op_input),
-            Constant(op_input.precision.get_nanorinf_exp_field(), precision=int_precision),
+            Constant(nanorinf_cst, precision=int_precision),
             specifier=Comparison.Equal,
-            precision=ML_Bool
+            precision=test_bool_format
         )
     elif predicate is Test.IsNaN:
         return LogicalAnd(
             Comparison(
                 generate_exp_extraction(op_input),
-                Constant(op_input.precision.get_nanorinf_exp_field(), precision=int_precision),
+                Constant(nanorinf_cst, precision=int_precision),
                 specifier=Comparison.Equal,
-                precision=ML_Bool
+                precision=test_bool_format
             ),
             Comparison(
                 generate_raw_mantissa_extraction(op_input),
-                Constant(0, precision=int_precision),
+                Constant(zero_cst, precision=int_precision),
                 specifier=Comparison.NotEqual,
-                precision=ML_Bool
+                precision=test_bool_format
             ),
-            precision=ML_Bool
+            precision=test_bool_format
         )
     elif predicate is Test.IsSubnormal:
         return Comparison(
             generate_exp_extraction(op_input),
-            Constant(0, precision=int_precision),
+            Constant(zero_cst, precision=int_precision),
             specifier=Comparison.Equal,
-            precision=ML_Bool
+            precision=test_bool_format
         )
     elif predicate is Test.IsSignalingNaN:
-        quiet_bit_index = op_input.precision.get_field_size() - 1
+        quiet_bit_index = input_scalar_precision.get_field_size() - 1
         return LogicalAnd(
             Comparison(
                 generate_exp_extraction(op_input),
-                Constant(op_input.precision.get_nanorinf_exp_field(), precision=int_precision),
+                Constant(nanorinf_cst, precision=int_precision),
                 specifier=Comparison.Equal,
-                precision=ML_Bool
+                precision=test_bool_format
             ),
             LogicalAnd(
                 Comparison(
                     generate_raw_mantissa_extraction(op_input),
-                    Constant(0, precision=int_precision),
+                    Constant(zero_cst, precision=int_precision),
                     specifier=Comparison.NotEqual,
-                    precision=ML_Bool
+                    precision=test_bool_format
                 ),
                 Comparison(
                     generate_field_extraction(op_input, int_precision, quiet_bit_index, quiet_bit_index),
-                    Constant(0, precision=int_precision),
+                    Constant(zero_cst, precision=int_precision),
                     specifier=Comparison.Equal,
-                    precision=ML_Bool
+                    precision=test_bool_format
                 ),
-                precision=ML_Bool
+                precision=test_bool_format
             ),
-            precision=ML_Bool
+            precision=test_bool_format
         )
     elif predicate is Test.IsQuietNaN:
-        quiet_bit_index = op_input.precision.get_field_size() - 1
+        quiet_bit_index = input_scalar_precision.get_field_size() - 1
         return LogicalAnd(
             Comparison(
                 generate_exp_extraction(op_input),
-                Constant(op_input.precision.get_nanorinf_exp_field(), precision=int_precision),
+                Constant(nanorinf_cst, precision=int_precision),
                 specifier=Comparison.Equal,
-                precision=ML_Bool
+                precision=test_bool_format
             ),
             LogicalAnd(
                 Comparison(
                     generate_raw_mantissa_extraction(op_input),
-                    Constant(0, precision=int_precision),
+                    Constant(zero_cst, precision=int_precision),
                     specifier=Comparison.NotEqual,
-                    precision=ML_Bool
+                    precision=test_bool_format
                 ),
                 Comparison(
                     generate_field_extraction(op_input, int_precision, quiet_bit_index, quiet_bit_index),
-                    Constant(1, precision=int_precision),
+                    Constant(one_cst, precision=int_precision),
                     specifier=Comparison.Equal,
-                    precision=ML_Bool
+                    precision=test_bool_format
                 ),
-                precision=ML_Bool
+                precision=test_bool_format
             ),
-            precision=ML_Bool
+            precision=test_bool_format
         )
     elif predicate is Test.IsInfty:
         return LogicalAnd(
             Comparison(
                 generate_exp_extraction(op_input),
-                Constant(op_input.precision.get_nanorinf_exp_field(), precision=int_precision),
+                Constant(nanorinf_cst, precision=int_precision),
                 specifier=Comparison.Equal,
-                precision=ML_Bool
+                precision=test_bool_format
             ),
             Comparison(
                 generate_raw_mantissa_extraction(op_input),
-                Constant(0, precision=int_precision),
+                Constant(zero_cst, precision=int_precision),
                 specifier=Comparison.Equal,
-                precision=ML_Bool
+                precision=test_bool_format
             ),
-            precision=ML_Bool
+            precision=test_bool_format
         )
     else:
         Log.report(Log.Error, "unsupported predicate {}".format(predicate),
