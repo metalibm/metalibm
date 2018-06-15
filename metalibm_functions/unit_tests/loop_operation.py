@@ -71,7 +71,7 @@ class ML_UT_LoopOperation(ML_Function("ml_ut_loop_operation")):
     default_args = {
         "output_file": "ut_loop_operation.c",
         "function_name": "ut_loop_operation",
-        "precision": ML_Binary32,
+        "precision": ML_Int32,
         "target": MPFRProcessor(),
         "fast_path_extract": True,
         "fuse_fma": True,
@@ -82,12 +82,12 @@ class ML_UT_LoopOperation(ML_Function("ml_ut_loop_operation")):
 
   def generate_scheme(self):
     #func_implementation = CodeFunction(self.function_name, output_format = self.precision)
-    vx = self.implementation.add_input_variable("x", ML_Binary32)
+    vx = self.implementation.add_input_variable("x", self.precision)
     vi = Variable("i", precision = ML_Int32, var_type = Variable.Local)
 
     loop = Loop(ReferenceAssign(vi, 0), vi < 10, ReferenceAssign(vi, vi +1))
 
-    scheme = Statement(loop)
+    scheme = Statement(loop, Return(vx + Conversion(vi, precision=self.precision), precision=self.precision))
 
     return scheme
 def run_test(args):
