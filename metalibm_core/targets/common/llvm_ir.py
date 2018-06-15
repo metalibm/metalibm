@@ -49,17 +49,17 @@ from metalibm_core.core.target import TargetRegister
 from metalibm_core.core.ml_operations import (
     Addition, Subtraction, Multiplication,
     Negation,
-    BitLogicRightShift,
-    BitLogicLeftShift,
+    BitLogicRightShift, BitLogicLeftShift,
     BitLogicAnd,
-    LogicalNot,
     NearestInteger,
     ExponentInsertion,
-    LogicalAnd,
-    TypeCast,
+    LogicalAnd, LogicalNot,
     Test, Comparison,
     Return,
-    FunctionObject
+    FunctionObject,
+    Conversion, TypeCast,
+    VectorElementSelection,
+    Constant,
 )
 from metalibm_core.core.legalizer import (
     min_legalizer, max_legalizer, legalize_test, legalize_exp_insertion
@@ -123,6 +123,16 @@ def llvm_bitcast_function(dst_precision, src_precision):
         ),
         arity=1
     )
+def llvm_extract_element_function(src_precision, index_precision):
+    return LLVMIrTemplateOperator(
+        "extractelement {src_format} {{}},  {index_format} {{}}".format(
+            src_format=llvm_ir_format(src_precision),
+            index_format=llvm_ir_format(index_precision)
+        ),
+        arity=1
+    )
+
+
 
 def llvm_fcomp_function(predicate, precision):
     return LLVMIrFunctionOperator("fcmp {}".format(predicate), arity=2, output_precision=precision)
@@ -234,7 +244,46 @@ def legalize_integer_nearest(optree):
         precision=optree.get_precision()
     )
 
+def legalize_vector_reduction_test(optree):
+    """ Legalize a vector test (e.g. IsMaskNotAnyZero) to a sub-graph
+        of basic operations """
+    op_input = optree.get_input(0)
+    vector_size = op_input.get_precision().get_vector_size()
+    conv_format = {
+        2: v2int32,
+        4: v4int32,
+        8: v8int32,
+    }[vector_size]
+
+    cast_format = {
+        2: ML_Int64,
+        4: ML_Int128,
+        8: ML_Int256,
+    }[vector_size]
+    return Comparison(
+        TypeCast(
+            Conversion(op_input, precision=conv_format),
+            precision=cast_format
+        ),
+        Constant(0, precision=cast_format),
+        specifier=Comparison.Equal,
+        precision=ML_Bool
+    )
+
+
 llvm_ir_code_generation_table = {
+    Conversion: {
+        None: {
+            lambda _: True: {
+                type_strict_match(v2int32, v2bool):
+                    LLVMIrTemplateOperator("sext <2 x i1> {} to <2 x i32>", arity=1),
+                type_strict_match(v4int32, v4bool):
+                    LLVMIrTemplateOperator("sext <4 x i1> {} to <4 x i32>", arity=1),
+                type_strict_match(v8int32, v8bool):
+                    LLVMIrTemplateOperator("sext <8 x i1> {} to <8 x i32>", arity=1),
+            },
+        },
+    },
     NearestInteger: {
         None: {
             lambda _: True: {
@@ -246,7 +295,8 @@ llvm_ir_code_generation_table = {
                 type_strict_match(v4float32, v4float32):
                     LLVMIrIntrinsicOperator("llvm.nearbyint.f32", arity=1, output_precision=v4float32, input_formats=[v4float32]),
                 type_strict_match(v4int32, v4float32):
-                    ComplexOperator(optree_modifier=legalize_integer_nearest),
+                    LLVMIrTemplateOperator("fptosi <4 x float> {} to <4 x i32>", arity=1),
+                    #ComplexOperator(optree_modifier=legalize_integer_nearest),
             },
         },
     },
@@ -387,6 +437,15 @@ llvm_ir_code_generation_table = {
                     llvm_bitcast_function(ML_Int32, ML_Binary32),
                 type_strict_match(ML_Binary32, ML_Int32):
                     llvm_bitcast_function(ML_Binary32, ML_Int32),
+                type_strict_match(ML_Int128, v4int32):
+                    llvm_bitcast_function(ML_Int128, v4int32),
+                type_strict_match(ML_Int256, v8int32):
+                    llvm_bitcast_function(ML_Int256, v8int32),
+
+                type_strict_match(v4float32, v4int32):
+                    llvm_bitcast_function(v4float32, v4int32),
+                type_strict_match(v4int32, v4float32):
+                    llvm_bitcast_function(v4int32, v4float32),
             },
         },
     },
@@ -500,6 +559,18 @@ llvm_ir_code_generation_table = {
                 generate_comp_mapping(Comparison.NotEqual, "ne", "ne")
         },
     },
+    VectorElementSelection: {
+        None: {
+            lambda _: True: {
+                type_strict_match(ML_Bool, v4bool, ML_Int32):
+                    llvm_extract_element_function(v4bool, ML_Int32),
+
+                type_strict_match(ML_Binary32, v4float32, ML_Int32):
+                    llvm_extract_element_function(v4float32, ML_Int32),
+
+            }
+        },
+    },
     Test: {
         Test.IsInfOrNaN: {
             lambda _: True: {
@@ -536,6 +607,7 @@ llvm_ir_code_generation_table = {
         Test.IsMaskNotAnyZero: {
             lambda _: True: {
                 type_strict_match(ML_Bool, v4bool):
+                    ComplexOperator(optree_modifier=legalize_vector_reduction_test),
             }
         },
     },
