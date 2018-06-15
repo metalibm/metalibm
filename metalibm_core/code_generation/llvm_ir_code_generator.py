@@ -36,7 +36,11 @@ import copy
 
 from ..core.ml_operations import (
     Variable, Constant, ConditionBlock, Return, TableLoad, Statement,
-    SpecificOperation, Conversion, FunctionObject
+    SpecificOperation, Conversion, FunctionObject,
+    ReferenceAssign, Loop,
+)
+from ..core.bb_operations import (
+    BasicBlock, ConditionalBranch, UnconditionalBranch
 )
 from ..core.ml_table import ML_Table
 from ..core.ml_formats import *
@@ -63,6 +67,12 @@ def get_free_label_name(code_object, prefix):
         prefix=prefix,
         declare=True)
 
+def append_label(code_object, label):
+    """ append a new label location at the end of code_object """
+    code_object.close_level(footer="", cr="")
+    code_object << label << ":"
+    code_object.open_level(header="") #, extra_shared_tables=[MultiSymbolTable.VariableSymbol])
+
 def llvm_ir_generate_condition_block(generator, optree, code_object, language, folded=False, next_block=None, initial=False):
     condition = optree.inputs[0]
     if_branch = optree.inputs[1]
@@ -83,25 +93,21 @@ def llvm_ir_generate_condition_block(generator, optree, code_object, language, f
 
     if_label = get_free_label_name(code_object, "true_label")
 
-    is_fallback_if = is_fallback_statement(if_branch) 
-    #print "if_fallback: ", is_fallback_if
-    #print if_branch.get_str(depth=None)
+    is_fallback_if = is_fallback_statement(if_branch)
 
     if else_branch:
         # if there is an else branch then else label must be specific
         else_label = get_free_label_name(code_object, "false_label")
         # we need a end label if one (or more) of if/else is a fallback
         is_fallback_else = is_fallback_statement(else_branch)
-        #print "else_fallback: ", is_fallback_else
-        #print else_branch.get_str(depth=None)
-        is_fallback = is_fallback_if or is_fallback_else 
+        is_fallback = is_fallback_if or is_fallback_else
         if is_fallback:
-            end_label = get_end_label() 
+            end_label = get_end_label()
         else:
             end_label = None
     else:
         # there is no else so false-cond requires a fallback blocks
-        is_fallback = True 
+        is_fallback = True
         else_label = get_end_label()
         end_label = else_label
 
@@ -109,13 +115,9 @@ def llvm_ir_generate_condition_block(generator, optree, code_object, language, f
         cond=cond_code.get(),
         if_label=if_label,
         else_label=else_label
-    ) 
-    def append_label(label):
-        code_object.close_level(footer="", cr="")
-        code_object << label << ":"
-        code_object.open_level(header="") #, extra_shared_tables=[MultiSymbolTable.VariableSymbol])
+    )
 
-    append_label(if_label)
+    append_label(code_object, if_label)
 
     # generating code for if-branch
     if_branch_code = generator.generate_expr(
@@ -126,15 +128,50 @@ def llvm_ir_generate_condition_block(generator, optree, code_object, language, f
         code_object << "br label %" << end_label << "\n"
 
     if else_branch:
-        append_label(else_label)
+        append_label(code_object, else_label)
         else_branch_code = generator.generate_expr(
             code_object, else_branch, folded=folded,
             language=language, next_block=end_label)
 
     if is_fallback and next_block is None:
-        append_label(end_label)
+        append_label(code_object, end_label)
 
     return None
+
+
+def llvm_ir_generate_loop(generator, optree, code_object, language, folded=False, next_block=None, initial=False):
+    init_block = optree.get_input(0)
+    loop_test = optree.get_input(1)
+    loop_body = optree.get_input(2)
+
+    def get_end_label():
+        if next_block is None:
+            return get_free_label_name(code_object, "loop_end")
+        else:
+            return next_block
+
+    header_label = get_free_label_name(code_object, "loop_header")
+    loop_test_label = get_free_label_name(code_object, "loop_test")
+    loop_body_label = get_free_label_name(code_object, "loop_body")
+    loop_end_label = get_end_label()
+
+    # generate loop initialization block 
+    append_label(code_object, header_label)
+    generator.generate_expr(code_object, init_block, folded=folded, language=language)
+    append_label(code_object, loop_test_label)
+    cond_code = generator.generate_expr(code_object, loop_test, folded=folded, language=language)
+    code_object << "br i1 {cond} , label %{loop_body}, label %{loop_end}".format(
+        cond=cond_code.get(),
+        loop_body=loop_body_label,
+        loop_end=loop_end_label,
+    )
+    append_label(code_object, loop_body_label)
+    generator.generate_expr(code_object, loop_body, next_block=loop_body_label, folded=folded, language=language)
+    code_object << "br label %" << loop_test_label << "\n"
+
+    if next_block is None:
+        append_label(code_object, loop_end_label)
+    
 
 def is_fallback_statement(optree):
     """ Determinate if <optree> may fallback to the next block (True)
@@ -185,7 +222,11 @@ def generate_llvm_cst(value, precision, precision_header=True):
             value=int(value)
         )
     else:
-        Log.report(Log.Error, "format {} not supported in LLVM-IR generate_llvm_cst".format(optree.precision))
+        Log.report(
+            Log.Error,
+            "format {} not supported in LLVM-IR generate_llvm_cst",
+            optree.precision
+        )
 
 def generate_Constant_expr(optree):
     """ generate LLVM-IR code to materialize Constant node """
@@ -199,7 +240,7 @@ def generate_Constant_expr(optree):
                     ) for elt_value in cst_value
                     )
             ),
-            precision
+            optree.precision
         )
     else:
         return CodeExpression(
@@ -220,6 +261,8 @@ class LLVMIRCodeGenerator(object):
         self.libm_compliant = libm_compliant
         self.language = language
         self.end_label = None
+        # map of basic blocks (bb node -> label)
+        self.bb_map = {}
 
     def open_memoization_level(self):
         """ Create a new memoization level on top of the stack """
@@ -243,6 +286,13 @@ class LLVMIRCodeGenerator(object):
         """ register memoization value <code_value> for entry <optree> """
         self.generated_map[0][optree] = code_value
         
+    def get_bb_label(self, code_object, bb):
+        if bb in self.bb_map:
+            return self.bb_map[bb]
+        else:
+            new_label = get_free_label_name(code_object, "BB")
+            self.bb_map[bb] = new_label
+            return new_label
 
     # force_variable_storing is not supported
     def generate_expr(self, code_object, optree, folded=True, result_var=None, initial=False, __exact=None, language=None, strip_outer_parenthesis=False, force_variable_storing=False, next_block=None):
@@ -268,6 +318,41 @@ class LLVMIRCodeGenerator(object):
             result = generate_Constant_expr(optree)
             #result = CodeExpression(precision.get_gappa_cst(optree.get_value()), precision)
 
+        elif isinstance(optree, BasicBlock):
+            bb_label = self.get_bb_label(code_object, optree)
+            code_object.close_level(footer="", cr="")
+            code_object << bb_label << ":"
+            code_object.open_level(header="")
+            for op in optree.inputs:
+                self.generate_expr(code_object, op, folded=folded,
+                    initial=True, language=language)
+            return None
+
+        elif isinstance(optree, ConditionalBranch):
+            cond = optree.get_input(0)
+            if_bb = optree.get_input(1)
+            else_bb = optree.get_input(2)
+            if_label = self.get_bb_label(code_object, if_bb)
+            else_label = self.get_bb_label(code_object, else_bb)
+
+            cond_code = self.generate_expr(
+                code_object, cond, folded=folded, language=language)
+
+            code_object << "br i1 {cond} , label %{if_label}, label %{else_label}".format(
+                cond=cond_code.get(),
+                if_label=if_label,
+                else_label=else_label
+            )
+            # generating destination bb
+            self.generate_expr(code_object, if_bb, folded=folded, language=language)
+            self.generate_expr(code_object, else_bb, folded=folded, language=language)
+            return None
+
+        elif isinstance(optree, UnconditionalBranch):
+            dest_bb = optree.get_input(0)
+            code_object << "br label {}\n".format(self.get_bb_label(code_object, dest_bb))
+            return None
+
         elif isinstance(optree, Statement):
             # all but last generation
             for op in optree.inputs[:-1]:
@@ -289,6 +374,28 @@ class LLVMIRCodeGenerator(object):
                 self, optree, code_object, folded=folded, language=language,
                 next_block=next_block, initial=initial)
 
+        elif isinstance(optree, Loop):
+            return llvm_ir_generate_loop(
+                self, optree, code_object, folded=folded, language=language,
+                next_block=next_block, initial=initial)
+
+        elif isinstance(optree, ReferenceAssign):
+            output_var = optree.get_input(0)
+            result_value = optree.get_input(1)
+
+            # TODO/FIXME: fix single static assignation enforcement
+            output_var_code = self.generate_expr(
+                code_object, output_var, folded=False, language=language
+            )
+
+            result_value_code = self.generate_expr(
+                code_object, result_value, folded=folded, language=language
+            )
+            code_object << self.generate_assignation(output_var_code.get(), result_value_code.get(), precision=output_var_code.precision)
+            # debug msg generation is not supported in LLVM code genrator
+
+            return None
+
         else:
             result = self.processor.generate_expr(self, code_object, optree, optree.inputs, folded = folded, result_var = result_var, language = self.language)
             # each operation is generated on a separate line
@@ -308,11 +415,17 @@ class LLVMIRCodeGenerator(object):
     def generate_code_assignation(self, code_object, result_var, expr_code, final=True):
         return self.generate_assignation(result_var, expr_code, final=final)
 
-    def generate_assignation(self, result_var, expression_code, final = True):
+    def generate_assignation(self, result_var, expression_code, final=True, precision=None):
         """ generate code for assignation of value <expression_code> to 
             variable <result_var> """
         final_symbol = ";\n" if final else ""
-        return "%s = %s%s" % (result_var, expression_code, final_symbol) 
+        format_symbol = llvm_ir_format(precision) if precision else ""
+        return "{result} = {format_str} {expr}{final}".format(
+            result=result_var,
+            expr=expression_code,
+            format_str=format_symbol,
+            final=final_symbol
+        )
 
     def get_llvm_varname(self, tag):
         return "%" + tag
@@ -354,6 +467,6 @@ class LLVMIRCodeGenerator(object):
 
 
     def generate_debug_msg(self, optree, result):
-        raise NotImplementedError
+        Log.report(Log.Error, "[unimplemented LLVM-IR DBG msg] trying to generate debug msg for node {}", optree, error=NotImplementedError)
 
 
