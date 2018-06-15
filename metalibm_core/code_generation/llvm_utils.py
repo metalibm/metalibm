@@ -32,6 +32,7 @@
 
 from metalibm_core.core.ml_formats import (
     ML_Int32, ML_Int64, ML_Binary32, ML_Binary64, v4float32, v4float64,
+    ML_Int128, ML_Int256,
     v4int32, v4int64,
     v2int32, v2int64, v2float32, v2float64,
     v8int32, v8int64, v8float32, v8float64,
@@ -62,6 +63,9 @@ def llvm_ir_format(precision):
             v8float32: "<8 x float>",
             v8int64: "<8 x i64>",
             v8float64: "<8 x double>",
+
+            ML_Int128: "i128",
+            ML_Int256: "i256",
         }[precision]
     except KeyError:
         Log.report(Log.Error, "unknown precision {} in llvm_ir_format".format(precision), error=KeyError)
