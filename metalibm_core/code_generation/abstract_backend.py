@@ -201,7 +201,8 @@ class AbstractBackend(object):
 
     @staticmethod
     def get_operation_keys(optree):
-        """ return code_generation_table key corresponding to the operation performed by <optree> """
+        """ return code_generation_table key corresponding to the operation
+            performed by <optree> """
         op_class = optree.__class__
         if optree.get_precision() is None:
             Log.report(
