@@ -26,6 +26,9 @@
 ###############################################################################
 from metalibm_core.core.passes import OptreeOptimization, Pass, LOG_PASS_INFO
 from metalibm_core.core.ml_operations import *
+from metalibm_core.core.bb_operations import (
+    UnconditionalBranch, ConditionalBranch, BasicBlock
+)
 
 from metalibm_core.code_generation.code_constant import C_Code
 
@@ -58,6 +61,10 @@ class Pass_CheckSupport(OptreeOptimization):
 
       if isinstance(optree, ConditionBlock):
         self.check_processor_support(optree.get_pre_statement(), memoization_map, debug = debug)
+      elif isinstance(optree, ConditionalBranch):
+        pass
+      elif isinstance(optree, UnconditionalBranch):
+        pass
       elif isinstance(optree, Statement):
         pass
       elif isinstance(optree, Loop):
