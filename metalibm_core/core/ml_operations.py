@@ -1533,7 +1533,7 @@ def NotEqual(op0, op1, **kwords):
 class Statement(ControlFlowOperation):
     name = "Statement"
     def __init__(self, *args, **kwords):
-        self.__class__.__base__.__init__(self, *args, **kwords)
+        ControlFlowOperation.__init__(self, *args, **kwords)
         self.arity = len(args)
 
     # add a new statement at the end of the inputs list 
