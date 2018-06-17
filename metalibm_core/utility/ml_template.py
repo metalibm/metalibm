@@ -364,7 +364,7 @@ class DefaultArgTemplate:
     # None <=> [self.precision] * self.get_arity()
     abs_accuracy = None
     accuracy = ML_Faithful
-    libm_compliant = True
+    libm_compliant = False
     input_interval = Interval(0, 1)
     # Optimization parameters
     target = GenericProcessor()
