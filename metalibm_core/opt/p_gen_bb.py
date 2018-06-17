@@ -115,7 +115,6 @@ class Pass_GenerateBasicBlock(FunctionPass):
             self.pop_current_bb()
             self.push_new_bb()
             if not else_branch is None:
-                print "ELSE BRANCH"
                 else_bb = self.execute_on_optree(else_branch, fct, fct_group, memoization_map)
                 self.pop_current_bb()
                 self.push_new_bb()
