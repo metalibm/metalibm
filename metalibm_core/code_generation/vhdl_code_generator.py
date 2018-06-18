@@ -474,7 +474,7 @@ class VHDLCodeGenerator(object):
         if (initial or force_variable_storing or result_too_long(result)) and not isinstance(result, CodeVariable) and not result is None:
             # result could have been modified from initial optree
             result_precision = result.precision
-            prefix_tag = optree.get_tag(default = "var_result") if force_variable_storing  else "tmp_result" 
+            prefix_tag = optree.get_tag(default="var_result") if force_variable_storing  else "tmp_result" 
             final_var = result_var if result_var else code_object.get_free_var_name(result_precision, prefix = prefix_tag, declare = True)
             code_object << self.generate_code_assignation(code_object, final_var, result.get())
             return CodeVariable(final_var, result_precision)
