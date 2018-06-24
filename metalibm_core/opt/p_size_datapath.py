@@ -382,7 +382,8 @@ def solve_format_Constant(optree):
     else:
         # fixed-point format solving
         frac_size = -1
-        FRAC_THRESHOLD = 10 # maximum number of frac bit to be tested
+        FRAC_THRESHOLD = 100 # maximum number of frac bit to be tested
+        # TODO: fix
         for i in range(FRAC_THRESHOLD):
             if int(value*2**i) == value * 2**i:
                 frac_size = i
@@ -391,7 +392,8 @@ def solve_format_Constant(optree):
             Log.report(Log.Error, "value {} is not an integer, from node:\n{}", value, optree)
         abs_value = abs(value)
         signed = value < 0
-        int_size = max(int(sollya.ceil(sollya.log2(abs_value+2**frac_size))), 0) + (1 if signed else 0)
+        # int_size = max(int(sollya.ceil(sollya.log2(abs_value+2**frac_size))), 0) + (1 if signed else 0)
+        int_size = max(int(sollya.ceil(sollya.log2(abs_value + 1))), 0) + (1 if signed else 0)
         if frac_size == 0 and int_size == 0:
             int_size = 1
         return fixed_point(int_size, frac_size, signed=signed)
