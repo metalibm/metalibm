@@ -38,7 +38,9 @@
 
 import sollya
 
-from sollya import Interval, S2
+from sollya import Interval
+
+S2 = sollya.SollyaObject(2) 
 
 from metalibm_core.core.ml_optimization_engine import OptimizationEngine
 from metalibm_core.core.ml_operations import (

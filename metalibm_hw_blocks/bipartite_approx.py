@@ -36,7 +36,8 @@ import inspect
 
 import sollya
 
-from sollya import S2, Interval, ceil, floor, round
+from sollya import Interval, ceil, floor, round
+S2 = sollya.SollyaObject(2)
 from sollya import parse as sollya_parse
 
 from metalibm_core.core.attributes import ML_Debug

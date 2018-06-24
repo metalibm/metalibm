@@ -32,7 +32,8 @@
 ###############################################################################
 
 import os, inspect
-from sollya import S2
+import sollya
+S2 = sollya.SollyaObject(2)
 
 from ..utility.log_report import *
 

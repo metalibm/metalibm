@@ -36,7 +36,10 @@
 #  Metalibm Formats special_values
 
 import sollya
-from sollya import S2
+
+# generic number 2 as a SollyaObject (to force conversion
+# to sollya objects when doing arithmetic)
+S2 = sollya.SollyaObject(2)
 
 class NumericValue(sollya.SollyaObject):
     """ numerical object encapsulating sollya's number to 

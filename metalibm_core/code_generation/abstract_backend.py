@@ -33,7 +33,6 @@
 
 import inspect
 
-from sollya import S2
 
 from ..utility.log_report import Log
 from .generator_utility import *

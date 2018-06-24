@@ -37,7 +37,8 @@ except ImportError:
         return fct
 import random
 
-from sollya import SollyaObject, S2
+from sollya import SollyaObject
+S2 = SollyaObject(2)
 
 from metalibm_core.core.special_values import (
     NumericValue,

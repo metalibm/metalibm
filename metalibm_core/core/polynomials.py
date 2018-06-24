@@ -33,7 +33,8 @@
 
 import sollya
 
-from sollya import S2, SollyaObject, coeff
+from sollya import SollyaObject, coeff
+S2 = SollyaObject(2)
 from ..utility.log_report import Log
 
 
