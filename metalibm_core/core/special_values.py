@@ -262,13 +262,27 @@ class FP_MinusInfty(FP_SpecialValue):
   def __neg__(self):
     return FP_PlusInfty(self.precision)
 
-class FP_PlusOmega(FP_SpecialValue):
+class FP_NumericSpecialValue(FP_SpecialValue):
+    def __le__(self, y):
+        return self.get_value() <= y
+    def __lt__(self, y):
+        return self.get_value() < y
+    def __ge__(self, y):
+        return self.get_value() >= y
+    def __gt__(self, y):
+        return self.get_value() > y
+    def __eq__(self, y):
+        return self.get_value() == y
+    def __ne__(self, y):
+        return self.get_value() != y
+
+class FP_PlusOmega(FP_NumericSpecialValue):
   ml_support_name = "_sv_PlusOmega"
   def get_integer_coding(self):
     return self.get_base_precision().get_integer_coding(self.get_base_precision().get_omega())
   def get_value(self):
     return NumericValue(self.get_base_precision().get_omega())
-class FP_MinusOmega(FP_SpecialValue):
+class FP_MinusOmega(FP_NumericSpecialValue):
   ml_support_name = "_sv_MinusOmega"
   def get_integer_coding(self):
     return self.get_base_precision().get_integer_coding(-self.get_base_precision().get_omega())
@@ -353,6 +367,7 @@ def is_number(value):
 def is_sv_omega(value):
     return isinstance(value, FP_PlusOmega) or isinstance(value, FP_MinusOmega)
 
+from metalibm_core.core.ml_formats import *
 
 if __name__ == "__main__":
     PRECISION = ML_Binary64
@@ -373,10 +388,26 @@ if __name__ == "__main__":
         "-": operator.__sub__,
         "*": operator.__mul__,
     }
-    for op in op_map:
-        for lhs in value_list:
-            for rhs in value_list:
-                print( "{} {} {} = ".format(lhs, op, rhs))
-                print("{}".format(op_map[op](lhs, rhs)))
+    #for op in op_map:
+    #    for lhs in value_list:
+    #        for rhs in value_list:
+    #            print( "{} {} {} = ".format(lhs, op, rhs))
+    #            print("{}".format(op_map[op](lhs, rhs)))
+
+    print(
+        "FP_PlusOmega(ML_Binary32) > 2 = {}".format(
+            FP_PlusOmega(ML_Binary32) > 2
+        )
+    )
+    print(
+        "FP_MinusOmega(ML_Binary32) > 2 = {}".format(
+            FP_MinusOmega(ML_Binary32) > 2
+        )
+    )
+    print(
+        "FP_MinusOmega(ML_Binary32) > FP_PlusOmega(ML_Binary32) = {}".format(
+            FP_MinusOmega(ML_Binary32) > FP_PlusOmega(ML_Binary32)
+        )
+    )
 
 
