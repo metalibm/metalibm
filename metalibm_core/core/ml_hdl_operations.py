@@ -313,6 +313,28 @@ def cst_promotion(value, precision = ML_Integer):
     else:
         return Constant(value, precision = precision)
 
+class StaticDelay(PlaceHolder):
+    """ extract a signal and add a static delay on it """
+    arity = 2
+    name = "StaticDelay"
+
+    def __init__(self, op, delay, relative=True, **kw):
+        PlaceHolder.__init__(self, op, **kw)
+        self.delay = delay
+        # if set indicates that delay should be added to op's init stage
+        # to determine  ouput stage
+        # if unset indicates that delay is the absolute stage index for the output
+        self.relative = True
+
+    def get_name(self):
+        """ return operation name for display """
+        relative_label = "Rel" if self.relative else "Abs"
+        return "StaticDelay[{}={}]".format(relative_label, self.delay)
+
+    def finish_copy(self, new_copy, copy_map = {}):
+        new_copy.relative = self.relative
+        new_copy.delay = delay
+
 ## extract a sub-signal from inputs
 #  arguments are:
 #  @param arg input signal
