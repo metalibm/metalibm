@@ -25,6 +25,8 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 ###############################################################################
+import re
+
 from metalibm_core.utility.log_report import Log
 
 from metalibm_core.core.ml_formats import ML_Bool
@@ -98,8 +100,10 @@ def propagate_op(op, stage, retime_map):
     op_src = retime_map.get(op_key, current_stage)
     while current_stage != stage:
         # create op instance for <current_stage+1>
+        # remove cycle information prefix on tag if any
+        raw_tag = re.sub("^e[0-9]+_", "", op_key.get_tag() or "empty")
         op_dst = Signal(tag="e{stage}_{tag}_q".format(
-            tag=op_key.get_tag(), stage=(current_stage + 2)),
+            tag=raw_tag, stage=(current_stage + 2)),
             init_stage=current_stage + 1, init_op=op_key,
             precision=op_key.get_precision(), var_type=Variable.Local)
         retime_map.add_stage_forward(op_dst, op_src, current_stage)
