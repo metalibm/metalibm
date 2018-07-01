@@ -33,7 +33,7 @@ from metalibm_core.core.ml_operations import (
     Variable, ReferenceAssign, Constant
 )
 from metalibm_core.core.ml_hdl_operations import (
-    Process, Event, Signal
+    Process, Event, Signal, StaticDelay
 )
 from metalibm_core.core.advanced_operations import FixedPointPosition
 from metalibm_core.core.ml_hdl_format import ML_StdLogic
@@ -134,7 +134,10 @@ def retime_op(op, retime_map):
         Log.report(Log.Verbose, "  retiming already processed")
         return
     op_stage = op.attributes.init_stage
-    if node_has_inputs(op):
+
+    if isinstance(op, StaticDelay):
+        pass
+    elif node_has_inputs(op):
         for in_id in range(op.get_input_num()):
             in_op = op.get_input(in_id)
             in_stage = in_op.attributes.init_stage
@@ -150,6 +153,24 @@ def retime_op(op, retime_map):
 
             if not node_should_be_pipelined(in_op):
                 pass
+
+            elif isinstance(in_op, StaticDelay):
+                # Squashing delta delays
+                delay_op = in_op.get_input(0)
+                delay_value = in_op.delay
+                if not retime_map.hasBeenProcessed(delay_op):
+                    retime_op(delay_op, retime_map)
+                if in_op.relative:
+                    op_stage = delay_op.attributes.init_stage + delay_value
+                else:
+                    op_stage = delay_value
+                Log.report(Log.Verbose, "squashing StaticDelay on {delay_op}, delay={delay}".format(
+                    delay_op=delay_op, delay=delay_value
+                ))
+                if not retime_map.contains(delay_op, op_stage):
+                    propagate_op(delay_op, op_stage, retime_map)
+                new_in = retime_map.get(delay_op, op_stage)
+                op.set_input(in_id, new_in)
             elif in_stage < op_stage:
                 assert not isinstance(in_op, FixedPointPosition)
                 if not retime_map.contains(in_op, op_stage):
