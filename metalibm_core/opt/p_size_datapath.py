@@ -505,7 +505,13 @@ def propagate_format_to_input(new_format, optree, input_index_list):
             propagate_format_to_input(new_format, op_input, index_list)
         elif not test_format_equality(new_format, op_input.get_precision()):
             if is_constant(op_input):
-                if format_does_fit(op_input, new_format):
+                if not is_fixed_point(new_format):
+                    Log.report(
+                        Log.Error,
+                        "format {} during propagation to input {} of {} is not a fixed-point format",
+                        new_format, op_input, optree
+                    )
+                elif format_does_fit(op_input, new_format):
                     Log.report(
                         Log.Info,
                         "Simplify Constant Conversion {} to larger Constant: {}",
