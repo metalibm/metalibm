@@ -208,9 +208,13 @@ def generate_pipeline_stage(entity, reset=False, recirculate=False, one_process_
     retime_map = RetimeMap()
     output_assign_list = entity.implementation.get_output_assign()
     for output in output_assign_list:
-        Log.report(Log.Verbose, "generating pipeline from output %s " %
-                   (output.get_str(depth=1)))
+        Log.report(Log.Verbose, "generating pipeline from output {} ", output)
         retime_op(output, retime_map)
+    for recirculate_stage in entity.recirculate_signal_map:
+        recirculate_ctrl = entity.recirculate_signal_map[recirculate_stage]
+        Log.report(Log.Verbose, "generating pipeline from recirculation control signal {}", recirculate_ctrl)
+        retime_op(recirculate_ctrl, retime_map)
+        
     process_statement = Statement()
 
     # adding stage forward process
