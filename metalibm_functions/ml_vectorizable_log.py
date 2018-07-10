@@ -59,6 +59,41 @@ from metalibm_core.utility.gappa_utils import execute_gappa_script_extract
 from metalibm_core.utility.ml_template import *
 from metalibm_core.utility.debug_utils import *
 
+EXP_1 = sollya.exp(1)
+S2    = sollya.parse("2")
+S10   = sollya.parse("10")
+
+def DirtyExponentExtraction(f, precision):
+  """Get the raw (biased) exponent of @p f.
+  Only valid if f is a positive floating-point number.
+  @param f input node to extract exponent from
+  @param precision underlying floating-point format
+  @return node representing f's biased exponent
+  """
+  int_prec = precision.get_integer_format()
+  field_size = Constant(precision.get_field_size(),
+                        precision=int_prec,
+                        tag='field_size')
+  recast_f = TypeCast(f, precision=int_prec) \
+          if f.get_precision() != int_prec else f
+  return BitLogicRightShift(
+          recast_f,
+          field_size,
+          precision=int_prec)
+
+# bool2int conversion helper functions
+def bool_convert(optree, precision, true_value, false_value, **kw):
+    """ Implement conversion between boolean node (ML_Bool)
+        and specific values """
+    return Select(
+        optree,
+        Constant(true_value, precision=precision),
+        Constant(false_value, precision=precision),
+        precision=precision,
+        **kw
+    )
+
+
 class ML_Log(ML_Function("ml_log")):
   def __init__(self, args=DefaultArgTemplate):
     # initializing base class
@@ -69,15 +104,31 @@ class ML_Log(ML_Function("ml_log")):
     self.no_subnormal = args.no_subnormal
     self.no_fma = args.no_fma
     self.no_rcp = args.no_rcp
-    self.log_radix = args.log_radix
+    self.log_radix = {
+        "e": EXP_1,
+        "2": S2,
+        "10": S10
+    }[args.log_radix]
     self.force_division = args.force_division
+
+    # TODO: beware dict indexing is reliying on python matching numerical values
+    #       to keys which may have different construction methods (you try to make
+    #       sure every value is constructed through sollya.parse, but this is
+    #       not really safe): to be IMPROVED
+    LOG_EMUL_FCT_MAP = {
+        S2: sollya.log2,
+        EXP_1: sollya.log,
+        S10: sollya.log10
+    }
+    if self.log_radix in LOG_EMUL_FCT_MAP:
+        Log.report(Log.Info, "radix {} is part of standard radices", self.log_radix)
+        self.log_emulation_function = LOG_EMUL_FCT_MAP[self.log_radix]
+    else:
+        Log.report(Log.Info, "radix {} is not part of standard radices {{2, e, 10}}", self.log_radix)
+        self.log_emulation_function = lambda v: sollya.log(v) / sollya.log(self.log_radix)
     # .. update output and function name
-    if self.log_radix == '2':
-      self.output_file = "LOG2.c"
-      self.function_name = "LOG2"
-    elif self.log_radix == '10':
-      self.output_file = "LOG10.c"
-      self.function_name = "LOG10"
+    self.function_name = "LOG{}".format(args.log_radix)
+    self.output_file = "{}.c".format(self.function_name)
 
   @staticmethod
   def get_default_args(**kw):
@@ -94,7 +145,7 @@ class ML_Log(ML_Function("ml_log")):
         "no_subnormal": False,
         "no_fma": False,
         "no_rcp": False,
-        "log_radix": 'e',
+        "log_radix": "e",
         "force_division": False,
     }
     default_args_log.update(kw)
@@ -110,27 +161,17 @@ class ML_Log(ML_Function("ml_log")):
 
     vx = self.implementation.add_input_variable("x", self.precision)
 
-    precision = self.precision.sollya_object
-    int_prec = self.precision.get_integer_format()
-    Log.report(Log.Info, "int_prec is %s" % int_prec)
-    uint_prec = self.precision.get_unsigned_integer_format()
-
-    # bool2int conversion helper functions
-    def bool_convert(optree, precision, true_value, false_value, **kw):
-        """ Implement conversion between boolean node (ML_Bool)
-            and specific values """
-        return Select(
-            optree,
-            Constant(true_value, precision=precision),
-            Constant(false_value, precision=precision),
-            precision=precision,
-            **kw
-        )
 
     def default_bool_convert(optree, precision=None, **kw):
         return bool_convert(optree, precision, -1, 0, **kw) \
                 if isinstance(self.processor, VectorBackend) \
                 else bool_convert(optree, precision, 1, 0, **kw)
+
+    precision = self.precision.sollya_object
+    int_prec = self.precision.get_integer_format()
+    Log.report(Log.Info, "int_prec is %s" % int_prec)
+    uint_prec = self.precision.get_unsigned_integer_format()
+
 
     Log.report(Log.Info, "MDL constants")
     cgpe_scheme_idx = int(self.cgpe_index)
@@ -141,7 +182,7 @@ class ML_Log(ML_Function("ml_log")):
     field_size = Constant(self.precision.get_field_size(),
                           precision = int_prec,
                           tag = 'field_size')
-    if self.log_radix == 'e':
+    if self.log_radix == EXP_1:
       log2_hi = Constant(
         round(log(2), precision, sollya.RN),
         precision = self.precision,
@@ -151,7 +192,7 @@ class ML_Log(ML_Function("ml_log")):
               precision, sollya.RN),
         precision = self.precision,
         tag = 'log2_lo')
-    elif self.log_radix == '10':
+    elif self.log_radix == 10:
       log2_hi = Constant(
         round(log10(2), precision, sollya.RN),
         precision = self.precision,
@@ -162,7 +203,7 @@ class ML_Log(ML_Function("ml_log")):
         precision = self.precision,
         tag = 'log2_lo')
     # ... if log_radix == '2' then log2(2) == 1
-    
+
     # subnormal_mask aims at trapping positive subnormals except zero.
     # That's why we will subtract 1 to the integer bitstring of the input, and
     # then compare for Less (strict) the resulting integer bitstring to this
@@ -189,24 +230,11 @@ class ML_Log(ML_Function("ml_log")):
     # the index value for which tau changes from 1 to 0.
     cut = sqrt(2.)
     tau_index_limit = floor(table_nb_elements * (2./cut - 1))
-    if self.log_radix == 'e':
-      sollya_logtbl = [
-        -log1p(float(i) / table_nb_elements)
-        + (0 if i <= tau_index_limit else log(2.))
-        for i in range(table_nb_elements)
-      ]
-    elif self.log_radix == '2':
-      sollya_logtbl = [
-        (-log1p(float(i) / table_nb_elements)
-        + (0 if i <= tau_index_limit else log(2.)))/log(2)
-        for i in range(table_nb_elements)
-      ]
-    elif self.log_radix == '10':
-      sollya_logtbl = [
-        (-log1p(float(i) / table_nb_elements)
-         + (0 if i <= tau_index_limit else log(2.)))/log(10)
-        for i in range(table_nb_elements)
-      ]
+    sollya_logtbl = [
+      (-log1p(float(i) / table_nb_elements)
+      + (0 if i <= tau_index_limit else log(2.))) / log(self.log_radix)
+      for i in range(table_nb_elements)
+    ]
     # ...
     init_logtbl_hi = [
             round(sollya_logtbl[i],
@@ -278,20 +306,10 @@ class ML_Log(ML_Function("ml_log")):
       # in C. Thus mask below won't be correct for a scalar implementation.
       # FIXME: Can we know the backend that will be called and choose in
       # consequence? Should we make something arch-agnostic instead?
-      def DirtyExponentExtraction(f):
-        """Get the raw (biased) exponent of f.
-        Only if f is a positive floating-point number.
-        """
-        recast_f = TypeCast(f, precision = int_prec) \
-                if f.get_precision() != int_prec else f
-        return BitLogicRightShift(
-                recast_f,
-                field_size,
-                precision = int_prec)
       #
       n_value = BitLogicAnd(
         Addition(
-          DirtyExponentExtraction(Zf),
+          DirtyExponentExtraction(Zf, self.precision),
           Constant(
             self.precision.get_bias(),
             precision = int_prec),
@@ -513,11 +531,11 @@ class ML_Log(ML_Function("ml_log")):
                              tag = 'fp_exponent')
 
     Log.report(Log.Info, 'MDL polynomial approximation')
-    if self.log_radix == 'e':
+    if self.log_radix == EXP_1:
       sollya_function = log(1 + sollya.x)
-    elif self.log_radix == '2':
+    elif self.log_radix == 2:
       sollya_function = log2(1 + sollya.x)
-    elif self.log_radix == '10':
+    elif self.log_radix == 10:
       sollya_function = log10(1 + sollya.x)
     # ...
     if self.force_division == True: # rcp accuracy is 2^(-p)
@@ -543,7 +561,8 @@ class ML_Log(ML_Function("ml_log")):
                 max_eps,
                 )
             )
-    if self.log_radix == 'e':
+    Log.report(Log.Info, "poly degree is ", poly_degree)
+    if self.log_radix == EXP_1:
       poly_object = Polynomial.build_from_approximation(
         sollya_function,
         range(2, int(poly_degree) + 1), # Force 1st 2 coeffs to 0 and 1, resp.
@@ -562,7 +581,7 @@ class ML_Log(ML_Function("ml_log")):
         sollya.absolute,
         0) # Force the first coefficients to 0
 
-    Log.report(Log.Info, poly_object)
+    Log.report(Log.Info, str(poly_object))
 
     constant_precision = ML_SingleSingle if self.precision == ML_Binary32 \
             else ML_DoubleDouble if self.precision == ML_Binary64 \
@@ -595,12 +614,12 @@ class ML_Log(ML_Function("ml_log")):
     log1pu_poly_lo.set_attributes(tag = 'log1pu_poly_lo')
 
     # Compute log(2) * (e + tau - alpha)
-    if self.log_radix != '2': # 'e' or '10'
+    if self.log_radix != 2: # 'e' or '10'
       log2e_hi, log2e_lo = Mul212(fp_exponent, log2_hi, log2_lo, 
                                   fma = (self.no_fma == False))
    
     # Add log1p(u)
-    if self.log_radix != '2': # 'e' or '10'
+    if self.log_radix != 2: # 'e' or '10'
       tmp_res_hi, tmp_res_lo = Add222(log2e_hi, log2e_lo,
                                       log1pu_poly_hi, log1pu_poly_lo)
     else:
@@ -616,12 +635,7 @@ class ML_Log(ML_Function("ml_log")):
     return scheme
 
   def numeric_emulate(self, input_value):
-    if self.log_radix == 'e':
-      return log(input_value)
-    elif self.log_radix == '2':
-      return log2(input_value)
-    elif self.log_radix == '10':
-      return log10(input_value)
+    return self.log_emulation_function(input_value)
 
 if __name__ == "__main__":
   # auto-test
