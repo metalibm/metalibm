@@ -171,7 +171,7 @@ def fixed_point_position_legalizer(optree, input_prec_solver=default_prec_solver
     )
     result = Constant(
         cst_value,
-        precision = ML_Integer
+        precision=ML_Integer
     )
     forward_attributes(optree, result)
     return result
