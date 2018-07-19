@@ -656,7 +656,7 @@ class ML_EntityBasis(object):
         test_statement.add(get_input_assign(input_signal, input_value))
         input_msg += get_input_msg(input_tag, input_signal, input_value)
 
-      test_statement.add(Wait(time_step * self.stage_num))
+      test_statement.add(Wait(time_step * (self.stage_num + 2)))
 
       # Adding output value comparison
       for output_tag in output_signals:
