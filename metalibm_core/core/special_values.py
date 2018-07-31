@@ -262,19 +262,31 @@ class FP_MinusInfty(FP_SpecialValue):
   def __neg__(self):
     return FP_PlusInfty(self.precision)
 
+def legalize_omega(x):
+    """ convert x to a numerical value """
+    if is_sv_omega(x):
+        return x.get_value()
+    else:
+        return x
+
+# TODO: management of omega induces extra cost for any non omega value
+#      should be optimized
 class FP_NumericSpecialValue(FP_SpecialValue):
     def __le__(self, y):
-        return self.get_value() <= y
+        return self.get_value() <= legalize_omega(y)
     def __lt__(self, y):
-        return self.get_value() < y
+        return self.get_value() < legalize_omega(y)
     def __ge__(self, y):
-        return self.get_value() >= y
+        return self.get_value() >= legalize_omega(y)
     def __gt__(self, y):
-        return self.get_value() > y
+        return self.get_value() > legalize_omega(y)
     def __eq__(self, y):
-        return self.get_value() == y
+        return self.get_value() == legalize_omega(y)
     def __ne__(self, y):
-        return self.get_value() != y
+        return self.get_value() != legalize_omega(y)
+    def __abs__(self):
+        """ Absolute implementation for numerical value """
+        return abs(self.get_value())
 
 class FP_PlusOmega(FP_NumericSpecialValue):
   ml_support_name = "_sv_PlusOmega"
@@ -350,7 +362,7 @@ def is_nan(value):
     return is_qnan(value) or is_snan(value)
 
 def is_plus_zero(value):
-    return isinstance(value, FP_PlusZero) 
+    return isinstance(value, FP_PlusZero)
 def is_minus_zero(value):
     return isinstance(value, FP_MinusZero)
 def is_zero(value):
@@ -366,6 +378,11 @@ def is_number(value):
     return not isinstance(value, FP_SpecialValue)
 def is_sv_omega(value):
     return isinstance(value, FP_PlusOmega) or isinstance(value, FP_MinusOmega)
+
+
+def is_numeric_value(vx):
+    """ predicate testing if vx is a numeric value (including omega) """
+    return is_sv_omega(vx) or not(FP_SpecialValue.is_special_value(vx))
 
 from metalibm_core.core.ml_formats import *
 
