@@ -1109,7 +1109,7 @@ vhdl_code_generation_table = {
                     SymbolOperator("&", arity=2, force_folding=True),
 
                 type_custom_match(FSM(ML_String), FSM(ML_String), FSM(ML_String)):
-                    SymbolOperator("&", arity=2, force_folding=False),
+                    SymbolOperator("&", arity=2, force_folding=False, force_input_variable=False),
             },
         },
     },
@@ -1410,6 +1410,8 @@ vhdl_code_generation_table = {
                 TemplateOperatorFormat(
                     "report {0}",
                     arity=1,
+                    force_folding=False,
+                    force_input_variable=False,
                     void_function=True
                 ),
             }
