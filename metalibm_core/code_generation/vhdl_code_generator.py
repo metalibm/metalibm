@@ -46,6 +46,17 @@ from .code_element import CodeVariable, CodeExpression
 from .code_function import CodeFunction
 from .code_object import MultiSymbolTable
 
+class VHDLCodeGeneratorParams:
+    # limit on the size of a result string
+    STRING_LEN_THRESHOLD = 120
+
+
+def result_too_long(result, threshold=VHDLCodeGeneratorParams.STRING_LEN_THRESHOLD):
+    """ Checks if CodeExpression result exceeds a given threshold """
+    if not isinstance(result, CodeExpression):
+        return False
+    else:
+        return len(result.get()) > threshold
 
 class VHDLCodeGenerator(object):
     language = C_Code
@@ -463,12 +474,6 @@ class VHDLCodeGenerator(object):
         if optree.get_debug() and not self.disable_debug:
             self.generate_debug_msg(optree, result, code_object)
 
-        def result_too_long(result, threshold = 80):
-            """ Checks if CodeExpression result exceeds a given threshold """
-            if not isinstance(result, CodeExpression):
-                return False
-            else:
-                return len(result.get()) > threshold
             
 
         if (initial or force_variable_storing or result_too_long(result)) and not isinstance(result, CodeVariable) and not result is None:
