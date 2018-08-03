@@ -324,14 +324,15 @@ class FP_MinusZero(FP_SpecialValue):
 class FP_QNaN(FP_MathSpecialValue):
   """ Floating-point quiet NaN """
   ml_support_name = "NAN"
+  ml_nan_field = (lambda self, field_size: (1, (int(S2**(field_size - 1) - 1))))
   def get_integer_coding(self):
     exp = int(self.get_base_precision().get_nanorinf_exp_field())
-    sign = 1
     field_size = self.get_base_precision().get_field_size()
     exp_size = self.get_base_precision().get_exponent_size()
     ## field MSB is set according to FP_MathSpecialValue.QUIET_BIT_SET_FOR_QNAN
     quiet_bit = (1 << (field_size - 1)) if FP_MathSpecialValue.QUIET_BIT_SET_FOR_QNAN else 0
-    mant = int(S2**(field_size - 1) - 1) | quiet_bit
+    sign, mant = FP_QNaN.ml_nan_field(self, field_size)
+    mant |= quiet_bit
     return mant | (((sign << exp_size) | exp) << field_size)
   def __str__(self):
     return "qNaN"
