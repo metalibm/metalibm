@@ -133,11 +133,11 @@ def node_has_inputs(optree):
 def retime_op(op, retime_map):
     """ Process each input of op and if necessary generate necessary
         forwarding stage """
-    Log.report(Log.Verbose, "retiming op %s " % (op.get_str(depth=1)))
+    op_stage = op.attributes.init_stage
+    Log.report(Log.Verbose, "retiming op [S=%d] %s " % (op_stage, op.get_str(depth=1)))
     if retime_map.hasBeenProcessed(op):
         Log.report(Log.Verbose, "  retiming already processed")
         return
-    op_stage = op.attributes.init_stage
 
     if isinstance(op, StaticDelay):
         pass
