@@ -582,6 +582,13 @@ class VirtualFormat(ML_Format):
   def is_vector_format(self):
       return False
 
+
+def get_virtual_cst(prec, value, language):
+    """ constant get for virtual format """
+    return prec.get_support_format().get_cst(
+        prec.get_base_format().get_integer_coding(value, language)
+    )
+
 ## Virtual format with no match forwarding
 class VirtualFormatNoForward(VirtualFormat):
     def get_match_format(self):
@@ -646,6 +653,13 @@ class ML_Base_FixedPoint_Format(ML_Fixed_Format, VirtualFormatNoBase):
 
     def get_c_bit_size(self):
         return self.c_bit_size
+
+
+    @staticmethod
+    def match(format_str):
+        """ returns None if format_str does not match the class pattern
+            or a re.match if it does """
+        return re.match("(?P<name>F[US])(?P<integer>-?[\d]+)\.(?P<frac>-?[\d]+)",format_str)
 
     ## @return size (in bits) of the fractional part of
     #          @p self formats
@@ -810,11 +824,6 @@ class ML_Custom_FixedPoint_Format(ML_Base_SW_FixedPoint_Format):
         """ unequality predicate for custom fixed-point format object """
         return not (self == other)
 
-    @staticmethod
-    def match(format_str):
-        """ returns None if format_str does not match the class pattern
-            or a re.match if it does """
-        return re.match("(?P<name>F[US])\((?P<integer>-?[\d]+),(?P<frac>-?[\d]+)\)",format_str)
 
     @staticmethod
     def parse_from_match(format_match):

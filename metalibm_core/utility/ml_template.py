@@ -52,7 +52,10 @@ from ..targets import *
 from ..code_generation.code_constant import *
 from ..core.passes import Pass
 
-from ..core.ml_hdl_format import fixed_point
+from ..core.ml_hdl_format import (
+    fixed_point, ML_StdLogicVectorFormat, RTL_FixedPointFormat,
+    HdlVirtualFormat
+)
 
 from metalibm_core.code_generation.vhdl_backend import VHDLBackend
 
@@ -76,6 +79,19 @@ precision_map = {
     "uint32": ML_UInt32,
     "int64":  ML_Int64,
     "uint64": ML_UInt64,
+}
+
+
+# Translation map for standard format, from str
+# to their HDL compatible ML_Format counterpart
+HDL_PRECISION_MAP = {
+    "binary16": HdlVirtualFormat(ML_Binary16),
+    "binary32": HdlVirtualFormat(ML_Binary32),
+    "binary64": HdlVirtualFormat(ML_Binary64),
+    "int32": fixed_point(32, 0, signed=True),
+    "uint32": fixed_point(32, 0, signed=False),
+    "int64": fixed_point(64, 0, signed=True),
+    "uint64": fixed_point(64, 0, signed=False),
 }
 
 accuracy_map = {
@@ -106,17 +122,43 @@ def precision_parser(precision_str):
             fixed_format = ML_Custom_FixedPoint_Format.parse_from_match(fixed_format_match)
             return fixed_format
         else:
-            return eval(precision_str)
+            try:
+                eval_format = eval(precision_str)
+                return eval_format
+            except Exception as e:
+                Log.report(Log.Error, "unable to parse evaluated format {}", precision_str, error=e)
+
+def hdl_precision_parser(precision_str):
+    """ translate a str to a ML_Format compatible with HDL backend
+        @param precision_str (str)
+        @return ML_Format object """
+    if precision_str in HDL_PRECISION_MAP:
+        return HDL_PRECISION_MAP[precision_str]
+    else:
+        fixed_format_match = RTL_FixedPointFormat.match(precision_str)
+        if fixed_format_match:
+            fixed_format = RTL_FixedPointFormat.parse_from_match(fixed_format_match)
+            return fixed_format
+        else:
+            try:
+                eval_format = eval(precision_str)
+                return eval_format
+            except Exception as e:
+                Log.report(Log.Error, "unable to parse evaluated format {}", precision_str, error=e)
+
 
 # Parse list of formats
 #  @param format_str comma separated list of formats
 #  @return the list of ML format objects
-
-
 def format_list_parser(format_str):
     """ apply precision_parser to a comma-separated list of
         format string """
     return [precision_parser(prec_str) for prec_str in format_str.split(",")]
+
+def hdl_format_list_parser(format_str):
+    """ apply precision_parser to a comma-separated list of
+        format string """
+    return [hdl_precision_parser(prec_str) for prec_str in format_str.split(",")]
 
 
 def accuracy_parser(accuracy_str):
@@ -426,16 +468,6 @@ class ML_CommonArgTemplate(object):
             help="function arity (number of inputs)")
 
         self.parser.add_argument(
-            "--precision", dest="precision", type=precision_parser,
-            default=default_arg.precision,
-            help="select main precision")
-        self.parser.add_argument(
-            "--input-formats", dest="input_precisions",
-            type=format_list_parser,
-            default=default_arg.input_precisions,
-            help="comma separated list of input formats")
-
-        self.parser.add_argument(
             "--accuracy", dest="accuracy", default=default_arg.accuracy,
             type=accuracy_parser, help="select accuracy")
 
@@ -640,6 +672,16 @@ class ML_EntityArgTemplate(ML_CommonArgTemplate):
             default=True,
             help="disable auto exit after functionnal test"
         )
+        self.parser.add_argument(
+            "--precision", dest="precision", type=hdl_precision_parser,
+            default=default_arg.precision,
+            help="select main precision")
+        self.parser.add_argument(
+            "--input-formats", dest="input_precisions",
+            type=hdl_format_list_parser,
+            default=default_arg.input_precisions,
+            help="comma separated list of input formats")
+
 
 # new argument template based on argparse module
 class ML_NewArgTemplate(ML_CommonArgTemplate):
@@ -667,6 +709,16 @@ class ML_NewArgTemplate(ML_CommonArgTemplate):
             type=target_instanciate, default=default_arg.target,
             help="select generation target"
         )
+        self.parser.add_argument(
+            "--precision", dest="precision", type=precision_parser,
+            default=default_arg.precision,
+            help="select main precision")
+        self.parser.add_argument(
+            "--input-formats", dest="input_precisions",
+            type=format_list_parser,
+            default=default_arg.input_precisions,
+            help="comma separated list of input formats")
+
 
 
 

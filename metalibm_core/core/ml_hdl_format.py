@@ -38,7 +38,10 @@
 
 import sollya
 
-from .ml_formats import ML_Format, ML_Base_FixedPoint_Format, ML_Fixed_Format
+from .ml_formats import (
+    ML_Format, ML_Base_FixedPoint_Format, ML_Fixed_Format,
+    VirtualFormat, get_virtual_cst
+)
 from ..code_generation.code_constant import VHDL_Code
 
 from ..utility.log_report import Log
@@ -81,27 +84,48 @@ def generic_get_vhdl_cst(value, bit_size):
 
 
 class RTL_FixedPointFormat(ML_Base_FixedPoint_Format):
-  def __init__(self, integer_size, frac_size, signed = True, support_format = None, align = 0):
-    ML_Base_FixedPoint_Format.__init__(self, integer_size, frac_size, signed, support_format = support_format, align = align)
-    name = ("" if self.signed else "U") + "INT" + str(self.get_bit_size()) 
-    self.name[VHDL_Code] = name
+    def __init__(self, integer_size, frac_size, signed = True, support_format = None, align = 0):
+        ML_Base_FixedPoint_Format.__init__(self, integer_size, frac_size, signed, support_format = support_format, align = align)
+        name = ("" if self.signed else "U") + "INT" + str(self.get_bit_size()) 
+        self.name[VHDL_Code] = name
 
-  def get_vhdl_cst(self, cst_value):
-    return generic_get_vhdl_cst(cst_value * S2**self.get_frac_size(), self.get_bit_size())
+    def get_vhdl_cst(self, cst_value):
+        return generic_get_vhdl_cst(cst_value * S2**self.get_frac_size(), self.get_bit_size())
 
-  def get_name(self, language = VHDL_Code):
-    return self.support_format.get_name(language)
-  def get_code_name(self, language = VHDL_Code):
-    return self.support_format.get_code_name(language)
+    def get_name(self, language = VHDL_Code):
+        return self.support_format.get_name(language)
+    def get_code_name(self, language = VHDL_Code):
+        return self.support_format.get_code_name(language)
 
-  def is_cst_decl_required(self):
-    return False
+    def is_cst_decl_required(self):
+        return False
 
-  def get_cst(self, cst_value, language = VHDL_Code):
-    if language is VHDL_Code:
-      return self.get_vhdl_cst(cst_value)
-    else:
-      raise NotImplementedError
+    def get_cst(self, cst_value, language = VHDL_Code):
+        if language is VHDL_Code:
+            return self.get_vhdl_cst(cst_value)
+        else:
+            raise NotImplementedError
+
+    @staticmethod
+    def parse_from_match(format_match):
+        """ Parse the description of a class format and generates
+            the format object """
+        assert not format_match is None
+        name = format_match.group("name")
+        int_size = int(format_match.group("integer"))
+        frac_size = int(format_match.group("frac"))
+        is_signed = (name == "FS")
+        return fixed_point(int_size, frac_size, signed=is_signed)
+
+
+def HdlVirtualFormat(base_precision):
+    """ Build a VirtualFormat to wrap @p base_precision """
+    return VirtualFormat(
+        base_format=base_precision,
+        support_format=ML_StdLogicVectorFormat(base_precision.get_bit_size()),
+        get_cst=get_virtual_cst
+    )
+
 
 ## Format class for multiple bit signals
 class ML_StdLogicVectorFormat(ML_Format):
