@@ -30,7 +30,9 @@
 ###############################################################################
 import sys
 
-from sollya import S2, pi
+from sollya import SollyaObject, pi
+
+S2 = SollyaObject(2)
 
 from metalibm_core.core.ml_function import ML_Function, ML_FunctionBasis
 

@@ -36,7 +36,9 @@
 import sys
 import argparse
 
-from sollya import Interval, S2
+from sollya import Interval, SollyaObject
+
+S2 = SollyaObject(2)
 
 from metalibm_core.targets import *
 import metalibm_core.code_generation.mpfr_backend
@@ -44,7 +46,7 @@ import metalibm_core.code_generation.mpfr_backend
 from metalibm_core.utility.ml_template import target_instanciate
 from metalibm_core.core.ml_formats import ML_Int32, ML_Int16, ML_Int64, ML_Binary32
 from metalibm_core.core.precisions import (
-    ML_CorrectlyRounded, ML_Faithful, dar, daa 
+    ML_CorrectlyRounded, ML_Faithful, dar, daa
 )
 
 from valid.unit_test import (

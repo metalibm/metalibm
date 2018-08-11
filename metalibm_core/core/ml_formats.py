@@ -734,16 +734,16 @@ class ML_Base_FixedPoint_Format(ML_Fixed_Format, VirtualFormatNoBase):
       if value < 0:
         if not self.signed:
             Log.report(Log.Error, "negative value encountered {} while converting for an unsigned precision: {}".format(value, self))
-        encoded_value = (~int(abs(value) * sollya.S2**self.frac_size) + 1) % 2**self.get_bit_size()
+        encoded_value = (~int(abs(value) * S2**self.frac_size) + 1) % 2**self.get_bit_size()
         return encoded_value
       else:
-        encoded_value = int(value * sollya.S2**self.frac_size)
+        encoded_value = int(value * S2**self.frac_size)
         return encoded_value
 
     def get_c_cst(self, cst_value):
         """ C-language constant generation """
         try:
-          encoded_value = int(cst_value * sollya.S2**self.frac_size)
+          encoded_value = int(cst_value * S2**self.frac_size)
         except (ValueError, TypeError) as e:
           print(e, cst_value, self.frac_size)
           Log.report(Log.Error, "Error during constant conversion to sollya object")
