@@ -50,8 +50,9 @@ from metalibm_core.code_generation.vhdl_backend import VHDLBackend
 from metalibm_core.core.ml_entity import (
     ML_Entity, ML_EntityBasis, DefaultEntityArgTemplate
 )
-from metalibm_core.utility.ml_template import \
-    ML_EntityArgTemplate
+from metalibm_core.utility.ml_template import (
+    ML_EntityArgTemplate, hdl_precision_parser
+)
 from metalibm_core.utility.log_report import Log
 from metalibm_core.core.ml_hdl_format import fixed_point
 
@@ -101,12 +102,12 @@ class UT_FixedPointPosition(ML_Entity("ml_ut_fixed_point_position"), TestRunner)
 
     def generate_scheme(self):
         """ main scheme generation """
-        
+
         int_size = 3
         frac_size = self.width - int_size
 
-        input_precision = fixed_point(int_size, frac_size)
-        output_precision = fixed_point(int_size, frac_size)
+        input_precision = hdl_precision_parser("FU%d.%d" % (int_size, frac_size))
+        output_precision = hdl_precision_parser("FS%d.%d" % (int_size, frac_size))
 
 
         # declaring main input variable

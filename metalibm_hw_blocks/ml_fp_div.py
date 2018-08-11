@@ -32,7 +32,8 @@ import sys
 
 import sollya
 
-from sollya import S2, Interval, ceil, floor, round
+from sollya import Interval, ceil, floor, round
+S2 = sollya.SollyaObject(2)
 from sollya import parse as sollya_parse
 
 from metalibm_core.core.attributes import ML_Debug
@@ -168,7 +169,7 @@ class FP_Divider(ML_Entity("fp_div")):
 
     ## convert @p value from an input floating-point precision
     #  @p in_precision to an output support format @p out_precision
-    io_precision = VirtualFormat(base_format = self.precision, support_format = ML_StdLogicVectorFormat(self.precision.get_bit_size()), get_cst = get_virtual_cst)
+    io_precision = HdlVirtualFormat(self.precision)
 
     # declaring main input variable
     vx = self.implementation.add_input_signal("x", io_precision)

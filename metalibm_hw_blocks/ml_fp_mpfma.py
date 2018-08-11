@@ -32,7 +32,7 @@ import sys
 
 import sollya
 
-from sollya import S2, Interval, floor, round, log2 
+from sollya import Interval, floor, round, log2 
 from sollya import parse as sollya_parse
 
 from metalibm_core.core.attributes import ML_Debug
@@ -115,9 +115,9 @@ class FP_MPFMA(ML_Entity("fp_mpfma")):
 
     ## convert @p value from an input floating-point precision
     #  @p in_precision to an output support format @p out_precision
-    prod_input_precision = VirtualFormat(base_format = self.precision, support_format = ML_StdLogicVectorFormat(self.precision.get_bit_size()), get_cst = get_virtual_cst)
+    prod_input_precision = HdlVirtualFormat(self.precision)
 
-    accumulator_precision = VirtualFormat(base_format = self.acc_precision, support_format = ML_StdLogicVectorFormat(self.acc_precision.get_bit_size()), get_cst = get_virtual_cst)
+    accumulator_precision = HdlVirtualFormat(self.acc_precision)
 
     # declaring standard clock and reset input signal
     #clk = self.implementation.add_input_signal("clk", ML_StdLogic)
@@ -593,6 +593,7 @@ class FP_MPFMA(ML_Entity("fp_mpfma")):
 
     return lzc_entity_list + [self.implementation]
 
+
   def numeric_emulate(self, io_map):
     vx = io_map["x"]
     vy = io_map["y"]
@@ -601,7 +602,6 @@ class FP_MPFMA(ML_Entity("fp_mpfma")):
     result["vr_out"] = sollya.round(vx * vy + vz, self.precision.get_sollya_object(), sollya.RN)
     return result
 
-  # standard_test_cases = [({"x": 1.0, "y": (S2**-11 + S2**-17)}, None)]
   standard_test_cases = [
     #({"x": 2.0, "y": 4.0, "z": 16.0}, None),
     ({
