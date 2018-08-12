@@ -198,7 +198,22 @@ class VHDLCodeGenerator(object):
 
             output_var_code   = self.generate_expr(code_object, output_var, folded = False, language = language)
 
-            assign_sign = "<=" if isinstance(output_var, Signal) else ":="
+            def get_assign_symbol(node):
+                if isinstance(node, Signal):
+                    assign_sign = "<="
+                elif isinstance(node, Variable):
+                    assign_sign = ":="
+                else:
+                    Log.report(Log.Error, "unsupported node for assign symbol:\n {}", node)
+                return assign_sign
+
+            if isinstance(output_var, Signal) or isinstance(output_var, Variable):
+                assign_sign = get_assign_symbol(output_var)
+            elif isinstance(output_var, VectorElementSelection) or isinstance(output_var, SubSignalSelection):
+                select_input = output_var.get_input(0)
+                assign_sign = get_assign_symbol(select_input)
+            else:
+                Log.report(Log.Error, "unsupported node for assign symbol:\n {}", node)
 
             if isinstance(result_value, Constant):
               # generate assignation
@@ -464,6 +479,37 @@ class VHDLCodeGenerator(object):
             return None
 
         else:
+            # building ordered list of required node by depth
+            working_list = [op for op in optree.get_inputs()]
+            processing_list = [op for op in working_list]
+            resolved = {}
+            while working_list != []:
+                op = working_list.pop(0)
+                # node has already been processed: SKIP
+                if op in resolved:
+                    continue
+                if isinstance(op, ML_Table):
+                    # ML_Table instances are skipped (should be generated directly by TableLoad)
+                    continue
+                elif isinstance(op, ML_LeafNode):
+                    processing_list.append(op)
+                else:
+                    memo = self.get_memoization(op)
+                    if not memo is None:
+                        # node has already been generated: STOP HERE
+                        resolved[op] = memo
+                    else:
+                        # enqueue node to be processed
+                        processing_list.append(op)
+                        # enqueue node inputs
+                        working_list += [op for op in op.get_inputs()]
+                        resolved[op] = memo
+
+            # processing list in reverse order (starting with deeper node to avoid too much recursion)
+            for op in processing_list[::-1]:
+                _ = self.generate_expr(code_object, op, folded=folded, initial=initial, language=language)
+
+            # processing main node
             generate_pre_process = self.generate_clear_exception if optree.get_clearprevious() else None
             result = self.processor.generate_expr(self, code_object, optree, optree.inputs, generate_pre_process = generate_pre_process, folded = folded, result_var = result_var, language = language)
 
