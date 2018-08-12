@@ -549,8 +549,11 @@ def invert_comp_specifier(comp_specifier):
     return inverse_map[comp_specifier]
 
 def generate_sse_select_boolean_value(cond, precision, negate=False):
-    """ Negate indicates that condition must be reverse 0 is the value
-        which should be returned when cond is False
+    """ Generate a code generation operator for a comparison between two
+        values stored in SSE/AVX registers and whose boolean result is casted
+        to a value of same format as the operands (precision).
+        Negate indicates that condition must be reversed.
+        The Value 0 should be returned when cond is False
         and -1 when cond is True """
     assert isinstance(cond, Comparison)
     specifier_map = {
@@ -607,6 +610,19 @@ def generate_sse_select_boolean_value(cond, precision, negate=False):
                                   format_suffix[precision]),
             output_precision = precision, arity = 2
             )
+
+def expand_sse_avx_bool_comparison(optree):
+    """ Expand a comparison between numeric values to a boolean output
+        to a comparison with numeric format for result (supported by SSE/AVX)
+        and a cast to boolean format to match operand prototype """
+    lhs = optree.get_input(0)
+    rhs = optree.get_input(0)
+    specifier = optree.specifier
+    input_format = lhs.get_precision()
+    return TypeCast(
+        Comparison(lhs, rhs, specifier=specifier, precision=input_format),
+        precision=optree.get_precision()
+    )
 
 def generate_sse_comparison(optree):
     return generate_sse_select_boolean_value(optree, optree.get_precision())
@@ -804,10 +820,15 @@ def expand_vec_mantissa_extraction(optree):
     )
 
 
-def error_raise_fct(*args):
+def error_raise_fct(optree):
+    Log.report(
+        Log.Error,
+        "Generation for is only supported by a dummy operator in x86 backend.: \n {}",
+        optree
+    )
     raise NotImplementedError
 
-ERROR_OPERATOR = DynamicOperator(error_raise_fct)
+ERROR_OPERATOR = ComplexOperator(optree_modifier=error_raise_fct)
 
 
 sse_c_code_generation_table = {
@@ -844,11 +865,11 @@ sse_c_code_generation_table = {
                     DynamicOperator(generate_sse_comparison),
                 # 3 Dummy operators used to allow m128_promotion to promote squashable comparison
                 type_strict_match(ML_SSE_m128_v4bool, ML_SSE_m128_v4int32, ML_SSE_m128_v4int32):
-                    ERROR_OPERATOR,
+                    ComplexOperator(expand_sse_avx_bool_comparison),
                 type_strict_match(ML_SSE_m128_v4bool, ML_SSE_m128_v4uint32, ML_SSE_m128_v4uint32):
-                    ERROR_OPERATOR,
+                    ComplexOperator(expand_sse_avx_bool_comparison),
                 type_strict_match(ML_SSE_m128_v4bool, ML_SSE_m128_v4float32, ML_SSE_m128_v4float32):
-                    ERROR_OPERATOR,
+                    ComplexOperator(expand_sse_avx_bool_comparison),
             }
         },
         Comparison.Equal: {
@@ -863,7 +884,7 @@ sse_c_code_generation_table = {
                         (ML_SSE_m128_v4bool, ML_SSE_m128_v4int32, ML_SSE_m128_v4int32),
                         (ML_SSE_m128_v4bool, ML_SSE_m128_v4uint32, ML_SSE_m128_v4uint32),
                         (ML_SSE_m128_v4bool, ML_SSE_m128_v4float32, ML_SSE_m128_v4float32)]):
-                    ERROR_OPERATOR,
+                    ComplexOperator(expand_sse_avx_bool_comparison),
             }
         },
         Comparison.LessOrEqual: {
@@ -880,7 +901,7 @@ sse_c_code_generation_table = {
                         (ML_SSE_m128_v4bool, ML_SSE_m128_v4int32, ML_SSE_m128_v4int32),
                         (ML_SSE_m128_v4bool, ML_SSE_m128_v4uint32, ML_SSE_m128_v4uint32),
                         (ML_SSE_m128_v4bool, ML_SSE_m128_v4float32, ML_SSE_m128_v4float32)]):
-                    ERROR_OPERATOR,
+                    ComplexOperator(expand_sse_avx_bool_comparison),
             }
         },
         Comparison.Less: {
@@ -895,7 +916,7 @@ sse_c_code_generation_table = {
                         (ML_SSE_m128_v4bool, ML_SSE_m128_v4int32, ML_SSE_m128_v4int32),
                         (ML_SSE_m128_v4bool, ML_SSE_m128_v4uint32, ML_SSE_m128_v4uint32),
                         (ML_SSE_m128_v4bool, ML_SSE_m128_v4float32, ML_SSE_m128_v4float32)]):
-                    ERROR_OPERATOR,
+                    ComplexOperator(expand_sse_avx_bool_comparison),
             }
         },
         Comparison.Greater: {
@@ -910,7 +931,7 @@ sse_c_code_generation_table = {
                         (ML_SSE_m128_v4bool, ML_SSE_m128_v4int32, ML_SSE_m128_v4int32),
                         (ML_SSE_m128_v4bool, ML_SSE_m128_v4uint32, ML_SSE_m128_v4uint32),
                         (ML_SSE_m128_v4bool, ML_SSE_m128_v4float32, ML_SSE_m128_v4float32)]):
-                    ERROR_OPERATOR,
+                    ComplexOperator(expand_sse_avx_bool_comparison),
             }
         },
         Comparison.GreaterOrEqual: {
@@ -925,7 +946,7 @@ sse_c_code_generation_table = {
                         (ML_SSE_m128_v4bool, ML_SSE_m128_v4int32, ML_SSE_m128_v4int32),
                         (ML_SSE_m128_v4bool, ML_SSE_m128_v4uint32, ML_SSE_m128_v4uint32),
                         (ML_SSE_m128_v4bool, ML_SSE_m128_v4float32, ML_SSE_m128_v4float32)]):
-                    ERROR_OPERATOR,
+                    ComplexOperator(expand_sse_avx_bool_comparison),
             }
         },
     },
