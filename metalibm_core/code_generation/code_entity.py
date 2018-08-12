@@ -177,9 +177,20 @@ class CodeEntity(object):
     
   def get_declaration(self, final = True, language = None):
     language = self.language if language is None else language
+    def get_in_prec_code_name(node, language=None):
+        prec = node.get_precision()
+        if prec is None:
+            Log.report(Log.Error, "node with None precision: {}", node)
+        return  prec.get_code_name(language=language)
+    def get_out_prec_code_name(node, language=None):
+        prec = self.get_output_precision(node)
+        if prec is None:
+            Log.report(Log.Error, "node with None precision: {}", node)
+        return  prec.get_code_name(language=language)
     # input signal declaration
-    input_port_list = ["%s : in %s" % (inp.get_tag(), inp.get_precision().get_code_name(language = language)) for inp in self.arg_list]
-    output_port_list = ["%s : out %s" % (self.get_port_from_output(out).get_tag(), self.get_output_precision(out).get_code_name(language = language)) for out in self.get_output_assign()]
+    input_port_list = ["%s : in %s" % (inp.get_tag(), get_in_prec_code_name(inp, language=language)) for inp in self.arg_list]
+    # output signal declaration
+    output_port_list = ["%s : out %s" % (self.get_port_from_output(out).get_tag(), get_out_prec_code_name(out, language=language)) for out in self.get_output_assign()]
     port_format_list = ";\n  ".join(input_port_list + output_port_list)
     # FIXME: add suport for inout and generic
     port_desc = "port (\n  {port_list}\n);".format(port_list = port_format_list)
