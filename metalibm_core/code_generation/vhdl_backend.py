@@ -1042,7 +1042,37 @@ vhdl_code_generation_table = {
                   )
               },
               #build_simplified_operator_generation([ML_Int32, ML_Int64, ML_UInt64, ML_UInt32, ML_Binary32, ML_Binary64], 2, SymbolOperator(">=", arity = 2), result_precision = ML_Int32),
-          }) for specifier in [Comparison.Equal, Comparison.NotEqual, Comparison.Greater, Comparison.GreaterOrEqual, Comparison.Less, Comparison.LessOrEqual]]
+          }) for specifier in [Comparison.Greater, Comparison.GreaterOrEqual, Comparison.Less, Comparison.LessOrEqual]]
+        +
+        [(specifier,
+          {
+              lambda _: True: {
+                  type_custom_match(FSM(ML_Bool), FSM(ML_Binary64), \
+                                    FSM(ML_Binary64)):
+                  SymbolOperator(
+                      vhdl_comp_symbol[specifier], arity=2,
+                      force_folding=False
+                  ),
+                  type_custom_match(FSM(ML_Bool), FSM(ML_Binary32), FSM(ML_Binary32)):
+                  SymbolOperator(
+                      vhdl_comp_symbol[specifier], arity=2, force_folding=False),
+                  type_custom_match(FSM(ML_Bool), FSM(ML_Binary16), FSM(ML_Binary16)):
+                  SymbolOperator(
+                      vhdl_comp_symbol[specifier], arity=2, force_folding=False),
+                  type_custom_match(FSM(ML_Bool), TCM(ML_StdLogicVectorFormat), TCM(ML_StdLogicVectorFormat)):
+                  SymbolOperator(
+                      vhdl_comp_symbol[specifier], arity=2, force_folding=False),
+                  type_strict_match(ML_Bool, ML_StdLogic, ML_StdLogic):
+                    SymbolOperator(
+                      vhdl_comp_symbol[specifier], arity=2, force_folding=False),
+                  # fixed-point comparison
+                  type_custom_match(FSM(ML_Bool), MCFixedPoint, MCFixedPoint):
+                  SymbolOperator(
+                      vhdl_comp_symbol[specifier], arity=2, force_folding=False),
+              },
+              #build_simplified_operator_generation([ML_Int32, ML_Int64, ML_UInt64, ML_UInt32, ML_Binary32, ML_Binary64], 2, SymbolOperator(">=", arity = 2), result_precision = ML_Int32),
+          }) for specifier in [Comparison.Equal, Comparison.NotEqual]
+          ]
         +
         [(specifier,
             {
