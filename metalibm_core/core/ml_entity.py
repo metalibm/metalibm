@@ -573,8 +573,9 @@ class ML_EntityBasis(object):
       debug_cmd = "do {debug_file};".format(debug_file = self.debug_file) if self.debug_flag else "" 
       debug_cmd += " exit;" if self.exit_after_test else ""
       # simulation
-      test_delay = time_step * self.stage_num * (self.auto_test_number + (len(self.standard_test_cases) if self.auto_test_std else 0) + 10) 
+      test_delay = time_step * (self.stage_num + 2) * (self.auto_test_number + (len(self.standard_test_cases) if self.auto_test_std else 0) + 100) 
       sim_cmd = "vsim -c work.testbench -do \"run {test_delay} ns; {debug_cmd}\"".format(entity = self.entity_name, debug_cmd = debug_cmd, test_delay = test_delay)
+      Log.report(Log.Info, "simulation command:\n{}".format(sim_cmd))
       sim_result = subprocess.call(sim_cmd, shell = True)
       if sim_result:
         Log.report(Log.Error, "simulation failed [{}]".format(sim_result))
@@ -584,6 +585,7 @@ class ML_EntityBasis(object):
     elif self.build_enable:
       print("Elaborating {}".format(self.output_file))
       elab_cmd = "vlib work && vcom -2008 {}".format(self.output_file)
+      Log.report(Log.Info, "elaboration command:\n{}".format(elab_cmd))
       elab_result = subprocess.call(elab_cmd, shell = True)
       if elab_result:
         Log.report(Log.Error, "failed to elaborate [{}]".format(elab_result))
