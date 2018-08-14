@@ -13,6 +13,7 @@ import random
 import math
 
 import sollya
+import operator
 
 from sollya import Interval, floor, round, log2
 from sollya import parse as sollya_parse
@@ -59,7 +60,7 @@ from metalibm_core.core.ml_hdl_operations import *
 from metalibm_core.utility.rtl_debug_utils import (
         debug_fixed, debug_dec, debug_std, debug_dec_unsigned
 )
-from metalibm_core.utility.ml_template import precision_parser
+from metalibm_core.utility.ml_template import hdl_precision_parser
 
 from metalibm_core.targets.kalray.k1c_fp_utils import (
         rnd_mode_format, rnd_rne, rnd_ru, rnd_rd, rnd_rz
@@ -69,6 +70,9 @@ from metalibm_hw_blocks.rtl_blocks import zext, rzext
 from metalibm_hw_blocks.lzc import ML_LeadingZeroCounter
 from metalibm_hw_blocks.lza import ML_LeadingZeroAnticipator
 
+class OpInput(object):
+    def __init__(self, precision):
+        self.precision = precision
 
 class MultInput:
     def __init__(self, lhs_precision, rhs_precision):
@@ -77,16 +81,130 @@ class MultInput:
 
     @staticmethod
     def parse(s):
-        lhs, rhs = s.split("x")
-        print lhs, rhs
-        return MultInput(
-            precision_parser(lhs),
-            precision_parser(rhs)
-        )
+        if "x" in s:
+            lhs, rhs = s.split("x")
+            print lhs, rhs
+            return MultInput(
+                hdl_precision_parser(lhs),
+                hdl_precision_parser(rhs)
+            )
+        else:
+            return OpInput(hdl_precision_parser(s))
 
 def multiplication_descriptor_parser(arg_str):
     return [MultInput.parse(s) for s in arg_str.split("+")]
 
+def comp_3to2(a, b, c):
+    """ 3 digits to 2 digits compressor """
+    #full = Addition(a, b, c, precision=ML_StdLogicVectorFormat(2))
+    #carry = BitSelection(full, 1)
+    #digit = BitSelection(full, 0)
+    #return carry, digit
+    s = BitLogicXor(a, BitLogicXor(b, c, precision=ML_StdLogic), precision=ML_StdLogic)
+    c = BitLogicOr(
+        BitLogicAnd(a, b, precision=ML_StdLogic),
+        BitLogicOr(
+            BitLogicAnd(a, c, precision=ML_StdLogic),
+            BitLogicAnd(c, b, precision=ML_StdLogic),
+            precision=ML_StdLogic
+        ),
+        precision=ML_StdLogic
+    )
+    return c, s
+
+    a = TypeCast(a, precision=fixed_point(1, 0, signed=False))
+    b = TypeCast(b, precision=fixed_point(1, 0, signed=False))
+    c = TypeCast(c, precision=fixed_point(1, 0, signed=False))
+
+    full = TypeCast(Conversion(a + b + c, precision=fixed_point(2, 0, signed=False)), precision=ML_StdLogicVectorFormat(2))
+    carry = BitSelection(full, 1)
+    digit = BitSelection(full, 0)
+    return carry, digit
+
+def comp_4to2(cin, a, b, c, d):
+    """ 4:2 digit compressor """
+    cout, s0 = comp_3to2(a, b, c)
+    if cin is None:
+        c1 = BitLogicAnd(d, s0, precision=ML_StdLogic)
+        s1 = BitLogicXor(d, s0, precision=ML_StdLogic)
+    else:
+        c1, s1 = comp_3to2(cin, d, s0)
+    return cout, c1, s1
+
+def wallace_4to2_reduction(previous_bit_heap):
+    """ BitHeap Wallace reduction using 4:2 compressors """
+    next_bit_heap = BitHeap()
+    carry_bit_heap = BitHeap()
+    while previous_bit_heap.max_count() > 0:
+        bit_list, w = previous_bit_heap.pop_lower_bits(4)
+        if carry_bit_heap.bit_count(w) > 0:
+            cin = carry_bit_heap.pop_bit(w)
+        else:
+            cin = None
+        if len(bit_list) == 0:
+            if cin:
+                next_bit_heap.insert(w, cin)
+        elif len(bit_list) == 1:
+            next_bit_heap.insert_bit(w, bit_list[0])
+            if cin:
+                next_bit_heap.insert(w, cin)
+        elif len(bit_list) == 2:
+            if cin is None:
+                for b in bit_list:
+                    next_bit_heap.insert_bit(w, b)
+            else:
+                b_wp1, b_w = comp_3to2(bit_list[0], bit_list[1], cin)
+                next_bit_heap.insert_bit(w + 1, b_wp1)
+                next_bit_heap.insert_bit(w, b_w)
+                cin = None
+        elif len(bit_list) == 3:
+            if cin:
+                next_bit_heap.insert_bit(w, cin)
+            b_wp1, b_w = comp_3to2(bit_list[0], bit_list[1], bit_list[2])
+            next_bit_heap.insert_bit(w + 1, b_wp1)
+            next_bit_heap.insert_bit(w, b_w)
+        else:
+            assert len(bit_list) == 4
+            cout, b_wp1, b_w = comp_4to2(cin, bit_list[0], bit_list[1], bit_list[2], bit_list[3])
+            next_bit_heap.insert_bit(w + 1, b_wp1)
+            next_bit_heap.insert_bit(w, b_w)
+            carry_bit_heap.insert_bit(w + 1, cout)
+    # flush carry-bit heap
+    while carry_bit_heap.max_count() > 0:
+        bit_list, w = carry_bit_heap.pop_lower_bits(1)
+        next_bit_heap.insert_bit(w, bit_list[0])
+    return next_bit_heap
+
+def wallace_reduction(previous_bit_heap):
+    """ Partial Product Tree compression using Wallace Algorithm
+        and 3:2 compressor """
+    next_bit_heap = BitHeap()
+    while previous_bit_heap.max_count() > 0:
+        bit_list, w = previous_bit_heap.pop_lower_bits(3)
+        if len(bit_list) <= 2:
+            for b in bit_list:
+                next_bit_heap.insert_bit(w, b)
+        else:
+            b_wp1, b_w = comp_3to2(bit_list[0], bit_list[1], bit_list[2])
+            next_bit_heap.insert_bit(w + 1, b_wp1)
+            next_bit_heap.insert_bit(w, b_w)
+    return next_bit_heap
+
+def dadda_reduction(previous_bit_heap):
+    """ Dadda reduction for partial product tree using 3:2 compressors """
+    next_bit_heap = BitHeap()
+    max_count = previous_bit_heap.max_count()
+    new_count = int(math.ceil((max_count / 3.0) * 2))
+    while previous_bit_heap.max_count() > 0:
+        bit_list, w = previous_bit_heap.pop_lower_bits(3)
+        if len(bit_list) <= 2 or previous_bit_heap.bit_count(w) + len(bit_list) + next_bit_heap.bit_count(w) <= new_count:
+            for b in bit_list:
+                next_bit_heap.insert_bit(w, b)
+        else:
+            b_wp1, b_w = comp_3to2(bit_list[0], bit_list[1], bit_list[2])
+            next_bit_heap.insert_bit(w + 1, b_wp1)
+            next_bit_heap.insert_bit(w, b_w)
+    return next_bit_heap
 
 
 class BitHeap:
@@ -151,8 +269,6 @@ class BitHeap:
 
 
 
-sys.setrecursionlimit(1500)
-
 class MultArray(ML_Entity("mult_array")):
     def __init__(self,
                  arg_template = DefaultEntityArgTemplate,
@@ -209,7 +325,7 @@ class MultArray(ML_Entity("mult_array")):
                 ("beforepipelining:size_datapath"),
                 ("beforepipelining:rtl_legalize"),
                 ("beforepipelining:unify_pipeline_stages"),
-                # ("beforecodegen:dump"),
+                #("beforecodegen:dump"),
                 ],
         }
         default_dict.update(kw)
@@ -236,10 +352,10 @@ class MultArray(ML_Entity("mult_array")):
 
         for index, mult_input in enumerate(self.mult_desc):
             print "{} x {}".format(mult_input.lhs_precision, mult_input.rhs_precision)
-            lhs_precision = fixed_point(mult_input.lhs_precision.get_integer_size(), mult_input.lhs_precision.get_frac_size(), signed=mult_input.lhs_precision.signed)
-            rhs_precision = fixed_point(mult_input.rhs_precision.get_integer_size(), mult_input.rhs_precision.get_frac_size(), signed=mult_input.rhs_precision.signed)
-            mult_input.lhs_precision = lhs_precision
-            mult_input.rhs_precision = rhs_precision
+            #lhs_precision = fixed_point(mult_input.lhs_precision.get_integer_size(), mult_input.lhs_precision.get_frac_size(), signed=mult_input.lhs_precision.signed)
+            #rhs_precision = fixed_point(mult_input.rhs_precision.get_integer_size(), mult_input.rhs_precision.get_frac_size(), signed=mult_input.rhs_precision.signed)
+            #mult_input.lhs_precision = lhs_precision
+            #mult_input.rhs_precision = rhs_precision
 
         for index, mult_input in enumerate(self.mult_desc):
             a_i = self.implementation.add_input_signal("a_%d_i" % index, mult_input.lhs_precision)
@@ -287,179 +403,128 @@ class MultArray(ML_Entity("mult_array")):
 
         # heap of positive bits
         pos_bit_heap = BitHeap()
+        # heap of negative bits
+        neg_bit_heap = BitHeap()
 
         # Partial Product generation
         for index in range(NUM_PRODUCTS):
             a_i = a_inputs[index]
             b_i = b_inputs[index]
             a_i_precision = a_i.get_precision()
-            for pp_index in range(a_i_precision.get_bit_size()):
+            b_i_precision = b_i.get_precision()
+            a_i_signed = a_i_precision.get_signed()
+            b_i_signed = b_i.get_precision().get_signed()
+            unsigned_prod = not(a_i_signed) and not(b_i_signed)
+            a_i_size = a_i_precision.get_bit_size()
+            b_i_size = b_i_precision.get_bit_size()
+            for pp_index in range(a_i_size):
+                a_j_signed = a_i_signed and (pp_index == a_i_size - 1) 
                 bit_a_j = BitSelection(a_i, pp_index)
                 pp = Select(equal_to(bit_a_j, 1), b_i, 0)
                 offset = pp_index - a_i_precision.get_frac_size()
-                for b_index in range(a_i_precision.get_bit_size()):
+                for b_index in range(b_i_size):
+                    b_k_signed = b_i_signed and (b_index == b_i_size - 1)
+                    pp_signed = a_j_signed ^ b_k_signed
                     pp_weight = offset + b_index
                     local_bit = BitSelection(pp, b_index)
-                    pos_bit_heap.insert_bit(pp_weight, local_bit)
-
-        def comp_3to2(a, b, c):
-            s = BitLogicXor(a, BitLogicXor(b, c, precision=ML_StdLogic), precision=ML_StdLogic)
-            c = BitLogicOr(
-                BitLogicAnd(a, b, precision=ML_StdLogic), 
-                BitLogicOr(
-                    BitLogicAnd(a, c, precision=ML_StdLogic), 
-                    BitLogicAnd(c, b, precision=ML_StdLogic), 
-                    precision=ML_StdLogic
-                ),
-                precision=ML_StdLogic
-            )
-            return c, s
-
-            a = TypeCast(a, precision=fixed_point(1, 0, signed=False))
-            b = TypeCast(b, precision=fixed_point(1, 0, signed=False))
-            c = TypeCast(c, precision=fixed_point(1, 0, signed=False))
-
-            full = TypeCast(Conversion(a + b + c, precision=fixed_point(2, 0, signed=False)), precision=ML_StdLogicVectorFormat(2))
-            carry = BitSelection(full, 1)
-            digit = BitSelection(full, 0)
-            return carry, digit
-
-        def comp_4to2(cin, a, b, c, d):
-            cout, s0 = comp_3to2(a, b, c)
-            if cin is None:
-                c1 = BitLogicAnd(d, s0, precision=ML_StdLogic)
-                s1 = BitLogicXor(d, s0, precision=ML_StdLogic)
-            else:
-                c1, s1 = comp_3to2(cin, d, s0)
-            return cout, c1, s1
-
-        def wallace_4to2_reduction(previous_bit_heap):
-            next_bit_heap = BitHeap()
-            carry_bit_heap = BitHeap()
-            while previous_bit_heap.max_count() > 0:
-                bit_list, w = previous_bit_heap.pop_lower_bits(4)
-                if carry_bit_heap.bit_count(w) > 0:
-                    cin = carry_bit_heap.pop_bit(w)
-                else:
-                    cin = None
-                if len(bit_list) == 0:
-                    if cin:
-                        next_bit_heap.insert(w, cin)
-                elif len(bit_list) == 1:
-                    next_bit_heap.insert_bit(w, bit_list[0])
-                    if cin:
-                        next_bit_heap.insert(w, cin)
-                elif len(bit_list) == 2:
-                    if cin is None:
-                        for b in bit_list:
-                            next_bit_heap.insert_bit(w, b)
+                    print pp_index, pp_weight, b_index, pp_signed
+                    if pp_signed:
+                        neg_bit_heap.insert_bit(pp_weight, local_bit)
                     else:
-                        b_wp1, b_w = comp_3to2(bit_list[0], bit_list[1], cin)
-                        next_bit_heap.insert_bit(w + 1, b_wp1)
-                        next_bit_heap.insert_bit(w, b_w)
-                        cin = None
-                elif len(bit_list) == 3:
-                    if cin:
-                        next_bit_heap.insert_bit(w, cin)
-                    b_wp1, b_w = comp_3to2(bit_list[0], bit_list[1], bit_list[2])
-                    next_bit_heap.insert_bit(w + 1, b_wp1)
-                    next_bit_heap.insert_bit(w, b_w)
-                else:
-                    assert len(bit_list) == 4
-                    cout, b_wp1, b_w = comp_4to2(cin, bit_list[0], bit_list[1], bit_list[2], bit_list[3])
-                    next_bit_heap.insert_bit(w + 1, b_wp1)
-                    next_bit_heap.insert_bit(w, b_w)
-                    carry_bit_heap.insert_bit(w + 1, cout)
-            # flush carry-bit heap
-            while carry_bit_heap.max_count() > 0:
-                bit_list, w = carry_bit_heap.pop_lower_bits(1)
-                next_bit_heap.insert_bit(w, bit_list[0])
-            return next_bit_heap
+                        pos_bit_heap.insert_bit(pp_weight, local_bit)
 
-        def wallace_reduction(previous_bit_heap):
-            next_bit_heap = BitHeap()
-            while previous_bit_heap.max_count() > 0:
-                bit_list, w = previous_bit_heap.pop_lower_bits(3)
-                if len(bit_list) <= 2:
-                    for b in bit_list:
-                        next_bit_heap.insert_bit(w, b)
-                else:
-                    b_wp1, b_w = comp_3to2(bit_list[0], bit_list[1], bit_list[2])
-                    next_bit_heap.insert_bit(w + 1, b_wp1)
-                    next_bit_heap.insert_bit(w, b_w)
-            return next_bit_heap
 
-        def dadda_reduction(previous_bit_heap):
-            next_bit_heap = BitHeap()
-            max_count = previous_bit_heap.max_count()
-            new_count = int(math.ceil((max_count / 3.0) * 2))
-            while previous_bit_heap.max_count() > 0:
-                bit_list, w = previous_bit_heap.pop_lower_bits(3)
-                if len(bit_list) <= 2 or previous_bit_heap.bit_count(w) + len(bit_list) + next_bit_heap.bit_count(w) <= new_count:
-                    for b in bit_list:
-                        next_bit_heap.insert_bit(w, b)
-                else:
-                    b_wp1, b_w = comp_3to2(bit_list[0], bit_list[1], bit_list[2])
-                    next_bit_heap.insert_bit(w + 1, b_wp1)
-                    next_bit_heap.insert_bit(w, b_w)
-            return next_bit_heap
 
 
         # Partial Product reduction
-        current_bit_heap = pos_bit_heap
-        while current_bit_heap.max_count() > 2:
+        while pos_bit_heap.max_count() > 2:
             #current_bit_heap = dadda_reduction(current_bit_heap)
             #current_bit_heap = wallace_reduction(current_bit_heap)
-            current_bit_heap = wallace_4to2_reduction(current_bit_heap)
+            pos_bit_heap = wallace_4to2_reduction(pos_bit_heap)
+        while neg_bit_heap.max_count() > 2:
+            neg_bit_heap = wallace_4to2_reduction(neg_bit_heap)
 
-        # final propagating sum
-        op_size = current_bit_heap.max_index - current_bit_heap.min_index + 1
-        op_format = ML_StdLogicVectorFormat(op_size)
-        op_carry = Signal("op_carry", precision=op_format, var_type=Variable.Local) 
-        op_sum = Signal("op_sum", precision=op_format, var_type=Variable.Local)
+        print neg_bit_heap.min_index, neg_bit_heap.max_index
 
-        op_statement = Statement()
-        offset_index = current_bit_heap.min_index
 
-        for index in range(current_bit_heap.min_index, current_bit_heap.max_index + 1):
-            out_index = index - offset_index
-            bit_list = current_bit_heap.pop_bits(index, 2)
-            if len(bit_list) == 0:
-                op_statement.push(ReferenceAssign(BitSelection(op_carry, out_index), Constant(0, precision=ML_StdLogic)))
-                op_statement.push(ReferenceAssign(BitSelection(op_sum, out_index), Constant(0, precision=ML_StdLogic)))
-            elif len(bit_list) == 1:
-                op_statement.push(ReferenceAssign(BitSelection(op_carry, out_index), Constant(0, precision=ML_StdLogic)))
-                op_statement.push(ReferenceAssign(BitSelection(op_sum, out_index), bit_list[0]))
-            else:
-                op_statement.push(ReferenceAssign(BitSelection(op_carry, out_index), bit_list[1]))
-                op_statement.push(ReferenceAssign(BitSelection(op_sum, out_index), bit_list[0]))
+        def convert_bit_heap_to_fixed_point(current_bit_heap, signed=False):
+            # final propagating sum
+            op_index = 0
+            op_list = []
+            op_statement = Statement()
+            while current_bit_heap.max_count() > 0:
+                op_size = current_bit_heap.max_index - current_bit_heap.min_index + 1
+                op_format = ML_StdLogicVectorFormat(op_size)
+                op_reduce = Signal("op_%d" % op_index, precision=op_format, var_type=Variable.Local)
+
+                offset_index = current_bit_heap.min_index
+                print "op_size, offset_index: ", op_size, offset_index
+
+                for index in range(current_bit_heap.min_index, current_bit_heap.max_index + 1):
+                    out_index = index - offset_index
+                    bit_list = current_bit_heap.pop_bits(index, 1)
+                    if len(bit_list) == 0:
+                        op_statement.push(ReferenceAssign(BitSelection(op_reduce, out_index), Constant(0, precision=ML_StdLogic)))
+                    else:
+                        assert len(bit_list) == 1
+                        op_statement.push(ReferenceAssign(BitSelection(op_reduce, out_index), bit_list[0]))
+
+                op_precision = fixed_point(op_size + offset_index, -offset_index, signed=signed)
+                print "op_precision: ", op_precision
+                op_list.append(
+                    PlaceHolder(
+                        TypeCast(
+                            op_reduce,
+                            precision=op_precision),
+                        op_statement
+                    )
+                )
+                op_index += 1
+
+            return op_list, op_statement
+
+        pos_op_list, pos_assign_statement = convert_bit_heap_to_fixed_point(pos_bit_heap, signed=False)
+        neg_op_list, neg_assign_statement = convert_bit_heap_to_fixed_point(neg_bit_heap, signed=False)
 
         # a PlaceHolder is inserted to force forwarding of op_statement
         # which will be removed otherwise as it does not appear anywhere in
         # the final operation graph
-        acc = PlaceHolder(
-            Addition(
-                TypeCast(
-                    op_carry,
-                    precision=fixed_point(op_size - offset_index,offset_index, signed=False) 
-                ),
-                TypeCast(
-                    op_sum,
-                    precision=fixed_point(op_size - offset_index,offset_index, signed=False) 
-                )
-            ),
-            op_statement
-        )
+        acc = None
+        if len(pos_op_list) > 0:
+            reduced_pos_sum = reduce(operator.__add__, pos_op_list)
+            reduced_pos_sum.set_attributes(tag="reduced_pos_sum", debug=debug_fixed)
+            pos_acc = PlaceHolder(reduced_pos_sum, pos_assign_statement)
+            acc = pos_acc
+        if len(neg_op_list) > 0:
+            reduced_neg_sum = reduce(operator.__add__, neg_op_list)
+            reduced_neg_sum.set_attributes(tag="reduced_neg_sum", debug=debug_fixed)
+            neg_acc = PlaceHolder(reduced_neg_sum, neg_assign_statement)
+            acc = neg_acc if acc is None else acc - neg_acc
+
+        acc.set_attributes(tag="raw_acc", debug=debug_fixed)
 
         self.precision = fixed_point(
             self.precision.get_integer_size(),
             self.precision.get_frac_size(),
             signed=self.precision.get_signed()
         )
-        result = Conversion(acc, precision=self.precision)
+        result = Conversion(acc, tag="result", precision=self.precision, debug=debug_fixed)
         self.implementation.add_output_signal("result_o", result)
 
         return [self.implementation]
+
+    @property
+    def standard_test_cases(self):
+        test_case_max = {}
+        test_case_min = {}
+        for index, mult_input in enumerate(self.mult_desc):
+            test_case_max["a_%d_i" % index] = mult_input.lhs_precision.get_max_value()
+            test_case_max["b_%d_i" % index] = mult_input.rhs_precision.get_max_value()
+
+            test_case_min["a_%d_i" % index] = mult_input.lhs_precision.get_min_value()
+            test_case_min["b_%d_i" % index] = mult_input.rhs_precision.get_min_value()
+        return [(test_case_max, None), (test_case_min, None)]
+
 
     def numeric_emulate(self, io_map):
         acc = 0
@@ -468,7 +533,7 @@ class MultArray(ML_Entity("mult_array")):
             b_i = io_map["b_%d_i" % index]
             acc += a_i * b_i
 
-        assert acc >= 0
+        # assert acc >= 0
         return {"result_o": acc}
 
 
