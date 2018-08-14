@@ -262,7 +262,7 @@ def solve_format_Subtraction(optree, format_solver=None):
     return solve_format_ArithOperation(
         optree,
         sub_integer_size,
-        lambda lp, rp: lp.get_frac_size() + rp.get_frac_size(),
+        lambda lp, rp: max(lp.get_frac_size(), rp.get_frac_size()),
         sub_signed_predicate,
         format_solver=format_solver
     )
