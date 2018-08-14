@@ -31,7 +31,10 @@
 ###############################################################################
 
 from metalibm_core.core.ml_operations import (
-    ML_LeafNode, Comparison
+    ML_LeafNode, Comparison, 
+)
+from metalibm_core.core.ml_hdl_operations import (
+    PlaceHolder
 )
 
 
@@ -61,6 +64,8 @@ def evaluate_range(optree):
             return optree.get_interval()
         elif is_comparison(optree):
             return evaluate_comparison_range(optree)
+        elif isinstance(optree, PlaceHolder):
+            return evaluate_range(optree.get_input(0))
         else:
             args_interval = tuple(
                 evaluate_range(op) for op in
