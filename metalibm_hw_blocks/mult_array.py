@@ -83,7 +83,6 @@ class MultInput:
     def parse(s):
         if "x" in s:
             lhs, rhs = s.split("x")
-            print lhs, rhs
             return MultInput(
                 hdl_precision_parser(lhs),
                 hdl_precision_parser(rhs)
@@ -307,7 +306,7 @@ class MultArray(ML_Entity("mult_array")):
         # enable operator pipelining
         self.pipelined = pipelined
         # multiplication input descriptor
-        self.mult_desc = arg_template.mult_desc
+        self.op_expr = arg_template.op_expr
         self.dummy_mode = arg_template.dummy_mode
 
     ## default argument template generation
@@ -350,14 +349,14 @@ class MultArray(ML_Entity("mult_array")):
         a_inputs = {}
         b_inputs = {}
 
-        for index, mult_input in enumerate(self.mult_desc):
+        for index, mult_input in enumerate(self.op_expr):
             print "{} x {}".format(mult_input.lhs_precision, mult_input.rhs_precision)
             #lhs_precision = fixed_point(mult_input.lhs_precision.get_integer_size(), mult_input.lhs_precision.get_frac_size(), signed=mult_input.lhs_precision.signed)
             #rhs_precision = fixed_point(mult_input.rhs_precision.get_integer_size(), mult_input.rhs_precision.get_frac_size(), signed=mult_input.rhs_precision.signed)
             #mult_input.lhs_precision = lhs_precision
             #mult_input.rhs_precision = rhs_precision
 
-        for index, mult_input in enumerate(self.mult_desc):
+        for index, mult_input in enumerate(self.op_expr):
             a_i = self.implementation.add_input_signal("a_%d_i" % index, mult_input.lhs_precision)
             b_i = self.implementation.add_input_signal("b_%d_i" % index, mult_input.rhs_precision)
             a_inputs[index] = a_i
@@ -382,24 +381,31 @@ class MultArray(ML_Entity("mult_array")):
 
         acc = None
 
-        a_inputs = {}
-        b_inputs = {}
+
         # fixing precision
-        for index, mult_input in enumerate(self.mult_desc):
-            print "{} x {}".format(mult_input.lhs_precision, mult_input.rhs_precision)
-            lhs_precision = fixed_point(mult_input.lhs_precision.get_integer_size(), mult_input.lhs_precision.get_frac_size(), signed=mult_input.lhs_precision.signed)
-            rhs_precision = fixed_point(mult_input.rhs_precision.get_integer_size(), mult_input.rhs_precision.get_frac_size(), signed=mult_input.rhs_precision.signed)
-            mult_input.lhs_precision = lhs_precision
-            mult_input.rhs_precision = rhs_precision
+        for index, operation in enumerate(self.op_expr):
+            if isinstance(operation, MultInput):
+                print "{} x {}".format(operation.lhs_precision, operation.rhs_precision)
+            elif isinstance(operation, OpInput):
+                print " + {}".format(operation.precision)
+            # lhs_precision = fixed_point(mult_input.lhs_precision.get_integer_size(), mult_input.lhs_precision.get_frac_size(), signed=mult_input.lhs_precision.signed)
+            # rhs_precision = fixed_point(mult_input.rhs_precision.get_integer_size(), mult_input.rhs_precision.get_frac_size(), signed=mult_input.rhs_precision.signed)
+            # mult_input.lhs_precision = lhs_precision
+            # mult_input.rhs_precision = rhs_precision
+
+        product_inputs = []
+        addition_inputs = []
 
         # generating input signals
-        for index, mult_input in enumerate(self.mult_desc):
-            a_i = self.implementation.add_input_signal("a_%d_i" % index, mult_input.lhs_precision)
-            b_i = self.implementation.add_input_signal("b_%d_i" % index, mult_input.rhs_precision)
-            a_inputs[index] = a_i
-            b_inputs[index] = b_i
+        for index, operand_input in enumerate(self.op_expr):
+            if isinstance(operand_input, MultInput):
+                a_i = self.implementation.add_input_signal("a_%d_i" % index, operand_input.lhs_precision)
+                b_i = self.implementation.add_input_signal("b_%d_i" % index, operand_input.rhs_precision)
+                product_inputs.append((a_i, b_i))
+            elif isinstance(operand_input, OpInput):
+                c_i = self.implementation.add_input_signal("c_%d_i" % index, operand_input.precision)
+                addition_inputs.append(c_i)
 
-        NUM_PRODUCTS = len(self.mult_desc)
 
         # heap of positive bits
         pos_bit_heap = BitHeap()
@@ -407,9 +413,8 @@ class MultArray(ML_Entity("mult_array")):
         neg_bit_heap = BitHeap()
 
         # Partial Product generation
-        for index in range(NUM_PRODUCTS):
-            a_i = a_inputs[index]
-            b_i = b_inputs[index]
+        for product in product_inputs:
+            a_i, b_i = product
             a_i_precision = a_i.get_precision()
             b_i_precision = b_i.get_precision()
             a_i_signed = a_i_precision.get_signed()
@@ -427,12 +432,23 @@ class MultArray(ML_Entity("mult_array")):
                     pp_signed = a_j_signed ^ b_k_signed
                     pp_weight = offset + b_index
                     local_bit = BitSelection(pp, b_index)
-                    print pp_index, pp_weight, b_index, pp_signed
                     if pp_signed:
                         neg_bit_heap.insert_bit(pp_weight, local_bit)
                     else:
                         pos_bit_heap.insert_bit(pp_weight, local_bit)
 
+        for add_op in addition_inputs:
+            precision = add_op.get_precision()
+            size = precision.get_bit_size()
+            offset = -precision.get_frac_size()
+            # most significant bit
+            if precision.get_signed():
+                neg_bit_heap.insert_bit(size -1 + offset, BitSelection(add_op, size - 1))
+            else:
+                pos_bit_heap.insert_bit(size -1 + offset, BitSelection(add_op, size - 1))
+            # any other bit
+            for index in range(size - 1):
+                pos_bit_heap.insert_bit(index + offset, BitSelection(add_op, index))
 
 
 
@@ -444,7 +460,6 @@ class MultArray(ML_Entity("mult_array")):
         while neg_bit_heap.max_count() > 2:
             neg_bit_heap = wallace_4to2_reduction(neg_bit_heap)
 
-        print neg_bit_heap.min_index, neg_bit_heap.max_index
 
 
         def convert_bit_heap_to_fixed_point(current_bit_heap, signed=False):
@@ -458,7 +473,6 @@ class MultArray(ML_Entity("mult_array")):
                 op_reduce = Signal("op_%d" % op_index, precision=op_format, var_type=Variable.Local)
 
                 offset_index = current_bit_heap.min_index
-                print "op_size, offset_index: ", op_size, offset_index
 
                 for index in range(current_bit_heap.min_index, current_bit_heap.max_index + 1):
                     out_index = index - offset_index
@@ -470,7 +484,6 @@ class MultArray(ML_Entity("mult_array")):
                         op_statement.push(ReferenceAssign(BitSelection(op_reduce, out_index), bit_list[0]))
 
                 op_precision = fixed_point(op_size + offset_index, -offset_index, signed=signed)
-                print "op_precision: ", op_precision
                 op_list.append(
                     PlaceHolder(
                         TypeCast(
@@ -517,7 +530,7 @@ class MultArray(ML_Entity("mult_array")):
     def standard_test_cases(self):
         test_case_max = {}
         test_case_min = {}
-        for index, mult_input in enumerate(self.mult_desc):
+        for index, mult_input in enumerate(self.op_expr):
             test_case_max["a_%d_i" % index] = mult_input.lhs_precision.get_max_value()
             test_case_max["b_%d_i" % index] = mult_input.rhs_precision.get_max_value()
 
@@ -528,10 +541,14 @@ class MultArray(ML_Entity("mult_array")):
 
     def numeric_emulate(self, io_map):
         acc = 0
-        for index, mult_input in enumerate(self.mult_desc):
-            a_i = io_map["a_%d_i" % index]
-            b_i = io_map["b_%d_i" % index]
-            acc += a_i * b_i
+        for index, operation in enumerate(self.op_expr):
+            if isinstance(operation, MultInput):
+                a_i = io_map["a_%d_i" % index]
+                b_i = io_map["b_%d_i" % index]
+                acc += a_i * b_i
+            elif isinstance(operation, OpInput):
+                c_i = io_map["c_%d_i" % index]
+                acc += c_i
 
         # assert acc >= 0
         return {"result_o": acc}
@@ -549,7 +566,7 @@ if __name__ == "__main__":
         # accumulator precision (also the output format)
         arg_template.parser.add_argument(
             "--mult-desc",
-            dest="mult_desc",
+            dest="op_expr",
             type=multiplication_descriptor_parser,
             default=None,
             help="Multiplication Input descriptor")
