@@ -12,6 +12,8 @@ import sys
 import random
 import math
 
+from enum import Enum
+
 import sollya
 import operator
 
@@ -146,7 +148,63 @@ def wallace_4to2_reduction(previous_bit_heap):
         elif len(bit_list) == 1:
             next_bit_heap.insert_bit(w, bit_list[0])
             if cin:
+                next_bit_heap.insert_bit(w, cin)
+        elif len(bit_list) == 2:
+            if cin is None:
+                for b in bit_list:
+                    next_bit_heap.insert_bit(w, b)
+            else:
+                b_wp1, b_w = comp_3to2(bit_list[0], bit_list[1], cin)
+                next_bit_heap.insert_bit(w + 1, b_wp1)
+                next_bit_heap.insert_bit(w, b_w)
+                cin = None
+        elif len(bit_list) == 3:
+            if cin:
+                next_bit_heap.insert_bit(w, cin)
+            b_wp1, b_w = comp_3to2(bit_list[0], bit_list[1], bit_list[2])
+            next_bit_heap.insert_bit(w + 1, b_wp1)
+            next_bit_heap.insert_bit(w, b_w)
+        else:
+            assert len(bit_list) == 4
+            cout, b_wp1, b_w = comp_4to2(cin, bit_list[0], bit_list[1], bit_list[2], bit_list[3])
+            next_bit_heap.insert_bit(w + 1, b_wp1)
+            next_bit_heap.insert_bit(w, b_w)
+            carry_bit_heap.insert_bit(w + 1, cout)
+    # flush carry-bit heap
+    while carry_bit_heap.max_count() > 0:
+        bit_list, w = carry_bit_heap.pop_lower_bits(1)
+        next_bit_heap.insert_bit(w, bit_list[0])
+    return next_bit_heap
+
+def dadda_4to2_reduction(previous_bit_heap):
+    """ BitHeap Wallace reduction using 4:2 compressors """
+    next_bit_heap = BitHeap()
+    carry_bit_heap = BitHeap()
+    max_count = previous_bit_heap.max_count()
+    new_count = int(math.ceil(max_count / 2.0))
+    # each step reduce the height of the bit heap at at most
+    # new_count. However it is not necessary to reduce over it
+    while previous_bit_heap.max_count() > 0:
+        bit_list, w = previous_bit_heap.pop_lower_bits(4)
+        # if a carry frmo this weight exists, we must try to 
+        # accumulate it
+        if carry_bit_heap.bit_count(w) > 0:
+            cin = carry_bit_heap.pop_bit(w)
+        else:
+            cin = None
+        if len(bit_list) == 0:
+            if cin:
                 next_bit_heap.insert(w, cin)
+        elif len(bit_list) == 1:
+            next_bit_heap.insert_bit(w, bit_list[0])
+            if cin:
+                next_bit_heap.insert_bit(w, cin)
+        elif (0 if cin is None else 1) + previous_bit_heap.bit_count(w) + len(bit_list) + next_bit_heap.bit_count(w) <= new_count:
+            # drop every bit in next stage
+            if not cin is None:
+                next_bit_heap.insert_bit(w, cin)
+            for b in bit_list:
+                next_bit_heap.insert_bit(w, b)
         elif len(bit_list) == 2:
             if cin is None:
                 for b in bit_list:
@@ -204,6 +262,22 @@ def dadda_reduction(previous_bit_heap):
             next_bit_heap.insert_bit(w + 1, b_wp1)
             next_bit_heap.insert_bit(w, b_w)
     return next_bit_heap
+
+class ReductionMethod(Enum):
+    Wallace = "wallace"
+    Dadda = "dadda"
+    Wallace_4to2 = "wallace_4to2"
+    Dadda_4to2 = "dadda_4to2"
+
+    def __str__(self):
+        return self.value
+
+REDUCTION_METHOD_MAP = {
+    ReductionMethod.Wallace: wallace_reduction,
+    ReductionMethod.Dadda: dadda_reduction,
+    ReductionMethod.Wallace_4to2: wallace_4to2_reduction,
+    ReductionMethod.Dadda_4to2: dadda_4to2_reduction,
+}
 
 
 class BitHeap:
@@ -268,6 +342,7 @@ class BitHeap:
 
 
 
+
 class MultArray(ML_Entity("mult_array")):
     def __init__(self,
                  arg_template = DefaultEntityArgTemplate,
@@ -308,6 +383,8 @@ class MultArray(ML_Entity("mult_array")):
         # multiplication input descriptor
         self.op_expr = arg_template.op_expr
         self.dummy_mode = arg_template.dummy_mode
+        # reduction method
+        self.reduction_method = arg_template.method
 
     ## default argument template generation
     @staticmethod
@@ -318,6 +395,7 @@ class MultArray(ML_Entity("mult_array")):
             "output_file": "mult_array.vhd",
             "entity_name": "mult_array",
             "language": VHDL_Code,
+            "Method": ReductionMethod.Wallace_4to2,
             "pipelined": False,
             "dummy_mode": False,
             "passes": [
@@ -437,6 +515,18 @@ class MultArray(ML_Entity("mult_array")):
                     else:
                         pos_bit_heap.insert_bit(pp_weight, local_bit)
 
+
+
+        STAGE_LEVEL_LIMIT = 8
+        # Partial Product reduction
+        while pos_bit_heap.max_count() > STAGE_LEVEL_LIMIT:
+            pos_bit_heap = REDUCTION_METHOD_MAP[self.reduction_method](pos_bit_heap)
+        while neg_bit_heap.max_count() > STAGE_LEVEL_LIMIT:
+            neg_bit_heap = REDUCTION_METHOD_MAP[self.reduction_method](neg_bit_heap)
+
+        if self.pipelined:
+            self.implementation.start_new_stage()
+
         for add_op in addition_inputs:
             precision = add_op.get_precision()
             size = precision.get_bit_size()
@@ -451,14 +541,11 @@ class MultArray(ML_Entity("mult_array")):
                 pos_bit_heap.insert_bit(index + offset, BitSelection(add_op, index))
 
 
-
         # Partial Product reduction
         while pos_bit_heap.max_count() > 2:
-            #current_bit_heap = dadda_reduction(current_bit_heap)
-            #current_bit_heap = wallace_reduction(current_bit_heap)
-            pos_bit_heap = wallace_4to2_reduction(pos_bit_heap)
+            pos_bit_heap = REDUCTION_METHOD_MAP[self.reduction_method](pos_bit_heap)
         while neg_bit_heap.max_count() > 2:
-            neg_bit_heap = wallace_4to2_reduction(neg_bit_heap)
+            neg_bit_heap = REDUCTION_METHOD_MAP[self.reduction_method](neg_bit_heap)
 
 
 
@@ -530,12 +617,20 @@ class MultArray(ML_Entity("mult_array")):
     def standard_test_cases(self):
         test_case_max = {}
         test_case_min = {}
-        for index, mult_input in enumerate(self.op_expr):
-            test_case_max["a_%d_i" % index] = mult_input.lhs_precision.get_max_value()
-            test_case_max["b_%d_i" % index] = mult_input.rhs_precision.get_max_value()
+        for index, operation in enumerate(self.op_expr):
+            if isinstance(operation, MultInput):
+                test_case_max["a_%d_i" % index] = operation.lhs_precision.get_max_value()
+                test_case_max["b_%d_i" % index] = operation.rhs_precision.get_max_value()
 
-            test_case_min["a_%d_i" % index] = mult_input.lhs_precision.get_min_value()
-            test_case_min["b_%d_i" % index] = mult_input.rhs_precision.get_min_value()
+                test_case_min["a_%d_i" % index] = mult_input.lhs_precision.get_min_value()
+                test_case_min["b_%d_i" % index] = mult_input.rhs_precision.get_min_value()
+            elif isinstance(operation, OpInput):
+                test_case_max["c_%d_i" % index] = operation.precision.get_max_value()
+
+                test_case_min["c_%d_i" % index] = operation.precision.get_min_value()
+            else:
+                raise NotImplementedError
+
         return [(test_case_max, None), (test_case_min, None)]
 
 
@@ -577,6 +672,13 @@ if __name__ == "__main__":
             const=True,
             action="store_const",
             help="select advance/dummy mode")
+        arg_template.parser.add_argument(
+            "--method",
+            type=ReductionMethod,
+            default=ReductionMethod.Wallace,
+            choices=list(ReductionMethod),
+            help="define compression reduction methode"
+        )
         # argument extraction
         args = parse_arg_index_list = arg_template.arg_extraction()
 
