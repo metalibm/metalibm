@@ -72,25 +72,52 @@ from metalibm_hw_blocks.rtl_blocks import zext, rzext
 from metalibm_hw_blocks.lzc import ML_LeadingZeroCounter
 from metalibm_hw_blocks.lza import ML_LeadingZeroAnticipator
 
+# re pattern to match format and stage index strings
+OP_PATTERN = "(?P<format>F[US]-?\d+\.-?\d+)(\[(?P<stage>\d+)\])?"
+
+
 class OpInput(object):
-    def __init__(self, precision):
+    def __init__(self, precision, stage=None):
         self.precision = precision
+        self.stage = stage
+
+    def __str__(self):
+        return "+ %s[%s]" % (str(self.precision), self.stage)
+
+
+def extract_format_stage(s):
+    group_match = re.match(OP_PATTERN, s)
+    precision = group_match.group("format")
+    stage = group_match.group("stage")
+    return precision, stage if stage is None else int(stage)
 
 class MultInput:
-    def __init__(self, lhs_precision, rhs_precision):
+    def __init__(self, lhs_precision, rhs_precision, lhs_stage=None, rhs_stage=None):
         self.lhs_precision = lhs_precision
         self.rhs_precision = rhs_precision
+        self.lhs_stage = lhs_stage
+        self.rhs_stage = rhs_stage
+
+
+    def __str__(self):
+        return "%s[%s] x %s[%s]" % (str(self.lhs_precision), self.lhs_stage, str(self.rhs_precision), self.rhs_stage)
 
     @staticmethod
     def parse(s):
         if "x" in s:
             lhs, rhs = s.split("x")
+            lhs_format, lhs_stage = extract_format_stage(lhs)
+            rhs_format, rhs_stage = extract_format_stage(rhs)
             return MultInput(
-                hdl_precision_parser(lhs),
-                hdl_precision_parser(rhs)
+                hdl_precision_parser(lhs_format),
+                hdl_precision_parser(rhs_format),
+                lhs_stage=lhs_stage,
+                rhs_stage=rhs_stage
             )
         else:
-            return OpInput(hdl_precision_parser(s))
+            precision, stage = extract_format_stage(s)
+            return OpInput(hdl_precision_parser(precision), stage)
+
 
 def multiplication_descriptor_parser(arg_str):
     return [MultInput.parse(s) for s in arg_str.split("+")]
@@ -200,6 +227,7 @@ def dadda_4to2_reduction(previous_bit_heap):
             if cin:
                 next_bit_heap.insert_bit(w, cin)
         elif (0 if cin is None else 1) + previous_bit_heap.bit_count(w) + len(bit_list) + next_bit_heap.bit_count(w) <= new_count:
+            print "dropping bits without compression"
             # drop every bit in next stage
             if not cin is None:
                 next_bit_heap.insert_bit(w, cin)
@@ -280,6 +308,40 @@ REDUCTION_METHOD_MAP = {
 }
 
 
+def convert_bit_heap_to_fixed_point(current_bit_heap, signed=False):
+    # final propagating sum
+    op_index = 0
+    op_list = []
+    op_statement = Statement()
+    while current_bit_heap.max_count() > 0:
+        op_size = current_bit_heap.max_index - current_bit_heap.min_index + 1
+        op_format = ML_StdLogicVectorFormat(op_size)
+        op_reduce = Signal("op_%d" % op_index, precision=op_format, var_type=Variable.Local)
+
+        offset_index = current_bit_heap.min_index
+
+        for index in range(current_bit_heap.min_index, current_bit_heap.max_index + 1):
+            out_index = index - offset_index
+            bit_list = current_bit_heap.pop_bits(index, 1)
+            if len(bit_list) == 0:
+                op_statement.push(ReferenceAssign(BitSelection(op_reduce, out_index), Constant(0, precision=ML_StdLogic)))
+            else:
+                assert len(bit_list) == 1
+                op_statement.push(ReferenceAssign(BitSelection(op_reduce, out_index), bit_list[0]))
+
+        op_precision = fixed_point(op_size + offset_index, -offset_index, signed=signed)
+        op_list.append(
+            PlaceHolder(
+                TypeCast(
+                    op_reduce,
+                    precision=op_precision),
+                op_statement
+            )
+        )
+        op_index += 1
+    return op_list, op_statement
+
+
 class BitHeap:
     def __init__(self):
         self.heap = {}
@@ -341,8 +403,6 @@ class BitHeap:
         return self.pop_bits(lower_index, max_num), lower_index
 
 
-
-
 class MultArray(ML_Entity("mult_array")):
     def __init__(self,
                  arg_template = DefaultEntityArgTemplate,
@@ -385,6 +445,8 @@ class MultArray(ML_Entity("mult_array")):
         self.dummy_mode = arg_template.dummy_mode
         # reduction method
         self.reduction_method = arg_template.method
+        # limit of height for each compression stage
+        self.stage_height_limit = arg_template.stage_height_limit
 
     ## default argument template generation
     @staticmethod
@@ -401,6 +463,8 @@ class MultArray(ML_Entity("mult_array")):
             "passes": [
                 ("beforepipelining:size_datapath"),
                 ("beforepipelining:rtl_legalize"),
+                #("beforepipelining:dump_with_stages"),
+                #("beforepipelining:quit"),
                 ("beforepipelining:unify_pipeline_stages"),
                 #("beforecodegen:dump"),
                 ],
@@ -417,6 +481,15 @@ class MultArray(ML_Entity("mult_array")):
             return self.generate_advanced_scheme()
 
 
+    def clean_stage(self, stage_id):
+        """ translate stage_id to current stage value if stage_id
+            is undefined (None) """
+        if stage_id is None:
+            return self.implementation.get_current_stage()
+        else:
+            return stage_id
+
+
     def generate_dummy_scheme(self):
         Log.report(
             Log.Info,
@@ -427,23 +500,45 @@ class MultArray(ML_Entity("mult_array")):
         a_inputs = {}
         b_inputs = {}
 
-        for index, mult_input in enumerate(self.op_expr):
-            print "{} x {}".format(mult_input.lhs_precision, mult_input.rhs_precision)
-            #lhs_precision = fixed_point(mult_input.lhs_precision.get_integer_size(), mult_input.lhs_precision.get_frac_size(), signed=mult_input.lhs_precision.signed)
-            #rhs_precision = fixed_point(mult_input.rhs_precision.get_integer_size(), mult_input.rhs_precision.get_frac_size(), signed=mult_input.rhs_precision.signed)
-            #mult_input.lhs_precision = lhs_precision
-            #mult_input.rhs_precision = rhs_precision
+        for index, operation_input in enumerate(self.op_expr):
+            print "%s" % str(operation_input)
 
-        for index, mult_input in enumerate(self.op_expr):
-            a_i = self.implementation.add_input_signal("a_%d_i" % index, mult_input.lhs_precision)
-            b_i = self.implementation.add_input_signal("b_%d_i" % index, mult_input.rhs_precision)
-            a_inputs[index] = a_i
-            b_inputs[index] = b_i
+        stage_map = {}
 
-            if acc is None:
-                acc = a_i * b_i
+        for index, operation_input in enumerate(self.op_expr):
+            if isinstance(operation_input, MultInput):
+                mult_input = operation_input
+                a_i = self.implementation.add_input_signal("a_%d_i" % index, mult_input.lhs_precision)
+                b_i = self.implementation.add_input_signal("b_%d_i" % index, mult_input.rhs_precision)
+                lhs_stage = clean_stage(mult_input.lhs_stage)
+                rhs_stage = clean_stage(mult_input.rhs_stage)
+                a_i.set_attributes(init_stage=lhs_stage)
+                b_i.set_attributes(init_stage=rhs_stage)
+                op_stage = max(lhs_stage, rhs_stage)
+                if not op_stage in stage_map: stage_map[op_stage] = []
+                stage_map[op_stage].append((Multiplication, [a_i, b_i]))
+            elif isinstance(operation_input, OpInput):
+                c_i = self.implementation.add_input_signal("c_%d_i" % index, operation_input.precision)
+                op_stage = operation_input.stage
+                c_i.set_attributes(init_stage=self.clean_stage(op_stage))
+                if not op_stage in stage_map: stage_map[op_stage] = []
+                stage_map[op_stage].append((lambda v: v, [c_i]))
+
+        stage_index_list = sorted(stage_map.keys())
+        for stage_id in stage_index_list:
+            # synchronizing pipeline stage
+            if stage_id is None:
+                pass
             else:
-                acc = acc + a_i * b_i
+                while stage_id > self.implementation.get_current_stage():
+                    self.implementation.start_new_stage()
+            operation_list = stage_map[stage_id]
+            for ctor, operand_list in operation_list:
+                new_term = ctor(*tuple(operand_list))
+                if acc is None:
+                    acc = new_term
+                else:
+                    acc = Addition(acc, new_term)
 
         result = Conversion(acc, precision=self.precision)
         self.implementation.add_output_signal("result_o", result)
@@ -460,39 +555,8 @@ class MultArray(ML_Entity("mult_array")):
         acc = None
 
 
-        # fixing precision
-        for index, operation in enumerate(self.op_expr):
-            if isinstance(operation, MultInput):
-                print "{} x {}".format(operation.lhs_precision, operation.rhs_precision)
-            elif isinstance(operation, OpInput):
-                print " + {}".format(operation.precision)
-            # lhs_precision = fixed_point(mult_input.lhs_precision.get_integer_size(), mult_input.lhs_precision.get_frac_size(), signed=mult_input.lhs_precision.signed)
-            # rhs_precision = fixed_point(mult_input.rhs_precision.get_integer_size(), mult_input.rhs_precision.get_frac_size(), signed=mult_input.rhs_precision.signed)
-            # mult_input.lhs_precision = lhs_precision
-            # mult_input.rhs_precision = rhs_precision
-
-        product_inputs = []
-        addition_inputs = []
-
-        # generating input signals
-        for index, operand_input in enumerate(self.op_expr):
-            if isinstance(operand_input, MultInput):
-                a_i = self.implementation.add_input_signal("a_%d_i" % index, operand_input.lhs_precision)
-                b_i = self.implementation.add_input_signal("b_%d_i" % index, operand_input.rhs_precision)
-                product_inputs.append((a_i, b_i))
-            elif isinstance(operand_input, OpInput):
-                c_i = self.implementation.add_input_signal("c_%d_i" % index, operand_input.precision)
-                addition_inputs.append(c_i)
-
-
-        # heap of positive bits
-        pos_bit_heap = BitHeap()
-        # heap of negative bits
-        neg_bit_heap = BitHeap()
-
-        # Partial Product generation
-        for product in product_inputs:
-            a_i, b_i = product
+        def merge_product_in_heap(operand_list, pos_bit_heap, neg_bit_heap):
+            a_i, b_i = operand_list
             a_i_precision = a_i.get_precision()
             b_i_precision = b_i.get_precision()
             a_i_signed = a_i_precision.get_signed()
@@ -515,19 +579,8 @@ class MultArray(ML_Entity("mult_array")):
                     else:
                         pos_bit_heap.insert_bit(pp_weight, local_bit)
 
-
-
-        STAGE_LEVEL_LIMIT = 8
-        # Partial Product reduction
-        while pos_bit_heap.max_count() > STAGE_LEVEL_LIMIT:
-            pos_bit_heap = REDUCTION_METHOD_MAP[self.reduction_method](pos_bit_heap)
-        while neg_bit_heap.max_count() > STAGE_LEVEL_LIMIT:
-            neg_bit_heap = REDUCTION_METHOD_MAP[self.reduction_method](neg_bit_heap)
-
-        if self.pipelined:
-            self.implementation.start_new_stage()
-
-        for add_op in addition_inputs:
+        def merge_addition_in_heap(operand_list, pos_bit_heap, neg_bit_heap):
+            add_op = operand_list[0]
             precision = add_op.get_precision()
             size = precision.get_bit_size()
             offset = -precision.get_frac_size()
@@ -541,48 +594,67 @@ class MultArray(ML_Entity("mult_array")):
                 pos_bit_heap.insert_bit(index + offset, BitSelection(add_op, index))
 
 
-        # Partial Product reduction
-        while pos_bit_heap.max_count() > 2:
-            pos_bit_heap = REDUCTION_METHOD_MAP[self.reduction_method](pos_bit_heap)
-        while neg_bit_heap.max_count() > 2:
-            neg_bit_heap = REDUCTION_METHOD_MAP[self.reduction_method](neg_bit_heap)
+        # fixing precision
+        for index, operation in enumerate(self.op_expr):
+            print str(operation)
+
+        stage_operation_map = {}
+
+        # generating input signals
+        for index, operation_input in enumerate(self.op_expr):
+            if isinstance(operation_input, MultInput):
+                a_i = self.implementation.add_input_signal("a_%d_i" % index, operation_input.lhs_precision)
+                b_i = self.implementation.add_input_signal("b_%d_i" % index, operation_input.rhs_precision)
+                lhs_stage = self.clean_stage(operation_input.lhs_stage)
+                rhs_stage = self.clean_stage(operation_input.rhs_stage)
+                a_i.set_attributes(init_stage=lhs_stage)
+                b_i.set_attributes(init_stage=rhs_stage)
+                op_stage = max(lhs_stage, rhs_stage)
+                if not op_stage in stage_operation_map: stage_operation_map[op_stage] = []
+                stage_operation_map[op_stage].append((merge_product_in_heap, [a_i, b_i]))
+            elif isinstance(operation_input, OpInput):
+                c_i = self.implementation.add_input_signal("c_%d_i" % index, operation_input.precision)
+                op_stage = self.clean_stage(operation_input.stage)
+                c_i.set_attributes(init_stage=self.clean_stage(op_stage))
+                if not op_stage in stage_operation_map: stage_operation_map[op_stage] = []
+                stage_operation_map[op_stage].append((merge_addition_in_heap, [c_i]))
 
 
+        # heap of positive bits
+        pos_bit_heap = BitHeap()
+        # heap of negative bits
+        neg_bit_heap = BitHeap()
 
-        def convert_bit_heap_to_fixed_point(current_bit_heap, signed=False):
-            # final propagating sum
-            op_index = 0
-            op_list = []
-            op_statement = Statement()
-            while current_bit_heap.max_count() > 0:
-                op_size = current_bit_heap.max_index - current_bit_heap.min_index + 1
-                op_format = ML_StdLogicVectorFormat(op_size)
-                op_reduce = Signal("op_%d" % op_index, precision=op_format, var_type=Variable.Local)
+        def reduce_heap(pos_bit_heap, neg_bit_heap, limit=2):
+            """ reduce both pos_bit_heap and neg_bit_heap until their height
+                is lower or equal to @p limit """
+            # Partial Product reduction
+            while pos_bit_heap.max_count() > limit:
+                pos_bit_heap = REDUCTION_METHOD_MAP[self.reduction_method](pos_bit_heap)
+            while neg_bit_heap.max_count() > limit:
+                neg_bit_heap = REDUCTION_METHOD_MAP[self.reduction_method](neg_bit_heap)
+            return pos_bit_heap, neg_bit_heap
 
-                offset_index = current_bit_heap.min_index
+        stage_index_list = sorted(stage_operation_map.keys())
+        for stage_id in stage_index_list:
+            # synchronizing pipeline stage
+            if stage_id is None:
+                pass
+            else:
+                while stage_id > self.implementation.get_current_stage():
+                    print "reducing bit heaps and inserting new stage"
+                    pos_bit_heap, neg_bit_heap = reduce_heap(pos_bit_heap, neg_bit_heap)
+                    self.implementation.start_new_stage()
+                    
+            operation_list = stage_operation_map[stage_id]
+            for merge_ctor, operand_list in operation_list:
+                merge_ctor(operand_list, pos_bit_heap, neg_bit_heap)
 
-                for index in range(current_bit_heap.min_index, current_bit_heap.max_index + 1):
-                    out_index = index - offset_index
-                    bit_list = current_bit_heap.pop_bits(index, 1)
-                    if len(bit_list) == 0:
-                        op_statement.push(ReferenceAssign(BitSelection(op_reduce, out_index), Constant(0, precision=ML_StdLogic)))
-                    else:
-                        assert len(bit_list) == 1
-                        op_statement.push(ReferenceAssign(BitSelection(op_reduce, out_index), bit_list[0]))
 
-                op_precision = fixed_point(op_size + offset_index, -offset_index, signed=signed)
-                op_list.append(
-                    PlaceHolder(
-                        TypeCast(
-                            op_reduce,
-                            precision=op_precision),
-                        op_statement
-                    )
-                )
-                op_index += 1
+        # final stage reduction
+        pos_bit_heap, neg_bit_heap = reduce_heap(pos_bit_heap, neg_bit_heap)
 
-            return op_list, op_statement
-
+        # final conversion to scalar operands
         pos_op_list, pos_assign_statement = convert_bit_heap_to_fixed_point(pos_bit_heap, signed=False)
         neg_op_list, neg_assign_statement = convert_bit_heap_to_fixed_point(neg_bit_heap, signed=False)
 
@@ -622,8 +694,8 @@ class MultArray(ML_Entity("mult_array")):
                 test_case_max["a_%d_i" % index] = operation.lhs_precision.get_max_value()
                 test_case_max["b_%d_i" % index] = operation.rhs_precision.get_max_value()
 
-                test_case_min["a_%d_i" % index] = mult_input.lhs_precision.get_min_value()
-                test_case_min["b_%d_i" % index] = mult_input.rhs_precision.get_min_value()
+                test_case_min["a_%d_i" % index] = operation.lhs_precision.get_min_value()
+                test_case_min["b_%d_i" % index] = operation.rhs_precision.get_min_value()
             elif isinstance(operation, OpInput):
                 test_case_max["c_%d_i" % index] = operation.precision.get_max_value()
 
@@ -678,6 +750,12 @@ if __name__ == "__main__":
             default=ReductionMethod.Wallace,
             choices=list(ReductionMethod),
             help="define compression reduction methode"
+        )
+        arg_template.parser.add_argument(
+            "--stage-height-limit",
+            type=lambda s: [int(v) for v in s.split(",")],
+            default=[None],
+            help="deefine the list of height limit (lower) for each compression stage"
         )
         # argument extraction
         args = parse_arg_index_list = arg_template.arg_extraction()
