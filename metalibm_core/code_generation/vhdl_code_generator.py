@@ -36,7 +36,11 @@ from ..utility.log_report import Log
 
 import sollya
 
-from ..core.ml_operations import Variable, Constant, ConditionBlock, Return, TableLoad, Statement, Loop, SpecificOperation, ExceptionOperation, ClearException, NoResultOperation, SwitchBlock, FunctionObject, ReferenceAssign
+from ..core.ml_operations import (
+    Variable, Constant, ConditionBlock, Return, TableLoad, Statement, Loop,
+    SpecificOperation, ExceptionOperation, ClearException, NoResultOperation,
+    SwitchBlock, FunctionObject, ReferenceAssign
+)
 from ..core.ml_hdl_operations import *
 from ..core.ml_table import ML_Table
 from ..core.ml_formats import *
@@ -113,7 +117,16 @@ class VHDLCodeGenerator(object):
 
         # search if <optree> has already been processed
         if self.has_memoization(optree):
-            return self.get_memoization(optree)
+            result = self.get_memoization(optree)
+            if isinstance(result, CodeExpression) and force_variable_storing:
+                # forcing storing and translation CodeExpression to CodeVariable
+                # if force_variable_storing is set
+                result_precision = result.precision
+                prefix_tag = optree.get_tag(default="var_result") if force_variable_storing  else "tmp_result" 
+                final_var = result_var if result_var else code_object.get_free_var_name(result_precision, prefix=prefix_tag, declare=True)
+                code_object << self.generate_code_assignation(code_object, final_var, result.get())
+                result = CodeVariable(final_var, result_precision)
+            return result
 
         result = None
         # implementation generation
