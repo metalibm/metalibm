@@ -11,6 +11,7 @@
 import sys
 import random
 import math
+import re
 
 from enum import Enum
 
@@ -21,56 +22,38 @@ from sollya import Interval, floor, round, log2
 from sollya import parse as sollya_parse
 S2 = sollya.SollyaObject(2)
 
-from metalibm_core.core.attributes import ML_Debug
-from metalibm_core.core.ml_operations import *
-from metalibm_core.core.ml_formats import *
-from metalibm_core.core.ml_table import ML_Table
+from metalibm_core.core.ml_operations import (
+    Addition, Multiplication, BitLogicAnd, BitLogicXor, Select,
+    BitLogicOr, Statement, Variable, ReferenceAssign, TypeCast,
+    Constant, Conversion,
+)
 from metalibm_core.code_generation.vhdl_backend import VHDLBackend
-from metalibm_core.core.polynomials import *
 from metalibm_core.core.ml_entity import ML_Entity, ML_EntityBasis, DefaultEntityArgTemplate
-from metalibm_core.code_generation.generator_utility import FunctionOperator, FO_Result, FO_Arg
 
-from metalibm_core.core.advanced_operations import FixedPointPosition
-
-from metalibm_core.core.random_gen import FPRandomGen
-from metalibm_core.core.hdl_legalizer import (
-        mantissa_extraction_modifier_from_fields, raw_fp_field_extraction
+from metalibm_core.utility.ml_template import (
+    ML_EntityArgTemplate
 )
-
-from metalibm_core.utility.ml_template import *
 from metalibm_core.utility.log_report    import Log
-from metalibm_core.utility.debug_utils import *
-from metalibm_core.utility.num_utils     import ulp
-from metalibm_core.utility.gappa_utils import is_gappa_installed
 
-from metalibm_core.core.special_values import (
-        is_number, FP_SpecialValue, FP_PlusInfty, FP_MinusInfty, FP_QNaN,
-        FP_PlusZero, FP_MinusZero,
-        FP_PlusOmega, FP_MinusOmega,
-        is_zero, is_minus_zero, is_plus_zero,
-        is_snan, is_infty, is_nan, is_qnan,
-        is_numeric_value,
-)
+from metalibm_core.core.precisions import ML_Faithful
 
 from metalibm_core.core.ml_hdl_operations import (
-        equal_to, logical_reduce, logical_or_reduce, logical_and_reduce
+        equal_to
 )
 
-from metalibm_core.core.ml_hdl_format import *
-from metalibm_core.core.ml_hdl_operations import *
+from metalibm_core.core.ml_hdl_format import (
+    ML_StdLogicVectorFormat, ML_StdLogic, fixed_point,
+)
+from metalibm_core.code_generation.code_constant import VHDL_Code
+from metalibm_core.core.ml_hdl_operations import (
+    BitSelection, Signal, PlaceHolder,
+)
 
 from metalibm_core.utility.rtl_debug_utils import (
-        debug_fixed, debug_dec, debug_std, debug_dec_unsigned
+        debug_fixed
 )
 from metalibm_core.utility.ml_template import hdl_precision_parser
 
-from metalibm_core.targets.kalray.k1c_fp_utils import (
-        rnd_mode_format, rnd_rne, rnd_ru, rnd_rd, rnd_rz
-)
-
-from metalibm_hw_blocks.rtl_blocks import zext, rzext
-from metalibm_hw_blocks.lzc import ML_LeadingZeroCounter
-from metalibm_hw_blocks.lza import ML_LeadingZeroAnticipator
 
 # re pattern to match format and stage index strings
 OP_PATTERN = "(?P<format>F[US]-?\d+\.-?\d+)(\[(?P<stage>\d+)\])?"
@@ -406,7 +389,7 @@ class BitHeap:
 class MultArray(ML_Entity("mult_array")):
     def __init__(self,
                  arg_template = DefaultEntityArgTemplate,
-                 precision = ML_Binary32,
+                 precision = fixed_point(32, 0, signed=False),
                  accuracy    = ML_Faithful,
                  debug_flag = False,
                  target = VHDLBackend(),
@@ -416,7 +399,7 @@ class MultArray(ML_Entity("mult_array")):
                  acc_prec = None,
                  pipelined = False):
         # initializing I/O precision
-        precision = ArgDefault.select_value([arg_template.precision, precision])
+        precision = arg_template.precision
         io_precisions = [precision] * 2
 
         # initializing base class
