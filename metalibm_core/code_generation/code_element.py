@@ -49,6 +49,9 @@ class CodeVariable(object):
     def get_variable(self, code_object):
         return Variable(self.name, precision = self.precision)
 
+    def __str__(self):
+        return "CodeVariable(%s[%s])" % (self.name, self.precision)
+
 
 class CodeExpression(object):
     def __init__(self, expression, vartype):
@@ -58,6 +61,9 @@ class CodeExpression(object):
 
     def get(self):
         return self.expression
+
+    def __str__(self):
+        return "CodeExpression(%s[%s])" % (self.expression, self.precision)
 
     def strip_outer_parenthesis(self):
         if self.expression[0] == "(" and self.expression[-1] == ")":

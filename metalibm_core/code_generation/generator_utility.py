@@ -337,7 +337,6 @@ class SymbolOperator(ML_CG_Operator):
         self.inverse = inverse
 
 
-
     def generate_expr(
             self, code_generator, code_object, optree, arg_tuple,
             generate_pre_process = None, force_variable_storing = False,
@@ -608,7 +607,7 @@ class FunctionOperator(ML_CG_Operator):
             # generating list of arguments
             arg_result = ordered_generation(
                 lambda arg: code_generator.generate_expr(
-                    code_object, arg, force_variable_storing = self.get_force_input_variable(),
+                    code_object, arg, force_variable_storing=self.get_force_input_variable(),
                     **kwords
                 ), arg_tuple
             )
@@ -661,7 +660,7 @@ class FunctionOperator(ML_CG_Operator):
         ) if self.arity is ML_VarArity else self.arg_map
         total_arity = len(optree.inputs) if self.arity is ML_VarArity \
                       else self.total_arity
-        # is their result passed by reference
+        # check if there are results passed by reference
         # if so then set result_in_args to point towards the result variables
         # and materialize result variable code in result_arg_maps
         result_args_map = {}
