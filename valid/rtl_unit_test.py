@@ -60,6 +60,7 @@ import metalibm_hw_blocks.unit_tests.min_max_select as ut_min_max_select
 import metalibm_hw_blocks.unit_tests.unify_pipeline as ut_unify_pipeline
 import metalibm_hw_blocks.unit_tests.sub_components as ut_sub_components
 import metalibm_hw_blocks.unit_tests.hw_shifts as ut_hw_shifts
+import metalibm_hw_blocks.unit_tests.cast_constant as ut_cast_constant
 
 unit_test_list = [
   UnitTestScheme(
@@ -104,6 +105,11 @@ unit_test_list = [
   ),
   UnitTestScheme(
     "dynamic and static shifts generation",
+    ut_hw_shifts,
+    [{}]
+  ),
+  UnitTestScheme(
+    "cast constant test with CodeExpression memoization",
     ut_hw_shifts,
     [{}]
   ),
