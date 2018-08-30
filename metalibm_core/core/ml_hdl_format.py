@@ -148,6 +148,7 @@ class ML_StdLogicVectorFormat(ML_Format):
         self.bit_size = bit_size
         self.name[VHDL_Code] = "std_logic_vector({direction_descriptor})".format(direction_descriptor = direction.get_descriptor(offset, offset + self.bit_size - 1))
         self.resolved = True
+    self.offset = offset
     self.display_format[VHDL_Code] = "%s"
 
   def __str__(self):
@@ -172,6 +173,8 @@ class ML_StdLogicVectorFormat(ML_Format):
 
   def is_cst_decl_required(self):
     return False
+  def __eq__(self, format2):
+    return isinstance(format2, ML_StdLogicVectorFormat) and self.bit_size == format2.bit_size and self.offset == format2.offset
 
 ## Class of single bit value format
 class ML_StdLogicClass(ML_Format):
