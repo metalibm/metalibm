@@ -277,7 +277,10 @@ class AbstractOperation(ML_Operation):
     #  @param index integer id of the input to extract
     #  @return the @p index-th input of @p self
     def get_input(self, index):
-        return self.inputs[index]
+        try:
+            return self.inputs[index]
+        except IndexError as e:
+            Log.report(Log.Error, "input {} is not available from {}", index, self, error=e)
     ## swap an input in node's input list
     #  @param self Operation node
     #  @param index integer id of the input to swap
