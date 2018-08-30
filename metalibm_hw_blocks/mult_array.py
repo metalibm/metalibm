@@ -26,6 +26,8 @@ from metalibm_core.core.ml_operations import (
     Addition, Multiplication, BitLogicAnd, BitLogicXor, Select,
     BitLogicOr, Statement, Variable, ReferenceAssign, TypeCast,
     Constant, Conversion,
+    LogicalOr, Equal, LogicalAnd, LogicalNot,
+    BitLogicNegate,
 )
 from metalibm_core.code_generation.vhdl_backend import VHDLBackend
 from metalibm_core.core.ml_entity import ML_Entity, ML_EntityBasis, DefaultEntityArgTemplate
@@ -36,10 +38,8 @@ from metalibm_core.utility.ml_template import (
 from metalibm_core.utility.log_report    import Log
 
 from metalibm_core.core.precisions import ML_Faithful
+from metalibm_core.core.ml_formats import ML_Bool
 
-from metalibm_core.core.ml_hdl_operations import (
-        equal_to
-)
 
 from metalibm_core.core.ml_hdl_format import (
     ML_StdLogicVectorFormat, ML_StdLogic, fixed_point,
@@ -47,10 +47,11 @@ from metalibm_core.core.ml_hdl_format import (
 from metalibm_core.code_generation.code_constant import VHDL_Code
 from metalibm_core.core.ml_hdl_operations import (
     BitSelection, Signal, PlaceHolder,
+    equal_to, Concatenation, SubSignalSelection
 )
 
 from metalibm_core.utility.rtl_debug_utils import (
-        debug_fixed
+        debug_fixed, debug_std,
 )
 from metalibm_core.utility.ml_template import hdl_precision_parser
 
@@ -379,11 +380,179 @@ class BitHeap:
 
     def pop_lower_bits(self, max_num=1):
         """ try to pop @p max_num bits from the lowest
-            index in bit_heap 
+            index in bit_heap
             @return list of bits, weigth """
         lower_index = min(self.count)
         assert self.count[lower_index] > 0
         return self.pop_bits(lower_index, max_num), lower_index
+
+
+def booth_radix4_multiply(lhs, rhs, pos_bit_heap, neg_bit_heap):
+    """ Compute the multiplication @p lhs x @p rhs using radix 4 Booth
+        recoding and drop the generated partial product in @p
+        pos_bit_heap and @p neg_bit_heap based on their sign """
+    # booth recoded partial product for n-th digit
+    # is based on digit from n-1 to n+1
+    #    (n+1) | (n) | (n-1) |  PP  |
+    #    ------|-----|-------|------|
+    #      0   |  0  |   0   |  +0  |
+    #      0   |  0  |   1   |  +X  |
+    #      0   |  1  |   0   |  +X  |
+    #      0   |  1  |   1   |  +2x |
+    #      1   |  0  |   0   |  -2X |
+    #      1   |  0  |   1   |  -X  |
+    #      1   |  1  |   0   |  -X  |
+    #      1   |  1  |   1   |  +0  |
+    #    ------|-----|-------|------|
+    assert lhs.get_precision().get_bit_size() >= 2
+
+    # lhs is the recoded operand
+    # RECODING DIGITS
+    # first recoded digit is padded right by 0
+    first_digit = Concatenation(
+        SubSignalSelection(lhs, 0, 1, precision=ML_StdLogicVectorFormat(2)),
+        Constant(0, precision=ML_StdLogic),
+        precision=ML_StdLogicVectorFormat(3),
+        debug=debug_std,
+        tag="booth_digit_0"
+    )
+    digit_list = [(first_digit, 0)]
+
+    for digit_index in range(2, lhs.get_precision().get_bit_size(), 2):
+        if digit_index + 1 < lhs.get_precision().get_bit_size():
+            # digits exist completely in lhs
+            digit = SubSignalSelection(lhs, digit_index - 1, digit_index + 1, tag="booth_digit_%d" % digit_index, debug=debug_std)
+        else:
+            # MSB padding required
+            sign_ext = Constant(0, precision=ML_StdLogic) if not(lhs.get_precision().get_signed()) else BitSelection(lhs, lhs.get_precision().get_bit_size() - 1)
+            digit = Concatenation(
+                sign_ext,
+                SubSignalSelection(lhs, digit_index - 1, digit_index),
+                precision=ML_StdLogicVectorFormat(3),
+                debug=debug_std,
+                tag="booth_digit_%d" % digit_index
+            )
+        digit_list.append((digit, digit_index))
+    # if lhs size is a mutiple of two and it is unsigned
+    # than an extra digit must be generated to ensure a positive result
+    if lhs.get_precision().get_bit_size() % 2 == 0 and not(lhs.get_precision().get_signed()):
+        digit_index = lhs.get_precision().get_bit_size() - 1
+        digit = Concatenation(
+            Constant(0, precision=ML_StdLogicVectorFormat(2)),
+            BitSelection(lhs, digit_index),
+            precision=ML_StdLogicVectorFormat(3),
+            debug=debug_std,
+            tag="booth_digit_%d" % (digit_index + 1)
+        )
+        digit_list.append((digit, digit_index + 1))
+
+    def DCV(value):
+        """ Digit Constante Value """
+        return Constant(value, precision=ML_StdLogicVectorFormat(3))
+
+    # PARTIAL PRODUCT GENERATION
+    # Radix-4 booth recoding requires the following Partial Products
+    # -2.rhs, -rhs, 0, rhs and 2.rhs
+    # Negative PP are obtained by 1's complement of the value correctly shifted
+    # adding a positive one to the LSB (inserted separately) and assuming
+    # MSB digit has a negative weight
+    for digit, index in digit_list:
+        pp_zero = LogicalOr(
+            Equal(digit, DCV(0), precision=ML_Bool),
+            Equal(digit, DCV(7), precision=ML_Bool),
+            precision=ML_Bool
+        )
+        pp_shifted = LogicalOr(
+            Equal(digit, DCV(3), precision=ML_Bool),
+            Equal(digit, DCV(4), precision=ML_Bool),
+            precision=ML_Bool
+        )
+        # excluding zero case
+        pp_neg_bit = BitSelection(digit, 2)
+        pp_neg = equal_to(pp_neg_bit, 1)
+        pp_neg_lsb_carryin = Select(
+            LogicalAnd(pp_neg, LogicalNot(pp_zero)),
+            Constant(1, precision=ML_StdLogic),
+            Constant(0, precision=ML_StdLogic),
+            tag="pp_%d_neg_lsb_carryin" % index,
+            debug=debug_std
+        )
+
+        # LSB digit
+        lsb_pp_digit = Select(
+            pp_shifted,
+            Constant(0, precision=ML_StdLogic),
+            BitSelection(rhs, 0),
+            precision=ML_StdLogic
+        )
+        lsb_local_pp = Select(
+            pp_zero,
+            Constant(0, precision=ML_StdLogic),
+            Select(
+                pp_neg,
+                BitLogicNegate(lsb_pp_digit),
+                lsb_pp_digit,
+                precision=ML_StdLogic
+            ),
+            debug=debug_std,
+            tag="lsb_local_pp_%d" % index,
+            precision=ML_StdLogic
+        )
+        pos_bit_heap.insert_bit(index, lsb_local_pp)
+        pos_bit_heap.insert_bit(index, pp_neg_lsb_carryin)
+
+        # other digits
+        rhs_size = rhs.get_precision().get_bit_size()
+        for k in range(1, rhs_size):
+            pp_digit = Select(
+                pp_shifted,
+                BitSelection(rhs, k-1),
+                BitSelection(rhs, k),
+                precision=ML_StdLogic
+            )
+            local_pp = Select(
+                pp_zero,
+                Constant(0, precision=ML_StdLogic),
+                Select(
+                    pp_neg,
+                    BitLogicNegate(pp_digit),
+                    pp_digit,
+                    precision=ML_StdLogic
+                ),
+                debug=debug_std,
+                tag="local_pp_%d_%d" % (index, k),
+                precision=ML_StdLogic
+            )
+            pos_bit_heap.insert_bit(index + k, local_pp)
+        # MSB digit
+        msb_pp_digit = pp_digit = Select(
+            pp_shifted,
+            BitSelection(rhs, rhs_size-1),
+            # TODO: fix for signed rhs
+            Constant(0, precision=ML_StdLogic) if not(rhs.get_precision().get_signed()) else BitSelection(rhs, rhs_size - 1),
+            precision=ML_StdLogic
+        )
+        msb_pp = Select(
+            pp_zero,
+            Constant(0, precision=ML_StdLogic),
+            Select(
+                pp_neg,
+                BitLogicNegate(msb_pp_digit),
+                msb_pp_digit,
+                precision=ML_StdLogic
+            ),
+            debug=debug_std,
+            tag="msb_pp_%d" % (index),
+            precision=ML_StdLogic
+        )
+        if rhs.get_precision().get_signed():
+            neg_bit_heap.insert_bit(index + rhs_size, msb_pp)
+        else:
+            pos_bit_heap.insert_bit(index + rhs_size, msb_pp)
+            # MSB negative digit,
+            # 'rhs_size + index) is the position of the MSB digit of rhs shifted by 1
+            # we add +1 to get to the sign position
+            neg_bit_heap.insert_bit(index + rhs_size  + 1, pp_neg_lsb_carryin)
 
 
 class MultArray(ML_Entity("mult_array")):
@@ -426,6 +595,7 @@ class MultArray(ML_Entity("mult_array")):
         # multiplication input descriptor
         self.op_expr = arg_template.op_expr
         self.dummy_mode = arg_template.dummy_mode
+        self.booth_mode = arg_template.booth_mode
         # reduction method
         self.reduction_method = arg_template.method
         # limit of height for each compression stage
@@ -540,27 +710,30 @@ class MultArray(ML_Entity("mult_array")):
 
         def merge_product_in_heap(operand_list, pos_bit_heap, neg_bit_heap):
             a_i, b_i = operand_list
-            a_i_precision = a_i.get_precision()
-            b_i_precision = b_i.get_precision()
-            a_i_signed = a_i_precision.get_signed()
-            b_i_signed = b_i.get_precision().get_signed()
-            unsigned_prod = not(a_i_signed) and not(b_i_signed)
-            a_i_size = a_i_precision.get_bit_size()
-            b_i_size = b_i_precision.get_bit_size()
-            for pp_index in range(a_i_size):
-                a_j_signed = a_i_signed and (pp_index == a_i_size - 1) 
-                bit_a_j = BitSelection(a_i, pp_index)
-                pp = Select(equal_to(bit_a_j, 1), b_i, 0)
-                offset = pp_index - a_i_precision.get_frac_size()
-                for b_index in range(b_i_size):
-                    b_k_signed = b_i_signed and (b_index == b_i_size - 1)
-                    pp_signed = a_j_signed ^ b_k_signed
-                    pp_weight = offset + b_index
-                    local_bit = BitSelection(pp, b_index)
-                    if pp_signed:
-                        neg_bit_heap.insert_bit(pp_weight, local_bit)
-                    else:
-                        pos_bit_heap.insert_bit(pp_weight, local_bit)
+            if self.booth_mode:
+                booth_radix4_multiply(a_i, b_i, pos_bit_heap, neg_bit_heap)
+            else:
+                a_i_precision = a_i.get_precision()
+                b_i_precision = b_i.get_precision()
+                a_i_signed = a_i_precision.get_signed()
+                b_i_signed = b_i.get_precision().get_signed()
+                unsigned_prod = not(a_i_signed) and not(b_i_signed)
+                a_i_size = a_i_precision.get_bit_size()
+                b_i_size = b_i_precision.get_bit_size()
+                for pp_index in range(a_i_size):
+                    a_j_signed = a_i_signed and (pp_index == a_i_size - 1)
+                    bit_a_j = BitSelection(a_i, pp_index)
+                    pp = Select(equal_to(bit_a_j, 1), b_i, 0)
+                    offset = pp_index - a_i_precision.get_frac_size()
+                    for b_index in range(b_i_size):
+                        b_k_signed = b_i_signed and (b_index == b_i_size - 1)
+                        pp_signed = a_j_signed ^ b_k_signed
+                        pp_weight = offset + b_index
+                        local_bit = BitSelection(pp, b_index)
+                        if pp_signed:
+                            neg_bit_heap.insert_bit(pp_weight, local_bit)
+                        else:
+                            pos_bit_heap.insert_bit(pp_weight, local_bit)
 
         def merge_addition_in_heap(operand_list, pos_bit_heap, neg_bit_heap):
             add_op = operand_list[0]
@@ -628,7 +801,7 @@ class MultArray(ML_Entity("mult_array")):
                     print "reducing bit heaps and inserting new stage"
                     pos_bit_heap, neg_bit_heap = reduce_heap(pos_bit_heap, neg_bit_heap)
                     self.implementation.start_new_stage()
-                    
+
             operation_list = stage_operation_map[stage_id]
             for merge_ctor, operand_list in operation_list:
                 merge_ctor(operand_list, pos_bit_heap, neg_bit_heap)
@@ -704,8 +877,6 @@ class MultArray(ML_Entity("mult_array")):
         return {"result_o": acc}
 
 
-
-
 if __name__ == "__main__":
         # auto-test
         arg_template = ML_EntityArgTemplate(
@@ -727,6 +898,13 @@ if __name__ == "__main__":
             const=True,
             action="store_const",
             help="select advance/dummy mode")
+        arg_template.parser.add_argument(
+            "--booth",
+            dest="booth_mode",
+            default=False,
+            const=True,
+            action="store_const",
+            help="activate booth recoding")
         arg_template.parser.add_argument(
             "--method",
             type=ReductionMethod,
