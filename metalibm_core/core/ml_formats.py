@@ -742,9 +742,9 @@ class ML_Base_FixedPoint_Format(ML_Fixed_Format, VirtualFormatNoBase):
         else:
             return value
 
-    def get_integer_coding(self, value, language = C_Code):
-      assert value <= self.get_max_value()
-      assert value >= self.get_min_value()
+    def get_integer_coding(self, value, language=C_Code):
+      if value > self.get_max_value() or  value < self.get_min_value():
+        Log.report(Log.Error, "value {} is out of format {} range [{}; {}]", value, self, self.get_min_value(), self.get_max_value())
       if value < 0:
         if not self.signed:
             Log.report(Log.Error, "negative value encountered {} while converting for an unsigned precision: {}".format(value, self))
