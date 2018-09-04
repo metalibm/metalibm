@@ -178,3 +178,31 @@ class BasicBlock(Statement):
         return node_str
 
 
+class BasicBlockList(Statement):
+    """ list of BasicBlock, first basic block should be the code entry point """
+    name = "BasicBlockList"
+    @property
+    def entry_bb(self):
+        """ Return the entry block """
+        return self.inputs[0]
+    @entry_bb.setter
+    def entry_bb(self, value):
+        self.push(value)
+
+
+class PhiNode(GeneralArithmeticOperation):
+    name = "PhiNode"
+    """ Implement Phi-Node required in SSA form
+        PhiNode([v<i>, bb<i>) returns v<i> if predecessor of current basic-block
+        in execution flow was bb<i>. Each predecessor must appear in the list
+        """
+    def __init__(self, *args, **kw):
+        GeneralArithmeticOperation.__init__(self, *args, **kw)
+        self.arity = len(args) / 2
+
+    def get_value(self, index):
+        return self.get_input(2 * index)
+    def get_predecessor(self, index):
+        return self.get_input(2 * index +1)
+
+
