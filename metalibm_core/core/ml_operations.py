@@ -129,7 +129,7 @@ class AbstractOperation(ML_Operation):
     name = "AbstractOperation"
     extra_inputs = []
     global_index = 0
-    str_del = "| "
+    str_del = "  "
 
     ## init operation handle
     def __init__(self, **init_map):
@@ -444,6 +444,14 @@ class AbstractOperation(ML_Operation):
         return self.get_str(display_precision=True)
 
 
+    def get_str_descriptor(self, display_precision=True, display_id=False, display_attribute=False, tab_level=0):
+        precision_str = "" if not display_precision else "[%s]" % str(self.get_precision())
+        silent_str = "[S]" if self.get_silent() else ""
+        dbg_str = "[DBG]" if self.get_debug() else ""
+        id_str     = ("[id=%x]" % id(self)) if display_id else ""
+        attribute_str = "" if not display_attribute else self.attributes.get_str(tab_leve=tab_level)
+        return silent_str + dbg_str + id_str + attribute_str
+
     ## string conversion
     #  @param  depth [integer/None] node depth where the display recursion stops
     #  @param  display_precision [boolean] enable/display node's precision display
@@ -455,7 +463,7 @@ class AbstractOperation(ML_Operation):
     #  @param  display_id [boolean]  enable/disbale display of unique node identified
     #  @return a string describing the node
     def get_str(
-            self, depth = 2, display_precision = False,
+            self, depth = 2, display_precision=False,
             tab_level = 0, memoization_map = None,
             display_attribute = False, display_id = False,
             custom_callback = lambda op: "",
@@ -468,21 +476,26 @@ class AbstractOperation(ML_Operation):
         new_depth = (depth - 1) if depth != None else None
 
         tab_str = AbstractOperation.str_del * tab_level + custom_callback(self)
-        silent_str = "[S]" if self.get_silent() else ""
-        dbg_str = "[DBG]" if self.get_debug() else ""
-        id_str     = ("[id=%x]" % id(self)) if display_id else ""
-        attribute_str = "" if not display_attribute else self.attributes.get_str(tab_level = tab_level)
         if self in memoization_map:
             return tab_str + "%s\n" % memoization_map[self]
         str_tag = self.get_tag() if self.get_tag() else ("tag_%d" % len(memoization_map))
-        if self.arity == 1:
-            precision_str = "" if not display_precision else "[%s]" % str(self.get_precision())
-            memoization_map[self] = str_tag
-            return tab_str + "%s%s%s%s%s%s -------> %s\n%s" % (self.get_name(), precision_str, dbg_str, silent_str, id_str, attribute_str, str_tag, "".join(inp.get_str(new_depth, display_precision, tab_level = tab_level + 1, memoization_map = memoization_map, display_attribute = display_attribute, display_id = display_id, custom_callback = custom_callback) for inp in self.inputs))
-        else:
-            memoization_map[self] = str_tag
-            precision_str = "" if not display_precision else "[%s]" % str(self.get_precision())
-            return tab_str + "%s%s%s%s%s%s ------> %s\n%s" % (self.get_name(), precision_str, dbg_str, silent_str, id_str, attribute_str, str_tag, "".join(inp.get_str(new_depth, display_precision, tab_level = tab_level + 1, memoization_map = memoization_map, display_attribute = display_attribute, display_id = display_id, custom_callback = custom_callback) for inp in self.inputs))
+        desc_str = self.get_str_descriptor(display_precision, display_id, display_attribute, tab_level)
+        memoization_map[self] = str_tag
+
+        return tab_str + "{name}{desc} -------> {tag}\n{args}".format(
+            name=self.get_name(), 
+            desc=desc_str,
+            tag=str_tag,
+            args="".join(
+                inp.get_str(
+                    new_depth, display_precision,
+                    tab_level=tab_level + 1,
+                    memoization_map=memoization_map,
+                    display_attribute=display_attribute,
+                    display_id=display_id,
+                    custom_callback=custom_callback
+                ) for inp in self.inputs)
+        )
 
 
     ## virtual function, called after a node's copy
