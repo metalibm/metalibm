@@ -40,6 +40,7 @@ from ..core.ml_operations import (
     ReferenceAssign, Loop,
 )
 from ..core.bb_operations import (
+    BasicBlockList,
     BasicBlock, ConditionalBranch, UnconditionalBranch
 )
 from ..core.ml_table import ML_Table
@@ -225,7 +226,7 @@ def generate_llvm_cst(value, precision, precision_header=True):
         Log.report(
             Log.Error,
             "format {} not supported in LLVM-IR generate_llvm_cst",
-            optree.precision
+            precision
         )
 
 def generate_Constant_expr(optree):
@@ -290,7 +291,7 @@ class LLVMIRCodeGenerator(object):
         if bb in self.bb_map:
             return self.bb_map[bb]
         else:
-            new_label = get_free_label_name(code_object, "BB")
+            new_label = get_free_label_name(code_object, bb.get_tag() or "BB")
             self.bb_map[bb] = new_label
             return new_label
 
@@ -344,40 +345,36 @@ class LLVMIRCodeGenerator(object):
                 else_label=else_label
             )
             # generating destination bb
-            self.generate_expr(code_object, if_bb, folded=folded, language=language)
-            self.generate_expr(code_object, else_bb, folded=folded, language=language)
+            # self.generate_expr(code_object, if_bb, folded=folded, language=language)
+            # self.generate_expr(code_object, else_bb, folded=folded, language=language)
             return None
 
         elif isinstance(optree, UnconditionalBranch):
             dest_bb = optree.get_input(0)
             code_object << "br label {}\n".format(self.get_bb_label(code_object, dest_bb))
+            # generating destination bb
+            # self.generate_expr(code_object, dest_bb, folded=folded, language=language)
+            return None
+
+        elif isinstance(optree, BasicBlockList):
+            for bb in optree.inputs:
+                self.generate_expr(code_object, bb, folded=folded, language=language)
             return None
 
         elif isinstance(optree, Statement):
-            # all but last generation
-            for op in optree.inputs[:-1]:
-                if not self.has_memoization(op):
-                    self.generate_expr(code_object, op, folded = folded, initial = True)
-            # last sub-statement generation, with next_block forwarding
-            if len(optree.inputs) > 0:
-                op = optree.inputs[-1]
-                if not self.has_memoization(op):
-                    self.generate_expr(
-                        code_object, op, folded=folded,
-                        initial=True, next_block=next_block
-                    )
-
-            return None
+            Log.report(Log.Error, "Statement are not supported in LLVM-IR codegen"
+                "They must be translated to BB (e.g. through gen_basic_block pass)"
+                "faulty node: {}", optree)
 
         elif isinstance(optree, ConditionBlock):
-            return llvm_ir_generate_condition_block(
-                self, optree, code_object, folded=folded, language=language,
-                next_block=next_block, initial=initial)
+            Log.report(Log.Error, "ConditionBlock are not supported in LLVM-IR codegen"
+                "They must be translated to BB (e.g. through gen_basic_block pass)"
+                "faulty node: {}", optree)
 
         elif isinstance(optree, Loop):
-            return llvm_ir_generate_loop(
-                self, optree, code_object, folded=folded, language=language,
-                next_block=next_block, initial=initial)
+            Log.report(Log.Error, "Loop are not supported in LLVM-IR codegen"
+                "They must be translated to BB (e.g. through gen_basic_block pass)"
+                "faulty node: {}", optree)
 
         elif isinstance(optree, ReferenceAssign):
             output_var = optree.get_input(0)
