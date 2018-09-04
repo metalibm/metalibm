@@ -26,14 +26,16 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 ###############################################################################
-# 
+#
 # Created:     June 13th, 2018
 # Description: Specific operations to describe basic block constructs
 #
 
 
 from metalibm_core.core.ml_operations import (
-    Statement, ControlFlowOperation
+    AbstractOperation,
+    Statement, ControlFlowOperation,
+    GeneralArithmeticOperation,
 )
 
 
@@ -41,10 +43,87 @@ class ConditionalBranch(ControlFlowOperation):
     """ branch <cond> <true_dest> <false_dest> """
     arity = 3
     name = "ConditionalBranch"
+    def destination_list(self):
+        """ return the list of BB targeted by the instruction """
+        return [self.get_input(1), self.get_input(2)]
+    def get_str(
+            self, depth=2, display_precision=False,
+            tab_level=0, memoization_map=None,
+            display_attribute=False, display_id=False,
+            custom_callback=lambda op: "",
+        ):
+        memoization_map = {} if memoization_map is None else memoization_map
+        new_depth = None
+        if depth != None:
+            if  depth < 0:
+                return ""
+        new_depth = (depth - 1) if depth != None else None
+
+        tab_str = AbstractOperation.str_del * tab_level + custom_callback(self)
+        if self in memoization_map:
+            return tab_str + "%s\n" % memoization_map[self]
+        str_tag = self.get_tag() if self.get_tag() else ("tag_%d" % len(memoization_map))
+        desc_str = self.get_str_descriptor(display_precision, display_id, display_attribute, tab_level)
+        memoization_map[self] = str_tag
+
+        node_str = tab_str + "{name}{desc} -------> {tag}\n{args}".format(
+            name=self.get_name(), 
+            desc=desc_str,
+            tag=str_tag,
+            args="".join(
+                inp.get_str(
+                    op_depth, display_precision,
+                    tab_level=tab_level + 1,
+                    memoization_map=memoization_map,
+                    display_attribute=display_attribute,
+                    display_id=display_id,
+                    custom_callback=custom_callback
+                ) for inp, op_depth in zip(self.inputs, [new_depth, 0, 0]))
+        )
+        return node_str
 class UnconditionalBranch(ControlFlowOperation):
     """ goto <dest> """
     arity = 1
     name = "UnconditionalBranch"
+    @property
+    def destination_list(self):
+        """ return the list of BB targeted by the instruction """
+        return [self.get_input(0)]
+    def get_str(
+            self, depth=2, display_precision=False,
+            tab_level=0, memoization_map=None,
+            display_attribute=False, display_id=False,
+            custom_callback=lambda op: "",
+        ):
+        memoization_map = {} if memoization_map is None else memoization_map
+        new_depth = None
+        if depth != None:
+            if  depth < 0:
+                return ""
+        new_depth = (depth - 1) if depth != None else None
+
+        tab_str = AbstractOperation.str_del * tab_level + custom_callback(self)
+        if self in memoization_map:
+            return tab_str + "%s\n" % memoization_map[self]
+        str_tag = self.get_tag() if self.get_tag() else ("tag_%d" % len(memoization_map))
+        desc_str = self.get_str_descriptor(display_precision, display_id, display_attribute, tab_level)
+        memoization_map[self] = str_tag
+
+        node_str = tab_str + "{name}{desc} -------> {tag}\n{args}".format(
+            name=self.get_name(), 
+            desc=desc_str,
+            tag=str_tag,
+            args="".join(
+                inp.get_str(
+                    op_depth, display_precision,
+                    tab_level=tab_level + 1,
+                    memoization_map=memoization_map,
+                    display_attribute=display_attribute,
+                    display_id=display_id,
+                    custom_callback=custom_callback
+                ) for inp, op_depth in zip(self.inputs, [0]))
+        )
+        return node_str
 class BasicBlock(Statement):
     name = "BasicBlock"
     def __init__(self, *args, **kw):
@@ -52,4 +131,50 @@ class BasicBlock(Statement):
         # indicate that the current basic block is final (end with
         # a Return like statement)
         self.final = False
+    def finish_copy(self, new_copy, copy_map = {}):
+        """ Propagating final attribute during copy """
+        new_copy.final = self.final
+    @property
+    def empty(self):
+        """ predicate if BasicBlock has any instruction node """
+        return len(self.inputs) == 0
+
+    def get_str(
+            self, depth=2, display_precision=False,
+            tab_level=0, memoization_map=None,
+            display_attribute=False, display_id=False,
+            custom_callback=lambda op: "",
+        ):
+        memoization_map = {} if memoization_map is None else memoization_map
+        new_depth = None
+        if depth != None:
+            if  depth < 0:
+                return ""
+        new_depth = (depth - 1) if depth != None else None
+
+        tab_str = AbstractOperation.str_del * tab_level + custom_callback(self)
+        if self in memoization_map:
+            #return tab_str + "%s\n" % memoization_map[self]
+            str_tag = memoization_map[self]
+        else:
+            str_tag = self.get_tag() if self.get_tag() else ("tag_%d" % len(memoization_map))
+        desc_str = self.get_str_descriptor(display_precision, display_id, display_attribute, tab_level)
+        memoization_map[self] = str_tag
+
+        node_str = tab_str + "{name}{desc} -------> {tag}\n{args}".format(
+            name=self.get_name(), 
+            desc=desc_str,
+            tag=str_tag,
+            args="".join(
+                inp.get_str(
+                    new_depth, display_precision,
+                    tab_level=tab_level + 1,
+                    memoization_map=memoization_map,
+                    display_attribute=display_attribute,
+                    display_id=display_id,
+                    custom_callback=custom_callback
+                ) for inp in self.inputs)
+        )
+        return node_str
+
 
