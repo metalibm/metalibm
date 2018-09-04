@@ -9,10 +9,11 @@ meta-function generation report (master branch): https://nibrunie.gitlab.io/meta
 
 ## INSTALL
 
-
 * Dependencies:
-    - metalibm depends on Pythonsollya (python wrapper to Sollya library). Pythonsollya can be downloaded from https://gitlab.com/metalibm-dev/pythonsollya
-    - Some features of Metalibm require on Gappa (http://gappa.gforge.inria.fr/)
+    - metalibm depends on Pythonsollya (python wrapper to Sollya library).
+        easy install (if sollya is already installed): pip install git+https://gitlab.com/metalibm-dev/pythonsollya
+        or Pythonsollya can be downloaded from https://gitlab.com/metalibm-dev/pythonsollya
+    - Some features of Metalibm require Gappa (http://gappa.gforge.inria.fr/)
 
 * Python version compatibility: as of version 1.0, metalibm works with both python2 (>= 2.7) and python3 (tested with 3.4)
 
