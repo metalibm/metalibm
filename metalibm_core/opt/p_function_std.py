@@ -369,7 +369,10 @@ class PassCheckProcessorSupport(FunctionPass):
             print("checking processor support: ", self.processor.__class__) # Debug print
         if  optree in memoization_map:
             return True
-        if not isinstance(optree, ML_LeafNode):
+
+        elif not isinstance(optree, ML_LeafNode):
+            # memoization
+            memoization_map[optree] = True
             for inp in optree.inputs:
                 self.check_processor_support(inp, memoization_map, debug = debug, language = language)
 
@@ -438,8 +441,9 @@ class PassCheckProcessorSupport(FunctionPass):
                     print(language, self.processor.get_operation_keys(optree)) # Error print
                     print(optree.get_str(display_precision = True, display_id = True, memoization_map = {})) # Error print
                     Log.report(Log.Error, "unsupported operation\n")
-        # memoization
-        memoization_map[optree] = True
+        else:
+            # memoization
+            memoization_map[optree] = True
         return True
 
     def has_support_simplification(self, optree):
