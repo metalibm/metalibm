@@ -30,9 +30,12 @@
 import sollya
 
 from sollya import (
-    S2, Interval, round, inf, sup, log, expm1, log2,
+    Interval, round, inf, sup, log, expm1, log2,
     guessdegree, dirtyinfnorm, floor
 )
+
+from sollya import SollyaObject
+S2 = SollyaObject(2)
 
 from metalibm_core.core.ml_operations import (
     Test, RaiseReturn, Comparison, Statement, NearestInteger,
