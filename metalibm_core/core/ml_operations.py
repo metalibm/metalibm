@@ -544,6 +544,21 @@ class ML_LeafNode(AbstractOperation):
     """ """
     pass
 
+class EmptyOperand(ML_LeafNode):
+    name = "EmptyOperand"
+    def get_str(
+            self, depth = None, display_precision = False, 
+            tab_level = 0, memoization_map = None, 
+            display_attribute = False, display_id = False,
+            custom_callback = lambda op: "",
+        ):
+        memoization_map = {} if memoization_map is None else memoization_map
+        precision_str = "" if not display_precision else "[%s]" % str(self.get_precision())
+        attribute_str = "" if not display_attribute else self.attributes.get_str(tab_level = tab_level)
+        id_str        = ("[id=%x]" % id(self)) if display_id else ""
+        return AbstractOperation.str_del * tab_level + custom_callback(self) + "EmptyOperand()%s%s%s\n" % (attribute_str, precision_str, id_str)
+    
+
 def is_interval_compatible_object(value):
     """ predicate testing if value is an object from
         a numerical class compatible with sollya.Interval
