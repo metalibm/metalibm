@@ -35,8 +35,6 @@
 
 import sys
 
-from sollya import S2
-
 from metalibm_core.core.ml_function import ML_Function, ML_FunctionBasis
 
 from metalibm_core.core.attributes import ML_Debug
@@ -84,8 +82,8 @@ class ML_UT_LLVMCode(ML_FunctionBasis):
 
     Cst0 = Constant(5, precision=self.precision)
     Cst1 = Constant(7, precision=self.precision)
-    comp = Comparison(vx, vy, specifier=Comparison.Greater, precision=ML_Bool)
-    comp_eq = Comparison(vx, vy, specifier=Comparison.Equal, precision=ML_Bool)
+    comp = Comparison(vx, vy, specifier=Comparison.Greater, precision=ML_Bool, tag="comp")
+    comp_eq = Comparison(vx, vy, specifier=Comparison.Equal, precision=ML_Bool, tag="comp_eq")
 
     scheme = Statement(
         ConditionBlock(
