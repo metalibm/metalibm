@@ -339,7 +339,7 @@ class LLVMIRCodeGenerator(object):
             cond_code = self.generate_expr(
                 code_object, cond, folded=folded, language=language)
 
-            code_object << "br i1 {cond} , label %{if_label}, label %{else_label}".format(
+            code_object << "br i1 {cond} , label %{if_label}, label %{else_label}\n".format(
                 cond=cond_code.get(),
                 if_label=if_label,
                 else_label=else_label
@@ -351,7 +351,7 @@ class LLVMIRCodeGenerator(object):
 
         elif isinstance(optree, UnconditionalBranch):
             dest_bb = optree.get_input(0)
-            code_object << "br label {}\n".format(self.get_bb_label(code_object, dest_bb))
+            code_object << "br label %{}\n".format(self.get_bb_label(code_object, dest_bb))
             # generating destination bb
             # self.generate_expr(code_object, dest_bb, folded=folded, language=language)
             return None
