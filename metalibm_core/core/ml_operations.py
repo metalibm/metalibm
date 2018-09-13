@@ -118,6 +118,8 @@ def implicit_op(op):
         return Constant(op, precision = ML_FPRM_Type)
     elif isinstance(op , str):
         return Constant(op, precision = ML_String)
+    elif op is None:
+        return EmptyOperand()
     else:
         print("ERROR: unsupported operand in implicit_op conversion ", op, op.__class__)
         raise Exception()
@@ -1289,7 +1291,7 @@ class Dereference(GeneralArithmeticOperation):
     name = "Dereference"
     arity = 1
 
-class ReferenceAssign(ControlFlowOperation):
+class ReferenceAssign(GeneralOperation):
     """ abstract assignation to reference operation """
     name = "ReferenceAssign"
     arity = 1
