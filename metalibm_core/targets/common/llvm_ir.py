@@ -32,7 +32,6 @@
 ###############################################################################
 
 import os, inspect
-from sollya import S2
 
 
 from metalibm_core.core.ml_formats import (
