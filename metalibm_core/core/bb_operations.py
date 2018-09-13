@@ -31,6 +31,7 @@
 # Description: Specific operations to describe basic block constructs
 #
 
+from metalibm_core.utility.log_report import Log
 
 from metalibm_core.core.ml_operations import (
     AbstractOperation,
@@ -43,6 +44,7 @@ class ConditionalBranch(ControlFlowOperation):
     """ branch <cond> <true_dest> <false_dest> """
     arity = 3
     name = "ConditionalBranch"
+    @property
     def destination_list(self):
         """ return the list of BB targeted by the instruction """
         return [self.get_input(1), self.get_input(2)]
@@ -134,10 +136,20 @@ class BasicBlock(Statement):
     def finish_copy(self, new_copy, copy_map = {}):
         """ Propagating final attribute during copy """
         new_copy.final = self.final
+
     @property
     def empty(self):
         """ predicate if BasicBlock has any instruction node """
         return len(self.inputs) == 0
+
+    @property
+    def successors(self):
+        last_op = self.get_input(-1)
+        if not isinstance(last_op, ControlFlowOperation):
+            Log.report(Log.Info, "last operation of BB is not a ControlFlowOperation: BB is {}", self)
+            return []
+        else:
+            return last_op.destination_list
 
     def get_str(
             self, depth=2, display_precision=False,
