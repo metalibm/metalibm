@@ -41,7 +41,8 @@ from ..core.ml_operations import (
 )
 from ..core.bb_operations import (
     BasicBlockList,
-    BasicBlock, ConditionalBranch, UnconditionalBranch
+    BasicBlock, ConditionalBranch, UnconditionalBranch,
+    PhiNode,
 )
 from ..core.ml_table import ML_Table
 from ..core.ml_formats import *
@@ -375,6 +376,29 @@ class LLVMIRCodeGenerator(object):
             Log.report(Log.Error, "Loop are not supported in LLVM-IR codegen"
                 "They must be translated to BB (e.g. through gen_basic_block pass)"
                 "faulty node: {}", optree)
+
+        elif isinstance(optree, PhiNode):
+            output_var = optree.get_input(0)
+            output_var_code = self.generate_expr(
+                code_object, output_var, folded=folded, language=language)
+
+            value_list = []
+            for input_var, bb_var in zip(optree.get_inputs()[1::2], optree.get_inputs()[2::2]):
+                assert isinstance(input_var, Variable)
+                assert isinstance(bb_var, BasicBlock)
+                input_var = self.generate_expr(
+                    code_object, input_var, folded=folded, language=language
+                )
+                bb_label = self.get_bb_label(code_object, bb_var)
+                value_list.append("[{var}, %{bb}]".format(var=input_var.get(), bb=bb_label))
+
+            code_object << "{output_var} = phi {precision} {value_list}\n".format(
+                output_var=output_var_code.get(),
+                precision=llvm_ir_format(precision=output_var.get_precision()),
+                value_list=(", ".join(value_list))
+            )
+
+            return None
 
         elif isinstance(optree, ReferenceAssign):
             output_var = optree.get_input(0)
