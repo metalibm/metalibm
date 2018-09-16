@@ -24,9 +24,9 @@ meta-function generation report (master branch): https://nibrunie.gitlab.io/meta
     - make sure metalibm's top directory is in your PYTHONPATH
 
 ## USAGE
-Example of metafunctions can be found under the metalibm_functions directory.
+Example of metafunctions can be found under the **metalibm_functions/** directory.
 
-* Example to generate a faithful (default) approximation of the exponential function for single precision and a x86 AVX2 target:
+* Example to generate a faithful (default) approximation of the exponential function for single precision on a x86 AVX2 target:
 ```python2 metalibm_functions/ml_exp.py --precision binary32 --target x86_avx2 --output x86_avx2_exp2d.c ```
 
 * Explore the other functions of this directory, e.g. :
@@ -46,9 +46,15 @@ A more comprehensive user documentation can be found in [doc/USERGUIDE.md](https
 * Non-regression tests (hardware code generation):
   ``` python2 valid/hw_non_regression.py ```
 
+* Functionnal coverage (generate a report on meta-functions' generation/build/valid status):
+  ``` python2 valid/soft_coverage_test.py --report-only --output report.html ```
+
 ## DOCUMENTATION
 
-Metalibm Description Language is documented in [doc/MDL.md](https://github.com/kalray/metalibm/blob/master/doc/MDL.md)
+* Metalibm Description Language documentation:  [doc/MDL.md](https://github.com/kalray/metalibm/blob/master/doc/MDL.md)
+* User interface documentation: [doc/USERGUIDE.md](https://github.com/kalray/metalibm/blob/master/doc/USERGUIDE.md)
+* Custom Meta-function documentation: [doc/METAFUNCTION.md](https://github.com/kalray/metalibm/blob/master/doc/METAFUNCTION.md)
+* Metalibm engine optimization pass documentation: [doc/PASSES.md](https://github.com/kalray/metalibm/blob/master/doc/PASSES.md)
 
 ## Version History
 
@@ -62,5 +68,5 @@ Metalibm Description Language is documented in [doc/MDL.md](https://github.com/k
     Marc Mezzarobba, Guillaume Gonnachon, Florent de Dinechin, Julien Le Maire,
     Julien Villette, Guillaume Revy
 
-    This work was supported by Kalray (kalrayinc.com) and other entities
+    This work has been supported by Kalray (kalrayinc.com) and other entities
     (to be listed)
