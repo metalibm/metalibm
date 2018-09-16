@@ -35,6 +35,7 @@ import sys
 import copy
 
 from ..core.ml_operations import (
+    Addition,
     Variable, Constant, ConditionBlock, Return, TableLoad, Statement,
     SpecificOperation, Conversion, FunctionObject,
     ReferenceAssign, Loop,
@@ -404,15 +405,25 @@ class LLVMIRCodeGenerator(object):
             output_var = optree.get_input(0)
             result_value = optree.get_input(1)
 
+            # In LLVM it is illegal to assign a constant value, directly to a
+            # variable so with insert a dummy add with 0
+            if isinstance(result_value, Constant):
+                cst_precision = result_value.get_precision()
+                result_value = Addition(
+                    result_value,
+                    Constant(0, precision=cst_precision),
+                    precision=cst_precision)
+
             # TODO/FIXME: fix single static assignation enforcement
-            output_var_code = self.generate_expr(
-                code_object, output_var, folded=False, language=language
-            )
+            #output_var_code = self.generate_expr(
+            #    code_object, output_var, folded=False, language=language
+            #)
 
             result_value_code = self.generate_expr(
-                code_object, result_value, folded=folded, language=language
+                code_object, result_value, folded=folded, result_var="%"+output_var.get_tag(), language=language
             )
-            code_object << self.generate_assignation(output_var_code.get(), result_value_code.get(), precision=output_var_code.precision)
+            assert isinstance(result_value_code, CodeVariable)
+            # code_object << self.generate_assignation(output_var_code.get(), result_value_code.get(), precision=output_var_code.precision)
             # debug msg generation is not supported in LLVM code genrator
 
             return None
