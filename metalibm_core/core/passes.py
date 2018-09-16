@@ -297,13 +297,22 @@ class FunctionPass(OptreeOptimization):
         return fct_group.apply_to_all_functions(local_fct_apply)
 
 
-class PassQuit(OptreeOptimization):
-  pass_tag = "quit"
-  def __init__(self, *args):
-    OptimizationPass.__init__(self, "quit")
+class PassQuit(FunctionPass):
+    pass_tag = "quit"
+    def __init__(self, *args):
+        OptimizationPass.__init__(self, "quit")
 
-  def execute(self, *args):
-    sys.exit(1)
+    def execute(self, *args):
+        sys.exit(1)
+
+    def execute_on_function(self, fct, fct_group):
+        Log.report(Log.Info, "executing pass {} on fct {}".format(
+            self.pass_tag, fct.get_name()))
+        self.execute(self, fct, fct_group)
+
+    def execute_on_fct_group(self, fct_group):
+        Log.report(Log.Info, "executing pass {} on fct group {}".format(self.pass_tag, fct_group))
+        self.execute(self, fct_group)
 
 class PassDump(FunctionPass):
   pass_tag = "dump"
