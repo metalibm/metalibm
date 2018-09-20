@@ -331,7 +331,7 @@ class BasicBlockGraph:
         """ dict associating to each node its unique immediate dominator """
         if self._immediate_dominator_map is None:
             self._immediate_dominator_map = build_immediate_dominator_map(
-                self.dominator_map, self.bb_list, self.cfg_edges)
+                self.dominator_map, self.bb_list)
         return self._immediate_dominator_map
 
     def op_dominates(self, op0, op1):
@@ -398,12 +398,11 @@ def build_dominator_map(bbg):
             dominator_map[bb] = dom
             Log.report(LOG_LEVEL_GEN_BB_VERBOSE, "bb {}'s dominator list is {}",
                        bb.get_tag(), [dom.get_tag() for dom in dominator_map[bb]])
-        print "next step ----------------------------"
         if not change:
             break
     return dominator_map
 
-def build_immediate_dominator_map(dominator_map, bb_list, cfg_edges):
+def build_immediate_dominator_map(dominator_map, bb_list):
     """ Build a dictionnary associating the immediate dominator of each
         basic-block to this BB """
     # looking for immediate dominator
@@ -428,21 +427,21 @@ def build_immediate_dominator_map(dominator_map, bb_list, cfg_edges):
 
 
 def does_not_strictly_dominate(dominator_map, x, y):
+    """ predicate testing if @p x does not strictly dominate @p y using
+        @p dominator_map """
     if x == y:
         return True
     elif x in dominator_map[y]:
         # y is dominated by x, and x != y so x strictly dominates y
         return False
-    else:
-        return True
+    return True
 
 
 def get_dominance_frontiers(bbg):
+    """ compute the dominance frontier for each node in the basic-block group
+        @p bbg """
     # build BB's conftrol flow graph
     dominance_frontier = {}
-    cfg_edges = build_cfg_edges_set(bbg.bb_list)
-    # dominator_map = build_dominator_map(cfg_edges)
-    # immediate_dominator_map = build_immediate_dominator_map(dominator_map, bb_list, cfg_edges)
     for edge in bbg.cfg_edges:
         x = edge.src
         while does_not_strictly_dominate(bbg.dominator_map, x, edge.dst):
@@ -472,7 +471,7 @@ def build_variable_list_and_defs(bb_list, bb_map):
     for bb in bb_list.inputs:
         for node in bb.get_inputs():
             working_set.add(node)
-    while len(working_set) > 0:
+    while working_set:
         node = working_set.pop()
         if not node in processed_nodes:
             processed_nodes.add(node)
@@ -486,8 +485,8 @@ def build_variable_list_and_defs(bb_list, bb_map):
                     variable_defs[var] = set()
                 variable_defs[var].add(bb_map[node])
             if not isinstance(node, ML_LeafNode):
-                for op in node.get_inputs():
-                    working_set.add(op)
+                for op_input in node.get_inputs():
+                    working_set.add(op_input)
     return variable_list, variable_defs
 
 
@@ -616,15 +615,15 @@ def update_used_var(op, old_var, new_var, memoization_map=None):
                 update_used_var(op_input, old_var, new_var, memoization_map)
         return op
 
-def update_def_var(node, var, vp):
+def update_def_var(node, var, new_var):
     """ Update @p var which should be the variable defined by @p
         and replace it by @p vp """
     # TODO: manage sub-assignation cases
-    assert isinstance(node, ReferenceAssign) or isinstance(node, PhiNode)
+    assert isinstance(node, (ReferenceAssign, PhiNode))
     assert node.get_input(0) is var
-    assert not vp is None
-    Log.report(LOG_LEVEL_GEN_BB_VERBOSE, "updating var def in {} from {} to {}", node, var, vp)
-    node.set_input(0, vp)
+    assert not new_var is None
+    Log.report(LOG_LEVEL_GEN_BB_VERBOSE, "updating var def in {} from {} to {}", node, var, new_var)
+    node.set_input(0, new_var)
 
 def updating_reaching_def(bbg, reaching_def, var, op):
     """ updating the @p reaching_def structure for Variable @p var
@@ -807,6 +806,7 @@ class Pass_GenerateBasicBlock(FunctionPass):
         # create the new basic-block
         tag = self.get_new_bb_tag(tag)
         new_bb = BasicBlock(tag=tag)
+        self.top_bb_list.add(new_bb)
 
         # register new basic-block at the end of the current list
         # self.top_bb_list.add(new_bb)
@@ -829,10 +829,8 @@ class Pass_GenerateBasicBlock(FunctionPass):
                 "poping top_bb {} from stack ",
                 top_bb.get_tag())
             # TODO/FIXME: fix bb regsiterting in top_bb_list testing
-            if not top_bb.empty or force_add:
-                top_bb = self.current_bb_stack.pop(-1)
-                self.top_bb_list.add(top_bb)
-                return top_bb
+            top_bb = self.current_bb_stack.pop(-1)
+            return top_bb
         Log.report(LOG_LEVEL_GEN_BB_VERBOSE, "   top_bb was empty")
         return None
 
