@@ -77,6 +77,7 @@ import metalibm_functions.unit_tests.legalize_sqrt as ut_legalize_sqrt
 import metalibm_functions.unit_tests.accuracies as ut_accuracies
 import metalibm_functions.unit_tests.legalize_reciprocal_seed as ut_legalize_reciprocal_seed
 import metalibm_functions.unit_tests.fuse_fma as ut_fuse_fma
+import metalibm_functions.unit_tests.llvm_code as ut_llvm_code
 
 unit_test_list = [
   UnitTestScheme(
@@ -211,6 +212,11 @@ unit_test_list = [
     "entity pass scheduling",
     ut_entity_pass,
     [{}],
+  ),
+  UnitTestScheme(
+    "llvm code generation test",
+    ut_llvm_code,
+    [{"passes": ["beforecodegen:gen_basic_block", "beforecodegen:dump", "beforecodegen:ssa_translation"]}]
   ),
 ]
 

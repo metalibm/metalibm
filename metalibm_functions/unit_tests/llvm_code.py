@@ -25,11 +25,11 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 ###############################################################################
-# created:          Feb  3rd, 2016
-# last-modified:    Mar  7th, 2018
+# created:          Apr  5th, 2018
+# last-modified:    Sep 20th, 2018
 #
 # Author(s): Nicolas Brunie (nicolas.brunie@kalray.eu)
-# description: unit test for ML static vectorization
+# description: unit test for LLVM-IR code Generation
 ###############################################################################
 
 
@@ -38,19 +38,24 @@ import sys
 from metalibm_core.core.ml_function import ML_Function, ML_FunctionBasis
 
 from metalibm_core.core.attributes import ML_Debug
-from metalibm_core.core.ml_operations import *
-
-from metalibm_core.core.ml_formats import ML_Int32
+from metalibm_core.core.ml_operations import (
+    Constant, Comparison, ConditionBlock, Return, Statement
+)
+from metalibm_core.core.ml_formats import ML_Int32, ML_Bool
 
 from metalibm_core.targets.common.llvm_ir import LLVMBackend
 
 from metalibm_core.code_generation.code_constant import LLVM_IR_Code
 
+from metalibm_functions.unit_tests.utils import TestRunner
 
-from metalibm_core.utility.ml_template import *
+
+from metalibm_core.utility.ml_template import (
+    DefaultArgTemplate, ML_NewArgTemplate
+)
 
 
-class ML_UT_LLVMCode(ML_FunctionBasis):
+class ML_UT_LLVMCode(ML_FunctionBasis, TestRunner):
   function_name = "ml_ut_llvm_code"
   def __init__(self, args=DefaultArgTemplate):
     # initializing base class
@@ -93,7 +98,7 @@ class ML_UT_LLVMCode(ML_FunctionBasis):
                 precision=self.precision
             ),
             ConditionBlock(
-                comp_eq,      
+                comp_eq,
                 Return(
                     vx + vy * Cst0 - Cst1,
                     precision=self.precision
@@ -109,18 +114,21 @@ class ML_UT_LLVMCode(ML_FunctionBasis):
 
     return scheme
 
+  @staticmethod
+  def __call__(args):
+    ml_ut_llvm_code = ML_UT_LLVMCode(args)
+    ml_ut_llvm_code.gen_implementation()
+    return True
 
-def run_test(args):
-  ml_ut_llvm_code = ML_UT_LLVMCode(args)
-  ml_ut_llvm_code.gen_implementation()
-  return True
+
+run_test = ML_UT_LLVMCode
 
 if __name__ == "__main__":
   # auto-test
   arg_template = ML_NewArgTemplate(default_arg=ML_UT_LLVMCode.get_default_args())
   args = arg_template.arg_extraction()
 
-  if run_test(args):
+  if ML_UT_LLVMCode.__call__(args):
     exit(0)
   else:
     exit(1)
