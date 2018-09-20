@@ -55,6 +55,7 @@ A more comprehensive user documentation can be found in [doc/USERGUIDE.md](https
 * User interface documentation: [doc/USERGUIDE.md](https://github.com/kalray/metalibm/blob/master/doc/USERGUIDE.md)
 * Custom Meta-function documentation: [doc/METAFUNCTION.md](https://github.com/kalray/metalibm/blob/master/doc/METAFUNCTION.md)
 * Metalibm engine optimization pass documentation: [doc/PASSES.md](https://github.com/kalray/metalibm/blob/master/doc/PASSES.md)
+* Metalibm unit testing framework: [doc/UNITTESTS.md](https://github.com/kalray/metalibm/blob/master/doc/UNITTESTS.md)
 
 ## Version History
 
