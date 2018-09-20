@@ -87,7 +87,9 @@ class ML_UT_LoopOperation(ML_Function("ml_ut_loop_operation")):
 
     loop = Loop(ReferenceAssign(vi, 0), vi < 10, ReferenceAssign(vi, vi +1))
 
-    scheme = Statement(loop, Return(vx + Conversion(vi, precision=self.precision), precision=self.precision))
+    CONVERT = Conversion if self.precision != ML_Int32 else (lambda x, **kw: x)
+
+    scheme = Statement(loop, Return(vx + CONVERT(vi, precision=self.precision), precision=self.precision))
 
     return scheme
 def run_test(args):
