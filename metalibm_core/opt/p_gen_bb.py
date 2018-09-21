@@ -449,7 +449,7 @@ def get_dominance_frontiers(bbg):
                 dominance_frontier[x] = set()
             dominance_frontier[x].add(edge.dst)
             if not x in bbg.immediate_dominator_map:
-                print x.get_str(depth=2, display_precision=True)
+                Log.report(Log.Error, "could not find {} in bbg.immediate_dominator_map", x)
             x = bbg.immediate_dominator_map[x]
     for x in dominance_frontier:
         Log.report(
