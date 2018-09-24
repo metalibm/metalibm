@@ -343,6 +343,8 @@ class BasicBlockGraph:
 def build_cfg_edges_set(bb_list):
     cfg_edges = set()
     for bb in bb_list.inputs:
+        if bb.empty:
+            Log.report(Log.Error, "basic block {} is empty and does not have a last op", bb)
         last_op = bb.get_inputs()[-1]
         if isinstance(last_op, UnconditionalBranch):
             dst = last_op.get_input(0)
@@ -850,7 +852,7 @@ class Pass_GenerateBasicBlock(FunctionPass):
         return self.current_bb_stack[-1]
 
     def execute_on_optree(self, optree, fct=None, fct_group=None, memoization_map=None):
-        """ return the head basic-block, i.e. the entry BB for the current node
+        """ return the head basic-block, i.e. the entry bb for the current node
             implementation """
         assert not isinstance(optree, BasicBlock)
         entry_bb =  self.get_current_bb()
@@ -859,7 +861,7 @@ class Pass_GenerateBasicBlock(FunctionPass):
         elif isinstance(optree, Loop):
             entry_bb = transform_loop_to_bb(self, optree)
         elif isinstance(optree, Return):
-            # Return must be processed separately as it finishes a basic block
+            # return must be processed separately as it finishes a basic block
             self.push_to_current_bb(optree)
             self.get_current_bb().final = True
 
@@ -872,7 +874,7 @@ class Pass_GenerateBasicBlock(FunctionPass):
 
 
     def execute_on_function(self, fct, fct_group):
-        """ Execute basic-block generation pass on function @p fct from
+        """ execute basic-block generation pass on function @p fct from
             function-group @p fct_group """
         Log.report(LOG_LEVEL_GEN_BB_INFO, "executing pass {} on fct {}".format(
             self.pass_tag, fct.get_name()))
@@ -890,6 +892,47 @@ class Pass_GenerateBasicBlock(FunctionPass):
 
 class Pass_BBSimplification(FunctionPass):
     """ Simplify BB graph """
+    pass_tag = "basic_block_simplification"
+
+    def __init__(self, target, description = "simplify basic-blocks pass"):
+        FunctionPass.__init__(self, description, target)
+        self.memoization_map = {}
+
+    def execute_on_optree(self, optree, fct=None, fct_group=None, memoization_map=None):
+        """ eliminate every basic-block from BasicBlockList @p optree which is
+            not accessible from @p optree's entry point """
+        assert isinstance(optree, BasicBlockList)
+        memoization_map = {}
+        bb_root = optree.entry_bb
+
+        # determining the list of bb which are not accessible from bb_root
+        all_bbs = set(optree.get_inputs())
+        accessible_bbs = []
+
+        processed_list = []
+        work_list = [bb_root]
+        accessible_bbs = [bb_root]
+        while work_list:
+            current_bb = work_list.pop(0)
+
+            processed_list.append(current_bb)
+            for next_bb in current_bb.successors:
+                if not next_bb in processed_list:
+                    work_list.append(next_bb)
+                    accessible_bbs.append(next_bb)
+
+        new_bb_list = accessible_bbs
+        optree.inputs = new_bb_list
+
+
+    def execute_on_function(self, fct, fct_group):
+        """ execute basic-block simplification pass on function @p fct from
+            function-group @p fct_group """
+        Log.report(LOG_LEVEL_GEN_BB_INFO, "executing pass {} on fct {}".format(
+            self.pass_tag, fct.get_name()))
+        bb_list = fct.get_scheme()
+        self.execute_on_optree(bb_list, fct, fct_group)
+
 
 
 class Pass_SSATranslate(FunctionPass):
@@ -919,6 +962,9 @@ Pass.register(Pass_GenerateBasicBlock)
 # registering ssa translation pass
 Log.report(LOG_PASS_INFO, "Registering ssa translation pass")
 Pass.register(Pass_SSATranslate)
+# registering basic-block simplification pass
+Log.report(LOG_PASS_INFO, "Registering basic-block simplification pass")
+Pass.register(Pass_BBSimplification)
 
 if __name__ == "__main__":
     bb_root = BasicBlock(tag="bb_root")
