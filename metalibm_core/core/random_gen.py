@@ -69,7 +69,7 @@ def normalize_map(weight_map):
 
 
 class RandomGenWeightCat(object):
-    """ Abstract random number generator using weighted 
+    """ Abstract random number generator using weighted
         categories """
     def __init__(self, category_keys=None, weight_map=None):
         self.category_keys = category_keys
@@ -120,7 +120,7 @@ class IntRandomGen(RandomGenWeightCat):
         RandomGenWeightCat.__init__(
             self,
             category_keys=category_keys,
-            weight_map=int_weight_map, 
+            weight_map=int_weight_map,
         )
         self.signed = signed
         self.size = size
@@ -246,15 +246,44 @@ class FixedPointRandomGen(IntRandomGen):
 
 class FPRandomGen(RandomGenWeightCat):
     """ Random generator for floating-point numbers """
-    @unique # pylint: disable=too-few-public-methods
-    class Category(Enum):
+    class Category:
         """ Value set category """
         ##  Special value category
-        SpecialValues = 0
-        ## Subnormal numbers category
-        Subnormal = 1
-        ## Normal numbers category
-        Normal = 2
+        class SpecialValues:
+            """ Special values """
+            @staticmethod
+            def generate_value(generator):
+                """ Generate a single special value """
+                return random.choice(generator.sp_list)
+
+        class Subnormal:
+            """ Subnormal numbers """
+            @staticmethod
+            def generate_value(generator):
+                """ Generate a single subnormal value """
+                field_size = generator.precision.get_field_size()
+                # a subnormal has the same exponent as the minimal normal
+                # but without implicit 1.0 digit
+                exp = generator.precision.get_emin_normal()
+                sign = generator.generate_sign()
+                field = generator.random.randrange(2**field_size)
+                mantissa = 0.0 + field * S2**-generator.precision.get_field_size()
+                return NumericValue(mantissa * sign * S2**exp)
+
+        class Normal:
+            """ Normal number category """
+            @staticmethod
+            def generate_value(generator):
+                """ Generate a single value in the normal range """
+                field_size = generator.precision.get_field_size()
+                exp = generator.random.randrange(
+                    generator.precision.get_emin_normal(),
+                    generator.precision.get_emax() + 1
+                )
+                sign = generator.generate_sign()
+                field = generator.random.randrange(2**field_size)
+                mantissa = 1.0 + field * S2**-generator.precision.get_field_size()
+                return NumericValue(mantissa * sign * S2**exp)
 
     special_value_ctor = [
         FP_PlusInfty, FP_MinusInfty,
@@ -280,15 +309,9 @@ class FPRandomGen(RandomGenWeightCat):
         category_keys = weight_map.keys()
         RandomGenWeightCat.__init__(
             self,
-            weight_map=weight_map, 
+            weight_map=weight_map,
             category_keys = category_keys
         )
-        self.generation_map = {
-            FPRandomGen.Category.SpecialValues: self.generate_special_value,
-            FPRandomGen.Category.Normal: self.generate_normal_number,
-            FPRandomGen.Category.Subnormal: self.generate_subnormal_number
-        }
-        self.generation_map.update(generation_map or {})
 
         self.random = random.Random(seed)
         self.sp_list = self.get_special_value_list()
@@ -301,43 +324,16 @@ class FPRandomGen(RandomGenWeightCat):
             FPRandomGen.special_value_ctor
         ]
 
-    def generate_special_value(self):
-        """ Generate a single special value """
-        sp_index = self.random.randrange(len(self.sp_list))
-        return self.sp_list[sp_index]
 
     def generate_sign(self):
         """ Generate a random sign value {-1.0, 1.0} """
         return SollyaObject(-1.0) if self.random.randrange(2) == 1 else \
                SollyaObject(1.0)
 
-    def generate_normal_number(self):
-        """ Generate a single value in the normal range """
-        field_size = self.precision.get_field_size()
-        exp = self.random.randrange(
-            self.precision.get_emin_normal(),
-            self.precision.get_emax() + 1
-        )
-        sign = self.generate_sign()
-        field = self.random.randrange(2**field_size)
-        mantissa = 1.0 + field * S2**-self.precision.get_field_size()
-        return NumericValue(mantissa * sign * S2**exp)
-
-    def generate_subnormal_number(self):
-        """ Generate a single subnormal value """
-        field_size = self.precision.get_field_size()
-        # a subnormal has the same exponent as the minimal normal
-        # but without implicit 1.0 digit
-        exp = self.precision.get_emin_normal()
-        sign = self.generate_sign()
-        field = self.random.randrange(2**field_size)
-        mantissa = 0.0 + field * S2**-self.precision.get_field_size()
-        return NumericValue(mantissa * sign * S2**exp)
 
     def get_new_value_by_category(self, category):
         """ generate a new value from the given category """
-        gen_func = self.generation_map[category]
-        return gen_func()
+        return category.generate_value(self)
 
 
 
