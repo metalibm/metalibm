@@ -81,17 +81,21 @@ def generate_count_leading_zeros(vx):
     return n + 2 - m
 
 
-def generate_twosum(vx, vy):
+# All multi-element / multi-precision operations must take
+# argument field and return result field from most significant to least 
+# significant
+
+def generate_twosum(vx, vy, precision=None):
     """Return two optrees for a TwoSum operation.
  
     The return value is a tuple (sum, error).
     """
-    s  = Addition(vx, vy)
-    _x = Subtraction(s, vy)
-    _y = Subtraction(s, _x)
-    dx = Subtraction(vx, _x)
-    dy = Subtraction(vy, _y)
-    e  = Addition(dx, dy)
+    s  = Addition(vx, vy, precision=precision)
+    _x = Subtraction(s, vy, precision=precision)
+    _y = Subtraction(s, _x, precision=precision)
+    dx = Subtraction(vx, _x, precision=precision)
+    dy = Subtraction(vy, _y, precision=precision)
+    e  = Addition(dx, dy, precision=precision)
     return s, e
 
 
@@ -106,97 +110,129 @@ def generate_fasttwosum(vx, vy):
     e = Subtraction(vy, b)
     return s, e
    
-def Split(a):
+def Split(a, precision=None):
     """... splitting algorithm for Dekker TwoMul"""
-    # if a.get_precision() == ML_Binary32:
-    s = Constant(4097, precision = a.get_precision(), tag = 'fp_split')
-    # elif a.get_precision() == ML_Binary64:
-    #    s = Constant(134217729, precision = a.get_precision(), tag = 'fp_split')
-    c = Multiplication(s, a)
-    tmp = Subtraction(a, c);
-    ah = Addition(tmp, c)
-    al = Subtraction(a, ah)
+    cst_value = {
+        ML_Binary32: 4097,
+        ML_Binary64: 134217729
+    }[a.precision]
+    s = Constant(cst_value, precision = a.get_precision(), tag = 'fp_split')
+    c = Multiplication(s, a, precision=precision)
+    tmp = Subtraction(a, c, precision=precision);
+    ah = Addition(tmp, c, precision=precision)
+    al = Subtraction(a, ah, precision=precision)
     return ah, al
 
-def Mul211(x, y, fma=True):
+def Mul211(x, y, precision=None, fma=True):
     """ Multi-precision Multiplication HI, LO = x * y """
-    zh = Multiplication(x, y)
+    zh = Multiplication(x, y, precision=precision)
     if fma == True:
-        zl = FMS(x, y, zh)
+        zl = FMS(x, y, zh, precision=precision)
     else:
-        xh, xl = Split(x)
-        yh, yl = Split(y)
-        r1 = Multiplication(xh, yh)
-        r2 = Subtraction(r1, zh)
-        r3 = Multiplication(xh, yl)
-        r4 = Multiplication(xl, yh)
-        r5 = Multiplication(xl, yl)
-        r6 = Addition(r2, r3)
-        r7 = Addition(r6, r4)
-        zl = Addition(r7, r5)
+        xh, xl = Split(x, precision=precision)
+        yh, yl = Split(y, precision=precision)
+        r1 = Multiplication(xh, yh, precision=precision)
+        r2 = Subtraction(r1, zh, precision=precision)
+        r3 = Multiplication(xh, yl, precision=precision)
+        r4 = Multiplication(xl, yh, precision=precision)
+        r5 = Multiplication(xl, yl, precision=precision)
+        r6 = Addition(r2, r3, precision=precision)
+        r7 = Addition(r6, r4, precision=precision)
+        zl = Addition(r7, r5, precision=precision)
     return zh, zl
 
-def Add211(x, y):
+
+def Add_round_to_odd(x, y, precision=None):
+    pass
+
+def Add1111(x, y, z, precision=None):
+    uh, ul = Add211(y, z, precision=precision)
+    th, tl = Add211(x, uh, precision=precision)
+    v = Add_round_to_odd(tl, ul, precision=precision)
+    return Addition(v, th, precision=precision)
+
+def Add211(x, y, precision=None):
     """ Multi-precision Addition (2sum) HI, LO = x + y 
         TODO: missing assumption on input order """
-    zh = Addition(x, y)
-    t1 = Subtraction(zh, x)
-    zl = Subtraction(y, t1)
+    zh, zl = generate_twosum(x, y, precision)
     return zh, zl
 
-def Mul212(x, yh, yl, fma=True):
+def Mul212(x, yh, yl, precision=None, fma=True):
     """ Multi-precision Multiplication:
         HI, LO = x * [yh:yl] """
-    t1, t2 = Mul211(x, yh, fma)
-    t3 = Multiplication(x, yl)
-    t4 = Addition(t2, t3)
-    return Add211(t1, t4)
+    t1, t2 = Mul211(x, yh, precision, fma)
+    t3 = Multiplication(x, yl, precision=precision)
+    t4 = Addition(t2, t3, precision=precision)
+    return Add211(t1, t4, precision)
 
-def Mul222(xh, xl, yh, yl, fma=True):
+def Mul222(xh, xl, yh, yl, precision=None, fma=True):
     """ Multi-precision Multiplication:
         HI, LO = [xh:xl] * [yh:yl] """
     if fma == True:
-        ph = Multiplication(xh, yh)
-        pl = FMS(xh, yh, ph)
-        pl = FMA(xh, yl, pl)
-        pl = FMA(xl, yh, pl)
-        zh = Addition(ph, pl)
-        zl = Subtraction(ph, zh)
-        zl = Addition(zl, pl)
+        ph = Multiplication(xh, yh, precision=precision)
+        pl = FMS(xh, yh, ph, precision=precision)
+        pl = FMA(xh, yl, pl, precision=precision)
+        pl = FMA(xl, yh, pl, precision=precision)
+        zh = Addition(ph, pl, precision=precision)
+        zl = Subtraction(ph, zh, precision=precision)
+        zl = Addition(zl, pl, precision=precision)
     else:
-        t1, t2 = Mul211(xh, yh, fma)
-        t3 = Multiplication(xh, yl)
-        t4 = Multiplication(xl, yh)
-        t5 = Addition(t3, t4)
-        t6 = Addition(t2, t5)
-        zh, zl = Add211(t1, t6); 
+        t1, t2 = Mul211(xh, yh, precision, fma)
+        t3 = Multiplication(xh, yl, precision=precision)
+        t4 = Multiplication(xl, yh, precision=precision)
+        t5 = Addition(t3, t4, precision=precision)
+        t6 = Addition(t2, t5, precision=precision)
+        zh, zl = Add211(t1, t6, precsion); 
     return zh, zl
 
-def Add212(xh, yh, yl):
+def Add212(xh, yh, yl, precision=None):
     """ Multi-precision Addition:
         HI, LO = xh + [yh:yl] """
-    r = Addition(xh, yh)
-    s1 = Subtraction(xh, r)
-    s2 = Addition(s1, yh)
-    s = Addition(s2, yl)
-    zh = Addition(r, s)
-    zl = Addition(Subtraction(r, zh), s)
+    # r = xh + yh
+    # s1 = xh - r
+    # s2 = s1 + yh
+    # s = s2 + yl
+    # zh = r + s 
+    # zl = (r - zh) + s
+    r = Addition(xh, yh, precision=precision)
+    s1 = Subtraction(xh, r, precision=precision)
+    s2 = Addition(s1, yh, precision=precision)
+    s = Addition(s2, yl, precision=precision)
+    zh = Addition(r, s, precision=precision)
+    zl = Addition(Subtraction(r, zh, precision=precision), s, precision=precision)
     return zh, zl
 
-def Add222(xh, xl, yh, yl):
+def Add221(xh, xl, yh, precision=None):
+    """ Multi-precision Addition:
+        HI, LO = [xh:xl] + yh """
+    return Add212(yh, xh, xl, precision)
+
+def Add222(xh, xl, yh, yl, precision=None):
     """ Multi-precision Addition:
         HI, LO = [xh:xl] + [yh:yl] """
-    r = Addition(xh, yh)
-    s1 = Subtraction(xh, r)
-    s2 = Addition(s1, yh)
-    s3 = Addition(s2, yl)
-    s = Addition(s3, xl)
-    zh = Addition(r, s)
-    zl = Addition(Subtraction(r, zh), s)
+    r = Addition(xh, yh, precision=precision)
+    s1 = Subtraction(xh, r, precision=precision)
+    s2 = Addition(s1, yh, precision=precision)
+    s3 = Addition(s2, yl, precision=precision)
+    s = Addition(s3, xl, precision=precision)
+    zh = Addition(r, s, precision=precision)
+    zl = Addition(Subtraction(r, zh, precision=precision), s, precision=precision)
     return zh, zl
 
-def Add122(xh, xl, yh, yl):
+def Add122(xh, xl, yh, yl, precision=None):
     """ Multi-precision Addition:
         HI = [xh:xl] + [yh:yl] """
-    zh, _ = Add222(xh, xl, yh, yl)
+    zh, _ = Add222(xh, xl, yh, yl, precision)
+    return zh
+
+def Add121(xh, xl, yh, precision=None):
+    """ Multi-precision Addition:
+        HI = [xh:xl] + yh """
+    zh, _ = Add221(xh, xl, yh, precision)
+    return zh
+
+def Add112(xh, yh, yl, precision=None):
+    """ Multi-precision Addition:
+        HI = xh + [yh:yl] """
+    zh, _ = Add212(xh, yh, yl, precision)
     return zh
