@@ -436,11 +436,11 @@ class PassCheckProcessorSupport(FunctionPass):
                             memoization_map[optree] = True
                             return True
                         
-                    print(optree) # Error print
-                    print("pre escalation: ", old_list) # Error print
-                    print(language, self.processor.get_operation_keys(optree)) # Error print
-                    print(optree.get_str(display_precision = True, display_id = True, memoization_map = {})) # Error print
-                    Log.report(Log.Error, "unsupported operation\n")
+                    print("pre escalation node is: ", old_list) # Error print
+                    print("languages is {}".format(language))
+                    print("Operation' keys are: {}".format(self.processor.get_operation_keys(optree))) # Error print
+                    print("Operation tree is: \n", optree.get_str(display_precision=True, depth=1, display_id=True, memoization_map=None)) # Error print
+                    Log.report(Log.Error, "unsupported operation in PassCheckProcessorSupport's check_processor_support\n")
         else:
             # memoization
             memoization_map[optree] = True

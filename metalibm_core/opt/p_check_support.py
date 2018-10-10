@@ -82,9 +82,11 @@ class Pass_CheckSupport(OptreeOptimization):
           # TODO: assert case is integer constant
           self.check_processor_support(op, memoization_map, debug = debug)
       elif not self.get_target().is_supported_operation(optree, language=language, debug=debug):
-        print(language, self.processor.get_operation_keys(optree)) # Error print
+        print("languages is {}".format(language))
+        print("Operation' keys are: {}".format(self.processor.get_operation_keys(optree))) # Error print
+        print("Operation tree is:")
         print(optree.get_str(display_precision = True, display_id = True, memoization_map = {})) # Error print
-        Log.report(Log.Error, "unsupported operation\n")
+        Log.report(Log.Error, "unsupported operation in Pass_CheckSupport's check_processor_support\n")
     # memoization
     memoization_map[optree] = True
     return True

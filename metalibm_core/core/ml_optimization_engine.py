@@ -428,11 +428,11 @@ class OptimizationEngine(object):
                             memoization_map[optree] = True
                             return True
                         
-                    print(optree) # Error print
-                    print("pre escalation: ", old_list) # Error print
-                    print(self.processor.get_operation_keys(optree)) # Error print
-                    print(optree.get_str(display_precision = True, display_id = True, memoization_map = {})) # Error print
-                    Log.report(Log.Error, "unsupported operation\n")
+                    print("Node pre escalation: ", old_list) # Error print
+                    print("Node's operation keys: {}".format(self.processor.get_operation_keys(optree))) # Error print
+                    print("Operation tree: ") 
+                    print(optree.get_str(display_precision=True, display_id=True, memoization_map = {})) # Error print
+                    Log.report(Log.Error, "unsupported operation in OptimizationEngine's check_processor_support \n")
         # memoization
         memoization_map[optree] = True
         return True
