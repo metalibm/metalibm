@@ -1029,18 +1029,24 @@ class ML_Compound_FP_Format(ML_Compound_Format, ML_FP_Format):
   pass
 class ML_Compound_Integer_Format(ML_Compound_Format, ML_Fixed_Format):
   pass
+class ML_FP_MultiElementFormat(ML_Compound_FP_Format):
+    """ parent format for multi-precision format (single single,
+        double double, triple double ...) """
+    @staticmethod
+    def is_fp_multi_elt_format(format_object):
+        return isinstance(format_object, ML_FP_MultiElementFormat)
 
 # compound binary floating-point format declaration
-ML_DoubleDouble = ML_Compound_FP_Format("ml_dd_t", ["hi", "lo"],
+ML_DoubleDouble = ML_FP_MultiElementFormat("ml_dd_t", ["hi", "lo"],
                                         [ML_Binary64, ML_Binary64],
                                         "", "",
                                         sollya.doubledouble)
-ML_TripleDouble = ML_Compound_FP_Format("ml_td_t", ["hi", "me", "lo"],
+ML_TripleDouble = ML_FP_MultiElementFormat("ml_td_t", ["hi", "me", "lo"],
                                         [ML_Binary64, ML_Binary64,
                                             ML_Binary64],
                                         "", "",
                                         sollya.tripledouble)
-ML_SingleSingle = ML_Compound_FP_Format("ml_ds_t", ["hi", "lo"],
+ML_SingleSingle = ML_FP_MultiElementFormat("ml_ds_t", ["hi", "lo"],
                                         [ML_Binary32, ML_Binary32],
                                         "", "",
                                         2*ML_Binary32.get_mantissa_size() + 1)
