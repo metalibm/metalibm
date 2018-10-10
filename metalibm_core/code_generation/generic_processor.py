@@ -583,6 +583,16 @@ c_code_generation_table = {
             },
         },
     },
+    BuildFromComponent: {
+        None: {
+            lambda optree: True: {
+                type_strict_match(ML_DoubleDouble, ML_Binary64, ML_Binary64):
+                    TemplateOperatorFormat("((ml_dd_t) {{.hi={0} , .lo={1}}})", arity=2),
+                type_strict_match(ML_SingleSingle, ML_Binary32, ML_Binary32):
+                    TemplateOperatorFormat("((ml_ds_t) {{.hi={0} , .lo={1}}})", arity=2),
+            },
+        },
+    },
     Division: {
         None: build_simplified_operator_generation([ML_Int64, ML_Int32, ML_UInt32, ML_Binary32, ML_Binary64], 2, SymbolOperator("/", arity = 2)),
     },

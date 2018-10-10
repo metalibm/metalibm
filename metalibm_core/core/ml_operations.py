@@ -951,6 +951,13 @@ class ComponentSelection(SpecifierOperation, GeneralArithmeticOperation):
                 self.set_precision(ComponentSelection.implicit_arg_precision[arg_precision])
 
 
+class BuildFromComponent(GeneralArithmeticOperation):
+    name = "BuildFromComponent"
+    def __init__(self, *args, **kwords):
+        GeneralArithmeticOperation.__init__(self, *args, **kwords)
+        self.arity = len(args)
+
+
 class FMASpecifier(object):
     """ Common parent to all Test specifiers """
     pass
