@@ -54,7 +54,8 @@ from .ml_formats import (
     v2uint32, v4uint32, v8uint32,
     ML_FloatingPointException, ML_FPE_Type, FP_SpecialValue,
     ML_AbstractFormat, ML_FloatingPoint_RoundingMode, ML_String,
-    ML_Bool
+    ML_Bool,
+    ML_FPRM_Type,
 )
 from metalibm_core.code_generation.code_constant import (
     C_Code, LLVM_IR_Code
@@ -115,7 +116,7 @@ def implicit_op(op):
     elif isinstance(op, FP_SpecialValue):
         return Constant(op, precision = op.get_precision())
     elif isinstance(op, ML_FloatingPoint_RoundingMode):
-        return Constant(op, precision = ML_FPRM_Type)
+        return Constant(op, precision=ML_FPRM_Type)
     elif isinstance(op , str):
         return Constant(op, precision = ML_String)
     elif op is None:
