@@ -133,7 +133,9 @@ class PassScheduler:
     self.ready_passes    = []
     self.waiting_pass_wrappers  = []
 
-  def register_pass(self, pass_object, pass_dep = PassDependency(), pass_slot = None):
+  def register_pass(self, pass_object, pass_dep=PassDependency(), pass_slot=None):
+    """ Register a new pass to be executed
+        @return the pass id """
     Log.report(LOG_PASS_INFO,
         "PassScheduler: registering pass {} at {}".format(
             pass_object,
@@ -141,6 +143,7 @@ class PassScheduler:
         )
     )
     self.pass_map[pass_slot].append(PassWrapper(pass_object, pass_dep)) 
+    return pass_object.get_pass_id()
 
   def get_executed_passes(self):
     return self.executed_passes
@@ -168,6 +171,7 @@ class PassScheduler:
   def execute_pass_list(self, pass_list, inputs, execution_function):
     inter_values = inputs
     for pass_object in pass_list:
+      Log.report(LOG_PASS_INFO, "executing pass: {}", pass_object.pass_tag)
       inter_values = execution_function(self, pass_object, inputs)
     return inter_values
 

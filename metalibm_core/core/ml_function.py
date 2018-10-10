@@ -276,11 +276,12 @@ class ML_FunctionBasis(object):
         ]
     )
 
+
     Log.report(Log.Info, "inserting sub-expr sharing pass\n")
-    self.pass_scheduler.register_pass(
+    pass_SES_id = self.pass_scheduler.register_pass(
         PassSubExpressionSharing(self.processor),
         pass_slot=PassScheduler.Optimization
-        )
+    )
     #Log.report(Log.Info, "inserting fused fma pass\n")
     #self.pass_scheduler.register_pass(
     #    PassFuseFMA(self.processor, dot_product_enabled=self.dot_product_enabled),
@@ -288,33 +289,43 @@ class ML_FunctionBasis(object):
     #    )
     Log.report(Log.Info, "inserting instantiate abstract precision pass\n")
     pass_inst_abstract_prec = PassInstantiateAbstractPrecision(self.processor)
-    self.pass_scheduler.register_pass(
+    pass_IAP_id = self.pass_scheduler.register_pass(
         pass_inst_abstract_prec,
         pass_slot=PassScheduler.Typing
         )
     Log.report(Log.Info, "inserting instantiate precision pass\n")
     pass_inst_prec = PassInstantiatePrecision(self.processor, default_precision=None)
-    self.pass_scheduler.register_pass(
+    pass_IP_id = self.pass_scheduler.register_pass(
         pass_inst_prec,
-        pass_dep = AfterPassById(pass_inst_abstract_prec.get_pass_id()),
+        pass_dep = AfterPassById(pass_IAP_id),
         pass_slot=PassScheduler.Typing
         )
+    # register the id of the last pass for each slot
+    pass_slot_deps = {
+        PassScheduler.Optimization: AfterPassById(pass_SES_id),
+        PassScheduler.Typing: AfterPassById(pass_IP_id),
+        PassScheduler.JustBeforeCodeGen: PassDependency(),
+    }
+
     # empty pass dependency
-    pass_dep = PassDependency()
     for pass_uplet in args.passes:
       pass_slot_tag, pass_tag = pass_uplet.split(":")
       pass_slot = PassScheduler.get_tag_class(pass_slot_tag)
       pass_class  = Pass.get_pass_by_tag(pass_tag)
       pass_object = pass_class(self.processor)
-      self.pass_scheduler.register_pass(pass_object, pass_dep=pass_dep, pass_slot=pass_slot)
+      if not pass_slot in pass_slot_deps:
+        pass_slot_deps[pass_slot_dep] = PassDependency()
+      pass_dep = pass_slot_deps[pass_slot]
+      custom_pass_id = self.pass_scheduler.register_pass(pass_object, pass_dep=pass_dep, pass_slot=pass_slot)
       # linearly linking pass in the order they appear
-      pass_dep = AfterPassById(pass_object.get_pass_id())
+      pass_slot_deps[pass_slot] = AfterPassById(custom_pass_id)
 
     # appending check_processor_support pass after custom passes
     Log.report(Log.Info, "inserting target support check pass\n")
     self.pass_scheduler.register_pass(
         PassCheckProcessorSupport(self.processor, self.language),
-        pass_slot=PassScheduler.JustBeforeCodeGen
+        pass_slot=PassScheduler.JustBeforeCodeGen,
+        pass_dep=pass_slot_deps[PassScheduler.JustBeforeCodeGen],
     )
 
   def get_codegen_class(self, language):
