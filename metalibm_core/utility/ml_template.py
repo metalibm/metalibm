@@ -469,6 +469,7 @@ class ML_CommonArgTemplate(object):
         self.parser.add_argument(
             "--arity", dest="arity",
             action="store", 
+            type=int,
             default=default_arg.arity,
             help="function arity (number of inputs)")
 
