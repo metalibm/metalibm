@@ -452,7 +452,7 @@ class AbstractOperation(ML_Operation):
         dbg_str = "[DBG]" if self.get_debug() else ""
         id_str     = ("[id=%x]" % id(self)) if display_id else ""
         attribute_str = "" if not display_attribute else self.attributes.get_str(tab_leve=tab_level)
-        return silent_str + dbg_str + id_str + attribute_str
+        return precision_str + silent_str + dbg_str + id_str + attribute_str
 
     ## string conversion
     #  @param  depth [integer/None] node depth where the display recursion stops
