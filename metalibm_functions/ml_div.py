@@ -25,113 +25,232 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 ###############################################################################
-# last-modified:    Mar  7th, 2018
+# last-modified:    Oct 5th, 2018
+#
+# Description:      Meta-implementation of floating-point division
 ###############################################################################
 import sys
+import sollya
 
-from sollya import S2, Interval
+from sollya import Interval
+S2 = sollya.SollyaObject(2)
 
 from metalibm_core.core.attributes import ML_Debug
 from metalibm_core.core.ml_operations import *
 from metalibm_core.core.ml_formats import *
+from metalibm_core.core.precisions import ML_Faithful
 from metalibm_core.code_generation.c_code_generator import CCodeGenerator
 from metalibm_core.code_generation.generic_processor import GenericProcessor
 from metalibm_core.code_generation.code_object import CodeObject
 from metalibm_core.code_generation.code_function import CodeFunction
-from metalibm_core.code_generation.code_constant import C_Code 
+from metalibm_core.code_generation.code_constant import C_Code
 from metalibm_core.core.ml_optimization_engine import OptimizationEngine
 from metalibm_core.core.polynomials import *
 from metalibm_core.core.ml_table import ML_NewTable
+from metalibm_core.core.ml_function import ML_FunctionBasis
 
 from metalibm_core.code_generation.gappa_code_generator import GappaCodeGenerator
 
 from metalibm_core.utility.gappa_utils import execute_gappa_script_extract
-from metalibm_core.utility.ml_template import ML_ArgTemplate
+from metalibm_core.utility.ml_template import ML_NewArgTemplate, DefaultArgTemplate
+from metalibm_core.utility.debug_utils import debug_multi
 
-from metalibm_core.utility.common import test_flag_option, extract_option_value  
+class NR_Iteration(object):
+    """ Newton-Raphson iteration generator """
+    def __init__(self, approx, divisor, force_fma=False):
+        """ 
+            @param approx initial approximation of 1.0 / @p divisor
+            @param divisor reciprocal input
+            @param force_fma force the use of Fused Multiply and Add """
+        self.approx = approx
+        self.divisor = divisor
+        self.force_fma = force_fma
+        if force_fma:
+            self.error = FusedMultiplyAdd(divisor, approx, 1.0, specifier=FusedMultiplyAdd.SubtractNegate)
+            self.new_approx = FusedMultiplyAdd(self.error, self.approx, self.approx, specifier=FusedMultiplyAdd.Standard)
+        else:
+            self.error = 1 - divisor * approx
+            self.new_approx = self.approx + self.error * self.approx
+
+    def get_hint_rules(self, gcg, gappa_code, exact):
+        divisor = self.divisor.get_handle().get_node()
+        approx = self.approx.get_handle().get_node()
+        new_approx = self.new_approx.get_handle().get_node()
+
+        Attributes.set_default_precision(ML_Exact)
+
+        if self.force_fma:
+            rule0 = FusedMultiplyAdd(divisor, approx, 1.0, specifier = FusedMultiplyAdd.SubtractNegate)
+        else:
+            rule0 = 1.0 - divisor * approx
+        rule1 = 1.0 - divisor * (approx - exact) - 1.0
+        
+        rule2 = new_approx - exact
+        subrule = approx * (2 - divisor * approx)
+        rule3 = (new_approx - subrule) - (approx - exact) * (approx - exact) * divisor
+
+        if self.force_fma:
+            new_error = FusedMultiplyAdd(divisor, approx, 1.0, specifier = FusedMultiplyAdd.SubtractNegate)
+            rule4 = FusedMultiplyAdd(new_error, approx, approx)
+        else:
+            rule4 = approx + (1 - divisor * approx) * approx
+
+        Attributes.unset_default_precision()
+
+        # registering hints
+        gcg.add_hint(gappa_code, rule0, rule1)
+        gcg.add_hint(gappa_code, rule2, rule3)
+        gcg.add_hint(gappa_code, subrule, rule4)
+
+def dividend_mult(div_approx, inv_approx, dividend, divisor, index):
+    """ Second part of iteration to converge to dividend / divisor
+        from inv_approx ~ 1 / divisor 
+        and  div_approx ~ dividend / divisor """
+    # yerr = dividend - div_approx * divisor
+    yerr = FMSN(div_approx, divisor, dividend)
+    yerr.set_attributes(tag="yerr%d" % index)
+    # new_div = div_approx + yerr * inv_approx
+    new_div = FMA(yerr, inv_approx, div_approx)
+    new_div.set_attributes(tag="new_div%d" % index)
+    return new_div
+
+def compute_reduced_reciprocal(init_approx, vy, num_iteration):
+    """ Compute the correctly rounded approximation of 1.0 / vy
+        using @p init_approx as starting point and execution
+        @p num_iteration Newton-Raphson iteration(s) """
+    current_approx = init_approx
+    inv_iteration_list = []
+
+    # compute precision (up to accuracy) approximation of 1 / _vy
+    for i in range(num_iteration):
+        new_iteration = NR_Iteration(current_approx, vy, force_fma=False if (i != num_iteration - 1) else True)
+        inv_iteration_list.append(new_iteration)
+        current_approx = new_iteration.new_approx
+        current_approx.set_attributes(tag="iter_%d" % i, debug=debug_multi)
+
+    # multiplication correction iteration
+    # to get correctly rounded full division _vx / _vy
+    current_approx.set_attributes(tag = "final_recp_approx", debug=debug_multi)
+    return inv_iteration_list, current_approx
 
 
-class ML_Division(object):
-    def __init__(self, 
-                 precision = ML_Binary32, 
-                 abs_accuracy = S2**-24, 
-                 libm_compliant = True, 
-                 debug_flag = False, 
-                 fuse_fma = True, 
-                 num_iter = 3,
-                 fast_path_extract = True,
-                 target = GenericProcessor(), 
-                 output_file = "__divsf3.c", 
-                 function_name = "__divsf3"):
-        # declaring CodeFunction and retrieving input variable
-        self.precision = precision
-        self.function_name = function_name
-        exp_implementation = CodeFunction(self.function_name, output_format = precision)
-        vx = exp_implementation.add_input_variable("x", precision) 
-        vy = exp_implementation.add_input_variable("y", precision) 
-        processor = target
+def compute_reduced_division(vx, vy, recp_approx):
+    """ From an initial accurate approximation @p recp_approx of 1.0 / vy, computes
+        an approximation to accuracy @p accuracy of vx / vy """
+    # vx and vy are assumed to be in [1, 2[
+    # which means vx / vy is in [0.5, 2]
 
-        class NR_Iteration(object):
-            def __init__(self, approx, divisor, force_fma = False):
-                self.approx = approx
-                self.divisor = divisor
-                self.force_fma = force_fma
-                if force_fma:
-                    self.error = FusedMultiplyAdd(divisor, approx, 1.0, specifier = FusedMultiplyAdd.SubtractNegate)
-                    self.new_approx = FusedMultiplyAdd(self.error, self.approx, self.approx, specifier = FusedMultiplyAdd.Standard)
-                else:
-                    self.error = 1 - divisor * approx
-                    self.new_approx = self.approx + self.error * self.approx
+    Attributes.set_default_rounding_mode(ML_RoundToNearest)
+    Attributes.set_default_silent(True)
 
-            def get_new_approx(self):
-                return self.new_approx
+    # multiplication correction iteration
+    # to get correctly rounded full division _vx / _vy
+    current_div_approx = vx * recp_approx
+    num_dividend_mult_iteration = 1
+    for i in range(num_dividend_mult_iteration):
+        current_div_approx = dividend_mult(current_div_approx, recp_approx, vx, vy, i)
 
-            def get_hint_rules(self, gcg, gappa_code, exact):
-                divisor = self.divisor.get_handle().get_node()
-                approx = self.approx.get_handle().get_node()
-                new_approx = self.new_approx.get_handle().get_node()
+    # last iteration
+    yerr_last = FMSN(current_div_approx, vy, vx) #, clearprevious = True)
+    Attributes.unset_default_rounding_mode()
+    Attributes.unset_default_silent()
+    last_div_approx = FMA(
+        yerr_last, recp_approx, current_div_approx, rounding_mode=ML_GlobalRoundMode)
 
-                Attributes.set_default_precision(ML_Exact)
+    yerr_last.set_attributes(tag = "yerr_last", debug=debug_multi)
+
+    result = last_div_approx
+    return yerr_last, result
 
 
-                if self.force_fma:
-                    rule0 = FusedMultiplyAdd(divisor, approx, 1.0, specifier = FusedMultiplyAdd.SubtractNegate)
-                else:
-                    rule0 = 1.0 - divisor * approx
-                rule1 = 1.0 - divisor * (approx - exact) - 1.0
-                
-                rule2 = new_approx - exact
-                subrule = approx * (2 - divisor * approx)
-                rule3 = (new_approx - subrule) - (approx - exact) * (approx - exact) * divisor
+def scaling_div_result(div_approx, scaling_ex, scaling_factor_y, precision):
+    """ Reconstruct division result from approximation of scaled inputs 
+        vx was scaled by scaling_factor_x = 2**-ex
+        vy was scaled by scaling_factor_y = 2**-ey 
+        so real result is
+            = div_approx * scaling_factor_y / scaling_factor_x 
+            = div_approx * 2**(-ey + ex) """
+    # To avoid overflow / underflow when computing 2**(-ey + ex)
+    # the scaling could be performed in 2 steps
+    #      1. multiplying by 2**-ey
+    #      2. multiplying by 2**ex
+    unscaling_ex = ExponentInsertion(scaling_ex, precision=precision)
 
-                if self.force_fma:
-                    new_error = FusedMultiplyAdd(divisor, approx, 1.0, specifier = FusedMultiplyAdd.SubtractNegate)
-                    rule4 = FusedMultiplyAdd(new_error, approx, approx)
-                else:
-                    rule4 = approx + (1 - divisor * approx) * approx
+    unscaled_result = div_approx * unscaling_ex * scaling_factor_y
+    return unscaled_result
 
-                Attributes.unset_default_precision()
 
-                # registering hints
-                gcg.add_hint(gappa_code, rule0, rule1)
-                gcg.add_hint(gappa_code, rule2, rule3)
-                gcg.add_hint(gappa_code, subrule, rule4)
+def subnormalize_result(recp_approx, div_approx, ex, ey, yerr_last, precision):
+    """ If the result of the division is subnormal,
+        an extended approximation of division must first be obtained
+        and then subnormalize to ensure correct rounding """
+    # TODO: fix extended precision determination
+    extended_precision = {
+        ML_Binary64: ML_DoubleDouble,
+        ML_Binary32: ML_Binary64,
+    }[precision]
 
-        debugf        = ML_Debug(display_format = "%f")
-        debuglf       = ML_Debug(display_format = "%lf")
-        debugx        = ML_Debug(display_format = "%x")
-        debuglx       = ML_Debug(display_format = "%lx")
-        debugd        = ML_Debug(display_format = "%d")
-        #debug_lftolx  = ML_Debug(display_format = "%\"PRIx64\"", pre_process = lambda v: "double_to_64b_encoding(%s)" % v)
-        debug_lftolx  = ML_Debug(display_format = "%\"PRIx64\" ev=%x", pre_process = lambda v: "double_to_64b_encoding(%s), __k1_fpu_get_exceptions()" % v)
-        debug_ddtolx  = ML_Debug(display_format = "%\"PRIx64\" %\"PRIx64\"", pre_process = lambda v: "double_to_64b_encoding(%s.hi), double_to_64b_encoding(%s.lo)" % (v, v))
-        debug_dd      = ML_Debug(display_format = "{.hi=%lf, .lo=%lf}", pre_process = lambda v: "%s.hi, %s.lo" % (v, v))
+    # we make an extra step in extended precision
+    ext_pre_result = FMA(yerr_last, recp_approx, div_approx, precision=extended_precision, tag="ext_pre_result")
+    # subnormalize the result according to final result exponent
+    subnormal_pre_result = SpecificOperation(
+        ext_pre_result,
+        ex - ey,
+        precision=precision,
+        specifier=SpecificOperation.Subnormalize,
+        tag="subnormal_pre_result",
+        debug=debug_multi)
+    sub_scale_factor = ex - ey
+    subnormal_result = subnormal_pre_result * ExponentInsertion(sub_scale_factor, precision=precision)
 
-        ex = Max(Min(ExponentExtraction(vx), 1020), -1020, tag = "ex", debug = debugd)
-        ey = Max(Min(ExponentExtraction(vy), 1020), -1020, tag = "ey", debug = debugd)
+    return subnormal_result 
+
+def bit_match(fp_optree, bit_id, likely = False, **kwords):
+    return NotEqual(BitLogicAnd(TypeCast(fp_optree, precision = ML_Int64), 1 << bit_id), 0, likely = likely, **kwords)
+
+
+def extract_and_inject_sign(sign_source, sign_dest, int_precision = ML_Int64, fp_precision = ML_Binary64, **kwords):
+    int_sign_dest = sign_dest if isinstance(sign_dest.get_precision(), ML_Fixed_Format) else TypeCast(sign_dest, precision = int_precision)
+    return TypeCast(BitLogicOr(BitLogicAnd(TypeCast(sign_source, precision = int_precision), 1 << (sign_source.precision.bit_size - 1)), int_sign_dest), precision = fp_precision)
+
+
+class ML_Division(ML_FunctionBasis):
+    function_name = "ml_div"
+    def __init__(self, args=DefaultArgTemplate):
+        # initializing base class
+        ML_FunctionBasis.__init__(self, args=args)
+        self.num_iter = args.num_iter
+    @staticmethod
+    def get_default_args(**args):
+        """ Generate a default argument structure set specifically for
+            the Hyperbolic Cosine """
+        default_div_args = {
+            "precision": ML_Binary32,
+            "accuracy": ML_Faithful,
+            "target": GenericProcessor(),
+            "output_file": "my_div.c",
+            "function_name": "my_div",
+            "language": C_Code,
+            "vector_size": 1
+        }
+        default_div_args.update(args)
+        return DefaultArgTemplate(**default_div_args)
+
+    def generate_scheme(self):
+        # We wish to compute vx / vy
+        vx = self.implementation.add_input_variable("x", self.precision) 
+        vy = self.implementation.add_input_variable("y", self.precision) 
+
+        # maximum exponent magnitude (to avoid overflow/ underflow during
+        # intermediary computations
+        max_exp_mag = self.precision.get_emax() - 3
 
         exact_ex = ExponentExtraction(vx, tag = "exact_ex")
         exact_ey = ExponentExtraction(vy, tag = "exact_ey")
+
+        ex = Max(Min(exact_ex, max_exp_mag), -max_exp_mag, tag="ex")
+        ey = Max(Min(exact_ey, max_exp_mag), -max_exp_mag, tag="ey")
+
 
         Attributes.set_default_rounding_mode(ML_RoundToNearest)
         Attributes.set_default_silent(True)
@@ -139,304 +258,173 @@ class ML_Division(object):
         # computing the inverse square root
         init_approx = None
 
-        scaling_factor_x = ExponentInsertion(-ex, tag = "sfx_ei") 
-        scaling_factor_y = ExponentInsertion(-ey, tag = "sfy_ei") 
+        scaling_factor_x = ExponentInsertion(-ex, tag="sfx_ei", precision=self.precision) 
+        scaling_factor_y = ExponentInsertion(-ey, tag="sfy_ei", precision=self.precision) 
 
+        # scaled version of vx and vy
         scaled_vx = vx * scaling_factor_x
         scaled_vy = vy * scaling_factor_y
 
-        scaled_vx.set_attributes(debug = debug_lftolx, tag = "scaled_vx")
-        scaled_vy.set_attributes(debug = debug_lftolx, tag = "scaled_vy")
+        scaled_vx.set_attributes(tag="scaled_vx")
+        scaled_vy.set_attributes(tag="scaled_vy")
 
-        scaled_vx.set_precision(ML_Binary64)
-        scaled_vy.set_precision(ML_Binary64)
 
-        # forcing vx precision to make processor support test
-        init_approx_precision = DivisionSeed(scaled_vx, scaled_vy, precision = self.precision, tag = "seed", debug = debug_lftolx)
-        if not processor.is_supported_operation(init_approx_precision):
-            if self.precision != ML_Binary32:
-                px = Conversion(scaled_vx, precision = ML_Binary32, tag = "px", debug=debugf) if self.precision != ML_Binary32 else vx
-                py = Conversion(scaled_vy, precision = ML_Binary32, tag = "py", debug=debugf) if self.precision != ML_Binary32 else vy
+        # We need a first approximation to 1 / scaled_vy
+        dummy_seed = ReciprocalSeed(EmptyOperand(precision=self.precision), precision=self.precision)
 
-                init_approx_fp32 = Conversion(DivisionSeed(px, py, precision = ML_Binary32, tag = "seed", debug = debugf), precision = self.precision, tag = "seed_ext", debug = debug_lftolx)
-                if not processor.is_supported_operation(init_approx_fp32):
-                    Log.report(Log.Error, "The target %s does not implement inverse square root seed" % processor)
-                else:
-                    init_approx = init_approx_fp32
-            else:
-                Log.report(Log.Error, "The target %s does not implement inverse square root seed" % processor)
+        if self.processor.is_supported_operation(dummy_seed):
+            init_approx = ReciprocalSeed(scaled_vy, precision=self.precision, tag="init_approx")
+
         else:
-            init_approx = init_approx_precision
+            # generate tabulated version of seed
+            raise NotImplementedError
+
 
         current_approx_std = init_approx 
         # correctly-rounded inverse computation
-        num_iteration = num_iter
+        num_iteration = self.num_iter
 
         Attributes.unset_default_rounding_mode()
         Attributes.unset_default_silent()
 
+    
+        # check if inputs are zeros
+        x_zero = Test(vx, specifier=Test.IsZero, likely=False)
+        y_zero = Test(vy, specifier=Test.IsZero, likely=False)
 
-        def compute_div(_init_approx, _vx = None, _vy = None, scale_result = None): 
-            inv_iteration_list = []
-            Attributes.set_default_rounding_mode(ML_RoundToNearest)
-            Attributes.set_default_silent(True)
-            _current_approx = _init_approx
-            for i in range(num_iteration):
-                new_iteration = NR_Iteration(_current_approx, _vy, force_fma = False if (i != num_iteration - 1) else True)
-                inv_iteration_list.append(new_iteration)
-                _current_approx = new_iteration.get_new_approx()
-                _current_approx.set_attributes(tag = "iter_%d" % i, debug = debug_lftolx)
+        comp_sign = Test(vx, vy, specifier = Test.CompSign, tag = "comp_sign", debug = debug_multi )
 
-
-            def dividend_mult(div_approx, inv_approx, dividend, divisor, index, force_fma = False):
-                #yerr = dividend - div_approx * divisor
-                yerr = FMSN(div_approx, divisor, dividend)
-                yerr.set_attributes(tag = "yerr%d" % index, debug = debug_lftolx)
-                #new_div = div_approx + yerr * inv_approx
-                new_div = FMA(yerr, inv_approx, div_approx)
-                new_div.set_attributes(tag = "new_div%d" % index, debug = debug_lftolx)
-                return new_div
-
-            # multiplication correction iteration
-            # to get correctly rounded full division
-            _current_approx.set_attributes(tag = "final_approx", debug = debug_lftolx)
-            current_div_approx = _vx * _current_approx
-            num_dividend_mult_iteration = 1
-            for i in range(num_dividend_mult_iteration):
-                current_div_approx = dividend_mult(current_div_approx, _current_approx, _vx, _vy, i)
-
-
-            # last iteration
-            yerr_last = FMSN(current_div_approx, _vy, _vx) #, clearprevious = True)
-            Attributes.unset_default_rounding_mode()
-            Attributes.unset_default_silent()
-            last_div_approx = FMA(yerr_last, _current_approx, current_div_approx, rounding_mode = ML_GlobalRoundMode)
-
-            yerr_last.set_attributes(tag = "yerr_last", debug = debug_lftolx)
-
-            pre_result = last_div_approx
-            pre_result.set_attributes(tag = "unscaled_div_result", debug = debug_lftolx)
-            if scale_result != None:
-                #result = pre_result * ExponentInsertion(ex) * ExponentInsertion(-ey)
-                scale_factor_0 = Max(Min(scale_result, 950), -950, tag = "scale_factor_0", debug = debugd)
-                scale_factor_1 = Max(Min(scale_result - scale_factor_0, 950), -950, tag = "scale_factor_1", debug = debugd)
-                scale_factor_2 = scale_result - (scale_factor_1 + scale_factor_0)
-                scale_factor_2.set_attributes(debug = debugd, tag = "scale_factor_2")
-                
-                result = ((pre_result * ExponentInsertion(scale_factor_0)) * ExponentInsertion(scale_factor_1)) * ExponentInsertion(scale_factor_2)
-            else:
-                result = pre_result
-            result.set_attributes(tag = "result", debug = debug_lftolx)
-
-            ext_pre_result = FMA(yerr_last, _current_approx, current_div_approx, precision = ML_DoubleDouble, tag = "ext_pre_result", debug = debug_ddtolx)
-            subnormal_pre_result = SpecificOperation(ext_pre_result, ex - ey, precision = self.precision, specifier = SpecificOperation.Subnormalize, tag = "subnormal_pre_result", debug = debug_lftolx)
-            sub_scale_factor = ex - ey
-            sub_scale_factor_0 = Max(Min(sub_scale_factor, 950), -950, tag = "sub_scale_factor_0", debug = debugd)
-            sub_scale_factor_1 = Max(Min(sub_scale_factor - sub_scale_factor_0, 950), -950, tag = "sub_scale_factor_1", debug = debugd)
-            sub_scale_factor_2 = sub_scale_factor - (sub_scale_factor_1 + sub_scale_factor_0)
-            sub_scale_factor_2.set_attributes(debug = debugd, tag = "sub_scale_factor_2")
-            #subnormal_result = (subnormal_pre_result * ExponentInsertion(ex, tag ="sr_ex_ei")) * ExponentInsertion(-ey, tag = "sr_ey_ei")
-            subnormal_result = (subnormal_pre_result * ExponentInsertion(sub_scale_factor_0)) * ExponentInsertion(sub_scale_factor_1, tag = "sr_ey_ei") * ExponentInsertion(sub_scale_factor_2)
-            subnormal_result.set_attributes(debug = debug_lftolx, tag = "subnormal_result")
-            return result, subnormal_result, _current_approx, inv_iteration_list
-
-
-        def bit_match(fp_optree, bit_id, likely = False, **kwords):
-            return NotEqual(BitLogicAnd(TypeCast(fp_optree, precision = ML_Int64), 1 << bit_id), 0, likely = likely, **kwords)
-
-
-        def extract_and_inject_sign(sign_source, sign_dest, int_precision = ML_Int64, fp_precision = self.precision, **kwords):
-            int_sign_dest = sign_dest if isinstance(sign_dest.get_precision(), ML_Fixed_Format) else TypeCast(sign_dest, precision = int_precision)
-            return TypeCast(BitLogicOr(BitLogicAnd(TypeCast(sign_source, precision = int_precision), 1 << (self.precision.bit_size - 1)), int_sign_dest), precision = fp_precision)
-
-
-        x_zero = Test(vx, specifier = Test.IsZero, likely = False)
-        y_zero = Test(vy, specifier = Test.IsZero, likely = False)
-
-        comp_sign = Test(vx, vy, specifier = Test.CompSign, tag = "comp_sign", debug = debuglx )
-
+        # check if divisor is NaN
         y_nan = Test(vy, specifier = Test.IsNaN, likely = False)
 
+        # check if inputs are signaling NaNs
         x_snan = Test(vx, specifier = Test.IsSignalingNaN, likely = False)
         y_snan = Test(vy, specifier = Test.IsSignalingNaN, likely = False)
 
+        # check if inputs are infinities
         x_inf = Test(vx, specifier = Test.IsInfty, likely = False, tag = "x_inf")
-        y_inf = Test(vy, specifier = Test.IsInfty, likely = False, tag = "y_inf", debug = debugd)
+        y_inf = Test(vy, specifier = Test.IsInfty, likely = False, tag = "y_inf", debug = debug_multi)
 
 
         scheme = None
         gappa_vx, gappa_vy = None, None
-        gappa_init_approx = None
-        gappa_current_approx = None
+        # gappa_init_approx = None
+        # gappa_current_approx = None
 
-        if isinstance(processor, K1B_Processor):
-            print "K1B specific generation"
 
-            gappa_vx = vx
-            gappa_vy = vy
+        # initial reciprocal approximation of 1.0 / scaled_vy
+        inv_iteration_list, recp_approx = compute_reduced_reciprocal(init_approx, scaled_vy, self.num_iter)
 
-            fast_init_approx = DivisionSeed(vx, vy, precision = self.precision, tag = "fast_init_approx", debug = debug_lftolx)
-            slow_init_approx = DivisionSeed(scaled_vx, scaled_vy, precision = self.precision, tag = "slow_init_approx", debug = debug_lftolx)
+        # approximation of scaled_vx / scaled_vy
+        yerr_last, reduced_div_approx = compute_reduced_division(scaled_vx, scaled_vy, recp_approx)
 
-            gappa_init_approx = fast_init_approx
+        unscaled_result = scaling_div_result(reduced_div_approx, ex, scaling_factor_y, self.precision)
 
-            specific_case           = bit_match(fast_init_approx, 0, tag = "b0_specific_case_bit", debug = debugd)
-            y_subnormal_or_zero     = bit_match(fast_init_approx, 1, tag = "b1_y_sub_or_zero", debug = debugd)
-            x_subnormal_or_zero     = bit_match(fast_init_approx, 2, tag = "b2_x_sub_or_zero", debug = debugd)
-            y_inf_or_nan            = bit_match(fast_init_approx, 3, tag = "b3_y_inf_or_nan", debug = debugd)
-            inv_underflow           = bit_match(fast_init_approx, 4, tag = "b4_inv_underflow", debug = debugd)
-            x_inf_or_nan            = bit_match(fast_init_approx, 5, tag = "b5_x_inf_or_nan", debug = debugd)
-            mult_error_underflow    = bit_match(fast_init_approx, 6, tag = "b6_mult_error_underflow", debug = debugd)
-            mult_dividend_underflow = bit_match(fast_init_approx, 7, tag = "b7_mult_dividend_underflow", debug = debugd)
-            mult_dividend_overflow  = bit_match(fast_init_approx, 8, tag = "b8_mult_dividend_overflow", debug = debugd)
-            direct_result_flag      = bit_match(fast_init_approx, 9, tag = "b9_direct_result_flag", debug = debugd)
-            div_overflow            = bit_match(fast_init_approx, 10, tag = "b10_div_overflow", debug = debugd)
+        subnormal_result = subnormalize_result(recp_approx, reduced_div_approx, exact_ex, exact_ey, yerr_last, self.precision)
 
-            # bit11/eb large = bit_match(fast_init_approx, 11) 
-            # bit12 = bit_match(fast_init_approx, 11)
+        x_inf_or_nan = Test(vx, specifier = Test.IsInfOrNaN, likely=False)
+        y_inf_or_nan = Test(vy, specifier = Test.IsInfOrNaN, likely=False, tag="y_inf_or_nan", debug = debug_multi)
 
-            #slow_result, slow_result_subnormal, _, _ = compute_div(slow_init_approx, scaled_vx, scaled_vy, scale_result = (ExponentInsertion(ex, tag = "eiy_sr"), ExponentInsertion(-ey, tag ="eiy_sr")))
-            slow_result, slow_result_subnormal, _, _ = compute_div(slow_init_approx, scaled_vx, scaled_vy, scale_result = ex - ey)
-            fast_result, fast_result_subnormal, fast_current_approx, inv_iteration_list = compute_div(fast_init_approx, vx, vy, scale_result = None)
-            gappa_current_approx = fast_current_approx
+        # gappa_vx = scaled_vx
+        # gappa_vy = scaled_vy
+        # gappa_init_approx = init_approx
 
-            pre_scheme = ConditionBlock(NotEqual(specific_case, 0, tag = "specific_case", likely = True, debug = debugd),
-                Return(fast_result),
-                ConditionBlock(Equal(direct_result_flag, 0, tag = "direct_result_case"),
-                    Return(fast_init_approx),
-                    ConditionBlock(x_subnormal_or_zero | y_subnormal_or_zero | inv_underflow | mult_error_underflow | mult_dividend_overflow | mult_dividend_underflow,
-                        ConditionBlock(x_zero | y_zero,
-                            Return(fast_init_approx),
-                            ConditionBlock(Test(slow_result, specifier = Test.IsSubnormal),
-                                Return(slow_result_subnormal),
-                                Return(slow_result)
-                            ),
-                        ),
-                        ConditionBlock(x_inf_or_nan,
-                            Return(fast_init_approx),
-                            ConditionBlock(y_inf_or_nan,
-                                Return(fast_init_approx),
-                                ConditionBlock(NotEqual(div_overflow, 0, tag = "div_overflow_case"),
-                                    Return(RoundedSignedOverflow(fast_init_approx, tag = "signed_inf")),
-                                    #Return(extract_and_inject_sign(fast_init_approx, FP_PlusInfty(self.precision) , tag = "signed_inf")),
-                                    Return(FP_SNaN(self.precision))
-                                )
-                            )
-                        )
-                    )
-                )
-            )
-
-            scheme = Statement(fast_result, pre_scheme)
-
-        else:
-            print "generic generation"
-
-            x_inf_or_nan = Test(vx, specifier = Test.IsInfOrNaN, likely = False)
-            y_inf_or_nan = Test(vy, specifier = Test.IsInfOrNaN, likely = False, tag = "y_inf_or_nan", debug = debugd)
-
-            result, subnormal_result, gappa_current_approx, inv_iteration_list = compute_div(current_approx_std, scaled_vx, scaled_vy, scale_result = (ExponentInsertion(ex), ExponentInsertion(-ey)))
-            gappa_vx = scaled_vx
-            gappa_vy = scaled_vy
-            gappa_init_approx = init_approx
-
-            # x inf and y inf 
-            pre_scheme = ConditionBlock(x_inf_or_nan, 
-                ConditionBlock(x_inf,
-                    ConditionBlock(y_inf_or_nan, 
-                        Statement(
-                            ConditionBlock(y_snan, Raise(ML_FPE_Invalid)),
-                            Return(FP_QNaN(self.precision)),
-                        ),
-                        ConditionBlock(comp_sign, Return(FP_MinusInfty(self.precision)), Return(FP_PlusInfty(self.precision)))
-                    ),
+        # managing special cases
+        # x inf and y inf 
+        pre_scheme = ConditionBlock(x_inf_or_nan, 
+            ConditionBlock(x_inf,
+                ConditionBlock(y_inf_or_nan, 
                     Statement(
-                        ConditionBlock(x_snan, Raise(ML_FPE_Invalid)),
-                        Return(FP_QNaN(self.precision))
-                    )
+                        ConditionBlock(y_snan, Raise(ML_FPE_Invalid)),
+                        Return(FP_QNaN(self.precision)),
+                    ),
+                    ConditionBlock(
+                        comp_sign,
+                        Return(FP_MinusInfty(self.precision)),
+                        Return(FP_PlusInfty(self.precision)))
                 ),
-                ConditionBlock(x_zero,
-                    ConditionBlock(y_zero | y_nan,
+                Statement(
+                    ConditionBlock(x_snan, Raise(ML_FPE_Invalid)),
+                    Return(FP_QNaN(self.precision))
+                )
+            ),
+            ConditionBlock(x_zero,
+                ConditionBlock(y_zero | y_nan,
+                    Statement(
+                        ConditionBlock(y_snan, Raise(ML_FPE_Invalid)),
+                        Return(FP_QNaN(self.precision))
+                    ),
+                    Return(vx)
+                ),
+                ConditionBlock(y_inf_or_nan,
+                    ConditionBlock(y_inf,
+                        Return(
+                            Select(
+                                comp_sign,
+                                FP_MinusZero(self.precision),
+                                FP_PlusZero(self.precision))),
                         Statement(
                             ConditionBlock(y_snan, Raise(ML_FPE_Invalid)),
                             Return(FP_QNaN(self.precision))
-                        ),
-                        Return(vx)
+                        )
                     ),
-                    ConditionBlock(y_inf_or_nan,
-                        ConditionBlock(y_inf,
-                            Return(Select(comp_sign, FP_MinusZero(self.precision), FP_PlusZero(self.precision))),
-                            Statement(
-                                ConditionBlock(y_snan, Raise(ML_FPE_Invalid)),
-                                Return(FP_QNaN(self.precision))
+                    ConditionBlock(y_zero,
+                        Statement(
+                            Raise(ML_FPE_DivideByZero),
+                            ConditionBlock(comp_sign, 
+                                Return(FP_MinusInfty(self.precision)),
+                                Return(FP_PlusInfty(self.precision))
                             )
                         ),
-                        ConditionBlock(y_zero,
+                        # managing numerical value result cases
+                        ConditionBlock(
+                            Test(unscaled_result, specifier=Test.IsSubnormal, likely=False),
+                            # result is subnormal
                             Statement(
-                                Raise(ML_FPE_DivideByZero),
-                                ConditionBlock(comp_sign, 
-                                    Return(FP_MinusInfty(self.precision)),
-                                    Return(FP_PlusInfty(self.precision))
-                                )
-                            ),
-                            ConditionBlock(Test(result, specifier = Test.IsSubnormal, likely = False),
-                                Statement(
-                                    ConditionBlock(Comparison(yerr_last, 0, specifier = Comparison.NotEqual, likely = True),
-                                        Statement(Raise(ML_FPE_Inexact, ML_FPE_Underflow))
-                                    ),
-                                    Return(subnormal_result),
+                                ConditionBlock(
+                                    Comparison(
+                                        yerr_last, 0,
+                                        specifier=Comparison.NotEqual, likely=True),
+                                    Statement(Raise(ML_FPE_Inexact, ML_FPE_Underflow))
                                 ),
-                                Statement(
-                                    ConditionBlock(Comparison(yerr_last, 0, specifier = Comparison.NotEqual, likely = True),
-                                        Raise(ML_FPE_Inexact)
-                                    ),
-                                    Return(result)
-                                )
+                                Return(subnormal_result),
+                            ),
+                            # result is normal
+                            Statement(
+                                ConditionBlock(
+                                    Comparison(
+                                        yerr_last, 0,
+                                        specifier=Comparison.NotEqual, likely=True),
+                                    Raise(ML_FPE_Inexact)
+                                ),
+                                Return(unscaled_result)
                             )
                         )
                     )
                 )
             )
-            rnd_mode = GetRndMode()
-            scheme = Statement(rnd_mode, SetRndMode(ML_RoundToNearest), yerr_last, SetRndMode(rnd_mode), pre_result, ClearException(), result, pre_scheme)
+        )
+        # managing rounding mode save and restore
+        # to ensure intermediary computations are performed in round-to-nearest
+        # clearing exception before final computation
 
+        #rnd_mode = GetRndMode()
+        #scheme = Statement(
+        #    rnd_mode,
+        #    SetRndMode(ML_RoundToNearest),
+        #    yerr_last,
+        #    SetRndMode(rnd_mode),
+        #    unscaled_result,
+        #    ClearException(),
+        #    pre_scheme
+        #)
 
+        scheme = pre_scheme
 
+        return scheme
 
-        opt_eng = OptimizationEngine(processor)
-
-        # fusing FMA
-        if fuse_fma:
-            print "MDL fusing FMA"
-            scheme = opt_eng.fuse_multiply_add(scheme, silence = True)
-
-        print "MDL abstract scheme"
-        opt_eng.instantiate_abstract_precision(scheme, None)
-
-
-        print "MDL instantiated scheme"
-        opt_eng.instantiate_precision(scheme, default_precision = self.precision)
-
-
-        print "subexpression sharing"
-        opt_eng.subexpression_sharing(scheme)
-
-        #print "silencing operation"
-        #opt_eng.silence_fp_operations(scheme)
-
-        # registering scheme as function implementation
-        exp_implementation.set_scheme(scheme)
-
-        #print scheme.get_str(depth = None, display_precision = True)
-
-        # check processor support
-        print "checking processor support"
-        opt_eng.check_processor_support(scheme)
-
-        # factorizing fast path
-        #opt_eng.factorize_fast_path(scheme)
-
-        print "Gappa script generation"
+    def misc(self):
+        print("Gappa script generation")
         
         cg = CCodeGenerator(processor, declare_cst = False, disable_debug = not debug_flag, libm_compliant = libm_compliant)
         self.result = exp_implementation.get_definition(cg, C_Code, static_cst = True)
@@ -474,26 +462,22 @@ class ML_Division(object):
 
         try:
             eval_error = execute_gappa_script_extract(gappa_code.get(gappacg))["goal"]
-            print "eval_error: ", eval_error
+            print("eval_error: "), eval_error
         except:
-            print "error during gappa run"
+            print("error during gappa run")
 
 
 
 if __name__ == "__main__":
     # auto-test
-    num_iter        = int(extract_option_value("--num-iter", "3"))
+    arg_template = ML_NewArgTemplate(
+        default_arg=ML_Division.get_default_args()
+    )
+    arg_template.get_parser().add_argument(
+         "--num-iter", dest="num_iter", default=3, type=int, 
+        action="store", help="number of newton-raphson iterations")
 
-    arg_template = ML_ArgTemplate(default_function_name = "new_div", default_output_file = "new_div.c" )
-    arg_template.sys_arg_extraction()
+    args = arg_template.arg_extraction()
 
-
-    ml_div          = ML_Division(arg_template.precision, 
-                                  libm_compliant            = arg_template.libm_compliant, 
-                                  debug_flag                = arg_template.debug_flag, 
-                                  target                    = arg_template.target, 
-                                  fuse_fma                  = arg_template.fuse_fma, 
-                                  fast_path_extract         = arg_template.fast_path,
-                                  num_iter                  = num_iter,
-                                  function_name             = arg_template.function_name,
-                                  output_file               = arg_template.output_file)
+    ml_div = ML_Division(args)
+    ml_div.gen_implementation()
