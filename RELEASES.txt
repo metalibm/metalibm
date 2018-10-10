@@ -1,0 +1,6 @@
+
+1.1:
+    - Extending support for multi-precision construct in metalibm_core.opt.ml_blocks
+    - Adding expand_multi_precision pass which expands node of format 
+      ML_FP_MultiElementFormat to multiple node of ML_FP_Format
+    - Adding metalibm_functions.unit_tests.multi_precisions
