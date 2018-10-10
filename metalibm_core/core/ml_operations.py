@@ -145,6 +145,10 @@ class AbstractOperation(ML_Operation):
     def hi(self):
         return ComponentSelection(self, specifier = ComponentSelection.Hi)
 
+    @property
+    def me(self):
+        return ComponentSelection(self, specifier = ComponentSelection.Me)
+
     ## extract the Low part of the Node
     @property
     def lo(self):
@@ -929,7 +933,11 @@ class ComponentSelection(SpecifierOperation, GeneralArithmeticOperation):
     arity = 1
     name = "ComponentSelection"
     class Hi(ComponentSelectionSpecifier): pass
+    class Me(ComponentSelectionSpecifier): pass
     class Lo(ComponentSelectionSpecifier): pass
+    class Field(ComponentSelectionSpecifier):
+        def __init__(self, field_index):
+            self.field_index = field_index
 
     implicit_arg_precision = {
         ML_SingleSingle: ML_Binary32,
