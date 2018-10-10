@@ -38,3 +38,8 @@ Beware, pure function code can not be executed (it is not a program simply a fun
 
 ```python2 metalibm_functions/ml_exp.py --precision binary32 --auto-test -- execute --target x86 --output x86_exp2f.c ```
 
+
+### Verbosity
+
+metalibm verbosity can be configured through the command-line option `--verbose`. This command accepts default options such as **Info**, **Verbose** to enable some defaults verbosity level.
+    Verbosity level can be specialized to only allow specific information display, for example **Info:passes** can be used to only display information level message of optimization passes.

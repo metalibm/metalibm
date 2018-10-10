@@ -1,11 +1,14 @@
-# Message logging
+# Guidelines to developer
 
 
-## Warning
+## Message logging
+
+
+### Warning
 Metalibm uses its own message logging system.
 No **print** should appear in any module or meta-function of metalibm.
 
-## Log module
+### Log module
 
 Logging is provided through ** metalibm_core.utility.log_report ** module
 through the Log object.
