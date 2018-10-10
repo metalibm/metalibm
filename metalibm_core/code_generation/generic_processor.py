@@ -790,7 +790,9 @@ c_code_generation_table = {
             },
             lambda optree: True: {
               type_strict_match(ML_Binary64, ML_DoubleDouble): 
-                ComplexOperator(optree_modifier = lambda x: ComponentSelection(x.get_input(0), precision = ML_Binary64, specifier = ComponentSelection.Hi)),
+                  ComplexOperator(optree_modifier = lambda x: ComponentSelection(x.get_input(0), precision = ML_Binary64, specifier = ComponentSelection.Hi)),
+              type_strict_match(ML_Binary32, ML_SingleSingle): 
+                  ComplexOperator(optree_modifier = lambda x: ComponentSelection(x.get_input(0), precision=ML_Binary32, specifier=ComponentSelection.Hi)),
               type_strict_match(ML_DoubleDouble, ML_Binary64): FunctionOperator("ml_conv_dd_d", arity = 1), 
             },
         },
