@@ -265,13 +265,13 @@ def dirty_multi_node_expand(node, precision, mem_map=None, fma=True):
             return result
 
         elif isinstance(node, Multiplication):
-            result = Mul222(op1h, op1l, op2h, op2l, fma) \
+            result = Mul222(op1h, op1l, op2h, op2l, fma=fma) \
                     if op1l is not None and op2l is not None \
-                    else Mul212(op1h, op2h, op2l, fma) \
+                    else Mul212(op1h, op2h, op2l, fma=fma) \
                     if op1l is None and op2l is not None \
-                    else Mul212(op2h, op1h, op1l, fma) \
+                    else Mul212(op2h, op1h, op1l, fma=fma) \
                     if op2l is None and op1l is not None \
-                    else Mul211(op1h, op2h, fma)
+                    else Mul211(op1h, op2h, fma=fma)
             mem_map[node] = result
             return result
 
