@@ -673,6 +673,12 @@ class AbstractVariable(ML_LeafNode):
     def get_var_type(self):
         return self.var_type
 
+    def __call__(self, *args):
+        var_type = self.get_precision()
+        if not isinstance(var_type, FunctionType):
+            Log.report(Log.report("Variable {} of format {} is not callable", self, var_type))
+        return FunctionObject(self.get_tag(), var_type.arg_list_precision, var_type.output_precision, None)(*args)
+
     ## generate string description of the Variable node
     def get_str(
             self, depth = None, display_precision = False, tab_level = 0, 
