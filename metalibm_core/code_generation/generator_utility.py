@@ -723,7 +723,17 @@ class FunctionObjectOperator(ML_CG_Operator):
         ML_CG_Operator.__init__(self)
 
     def generate_expr(self, code_generator, code_object, optree, arg_tuple, generate_pre_process = None, **kwords):
-        return optree.get_function_object().get_generator_object().generate_expr(code_generator, code_object, optree, arg_tuple, generate_pre_process = None, **kwords)
+        fct_object = optree.get_function_object()
+        fct_object_generator = fct_object.get_generator_object()
+        if fct_object_generator is None:
+            # default generator
+            fct_object_generator = FunctionOperator(
+                fct_object.name,
+                arity=fct_object.arity
+            )
+        return fct_object_generator.generate_expr(
+            code_generator, code_object, optree, arg_tuple,
+            generate_pre_process=None, **kwords)
 
 
 class TemplateOperator(FunctionOperator):
