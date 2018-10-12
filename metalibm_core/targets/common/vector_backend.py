@@ -641,7 +641,7 @@ def assemble_vector(scalar_results, vector_prec, threshold=4):
         return VectorAssembling(*tuple(scalar_results), precision=vector_prec)
     else:
         n = len(scalar_results)
-        hi_l = (n+1)/2
+        hi_l = int((n+1)/2)
         lo_l = n - hi_l
         scalar_prec = vector_prec.get_scalar_format()
         hi_format = StaticVectorizer.VECTORIZE_FORMAT_MAP[scalar_prec][hi_l]

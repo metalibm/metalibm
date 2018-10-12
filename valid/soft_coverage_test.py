@@ -28,6 +28,7 @@ import datetime
 import argparse
 import sys
 import re
+import functools
 
 import sollya
 from sollya import Interval
@@ -228,7 +229,7 @@ success_count = 0
 # of new scheme tests
 result_details = []
 
-NUM_TESTS = reduce(lambda acc, v: acc + v.num_test, global_test_list, 0)
+NUM_TESTS = functools.reduce(lambda acc, v: acc + v.num_test, global_test_list, 0)
 
 RESULT_MAP = {}
 
