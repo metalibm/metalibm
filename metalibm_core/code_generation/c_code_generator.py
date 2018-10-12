@@ -39,7 +39,8 @@ from ..core.ml_operations import (
     Variable, Constant, ConditionBlock, Return, TableLoad, Statement,\
     Loop, SpecificOperation, ExceptionOperation, ClearException, \
     NoResultOperation, SwitchBlock, FunctionObject, ReferenceAssign, \
-    BooleanOperation
+    BooleanOperation,
+    FunctionType
 )
 from ..core.ml_table import ML_Table, ML_NewTable
 from ..core.ml_formats import *
@@ -378,9 +379,24 @@ class CCodeGenerator(object):
       else:
         return ""
 
+
+    def get_fct_arg_decl(self, arg_type, arg_tag, language=C_Code):
+        """ Generate function argument declaration code """
+        if isinstance(arg_type, FunctionType):
+            return "{return_format} ({arg_tag})({arg_format_list})".format(
+                return_format=arg_type.output_precision.get_name(language=language),
+                arg_tag=arg_tag,
+                arg_format_list=",".join([self.get_fct_arg_decl(sub_arg_prec, "", language) for sub_arg_prec in arg_type.arg_list_precision])
+            )
+
+        else:   
+            return "{} {}".format(arg_type.get_name(language=language), arg_tag)
+
+
+
     def get_function_declaration(self, function_name, output_format, arg_list, final=True, language=C_Code):
         """ generate function declaration code """
-        arg_format_list = ", ".join("%s %s" % (inp.get_precision().get_name(language = language), inp.get_tag()) for inp in arg_list)
+        arg_format_list = ", ".join(self.get_fct_arg_decl(inp.get_precision(), inp.get_tag()) for inp in arg_list)
         final_symbol = ";" if final else ""
         return "%s %s(%s)%s" % (output_format.get_name(language=language), function_name, arg_format_list, final_symbol)
 
