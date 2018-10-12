@@ -1790,22 +1790,15 @@ def RoundedSignedOverflow(*args, **kwords):
     return SpecificOperation(*args, **kwords)
 
 
-class FunctionObject(object):
-    """ Object to wrap a function """
-    def __init__(self, name, arg_list_precision, output_precision, generator_object):
-        self.name = name
+class FunctionType(object):
+    """ Function prototype object """
+    def __init__(self, arg_list_precision, output_precision):
         self.arg_list_precision = arg_list_precision
         self.output_precision = output_precision
         self.arity = len(self.arg_list_precision)
-        self.generator_object = generator_object
 
-    def __call__(self, *args, **kwords):
-        return FunctionCall(self, *args, **kwords)
-
-    def get_declaration(self, language=C_Code):
-        """ Generate code declaration for FunctionObject """
+    def get_declaration(self, fname, language=C_Code):
         out_prec = self.output_precision.get_name(language=language)
-        fname = self.get_function_name()
         arg_prec_list = ", ".join(
             arg.get_name(language=language) for arg in self.arg_list_precision
         )
@@ -1817,6 +1810,20 @@ class FunctionObject(object):
             fname=fname,
             arg_prec_list=arg_prec_list
         )
+
+class FunctionObject(FunctionType):
+    """ Object to wrap a function """
+    def __init__(self, name, arg_list_precision, output_precision, generator_object):
+        FunctionType.__init__(self, arg_list_precision, output_precision)
+        self.name = name
+        self.generator_object = generator_object
+
+    def __call__(self, *args, **kwords):
+        return FunctionCall(self, *args, **kwords)
+
+    def get_declaration(self, language=C_Code):
+        """ Generate code declaration for FunctionObject """
+        return FunctionType.get_declaration(self, self.get_function_name(), language)
 
     def get_precision(self):
         return self.output_precision
