@@ -79,6 +79,7 @@ import metalibm_functions.unit_tests.legalize_reciprocal_seed as ut_legalize_rec
 import metalibm_functions.unit_tests.fuse_fma as ut_fuse_fma
 import metalibm_functions.unit_tests.llvm_code as ut_llvm_code
 import metalibm_functions.unit_tests.multi_precision as ut_multi_precision
+import metalibm_functions.unit_tests.function_ptr as ut_function_ptr
 
 unit_test_list = [
   UnitTestScheme(
@@ -223,6 +224,11 @@ unit_test_list = [
     "multi precision expansion",
     ut_multi_precision,
     [{"passes": ["beforecodegen:expand_multi_precision"]}]
+  ),
+  UnitTestScheme(
+    "function pointer argument",
+    ut_function_ptr,
+    [{}],
   ),
 ]
 
