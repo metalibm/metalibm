@@ -38,6 +38,8 @@ import sys
 import inspect
 
 class SourceInfo:
+    # disabled by default to avoid performance issue
+    enabled = False
     def __init__(self, filename, lineno):
         self.filename = filename
         self.lineno = lineno
@@ -48,10 +50,17 @@ class SourceInfo:
 
     @staticmethod
     def retrieve_source_info(extra_depth=0):
-        current_frame = inspect.currentframe()
-        frame = inspect.getouterframes(current_frame)[2 + extra_depth]
-        frameinfo = frame # inspect.getframeinfo(frame)
-        if sys.version_info >= (3, 5):
-            return SourceInfo(frameinfo.filename, frameinfo.lineno)
-        else:
-            return SourceInfo(frameinfo[1], frameinfo[2])
+        if SourceInfo.enabled:
+            current_frame = inspect.currentframe()
+            frame = inspect.getouterframes(current_frame)[2 + extra_depth]
+            frameinfo = frame # inspect.getframeinfo(frame)
+            if sys.version_info >= (3, 5):
+                return SourceInfo(frameinfo.filename, frameinfo.lineno)
+            else:
+                return SourceInfo(frameinfo[1], frameinfo[2])
+        return SourceInfo("disabled", -1)
+
+
+if "ENABLE_SOURCE_INFO" in os.environ:
+    print("[INFO] enabling SourceInfo tracking (could slow down execution with python3)")
+    SourceInfo.enabled = True
