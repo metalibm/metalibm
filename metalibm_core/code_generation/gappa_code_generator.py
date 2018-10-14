@@ -416,8 +416,7 @@ class GappaCodeGenerator(object):
         # copying pre-operation tree
         goal = pre_goal.copy(variable_copy_map)
         goal.set_attributes(precision = goal_precision, tag = "goal")
-        print("goal: ")
-        print(goal)
+        Log.report(Log.Info, "goal: ", goal)
 
         # updating handle
         if update_handle:

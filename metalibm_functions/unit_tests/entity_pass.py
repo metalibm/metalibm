@@ -56,7 +56,7 @@ from metalibm_core.core.passes import *
 from metalibm_core.core.ml_hdl_format import *
 from metalibm_core.core.ml_hdl_operations import *
 
-from metalibm_functions.unit_tests.utils import TestRunner 
+from metalibm_functions.unit_tests.utils import TestRunner
 
 # global list to check pass execution
 executed_id_list = []
@@ -67,18 +67,18 @@ class LocalPass(OptimizationPass):
     self.final_id = final_id
 
   def execute(self, optree):
-    print("executing pass {}".format(self.descriptor))
+    Log.report(Log.Verbose, "executing pass {}".format(self.descriptor))
     executed_id_list.append(self.final_id)
     return optree
 
 class ML_UT_EntityPass(ML_Entity("ml_lzc"), TestRunner):
   @staticmethod
   def get_default_args(width = 32):
-    return DefaultEntityArgTemplate( 
-             precision = ML_Int32, 
-             debug_flag = False, 
-             target = VHDLBackend(), 
-             output_file = "my_lzc.vhd", 
+    return DefaultEntityArgTemplate(
+             precision = ML_Int32,
+             debug_flag = False,
+             target = VHDLBackend(),
+             output_file = "my_lzc.vhd",
              entity_name = "my_lzc",
              language = VHDL_Code,
              width = width,
@@ -94,7 +94,7 @@ class ML_UT_EntityPass(ML_Entity("ml_lzc"), TestRunner):
     Log.report(Log.Info, "generating LZC with width={}".format(self.width))
 
     # initializing base class
-    ML_EntityBasis.__init__(self, 
+    ML_EntityBasis.__init__(self,
       base_name = "ml_lzc",
       arg_template = arg_template
     )
@@ -106,14 +106,14 @@ class ML_UT_EntityPass(ML_Entity("ml_lzc"), TestRunner):
     pass_1 = LocalPass("pass 1", 1)
     pass_2 = LocalPass("pass 2", 2)
     pass_3_deps = CombineAnd(
-      AfterPassById(pass_5.get_pass_id()), 
+      AfterPassById(pass_5.get_pass_id()),
       CombineAnd(
         AfterPassById(pass_2.get_pass_id()),
         AfterPassByClass(LocalPass)
       )
     )
     pass_4_deps = CombineAnd(
-      AfterPassById(pass_3.get_pass_id()), 
+      AfterPassById(pass_3.get_pass_id()),
       pass_3_deps
     )
     pass_5_deps = CombineOr(
@@ -122,17 +122,17 @@ class ML_UT_EntityPass(ML_Entity("ml_lzc"), TestRunner):
     )
     # registerting pass in arbitrary order
     pass_scheduler.register_pass(
-      pass_4, 
-      pass_dep = pass_4_deps, 
+      pass_4,
+      pass_dep = pass_4_deps,
       pass_slot = PassScheduler.JustBeforeCodeGen
     )
     pass_scheduler.register_pass(
-      pass_5, 
-      pass_dep = pass_5_deps, 
+      pass_5,
+      pass_dep = pass_5_deps,
       pass_slot = PassScheduler.JustBeforeCodeGen
     )
     pass_scheduler.register_pass(
-      pass_3, 
+      pass_3,
       pass_dep = pass_3_deps,
       pass_slot = PassScheduler.JustBeforeCodeGen)
     pass_scheduler.register_pass(pass_1, pass_slot = PassScheduler.Start)
@@ -159,11 +159,11 @@ class ML_UT_EntityPass(ML_Entity("ml_lzc"), TestRunner):
     input_precision = ML_StdLogicVectorFormat(self.width)
     precision = ML_StdLogicVectorFormat(lzc_width)
     # declaring main input variable
-    vx = self.implementation.add_input_signal("x", input_precision) 
+    vx = self.implementation.add_input_signal("x", input_precision)
     vr_out = Signal("lzc", precision = precision, var_type = Variable.Local)
     iterator = Variable("i", precision = ML_Integer, var_type = Variable.Local)
     lzc_loop = RangeLoop(
-      iterator, 
+      iterator,
       Interval(0, self.width - 1),
       ConditionBlock(
         Comparison(
@@ -173,11 +173,11 @@ class ML_UT_EntityPass(ML_Entity("ml_lzc"), TestRunner):
           precision = ML_Bool
         ),
         ReferenceAssign(
-          vr_out, 
+          vr_out,
           Conversion(
             Subtraction(
               Constant(self.width - 1, precision = ML_Integer),
-              iterator, 
+              iterator,
               precision = ML_Integer
             ),
           precision = precision),
@@ -188,13 +188,13 @@ class ML_UT_EntityPass(ML_Entity("ml_lzc"), TestRunner):
     lzc_process = Process(
       Statement(
         ReferenceAssign(vr_out, Constant(self.width, precision = precision)),
-        lzc_loop, 
+        lzc_loop,
       ),
       sensibility_list = [vx]
     )
 
     self.implementation.add_process(lzc_process)
-    
+
 
     self.implementation.add_output_signal("vr_out", vr_out)
 
@@ -219,13 +219,13 @@ class ML_UT_EntityPass(ML_Entity("ml_lzc"), TestRunner):
 
     expected_id_list = [2, 5, 3, 4]
 
-    print("expected_id_list: ", expected_id_list)
+    Log.report(Log.Verbose, "expected_id_list: ", expected_id_list)
     assert reduce(
       lambda lhs, rhs: lhs and rhs,
-      [exp == real for exp,real in zip(executed_id_list, expected_id_list)], 
+      [exp == real for exp,real in zip(executed_id_list, expected_id_list)],
       True
     )
-                                         
+
     return True
 
 # registering top class for unit test
@@ -235,7 +235,7 @@ if __name__ == "__main__":
     # auto-test
     arg_template = ML_EntityArgTemplate(default_entity_name = "new_lzc", default_output_file = "ml_lzc.vhd", default_arg = ML_UT_EntityPass.get_default_args())
     arg_template.parser.add_argument("--width", dest = "width", type=int, default = 32, help = "set input width value (in bits)")
-    # argument extraction 
+    # argument extraction
     args = parse_arg_index_list = arg_template.arg_extraction()
 
     ml_lzc           = ML_UT_EntityPass(args)
@@ -244,9 +244,9 @@ if __name__ == "__main__":
 
     expected_id_list = [2, 5, 3, 4]
 
-    print("expected_id_list: ", expected_id_list)
+    Log.report(Log.Verbose, "expected_id_list: ", expected_id_list)
     assert reduce(
       lambda lhs, rhs: lhs and rhs,
-      [exp == real for exp,real in zip(executed_id_list, expected_id_list)], 
+      [exp == real for exp,real in zip(executed_id_list, expected_id_list)],
       True
     )

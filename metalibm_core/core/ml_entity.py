@@ -536,7 +536,7 @@ class ML_EntityBasis(object):
 				test_range = self.auto_test_range,
                 time_step = time_step
 			)
-      
+
 
     for code_entity in code_entity_list:
       scheme = code_entity.get_scheme()
@@ -551,9 +551,8 @@ class ML_EntityBasis(object):
         print("function %s, after opt " % code_entity.get_name())
         print(scheme.get_str(depth = None, display_precision = True, memoization_map = {}))
 
-      
 
-    print("Applying passes just before codegen")
+    Log.report(Log.Info, "Applying passes just before codegen")
     code_entity_list = self.pass_scheduler.get_full_execute_from_slot(
       code_entity_list, 
       PassScheduler.JustBeforeCodeGen,

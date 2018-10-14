@@ -45,7 +45,7 @@ from metalibm_core.code_generation.generic_processor import GenericProcessor
 from metalibm_core.code_generation.mpfr_backend import MPFRProcessor
 from metalibm_core.code_generation.code_object import CodeObject
 from metalibm_core.code_generation.code_function import CodeFunction
-from metalibm_core.code_generation.code_constant import C_Code 
+from metalibm_core.code_generation.code_constant import C_Code
 from metalibm_core.core.ml_optimization_engine import OptimizationEngine
 from metalibm_core.core.polynomials import *
 from metalibm_core.core.ml_table import ML_Table, ML_NewTable
@@ -55,7 +55,7 @@ from metalibm_core.code_generation.gappa_code_generator import GappaCodeGenerato
 from metalibm_core.utility.gappa_utils import execute_gappa_script_extract
 from metalibm_core.utility.ml_template import *
 
-from metalibm_core.utility.arg_utils import test_flag_option, extract_option_value  
+from metalibm_core.utility.arg_utils import test_flag_option, extract_option_value
 
 from metalibm_core.utility.debug_utils import *
 
@@ -80,7 +80,7 @@ class ML_UT_ImplicitIntervalEval(ML_Function("ml_ut_implicit_interval_eval")):
     return DefaultArgTemplate(**default_args)
 
   def generate_scheme(self):
-    # map of expected interval values 
+    # map of expected interval values
     expected_interval = {}
 
     vx_interval = Interval(-1, 1)
@@ -90,7 +90,7 @@ class ML_UT_ImplicitIntervalEval(ML_Function("ml_ut_implicit_interval_eval")):
     cst = Constant(7, tag = "cst")
     cst_interval = Interval(7)
     expected_interval[cst] = cst_interval
-     
+
     shl = BitLogicLeftShift(
         NearestInteger(vx)
         , 2, interval = 2 *  vx_interval,
@@ -99,11 +99,11 @@ class ML_UT_ImplicitIntervalEval(ML_Function("ml_ut_implicit_interval_eval")):
     shl_interval = 2 * vx_interval
     expected_interval[shl] = shl_interval
 
-    r = vx + cst * vx + shl - cst 
+    r = vx + cst * vx + shl - cst
     r.set_attributes(tag = "r")
 
     r_interval = vx_interval + cst_interval * vx_interval  + shl_interval - cst_interval
-    expected_interval[r] = r_interval 
+    expected_interval[r] = r_interval
 
     for var in [vx, cst, r, shl]:
         if var.get_interval() != expected_interval[var]:
@@ -115,8 +115,8 @@ class ML_UT_ImplicitIntervalEval(ML_Function("ml_ut_implicit_interval_eval")):
                     expected_interval[var]
                 )
             )
-        else: 
-            print("node {}: {} vs {}".format(var.get_tag(), var.get_interval(), expected_interval[var]))
+        else:
+            Log.report(Log.Info, "node {}: {} vs {}".format(var.get_tag(), var.get_interval(), expected_interval[var]))
 
     return Statement()
 

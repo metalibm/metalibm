@@ -31,9 +31,6 @@
 # author(s): Nicolas Brunie (nicolas.brunie@kalray.eu)
 ###############################################################################
 
-import os, inspect
-
-
 from metalibm_core.core.ml_formats import (
     ML_Bool,
     v2bool, v4bool, v8bool,

@@ -89,7 +89,7 @@ class ML_UT_CallExternaliation(ML_Function("ml_ut_call_externalization")):
     vx.set_interval(Interval(-1, 1))
 
     sub_computation = Multiplication(vx, vx, precision = self.precision)
-    print("sb prec", sub_computation.get_precision())
+    Log.report(Log.Info, "sb prec", sub_computation.get_precision())
     sub_computation, ext_function = self.externalize_call(sub_computation, [vx])
 
     sub_computation2 = Addition(sub_computation, vx, precision = self.precision)

@@ -157,9 +157,9 @@ class ML_ExponentialM1_Red(ML_FunctionBasis):
     
     local_ulp = sup(ulp(exp(r_interval), self.precision))
     
-    print("ulp: ", local_ulp)
+    Log.report(Log.Info, "ulp: ", local_ulp)
     error_goal = S2**-1*local_ulp
-    print("error goal: ", error_goal)
+    Log.report(Log.Info, "error goal: ", error_goal)
     
     
     # Polynomial Approx
