@@ -785,6 +785,7 @@ class ML_Base_SW_FixedPoint_Format(ML_Base_FixedPoint_Format):
         bit_size = integer_size + frac_size
         if bit_size < 1 or bit_size > 128:
             Log.report(Log.Warning, "unsupported bit_size {} in ML_Base_SW_FixedPoint_Format".format(bit_size))
+            self.dbg_name = ("" if self.signed else "u") + "int" + str(bit_size)
         else:
             possible_c_bit_sizes = [8, 16, 32, 64, 128]
             self.c_bit_size = next(n for n in possible_c_bit_sizes if n >= bit_size)
@@ -792,6 +793,7 @@ class ML_Base_SW_FixedPoint_Format(ML_Base_FixedPoint_Format):
             c_display_format = "%\"PRIx" + str(self.c_bit_size) + "\""
             self.name[C_Code] = c_name
             self.display_format[C_Code] = c_display_format
+            self.dbg_name = c_name
 
 
 ## Ancestor to standard (meaning integers)  fixed-point format
@@ -810,10 +812,10 @@ class ML_Standard_FixedPoint_Format(ML_Base_SW_FixedPoint_Format):
     return sollya.nearestint(value)
 
   def __repr__(self):
-      return self.name[C_Code]
+      return self.dbg_name
 
   def __str__(self):
-    return self.name[C_Code]
+      return self.dbg_name
 
 class ML_Custom_FixedPoint_Format(ML_Base_SW_FixedPoint_Format):
     """ Custom fixed-point format class """
