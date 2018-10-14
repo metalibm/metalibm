@@ -25,10 +25,11 @@
 # SOFTWARE.
 ###############################################################################
 import os
+import re
 
 
-def target_validity_test(target_name):
-    return os.path.isdir(target_name) and target_name != "__pycache__"
+def target_validity_test(target_full_path):
+    return os.path.isdir(target_full_path) and re.search("__pycache__", target_full_path) is None
 
 # dynamically search for installed targets
 targets_dirname = os.path.dirname(os.path.realpath(__file__))
