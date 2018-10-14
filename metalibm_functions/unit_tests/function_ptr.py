@@ -29,8 +29,6 @@
 # last-modified:        Oct   13th, 2018
 # Author(s): Nicolas Brunie <nbrunie@kalray.eu>
 ###############################################################################
-import sys
-
 from metalibm_core.core.ml_function import ML_FunctionBasis
 
 from metalibm_core.core.attributes import ML_Debug
