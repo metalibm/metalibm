@@ -25,8 +25,8 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 ###############################################################################
-# created:                    Oct    8th, 2018
-# last-modified:        Oct    8th, 2018
+# created:              Oct    8th, 2018
+# last-modified:        Oct   20th, 2018
 #
 # Author(s): Nicolas Brunie (nicolas.brunie@kalray.eu)
 # description: unit test for multi-precision format expansion
@@ -39,11 +39,16 @@ from metalibm_core.core.ml_function import ML_Function, ML_FunctionBasis
 
 from metalibm_core.core.attributes import ML_Debug
 from metalibm_core.core.ml_operations import (
-        Return, Addition, Statement, Conversion
+    Return, Statement, Conversion,
+    Addition, Multiplication, Subtraction,
+    FMA,
+    SpecificOperation,
+    Constant,
 )
 from metalibm_core.core.ml_formats import (
-        ML_Binary32, ML_Binary64,
-        ML_SingleSingle, ML_DoubleDouble
+    ML_Int32,
+    ML_Binary32, ML_Binary64,
+    ML_SingleSingle, ML_DoubleDouble
 )
 
 from metalibm_core.code_generation.code_constant import C_Code
@@ -53,7 +58,7 @@ from metalibm_functions.unit_tests.utils import TestRunner
 
 
 from metalibm_core.utility.ml_template import (
-        DefaultArgTemplate, ML_NewArgTemplate
+    DefaultArgTemplate, ML_NewArgTemplate
 )
 
 
@@ -93,8 +98,47 @@ class ML_UT_MultiPrecision(ML_FunctionBasis, TestRunner):
             ML_Binary64: ML_DoubleDouble
         }[self.precision]
 
+        # testing Add211
         exact_add = Addition(v_x[0], v_x[1], precision=double_format, tag="exact_add")
-        result = Conversion(exact_add, precision=self.precision)
+        # testing Mul211
+        exact_mul = Multiplication(v_x[0], v_x[1], precision=double_format, tag="exact_mul")
+        # testing Sub211
+        exact_sub = Subtraction(v_x[1], v_x[0], precision=double_format, tag="exact_sub")
+        # testing Add222
+        multi_add = Addition(exact_add, exact_sub, precision=double_format, tag="multi_add")
+        # testing Mul222
+        multi_mul = Multiplication(multi_add, exact_mul, precision=double_format, tag="multi_mul")
+        # testing Add221 and Add212 and Sub222
+        multi_sub = Subtraction(
+            Addition(exact_sub, v_x[1], precision=double_format, tag="add221"),
+            Addition(v_x[0], multi_mul, precision=double_format, tag="add212"),
+            precision=double_format,
+            tag="sub222"
+        )
+        # testing Mul212 and Mul221
+        mul212 = Multiplication(multi_sub, v_x[0], precision=double_format, tag="mul212")
+        mul221 = Multiplication(exact_mul, v_x[1], precision=double_format, tag="mul221")
+        # testing Sub221 and Sub212
+        sub221 = Subtraction(mul212, mul221.hi, precision=double_format, tag="sub221")
+        sub212 = Subtraction(sub221, mul212.lo, precision=double_format, tag="sub212")
+        # testing FMA2111
+        fma2111 = FMA(sub221.lo, sub212.hi, mul221.hi, precision=double_format, tag="fma2111")
+        # testing FMA2112
+        fma2112 = FMA(fma2111.lo, fma2111.hi, fma2111, precision=double_format, tag="fma2112")
+        # testing FMA2212
+        fma2212 = FMA(fma2112, fma2112.hi, fma2112, precision=double_format, tag="fma2212")
+        # testing FMA2122
+        fma2122 = FMA(fma2212.lo, fma2212, fma2212, precision=double_format, tag="fma2122")
+        # testing FMA22222
+        fma2222 = FMA(fma2122, fma2212, fma2111, precision=double_format, tag="fma2222")
+        # testing subnormalization
+        multi_subnormalize = SpecificOperation(
+            fma2222,
+            Constant(3, precision=self.precision.get_integer_format()),
+            specifier=SpecificOperation.Subnormalize,
+            precision=double_format,
+            tag="multi_subnormalize")
+        result = Conversion(multi_subnormalize, precision=self.precision)
 
         scheme = Statement(
             Return(result)

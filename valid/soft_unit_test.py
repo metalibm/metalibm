@@ -44,7 +44,10 @@ from metalibm_core.targets import *
 import metalibm_core.code_generation.mpfr_backend
 
 from metalibm_core.utility.ml_template import target_instanciate
-from metalibm_core.core.ml_formats import ML_Int32, ML_Int16, ML_Int64, ML_Binary32
+from metalibm_core.core.ml_formats import (
+    ML_Int32, ML_Int16, ML_Int64,
+    ML_Binary32, ML_Binary64,
+)
 from metalibm_core.core.precisions import (
     ML_CorrectlyRounded, ML_Faithful, dar, daa
 )
@@ -223,7 +226,16 @@ unit_test_list = [
   UnitTestScheme(
     "multi precision expansion",
     ut_multi_precision,
-    [{"passes": ["beforecodegen:expand_multi_precision"]}]
+    [
+        {
+            "precision": ML_Binary32, "input_precisions": [ML_Binary32]*2,
+            "arity": 2, "passes": ["beforecodegen:expand_multi_precision"]
+        },
+        {
+            "precision": ML_Binary64, "passes": ["beforecodegen:expand_multi_precision"],
+            "arity": 2, "input_precisions": [ML_Binary64]*2,
+        },
+    ]
   ),
   UnitTestScheme(
     "function pointer argument",
