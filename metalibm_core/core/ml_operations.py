@@ -1071,14 +1071,17 @@ class FusedMultiplyAdd(SpecifierOperation, GeneralArithmeticOperation):
         new_copy.commutated = self.commutated
 
 def FMA(op0, op1, op2, **kwords):
+    """ op0 * op1 + op2 """
     kwords["specifier"] = FusedMultiplyAdd.Standard
     return FusedMultiplyAdd(op0, op1, op2, **kwords)
 
 def FMS(op0, op1, op2, **kwords):
+    """ op0 * op1 - op2 """
     kwords["specifier"] = FusedMultiplyAdd.Subtract
     return FusedMultiplyAdd(op0, op1, op2, **kwords)
 
 def FMSN(op0, op1, op2, **kwords):
+    """ - op0 * op1 + op2 """
     kwords["specifier"] = FusedMultiplyAdd.SubtractNegate
     return FusedMultiplyAdd(op0, op1, op2, **kwords)
 
