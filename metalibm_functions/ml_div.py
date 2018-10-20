@@ -177,6 +177,7 @@ def scaling_div_result(div_approx, scaling_ex, scaling_factor_y, precision):
     unscaling_ex = ExponentInsertion(scaling_ex, precision=precision)
 
     unscaled_result = div_approx * unscaling_ex * scaling_factor_y
+    unscaled_result.set_attributes(debug=debug_multi, tag="unscaled_result")
     return unscaled_result
 
 
@@ -187,19 +188,20 @@ def subnormalize_result(recp_approx, div_approx, ex, ey, yerr_last, precision):
     # TODO: fix extended precision determination
     extended_precision = {
         ML_Binary64: ML_DoubleDouble,
-        ML_Binary32: ML_Binary64,
+        ML_Binary32: ML_SingleSingle,
     }[precision]
 
     # we make an extra step in extended precision
     ext_pre_result = FMA(yerr_last, recp_approx, div_approx, precision=extended_precision, tag="ext_pre_result")
     # subnormalize the result according to final result exponent
-    subnormal_pre_result = SpecificOperation(
+    subnormal_pre_result_ext = SpecificOperation(
         ext_pre_result,
         ex - ey,
-        precision=precision,
+        precision=extended_precision,
         specifier=SpecificOperation.Subnormalize,
         tag="subnormal_pre_result",
         debug=debug_multi)
+    subnormal_pre_result = subnormal_pre_result_ext.hi
     sub_scale_factor = ex - ey
     subnormal_result = subnormal_pre_result * ExponentInsertion(sub_scale_factor, precision=precision)
 
@@ -216,6 +218,8 @@ def extract_and_inject_sign(sign_source, sign_dest, int_precision = ML_Int64, fp
 
 class ML_Division(ML_FunctionBasis):
     function_name = "ml_div"
+    arity = 2
+
     def __init__(self, args=DefaultArgTemplate):
         # initializing base class
         ML_FunctionBasis.__init__(self, args=args)
@@ -231,7 +235,8 @@ class ML_Division(ML_FunctionBasis):
             "output_file": "my_div.c",
             "function_name": "my_div",
             "language": C_Code,
-            "vector_size": 1
+            "vector_size": 1,
+            "arity": ML_Division.arity,
         }
         default_div_args.update(args)
         return DefaultArgTemplate(**default_div_args)
@@ -422,6 +427,9 @@ class ML_Division(ML_FunctionBasis):
         scheme = pre_scheme
 
         return scheme
+
+    def numeric_emulate(self, x, y):
+        return x / y
 
     def misc(self):
         print("Gappa script generation")
