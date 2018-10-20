@@ -749,6 +749,8 @@ c_code_generation_table = {
             lambda optree: True: {
                 type_strict_match(ML_Int32, ML_Binary32): ML_Utils_Function("ml_exp_extraction_dirty_fp32", arity = 1), 
                 type_strict_match(ML_Int32, ML_Binary64): ML_Utils_Function("ml_exp_extraction_dirty_fp64", arity = 1), 
+                # dummy int -> int64 conversion
+                type_strict_match(ML_Int64, ML_Binary64): ML_Utils_Function("ml_exp_extraction_dirty_fp64", arity = 1), 
             },
         },
     },
