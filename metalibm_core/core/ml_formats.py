@@ -477,6 +477,8 @@ class ML_Std_FP_Format(ML_FP_Format):
                 return str(cst_value)
 
     def get_integer_format(self):
+        """ Return a signed integer format whose size matches @p self format
+            (useful for casts) """
         int_precision = {
                 ML_Binary16: ML_Int16,
                 ML_Binary32: ML_Int32,
@@ -486,6 +488,8 @@ class ML_Std_FP_Format(ML_FP_Format):
         return int_precision[self]
 
     def get_unsigned_integer_format(self):
+        """ Return an unsigned integer format whose size matches @p self format
+            (useful for casts) """
         uint_precision = {
                 ML_Binary16: ML_UInt16,
                 ML_Binary32: ML_UInt32,
