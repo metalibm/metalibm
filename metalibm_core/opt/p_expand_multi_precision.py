@@ -32,6 +32,7 @@ import sollya
 
 from metalibm_core.core.passes import OptreeOptimization, Pass, LOG_PASS_INFO
 from metalibm_core.opt.node_transformation import Pass_NodeTransformation
+from metalibm_core.opt.opt_utils import forward_attributes
 
 from metalibm_core.core.ml_formats import (
     ML_FP_MultiElementFormat,
@@ -41,17 +42,36 @@ from metalibm_core.core.ml_formats import (
 )
 
 from metalibm_core.core.ml_operations import (
-    Addition, Constant, Multiplication, Variable, 
+    Addition, Subtraction, Multiplication, 
+    FusedMultiplyAdd,
+    Conversion, Negation,
+    Constant, Variable, SpecificOperation, 
     BuildFromComponent
 )
 from metalibm_core.opt.ml_blocks import (
     Add222, Add122, Add221, Add212, 
     Add121, Add112, 
-    Add211, Mul212, Mul211, Mul222
+    Add211, 
+    Mul212, Mul221, Mul211, Mul222,
+    MP_FMA2111, MP_FMA2112, MP_FMA2122, MP_FMA2212, MP_FMA2121, MP_FMA2211,
+    MP_FMA2222,
+    subnormalize_multi,
 )
 
 from metalibm_core.utility.log_report import Log
 
+def is_subnormalize_op(node):
+    """ test if @p node is a Subnormalize operation """
+    return isinstance(node, SpecificOperation) and node.specifier is SpecificOperation.Subnormalize
+
+
+def get_elementary_precision(multi_precision):
+    """ return the elementary precision corresponding
+        to multi_precision """
+    if isinstance(multi_precision, ML_FP_MultiElementFormat):
+        return multi_precision.field_format_list[0]
+    else:
+        return multi_precision
 
 class MultiPrecisionExpander:
     def __init__(self, target):
@@ -105,36 +125,26 @@ class MultiPrecisionExpander:
             for index, elt in enumerate(expansion):
                 elt.set_tag("{}_s{}".format(node_tag, expansion_len - 1 - index))
 
-    def expand_binary_op(self, node, expander_map):
+    def expand_op(self, node, expander_map, arity=2):
         """ Generic expansion method for 2-operand node """
-        lhs = node.get_input(0)
-        rhs = node.get_input(1)
+        operands = [node.get_input(i) for i in range(arity)]
 
-        lhs_list = self.expand_node(lhs)
-        rhs_list = self.expand_node(rhs)
+        operands_expansion = [list(self.expand_node(op)) for op in operands]
+        operands_format = [op.precision for op in operands]
 
-        lhs_precision = lhs.precision
-        rhs_precision = rhs.precision
         result_precision = node.precision
 
-        def get_elementary_precision(multi_precision):
-            """ return the elementary precision corresponding
-                to multi_precision """
-            if isinstance(multi_precision, ML_FP_MultiElementFormat):
-                return multi_precision.field_format_list[0]
-            else:
-                return mutli_precision
 
         elt_precision = get_elementary_precision(result_precision)
 
         try:
-            expander = expander_map[(result_precision, (lhs_precision, rhs_precision))]
+            expander = expander_map[(result_precision, tuple(operands_format))]
         except KeyError:
             Log.report(
                 Log.Error,
-                "unable to find expander for ({}, {}, {})",
-                result_precision, lhs_precision, rhs_precision)
-        new_op = expander(*(lhs_list + rhs_list), precision=elt_precision)
+                "unable to find multi-precision expander for {}",
+                node)
+        new_op = expander(*(sum(operands_expansion, [])), precision=elt_precision)
         # setting dedicated name to expanded node
         self.tag_expansion(node, new_op)
         return new_op
@@ -158,7 +168,62 @@ class MultiPrecisionExpander:
             (ML_Binary32, (ML_SingleSingle, ML_Binary32)): Add121,
             (ML_Binary32, (ML_Binary32, ML_SingleSingle)): Add112,
         }
-        return self.expand_binary_op(add_node, ADD_EXPANSION_MAP)
+        return self.expand_op(add_node, ADD_EXPANSION_MAP, arity=2)
+
+
+    def expand_mul(self, mul_node):
+        """ Expand Multiplication """
+        MUL_EXPANSION_MAP = {
+            # double precision based formats
+            (ML_DoubleDouble, (ML_DoubleDouble, ML_DoubleDouble)): Mul222,
+            (ML_DoubleDouble, (ML_Binary64, ML_DoubleDouble)): Mul212,
+            (ML_DoubleDouble, (ML_DoubleDouble, ML_Binary64)): Mul221,
+            (ML_DoubleDouble, (ML_Binary64, ML_Binary64)): Mul211,
+            # single precision based formats
+            (ML_SingleSingle, (ML_SingleSingle, ML_SingleSingle)): Mul222,
+            (ML_SingleSingle, (ML_Binary32, ML_SingleSingle)): Mul212,
+            (ML_SingleSingle, (ML_SingleSingle, ML_Binary32)): Mul221,
+            (ML_SingleSingle, (ML_Binary32, ML_Binary32)): Mul211,
+        }
+        return self.expand_op(mul_node, MUL_EXPANSION_MAP, arity=2)
+
+    def expand_fma(self, fma_node):
+        """ Expand Fused-Multiply Add """
+        FMA_EXPANSION_MAP = {
+            # double precision based formats
+            (ML_DoubleDouble, (ML_DoubleDouble, ML_DoubleDouble, ML_DoubleDouble)): MP_FMA2222,
+            (ML_DoubleDouble, (ML_DoubleDouble, ML_Binary64, ML_DoubleDouble)): MP_FMA2212,
+            (ML_DoubleDouble, (ML_Binary64, ML_DoubleDouble, ML_DoubleDouble)): MP_FMA2122,
+            (ML_DoubleDouble, (ML_Binary64, ML_Binary64, ML_DoubleDouble)): MP_FMA2112,
+            (ML_DoubleDouble, (ML_Binary64, ML_DoubleDouble, ML_Binary64)): MP_FMA2121,
+            (ML_DoubleDouble, (ML_DoubleDouble, ML_Binary64, ML_Binary64)): MP_FMA2211,
+            (ML_DoubleDouble, (ML_Binary64, ML_Binary64, ML_Binary64)): MP_FMA2111,
+            # single precision based formats
+            (ML_SingleSingle, (ML_SingleSingle, ML_SingleSingle, ML_SingleSingle)): MP_FMA2222,
+            (ML_SingleSingle, (ML_SingleSingle, ML_Binary32, ML_SingleSingle)): MP_FMA2212,
+            (ML_SingleSingle, (ML_Binary32, ML_SingleSingle, ML_SingleSingle)): MP_FMA2122,
+            (ML_SingleSingle, (ML_Binary32, ML_Binary32, ML_SingleSingle)): MP_FMA2112,
+            (ML_SingleSingle, (ML_Binary32, ML_SingleSingle, ML_Binary32)): MP_FMA2121,
+            (ML_SingleSingle, (ML_SingleSingle, ML_Binary32, ML_Binary32)): MP_FMA2211,
+            (ML_SingleSingle, (ML_Binary32, ML_Binary32, ML_Binary32)): MP_FMA2111,
+        }
+        return self.expand_op(fma_node, FMA_EXPANSION_MAP, arity=3)
+
+    def expand_subnormalize(self, sub_node):
+        """ Expand SpecificOperation.Subnormalize on multi-component node """
+        operand = sub_node.get_input(0)
+        factor = sub_node.get_input(1)
+        exp_operand = self.expand_node(operand)
+        elt_precision = get_elementary_precision(sub_node.precision)
+        return subnormalize_multi(exp_operand, factor, precision=elt_precision)
+        
+
+    def expand_negation(self, neg_node):
+        """ Expand Negation on multi-component node """
+        op_input = neg_node.get_input(0)
+        neg_operands = self.expand_node(op_input)
+        return [Negation(op, precision=op.precision) for op in neg_operands]
+        
 
 
     def is_expandable(self, node):
@@ -169,10 +234,13 @@ class MultiPrecisionExpander:
             (isinstance(node, Addition) or \
              isinstance(node, Multiplication) or \
              isinstance(node, Subtraction) or \
-             isinstance(node, FusedMultiplyAdd))
+             isinstance(node, FusedMultiplyAdd) or \
+             isinstance(node, Negation) or \
+             is_subnormalize_op(node))
 
 
     def expand_conversion(self, node):
+        """ Expand Conversion node """
         # optimizing Conversion
         op_input = self.expand_node(node.get_input())
         # checking if you are looking at the Conversion of a
@@ -185,11 +253,20 @@ class MultiPrecisionExpander:
         return node
 
     def expand_sub(self, node):
-        raise NotImplementedError
-    def expand_mul(self, node):
-        raise NotImplementedError
-    def expand_fma(self, node):
-        raise NotImplementedError
+        lhs = node.get_input(0)
+        rhs = node.get_input(1)
+        tag = node.get_tag()
+        precision = node.get_precision()
+        new_node = Addition(
+            lhs,
+            Negation(
+                rhs,
+                precision=rhs.precision
+            ),
+            precision=precision
+        )
+        forward_attributes(node, new_node)
+        return self.expand_node(new_node)
 
     def expand_node(self, node):
         """ If node @p node is a multi-precision node, expands to a list
@@ -214,6 +291,10 @@ class MultiPrecisionExpander:
                 return self.expand_fma(node)
             elif isinstance(node, Conversion):
                 return self.expand_conversion(node)
+            elif isinstance(node, Negation):
+                return self.expand_negation(node)
+            elif is_subnormalize_op(node):
+                return self.expand_subnormalize(node)
             else:
                 # no modification
                 return None

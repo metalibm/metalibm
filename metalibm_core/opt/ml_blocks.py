@@ -36,6 +36,8 @@
 from metalibm_core.core.ml_operations import (
     BitLogicRightShift, BitLogicAnd, BitArithmeticRightShift,
     Subtraction, BitLogicLeftShift, BitLogicNegate, Addition, Multiplication, 
+    ExponentExtraction, ExponentInsertion,
+    Max, Min,
     FMS, FMA, Constant
 )
 from metalibm_core.core.ml_formats import ML_Binary32, ML_Binary64
@@ -157,34 +159,6 @@ def Add211(x, y, precision=None):
     zh, zl = generate_twosum(x, y, precision)
     return zh, zl
 
-def Mul212(x, yh, yl, precision=None, fma=True):
-    """ Multi-precision Multiplication:
-        HI, LO = x * [yh:yl] """
-    t1, t2 = Mul211(x, yh, precision, fma)
-    t3 = Multiplication(x, yl, precision=precision)
-    t4 = Addition(t2, t3, precision=precision)
-    return Add211(t1, t4, precision)
-
-def Mul222(xh, xl, yh, yl, precision=None, fma=True):
-    """ Multi-precision Multiplication:
-        HI, LO = [xh:xl] * [yh:yl] """
-    if fma == True:
-        ph = Multiplication(xh, yh, precision=precision)
-        pl = FMS(xh, yh, ph, precision=precision)
-        pl = FMA(xh, yl, pl, precision=precision)
-        pl = FMA(xl, yh, pl, precision=precision)
-        zh = Addition(ph, pl, precision=precision)
-        zl = Subtraction(ph, zh, precision=precision)
-        zl = Addition(zl, pl, precision=precision)
-    else:
-        t1, t2 = Mul211(xh, yh, precision, fma)
-        t3 = Multiplication(xh, yl, precision=precision)
-        t4 = Multiplication(xl, yh, precision=precision)
-        t5 = Addition(t3, t4, precision=precision)
-        t6 = Addition(t2, t5, precision=precision)
-        zh, zl = Add211(t1, t6, precsion); 
-    return zh, zl
-
 def Add212(xh, yh, yl, precision=None):
     """ Multi-precision Addition:
         HI, LO = xh + [yh:yl] """
@@ -236,3 +210,191 @@ def Add112(xh, yh, yl, precision=None):
         HI = xh + [yh:yl] """
     zh, _ = Add212(xh, yh, yl, precision)
     return zh
+
+def Mul212(x, yh, yl, precision=None, fma=True):
+    """ Multi-precision Multiplication:
+        HI, LO = x * [yh:yl] """
+    t1, t2 = Mul211(x, yh, precision, fma)
+    t3 = Multiplication(x, yl, precision=precision)
+    t4 = Addition(t2, t3, precision=precision)
+    return Add211(t1, t4, precision)
+def Mul221(xh, xl, y, precision=None, fma=True):
+    """ Multi-precision Multiplication:
+        HI, LO = [xh:xl] * y """
+    return Mul212(y, xh, xl, precision=precision, fma=fma)
+
+def Mul222(xh, xl, yh, yl, precision=None, fma=True):
+    """ Multi-precision Multiplication:
+        HI, LO = [xh:xl] * [yh:yl] """
+    if fma == True:
+        ph = Multiplication(xh, yh, precision=precision)
+        pl = FMS(xh, yh, ph, precision=precision)
+        pl = FMA(xh, yl, pl, precision=precision)
+        pl = FMA(xl, yh, pl, precision=precision)
+        zh = Addition(ph, pl, precision=precision)
+        zl = Subtraction(ph, zh, precision=precision)
+        zl = Addition(zl, pl, precision=precision)
+    else:
+        t1, t2 = Mul211(xh, yh, precision, fma)
+        t3 = Multiplication(xh, yl, precision=precision)
+        t4 = Multiplication(xl, yh, precision=precision)
+        t5 = Addition(t3, t4, precision=precision)
+        t6 = Addition(t2, t5, precision=precision)
+        zh, zl = Add211(t1, t6, precsion); 
+    return zh, zl
+
+
+def MP_FMA2111(x, y, z, precision=None, fma=True):
+    mh, ml = Mul211(x, y, precision=precision, fma=fma)
+    ah, al = Add221(mh, ml, z, precision=precision)
+    return ah, al
+
+def MP_FMA2211(xh, xl, y, z, precision=None, fma=True):
+    mh, ml = Mul221(xh, xl, y, precision=precision, fma=fma)
+    ah, al = Add221(mh, ml, z, precision=precision)
+    return ah, al
+def MP_FMA2121(x, yh, yl, z, precision=None, fma=True):
+    return MP_FMA2211(yh, yl, x, z, precision=None, fma=True)
+
+def MP_FMA2112(x, y, zh, zl, precision=None, fma=True):
+    mh, ml = Mul211(x, y, precision=precision, fma=fma)
+    ah, al = Add222(mh, ml, zh, zl, precision=precision)
+    return ah, al
+
+def MP_FMA2122(x, yh, yl, zh, zl, precision=None, fma=True):
+    mh, ml = Mul212(x, yh, yl, precision=precision, fma=fma)
+    ah, al = Add222(mh, ml, zh, zl, precision=precision)
+    return ah, al
+
+def MP_FMA2212(xh, xl, y, zh, zl, precision=None, fma=True):
+    mh, ml = Mul212(xh, xl, y, precision=precision, fma=fma)
+    ah, al = Add222(mh, ml, zh, zl, precision=precision)
+    return ah, al
+
+def MP_FMA2222(xh, xl, yh, yl, zh, zl, precision=None, fma=True):
+    mh, ml = Mul222(xh, xl, yh, yl, precision=precision, fma=fma)
+    ah, al = Add222(mh, ml, zh, zl, precision=precision)
+    return ah, al
+
+
+def subnormalize(x_list, factor, precision=None, fma=True):
+    """ x_list is a multi-component number with components ordered from the
+        most to the least siginificant.
+        x_list[0] must be the rounded evaluation of (x_list[0] + x_list[1] + ...)
+        @return the field of x as a floating-point number assuming
+        the exponent of the result is exponent(x) + factor
+        and managing field subnormalization if required """
+    x_hi = x_list[0]
+    int_precision=precision.get_integer_format()
+    ex = ExponentExtraction(x_hi, precision=int_precision)
+    scaled_ex = ex + factor
+    # difference betwen x's real exponent and the minimal exponent
+    # for a floating of format precision
+    CI0 = Constant(0, precision=int_precision)
+    CI1 = Constant(1, precision=int_precision)
+    delta = Max(
+        Min(
+            precision.get_emin() - scaled_ex,
+            CI0
+        ),
+        Constant(precision.get_field_size(), precision=int_precision)
+    )
+
+    casted_int_x = TypeCast(x_hi, precision=int_precision)
+
+    # compute a constant to be added to a casted floating-point to perform
+    # rounding. This constant shall be equivalent to a half-ulp
+    round_cst = BitLogicLeftShift(CI1, delta - 1, precision=int_precision)
+    pre_rounded_value = TypeCast(casted_int_x + round_cst, precision=precision)
+
+    sticky_shift = precision.get_bit_size() - (delta - 1)
+    sticky = BitLogicLeftShift(casted_int_x, sticky_shift, precision=int_precision)
+    low_sticky_sign = CI0
+    if len(x_list) > 1:
+        for x_op in x_list[1:]:
+            sticky = BitLogicOr(sticky, x_op)
+            low_sticky_sign = BitLogicOr(BitLogicXor(CopySign(x_hi), CopySign(x_op)), low_sticky_sign)
+    # does the low sticky (x_list[1:]) differs in signedness from x_hi ?
+    parity_bit = BitLogicAnd(
+        casted_int_x,
+        BitLogicLeftShift(1, delta, precision=int_precision),
+        precision=int_precision)
+
+    inc_select = LogicalAnd(
+        Equal(sticky, CI0),
+        Equal(parity_bit, CI0)
+    )
+
+    rounded_value = Select(inc_select, x, pre_rounded_value, precision=precision)
+    # cleaning trailing-bits
+    return TypeCast(
+        BitLogicRightShift(
+            BitLogicLeftShift(
+                TypeCast(rounded_value, precision=int_precision),
+                delta,
+                precision=int_precision
+            ),
+            delta,
+            precision=int_precision
+        ),
+        precision=precision)
+
+def subnormalize_multi(x_list, factor, precision=None, fma=True):
+    """ x_list is a multi-component number with components ordered from the
+        most to the least siginificant.
+        x_list[0] must be the rounded evaluation of (x_list[0] + x_list[1] + ...)
+        @return the field of x as a floating-point number assuming
+        the exponent of the result is exponent(x) + factor
+        and managing field subnormalization if required """
+    x_hi = x_list[0]
+    int_precision=precision.get_integer_format()
+    ex = ExponentExtraction(x_hi, precision=int_precision)
+    scaled_ex = Addition(ex, factor, precision=int_precision)
+    CI0 = Constant(0, precision=int_precision)
+    CI1 = Constant(1, precision=int_precision)
+
+    # difference betwen x's real exponent and the minimal exponent
+    # for a floating of format precision
+    delta = Max(
+        Min(
+            Subtraction(
+                Constant(precision.get_emin_normal(), precision=int_precision),
+                scaled_ex,
+                precision=int_precision
+            ),
+            CI0,
+            precision=int_precision
+        ),
+        Constant(precision.get_field_size(), precision=int_precision),
+        precision=int_precision
+    )
+
+    round_factor_exp = Addition(delta, ex, precision=int_precision)
+    round_factor = ExponentInsertion(round_factor_exp, precision=precision)
+
+    # to force a rounding as if x_hi was of precision p - delta
+    # we use round_factor as follows:
+    # o(o(round_factor + x_hi) - round_factor)
+    if len(x_list) == 2:
+        rounded_x_hi = Subtraction(
+            Add112(round_factor, x_list[0], x_list[1], precision=precision),
+            round_factor,
+            precision=precision
+        )
+    elif len(x_list) == 3:
+        rounded_x_hi = Subtraction(
+            Add113(round_factor, x_list[0], x_list[1], x_list[2], precision=precision),
+            round_factor,
+            precision=precision
+        )
+    else:
+        Log.report(Log.Error, "len of x_list: {} is not supported in subnormalize_multi", len(x_list))
+        raise NotImplementedError
+
+    return [rounded_x_hi] + [Constant(0, precision=precision) for i in range(len(x_list)-1)] 
+
+    
+
+
+
+
