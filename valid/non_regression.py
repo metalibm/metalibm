@@ -48,6 +48,7 @@ import metalibm_functions.ml_sincos
 import metalibm_functions.ml_atan
 import metalibm_functions.external_bench
 import metalibm_functions.ml_tanh
+import metalibm_functions.ml_div
 
 from metalibm_core.core.ml_formats import ML_Binary32, ML_Binary64, ML_Int32
 from metalibm_core.targets.common.vector_backend import VectorBackend
@@ -252,7 +253,7 @@ new_scheme_function_list = [
         #{"precision": ML_Binary32, "target": k1b, "function_name": "my_atan", "auto_test_execute": 100, "auto_test_std" : True},
     # {"precision": ML_Binary64, "target": k1b, "function_name": "my_atan", "auto_test_execute": 100, "auto_test_std" : True},
     ]
-  ), 
+  ),
   NewSchemeTest(
     "basic vectorizable_log tests",
     metalibm_functions.ml_vectorizable_log.ML_Log,
@@ -289,6 +290,14 @@ new_scheme_function_list = [
       "bench_execute": 1000,
       "bench_test_range": Interval(-1, 1)
     }, ]
+  ),
+  NewSchemeTest(
+    "basic division test",
+    metalibm_functions.ml_div.ML_Division,
+    [
+        {"precision": ML_Binary32, "auto_test": 1000, "execute": True},
+        {"precision": ML_Binary64, "auto_test": 1000, "execute": True},
+    ],
   ),
 ]
 

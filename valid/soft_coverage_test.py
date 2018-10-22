@@ -51,6 +51,7 @@ import metalibm_functions.ml_sincos
 import metalibm_functions.ml_atan
 import metalibm_functions.external_bench
 import metalibm_functions.ml_tanh
+import metalibm_functions.ml_div
 import metalibm_functions.generic_log
 
 from metalibm_core.utility.log_report import Log
@@ -128,6 +129,8 @@ FUNCTION_LIST = [
     FunctionTest(metalibm_functions.ml_sinh.ML_HyperbolicSine, [{}]),
     FunctionTest(metalibm_functions.ml_exp.ML_Exponential, [{}]),
     FunctionTest(metalibm_functions.ml_log1p.ML_Log1p, [{}]),
+
+    FunctionTest(metalibm_functions.ml_div.ML_Division, [{}]),
 
     # superseeded by ML_GenericLog
     # FunctionTest(metalibm_functions.ml_log10.ML_Log10, [{"passes": ["beforecodegen:fuse_fma"]}]),
