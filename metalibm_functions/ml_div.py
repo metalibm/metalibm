@@ -108,10 +108,10 @@ def dividend_mult(div_approx, inv_approx, dividend, divisor, index):
         and  div_approx ~ dividend / divisor """
     # yerr = dividend - div_approx * divisor
     yerr = FMSN(div_approx, divisor, dividend)
-    yerr.set_attributes(tag="yerr%d" % index)
+    yerr.set_attributes(tag="yerr%d" % index, debug=debug_multi)
     # new_div = div_approx + yerr * inv_approx
     new_div = FMA(yerr, inv_approx, div_approx)
-    new_div.set_attributes(tag="new_div%d" % index)
+    new_div.set_attributes(tag="new_div%d" % index, debug=debug_multi)
     return new_div
 
 def compute_reduced_reciprocal(init_approx, vy, num_iteration):
@@ -123,7 +123,7 @@ def compute_reduced_reciprocal(init_approx, vy, num_iteration):
 
     # compute precision (up to accuracy) approximation of 1 / _vy
     for i in range(num_iteration):
-        new_iteration = NR_Iteration(current_approx, vy, force_fma=False if (i != num_iteration - 1) else True)
+        new_iteration = NR_Iteration(current_approx, vy, force_fma=True) #False if (i != num_iteration - 1) else True)
         inv_iteration_list.append(new_iteration)
         current_approx = new_iteration.new_approx
         current_approx.set_attributes(tag="iter_%d" % i, debug=debug_multi)
@@ -243,15 +243,16 @@ class ML_Division(ML_FunctionBasis):
 
     def generate_scheme(self):
         # We wish to compute vx / vy
-        vx = self.implementation.add_input_variable("x", self.precision) 
-        vy = self.implementation.add_input_variable("y", self.precision) 
+        vx = self.implementation.add_input_variable("x", self.precision)
+        vy = self.implementation.add_input_variable("y", self.precision)
 
         # maximum exponent magnitude (to avoid overflow/ underflow during
         # intermediary computations
         max_exp_mag = self.precision.get_emax() - 3
+        int_prec = self.precision.get_integer_format()
 
-        exact_ex = ExponentExtraction(vx, tag = "exact_ex")
-        exact_ey = ExponentExtraction(vy, tag = "exact_ey")
+        exact_ex = ExponentExtraction(vx, tag = "exact_ex", precision=int_prec)
+        exact_ey = ExponentExtraction(vy, tag = "exact_ey", precision=int_prec)
 
         ex = Max(Min(exact_ex, max_exp_mag), -max_exp_mag, tag="ex")
         ey = Max(Min(exact_ey, max_exp_mag), -max_exp_mag, tag="ey")
@@ -270,29 +271,29 @@ class ML_Division(ML_FunctionBasis):
         scaled_vx = vx * scaling_factor_x
         scaled_vy = vy * scaling_factor_y
 
-        scaled_vx.set_attributes(tag="scaled_vx")
-        scaled_vy.set_attributes(tag="scaled_vy")
+        scaled_vx.set_attributes(tag="scaled_vx", debug=debug_multi)
+        scaled_vy.set_attributes(tag="scaled_vy", debug=debug_multi)
 
 
         # We need a first approximation to 1 / scaled_vy
         dummy_seed = ReciprocalSeed(EmptyOperand(precision=self.precision), precision=self.precision)
 
         if self.processor.is_supported_operation(dummy_seed):
-            init_approx = ReciprocalSeed(scaled_vy, precision=self.precision, tag="init_approx")
+            init_approx = ReciprocalSeed(scaled_vy, precision=self.precision, tag="init_approx", debug=debug_multi)
 
         else:
             # generate tabulated version of seed
             raise NotImplementedError
 
 
-        current_approx_std = init_approx 
+        current_approx_std = init_approx
         # correctly-rounded inverse computation
         num_iteration = self.num_iter
 
         Attributes.unset_default_rounding_mode()
         Attributes.unset_default_silent()
 
-    
+
         # check if inputs are zeros
         x_zero = Test(vx, specifier=Test.IsZero, likely=False)
         y_zero = Test(vy, specifier=Test.IsZero, likely=False)
@@ -319,6 +320,8 @@ class ML_Division(ML_FunctionBasis):
 
         # initial reciprocal approximation of 1.0 / scaled_vy
         inv_iteration_list, recp_approx = compute_reduced_reciprocal(init_approx, scaled_vy, self.num_iter)
+
+        recp_approx.set_attributes(tag="recp_approx", debug=debug_multi)
 
         # approximation of scaled_vx / scaled_vy
         yerr_last, reduced_div_approx = compute_reduced_division(scaled_vx, scaled_vy, recp_approx)
@@ -474,6 +477,10 @@ class ML_Division(ML_FunctionBasis):
         except:
             print("error during gappa run")
 
+    standard_test_cases = [
+        (sollya.parse("-0x1.34a246p-2"), sollya.parse("-0x1.26e2e2p-1")),
+    ]
+
 
 
 if __name__ == "__main__":
@@ -482,7 +489,7 @@ if __name__ == "__main__":
         default_arg=ML_Division.get_default_args()
     )
     arg_template.get_parser().add_argument(
-         "--num-iter", dest="num_iter", default=3, type=int, 
+         "--num-iter", dest="num_iter", default=3, type=int,
         action="store", help="number of newton-raphson iterations")
 
     args = arg_template.arg_extraction()
