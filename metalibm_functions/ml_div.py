@@ -38,7 +38,7 @@ S2 = sollya.SollyaObject(2)
 from metalibm_core.core.attributes import ML_Debug
 from metalibm_core.core.ml_operations import *
 from metalibm_core.core.ml_formats import *
-from metalibm_core.core.precisions import ML_Faithful
+from metalibm_core.core.precisions import ML_CorrectlyRounded
 from metalibm_core.code_generation.c_code_generator import CCodeGenerator
 from metalibm_core.code_generation.generic_processor import GenericProcessor
 from metalibm_core.code_generation.code_object import CodeObject
@@ -230,11 +230,13 @@ class ML_Division(ML_FunctionBasis):
             the Hyperbolic Cosine """
         default_div_args = {
             "precision": ML_Binary32,
-            "accuracy": ML_Faithful,
+            "accuracy": ML_CorrectlyRounded,
             "target": GenericProcessor(),
             "output_file": "my_div.c",
             "function_name": "my_div",
             "language": C_Code,
+            "num_iter": 3,
+            "passes": ["beforecodegen:expand_multi_precision"],
             "vector_size": 1,
             "arity": ML_Division.arity,
         }
