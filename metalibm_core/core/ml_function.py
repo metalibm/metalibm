@@ -692,11 +692,14 @@ class ML_FunctionBasis(object):
             # executing test command
             test_result, test_stdout = get_cmd_stdout(test_command)
             if not test_result:
-                print(test_stdout)
                 Log.report(Log.Info, "VALIDATION SUCCESS")
             else:
-                 Log.report(
-                    Log.Error, "VALIDATION FAILURE [{}]\n{}".format(test_result, test_stdout),
+                Log.report(
+                    Log.Error, 
+                    "VALIDATION FAILURE [{}]\n{}".format(
+                        test_result,
+                        test_stdout.decode("ascii")
+                    ),
                     error=ValidError()
                 )
 
@@ -957,11 +960,13 @@ class ML_FunctionBasis(object):
     test_case_list = []
 
     if self.auto_test_std:
+      if not num_std_case:
+        Log.report(Log.Warning, "{} standard test case found!", num_std_case)
       # standard test cases
       for i in range(num_std_case):
         input_list = []
         for in_id in range(self.get_arity()):
-          input_value = self.get_input_precision(in_id).round_sollya_object(self.standard_test_cases[i][0], RN)
+          input_value = self.get_input_precision(in_id).round_sollya_object(self.standard_test_cases[i][in_id], RN)
           input_list.append(input_value)
         test_case_list.append(tuple(input_list))
 
