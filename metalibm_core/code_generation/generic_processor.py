@@ -260,8 +260,10 @@ def legalize_reciprocal_seed(optree):
     # TODO: fix integer precision selection
     #       as we are in a late code generation stage, every node's precision
     #       must be set
-    op_exp = ExponentExtraction(op_input, tag="op_exp", debug=debug_multi, precision=ML_Int32)
-    neg_exp = Negation(op_exp, precision=ML_Int32)
+    int_prec = op_prec.get_integer_format()
+    op_sign = CopySign(op_input, Constant(1.0, precision=op_prec), precision=op_prec)
+    op_exp = ExponentExtraction(op_input, tag="op_exp", debug=debug_multi, precision=int_prec)
+    neg_exp = Negation(op_exp, precision=int_prec)
     approx_exp = ExponentInsertion(neg_exp, tag="approx_exp", debug=debug_multi, precision=op_prec)
     table_index = generic_inv_approx_table.get_index_function()(op_input)
     table_index.set_attributes(tag="inv_index", debug=debug_multi)
@@ -271,7 +273,11 @@ def legalize_reciprocal_seed(optree):
             table_index,
             precision=op_prec
         ),
-        approx_exp,
+        Multiplication(
+            approx_exp,
+            op_sign,
+            precision=op_prec
+        ),
         tag="inv_approx",
         debug=debug_multi,
         precision=op_prec
