@@ -1015,12 +1015,16 @@ class ML_Compound_Format(ML_Format):
     def is_cst_decl_required(self):
         return True
 
+    def get_bit_size(self):
+        """ Return bit-size of the full compound format """
+        return sum([scalar.get_bit_size() for scalar in self.field_format_list])
+
     def get_cst(self, cst_value, language = C_Code):
         tmp_cst = cst_value
         field_str_list = []
         for field_name, field_format in zip(self.c_field_list, self.field_format_list):
             # FIXME, round is only valid for double_double or triple_double stype format
-            field_value = sollya.round(tmp_cst, field_format.sollya_object, RN)
+            field_value = sollya.round(tmp_cst, field_format.sollya_object, sollya.RN)
             tmp_cst = cst_value - field_value
             field_str_list.append(".%s = %s" % (field_name, field_format.get_c_cst(field_value)))
         return "{%s}" % (", ".join(field_str_list))
@@ -1041,6 +1045,7 @@ class ML_FP_MultiElementFormat(ML_Compound_FP_Format):
     @staticmethod
     def is_fp_multi_elt_format(format_object):
         return isinstance(format_object, ML_FP_MultiElementFormat)
+
 
 # compound binary floating-point format declaration
 ML_DoubleDouble = ML_FP_MultiElementFormat("ml_dd_t", ["hi", "lo"],

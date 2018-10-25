@@ -243,6 +243,23 @@ def Mul222(xh, xl, yh, yl, precision=None, fma=True):
         zh, zl = Add211(t1, t6, precsion); 
     return zh, zl
 
+def Mul122(xh, xl, yh, yl, precision=None):
+    """ Multi-precision Multiplication:
+        HI = [xh:xl] * [yh:yl] """
+    zh, _ = Mul222(xh, xl, yh, yl, precision)
+    return zh
+
+def Mul121(xh, xl, yh, precision=None):
+    """ Multi-precision Multiplication:
+        HI = [xh:xl] * yh """
+    zh, _ = Mul221(xh, xl, yh, precision)
+    return zh
+
+def Mul112(xh, yh, yl, precision=None):
+    """ Multi-precision Multiplication:
+        HI = xh * [yh:yl] """
+    return Mul121(yh, yl, xh, precision)
+
 
 def MP_FMA2111(x, y, z, precision=None, fma=True):
     mh, ml = Mul211(x, y, precision=precision, fma=fma)

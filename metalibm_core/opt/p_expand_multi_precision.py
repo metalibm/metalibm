@@ -50,9 +50,10 @@ from metalibm_core.core.ml_operations import (
 )
 from metalibm_core.opt.ml_blocks import (
     Add222, Add122, Add221, Add212, 
-    Add121, Add112, 
+    Add121, Add112, Add122,
     Add211, 
     Mul212, Mul221, Mul211, Mul222,
+    Mul122, Mul121, Mul112,
     MP_FMA2111, MP_FMA2112, MP_FMA2122, MP_FMA2212, MP_FMA2121, MP_FMA2211,
     MP_FMA2222,
     subnormalize_multi,
@@ -160,6 +161,7 @@ class MultiPrecisionExpander:
             (ML_DoubleDouble, (ML_DoubleDouble, ML_DoubleDouble)): Add222,
             (ML_Binary64, (ML_DoubleDouble, ML_Binary64)): Add121,
             (ML_Binary64, (ML_Binary64, ML_DoubleDouble)): Add112,
+            (ML_Binary64, (ML_DoubleDouble, ML_DoubleDouble)): Add122,
             # single precision based formats
             (ML_SingleSingle, (ML_Binary32, ML_Binary32)): Add211,
             (ML_SingleSingle, (ML_SingleSingle, ML_Binary32)): Add221,
@@ -167,6 +169,7 @@ class MultiPrecisionExpander:
             (ML_SingleSingle, (ML_SingleSingle, ML_SingleSingle)): Add222,
             (ML_Binary32, (ML_SingleSingle, ML_Binary32)): Add121,
             (ML_Binary32, (ML_Binary32, ML_SingleSingle)): Add112,
+            (ML_Binary32, (ML_SingleSingle, ML_SingleSingle)): Add122,
         }
         return self.expand_op(add_node, ADD_EXPANSION_MAP, arity=2)
 
@@ -179,11 +182,17 @@ class MultiPrecisionExpander:
             (ML_DoubleDouble, (ML_Binary64, ML_DoubleDouble)): Mul212,
             (ML_DoubleDouble, (ML_DoubleDouble, ML_Binary64)): Mul221,
             (ML_DoubleDouble, (ML_Binary64, ML_Binary64)): Mul211,
+            (ML_Binary64, (ML_DoubleDouble, ML_DoubleDouble)): Mul122,
+            (ML_Binary64, (ML_DoubleDouble, ML_Binary64)): Mul121,
+            (ML_Binary64, (ML_Binary64, ML_DoubleDouble)): Mul112,
             # single precision based formats
             (ML_SingleSingle, (ML_SingleSingle, ML_SingleSingle)): Mul222,
             (ML_SingleSingle, (ML_Binary32, ML_SingleSingle)): Mul212,
             (ML_SingleSingle, (ML_SingleSingle, ML_Binary32)): Mul221,
             (ML_SingleSingle, (ML_Binary32, ML_Binary32)): Mul211,
+            (ML_Binary32, (ML_SingleSingle, ML_SingleSingle)): Mul122,
+            (ML_Binary32, (ML_SingleSingle, ML_Binary32)): Mul121,
+            (ML_Binary32, (ML_Binary32, ML_SingleSingle)): Mul112,
         }
         return self.expand_op(mul_node, MUL_EXPANSION_MAP, arity=2)
 
