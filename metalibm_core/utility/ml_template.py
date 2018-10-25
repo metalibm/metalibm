@@ -355,6 +355,8 @@ class DefaultArgTemplate:
     display_after_opt = False
     display_after_gen = False
     verbose_enable = False
+    # enable dump of executed binary stdout
+    display_stdout = True
     # 
     arity = 1
     # output/intermediate format Specification
@@ -607,6 +609,11 @@ class ML_CommonArgTemplate(object):
           const = True, default = default_arg.execute_trigger,
           help = "trigger post-build execution"
         )
+
+        self.parser.add_argument(
+            "--no-stdout", dest="display_stdout",
+            action="store_const", default=True, const=False,
+            help="disable display of binary stdout (test, bench execution)")
 
     # Extract argument from the command-line (sys.argv)
     def arg_extraction(self):

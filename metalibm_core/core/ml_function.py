@@ -198,6 +198,8 @@ class ML_FunctionBasis(object):
     self.bench_test_number = args.bench_test_number
     self.bench_test_range = args.bench_test_range
 
+    self.display_stdout = args.display_stdout
+
     # source building
     self.build_enable = args.build_enable
     # binary execution
@@ -671,7 +673,7 @@ class ML_FunctionBasis(object):
         test_file = "./test_%s.bin" % self.function_name
         build_result, build_stdout = build_code_function(
             [self.output_file],
-            test_file, 
+            test_file,
             self.processor,
             link_trigger)
 
@@ -691,11 +693,13 @@ class ML_FunctionBasis(object):
             ))
             # executing test command
             test_result, test_stdout = get_cmd_stdout(test_command)
+            if self.display_stdout:
+                print(test_stdout.decode("ascii"))
             if not test_result:
                 Log.report(Log.Info, "VALIDATION SUCCESS")
             else:
                 Log.report(
-                    Log.Error, 
+                    Log.Error,
                     "VALIDATION FAILURE [{}]\n{}".format(
                         test_result,
                         test_stdout.decode("ascii")
