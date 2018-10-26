@@ -1044,7 +1044,10 @@ class ML_FP_MultiElementFormat(ML_Compound_FP_Format):
         double double, triple double ...) """
     @staticmethod
     def is_fp_multi_elt_format(format_object):
-        return isinstance(format_object, ML_FP_MultiElementFormat)
+      return isinstance(format_object, ML_FP_MultiElementFormat)
+
+    def get_bit_size(self):
+      return sum([scalar.get_bit_size() for scalar in self.field_format_list])
 
 
 # compound binary floating-point format declaration
