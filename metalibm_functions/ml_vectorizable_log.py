@@ -627,7 +627,7 @@ class ML_Log(ML_Function("ml_log")):
                                       log1pu_poly_hi, log1pu_poly_lo)
 
     # Add -log(2^(tau)/m) approximation retrieved by two table lookups
-    logx_hi = Add122(tmp_res_hi, tmp_res_lo, tbl_hi, tbl_lo)
+    logx_hi = Add122(tmp_res_hi, tmp_res_lo, tbl_hi, tbl_lo)[0]
     logx_hi.set_attributes(tag = 'logx_hi')
 
     scheme = Return(logx_hi, precision = self.precision)
