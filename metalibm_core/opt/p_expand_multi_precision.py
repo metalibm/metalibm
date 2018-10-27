@@ -46,7 +46,8 @@ from metalibm_core.core.ml_operations import (
     FusedMultiplyAdd,
     Conversion, Negation,
     Constant, Variable, SpecificOperation, 
-    BuildFromComponent
+    BuildFromComponent,
+    is_leaf_node,
 )
 from metalibm_core.opt.ml_blocks import (
     Add222, Add122, Add221, Add212, 
@@ -73,6 +74,17 @@ def get_elementary_precision(multi_precision):
         return multi_precision.field_format_list[0]
     else:
         return multi_precision
+
+
+def is_multi_precision_format(precision):
+    """ check if precision is a multi-element FP format """
+    return isinstance(precision, ML_FP_MultiElementFormat)
+def multi_element_output(node):
+    """ return True if node's output format is a multi-precision type """
+    return is_multi_precision_format(node.precision)
+def multi_element_inputs(node):
+    """ return True if any of node's input has a multi-precision type """
+    return not is_leaf_node(node) and any(is_multi_precision_format(op_input.precision) for op_input in node.get_inputs())
 
 class MultiPrecisionExpander:
     def __init__(self, target):
@@ -119,9 +131,10 @@ class MultiPrecisionExpander:
         }
         expansion_len = len(expansion)
         node_tag = node.get_tag()
+        tag_prefix = "" if node_tag is None else node_tag
         if expansion_len in suffix_list:
             for elt, suffix in zip(expansion, suffix_list[expansion_len]):
-                elt.set_tag(node_tag + suffix)
+                elt.set_tag(tag_prefix + suffix)
         else:
             for index, elt in enumerate(expansion):
                 elt.set_tag("{}_s{}".format(node_tag, expansion_len - 1 - index))
@@ -130,7 +143,12 @@ class MultiPrecisionExpander:
         """ Generic expansion method for 2-operand node """
         operands = [node.get_input(i) for i in range(arity)]
 
-        operands_expansion = [list(self.expand_node(op)) for op in operands]
+        def wrapp_expand(op):
+            """ expand node and returns it if no modification occurs """
+            expanded_node = self.expand_node(op)
+            return (op,) if expanded_node is None else expanded_node
+
+        operands_expansion = [list(wrapp_expand(op)) for op in operands]
         operands_format = [op.precision for op in operands]
 
         result_precision = node.precision
@@ -149,7 +167,6 @@ class MultiPrecisionExpander:
         # setting dedicated name to expanded node
         self.tag_expansion(node, new_op)
         return new_op
-
 
     def expand_add(self, add_node):
         """ Expand Addition """
@@ -172,7 +189,6 @@ class MultiPrecisionExpander:
             (ML_Binary32, (ML_SingleSingle, ML_SingleSingle)): Add122,
         }
         return self.expand_op(add_node, ADD_EXPANSION_MAP, arity=2)
-
 
     def expand_mul(self, mul_node):
         """ Expand Multiplication """
@@ -226,20 +242,17 @@ class MultiPrecisionExpander:
         elt_precision = get_elementary_precision(sub_node.precision)
         return subnormalize_multi(exp_operand, factor, precision=elt_precision)
         
-
     def expand_negation(self, neg_node):
         """ Expand Negation on multi-component node """
         op_input = neg_node.get_input(0)
         neg_operands = self.expand_node(op_input)
         return [Negation(op, precision=op.precision) for op in neg_operands]
         
-
-
     def is_expandable(self, node):
         """ Returns True if @p can be expanded from a multi-precision
             node to a list of scalar-precision fields,
             returns False otherwise """
-        return isinstance(node.precision, ML_FP_MultiElementFormat) and \
+        return (multi_element_output(node) or multi_element_inputs(node)) and \
             (isinstance(node, Addition) or \
              isinstance(node, Multiplication) or \
              isinstance(node, Subtraction) or \
@@ -284,31 +297,32 @@ class MultiPrecisionExpander:
         if node in self.memoization_map:
             return self.memoization_map[node]
         else:
-            if not isinstance(node.precision, ML_FP_MultiElementFormat):
-                return (node,)
-            if isinstance(node, Variable):
-                return self.expand_var(node)
+            if not (multi_element_output(node) or multi_element_inputs(node)):
+                result = (node,)
+            elif isinstance(node, Variable):
+                result = self.expand_var(node)
             elif isinstance(node, Constant):
-                return self.expand_cst(node)
+                result = self.expand_cst(node)
             elif isinstance(node, Addition):
-                return self.expand_add(node)
+                result = self.expand_add(node)
             elif isinstance(node, Multiplication):
-                return self.expand_mul(node)
+                result = self.expand_mul(node)
             elif isinstance(node, Subtraction):
-                return self.expand_sub(node)
+                result = self.expand_sub(node)
             elif isinstance(node, FusedMultiplyAdd):
-                return self.expand_fma(node)
+                result = self.expand_fma(node)
             elif isinstance(node, Conversion):
-                return self.expand_conversion(node)
+                result = self.expand_conversion(node)
             elif isinstance(node, Negation):
-                return self.expand_negation(node)
+                result = self.expand_negation(node)
             elif is_subnormalize_op(node):
-                return self.expand_subnormalize(node)
+                result = self.expand_subnormalize(node)
             else:
                 # no modification
-                return None
+                result = None
 
-            self.memoization_map[node] = elt_list
+            self.memoization_map[node] = result
+            return result
 
 
 def dirty_multi_node_expand(node, precision, mem_map=None, fma=True):

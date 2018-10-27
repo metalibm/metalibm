@@ -83,9 +83,10 @@ def generate_count_leading_zeros(vx):
     return n + 2 - m
 
 
-# All multi-element / multi-precision operations must take
+# NOTES: All multi-element / multi-precision operations must take
 # argument field and return result field from most significant to least 
 # significant
+# Result are always a tuple 
 
 def generate_twosum(vx, vy, precision=None):
     """Return two optrees for a TwoSum operation.
@@ -197,19 +198,19 @@ def Add122(xh, xl, yh, yl, precision=None):
     """ Multi-precision Addition:
         HI = [xh:xl] + [yh:yl] """
     zh, _ = Add222(xh, xl, yh, yl, precision)
-    return zh
+    return zh,
 
 def Add121(xh, xl, yh, precision=None):
     """ Multi-precision Addition:
         HI = [xh:xl] + yh """
     zh, _ = Add221(xh, xl, yh, precision)
-    return zh
+    return zh,
 
 def Add112(xh, yh, yl, precision=None):
     """ Multi-precision Addition:
         HI = xh + [yh:yl] """
     zh, _ = Add212(xh, yh, yl, precision)
-    return zh
+    return zh,
 
 def Mul212(x, yh, yl, precision=None, fma=True):
     """ Multi-precision Multiplication:
@@ -247,13 +248,13 @@ def Mul122(xh, xl, yh, yl, precision=None):
     """ Multi-precision Multiplication:
         HI = [xh:xl] * [yh:yl] """
     zh, _ = Mul222(xh, xl, yh, yl, precision)
-    return zh
+    return zh,
 
 def Mul121(xh, xl, yh, precision=None):
     """ Multi-precision Multiplication:
         HI = [xh:xl] * yh """
     zh, _ = Mul221(xh, xl, yh, precision)
-    return zh
+    return zh,
 
 def Mul112(xh, yh, yl, precision=None):
     """ Multi-precision Multiplication:
@@ -394,13 +395,13 @@ def subnormalize_multi(x_list, factor, precision=None, fma=True):
     # o(o(round_factor + x_hi) - round_factor)
     if len(x_list) == 2:
         rounded_x_hi = Subtraction(
-            Add112(round_factor, x_list[0], x_list[1], precision=precision),
+            Add112(round_factor, x_list[0], x_list[1], precision=precision)[0],
             round_factor,
             precision=precision
         )
     elif len(x_list) == 3:
         rounded_x_hi = Subtraction(
-            Add113(round_factor, x_list[0], x_list[1], x_list[2], precision=precision),
+            Add113(round_factor, x_list[0], x_list[1], x_list[2], precision=precision)[0],
             round_factor,
             precision=precision
         )

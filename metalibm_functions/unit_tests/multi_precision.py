@@ -131,9 +131,15 @@ class ML_UT_MultiPrecision(ML_FunctionBasis, TestRunner):
         fma2122 = FMA(fma2212.lo, fma2212, fma2212, precision=double_format, tag="fma2122")
         # testing FMA22222
         fma2222 = FMA(fma2122, fma2212, fma2111, precision=double_format, tag="fma2222")
+        # testing Add122
+        add122 = Addition(fma2222, fma2222, precision=self.precision, tag="add122")
+        # testing Add112
+        add112 = Addition(add122, fma2222, precision=self.precision, tag="add112")
+        # testing Add121
+        add121 = Addition(fma2222, add112, precision=self.precision, tag="add121")
         # testing subnormalization
         multi_subnormalize = SpecificOperation(
-            fma2222,
+            Addition(add121, add112, precision=double_format),
             Constant(3, precision=self.precision.get_integer_format()),
             specifier=SpecificOperation.Subnormalize,
             precision=double_format,
