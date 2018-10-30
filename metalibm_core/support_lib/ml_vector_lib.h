@@ -432,6 +432,14 @@ DEF_ML_VECTOR_TEST_FUNC_OP1(ml_vtestd2_is_inf, ml_bool2_t, ml_double2_t, 2, ml_i
 DEF_ML_VECTOR_TEST_FUNC_OP1(ml_vtestd4_is_inf, ml_bool4_t, ml_double4_t, 4, ml_is_inf)
 DEF_ML_VECTOR_TEST_FUNC_OP1(ml_vtestd8_is_inf, ml_bool8_t, ml_double8_t, 8, ml_is_inf)
 
+DEF_ML_VECTOR_TEST_FUNC_OP1(ml_vtestf2_is_zero, ml_bool2_t, ml_float2_t, 2, ml_is_zerof)
+DEF_ML_VECTOR_TEST_FUNC_OP1(ml_vtestf4_is_zero, ml_bool4_t, ml_float4_t, 4, ml_is_zerof)
+DEF_ML_VECTOR_TEST_FUNC_OP1(ml_vtestf8_is_zero, ml_bool8_t, ml_float8_t, 8, ml_is_zerof)
+
+DEF_ML_VECTOR_TEST_FUNC_OP1(ml_vtestd2_is_zero, ml_bool2_t, ml_double2_t, 2, ml_is_zero)
+DEF_ML_VECTOR_TEST_FUNC_OP1(ml_vtestd4_is_zero, ml_bool4_t, ml_double4_t, 4, ml_is_zero)
+DEF_ML_VECTOR_TEST_FUNC_OP1(ml_vtestd8_is_zero, ml_bool8_t, ml_double8_t, 8, ml_is_zero)
+
 DEF_ML_VECTOR_TEST_FUNC_OP1(ml_vtestf2_is_subnormal, ml_bool2_t, ml_float2_t, 2, ml_is_subnormalf)
 DEF_ML_VECTOR_TEST_FUNC_OP1(ml_vtestf4_is_subnormal, ml_bool4_t, ml_float4_t, 4, ml_is_subnormalf)
 DEF_ML_VECTOR_TEST_FUNC_OP1(ml_vtestf8_is_subnormal, ml_bool8_t, ml_float8_t, 8, ml_is_subnormalf)

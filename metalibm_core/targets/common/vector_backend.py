@@ -1445,6 +1445,14 @@ vector_c_code_generation_table = {
         type_strict_match(v8bool, v8float32): ML_VectorLib_Function("ml_vtestf8_is_nan", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)}, arity = 1, output_precision = v8int32),
       },
     },
+    Test.IsZero: {
+      lambda _: True: {
+        type_strict_match(v2bool, v2float32): ML_VectorLib_Function("ml_vtestf2_is_zero", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)}, arity = 1, output_precision = v2int32),
+        type_strict_match(v3bool, v3float32): ML_VectorLib_Function("ml_vtestf3_is_zero", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)}, arity = 1, output_precision = v3int32),
+        type_strict_match(v4bool, v4float32): ML_VectorLib_Function("ml_vtestf4_is_zero", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)}, arity = 1, output_precision = v4int32),
+        type_strict_match(v8bool, v8float32): ML_VectorLib_Function("ml_vtestf8_is_zero", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)}, arity = 1, output_precision = v8int32),
+      },
+    },
     
     Test.IsSubnormal: {
       lambda _: True: {
