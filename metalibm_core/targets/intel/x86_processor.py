@@ -161,7 +161,7 @@ ML_SSE_m128_v2uint64  = vector_format_builder("__m128i", None, 2, ML_UInt64,
 
 # debug-format for SSE format
 debug_sse_vfloat32  = ML_Debug(
-    display_format="{%.3f, %.3f, %.3f, %.3f}",
+    display_format="{%a, %a, %a, %a}",
     require_header=["ml_utils.h", "smmintrin.h"],
     pre_process=lambda v: ", ".join("float_from_32b_encoding(_mm_extract_ps({v}, {i}))".format(v=v,i=i) for i in range(4))
 )
@@ -175,7 +175,15 @@ debug_sse_vuint32  = ML_Debug(
     display_format="{%u, %u, %u, %u}",
     require_header=["ml_utils.h", "smmintrin.h"],
     pre_process=lambda v: ", ".join("_mm_extract_epi32({v}, {i})".format(v=v,i=i) for i in range(4))
+
 )
+# virtual vector boolean format
+ML_SSE_m128_v4bool = VirtualFormatNoForward(
+    v4bool, ML_SSE_m128i, get_sseavx_vector_bool_cst, True)
+
+ML_AVX_m256_v8bool  = VirtualFormatNoForward(
+    v8bool, ML_AVX_m256i, get_sseavx_vector_bool_cst, True)
+
 # registering ML_SSE_m128_v<i>float32 specific format
 debug_multi.add_mapping(ML_SSE_m128_v4float32, debug_sse_vfloat32)
 debug_multi.add_mapping(ML_SSE_m128_v2float32, debug_sse_vfloat32)
@@ -188,6 +196,8 @@ debug_multi.add_mapping(ML_SSE_m128_v1int32, debug_sse_vint32)
 debug_multi.add_mapping(ML_SSE_m128_v4uint32, debug_sse_vuint32)
 debug_multi.add_mapping(ML_SSE_m128_v2uint32, debug_sse_vuint32)
 debug_multi.add_mapping(ML_SSE_m128_v1uint32, debug_sse_vuint32)
+# registering ML_SSE_m128_v<i>bool specific format
+debug_multi.add_mapping(ML_SSE_m128_v4bool, debug_sse_vint32)
 
 ## format for packed 8 fp32 in a YMM 256-bit register
 ML_AVX_m256_v8float32 = vector_format_builder("__m256", None, 8, ML_Binary32)
@@ -218,12 +228,6 @@ ML_AVX_m256_v4uint64  = vector_format_builder("__m256i", None, 4, ML_UInt64,
         cst_callback = get_sse_vector_int_cst,
         compound_constructor = ML_IntegerVectorFormat)
 
-# virtual vector boolean format
-ML_SSE_m128_v4bool = VirtualFormatNoForward(
-    v4bool, ML_SSE_m128i, get_sseavx_vector_bool_cst, True)
-
-ML_AVX_m256_v8bool  = VirtualFormatNoForward(
-    v8bool, ML_AVX_m256i, get_sseavx_vector_bool_cst, True)
 
 ## Wrapper for intel x86_sse intrinsics
 #  defined in <xmmintrin.h> header
@@ -1158,6 +1162,14 @@ sse_c_code_generation_table = {
             },
         },
     },
+    TypeCast: {
+        None: {
+            lambda _: True: {
+                type_strict_match(ML_SSE_m128_v4bool, ML_SSE_m128_v4int32): IdentityOperator(),
+                type_strict_match(ML_SSE_m128_v4bool, ML_SSE_m128_v4uint32): IdentityOperator(),
+            },
+        },
+    },
 }
 
 sse2_c_code_generation_table = {
@@ -1363,6 +1375,17 @@ sse2_c_code_generation_table = {
                         arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)},
                         void_function = True
                         ),
+                # dummy implementation
+                type_strict_match(ML_SSE_m128_v4bool, v4bool):
+                    XmmIntrin(
+                        "_mm_load_si128", arity = 1,
+                        output_precision = ML_SSE_m128_v4bool
+                        )(__m128ip_cast_operator(
+                            TemplateOperatorFormat(
+                                "GET_VEC_FIELD_ADDR({})", arity = 1,
+                                output_precision = ML_Pointer_Format(ML_Bool)
+                                )
+                            )),
             },
         },
     },
