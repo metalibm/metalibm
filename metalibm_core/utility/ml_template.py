@@ -208,7 +208,8 @@ def target_instanciate(target_name):
 def language_parser(language_str):
     """ string -> Language object conversion """
     if not language_str in language_map:
-        Log.report(Log.Error, "unknown language %s" % language_str)
+        Log.report(Log.Error, "unknown language {} (supported languages are: {})",
+                   language_str, ", ".join(language_map.keys()))
     else:
         return language_map[language_str]
 
