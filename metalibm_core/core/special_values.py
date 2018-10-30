@@ -267,8 +267,8 @@ class FP_PlusInfty(FP_MathSpecialValue):
   def __neg__(self):
     return FP_MinusInfty(self.precision)
 
-class FP_MinusInfty(FP_SpecialValue):
-  ml_support_name = "_sv_MinusInfty"
+class FP_MinusInfty(FP_MathSpecialValue):
+  ml_support_name = "-INFINITY" # _sv_MinusInfty"
   def get_integer_coding(self):
     exp = int(self.get_base_precision().get_nanorinf_exp_field())
     sign = 1
