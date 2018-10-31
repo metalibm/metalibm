@@ -105,7 +105,7 @@ class Pass_NodeTransformation(FunctionPass):
 
     def execute_on_optree(self, optree, fct, fct_group, memoization_map):
         return self.transform_graph(optree)
-        
+
 
 
 

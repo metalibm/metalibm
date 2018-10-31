@@ -784,10 +784,11 @@ class ML_FunctionBasis(object):
         # the vector result may be returned
         Test(
           vector_mask,
-          specifier = Test.IsMaskNotAnyZero,
-          precision = ML_Bool,
-          likely = True,
-          debug = debug_multi
+          specifier=Test.IsMaskNotAnyZero,
+          precision=ML_Bool,
+          likely=True,
+          debug=debug_multi,
+          tag="full_vector_valid"
         ),
         Return(vector_scheme, precision=vector_scheme.get_precision()),
         Statement(
