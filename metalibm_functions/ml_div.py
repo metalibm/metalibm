@@ -297,21 +297,21 @@ class ML_Division(ML_FunctionBasis):
 
 
         # check if inputs are zeros
-        x_zero = Test(vx, specifier=Test.IsZero, likely=False)
-        y_zero = Test(vy, specifier=Test.IsZero, likely=False)
+        x_zero = Test(vx, specifier=Test.IsZero, likely=False, precision=ML_Bool)
+        y_zero = Test(vy, specifier=Test.IsZero, likely=False, precision=ML_Bool)
 
-        comp_sign = Test(vx, vy, specifier = Test.CompSign, tag = "comp_sign", debug = debug_multi )
+        comp_sign = Test(vx, vy, specifier=Test.CompSign, tag = "comp_sign", debug = debug_multi )
 
         # check if divisor is NaN
-        y_nan = Test(vy, specifier = Test.IsNaN, likely = False)
+        y_nan = Test(vy, specifier=Test.IsNaN, likely=False, precision=ML_Bool)
 
         # check if inputs are signaling NaNs
-        x_snan = Test(vx, specifier = Test.IsSignalingNaN, likely = False)
-        y_snan = Test(vy, specifier = Test.IsSignalingNaN, likely = False)
+        x_snan = Test(vx, specifier=Test.IsSignalingNaN, likely=False, precision=ML_Bool)
+        y_snan = Test(vy, specifier=Test.IsSignalingNaN, likely=False, precision=ML_Bool)
 
         # check if inputs are infinities
-        x_inf = Test(vx, specifier = Test.IsInfty, likely = False, tag = "x_inf")
-        y_inf = Test(vy, specifier = Test.IsInfty, likely = False, tag = "y_inf", debug = debug_multi)
+        x_inf = Test(vx, specifier=Test.IsInfty, likely=False, tag="x_inf", precision=ML_Bool)
+        y_inf = Test(vy, specifier=Test.IsInfty, likely=False, tag="y_inf", debug=debug_multi, precision=ML_Bool)
 
 
         scheme = None
