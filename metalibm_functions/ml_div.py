@@ -253,8 +253,8 @@ class ML_Division(ML_FunctionBasis):
         max_exp_mag = self.precision.get_emax() - 3
         int_prec = self.precision.get_integer_format()
 
-        exact_ex = ExponentExtraction(vx, tag = "exact_ex", precision=int_prec)
-        exact_ey = ExponentExtraction(vy, tag = "exact_ey", precision=int_prec)
+        exact_ex = ExponentExtraction(vx, tag = "exact_ex", precision=int_prec, debug=debug_multi)
+        exact_ey = ExponentExtraction(vy, tag = "exact_ey", precision=int_prec, debug=debug_multi)
 
         ex = Max(Min(exact_ex, max_exp_mag), -max_exp_mag, tag="ex")
         ey = Max(Min(exact_ey, max_exp_mag), -max_exp_mag, tag="ey")
@@ -266,8 +266,8 @@ class ML_Division(ML_FunctionBasis):
         # computing the inverse square root
         init_approx = None
 
-        scaling_factor_x = ExponentInsertion(-ex, tag="sfx_ei", precision=self.precision) 
-        scaling_factor_y = ExponentInsertion(-ey, tag="sfy_ei", precision=self.precision) 
+        scaling_factor_x = ExponentInsertion(-ex, tag="sfx_ei", precision=self.precision, debug=debug_multi) 
+        scaling_factor_y = ExponentInsertion(-ey, tag="sfy_ei", precision=self.precision, debug=debug_multi) 
 
         # scaled version of vx and vy
         scaled_vx = vx * scaling_factor_x
@@ -359,7 +359,7 @@ class ML_Division(ML_FunctionBasis):
                 )
             ),
             ConditionBlock(x_zero,
-                ConditionBlock(y_zero | y_nan,
+                ConditionBlock(LogicalOr(y_zero, y_nan, precision=ML_Bool),
                     Statement(
                         ConditionBlock(y_snan, Raise(ML_FPE_Invalid)),
                         Return(FP_QNaN(self.precision))
