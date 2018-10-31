@@ -270,7 +270,9 @@ def generate_field_extraction(optree, precision, lo_index, hi_index):
         )
     return result
 
-def generate_exp_extraction(optree):
+def generate_raw_exp_extraction(optree):
+    """ Generate an expanded implementation of ExponentExtraction node
+        with @p optree as input """
     if optree.precision.is_vector_format():
         base_precision = optree.precision.get_scalar_format()
         int_precision = {
@@ -294,6 +296,34 @@ def generate_exp_extraction(optree):
         base_precision.get_field_size() + base_precision.get_exponent_size() - 1
     )
 
+
+def generate_exp_extraction(optree):
+    if optree.precision.is_vector_format():
+        base_precision = optree.precision.get_scalar_format()
+        vector_size = optree.precision.get_vector_size()
+        int_precision = {
+            v2float32: v2int32,
+            v2float64: v2int64,
+
+            v4float32: v4int32,
+            v4float64: v4int64,
+
+            v8float32: v8int32,
+            v8float64: v8int64,
+        }[optree.precision]
+        #base_precision.get_integer_format()
+        bias_cst = [base_precision.get_bias()] * vector_size
+    else:
+        base_precision = optree.precision
+        int_precision = base_precision.get_integer_format()
+        bias_cst = base_precision.get_bias()
+    return Addition(
+        generate_raw_exp_extraction(optree),
+        Constant(bias_cst, precision=int_precision),
+        precision=int_precision
+    )
+
+
 def generate_raw_mantissa_extraction(optree):
     int_precision = optree.precision.get_integer_format()
     return generate_field_extraction(
@@ -303,50 +333,54 @@ def generate_raw_mantissa_extraction(optree):
         optree.precision.get_field_size() - 1,
     )
 
+def generate_exp_insertion(optree, result_precision):
+    """ generate the expanded version of ExponentInsertion
+        with @p optree as input and assuming @p result_precision
+        as output precision """
+    if result_precision.is_vector_format():
+        scalar_format = optree.precision.get_scalar_format()
+        vector_size = optree.precision.get_vector_size()
+        bias_cst = [-result_precision.get_scalar_format().get_bias()] * vector_size
+        shift_cst = [result_precision.get_scalar_format().get_field_size()] * vector_size
+    else:
+        scalar_format = optree.precision
+        bias_cst = -result_precision.get_bias() 
+        shift_cst = result_precision.get_field_size()
+    assert is_std_integer_format(scalar_format)
+    biased_exponent = Addition(
+        optree,
+        Constant(
+            bias_cst,
+            precision=optree.precision),
+        precision=optree.precision
+    )
+    result = BitLogicLeftShift(
+        biased_exponent,
+        Constant(
+            shift_cst,
+            precision=optree.precision),
+        precision=optree.precision
+    )
+    return TypeCast(
+        result,
+        precision=result_precision
+    )
+
 def legalize_exp_insertion(result_precision):
     """ Legalize an ExponentInsertion node to a sequence of basic
         operations """
     def legalizer(exp_insertion_node):
         optree = exp_insertion_node.get_input(0)
-        if result_precision.is_vector_format():
-            scalar_format = optree.precision.get_scalar_format()
-            vector_size = optree.precision.get_vector_size()
-            bias_cst = [-result_precision.get_scalar_format().get_bias()] * vector_size
-            shift_cst = [result_precision.get_scalar_format().get_field_size()] * vector_size
-        else:
-            scalar_format = optree.precision
-            bias_cst = -result_precision.get_bias() 
-            shift_cst = result_precision.get_field_size()
-        assert is_std_integer_format(scalar_format)
-        biased_exponent = Addition(
-            optree,
-            Constant(
-                bias_cst,
-                precision=optree.precision),
-            precision=optree.precision
-        )
-        result = BitLogicLeftShift(
-            biased_exponent,
-            Constant(
-                shift_cst,
-                precision=optree.precision),
-            precision=optree.precision
-        )
-        return TypeCast(
-            result,
-            precision=result_precision
-        )
+        return generate_exp_insertion(optree, result_precision)
     return legalizer
 
-def legalize_test(optree):
+def generate_test_expansion(predicate, test_input):
     """ transform a Test optree into a sequence of basic
         node """
-    op_input = optree.get_input(0)
-    predicate = optree.specifier
-    test_bool_format = get_compatible_bool_format(op_input)
-    if op_input.precision.is_vector_format():
-        input_scalar_precision = op_input.precision.get_scalar_format()
-        vector_size = op_input.precision.get_vector_size() 
+    test_bool_format = get_compatible_bool_format(test_input)
+    if test_input.precision.is_vector_format():
+        input_scalar_precision = test_input.precision.get_scalar_format()
+        vector_size = test_input.precision.get_vector_size() 
         int_precision = {
             ML_Int32: {
                 2: v2int32,
@@ -363,14 +397,14 @@ def legalize_test(optree):
         zero_cst = [0] * vector_size
         one_cst = [1] * vector_size
     else:
-        input_scalar_precision = op_input.precision
+        input_scalar_precision = test_input.precision
         int_precision = input_scalar_precision.get_integer_format()
         nanorinf_cst =  input_scalar_precision.get_nanorinf_exp_field()
         zero_cst = 0
         one_cst = 1
     if predicate is Test.IsInfOrNaN:
         return Comparison(
-            generate_exp_extraction(op_input),
+            generate_raw_exp_extraction(test_input),
             Constant(nanorinf_cst, precision=int_precision),
             specifier=Comparison.Equal,
             precision=test_bool_format
@@ -378,13 +412,13 @@ def legalize_test(optree):
     elif predicate is Test.IsNaN:
         return LogicalAnd(
             Comparison(
-                generate_exp_extraction(op_input),
+                generate_raw_exp_extraction(test_input),
                 Constant(nanorinf_cst, precision=int_precision),
                 specifier=Comparison.Equal,
                 precision=test_bool_format
             ),
             Comparison(
-                generate_raw_mantissa_extraction(op_input),
+                generate_raw_mantissa_extraction(test_input),
                 Constant(zero_cst, precision=int_precision),
                 specifier=Comparison.NotEqual,
                 precision=test_bool_format
@@ -393,7 +427,7 @@ def legalize_test(optree):
         )
     elif predicate is Test.IsSubnormal:
         return Comparison(
-            generate_exp_extraction(op_input),
+            generate_raw_exp_extraction(test_input),
             Constant(zero_cst, precision=int_precision),
             specifier=Comparison.Equal,
             precision=test_bool_format
@@ -402,20 +436,20 @@ def legalize_test(optree):
         quiet_bit_index = input_scalar_precision.get_field_size() - 1
         return LogicalAnd(
             Comparison(
-                generate_exp_extraction(op_input),
+                generate_raw_exp_extraction(test_input),
                 Constant(nanorinf_cst, precision=int_precision),
                 specifier=Comparison.Equal,
                 precision=test_bool_format
             ),
             LogicalAnd(
                 Comparison(
-                    generate_raw_mantissa_extraction(op_input),
+                    generate_raw_mantissa_extraction(test_input),
                     Constant(zero_cst, precision=int_precision),
                     specifier=Comparison.NotEqual,
                     precision=test_bool_format
                 ),
                 Comparison(
-                    generate_field_extraction(op_input, int_precision, quiet_bit_index, quiet_bit_index),
+                    generate_field_extraction(test_input, int_precision, quiet_bit_index, quiet_bit_index),
                     Constant(zero_cst, precision=int_precision),
                     specifier=Comparison.Equal,
                     precision=test_bool_format
@@ -428,20 +462,20 @@ def legalize_test(optree):
         quiet_bit_index = input_scalar_precision.get_field_size() - 1
         return LogicalAnd(
             Comparison(
-                generate_exp_extraction(op_input),
+                generate_raw_exp_extraction(test_input),
                 Constant(nanorinf_cst, precision=int_precision),
                 specifier=Comparison.Equal,
                 precision=test_bool_format
             ),
             LogicalAnd(
                 Comparison(
-                    generate_raw_mantissa_extraction(op_input),
+                    generate_raw_mantissa_extraction(test_input),
                     Constant(zero_cst, precision=int_precision),
                     specifier=Comparison.NotEqual,
                     precision=test_bool_format
                 ),
                 Comparison(
-                    generate_field_extraction(op_input, int_precision, quiet_bit_index, quiet_bit_index),
+                    generate_field_extraction(test_input, int_precision, quiet_bit_index, quiet_bit_index),
                     Constant(one_cst, precision=int_precision),
                     specifier=Comparison.Equal,
                     precision=test_bool_format
@@ -453,22 +487,34 @@ def legalize_test(optree):
     elif predicate is Test.IsInfty:
         return LogicalAnd(
             Comparison(
-                generate_exp_extraction(op_input),
+                generate_raw_exp_extraction(test_input),
                 Constant(nanorinf_cst, precision=int_precision),
                 specifier=Comparison.Equal,
                 precision=test_bool_format
             ),
             Comparison(
-                generate_raw_mantissa_extraction(op_input),
+                generate_raw_mantissa_extraction(test_input),
                 Constant(zero_cst, precision=int_precision),
                 specifier=Comparison.Equal,
                 precision=test_bool_format
             ),
             precision=test_bool_format
         )
+    elif predicate is Test.IsZero:
+        # extract all bits except the sign and compare with zero
+        hi_index = input_scalar_precision.get_bit_size() - 2
+        return Comparison(
+            generate_field_extraction(test_input, int_precision, 0, hi_index),
+            Constant(zero_cst, precision=int_precision),
+            specifier=Comparison.Equal,
+            precision=test_bool_format
+        )
     else:
-        Log.report(Log.Error, "unsupported predicate {}".format(predicate),
+        Log.report(Log.Error, "unsupported predicate in generate_test_expansion: {}".format(predicate),
                    error=NotImplementedError)
+
+def legalize_test(optree):
+    return generate_test_expansion(optree.specifier, optree.get_input(0))
 
 class Legalizer:
     """ """
