@@ -175,7 +175,6 @@ debug_sse_vuint32  = ML_Debug(
     display_format="{%u, %u, %u, %u}",
     require_header=["ml_utils.h", "smmintrin.h"],
     pre_process=lambda v: ", ".join("_mm_extract_epi32({v}, {i})".format(v=v,i=i) for i in range(4))
-
 )
 # virtual vector boolean format
 ML_SSE_m128_v4bool = VirtualFormatNoForward(
@@ -228,6 +227,33 @@ ML_AVX_m256_v4uint64  = vector_format_builder("__m256i", None, 4, ML_UInt64,
         cst_callback = get_sse_vector_int_cst,
         compound_constructor = ML_IntegerVectorFormat)
 
+# debug utilities for AVX format
+# debug-format for SSE format
+debug_avx_vfloat32  = ML_Debug(
+    display_format="{%a, %a, %a, %a, %a, %an %a, %a}",
+    require_header=["ml_utils.h", "smmintrin.h"],
+    pre_process=lambda v: ", ".join("float_from_32b_encoding(_mm256_extract_epi32(_mm256_castps_si256({v}), {i}))".format(v=v,i=i) for i in range(8))
+)
+debug_avx_vint32  = ML_Debug(
+    display_format="{%d, %d, %d, %d, %d, %d, %d, %d}",
+    require_header=["ml_utils.h", "smmintrin.h"],
+    pre_process=lambda v: ", ".join("_mm256_extract_epi32({v}, {i})".format(v=v,i=i) for i in range(8))
+)
+# unsigned version
+debug_avx_vuint32  = ML_Debug(
+    display_format="{%u, %u, %u, %u, %u, %u, %u, %u}",
+    require_header=["ml_utils.h", "smmintrin.h"],
+    pre_process=lambda v: ", ".join("_mm256_extract_epi32({v}, {i})".format(v=v,i=i) for i in range(8))
+)
+
+# registering ML_SSE_m128_v<i>float32 specific format
+debug_multi.add_mapping(ML_AVX_m256_v8float32, debug_avx_vfloat32)
+# registering ML_SSE_m128_v<i>int32 specific format
+debug_multi.add_mapping(ML_AVX_m256_v8int32, debug_avx_vint32)
+# registering ML_SSE_m128_v<i>uint32 specific format
+debug_multi.add_mapping(ML_AVX_m256_v8uint32, debug_avx_vuint32)
+# registering ML_SSE_m128_v<i>bool specific format
+debug_multi.add_mapping(ML_AVX_m256_v8bool, debug_avx_vint32)
 
 ## Wrapper for intel x86_sse intrinsics
 #  defined in <xmmintrin.h> header
@@ -334,8 +360,6 @@ _mm_unpacklo_pd       = EmmIntrin("_mm_unpacklo_pd", arity = 2,
                                   output_precision = ML_SSE_m128_v2float64)
 
 # SSE4.1 instructions
-_mm_max_epi32 = SmmIntrin("_mm_max_epi32", arity = 2,
-                          output_precision = ML_SSE_m128_v4int32)
 _mm_mul_epi32 = SmmIntrin("_mm_mul_epi32", arity = 2,
                           output_precision = ML_SSE_m128_v4int32)
 
@@ -620,7 +644,7 @@ def expand_sse_avx_bool_comparison(optree):
         to a comparison with numeric format for result (supported by SSE/AVX)
         and a cast to boolean format to match operand prototype """
     lhs = optree.get_input(0)
-    rhs = optree.get_input(0)
+    rhs = optree.get_input(1)
     specifier = optree.specifier
     input_format = lhs.get_precision()
     return TypeCast(
@@ -827,7 +851,7 @@ def expand_vec_mantissa_extraction(optree):
 def error_raise_fct(optree):
     Log.report(
         Log.Error,
-        "Generation for is only supported by a dummy operator in x86 backend.: \n {}",
+        "Generation of the following node is only supported by a dummy operator in x86 backend.: \n {}",
         optree
     )
     raise NotImplementedError
@@ -836,6 +860,22 @@ ERROR_OPERATOR = ComplexOperator(optree_modifier=error_raise_fct)
 
 
 sse_c_code_generation_table = {
+    Min: {
+        None: {
+            lambda optree: True: {
+                type_strict_match(*(3*(ML_SSE_m128_v4float32,))):
+                    ImmIntrin("_mm_min_ps", arity = 2),
+            },
+        },
+    },
+    Max: {
+        None: {
+            lambda optree: True: {
+                type_strict_match(*(3*(ML_SSE_m128_v4float32,))):
+                    ImmIntrin("_mm_max_ps", arity = 2),
+            },
+        },
+    },
     Select: {
         None: {
             pred_vector_select_one_zero: {
@@ -1234,6 +1274,17 @@ sse2_c_code_generation_table = {
                     },
         },
     },
+    LogicalNot: {
+        None: {
+            lambda _: True: {
+                type_strict_match(ML_SSE_m128_v4bool, ML_SSE_m128_v4bool):
+                    ImmIntrin("_mm_andnot_si128", arity = 2)(
+                        FO_Arg(0),
+                        FO_Value("_mm_set1_epi32(-1)", ML_SSE_m128_v4bool)
+                        ),
+                    },
+        },
+    },
     LogicalOr: {
         None: {
             lambda optree: True: {
@@ -1524,12 +1575,38 @@ ssse3_c_code_generation_table = {
 }
 
 sse41_c_code_generation_table = {
+    Test: {
+        Test.IsMaskNotAnyZero: {
+            lambda optree: True: {
+                type_strict_match(ML_Bool, ML_SSE_m128_v4bool):
+                    ImmIntrin("_mm_test_all_ones", arg_map={0: FO_Arg(0), 1: FO_Arg(0)}, arity=1), 
+            },
+        },
+        Test.IsMaskAllZero: {
+            lambda optree: True: {
+                type_strict_match(ML_Bool, ML_SSE_m128_v4bool):
+                    ImmIntrin("_mm_testz_si128", arg_map={0: FO_Arg(0), 1: FO_Arg(0)}, arity=1), 
+            },
+        },
+    },
     Max: {
         None: {
             lambda optree: True: {
                 type_strict_match(*(3*(ML_SSE_m128_v4int32,))):
-                    _mm_max_epi32,
-            }
+                    ImmIntrin("_mm_max_epi32", arity = 2),
+                type_strict_match(*(3*(ML_SSE_m128_v4uint32,))):
+                    ImmIntrin("_mm_max_epu32", arity = 2),
+            },
+        },
+    },
+    Min: {
+        None: {
+            lambda optree: True: {
+                type_strict_match(*(3*(ML_SSE_m128_v4int32,))):
+                    ImmIntrin("_mm_min_epi32", arity = 2),
+                type_strict_match(*(3*(ML_SSE_m128_v4uint32,))):
+                    ImmIntrin("_mm_min_epu32", arity = 2),
+            },
         },
     },
     Multiplication: {
@@ -1572,7 +1649,46 @@ sse41_c_code_generation_table = {
 
 sse42_c_code_generation_table = {}
 
+def legalize_test_IsMaskNotAnyZero(optree):
+    vmask = optree.get_input(0)
+    legalized_node = Test(
+        LogicalNot(vmask, precision=vmask.precision),
+        specifier=Test.IsMaskAllZero,
+        precision=optree.precision)
+    forward_attributes(optree, legalized_node)
+    return legalized_node
+
 avx_c_code_generation_table = {
+    Test: {
+        Test.IsMaskNotAnyZero: {
+            lambda optree: True: {
+                type_strict_match(ML_Bool, ML_AVX_m256_v8bool):
+                    ComplexOperator(optree_modifier=legalize_test_IsMaskNotAnyZero),
+            },
+        },
+        Test.IsMaskAllZero: {
+            lambda optree: True: {
+                type_strict_match(ML_Bool, ML_AVX_m256_v8bool):
+                    ImmIntrin("_mm256_testz_si256", arg_map={0: FO_Arg(0), 1: FO_Arg(0)}, arity=1), 
+            },
+        },
+    },
+    Min: {
+        None: {
+            lambda optree: True: {
+                type_strict_match(*(3*(ML_AVX_m256_v8float32,))):
+                    ImmIntrin("_mm256_min_ps", arity = 2),
+            },
+        },
+    },
+    Max: {
+        None: {
+            lambda optree: True: {
+                type_strict_match(*(3*(ML_AVX_m256_v8float32,))):
+                    ImmIntrin("_mm256_max_ps", arity = 2),
+            },
+        },
+    },
     Addition: {
         None: {
             lambda optree: True: {
@@ -1764,6 +1880,13 @@ avx_c_code_generation_table = {
                     TransparentOperator(),
                 type_strict_match(ML_AVX_m256_v8uint32, ML_AVX_m256_v8int32):
                     TransparentOperator(),
+                # boolean conversion
+                type_strict_match(v8bool, ML_AVX_m256_v8bool):
+                    TemplateOperatorFormat(
+                        "_mm256_store_si256((__m256i*){0}, {1})",
+                        arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)},
+                        void_function = True
+                        ),
             },
             # AVX-based conversion of 4 int64 to 4 float64, valid if inputs fit
             # into 4 int32.
@@ -1905,6 +2028,8 @@ avx_c_code_generation_table = {
                     TransparentOperator(),
                 type_strict_match(ML_AVX_m256_v8int32, ML_AVX_m256_v8uint32):
                     TransparentOperator(),
+                type_strict_match(ML_AVX_m256_v8bool, ML_AVX_m256_v8int32):
+                    TransparentOperator(),
             },
         },
     },
@@ -1938,6 +2063,26 @@ def generate_avx2_uniform_shift(optree):
                          precision = optree.get_precision())
 
 avx2_c_code_generation_table = {
+    Min: {
+        None: {
+            lambda optree: True: {
+                type_strict_match(*(3*(ML_AVX_m256_v8int32,))):
+                    ImmIntrin("_mm256_min_epi32", arity = 2),
+                type_strict_match(*(3*(ML_AVX_m256_v8int32,))):
+                    ImmIntrin("_mm256_min_epu32", arity = 2),
+            },
+        },
+    },
+    Max: {
+        None: {
+            lambda optree: True: {
+                type_strict_match(*(3*(ML_AVX_m256_v8int32,))):
+                    ImmIntrin("_mm256_max_epi32", arity = 2),
+                type_strict_match(*(3*(ML_AVX_m256_v8int32,))):
+                    ImmIntrin("_mm256_max_epu32", arity = 2),
+            },
+        },
+    },
     Addition: {
         None: {
             lambda optree: True: {
@@ -2083,7 +2228,7 @@ avx2_c_code_generation_table = {
                     ImmIntrin("_mm256_andnot_si256", arity = 2)(
                               FO_Arg(0),
                               FO_Value("_mm256_set1_epi32(-1)",
-                                       ML_SSE_m128_v4int32)
+                                       ML_AVX_m256_v8int32)
                               ),
                 type_strict_match(ML_AVX_m256_v4int64, ML_AVX_m256_v4int64):
                     ImmIntrin("_mm256_andnot_si256", arity = 2)(
@@ -2091,6 +2236,36 @@ avx2_c_code_generation_table = {
                               FO_Value("_mm256_set1_epi64x(-1)",
                                        ML_AVX_m256_v4int64)
                               ),
+            },
+        },
+    },
+    LogicalNot: {
+        None: {
+            lambda _: True: {
+                type_strict_match(ML_AVX_m256_v8bool, ML_AVX_m256_v8bool):
+                    ImmIntrin("_mm256_andnot_si256", arity = 2)(
+                              FO_Arg(0),
+                              FO_Value("_mm256_set1_epi32(-1)",
+                                       ML_AVX_m256_v8bool)
+                              ),
+            },
+        },
+    },
+    LogicalAnd: {
+        None: {
+            lambda optree: True: {
+                type_strict_match(*(3*(ML_AVX_m256_v8bool,))):
+                    ImmIntrin("_mm256_and_si256", arity = 2,
+                              output_precision = ML_AVX_m256_v8bool),
+            },
+        },
+    },
+    LogicalOr: {
+        None: {
+            lambda optree: True: {
+                type_strict_match(*(3*(ML_AVX_m256_v8bool,))):
+                    ImmIntrin("_mm256_or_si256", arity = 2,
+                              output_precision = ML_AVX_m256_v8bool),
             },
         },
     },
@@ -2150,7 +2325,7 @@ avx2_c_code_generation_table = {
                                             3*(ML_AVX_m256_v4int64,),
                                             3*(ML_AVX_m256_v4uint64,) ]):
                     ComplexOperator(expand_avx2_comparison),
-                # 3 Dummy operators used to allow m128_promotion to promote squashable comparison
+                # 3 Dummy operators used to allow m256_promotion to promote squashable comparison
                 type_strict_match(ML_AVX_m256_v8bool, ML_AVX_m256_v8int32, ML_AVX_m256_v8int32):
                     ERROR_OPERATOR,
                 type_strict_match(ML_AVX_m256_v8bool, ML_AVX_m256_v8uint32, ML_AVX_m256_v8uint32):
@@ -2162,13 +2337,13 @@ avx2_c_code_generation_table = {
                 type_strict_match_or_list([ 3*(ML_AVX_m256_v8int32,),
                                             3*(ML_AVX_m256_v8uint32,), ]):
                     DynamicOperator(generate_sse_comparison),
-                # 3 Dummy operators used to allow m128_promotion to promote
+                # 3 Dummy operators used to allow m256_promotion to promote
                 # squashable comparison
                 type_strict_match_or_list([
                     (ML_AVX_m256_v8bool, ML_AVX_m256_v8uint32, ML_AVX_m256_v8uint32),
                     (ML_AVX_m256_v8bool, ML_AVX_m256_v8int32, ML_AVX_m256_v8int32),
                     ]):
-                    ERROR_OPERATOR,
+                    ComplexOperator(expand_sse_avx_bool_comparison),
             },
         },
         Comparison.Greater: {
