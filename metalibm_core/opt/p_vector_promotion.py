@@ -32,10 +32,14 @@ from metalibm_core.core.ml_formats import *
 from metalibm_core.core.passes import FunctionPass, Pass, LOG_PASS_INFO
 from metalibm_core.core.ml_table import ML_NewTable, ML_TableFormat
 from metalibm_core.core.ml_operations import (
-        ML_LeafNode, VectorElementSelection, FunctionCall, Conversion, Constant
+        ML_LeafNode, VectorElementSelection, FunctionCall, Conversion, Constant,
+        ControlFlowOperation, ReferenceAssign,
 )
 
 from metalibm_core.opt.p_check_support import Pass_CheckSupport
+
+LOG_LEVEL_VPROMO_VERBOSE = Log.LogLevel("VPromoVerbose")
+LOG_LEVEL_VPROMO_INFO = Log.LogLevel("VPromoInfo")
 
 ## Test if @p optree is a non-constant leaf node
 #    @param optree operation node to be tested
@@ -43,16 +47,27 @@ from metalibm_core.opt.p_check_support import Pass_CheckSupport
 def is_leaf_no_Constant(optree):
 	return isinstance(optree, ML_LeafNode) and not isinstance(optree, Constant)
 
-
 def insert_conversion_when_required(op_input, final_precision):
-        if op_input.get_precision() != final_precision:
-                return Conversion(op_input, precision = final_precision)
-        else:
-                return op_input
+    # assert not final_precision is None
+    if op_input.get_precision() != final_precision:
+        return Conversion(op_input, precision = final_precision)
+    else:
+        return op_input
 
 
 ## Generic vector promotion pass
 class Pass_Vector_Promotion(FunctionPass):
+    """ Generic pass to promote node format to better format for the final
+        target. This pass is specially dedicated to promote generic vector
+        format to target-specific format (e.g. v4float to ML_SSE_v4float)
+
+        This pass works by looking up in the translation table if a
+        promoted format is available for all the I/Os format of a node.
+        If such formats exist and if the node with promoted format is
+        supported by the target the promotion is performed.
+            Conversion are inserted at the begining and the end of a
+        promoted subgraph to ensure compatible connection with the full
+        graph """
     pass_tag = "vector_promotion"
     ## Return the translation table of formats
     #    to be used for promotion
@@ -117,98 +132,87 @@ class Pass_Vector_Promotion(FunctionPass):
 
         support_status = self.target.is_supported_operation(optree, key_getter=key_getter)
         if not support_status:
-            Log.report(Log.Verbose, "NOT supported in vector_promotion: {}".format(optree.get_str(depth = 2, display_precision = True, memoization_map = {})))
+            Log.report(LOG_LEVEL_VPROMO_INFO, "NOT supported in vector_promotion: {}".format(optree.get_str(depth = 2, display_precision = True, memoization_map = {})))
             op, formats, specifier = key_getter(None, optree)
-            Log.report(Log.Verbose, "with key: {}, {}, {}".format(str(op), [str(f) for f in formats], str(specifier)))
+            Log.report(LOG_LEVEL_VPROMO_INFO, "with key: {}, {}, {}".format(str(op), [str(f) for f in formats], str(specifier)))
         else:
-            Log.report(Log.Verbose, "supported in vector_promotion: {}".format(optree.get_str(depth = 2, display_precision = True, memoization_map = {})))
+            Log.report(LOG_LEVEL_VPROMO_VERBOSE, "supported in vector_promotion: {}".format(optree.get_str(depth = 2, display_precision = True, memoization_map = {})))
             op, formats, specifier = key_getter(None, optree)
-            Log.report(Log.Verbose, "with key: {}, {}, {}".format(str(op), [str(f) for f in formats], str(specifier)))
+            Log.report(LOG_LEVEL_VPROMO_VERBOSE, "with key: {}, {}, {}".format(str(op), [str(f) for f in formats], str(specifier)))
         return support_status
 
-    ## memoize converted
-    def memoize(self, force, optree, new_optree):
-        self.memoization_map[(force, optree)] = new_optree
-        #if not isinstance(optree, ML_LeafNode) and not self.target.is_supported_operation(optree):
-        #    print optree.get_str(display_precision = True, memoization_map = {})
-        #    print new_optree.get_str(display_precision = True, memoization_map = {})
-        #    #raise Exception()
+    def memoize(self, expected_format, optree, new_optree):
+        """ Memoization @p new_optree which is the promoted version of @p optree
+            with precision @p expected_format
+        """
+        self.memoization_map[(expected_format, optree)] = new_optree
         return new_optree
 
-    ## memoize conversion
-    def memoize_conv(self, force, optree, new_optree):
-        self.conversion_map[(force, optree)] = new_optree
-        #if not isinstance(optree, ML_LeafNode) and not self.target.is_supported_operation(optree):
-        #    raise Exception()
-        return new_optree
 
     def get_converted_node(self, optree):
         if optree in self.conversion_map:
             return self.conversion_map[optree]
         else:
             if self.does_target_support_promoted_op(optree):
-                new_optree = optree.copy(copy_map = self.copy_map)
+                new_optree = optree.copy(copy_map=self.copy_map)
                 new_inputs = [self.get_converted_node(op) for op in new_optree.get_inputs()]
                 new_optree.inputs = new_inputs
                 new_optree.set_precision(self.get_conv_format(optree.get_precision()))
                 self.conversion_map[optree] = new_optree
 
 
-    ## Convert a graph of operation to exploit the promoted registers
-    #    @param parent_converted indicates that the result must
-    #                 be in promoted formats else it must be in input format
-    #                 In case of promoted-format, the return value may need to be
-    #                 a conversion if the operation is not supported
-    def promote_node(self, optree, parent_converted = False):
-        if (parent_converted, optree) in self.memoization_map:
-                return self.memoization_map[(parent_converted, optree)]
+    def promote_node(self, optree, expected_format):
+        """
+           Convert a graph of operation to exploit the promoted registers
+           @param optree operation node to be promoted
+           @param expected_format is the format expected for the result
+                  This may trigger Conversion insertion when required
+           @return promoted node with precision equals to expected_format
+        """
+        if (expected_format, optree) in self.memoization_map:
+                return self.memoization_map[(expected_format, optree)]
         if 1:
-            new_optree = optree.copy(copy_map = self.copy_map)
             if self.does_target_support_promoted_op(optree):
+                new_optree = optree.copy(copy_map=self.copy_map)
 
-                new_inputs = [self.promote_node(op, parent_converted = True) for op in optree.get_inputs()]
+                new_inputs = [self.promote_node(op, self.get_conv_format(op.precision)) for op in optree.get_inputs()]
                 new_optree.inputs = new_inputs
                 new_optree.set_precision(self.get_conv_format(optree.get_precision()))
 
                 # must be converted back to initial format
                 # before being returned
-                if not parent_converted:
-
-                    new_optree = insert_conversion_when_required(new_optree, optree.get_precision()) # Conversion(new_optree, precision = optree.get_precision())
-
-                return self.memoize(parent_converted, optree, new_optree)
-            elif isinstance(optree, ML_NewTable):
-                return self.memoize(parent_converted, optree, optree)
-            elif is_leaf_no_Constant(optree):
-                if parent_converted and optree.get_precision() in self.get_translation_table():
-                    new_optree = insert_conversion_when_required(new_optree, self.get_conv_format(optree.get_precision()))#Conversion(optree, precision = self.get_conv_format(optree.get_precision()))
-                    return self.memoize(parent_converted, optree, new_optree)
-                elif parent_converted:
-                    raise NotImplementedError
-                else:
-                    return self.memoize(parent_converted, optree, optree)
+                new_optree = insert_conversion_when_required(new_optree, expected_format)
+                return self.memoize(expected_format, optree, new_optree)
             else:
-                # new_optree = optree.copy(copy_map = self.copy_map)
+                new_optree = optree
+                if isinstance(optree, ML_NewTable):
+                    # Table are not promoted (we assume vector access are gather
+                    # which are compatible between vector format): TO BE IMPROVED
+                    return self.memoize(expected_format, optree, optree)
+                elif is_leaf_no_Constant(optree):
+                    if expected_format is optree.precision:
+                        return optree
+                    elif optree.get_precision() in self.get_translation_table():
+                        new_optree = insert_conversion_when_required(new_optree, expected_format)
+                        return self.memoize(expected_format, optree, new_optree)
+                    else:
+                        Log.report(Log.Error, "following leaf's optree format is not supported for conversion (though required): {}", optree)
+                        raise NotImplementedError
+                else:
+                    # new_optree = optree.copy(copy_map = self.copy_map)
+                    # promote node operands
+                    new_inputs = [self.promote_node(op, op.precision) for op in optree.get_inputs()]
+                    # register modified inputs
+                    new_optree.inputs = new_inputs
 
-                # propagate conversion to inputs
-                new_inputs = [self.promote_node(op) for op in optree.get_inputs()]
-
-
-                # register modified inputs
-                new_optree.inputs = new_inputs
-
-                if parent_converted and optree.get_precision() in self.get_translation_table():
-                    new_optree = insert_conversion_when_required(new_optree, self.get_conv_format(optree.get_precision()))#Conversion(new_optree, precision = self.get_conv_format(optree.get_precision()))
-                    return new_optree
-                elif parent_converted:
-                    print(optree.get_precision())
-                    raise NotImplementedError
-                return self.memoize(parent_converted, optree, new_optree)
+                    if not isinstance(optree, ControlFlowOperation) and not isinstance(optree, ReferenceAssign):
+                        new_optree = insert_conversion_when_required(new_optree, expected_format)
+                    return self.memoize(expected_format, optree, new_optree)
 
 
     # standard Opt pass API
     def execute_on_optree(self, optree, fct=None, fct_group=None, memoization_map=None):
-        return self.promote_node(optree)
+        return self.promote_node(optree, optree.precision)
 
 
 Log.report(LOG_PASS_INFO, "Registering vector_conversion pass")
