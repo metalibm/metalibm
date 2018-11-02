@@ -693,7 +693,8 @@ class AbstractVariable(ML_LeafNode):
         return AbstractOperation.str_del * tab_level + custom_callback(self) + "Var(%s)%s%s%s\n" % (self.get_tag(), precision_str, attribute_str, id_str)
 
 
-    def copy(self, copy_map = {}):
+    def copy(self, copy_map=None):
+        copy_map = {} if copy_map is None else copy_map
         # test for previous definition in memoization map
         if self in copy_map: return copy_map[self]
         # by default input variable are not copied
@@ -703,7 +704,7 @@ class AbstractVariable(ML_LeafNode):
             copy_map[self] = self
             return self
         # else define a new and free copy
-        new_copy = self.__class__(tag = self.get_tag(), var_type = self.var_type)
+        new_copy = self.__class__(tag = self.get_tag(), var_type=self.var_type)
         new_copy.attributes = self.attributes.get_copy()
         copy_map[self] = new_copy
         return new_copy
@@ -1481,15 +1482,22 @@ class Test(SpecifierOperation, BooleanOperation, GeneralArithmeticOperation):
         name= "IsInvalidInput"
         arity=1
     class IsMaskAllZero(TestSpecifier):
+        """ predicate checking if all lanes of a vector mask
+            are equal to zero """
         name= "IsMaskAllZero"
         arity=1
     class IsMaskNotAllZero(TestSpecifier):
+        """ predicate checking if at least one lane of a vector mask
+            is not equal to zero """
         name= "IsMaskNotAllZero"
         arity=1
     class IsMaskAnyZero(TestSpecifier):
+        """ predicate checking if at least one lane of a vector mask is equal
+            to zero """
         name= "IsMaskAnyZero"
         arity=1
     class IsMaskNotAnyZero(TestSpecifier):
+        """ predicate checking if no lane of a vector mask is equal to zero """
         name= "IsMaskNotAnyZero"
         arity=1
 
@@ -1828,7 +1836,9 @@ class FunctionObject(FunctionType):
         self.generator_object = generator_object
 
     def __call__(self, *args, **kwords):
-        return FunctionCall(self, *args, **kwords)
+        call_kwords = {"precision": self.output_precision}
+        call_kwords.update(kwords)
+        return FunctionCall(self, *args, **call_kwords)
 
     def get_declaration(self, language=C_Code):
         """ Generate code declaration for FunctionObject """
