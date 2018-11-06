@@ -672,10 +672,7 @@ class ML_FunctionBasis(object):
                 else:
                     Log.report(
                         Log.Error,
-                        "VALIDATION FAILURE [{}]\n{}".format(
-                            test_result,
-                            test_stdout.decode("ascii")
-                        ),
+                        "VALIDATION FAILURE",
                         error=ValidError()
                     )
 
