@@ -76,6 +76,9 @@ from metalibm_core.code_generation.gappa_code_generator import GappaCodeGenerato
 from metalibm_core.utility.log_report import Log
 from metalibm_core.utility.debug_utils import *
 from metalibm_core.utility.ml_template import DefaultArgTemplate
+from metalibm_core.utility.build_utils import SourceFile
+
+
 
 
 ## \defgroup ml_function ml_function
@@ -88,50 +91,6 @@ class BuildError(Exception):
 class ValidError(Exception):
     """ Exception to indicate that a validation stage failed """
     pass
-
-
-def build_code_function(src_list, bin_file, processor, link_trigger=False):
-    """ Build the code function for processor
-        Args:
-            src_list(list): list of source file (string)
-            bin_file(str): name of the binary file (build result)
-            processor: target
-            link_trigger: enable/disable binary link
-        Return:
-            bool, str (error, stdout) """
-    compiler = processor.get_compiler()
-    test_file = bin_file
-    DEFAULT_OPTIONS = ["-O2", "-DML_DEBUG"]
-    compiler_options = " ".join(DEFAULT_OPTIONS + processor.get_compilation_options())
-    if not(link_trigger):
-        # build only, disable link
-        compiler_options += " -c  "
-    else:
-        src_list += [
-            "%s/metalibm_core/support_lib/ml_libm_compatibility.c" % (os.environ["ML_SRC_DIR"]),
-            "%s/metalibm_core/support_lib/ml_multi_prec_lib.c" % (os.environ["ML_SRC_DIR"]),
-        ]
-    Log.report(Log.Info, "Compiler options: \"{}\"".format(compiler_options))
-
-    build_command = "{compiler} {options} -I{ML_SRC_DIR}/metalibm_core \
-    {src_files} -o {test_file} -lm ".format(
-        compiler=compiler,
-        src_files = (" ".join(src_list)),
-        test_file=test_file,
-        options=compiler_options,
-        ML_SRC_DIR=os.environ["ML_SRC_DIR"])
-
-    Log.report(Log.Info, "Building source with command: {}".format(build_command))
-    build_result, build_stdout = get_cmd_stdout(build_command)
-    return build_result, build_stdout
-
-def get_cmd_stdout(cmd):
-    """ execute cmd on a subprocess and return return-code and stdout
-        message """
-    cmd_process = subprocess.Popen(
-        filter(None, cmd.split(" ")), stdout=subprocess.PIPE, env=os.environ.copy())
-    returncode = cmd_process.wait()
-    return returncode, cmd_process.stdout.read()
 
 
 ## standardized function name geneation
@@ -523,11 +482,19 @@ class ML_FunctionBasis(object):
     code_object = self.get_main_code_object()
     self.result = code_object
 
+    def gen_code_function_decl(fct_group, fct):
+        self.result = fct.add_declaration(
+            self.main_code_generator, language, code_object
+        )
+
     def gen_code_function_code(fct_group, fct):
         self.result = fct.add_definition(
             self.main_code_generator,
             language, code_object, static_cst=True)
 
+    # generating function declaration
+    function_group.apply_to_all_functions(gen_code_function_decl)
+    # generation function definition
     function_group.apply_to_all_functions(gen_code_function_code)
 
     #for code_function in code_function_list:
@@ -614,7 +581,7 @@ class ML_FunctionBasis(object):
     CstError = Constant(1, precision=ML_Int32)
     CstSuccess = Constant(0, precision=ML_Int32)
 
-    def add_fct_call_check_in_main(fct_group, code_function):
+    def add_fct_call_check_in_main(fct_group, code_function, check=lambda op: op):
         """ adding call to code_function with return value check
             in main statement """
         scheme = code_function.get_scheme()
@@ -626,7 +593,7 @@ class ML_FunctionBasis(object):
         main_pre_statement.add(fct_call)
         main_statement.add(
             ConditionBlock(
-                fct_call,
+                check(fct_call),
                 Return(CstError)
             )
         )
@@ -647,7 +614,12 @@ class ML_FunctionBasis(object):
             test_range = self.bench_test_range
         )
 
-        bench_function_group.apply_to_all_functions(add_fct_call_check_in_main)
+        def bench_check(bench_call):
+            return Comparison(bench_call, Constant(0.0, precision=ML_Binary64), specifier=Comparison.Less, precision=ML_Bool)
+
+        bench_function_group.apply_to_all_functions(
+            lambda fct_group, cf: add_fct_call_check_in_main(fct_group, cf, bench_check)
+        )
         # appending bench wrapper to general code_function_list
         function_group.merge_with_group(bench_function_group)
 
@@ -664,48 +636,48 @@ class ML_FunctionBasis(object):
         function_group.add_core_function(main_function)
 
     # generate C code to implement scheme
-    self.generate_code(function_group, language = self.language)
+    self.generate_code(function_group, language=self.language)
 
     build_trigger = self.build_enable or self.execute_trigger
     link_trigger = self.execute_trigger
 
     if build_trigger:
-        test_file = "./test_%s.bin" % self.function_name
-        build_result, build_stdout = build_code_function(
-            [self.output_file],
-            test_file,
-            self.processor,
-            link_trigger)
+        source_file = SourceFile(self.output_file, function_group)
+        bin_name = "./testlib_%s.so" % self.function_name
+        bin_file = source_file.build(self.processor, bin_name, shared_object=True)
 
-        if build_result:
+        if bin_file is None:
             Log.report(
-                Log.Error, "build failed: \n {}".format(build_stdout),
+                Log.Error, "build failed: \n",
                 error=BuildError()
             )
         else:
-            Log.report(Log.Info, "build result: {}\n{}".format(build_result, build_stdout))
+            Log.report(Log.Info, "build succedeed\n")
+
 
         # only executing if build was successful
-        if not(build_result) and self.execute_trigger:
-            test_command = " %s " % self.processor.get_execution_command(test_file)
-            Log.report(Log.Info, "VALIDATION {} command line: {}".format(
-                self.get_name(), test_command
-            ))
-            # executing test command
-            test_result, test_stdout = get_cmd_stdout(test_command)
-            if self.display_stdout:
-                print(test_stdout.decode("ascii"))
-            if not test_result:
-                Log.report(Log.Info, "VALIDATION SUCCESS")
-            else:
-                Log.report(
-                    Log.Error,
-                    "VALIDATION FAILURE [{}]\n{}".format(
-                        test_result,
-                        test_stdout.decode("ascii")
-                    ),
-                    error=ValidError()
-                )
+        if not(bin_file is None) and self.execute_trigger:
+            loaded_module = bin_file.load()
+            # test_command = " %s " % self.processor.get_execution_command(test_file)
+            #Log.report(Log.Info, "VALIDATION {} command line: {}".format(
+            #    self.get_name(), test_command
+            #))
+            if self.bench_enabled:
+                cpe_measure = loaded_module.get_function_handle("bench_wrapper")()
+                print("imported cpe_measure={}".format(cpe_measure))
+            if self.auto_test_enable:
+                test_result = loaded_module.get_function_handle("test_wrapper")()
+                if not test_result:
+                    Log.report(Log.Info, "VALIDATION SUCCESS")
+                else:
+                    Log.report(
+                        Log.Error,
+                        "VALIDATION FAILURE [{}]\n{}".format(
+                            test_result,
+                            test_stdout.decode("ascii")
+                        ),
+                        error=ValidError()
+                    )
 
 
 
@@ -1263,7 +1235,7 @@ class ML_FunctionBasis(object):
   def generate_bench_wrapper(self, test_num = 10, loop_num=100000, test_range = Interval(-1.0, 1.0), debug = False):
     low_input = inf(test_range)
     high_input = sup(test_range)
-    auto_test = CodeFunction("bench_wrapper", output_format = ML_Int32)
+    auto_test = CodeFunction("bench_wrapper", output_format=ML_Binary64)
 
     tested_function    = self.implementation.get_function_object()
     function_name      = self.implementation.get_name()
@@ -1329,6 +1301,14 @@ class ML_FunctionBasis(object):
     loop_num_cst = Constant(loop_num, precision=ML_Int32, tag="loop_num")
     loop_increment = 1
 
+    # bench measure of clock per element
+    cpe_measure = Division(
+        Conversion(timer, precision=ML_Binary64),
+        Constant(test_num * loop_num, precision=ML_Binary64),
+        precision=ML_Binary64,
+        tag="cpe_measure",
+    )
+
     # common test scheme between scalar and vector functions
     test_scheme = Statement(
       ReferenceAssign(timer, self.processor.get_current_timestamp()),
@@ -1350,13 +1330,10 @@ class ML_FunctionBasis(object):
       printf_timing_function(
         Constant(test_num * loop_num, precision = ML_Int64),
         timer,
-        Division(
-          Conversion(timer, precision = ML_Binary64),
-          Constant(test_num * loop_num, precision = ML_Binary64),
-          precision = ML_Binary64
-        )
+        cpe_measure,
       ),
-      Return(Constant(0, precision = ML_Int32))
+      Return(cpe_measure),
+      # Return(Constant(0, precision = ML_Int32))
     )
     auto_test.set_scheme(test_scheme)
     return FunctionGroup([auto_test])

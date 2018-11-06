@@ -143,6 +143,10 @@ class CodeFunction(object):
     code_object.close_level()
     return code_object
 
+  def add_declaration(self, code_generator, language, code_object):
+    code_object << self.get_declaration(code_generator, final=True, language=language) +"\n"
+    return code_object
+
 class FunctionGroup(object):
     """ group of multiple functions """
     def __init__(self, core_function_list=None, sub_function_list=None):
@@ -164,8 +168,8 @@ class FunctionGroup(object):
             routine(self, fct)
 
     def apply_to_all_functions(self, routine):
-        self.apply_to_core_functions(routine)
         self.apply_to_sub_functions(routine)
+        self.apply_to_core_functions(routine)
         return self
 
 
@@ -182,5 +186,12 @@ class FunctionGroup(object):
             else:
                 self.add_core_function(sub_fct)
         return self
+
+
+    def get_code_function_by_name(self, function_name):
+        for fct in self.core_function_list + self.sub_function_list:
+            if fct.name == function_name:
+                return fct
+        return None
         
 
