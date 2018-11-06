@@ -156,7 +156,14 @@ VECTOR_BACKEND = VectorBackend()
 
 TARGET_OPTIONS_MAP = {
     GENERIC_PROCESSOR: {},
-    X86_AVX2: {"passes": ["beforecodegen:m128_promotion", "beforecodegen:m256_promotion"]},
+    X86_AVX2: {
+        "passes": [
+            "beforecodegen:basic_legalization",
+            "beforecodegen:expand_multi_precision",
+            "beforecodegen:m128_promotion",
+            "beforecodegen:m256_promotion"
+        ]
+    },
     VECTOR_BACKEND: {},
     X86_PROCESSOR: {},
 }
