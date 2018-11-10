@@ -206,9 +206,12 @@ class StaticVectorizer(object):
 
 
   def vectorize_format(self, scalar_format, vector_size):
+    """ Return the vector version of size @p vectori_size of the scalar precision
+        @p scalar_format """
     return StaticVectorizer.VECTORIZE_FORMAT_MAP[scalar_format][vector_size]
 
   def is_vectorizable(self, optree):
+    """ Predicate to test if @p optree can be vectorized """
     arith_flag = isinstance(optree, ML_ArithmeticOperation)
     cst_flag   = isinstance(optree, Constant) 
     var_flag   = isinstance(optree, Variable)
@@ -219,6 +222,11 @@ class StaticVectorizer(object):
     return False
 
   def vector_replicate_scheme_in_place(self, optree, vector_size, _memoization_map = None):
+    """ update optree to replace scalar precision by vector precision of size
+        @p vector_size
+        Replacement is made in-place: node are kept unchanged except for the
+        precision 
+        @return modified operation graph """
     memoization_map = {} if _memoization_map is None else _memoization_map
 
     if optree in memoization_map:
@@ -227,9 +235,10 @@ class StaticVectorizer(object):
       if self.is_vectorizable(optree):
         optree_precision = optree.get_precision()
         if optree_precision is None:
-          print(optree)
+          Log.report(Log.Error, "operation node precision is None for {}", optree)
         optree.set_precision(self.vectorize_format(optree.get_precision(), vector_size))
         if isinstance(optree, Constant):
+          # extend consntant value from scalar to replicated constant vector
           optree.set_value([optree.get_value() for i in range(vector_size)])
         elif isinstance(optree, Variable):
           # TODO: does not take into account intermediary variables
@@ -240,6 +249,6 @@ class StaticVectorizer(object):
         memoization_map[optree] = optree
         return optree
       else:
-        Log.report(Log.Info, "optree not vectorizable: {}", optree)
+        Log.report(Log.Error, "optree not vectorizable: {}", optree)
 
     
