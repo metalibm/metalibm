@@ -548,12 +548,17 @@ class FunctionOperator(ML_CG_Operator):
     #  @param result_map dictionary of result value
     def materialize_argument(self, arg, arg_result_list, arg_map, result_map):
         if isinstance(arg, FO_Arg):
-            return self.materialize_argument(
-                arg_result_list[arg.get_index()],
-                arg_result_list,
-                arg_map,
-                result_map
-            )
+            try:
+                arg_result = arg_result_list[arg.get_index()]
+            except IndexError as e:
+                Log.report(Log.Error, "error index {} for fct {} in list {}", arg.get_index(), self.function_name, arg_result_list, error=e)
+            else:
+                return self.materialize_argument(
+                    arg_result_list[arg.get_index()],
+                    arg_result_list,
+                    arg_map,
+                    result_map
+                )
         elif isinstance(arg, FO_Result):
             return result_map[arg.get_index()]
         elif isinstance(arg, FO_ResultRef):
@@ -747,7 +752,10 @@ class TemplateOperatorFormat(FunctionOperator):
     """ template operator class """
     def generate_call_code(self, result_arg_list):
         """ overloading of FunctionOperator generate_call_code for template operator object """
-        return self.function_name.format(*tuple(var_arg.get() for var_arg in result_arg_list))
+        try:
+            return self.function_name.format(*tuple(var_arg.get() for var_arg in result_arg_list))
+        except IndexError as e:
+            Log.report(Log.Error, "failed to generate call code with template {} and result_arg_list: {} (len={})", self.function_name, result_arg_list, len(result_arg_list))
 
 
 class AsmInlineOperator(ML_CG_Operator):
@@ -902,14 +910,23 @@ class FSM(object):
 
 
 class type_strict_match(object):
+    """ Build a type matching predicate from a list of type,
+        a node is matched by the predicate if it has as many operands
+        as arguments were given to the initializer (minus one for the result)
+        AND if the node precision matches the first format argument, and if each
+        node's argument matches the other format arguments respectively """
     def __init__(self, *type_tuple):
         """ check that argument and constrain type match strictly """
         self.type_tuple = type_tuple
 
     def __call__(self, *arg_tuple, **kwords):
+        # TODO/FIXME: strict match between type object (no inheritance allowed)
         return self.type_tuple == arg_tuple
 
 class type_strict_match_list(object):
+    """ Build a type matching predicate from list of formats,
+        result and operands must match one of the item of the list formats
+        corresponding to their position """
     def __init__(self, *type_tuple_list):
         """ check that argument and constrain type match strictly """
         self.type_tuple_list = type_tuple_list
