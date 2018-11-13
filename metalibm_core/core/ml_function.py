@@ -275,7 +275,7 @@ class ML_FunctionBasis(object):
       pass_class  = Pass.get_pass_by_tag(pass_tag)
       pass_object = pass_class(self.processor)
       if not pass_slot in pass_slot_deps:
-        pass_slot_deps[pass_slot_dep] = PassDependency()
+        pass_slot_deps[pass_slot] = PassDependency()
       pass_dep = pass_slot_deps[pass_slot]
       custom_pass_id = self.pass_scheduler.register_pass(pass_object, pass_dep=pass_dep, pass_slot=pass_slot)
       # linearly linking pass in the order they appear
@@ -544,7 +544,9 @@ class ML_FunctionBasis(object):
     # generate vector size
     if self.get_vector_size() != 1:
         scalar_scheme = self.implementation.get_scheme()
+        # extract implementation's argument list
         scalar_arg_list = self.implementation.get_arg_list()
+        # clear argument list (will be replaced by vectorized counterpart)
         self.implementation.clear_arg_list()
 
         function_group = self.generate_vector_implementation(
@@ -647,10 +649,7 @@ class ML_FunctionBasis(object):
         bin_file = source_file.build(self.processor, bin_name, shared_object=True)
 
         if bin_file is None:
-            Log.report(
-                Log.Error, "build failed: \n",
-                error=BuildError()
-            )
+            Log.report(Log.Error, "build failed: \n", error=BuildError())
         else:
             Log.report(Log.Info, "build succedeed\n")
 
@@ -670,11 +669,7 @@ class ML_FunctionBasis(object):
                 if not test_result:
                     Log.report(Log.Info, "VALIDATION SUCCESS")
                 else:
-                    Log.report(
-                        Log.Error,
-                        "VALIDATION FAILURE",
-                        error=ValidError()
-                    )
+                    Log.report(Log.Error, "VALIDATION FAILURE", error=ValidError())
 
 
 
