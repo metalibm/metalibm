@@ -79,6 +79,10 @@ precision_map = {
     "uint32": ML_UInt32,
     "int64":  ML_Int64,
     "uint64": ML_UInt64,
+    "dd": ML_DoubleDouble,
+    "ds": ML_SingleSingle,
+    "td": ML_TripleDouble,
+    "ts": ML_TripleSingle,
 }
 
 
@@ -128,7 +132,11 @@ def precision_parser(precision_str):
                 eval_format = eval(precision_str)
                 return eval_format
             except Exception as e:
-                Log.report(Log.Error, "unable to parse evaluated format {}", precision_str, error=e)
+                list_supported_formats = ", ".join(list(precision_map.keys()) + ["F[US]<integer>.<frac>"])
+                Log.report(
+                    Log.Error,
+                    "unable to parse evaluated format {}.\nList of supported formats: {}",
+                    precision_str, list_supported_formats, error=e)
 
 def hdl_precision_parser(precision_str):
     """ translate a str to a ML_Format compatible with HDL backend
