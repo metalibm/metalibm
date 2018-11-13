@@ -1468,6 +1468,116 @@ vector_c_code_generation_table = {
       },
     },
   },
+  ComponentSelection: {
+      ComponentSelection.Hi: {
+          lambda optree: True: dict(
+            (
+                type_strict_match(field_format, op_format),
+                TemplateOperator("%s.hi", arity=1)
+            ) for (field_format, op_format) in [
+              (v2float64, v2dualfloat64), 
+              (v3float64, v3dualfloat64), 
+              (v4float64, v4dualfloat64), 
+              (v8float64, v8dualfloat64), 
+
+              (v2float32, v2dualfloat32), 
+              (v3float32, v3dualfloat32), 
+              (v4float32, v4dualfloat32), 
+              (v8float32, v8dualfloat32), 
+
+              (v2float64, v2trifloat64), 
+              (v3float64, v3trifloat64), 
+              (v4float64, v4trifloat64), 
+              (v8float64, v8trifloat64), 
+
+              (v2float32, v2trifloat32), 
+              (v3float32, v3trifloat32), 
+              (v4float32, v4trifloat32), 
+              (v8float32, v8trifloat32), 
+            ]
+        )
+      },
+      ComponentSelection.Me: {
+          lambda optree: True: dict( 
+            (
+                type_strict_match(field_format, op_format),
+                TemplateOperator("%s.me", arity=1)
+            ) for (field_format, op_format) in [
+              (v2float64, v2trifloat64), 
+              (v3float64, v3trifloat64), 
+              (v4float64, v4trifloat64), 
+              (v8float64, v8trifloat64), 
+
+              (v2float32, v2trifloat32), 
+              (v3float32, v3trifloat32), 
+              (v4float32, v4trifloat32), 
+              (v8float32, v8trifloat32), 
+            ]
+        )
+      },
+      ComponentSelection.Lo: {
+          lambda optree: True: dict( 
+            (
+                type_strict_match(field_format, op_format),
+                TemplateOperator("%s.lo", arity=1)
+            ) for (field_format, op_format) in [
+              (v2float64, v2dualfloat64), 
+              (v3float64, v3dualfloat64), 
+              (v4float64, v4dualfloat64), 
+              (v8float64, v8dualfloat64), 
+
+              (v2float32, v2dualfloat32), 
+              (v3float32, v3dualfloat32), 
+              (v4float32, v4dualfloat32), 
+              (v8float32, v8dualfloat32), 
+
+              (v2float64, v2trifloat64), 
+              (v3float64, v3trifloat64), 
+              (v4float64, v4trifloat64), 
+              (v8float64, v8trifloat64), 
+
+              (v2float32, v2trifloat32), 
+              (v3float32, v3trifloat32), 
+              (v4float32, v4trifloat32), 
+              (v8float32, v8trifloat32), 
+            ]
+        )
+      },
+  },
+  BuildFromComponent: {
+      None: {
+          lambda optree: True: dict(
+            [(
+                type_strict_match(op_format, field_format, field_format, field_format),
+                TemplateOperatorFormat("((%s) {{.hi={0} , .me={1}, .lo={2}}})" % op_format.name[C_Code], arity=3)
+            ) for (field_format, op_format) in [
+              (v2float64, v2trifloat64), 
+              (v3float64, v3trifloat64), 
+              (v4float64, v4trifloat64), 
+              (v8float64, v8trifloat64), 
+
+              (v2float32, v2trifloat32), 
+              (v3float32, v3trifloat32), 
+              (v4float32, v4trifloat32), 
+              (v8float32, v8trifloat32), 
+            ]] + [
+            (
+                type_strict_match(op_format, field_format, field_format),
+                TemplateOperatorFormat("((%s) {{.hi={0} , .lo={1}}})" % op_format.name[C_Code], arity=2)
+            ) for (field_format, op_format) in [
+              (v2float64, v2dualfloat64), 
+              (v3float64, v3dualfloat64), 
+              (v4float64, v4dualfloat64), 
+              (v8float64, v8dualfloat64), 
+
+              (v2float32, v2dualfloat32), 
+              (v3float32, v3dualfloat32), 
+              (v4float32, v4dualfloat32), 
+              (v8float32, v8dualfloat32), 
+            ]]
+        )
+      },
+  },
 }
 
 vector_gappa_code_generation_table = {
