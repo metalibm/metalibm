@@ -47,6 +47,11 @@ from metalibm_core.core.special_values import (
     FP_PlusZero, FP_MinusZero, NumericValue
 )
 
+from metalibm_core.core.display_utils import (
+    DisplayFormat,
+    DISPLAY_DD, DISPLAY_TD, DISPLAY_DS, DISPLAY_TS
+)
+
 
 S2 = sollya.SollyaObject(2)
 
@@ -854,12 +859,12 @@ class ML_Custom_FixedPoint_Format(ML_Base_SW_FixedPoint_Format):
 
 # Standard binary floating-point format declarations
 ## IEEE binary32 (fp32) single precision floating-point format
-ML_Binary32 = ML_Std_FP_Format(32, 8, 23, "f", "float", "fp32", "%a", sollya.binary32, union_field_suffix = "f")
+ML_Binary32 = ML_Std_FP_Format(32, 8, 23, "f", "float", "fp32", DisplayFormat("%a"), sollya.binary32, union_field_suffix = "f")
 ## IEEE binary64 (fp64) double precision floating-point format
-ML_Binary64 = ML_Std_FP_Format(64, 11, 52, "", "double", "fp64", "%la", sollya.binary64, union_field_suffix = "d")
-ML_Binary80 = ML_Std_FP_Format(80, 15, 64, "L", "long double", "fp80", "%la", sollya.binary80)
+ML_Binary64 = ML_Std_FP_Format(64, 11, 52, "", "double", "fp64", DisplayFormat("%la"), sollya.binary64, union_field_suffix = "d")
+ML_Binary80 = ML_Std_FP_Format(80, 15, 64, "L", "long double", "fp80", DisplayFormat("%la"), sollya.binary80)
 ## IEEE binary16 (fp16) half precision floating-point format
-ML_Binary16 = ML_Std_FP_Format(16, 5, 10, "__ERROR__", "half", "fp16", "%a", sollya.binary16)
+ML_Binary16 = ML_Std_FP_Format(16, 5, 10, "__ERROR__", "half", "fp16", DisplayFormat("%a"), sollya.binary16)
 
 
 # Standard integer format declarations
@@ -895,7 +900,7 @@ class ML_BoolClass(ML_FormatConstructor, ML_Bool_Format):
   def __str__(self):
     return "ML_Bool"
 
-ML_Bool      = ML_BoolClass(32, "int", "%d", bool_get_c_cst)
+ML_Bool      = ML_BoolClass(32, "int", DisplayFormat("%d"), bool_get_c_cst)
 
 ## virtual parent to string formats
 class ML_String_Format(ML_Format):
@@ -916,7 +921,7 @@ class ML_StringClass(ML_String_Format):
         return "ML_String"
 
 ## Metalibm string format
-ML_String = ML_StringClass("char*", "%s", lambda self, s: "\"{}\"".format(s)) 
+ML_String = ML_StringClass("char*", DisplayFormat("%s"), lambda self, s: "\"{}\"".format(s)) 
 
 ## Predicate checking if @p precision is a standard integer format
 def is_std_integer_format(precision):
@@ -1053,16 +1058,16 @@ class ML_FP_MultiElementFormat(ML_Compound_FP_Format):
 # compound binary floating-point format declaration
 ML_DoubleDouble = ML_FP_MultiElementFormat("ml_dd_t", ["hi", "lo"],
                                         [ML_Binary64, ML_Binary64],
-                                        "", "",
+                                        "", DISPLAY_DD,
                                         sollya.doubledouble)
 ML_TripleDouble = ML_FP_MultiElementFormat("ml_td_t", ["hi", "me", "lo"],
                                         [ML_Binary64, ML_Binary64,
                                             ML_Binary64],
-                                        "", "",
+                                        "", DISPLAY_TD,
                                         sollya.tripledouble)
 ML_SingleSingle = ML_FP_MultiElementFormat("ml_ds_t", ["hi", "lo"],
                                         [ML_Binary32, ML_Binary32],
-                                        "", "",
+                                        "", DISPLAY_DS,
                                         2*ML_Binary32.get_mantissa_size() + 1)
 ###############################################################################
 #                     VECTOR FORMAT

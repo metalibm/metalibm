@@ -985,15 +985,31 @@ class ML_FunctionBasis(object):
   #  an error index, a list of argument values
   #  and a result value
   def get_printf_input_function(self):
-    input_display_formats = ", ".join(prec.get_display_format() for prec in self.get_input_precisions())
-    printf_arg_mapping = dict([
-      (0, "\"error[%%d]: %s(%s), result is %s vs expected \"" % (self.function_name, input_display_formats, self.precision.get_display_format())), 
-      (1, FO_Arg(0)), # error index
-      (2 + self.get_arity(), FO_Arg(1 + self.get_arity())) # output
-    ] + 
-    [(2 + i, FO_Arg(1 + i)) for i in range(self.get_arity())] # arguments
-    )
-    printf_op = FunctionOperator("printf", arg_map = printf_arg_mapping, void_function = True) 
+    # build the complete format string from the input precisions
+    input_display_formats = ", ".join(prec.get_display_format().format_string for prec in self.get_input_precisions())
+    input_display_vars = ", ".join(prec.get_display_format().pre_process_fct("{%d}" % index) for index, prec in enumerate(self.get_input_precisions(), 1))
+
+    result_arg_id = 1 + len(self.get_input_precisions())
+    # expected_arg_id = 1 + result_arg_id
+    # build the format string for result/expected display
+    result_display_format = self.precision.get_display_format().format_string
+    result_display_vars = self.precision.get_display_format().pre_process_fct("{%d}" % result_arg_id)
+    # expected_display_vars = self.precision.get_display_format().pre_process_fct("{%d}" % expected_arg_id)
+
+    template = ("printf(\"error[%d]: {fct_name}({arg_display_format}),"
+                " result is {result_display_format} "
+                "vs expected \""
+                ", {{0}}, {arg_display_vars}, {result_display_vars}"
+                ")").format(
+                    fct_name=self.function_name,
+                    arg_display_format=input_display_formats,
+                    arg_display_vars=input_display_vars,
+                    result_display_format=result_display_format,
+                    #expected_display_format=result_display_format,
+                    result_display_vars=result_display_vars,
+                    #expected_display_vars=expected_display_vars
+                )
+    printf_op = TemplateOperatorFormat(template, void_function=True, arity=(result_arg_id+1)) 
     printf_input_function = FunctionObject("printf", [ML_Int32] + self.get_input_precisions() + [self.precision], ML_Void, printf_op)
     return printf_input_function
 
@@ -1067,7 +1083,13 @@ class ML_FunctionBasis(object):
     if self.compute_max_error:
       eval_error = Variable("max_error", precision = self.precision, var_type = Variable.Local)
 
-      printf_error_op = FunctionOperator("printf", arg_map = {0: "\"max %s error is %s \\n \"" % (self.function_name, self.precision.get_display_format()), 1: FO_Arg(0)}, void_function = True) 
+      printf_error_template = "printf(\"max %s error is %s \\n\", %s)" % (
+        self.function_name,
+        self.precision.get_display_format().format_string,
+        self.precision.get_display_format().pre_process_fct("{0}")
+      )
+      # printf_error_op = FunctionOperator("printf", arg_map = {0: "\"max %s error is %s \\n \"" % (self.function_name, self.precision.get_display_format()), 1: FO_Arg(0)}, void_function = True) 
+      printf_error_op = TemplateOperatorFormat(printf_error_template, arity=1, void_function=True)
       printf_error_function = FunctionObject("printf", [self.precision], ML_Void, printf_error_op)
 
       local_inputs = [
@@ -1148,7 +1170,13 @@ class ML_FunctionBasis(object):
 
     printf_input_function = self.get_printf_input_function()
 
-    printf_error_op = FunctionOperator("printf", arg_map = {0: "\"max %s error is %s \\n \"" % (self.function_name, self.precision.get_display_format()), 1: FO_Arg(0)}, void_function = True) 
+    printf_error_template = "printf(\"max %s error is %s \\n\", %s)" % (
+      self.function_name,
+      self.precision.get_display_format().format_string,
+      self.precision.get_display_format().pre_process_fct("{0}")
+    )
+    printf_error_op = TemplateOperatorFormat(printf_error_template, arity=1, void_function=True)
+
     printf_error_function = FunctionObject("printf", [self.precision], ML_Void, printf_error_op)
     
     printf_max_op = FunctionOperator("printf", arg_map = {0: "\"max %s error is reached at input number %s \\n \"" % (self.function_name, "%d"), 1: FO_Arg(0)}, void_function = True) 

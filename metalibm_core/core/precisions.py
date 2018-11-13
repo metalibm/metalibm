@@ -106,14 +106,22 @@ class ML_TwoFactorPrecision(ML_FunctionPrecision):
           Comparison(test_result, high_bound, specifier = Comparison.Greater)
         )
         return failure_test
-    def get_output_print_function(self, function_name, footer = "\\n"):
-        printf_op = FunctionOperator(
-          "printf", 
-          arg_map = {
-            0: "\"[{display_format};{display_format}]{footer}\"".format(display_format = self.precision.get_display_format(), footer = footer), 
-            1: FO_Arg(0), 
-            2: FO_Arg(1) 
-          }, void_function = True) 
+    def get_output_print_function(self, function_name, footer="\\n"):
+        printf_template = "printf(\"[%s;%s]%s\", %s, %s)" % (
+            self.precision.get_display_format().format_string,
+            self.precision.get_display_format().format_string,
+            footer,
+            self.precision.get_display_format().pre_process_fct("{0}"),
+            self.precision.get_display_format().pre_process_fct("{1}"),
+        )
+        printf_op = TemplateOperatorFormat(printf_template, arity=2, void_function=True)
+        #printf_op = FunctionOperator(
+        #  "printf", 
+        #  arg_map = {
+        #    0: "\"[{display_format};{display_format}]{footer}\"".format(display_format = self.precision.get_display_format(), footer = footer), 
+        #    1: FO_Arg(0), 
+        #    2: FO_Arg(1) 
+        #  }, void_function = True) 
         printf_function = FunctionObject("printf", [self.precision] * 2, ML_Void, printf_op)
         return printf_function
 
@@ -148,13 +156,19 @@ class ML_CorrectlyRounded(ML_FunctionPrecision):
       specifier = Comparison.NotEqual
     )
     return failure_test
-  def get_output_print_function(self, function_name, footer = "\\n"):
-    printf_op = FunctionOperator(
-      "printf", 
-      arg_map = {
-        0: "\"{display_format}{footer}\"".format(display_format = self.precision.get_display_format(), footer = footer), 
-        1: FO_Arg(0) 
-      }, void_function = True) 
+  def get_output_print_function(self, function_name, footer="\\n"):
+    printf_template = "printf(\"%s%s\", %s)" % (
+        self.precision.get_display_format().format_string,
+        footer,
+        self.precision.get_display_format().pre_process_fct("{0}")
+    )
+    printf_op = TemplateOperatorFormat(printf_template, arity=1, void_function=True)
+    #printf_op = FunctionOperator(
+    #  "printf", 
+    #  arg_map = {
+    #    0: "\"{display_format}{footer}\"".format(display_format = self.precision.get_display_format(), footer = footer), 
+    #    1: FO_Arg(0) 
+    #  }, void_function = True) 
     printf_function = FunctionObject("printf", [self.precision], ML_Void, printf_op)
     return printf_function
 
