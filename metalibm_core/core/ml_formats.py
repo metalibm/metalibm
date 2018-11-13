@@ -1197,6 +1197,29 @@ v8uint64 = vector_format_builder("ml_ulong8_t", "ulong8", 8, ML_UInt64, compound
 
 
 ###############################################################################
+#                                VECTOR MULTI-PRECISION FORMAT
+###############################################################################
+v2dualfloat32 = vector_format_builder("ml_dualfloat2_t", "unsupported", 2, ML_SingleSingle)
+v3dualfloat32 = vector_format_builder("ml_dualfloat3_t", "unsupported", 3, ML_SingleSingle)
+v4dualfloat32 = vector_format_builder("ml_dualfloat4_t", "unsupported", 4, ML_SingleSingle)
+v8dualfloat32 = vector_format_builder("ml_dualfloat8_t", "unsupported", 8, ML_SingleSingle)
+
+v2dualfloat64 = vector_format_builder("ml_dualdouble2_t", "unsupported", 2, ML_DoubleDouble)
+v3dualfloat64 = vector_format_builder("ml_dualdouble3_t", "unsupported", 3, ML_DoubleDouble)
+v4dualfloat64 = vector_format_builder("ml_dualdouble4_t", "unsupported", 4, ML_DoubleDouble)
+v8dualfloat64 = vector_format_builder("ml_dualdouble8_t", "unsupported", 8, ML_DoubleDouble)
+
+v2trifloat32 = vector_format_builder("ml_trifloat2_t", "unsupported", 2, ML_TripleSingle)
+v3trifloat32 = vector_format_builder("ml_trifloat3_t", "unsupported", 3, ML_TripleSingle)
+v4trifloat32 = vector_format_builder("ml_trifloat4_t", "unsupported", 4, ML_TripleSingle)
+v8trifloat32 = vector_format_builder("ml_trifloat8_t", "unsupported", 8, ML_TripleSingle)
+
+v2trifloat64 = vector_format_builder("ml_tridouble2_t", "unsupported", 2, ML_TripleDouble)
+v3trifloat64 = vector_format_builder("ml_tridouble3_t", "unsupported", 3, ML_TripleDouble)
+v4trifloat64 = vector_format_builder("ml_tridouble4_t", "unsupported", 4, ML_TripleDouble)
+v8trifloat64 = vector_format_builder("ml_tridouble8_t", "unsupported", 8, ML_TripleDouble)
+
+###############################################################################
 #                         GENERIC, NON NUMERICAL FORMATS
 ###############################################################################
 
