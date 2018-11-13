@@ -42,6 +42,10 @@ from ..core.ml_table import *
 from ..core.ml_operations import *
 from ..core.legalizer import min_legalizer, max_legalizer
 
+from ..core.multi_precision import (
+    legalize_mp_2elt_comparison, legalize_mp_3elt_comparison
+)
+
 from .generator_utility import *
 from .generator_utility import ConstantOperator
 from .code_element import *
@@ -611,14 +615,27 @@ c_code_generation_table = {
             { 
                 lambda _: True: 
                 dict(
-                  (
-                    type_strict_match_list([ML_Int32, ML_Bool], [op_type]),
+                  # mapping towards symbol operator for basic formats
+                  [(
+                    type_strict_match_list([ML_Int32, ML_Bool], [op_type], [op_type]),
                     SymbolOperator(c_comp_symbol[specifier], arity = 2)
                   ) for op_type in [ML_Int32, ML_Int64, ML_UInt64, ML_UInt32, ML_Binary32, ML_Binary64]
+                  ] + [
+                  # mapping towards legalizer for multi-precision formats
+                  (
+                    type_strict_match_list([ML_Int32, ML_Bool], [mp_format], [mp_format]),
+                    ComplexOperator(optree_modifier=legalize_mp_2elt_comparison)
+                  ) for mp_format in [ML_DoubleDouble, ML_SingleSingle]
+                  ] + [
+                  # mapping towards legalizer for multi-precision formats
+                  (
+                    type_strict_match_list([ML_Int32, ML_Bool], [mp_format], [mp_format]),
+                    ComplexOperator(optree_modifier=legalize_mp_3elt_comparison)
+                  ) for mp_format in [ML_TripleDouble, ML_TripleSingle]
+                  ]
                 ),
-                #build_simplified_operator_generation([ML_Int32, ML_Int64, ML_UInt64, ML_UInt32, ML_Binary32, ML_Binary64], 2, SymbolOperator(">=", arity = 2), result_precision = ML_Int32),
             }) for specifier in [Comparison.Equal, Comparison.NotEqual, Comparison.Greater, Comparison.GreaterOrEqual, Comparison.Less, Comparison.LessOrEqual]
-    ),
+        ),
     Test: {
         Test.IsIEEENormalPositive: {
             lambda optree: True: {
