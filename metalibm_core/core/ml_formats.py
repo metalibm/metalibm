@@ -1016,6 +1016,12 @@ class ML_Compound_Format(ML_Format):
     def get_sollya_object(self):
       return self.sollya_object
 
+    def round_sollya_object(self, value, round_mode=sollya.RN):
+      """ Round a numerical value encapsulated in a SollyaObject
+          to @p self format with rounding mode @p round_mode 
+          @return SollyaObject """
+      return sollya.round(value, self.get_sollya_object(), round_mode)
+
     ## forces constant declaration during code generation
     def is_cst_decl_required(self):
         return True
@@ -1041,9 +1047,9 @@ class ML_Compound_Format(ML_Format):
 
 
 class ML_Compound_FP_Format(ML_Compound_Format, ML_FP_Format):
-  pass
+    pass
 class ML_Compound_Integer_Format(ML_Compound_Format, ML_Fixed_Format):
-  pass
+    pass
 class ML_FP_MultiElementFormat(ML_Compound_FP_Format):
     """ parent format for multi-precision format (single single,
         double double, triple double ...) """
@@ -1069,6 +1075,11 @@ ML_SingleSingle = ML_FP_MultiElementFormat("ml_ds_t", ["hi", "lo"],
                                         [ML_Binary32, ML_Binary32],
                                         "", DISPLAY_DS,
                                         2*ML_Binary32.get_mantissa_size() + 1)
+
+ML_TripleSingle = ML_FP_MultiElementFormat("ml_ts_t", ["hi", "me", "lo"],
+                                        [ML_Binary32, ML_Binary32, ML_Binary32],
+                                        "", DISPLAY_TS,
+                                        3*ML_Binary32.get_mantissa_size() + 1)
 ###############################################################################
 #                     VECTOR FORMAT
 ###############################################################################
