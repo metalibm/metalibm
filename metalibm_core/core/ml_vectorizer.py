@@ -34,6 +34,7 @@
 
 from .ml_formats import *
 from .ml_operations import *
+from metalibm_core.core.ml_table import ML_NewTable
 
 
 ##
@@ -291,6 +292,10 @@ class StaticVectorizer(object):
                         self.vector_replicate_scheme_in_place(optree_input, vector_size, memoization_map)
                 memoization_map[optree] = optree
                 return optree
+            elif isinstance(optree, ML_NewTable):
+                # TODO: does not take into account intermediary variables
+                Log.report(Log.Info, "skipping ML_NewTable node in vector_replicate_scheme_in_place: {} ", optree)
+                pass
             else:
                 Log.report(Log.Error, "optree not vectorizable: {}", optree)
 
