@@ -166,6 +166,10 @@ class MultiPrecisionExpander:
         new_op = expander(*(sum(operands_expansion, [])), precision=elt_precision)
         # setting dedicated name to expanded node
         self.tag_expansion(node, new_op)
+        # forward other attributes
+        for elt in new_op:
+           elt.set_debug(node.get_debug())
+           elt.set_handle(node.get_handle())
         return new_op
 
     def expand_add(self, add_node):
@@ -408,7 +412,10 @@ class Pass_ExpandMultiPrecision(Pass_NodeTransformation):
         if isinstance(node, Constant):
             return node
         else:
-            return BuildFromComponent(*tuple(transformed_node), precision=node.precision)
+            result = BuildFromComponent(*tuple(transformed_node), precision=node.precision)
+            forward_attributes(node, result)
+            result.set_tag(node.get_tag())
+            return result
 
     ## standard Opt pass API
     def execute(self, optree):
