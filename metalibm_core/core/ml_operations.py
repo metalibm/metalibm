@@ -143,16 +143,20 @@ class AbstractOperation(ML_Operation):
     ## extract the High part of the Node
     @property
     def hi(self):
-        return ComponentSelection(self, specifier = ComponentSelection.Hi)
+        comp_precision = None if self.precision is None else self.precision.get_limb_precision(0)
+        return ComponentSelection(self, specifier=ComponentSelection.Hi, precision=comp_precision)
 
     @property
     def me(self):
-        return ComponentSelection(self, specifier = ComponentSelection.Me)
+        comp_precision = None if self.precision is None else self.precision.get_limb_precision(1)
+        return ComponentSelection(self, specifier=ComponentSelection.Me, precision=comp_precision)
 
     ## extract the Low part of the Node
     @property
     def lo(self):
-        return ComponentSelection(self, specifier = ComponentSelection.Lo)
+        lo_index = self.precision.limb_num - 1
+        comp_precision = None if self.precision is None else self.precision.get_limb_precision(lo_index)
+        return ComponentSelection(self, specifier=ComponentSelection.Lo, precision=comp_precision)
 
     def __getitem__(self, index):
         return VectorElementSelection(self, index)
