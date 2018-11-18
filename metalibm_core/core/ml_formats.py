@@ -1060,6 +1060,14 @@ class ML_FP_MultiElementFormat(ML_Compound_FP_Format):
     def get_bit_size(self):
       return sum([scalar.get_bit_size() for scalar in self.field_format_list])
 
+    def get_limb_precision(self, limb_index):
+        return self.field_format_list[limb_index]
+
+    @property
+    def limb_num(self):
+        """ return the number of limbs of the multi-precision format """
+        return len(self.field_format_list)
+
 
 # compound binary floating-point format declaration
 ML_DoubleDouble = ML_FP_MultiElementFormat("ml_dd_t", ["hi", "lo"],
@@ -1147,6 +1155,14 @@ class ML_IntegerVectorFormat(ML_CompoundVectorFormat, ML_Fixed_Format):
 class ML_FloatingPointVectorFormat(ML_CompoundVectorFormat, ML_FP_Format):
   pass
 
+class ML_MultiPrecision_VectorFormat(ML_CompoundVectorFormat):
+    @property 
+    def limb_num(self):
+        return self.scalar_format.limb_num
+    def get_limb_precision(self, limb_index):
+        limb_format = self.scalar_format.get_limb_precision(limb_index)
+        return VECTOR_TYPE_MAP[limb_format][self.vector_size]
+
 ## helper function to generate a vector format
 #  @param format_name string name of the result format
 #  @param vector_size integer number of element in the vector
@@ -1199,25 +1215,25 @@ v8uint64 = vector_format_builder("ml_ulong8_t", "ulong8", 8, ML_UInt64, compound
 ###############################################################################
 #                                VECTOR MULTI-PRECISION FORMAT
 ###############################################################################
-v2dualfloat32 = vector_format_builder("ml_dualfloat2_t", "unsupported", 2, ML_SingleSingle)
-v3dualfloat32 = vector_format_builder("ml_dualfloat3_t", "unsupported", 3, ML_SingleSingle)
-v4dualfloat32 = vector_format_builder("ml_dualfloat4_t", "unsupported", 4, ML_SingleSingle)
-v8dualfloat32 = vector_format_builder("ml_dualfloat8_t", "unsupported", 8, ML_SingleSingle)
+v2dualfloat32 = vector_format_builder("ml_dualfloat2_t", "unsupported", 2, ML_SingleSingle, compound_constructor=ML_MultiPrecision_VectorFormat)
+v3dualfloat32 = vector_format_builder("ml_dualfloat3_t", "unsupported", 3, ML_SingleSingle, compound_constructor=ML_MultiPrecision_VectorFormat)
+v4dualfloat32 = vector_format_builder("ml_dualfloat4_t", "unsupported", 4, ML_SingleSingle, compound_constructor=ML_MultiPrecision_VectorFormat)
+v8dualfloat32 = vector_format_builder("ml_dualfloat8_t", "unsupported", 8, ML_SingleSingle, compound_constructor=ML_MultiPrecision_VectorFormat)
 
-v2dualfloat64 = vector_format_builder("ml_dualdouble2_t", "unsupported", 2, ML_DoubleDouble)
-v3dualfloat64 = vector_format_builder("ml_dualdouble3_t", "unsupported", 3, ML_DoubleDouble)
-v4dualfloat64 = vector_format_builder("ml_dualdouble4_t", "unsupported", 4, ML_DoubleDouble)
-v8dualfloat64 = vector_format_builder("ml_dualdouble8_t", "unsupported", 8, ML_DoubleDouble)
+v2dualfloat64 = vector_format_builder("ml_dualdouble2_t", "unsupported", 2, ML_DoubleDouble, compound_constructor=ML_MultiPrecision_VectorFormat)
+v3dualfloat64 = vector_format_builder("ml_dualdouble3_t", "unsupported", 3, ML_DoubleDouble, compound_constructor=ML_MultiPrecision_VectorFormat)
+v4dualfloat64 = vector_format_builder("ml_dualdouble4_t", "unsupported", 4, ML_DoubleDouble, compound_constructor=ML_MultiPrecision_VectorFormat)
+v8dualfloat64 = vector_format_builder("ml_dualdouble8_t", "unsupported", 8, ML_DoubleDouble, compound_constructor=ML_MultiPrecision_VectorFormat)
 
-v2trifloat32 = vector_format_builder("ml_trifloat2_t", "unsupported", 2, ML_TripleSingle)
-v3trifloat32 = vector_format_builder("ml_trifloat3_t", "unsupported", 3, ML_TripleSingle)
-v4trifloat32 = vector_format_builder("ml_trifloat4_t", "unsupported", 4, ML_TripleSingle)
-v8trifloat32 = vector_format_builder("ml_trifloat8_t", "unsupported", 8, ML_TripleSingle)
+v2trifloat32 = vector_format_builder("ml_trifloat2_t", "unsupported", 2, ML_TripleSingle, compound_constructor=ML_MultiPrecision_VectorFormat)
+v3trifloat32 = vector_format_builder("ml_trifloat3_t", "unsupported", 3, ML_TripleSingle, compound_constructor=ML_MultiPrecision_VectorFormat)
+v4trifloat32 = vector_format_builder("ml_trifloat4_t", "unsupported", 4, ML_TripleSingle, compound_constructor=ML_MultiPrecision_VectorFormat)
+v8trifloat32 = vector_format_builder("ml_trifloat8_t", "unsupported", 8, ML_TripleSingle, compound_constructor=ML_MultiPrecision_VectorFormat)
 
-v2trifloat64 = vector_format_builder("ml_tridouble2_t", "unsupported", 2, ML_TripleDouble)
-v3trifloat64 = vector_format_builder("ml_tridouble3_t", "unsupported", 3, ML_TripleDouble)
-v4trifloat64 = vector_format_builder("ml_tridouble4_t", "unsupported", 4, ML_TripleDouble)
-v8trifloat64 = vector_format_builder("ml_tridouble8_t", "unsupported", 8, ML_TripleDouble)
+v2trifloat64 = vector_format_builder("ml_tridouble2_t", "unsupported", 2, ML_TripleDouble, compound_constructor=ML_MultiPrecision_VectorFormat)
+v3trifloat64 = vector_format_builder("ml_tridouble3_t", "unsupported", 3, ML_TripleDouble, compound_constructor=ML_MultiPrecision_VectorFormat)
+v4trifloat64 = vector_format_builder("ml_tridouble4_t", "unsupported", 4, ML_TripleDouble, compound_constructor=ML_MultiPrecision_VectorFormat)
+v8trifloat64 = vector_format_builder("ml_tridouble8_t", "unsupported", 8, ML_TripleDouble, compound_constructor=ML_MultiPrecision_VectorFormat)
 
 ###############################################################################
 #                         GENERIC, NON NUMERICAL FORMATS
