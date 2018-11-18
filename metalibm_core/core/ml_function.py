@@ -765,7 +765,8 @@ class ML_FunctionBasis(object):
                 LogicalNot(
                   Likely(
                     VectorElementSelection(
-                      vector_mask, vi, precision = ML_Bool
+                      vector_mask, vi, precision = ML_Bool,
+                      tag="vmask_i",
                     ),
                     None
                   ),
@@ -773,7 +774,8 @@ class ML_FunctionBasis(object):
                 ),
                 ReferenceAssign(
                   VectorElementSelection(
-                    vec_res, vi, precision = self.precision
+                    vec_res, vi, precision=self.precision,
+                    tag="vres_i"
                   ),
                   scalar_callback(*vec_elt_arg_tuple)
                 )
@@ -801,6 +803,7 @@ class ML_FunctionBasis(object):
 
     Log.report(Log.Info, "[SV] optimizing Scalar scheme")
     scalar_scheme = self.optimise_scheme(scalar_scheme)
+    scalar_scheme.set_tag("scalar_scheme")
 
     scalar_callback          = scalar_callback_function.get_function_object()
 
