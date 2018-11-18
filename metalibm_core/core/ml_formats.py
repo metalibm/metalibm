@@ -1235,6 +1235,74 @@ v3trifloat64 = vector_format_builder("ml_tridouble3_t", "unsupported", 3, ML_Tri
 v4trifloat64 = vector_format_builder("ml_tridouble4_t", "unsupported", 4, ML_TripleDouble, compound_constructor=ML_MultiPrecision_VectorFormat)
 v8trifloat64 = vector_format_builder("ml_tridouble8_t", "unsupported", 8, ML_TripleDouble, compound_constructor=ML_MultiPrecision_VectorFormat)
 
+VECTOR_TYPE_MAP = {
+    ML_Binary32: {
+        2: v2float32,
+        3: v3float32,
+        4: v4float32,
+        8: v8float32
+    },
+    ML_Binary64: {
+        2: v2float64,
+        3: v3float64,
+        4: v4float64,
+        8: v8float64
+    },
+    ML_Int32: {
+        2: v2int32,
+        3: v3int32,
+        4: v4int32,
+        8: v8int32
+    },
+    ML_UInt32: {
+        2: v2uint32,
+        3: v3uint32,
+        4: v4uint32,
+        8: v8uint32
+    },
+    ML_Int64: {
+        2: v2int64,
+        3: v3int64,
+        4: v4int64,
+        8: v8int64
+    },
+    ML_UInt64: {
+        2: v2uint64,
+        3: v3uint64,
+        4: v4uint64,
+        8: v8uint64
+    },
+    ML_Bool: {
+        2: v2bool,
+        3: v3bool,
+        4: v4bool,
+        8: v8bool
+    },
+    ML_SingleSingle: {
+        2: v2dualfloat64,
+        3: v3dualfloat64,
+        4: v4dualfloat64,
+        8: v8dualfloat64,
+    },
+    ML_TripleSingle: {
+        2: v2trifloat64,
+        3: v3trifloat64,
+        4: v4trifloat64,
+        8: v8trifloat64,
+    },
+    ML_DoubleDouble: {
+        2: v2dualfloat64,
+        3: v3dualfloat64,
+        4: v4dualfloat64,
+        8: v8dualfloat64,
+    },
+    ML_TripleDouble: {
+        2: v2trifloat64,
+        3: v3trifloat64,
+        4: v4trifloat64,
+        8: v8trifloat64,
+    },
+}
 ###############################################################################
 #                         GENERIC, NON NUMERICAL FORMATS
 ###############################################################################

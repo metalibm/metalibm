@@ -58,50 +58,6 @@ ML_OCL_VectorLib_Function = LibFunctionConstructor(["support_lib/ml_ocl_vector_l
 
 OpenCL_Builtin = LibFunctionConstructor([])
 
-vector_type = {
-  ML_Binary32: {
-    2: v2float32,
-    3: v3float32,
-    4: v4float32,
-    8: v8float32
-  },
-  ML_Binary64: {
-    2: v2float64,
-    3: v3float64,
-    4: v4float64,
-    8: v8float64
-  },
-  ML_Int32: {
-    2: v2int32,
-    3: v3int32,
-    4: v4int32,
-    8: v8int32
-  },
-  ML_UInt32: {
-    2: v2uint32,
-    3: v3uint32,
-    4: v4uint32,
-    8: v8uint32
-  },
-  ML_Int64: {
-    2: v2int64,
-    3: v3int64,
-    4: v4int64,
-    8: v8int64
-  },
-  ML_UInt64: {
-    2: v2uint64,
-    3: v3uint64,
-    4: v4uint64,
-    8: v8uint64
-  },
-  ML_Bool: {
-    2: v2bool,
-    3: v3bool,
-    4: v4bool,
-    8: v8bool
-  },
-}
 scalar_type_letter = {
   ML_Binary32: "f",
   ML_Binary64: "d",
@@ -148,9 +104,9 @@ vector_opencl_code_generation_table = {
           [
             [
               (type_strict_match(
-                  vector_type[scalar_type][vector_size],
-                  vector_type[scalar_type][vector_size],
-                  vector_type[scalar_type][vector_size]
+                  VECTOR_TYPE_MAP[scalar_type][vector_size],
+                  VECTOR_TYPE_MAP[scalar_type][vector_size],
+                  VECTOR_TYPE_MAP[scalar_type][vector_size]
                 ), SymbolOperator(" << ", arity = 2)
               ) for vector_size in supported_vector_size
             ] for scalar_type in [ ML_Int32, ML_UInt32 ]
@@ -166,9 +122,9 @@ vector_opencl_code_generation_table = {
           [
                 [
                   (type_strict_match(
-                      vector_type[scalar_type][vector_size],
-                      vector_type[scalar_type][vector_size],
-                      vector_type[scalar_type][vector_size]
+                      VECTOR_TYPE_MAP[scalar_type][vector_size],
+                      VECTOR_TYPE_MAP[scalar_type][vector_size],
+                      VECTOR_TYPE_MAP[scalar_type][vector_size]
                     ), SymbolOperator(" >> ", arity = 2)
                   ) for vector_size in supported_vector_size
                 ] for scalar_type in [ ML_Int32, ML_UInt32]
@@ -184,9 +140,9 @@ vector_opencl_code_generation_table = {
           [
             [
               (type_strict_match(
-                  vector_type[scalar_type][vector_size],
-                  vector_type[scalar_type][vector_size],
-                  vector_type[scalar_type][vector_size]
+                  VECTOR_TYPE_MAP[scalar_type][vector_size],
+                  VECTOR_TYPE_MAP[scalar_type][vector_size],
+                  VECTOR_TYPE_MAP[scalar_type][vector_size]
                 ), SymbolOperator(" >> ", arity = 2)
               ) for vector_size in supported_vector_size
             ] for scalar_type in [ ML_Int32 ]
@@ -202,9 +158,9 @@ vector_opencl_code_generation_table = {
           [
             [
               (type_strict_match(
-                  vector_type[scalar_type][vector_size], 
-                  vector_type[scalar_type][vector_size],
-                  vector_type[scalar_type][vector_size]
+                  VECTOR_TYPE_MAP[scalar_type][vector_size], 
+                  VECTOR_TYPE_MAP[scalar_type][vector_size],
+                  VECTOR_TYPE_MAP[scalar_type][vector_size]
                 ), SymbolOperator("+", arity = 2)
               ) for vector_size in supported_vector_size
             ] for scalar_type in [ML_Binary32, ML_Binary64, ML_Int32, ML_UInt32]
@@ -220,9 +176,9 @@ vector_opencl_code_generation_table = {
           [
             [
               (type_strict_match(
-                  vector_type[scalar_type][vector_size], 
-                  vector_type[scalar_type][vector_size],
-                  vector_type[scalar_type][vector_size]
+                  VECTOR_TYPE_MAP[scalar_type][vector_size], 
+                  VECTOR_TYPE_MAP[scalar_type][vector_size],
+                  VECTOR_TYPE_MAP[scalar_type][vector_size]
                 ), SymbolOperator("-", arity = 2)
               ) for vector_size in supported_vector_size
             ] for scalar_type in [ML_Binary32, ML_Binary64, ML_Int32, ML_UInt32]
@@ -238,9 +194,9 @@ vector_opencl_code_generation_table = {
           [
             [
               (type_strict_match(
-                  vector_type[scalar_type][vector_size], 
-                  vector_type[scalar_type][vector_size],
-                  vector_type[scalar_type][vector_size]
+                  VECTOR_TYPE_MAP[scalar_type][vector_size], 
+                  VECTOR_TYPE_MAP[scalar_type][vector_size],
+                  VECTOR_TYPE_MAP[scalar_type][vector_size]
                 ), SymbolOperator("&", arity = 2)
               ) for vector_size in supported_vector_size
             ] for scalar_type in [ML_Binary32, ML_Binary64, ML_Int32, ML_UInt32]
@@ -256,9 +212,9 @@ vector_opencl_code_generation_table = {
           [
             [
               (type_strict_match(
-                  vector_type[scalar_type][vector_size], 
-                  vector_type[scalar_type][vector_size],
-                  vector_type[scalar_type][vector_size]
+                  VECTOR_TYPE_MAP[scalar_type][vector_size], 
+                  VECTOR_TYPE_MAP[scalar_type][vector_size],
+                  VECTOR_TYPE_MAP[scalar_type][vector_size]
                 ), SymbolOperator("|", arity = 2)
               ) for vector_size in supported_vector_size
             ] for scalar_type in [ML_Binary32, ML_Binary64, ML_Int32, ML_UInt32]
@@ -274,9 +230,9 @@ vector_opencl_code_generation_table = {
           [
             [
               (type_strict_match(
-                  vector_type[scalar_type][vector_size],
-                  vector_type[scalar_type][vector_size],
-                  vector_type[scalar_type][vector_size]
+                  VECTOR_TYPE_MAP[scalar_type][vector_size],
+                  VECTOR_TYPE_MAP[scalar_type][vector_size],
+                  VECTOR_TYPE_MAP[scalar_type][vector_size]
                 ), SymbolOperator("/", arity = 2)
               ) for vector_size in supported_vector_size
             ] for scalar_type in [ML_Binary32, ML_Binary64,
@@ -294,9 +250,9 @@ vector_opencl_code_generation_table = {
           [
             [
               (type_strict_match(
-                  vector_type[scalar_type][vector_size], 
-                  vector_type[scalar_type][vector_size],
-                  vector_type[scalar_type][vector_size]
+                  VECTOR_TYPE_MAP[scalar_type][vector_size], 
+                  VECTOR_TYPE_MAP[scalar_type][vector_size],
+                  VECTOR_TYPE_MAP[scalar_type][vector_size]
                 ), SymbolOperator("%", arity = 2)
               ) for vector_size in supported_vector_size
             ] for scalar_type in [ML_Binary32, ML_Binary64, ML_Int32, ML_UInt32]
@@ -312,10 +268,10 @@ vector_opencl_code_generation_table = {
           [
             [
               (type_strict_match(
-                  vector_type[scalar_type][vector_size],
-                  vector_type[ML_Bool][vector_size],
-                  vector_type[scalar_type][vector_size],
-                  vector_type[scalar_type][vector_size]
+                  VECTOR_TYPE_MAP[scalar_type][vector_size],
+                  VECTOR_TYPE_MAP[ML_Bool][vector_size],
+                  VECTOR_TYPE_MAP[scalar_type][vector_size],
+                  VECTOR_TYPE_MAP[scalar_type][vector_size]
                 ), TemplateOperator("%s ? %s : %s", arity = 3)
               ) for vector_size in supported_vector_size
             ] for scalar_type in [ML_Binary32, ML_Binary64,
@@ -333,9 +289,9 @@ vector_opencl_code_generation_table = {
           [
             [
               (type_strict_match(
-                  vector_type[scalar_type][vector_size], 
-                  vector_type[scalar_type][vector_size],
-                  vector_type[scalar_type][vector_size]
+                  VECTOR_TYPE_MAP[scalar_type][vector_size], 
+                  VECTOR_TYPE_MAP[scalar_type][vector_size],
+                  VECTOR_TYPE_MAP[scalar_type][vector_size]
                 ), SymbolOperator("*", arity = 2)
               ) for vector_size in supported_vector_size
             ] for scalar_type in [ML_Binary32, ML_Binary64, ML_Int32, ML_UInt32]
@@ -351,8 +307,8 @@ vector_opencl_code_generation_table = {
           [
             [
               (type_strict_match(
-                  vector_type[scalar_type][vector_size],
-                  vector_type[scalar_type][vector_size]
+                  VECTOR_TYPE_MAP[scalar_type][vector_size],
+                  VECTOR_TYPE_MAP[scalar_type][vector_size]
                 ), SymbolOperator("-", arity = 1)
               ) for vector_size in supported_vector_size
             ] for scalar_type in [ML_Binary32, ML_Binary64, ML_Int32, ML_UInt32]
@@ -368,10 +324,10 @@ vector_opencl_code_generation_table = {
           [
             [
               (type_strict_match(
-                  vector_type[scalar_type][vector_size],
-                  vector_type[scalar_type][vector_size],
-                  vector_type[scalar_type][vector_size],
-                  vector_type[scalar_type][vector_size]
+                  VECTOR_TYPE_MAP[scalar_type][vector_size],
+                  VECTOR_TYPE_MAP[scalar_type][vector_size],
+                  VECTOR_TYPE_MAP[scalar_type][vector_size],
+                  VECTOR_TYPE_MAP[scalar_type][vector_size]
                 ), OpenCL_Builtin("fma", arity = 3),
               ) for vector_size in supported_vector_size
             ] for scalar_type in [ML_Binary32, ML_Binary64, ML_Int32, ML_UInt32]
@@ -484,13 +440,13 @@ vector_opencl_code_generation_table = {
                       type_strict_match_list(
                         [
                           #vector_type[ML_Int32][vector_size], 
-                          vector_type[ML_Bool][vector_size]
+                          VECTOR_TYPE_MAP[ML_Bool][vector_size]
                         ],
                         [
-                          vector_type[scalar_type][vector_size]
+                          VECTOR_TYPE_MAP[scalar_type][vector_size]
                         ],
                         [
-                          vector_type[scalar_type][vector_size]
+                          VECTOR_TYPE_MAP[scalar_type][vector_size]
                         ]
                       )
                       , 
@@ -644,8 +600,8 @@ def assemble_vector(scalar_results, vector_prec, threshold=4):
         hi_l = int((n+1)/2)
         lo_l = n - hi_l
         scalar_prec = vector_prec.get_scalar_format()
-        hi_format = StaticVectorizer.VECTORIZE_FORMAT_MAP[scalar_prec][hi_l]
-        lo_format = StaticVectorizer.VECTORIZE_FORMAT_MAP[scalar_prec][lo_l]
+        hi_format = VECTOR_TYPE_MAP[scalar_prec][hi_l]
+        lo_format = VECTOR_TYPE_MAP[scalar_prec][lo_l]
         return VectorAssembling(
             VectorAssembling(*tuple(scalar_results[:lo_l]),  precision=lo_format),
             VectorAssembling(*tuple(scalar_results[lo_l:]), precision=hi_format),
@@ -1153,9 +1109,9 @@ vector_c_code_generation_table = {
           [
             [
               (
-                type_strict_match(vector_type[scalar_type][vector_size], vector_type[scalar_type][vector_size])
+                type_strict_match(VECTOR_TYPE_MAP[scalar_type][vector_size], VECTOR_TYPE_MAP[scalar_type][vector_size])
               , 
-                ML_VectorLib_Function("ml_vneg%s%d" % (scalar_type_letter[scalar_type], vector_size), arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)}, arity = 1, output_precision = vector_type[scalar_type][vector_size])
+                ML_VectorLib_Function("ml_vneg%s%d" % (scalar_type_letter[scalar_type], vector_size), arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)}, arity = 1, output_precision = VECTOR_TYPE_MAP[scalar_type][vector_size])
               ) for vector_size in supported_vector_size
             ] for scalar_type in [ML_Binary32, ML_Binary64, ML_Int32, ML_UInt32]
           ]
@@ -1346,13 +1302,13 @@ vector_c_code_generation_table = {
                       type_strict_match_list(
                         [
                           #vector_type[ML_Int32][vector_size],
-                          vector_type[ML_Bool][vector_size]
+                          VECTOR_TYPE_MAP[ML_Bool][vector_size]
                         ],
                         [
-                          vector_type[scalar_type][vector_size]
+                          VECTOR_TYPE_MAP[scalar_type][vector_size]
                         ],
                         [
-                          vector_type[scalar_type][vector_size]
+                          VECTOR_TYPE_MAP[scalar_type][vector_size]
                         ]
                       )
                       ,
@@ -1366,7 +1322,7 @@ vector_c_code_generation_table = {
                               2: FO_Arg(1)
                               },
                           arity = 2,
-                          output_precision = vector_type[ML_Bool][vector_size]
+                          output_precision = VECTOR_TYPE_MAP[ML_Bool][vector_size]
                           )
                     ) for scalar_type in [
                         ML_Binary32, ML_Binary64,
