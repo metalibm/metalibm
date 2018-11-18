@@ -169,8 +169,8 @@ class AbstractBackend(object):
                             for interface_condition in op_map[language][op_class][codegen_key][condition]:
                                 try:
                                     if interface_condition(*interface, optree = optree): return True
-                                except TypeError:
-                                    Log.report(Log.Error, "Type Error for interface_condition on {}, {}",  op_class, (str(ifce) for ifce in interface))
+                                except TypeError as e:
+                                    Log.report(Log.Error, "Type Error for interface_condition on {}, {}",  op_class, (str(ifce) for ifce in interface), error=e)
                     # unsupported condition or interface type
                     if debug: 
                       Log.report(Log.Info, "unsupported condition key for {}", optree)
