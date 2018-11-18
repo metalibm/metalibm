@@ -43,7 +43,8 @@ from metalibm_core.core.ml_operations import (
     BitLogicLeftShift, BitLogicRightShift, BitArithmeticRightShift,
     Return, TableLoad, SpecificOperation, ExceptionOperation,
     NoResultOperation, Split, ComponentSelection, FunctionCall,
-    Conversion, DivisionSeed, ReciprocalSquareRootSeed, ReciprocalSeed
+    Conversion, DivisionSeed, ReciprocalSquareRootSeed, ReciprocalSeed,
+    VectorElementSelection,
 )
 from metalibm_core.core.ml_hdl_operations import (
     Process, Loop, ComponentInstance, Assert, Wait, PlaceHolder
@@ -53,9 +54,9 @@ from metalibm_core.core.passes import (
 )
 
 abstract_typing_rule = {
-    ConditionBlock: 
+    ConditionBlock:
         lambda optree, *ops: None,
-    SwitchBlock: 
+    SwitchBlock:
         lambda optree, *ops: None,
     Abs:
         lambda optree, op0: merge_abstract_format(op0.get_precision()),
@@ -79,7 +80,7 @@ abstract_typing_rule = {
         lambda optree, op0, op1: merge_abstract_format(op0.get_precision(), op1.get_precision()), 
     Modulo: 
         lambda optree, op0, op1: merge_abstract_format(op0.get_precision(), op1.get_precision()), 
-    NearestInteger: 
+    NearestInteger:
         lambda optree, op0: ML_Integer,
     ExponentInsertion:
         lambda *ops: ML_Float,
@@ -131,6 +132,8 @@ abstract_typing_rule = {
         lambda optree, *ops: ML_Float,
     FunctionCall:
         lambda optree, *ops: optree.get_function_object().get_precision(),
+    VectorElementSelection:
+        lambda optree, *ops: ops[0].get_precision().get_scalar_format(),
 }
 
 practical_typing_rule = {
@@ -358,7 +361,13 @@ def instantiate_abstract_precision(optree, default_precision=None,
             for inp in optree.get_extra_inputs():
                 instantiate_abstract_precision(inp, default_precision, memoization_map = memoization_map)
 
-            format_rule = abstract_typing_rule[optree.__class__]
+            try:
+                format_rule = abstract_typing_rule[optree.__class__]
+            except KeyError as e:
+                Log.report(
+                    Log.Error,
+                    "not able to found {} in abstract_typing_rule",
+                    optree.__class__, error=e)
             abstract_format = format_rule(optree, *optree.inputs)
             optree.set_precision(abstract_format)
 
