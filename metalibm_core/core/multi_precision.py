@@ -37,9 +37,12 @@
 ###############################################################################
 
 from metalibm_core.core.ml_operations import (
-    Comparison, LogicalAnd, LogicalOr,
+    Comparison, LogicalAnd, LogicalOr, BuildFromComponent,
+    VectorElementSelection,
 )
 from metalibm_core.core.ml_formats import ML_Bool
+
+from metalibm_core.opt.opt_utils import forward_attributes
 
 from metalibm_core.utility.log_report import Log
 
@@ -135,3 +138,31 @@ def legalize_mp_3elt_comparison(optree):
         )
     else:
         Log.report(Log.Error, "unsupported specifier {} in legalize_mp_2elt_comparison", specifier)
+
+
+def legalize_multi_precision_vector_element_selection(optree):
+    """ legalize a VectorElementSelection @p optree on a vector of
+        multi-precision elements to a single element """
+    assert isinstance(optree, VectorElementSelection)
+    multi_precision_vector = optree.get_input(0)
+    elt_index = optree.get_input(1)
+    hi_vector = multi_precision_vector.hi
+    lo_vector = multi_precision_vector.lo
+    limb_num = multi_precision_vector.get_precision().get_scalar_format().limb_num 
+    if limb_num == 2:
+        component_vectors = [hi_vector, lo_vector]
+    elif limb_num == 3:
+        me_vector = multi_precision_vector.me
+        component_vectors = [hi_vector, me_vector, lo_vector]
+    else:
+        Log.report(Log.Error, "unsupported number of limbs in legalize_multi_precision_vector_element_selection for {}", optree)
+    result = BuildFromComponent(
+        *tuple(VectorElementSelection(vector, elt_index) for vector in component_vectors)
+    )
+    forward_attributes(optree, result)
+    result.set_precision(optree.precision)
+    return result
+
+
+
+        

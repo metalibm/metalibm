@@ -1235,6 +1235,9 @@ v3trifloat64 = vector_format_builder("ml_tridouble3_t", "unsupported", 3, ML_Tri
 v4trifloat64 = vector_format_builder("ml_tridouble4_t", "unsupported", 4, ML_TripleDouble, compound_constructor=ML_MultiPrecision_VectorFormat)
 v8trifloat64 = vector_format_builder("ml_tridouble8_t", "unsupported", 8, ML_TripleDouble, compound_constructor=ML_MultiPrecision_VectorFormat)
 
+LIST_SINGLE_MULTI_PRECISION_VECTOR_FORMATS = [v2dualfloat32, v3dualfloat32, v4dualfloat32, v8dualfloat32, v2trifloat32, v3trifloat32, v4trifloat32, v8trifloat32]
+LIST_DOUBLE_MULTI_PRECISION_VECTOR_FORMATS = [v2dualfloat64, v3dualfloat64, v4dualfloat64, v8dualfloat64, v2trifloat64, v3trifloat64, v4trifloat64, v8trifloat64]
+
 VECTOR_TYPE_MAP = {
     ML_Binary32: {
         2: v2float32,

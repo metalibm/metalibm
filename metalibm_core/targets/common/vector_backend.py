@@ -43,6 +43,9 @@ from metalibm_core.core.ml_vectorizer import StaticVectorizer
 from metalibm_core.core.legalizer import (
     min_legalizer, max_legalizer
 )
+from metalibm_core.core.multi_precision import (
+    legalize_multi_precision_vector_element_selection
+)
 
 from metalibm_core.code_generation.generator_utility import *
 from metalibm_core.code_generation.complex_generator import *
@@ -93,7 +96,11 @@ def legal_vector_element_selection(optree):
     optree.get_input(0).get_precision(),
     ML_CompoundVectorFormat
   )
-  return compound_format
+  multi_precision_scalar = isinstance(
+    optree.get_input(0).get_precision().get_scalar_format(),
+    ML_FP_MultiElementFormat
+  )
+  return compound_format and not multi_precision_scalar
 
 vector_opencl_code_generation_table = {
   BitLogicLeftShift: {
@@ -1256,6 +1263,12 @@ vector_c_code_generation_table = {
       legal_vector_element_selection: {
         lambda rformat, opformat, indexformat, optree: True: TemplateOperator("%s._[%s]", arity = 2, require_header = ["support_lib/ml_vector_format.h"]),
       },
+      lambda optree: not(legal_vector_element_selection(optree)): {
+          type_strict_match_list([ML_SingleSingle], LIST_SINGLE_MULTI_PRECISION_VECTOR_FORMATS, [ML_Integer]):
+            ComplexOperator(optree_modifier=legalize_multi_precision_vector_element_selection),
+          type_strict_match_list([ML_DoubleDouble], LIST_DOUBLE_MULTI_PRECISION_VECTOR_FORMATS, [ML_Integer]):
+            ComplexOperator(optree_modifier=legalize_multi_precision_vector_element_selection),
+      }
     },
   },
   LogicalNot: {
