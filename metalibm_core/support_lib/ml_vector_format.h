@@ -63,25 +63,25 @@ typedef struct { \
     FIELD_FORMAT hi, lo; \
 } FORMAT_NAME;
 
-DEC_ML_MP2_VEC_FORMAT(ml_dualfloat2_t, v2float32)
-DEC_ML_MP2_VEC_FORMAT(ml_dualfloat4_t, v4float32)
-DEC_ML_MP2_VEC_FORMAT(ml_dualfloat8_t, v8float32)
+DEC_ML_MP2_VEC_FORMAT(ml_dualfloat2_t, ml_float2_t)
+DEC_ML_MP2_VEC_FORMAT(ml_dualfloat4_t, ml_float4_t)
+DEC_ML_MP2_VEC_FORMAT(ml_dualfloat8_t, ml_float8_t)
 
-DEC_ML_MP2_VEC_FORMAT(ml_dualdouble2_t, v2float64)
-DEC_ML_MP2_VEC_FORMAT(ml_dualdouble4_t, v4float64)
-DEC_ML_MP2_VEC_FORMAT(ml_dualdouble8_t, v8float64)
+DEC_ML_MP2_VEC_FORMAT(ml_dualdouble2_t, ml_double2_t)
+DEC_ML_MP2_VEC_FORMAT(ml_dualdouble4_t, ml_double4_t)
+DEC_ML_MP2_VEC_FORMAT(ml_dualdouble8_t, ml_double8_t)
 
 #define DEC_ML_MP3_VEC_FORMAT(FORMAT_NAME, FIELD_FORMAT) \
 typedef struct { \
     FIELD_FORMAT hi, me, lo; \
 } FORMAT_NAME;
 
-DEC_ML_MP3_VEC_FORMAT(ml_trifloat2_t, v2float32)
-DEC_ML_MP3_VEC_FORMAT(ml_trifloat4_t, v4float32)
-DEC_ML_MP3_VEC_FORMAT(ml_trifloat8_t, v8float32)
+DEC_ML_MP3_VEC_FORMAT(ml_trifloat2_t, ml_float2_t)
+DEC_ML_MP3_VEC_FORMAT(ml_trifloat4_t, ml_float4_t)
+DEC_ML_MP3_VEC_FORMAT(ml_trifloat8_t, ml_float8_t)
 
-DEC_ML_MP3_VEC_FORMAT(ml_tridouble2_t, v2float64)
-DEC_ML_MP3_VEC_FORMAT(ml_tridouble4_t, v4float64)
-DEC_ML_MP3_VEC_FORMAT(ml_tridouble8_t, v8float64)
+DEC_ML_MP3_VEC_FORMAT(ml_tridouble2_t, ml_double2_t)
+DEC_ML_MP3_VEC_FORMAT(ml_tridouble4_t, ml_double4_t)
+DEC_ML_MP3_VEC_FORMAT(ml_tridouble8_t, ml_double8_t)
 
 #endif /** ifdef __ML_VECTOR_FORMAT_H__ */
