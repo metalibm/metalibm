@@ -94,6 +94,9 @@ debug_ulong2  = ML_Debug(display_format = "{%lu, %lu}", pre_process = lambda v: 
 debug_ulong4  = ML_Debug(display_format = "{%lu, %lu, %lu, %lu}", pre_process = lambda v: "%s._[0], %s._[1], %s._[2], %s._[3]" % (v, v, v, v))
 debug_ulong8  = ML_Debug(display_format = "{%lu, %lu, %lu, %lu, %lu, %lu, %lu, %lu}", pre_process = lambda v: "%s._[0], %s._[1], %s._[2], %s._[3], %s._[4], %s._[5], %s._[6], %s._[7]" % (v, v, v, v, v, v, v, v))
 
+
+debug_v4dualfloat64 = ML_Debug(display_format="[{%a, %a}, {%a, %a}, {%a, %a}, {%a, %a}]", pre_process=lambda v: (", ".join("{v}.hi._[%d], {v}.lo._[%d]" % (i, i) for i in range(4))).format(v=v)) 
+
 debug_multi = ML_MultiDebug({
   ML_Binary32: debug_ftox,
   ML_Binary64: debug_lftolx,
@@ -135,4 +138,6 @@ debug_multi = ML_MultiDebug({
 
   ML_TripleDouble: debug_td,
   ML_TripleSingle: debug_ts,
+
+  v4dualfloat64: debug_v4dualfloat64,
 })
