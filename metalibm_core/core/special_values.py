@@ -67,6 +67,14 @@ class NumericValue(sollya.SollyaObject):
 class FP_SpecialValue(object):
   ml_support_name = "undefined"
 
+  # Rounding-mode (should be None or a rounding mode object
+  # from sollya.
+  # It will be used for operation on specific values whose result
+  # depends on the rounding mode (e.g. +0 + -0)
+  # This is a global/class value which must be handled with care
+  # (save/restore)
+  rounding_mode = None
+
   """ parent to all floating-point constants """
   def __init__(self, precision):
     self.precision = precision
@@ -141,7 +149,17 @@ def special_value_add(lhs, rhs):
         return lhs
     elif is_zero(lhs) and is_zero(rhs):
         # TODO: ignore rounding mode
-        return lhs
+        if is_minus_zero(lhs) or is_minus_zero(rhs):
+            if FP_SpecialValue.rounding_mode is None:
+                Log.report(Log.Warning, "undefined rounding mode during +/- 0 + +/- 0 operation in special_value_add")
+                return lhs
+            elif FP_SpecialValue.rounding_mode is sollya.RD:
+                return FP_MinusZero(lhs.precision)
+            else:
+                return FP_PlusZero(lhs.precision)
+        else:
+            # -0 + -0 has been excluded previously
+            return FP_PlusZero(lhs.precision)
     elif is_zero(lhs):
         return rhs
     elif is_zero(rhs):
