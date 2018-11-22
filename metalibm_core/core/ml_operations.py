@@ -144,19 +144,24 @@ class AbstractOperation(ML_Operation):
     @property
     def hi(self):
         comp_precision = None if self.precision is None else self.precision.get_limb_precision(0)
-        return ComponentSelection(self, specifier=ComponentSelection.Hi, precision=comp_precision)
+        op_tag = self.get_tag()
+        limb_tag = op_tag + "_hi" if not op_tag is None else None
+        return ComponentSelection(self, specifier=ComponentSelection.Hi, precision=comp_precision, tag=limb_tag)
 
     @property
     def me(self):
         comp_precision = None if self.precision is None else self.precision.get_limb_precision(1)
-        return ComponentSelection(self, specifier=ComponentSelection.Me, precision=comp_precision)
+        op_tag = self.get_tag()
+        limb_tag = op_tag + "_me" if not op_tag is None else None
+        return ComponentSelection(self, specifier=ComponentSelection.Me, precision=comp_precision, tag=limb_tag)
 
     ## extract the Low part of the Node
     @property
     def lo(self):
-        lo_index = self.precision.limb_num - 1
-        comp_precision = None if self.precision is None else self.precision.get_limb_precision(lo_index)
-        return ComponentSelection(self, specifier=ComponentSelection.Lo, precision=comp_precision)
+        comp_precision = None if self.precision is None else self.precision.get_limb_precision(self.precision.limb_num - 1)
+        op_tag = self.get_tag()
+        limb_tag = op_tag + "_lo" if not op_tag is None else None
+        return ComponentSelection(self, specifier=ComponentSelection.Lo, precision=comp_precision, tag=limb_tag)
 
     def __getitem__(self, index):
         return VectorElementSelection(self, index)
