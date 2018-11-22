@@ -119,6 +119,39 @@ def libc_naming(base_name, io_precisions, in_arity = 1, out_arity = 1):
       previous_format = precision
     counter += 1
   return base_name + format_suffix
+
+
+def vector_elt_assign(vector_node, elt_index, elt_value):
+    """ generate an assignation to set vector_node[index] <= elt_value """
+    if isinstance(vector_node.get_precision(), ML_MultiPrecision_VectorFormat):
+        def set_limb_precision(limb, vector_limb):
+            """ define the precision of @p limb to match @p vector_limb """
+            limb.set_precision(vector_limb.precision.get_scalar_format())
+        assign_list = []
+        hi_limb = elt_value.hi
+        set_limb_precision(hi_limb, vector_node.hi)
+        assign_list.append(ReferenceAssign(
+            VectorElementSelection(vector_node.hi, elt_index),
+            hi_limb
+        ))
+        lo_limb = elt_value.lo
+        set_limb_precision(lo_limb, vector_node.lo)
+        assign_list.append(ReferenceAssign(
+            VectorElementSelection(vector_node.lo, elt_index),
+            lo_limb
+        ))
+        if vector_node.get_precision().limb_num > 2:
+            me_limb = elt_value.me
+            set_limb_precision(me_limb, vector_node.me)
+            assign_list.append(ReferenceAssign(
+                VectorElementSelection(vector_node.me, elt_index),
+                me_limb
+            ))
+    else:
+        assign_list = [ReferenceAssign(
+            VectorElementSelection(vector_node, elt_index), elt_value
+        )]
+    return assign_list
   
 
 ## Base class for all metalibm function (metafunction)
@@ -1033,8 +1066,8 @@ class ML_FunctionBasis(object):
     for input_index, local_input in enumerate(local_inputs):
       assignation_statement.push(local_input)
       for k in range(self.get_vector_size()):
-        elt_assign = ReferenceAssign(VectorElementSelection(local_input, k), TableLoad(input_tables[input_index], vi + k))
-        assignation_statement.push(elt_assign)
+        for ref_assign in vector_elt_assign(local_input, k, TableLoad(input_tables[input_index], vi + k)):
+            assignation_statement.push(ref_assign)
 
     # computing results
     local_result = tested_function(*local_inputs)
