@@ -936,6 +936,9 @@ class SpecifierOperation(object):
         """ return code generation specific key """
         return self.specifier
 
+    def finish_copy(self, new_copy, copy_map=None):
+        new_copy.specifier = self.specifier
+
 class ComponentSelectionSpecifier(object):
     """ Parent class for all component selection specifier """
     pass
@@ -964,6 +967,9 @@ class ComponentSelection(SpecifierOperation, GeneralArithmeticOperation):
     def get_codegen_key(self):
         """ return code generation specific key """
         return self.specifier
+
+    def finish_copy(self, new_copy, copy_map=None):
+        SpecifierOperation.finish_copy(self, new_copy, copy_map)
 
     def __init__(self, *args, **kwords):
         self.specifier = attr_init(kwords, "specifier", ComponentSelection.Hi)
