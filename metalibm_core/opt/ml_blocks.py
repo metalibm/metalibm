@@ -102,15 +102,15 @@ def generate_twosum(vx, vy, precision=None):
     return s, e
 
 
-def generate_fasttwosum(vx, vy):
+def generate_fasttwosum(vx, vy, precision=None):
     """Return two optrees for a FastTwoSum operation.
  
     Precondition: |vx| >= |vy|.
     The return value is a tuple (sum, error).
     """
-    s = Addition(vx, vy)
-    b = Subtraction(z, vx)
-    e = Subtraction(vy, b)
+    s = Addition(vx, vy, precision=precision)
+    b = Subtraction(s, vx, precision=precision)
+    e = Subtraction(vy, b, precision=precision)
     return s, e
    
 def Split(a, precision=None):
@@ -185,14 +185,20 @@ def Add221(xh, xl, yh, precision=None):
 def Add222(xh, xl, yh, yl, precision=None):
     """ Multi-precision Addition:
         HI, LO = [xh:xl] + [yh:yl] """
-    r = Addition(xh, yh, precision=precision)
-    s1 = Subtraction(xh, r, precision=precision)
-    s2 = Addition(s1, yh, precision=precision)
-    s3 = Addition(s2, yl, precision=precision)
-    s = Addition(s3, xl, precision=precision)
-    zh = Addition(r, s, precision=precision)
-    zl = Addition(Subtraction(r, zh, precision=precision), s, precision=precision)
-    return zh, zl
+    rh, rl = generate_twosum(xl, yl, precision=precision)
+    th, tl = generate_twosum(rh, xh, precision=precision)
+    zh, sl = generate_twosum(th, yh, precision=precision)
+    uh, ul = generate_twosum(rl, tl, precision=precision)
+    zl, _ = generate_twosum(sl, uh, precision=precision)
+    return generate_fasttwosum(zh, zl, precision=precision)
+    #r = Addition(xh, yh, precision=precision)
+    #s1 = Subtraction(xh, r, precision=precision)
+    #s2 = Addition(s1, yh, precision=precision)
+    #s3 = Addition(s2, yl, precision=precision)
+    #s = Addition(s3, xl, precision=precision)
+    #zh = Addition(r, s, precision=precision)
+    #zl = Addition(Subtraction(r, zh, precision=precision), s, precision=precision)
+    #return zh, zl
 
 def Add122(xh, xl, yh, yl, precision=None):
     """ Multi-precision Addition:
