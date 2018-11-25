@@ -47,6 +47,7 @@ from metalibm_core.utility.ml_template import target_instanciate
 from metalibm_core.core.ml_formats import (
     ML_Int32, ML_Int16, ML_Int64,
     ML_Binary32, ML_Binary64,
+    ML_SingleSingle, ML_DoubleDouble,
 )
 from metalibm_core.core.precisions import (
     ML_CorrectlyRounded, ML_Faithful, dar, daa
@@ -83,6 +84,7 @@ import metalibm_functions.unit_tests.fuse_fma as ut_fuse_fma
 import metalibm_functions.unit_tests.llvm_code as ut_llvm_code
 import metalibm_functions.unit_tests.multi_precision as ut_multi_precision
 import metalibm_functions.unit_tests.function_ptr as ut_function_ptr
+import metalibm_functions.unit_tests.multi_precision_vectorization as ut_mp_vectorization
 
 unit_test_list = [
   UnitTestScheme(
@@ -241,6 +243,22 @@ unit_test_list = [
     "function pointer argument",
     ut_function_ptr,
     [{}],
+  ),
+  UnitTestScheme(
+    "multi-precision expansion",
+    ut_mp_vectorization,
+    [
+        {"precision": ML_DoubleDouble, "passes": ["start:basic_legalization", "start:expand_multi_precision"]},
+        {"precision": ML_SingleSingle, "passes": ["start:basic_legalization", "start:expand_multi_precision"]},
+    ],
+  ),
+  UnitTestScheme(
+    "multi-precision vectorization",
+    ut_mp_vectorization,
+    [
+        {"precision": ML_DoubleDouble, "vector_size": 4, "target": target_instanciate("vector"), "passes": ["start:basic_legalization", "start:expand_multi_precision"]},
+        {"precision": ML_SingleSingle, "vector_size": 4, "target": target_instanciate("vector"), "passes": ["start:basic_legalization", "start:expand_multi_precision"]},
+    ],
   ),
 ]
 
