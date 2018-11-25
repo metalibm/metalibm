@@ -1282,10 +1282,10 @@ VECTOR_TYPE_MAP = {
         8: v8bool
     },
     ML_SingleSingle: {
-        2: v2dualfloat64,
-        3: v3dualfloat64,
-        4: v4dualfloat64,
-        8: v8dualfloat64,
+        2: v2dualfloat32,
+        3: v3dualfloat32,
+        4: v4dualfloat32,
+        8: v8dualfloat32,
     },
     ML_TripleSingle: {
         2: v2trifloat64,
