@@ -47,6 +47,9 @@ from metalibm_core.core.ml_complex_formats import ML_Mpfr_t
 from metalibm_core.core.ml_call_externalizer import CallExternalizer
 from metalibm_core.core.ml_vectorizer import StaticVectorizer
 from metalibm_core.core.precisions import *
+from metalibm_core.core.random_gen import (
+    FPRandomGen, MPFPRandomGen, FixedPointRandomGen
+)
 
 from metalibm_core.code_generation.code_object import (
     NestedCode, CodeObject, LLVMCodeObject, MultiSymbolTable
@@ -975,13 +978,33 @@ class ML_FunctionBasis(object):
           input_list.append(input_value)
         test_case_list.append(tuple(input_list))
 
+    def get_precision_rng(precision, inf_bound, sup_bound):
+        """ build a random number generator for format @p precision
+            which generates values within the range [inf_bound, sup_bound] """
+        if isinstance(precision, ML_FP_MultiElementFormat):
+            return MPFPRandomGen.from_interval(precision, inf_bound, sup_bound)
+        elif isinstance(precision, ML_FP_Format):
+            return FPRandomGen.from_interval(precision, inf_bound, sup_bound)
+        elif isinstance(precision, ML_Fixed_Format):
+            FixedPointRandomGen.from_interval(precision, inf_bound, sup_bound)
+        else:
+            Log.report(Log.error, "unsupported format {} in get_precision_rng", precision)
+
+    # TODO/FIXME: implement proper input range depending on input index
+    rng_map = [get_precision_rng(precision, low_input, high_input) for precision in self.input_precisions]
+
 
     # random test cases
     for i in range(test_num):
       input_list = []
       for in_id in range(self.get_arity()):
-        input_value = random.uniform(low_input, high_input)
-        input_value = self.precision.round_sollya_object(input_value, RN)
+        # this random generator is limited to python float precision
+        # (generally machine double precision)
+        # TODO/FIXME: implement proper high precision generation
+        # based on real input_precision (e.g. ML_DoubleDouble)
+        input_precision = self.get_input_precision(in_id)
+        input_value = rng_map[in_id].get_new_value() # random.uniform(low_input, high_input)
+        input_value = input_precision.round_sollya_object(input_value, RN)
         input_list.append(input_value)
       test_case_list.append(tuple(input_list))
 
