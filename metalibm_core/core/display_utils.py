@@ -65,10 +65,10 @@ DISPLAY_lftolx_k1  = DisplayFormat(format_string = "%\"PRIx64\" ev=%x", pre_proc
 DISPLAY_ddtolx    = DisplayFormat(format_string = "%\"PRIx64\" %\"PRIx64\"", pre_process_fct = lambda v: "double_to_64b_encoding(%s.hi), double_to_64b_encoding(%s.lo)" % (v, v), required_header = ["support_lib/ml_utils.h"])
 
 # display multi-precision floating-point value 
-DISPLAY_DD      = DisplayFormat(format_string="{{.hi=%lf, .lo=%lf}}", pre_process_fct= lambda v: "%s.hi, %s.lo" % (v, v))
-DISPLAY_DS      = DisplayFormat(format_string="{{.hi=%f, .lo=%f})", pre_process_fct= lambda v : "%s.hi, %s.lo" % (v, v))
-DISPLAY_TD      = DisplayFormat(format_string="{{.hi=%lf, .me=%lf, .lo=%lf}}", pre_process_fct= lambda v: "%s.hi, %s.me, %s.lo" % (v, v, v))
-DISPLAY_TS      = DisplayFormat(format_string="{{.hi=%f, .me=%f, .lo=%f})", pre_process_fct= lambda v : "%s.hi, %s.me, %s.lo" % (v, v, v))
+DISPLAY_DD      = DisplayFormat(format_string="{{.hi=%a, .lo=%a}}", pre_process_fct= lambda v: "%s.hi, %s.lo" % (v, v))
+DISPLAY_DS      = DisplayFormat(format_string="{{.hi=%a, .lo=%a}}", pre_process_fct= lambda v : "%s.hi, %s.lo" % (v, v))
+DISPLAY_TD      = DisplayFormat(format_string="{{.hi=%a, .me=%a, .lo=%a}}", pre_process_fct= lambda v: "%s.hi, %s.me, %s.lo" % (v, v, v))
+DISPLAY_TS      = DisplayFormat(format_string="{{.hi=%a, .me=%a, .lo=%a}}", pre_process_fct= lambda v : "%s.hi, %s.me, %s.lo" % (v, v, v))
 
 DISPLAY_float2  = DisplayFormat(format_string="[%a, %a]", pre_process_fct = lambda v: "%s._[0], %s._[1]" % (v, v))
 DISPLAY_float4  = DisplayFormat(format_string="[%a, %a, %a, %a]", pre_process_fct = lambda v: "%s._[0], %s._[1], %s._[2], %s._[3]" % (v, v, v, v))
