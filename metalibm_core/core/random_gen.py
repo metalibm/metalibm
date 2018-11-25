@@ -37,8 +37,8 @@ except ImportError:
         return fct
 import random
 
-from sollya import SollyaObject
-S2 = SollyaObject(2)
+import sollya
+S2 = sollya.SollyaObject(2)
 
 from metalibm_core.core.special_values import (
     NumericValue,
@@ -211,8 +211,17 @@ class FixedPointRandomGen(IntRandomGen):
         # subrange for fuzzing value around specific values
         self.highlow_range = 2**(int(self.size / 5))
 
+        # scaled extremal values
+        self.max_value = self.gen_max_value() if max_value is None else max_value
+        self.min_value = self.gen_min_value() if min_value is None else min_value
+        # unscaled extremal values (used for random field generation)
+        self.max_unscaled_value = self.unscale(self.max_value)
+        self.min_unscaled_value = self.unscale(self.min_value)
+
     def scale(self, value):
         return value * S2**-self.frac_size
+    def unscale(self, value):
+        return value * S2**self.frac_size
 
     def gen_max_value(self, scale=True):
         """ generate the maximal format value """
@@ -231,10 +240,10 @@ class FixedPointRandomGen(IntRandomGen):
         return 0
     def gen_high_value(self):
         """ generate near maximal value """
-        return self.scale(self.gen_max_value(scale=False) - self.random.randrange(self.highlow_range))
+        return self.max_value - self.scale(self.random.randrange(self.highlow_range))
     def gen_low_value(self):
         """ generate new minimal value """
-        return self.scale(self.gen_min_value(scale=False) + self.random.randrange(self.highlow_range))
+        return self.min_value + self.scale(self.random.randrange(self.highlow_range))
 
     def gen_near_zero(self):
         """ generate near zero value """
@@ -248,9 +257,17 @@ class FixedPointRandomGen(IntRandomGen):
         """ generate value arbitrarily in the whole format range """
         return self.scale(
             self.random.randrange(
-                self.gen_min_value(scale=False),
-                self.gen_max_value(scale=False) + 1
+                self.min_unscaled_value,
+                self.max_unscaled_value + 1
             )
+        )
+    @staticmethod
+    def from_interval(precision, low_bound, high_bound):
+        return FixedPointRandomGen(
+            precision.int_size,
+            precision.frac_size,
+            precision.signed,
+            min_value=low_bound, max_value=high_bound
         )
 
 
@@ -294,6 +311,27 @@ class FPRandomGen(RandomGenWeightCat):
                 field = generator.random.randrange(2**field_size)
                 mantissa = 1.0 + field * S2**-generator.precision.get_field_size()
                 return NumericValue(mantissa * sign * S2**exp)
+        class ZeroExp:
+            """ Normal number category """
+            @staticmethod
+            def generate_value(generator):
+                """ Generate a single value in the normal range """
+                field_size = generator.precision.get_field_size()
+                field = generator.random.randrange(2**field_size)
+                mantissa = 1.0 + field * S2**-generator.precision.get_field_size()
+                return NumericValue(mantissa)
+        class Interval:
+            """ interval number category """
+            def __init__(self, inf_bound, sup_bound):
+                self.inf_bound = inf_bound
+                self.sup_bound = sup_bound
+
+            def generate_value(self, generator):
+                # TODO/FIXME random.uniform only generate a machine precision
+                # number (generally a double) which may not be suitable
+                # for larger format
+                value = generator.precision.round_sollya_object(random.uniform(self.inf_bound, self.sup_bound))
+                return NumericValue(value)
 
     special_value_ctor = [
         FP_PlusInfty, FP_MinusInfty,
@@ -326,6 +364,12 @@ class FPRandomGen(RandomGenWeightCat):
         self.random = random.Random(seed)
         self.sp_list = self.get_special_value_list()
 
+    @staticmethod
+    def from_interval(precision, low_bound, high_bound):
+        weight_map = {
+            FPRandomGen.Category.Interval(low_bound, high_bound): 1.0,
+        }
+        return FPRandomGen(precision, weight_map)
 
     def get_special_value_list(self):
         """ Returns a list a special values in the generator precision """
@@ -337,8 +381,54 @@ class FPRandomGen(RandomGenWeightCat):
 
     def generate_sign(self):
         """ Generate a random sign value {-1.0, 1.0} """
-        return SollyaObject(-1.0) if self.random.randrange(2) == 1 else \
-               SollyaObject(1.0)
+        return sollya.SollyaObject(-1.0) if self.random.randrange(2) == 1 else \
+               sollya.SollyaObject(1.0)
+
+
+def get_value_exp(value):
+    """ return the binary exponent of value """
+    return sollya.ceil(sollya.log2(abs(value)))
+
+class MPFPRandomGen:
+    """ random generator for multi-precision floating-point numbers """
+    def __init__(self, mp_format, weight_map=None):
+        weight_map = normalize_map({
+            FPRandomGen.Category.SpecialValues: 0.0,
+            FPRandomGen.Category.Subnormal: 0.0,
+            FPRandomGen.Category.Normal: 1.0,
+        } if weight_map is None else weight_map)
+
+        self.mp_format = mp_format
+    
+        # distribution map for lower limbs
+        lower_weight_map = normalize_map({
+            FPRandomGen.Category.ZeroExp: 1.0,
+        })
+
+        self.rng_gen_list = [
+            FPRandomGen(mp_format.field_format_list[0], weight_map=weight_map)
+        ] + [
+            FPRandomGen(
+                limb_format, weight_map=lower_weight_map
+            ) for limb_format in mp_format.field_format_list[1:]
+        ]
+
+    @staticmethod
+    def from_interval(precision, low_bound, high_bound):
+        weight_map = {
+            FPRandomGen.Category.Interval(low_bound, high_bound): 1.0,
+        }
+        return MPFPRandomGen(precision, weight_map)
+
+    def get_new_value(self):
+        acc = self.rng_gen_list[0].get_new_value()
+        last_exp = get_value_exp(acc)
+        for index, rng in enumerate(self.rng_gen_list[1:], 1):
+            mantissa_size = self.mp_format.field_format_list[index-1].get_mantissa_size()
+            last_exp -= mantissa_size
+            new_limb = S2**(last_exp) * rng.get_new_value()
+            acc += new_limb
+        return acc
 
 
 
