@@ -42,7 +42,7 @@ import sollya
 S2 = sollya.SollyaObject(2)
 
 class NumericValue(sollya.SollyaObject):
-    """ numerical object encapsulating sollya's number to 
+    """ numerical object encapsulating sollya's number to
         provide interaction with special values """
     def __add__(lhs, rhs):
         if FP_SpecialValue.is_special_value(rhs):
@@ -153,7 +153,8 @@ def special_value_add(lhs, rhs):
             if FP_SpecialValue.rounding_mode is None:
                 Log.report(Log.Warning, "undefined rounding mode during +/- 0 + +/- 0 operation in special_value_add")
                 return lhs
-            elif FP_SpecialValue.rounding_mode is sollya.RD:
+            # -0 + -0 is always -0, regardless of rounding mode
+            elif (is_minus_zero(lhs) and is_minus_zero(rhs)) or FP_SpecialValue.rounding_mode is sollya.RD:
                 return FP_MinusZero(lhs.precision)
             else:
                 return FP_PlusZero(lhs.precision)
