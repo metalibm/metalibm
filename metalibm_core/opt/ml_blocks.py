@@ -108,9 +108,9 @@ def generate_fasttwosum(vx, vy, precision=None):
     Precondition: |vx| >= |vy|.
     The return value is a tuple (sum, error).
     """
-    s = Addition(vx, vy, precision=precision)
-    b = Subtraction(s, vx, precision=precision)
-    e = Subtraction(vy, b, precision=precision)
+    s = Addition(vx, vy, precision=precision, prevent_optimization=True)
+    b = Subtraction(s, vx, precision=precision, prevent_optimization=True)
+    e = Subtraction(vy, b, precision=precision, prevent_optimization=True)
     return s, e
    
 def Split(a, precision=None):
@@ -234,13 +234,17 @@ def Mul222(xh, xl, yh, yl, precision=None, fma=True):
     """ Multi-precision Multiplication:
         HI, LO = [xh:xl] * [yh:yl] """
     if fma == True:
-        ph = Multiplication(xh, yh, precision=precision)
+        # ph, pl = xh * yh
+        ph = Multiplication(xh, yh, precision=precision, prevent_optimization=True)
         pl = FMS(xh, yh, ph, precision=precision)
+        # pl += xh * yl
         pl = FMA(xh, yl, pl, precision=precision)
+        # pl += xl * yh
         pl = FMA(xl, yh, pl, precision=precision)
-        zh = Addition(ph, pl, precision=precision)
-        zl = Subtraction(ph, zh, precision=precision)
-        zl = Addition(zl, pl, precision=precision)
+        zh, zl = generate_fasttwosum(ph, pl, precision=precision)
+        #zh = Addition(ph, pl, precision=precision)
+        #zl = Subtraction(ph, zh, precision=precision)
+        #zl = Addition(zl, pl, precision=precision)
     else:
         t1, t2 = Mul211(xh, yh, precision, fma)
         t3 = Multiplication(xh, yl, precision=precision)
