@@ -94,9 +94,7 @@ class ML_UT_MultiPrecisionVectorization(ML_FunctionBasis, TestRunner):
 
         add_vx = Addition(vx, vy, precision=self.precision, tag="add_vx", debug=debug_multi)
 
-        result = add_vx
-
-        #result = Multiplication(add_vx, Constant(3, precision=self.precision), precision=self.precision, tag="result", debug=debug_multi)
+        result = Multiplication(add_vx, vx, precision=self.precision, tag="result", debug=debug_multi)
 
         scheme = Statement(
            Return(result),
@@ -106,7 +104,7 @@ class ML_UT_MultiPrecisionVectorization(ML_FunctionBasis, TestRunner):
         return scheme
 
     def numeric_emulate(self, vx, vy):
-        return (vx + vy)
+        return (vx + vy) * vx
 
     @staticmethod
     def __call__(args):
@@ -120,6 +118,22 @@ class ML_UT_MultiPrecisionVectorization(ML_FunctionBasis, TestRunner):
         (1.5, 2.0),
         (2.0, 2.0),
         (3.0, 2.0),
+        (
+            sollya.parse("0x1.4c0ff9a97083c804f4db2002c8p-1"),
+            sollya.parse("0x1.7fd01d4fe3196307a4e0008b48p-3")
+        ),
+        (
+            sollya.parse("0x1.4c0ff9a97083c804f4db2002c8p-1"),
+            sollya.parse("0x1.7fd01d4fe3196307a4e0008b48p-3")
+        ),
+        (
+            sollya.parse("0x1.4c0ff9a97083c804f4db2002c8p-1"),
+            sollya.parse("0x1.7fd01d4fe3196307a4e0008b48p-3")
+        ),
+        (
+            sollya.parse("0x1.4c0ff9a97083c804f4db2002c8p-1"),
+            sollya.parse("0x1.7fd01d4fe3196307a4e0008b48p-3")
+        ),
     ]
 
 run_test = ML_UT_MultiPrecisionVectorization
