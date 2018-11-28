@@ -1028,8 +1028,24 @@ vector_c_code_generation_table = {
         type_strict_match(v8float64, v8float64, v8float64, v8float64):
             ML_VectorLib_Function("ml_vfmsd8", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2)}, arity = 2, output_precision = v8float64),
       },
-
-    }
+    },
+    FusedMultiplyAdd.SubtractNegate: {
+       lambda _: True: {
+        type_strict_match(v2float32, v2float32, v2float32, v2float32):
+            ML_VectorLib_Function("ml_vfmsnf2", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2)}, arity = 2, output_precision = v2float32),
+        type_strict_match(v3float32, v3float32, v3float32, v3float32):
+            ML_VectorLib_Function("ml_vfmsnf4", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2)}, arity = 2, output_precision = v3float32),
+        type_strict_match(v4float32, v4float32, v4float32, v4float32):
+            ML_VectorLib_Function("ml_vfmsnf4", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2)}, arity = 2, output_precision = v4float32),
+        type_strict_match(v8float32, v8float32, v8float32, v8float32):
+            ML_VectorLib_Function("ml_vfmsnf8", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2)}, arity = 2, output_precision = v8float32),
+        # double-precision versions
+        type_strict_match(v4float64, v4float64, v4float64, v4float64):
+            ML_VectorLib_Function("ml_vfmsnd4", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2)}, arity = 2, output_precision = v4float64),
+        type_strict_match(v8float64, v8float64, v8float64, v8float64):
+            ML_VectorLib_Function("ml_vfmsnd8", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2)}, arity = 2, output_precision = v8float64),
+      },
+    },
   },
   ExponentInsertion: {
     ExponentInsertion.Default: {

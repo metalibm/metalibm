@@ -184,6 +184,13 @@ DEF_ML_VECTOR_PRIMITIVES_FUNC3(ml_vfmsd2, ml_double2_t, double, 2, fma, +, +, -)
 DEF_ML_VECTOR_PRIMITIVES_FUNC3(ml_vfmsd4, ml_double4_t, double, 4, fma, +, +, -)
 DEF_ML_VECTOR_PRIMITIVES_FUNC3(ml_vfmsd8, ml_double8_t, double, 8, fma, +, +, -)
 
+DEF_ML_VECTOR_PRIMITIVES_FUNC3(ml_vfmsnf2, ml_float2_t, float, 2, fmaf, -, +, +)
+DEF_ML_VECTOR_PRIMITIVES_FUNC3(ml_vfmsnf4, ml_float4_t, float, 4, fmaf, -, +, +)
+DEF_ML_VECTOR_PRIMITIVES_FUNC3(ml_vfmsnf8, ml_float8_t, float, 8, fmaf, -, +, +)
+
+DEF_ML_VECTOR_PRIMITIVES_FUNC3(ml_vfmsnd2, ml_double2_t, double, 2, fma, -, +, +)
+DEF_ML_VECTOR_PRIMITIVES_FUNC3(ml_vfmsnd4, ml_double4_t, double, 4, fma, -, +, +)
+DEF_ML_VECTOR_PRIMITIVES_FUNC3(ml_vfmsnd8, ml_double8_t, double, 8, fma, -, +, +)
 
 /** Vector Negate */
 DEF_ML_VECTOR_PRIMITIVES_OP1(ml_vnegf2, ml_float2_t, float, 2, -)
