@@ -1062,7 +1062,9 @@ class FusedMultiplyAdd(SpecifierOperation, GeneralArithmeticOperation):
 
     def __init__(self, *args, **kwords):
         self.specifier = attr_init(kwords, "specifier", FusedMultiplyAdd.Standard)
-        # indicates wheter a base operation commutation has been processed
+        # indicates whether a base operation commutation has been processed
+        # used in proof generation to make sure generated code
+        # is closest as possible to evaluation scheme
         self.commutated = attr_init(kwords, "commutated", False)
         GeneralArithmeticOperation.__init__(self, *args, **kwords)
         self.arity = self.specifier.arity
