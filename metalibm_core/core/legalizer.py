@@ -40,6 +40,7 @@ from metalibm_core.utility.log_report import Log
 from metalibm_core.core.ml_operations import (
     Comparison, Select, Constant, TypeCast, Multiplication, Addition,
     Subtraction, Negation, Test,
+    Conversion,
     BitLogicRightShift, BitLogicLeftShift, BitLogicAnd, LogicalAnd
 )
 from metalibm_core.core.ml_hdl_operations import (
@@ -54,6 +55,7 @@ from metalibm_core.core.ml_formats import (
     v2float32, v4float32, v8float32,
     v2float64, v4float64, v8float64,
     is_std_integer_format, ML_FP_Format,
+    VECTOR_TYPE_MAP
 )
 from metalibm_core.core.ml_hdl_format import (
     is_fixed_point, ML_StdLogicVectorFormat
@@ -340,26 +342,36 @@ def generate_exp_insertion(optree, result_precision):
     if result_precision.is_vector_format():
         scalar_format = optree.precision.get_scalar_format()
         vector_size = optree.precision.get_vector_size()
+        # determine the working format (for expression)
+        work_format = VECTOR_TYPE_MAP[result_precision.get_scalar_format().get_integer_format()][vector_size] 
         bias_cst = [-result_precision.get_scalar_format().get_bias()] * vector_size
         shift_cst = [result_precision.get_scalar_format().get_field_size()] * vector_size
     else:
         scalar_format = optree.precision
+        work_format = result_precision.get_integer_format()
         bias_cst = -result_precision.get_bias() 
         shift_cst = result_precision.get_field_size()
+    if not is_std_integer_format(scalar_format):
+        Log.report(
+            Log.Error,
+            "{} should be a std integer format in generate_exp_insertion {} with precision {}",
+            scalar_format, optree, result_precision
+        )
     assert is_std_integer_format(scalar_format)
     biased_exponent = Addition(
-        optree,
+        Conversion(optree, precision=work_format) if not optree.precision is work_format else optree,
         Constant(
             bias_cst,
-            precision=optree.precision),
-        precision=optree.precision
+            precision=work_format),
+        precision=work_format
     )
     result = BitLogicLeftShift(
         biased_exponent,
         Constant(
             shift_cst,
-            precision=optree.precision),
-        precision=optree.precision
+            precision=work_format,
+        ),
+        precision=work_format
     )
     return TypeCast(
         result,
