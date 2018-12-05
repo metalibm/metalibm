@@ -92,9 +92,14 @@ class ML_UT_MultiPrecisionVectorization(ML_FunctionBasis, TestRunner):
         vx = self.implementation.add_input_variable("x", self.precision)
         vy = self.implementation.add_input_variable("y", self.precision)
 
-        add_vx = Addition(vx, vy, precision=self.precision, tag="add_vx", debug=debug_multi)
+        add_vx = Addition(
+            vx, vy, precision=self.precision,
+            tag="add_vx", debug=debug_multi)
+        mult = Multiplication(
+            add_vx, vx, precision=self.precision,
+            tag="result", debug=debug_multi)
 
-        result = Multiplication(add_vx, vx, precision=self.precision, tag="result", debug=debug_multi)
+        result = FMA(vx, vy, mult, precision=self.precision, tag="result")
 
         scheme = Statement(
            Return(result),
@@ -104,7 +109,7 @@ class ML_UT_MultiPrecisionVectorization(ML_FunctionBasis, TestRunner):
         return scheme
 
     def numeric_emulate(self, vx, vy):
-        return (vx + vy) * vx
+        return vx * vy + ((vx + vy) * vx)
 
     @staticmethod
     def __call__(args):
