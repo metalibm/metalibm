@@ -367,15 +367,16 @@ class ML_Exponential(ML_FunctionBasis):
             ik, self.precision.get_emax(),
             specifier=Comparison.Greater, likely=False,
             debug=debug_multi, tag="late_overflow_test")
-        overflow_exp_offset = (self.precision.get_emax() - self.precision.get_field_size() / 2)
+        overflow_exp_offset = int(self.precision.get_emax() - self.precision.get_field_size() / 2)
+        cst_overflow_exp_offset = Constant(overflow_exp_offset, precision=self.precision.get_integer_format())
         diff_k = Subtraction(
             ik,
-            Constant(overflow_exp_offset, precision=self.precision.get_integer_format()),
+            cst_overflow_exp_offset,
             precision=self.precision.get_integer_format(),
             debug=debug_multi,
             tag="diff_k",
         )
-        late_overflow_result = (ExponentInsertion(diff_k, precision = self.precision) * poly) * ExponentInsertion(overflow_exp_offset, precision = self.precision)
+        late_overflow_result = (ExponentInsertion(diff_k, precision = self.precision) * poly) * ExponentInsertion(cst_overflow_exp_offset, precision = self.precision)
         late_overflow_result.set_attributes(silent = False, tag = "late_overflow_result", debug = debug_multi, precision = self.precision)
         late_overflow_return = ConditionBlock(Test(late_overflow_result, specifier = Test.IsInfty, likely = False), ExpRaiseReturn(ML_FPE_Overflow, return_value = FP_PlusInfty(self.precision)), Return(late_overflow_result, precision=self.precision))
 
