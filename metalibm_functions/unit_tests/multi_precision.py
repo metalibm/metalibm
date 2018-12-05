@@ -83,6 +83,7 @@ class ML_UT_MultiPrecision(ML_FunctionBasis, TestRunner):
                 "input_precisions": [ML_Binary32, ML_Binary32],
                 "fast_path_extract": True,
                 "fuse_fma": False,
+                "passes": ["start:expand_multi_precision"],
                 "libm_compliant": True
         }
         default_args.update(kw)
