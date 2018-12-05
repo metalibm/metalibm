@@ -926,8 +926,9 @@ ML_String = ML_StringClass("char*", DisplayFormat("%s"), lambda self, s: "\"{}\"
 ## Predicate checking if @p precision is a standard integer format
 def is_std_integer_format(precision):
 	return isinstance(precision, ML_Standard_FixedPoint_Format) or \
+           (isinstance(precision, ML_Format) and \
            isinstance(precision.get_base_format(), ML_Standard_FixedPoint_Format) and \
-           not precision.is_vector_format()
+           not precision.is_vector_format())
   #return precision in [ ML_Int8, ML_UInt8, ML_Int16, ML_UInt16,
   #                      ML_Int32, ML_UInt32, ML_Int64, ML_UInt64,
   #                      ML_Int128, ML_UInt128 ]
