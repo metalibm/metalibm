@@ -260,6 +260,7 @@ class MultiPrecisionExpander:
             (isinstance(node, Addition) or \
              isinstance(node, Multiplication) or \
              isinstance(node, Subtraction) or \
+             isinstance(node, Conversion) or \
              isinstance(node, FusedMultiplyAdd) or \
              isinstance(node, Negation) or \
              is_subnormalize_op(node))
@@ -268,15 +269,20 @@ class MultiPrecisionExpander:
     def expand_conversion(self, node):
         """ Expand Conversion node """
         # optimizing Conversion
-        op_input = self.expand_node(node.get_input())
-        # checking if you are looking at the Conversion of a
-        # BuildFromComponent node which can be simplified directly
-        # to a component
+        op_input = self.expand_node(node.get_input(0))
+        # checking if it is a Conversion of a BuildFromComponent node which
+        # can be simplified directly to a limb component
         # TODO: does not manage different component format in
         #       field_format_list
-        if isinstance(op_input, BuildFromComponent) and isinstance(op_input.precision, ML_FP_MultiElementFormat) and op_input.precision.field_format_list[0] == node.precision:
-            return op_input.get_input(0)
-        return node
+        #return op_input.get_input(0)
+        if isinstance(op_input[0].precision, ML_FP_MultiElementFormat) and op_input[0].precision.get_limb_precision(0) == node.precision:
+            # if the conversion is from a multi-precision node to a result whose
+            # precision matches the multi-precision high component, then directly
+            # returns it
+            # TODO/FIXME: does not take into account possible overlap between
+            #             limbs
+            return op_input[0]
+        return None
 
     def expand_sub(self, node):
         lhs = node.get_input(0)
