@@ -113,6 +113,7 @@ class PassScheduler:
   def get_tag_class(tag):
     return {
       PassScheduler.Start.tag: PassScheduler.Start,
+      PassScheduler.Typing.tag: PassScheduler.Typing,
       PassScheduler.Whenever.tag: PassScheduler.Whenever,
       PassScheduler.JustBeforeCodeGen.tag: PassScheduler.JustBeforeCodeGen,
       PassScheduler.BeforePipelining.tag: PassScheduler.BeforePipelining,
