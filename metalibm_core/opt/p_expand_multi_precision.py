@@ -50,9 +50,9 @@ from metalibm_core.core.ml_operations import (
     is_leaf_node,
 )
 from metalibm_core.opt.ml_blocks import (
-    Add222, Add122, Add221, Add212, 
+    Add222, Add122, Add221, Add212,
     Add121, Add112, Add122,
-    Add211, 
+    Add211,
     Mul212, Mul221, Mul211, Mul222,
     Mul122, Mul121, Mul112,
     MP_FMA2111, MP_FMA2112, MP_FMA2122, MP_FMA2212, MP_FMA2121, MP_FMA2211,
@@ -61,6 +61,9 @@ from metalibm_core.opt.ml_blocks import (
 )
 
 from metalibm_core.utility.log_report import Log
+
+# high verbosity log-level for expand_multi_precision pass module
+LOG_LEVEL_EXPAND_VERBOSE = Log.LogLevel("ExpandVerbose")
 
 def is_subnormalize_op(node):
     """ test if @p node is a Subnormalize operation """
@@ -245,18 +248,18 @@ class MultiPrecisionExpander:
         exp_operand = self.expand_node(operand)
         elt_precision = get_elementary_precision(sub_node.precision)
         return subnormalize_multi(exp_operand, factor, precision=elt_precision)
-        
+
     def expand_negation(self, neg_node):
         """ Expand Negation on multi-component node """
         op_input = neg_node.get_input(0)
         neg_operands = self.expand_node(op_input)
         return [Negation(op, precision=op.precision) for op in neg_operands]
-        
+
     def is_expandable(self, node):
         """ Returns True if @p can be expanded from a multi-precision
             node to a list of scalar-precision fields,
             returns False otherwise """
-        return (multi_element_output(node) or multi_element_inputs(node)) and \
+        expandable = (multi_element_output(node) or multi_element_inputs(node)) and \
             (isinstance(node, Addition) or \
              isinstance(node, Multiplication) or \
              isinstance(node, Subtraction) or \
@@ -264,6 +267,9 @@ class MultiPrecisionExpander:
              isinstance(node, FusedMultiplyAdd) or \
              isinstance(node, Negation) or \
              is_subnormalize_op(node))
+        if not expandable:
+            Log.report(LOG_LEVEL_EXPAND_VERBOSE, "{} can not be expanded", node)
+        return expandable
 
 
     def expand_conversion(self, node):
@@ -275,13 +281,15 @@ class MultiPrecisionExpander:
         # TODO: does not manage different component format in
         #       field_format_list
         #return op_input.get_input(0)
-        if isinstance(op_input[0].precision, ML_FP_MultiElementFormat) and op_input[0].precision.get_limb_precision(0) == node.precision:
+        #if isinstance(op_input[0].precision, ML_FP_MultiElementFormat) and op_input[0].precision.get_limb_precision(0) == node.precision:
+        if not op_input is None and op_input[0].precision == node.precision:
             # if the conversion is from a multi-precision node to a result whose
             # precision matches the multi-precision high component, then directly
             # returns it
             # TODO/FIXME: does not take into account possible overlap between
             #             limbs
-            return op_input[0]
+            Log.report(LOG_LEVEL_EXPAND_VERBOSE, "expanding conversion {} into {}", node, op_input[0])
+            return [op_input[0]]
         return None
 
     def expand_sub(self, node):
@@ -415,10 +423,15 @@ class Pass_ExpandMultiPrecision(Pass_NodeTransformation):
     def reconstruct_from_transformed(self, node, transformed_node):
         """return a node at the root of a transformation chain,
             compatible with untransformed nodes """
+        Log.report(LOG_LEVEL_EXPAND_VERBOSE, "reconstructed : {}", node)
+        Log.report(LOG_LEVEL_EXPAND_VERBOSE, "from transformed: {}", "\n".join([str(n) for n in transformed_node]))
         if isinstance(node, Constant):
             return node
         else:
-            result = BuildFromComponent(*tuple(transformed_node), precision=node.precision)
+            if len(transformed_node) == 1:
+                result = transformed_node[0]
+            else:
+                result = BuildFromComponent(*tuple(transformed_node), precision=node.precision)
             forward_attributes(node, result)
             result.set_tag(node.get_tag())
             return result
