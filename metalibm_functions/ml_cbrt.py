@@ -134,33 +134,41 @@ class ML_Cbrt(ML_FunctionBasis):
       cbrt_approx = cbrt(input_value)
       cbrt_approx_table[i][0] = round(cbrt_approx, self.precision.get_sollya_object(), RN)
 
-    # approximation of cbrt(1), cbrt(2), cbrt(4)
-    cbrt_mod_table = ML_NewTable(dimensions = [3, 1], storage_precision = self.precision, tag = self.uniquify_name("cbrt_mod_table"))
-    for i in range(3):
-      input_value = SollyaObject(2)**i
+    # Modulo operations will returns a reduced exponent within [-3, 2]
+    # so we approximate cbrt on this interval (with index offset by -3)
+    cbrt_mod_table = ML_NewTable(dimensions = [6, 1], storage_precision = self.precision, tag = self.uniquify_name("cbrt_mod_table"))
+    for i in range(6):
+      input_value = SollyaObject(2)**(i-3)
       cbrt_mod_table[i][0] = round(cbrt(input_value), self.precision.get_sollya_object(), RN)
 
     vx_int = TypeCast(reduced_vx, precision = int_precision)
     mask = BitLogicRightShift(vx_int, self.precision.get_precision() - index_size, precision = int_precision)
-    mask = BitLogicAnd(mask, Constant(2**index_size - 1, precision = int_precision), precision = int_precision, tag = "table_index")
+    mask = BitLogicAnd(mask, Constant(2**index_size - 1, precision = int_precision), precision = int_precision, tag = "table_index", debug=debug_multi)
     table_index = mask
 
     exp_vx = ExponentExtraction(vx, precision = ML_Int32, tag = "exp_vx")
     exp_vx_third = Division(exp_vx, Constant(3, precision = ML_Int32), precision = ML_Int32, tag = "exp_vx_third")
-    exp_vx_mod   = Modulo(exp_vx, Constant(3, precision = ML_Int32), precision = ML_Int32, tag = "exp_vx_mod")
+    exp_vx_mod   = Modulo(exp_vx, Constant(3, precision = ML_Int32), precision = ML_Int32, tag = "exp_vx_mod", debug=debug_multi)
+
+    # offset on modulo to make sure table index is positive
+    exp_vx_mod = exp_vx_mod + 3
 
     cbrt_mod = TableLoad(cbrt_mod_table, exp_vx_mod, Constant(0), tag = "cbrt_mod")
 
     init_approx = Multiplication(
       Multiplication(
         # approx cbrt(mantissa)
-        TableLoad(cbrt_approx_table, table_index, Constant(0, precision = ML_Int32)),
+        TableLoad(cbrt_approx_table, table_index, Constant(0, precision = ML_Int32), tag="seed", debug=debug_multi),
         # approx cbrt(2^(e%3))
         cbrt_mod,
-        precision = self.precision
+        tag="init_mult", 
+        debug=debug_multi,
+        precision=self.precision
       ),
       # 2^(e/3)
-      ExponentInsertion(exp_vx_third, precision = self.precision),
+      ExponentInsertion(exp_vx_third, precision = self.precision, tag="exp_vx_third", debug=debug_multi),
+      tag="init_approx",
+      debug=debug_multi,
       precision = self.precision
     )
 
@@ -172,8 +180,10 @@ class ML_Cbrt(ML_FunctionBasis):
     for i in range(num_iteration):
       #current_approx = cbrt_newton_iteration(current_approx, reduced_vx, inverse_red_vx) 
       current_approx = cbrt_newton_iteration(current_approx, vx, inverse_vx) 
+      current_approx.set_attributes(tag="approx_%d" % i, debug=debug_multi)
 
     result = current_approx
+    result.set_attributes(tag="result", debug=debug_multi)
 
     # last iteration
     ext_precision = ML_DoubleDouble
@@ -206,7 +216,11 @@ class ML_Cbrt(ML_FunctionBasis):
   def numeric_emulate(self, input_value):
     return cbrt(input_value)
 
-  standard_test_cases =[sollya_parse(x) for x in  ["1.1", "1.5"]]
+  standard_test_cases =[
+    (sollya_parse(x),) for x in  ["1.1", "1.5"]
+  ] + [
+    (sollya.parse("0x1.4fc9bcp-1"),),
+  ]
 
 
 if __name__ == "__main__":
