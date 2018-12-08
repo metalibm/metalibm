@@ -2017,9 +2017,9 @@ avx_c_code_generation_table = {
                                  ML_AVX_m256_v8float32)
                         ),
                 type_strict_match(*(2*(ML_AVX_m256_v4float64,))):
-                    XmmIntrin("_mm256_xor_ps", arity = 2)(
+                    XmmIntrin("_mm256_xor_pd", arity = 2)(
                         FO_Arg(0),
-                        FO_Value("_mm256_set1_ps(-0.0f)",
+                        FO_Value("_mm256_set1_pd(-0.0)",
                                  ML_AVX_m256_v4float64)
                         ),
             },
