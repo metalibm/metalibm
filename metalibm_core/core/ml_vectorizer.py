@@ -145,7 +145,22 @@ class StaticVectorizer(object):
                 # selection of a subset of the large vector to be the
                 # sub-vector operand of this sub-vector path
                 arg_list_copy = dict(
-                    (arg_node, assembling_vector(tuple((VectorElementSelection(vec_arg_dict[arg_node], i*sub_vector_size + j, precision = arg_node.get_precision())) for j in range(sub_vector_size)), precision = self.vectorize_format(arg_node.get_precision(), sub_vector_size), tag = "%s%d" %(vec_arg_dict[arg_node].get_tag(), i)))
+                    (
+                        arg_node,
+                        assembling_vector(
+                            tuple(
+                                (VectorElementSelection(
+                                    vec_arg_dict[arg_node],
+                                    i*sub_vector_size + j,
+                                    precision=arg_node.get_precision())
+                                ) for j in range(sub_vector_size)
+                            ),
+                            precision=self.vectorize_format(
+                                arg_node.get_precision(), sub_vector_size
+                            ),
+                            tag="%s%d" %(vec_arg_dict[arg_node].get_tag(), i)
+                        )
+                    )
                     for arg_node in arg_list)
                 sub_vec_arg_list = [arg_list_copy[arg_node] for arg_node in arg_list]
                 vectorization_map = dict((arg, arg) for arg in sub_vec_arg_list)
