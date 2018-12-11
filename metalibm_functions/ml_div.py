@@ -236,7 +236,7 @@ class ML_Division(ML_FunctionBasis):
             "function_name": "my_div",
             "language": C_Code,
             "num_iter": 3,
-            "passes": ["beforecodegen:expand_multi_precision"],
+            "passes": ["typing:basic_legalization", "beforecodegen:expand_multi_precision"],
             "vector_size": 1,
             "arity": ML_Division.arity,
         }
@@ -250,14 +250,14 @@ class ML_Division(ML_FunctionBasis):
 
         # maximum exponent magnitude (to avoid overflow/ underflow during
         # intermediary computations
-        max_exp_mag = self.precision.get_emax() - 3
         int_prec = self.precision.get_integer_format()
+        max_exp_mag = Constant(self.precision.get_emax() - 3, precision=int_prec)
 
         exact_ex = ExponentExtraction(vx, tag = "exact_ex", precision=int_prec, debug=debug_multi)
         exact_ey = ExponentExtraction(vy, tag = "exact_ey", precision=int_prec, debug=debug_multi)
 
-        ex = Max(Min(exact_ex, max_exp_mag), -max_exp_mag, tag="ex")
-        ey = Max(Min(exact_ey, max_exp_mag), -max_exp_mag, tag="ey")
+        ex = Max(Min(exact_ex, max_exp_mag, precision=int_prec), -max_exp_mag, tag="ex", precision=int_prec)
+        ey = Max(Min(exact_ey, max_exp_mag, precision=int_prec), -max_exp_mag, tag="ey", precision=int_prec)
 
 
         Attributes.set_default_rounding_mode(ML_RoundToNearest)
