@@ -152,9 +152,11 @@ class ML_Cbrt(ML_FunctionBasis):
         mask = BitLogicAnd(mask, Constant(2**index_size - 1, precision = int_precision), precision = int_precision, tag = "table_index", debug=debug_multi)
         table_index = mask
 
-        exp_vx = ExponentExtraction(vx, precision = ML_Int32, tag = "exp_vx")
-        exp_vx_third = Division(exp_vx, Constant(3, precision = ML_Int32), precision = ML_Int32, tag = "exp_vx_third")
-        exp_vx_mod     = Modulo(exp_vx, Constant(3, precision = ML_Int32), precision = ML_Int32, tag = "exp_vx_mod", debug=debug_multi)
+        int_precision = self.precision.get_integer_format()
+
+        exp_vx = ExponentExtraction(vx, precision=int_precision, tag = "exp_vx")
+        exp_vx_third = Division(exp_vx, Constant(3, precision=int_precision), precision=int_precision, tag = "exp_vx_third")
+        exp_vx_mod     = Modulo(exp_vx, Constant(3, precision=int_precision), precision=int_precision, tag = "exp_vx_mod", debug=debug_multi)
 
         # offset on modulo to make sure table index is positive
         exp_vx_mod = exp_vx_mod + 3
