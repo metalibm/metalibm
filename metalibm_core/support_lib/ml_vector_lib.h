@@ -68,6 +68,14 @@ DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vaddu2, ml_uint2_t, uint32_t, 2, +)
 DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vaddu4, ml_uint4_t, uint32_t, 4, +)
 DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vaddu8, ml_uint8_t, uint32_t, 8, +)
 
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vaddl2, ml_long2_t, int64_t, 2, +)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vaddl4, ml_long4_t, int64_t, 4, +)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vaddl8, ml_long8_t, int64_t, 8, +)
+
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vaddul2, ml_ulong2_t, uint64_t, 2, +)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vaddul4, ml_ulong4_t, uint64_t, 4, +)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vaddul8, ml_ulong8_t, uint64_t, 8, +)
+
 /** Vector Subtraction */
 DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsubf2, ml_float2_t, float, 2, -)
 DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsubf4, ml_float4_t, float, 4, -)
@@ -84,6 +92,14 @@ DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsubi8, ml_int8_t, int32_t, 8, -)
 DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsubu2, ml_uint2_t, uint32_t, 2, -)
 DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsubu4, ml_uint4_t, uint32_t, 4, -)
 DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsubu8, ml_uint8_t, uint32_t, 8, -)
+
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsubl2, ml_long2_t, int64_t, 2, -)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsubl4, ml_long4_t, int64_t, 4, -)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsubl8, ml_long8_t, int64_t, 8, -)
+
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsubul2, ml_ulong2_t, uint64_t, 2, -)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsubul4, ml_ulong4_t, uint64_t, 4, -)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsubul8, ml_ulong8_t, uint64_t, 8, -)
 
 /** Vector Multiplication */
 DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vmulf2, ml_float2_t, float, 2, *)
@@ -102,6 +118,14 @@ DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vmulu2, ml_uint2_t, uint32_t, 2, *)
 DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vmulu4, ml_uint4_t, uint32_t, 4, *)
 DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vmulu8, ml_uint8_t, uint32_t, 8, *)
 
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vmull2, ml_long2_t, int64_t, 2, *)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vmull4, ml_long4_t, int64_t, 4, *)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vmull8, ml_long8_t, int64_t, 8, *)
+
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vmulul2, ml_ulong2_t, uint64_t, 2, *)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vmulul4, ml_ulong4_t, uint64_t, 4, *)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vmulul8, ml_ulong8_t, uint64_t, 8, *)
+
 /** Vector Division */
 DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vdivf2, ml_float2_t, float, 2, /)
 DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vdivf4, ml_float4_t, float, 4, /)
@@ -119,6 +143,14 @@ DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vdivu2, ml_uint2_t, uint32_t, 2, /)
 DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vdivu4, ml_uint4_t, uint32_t, 4, /)
 DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vdivu8, ml_uint8_t, uint32_t, 8, /)
 
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vdivl2, ml_long2_t, int64_t, 2, /)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vdivl4, ml_long4_t, int64_t, 4, /)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vdivl8, ml_long8_t, int64_t, 8, /)
+
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vdivul2, ml_ulong2_t, uint64_t, 2, /)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vdivul4, ml_ulong4_t, uint64_t, 4, /)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vdivul8, ml_ulong8_t, uint64_t, 8, /)
+
 /** Vector Modulo */
 DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vmodi2, ml_int2_t, int32_t, 2, %)
 DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vmodi4, ml_int4_t, int32_t, 4, %)
@@ -128,6 +160,15 @@ DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vmodu2, ml_uint2_t, uint32_t, 2, %)
 DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vmodu4, ml_uint4_t, uint32_t, 4, %)
 DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vmodu8, ml_uint8_t, uint32_t, 8, %)
 
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vmodl2, ml_long2_t, int64_t, 2, %)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vmodl4, ml_long4_t, int64_t, 4, %)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vmodl8, ml_long8_t, int64_t, 8, %)
+
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vmodul2, ml_ulong2_t, uint64_t, 2, %)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vmodul4, ml_ulong4_t, uint64_t, 4, %)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vmodul8, ml_ulong8_t, uint64_t, 8, %)
+
+
 /** Vector Logic Left Shift */
 DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vslli2, ml_int2_t, int32_t, 2, <<)
 DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vslli4, ml_int4_t, int32_t, 4, <<)
@@ -136,6 +177,15 @@ DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vslli8, ml_int8_t, int32_t, 8, <<)
 DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsllu2, ml_uint2_t, uint32_t, 2, <<)
 DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsllu4, ml_uint4_t, uint32_t, 4, <<)
 DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsllu8, ml_uint8_t, uint32_t, 8, <<)
+
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vslll2, ml_long2_t, int64_t, 2, <<)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vslll4, ml_long4_t, int64_t, 4, <<)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vslll8, ml_long8_t, int64_t, 8, <<)
+
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsllul2, ml_ulong2_t, uint64_t, 2, <<)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsllul4, ml_ulong4_t, uint64_t, 4, <<)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsllul8, ml_ulong8_t, uint64_t, 8, <<)
+
 
 /** Vector Logic Right Shift */
 DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsrli2, ml_int2_t, int32_t, 2, >>)
@@ -209,6 +259,13 @@ DEF_ML_VECTOR_PRIMITIVES_OP1(ml_vnegu2, ml_uint2_t, uint32_t, 2, -)
 DEF_ML_VECTOR_PRIMITIVES_OP1(ml_vnegu4, ml_uint4_t, uint32_t, 4, -)
 DEF_ML_VECTOR_PRIMITIVES_OP1(ml_vnegu8, ml_uint8_t, uint32_t, 8, -)
 
+DEF_ML_VECTOR_PRIMITIVES_OP1(ml_vnegl2, ml_long2_t, int64_t, 2, -)
+DEF_ML_VECTOR_PRIMITIVES_OP1(ml_vnegl4, ml_long4_t, int64_t, 4, -)
+DEF_ML_VECTOR_PRIMITIVES_OP1(ml_vnegl8, ml_long8_t, int64_t, 8, -)
+
+DEF_ML_VECTOR_PRIMITIVES_OP1(ml_vnegul2, ml_ulong2_t, uint64_t, 2, -)
+DEF_ML_VECTOR_PRIMITIVES_OP1(ml_vnegul4, ml_ulong4_t, uint64_t, 4, -)
+DEF_ML_VECTOR_PRIMITIVES_OP1(ml_vnegul8, ml_ulong8_t, uint64_t, 8, -)
 
 /** Vector logical negation */
 DEF_ML_VECTOR_PRIMITIVES_OP1(ml_vnoti2, ml_int2_t, int32_t, 2, !)

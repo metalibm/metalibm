@@ -644,6 +644,32 @@ SUPPORTED_VECTOR_FORMATS = [
     v2uint64, v3uint64, v4uint64, v8uint64,
 ]
 
+
+def get_vformat_desc(vformat):
+    return {
+        ML_Int32: "i",
+        ML_Int64: "l",
+        ML_UInt32: "u",
+        ML_UInt64: "ul",
+        ML_Binary32: "f",
+        ML_Binary64: "d"
+    }[vformat.get_scalar_format()]
+
+BASIC_INTEGER_VFORMAT_LIST = [
+    v2int32, v3int32, v4int32, v8int32,
+    v2uint32, v3uint32, v4uint32, v8uint32,
+    v2int64, v3int64, v4int64, v8int64,
+    v2uint64, v3uint64, v4uint64, v8uint64,
+]
+
+BASIC_FLOAT_VFORMAT_LIST = [
+    v2float32, v3float32, v4float32, v8float32,
+    v2float64, v3float64, v4float64, v8float64,
+]
+
+BASIC_VFORMAT_LIST = BASIC_FLOAT_VFORMAT_LIST + BASIC_INTEGER_VFORMAT_LIST
+
+
 vector_c_code_generation_table = {
   ReciprocalSeed: {
     None: {
@@ -803,44 +829,30 @@ vector_c_code_generation_table = {
   },
   BitLogicLeftShift: {
     None: {
-       lambda _: True: {
-        type_strict_match(v4int32, v4int32, v4int32): ML_VectorLib_Function("ml_vslli4", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v4int32),
-        type_strict_match(v4uint32, v4uint32, v4uint32): ML_VectorLib_Function("ml_vsllu4", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v4uint32),
-
-        type_strict_match(v8int32, v8int32, v8int32): ML_VectorLib_Function("ml_vslli8", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v8int32),
-        type_strict_match(v8uint32, v8uint32, v8uint32): ML_VectorLib_Function("ml_vsllu8", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v8uint32),
-      },
+       lambda _: True: dict(
+            (
+                type_strict_match(vformat, vformat, vformat),
+                ML_VectorLib_Function(
+                    "ml_vsll%s%d" % (get_vformat_desc(vformat), vformat.get_vector_size()),
+                    arg_map={0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity=2,
+                    output_precision=vformat
+                )
+            ) for vformat in BASIC_INTEGER_VFORMAT_LIST
+        )
     },
   },
   BitLogicRightShift: {
     None: {
-       lambda _: True: {
-        type_strict_match(v2int32, v2int32, v2int32): 
-            ML_VectorLib_Function("ml_vsrai2", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v2int32),
-        type_strict_match(v3int32, v3int32, v3int32):
-            ML_VectorLib_Function("ml_vsrli3", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v3int32),
-        type_strict_match(v3uint32, v3uint32, v3uint32):
-            ML_VectorLib_Function("ml_vsrlu3", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v3uint32),
-        type_strict_match(v4int32, v4int32, v4int32):
-            ML_VectorLib_Function("ml_vsrli4", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v4int32),
-        type_strict_match(v4uint32, v4uint32, v4uint32):
-            ML_VectorLib_Function("ml_vsrlu4", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v4uint32),
-        type_strict_match(v8int32, v8int32, v8int32):
-            ML_VectorLib_Function("ml_vsrli8", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v8int32),
-        type_strict_match(v8uint32, v8uint32, v8uint32):
-            ML_VectorLib_Function("ml_vsrlu8", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v8uint32),
-
-        # 64-bit version
-        type_strict_match(v4int64, v4int64, v4int64):
-            ML_VectorLib_Function("ml_vsrll4", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v4int64),
-        type_strict_match(v4int64, v4int64, v4int32):
-            ComplexOperator(promote_operand(1, v4int64)),
-
-        type_strict_match(v8int64, v8int64, v8int64):
-            ML_VectorLib_Function("ml_vsrll8", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v8int64),
-        type_strict_match(v8int64, v8int64, v8int32):
-            ComplexOperator(promote_operand(1, v8int64)),
-      },
+       lambda _: True: dict(
+            (
+                type_strict_match(vformat, vformat, vformat),
+                ML_VectorLib_Function(
+                    "ml_vsrl%s%d" % (get_vformat_desc(vformat), vformat.get_vector_size()),
+                    arg_map={0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity=2,
+                    output_precision=vformat
+                )
+            ) for vformat in BASIC_INTEGER_VFORMAT_LIST
+        )
     },
   },
   BitArithmeticRightShift: {
@@ -883,119 +895,72 @@ vector_c_code_generation_table = {
   },
   Modulo: {
     None: {
-       lambda _: True: {
-        type_strict_match(v2int32, v2int32, v2int32): ML_VectorLib_Function("ml_vmodi2", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2),
-        type_strict_match(v3int32, v3int32, v3int32): ML_VectorLib_Function("ml_vmodi4", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v3int32),
-        type_strict_match(v4int32, v4int32, v4int32): ML_VectorLib_Function("ml_vmodi4", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v4int32),
-        type_strict_match(v8int32, v8int32, v8int32): ML_VectorLib_Function("ml_vmodi8", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v8int32),
-      },
+       lambda _: True: dict(
+            (
+                type_strict_match(vformat, vformat, vformat),
+                ML_VectorLib_Function(
+                    "ml_vadd%s%d" % (get_vformat_desc(vformat), vformat.get_vector_size()),
+                    arg_map={0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity=2,
+                    output_precision=vformat
+                )
+            ) for vformat in BASIC_INTEGER_VFORMAT_LIST
+        )
     },
   },
   Division: {
     None: {
-       lambda _: True: {
-        type_strict_match(v2int32, v2int32, v2int32): ML_VectorLib_Function("ml_vdivi2", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2),
-        type_strict_match(v3int32, v3int32, v3int32): ML_VectorLib_Function("ml_vdivi4", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v3int32),
-        type_strict_match(v4int32, v4int32, v4int32): ML_VectorLib_Function("ml_vdivi4", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v4int32),
-        type_strict_match(v8int32, v8int32, v8int32): ML_VectorLib_Function("ml_vdivi8", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v8int32),
-
-        type_strict_match(v2float32, v2float32, v2float32): ML_VectorLib_Function("ml_vdivf2", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2),
-        type_strict_match(v3float32, v3float32, v3float32): ML_VectorLib_Function("ml_vdivf4", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v3float32),
-        type_strict_match(v4float32, v4float32, v4float32): ML_VectorLib_Function("ml_vdivf4", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v4float32),
-        type_strict_match(v8float32, v8float32, v8float32): ML_VectorLib_Function("ml_vdivf8", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v8float32),
-
-        type_strict_match(v2float64, v2float64, v2float64):
-            ML_VectorLib_Function("ml_vdiv2", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2),
-        type_strict_match(v3float64, v3float64, v3float64):
-            ML_VectorLib_Function("ml_vdiv4", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v3float64),
-        type_strict_match(v4float64, v4float64, v4float64):
-            ML_VectorLib_Function("ml_vdiv4", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v4float64),
-        type_strict_match(v8float64, v8float64, v8float64):
-            ML_VectorLib_Function("ml_vdiv8", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v8float64),
-      },
+       lambda _: True: dict(
+            (
+                type_strict_match(vformat, vformat, vformat),
+                ML_VectorLib_Function(
+                    "ml_vdiv%s%d" % (get_vformat_desc(vformat), vformat.get_vector_size()),
+                    arg_map={0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity=2,
+                    output_precision=vformat
+                )
+            ) for vformat in BASIC_VFORMAT_LIST
+        )
     },
   },
   Addition: {
     None: {
-       lambda _: True: {
-        # signed integers
-        type_strict_match(v2int32, v2int32, v2int32): ML_VectorLib_Function("ml_vaddi2", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2),
-        type_strict_match(v3int32, v3int32, v3int32): ML_VectorLib_Function("ml_vaddi4", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v3int32),
-        type_strict_match(v4int32, v4int32, v4int32): ML_VectorLib_Function("ml_vaddi4", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v4int32),
-        type_strict_match(v8int32, v8int32, v8int32): ML_VectorLib_Function("ml_vaddi8", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v8int32),
-        # unsigned integers
-        type_strict_match(v2uint32, v2uint32, v2uint32): ML_VectorLib_Function("ml_vaddi2", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2),
-        type_strict_match(v3uint32, v3uint32, v3uint32): ML_VectorLib_Function("ml_vaddi4", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v3uint32),
-        type_strict_match(v4uint32, v4uint32, v4uint32): ML_VectorLib_Function("ml_vaddi4", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v4uint32),
-        type_strict_match(v8uint32, v8uint32, v8uint32): ML_VectorLib_Function("ml_vaddi8", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v8uint32),
-        # single precision
-        type_strict_match(v2float32, v2float32, v2float32): ML_VectorLib_Function("ml_vaddf2", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v2float32),
-        type_strict_match(v3float32, v3float32, v3float32): ML_VectorLib_Function("ml_vaddf4", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v3float32),
-        type_strict_match(v4float32, v4float32, v4float32): ML_VectorLib_Function("ml_vaddf4", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v4float32),
-        type_strict_match(v8float32, v8float32, v8float32): ML_VectorLib_Function("ml_vaddf8", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v8float32),
-        # double precision
-        type_strict_match(v2float64, v2float64, v2float64): ML_VectorLib_Function("ml_vaddd2", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v2float64),
-        type_strict_match(v3float64, v3float64, v3float64): ML_VectorLib_Function("ml_vaddd4", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v3float64),
-        type_strict_match(v4float64, v4float64, v4float64): ML_VectorLib_Function("ml_vaddd4", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v4float64),
-        type_strict_match(v8float64, v8float64, v8float64): ML_VectorLib_Function("ml_vaddd8", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v8float64),
-      },
+       lambda _: True: dict(
+            (
+                type_strict_match(vformat, vformat, vformat),
+                ML_VectorLib_Function(
+                    "ml_vadd%s%d" % (get_vformat_desc(vformat), vformat.get_vector_size()),
+                    arg_map={0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity=2,
+                    output_precision=vformat
+                )
+            ) for vformat in BASIC_VFORMAT_LIST
+        )
     },
   },
   Subtraction: {
     None: {
-       lambda _: True: {
-        # single precision
-        type_strict_match(v2float32, v2float32, v2float32): ML_VectorLib_Function("ml_vsubf2", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v2float32),
-        type_strict_match(v3float32, v3float32, v3float32): ML_VectorLib_Function("ml_vsubf4", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v3float32),
-        type_strict_match(v4float32, v4float32, v4float32): ML_VectorLib_Function("ml_vsubf4", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v4float32),
-        type_strict_match(v8float32, v8float32, v8float32): ML_VectorLib_Function("ml_vsubf8", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v8float32),
-        # double precision
-        type_strict_match(v2float64, v2float64, v2float64): ML_VectorLib_Function("ml_vsubd2", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v2float64),
-        type_strict_match(v3float64, v3float64, v3float64): ML_VectorLib_Function("ml_vsubd4", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v3float64),
-        type_strict_match(v4float64, v4float64, v4float64): ML_VectorLib_Function("ml_vsubd4", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v4float64),
-        type_strict_match(v8float64, v8float64, v8float64): ML_VectorLib_Function("ml_vsubd8", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v8float64),
-
-        type_strict_match(v2uint32, v2uint32, v2uint32): ML_VectorLib_Function("ml_vsubu2", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v2uint32),
-        type_strict_match(v3uint32, v3uint32, v3uint32): ML_VectorLib_Function("ml_vsubu4", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v3uint32),
-        type_strict_match(v4uint32, v4uint32, v4uint32): ML_VectorLib_Function("ml_vsubu4", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v4uint32),
-        type_strict_match(v8uint32, v8uint32, v8uint32): ML_VectorLib_Function("ml_vsubu8", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v8uint32),
-
-        type_strict_match(v2int32, v2int32, v2int32): ML_VectorLib_Function("ml_vsubi2", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v2int32),
-        type_strict_match(v3int32, v3int32, v3int32): ML_VectorLib_Function("ml_vsubi4", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v3int32),
-        type_strict_match(v4int32, v4int32, v4int32): ML_VectorLib_Function("ml_vsubi4", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v4int32),
-        type_strict_match(v8int32, v8int32, v8int32): ML_VectorLib_Function("ml_vsubi8", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v8int32),
-      },
+       lambda _: True: dict(
+            (
+                type_strict_match(vformat, vformat, vformat),
+                ML_VectorLib_Function(
+                    "ml_vsub%s%d" % (get_vformat_desc(vformat), vformat.get_vector_size()),
+                    arg_map={0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity=2,
+                    output_precision=vformat
+                )
+            ) for vformat in BASIC_VFORMAT_LIST
+        )
     },
   },
-  #  Negate: {
-  #    None: {
-  #       lambda _: True: {
-  #        type_strict_match(v2int32, v2int32): ML_VectorLib_Function("ml_vnegi2", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)}, arity = 1),
-  #        type_strict_match(v4int32, v4int32): ML_VectorLib_Function("ml_vnegi4", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)}, arity = 1, output_precision = v4int32),
-  #        type_strict_match(v8int32, v8int32): ML_VectorLib_Function("ml_vnegi8", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)}, arity = 1, output_precision = v8int32),
-  #
-  #        type_strict_match(v2float32, v2float32): ML_VectorLib_Function("ml_vnegf2", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)}, arity = 1, output_precision = v2float32),
-  #        type_strict_match(v4float32, v4float32): ML_VectorLib_Function("ml_vnegf4", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)}, arity = 1, output_precision = v4float32),
-  #        type_strict_match(v8float32, v8float32): ML_VectorLib_Function("ml_vnegf8", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)}, arity = 1, output_precision = v8float32),
-  #      },
-  #    },
-  #  },
   Multiplication: {
     None: {
-       lambda _: True: {
-        # single precision
-        type_strict_match(v2float32, v2float32, v2float32): ML_VectorLib_Function("ml_vmulf2", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v2float32),
-        type_strict_match(v3float32, v3float32, v3float32): ML_VectorLib_Function("ml_vmulf3", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v3float32),
-        type_strict_match(v4float32, v4float32, v4float32): ML_VectorLib_Function("ml_vmulf4", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v4float32),
-        type_strict_match(v8float32, v8float32, v8float32): ML_VectorLib_Function("ml_vmulf8", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v8float32),
-        # double precision
-        type_strict_match(v2float64, v2float64, v2float64): ML_VectorLib_Function("ml_vmuld2", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v2float64),
-        #type_strict_match(v3float64, v3float64, v3float64): ML_VectorLib_Function("ml_vmuld4", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v3float64),
-        type_strict_match(v4float64, v4float64, v4float64): ML_VectorLib_Function("ml_vmuld4", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v4float64),
-        type_strict_match(v8float64, v8float64, v8float64): ML_VectorLib_Function("ml_vmuld8", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v8float64),
-        # integer precision
-        type_strict_match(v4int32, v4int32, v4int32): ML_VectorLib_Function("ml_vmuli4", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v4int32),
-      },
+       lambda _: True: dict(
+            (
+                type_strict_match(vformat, vformat, vformat),
+                ML_VectorLib_Function(
+                    "ml_vmul%s%d" % (get_vformat_desc(vformat), vformat.get_vector_size()),
+                    arg_map={0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity=2,
+                    output_precision=vformat
+                )
+            ) for vformat in BASIC_VFORMAT_LIST
+        )
     },
   },
   FusedMultiplyAdd: {
@@ -1136,7 +1101,7 @@ vector_c_code_generation_table = {
               , 
                 ML_VectorLib_Function("ml_vneg%s%d" % (scalar_type_letter[scalar_type], vector_size), arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)}, arity = 1, output_precision = VECTOR_TYPE_MAP[scalar_type][vector_size])
               ) for vector_size in supported_vector_size
-            ] for scalar_type in [ML_Binary32, ML_Binary64, ML_Int32, ML_UInt32]
+            ] for scalar_type in [ML_Binary32, ML_Binary64, ML_Int32, ML_UInt32, ML_Int64, ML_UInt64]
           ]
           , []
           )
