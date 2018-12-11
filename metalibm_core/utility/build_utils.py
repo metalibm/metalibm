@@ -124,6 +124,7 @@ class SourceFile:
         compiler = target.get_compiler()
         DEFAULT_OPTIONS = ["-O2", "-DML_DEBUG"]
         compiler_options = " ".join(DEFAULT_OPTIONS + target.get_compilation_options())
+        src_list = [self.path]
         if not(link):
             # build only, disable link
             if shared_object:
@@ -140,7 +141,7 @@ class SourceFile:
         build_command = "{compiler} {options} -I{ML_SRC_DIR}/metalibm_core \
         {src_file} -o {bin_name} -lm ".format(
             compiler=compiler,
-            src_file=self.path,
+            src_file=(" ".join(src_list)),
             bin_name=bin_name,
             options=compiler_options,
             ML_SRC_DIR=os.environ["ML_SRC_DIR"])
