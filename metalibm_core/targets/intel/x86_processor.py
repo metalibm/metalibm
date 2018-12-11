@@ -2879,6 +2879,13 @@ class X86_SSE_Processor(X86_Processor):
     # approximation table map
     approx_table_map = x86_sse_approx_table_map
 
+    TARGET_PREFERRED_VECTOR_SIZE_MAP = {
+        ML_Binary32: 4,
+        ML_Binary64: 2,
+        ML_Int32: 4,
+        ML_Int64: 2
+    }
+
 
     def __init__(self):
         super(X86_SSE_Processor, self).__init__()
@@ -2886,6 +2893,16 @@ class X86_SSE_Processor(X86_Processor):
     def get_compilation_options(self):
         return super(X86_SSE_Processor, self).get_compilation_options() \
                 + ['-msse']
+
+    def get_preferred_sub_vector_size(self, scalar_precision, vector_size):
+        """ Returns the target preferred sub-vector size for a vector of size
+            @p vector_size and of scalar precision @p scalar_precision """
+        if scalar_precision in self.TARGET_PREFERRED_VECTOR_SIZE_MAP:
+            return min(self.TARGET_PREFERRED_VECTOR_SIZE_MAP[scalar_precision], vector_size)
+        else:
+            return super(X86_AVX_Processor, self).get_preferred_sub_vector_size(
+                scalar_precision, vector_size
+            )
 
 
 class X86_SSE2_Processor(X86_SSE_Processor):
@@ -2978,6 +2995,12 @@ class X86_AVX_Processor(X86_SSE42_Processor):
     code_generation_table = {
         C_Code: avx_c_code_generation_table,
     }
+    TARGET_PREFERRED_VECTOR_SIZE_MAP = {
+        ML_Binary32: 8,
+        ML_Binary64: 4,
+        ML_Int32: 8,
+        ML_Int64: 4
+    }
 
     def __init__(self):
         super(X86_AVX_Processor, self).__init__()
@@ -2985,6 +3008,7 @@ class X86_AVX_Processor(X86_SSE42_Processor):
     def get_compilation_options(self):
         return super(X86_AVX_Processor, self).get_compilation_options() \
                 + ['-mavx']
+
 
 
 class X86_AVX2_Processor(X86_AVX_Processor):

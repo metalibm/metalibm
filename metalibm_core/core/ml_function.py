@@ -844,10 +844,11 @@ class ML_FunctionBasis(object):
     scalar_callback          = scalar_callback_function.get_function_object()
 
     Log.report(Log.Info, "[SV] vectorizing scheme")
+    sub_vector_size = self.processor.get_preferred_sub_vector_size(self.precision, vector_size) if self.sub_vector_size is None else self.sub_vector_size
     vec_arg_list, vector_scheme, vector_mask = \
         self.vectorizer.vectorize_scheme(scalar_scheme, scalar_arg_list,
                                          vector_size, call_externalizer,
-                                         self.get_output_precision(), self.sub_vector_size)
+                                         self.get_output_precision(), sub_vector_size)
 
     vector_output_format = self.vectorizer.vectorize_format(self.precision,
                                                             vector_size)

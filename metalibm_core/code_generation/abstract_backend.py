@@ -231,6 +231,12 @@ class AbstractBackend(object):
                         return table[language][op_class][codegen_key][condition][interface_condition]
         raise Exception()
 
+
+    def get_preferred_sub_vector_size(self, scalar_precision, vector_size):
+        """ Returns the target preferred sub-vector size for a vector of size
+            @p vector_size and of scalar precision @p scalar_precision """
+        return vector_size
+
 ## Determine whether an object is a true processor
 #  class with real backend capabilities or not
 def test_is_processor(proc_class):
