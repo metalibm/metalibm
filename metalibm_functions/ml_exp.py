@@ -195,10 +195,8 @@ class ML_Exponential(ML_FunctionBasis):
         # argument reduction
         unround_k = vx * invlog2
         unround_k.set_attributes(tag = "unround_k", debug = debug_multi)
-        k = NearestInteger(unround_k, precision = self.precision, debug = debug_multi)
-        ik = NearestInteger(unround_k, precision = self.precision.get_integer_format(), debug = debug_multi, tag = "ik")
-        ik.set_tag("ik")
-        k.set_tag("k")
+        k = NearestInteger(unround_k, precision = self.precision, debug = debug_multi, tag="k")
+        ik = NearestInteger(unround_k, precision = self.precision.get_integer_format(), debug = debug_multi, tag="ik")
         exact_pre_mul = (k * log2_hi)
         exact_pre_mul.set_attributes(exact= True)
         exact_hi_part = vx - exact_pre_mul
@@ -380,7 +378,7 @@ class ML_Exponential(ML_FunctionBasis):
         late_overflow_result.set_attributes(silent = False, tag = "late_overflow_result", debug = debug_multi, precision = self.precision)
         late_overflow_return = ConditionBlock(Test(late_overflow_result, specifier = Test.IsInfty, likely = False), ExpRaiseReturn(ML_FPE_Overflow, return_value = FP_PlusInfty(self.precision)), Return(late_overflow_result, precision=self.precision))
 
-        late_underflow_test = Comparison(k, self.precision.get_emin_normal(), specifier = Comparison.LessOrEqual, likely = False)
+        late_underflow_test = Comparison(k, self.precision.get_emin_normal(), specifier = Comparison.LessOrEqual, likely=False, tag="late_underflow_test")
         underflow_exp_offset = 2 * self.precision.get_field_size()
         corrected_exp = Addition( 
           ik,

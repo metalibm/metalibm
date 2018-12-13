@@ -32,8 +32,9 @@ import sys
 import sollya
 
 from sollya import (
-     S2, Interval, tanh
+     Interval, tanh
 )
+S2 = sollya.SollyaObject(2)
 
 from metalibm_core.core.ml_function import (
     ML_Function, ML_FunctionBasis, DefaultArgTemplate
@@ -71,7 +72,7 @@ def piecewise_approximation(
         bound_high=1.0,
         num_intervals=16,
         max_degree=2,
-        error_threshold=sollya.S2**-24):
+        error_threshold=S2**-24):
     """ To be documented """
     # table to store coefficients of the approximation on each segment
     coeff_table = ML_NewTable(
@@ -273,7 +274,7 @@ class ML_HyperbolicTangent(ML_Function("ml_tanh")):
         interval_num = 1024
 
         interval_size = (high_bound - near_zero_bound) / (1024)
-        new_interval_size = sollya.S2**int(sollya.log2(interval_size))
+        new_interval_size = S2**int(sollya.log2(interval_size))
         interval_num *= 2
         high_bound = new_interval_size * interval_num + near_zero_bound
 
@@ -299,7 +300,7 @@ class ML_HyperbolicTangent(ML_Function("ml_tanh")):
             bound_high=high_bound,
             num_intervals=interval_num,
             max_degree=5,
-            error_threshold=sollya.S2**-p
+            error_threshold=S2**-p
         )
         Log.report(Log.Warning, "approx_error={}".format(approx_error))
 

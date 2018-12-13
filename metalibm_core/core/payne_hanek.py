@@ -31,7 +31,10 @@
 ###############################################################################
 
 
-from sollya import floor, ceil, log2, S2, settings
+import sollya
+
+from sollya import floor, ceil, log2
+S2 = sollya.SollyaObject(2)
 
 from metalibm_core.core.ml_function import ML_Function, ML_FunctionBasis
 

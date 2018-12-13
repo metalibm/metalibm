@@ -33,9 +33,10 @@ import sys
 import sollya
 
 from sollya import (
-    S2, Interval, ceil, floor, round, inf, sup, log, exp, expm1, log2, cosh,
+    Interval, ceil, floor, round, inf, sup, log, exp, expm1, log2, cosh,
     guessdegree, dirtyinfnorm, RN, acosh, RD
 )
+S2 = sollya.SollyaObject(2)
 from sollya import parse as sollya_parse
 
 from metalibm_core.core.attributes import ML_Debug

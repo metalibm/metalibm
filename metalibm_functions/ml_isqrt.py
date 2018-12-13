@@ -32,7 +32,8 @@ import sys
 
 import sollya
 
-from sollya import S2, Interval, ceil, floor, round, inf, sup, log, exp, expm1, log2, guessdegree, dirtyinfnorm, RN
+from sollya import Interval, ceil, floor, round, inf, sup, log, exp, expm1, log2, guessdegree, dirtyinfnorm, RN
+S2 = sollya.SollyaObject(2)
 
 from metalibm_core.core.attributes import ML_Debug
 from metalibm_core.core.ml_operations import *
