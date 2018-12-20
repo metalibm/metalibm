@@ -597,7 +597,7 @@ c_code_generation_table = {
         None: {
             lambda optree: True: {
                 type_strict_match(ML_TripleDouble, ML_Binary64, ML_Binary64, ML_Binary64):
-                    TemplateOperatorFormat("((ml_td_t) {{.hi={0}, .me={1} .lo={2}}})", arity=3),
+                    TemplateOperatorFormat("((ml_td_t) {{.hi={0}, .me={1}, .lo={2}}})", arity=3),
                 type_strict_match(ML_DoubleDouble, ML_Binary64, ML_Binary64):
                     TemplateOperatorFormat("((ml_dd_t) {{.hi={0} , .lo={1}}})", arity=2),
                 type_strict_match(ML_SingleSingle, ML_Binary32, ML_Binary32):
