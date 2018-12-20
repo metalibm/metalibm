@@ -160,6 +160,8 @@ class Attributes(object):
         self.exact      = attr_init(init_map, "exact")
         self.tag        = attr_init(init_map, "tag")
         self.max_abs_error = attr_init(init_map, "max_abs_error")
+        # relative error
+        self.rel_error  = attr_init(init_map, "rel_error")
         self.silent     = attr_init(init_map, "silent", Attributes.default_silent[0])
         self.handle     = attr_init(init_map, "handle", Handle())
         self.clearprevious = attr_init(init_map, "clearprevious")
@@ -189,6 +191,7 @@ class Attributes(object):
           exact = self.exact, 
           tag = self.tag, 
           max_abs_error = self.max_abs_error, 
+          rel_error = self.rel_error,
           silent = self.silent, 
           handle = self.handle, 
           clearprevious = self.clearprevious, 

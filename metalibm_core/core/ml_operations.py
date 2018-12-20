@@ -414,6 +414,13 @@ class AbstractOperation(ML_Operation):
         """ rounding mode setter function (attributes) """
         self.attributes.set_rounding_mode(new_rounding_mode)
 
+    @property
+    def rel_error(self):
+        return self.attributes.rel_error
+    @rel_error.setter
+    def rel_error(self, rel_error):
+        self.attributes.rel_error = rel_error
+
     ## wrapper for getting the max_abs_error field of node's attributes
     #  @return the node's max_abs_error attribute value
     def get_max_abs_error(self):
