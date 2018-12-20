@@ -305,6 +305,70 @@ def MP_FMA2222(xh, xl, yh, yl, zh, zl, precision=None, fma=True):
     return ah, al
 
 
+def MP_Add333(xh, xm, xl, yh, ym, yl, precision=None):
+    rh, t1 = Add211(xh, yh, precision=precision)
+    t2, t3 = Add211(xm, ym, precision=precision)
+    t7, t4 = Add211(t1, t2, precision=precision)
+    t6 = Addition(xl, yl, precision=precision)
+    t5 = Addition(t3, t4, precision=precision)
+    t8 = Addition(t5, t6, precision=precision)
+    rm, rl = Add211(t7, t8, precision=precision)
+    return rh, rm, rl
+
+def MP_Add332(xh, xm, xl, yh, yl, precision=None):
+    rh, t1 = Add211(xh, yh, precision=precision)
+    t2, t3 = Add211(xm, yl, precision=precision)
+    t7, t4 = Add211(t1, t2, precision=precision)
+    t6 = xl
+    t5 = Addition(t3, t4, precision=precision)
+    t8 = Addition(t5, t6, precision=precision)
+    rm, rl = Add211(t7, t8, precision=precision)
+    return rh, rm, rl
+
+def MP_Add323(xh, xl, yh, ym, yl, precision=None):
+    return MP_Add332(yh, ym, yl, xh, xl)
+
+
+def MP_Mul322(xh, xl, yh, yl, precision=None):
+    rh, t1 = Mul211(xh, yh, precision=precision)
+    t2, t3 = Mul211(xh, yl, precision=precision)
+    t4, t5 = Mul211(xl, yh, precision=precision)
+    t6 = Multiplication(xl, yl, precision=precision)
+    t7, t8 = Add222(t2, t3, t4, t5, precision=precision)
+    t9, t10 = Add211(t1, t6, precision=precision)
+    rm, rl = Add222(t7, t8, t9, t10, precision=precision)
+    return rh, rm, rl
+
+def MP_Mul323(xh, xl, yh, ym, yl, precision=None):
+    rh, t1 = Mul211(xh, yh, precision=precision)
+    t2, t3 = Mul211(xh, ym, precision=precision)
+    t4, t5 = Mul211(xh, yl, precision=precision)
+    t6, t7 = Mul211(xl, yh, precision=precision)
+    t8, t9 = Mul211(xl, ym, precision=precision)
+    t10 = Multiplication(xl, yl, precision=precision)
+    t11, t12 = Add222(t2, t3, t4, t5, precision=precision)
+    t13, t14 = Add222(t6, t7, t8, t9, precision=precision)
+    t15, t16 = Add222(t11, t12, t13, t14, precision=precision)
+    t17, t18 = Add211(t1, t10, precision=precision)
+    rm, rl = Add222(t17, t18, t15, t16, precision=precision)
+    return rh, rm, rl
+
+def MP_Mul332(xh, xm, xl, yh, yl, precision=None):
+    return MP_Mul323(yh, yl, xh, xm, xl, precision=precision)
+
+
+def Normalize_33(xh, xm, xl, precision=None):
+    t1h, t1l = Add211(xm, xl, precision=precision)
+    rh, t2l = Add211(xh, t1h, precision=precision)
+    rm, rl = Add211(t2l, t1l, precision=precision)
+    return rh, rm, rl
+
+def Normalize_23(xh, xm, xl, precision=None):
+    t1h, t1l = Add211(xm, xl, precision=precision)
+    rh, t2l = Add211(xh, t1h, precision=precision)
+    rl = Addition(t2l, t1l, precision=precision)
+    return rh, rl
+
 def subnormalize(x_list, factor, precision=None, fma=True):
     """ x_list is a multi-component number with components ordered from the
         most to the least siginificant.

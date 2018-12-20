@@ -42,10 +42,10 @@ from metalibm_core.core.ml_formats import (
 )
 
 from metalibm_core.core.ml_operations import (
-    Addition, Subtraction, Multiplication, 
+    Addition, Subtraction, Multiplication,
     FusedMultiplyAdd,
     Conversion, Negation,
-    Constant, Variable, SpecificOperation, 
+    Constant, Variable, SpecificOperation,
     BuildFromComponent,
     is_leaf_node,
 )
@@ -57,6 +57,10 @@ from metalibm_core.opt.ml_blocks import (
     Mul122, Mul121, Mul112,
     MP_FMA2111, MP_FMA2112, MP_FMA2122, MP_FMA2212, MP_FMA2121, MP_FMA2211,
     MP_FMA2222,
+
+    MP_Add323, MP_Add332, MP_Add333,
+    MP_Mul322, MP_Mul332, MP_Mul323,
+
     subnormalize_multi,
 )
 
@@ -186,6 +190,9 @@ class MultiPrecisionExpander:
             (ML_Binary64, (ML_DoubleDouble, ML_Binary64)): Add121,
             (ML_Binary64, (ML_Binary64, ML_DoubleDouble)): Add112,
             (ML_Binary64, (ML_DoubleDouble, ML_DoubleDouble)): Add122,
+            (ML_TripleDouble, (ML_TripleDouble, ML_TripleDouble)): MP_Add333,
+            (ML_TripleDouble, (ML_TripleDouble, ML_DoubleDouble)): MP_Add332,
+            (ML_TripleDouble, (ML_DoubleDouble, ML_TripleDouble)): MP_Add323,
             # single precision based formats
             (ML_SingleSingle, (ML_Binary32, ML_Binary32)): Add211,
             (ML_SingleSingle, (ML_SingleSingle, ML_Binary32)): Add221,
@@ -208,6 +215,9 @@ class MultiPrecisionExpander:
             (ML_Binary64, (ML_DoubleDouble, ML_DoubleDouble)): Mul122,
             (ML_Binary64, (ML_DoubleDouble, ML_Binary64)): Mul121,
             (ML_Binary64, (ML_Binary64, ML_DoubleDouble)): Mul112,
+            (ML_TripleDouble, (ML_DoubleDouble, ML_DoubleDouble)): MP_Mul322,
+            (ML_TripleDouble, (ML_TripleDouble, ML_DoubleDouble)): MP_Mul332,
+            (ML_TripleDouble, (ML_DoubleDouble, ML_TripleDouble)): MP_Mul323,
             # single precision based formats
             (ML_SingleSingle, (ML_SingleSingle, ML_SingleSingle)): Mul222,
             (ML_SingleSingle, (ML_Binary32, ML_SingleSingle)): Mul212,
