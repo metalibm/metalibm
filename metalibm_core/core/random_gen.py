@@ -49,6 +49,10 @@ from metalibm_core.core.special_values import (
 
 import metalibm_core.core.ml_formats as ml_formats
 
+def random_bool():
+    """ random boolean generation """
+    return bool(random.getrandbits(1))
+
 
 def normalize_map(weight_map):
     """ Ensure that every weight in map is positive and adds up to 1.0.
@@ -201,7 +205,7 @@ class FixedPointRandomGen(IntRandomGen):
         RandomGenWeightCat.__init__(
             self,
             category_keys=category_keys,
-            weight_map=int_weight_map, 
+            weight_map=int_weight_map,
         )
         self.signed = signed
         self.int_size = int_size
