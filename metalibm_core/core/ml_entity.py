@@ -40,7 +40,7 @@ import sollya
 
 from sollya import Interval
 
-S2 = sollya.SollyaObject(2) 
+S2 = sollya.SollyaObject(2)
 
 from metalibm_core.core.ml_optimization_engine import OptimizationEngine
 from metalibm_core.core.ml_operations import (
@@ -677,18 +677,10 @@ class ML_EntityBasis(object):
         test_statement.add(assert_statement)
       return test_statement
 
-  def generate_auto_test(self, test_num = 10, test_range = Interval(-1.0, 1.0), debug = False, time_step = 10):
-    """ time_step: duration of a stage (in ns) """
-    # instanciating tested component
-    # map of input_tag -> input_signal and output_tag -> output_signal
-    io_map = {}
+  def get_input_signal_map(self, io_map):
     # map of input_tag -> input_signal, excludind commodity signals
     # (e.g. clock and reset)
     input_signals = {}
-    # map of output_tag -> output_signal
-    output_signals = {}
-    # excluding clock and reset signals from argument list
-    # reduced_arg_list = [input_port for input_port in self.implementation.get_arg_list() if not input_port.get_tag() in ["clk", "reset"]]
     reduced_arg_list = self.implementation.get_arg_list()
     for input_port in reduced_arg_list:
       input_tag = input_port.get_tag()
@@ -696,6 +688,12 @@ class ML_EntityBasis(object):
       io_map[input_tag] = input_signal
       if not input_tag in ["clk", "reset"]:
         input_signals[input_tag] = input_signal
+    return input_signals
+
+  def get_output_signal_map(self, io_map):
+    # map of output_tag -> output_signal
+    output_signals = {}
+    # excluding clock and reset signals from argument list
     for output_port in self.implementation.get_output_port():
       output_tag = output_port.get_tag()
       output_signal = Signal(
@@ -705,6 +703,19 @@ class ML_EntityBasis(object):
       )
       io_map[output_tag] = output_signal
       output_signals[output_tag] = output_signal
+    return output_signals
+
+  def generate_auto_test(self, test_num = 10, test_range = Interval(-1.0, 1.0), debug = False, time_step = 10):
+    """ time_step: duration of a stage (in ns) """
+    # instanciating tested component
+    # map of input_tag -> input_signal and output_tag -> output_signal
+    io_map = {}
+
+    # map of input_tag -> input_signal, excludind commodity signals
+    # (e.g. clock and reset)
+    input_signals = self.get_input_signal_map(io_map)
+    # map of output_tag -> output_signal
+    output_signals = self.get_output_signal_map(io_map)
 
     # building list of test cases
     tc_list = []
