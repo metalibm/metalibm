@@ -35,7 +35,7 @@
 
 from metalibm_core.core.ml_operations import (
     BitLogicRightShift, BitLogicAnd, BitArithmeticRightShift,
-    Subtraction, BitLogicLeftShift, BitLogicNegate, Addition, Multiplication, 
+    Subtraction, BitLogicLeftShift, BitLogicNegate, Addition, Multiplication,
     ExponentExtraction, ExponentInsertion,
     Max, Min,
     FMS, FMA, Constant
@@ -48,7 +48,7 @@ from metalibm_core.core.ml_formats import ML_Binary32, ML_Binary64
 # TODO Adapt to other register sizes.
 def generate_count_leading_zeros(vx):
     """Generate a vectorizable LZCNT optree."""
- 
+
     y = - BitLogicRightShift(vx, 16)    # If left half of x is 0,
     m = BitLogicAnd(BitArithmeticRightShift(y, 16), 16)
                                         # set n = 16.  If left half
@@ -60,19 +60,19 @@ def generate_count_leading_zeros(vx):
                                         # add 8 to n and shift x left 8.
     n = n + m
     vx_3 = BitLogicLeftShift(vx_2, m)
- 
+
     y = vx_3 - 0x1000                   # If positions 12-15 are 0,
     m = BitLogicAnd(BitLogicRightShift(y, 16), 4)
                                         # add 4 to n and shift x left 4.
     n = n + m
     vx_4 = BitLogicLeftShift(vx_3, m)
- 
+
     y = vx_4 - 0x4000                   # If positions 14-15 are 0,
     m = BitLogicAnd(BitLogicRightShift(y, 16), 2)
                                         # add 2 to n and shift x left 2.
     n = n + m
     vx_5 = BitLogicLeftShift(vx_4, m)
- 
+
     y = BitLogicRightShift(vx_5, 14)    # Set y = 0, 1, 2, or 3.
     m = BitLogicAnd(
             y,
@@ -84,13 +84,13 @@ def generate_count_leading_zeros(vx):
 
 
 # NOTES: All multi-element / multi-precision operations must take
-# argument field and return result field from most significant to least 
+# argument field and return result field from most significant to least
 # significant
-# Result are always a tuple 
+# Result are always a tuple
 
 def generate_twosum(vx, vy, precision=None):
     """Return two optrees for a TwoSum operation.
- 
+
     The return value is a tuple (sum, error).
     """
     s  = Addition(vx, vy, precision=precision)
@@ -104,7 +104,7 @@ def generate_twosum(vx, vy, precision=None):
 
 def generate_fasttwosum(vx, vy, precision=None):
     """Return two optrees for a FastTwoSum operation.
- 
+
     Precondition: |vx| >= |vy|.
     The return value is a tuple (sum, error).
     """
@@ -112,7 +112,7 @@ def generate_fasttwosum(vx, vy, precision=None):
     b = Subtraction(s, vx, precision=precision, prevent_optimization=True)
     e = Subtraction(vy, b, precision=precision, prevent_optimization=True)
     return s, e
-   
+
 def Split(a, precision=None):
     """... splitting algorithm for Dekker TwoMul"""
     cst_value = {
@@ -155,7 +155,7 @@ def Add1111(x, y, z, precision=None):
     return Addition(v, th, precision=precision)
 
 def Add211(x, y, precision=None):
-    """ Multi-precision Addition (2sum) HI, LO = x + y 
+    """ Multi-precision Addition (2sum) HI, LO = x + y
         TODO: missing assumption on input order """
     zh, zl = generate_twosum(x, y, precision)
     return zh, zl
@@ -167,7 +167,7 @@ def Add212(xh, yh, yl, precision=None):
     # s1 = xh - r
     # s2 = s1 + yh
     # s = s2 + yl
-    # zh = r + s 
+    # zh = r + s
     # zl = (r - zh) + s
     r = Addition(xh, yh, precision=precision)
     s1 = Subtraction(xh, r, precision=precision)
@@ -251,7 +251,7 @@ def Mul222(xh, xl, yh, yl, precision=None, fma=True):
         t4 = Multiplication(xl, yh, precision=precision)
         t5 = Addition(t3, t4, precision=precision)
         t6 = Addition(t2, t5, precision=precision)
-        zh, zl = Add211(t1, t6, precsion); 
+        zh, zl = Add211(t1, t6, precsion);
     return zh, zl
 
 def Mul122(xh, xl, yh, yl, precision=None):
@@ -483,9 +483,9 @@ def subnormalize_multi(x_list, factor, precision=None, fma=True):
         Log.report(Log.Error, "len of x_list: {} is not supported in subnormalize_multi", len(x_list))
         raise NotImplementedError
 
-    return [rounded_x_hi] + [Constant(0, precision=precision) for i in range(len(x_list)-1)] 
+    return [rounded_x_hi] + [Constant(0, precision=precision) for i in range(len(x_list)-1)]
 
-    
+
 
 
 
