@@ -286,20 +286,24 @@ class MultiPrecisionExpander:
         """ Expand Conversion node """
         # optimizing Conversion
         op_input = self.expand_node(node.get_input(0))
-        # checking if it is a Conversion of a BuildFromComponent node which
-        # can be simplified directly to a limb component
-        # TODO: does not manage different component format in
-        #       field_format_list
-        #return op_input.get_input(0)
-        #if isinstance(op_input[0].precision, ML_FP_MultiElementFormat) and op_input[0].precision.get_limb_precision(0) == node.precision:
-        if not op_input is None and op_input[0].precision == node.precision:
-            # if the conversion is from a multi-precision node to a result whose
-            # precision matches the multi-precision high component, then directly
-            # returns it
-            # TODO/FIXME: does not take into account possible overlap between
-            #             limbs
-            Log.report(LOG_LEVEL_EXPAND_VERBOSE, "expanding conversion {} into {}", node, op_input[0])
-            return [op_input[0]]
+        if not op_input is None:
+            if op_input[0].precision == node.precision:
+                # if the conversion is from a multi-precision node to a result whose
+                # precision matches the multi-precision high component, then directly
+                # returns it
+                # TODO/FIXME: does not take into account possible overlap between
+                #             limbs
+                Log.report(LOG_LEVEL_EXPAND_VERBOSE, "expanding conversion {} into {}", node, op_input[0])
+                return [op_input[0]]
+            elif is_multi_precision_format(node.precision) and \
+                 node.precision.limb_num >= len(op_input) and \
+                 all(op.precision == limb_prec for op, limb_prec in zip(op_input, node.precision.field_format_list)):
+                # if the conversion is from a multi-element format to a larger multi-element format
+                # just pad the input with 0
+                pad_size = node.precision.limb_num - len(op_input)
+                return op_input + tuple(Constant(0, precision=node.precision.get_limb_precision(len(op_input) + i)) for i in range(pad_size))
+                
+
         return None
 
     def expand_sub(self, node):
@@ -436,7 +440,7 @@ class Pass_ExpandMultiPrecision(Pass_NodeTransformation):
         Log.report(LOG_LEVEL_EXPAND_VERBOSE, "reconstructed : {}", node)
         Log.report(LOG_LEVEL_EXPAND_VERBOSE, "from transformed: {}", "\n".join([str(n) for n in transformed_node]))
         if isinstance(node, Constant):
-            return node
+            result = node
         else:
             if len(transformed_node) == 1:
                 result = transformed_node[0]
@@ -444,7 +448,8 @@ class Pass_ExpandMultiPrecision(Pass_NodeTransformation):
                 result = BuildFromComponent(*tuple(transformed_node), precision=node.precision)
             forward_attributes(node, result)
             result.set_tag(node.get_tag())
-            return result
+        Log.report(LOG_LEVEL_EXPAND_VERBOSE, "  result is : {}", result)
+        return result
 
     ## standard Opt pass API
     def execute(self, optree):
