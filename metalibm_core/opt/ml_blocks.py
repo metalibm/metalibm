@@ -43,7 +43,9 @@ from metalibm_core.core.ml_operations import (
 from metalibm_core.core.ml_formats import (
     ML_Binary32, ML_Binary64,
     # TODO: move those import while externalizing MB-class instanciations
-    ML_SingleSingle, ML_DoubleDouble, ML_TripleSingle, ML_TripleDouble
+    ML_SingleSingle, ML_DoubleDouble, ML_TripleSingle, ML_TripleDouble,
+
+    ML_FP_MultiElementFormat,
 )
 
 # Dynamic implementation of a vectorizable leading zero counter.
@@ -131,11 +133,19 @@ class MP_Node:
         # range of value
         self.interval = interval
 
+    def __str__(self):
+        return "({}, eps={}, ldf={}, interval={})".format(
+            self.precision, self.epsilon, self.limb_diff_factor, self.interval
+        )
+
 class MetaBlock:
-    def __init__(self, in_precision_list, out_precision):
-        self.in_precision_list = in_precision_list
-        out_precision = out_precision
     """ abstract class to document meta-block methods """
+    def __init__(self, main_precision, out_precision):
+        self.main_precision = main_precision
+        self.out_precision = out_precision
+
+    def __str__(self):
+        return "{}(main={}, out={})".format(self.__class__.__name__, self.main_precision, self.out_precision)
     def expand(self, *args):
         """ expand an operation into single-word operations """
         raise NotImplementedError
@@ -154,9 +164,9 @@ class MetaBlock:
     def relative_error_eval(self, lhs, rhs, global_error=True):
         # TODO: only works for 2-operand meta blocks
         if global_error:
-            return self.global_relative_error_eval(*args)
+            return self.global_relative_error_eval(lhs, rhs)
         else:
-            return self.local_relative_error_eval(*args)
+            return self.local_relative_error_eval(lhs, rhs)
 
     def get_output_descriptor(self, lhs, rhs, global_error=True):
         """ return a MultiLimb object describing the output
@@ -210,7 +220,7 @@ def is_dual_limb_precision(prec):
 def is_tri_limb_precision(prec):
     return isinstance(prec, ML_FP_MultiElementFormat) and prec.limb_num == 3
 def limb_prec_match(mp_prec, prec):
-    return all(mp_prec.get_limb_precision(i) == prec for i in range(prec.limb_num))
+    return all(mp_prec.get_limb_precision(i) == prec for i in range(mp_prec.limb_num))
 
 class Op211_ExactMetaBlock(Op_2LimbOut_MetaBlock):
     """ Virtual operation which returns a 2-limb output from two 1-limb inputs """
@@ -218,12 +228,9 @@ class Op211_ExactMetaBlock(Op_2LimbOut_MetaBlock):
         # ExactMetaBlock is exact
         return 0.0
 
-    def check_input_descriptors(self, lhs_desc, rhs_desc):
-        return True
-
-    def check_input_descriptors(self, lhs_desc, rhs_desc):
-        lhs_isl = is_single_limb_precision(lhs.desc.precision) 
-        rhs_isl = is_single_limb_precision(rhs.precision) 
+    def check_input_descriptors(self, lhs, rhs):
+        lhs_isl = is_single_limb_precision(lhs.precision)
+        rhs_isl = is_single_limb_precision(rhs.precision)
         prec_equal = (rhs.precision == self.main_precision) and (lhs.precision == self.main_precision)
         return lhs_isl and rhs_isl and prec_equal
 
@@ -260,11 +267,10 @@ class MB_Mul221(Op_2LimbOut_MetaBlock):
         return Mul221(lhs, rhs, self.main_precision)
 
     def check_input_descriptors(self, lhs, rhs):
-        lhs_idl = is_dual_limb_precision(lhs.desc.precision)
-        rhs_isl = is_single_limb_precision(rhs.precision)
-        prec_equal = (rhs.precision == self.main_precision) and \
+        return is_dual_limb_precision(lhs.precision) and \
+             is_single_limb_precision(rhs.precision) and \
+             (rhs.precision == self.main_precision) and \
             limb_prec_match(lhs.precision, self.main_precision)
-        return lhs_idl and rhs_isl and prec_equal
 
     def local_relative_error_eval(self, lhs_desc, rhs_desc):
         eps_op = S2**-(lhs_prec.get_limb_precision(0) + lhs_prec.get_limb_precision(1) - self.DELTA_ERR)
@@ -495,7 +501,9 @@ class MB_Add333(Op_3LimbOut_MetaBlock):
         # TODO: condition on abs(bh) <= 0.75 abs(ah) or
         # sign of bh and ah not checked
         # input limbs overlaps by at most 49 bits (for double precision limbs)
-        return lhs.limb_diff_factor[0] >= 2**-4 and \
+        return is_tri_limb_precision(lhs) and \
+            is_tri_limb_precision(rhs) and \
+            lhs.limb_diff_factor[0] >= 2**-4 and \
             lhs.limb_diff_factor[1] >= 2**-4 and \
             rhs.limb_diff_factor[0] >= 2**-4 and \
             rhs.limb_diff_factor[1] >= 2**-4
@@ -534,7 +542,9 @@ class MB_Add332(Op_3LimbOut_MetaBlock):
         # sign of bh and ah not checked
         # input limbs overlaps by at most 49 bits (for double precision limbs)
         # 2-limb input must not overlap
-        return lhs.limb_diff_factor[0] >= 2**-2 and \
+        return is_tri_limb_precision(lhs) and \
+            is_dual_limb_precision(rhs) and \
+            lhs.limb_diff_factor[0] >= 2**-2 and \
             lhs.limb_diff_factor[1] >= 2**-1 and \
             rhs.limb_diff_factor[0] >= 2**-self.main_precision.get_field_size()
 
@@ -601,7 +611,9 @@ class MB_Add321(Op_3LimbOut_MetaBlock):
         return MP_Add321(*(lhs + rhs), precision=self.main_precision)
 
     def check_input_descriptors(self, lhs, rhs):
-        return sup(abs(lhs.interval)) < 2**-2 * inf(abs(rhs.interval)) and \
+        return is_dual_limb_precision(lhs) and \
+            is_single_limb_precision(rhs) and \
+            sup(abs(lhs.interval)) < 2**-2 * inf(abs(rhs.interval)) and \
              lhs.limb_diff_factor[0] >= 2**-self.main_precision.get_field_size()
 
     def global_relative_error_eval(self, lhs_desc, rhs_desc):
@@ -638,7 +650,9 @@ class MB_Add322(Op_3LimbOut_MetaBlock):
         return MP_Add322(*(lhs + rhs), precision=self.main_precision)
 
     def check_input_descriptors(self, lhs, rhs):
-        return lhs.limb_diff_factor[0] >= 2**-2 and \
+        return is_dual_limb_precision(lhs) and \
+            is_dual_limb_precision(rhs) and \
+            lhs.limb_diff_factor[0] >= 2**-2 and \
             lhs.limb_diff_factor[1] >= 2**-1 and \
             rhs.limb_diff_factor[0] >= 2**-self.main_precision.get_field_size()
 
@@ -665,7 +679,9 @@ class MB_Add331(Op_3LimbOut_MetaBlock):
         return MP_Add331(*(lhs + rhs), precision=self.main_precision)
 
     def check_input_descriptors(self, lhs, rhs):
-        return sup(abs(lhs.interval)) < 2**-2 * inf(abs(rhs.interval)) and \
+        return is_tri_limb_precision(lhs) and \
+            is_single_limb_precision(rhs) and \
+            sup(abs(lhs.interval)) < 2**-2 * inf(abs(rhs.interval)) and \
              lhs.limb_diff_factor[0] >= 2**-2 and \
              rhs.limb_diff_factor[0] >= 2**-1
 
@@ -750,7 +766,7 @@ class MB_Mul332(Op_3LimbOut_MetaBlock):
         return MP_Mul332(*(lhs + rhs), precision=self.main_precision)
 
     def check_input_descriptors(self, lhs, rhs):
-        return is_dual_limb_precision(lhs) and \
+        return is_tri_limb_precision(lhs) and \
             is_dual_limb_precision(rhs) and \
             lhs.limb_diff_factor[0] >= 2**-self.main_precision.get_field_size() and \
             rhs.limb_diff_factor[0] >= 2**-self.main_precision.get_field_size()
@@ -795,10 +811,80 @@ def MP_Mul323(xh, xl, yh, ym, yl, precision=None):
     return rh, rm, rl
 
 
+MB_Mul332_dd = MB_Mul332(ML_Binary64)
+MB_Mul323_dd = MB_Mul323(ML_Binary64)
 
 def MP_Mul332(xh, xm, xl, yh, yl, precision=None):
     return MP_Mul323(yh, yl, xh, xm, xl, precision=precision)
 
+
+def MP_Mul333(xh, xm, xl, yh, ym, yl, precision=None):
+    rh, t1 = Mul211(xh, yh, precision)
+    t2, t3 = Mul211(xh, ym, precision)
+    t4, t5 = Mul211(xm, yh, precision)
+    t6, t7 = Mul211(xm, ym, precision)
+
+    t8 = Multiplication(xh, yl, precision=precision)
+    t9 = Multiplication(xl, yh, precision=precision)
+    t10 = Multiplication(xm, yl, precision=precision)
+    t11 = Multiplication(xl, ym, precision=precision)
+
+    t12 = Addition(t8, t9, precision=precision)
+    t13 = Addition(t10, t11, precision=precision)
+    # check between fast2sum and 2sum possibilities
+    t14, t15 = Add211(t1, t6, precision=precision)
+    t16 = Addition(t7, t15, precision=precision)
+    t17 = Addition(t12, t13, precision=precision)
+    t18 = Addition(t16, t17, precision=precision)
+
+    t19, t20 = Add211(t14, t18, precision=precision)
+    t21, t22 = Add222(t2, t3, t4, t5, precision=precision)
+    rm, rl = Add222(t21, t22, t19, t20, precision=precision)
+
+    return rh, rm, rl
+
+class MB_Mul333(Op_3LimbOut_MetaBlock):
+    def expand(self, lhs, rhs):
+        return MP_Mul333(*(lhs + rhs), precision=self.main_precision)
+
+    def check_input_descriptors(self, lhs, rhs):
+        if not is_tri_limb_precision(lhs) or not is_tri_limb_precision(rhs):
+            return False
+        a_o = sollya.floor(-sollya.log2(lhs.limb_diff_factor[0]))
+        a_u = sollya.floor(-sollya.log2(lhs.limb_diff_factor[1]))
+        b_o = sollya.floor(-sollya.log2(rhs.limb_diff_factor[0]))
+        b_u = sollya.floor(-sollya.log2(rhs.limb_diff_factor[1]))
+        return a_o >= 5 and a_u >= 5 and b_o >= 5 and b_u >= 5
+
+    def global_relative_error_eval(self, lhs_desc, rhs_desc):
+        # error bound (first order approximation)
+        eps = lhs_desc.epsilon + rhs_desc.epsilon + eps_op
+        return eps
+    def local_relative_error_eval(self, lhs, rhs):
+        # TODO: numeric constant specific to ML_Binary64
+        a_o = sollya.floor(-sollya.log2(lhs.limb_diff_factor[0]))
+        a_u = sollya.floor(-sollya.log2(lhs.limb_diff_factor[1]))
+        b_o = sollya.floor(-sollya.log2(rhs.limb_diff_factor[0]))
+        b_u = sollya.floor(-sollya.log2(rhs.limb_diff_factor[1]))
+        # TODO: coefficient specific for ML_Binary64
+        return 2**-151 + 2**(-99-a_o) + 2**(-99-b_o) + \
+            2**(-49-a_o-a_u) + 2**(-49-b_o-b_u) + 2**(50-a_o-b_o-b_u) + \
+            2**(50-a_o-b_o-b_u) + 2**(-101-a_o-b_o) + 2**(-52-a_o-a_u-b_o-b_u)
+
+    def get_output_descriptor(self, lhs_desc, rhs_desc, global_error=True):
+        epsilon = self.relative_error_eval(lhs_desc, rhs_desc, global_error=True)
+        a_o = sollya.floor(-sollya.log2(lhs.limb_diff_factor[0]))
+        b_o = sollya.floor(-sollya.log2(rhs.limb_diff_factor[0]))
+        # TODO: coefficient specific for ML_Binary64
+        g_o = min(48, -4+a_o, -4+b_o, -4+a_o-b_o)
+        limb_diff_factors = [
+            2**-(g_o), 
+        #    # no overlap between medium and lo limb
+            2**-self.main_precision.get_field_size()
+        ]
+        return MP_Node(self.out_precision, epsilon, limb_diff_factors)
+
+MB_Mul333_td = MB_Mul333(ML_Binary64)
 
 def Normalize_33(xh, xm, xl, precision=None):
     t1h, t1l = Add211(xm, xl, precision=precision)
@@ -929,7 +1015,52 @@ def subnormalize_multi(x_list, factor, precision=None, fma=True):
     return [rounded_x_hi] + [Constant(0, precision=precision) for i in range(len(x_list)-1)]
 
 
+def get_MB_cost(mb):
+    """ return a quick of dirty evaluation of the meta-block "cost"
+        which is used to sort them and chose the less "expensive" one
+    """
+    return {
+            MB_Add333_td: 6,
+            MB_Add332_td: 5,
+            MB_Add323_td: 5,
+            MB_Add321_td: 4,
+            MB_Add312_td: 4,
+            MB_Add322_td: 4.5,
+            MB_Add211_dd: 3,
 
+            MB_Mul212_dd: 6,
+            MB_Mul221_dd: 6,
+            MB_Mul211_dd: 5,
+            MB_Mul332_dd: 7,
+            MB_Mul323_dd: 7,
+            MB_Mul333_td: 8,
+    }[mb]
+
+
+def get_Addition_MB_compatible_list(lhs, rhs):
+    """ return a list of metablock instance implementing an Addition
+        and compatible with format descriptor @p lhs and @p rhs
+    """
+    return filter(
+        lambda mb: mb.check_input_descriptors(lhs, rhs),
+        [
+            MB_Add333_td, MB_Add332_td, MB_Add323_td,
+            MB_Add321_td, MB_Add312_td, MB_Add322_td,
+            MB_Add211_dd
+        ]
+    )
+def get_Multiplication_MB_compatible_list(lhs, rhs):
+    """ return a list of metablock instance implementing a Multiplication
+        and compatible with format descriptor @p lhs and @p rhs
+    """
+    return filter(
+        lambda mb: mb.check_input_descriptors(lhs, rhs),
+    
+        [
+            MB_Mul212_dd, MB_Mul221_dd, MB_Mul211_dd,
+            MB_Mul332_dd, MB_Mul323_dd, MB_Mul333_td
+        ]
+    )
 
 
 
