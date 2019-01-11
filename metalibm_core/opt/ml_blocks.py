@@ -32,6 +32,8 @@
 # Author(s):  Hugues de Lassus <hugues.de-lassus@univ-perp.fr>
 ###############################################################################
 
+import sollya
+S2 = sollya.SollyaObject(2)
 
 from metalibm_core.core.ml_operations import (
     BitLogicRightShift, BitLogicAnd, BitArithmeticRightShift,
@@ -184,13 +186,19 @@ def MB_CommutedVersion(BaseClass):
     """ Build reflexive version of BaseClass """
     def decorator(OpClass):
         class NewClass(OpClass, BaseClass):
+            def __str__(self):
+                return "COM-{}(main={}, out={})".format(BaseClass.__name__, self.main_precision, self.out_precision)
             def expand(self, lhs, rhs):
+                print("commuting")
                 return BaseClass.expand(self, rhs, lhs)
             def check_input_descriptors(self, lhs, rhs):
+                print("commuting")
                 return BaseClass.check_input_descriptors(self, rhs, lhs)
             def global_relative_error_eval(self, lhs, rhs):
+                print("commuting")
                 return BaseClass.global_relative_error_eval(self, rhs, lhs)
             def local_relative_error_eval(self, lhs, rhs):
+                print("commuting")
                 return BaseClass.local_relative_error_eval(self, rhs, lhs)
         return NewClass
     return decorator
@@ -231,7 +239,7 @@ def limb_prec_match(mp_prec, prec):
 class Op111_MetaBlock(Op_1LimbOut_MetaBlock):
     """ Virtual operation which returns a 2-limb output from two 1-limb inputs """
     def local_relative_error_eval(self, x, y):
-        return 2**-self.main_precision.get_field_size()
+        return S2**-self.main_precision.get_mantissa_size()
 
     def check_input_descriptors(self, lhs, rhs):
         return is_single_limb_precision(lhs.precision) and \
@@ -280,7 +288,7 @@ class Op211_ExactMetaBlock(Op_2LimbOut_MetaBlock):
 
     def get_output_descriptor(self, lhs_desc, rhs_desc, global_error=True):
         epsilon = self.relative_error_eval(lhs_desc, rhs_desc, global_error=global_error)
-        return MP_Node(self.out_precision, epsilon, [2**-self.main_precision.get_field_size()])
+        return MP_Node(self.out_precision, epsilon, [S2**-self.main_precision.get_mantissa_size()])
 
 
 class MB_Mul211(Op211_ExactMetaBlock):
@@ -318,7 +326,7 @@ class MB_Mul221(Op_2LimbOut_MetaBlock):
 
     def local_relative_error_eval(self, lhs_desc, rhs_desc):
         lhs_prec = lhs_desc.precision
-        eps_op = 2**-(lhs_prec.get_limb_precision(0).get_field_size() + lhs_prec.get_limb_precision(1).get_field_size() - self.DELTA_ERR)
+        eps_op = S2**-(lhs_prec.get_limb_precision(0).get_mantissa_size() + lhs_prec.get_limb_precision(1).get_mantissa_size() - self.DELTA_ERR)
         # error bound (first order approximation)
         return eps_ops
 
@@ -331,7 +339,11 @@ class MB_Mul221(Op_2LimbOut_MetaBlock):
 @MB_CommutedVersion(MB_Mul221)
 class MB_Mul212(Op_2LimbOut_MetaBlock):
     """ Commutated version of MP_Mul221 """
-    pass
+    def global_relative_error_eval(self, rhs_desc, lhs_desc):
+        eps_op = self.local_relative_error_eval(rhs_desc, lhs_desc)
+        # error bound (first order approximation)
+        eps = lhs_desc.epsilon + rhs_desc.epsilon + eps_op
+        return eps
 
 # Meta-block instanciations with precisions
 MB_Add211_ss = MB_Add211(ML_Binary32)
@@ -432,6 +444,70 @@ def Add222(xh, xl, yh, yl, precision=None):
     #zl = Addition(Subtraction(r, zh, precision=precision), s, precision=precision)
     #return zh, zl
 
+
+class MB_Add222(Op_2LimbOut_MetaBlock):
+    def expand(self, lhs, rhs):
+        return Add222(*(lhs + rhs), precision=self.main_precision)
+
+    def check_input_descriptors(self, lhs, rhs):
+        # TODO: condition on abs(bh) <= 0.75 abs(ah) or
+        # sign of bh and ah not checked
+        # input limbs overlaps by at most 49 bits (for double precision limbs)
+        return is_dual_limb_precision(lhs.precision) and \
+            is_dual_limb_precision(rhs.precision) and \
+            lhs.limb_diff_factor[0] <= S2**-self.main_precision.get_mantissa_size() and \
+            rhs.limb_diff_factor[0] <= S2**-self.main_precision.get_mantissa_size()
+
+    def global_relative_error_eval(self, lhs_desc, rhs_desc):
+        eps_op = self.local_relative_error_eval(lhs_desc, rhs_desc)
+        eps_in = max(lhs_desc.epsilon, rhs_desc.epsilon)
+        return eps_op + eps_in + eps_op * eps_in
+
+    def local_relative_error_eval(self, lhs_desc, rhs_desc):
+        # TODO: very approximative
+        ESTIMATED_ERROR_FACTOR = 6
+        return S2**-(self.main_precision.get_mantissa_size() * 2 - ESTIMATED_ERROR_FACTOR)
+
+    def get_output_descriptor(self, lhs, rhs, global_error=True):
+        epsilon = self.relative_error_eval(lhs, rhs, global_error=global_error)
+        limb_diff_factors = [
+            # no overlap between medium and lo limb
+            S2**-self.main_precision.get_mantissa_size()
+        ]
+        return MP_Node(self.out_precision, epsilon, limb_diff_factors)
+
+MB_Add222_dd = MB_Add222(ML_Binary64)
+MB_Add222_ss = MB_Add222(ML_Binary32)
+
+class MB_Add122(Op_1LimbOut_MetaBlock):
+    def expand(self, lhs, rhs):
+        return Add122(*(lhs + rhs), precision=self.main_precision)
+
+    def check_input_descriptors(self, lhs, rhs):
+        # TODO: condition on abs(bh) <= 0.75 abs(ah) or
+        # sign of bh and ah not checked
+        # input limbs overlaps by at most 49 bits (for double precision limbs)
+        return is_dual_limb_precision(lhs.precision) and \
+            is_dual_limb_precision(rhs.precision) and \
+            lhs.limb_diff_factor[0] <= S2**-self.main_precision.get_mantissa_size() and \
+            rhs.limb_diff_factor[0] <= S2**-self.main_precision.get_mantissa_size()
+
+    def global_relative_error_eval(self, lhs_desc, rhs_desc):
+        eps_op = self.local_relative_error_eval(lhs_desc, rhs_desc)
+        eps_in = max(lhs_desc.epsilon, rhs_desc.epsilon)
+        return eps_op + eps_in + eps_op * eps_in
+
+    def local_relative_error_eval(self, lhs_desc, rhs_desc):
+        # TODO: very approximative
+        return S2**-self.main_precision.get_mantissa_size()
+
+    def get_output_descriptor(self, lhs, rhs, global_error=True):
+        epsilon = self.relative_error_eval(lhs, rhs, global_error=global_error)
+        return MP_Node(self.out_precision, epsilon, [])
+
+MB_Add122_d = MB_Add122(ML_Binary64)
+MB_Add122_s = MB_Add122(ML_Binary32)
+
 def Add122(xh, xl, yh, yl, precision=None):
     """ Multi-precision Addition:
         HI = [xh:xl] + [yh:yl] """
@@ -505,6 +581,72 @@ def Mul112(xh, yh, yl, precision=None):
         HI = xh * [yh:yl] """
     return Mul121(yh, yl, xh, precision)
 
+class MB_Mul222(Op_2LimbOut_MetaBlock):
+    def expand(self, lhs, rhs):
+        return Mul222(*(lhs + rhs), precision=self.main_precision)
+
+    def check_input_descriptors(self, lhs, rhs):
+        # TODO: condition on abs(bh) <= 0.75 abs(ah) or
+        # sign of bh and ah not checked
+        # input limbs overlaps by at most 49 bits (for double precision limbs)
+        return is_dual_limb_precision(lhs.precision) and \
+            is_dual_limb_precision(rhs.precision) and \
+            lhs.limb_diff_factor[0] <= S2**-self.main_precision.get_mantissa_size() and \
+            rhs.limb_diff_factor[0] <= S2**-self.main_precision.get_mantissa_size()
+
+    def global_relative_error_eval(self, lhs_desc, rhs_desc):
+        eps_op = self.local_relative_error_eval(lhs_desc, rhs_desc)
+        eps_in = max(lhs_desc.epsilon, rhs_desc.epsilon)
+        return eps_op + eps_in + eps_op * eps_in
+
+    def local_relative_error_eval(self, lhs_desc, rhs_desc):
+        # TODO: very approximative
+        ESTIMATED_ERROR_FACTOR = 4
+        return S2**-(self.main_precision.get_mantissa_size() * 2 - ESTIMATED_ERROR_FACTOR)
+
+    def get_output_descriptor(self, lhs, rhs, global_error=True):
+        epsilon = self.relative_error_eval(lhs, rhs, global_error=global_error)
+        limb_diff_factors = [
+            # no overlap between medium and lo limb
+            S2**-self.main_precision.get_mantissa_size()
+        ]
+        return MP_Node(self.out_precision, epsilon, limb_diff_factors)
+
+MB_Mul222_dd = MB_Mul222(ML_Binary64)
+MB_Mul222_ss = MB_Mul222(ML_Binary32)
+
+class MB_Mul122(Op_1LimbOut_MetaBlock):
+    def expand(self, lhs, rhs):
+        return Mul122(*(lhs + rhs), precision=self.main_precision)
+
+    def check_input_descriptors(self, lhs, rhs):
+        # TODO: condition on abs(bh) <= 0.75 abs(ah) or
+        # sign of bh and ah not checked
+        # input limbs overlaps by at most 49 bits (for double precision limbs)
+        return is_dual_limb_precision(lhs.precision) and \
+            is_dual_limb_precision(rhs.precision) and \
+            lhs.limb_diff_factor[0] <= S2**-self.main_precision.get_mantissa_size() and \
+            rhs.limb_diff_factor[0] <= S2**-self.main_precision.get_mantissa_size()
+
+    def global_relative_error_eval(self, lhs_desc, rhs_desc):
+        eps_op = self.local_relative_error_eval(lhs_desc, rhs_desc)
+        eps_in = max(lhs_desc.epsilon, rhs_desc.epsilon)
+        return eps_op + eps_in + eps_op * eps_in
+
+    def local_relative_error_eval(self, lhs_desc, rhs_desc):
+        # TODO: very approximative
+        return S2**-(self.main_precision.get_mantissa_size())
+
+    def get_output_descriptor(self, lhs, rhs, global_error=True):
+        epsilon = self.relative_error_eval(lhs, rhs, global_error=global_error)
+        limb_diff_factors = [
+            # no overlap between medium and lo limb
+            S2**-self.main_precision.get_mantissa_size()
+        ]
+        return MP_Node(self.out_precision, epsilon, limb_diff_factors)
+
+MB_Mul122_d = MB_Mul122(ML_Binary64)
+MB_Mul122_s = MB_Mul122(ML_Binary32)
 
 def MP_FMA2111(x, y, z, precision=None, fma=True):
     mh, ml = Mul211(x, y, precision=precision, fma=fma)
@@ -546,12 +688,12 @@ class MB_Add333(Op_3LimbOut_MetaBlock):
         # TODO: condition on abs(bh) <= 0.75 abs(ah) or
         # sign of bh and ah not checked
         # input limbs overlaps by at most 49 bits (for double precision limbs)
-        return is_tri_limb_precision(lhs) and \
-            is_tri_limb_precision(rhs) and \
-            lhs.limb_diff_factor[0] >= 2**-4 and \
-            lhs.limb_diff_factor[1] >= 2**-4 and \
-            rhs.limb_diff_factor[0] >= 2**-4 and \
-            rhs.limb_diff_factor[1] >= 2**-4
+        return is_tri_limb_precision(lhs.precision) and \
+            is_tri_limb_precision(rhs.precision) and \
+            lhs.limb_diff_factor[0] <= S2**-4 and \
+            lhs.limb_diff_factor[1] <= S2**-4 and \
+            rhs.limb_diff_factor[0] <= S2**-4 and \
+            rhs.limb_diff_factor[1] <= S2**-4
 
     def global_relative_error_eval(self, lhs_desc, rhs_desc):
         eps_op = self.local_relative_error_eval(lhs_desc, rhs_desc)
@@ -563,18 +705,18 @@ class MB_Add333(Op_3LimbOut_MetaBlock):
         a_u = sollya.floor(-sollya.log2(lhs_desc.limb_diff_factor[1]))
         b_o = sollya.floor(-sollya.log2(rhs_desc.limb_diff_factor[0]))
         b_u = sollya.floor(-sollya.log2(rhs_desc.limb_diff_factor[1]))
-        return 2**(-min(a_o + a_u, b_o+b_u) - 47) + 2**(-min(a_o,a_u)-98)
+        return S2**(-min(a_o + a_u, b_o+b_u) - 47) + S2**(-min(a_o,a_u)-98)
 
     def get_output_descriptor(self, lhs_desc, rhs_desc, global_error=True):
         epsilon = self.relative_error_eval(lhs_desc, rhs_desc, global_error=global_error)
         a_o = sollya.floor(-sollya.log2(lhs_desc.limb_diff_factor[0]))
         b_o = sollya.floor(-sollya.log2(rhs_desc.limb_diff_factor[0]))
         limb_diff_factors = [
-            2**(-min(a_o + b_o) + 5),
+            S2**(-min(a_o + b_o) + 5),
             # no overlap between medium and lo limb
-            2**-self.main_precision.get_field_size()
+            S2**-self.main_precision.get_mantissa_size()
         ]
-        return MP_Node(self.out_precision, epsilon, [2**-self.main_precision.get_field_size()])
+        return MP_Node(self.out_precision, epsilon, limb_diff_factors)
 
 
 
@@ -587,11 +729,11 @@ class MB_Add332(Op_3LimbOut_MetaBlock):
         # sign of bh and ah not checked
         # input limbs overlaps by at most 49 bits (for double precision limbs)
         # 2-limb input must not overlap
-        return is_tri_limb_precision(lhs) and \
-            is_dual_limb_precision(rhs) and \
-            lhs.limb_diff_factor[0] >= 2**-2 and \
-            lhs.limb_diff_factor[1] >= 2**-1 and \
-            rhs.limb_diff_factor[0] >= 2**-self.main_precision.get_field_size()
+        return is_tri_limb_precision(lhs.precision) and \
+            is_dual_limb_precision(rhs.precision) and \
+            lhs.limb_diff_factor[0] <= S2**-2 and \
+            lhs.limb_diff_factor[1] <= S2**-1 and \
+            rhs.limb_diff_factor[0] <= S2**-self.main_precision.get_mantissa_size()
 
     def global_relative_error_eval(self, lhs_desc, rhs_desc):
         eps_op = self.local_relative_error_eval(lhs_desc, rhs_desc)
@@ -601,23 +743,32 @@ class MB_Add332(Op_3LimbOut_MetaBlock):
         # TODO: 52, 104, 153 are specialized for ML_Binary64
         b_o = sollya.floor(-sollya.log2(rhs_desc.limb_diff_factor[0]))
         b_u = sollya.floor(-sollya.log2(rhs_desc.limb_diff_factor[1]))
-        return 2**(-b_o-b_u-52) + 2**(-b_o-104) + 2**-153
+        return S2**(-b_o-b_u-52) + S2**(-b_o-104) + S2**-153
 
     def get_output_descriptor(self, lhs_desc, rhs_desc, global_error=True):
         epsilon = self.relative_error_eval(lhs_desc, rhs_desc, global_error=global_error)
         b_o = sollya.floor(-sollya.log2(rhs_desc.limb_diff_factor[0]))
         b_u = sollya.floor(-sollya.log2(rhs_desc.limb_diff_factor[1]))
         limb_diff_factors = [
-            2**(-min(45, b_o - 4, b_o + b_u + 2)),
+            S2**(-min(45, b_o - 4, b_o + b_u + 2)),
             # no overlap between medium and lo limb
-            2**-self.main_precision.get_field_size()
+            S2**-self.main_precision.get_mantissa_size()
         ]
         return MP_Node(self.out_precision, epsilon, limb_diff_factors)
 
 @MB_CommutedVersion(MB_Add332)
 class MB_Add323(Op_3LimbOut_MetaBlock):
     """ Commuted version of Add332 """
-    pass
+    def get_output_descriptor(self, rhs_desc, lhs_desc, global_error=True):
+        epsilon = self.relative_error_eval(rhs_desc, lhs_desc, global_error=global_error)
+        b_o = sollya.floor(-sollya.log2(rhs_desc.limb_diff_factor[0]))
+        b_u = sollya.floor(-sollya.log2(rhs_desc.limb_diff_factor[1]))
+        limb_diff_factors = [
+            S2**(-min(45, b_o - 4, b_o + b_u + 2)),
+            # no overlap between medium and lo limb
+            S2**-self.main_precision.get_mantissa_size()
+        ]
+        return MP_Node(self.out_precision, epsilon, limb_diff_factors)
 
 def MP_Add333(xh, xm, xl, yh, ym, yl, precision=None):
     rh, t1 = Add211(xh, yh, precision=precision)
@@ -656,10 +807,10 @@ class MB_Add321(Op_3LimbOut_MetaBlock):
         return MP_Add321(*(lhs + rhs), precision=self.main_precision)
 
     def check_input_descriptors(self, lhs, rhs):
-        return is_dual_limb_precision(lhs) and \
-            is_single_limb_precision(rhs) and \
-            sup(abs(lhs.interval)) < 2**-2 * inf(abs(rhs.interval)) and \
-             lhs.limb_diff_factor[0] >= 2**-self.main_precision.get_field_size()
+        return is_dual_limb_precision(lhs.precision) and \
+            is_single_limb_precision(rhs.precision) and \
+            is_interval_lt(rhs, S2**-2, lhs) and \
+             lhs.limb_diff_factor[0] <= S2**-self.main_precision.get_mantissa_size()
 
     def global_relative_error_eval(self, lhs_desc, rhs_desc):
         eps_op = self.local_relative_error_eval(lhs_desc, rhs_desc)
@@ -671,15 +822,22 @@ class MB_Add321(Op_3LimbOut_MetaBlock):
     def get_output_descriptor(self, lhs_desc, rhs_desc, global_error=True):
         epsilon = self.relative_error_eval(lhs_desc, rhs_desc, global_error=global_error)
         limb_diff_factors = [
-            2**(-self.main_precision.get_field_size()+1),
+            S2**(-self.main_precision.get_mantissa_size()+1),
             # no overlap between medium and lo limb
-            2**-self.main_precision.get_field_size()
+            S2**-self.main_precision.get_mantissa_size()
         ]
         return MP_Node(self.out_precision, epsilon, limb_diff_factors)
 
 @MB_CommutedVersion(MB_Add321)
 class MB_Add312(Op_3LimbOut_MetaBlock):
-    pass
+    def get_output_descriptor(self, rhs_desc, lhs_desc, global_error=True):
+        epsilon = self.relative_error_eval(rhs_desc, lhs_desc, global_error=global_error)
+        limb_diff_factors = [
+            S2**(-self.main_precision.get_mantissa_size()+1),
+            # no overlap between medium and lo limb
+            S2**-self.main_precision.get_mantissa_size()
+        ]
+        return MP_Node(self.out_precision, epsilon, limb_diff_factors)
 
 def MP_Add322(xh, xl, yh, yl, precision=None):
     # TODO use fast2sum when xh <= 2**-2 yh condition has been verified
@@ -690,16 +848,28 @@ def MP_Add322(xh, xl, yh, yl, precision=None):
     rm, rl = Addition(t4, t6)
     return rh, rm, rl
 
+def is_interval_le(op0, factor, op1):
+    """ is op0 <= factor * op1 verifier """
+    return True
+    # TODO: fix
+    # return sollya.sup(abs(op0.interval)) <= fector * sollya.inf(abs(op1.interval))
+
+def is_interval_lt(op0, factor, op1):
+    """ is op0 < factor * op1 verifier """
+    return True
+    # TODO: fix
+    # return sollya.sup(abs(op0.interval)) < factor * sollya.inf(abs(op1.interval))
+
 class MB_Add322(Op_3LimbOut_MetaBlock):
     def expand(self, lhs, rhs):
         return MP_Add322(*(lhs + rhs), precision=self.main_precision)
 
     def check_input_descriptors(self, lhs, rhs):
-        return is_dual_limb_precision(lhs) and \
-            is_dual_limb_precision(rhs) and \
-            lhs.limb_diff_factor[0] >= 2**-2 and \
-            lhs.limb_diff_factor[1] >= 2**-1 and \
-            rhs.limb_diff_factor[0] >= 2**-self.main_precision.get_field_size()
+        return is_dual_limb_precision(lhs.precision) and \
+            is_dual_limb_precision(rhs.precision) and \
+            is_interval_le(rhs, S2**-2, lhs) and \
+            lhs.limb_diff_factor[0] <= S2**-self.main_precision.get_mantissa_size() and \
+            rhs.limb_diff_factor[0] <= S2**-self.main_precision.get_mantissa_size()
 
     def global_relative_error_eval(self, lhs_desc, rhs_desc):
         eps_op = self.local_relative_error_eval(lhs_desc, rhs_desc)
@@ -707,14 +877,14 @@ class MB_Add322(Op_3LimbOut_MetaBlock):
         return eps_op + eps_in + eps_op * eps_in
     def local_relative_error_eval(self, lhs_desc, rhs_desc):
         # TODO: dummy value
-        return 2**-120
+        return S2**-120
 
     def get_output_descriptor(self, lhs_desc, rhs_desc, global_error=True):
         epsilon = self.relative_error_eval(lhs_desc, rhs_desc, global_error=global_error)
         limb_diff_factors = [
-            2**(-self.main_precision.get_field_size()+1),
+            S2**(-self.main_precision.get_mantissa_size()+1),
             # no overlap between medium and lo limb
-            2**-self.main_precision.get_field_size()
+            S2**-self.main_precision.get_mantissa_size()
         ]
         return MP_Node(self.out_precision, epsilon, limb_diff_factors)
 
@@ -724,36 +894,45 @@ class MB_Add331(Op_3LimbOut_MetaBlock):
         return MP_Add331(*(lhs + rhs), precision=self.main_precision)
 
     def check_input_descriptors(self, lhs, rhs):
-        return is_tri_limb_precision(lhs) and \
-            is_single_limb_precision(rhs) and \
-            sup(abs(lhs.interval)) < 2**-2 * inf(abs(rhs.interval)) and \
-             lhs.limb_diff_factor[0] >= 2**-2 and \
-             rhs.limb_diff_factor[0] >= 2**-1
+        return is_tri_limb_precision(lhs.precision) and \
+            is_single_limb_precision(rhs.precision) and \
+            is_interval_lt(lhs, S2**-2, rhs) and \
+            lhs.limb_diff_factor[0] <= S2**-2 and \
+            lhs.limb_diff_factor[1] <= S2**-1
 
     def global_relative_error_eval(self, lhs_desc, rhs_desc):
         eps_op = self.local_relative_error_eval(lhs_desc, rhs_desc)
         eps_in = max(lhs_desc.epsilon, rhs_desc.epsilon)
         return eps_op + eps_in + eps_op * eps_in
     def local_relative_error_eval(self, lhs_desc, rhs_desc):
-        b_o = sollya.floor(-sollya.log2(rhs_desc.limb_diff_factor[0]))
-        b_u = sollya.floor(-sollya.log2(rhs_desc.limb_diff_factor[1]))
-        return 2**(-52-b_o-b_u) + 2**-154
+        b_o = sollya.floor(-sollya.log2(lhs_desc.limb_diff_factor[0]))
+        b_u = sollya.floor(-sollya.log2(lhs_desc.limb_diff_factor[1]))
+        return S2**(-52-b_o-b_u) + S2**-154
 
     def get_output_descriptor(self, lhs_desc, rhs_desc, global_error=True):
         epsilon = self.relative_error_eval(lhs_desc, rhs_desc, global_error=global_error)
-        b_o = sollya.floor(-sollya.log2(rhs_desc.limb_diff_factor[0]))
-        b_u = sollya.floor(-sollya.log2(rhs_desc.limb_diff_factor[1]))
+        b_o = sollya.floor(-sollya.log2(lhs_desc.limb_diff_factor[0]))
+        b_u = sollya.floor(-sollya.log2(lhs_desc.limb_diff_factor[1]))
         limb_diff_factors = [
-            2**(min(-47,3-b_o,1-b_o-b_u)),
+            S2**(min(-47,3-b_o,1-b_o-b_u)),
             # no overlap between medium and lo limb
-            2**-self.main_precision.get_field_size()
+            S2**-self.main_precision.get_mantissa_size()
         ]
         return MP_Node(self.out_precision, epsilon, limb_diff_factors)
 
 @MB_CommutedVersion(MB_Add331)
 class MB_Add313(Op_3LimbOut_MetaBlock):
     """ """
-    pass
+    def get_output_descriptor(self, rhs_desc, lhs_desc, global_error=True):
+        epsilon = self.relative_error_eval(rhs_desc, lhs_desc, global_error=global_error)
+        b_o = sollya.floor(-sollya.log2(lhs_desc.limb_diff_factor[0]))
+        b_u = sollya.floor(-sollya.log2(lhs_desc.limb_diff_factor[1]))
+        limb_diff_factors = [
+            S2**(min(-47,3-b_o,1-b_o-b_u)),
+            # no overlap between medium and lo limb
+            S2**-self.main_precision.get_mantissa_size()
+        ]
+        return MP_Node(self.out_precision, epsilon, limb_diff_factors)
 
 MB_Add333_ts = MB_Add333(ML_Binary32)
 MB_Add332_ts = MB_Add332(ML_Binary32)
@@ -768,6 +947,8 @@ MB_Add323_td = MB_Add323(ML_Binary64)
 MB_Add322_td = MB_Add322(ML_Binary64)
 MB_Add321_td = MB_Add321(ML_Binary64)
 MB_Add312_td = MB_Add312(ML_Binary64)
+MB_Add331_td = MB_Add331(ML_Binary64)
+MB_Add313_td = MB_Add313(ML_Binary64)
 
 def MP_Mul322(xh, xl, yh, yl, precision=None):
     rh, t1 = Mul211(xh, yh, precision=precision)
@@ -784,10 +965,10 @@ class MB_Mul322(Op_3LimbOut_MetaBlock):
         return MP_Mul322(*(lhs + rhs), precision=self.main_precision)
 
     def check_input_descriptors(self, lhs, rhs):
-        return is_dual_limb_precision(lhs) and \
-            is_dual_limb_precision(rhs) and \
-            lhs.limb_diff_factor[0] >= 2**-self.main_precision.get_field_size() and \
-            rhs.limb_diff_factor[0] >= 2**-self.main_precision.get_field_size()
+        return is_dual_limb_precision(lhs.precision) and \
+            is_dual_limb_precision(rhs.precision) and \
+            lhs.limb_diff_factor[0] <= S2**-self.main_precision.get_mantissa_size() and \
+            rhs.limb_diff_factor[0] <= S2**-self.main_precision.get_mantissa_size()
 
     def global_relative_error_eval(self, lhs_desc, rhs_desc):
         # error bound (first order approximation)
@@ -795,14 +976,14 @@ class MB_Mul322(Op_3LimbOut_MetaBlock):
         return eps
     def local_relative_error_eval(self, lhs_desc, rhs_desc):
         # TODO: numeric constant specific to ML_Binary64
-        return 2**-149
+        return S2**-149
 
     def get_output_descriptor(self, lhs_desc, rhs_desc, global_error=True):
         epsilon = self.relative_error_eval(lhs_desc, rhs_desc, global_error=global_error)
         limb_diff_factors = [
-            2**-49, # numeric constant specific to ML_Binary64
+            S2**-49, # numeric constant specific to ML_Binary64
             # no overlap between medium and lo limb
-            2**-self.main_precision.get_field_size()
+            S2**-self.main_precision.get_mantissa_size()
         ]
         return MP_Node(self.out_precision, epsilon, limb_diff_factors)
 
@@ -811,10 +992,10 @@ class MB_Mul332(Op_3LimbOut_MetaBlock):
         return MP_Mul332(*(lhs + rhs), precision=self.main_precision)
 
     def check_input_descriptors(self, lhs, rhs):
-        return is_tri_limb_precision(lhs) and \
-            is_dual_limb_precision(rhs) and \
-            lhs.limb_diff_factor[0] >= 2**-self.main_precision.get_field_size() and \
-            rhs.limb_diff_factor[0] >= 2**-self.main_precision.get_field_size()
+        return is_tri_limb_precision(lhs.precision) and \
+            is_dual_limb_precision(rhs.precision) and \
+            lhs.limb_diff_factor[1] <= S2**-self.main_precision.get_mantissa_size() and \
+            rhs.limb_diff_factor[0] <= S2**-self.main_precision.get_mantissa_size()
 
     def global_relative_error_eval(self, lhs_desc, rhs_desc):
         # error bound (first order approximation)
@@ -822,23 +1003,41 @@ class MB_Mul332(Op_3LimbOut_MetaBlock):
         return eps
     def local_relative_error_eval(self, lhs_desc, rhs_desc):
         # TODO: numeric constant specific to ML_Binary64
-        b_o = sollya.floor(-sollya.log2(rhs_desc.limb_diff_factor[0]))
-        b_u = sollya.floor(-sollya.log2(rhs_desc.limb_diff_factor[1]))
-        return (2**(-99 - b_o) + 2**(-99-b_o-b_u) + 2**-152) / (1 - 2**-53 - 2**(-b_o+1) - 2**(-b_o-b_u+1))
+        print("MB_Mul332.local_relative_error_eval", lhs_desc, rhs_desc)
+        b_o = sollya.floor(-sollya.log2(lhs_desc.limb_diff_factor[0]))
+        b_u = sollya.floor(-sollya.log2(lhs_desc.limb_diff_factor[1]))
+        return (S2**(-99 - b_o) + S2**(-99-b_o-b_u) + S2**-152) / (1 - S2**-53 - S2**(-b_o+1) - S2**(-b_o-b_u+1))
 
     def get_output_descriptor(self, lhs_desc, rhs_desc, global_error=True):
-        epsilon = self.relative_error_eval(lhs_desc, rhs_desc, global_error=global_error)
+        print("MB_Mul332.get_output_descriptor", lhs_desc, rhs_desc)
+        epsilon = MB_Mul332.relative_error_eval(self, lhs_desc, rhs_desc, global_error=global_error)
+
+        b_o = sollya.floor(-sollya.log2(lhs_desc.limb_diff_factor[0]))
+        b_u = sollya.floor(-sollya.log2(lhs_desc.limb_diff_factor[1]))
         gamma = min(48, b_o-4,b_o+b_u-4)
         limb_diff_factors = [
-            2**-(gamma), #TODO: check gamma minus sign
+            S2**-(gamma), #TODO: check gamma minus sign
         #    # no overlap between medium and lo limb
-            2**-self.main_precision.get_field_size()
+            S2**-self.main_precision.get_mantissa_size()
         ]
         return MP_Node(self.out_precision, epsilon, limb_diff_factors)
 
 @MB_CommutedVersion(MB_Mul332)
 class MB_Mul323(Op_3LimbOut_MetaBlock):
     """ Commutated version of MB_Mul332 """
+    def get_output_descriptor(self, rhs_desc, lhs_desc, global_error=True):
+        print("MB_Mul332.get_output_descriptor", rhs_desc, lhs_desc)
+        epsilon = MB_Mul332.relative_error_eval(self, rhs_desc, lhs_desc, global_error=global_error)
+
+        b_o = sollya.floor(-sollya.log2(lhs_desc.limb_diff_factor[0]))
+        b_u = sollya.floor(-sollya.log2(lhs_desc.limb_diff_factor[1]))
+        gamma = min(48, b_o-4,b_o+b_u-4)
+        limb_diff_factors = [
+            S2**-(gamma), #TODO: check gamma minus sign
+        #    # no overlap between medium and lo limb
+            S2**-self.main_precision.get_mantissa_size()
+        ]
+        return MP_Node(self.out_precision, epsilon, limb_diff_factors)
     pass
 
 def MP_Mul323(xh, xl, yh, ym, yl, precision=None):
@@ -856,8 +1055,8 @@ def MP_Mul323(xh, xl, yh, ym, yl, precision=None):
     return rh, rm, rl
 
 
-MB_Mul332_dd = MB_Mul332(ML_Binary64)
-MB_Mul323_dd = MB_Mul323(ML_Binary64)
+MB_Mul332_td = MB_Mul332(ML_Binary64)
+MB_Mul323_td = MB_Mul323(ML_Binary64)
 
 def MP_Mul332(xh, xm, xl, yh, yl, precision=None):
     return MP_Mul323(yh, yl, xh, xm, xl, precision=precision)
@@ -893,7 +1092,7 @@ class MB_Mul333(Op_3LimbOut_MetaBlock):
         return MP_Mul333(*(lhs + rhs), precision=self.main_precision)
 
     def check_input_descriptors(self, lhs, rhs):
-        if not is_tri_limb_precision(lhs) or not is_tri_limb_precision(rhs):
+        if not is_tri_limb_precision(lhs.precision) or not is_tri_limb_precision(rhs.precision):
             return False
         a_o = sollya.floor(-sollya.log2(lhs.limb_diff_factor[0]))
         a_u = sollya.floor(-sollya.log2(lhs.limb_diff_factor[1]))
@@ -912,9 +1111,9 @@ class MB_Mul333(Op_3LimbOut_MetaBlock):
         b_o = sollya.floor(-sollya.log2(rhs.limb_diff_factor[0]))
         b_u = sollya.floor(-sollya.log2(rhs.limb_diff_factor[1]))
         # TODO: coefficient specific for ML_Binary64
-        return 2**-151 + 2**(-99-a_o) + 2**(-99-b_o) + \
-            2**(-49-a_o-a_u) + 2**(-49-b_o-b_u) + 2**(50-a_o-b_o-b_u) + \
-            2**(50-a_o-b_o-b_u) + 2**(-101-a_o-b_o) + 2**(-52-a_o-a_u-b_o-b_u)
+        return S2**-151 + S2**(-99-a_o) + S2**(-99-b_o) + \
+            S2**(-49-a_o-a_u) + S2**(-49-b_o-b_u) + S2**(50-a_o-b_o-b_u) + \
+            S2**(50-a_o-b_o-b_u) + S2**(-101-a_o-b_o) + S2**(-52-a_o-a_u-b_o-b_u)
 
     def get_output_descriptor(self, lhs_desc, rhs_desc, global_error=True):
         epsilon = self.relative_error_eval(lhs_desc, rhs_desc, global_error=global_error)
@@ -923,13 +1122,80 @@ class MB_Mul333(Op_3LimbOut_MetaBlock):
         # TODO: coefficient specific for ML_Binary64
         g_o = min(48, -4+a_o, -4+b_o, -4+a_o-b_o)
         limb_diff_factors = [
-            2**-(g_o), 
+            S2**-(g_o), 
         #    # no overlap between medium and lo limb
-            2**-self.main_precision.get_field_size()
+            S2**-self.main_precision.get_mantissa_size()
         ]
         return MP_Node(self.out_precision, epsilon, limb_diff_factors)
 
 MB_Mul333_td = MB_Mul333(ML_Binary64)
+
+
+def MP_Mul313(x, yh, ym, yl, precision=None):
+    rh, t2 = Mul211(x, yh, precision)
+    t3, t4 = Mul211(x, ym, precision)
+    t5 = Multiplication(x, yl, precision=precision)
+    t9, t7 = Add211(t2, t3, precision=precision)
+
+    t8 = Addition(t4, t5, precision=precision)
+    t10 = Addition(t7, t8, precision=precision)
+    rm, rl = Add211(t9, t10, precision=precision)
+    return rh, rm, rl
+
+class MB_Mul313(Op_3LimbOut_MetaBlock):
+    def expand(self, lhs, rhs):
+        return MP_Mul313(*(lhs + rhs), precision=self.main_precision)
+
+    def check_input_descriptors(self, lhs, rhs):
+        if not is_single_limb_precision(lhs.precision) or not is_tri_limb_precision(rhs.precision):
+            return False
+        b_o = sollya.floor(-sollya.log2(lhs.limb_diff_factor[0]))
+        b_u = sollya.floor(-sollya.log2(lhs.limb_diff_factor[1]))
+        return b_o >= 2 and b_u >= 2
+
+    def global_relative_error_eval(self, lhs_desc, rhs_desc):
+        # error bound (first order approximation)
+        eps = lhs_desc.epsilon + rhs_desc.epsilon + eps_op
+        return eps
+    def local_relative_error_eval(self, lhs, rhs):
+        # TODO: numeric constant specific to ML_Binary64
+        b_o = sollya.floor(-sollya.log2(lhs.limb_diff_factor[0]))
+        b_u = sollya.floor(-sollya.log2(lhs.limb_diff_factor[1]))
+        # TODO: coefficient specific for ML_Binary64
+        return S2**(-49-b_o-b_u) + S2**(-101-b_o) + 2**-156
+
+    def get_output_descriptor(self, lhs_desc, rhs_desc, global_error=True):
+        epsilon = self.relative_error_eval(lhs_desc, rhs_desc, global_error=global_error)
+        # TODO: coefficient specific for ML_Binary64
+        b_o = sollya.floor(-sollya.log2(lhs.limb_diff_factor[0]))
+        b_u = sollya.floor(-sollya.log2(lhs.limb_diff_factor[1]))
+        g_o = min(47, -5-b_o, -5+b_o+b_u) # FIX sign
+        limb_diff_factors = [
+            S2**-(g_o), 
+        #    # no overlap between medium and lo limb
+            S2**-self.main_precision.get_mantissa_size()
+        ]
+        return MP_Node(self.out_precision, epsilon, limb_diff_factors)
+
+@MB_CommutedVersion(MB_Mul313)
+class MB_Mul331(Op_3LimbOut_MetaBlock):
+    def get_output_descriptor(self, rhs_desc, lhs_desc, global_error=True):
+        epsilon = self.relative_error_eval(rhs_desc, lhs_desc, global_error=global_error)
+        # TODO: coefficient specific for ML_Binary64
+        b_o = sollya.floor(-sollya.log2(lhs.limb_diff_factor[0]))
+        b_u = sollya.floor(-sollya.log2(lhs.limb_diff_factor[1]))
+        g_o = min(47, -5-b_o, -5+b_o+b_u) # FIX sign
+        limb_diff_factors = [
+            S2**-(g_o), 
+        #    # no overlap between medium and lo limb
+            S2**-self.main_precision.get_mantissa_size()
+        ]
+        return MP_Node(self.out_precision, epsilon, limb_diff_factors)
+
+
+MB_Mul331_td = MB_Mul331(ML_Binary64)
+MB_Mul313_td = MB_Mul313(ML_Binary64)
+
 
 def Normalize_33(xh, xm, xl, precision=None):
     t1h, t1l = Add211(xm, xl, precision=precision)
@@ -963,7 +1229,7 @@ def subnormalize(x_list, factor, precision=None, fma=True):
             precision.get_emin() - scaled_ex,
             CI0
         ),
-        Constant(precision.get_field_size(), precision=int_precision)
+        Constant(precision.get_mantissa_size(), precision=int_precision)
     )
 
     casted_int_x = TypeCast(x_hi, precision=int_precision)
@@ -1031,7 +1297,7 @@ def subnormalize_multi(x_list, factor, precision=None, fma=True):
             CI0,
             precision=int_precision
         ),
-        Constant(precision.get_field_size(), precision=int_precision),
+        Constant(precision.get_mantissa_size(), precision=int_precision),
         precision=int_precision
     )
 
@@ -1064,25 +1330,38 @@ def get_MB_cost(mb):
     """ return a quick of dirty evaluation of the meta-block "cost"
         which is used to sort them and chose the less "expensive" one
     """
-    return {
-            MB_Add333_td: 6,
-            MB_Add332_td: 5,
-            MB_Add323_td: 5,
-            MB_Add321_td: 4,
-            MB_Add312_td: 4,
-            MB_Add322_td: 4.5,
-            MB_Add211_dd: 3,
-            
-            MB_Add111_d: 1,
-            MB_Mul111_d: 1,
+    try:
+        return {
+                MB_Add333_td: 6,
+                MB_Add332_td: 5,
+                MB_Add323_td: 5,
+                MB_Add331_td: 4.5,
+                MB_Add313_td: 4.5,
+                MB_Add321_td: 4,
+                MB_Add312_td: 4,
+                MB_Add322_td: 4.5,
+                MB_Add211_dd: 3,
 
-            MB_Mul212_dd: 6,
-            MB_Mul221_dd: 6,
-            MB_Mul211_dd: 5,
-            MB_Mul332_dd: 7,
-            MB_Mul323_dd: 7,
-            MB_Mul333_td: 8,
-    }[mb]
+                MB_Add222_dd: 3.8,
+                MB_Add122_d: 3.5,
+                
+                MB_Add111_d: 1,
+
+                MB_Mul111_d: 1,
+                MB_Mul211_dd: 5,
+                MB_Mul212_dd: 6,
+                MB_Mul221_dd: 6,
+                MB_Mul122_d: 6.25,
+                MB_Mul222_dd: 6.5,
+                MB_Mul331_td: 6.5,
+                MB_Mul313_td: 6.5,
+                MB_Mul332_td: 7,
+                MB_Mul323_td: 7,
+                MB_Mul333_td: 8,
+        }[mb]
+    except KeyError as e:
+        print("KeyError in get_MB_cost: for {}".format(mb))
+        raise e
 
 
 def get_Addition_MB_compatible_list(lhs, rhs):
@@ -1098,12 +1377,16 @@ def get_Addition_MB_compatible_list(lhs, rhs):
     #        MB_Add111_d,
     #    ]
     #)
-    return [mb for mb in 
+    return [mb for mb in
         [
             MB_Add333_td, MB_Add332_td, MB_Add323_td,
             MB_Add321_td, MB_Add312_td, MB_Add322_td,
+            MB_Add331_td, MB_Add313_td,
             MB_Add211_dd,
             MB_Add111_d,
+            MB_Add122_d,
+            MB_Add222_dd,
+
         ]
      if mb.check_input_descriptors(lhs, rhs)
     ]
@@ -1113,11 +1396,15 @@ def get_Multiplication_MB_compatible_list(lhs, rhs):
     """
     #return filter(
     #    (lambda mb: mb.check_input_descriptors(lhs, rhs)),
-    return [mb for mb in 
+    return [mb for mb in
         [
             MB_Mul212_dd, MB_Mul221_dd, MB_Mul211_dd,
-            MB_Mul332_dd, MB_Mul323_dd, MB_Mul333_td,
+            MB_Mul332_td, MB_Mul323_td, MB_Mul333_td,
             MB_Mul111_d,
+            MB_Mul222_dd,
+            MB_Mul122_d,
+            MB_Mul331_td,
+            MB_Mul313_td,
         ] if mb.check_input_descriptors(lhs, rhs)
     ]
 
