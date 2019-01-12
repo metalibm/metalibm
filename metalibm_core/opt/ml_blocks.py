@@ -293,7 +293,7 @@ class Op211_ExactMetaBlock(Op_2LimbOut_MetaBlock):
 
 class MB_Mul211(Op211_ExactMetaBlock):
     def expand(self, x, y):
-        return Mul211(x, y, self.main_precision)
+        return Mul211(x, y, precision=self.main_precision)
     def global_relative_error_eval(self, x, y):
         # ExactMetaBlock is exact
         return x.epsilon + y.epsilon + x.epsilon * y.epsilon
@@ -306,7 +306,7 @@ class MB_Mul211_FMA(MB_Mul211):
 
 class MB_Add211(Op211_ExactMetaBlock):
     def expand(self, x, y):
-        zh, zl = generate_twosum(x, y, self.main_precision)
+        zh, zl = generate_twosum(x, y, precision=self.main_precision)
         return zh, zl
     def global_relative_error_eval(self, x, y):
         # TODO: check error approximation bound
@@ -316,7 +316,7 @@ class MB_Add211(Op211_ExactMetaBlock):
 class MB_Mul221(Op_2LimbOut_MetaBlock):
     DELTA_ERR = 4
     def expand(self, lhs, rhs):
-        return Mul221(lhs, rhs, self.main_precision)
+        return Mul221(*(lhs + rhs), precision=self.main_precision)
 
     def check_input_descriptors(self, lhs, rhs):
         return is_dual_limb_precision(lhs.precision) and \
@@ -328,13 +328,17 @@ class MB_Mul221(Op_2LimbOut_MetaBlock):
         lhs_prec = lhs_desc.precision
         eps_op = S2**-(lhs_prec.get_limb_precision(0).get_mantissa_size() + lhs_prec.get_limb_precision(1).get_mantissa_size() - self.DELTA_ERR)
         # error bound (first order approximation)
-        return eps_ops
+        return eps_op
 
     def global_relative_error_eval(self, lhs_desc, rhs_desc):
         eps_op = self.local_relative_error_eval(lhs_desc, rhs_desc)
         # error bound (first order approximation)
         eps = lhs_desc.epsilon + rhs_desc.epsilon + eps_op
         return eps
+
+    def get_output_descriptor(self, lhs, rhs, global_error=True):
+        epsilon = self.relative_error_eval(lhs, rhs, global_error=global_error)
+        return MP_Node(self.out_precision, epsilon, [S2**-self.main_precision.get_mantissa_size()])
 
 @MB_CommutedVersion(MB_Mul221)
 class MB_Mul212(Op_2LimbOut_MetaBlock):
@@ -344,6 +348,9 @@ class MB_Mul212(Op_2LimbOut_MetaBlock):
         # error bound (first order approximation)
         eps = lhs_desc.epsilon + rhs_desc.epsilon + eps_op
         return eps
+    def get_output_descriptor(self, rhs, lhs, global_error=True):
+        epsilon = self.relative_error_eval(rhs, lhs, global_error=global_error)
+        return MP_Node(self.out_precision, epsilon, [S2**-self.main_precision.get_mantissa_size()])
 
 # Meta-block instanciations with precisions
 MB_Add211_ss = MB_Add211(ML_Binary32)
@@ -795,7 +802,7 @@ def MP_Add323(xh, xl, yh, ym, yl, precision=None):
 
 def MP_Add321(xh, xl, y, precision=None):
     rh, t1 = Add211(xh, y, precision=precision)
-    rm, rl = Add211(t1, bl, precision=precision)
+    rm, rl = Add211(t1, xl, precision=precision)
     return rh, rm, rl
 
 def MP_Add312(x, yh, yl, precision=None):
@@ -889,9 +896,16 @@ class MB_Add322(Op_3LimbOut_MetaBlock):
         return MP_Node(self.out_precision, epsilon, limb_diff_factors)
 
 
+def MP_Add313(x, yh, ym, yl, precision=None):
+    rh , t1 = Add211(x, yh, precision=precision)
+    t2, t3 = Add211(t1, ym, precision=precision)
+    t4 = Addition(t3, yl, precision=precision)
+    rm, rl = Add211(t2, t4, precision=precision)
+    return rh, rm, rl
+
 class MB_Add331(Op_3LimbOut_MetaBlock):
     def expand(self, lhs, rhs):
-        return MP_Add331(*(lhs + rhs), precision=self.main_precision)
+        return MP_Add313(*(rhs + lhs), precision=self.main_precision)
 
     def check_input_descriptors(self, lhs, rhs):
         return is_tri_limb_precision(lhs.precision) and \
