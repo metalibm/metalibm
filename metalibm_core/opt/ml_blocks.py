@@ -754,8 +754,8 @@ class MB_Add332(Op_3LimbOut_MetaBlock):
 
     def get_output_descriptor(self, lhs_desc, rhs_desc, global_error=True):
         epsilon = self.relative_error_eval(lhs_desc, rhs_desc, global_error=global_error)
-        b_o = sollya.floor(-sollya.log2(rhs_desc.limb_diff_factor[0]))
-        b_u = sollya.floor(-sollya.log2(rhs_desc.limb_diff_factor[1]))
+        b_o = sollya.floor(-sollya.log2(lhs_desc.limb_diff_factor[0]))
+        b_u = sollya.floor(-sollya.log2(lhs_desc.limb_diff_factor[1]))
         limb_diff_factors = [
             S2**(-min(45, b_o - 4, b_o + b_u + 2)),
             # no overlap between medium and lo limb
