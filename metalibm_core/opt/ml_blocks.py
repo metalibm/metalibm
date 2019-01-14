@@ -746,10 +746,10 @@ class MB_Add332(Op_3LimbOut_MetaBlock):
         eps_op = self.local_relative_error_eval(lhs_desc, rhs_desc)
         eps_in = max(lhs_desc.epsilon, rhs_desc.epsilon)
         return eps_op + eps_in + eps_op * eps_in
-    def local_relative_error_eval(self, lhs_desc, rhs_desc):
+    def local_relative_error_eval(self, lhs, rhs):
         # TODO: 52, 104, 153 are specialized for ML_Binary64
-        b_o = sollya.floor(-sollya.log2(rhs_desc.limb_diff_factor[0]))
-        b_u = sollya.floor(-sollya.log2(rhs_desc.limb_diff_factor[1]))
+        b_o = sollya.floor(-sollya.log2(lhs.limb_diff_factor[0]))
+        b_u = sollya.floor(-sollya.log2(lhs.limb_diff_factor[1]))
         return S2**(-b_o-b_u-52) + S2**(-b_o-104) + S2**-153
 
     def get_output_descriptor(self, lhs_desc, rhs_desc, global_error=True):
@@ -766,10 +766,10 @@ class MB_Add332(Op_3LimbOut_MetaBlock):
 @MB_CommutedVersion(MB_Add332)
 class MB_Add323(Op_3LimbOut_MetaBlock):
     """ Commuted version of Add332 """
-    def get_output_descriptor(self, rhs_desc, lhs_desc, global_error=True):
-        epsilon = self.relative_error_eval(rhs_desc, lhs_desc, global_error=global_error)
-        b_o = sollya.floor(-sollya.log2(rhs_desc.limb_diff_factor[0]))
-        b_u = sollya.floor(-sollya.log2(rhs_desc.limb_diff_factor[1]))
+    def get_output_descriptor(self, rhs, lhs, global_error=True):
+        epsilon = self.relative_error_eval(rhs, lhs, global_error=global_error)
+        b_o = sollya.floor(-sollya.log2(lhs.limb_diff_factor[0]))
+        b_u = sollya.floor(-sollya.log2(lhs.limb_diff_factor[1]))
         limb_diff_factors = [
             S2**(-min(45, b_o - 4, b_o + b_u + 2)),
             # no overlap between medium and lo limb
