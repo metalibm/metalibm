@@ -164,12 +164,12 @@ class MetaBlock:
             were exact """
         raise NotImplementedError
 
-    def relative_error_eval(self, *args, global_error=True):
+    def relative_error_eval(self, lhs, rhs, global_error=True):
         # TODO: only works for 2-operand meta blocks
         if global_error:
-            return self.global_relative_error_eval(*args)
+            return self.global_relative_error_eval(lhs, rhs)
         else:
-            return self.local_relative_error_eval(*args)
+            return self.local_relative_error_eval(lhs, rhs)
 
     def get_output_descriptor(self, lhs, rhs, global_error=True):
         """ return a MultiLimb object describing the output
