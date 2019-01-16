@@ -230,11 +230,14 @@ class ML_AbstractFormat(ML_Format):
     #  @param cst_value constant value being translated
     def get_gappa_cst(self, cst_value):
         """ C code for constante cst_value """
+        old_display = sollya.settngs.display
         sollya.settings.display = sollya.hexadecimal
         if isinstance(cst_value, int):
-            return str(float(cst_value))
+            result = str(float(cst_value))
         else:
-            return str(cst_value)
+            result = str(cst_value)
+        sollya.settings.display = old_display
+        return result
 
     def is_cst_decl_required(self):
       return False
@@ -448,6 +451,7 @@ class ML_Std_FP_Format(ML_FP_Format):
         if isinstance(cst_value, FP_SpecialValue):
             return cst_value.get_c_cst()
         else:
+            old_display = sollya.settings.display
             sollya.settings.display = sollya.hexadecimal
             if cst_value == sollya.SollyaObject(0):
                 conv_result = "0.0" + self.c_suffix
@@ -464,6 +468,7 @@ class ML_Std_FP_Format(ML_FP_Format):
                 conv_result  = str(cst_value) + self.c_suffix
             if conv_result == "0f":
                 conv_result = "0.0f"
+            sollya.settings.display = old_display
             return conv_result
 
     def get_precision(self):
@@ -475,11 +480,14 @@ class ML_Std_FP_Format(ML_FP_Format):
         if isinstance(cst_value, FP_SpecialValue):
             return cst_value.get_gappa_cst()
         else:
+            old_display = sollya.settings.display
             sollya.settings.display = sollya.hexadecimal
             if isinstance(cst_value, int):
-                return str(float(cst_value))
+                result = str(float(cst_value))
             else:
-                return str(cst_value)
+                result = str(cst_value)
+            sollya.settings.display = old_display
+            return result
 
     def get_integer_format(self):
         """ Return a signed integer format whose size matches @p self format
