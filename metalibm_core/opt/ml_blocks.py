@@ -139,6 +139,7 @@ class MP_Node:
         return "({}, eps={}, ldf={}, interval={})".format(
             self.precision, self.epsilon, self.limb_diff_factor, self.interval
         )
+    
 
 class MetaBlock:
     """ abstract class to document meta-block methods """
@@ -163,12 +164,12 @@ class MetaBlock:
             were exact """
         raise NotImplementedError
 
-    def relative_error_eval(self, lhs, rhs, global_error=True):
+    def relative_error_eval(self, *args, global_error=True):
         # TODO: only works for 2-operand meta blocks
         if global_error:
-            return self.global_relative_error_eval(lhs, rhs)
+            return self.global_relative_error_eval(*args)
         else:
-            return self.local_relative_error_eval(lhs, rhs)
+            return self.local_relative_error_eval(*args)
 
     def get_output_descriptor(self, lhs, rhs, global_error=True):
         """ return a MultiLimb object describing the output
@@ -1220,6 +1221,95 @@ def Normalize_33(xh, xm, xl, precision=None):
     rm, rl = Add211(t2l, t1l, precision=precision)
     return rh, rm, rl
 
+class MB_Identity:
+    @staticmethod
+    def expand(op):
+        return op
+
+    @staticmethod
+    def local_relative_error_eval(rhs):
+        return 0
+
+    @staticmethod
+    def get_output_descriptor(lhs, global_error=True):
+        return lhs
+        
+
+class MB_Wrapper_2Op:
+    def __init__(self, meta_block, wrap_lhs, wrap_rhs):
+        self.meta_block = meta_block
+        self.wrap_lhs = wrap_lhs
+        self.wrap_rhs = wrap_rhs
+
+    def expand(self, lhs, rhs):
+        lhs = self.wrap_lhs.expand(*lhs)
+        rhs = self.wrap_rhs.expand(*rhs)
+        return self.meta_block.expand(lhs, rhs)
+
+    def local_relative_error_eval(self, lhs, rhs):
+        lhs_format = self.wrap_lhs.get_output_descriptor(lhs, global_error=False)
+        rhs_format = self.wrap_rhs.get_output_descriptor(rhs, global_error=False)
+        # we need to take into account lhs's and rhs's error so we must
+        # request for global_error to get WHole block local error
+        return self.meta_block.global_relative_error_eval(lhs_format, rhs_format)
+
+class MB_PostWrapper_2Op:
+    def __init__(self, meta_block, wrap_op):
+        self.meta_block = meta_block
+        self.wrap_op = wrap_op
+
+    def expand(self, lhs, rhs):
+        op = self.meta_block.expand(lhs, rhs)
+        return self.wrap_op.expand(op)
+
+    def local_relative_error_eval(self, lhs, rhs):
+        op_format = self.meta_block.get_output_descriptor(lhs, rhs, global_error=False)
+        # we need to take into account lhs's and rhs's error so we must
+        # request for global_error to get WHole block local error
+        return self.wrap_op.global_relative_error_eval(op_format)
+        
+
+class MB_Normalize_33(Op_3LimbOut_MetaBlock):
+    def relative_error_eval(self, lhs, global_error=True):
+        """ single operand version"""
+        if global_error:
+            return self.global_relative_error_eval(lhs)
+        else:
+            return self.local_relative_error_eval(lhs)
+
+    def expand(self, lhs):
+        return Normalize_33(*lhs, precision=self.main_precision)
+
+    def extract_op_overlap(self, lhs):
+        b_o = sollya.floor(-sollya.log2(lhs.limb_diff_factor[0]))
+        b_u = sollya.floor(-sollya.log2(lhs.limb_diff_factor[1]))
+        return b_o, b_u
+
+    def check_input_descriptors(self, lhs):
+        if not is_tri_limb_precision(lhs.precision):
+            return False
+        b_o, b_u = self.extract_op_overlap(lhs)
+        return b_o >= 2 and b_u >= 2
+
+    def global_relative_error_eval(self, lhs):
+        # error bound (first order approximation)
+        eps = lhs.epsilon
+        return eps
+    def local_relative_error_eval(self, lhs):
+        return 0
+
+    def get_output_descriptor(self, lhs, global_error=True):
+        epsilon = self.relative_error_eval(lhs, global_error=global_error)
+        limb_diff_factors = [
+            # no overlap between high and medium limb
+            S2**-self.main_precision.get_mantissa_size(),
+            # no overlap between medium and lo limb
+            S2**-self.main_precision.get_mantissa_size()
+        ]
+        return MP_Node(self.out_precision, epsilon, limb_diff_factors)
+
+MB_Normalize_33_td = MB_Normalize_33(ML_Binary64)
+
 def Normalize_23(xh, xm, xl, precision=None):
     t1h, t1l = Add211(xm, xl, precision=precision)
     rh, t2l = Add211(xh, t1h, precision=precision)
@@ -1361,7 +1451,7 @@ def get_MB_cost(mb):
 
                 MB_Add222_dd: 3.8,
                 MB_Add122_d: 3.5,
-                
+
                 MB_Add111_d: 1,
 
                 MB_Mul111_d: 1,
