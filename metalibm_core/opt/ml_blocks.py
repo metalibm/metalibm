@@ -1001,6 +1001,9 @@ class MB_Mul322(Op_3LimbOut_MetaBlock):
         ]
         return MP_Node(self.out_precision, epsilon, limb_diff_factors)
 
+MB_Mul322_td = MB_Mul322(ML_Binary64)
+MB_Mul322_ts = MB_Mul322(ML_Binary32)
+
 class MB_Mul332(Op_3LimbOut_MetaBlock):
     def expand(self, lhs, rhs):
         return MP_Mul332(*(lhs + rhs), precision=self.main_precision)
@@ -1369,9 +1372,11 @@ def get_MB_cost(mb):
                 MB_Mul222_dd: 6.5,
                 MB_Mul331_td: 6.5,
                 MB_Mul313_td: 6.5,
+                MB_Mul322_td: 6.75,
                 MB_Mul332_td: 7,
                 MB_Mul323_td: 7,
                 MB_Mul333_td: 8,
+
         }[mb]
     except KeyError as e:
         print("KeyError in get_MB_cost: for {}".format(mb))
@@ -1414,6 +1419,7 @@ def get_Multiplication_MB_compatible_list(lhs, rhs):
         [
             MB_Mul212_dd, MB_Mul221_dd, MB_Mul211_dd,
             MB_Mul332_td, MB_Mul323_td, MB_Mul333_td,
+            MB_Mul322_td,
             MB_Mul111_d,
             MB_Mul222_dd,
             MB_Mul122_d,
