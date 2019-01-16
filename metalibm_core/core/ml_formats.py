@@ -230,7 +230,7 @@ class ML_AbstractFormat(ML_Format):
     #  @param cst_value constant value being translated
     def get_gappa_cst(self, cst_value):
         """ C code for constante cst_value """
-        old_display = sollya.settngs.display
+        old_display = sollya.settings.display
         sollya.settings.display = sollya.hexadecimal
         if isinstance(cst_value, int):
             result = str(float(cst_value))
