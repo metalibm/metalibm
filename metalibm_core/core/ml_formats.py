@@ -1045,7 +1045,7 @@ class ML_Compound_Format(ML_Format):
         for field_name, field_format in zip(self.c_field_list, self.field_format_list):
             # FIXME, round is only valid for double_double or triple_double stype format
             field_value = sollya.round(tmp_cst, field_format.sollya_object, sollya.RN)
-            tmp_cst = cst_value - field_value
+            tmp_cst = tmp_cst - field_value
             field_str_list.append(".%s = %s" % (field_name, field_format.get_c_cst(field_value)))
         return "{%s}" % (", ".join(field_str_list))
 
