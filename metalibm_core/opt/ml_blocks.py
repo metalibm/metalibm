@@ -190,16 +190,12 @@ def MB_CommutedVersion(BaseClass):
             def __str__(self):
                 return "COM-{}(main={}, out={})".format(BaseClass.__name__, self.main_precision, self.out_precision)
             def expand(self, lhs, rhs):
-                print("commuting")
                 return BaseClass.expand(self, rhs, lhs)
             def check_input_descriptors(self, lhs, rhs):
-                print("commuting")
                 return BaseClass.check_input_descriptors(self, rhs, lhs)
             def global_relative_error_eval(self, lhs, rhs):
-                print("commuting")
                 return BaseClass.global_relative_error_eval(self, rhs, lhs)
             def local_relative_error_eval(self, lhs, rhs):
-                print("commuting")
                 return BaseClass.local_relative_error_eval(self, rhs, lhs)
         return NewClass
     return decorator
@@ -1021,13 +1017,11 @@ class MB_Mul332(Op_3LimbOut_MetaBlock):
         return eps
     def local_relative_error_eval(self, lhs_desc, rhs_desc):
         # TODO: numeric constant specific to ML_Binary64
-        print("MB_Mul332.local_relative_error_eval", lhs_desc, rhs_desc)
         b_o = sollya.floor(-sollya.log2(lhs_desc.limb_diff_factor[0]))
         b_u = sollya.floor(-sollya.log2(lhs_desc.limb_diff_factor[1]))
         return (S2**(-99 - b_o) + S2**(-99-b_o-b_u) + S2**-152) / (1 - S2**-53 - S2**(-b_o+1) - S2**(-b_o-b_u+1))
 
     def get_output_descriptor(self, lhs_desc, rhs_desc, global_error=True):
-        print("MB_Mul332.get_output_descriptor", lhs_desc, rhs_desc)
         epsilon = MB_Mul332.relative_error_eval(self, lhs_desc, rhs_desc, global_error=global_error)
 
         b_o = sollya.floor(-sollya.log2(lhs_desc.limb_diff_factor[0]))
@@ -1044,7 +1038,6 @@ class MB_Mul332(Op_3LimbOut_MetaBlock):
 class MB_Mul323(Op_3LimbOut_MetaBlock):
     """ Commutated version of MB_Mul332 """
     def get_output_descriptor(self, rhs_desc, lhs_desc, global_error=True):
-        print("MB_Mul332.get_output_descriptor", rhs_desc, lhs_desc)
         epsilon = MB_Mul332.relative_error_eval(self, rhs_desc, lhs_desc, global_error=global_error)
 
         b_o = sollya.floor(-sollya.log2(lhs_desc.limb_diff_factor[0]))
@@ -1526,14 +1519,11 @@ if __name__ == "__main__":
     meta_block = MB_Add211_dd # min(get_Addition_MB_compatible_list(vx, vx), key=get_MB_cost)
     add_check = meta_block.check_input_descriptors(vx, vx)
     add_format = meta_block.get_output_descriptor(vx, vx, global_error=False)
-    print(add_check, add_format)
 
     meta_block = MB_Mul211_dd # min(get_Multiplication_MB_compatible_list(vx, vx), key=get_MB_cost)
     mul_check = meta_block.check_input_descriptors(vx, vx)
     mul_format = meta_block.get_output_descriptor(vx, vx, global_error=False)
-    print(mul_check, mul_format)
 
     meta_block = min(get_Addition_MB_compatible_list(add_format, mul_format), key=get_MB_cost)
     add_check = meta_block.check_input_descriptors(add_format, mul_format)
     add_format = meta_block.get_output_descriptor(add_format, mul_format, global_error=False)
-    print(add_check, add_format)
