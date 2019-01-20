@@ -62,6 +62,7 @@ from metalibm_core.opt.ml_blocks import (
     MP_Mul322, MP_Mul332, MP_Mul323,
 
     subnormalize_multi,
+    Normalize_33,
 )
 
 from metalibm_core.utility.log_report import Log
@@ -276,6 +277,7 @@ class MultiPrecisionExpander:
              isinstance(node, Conversion) or \
              isinstance(node, FusedMultiplyAdd) or \
              isinstance(node, Negation) or \
+             isinstance(node, BuildFromComponent) or \
              is_subnormalize_op(node))
         if not expandable:
             Log.report(LOG_LEVEL_EXPAND_VERBOSE, "{} can not be expanded", node)
@@ -302,6 +304,16 @@ class MultiPrecisionExpander:
                 # just pad the input with 0
                 pad_size = node.precision.limb_num - len(op_input)
                 return op_input + tuple(Constant(0, precision=node.precision.get_limb_precision(len(op_input) + i)) for i in range(pad_size))
+            elif is_multi_precision_format(node.precision) and \
+                node.precision.limb_num < len(op_input) and \
+                all(op.precision == limb_prec for op, limb_prec in zip(op_input, node.precision.field_format_list)):
+                # if the conversion if from a multi-element format to a smaller
+                # multi-element format than insert a normalization and
+                # return the appropriate limb
+                assert node.precision.limb_num == 2 and len(op_input) == 3
+                normalized_op = Normalize_33(*op_input, precision=op_input[0].precision)
+                Log.report(LOG_LEVEL_EXPAND_VERBOSE, "expanding conversion {} into {}, {}", node, normalized_op[0], normalized_op[1])
+                return normalized_op[0], normalized_op[1]
                 
 
         return None
@@ -321,6 +333,13 @@ class MultiPrecisionExpander:
         )
         forward_attributes(node, new_node)
         return self.expand_node(new_node)
+
+    def expand_build_from_component(self, node):
+        op_list = ((self.expand_node(op), op) for op in node.get_inputs())
+        result = tuple(op if expanded is None else expanded for (op, expanded) in op_list)
+        Log.report(LOG_LEVEL_EXPAND_VERBOSE, "expanding BuildFromComponent {} into {}", node, result)
+        return result
+
 
     def expand_node(self, node):
         """ If node @p node is a multi-precision node, expands to a list
@@ -347,6 +366,8 @@ class MultiPrecisionExpander:
                 result = self.expand_conversion(node)
             elif isinstance(node, Negation):
                 result = self.expand_negation(node)
+            elif isinstance(node, BuildFromComponent):
+                result = self.expand_build_from_component(node)
             elif is_subnormalize_op(node):
                 result = self.expand_subnormalize(node)
             else:
