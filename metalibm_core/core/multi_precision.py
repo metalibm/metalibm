@@ -41,8 +41,10 @@ from metalibm_core.core.ml_operations import (
     VectorElementSelection,
 )
 from metalibm_core.core.ml_formats import ML_Bool
+from metalibm_core.core.legalizer import is_constant
 
 from metalibm_core.opt.opt_utils import forward_attributes
+from metalibm_core.opt.ml_blocks import Normalize_33
 
 from metalibm_core.utility.log_report import Log
 
@@ -93,6 +95,9 @@ def legalize_mp_3elt_comparison(optree):
     rhs = optree.get_input(1)
     # TODO/FIXME: assume than multi-limb operand are normalized
     if specifier == Comparison.Equal:
+        # renormalize if not constant
+        lhs = lhs if is_constant(lhs) else BuildFromComponent(*Normalize_33(lhs.hi, lhs.me, lhs.lo, precision=lhs.precision.get_limb_precision(0)), precision=lhs.precision)
+        rhs = rhs if is_constant(rhs) else BuildFromComponent(*Normalize_33(rhs.hi, rhs.me, rhs.lo, precision=rhs.precision.get_limb_precision(0)), precision=rhs.precision)
         return LogicalAnd(
             Comparison(lhs.hi, rhs.hi, specifier=Comparison.Equal, precision=ML_Bool),
             LogicalAnd(
@@ -103,6 +108,9 @@ def legalize_mp_3elt_comparison(optree):
             precision=ML_Bool
         )
     elif specifier == Comparison.NotEqual:
+        # renormalize if not constant
+        lhs = lhs if is_constant(lhs) else BuildFromComponent(*Normalize_33(lhs.hi, lhs.me, lhs.lo, precision=lhs.precision.get_limb_precision(0)), precision=lhs.precision)
+        rhs = rhs if is_constant(rhs) else BuildFromComponent(*Normalize_33(rhs.hi, rhs.me, rhs.lo, precision=rhs.precision.get_limb_precision(0)), precision=rhs.precision)
         return LogicalOr(
             Comparison(lhs.hi, rhs.hi, specifier=Comparison.NotEqual, precision=ML_Bool),
             LogicalOr(
@@ -119,6 +127,9 @@ def legalize_mp_3elt_comparison(optree):
             Comparison.LessOrEqual: Comparison.Less,
             Comparison.GreaterOrEqual: Comparison.Greater
         }[specifier]
+        # renormalize if not constant
+        lhs = lhs if is_constant(lhs) else BuildFromComponent(*Normalize_33(lhs.hi, lhs.me, lhs.lo, precision=lhs.precision.get_limb_precision(0)), precision=lhs.precision)
+        rhs = rhs if is_constant(rhs) else BuildFromComponent(*Normalize_33(rhs.hi, rhs.me, rhs.lo, precision=rhs.precision.get_limb_precision(0)), precision=rhs.precision)
         return LogicalOr(
             Comparison(lhs.hi, rhs.hi, specifier=strict_specifier, precision=ML_Bool),
             LogicalAnd(
