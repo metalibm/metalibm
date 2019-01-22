@@ -408,7 +408,7 @@ def Add211(x, y, precision=None):
     zh, zl = generate_twosum(x, y, precision)
     return zh, zl
 
-def Add212(xh, yh, yl, precision=None):
+def Add212(x, yh, yl, precision=None):
     """ Multi-precision Addition:
         HI, LO = xh + [yh:yl] """
     # r = xh + yh
@@ -417,12 +417,15 @@ def Add212(xh, yh, yl, precision=None):
     # s = s2 + yl
     # zh = r + s
     # zl = (r - zh) + s
-    r = Addition(xh, yh, precision=precision)
-    s1 = Subtraction(xh, r, precision=precision)
-    s2 = Addition(s1, yh, precision=precision)
-    s = Addition(s2, yl, precision=precision)
-    zh = Addition(r, s, precision=precision)
-    zl = Addition(Subtraction(r, zh, precision=precision), s, precision=precision)
+    #r = Addition(xh, yh, precision=precision)
+    #s1 = Subtraction(xh, r, precision=precision)
+    #s2 = Addition(s1, yh, precision=precision)
+    #s = Addition(s2, yl, precision=precision)
+    #zh = Addition(r, s, precision=precision)
+    #zl = Addition(Subtraction(r, zh, precision=precision), s, precision=precision)
+    t1, t2 = generate_twosum(x, yh, precision=precision)
+    t3 = Addition(t2, yl, precision=precision)
+    zh, zl = generate_fasttwosum(t1, t3, precision=precision)
     return zh, zl
 
 def Add221(xh, xl, y, precision=None):
@@ -433,12 +436,16 @@ def Add221(xh, xl, y, precision=None):
 def Add222(xh, xl, yh, yl, precision=None):
     """ Multi-precision Addition:
         HI, LO = [xh:xl] + [yh:yl] """
-    rh, rl = generate_twosum(xl, yl, precision=precision)
-    th, tl = generate_twosum(rh, xh, precision=precision)
-    zh, sl = generate_twosum(th, yh, precision=precision)
-    uh, ul = generate_twosum(rl, tl, precision=precision)
-    zl, _ = generate_twosum(sl, uh, precision=precision)
-    return generate_fasttwosum(zh, zl, precision=precision)
+    v1, v2 = generate_twosum(xh, yh, precision=precision)
+    v3 = Addition(xl, yl, precision=precision)
+    v4 = Addition(v2, v3, precision=precision)
+    return generate_fasttwosum(v1, v4, precision=precision)
+    #rh, rl = generate_twosum(xl, yl, precision=precision)
+    #th, tl = generate_twosum(rh, xh, precision=precision)
+    #zh, sl = generate_twosum(th, yh, precision=precision)
+    #uh, ul = generate_twosum(rl, tl, precision=precision)
+    #zl, _ = generate_twosum(sl, uh, precision=precision)
+    #return generate_fasttwosum(zh, zl, precision=precision)
     #r = Addition(xh, yh, precision=precision)
     #s1 = Subtraction(xh, r, precision=precision)
     #s2 = Addition(s1, yh, precision=precision)
@@ -466,7 +473,7 @@ class MB_Add221(Op_2LimbOut_MetaBlock):
 
     def local_relative_error_eval(self, lhs_desc, rhs_desc):
         # TODO: very approximative
-        ESTIMATED_ERROR_FACTOR = 1
+        ESTIMATED_ERROR_FACTOR = 3
         return S2**-(self.main_precision.get_mantissa_size() * 2 - ESTIMATED_ERROR_FACTOR)
 
     def get_output_descriptor(self, lhs, rhs, global_error=True):
@@ -555,16 +562,16 @@ def Add122(xh, xl, yh, yl, precision=None):
     zh, _ = Add222(xh, xl, yh, yl, precision)
     return zh,
 
-def Add121(xh, xl, yh, precision=None):
+def Add121(xh, xl, y, precision=None):
     """ Multi-precision Addition:
         HI = [xh:xl] + yh """
-    zh, _ = Add221(xh, xl, yh, precision)
+    zh, _ = Add221(xh, xl, y, precision)
     return zh,
 
-def Add112(xh, yh, yl, precision=None):
+def Add112(x, yh, yl, precision=None):
     """ Multi-precision Addition:
         HI = xh + [yh:yl] """
-    zh, _ = Add212(xh, yh, yl, precision)
+    zh, _ = Add212(x, yh, yl, precision)
     return zh,
 
 def Mul212(x, yh, yl, precision=None, fma=True):
@@ -575,7 +582,8 @@ def Mul212(x, yh, yl, precision=None, fma=True):
     t1, t2 = Mul211(x, yh, precision, fma)
     t3 = Multiplication(x, yl, precision=precision)
     t4 = Addition(t2, t3, precision=precision)
-    return Add211(t1, t4, precision)
+    return generate_fasttwosum(t1, t4, precision)
+
 def Mul221(xh, xl, y, precision=None, fma=True):
     """ Multi-precision Multiplication:
         HI, LO = [xh:xl] * y """
