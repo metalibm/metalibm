@@ -394,7 +394,7 @@ def Mul211(x, y, precision=None, fma=True):
 
 
 def Add_round_to_odd(x, y, precision=None):
-    pass
+    raise NotImplementedError
 
 def Add1111(x, y, z, precision=None):
     uh, ul = Add211(y, z, precision=precision)
@@ -425,10 +425,10 @@ def Add212(xh, yh, yl, precision=None):
     zl = Addition(Subtraction(r, zh, precision=precision), s, precision=precision)
     return zh, zl
 
-def Add221(xh, xl, yh, precision=None):
+def Add221(xh, xl, y, precision=None):
     """ Multi-precision Addition:
         HI, LO = [xh:xl] + yh """
-    return Add212(yh, xh, xl, precision)
+    return Add212(y, xh, xl, precision)
 
 def Add222(xh, xl, yh, yl, precision=None):
     """ Multi-precision Addition:
@@ -1483,7 +1483,7 @@ def get_MB_cost(mb):
                 MB_Add122_d: 3.5,
 
                 MB_Add212_dd: 3.6,
-                MB_Add221: 3.6,
+                MB_Add221_dd: 3.6,
 
                 MB_Add111_d: 1,
 
