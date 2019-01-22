@@ -449,6 +449,43 @@ def Add222(xh, xl, yh, yl, precision=None):
     #return zh, zl
 
 
+class MB_Add221(Op_2LimbOut_MetaBlock):
+    def expand(self, lhs, rhs):
+        return Add221(*(lhs + rhs), precision=self.main_precision)
+
+    def check_input_descriptors(self, lhs, rhs):
+        # input limbs of lhs do not overlap
+        return is_dual_limb_precision(lhs.precision) and \
+            is_single_limb_precision(rhs.precision) and \
+            lhs.limb_diff_factor[0] <= S2**-self.main_precision.get_mantissa_size() 
+
+    def global_relative_error_eval(self, lhs_desc, rhs_desc):
+        eps_op = self.local_relative_error_eval(lhs_desc, rhs_desc)
+        eps_in = max(lhs_desc.epsilon, rhs_desc.epsilon)
+        return eps_op + eps_in + eps_op * eps_in
+
+    def local_relative_error_eval(self, lhs_desc, rhs_desc):
+        # TODO: very approximative
+        ESTIMATED_ERROR_FACTOR = 1
+        return S2**-(self.main_precision.get_mantissa_size() * 2 - ESTIMATED_ERROR_FACTOR)
+
+    def get_output_descriptor(self, lhs, rhs, global_error=True):
+        epsilon = self.relative_error_eval(lhs, rhs, global_error=global_error)
+        limb_diff_factors = [
+            # no overlap between hi and lo limb
+            S2**-self.main_precision.get_mantissa_size()
+        ]
+        return MP_Node(self.out_precision, epsilon, limb_diff_factors)
+
+@MB_CommutedVersion(MB_Add221)
+class MB_Add212(Op_2LimbOut_MetaBlock):
+    pass
+
+MB_Add221_dd = MB_Add221(ML_Binary64)
+MB_Add212_dd = MB_Add212(ML_Binary64)
+
+
+
 class MB_Add222(Op_2LimbOut_MetaBlock):
     def expand(self, lhs, rhs):
         return Add222(*(lhs + rhs), precision=self.main_precision)
@@ -1445,6 +1482,9 @@ def get_MB_cost(mb):
                 MB_Add222_dd: 3.8,
                 MB_Add122_d: 3.5,
 
+                MB_Add212_dd: 3.6,
+                MB_Add221: 3.6,
+
                 MB_Add111_d: 1,
 
                 MB_Mul111_d: 1,
@@ -1488,6 +1528,7 @@ def get_Addition_MB_compatible_list(lhs, rhs):
             MB_Add111_d,
             MB_Add122_d,
             MB_Add222_dd,
+            MB_Add221_dd, MB_Add212_dd,
 
         ]
      if mb.check_input_descriptors(lhs, rhs)
