@@ -941,11 +941,11 @@ class MB_Add312(Op_3LimbOut_MetaBlock):
 
 def MP_Add322(xh, xl, yh, yl, precision=None):
     # TODO use fast2sum when xh <= 2**-2 yh condition has been verified
-    rh, t1 = Add211(xh, yh, precision=precision)
-    t2, t3 = Add211(al, bl, precision=precision)
+    rh, t1 = generate_fasttwosum(xh, yh, precision=precision)
+    t2, t3 = Add211(xl, yl, precision=precision)
     t4, t5 = Add211(t1, t2, precision=precision)
-    t6 = Addition(t3, r5, precision=precision)
-    rm, rl = Addition(t4, t6)
+    t6 = Addition(t3, t5, precision=precision)
+    rm, rl = Add211(t4, t6, precision=precision)
     return rh, rm, rl
 
 def is_interval_le(op0, factor, op1):
