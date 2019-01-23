@@ -329,6 +329,24 @@ class MB_Add211(MB_IntervalAdd, Op211_ExactMetaBlock):
         # TODO: check error approximation bound
         return max(x.epsilon, y.epsilon)
 
+class MB_Add211_Fast(MB_Add211):
+    def check_input_descriptors(self, lhs, rhs):
+        if not MB_Add211.check_input_descriptors(self, lhs, rhs):
+            return False
+        elif lhs.interval != None and rhs.interval != None and is_interval_gt(lhs, 1.0, rhs):
+            return True
+        return False
+    def expand(self, x, y):
+        zh, zl = generate_fasttwosum(*(x + y), precision=self.main_precision)
+        return zh, zl
+
+@MB_CommutedVersion(MB_Add211_Fast)
+class MB_Add211_Fast_rev(MB_Add211_Fast):
+    """ Commuted version of fast Add211 """
+    pass
+
+MB_Add211_Fast_dd = MB_Add211_Fast(ML_Binary64)
+MB_Add211_FastRec_dd = MB_Add211_Fast_rev(ML_Binary64)
 
 
 class MB_Mul221(MB_IntervalMul, Op_2LimbOut_MetaBlock):
@@ -1534,6 +1552,8 @@ def get_MB_cost(mb):
                 MB_Add312_td: 4,
                 MB_Add322_td: 4.5,
                 MB_Add211_dd: 3,
+                MB_Add211_Fast_dd: 2,
+                MB_Add211_FastRec_dd: 2,
 
                 MB_Add222_dd: 3.8,
                 MB_Add122_d: 3.5,
@@ -1581,6 +1601,7 @@ def get_Addition_MB_compatible_list(lhs, rhs):
             MB_Add321_td, MB_Add312_td, MB_Add322_td,
             MB_Add331_td, MB_Add313_td,
             MB_Add211_dd,
+            MB_Add211_Fast_dd, MB_Add211_FastRec_dd,
             MB_Add111_d,
             MB_Add122_d,
             MB_Add222_dd,
