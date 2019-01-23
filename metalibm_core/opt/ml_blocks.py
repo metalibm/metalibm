@@ -123,7 +123,7 @@ def generate_fasttwosum(vx, vy, precision=None):
 
 class MP_Node:
     """ Multi-precision node for error / precision evaluation """
-    def __init__(self, precision, epsilon, limb_diff_factor, interval=None):
+    def __init__(self, precision, epsilon, limb_diff_factor, interval):
         # multi-limb format
         self.precision = precision
         # upper bound of the relative error of this
@@ -142,6 +142,7 @@ class MP_Node:
     
 
 class MetaBlock:
+    arity = 2
     """ abstract class to document meta-block methods """
     def __init__(self, main_precision, out_precision):
         self.main_precision = main_precision
@@ -244,11 +245,29 @@ class Op111_MetaBlock(Op_1LimbOut_MetaBlock):
             (rhs.precision == self.main_precision) and \
             (lhs.precision == self.main_precision)
 
-    def get_output_descriptor(self, lhs_desc, rhs_desc, global_error=True):
-        epsilon = self.relative_error_eval(lhs_desc, rhs_desc, global_error=global_error)
-        return MP_Node(self.out_precision, epsilon, [])
+    def get_result_interval(self, lhs, rhs):
+        raise NotImplementedError
 
-class MB_Mul111(Op111_MetaBlock):
+    def get_output_descriptor(self, lhs, rhs, global_error=True):
+        epsilon = self.relative_error_eval(lhs, rhs, global_error=global_error)
+        interval = self.get_result_interval(lhs, rhs)
+        return MP_Node(self.out_precision, epsilon, [], interval)
+
+class MB_IntervalAdd:
+    def get_result_interval(self, lhs, rhs):
+        if lhs.interval is None or rhs.interval is None:
+            return None
+        # TODO: manage error
+        return lhs.interval + rhs.interval
+
+class MB_IntervalMul:
+    def get_result_interval(self, lhs, rhs):
+        if lhs.interval is None or rhs.interval is None:
+            return None
+        # TODO: manage error
+        return lhs.interval * rhs.interval
+
+class MB_Mul111(MB_IntervalMul, Op111_MetaBlock):
     def expand(self, x, y):
         return (Multiplication(*(x + y), precision=self.main_precision),)
     def global_relative_error_eval(self, x, y):
@@ -259,7 +278,7 @@ class MB_Mul111(Op111_MetaBlock):
 MB_Mul111_s = MB_Mul111(ML_Binary32)
 MB_Mul111_d = MB_Mul111(ML_Binary64)
 
-class MB_Add111(Op111_MetaBlock):
+class MB_Add111(MB_IntervalAdd, Op111_MetaBlock):
     def expand(self, lhs, rhs):
         return (Addition(*(lhs + rhs), precision=self.main_precision),)
     def global_relative_error_eval(self, lhs, rhs):
@@ -285,10 +304,11 @@ class Op211_ExactMetaBlock(Op_2LimbOut_MetaBlock):
 
     def get_output_descriptor(self, lhs_desc, rhs_desc, global_error=True):
         epsilon = self.relative_error_eval(lhs_desc, rhs_desc, global_error=global_error)
-        return MP_Node(self.out_precision, epsilon, [S2**-self.main_precision.get_mantissa_size()])
+        interval = self.get_result_interval(lhs_desc, rhs_desc)
+        return MP_Node(self.out_precision, epsilon, [S2**-self.main_precision.get_mantissa_size()], interval)
 
 
-class MB_Mul211(Op211_ExactMetaBlock):
+class MB_Mul211(MB_IntervalMul, Op211_ExactMetaBlock):
     def expand(self, x, y):
         return Mul211(*(x + y), precision=self.main_precision)
     def global_relative_error_eval(self, x, y):
@@ -301,7 +321,7 @@ class MB_Mul211_FMA(MB_Mul211):
         return Mul211(*(x + y), precision=self.main_precision, fma=True)
 
 
-class MB_Add211(Op211_ExactMetaBlock):
+class MB_Add211(MB_IntervalAdd, Op211_ExactMetaBlock):
     def expand(self, x, y):
         zh, zl = generate_twosum(*(x + y), precision=self.main_precision)
         return zh, zl
@@ -310,7 +330,8 @@ class MB_Add211(Op211_ExactMetaBlock):
         return max(x.epsilon, y.epsilon)
 
 
-class MB_Mul221(Op_2LimbOut_MetaBlock):
+
+class MB_Mul221(MB_IntervalMul, Op_2LimbOut_MetaBlock):
     DELTA_ERR = 4
     def expand(self, lhs, rhs):
         return Mul221(*(lhs + rhs), precision=self.main_precision)
@@ -335,7 +356,8 @@ class MB_Mul221(Op_2LimbOut_MetaBlock):
 
     def get_output_descriptor(self, lhs, rhs, global_error=True):
         epsilon = self.relative_error_eval(lhs, rhs, global_error=global_error)
-        return MP_Node(self.out_precision, epsilon, [S2**-self.main_precision.get_mantissa_size()])
+        interval = self.get_result_interval(lhs, rhs)
+        return MP_Node(self.out_precision, epsilon, [S2**-self.main_precision.get_mantissa_size()], interval)
 
 @MB_CommutedVersion(MB_Mul221)
 class MB_Mul212(Op_2LimbOut_MetaBlock):
@@ -347,7 +369,8 @@ class MB_Mul212(Op_2LimbOut_MetaBlock):
         return eps
     def get_output_descriptor(self, rhs, lhs, global_error=True):
         epsilon = self.relative_error_eval(rhs, lhs, global_error=global_error)
-        return MP_Node(self.out_precision, epsilon, [S2**-self.main_precision.get_mantissa_size()])
+        interval = self.get_result_interval(lhs, rhs)
+        return MP_Node(self.out_precision, epsilon, [S2**-self.main_precision.get_mantissa_size()], interval)
 
 # Meta-block instanciations with precisions
 MB_Add211_ss = MB_Add211(ML_Binary32)
@@ -456,7 +479,7 @@ def Add222(xh, xl, yh, yl, precision=None):
     #return zh, zl
 
 
-class MB_Add221(Op_2LimbOut_MetaBlock):
+class MB_Add221(MB_IntervalAdd, Op_2LimbOut_MetaBlock):
     def expand(self, lhs, rhs):
         return Add221(*(lhs + rhs), precision=self.main_precision)
 
@@ -482,7 +505,8 @@ class MB_Add221(Op_2LimbOut_MetaBlock):
             # no overlap between hi and lo limb
             S2**-self.main_precision.get_mantissa_size()
         ]
-        return MP_Node(self.out_precision, epsilon, limb_diff_factors)
+        interval = self.get_result_interval(lhs, rhs)
+        return MP_Node(self.out_precision, epsilon, limb_diff_factors, interval)
 
 @MB_CommutedVersion(MB_Add221)
 class MB_Add212(Op_2LimbOut_MetaBlock):
@@ -493,7 +517,7 @@ MB_Add212_dd = MB_Add212(ML_Binary64)
 
 
 
-class MB_Add222(Op_2LimbOut_MetaBlock):
+class MB_Add222(MB_IntervalAdd, Op_2LimbOut_MetaBlock):
     def expand(self, lhs, rhs):
         return Add222(*(lhs + rhs), precision=self.main_precision)
 
@@ -522,12 +546,13 @@ class MB_Add222(Op_2LimbOut_MetaBlock):
             # no overlap between medium and lo limb
             S2**-self.main_precision.get_mantissa_size()
         ]
-        return MP_Node(self.out_precision, epsilon, limb_diff_factors)
+        interval = self.get_result_interval(lhs, rhs)
+        return MP_Node(self.out_precision, epsilon, limb_diff_factors, interval)
 
 MB_Add222_dd = MB_Add222(ML_Binary64)
 MB_Add222_ss = MB_Add222(ML_Binary32)
 
-class MB_Add122(Op_1LimbOut_MetaBlock):
+class MB_Add122(MB_IntervalAdd, Op_1LimbOut_MetaBlock):
     def expand(self, lhs, rhs):
         return Add122(*(lhs + rhs), precision=self.main_precision)
 
@@ -551,7 +576,8 @@ class MB_Add122(Op_1LimbOut_MetaBlock):
 
     def get_output_descriptor(self, lhs, rhs, global_error=True):
         epsilon = self.relative_error_eval(lhs, rhs, global_error=global_error)
-        return MP_Node(self.out_precision, epsilon, [])
+        interval = self.get_result_interval(lhs, rhs)
+        return MP_Node(self.out_precision, epsilon, [], interval)
 
 MB_Add122_d = MB_Add122(ML_Binary64)
 MB_Add122_s = MB_Add122(ML_Binary32)
@@ -630,7 +656,7 @@ def Mul112(xh, yh, yl, precision=None):
         HI = xh * [yh:yl] """
     return Mul121(yh, yl, xh, precision)
 
-class MB_Mul222(Op_2LimbOut_MetaBlock):
+class MB_Mul222(MB_IntervalMul, Op_2LimbOut_MetaBlock):
     def expand(self, lhs, rhs):
         return Mul222(*(lhs + rhs), precision=self.main_precision)
 
@@ -659,12 +685,13 @@ class MB_Mul222(Op_2LimbOut_MetaBlock):
             # no overlap between medium and lo limb
             S2**-self.main_precision.get_mantissa_size()
         ]
-        return MP_Node(self.out_precision, epsilon, limb_diff_factors)
+        interval = self.get_result_interval(lhs, rhs)
+        return MP_Node(self.out_precision, epsilon, limb_diff_factors, interval)
 
 MB_Mul222_dd = MB_Mul222(ML_Binary64)
 MB_Mul222_ss = MB_Mul222(ML_Binary32)
 
-class MB_Mul122(Op_1LimbOut_MetaBlock):
+class MB_Mul122(MB_IntervalMul, Op_1LimbOut_MetaBlock):
     def expand(self, lhs, rhs):
         return Mul122(*(lhs + rhs), precision=self.main_precision)
 
@@ -692,7 +719,8 @@ class MB_Mul122(Op_1LimbOut_MetaBlock):
             # no overlap between medium and lo limb
             S2**-self.main_precision.get_mantissa_size()
         ]
-        return MP_Node(self.out_precision, epsilon, limb_diff_factors)
+        interval = self.get_result_interval(lhs, rhs)
+        return MP_Node(self.out_precision, epsilon, limb_diff_factors, interval)
 
 MB_Mul122_d = MB_Mul122(ML_Binary64)
 MB_Mul122_s = MB_Mul122(ML_Binary32)
@@ -729,7 +757,7 @@ def MP_FMA2222(xh, xl, yh, yl, zh, zl, precision=None, fma=True):
     ah, al = Add222(mh, ml, zh, zl, precision=precision)
     return ah, al
 
-class MB_Add333(Op_3LimbOut_MetaBlock):
+class MB_Add333(MB_IntervalAdd, Op_3LimbOut_MetaBlock):
     def expand(self, lhs, rhs):
         return MP_Add333(*(lhs + rhs), precision=self.main_precision)
 
@@ -765,11 +793,12 @@ class MB_Add333(Op_3LimbOut_MetaBlock):
             # no overlap between medium and lo limb
             S2**-self.main_precision.get_mantissa_size()
         ]
-        return MP_Node(self.out_precision, epsilon, limb_diff_factors)
+        interval = self.get_result_interval(lhs_desc, rhs_desc)
+        return MP_Node(self.out_precision, epsilon, limb_diff_factors, interval)
 
 
 
-class MB_Add332(Op_3LimbOut_MetaBlock):
+class MB_Add332(MB_IntervalAdd, Op_3LimbOut_MetaBlock):
     def expand(self, lhs, rhs):
         return MP_Add332(*(lhs + rhs), precision=self.main_precision)
 
@@ -803,7 +832,8 @@ class MB_Add332(Op_3LimbOut_MetaBlock):
             # no overlap between medium and lo limb
             S2**-self.main_precision.get_mantissa_size()
         ]
-        return MP_Node(self.out_precision, epsilon, limb_diff_factors)
+        interval = self.get_result_interval(lhs_desc, rhs_desc)
+        return MP_Node(self.out_precision, epsilon, limb_diff_factors, interval)
 
 @MB_CommutedVersion(MB_Add332)
 class MB_Add323(Op_3LimbOut_MetaBlock):
@@ -817,7 +847,8 @@ class MB_Add323(Op_3LimbOut_MetaBlock):
             # no overlap between medium and lo limb
             S2**-self.main_precision.get_mantissa_size()
         ]
-        return MP_Node(self.out_precision, epsilon, limb_diff_factors)
+        interval = self.get_result_interval(rhs, lhs)
+        return MP_Node(self.out_precision, epsilon, limb_diff_factors, interval)
 
 def MP_Add333(xh, xm, xl, yh, ym, yl, precision=None):
     rh, t1 = Add211(xh, yh, precision=precision)
@@ -851,7 +882,7 @@ def MP_Add312(x, yh, yl, precision=None):
     return MP_Add321(yh, yl, x, precision)
 
 
-class MB_Add321(Op_3LimbOut_MetaBlock):
+class MB_Add321(MB_IntervalAdd, Op_3LimbOut_MetaBlock):
     def expand(self, lhs, rhs):
         return MP_Add321(*(lhs + rhs), precision=self.main_precision)
 
@@ -875,7 +906,8 @@ class MB_Add321(Op_3LimbOut_MetaBlock):
             # no overlap between medium and lo limb
             S2**-self.main_precision.get_mantissa_size()
         ]
-        return MP_Node(self.out_precision, epsilon, limb_diff_factors)
+        interval = self.get_result_interval(lhs_desc, rhs_desc)
+        return MP_Node(self.out_precision, epsilon, limb_diff_factors, interval)
 
 @MB_CommutedVersion(MB_Add321)
 class MB_Add312(Op_3LimbOut_MetaBlock):
@@ -886,7 +918,8 @@ class MB_Add312(Op_3LimbOut_MetaBlock):
             # no overlap between medium and lo limb
             S2**-self.main_precision.get_mantissa_size()
         ]
-        return MP_Node(self.out_precision, epsilon, limb_diff_factors)
+        interval = self.get_result_interval(rhs_desc, lhs_desc)
+        return MP_Node(self.out_precision, epsilon, limb_diff_factors, interval)
 
 def MP_Add322(xh, xl, yh, yl, precision=None):
     # TODO use fast2sum when xh <= 2**-2 yh condition has been verified
@@ -899,17 +932,19 @@ def MP_Add322(xh, xl, yh, yl, precision=None):
 
 def is_interval_le(op0, factor, op1):
     """ is op0 <= factor * op1 verifier """
-    return True
-    # TODO: fix
-    # return sollya.sup(abs(op0.interval)) <= fector * sollya.inf(abs(op1.interval))
+    return sollya.sup(abs(op0.interval)) <= factor * sollya.inf(abs(op1.interval))
 
 def is_interval_lt(op0, factor, op1):
     """ is op0 < factor * op1 verifier """
-    return True
-    # TODO: fix
-    # return sollya.sup(abs(op0.interval)) < factor * sollya.inf(abs(op1.interval))
+    return sollya.sup(abs(op0.interval)) < factor * sollya.inf(abs(op1.interval))
 
-class MB_Add322(Op_3LimbOut_MetaBlock):
+def is_interval_ge(op0, factor, op1):
+    # TODO: manage factor == 0 case
+    return is_interval_le(op1, 1 / factor, op0)
+def is_interval_gt(op0, factor, op1):
+    return is_interval_lt(op1, 1 / factor, op0)
+
+class MB_Add322(MB_IntervalAdd, Op_3LimbOut_MetaBlock):
     def expand(self, lhs, rhs):
         return MP_Add322(*(lhs + rhs), precision=self.main_precision)
 
@@ -935,7 +970,8 @@ class MB_Add322(Op_3LimbOut_MetaBlock):
             # no overlap between medium and lo limb
             S2**-self.main_precision.get_mantissa_size()
         ]
-        return MP_Node(self.out_precision, epsilon, limb_diff_factors)
+        interval = self.get_result_interval(lhs_desc, rhs_desc)
+        return MP_Node(self.out_precision, epsilon, limb_diff_factors, interval)
 
 
 def MP_Add313(x, yh, ym, yl, precision=None):
@@ -945,7 +981,7 @@ def MP_Add313(x, yh, ym, yl, precision=None):
     rm, rl = Add211(t2, t4, precision=precision)
     return rh, rm, rl
 
-class MB_Add331(Op_3LimbOut_MetaBlock):
+class MB_Add331(MB_IntervalAdd, Op_3LimbOut_MetaBlock):
     def expand(self, lhs, rhs):
         return MP_Add313(*(rhs + lhs), precision=self.main_precision)
 
@@ -974,7 +1010,8 @@ class MB_Add331(Op_3LimbOut_MetaBlock):
             # no overlap between medium and lo limb
             S2**-self.main_precision.get_mantissa_size()
         ]
-        return MP_Node(self.out_precision, epsilon, limb_diff_factors)
+        interval = self.get_result_interval(lhs_desc, rhs_desc)
+        return MP_Node(self.out_precision, epsilon, limb_diff_factors, interval)
 
 @MB_CommutedVersion(MB_Add331)
 class MB_Add313(Op_3LimbOut_MetaBlock):
@@ -988,7 +1025,8 @@ class MB_Add313(Op_3LimbOut_MetaBlock):
             # no overlap between medium and lo limb
             S2**-self.main_precision.get_mantissa_size()
         ]
-        return MP_Node(self.out_precision, epsilon, limb_diff_factors)
+        interval = self.get_result_interval(rhs_desc, lhs_desc)
+        return MP_Node(self.out_precision, epsilon, limb_diff_factors, interval)
 
 MB_Add333_ts = MB_Add333(ML_Binary32)
 MB_Add332_ts = MB_Add332(ML_Binary32)
@@ -1016,7 +1054,7 @@ def MP_Mul322(xh, xl, yh, yl, precision=None):
     rm, rl = Add222(t7, t8, t9, t10, precision=precision)
     return rh, rm, rl
 
-class MB_Mul322(Op_3LimbOut_MetaBlock):
+class MB_Mul322(MB_IntervalMul, Op_3LimbOut_MetaBlock):
     def expand(self, lhs, rhs):
         return MP_Mul322(*(lhs + rhs), precision=self.main_precision)
 
@@ -1041,12 +1079,13 @@ class MB_Mul322(Op_3LimbOut_MetaBlock):
             # no overlap between medium and lo limb
             S2**-self.main_precision.get_mantissa_size()
         ]
-        return MP_Node(self.out_precision, epsilon, limb_diff_factors)
+        interval = self.get_result_interval(lhs_desc, rhs_desc)
+        return MP_Node(self.out_precision, epsilon, limb_diff_factors, interval)
 
 MB_Mul322_td = MB_Mul322(ML_Binary64)
 MB_Mul322_ts = MB_Mul322(ML_Binary32)
 
-class MB_Mul332(Op_3LimbOut_MetaBlock):
+class MB_Mul332(MB_IntervalMul, Op_3LimbOut_MetaBlock):
     def expand(self, lhs, rhs):
         return MP_Mul332(*(lhs + rhs), precision=self.main_precision)
 
@@ -1077,7 +1116,8 @@ class MB_Mul332(Op_3LimbOut_MetaBlock):
         #    # no overlap between medium and lo limb
             S2**-self.main_precision.get_mantissa_size()
         ]
-        return MP_Node(self.out_precision, epsilon, limb_diff_factors)
+        interval = self.get_result_interval(lhs_desc, rhs_desc)
+        return MP_Node(self.out_precision, epsilon, limb_diff_factors, interval)
 
 @MB_CommutedVersion(MB_Mul332)
 class MB_Mul323(Op_3LimbOut_MetaBlock):
@@ -1093,7 +1133,8 @@ class MB_Mul323(Op_3LimbOut_MetaBlock):
         #    # no overlap between medium and lo limb
             S2**-self.main_precision.get_mantissa_size()
         ]
-        return MP_Node(self.out_precision, epsilon, limb_diff_factors)
+        interval = self.get_result_interval(rhs_desc, lhs_desc)
+        return MP_Node(self.out_precision, epsilon, limb_diff_factors, interval)
     pass
 
 def MP_Mul323(xh, xl, yh, ym, yl, precision=None):
@@ -1143,7 +1184,7 @@ def MP_Mul333(xh, xm, xl, yh, ym, yl, precision=None):
 
     return rh, rm, rl
 
-class MB_Mul333(Op_3LimbOut_MetaBlock):
+class MB_Mul333(MB_IntervalMul, Op_3LimbOut_MetaBlock):
     def expand(self, lhs, rhs):
         return MP_Mul333(*(lhs + rhs), precision=self.main_precision)
 
@@ -1182,7 +1223,8 @@ class MB_Mul333(Op_3LimbOut_MetaBlock):
         #    # no overlap between medium and lo limb
             S2**-self.main_precision.get_mantissa_size()
         ]
-        return MP_Node(self.out_precision, epsilon, limb_diff_factors)
+        interval = self.get_result_interval(lhs)
+        return MP_Node(self.out_precision, epsilon, limb_diff_factors, interval)
 
 MB_Mul333_td = MB_Mul333(ML_Binary64)
 
@@ -1198,7 +1240,7 @@ def MP_Mul313(x, yh, ym, yl, precision=None):
     rm, rl = Add211(t9, t10, precision=precision)
     return rh, rm, rl
 
-class MB_Mul313(Op_3LimbOut_MetaBlock):
+class MB_Mul313(MB_IntervalMul, Op_3LimbOut_MetaBlock):
     def expand(self, lhs, rhs):
         return MP_Mul313(*(lhs + rhs), precision=self.main_precision)
 
@@ -1231,7 +1273,8 @@ class MB_Mul313(Op_3LimbOut_MetaBlock):
         #    # no overlap between medium and lo limb
             S2**-self.main_precision.get_mantissa_size()
         ]
-        return MP_Node(self.out_precision, epsilon, limb_diff_factors)
+        interval = self.get_result_interval(lhs, rhs)
+        return MP_Node(self.out_precision, epsilon, limb_diff_factors, interval)
 
 @MB_CommutedVersion(MB_Mul313)
 class MB_Mul331(Op_3LimbOut_MetaBlock):
@@ -1246,7 +1289,8 @@ class MB_Mul331(Op_3LimbOut_MetaBlock):
         #    # no overlap between medium and lo limb
             S2**-self.main_precision.get_mantissa_size()
         ]
-        return MP_Node(self.out_precision, epsilon, limb_diff_factors)
+        interval = self.get_result_interval(rhs, lhs)
+        return MP_Node(self.out_precision, epsilon, limb_diff_factors, interval)
 
 
 MB_Mul331_td = MB_Mul331(ML_Binary64)
@@ -1315,6 +1359,9 @@ class MB_Normalize_33(Op_3LimbOut_MetaBlock):
         else:
             return self.local_relative_error_eval(lhs)
 
+    def get_result_interval(self, op):
+        return op.interval
+
     def expand(self, lhs):
         return Normalize_33(*lhs, precision=self.main_precision)
 
@@ -1344,7 +1391,8 @@ class MB_Normalize_33(Op_3LimbOut_MetaBlock):
             # no overlap between medium and lo limb
             S2**-self.main_precision.get_mantissa_size()
         ]
-        return MP_Node(self.out_precision, epsilon, limb_diff_factors)
+        interval = self.get_result_interval(lhs)
+        return MP_Node(self.out_precision, epsilon, limb_diff_factors, interval)
 
 MB_Normalize_33_td = MB_Normalize_33(ML_Binary64)
 
