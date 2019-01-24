@@ -452,20 +452,17 @@ def Add211(x, y, precision=None):
 def Add212(x, yh, yl, precision=None):
     """ Multi-precision Addition:
         HI, LO = xh + [yh:yl] """
-    # r = xh + yh
-    # s1 = xh - r
-    # s2 = s1 + yh
-    # s = s2 + yl
-    # zh = r + s
-    # zl = (r - zh) + s
-    #r = Addition(xh, yh, precision=precision)
-    #s1 = Subtraction(xh, r, precision=precision)
-    #s2 = Addition(s1, yh, precision=precision)
-    #s = Addition(s2, yl, precision=precision)
-    #zh = Addition(r, s, precision=precision)
-    #zl = Addition(Subtraction(r, zh, precision=precision), s, precision=precision)
     t1, t2 = generate_twosum(x, yh, precision=precision)
     t3 = Addition(t2, yl, precision=precision)
+    zh, zl = generate_fasttwosum(t1, t3, precision=precision)
+    return zh, zl
+
+def Add221_Fast(xh, xl, y, precision=None):
+    """ Multi-precision Addition:
+        HI, LO = y + [xh:xl]
+        xh > y """
+    t1, t2 = generate_fasttwosum(xh, y, precision=precision)
+    t3 = Addition(t2, xl, precision=precision)
     zh, zl = generate_fasttwosum(t1, t3, precision=precision)
     return zh, zl
 
@@ -532,6 +529,21 @@ class MB_Add212(Op_2LimbOut_MetaBlock):
 
 MB_Add221_dd = MB_Add221(ML_Binary64)
 MB_Add212_dd = MB_Add212(ML_Binary64)
+
+class MB_Add221_Fast(MB_Add221):
+    def check_input_descriptors(self, lhs, rhs):
+        return MB_Add221.check_input_descriptors(self, lhs, rhs) and \
+            is_interval_gt(lhs, 1.0, rhs)
+
+    def expand(self, lhs, rhs):
+        return Add221_Fast(*(lhs + rhs), precision=self.main_precision)
+
+@MB_CommutedVersion(MB_Add221_Fast)
+class MB_Add212_Fast(Op_2LimbOut_MetaBlock):
+    pass
+
+MB_Add221_fast_dd = MB_Add221_Fast(ML_Binary64)
+MB_Add212_fast_dd = MB_Add212_Fast(ML_Binary64)
 
 
 
@@ -1628,6 +1640,9 @@ def get_MB_cost(mb):
                 MB_Add212_dd: 3.6,
                 MB_Add221_dd: 3.6,
 
+                MB_Add212_fast_dd: 3.4,
+                MB_Add221_fast_dd: 3.4,
+
                 MB_Add111_d: 1,
 
                 MB_Mul111_d: 1,
@@ -1675,6 +1690,8 @@ def get_Addition_MB_compatible_list(lhs, rhs):
             MB_Add122_d, MB_Add121_d, MB_Add112_d,
             MB_Add222_dd,
             MB_Add221_dd, MB_Add212_dd,
+
+            MB_Add221_fast_dd, MB_Add212_fast_dd,
 
         ]
      if mb.check_input_descriptors(lhs, rhs)
