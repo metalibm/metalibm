@@ -600,6 +600,36 @@ class MB_Add122(MB_IntervalAdd, Op_1LimbOut_MetaBlock):
 MB_Add122_d = MB_Add122(ML_Binary64)
 MB_Add122_s = MB_Add122(ML_Binary32)
 
+class MB_Add121(MB_IntervalAdd, Op_1LimbOut_MetaBlock):
+    def expand(self, lhs, rhs):
+        return Add121(*(lhs + rhs), precision=self.main_precision)
+
+    def check_input_descriptors(self, lhs, rhs):
+        # TODO: to be fixed... just fot testing
+        return is_dual_limb_precision(lhs.precision) and \
+            is_single_limb_precision(rhs.precision)
+
+    def global_relative_error_eval(self, lhs_desc, rhs_desc):
+        eps_op = self.local_relative_error_eval(lhs_desc, rhs_desc)
+        eps_in = max(lhs_desc.epsilon, rhs_desc.epsilon)
+        return eps_op + eps_in + eps_op * eps_in
+
+    def local_relative_error_eval(self, lhs_desc, rhs_desc):
+        # TODO: very approximative
+        return S2**-self.main_precision.get_mantissa_size()
+
+    def get_output_descriptor(self, lhs, rhs, global_error=True):
+        epsilon = self.relative_error_eval(lhs, rhs, global_error=global_error)
+        interval = self.get_result_interval(lhs, rhs)
+        return MP_Node(self.out_precision, epsilon, [], interval)
+
+@MB_CommutedVersion(MB_Add121)
+class MB_Add112(Op_1LimbOut_MetaBlock):
+    pass
+
+MB_Add121_d = MB_Add121(ML_Binary64)
+MB_Add112_d = MB_Add112(ML_Binary64)
+
 def Add122(xh, xl, yh, yl, precision=None):
     """ Multi-precision Addition:
         HI = [xh:xl] + [yh:yl] """
@@ -742,6 +772,40 @@ class MB_Mul122(MB_IntervalMul, Op_1LimbOut_MetaBlock):
 
 MB_Mul122_d = MB_Mul122(ML_Binary64)
 MB_Mul122_s = MB_Mul122(ML_Binary32)
+
+class MB_Mul121(MB_IntervalMul, Op_1LimbOut_MetaBlock):
+    def expand(self, lhs, rhs):
+        return Mul121(*(lhs + rhs), precision=self.main_precision)
+
+    def check_input_descriptors(self, lhs, rhs):
+        # GR: to be fixed, just for testing
+        return is_dual_limb_precision(lhs.precision) and \
+            is_single_limb_precision(rhs.precision)
+
+    def global_relative_error_eval(self, lhs_desc, rhs_desc):
+        eps_op = self.local_relative_error_eval(lhs_desc, rhs_desc)
+        eps_in = max(lhs_desc.epsilon, rhs_desc.epsilon)
+        return eps_op + eps_in + eps_op * eps_in
+
+    def local_relative_error_eval(self, lhs_desc, rhs_desc):
+        # TODO: very approximative
+        return S2**-(self.main_precision.get_mantissa_size())
+
+    def get_output_descriptor(self, lhs, rhs, global_error=True):
+        epsilon = self.relative_error_eval(lhs, rhs, global_error=global_error)
+        limb_diff_factors = [
+            # no overlap between medium and lo limb
+            S2**-self.main_precision.get_mantissa_size()
+        ]
+        interval = self.get_result_interval(lhs, rhs)
+        return MP_Node(self.out_precision, epsilon, limb_diff_factors, interval)
+
+@MB_CommutedVersion(MB_Mul121)
+class MB_Mul112(Op_1LimbOut_MetaBlock):
+  pass
+
+MB_Mul112_d = MB_Mul112(ML_Binary64)
+MB_Mul121_d = MB_Mul121(ML_Binary64)
 
 def MP_FMA2111(x, y, z, precision=None, fma=True):
     mh, ml = Mul211(x, y, precision=precision, fma=fma)
@@ -1558,6 +1622,9 @@ def get_MB_cost(mb):
                 MB_Add222_dd: 3.8,
                 MB_Add122_d: 3.5,
 
+                MB_Add121_d: 3.5,
+                MB_Add112_d: 3.5,
+
                 MB_Add212_dd: 3.6,
                 MB_Add221_dd: 3.6,
 
@@ -1568,6 +1635,8 @@ def get_MB_cost(mb):
                 MB_Mul212_dd: 6,
                 MB_Mul221_dd: 6,
                 MB_Mul122_d: 6.25,
+                MB_Mul121_d: 5.25,
+                MB_Mul112_d: 5.25,
                 MB_Mul222_dd: 6.5,
                 MB_Mul331_td: 6.5,
                 MB_Mul313_td: 6.5,
@@ -1603,7 +1672,7 @@ def get_Addition_MB_compatible_list(lhs, rhs):
             MB_Add211_dd,
             MB_Add211_Fast_dd, MB_Add211_FastRec_dd,
             MB_Add111_d,
-            MB_Add122_d,
+            MB_Add122_d, MB_Add121_d, MB_Add112_d,
             MB_Add222_dd,
             MB_Add221_dd, MB_Add212_dd,
 
@@ -1623,7 +1692,7 @@ def get_Multiplication_MB_compatible_list(lhs, rhs):
             MB_Mul322_td,
             MB_Mul111_d,
             MB_Mul222_dd,
-            MB_Mul122_d,
+            MB_Mul122_d, MB_Mul121_d, MB_Mul112_d,
             MB_Mul331_td,
             MB_Mul313_td,
         ] if mb.check_input_descriptors(lhs, rhs)
