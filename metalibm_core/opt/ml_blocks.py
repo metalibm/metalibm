@@ -968,12 +968,19 @@ def MP_Add323(xh, xl, yh, ym, yl, precision=None):
     return MP_Add332(yh, ym, yl, xh, xl)
 
 def MP_Add321(xh, xl, y, precision=None):
-    rh, t1 = Add211(xh, y, precision=precision)
-    rm, rl = Add211(t1, xl, precision=precision)
+    """ require abs(y) < 2^-2 abs(xh) """
+    rh, t1 = generate_fasttwosum(xh, y, precision=precision)
+    rm, rl = generate_twosum(t1, xl, precision=precision)
     return rh, rm, rl
 
-def MP_Add312(x, yh, yl, precision=None):
-    return MP_Add321(yh, yl, x, precision)
+def MP_Add321_v2(xh, xl, y, precision=None):
+    """ require abs(xh) < 2^-2 abs(y) """
+    rh, t1 = generate_fasttwosum(y, xh, precision=precision)
+    rm, rl = generate_fasttwosum(t1, xl, precision=precision)
+    return rh, rm, xl
+
+def MP_Add312_Fast(x, yh, yl, precision=None):
+    return MP_Add321_Fast(yh, yl, x, precision)
 
 
 class MB_Add321(MB_IntervalAdd, Op_3LimbOut_MetaBlock):
@@ -981,6 +988,9 @@ class MB_Add321(MB_IntervalAdd, Op_3LimbOut_MetaBlock):
         return MP_Add321(*(lhs + rhs), precision=self.main_precision)
 
     def check_input_descriptors(self, lhs, rhs):
+        # lhs = xh, xl
+        # rhs = y
+        # abs(y) < S^-2 abs(xh)
         return is_dual_limb_precision(lhs.precision) and \
             is_single_limb_precision(rhs.precision) and \
             is_interval_lt(rhs, S2**-2, lhs) and \
@@ -1014,6 +1024,34 @@ class MB_Add312(Op_3LimbOut_MetaBlock):
         ]
         interval = self.get_result_interval(rhs_desc, lhs_desc)
         return MP_Node(self.out_precision, epsilon, limb_diff_factors, interval)
+
+
+
+class MB_Add321_v2(MB_Add321):
+    def expand(self, lhs, rhs):
+        return MP_Add321_v2(*(lhs + rhs), precision=self.main_precision)
+
+    def check_input_descriptors(self, lhs, rhs):
+        # lhs = xh, xl
+        # rhs = y
+        # abs(xh) < S^-2 abs(y)
+        return is_dual_limb_precision(lhs.precision) and \
+            is_single_limb_precision(rhs.precision) and \
+            is_interval_lt(lhs, S2**-2, rhs) and \
+             lhs.limb_diff_factor[0] <= S2**-self.main_precision.get_mantissa_size()
+
+@MB_CommutedVersion(MB_Add321_v2)
+class MB_Add312_v2(Op_3LimbOut_MetaBlock):
+    def get_output_descriptor(self, rhs, lhs, global_error=True):
+        epsilon = self.relative_error_eval(rhs, lhs, global_error=global_error)
+        limb_diff_factors = [
+            S2**(-self.main_precision.get_mantissa_size()+1),
+            # no overlap between medium and lo limb
+            S2**-self.main_precision.get_mantissa_size()
+        ]
+        interval = self.get_result_interval(rhs, lhs)
+        return MP_Node(self.out_precision, epsilon, limb_diff_factors, interval)
+
 
 def MP_Add322(xh, xl, yh, yl, precision=None):
     # TODO use fast2sum when xh <= 2**-2 yh condition has been verified
@@ -1133,8 +1171,12 @@ MB_Add333_td = MB_Add333(ML_Binary64)
 MB_Add332_td = MB_Add332(ML_Binary64)
 MB_Add323_td = MB_Add323(ML_Binary64)
 MB_Add322_td = MB_Add322(ML_Binary64)
+
 MB_Add321_td = MB_Add321(ML_Binary64)
 MB_Add312_td = MB_Add312(ML_Binary64)
+MB_Add321_v2_td = MB_Add321_v2(ML_Binary64)
+MB_Add312_v2_td = MB_Add312_v2(ML_Binary64)
+
 MB_Add331_td = MB_Add331(ML_Binary64)
 MB_Add313_td = MB_Add313(ML_Binary64)
 
@@ -1624,8 +1666,13 @@ def get_MB_cost(mb):
                 MB_Add323_td: 5,
                 MB_Add331_td: 4.5,
                 MB_Add313_td: 4.5,
+
                 MB_Add321_td: 4,
                 MB_Add312_td: 4,
+
+                MB_Add321_v2_td: 3.9,
+                MB_Add312_v2_td: 3.9,
+
                 MB_Add322_td: 4.5,
                 MB_Add211_dd: 3,
                 MB_Add211_Fast_dd: 2,
@@ -1683,6 +1730,9 @@ def get_Addition_MB_compatible_list(lhs, rhs):
         [
             MB_Add333_td, MB_Add332_td, MB_Add323_td,
             MB_Add321_td, MB_Add312_td, MB_Add322_td,
+
+            MB_Add312_v2_td, MB_Add321_v2_td,
+
             MB_Add331_td, MB_Add313_td,
             MB_Add211_dd,
             MB_Add211_Fast_dd, MB_Add211_FastRec_dd,
