@@ -305,7 +305,7 @@ class ML_FunctionBasis(object):
     }
 
     # empty pass dependency
-    for pass_uplet in args.passes:
+    for pass_uplet in args.passes + args.extra_passes:
       pass_slot_tag, pass_tag = pass_uplet.split(":")
       pass_slot = PassScheduler.get_tag_class(pass_slot_tag)
       pass_class  = Pass.get_pass_by_tag(pass_tag)

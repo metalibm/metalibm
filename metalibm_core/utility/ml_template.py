@@ -409,8 +409,10 @@ class DefaultArgTemplate:
     check_processor_support = True
     # source elaboration
     build_enable = False
-    #
+    # list of default optimization passes
     passes = []
+    # list of extra optimization passes (to be added to default list)
+    extra_passes = []
     # built binary execution
     execute_trigger = False
 
@@ -599,8 +601,10 @@ class ML_CommonArgTemplate(object):
         # list of
         self.parser.add_argument(
             "--passes", default=default_arg.passes, action="store", dest="passes",
-            type=lambda s: s.split(","), help="comma separated list \
-      of slot:pass to be executed ")
+            type=lambda s: s.split(","), help="comma separated list of slot:pass to be executed (replace default list) ")
+        self.parser.add_argument(
+            "--extra-passes", default=[], action="store", dest="extra_passes",
+            type=lambda s: s.split(","), help="comma separated list of slot:pass to be executed (extend list of default passes)")
         # disable check processor pass
         self.parser.add_argument(
             "--disable-check", default=True, action="store_const",
