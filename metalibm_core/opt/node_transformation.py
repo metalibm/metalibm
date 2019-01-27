@@ -33,11 +33,12 @@
 ###############################################################################
 
 from metalibm_core.core.passes import FunctionPass, Pass, LOG_PASS_INFO
-from metalibm_core.core.ml_operations import ML_LeafNode
+from metalibm_core.core.ml_operations import is_leaf_node
 
 from metalibm_core.utility.log_report import Log
 
 
+LOG_LEVEL_NODE_TRANSFORM_VERBOSE = Log.LogLevel("NodeTransformVerbose")
 
 
 class Pass_NodeTransformation(FunctionPass):
@@ -90,13 +91,18 @@ class Pass_NodeTransformation(FunctionPass):
             return self.get_memoization_value(node)
         elif not self.can_be_transformed(node):
             # associate None to node in memoization_map
+            Log.report(LOG_LEVEL_NODE_TRANSFORM_VERBOSE, "associating None to {}", node)
             self.set_memoization_value(node, None)
             # recursively process node's inputs
-            if not isinstance(node, ML_LeafNode):
+            if not is_leaf_node(node):
                 for index, op_input in enumerate(node.get_inputs()):
                     new_input = self.transform_graph(op_input)
                     if not new_input is None:
-                        node.set_input(index, self.reconstruct_from_transformed(op_input, new_input))
+                        reconstructed_input = self.reconstruct_from_transformed(op_input, new_input)
+                        Log.report(LOG_LEVEL_NODE_TRANSFORM_VERBOSE, "new input id={} of {} is {}", index, node, reconstructed_input)
+                        node.set_input(index, reconstructed_input)
+                return None
+            return None
         else:
             transformed_inputs = [self.transform_graph(op_input) for op_input in node.get_inputs()]
             new_node = self.transform_node(node, transformed_inputs)
