@@ -1344,7 +1344,7 @@ class Dereference(GeneralArithmeticOperation):
 class ReferenceAssign(GeneralOperation):
     """ abstract assignation to reference operation """
     name = "ReferenceAssign"
-    arity = 1
+    arity = 2
 
 class ExponentInsertion(SpecifierOperation, GeneralArithmeticOperation):
     """ insertion of a number in the exponent field of a floating-point value """
