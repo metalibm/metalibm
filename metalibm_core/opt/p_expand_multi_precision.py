@@ -46,7 +46,7 @@ from metalibm_core.core.ml_operations import (
     FusedMultiplyAdd,
     Conversion, Negation,
     Constant, Variable, SpecificOperation,
-    BuildFromComponent,
+    BuildFromComponent, ComponentSelection,
     is_leaf_node,
 )
 from metalibm_core.opt.ml_blocks import (
@@ -278,6 +278,7 @@ class MultiPrecisionExpander:
              isinstance(node, FusedMultiplyAdd) or \
              isinstance(node, Negation) or \
              isinstance(node, BuildFromComponent) or \
+             isinstance(node, ComponentSelection) or \
              is_subnormalize_op(node))
         if not expandable:
             Log.report(LOG_LEVEL_EXPAND_VERBOSE, "{} can not be expanded", node)
@@ -314,7 +315,7 @@ class MultiPrecisionExpander:
                 normalized_op = Normalize_33(*op_input, precision=op_input[0].precision)
                 Log.report(LOG_LEVEL_EXPAND_VERBOSE, "expanding conversion {} into {}, {}", node, normalized_op[0], normalized_op[1])
                 return normalized_op[0], normalized_op[1]
-                
+
 
         return None
 
@@ -339,6 +340,19 @@ class MultiPrecisionExpander:
         result = tuple(op if expanded is None else expanded for (op, expanded) in op_list)
         Log.report(LOG_LEVEL_EXPAND_VERBOSE, "expanding BuildFromComponent {} into {}", node, result)
         return result
+
+    def expand_component_selection(self, node):
+        # TODO: manage TD normalization properly
+        op_list = self.expand_node(node.get_input(0))
+        OP_INDEX_MAP = {
+            ComponentSelection.Hi: 0,
+            ComponentSelection.Me: -2,
+            ComponentSelection.Lo: 1
+        }
+        op_index = OP_INDEX_MAP[node.specifier]
+        result = op_list[op_index]
+        Log.report(LOG_LEVEL_EXPAND_VERBOSE, "expanding ComponentSelection {} into {}", node, result)
+        return (result,)
 
 
     def expand_node(self, node):
@@ -368,6 +382,8 @@ class MultiPrecisionExpander:
                 result = self.expand_negation(node)
             elif isinstance(node, BuildFromComponent):
                 result = self.expand_build_from_component(node)
+            elif isinstance(node, ComponentSelection):
+                result = self.expand_component_selection(node)
             elif is_subnormalize_op(node):
                 result = self.expand_subnormalize(node)
             else:
