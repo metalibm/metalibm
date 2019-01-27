@@ -94,6 +94,10 @@ def multi_element_inputs(node):
     """ return True if any of node's input has a multi-precision type """
     return not is_leaf_node(node) and any(is_multi_precision_format(op_input.precision) for op_input in node.get_inputs())
 
+def has_component_selection_input(node):
+    """ Check if any of node's input is a ComponentSelection node """
+    return not is_leaf_node(node) and any(isinstance(op, ComponentSelection) for op in node.get_inputs())
+
 class MultiPrecisionExpander:
     def __init__(self, target):
         self.target = target
@@ -151,12 +155,12 @@ class MultiPrecisionExpander:
         """ Generic expansion method for 2-operand node """
         operands = [node.get_input(i) for i in range(arity)]
 
-        def wrapp_expand(op):
+        def wrap_expand(op):
             """ expand node and returns it if no modification occurs """
             expanded_node = self.expand_node(op)
             return (op,) if expanded_node is None else expanded_node
 
-        operands_expansion = [list(wrapp_expand(op)) for op in operands]
+        operands_expansion = [list(wrap_expand(op)) for op in operands]
         operands_format = [op.precision for op in operands]
 
         result_precision = node.precision
@@ -264,13 +268,14 @@ class MultiPrecisionExpander:
         """ Expand Negation on multi-component node """
         op_input = neg_node.get_input(0)
         neg_operands = self.expand_node(op_input)
+        Log.report(LOG_LEVEL_EXPAND_VERBOSE, "expanding Negation {} into {}", neg_node, neg_operands)
         return [Negation(op, precision=op.precision) for op in neg_operands]
 
     def is_expandable(self, node):
         """ Returns True if @p can be expanded from a multi-precision
             node to a list of scalar-precision fields,
             returns False otherwise """
-        expandable = (multi_element_output(node) or multi_element_inputs(node)) and \
+        expandable = (has_component_selection_input(node) or (multi_element_output(node) or multi_element_inputs(node))) and \
             (isinstance(node, Addition) or \
              isinstance(node, Multiplication) or \
              isinstance(node, Subtraction) or \
@@ -281,7 +286,7 @@ class MultiPrecisionExpander:
              isinstance(node, ComponentSelection) or \
              is_subnormalize_op(node))
         if not expandable:
-            Log.report(LOG_LEVEL_EXPAND_VERBOSE, "{} can not be expanded", node)
+            Log.report(LOG_LEVEL_EXPAND_VERBOSE, "{} cannot be expanded", node)
         return expandable
 
 
@@ -324,6 +329,9 @@ class MultiPrecisionExpander:
         rhs = node.get_input(1)
         tag = node.get_tag()
         precision = node.get_precision()
+        # Subtraction x - y is transformed into x + (-y)
+        # WARNING: if y is not expandable (e.g. scalar precision)
+        #          this could stop expansion
         new_node = Addition(
             lhs,
             Negation(
@@ -333,7 +341,9 @@ class MultiPrecisionExpander:
             precision=precision
         )
         forward_attributes(node, new_node)
-        return self.expand_node(new_node)
+        expanded_node =  self.expand_node(new_node)
+        Log.report(LOG_LEVEL_EXPAND_VERBOSE, "expanding Subtraction {} into {} with expanded form {}", node, new_node, ", ".join((op.get_str(display_precision=True, depth=None)) for op in expanded_node))
+        return expanded_node
 
     def expand_build_from_component(self, node):
         op_list = ((self.expand_node(op), op) for op in node.get_inputs())
@@ -343,11 +353,14 @@ class MultiPrecisionExpander:
 
     def expand_component_selection(self, node):
         # TODO: manage TD normalization properly
+        if is_leaf_node(node.get_input(0)):
+            # discard expansion of leaf nodes (Variable, ...)
+            return None
         op_list = self.expand_node(node.get_input(0))
         OP_INDEX_MAP = {
             ComponentSelection.Hi: 0,
             ComponentSelection.Me: -2,
-            ComponentSelection.Lo: 1
+            ComponentSelection.Lo: -1
         }
         op_index = OP_INDEX_MAP[node.specifier]
         result = op_list[op_index]
@@ -362,7 +375,7 @@ class MultiPrecisionExpander:
         if node in self.memoization_map:
             return self.memoization_map[node]
         else:
-            if not (multi_element_output(node) or multi_element_inputs(node)):
+            if not (has_component_selection_input(node) or multi_element_output(node) or multi_element_inputs(node)):
                 result = (node,)
             elif isinstance(node, Variable):
                 result = self.expand_var(node)
@@ -390,6 +403,8 @@ class MultiPrecisionExpander:
                 # no modification
                 result = None
 
+            if result is None:
+                Log.report(LOG_LEVEL_EXPAND_VERBOSE, "expansion is None for {}", node)
             self.memoization_map[node] = result
             return result
 
