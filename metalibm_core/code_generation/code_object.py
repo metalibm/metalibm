@@ -858,7 +858,14 @@ class NestedCode(object):
         global variable management """
     ##
     #  @param uniquifier <str> unifiquation prefix for name generation
-    def __init__(self, code_generator, static_cst = False, static_table = True, uniquifier = "", code_ctor = CodeObject, main_code_level = None, shared_symbol_list = None, static_var=False):
+    def __init__(self, code_generator,
+            static_cst=False,
+            static_table=True,
+            uniquifier="",
+            code_ctor=CodeObject,
+            main_code_level=None,
+            shared_symbol_list=None,
+            static_var=False):
         self.language = code_generator.language
         self.code_generator = code_generator
         # name uniquifier
