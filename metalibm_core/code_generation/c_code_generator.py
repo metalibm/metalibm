@@ -336,14 +336,22 @@ class CCodeGenerator(object):
 
     def generate_untied_statement(self, expression_code, final = True):
       final_symbol = ";\n" if final else ""
-      return "%s%s" % (expression_code, final_symbol) 
+      return "%s%s" % (expression_code, final_symbol)
 
 
-    def generate_declaration(self, symbol, symbol_object, initial = True, final = True):
+    def generate_declaration(self, symbol, symbol_object, initial=True, final=True, static_const=True):
+        # TODO extract attributes from symbol_object
         if isinstance(symbol_object, Constant):
-            initial_symbol = (symbol_object.get_precision().get_code_name(language = self.language) + " ") if initial else ""
+            format_str = symbol_object.get_precision().get_code_name(language=self.language)
+            attributes = "static const" if static_const else ""
+            prefix = ("{} {} ".format(attributes, format_str)) if initial else ""
             final_symbol = ";\n" if final else ""
-            return "%s%s = %s%s" % (initial_symbol, symbol, symbol_object.get_precision().get_cst(symbol_object.get_value(), language = self.language), final_symbol) 
+            return "{prefix}{cst_tag} = {value}{final}".format(
+                prefix=prefix,
+                cst_tag=symbol,
+                value=symbol_object.get_precision().get_cst(symbol_object.get_value(), language=self.language),
+                final=final_symbol,
+            )
 
         elif isinstance(symbol_object, Variable):
             initial_symbol = (symbol_object.get_precision().get_code_name(language = self.language) + " ") if initial else ""
