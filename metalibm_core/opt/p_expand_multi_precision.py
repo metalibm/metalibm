@@ -275,7 +275,7 @@ class MultiPrecisionExpander:
         """ Returns True if @p can be expanded from a multi-precision
             node to a list of scalar-precision fields,
             returns False otherwise """
-        expandable = (has_component_selection_input(node) or (multi_element_output(node) or multi_element_inputs(node))) and \
+        expandable = ((multi_element_output(node) or multi_element_inputs(node))) and \
             (isinstance(node, Addition) or \
              isinstance(node, Multiplication) or \
              isinstance(node, Subtraction) or \
@@ -367,6 +367,23 @@ class MultiPrecisionExpander:
         Log.report(LOG_LEVEL_EXPAND_VERBOSE, "expanding ComponentSelection {} into {}", node, result)
         return (result,)
 
+    def reconstruct_from_transformed(self, node, transformed_node):
+        Log.report(LOG_LEVEL_EXPAND_VERBOSE, "reconstructed : {}", node)
+        Log.report(
+            LOG_LEVEL_EXPAND_VERBOSE,
+            "from transformed: {}", "\n".join([str(n) for n in transformed_node]))
+        if isinstance(node, Constant):
+            result = node
+        else:
+            if len(transformed_node) == 1:
+                result = transformed_node[0]
+            else:
+                result = BuildFromComponent(*tuple(transformed_node), precision=node.precision)
+            forward_attributes(node, result)
+            result.set_tag(node.get_tag())
+        Log.report(LOG_LEVEL_EXPAND_VERBOSE, "  result is : {}", result)
+        return result
+
 
     def expand_node(self, node):
         """ If node @p node is a multi-precision node, expands to a list
@@ -375,7 +392,14 @@ class MultiPrecisionExpander:
         if node in self.memoization_map:
             return self.memoization_map[node]
         else:
-            if not (has_component_selection_input(node) or multi_element_output(node) or multi_element_inputs(node)):
+            if not (multi_element_output(node) or multi_element_inputs(node)):
+                if not is_leaf_node(node):
+                    # recursive processing of node's input
+                    for index, op in enumerate(node.get_inputs()):
+                        op_input = self.expand_node(op)
+                        if not op_input is None:
+                            reconstructed_input = self.reconstruct_from_transformed(op, op_input)
+                            node.set_input(index, reconstructed_input)
                 result = (node,)
             elif isinstance(node, Variable):
                 result = self.expand_var(node)
@@ -400,6 +424,15 @@ class MultiPrecisionExpander:
             elif is_subnormalize_op(node):
                 result = self.expand_subnormalize(node)
             else:
+                if is_leaf_node(node):
+                    pass
+                else:
+                    # recursive processing of node's input
+                    for index, op in enumerate(node.get_inputs()):
+                        op_input = self.expand_node(op)
+                        if not op_input is None:
+                            reconstructed_input = self.reconstruct_from_transformed(op, op_input)
+                            node.set_input(index, reconstructed_input)
                 # no modification
                 result = None
 
@@ -489,19 +522,7 @@ class Pass_ExpandMultiPrecision(Pass_NodeTransformation):
     def reconstruct_from_transformed(self, node, transformed_node):
         """return a node at the root of a transformation chain,
             compatible with untransformed nodes """
-        Log.report(LOG_LEVEL_EXPAND_VERBOSE, "reconstructed : {}", node)
-        Log.report(LOG_LEVEL_EXPAND_VERBOSE, "from transformed: {}", "\n".join([str(n) for n in transformed_node]))
-        if isinstance(node, Constant):
-            result = node
-        else:
-            if len(transformed_node) == 1:
-                result = transformed_node[0]
-            else:
-                result = BuildFromComponent(*tuple(transformed_node), precision=node.precision)
-            forward_attributes(node, result)
-            result.set_tag(node.get_tag())
-        Log.report(LOG_LEVEL_EXPAND_VERBOSE, "  result is : {}", result)
-        return result
+        return self.expander.reconstruct_from_transformed(node, transformed_node)
 
     ## standard Opt pass API
     def execute(self, optree):
