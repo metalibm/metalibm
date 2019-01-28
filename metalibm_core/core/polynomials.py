@@ -101,7 +101,7 @@ class Polynomial(object):
                 self.coeff_map[index] = init_object[index]
 
         elif isinstance(init_object, SollyaObject):
-            self.degree = sollya.degree(init_object)
+            self.degree = int(sollya.degree(init_object))
             for index in range(int(self.degree)+1):
                 coeff_value = coeff(init_object, index)
                 if coeff_value != 0:
