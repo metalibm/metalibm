@@ -1221,6 +1221,46 @@ class MB_Mul322(MB_IntervalMul, Op_3LimbOut_MetaBlock):
 MB_Mul322_td = MB_Mul322(ML_Binary64)
 MB_Mul322_ts = MB_Mul322(ML_Binary32)
 
+def MP_Mul321(xh, xl, y, precision=None):
+    rh, t1 = Mul211(xh, y, precision=precision)
+    t4, t5 = Mul211(xl, y, precision=precision)
+    rm, rl = Add221(t4, t5, t1, precision=precision)
+    return rh, rm, rl
+
+class MB_Mul321(MB_IntervalMul, Op_3LimbOut_MetaBlock):
+    def expand(self, lhs, rhs):
+        return MP_Mul321(*(lhs + rhs), precision=self.main_precision)
+
+    def check_input_descriptors(self, lhs, rhs):
+        return is_dual_limb_precision(lhs.precision) and \
+            is_single_limb_precision(rhs.precision)
+
+    def global_relative_error_eval(self, lhs_desc, rhs_desc):
+        # error bound (first order approximation)
+        eps = lhs_desc.epsilon + rhs_desc.epsilon + eps_op
+        return eps
+    def local_relative_error_eval(self, lhs_desc, rhs_desc):
+        # TODO: numeric constant specific to ML_Binary64
+        return S2**-154
+
+    def get_output_descriptor(self, lhs_desc, rhs_desc, global_error=True):
+        epsilon = self.relative_error_eval(lhs_desc, rhs_desc, global_error=global_error)
+        limb_diff_factors = [
+            S2**-47, # numeric constant specific to ML_Binary64
+            # no overlap between medium and lo limb
+            S2**-self.main_precision.get_mantissa_size()
+        ]
+        interval = self.get_result_interval(lhs_desc, rhs_desc)
+        return MP_Node(self.out_precision, epsilon, limb_diff_factors, interval)
+
+@MB_CommutedVersion(MB_Mul321)
+class MB_Mul312(Op_3LimbOut_MetaBlock):
+    """ Commuted version of Mul321 """
+    pass
+
+MB_Mul321_td = MB_Mul321(ML_Binary64)
+MB_Mul312_td = MB_Mul312(ML_Binary64)
+
 class MB_Mul332(MB_IntervalMul, Op_3LimbOut_MetaBlock):
     def expand(self, lhs, rhs):
         return MP_Mul332(*(lhs + rhs), precision=self.main_precision)
@@ -1702,6 +1742,8 @@ def get_MB_cost(mb):
                 MB_Mul222_dd: 6.5,
                 MB_Mul331_td: 6.5,
                 MB_Mul313_td: 6.5,
+                MB_Mul321_td: 6.625,
+                MB_Mul312_td: 6.625,
                 MB_Mul322_td: 6.75,
                 MB_Mul332_td: 7,
                 MB_Mul323_td: 7,
@@ -1756,6 +1798,7 @@ def get_Multiplication_MB_compatible_list(lhs, rhs):
         [
             MB_Mul212_dd, MB_Mul221_dd, MB_Mul211_dd,
             MB_Mul332_td, MB_Mul323_td, MB_Mul333_td,
+            MB_Mul321_td, MB_Mul312_td,
             MB_Mul322_td,
             MB_Mul111_d,
             MB_Mul222_dd,
