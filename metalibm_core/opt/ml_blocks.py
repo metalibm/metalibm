@@ -139,9 +139,10 @@ class MP_Node:
         return "({}, eps={}, ldf={}, interval={})".format(
             self.precision, self.epsilon, self.limb_diff_factor, self.interval
         )
-    
+
 
 class MetaBlock:
+    """ class Meta-Block """
     arity = 2
     """ abstract class to document meta-block methods """
     def __init__(self, main_precision, out_precision):
@@ -226,12 +227,16 @@ class Op_3LimbOut_MetaBlock(MetaBlock):
         }[self.main_precision]
 
 def is_single_limb_precision(prec):
+    """ predicate verified when prec is not a multi-element format """
     return prec in [ML_Binary32, ML_Binary64]
 def is_dual_limb_precision(prec):
+    """ predicate verified when prec is a multi-element format with 2 limbs """
     return isinstance(prec, ML_FP_MultiElementFormat) and prec.limb_num == 2
 def is_tri_limb_precision(prec):
+    """ predicate verified when prec is a multi-element format with 3 limbs """
     return isinstance(prec, ML_FP_MultiElementFormat) and prec.limb_num == 3
 def limb_prec_match(mp_prec, prec):
+    """ predicate verified when all limbs of @p mp_prec matches @p prec """
     return all(mp_prec.get_limb_precision(i) == prec for i in range(mp_prec.limb_num))
 
 class Op111_MetaBlock(Op_1LimbOut_MetaBlock):
@@ -254,6 +259,7 @@ class Op111_MetaBlock(Op_1LimbOut_MetaBlock):
         return MP_Node(self.out_precision, epsilon, [], interval)
 
 class MB_IntervalAdd:
+    """ Parent virtual class for meta-addition """
     def get_result_interval(self, lhs, rhs):
         if lhs.interval is None or rhs.interval is None:
             return None
@@ -261,6 +267,7 @@ class MB_IntervalAdd:
         return lhs.interval + rhs.interval
 
 class MB_IntervalMul:
+    """ Parent virtual class for meta-multiplication """
     def get_result_interval(self, lhs, rhs):
         if lhs.interval is None or rhs.interval is None:
             return None
@@ -291,7 +298,8 @@ MB_Add111_s = MB_Add111(ML_Binary32)
 MB_Add111_d = MB_Add111(ML_Binary64)
 
 class Op211_ExactMetaBlock(Op_2LimbOut_MetaBlock):
-    """ Virtual operation which returns a 2-limb output from two 1-limb inputs """
+    """ Virtual operation which returns a 2-limb output
+        from two 1-limb inputs """
     def local_relative_error_eval(self, x, y):
         # ExactMetaBlock is exact
         return 0.0
@@ -1314,6 +1322,8 @@ class MB_Mul323(Op_3LimbOut_MetaBlock):
     pass
 
 def MP_Mul323(xh, xl, yh, ym, yl, precision=None):
+    """ Multiplication algorithm:
+        ML_TripleDouble <- ML_DoubleDouble x ML_TripleDouble """
     rh, t1 = Mul211(xh, yh, precision=precision)
     t2, t3 = Mul211(xh, ym, precision=precision)
     t4, t5 = Mul211(xh, yl, precision=precision)
@@ -1332,10 +1342,14 @@ MB_Mul332_td = MB_Mul332(ML_Binary64)
 MB_Mul323_td = MB_Mul323(ML_Binary64)
 
 def MP_Mul332(xh, xm, xl, yh, yl, precision=None):
+    """ Multiplication algorithm:
+        ML_TripleDouble <- ML_TripleDouble x ML_DoubleDouble """
     return MP_Mul323(yh, yl, xh, xm, xl, precision=precision)
 
 
 def MP_Mul333(xh, xm, xl, yh, ym, yl, precision=None):
+    """ Multiplication algorithm:
+        ML_TripleDouble <- ML_TripleDouble x ML_TripleDouble """
     rh, t1 = Mul211(xh, yh, precision)
     t2, t3 = Mul211(xh, ym, precision)
     t4, t5 = Mul211(xm, yh, precision)
@@ -1361,6 +1375,7 @@ def MP_Mul333(xh, xm, xl, yh, ym, yl, precision=None):
     return rh, rm, rl
 
 class MB_Mul333(MB_IntervalMul, Op_3LimbOut_MetaBlock):
+    """ Meta-block """
     def expand(self, lhs, rhs):
         return MP_Mul333(*(lhs + rhs), precision=self.main_precision)
 
@@ -1395,7 +1410,7 @@ class MB_Mul333(MB_IntervalMul, Op_3LimbOut_MetaBlock):
         # TODO: coefficient specific for ML_Binary64
         g_o = min(48, -4+a_o, -4+b_o, -4+a_o-b_o)
         limb_diff_factors = [
-            S2**-(g_o), 
+            S2**-(g_o),
         #    # no overlap between medium and lo limb
             S2**-self.main_precision.get_mantissa_size()
         ]
@@ -1406,6 +1421,8 @@ MB_Mul333_td = MB_Mul333(ML_Binary64)
 
 
 def MP_Mul313(x, yh, ym, yl, precision=None):
+    """ Algorithm:
+        ML_TripleDouble <- ML_Binary64 x ML_TripleDouble """
     rh, t2 = Mul211(x, yh, precision)
     t3, t4 = Mul211(x, ym, precision)
     t5 = Multiplication(x, yl, precision=precision)
@@ -1445,8 +1462,8 @@ class MB_Mul313(MB_IntervalMul, Op_3LimbOut_MetaBlock):
         b_u = sollya.floor(-sollya.log2(rhs.limb_diff_factor[1]))
         g_o = min(47, -5+b_o, -5+b_o+b_u) # FIX sign
         limb_diff_factors = [
-            S2**-(g_o), 
-        #    # no overlap between medium and lo limb
+            S2**-(g_o),
+            # no overlap between medium and lo limb
             S2**-self.main_precision.get_mantissa_size()
         ]
         interval = self.get_result_interval(lhs, rhs)
@@ -1461,8 +1478,8 @@ class MB_Mul331(Op_3LimbOut_MetaBlock):
         b_u = sollya.floor(-sollya.log2(rhs.limb_diff_factor[1]))
         g_o = min(47, -5-b_o, -5+b_o+b_u) # FIX sign
         limb_diff_factors = [
-            S2**-(g_o), 
-        #    # no overlap between medium and lo limb
+            S2**-(g_o),
+            # no overlap between medium and lo limb
             S2**-self.main_precision.get_mantissa_size()
         ]
         interval = self.get_result_interval(rhs, lhs)
@@ -1474,12 +1491,15 @@ MB_Mul313_td = MB_Mul313(ML_Binary64)
 
 
 def Normalize_33(xh, xm, xl, precision=None):
+    """ normalization algorithm on MDL:
+        ML_TripleDouble -> ML_TripleDouble """
     t1h, t1l = Add211(xm, xl, precision=precision)
     rh, t2l = Add211(xh, t1h, precision=precision)
     rm, rl = Add211(t2l, t1l, precision=precision)
     return rh, rm, rl
 
 class MB_Identity:
+    """ identity meta-block: forward its input without modification """
     @staticmethod
     def expand(op):
         return op
@@ -1491,9 +1511,11 @@ class MB_Identity:
     @staticmethod
     def get_output_descriptor(lhs, global_error=True):
         return lhs
-        
+
 
 class MB_Wrapper_2Op:
+    """ wrap a 2-operand metablock with sub block for each
+        of the meta-block inputs """
     def __init__(self, meta_block, wrap_lhs, wrap_rhs):
         self.meta_block = meta_block
         self.wrap_lhs = wrap_lhs
@@ -1525,7 +1547,7 @@ class MB_PostWrapper_2Op:
         # we need to take into account lhs's and rhs's error so we must
         # request for global_error to get WHole block local error
         return self.wrap_op.global_relative_error_eval(op_format)
-        
+
 
 class MB_Normalize_33(Op_3LimbOut_MetaBlock):
     def relative_error_eval(self, lhs, global_error=True):
@@ -1759,15 +1781,6 @@ def get_Addition_MB_compatible_list(lhs, rhs):
     """ return a list of metablock instance implementing an Addition
         and compatible with format descriptor @p lhs and @p rhs
     """
-    #return filter(
-    #    (lambda mb: mb.check_input_descriptors(lhs, rhs)),
-    #    [
-    #        MB_Add333_td, MB_Add332_td, MB_Add323_td,
-    #        MB_Add321_td, MB_Add312_td, MB_Add322_td,
-    #        MB_Add211_dd,
-    #        MB_Add111_d,
-    #    ]
-    #)
     return [mb for mb in
         [
             MB_Add333_td, MB_Add332_td, MB_Add323_td,
@@ -1792,8 +1805,6 @@ def get_Multiplication_MB_compatible_list(lhs, rhs):
     """ return a list of metablock instance implementing a Multiplication
         and compatible with format descriptor @p lhs and @p rhs
     """
-    #return filter(
-    #    (lambda mb: mb.check_input_descriptors(lhs, rhs)),
     return [mb for mb in
         [
             MB_Mul212_dd, MB_Mul221_dd, MB_Mul211_dd,
