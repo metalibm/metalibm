@@ -282,8 +282,6 @@ class MB_Mul111(MB_IntervalMul, Op111_MetaBlock):
         # error bound (first order approximation)
         return x.epsilon + y.epsilon + eps_op
 
-MB_Mul111_s = MB_Mul111(ML_Binary32)
-MB_Mul111_d = MB_Mul111(ML_Binary64)
 
 class MB_Add111(MB_IntervalAdd, Op111_MetaBlock):
     def expand(self, lhs, rhs):
@@ -294,8 +292,6 @@ class MB_Add111(MB_IntervalAdd, Op111_MetaBlock):
         eps_in = max(lhs.epsilon, rhs.epsilon)
         return eps_op + eps_in + eps_op * eps_in
 
-MB_Add111_s = MB_Add111(ML_Binary32)
-MB_Add111_d = MB_Add111(ML_Binary64)
 
 class Op211_ExactMetaBlock(Op_2LimbOut_MetaBlock):
     """ Virtual operation which returns a 2-limb output
@@ -398,16 +394,6 @@ class MB_Mul212(Op_2LimbOut_MetaBlock):
         interval = self.get_result_interval(lhs, rhs)
         return MP_Node(self.out_precision, epsilon, [S2**-self.main_precision.get_mantissa_size()], interval)
 
-# Meta-block instanciations with precisions
-MB_Add211_ss = MB_Add211(ML_Binary32)
-MB_Add211_dd = MB_Add211(ML_Binary64)
-MB_Mul211_ss = MB_Mul211(ML_Binary32)
-MB_Mul211_dd = MB_Mul211(ML_Binary64)
-
-MB_Mul221_ss = MB_Mul221(ML_Binary32)
-MB_Mul221_dd = MB_Mul221(ML_Binary64)
-MB_Mul212_ss = MB_Mul212(ML_Binary32)
-MB_Mul212_dd = MB_Mul212(ML_Binary64)
 
 
 def Split(a, precision=None):
@@ -535,9 +521,6 @@ class MB_Add221(MB_IntervalAdd, Op_2LimbOut_MetaBlock):
 class MB_Add212(Op_2LimbOut_MetaBlock):
     pass
 
-MB_Add221_dd = MB_Add221(ML_Binary64)
-MB_Add212_dd = MB_Add212(ML_Binary64)
-
 class MB_Add221_Fast(MB_Add221):
     def check_input_descriptors(self, lhs, rhs):
         return MB_Add221.check_input_descriptors(self, lhs, rhs) and \
@@ -549,9 +532,6 @@ class MB_Add221_Fast(MB_Add221):
 @MB_CommutedVersion(MB_Add221_Fast)
 class MB_Add212_Fast(Op_2LimbOut_MetaBlock):
     pass
-
-MB_Add221_fast_dd = MB_Add221_Fast(ML_Binary64)
-MB_Add212_fast_dd = MB_Add212_Fast(ML_Binary64)
 
 
 
@@ -587,9 +567,6 @@ class MB_Add222(MB_IntervalAdd, Op_2LimbOut_MetaBlock):
         interval = self.get_result_interval(lhs, rhs)
         return MP_Node(self.out_precision, epsilon, limb_diff_factors, interval)
 
-MB_Add222_dd = MB_Add222(ML_Binary64)
-MB_Add222_ss = MB_Add222(ML_Binary32)
-
 class MB_Add122(MB_IntervalAdd, Op_1LimbOut_MetaBlock):
     def expand(self, lhs, rhs):
         return Add122(*(lhs + rhs), precision=self.main_precision)
@@ -617,9 +594,6 @@ class MB_Add122(MB_IntervalAdd, Op_1LimbOut_MetaBlock):
         interval = self.get_result_interval(lhs, rhs)
         return MP_Node(self.out_precision, epsilon, [], interval)
 
-MB_Add122_d = MB_Add122(ML_Binary64)
-MB_Add122_s = MB_Add122(ML_Binary32)
-
 class MB_Add121(MB_IntervalAdd, Op_1LimbOut_MetaBlock):
     def expand(self, lhs, rhs):
         return Add121(*(lhs + rhs), precision=self.main_precision)
@@ -646,9 +620,6 @@ class MB_Add121(MB_IntervalAdd, Op_1LimbOut_MetaBlock):
 @MB_CommutedVersion(MB_Add121)
 class MB_Add112(Op_1LimbOut_MetaBlock):
     pass
-
-MB_Add121_d = MB_Add121(ML_Binary64)
-MB_Add112_d = MB_Add112(ML_Binary64)
 
 def Add122(xh, xl, yh, yl, precision=None):
     """ Multi-precision Addition:
@@ -756,9 +727,6 @@ class MB_Mul222(MB_IntervalMul, Op_2LimbOut_MetaBlock):
         interval = self.get_result_interval(lhs, rhs)
         return MP_Node(self.out_precision, epsilon, limb_diff_factors, interval)
 
-MB_Mul222_dd = MB_Mul222(ML_Binary64)
-MB_Mul222_ss = MB_Mul222(ML_Binary32)
-
 class MB_Mul122(MB_IntervalMul, Op_1LimbOut_MetaBlock):
     def expand(self, lhs, rhs):
         return Mul122(*(lhs + rhs), precision=self.main_precision)
@@ -790,9 +758,6 @@ class MB_Mul122(MB_IntervalMul, Op_1LimbOut_MetaBlock):
         interval = self.get_result_interval(lhs, rhs)
         return MP_Node(self.out_precision, epsilon, limb_diff_factors, interval)
 
-MB_Mul122_d = MB_Mul122(ML_Binary64)
-MB_Mul122_s = MB_Mul122(ML_Binary32)
-
 class MB_Mul121(MB_IntervalMul, Op_1LimbOut_MetaBlock):
     def expand(self, lhs, rhs):
         return Mul121(*(lhs + rhs), precision=self.main_precision)
@@ -823,9 +788,6 @@ class MB_Mul121(MB_IntervalMul, Op_1LimbOut_MetaBlock):
 @MB_CommutedVersion(MB_Mul121)
 class MB_Mul112(Op_1LimbOut_MetaBlock):
   pass
-
-MB_Mul112_d = MB_Mul112(ML_Binary64)
-MB_Mul121_d = MB_Mul121(ML_Binary64)
 
 def MP_FMA2111(x, y, z, precision=None, fma=True):
     mh, ml = Mul211(x, y, precision=precision, fma=fma)
@@ -1168,26 +1130,6 @@ class MB_Add313(Op_3LimbOut_MetaBlock):
         interval = self.get_result_interval(rhs_desc, lhs_desc)
         return MP_Node(self.out_precision, epsilon, limb_diff_factors, interval)
 
-MB_Add333_ts = MB_Add333(ML_Binary32)
-MB_Add332_ts = MB_Add332(ML_Binary32)
-MB_Add323_ts = MB_Add323(ML_Binary32)
-MB_Add322_ts = MB_Add322(ML_Binary32)
-MB_Add321_ts = MB_Add321(ML_Binary32)
-MB_Add312_ts = MB_Add312(ML_Binary32)
-
-MB_Add333_td = MB_Add333(ML_Binary64)
-MB_Add332_td = MB_Add332(ML_Binary64)
-MB_Add323_td = MB_Add323(ML_Binary64)
-MB_Add322_td = MB_Add322(ML_Binary64)
-
-MB_Add321_td = MB_Add321(ML_Binary64)
-MB_Add312_td = MB_Add312(ML_Binary64)
-MB_Add321_v2_td = MB_Add321_v2(ML_Binary64)
-MB_Add312_v2_td = MB_Add312_v2(ML_Binary64)
-
-MB_Add331_td = MB_Add331(ML_Binary64)
-MB_Add313_td = MB_Add313(ML_Binary64)
-
 def MP_Mul322(xh, xl, yh, yl, precision=None):
     rh, t1 = Mul211(xh, yh, precision=precision)
     t2, t3 = Mul211(xh, yl, precision=precision)
@@ -1226,9 +1168,6 @@ class MB_Mul322(MB_IntervalMul, Op_3LimbOut_MetaBlock):
         interval = self.get_result_interval(lhs_desc, rhs_desc)
         return MP_Node(self.out_precision, epsilon, limb_diff_factors, interval)
 
-MB_Mul322_td = MB_Mul322(ML_Binary64)
-MB_Mul322_ts = MB_Mul322(ML_Binary32)
-
 def MP_Mul321(xh, xl, y, precision=None):
     rh, t1 = Mul211(xh, y, precision=precision)
     t4, t5 = Mul211(xl, y, precision=precision)
@@ -1265,9 +1204,6 @@ class MB_Mul321(MB_IntervalMul, Op_3LimbOut_MetaBlock):
 class MB_Mul312(Op_3LimbOut_MetaBlock):
     """ Commuted version of Mul321 """
     pass
-
-MB_Mul321_td = MB_Mul321(ML_Binary64)
-MB_Mul312_td = MB_Mul312(ML_Binary64)
 
 class MB_Mul332(MB_IntervalMul, Op_3LimbOut_MetaBlock):
     def expand(self, lhs, rhs):
@@ -1337,9 +1273,6 @@ def MP_Mul323(xh, xl, yh, ym, yl, precision=None):
     rm, rl = Add222(t17, t18, t15, t16, precision=precision)
     return rh, rm, rl
 
-
-MB_Mul332_td = MB_Mul332(ML_Binary64)
-MB_Mul323_td = MB_Mul323(ML_Binary64)
 
 def MP_Mul332(xh, xm, xl, yh, yl, precision=None):
     """ Multiplication algorithm:
@@ -1417,7 +1350,6 @@ class MB_Mul333(MB_IntervalMul, Op_3LimbOut_MetaBlock):
         interval = self.get_result_interval(lhs)
         return MP_Node(self.out_precision, epsilon, limb_diff_factors, interval)
 
-MB_Mul333_td = MB_Mul333(ML_Binary64)
 
 
 def MP_Mul313(x, yh, ym, yl, precision=None):
@@ -1485,9 +1417,6 @@ class MB_Mul331(Op_3LimbOut_MetaBlock):
         interval = self.get_result_interval(rhs, lhs)
         return MP_Node(self.out_precision, epsilon, limb_diff_factors, interval)
 
-
-MB_Mul331_td = MB_Mul331(ML_Binary64)
-MB_Mul313_td = MB_Mul313(ML_Binary64)
 
 
 def Normalize_33(xh, xm, xl, precision=None):
@@ -1592,7 +1521,6 @@ class MB_Normalize_33(Op_3LimbOut_MetaBlock):
         interval = self.get_result_interval(lhs)
         return MP_Node(self.out_precision, epsilon, limb_diff_factors, interval)
 
-MB_Normalize_33_td = MB_Normalize_33(ML_Binary64)
 
 def Normalize_23(xh, xm, xl, precision=None):
     t1h, t1l = Add211(xm, xl, precision=precision)
@@ -1715,6 +1643,83 @@ def subnormalize_multi(x_list, factor, precision=None, fma=True):
         raise NotImplementedError
 
     return [rounded_x_hi] + [Constant(0, precision=precision) for i in range(len(x_list)-1)]
+
+
+# declaring supported meta-blocks instanciation
+# based on single precision (ML_Binary32)
+
+MB_Add111_s = MB_Add111(ML_Binary32)
+MB_Add122_s = MB_Add122(ML_Binary32)
+
+MB_Mul111_s = MB_Mul111(ML_Binary32)
+MB_Mul122_s = MB_Mul122(ML_Binary32)
+
+MB_Add211_ss = MB_Add211(ML_Binary32)
+MB_Add222_ss = MB_Add222(ML_Binary32)
+
+MB_Mul211_ss = MB_Mul211(ML_Binary32)
+MB_Mul221_ss = MB_Mul221(ML_Binary32)
+MB_Mul212_ss = MB_Mul212(ML_Binary32)
+MB_Mul222_ss = MB_Mul222(ML_Binary32)
+
+MB_Mul322_ts = MB_Mul322(ML_Binary32)
+
+# based on double precision (ML_Binary64)
+
+MB_Add111_d = MB_Add111(ML_Binary64)
+MB_Add122_d = MB_Add122(ML_Binary64)
+MB_Add121_d = MB_Add121(ML_Binary64)
+MB_Add112_d = MB_Add112(ML_Binary64)
+
+MB_Mul111_d = MB_Mul111(ML_Binary64)
+MB_Mul122_d = MB_Mul122(ML_Binary64)
+MB_Mul112_d = MB_Mul112(ML_Binary64)
+MB_Mul121_d = MB_Mul121(ML_Binary64)
+
+MB_Add211_dd = MB_Add211(ML_Binary64)
+MB_Add221_dd = MB_Add221(ML_Binary64)
+MB_Add212_dd = MB_Add212(ML_Binary64)
+
+MB_Mul211_dd = MB_Mul211(ML_Binary64)
+MB_Mul221_dd = MB_Mul221(ML_Binary64)
+MB_Mul212_dd = MB_Mul212(ML_Binary64)
+
+MB_Add221_fast_dd = MB_Add221_Fast(ML_Binary64)
+MB_Add212_fast_dd = MB_Add212_Fast(ML_Binary64)
+MB_Add222_dd = MB_Add222(ML_Binary64)
+
+MB_Mul222_dd = MB_Mul222(ML_Binary64)
+
+MB_Add333_ts = MB_Add333(ML_Binary32)
+MB_Add332_ts = MB_Add332(ML_Binary32)
+MB_Add323_ts = MB_Add323(ML_Binary32)
+MB_Add322_ts = MB_Add322(ML_Binary32)
+MB_Add321_ts = MB_Add321(ML_Binary32)
+MB_Add312_ts = MB_Add312(ML_Binary32)
+
+MB_Add333_td = MB_Add333(ML_Binary64)
+MB_Add332_td = MB_Add332(ML_Binary64)
+MB_Add323_td = MB_Add323(ML_Binary64)
+MB_Add322_td = MB_Add322(ML_Binary64)
+
+MB_Add321_td = MB_Add321(ML_Binary64)
+MB_Add312_td = MB_Add312(ML_Binary64)
+MB_Add321_v2_td = MB_Add321_v2(ML_Binary64)
+MB_Add312_v2_td = MB_Add312_v2(ML_Binary64)
+
+MB_Add331_td = MB_Add331(ML_Binary64)
+MB_Add313_td = MB_Add313(ML_Binary64)
+
+MB_Mul321_td = MB_Mul321(ML_Binary64)
+MB_Mul312_td = MB_Mul312(ML_Binary64)
+MB_Mul331_td = MB_Mul331(ML_Binary64)
+MB_Mul313_td = MB_Mul313(ML_Binary64)
+MB_Mul322_td = MB_Mul322(ML_Binary64)
+MB_Mul332_td = MB_Mul332(ML_Binary64)
+MB_Mul323_td = MB_Mul323(ML_Binary64)
+MB_Mul333_td = MB_Mul333(ML_Binary64)
+
+MB_Normalize_33_td = MB_Normalize_33(ML_Binary64)
 
 
 def get_MB_cost(mb):
