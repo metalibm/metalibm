@@ -145,9 +145,11 @@ class MetaBlock:
     """ class Meta-Block """
     arity = 2
     """ abstract class to document meta-block methods """
-    def __init__(self, main_precision, out_precision):
+    def __init__(self, main_precision, out_precision, cost):
         self.main_precision = main_precision
         self.out_precision = out_precision
+        # cost (latency / throughput) metric
+        self.cost = cost
 
     def __str__(self):
         return "{}(main={}, out={})".format(self.__class__.__name__, self.main_precision, self.out_precision)
@@ -204,27 +206,26 @@ def MB_CommutedVersion(BaseClass):
 
 class Op_1LimbOut_MetaBlock(MetaBlock):
     """ Virtual operation which returns a 1-limb output """
-    def __init__(self, main_precision):
-        self.main_precision = main_precision
-        self.out_precision = main_precision
+    def __init__(self, main_precision, cost):
+        MetaBlock.__init__(self, main_precision, main_precision, cost)
 
 class Op_2LimbOut_MetaBlock(MetaBlock):
     """ Virtual operation which returns a 2-limb output """
-    def __init__(self, main_precision):
-        self.main_precision = main_precision
-        self.out_precision = {
+    def __init__(self, main_precision, cost):
+        out_precision = {
             ML_Binary32: ML_SingleSingle,
             ML_Binary64: ML_DoubleDouble
-        }[self.main_precision]
+        }[main_precision]
+        MetaBlock.__init__(self, main_precision, out_precision, cost)
 
 class Op_3LimbOut_MetaBlock(MetaBlock):
     """ Virtual operation which returns a 3-limb output """
-    def __init__(self, main_precision):
-        self.main_precision = main_precision
-        self.out_precision = {
+    def __init__(self, main_precision, cost):
+        out_precision = {
             ML_Binary32: ML_TripleSingle,
             ML_Binary64: ML_TripleDouble
-        }[self.main_precision]
+        }[main_precision]
+        MetaBlock.__init__(self, main_precision, out_precision, cost)
 
 def is_single_limb_precision(prec):
     """ predicate verified when prec is not a multi-element format """
@@ -348,9 +349,6 @@ class MB_Add211_Fast(MB_Add211):
 class MB_Add211_Fast_rev(MB_Add211_Fast):
     """ Commuted version of fast Add211 """
     pass
-
-MB_Add211_Fast_dd = MB_Add211_Fast(ML_Binary64)
-MB_Add211_FastRec_dd = MB_Add211_Fast_rev(ML_Binary64)
 
 
 class MB_Mul221(MB_IntervalMul, Op_2LimbOut_MetaBlock):
@@ -1648,138 +1646,67 @@ def subnormalize_multi(x_list, factor, precision=None, fma=True):
 # declaring supported meta-blocks instanciation
 # based on single precision (ML_Binary32)
 
-MB_Add111_s = MB_Add111(ML_Binary32)
-MB_Add122_s = MB_Add122(ML_Binary32)
-
-MB_Mul111_s = MB_Mul111(ML_Binary32)
-MB_Mul122_s = MB_Mul122(ML_Binary32)
-
-MB_Add211_ss = MB_Add211(ML_Binary32)
-MB_Add222_ss = MB_Add222(ML_Binary32)
-
-MB_Mul211_ss = MB_Mul211(ML_Binary32)
-MB_Mul221_ss = MB_Mul221(ML_Binary32)
-MB_Mul212_ss = MB_Mul212(ML_Binary32)
-MB_Mul222_ss = MB_Mul222(ML_Binary32)
-
-MB_Mul322_ts = MB_Mul322(ML_Binary32)
 
 # based on double precision (ML_Binary64)
 
-MB_Add111_d = MB_Add111(ML_Binary64)
-MB_Add122_d = MB_Add122(ML_Binary64)
-MB_Add121_d = MB_Add121(ML_Binary64)
-MB_Add112_d = MB_Add112(ML_Binary64)
+MB_Add111_d = MB_Add111(ML_Binary64, 1)
+MB_Add122_d = MB_Add122(ML_Binary64, 2)
+MB_Add121_d = MB_Add121(ML_Binary64, 1.5)
+MB_Add112_d = MB_Add112(ML_Binary64, 1.5)
 
-MB_Mul111_d = MB_Mul111(ML_Binary64)
-MB_Mul122_d = MB_Mul122(ML_Binary64)
-MB_Mul112_d = MB_Mul112(ML_Binary64)
-MB_Mul121_d = MB_Mul121(ML_Binary64)
+MB_Add211_Fast_dd = MB_Add211_Fast(ML_Binary64, 1.5)
+MB_Add211_FastRec_dd = MB_Add211_Fast_rev(ML_Binary64, 1.5)
 
-MB_Add211_dd = MB_Add211(ML_Binary64)
-MB_Add221_dd = MB_Add221(ML_Binary64)
-MB_Add212_dd = MB_Add212(ML_Binary64)
+MB_Add211_dd = MB_Add211(ML_Binary64, 2)
+MB_Add221_dd = MB_Add221(ML_Binary64, 2.5)
+MB_Add212_dd = MB_Add212(ML_Binary64, 2.5)
 
-MB_Mul211_dd = MB_Mul211(ML_Binary64)
-MB_Mul221_dd = MB_Mul221(ML_Binary64)
-MB_Mul212_dd = MB_Mul212(ML_Binary64)
+MB_Add221_fast_dd = MB_Add221_Fast(ML_Binary64, 2.25)
+MB_Add212_fast_dd = MB_Add212_Fast(ML_Binary64, 2.25)
+MB_Add222_dd = MB_Add222(ML_Binary64, 3)
 
-MB_Add221_fast_dd = MB_Add221_Fast(ML_Binary64)
-MB_Add212_fast_dd = MB_Add212_Fast(ML_Binary64)
-MB_Add222_dd = MB_Add222(ML_Binary64)
+MB_Add333_td = MB_Add333(ML_Binary64, 5)
+MB_Add332_td = MB_Add332(ML_Binary64, 4.5)
+MB_Add323_td = MB_Add323(ML_Binary64, 4.5)
+MB_Add322_td = MB_Add322(ML_Binary64, 4)
 
-MB_Mul222_dd = MB_Mul222(ML_Binary64)
+MB_Add321_td = MB_Add321(ML_Binary64, 3.5)
+MB_Add312_td = MB_Add312(ML_Binary64, 3.5)
+MB_Add321_v2_td = MB_Add321_v2(ML_Binary64, 3)
+MB_Add312_v2_td = MB_Add312_v2(ML_Binary64, 3)
 
-MB_Add333_ts = MB_Add333(ML_Binary32)
-MB_Add332_ts = MB_Add332(ML_Binary32)
-MB_Add323_ts = MB_Add323(ML_Binary32)
-MB_Add322_ts = MB_Add322(ML_Binary32)
-MB_Add321_ts = MB_Add321(ML_Binary32)
-MB_Add312_ts = MB_Add312(ML_Binary32)
+MB_Add331_td = MB_Add331(ML_Binary64, 4)
+MB_Add313_td = MB_Add313(ML_Binary64, 4)
 
-MB_Add333_td = MB_Add333(ML_Binary64)
-MB_Add332_td = MB_Add332(ML_Binary64)
-MB_Add323_td = MB_Add323(ML_Binary64)
-MB_Add322_td = MB_Add322(ML_Binary64)
 
-MB_Add321_td = MB_Add321(ML_Binary64)
-MB_Add312_td = MB_Add312(ML_Binary64)
-MB_Add321_v2_td = MB_Add321_v2(ML_Binary64)
-MB_Add312_v2_td = MB_Add312_v2(ML_Binary64)
+MB_Mul111_d = MB_Mul111(ML_Binary64, 1)
+MB_Mul122_d = MB_Mul122(ML_Binary64, 2)
+MB_Mul112_d = MB_Mul112(ML_Binary64, 1.5)
+MB_Mul121_d = MB_Mul121(ML_Binary64, 1.5)
 
-MB_Add331_td = MB_Add331(ML_Binary64)
-MB_Add313_td = MB_Add313(ML_Binary64)
+MB_Mul211_dd = MB_Mul211(ML_Binary64, 2)
+MB_Mul221_dd = MB_Mul221(ML_Binary64, 2.5)
+MB_Mul212_dd = MB_Mul212(ML_Binary64, 2.5)
 
-MB_Mul321_td = MB_Mul321(ML_Binary64)
-MB_Mul312_td = MB_Mul312(ML_Binary64)
-MB_Mul331_td = MB_Mul331(ML_Binary64)
-MB_Mul313_td = MB_Mul313(ML_Binary64)
-MB_Mul322_td = MB_Mul322(ML_Binary64)
-MB_Mul332_td = MB_Mul332(ML_Binary64)
-MB_Mul323_td = MB_Mul323(ML_Binary64)
-MB_Mul333_td = MB_Mul333(ML_Binary64)
+MB_Mul222_dd = MB_Mul222(ML_Binary64, 3)
 
-MB_Normalize_33_td = MB_Normalize_33(ML_Binary64)
+MB_Mul321_td = MB_Mul321(ML_Binary64, 3.5)
+MB_Mul312_td = MB_Mul312(ML_Binary64, 3.5)
+MB_Mul331_td = MB_Mul331(ML_Binary64, 4)
+MB_Mul313_td = MB_Mul313(ML_Binary64, 4)
+MB_Mul322_td = MB_Mul322(ML_Binary64, 4)
+MB_Mul332_td = MB_Mul332(ML_Binary64, 4.5)
+MB_Mul323_td = MB_Mul323(ML_Binary64, 4.5)
+MB_Mul333_td = MB_Mul333(ML_Binary64, 5)
+
+MB_Normalize_33_td = MB_Normalize_33(ML_Binary64, 2)
 
 
 def get_MB_cost(mb):
     """ return a quick of dirty evaluation of the meta-block "cost"
         which is used to sort them and chose the less "expensive" one
     """
-    try:
-        return {
-                MB_Add333_td: 6,
-                MB_Add332_td: 5,
-                MB_Add323_td: 5,
-                MB_Add331_td: 4.5,
-                MB_Add313_td: 4.5,
-
-                MB_Add321_td: 4,
-                MB_Add312_td: 4,
-
-                MB_Add321_v2_td: 3.9,
-                MB_Add312_v2_td: 3.9,
-
-                MB_Add322_td: 4.5,
-                MB_Add211_dd: 3,
-                MB_Add211_Fast_dd: 2,
-                MB_Add211_FastRec_dd: 2,
-
-                MB_Add222_dd: 3.8,
-                MB_Add122_d: 3.5,
-
-                MB_Add121_d: 3.5,
-                MB_Add112_d: 3.5,
-
-                MB_Add212_dd: 3.6,
-                MB_Add221_dd: 3.6,
-
-                MB_Add212_fast_dd: 3.4,
-                MB_Add221_fast_dd: 3.4,
-
-                MB_Add111_d: 1,
-
-                MB_Mul111_d: 1,
-                MB_Mul211_dd: 5,
-                MB_Mul212_dd: 6,
-                MB_Mul221_dd: 6,
-                MB_Mul122_d: 6.25,
-                MB_Mul121_d: 5.25,
-                MB_Mul112_d: 5.25,
-                MB_Mul222_dd: 6.5,
-                MB_Mul331_td: 6.5,
-                MB_Mul313_td: 6.5,
-                MB_Mul321_td: 6.625,
-                MB_Mul312_td: 6.625,
-                MB_Mul322_td: 6.75,
-                MB_Mul332_td: 7,
-                MB_Mul323_td: 7,
-                MB_Mul333_td: 8,
-
-        }[mb]
-    except KeyError as e:
-        print("KeyError in get_MB_cost: for {}".format(mb))
-        raise e
+    return mb.cost
 
 
 def get_Addition_MB_compatible_list(lhs, rhs):
@@ -1806,6 +1733,8 @@ def get_Addition_MB_compatible_list(lhs, rhs):
         ]
      if mb.check_input_descriptors(lhs, rhs)
     ]
+
+
 def get_Multiplication_MB_compatible_list(lhs, rhs):
     """ return a list of metablock instance implementing a Multiplication
         and compatible with format descriptor @p lhs and @p rhs
