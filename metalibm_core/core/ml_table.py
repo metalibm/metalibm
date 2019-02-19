@@ -87,7 +87,7 @@ class ML_TableFormat(ML_Format):
     self.dimensions = dimensions
 
   ## Generate code name for the table format
-  def get_code_name(self, language = C_Code):
+  def get_code_name(self, language=None):
     storage_code_name = self.storage_precision.get_code_name(language)
     return "{}*".format(storage_code_name)
 

@@ -50,16 +50,16 @@ from ..utility.log_report import Log
 S2 = sollya.SollyaObject(2)
 
 class StdLogicDirection:
-  class Downwards: 
+  class Downwards:
     @staticmethod
     def get_descriptor(low, high):
       return "%d downto %d" % (high, low)
-  class Upwards: 
+  class Upwards:
     @staticmethod
     def get_descriptor(low, high):
       return "%d to %d" % (low, high)
 
-## Computes the negation of the positive @p value on 
+## Computes the negation of the positive @p value on
 #  @p size bits
 #  Fails if value exceeds the largest representable
 #  number of @p size - 1 bits
@@ -153,8 +153,13 @@ class ML_StdLogicVectorFormat(ML_Format):
 
   def __str__(self):
     return self.name[VHDL_Code]
-  def get_name(self, language = VHDL_Code):
+  def __repr__(self):
+    return self.name[VHDL_Code]
+  def get_name(self, language=VHDL_Code):
+    language = VHDL_Code if language is None else language
     return self.name[language]
+  def get_code_name(self, language=VHDL_Code):
+    return self.get_name(language)
 
   def get_cst(self, cst_value, language = VHDL_Code):
     if language is VHDL_Code:

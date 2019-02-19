@@ -88,9 +88,12 @@ class ML_Format(object):
             return self.name[language]
         else: return self.name[C_Code]
 
+    def __repr__(self):
+	    return self.get_code_name()
+
     ## return source code name for the format
-    def get_code_name(self, language = C_Code):
-        return self.get_name(language = language)
+    def get_code_name(self, language=None):
+        return self.get_name(language)
 
     def get_match_format(self):
         return self
@@ -100,7 +103,7 @@ class ML_Format(object):
     def get_support_format(self):
         return self
 
-    def get_display_format(self, language = C_Code):
+    def get_display_format(self, language):
         if language in self.display_format:
             return self.display_format[language]
         elif C_Code in self.display_format:
@@ -167,27 +170,31 @@ ML_FPE_DivideByZero = ML_FloatingPointException()
 ## format attribute wrapper 
 #  extend a base format with custom attributes
 class FormatAttributeWrapper(ML_Format):
-	def __init__(self, base_format, attribute_list):
-		self.base_format = base_format
-		self.attribute_list = attribute_list
+    """ Format attribute wrapper: decorators for format object
+        extend a base format with custom attributes
+        WARNING: the decorated format will not compared equal to the original
+        (undecorated) format """
+    def __init__(self, base_format, attribute_list):
+        self.base_format = base_format
+        self.attribute_list = attribute_list
 
-	def get_base_format(self):
-		return self.base_format.get_base_format()
-	def get_support_format(self):
-		return self.base_format.get_support_format()
-	def get_match_format(self):
-		return self.base_format.get_match_format()
-	def is_vector_format(self):
-		return self.base_format.is_vector_format()
-	def get_bit_size(self):
-		return self.base_format.get_bit_size()
-	def get_display_format(self, language = C_Code):
-		return self.base_format.get_display_format(language)
-	def get_name(self, language = C_Code):
-		str_list = self.attribute_list + [self.base_format.get_name(language = language)]
-		return " ".join(str_list)
-	def __str__(self):
-		return self.get_name(C_Code)
+    def get_base_format(self):
+        return self.base_format.get_base_format()
+    def get_support_format(self):
+        return self.base_format.get_support_format()
+    def get_match_format(self):
+        return self.base_format.get_match_format()
+    def is_vector_format(self):
+        return self.base_format.is_vector_format()
+    def get_bit_size(self):
+        return self.base_format.get_bit_size()
+    def get_display_format(self, language = C_Code):
+        return self.base_format.get_display_format(language)
+    def get_name(self, language = C_Code):
+        str_list = self.attribute_list + [self.base_format.get_name(language = language)]
+        return " ".join(str_list)
+    def __str__(self):
+        return self.get_name()
 
 ## Class of rounding mode type
 class ML_FloatingPoint_RoundingMode_Type(ML_Format):
@@ -573,7 +580,7 @@ class VirtualFormat(ML_Format):
     return self.base_format.get_name(language = language)
 
   ## return source code name for the format
-  def get_code_name(self, language = C_Code):
+  def get_code_name(self, language=C_Code):
     code_name = self.support_format.get_name(language = language)
     return code_name
 
