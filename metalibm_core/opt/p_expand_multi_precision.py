@@ -78,6 +78,7 @@ def is_subnormalize_op(node):
 def get_elementary_precision(multi_precision):
     """ return the elementary precision corresponding
         to multi_precision """
+    multi_precision = multi_precision.get_match_format()
     if isinstance(multi_precision, ML_FP_MultiElementFormat):
         return multi_precision.field_format_list[0]
     else:
@@ -86,7 +87,9 @@ def get_elementary_precision(multi_precision):
 
 def is_multi_precision_format(precision):
     """ check if precision is a multi-element FP format """
-    return isinstance(precision, ML_FP_MultiElementFormat)
+    if precision is None:
+        return False
+    return isinstance(precision.get_match_format(), ML_FP_MultiElementFormat)
 def multi_element_output(node):
     """ return True if node's output format is a multi-precision type """
     return is_multi_precision_format(node.precision)
@@ -119,7 +122,7 @@ class MultiPrecisionExpander:
     def expand_var(self, var_node):
         """ Expand a variable in multi-precision format into
             a list of ComponentSelection nodes """
-        var_multiformat = var_node.precision
+        var_multiformat = var_node.precision.get_match_format()
         if len(var_multiformat.field_format_list) == 2:
             return (var_node.hi, var_node.lo)
         elif len(var_multiformat.field_format_list) == 3:
@@ -161,20 +164,20 @@ class MultiPrecisionExpander:
             return (op,) if expanded_node is None else expanded_node
 
         operands_expansion = [list(wrap_expand(op)) for op in operands]
-        operands_format = [op.precision for op in operands]
+        operands_format = [op.precision.get_match_format() for op in operands]
 
-        result_precision = node.precision
-
+        result_precision = node.precision.get_match_format()
 
         elt_precision = get_elementary_precision(result_precision)
 
         try:
-            expander = expander_map[(result_precision, tuple(operands_format))]
+            expansion_key = (result_precision, tuple(operands_format))
+            expander = expander_map[expansion_key]
         except KeyError:
             Log.report(
                 Log.Error,
-                "unable to find multi-precision expander for {}",
-                node)
+                "unable to find multi-precision expander for {}, key is {}",
+                node, str(expansion_key))
         new_op = expander(*(sum(operands_expansion, [])), precision=elt_precision)
         # setting dedicated name to expanded node
         self.tag_expansion(node, new_op)

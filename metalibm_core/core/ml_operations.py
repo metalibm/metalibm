@@ -143,14 +143,16 @@ class AbstractOperation(ML_Operation):
     ## extract the High part of the Node
     @property
     def hi(self):
-        comp_precision = None if self.precision is None else self.precision.get_limb_precision(0)
+        base_precision = self.precision.get_base_format()
+        comp_precision = None if base_precision is None else base_precision.get_limb_precision(0)
         op_tag = self.get_tag()
         limb_tag = op_tag + "_hi" if not op_tag is None else None
         return ComponentSelection(self, specifier=ComponentSelection.Hi, precision=comp_precision, tag=limb_tag)
 
     @property
     def me(self):
-        comp_precision = None if self.precision is None else self.precision.get_limb_precision(1)
+        base_precision = self.precision.get_base_format()
+        comp_precision = None if base_precision is None else base_precision.get_limb_precision(1)
         op_tag = self.get_tag()
         limb_tag = op_tag + "_me" if not op_tag is None else None
         return ComponentSelection(self, specifier=ComponentSelection.Me, precision=comp_precision, tag=limb_tag)
@@ -158,7 +160,8 @@ class AbstractOperation(ML_Operation):
     ## extract the Low part of the Node
     @property
     def lo(self):
-        comp_precision = None if self.precision is None else self.precision.get_limb_precision(self.precision.limb_num - 1)
+        base_precision = self.precision.get_base_format()
+        comp_precision = None if base_precision is None else base_precision.get_limb_precision(base_precision.limb_num - 1)
         op_tag = self.get_tag()
         limb_tag = op_tag + "_lo" if not op_tag is None else None
         return ComponentSelection(self, specifier=ComponentSelection.Lo, precision=comp_precision, tag=limb_tag)
