@@ -85,6 +85,7 @@ class OpUnitBench(object):
         self.input_precisions = input_precisions
         self.bench_name = bench_name
 
+
     # generate bench
     def generate_bench(self, processor, test_num=1000, unroll_factor=10):
         """ generate performance bench for self.op_class """
@@ -111,11 +112,11 @@ class OpUnitBench(object):
         printf_timing_op = FunctionOperator(
             "printf",
             arg_map={
-                0: "\"%s[%s] %%lld elts computed "\
-                   "in %%lld cycles =>\\n     %%.3f CPE \\n\"" %
+                0: "\"%s[%s] %%\"PRIi64\" elts computed "\
+                   "in %%\"PRIi64\" cycles =>\\n     %%.3f CPE \\n\"" %
                 (
                     self.bench_name,
-                    self.output_precision.get_display_format()
+                    self.output_precision.get_display_format().format_string
                 ),
                 1: FO_Arg(0),
                 2: FO_Arg(1),
@@ -155,7 +156,7 @@ class OpUnitBench(object):
         # elementary operation latency
         local_inputs = tuple(var_inputs)
         local_result = self.op_class(
-            *local_inputs, 
+            *local_inputs,
                         precision=self.output_precision,
                         unbreakable = True
                     )
@@ -267,7 +268,7 @@ OPERATOR_BENCH_MAP = {
       lambda precision:
       OpUnitBench(
           metaop.Multiplication, "Multiplication %s" % precision, 2,
-          Interval(-1000, 1000), 
+          Interval(-1000, 1000),
                   output_precision=precision,
           input_precisions=[precision] * 2
       ),
@@ -308,32 +309,29 @@ class UnitBench(ML_Function("ml_unit_bench")):
     """ Implementation of unitary operation node bench """
 
     def __init__(self,
-                 arg_template=DefaultArgTemplate,
-                 output_file="bench.c",
-                 function_name="main",
+                 args=DefaultArgTemplate,
                  ):
         arity = 0
 
         # initializing base class
-        ML_FunctionBasis.__init__(self,
-                                  base_name="bench",
-                                  function_name=function_name,
-                                  output_file=output_file,
-                                  arity=arity,
-                                  arg_template=arg_template
-                                  )
-        # number of basic iteration
-        self.test_num = arg_template.test_num
-        self.unroll_factor = arg_template.unroll_factor
-        # dict of operations to be benched
-        self.operation_map = arg_template.operation_map
+        ML_FunctionBasis.__init__(self, args=args)
 
+        # number of basic iteration
+        self.test_num = args.test_num
+        self.unroll_factor = args.unroll_factor
+        # dict of operations to be benched
+        self.operation_map = args.operation_map
+
+    def get_execute_handle(self):
+        return self.function_name
 
     @staticmethod
     def get_default_args(**kw):
         """ generate default argument structure for OpUnitBench """
         default_values = {
             "precision": ML_Int32,
+            "output_file": "unit_bench.c",
+            "function_name": "unit_bench",
         }
         default_values.update(kw)
         return DefaultArgTemplate(**default_values)
@@ -382,7 +380,7 @@ def operation_parser(s):
 
 def operation_map_parser(s):
     """ Convert a operation map string description into the corresponding
-        dictionnary 
+        dictionnary
 
         Args:
             s (str): operation map string decription
@@ -414,7 +412,6 @@ def operation_map_parser(s):
 if __name__ == "__main__":
     # auto-test
     arg_template = ML_NewArgTemplate(
-        default_function_name="main", default_output_file="bench.c",
         default_arg=UnitBench.get_default_args())
 
 
