@@ -344,6 +344,10 @@ class ML_FunctionBasis(object):
   def get_vector_size(self):
     return self.vector_size
 
+  def get_execute_handle(self):
+    """ return the name of the main function to be called on execution """
+    raise NotImplementedError
+
 
   ## generate a default argument template
   #  may be overloaded by sub-class to provide
@@ -693,10 +697,7 @@ class ML_FunctionBasis(object):
         # only executing if build was successful
         if not(bin_file is None) and self.execute_trigger:
             loaded_module = bin_file.load()
-            # test_command = " %s " % self.processor.get_execution_command(test_file)
-            #Log.report(Log.Info, "VALIDATION {} command line: {}".format(
-            #    self.get_name(), test_command
-            #))
+
             if self.bench_enabled:
                 cpe_measure = loaded_module.get_function_handle("bench_wrapper")()
                 print("imported cpe_measure={}".format(cpe_measure))
@@ -706,7 +707,8 @@ class ML_FunctionBasis(object):
                     Log.report(Log.Info, "VALIDATION SUCCESS")
                 else:
                     Log.report(Log.Error, "VALIDATION FAILURE", error=ValidError())
-
+            if not (self.bench_enabled or self.auto_test_enable):
+                execution_result = loaded_module.get_function_handle(self.get_execute_handle())()
 
 
   ## externalized an optree: generate a CodeFunction which compute the 
