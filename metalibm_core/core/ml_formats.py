@@ -167,8 +167,6 @@ ML_FPE_Invalid      = ML_FloatingPointException()
 ## ML object for floating-point divide by zero exception
 ML_FPE_DivideByZero = ML_FloatingPointException()
 
-## format attribute wrapper 
-#  extend a base format with custom attributes
 class FormatAttributeWrapper(ML_Format):
     """ Format attribute wrapper: decorators for format object
         extend a base format with custom attributes
