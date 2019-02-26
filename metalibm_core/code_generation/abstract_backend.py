@@ -118,7 +118,7 @@ class AbstractBackend(object):
                         sourceinfo = implementation.get_source_info()
                         Log.report(
                             Log.Verbose,
-                            "optree {} to implementation @ {}",
+                            "optree {} matched to implementation @ {}",
                             optree,
                             str(sourceinfo)
                         )
