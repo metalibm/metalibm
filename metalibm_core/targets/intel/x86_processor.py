@@ -819,8 +819,8 @@ def linearize_2d_tableload(optree):
         Addition(
             Multiplication(
                 index_0,
-                Constant(table.dimensions[1], precision=index_prec),
-                precsion=index_prec
+                build_format_constant(table.dimensions[1], precision=index_prec),
+                precision=index_prec
             ),
             index_1,
             precision=index_prec
