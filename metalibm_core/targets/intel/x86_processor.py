@@ -551,10 +551,12 @@ def build_format_constant(value, precision):
     else:
         return Constant(value, precision=precision)
 
-def pred_vector_select_one_zero(optree):
+def pred_vector_select_mone_zero(optree):
     """ Predicate returns True if and only if
         optree is Select(cond, -1, 0) or Select(cond, 0, -1)
-        False otherwise """
+        False otherwise.
+        Only returns True for integer-like format (-1 being equivalent
+        to a mask fully set, and 0 to a mask fully cleared) """
     if not isinstance(optree, Select):
         return False
     elif not isinstance(optree.get_input(0), Comparison):
@@ -564,13 +566,13 @@ def pred_vector_select_one_zero(optree):
     else:
         lhs = optree.get_input(1)
         rhs = optree.get_input(2)
-        cst_pred = (is_vector_cst_with_value(lhs, -1) and is_vector_cst_with_value(rhs, 0)) or \
-               (is_vector_cst_with_value(lhs, 0) and is_vector_cst_with_value(rhs, -1))
+        cst_pred = (is_vector_cst_with_value(lhs, VIRTUAL_CST_MASK_M1) and is_vector_cst_with_value(rhs, VIRTUAL_CST_MASK_0)) or \
+               (is_vector_cst_with_value(lhs, VIRTUAL_CST_MASK_0) and is_vector_cst_with_value(rhs, VIRTUAL_CST_MASK_M1))
         return cst_pred
 
 def not_pred_vector_select_one_zero(optree):
-    """ Negation of the predicate pred_vector_select_one_zero """
-    return not(pred_vector_select_one_zero(optree))
+    """ Negation of the predicate pred_vector_select_mone_zero """
+    return not(pred_vector_select_mone_zero(optree))
 
 
 def invert_comp_specifier(comp_specifier):
@@ -728,14 +730,31 @@ def squash_sse_avx_cst_select(optree):
         # if condition and result formats do not match, we need to insert a cast
         new_cond = TypeCast(new_cond, precision=result_prec)
 
-    if is_vector_cst_with_value(lhs, -1) and is_vector_cst_with_value(rhs, 0):
+    if is_vector_cst_with_value(lhs, VIRTUAL_CST_MASK_M1) and is_vector_cst_with_value(rhs, VIRTUAL_CST_MASK_0):
         return wrapper(new_cond)
-    elif is_vector_cst_with_value(lhs, 0) and is_vector_cst_with_value(rhs, -1):
+    elif is_vector_cst_with_value(lhs, VIRTUAL_CST_MASK_0) and is_vector_cst_with_value(rhs, VIRTUAL_CST_MASK_M1):
         new_cond.specifier = invert_comp_specifier(cond.specifier)
         return wrapper(new_cond)
     else:
         raise NotImplementedError
 
+
+class VIRTUAL_CST_MASK:
+    """ Virtual constant value for  mask,
+        used to avoid confusion with constant with identical numerical value 
+        but different physical values  when manipulating binary mask """
+    
+class VIRTUAL_CST_MASK_M1(VIRTUAL_CST_MASK):
+    def __str__(self):
+        return "VIRTUAL_CST_MASK_M1"
+    def __repr__(self):
+        return "VIRTUAL_CST_MASK_M1"
+
+class VIRTUAL_CST_MASK_0(VIRTUAL_CST_MASK):
+    def __str__(self):
+        return "VIRTUAL_CST_MASK_0"
+    def __repr__(self):
+        return "VIRTUAL_CST_MASK_0"
 
 def convert_select_to_logic(optree):
     """ Convert Select(cond, a, b) into
@@ -749,8 +768,9 @@ def convert_select_to_logic(optree):
     lhs = optree.get_input(1)
     rhs = optree.get_input(2)
     prec = optree.get_precision()
-    C0 = build_format_constant(0, prec)
-    CM1 = build_format_constant(-1, prec)
+    # determining integer precision
+    C0 = build_format_constant(VIRTUAL_CST_MASK_0, prec)
+    CM1 = build_format_constant(VIRTUAL_CST_MASK_M1, prec)
     result = BitLogicOr(
         BitLogicAnd(
             Select(
@@ -936,10 +956,12 @@ sse_c_code_generation_table = {
     },
     Select: {
         None: {
-            pred_vector_select_one_zero: {
+            pred_vector_select_mone_zero: {
                 type_strict_match(ML_SSE_m128_v4int32, ML_SSE_m128_v4bool, ML_SSE_m128_v4int32, ML_SSE_m128_v4int32):
                     ComplexOperator(squash_sse_avx_cst_select),
                 type_strict_match(ML_SSE_m128_v4uint32, ML_SSE_m128_v4bool, ML_SSE_m128_v4uint32, ML_SSE_m128_v4uint32):
+                    ComplexOperator(squash_sse_avx_cst_select),
+                type_strict_match(ML_SSE_m128_v4float32, ML_SSE_m128_v4bool, ML_SSE_m128_v4float32, ML_SSE_m128_v4float32):
                     ComplexOperator(squash_sse_avx_cst_select),
             },
             not_pred_vector_select_one_zero: {
@@ -2647,7 +2669,7 @@ avx2_c_code_generation_table = {
     },
     Select: {
         None: {
-            pred_vector_select_one_zero: {
+            pred_vector_select_mone_zero: {
                 type_strict_match(ML_AVX_m256_v8int32, ML_AVX_m256_v8bool,
                                   ML_AVX_m256_v8int32, ML_AVX_m256_v8int32):
                     # TODO update the naming to reflect AVX support
