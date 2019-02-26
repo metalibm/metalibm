@@ -1572,8 +1572,8 @@ class VectorBackend(GenericProcessor):
   TargetRegister.register_new_target(target_name, lambda _: VectorBackend)
 
   code_generation_table = {
-    C_Code: vector_c_code_generation_table, 
-    OpenCL_Code: vector_opencl_code_generation_table, 
+    C_Code: vector_c_code_generation_table,
+    OpenCL_Code: vector_opencl_code_generation_table,
   }
 
   def __init__(self, *args):
@@ -1585,7 +1585,7 @@ class VectorBackend(GenericProcessor):
     """ return whether or not the operation performed by optree is supported by any level of the processor hierarchy """
     language_supported =  self.is_map_supported_operation(self.simplified_rec_op_map, optree, language, debug = debug, key_getter = key_getter)
     # fallback to C_Code
-    if language is OpenCL_Code and fallback: 
+    if language is OpenCL_Code and fallback:
       return language_supported or self.is_map_supported_operation(self.simplified_rec_op_map, optree, language = C_Code, debug = debug, key_getter = key_getter)
     else:
       return language_supported
@@ -1607,7 +1607,7 @@ class VectorBackend(GenericProcessor):
     Log.report(Log.Verbose, "[VectorBackend] Tested architecture(s) for language %s:" % str(language))
     for parent_proc in self.parent_architecture:
       Log.report(Log.Verbose, "  %s " % parent_proc)
-    Log.report(Log.Error, "the following operation is not supported by %s: \n%s" % (self.__class__, optree.get_str(depth = 2, display_precision = True, memoization_map = {}))) 
+    Log.report(Log.Error, "the following operation is not supported by vector_backend %s: \n%s" % (self.__class__, optree.get_str(depth = 2, display_precision = True, memoization_map = {}))) 
 
 # debug message
 Log.report(LOG_BACKEND_INIT, "Initializing vector backend target")
