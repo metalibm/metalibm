@@ -90,7 +90,7 @@ def get_sseavx_vector_bool_cst(format_object, value, language=C_Code):
     """
     # ML_<SSE/AVX>_v<i>bool is not a pratical format, it should not appear
     # during code generation (including constant generation)
-    Log.report(Log.Error, "ML_(SSE/AVX>_v<i>bool format should not generate code")
+    Log.report(Log.Error, "ML_(SSE/AVX)_v<i>bool format {} with value {} should not generate code", format_object, value)
     raise NotImplementedError
 
 def get_sse_vector_int_cst(format_object, value, language=C_Code):

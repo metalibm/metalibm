@@ -116,13 +116,13 @@ class StaticVectorizer(object):
         vector_masks        = []
         vector_arg_list = []
 
-        def assembling_vector(args, precision = None, tag = None):
+        def assembling_vector(args, precision=None, tag=None):
             """ Assembling a vector from sub-vectors, simplify to identity
                 if there is only ONE sub-vector """
             if len(args) == 1:
                 return args[0]
             else:
-                return VectorAssembling(*args, precision = precision, tag = tag)
+                return VectorAssembling(*args, precision=precision, tag=tag)
 
         def extract_const(in_dict):
             result_dict = {}

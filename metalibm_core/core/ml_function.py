@@ -863,9 +863,15 @@ class ML_FunctionBasis(object):
 
     vector_mask.set_attributes(tag = "vector_mask", debug = debug_multi)
 
-    ## Test whether a vector-mask is fully set to True
-    #  in order to disable scalar fallback generation
     def no_scalar_fallback_required(mask):
+      """ Test whether a vector-mask is fully set to True, in order to
+          disable scalar fallback generation """
+      if isinstance(mask, VectorAssembling):
+        # recursive application for sub-vector support
+        return reduce(lambda acc, v: (no_scalar_fallback_required(v) and acc), mask.get_inputs(), True)
+      elif isinstance(mask, Conversion):
+        return no_scalar_fallback_required(mask.get_input(0))
+
       return isinstance(mask, Constant) and \
             reduce(lambda v, acc: (v and acc), mask.get_value(), True)
 
