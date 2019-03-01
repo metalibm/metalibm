@@ -446,7 +446,7 @@ class ML_Log(ML_Function("ml_log")):
             precision = size_t_prec
             )
     table_index = BitLogicAnd(
-            Conversion(ri_bits, precision = size_t_prec),
+            Conversion(ri_bits, precision = size_t_prec) if size_t_prec != uint_prec else ri_bits,
             table_index_mask,
             tag = 'table_index',
             precision = size_t_prec
@@ -464,13 +464,8 @@ class ML_Log(ML_Function("ml_log")):
             tag="tmp"
             )
     # A true tmp will typically be -1 for VectorBackends, but 1 for standard C.
-    tau = Conversion(
-        Addition(tmp, Constant(1, precision=signed_size_t_prec), precision = signed_size_t_prec, tag="pre_add")
-            if isinstance(self.processor, VectorBackend)
-            else tmp,
-            precision=int_prec,
-            tag="pre_tau"
-        )
+    pre_tau = Addition(tmp, Constant(1, precision=signed_size_t_prec), precision = signed_size_t_prec, tag="pre_add") if isinstance(self.processor, VectorBackend) else tmp
+    tau = pre_tau if int_prec == signed_size_t_prec else Conversion(tmp, precision=int_prec)
     tau.set_attributes(tag = 'tau')
     # Update table_index: keep only table_index_size bits
     table_index_hi = BitLogicAnd(
