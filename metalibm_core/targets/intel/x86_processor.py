@@ -856,6 +856,12 @@ def expand_sse_comparison(optree):
             Comparison(lhs, rhs, specifier=Comparison.Greater, precision=op_prec),
             precision=op_prec
         )
+    elif optree.specifier is Comparison.GreaterOrEqual:
+        return BitLogicOr(
+            Comparison(lhs, rhs, specifier=Comparison.Greater, precision=op_prec),
+            Comparison(lhs, rhs, specifier=Comparison.Equal, precision=op_prec),
+            precision=op_prec
+        )
     else:
         raise NotImplementedError
 
@@ -1062,8 +1068,10 @@ sse_c_code_generation_table = {
             lambda _: True: {
                 type_strict_match_or_list([
                         (ML_SSE_m128_v4int32, ML_SSE_m128_v4int32, ML_SSE_m128_v4int32),
-                        (ML_SSE_m128_v4uint32, ML_SSE_m128_v4uint32, ML_SSE_m128_v4uint32),
-                        (ML_SSE_m128_v4float32, ML_SSE_m128_v4float32, ML_SSE_m128_v4float32)]):
+                        (ML_SSE_m128_v4uint32, ML_SSE_m128_v4uint32, ML_SSE_m128_v4uint32)
+                    ]):
+                    ComplexOperator(expand_sse_comparison),
+                type_strict_match(ML_SSE_m128_v4float32, ML_SSE_m128_v4float32, ML_SSE_m128_v4float32):
                     DynamicOperator(generate_sse_avx_comparison),
                 # 3 Dummy operators used to allow m128_promotion to promote squashable comparison
                 type_strict_match_or_list([
