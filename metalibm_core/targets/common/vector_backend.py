@@ -761,6 +761,8 @@ vector_c_code_generation_table = {
             ML_VectorLib_Function("ML_VLOAD2D", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2), 4: "8"}, arity = 5),
         type_custom_match(FSM(v8float32), TCM(ML_TableFormat), FSM(v8uint32)):
             ML_VectorLib_Function("ML_VLOAD", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3:  "8"}, arity = 4),
+        type_custom_match(FSM(v8float64), TCM(ML_TableFormat), FSM(v8uint32)):
+            ML_VectorLib_Function("ML_VLOAD", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3:  "8"}, arity = 4),
       },
     },
   },
@@ -793,11 +795,16 @@ vector_c_code_generation_table = {
         type_strict_match(v4uint32, v4uint32, v4uint32): ML_VectorLib_Function("ml_vbwandu4", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2),
         type_strict_match(v8uint32, v8uint32, v8uint32): ML_VectorLib_Function("ml_vbwandu8", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2),
 
-        # 64-bit version
+        # signed 64-bit version
         type_strict_match(v4int64, v4int64, v4int64):
             ML_VectorLib_Function("ml_vbwandl4", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v4int64),
         type_strict_match(v8int64, v8int64, v8int64):
             ML_VectorLib_Function("ml_vbwandl8", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v8int64),
+        # unsigned 64-bit version
+        type_strict_match(v4uint64, v4uint64, v4uint64):
+            ML_VectorLib_Function("ml_vbwandul4", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision=v4uint64),
+        type_strict_match(v8uint64, v8uint64, v8uint64):
+            ML_VectorLib_Function("ml_vbwandul8", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision=v8uint64),
       },
     },
   },
@@ -807,8 +814,18 @@ vector_c_code_generation_table = {
         type_strict_match(v4int32, v4int32, v4int32): ML_VectorLib_Function("ml_vbwori4", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v4int32),
         type_strict_match(v4uint32, v4uint32, v4uint32): ML_VectorLib_Function("ml_vbworu4", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2),
 
-        type_strict_match(v8int32, v8int32, v8int32): ML_VectorLib_Function("ml_vbwori4", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v8int32),
-        type_strict_match(v8uint32, v8uint32, v8uint32): ML_VectorLib_Function("ml_vbworu4", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2),
+        type_strict_match(v8int32, v8int32, v8int32): ML_VectorLib_Function("ml_vbwori8", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v8int32),
+        type_strict_match(v8uint32, v8uint32, v8uint32): ML_VectorLib_Function("ml_vbworu8", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2),
+        # signed 64-bit version
+        type_strict_match(v4int64, v4int64, v4int64):
+            ML_VectorLib_Function("ml_vbworl4", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v4int64),
+        type_strict_match(v8int64, v8int64, v8int64):
+            ML_VectorLib_Function("ml_vbworl8", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v8int64),
+        # 64-bit version
+        type_strict_match(v4uint64, v4uint64, v4uint64):
+            ML_VectorLib_Function("ml_vbworul4", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision=v4uint64),
+        type_strict_match(v8uint64, v8uint64, v8uint64):
+            ML_VectorLib_Function("ml_vbworul8", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision=v8uint64),
         },
     },
   },
@@ -1150,6 +1167,9 @@ vector_c_code_generation_table = {
         type_strict_match(v4uint32, v4uint64) :  ML_VectorLib_Function("ML_VCONV", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: "4"}, arity = 3),
         type_strict_match(v4int64, v4int32) :  ML_VectorLib_Function("ML_VCONV", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: "4"}, arity = 3),
         type_strict_match(v4float64, v4int32) :  ML_VectorLib_Function("ML_VCONV", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: "4"}, arity = 3),
+
+        type_strict_match(v8uint32, v8uint64) :  ML_VectorLib_Function("ML_VCONV", arg_map={0: FO_ResultRef(0), 1: FO_Arg(0), 2: "4"}, arity=3),
+        type_strict_match(v8int64, v8int32) :  ML_VectorLib_Function("ML_VCONV", arg_map={0: FO_ResultRef(0), 1: FO_Arg(0), 2: "4"}, arity=3),
       },
     },
   },
@@ -1246,6 +1266,11 @@ vector_c_code_generation_table = {
                 ML_VectorLib_Function("VECTORIZE_OP1", arg_map = {0: "double_to_64b_encoding", 1: FO_ResultRef(0), 2: FO_Arg(0), 3: "8"}, arity = 1, output_precision = v8uint64),
               type_strict_match(v8float64, v8uint64):
                 ML_VectorLib_Function("VECTORIZE_OP1", arg_map = {0: "double_from_64b_encoding", 1: FO_ResultRef(0), 2: FO_Arg(0), 3: "8"}, arity = 1, output_precision = v8float64),
+
+              type_strict_match(v8uint64, v8int64):
+                ML_VectorLib_Function("VECTORIZE_OP1", arg_map={0: "(uint64_t)", 1: FO_ResultRef(0), 2: FO_Arg(0), 3: "4"}, arity=1, output_precision=v8uint64),
+              type_strict_match(v8int64, v8uint64):
+                ML_VectorLib_Function("VECTORIZE_OP1", arg_map={0: "(int64_t)", 1: FO_ResultRef(0), 2: FO_Arg(0), 3: "4"}, arity=1, output_precision=v8int64),
 
               # 8-element variants
               type_strict_match(v8float32, v8int32):

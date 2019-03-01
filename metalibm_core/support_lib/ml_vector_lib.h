@@ -196,9 +196,13 @@ DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsrlu2, ml_uint2_t, uint32_t, 2, >>)
 DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsrlu4, ml_uint4_t, uint32_t, 4, >>)
 DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsrlu8, ml_uint8_t, uint32_t, 8, >>)
 
-DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsrll2, ml_long2_t, uint64_t, 2, >>)
-DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsrll4, ml_long4_t, uint64_t, 4, >>)
-DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsrll8, ml_long8_t, uint64_t, 8, >>)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsrll2, ml_long2_t, int64_t, 2, >>)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsrll4, ml_long4_t, int64_t, 4, >>)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsrll8, ml_long8_t, int64_t, 8, >>)
+
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsrlul2, ml_ulong2_t, uint64_t, 2, >>)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsrlul4, ml_ulong4_t, uint64_t, 4, >>)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsrlul8, ml_ulong8_t, uint64_t, 8, >>)
 
 /** Vector Arithmethic Right Shift */
 DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsrai2, ml_int2_t, int32_t, 2, >>)
@@ -320,6 +324,10 @@ DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vbwandl2, ml_long2_t, int64_t, 2, &)
 DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vbwandl4, ml_long4_t, int64_t, 4, &)
 DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vbwandl8, ml_long8_t, int64_t, 8, &)
 
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vbwandul2, ml_ulong2_t, uint64_t, 2, &)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vbwandul4, ml_ulong4_t, uint64_t, 4, &)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vbwandul8, ml_ulong8_t, uint64_t, 8, &)
+
 /** Vector bitwise or */
 DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vbwori2, ml_int2_t, int32_t, 2, |)
 DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vbwori4, ml_int4_t, int32_t, 4, |)
@@ -329,6 +337,14 @@ DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vbworu2, ml_uint2_t, int32_t, 2,|)
 DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vbworu4, ml_uint4_t, int32_t, 4,|)
 DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vbworu8, ml_uint8_t, int32_t, 8,|)
 
+
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vbworl2, ml_long2_t, int64_t, 2, |)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vbworl4, ml_long4_t, int64_t, 4, |)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vbworl8, ml_long8_t, int64_t, 8, |)
+
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vbworul2, ml_ulong2_t, uint64_t, 2, |)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vbworul4, ml_ulong4_t, uint64_t, 4, |)
+DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vbworul8, ml_ulong8_t, uint64_t, 8, |)
 /** Vector bitwise not */
 DEF_ML_VECTOR_PRIMITIVES_OP1(ml_vbwnoti2, ml_int2_t, int32_t, 2, ~)
 DEF_ML_VECTOR_PRIMITIVES_OP1(ml_vbwnoti4, ml_int4_t, int32_t, 4, ~)
