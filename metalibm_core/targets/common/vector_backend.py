@@ -690,6 +690,25 @@ vector_c_code_generation_table = {
         }
     },
   },
+  ReciprocalSquareRootSeed: {
+    None: {
+        lambda _: True: {
+            type_strict_match(v2float32, v2float32):
+                ComplexOperator(optree_modifier=unroll_vector_class(ReciprocalSquareRootSeed)),
+            type_strict_match(v3float32, v3float32):
+                ComplexOperator(optree_modifier=unroll_vector_class(ReciprocalSquareRootSeed)),
+            type_strict_match(v4float32, v4float32):
+                ComplexOperator(optree_modifier=unroll_vector_class(ReciprocalSquareRootSeed)),
+            type_strict_match(v8float32, v8float32):
+                ComplexOperator(optree_modifier=unroll_vector_class(ReciprocalSquareRootSeed)),
+            # double precision
+            type_strict_match(v4float64, v4float64):
+                ComplexOperator(optree_modifier=unroll_vector_class(ReciprocalSquareRootSeed)),
+            type_strict_match(v8float64, v8float64):
+                ComplexOperator(optree_modifier=unroll_vector_class(ReciprocalSquareRootSeed)),
+        }
+    },
+  },
   VectorAssembling: {
     None: {
       lambda _: True: {
@@ -1060,6 +1079,10 @@ vector_c_code_generation_table = {
             ML_VectorLib_Function("ml_vexp_extraction_d4", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)}, arity = 1, output_precision = v4int32),
         type_strict_match(v8int32, v8float64):
             ML_VectorLib_Function("ml_vexp_extraction_d8", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)}, arity = 1, output_precision = v8int32),
+        type_strict_match(v4int64, v4float64):
+            ML_VectorLib_Function("ml_vexp_extraction_d4", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)}, arity = 1, output_precision = v4int64),
+        type_strict_match(v8int64, v8float64):
+            ML_VectorLib_Function("ml_vexp_extraction_d8", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)}, arity = 1, output_precision = v8int64),
       }
     },
   },
