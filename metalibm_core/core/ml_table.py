@@ -42,6 +42,7 @@ from .attributes import Attributes, attr_init
 from .ml_formats import (
     ML_Int32, ML_Int64, ML_UInt32, ML_UInt64, ML_Format, ML_FP_Format)
 from ..code_generation.code_constant import *
+from ..code_generation.code_configuration import CodeConfiguration
 
 from ..utility.source_info import SourceInfo
 
@@ -74,8 +75,9 @@ def get_table_content(table, dimensions, storage_precision, language = C_Code):
     if len(dimensions) == 1:
         return "{" + ", ".join([storage_precision.get_cst(value, language = language) for value in table]) + "}"
     else:
-        code = "{\n  "
-        code += ",\n  ".join(get_table_content(line, dimensions[1:], storage_precision, language = language) for line in table)
+        row_suffix = "\n" + CodeConfiguration.tab
+        code = "{" + row_suffix
+        code += ("," + row_suffix).join(get_table_content(line, dimensions[1:], storage_precision, language = language) for line in table)
         code += "\n}"
         return code
 
@@ -189,7 +191,7 @@ class ML_Table(ML_LeafNode):
         attribute_str = "" if not display_attribute else self.attributes.get_str(tab_level = tab_level)
         precision_str = "" if not display_precision else "[%s]" % str(self.get_storage_precision())
         custom_str = custom_callback(self)
-        return "  " * tab_level + custom_str + "%s[%s]%s%s%s\n" % (
+        return CodeConfiguration.tab * tab_level + custom_str + "%s[%s]%s%s%s\n" % (
             self.str_name,
             "][".join([str(dim) for dim in self.dimensions]),
             precision_str, id_str, attribute_str

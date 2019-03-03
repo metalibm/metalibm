@@ -46,6 +46,7 @@ from .code_constant import (
 from ..core.ml_formats import ML_GlobalRoundMode, ML_Fixed_Format, ML_FP_Format, FunctionFormat
 
 from ..utility import version_info as ml_version_info
+from .code_configuration import CodeConfiguration
 
 
 class DataLayout(object):
@@ -282,8 +283,9 @@ def get_git_tag():
     return git_tag
 
 
-class CodeObject(object):
-    tab = "    "
+
+
+class CodeObject(CodeConfiguration):
     level_header = "{\n"
     level_footer = "}"
     # Prefix added to every free variable name
@@ -632,8 +634,7 @@ class LLVMCodeObject(CodeObject):
         parent_code << "\n"
 
 
-class VHDLCodeObject(object):
-    tab = "    "
+class VHDLCodeObject(CodeConfiguration):
     def __init__(self, language, shared_tables = None, parent_tables = None, rounding_mode = ML_GlobalRoundMode, uniquifier = "", main_code_level = False, var_ctor = None):
         """ code object initialization """
         self.expanded_code = ""
