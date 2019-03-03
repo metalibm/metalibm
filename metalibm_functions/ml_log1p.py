@@ -25,9 +25,13 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 ###############################################################################
-# last-modified:        Mar    7th, 2018
+#
+# created:            Mar   11th, 2016
+# last-modified:      Mar    3rd, 2019
+#
+# description: meta-implementation of log(1+x)
+#
 ###############################################################################
-import sys
 
 import sollya
 
@@ -35,36 +39,30 @@ from sollya import (
         Interval, ceil, floor, round, inf, sup, log, exp, log1p,
         guessdegree
 )
-S2 = sollya.SollyaObject(2)
 
-from metalibm_core.core.ml_function import ML_Function, ML_FunctionBasis, DefaultArgTemplate
-from metalibm_core.core.attributes import ML_Debug
+from metalibm_core.core.ml_function import ML_FunctionBasis, DefaultArgTemplate
 from metalibm_core.core.ml_operations import *
 from metalibm_core.core.ml_formats import *
-from metalibm_core.core.polynomials import *
+from metalibm_core.core.polynomials import Polynomial, PolynomialSchemeEvaluator
 from metalibm_core.core.ml_table import ML_NewTable
-
 from metalibm_core.core.precisions import ML_Faithful
 from metalibm_core.core.special_values import (
         FP_QNaN, FP_MinusInfty, FP_PlusInfty, FP_PlusZero
 )
 
-from metalibm_core.code_generation.c_code_generator import CCodeGenerator
 from metalibm_core.code_generation.generic_processor import GenericProcessor
-from metalibm_core.code_generation.code_object import CodeObject
-from metalibm_core.code_generation.code_function import CodeFunction
-from metalibm_core.code_generation.code_constant import C_Code
-from metalibm_core.code_generation.generator_utility import FunctionOperator
 
-from metalibm_core.utility.gappa_utils import execute_gappa_script_extract
-from metalibm_core.utility.arg_utils import test_flag_option, extract_option_value
-from metalibm_core.utility.ml_template import ML_NewArgTemplate, ArgDefault
+from metalibm_core.utility.ml_template import ML_NewArgTemplate
 from metalibm_core.utility.debug_utils import debug_multi
 
-class ML_Log1p(ML_Function("ml_log1p")):
+
+# static constant for numerical value 2
+S2 = sollya.SollyaObject(2)
+
+class ML_Log1p(ML_FunctionBasis):
+    function_name = "ml_log1p"
     def __init__(self, args):
         ML_FunctionBasis.__init__(self, args)
-
 
     @staticmethod
     def get_default_args(**kw):
@@ -120,7 +118,7 @@ class ML_Log1p(ML_Function("ml_log1p")):
                 log_table[i][1] = value_low
 
 
-        vx_exp = ExponentExtraction(vx, tag = "vx_exp", debug = debug_multi)
+        vx_exp = ExponentExtraction(vx, tag="vx_exp", debug=debug_multi)
 
         # case close to 0: ctz
         ctz_exp_limit = -7
@@ -141,10 +139,6 @@ class ML_Log1p(ML_Function("ml_log1p")):
         vx_snan = Test(vx, specifier = Test.IsSignalingNaN, likely = False, debug = debug_multi, tag = "snan")
         vx_inf    = Test(vx, specifier = Test.IsInfty, likely = False, debug = debug_multi, tag = "inf")
         vx_subnormal = Test(vx, specifier = Test.IsSubnormal, likely = False, debug = debug_multi, tag = "vx_subnormal")
-
-        log_function_code = CodeFunction("new_log", [Variable("x", precision = ML_Binary64)], output_format = ML_Binary64) 
-        log_call_generator = FunctionOperator(log_function_code.get_name(), arity = 1, output_precision = ML_Binary64, declare_prototype = log_function_code)
-        newlog_function = FunctionObject(log_function_code.get_name(), (ML_Binary64,), ML_Binary64, log_call_generator)
 
 
         # case away from 0.0
