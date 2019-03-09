@@ -36,8 +36,8 @@
 import sollya
 
 from sollya import (
-        Interval, ceil, floor, round, inf, sup, log, exp, log1p,
-        guessdegree
+    Interval, ceil, floor, round, inf, sup, log, exp, log1p,
+    guessdegree
 )
 
 from metalibm_core.core.ml_function import ML_FunctionBasis, DefaultArgTemplate
@@ -110,27 +110,28 @@ class ML_Log1p(ML_FunctionBasis):
         log_table[0][0] = 0.0
         log_table[0][1] = 0.0
         for i in range(1, 2**table_index_size):
-                #inv_value = (1.0 + (self.processor.inv_approx_table[i] / S2**9) + S2**-52) * S2**-1
-                inv_value = inv_approx_table[i] # (1.0 + (inv_approx_table[i] / S2**9) ) * S2**-1
-                value_high = round(log(inv_value), self.precision.get_field_size() - (self.precision.get_exponent_size() + 1), sollya.RN)
-                value_low = round(log(inv_value) - value_high, sollya_precision, sollya.RN)
-                log_table[i][0] = value_high
-                log_table[i][1] = value_low
+            #inv_value = (1.0 + (self.processor.inv_approx_table[i] / S2**9) + S2**-52) * S2**-1
+            inv_value = inv_approx_table[i] # (1.0 + (inv_approx_table[i] / S2**9) ) * S2**-1
+            value_high = round(log(inv_value), self.precision.get_field_size() - (self.precision.get_exponent_size() + 1), sollya.RN)
+            value_low = round(log(inv_value) - value_high, sollya_precision, sollya.RN)
+            log_table[i][0] = value_high
+            log_table[i][1] = value_low
 
 
         vx_exp = ExponentExtraction(vx, tag="vx_exp", debug=debug_multi)
 
-        # case close to 0: ctz
+        # case close to 0, ctz (Close To Zero)
         ctz_exp_limit = -7
         ctz_cond = vx_exp < ctz_exp_limit
         ctz_interval = Interval(-S2**ctz_exp_limit, S2**ctz_exp_limit)
 
+        # approximating log(1+x) / x
         ctz_poly_degree = sup(guessdegree(log1p(sollya.x)/sollya.x, ctz_interval, S2**-(self.precision.get_field_size()+1))) + 1
         ctz_poly_object = Polynomial.build_from_approximation(log1p(sollya.x)/sollya.x, ctz_poly_degree, [self.precision]*(ctz_poly_degree+1), ctz_interval, sollya.absolute)
 
         Log.report(Log.Info, "generating polynomial evaluation scheme")
-        ctz_poly = PolynomialSchemeEvaluator.generate_horner_scheme(ctz_poly_object, vx, unified_precision = self.precision)
-        ctz_poly.set_attributes(tag = "ctz_poly", debug = debug_multi)
+        ctz_poly = PolynomialSchemeEvaluator.generate_horner_scheme(ctz_poly_object, vx, unified_precision=self.precision)
+        ctz_poly.set_attributes(tag="ctz_poly", debug=debug_multi)
 
         ctz_result = vx * ctz_poly
 
@@ -256,6 +257,11 @@ class ML_Log1p(ML_FunctionBasis):
 
     def numeric_emulate(self, input_value):
         return log1p(input_value)
+
+    standard_test_cases = [
+        (sollya.parse("0x1.13b2c6p-2"), None),
+        (sollya.parse("0x1.2cb10ap-5"), None)
+    ]
 
 
 
