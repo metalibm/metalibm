@@ -44,7 +44,7 @@ from metalibm_core.core.ml_function import ML_FunctionBasis, DefaultArgTemplate
 from metalibm_core.core.ml_operations import *
 from metalibm_core.core.ml_formats import *
 from metalibm_core.core.polynomials import Polynomial, PolynomialSchemeEvaluator
-from metalibm_core.core.ml_table import ML_NewTable
+from metalibm_core.core.ml_table import ML_NewTable, generic_index_function
 from metalibm_core.core.precisions import ML_Faithful
 from metalibm_core.core.special_values import (
         FP_QNaN, FP_MinusInfty, FP_PlusInfty, FP_PlusZero
@@ -73,7 +73,8 @@ class ML_Log1p(ML_FunctionBasis):
                 "function_name": "my_log1pf",
                 "precision": ML_Binary32,
                 "accuracy": ML_Faithful,
-                "target": GenericProcessor()
+                "target": GenericProcessor(),
+                "passes": [("beforecodegen:expand_multi_precision")],
         }
         default_args_log1p.update(kw)
         return DefaultArgTemplate(**default_args_log1p)
@@ -88,24 +89,25 @@ class ML_Log1p(ML_FunctionBasis):
                 kwords["function_name"] = self.function_name
                 return RaiseReturn(*args, **kwords)
 
-
+        # 2-limb approximation of log(2)
+        # hi part precision is reduced to provide exact operation
+        # when multiplied by an exponent value
         log2_hi_value = round(log(2), self.precision.get_field_size() - (self.precision.get_exponent_size() + 1), sollya.RN)
         log2_lo_value = round(log(2) - log2_hi_value, self.precision.sollya_object, sollya.RN)
 
-        log2_hi = Constant(log2_hi_value, precision = self.precision)
-        log2_lo = Constant(log2_lo_value, precision = self.precision)
+        log2_hi = Constant(log2_hi_value, precision=self.precision)
+        log2_lo = Constant(log2_lo_value, precision=self.precision)
 
-        vx_exp    = ExponentExtraction(vx, tag = "vx_exp", debug = debug_multi)
 
         int_precision = self.precision.get_integer_format()
 
         # retrieving processor inverse approximation table
         dummy_var = Variable("dummy", precision = self.precision)
-        dummy_div_seed = ReciprocalSeed(dummy_var, precision = self.precision)
-        inv_approx_table = self.processor.get_recursive_implementation(dummy_div_seed, language = None, table_getter = lambda self: self.approx_table_map)
+        dummy_rcp_seed = ReciprocalSeed(dummy_var, precision = self.precision)
+        inv_approx_table = self.processor.get_recursive_implementation(dummy_rcp_seed, language = None, table_getter = lambda self: self.approx_table_map)
 
         # table creation
-        table_index_size = 7
+        table_index_size = inv_approx_table.index_size
         log_table = ML_NewTable(dimensions = [2**table_index_size, 2], storage_precision = self.precision)
         log_table[0][0] = 0.0
         log_table[0][1] = 0.0
@@ -118,139 +120,161 @@ class ML_Log1p(ML_FunctionBasis):
             log_table[i][1] = value_low
 
 
-        vx_exp = ExponentExtraction(vx, tag="vx_exp", debug=debug_multi)
+        neg_input = Comparison(vx, -1, likely=False, specifier=Comparison.Less, debug=debug_multi, tag="neg_input")
+        vx_nan_or_inf = Test(vx, specifier=Test.IsInfOrNaN, likely=False, debug=debug_multi, tag="nan_or_inf")
+        vx_snan = Test(vx, specifier=Test.IsSignalingNaN, likely=False, debug=debug_multi, tag="snan")
+        vx_inf    = Test(vx, specifier=Test.IsInfty, likely=False, debug=debug_multi, tag="inf")
+        vx_subnormal = Test(vx, specifier=Test.IsSubnormal, likely=False, debug=debug_multi, tag="vx_subnormal")
 
-        # case close to 0, ctz (Close To Zero)
-        ctz_exp_limit = -7
-        ctz_cond = vx_exp < ctz_exp_limit
-        ctz_interval = Interval(-S2**ctz_exp_limit, S2**ctz_exp_limit)
-
-        # approximating log(1+x) / x
-        ctz_poly_degree = sup(guessdegree(log1p(sollya.x)/sollya.x, ctz_interval, S2**-(self.precision.get_field_size()+1))) + 1
-        ctz_poly_object = Polynomial.build_from_approximation(log1p(sollya.x)/sollya.x, ctz_poly_degree, [self.precision]*(ctz_poly_degree+1), ctz_interval, sollya.absolute)
-
-        Log.report(Log.Info, "generating polynomial evaluation scheme")
-        ctz_poly = PolynomialSchemeEvaluator.generate_horner_scheme(ctz_poly_object, vx, unified_precision=self.precision)
-        ctz_poly.set_attributes(tag="ctz_poly", debug=debug_multi)
-
-        ctz_result = vx * ctz_poly
-
-        neg_input = Comparison(vx, -1, likely = False, specifier = Comparison.Less, debug = debug_multi, tag = "neg_input")
-        vx_nan_or_inf = Test(vx, specifier = Test.IsInfOrNaN, likely = False, debug = debug_multi, tag = "nan_or_inf")
-        vx_snan = Test(vx, specifier = Test.IsSignalingNaN, likely = False, debug = debug_multi, tag = "snan")
-        vx_inf    = Test(vx, specifier = Test.IsInfty, likely = False, debug = debug_multi, tag = "inf")
-        vx_subnormal = Test(vx, specifier = Test.IsSubnormal, likely = False, debug = debug_multi, tag = "vx_subnormal")
-
-
-        # case away from 0.0
-        pre_vxp1 = vx + 1.0
-        pre_vxp1.set_attributes(tag = "pre_vxp1", debug = debug_multi)
-        pre_vxp1_exp = ExponentExtraction(pre_vxp1, tag = "pre_vxp1_exp", debug = debug_multi)
-        cm500 = Constant(-500, precision = ML_Int32)
-        c0 = Constant(0, precision = ML_Int32)
-        cond_scaling = pre_vxp1_exp > 2**(self.precision.get_exponent_size()-2)
-        scaling_factor_exp = Select(cond_scaling, cm500, c0)
-        scaling_factor = ExponentInsertion(scaling_factor_exp, precision = self.precision, tag = "scaling_factor")
-
-        vxp1 = pre_vxp1 * scaling_factor
-        vxp1.set_attributes(tag = "vxp1", debug = debug_multi)
-        vxp1_exp = ExponentExtraction(vxp1, tag = "vxp1_exp", debug = debug_multi)
-
-        vxp1_inv = ReciprocalSeed(vxp1, precision = self.precision, tag = "vxp1_inv", debug = debug_multi, silent = True)
-
-        vxp1_dirty_inv = ExponentInsertion(-vxp1_exp, precision = self.precision, tag = "vxp1_dirty_inv", debug = debug_multi)
-
-        table_index = BitLogicAnd(BitLogicRightShift(TypeCast(vxp1, precision = int_precision, debug = debug_multi), self.precision.get_field_size() - 7, debug = debug_multi), 0x7f, tag = "table_index", debug = debug_multi)
+        # for x = m.2^e, such that e >= 0
+        #
+        # log(1+x) = log(1 + m.2^e)
+        #          = log(2^e . 2^-e + m.2^e)
+        #          = log(2^e . (2^-e + m))
+        #          = log(2^e) + log(2^-e + m)
+        #          = e . log(2) + log (2^-e + m)
+        #
+        # t = (2^-e + m)
+        # t = m_t . 2^e_t
+        # r ~ 1 / m_t   => r.m_t ~ 1 ~ 0
+        #
+        # t' = t . 2^-e_t
+        #    = 2^-e-e_t + m . 2^-e_t
+        #
+        # if e >= 0, then 2^-e <= 1, then 1 <= m + 2^-e <= 3
+        # r = m_r . 2^e_r
+        #
+        # log(1+x) = e.log(2) + log(r . 2^e_t . 2^-e_t . (2^-e + m) / r)
+        #          = e.log(2) + log(r . 2^(-e-e_t) + r.m.2^-e_t) + e_t . log(2)- log(r)
+        #          = (e+e_t).log(2) + log(r . t') - log(r)
+        #          = (e+e_t).log(2) + log(r . t') - log(r)
+        #          = (e+e_t).log(2) + P_log1p(r . t' - 1) - log(r)
+        #
+        #
 
         # argument reduction
-        # TODO: detect if single operand inverse seed is supported by the targeted architecture
-        pre_arg_red_index = TypeCast(BitLogicAnd(TypeCast(vxp1_inv, precision = ML_UInt64), Constant(-2, precision = ML_UInt64), precision = ML_UInt64), precision = self.precision, tag = "pre_arg_red_index", debug = debug_multi)
-        arg_red_index = Select(Equal(table_index, 0), vxp1_dirty_inv, pre_arg_red_index, tag = "arg_red_index", debug = debug_multi)
+        m = MantissaExtraction(vx, tag="vx", precision=self.precision)
+        e = ExponentExtraction(vx, tag="e", precision=int_precision, debug=debug_multi)
 
-        red_vxp1 = Select(cond_scaling, arg_red_index * vxp1 - 1.0, (arg_red_index * vx - 1.0) + arg_red_index)
-        #red_vxp1 = arg_red_index * vxp1 - 1.0
-        red_vxp1.set_attributes(tag = "red_vxp1", debug = debug_multi)
+        # 2^-e
+        TwoMinusE = ExponentInsertion(-e, tag="Two_minus_e", precision=self.precision)
+        t = Addition(TwoMinusE, m, precision=self.precision, tag="t", debug=debug_multi)
 
-        log_inv_lo = TableLoad(log_table, table_index, 1, tag = "log_inv_lo", debug = debug_multi) 
-        log_inv_hi = TableLoad(log_table, table_index, 0, tag = "log_inv_hi", debug = debug_multi)
+        m_t = MantissaExtraction(t, tag="m_t", precision=self.precision, debug=debug_multi)
+        e_t = ExponentExtraction(t, tag="e_t", precision=int_precision, debug=debug_multi)
+
+        # 2^(-e-e_t)
+        TwoMinusEEt = ExponentInsertion(-e-e_t, tag="Two_minus_e_et", precision=self.precision)
+        TwoMinusEt = ExponentInsertion(-e_t, tag="Two_minus_et", precision=self.precision)
+
+        rcp_mt = ReciprocalSeed(m_t, tag="rcp_mt", precision=self.precision, debug=debug_multi)
+
+        INDEX_SIZE = table_index_size
+        table_index = generic_index_function(INDEX_SIZE, m_t)
+        table_index.set_attributes(tag="table_index", debug=debug_multi)
+
+        log_inv_lo = TableLoad(log_table, table_index, 1, tag="log_inv_lo", debug=debug_multi) 
+        log_inv_hi = TableLoad(log_table, table_index, 0, tag="log_inv_hi", debug=debug_multi)
 
         inv_err = S2**-6 # TODO: link to target DivisionSeed precision
 
         Log.report(Log.Info, "building mathematical polynomial")
         approx_interval = Interval(-inv_err, inv_err)
-        poly_degree = sup(guessdegree(log(1+sollya.x)/sollya.x, approx_interval, S2**-(self.precision.get_field_size()+1))) + 1
-        global_poly_object = Polynomial.build_from_approximation(log(1+sollya.x)/sollya.x, poly_degree, [self.precision]*(poly_degree+1), approx_interval, sollya.absolute)
-        poly_object = global_poly_object.sub_poly(start_index = 1)
+        approx_fct = sollya.log1p(sollya.x) / (sollya.x)
+        poly_degree = sup(guessdegree(approx_fct, approx_interval, S2**-(self.precision.get_field_size()+1))) + 1
+        Log.report(Log.Debug, "poly_degree is {}", poly_degree)
+        global_poly_object = Polynomial.build_from_approximation(approx_fct, poly_degree, [self.precision]*(poly_degree+1), approx_interval, sollya.absolute)
+        poly_object = global_poly_object # .sub_poly(start_index=1)
+
+        EXT_PRECISION_MAP = {
+            ML_Binary32: ML_SingleSingle,
+            ML_Binary64: ML_DoubleDouble,
+            ML_SingleSingle: ML_TripleSingle,
+            ML_DoubleDouble: ML_TripleDouble
+        }
+        if not self.precision in EXT_PRECISION_MAP:
+            Log.report(Log.Error, "no extended precision available for {}", self.precision)
+
+        ext_precision = EXT_PRECISION_MAP[self.precision]
+
+        # pre_rtp = r . 2^(-e-e_t) + m .2^-e_t
+        pre_rtp = Addition(
+            rcp_mt * TwoMinusEEt,
+            Multiplication(
+                rcp_mt,
+                Multiplication(
+                    m,
+                    TwoMinusEt,
+                    precision=self.precision
+                ),
+                precision=ext_precision),
+            precision=ext_precision
+        )
+        pre_red_vx = Addition(
+            pre_rtp,
+            -1,
+            precision=ext_precision,
+        )
+
+        red_vx = Conversion(pre_red_vx, precision=self.precision, tag="red_vx", debug=debug_multi)
 
         Log.report(Log.Info, "generating polynomial evaluation scheme")
-        _poly = PolynomialSchemeEvaluator.generate_horner_scheme(poly_object, red_vxp1, unified_precision = self.precision)
-        _poly.set_attributes(tag = "poly", debug = debug_multi)
-        Log.report(Log.Info, global_poly_object.get_sollya_object())
+        poly = PolynomialSchemeEvaluator.generate_horner_scheme(
+            poly_object, red_vx, unified_precision=self.precision)
+
+        poly.set_attributes(tag="poly", debug=debug_multi)
+        Log.report(Log.Debug, "{}", global_poly_object.get_sollya_object())
+
+        fp_e = Conversion(e + e_t, precision=self.precision, tag="fp_e", debug=debug_multi)
 
 
-        vxp1_inv_exp = ExponentExtraction(vxp1_inv, tag = "vxp1_inv_exp", debug = debug_multi)
-        corr_exp = Conversion(-vxp1_exp + scaling_factor_exp, precision = self.precision)# vxp1_inv_exp
+        ext_poly = Multiplication(red_vx, poly, precision=ext_precision)
 
-        #poly = (red_vxp1) * (1 +    _poly)
-        #poly.set_attributes(tag = "poly", debug = debug_multi, prevent_optimization = True)
+        pre_result = Addition(
+            Addition(
+                fp_e * log2_hi,
+                fp_e * log2_lo,
+                precision=ext_precision
+            ),
+            Addition(
+                Addition(
+                    -log_inv_hi,
+                    -log_inv_lo,
+                    precision=ext_precision
+                ),
+                ext_poly,
+                precision=ext_precision
+            ),
+            precision=ext_precision
+        )
 
-        pre_result = -log_inv_hi + (red_vxp1 + red_vxp1 * _poly + (-corr_exp * log2_lo - log_inv_lo))
-        pre_result.set_attributes(tag = "pre_result", debug = debug_multi)
-        exact_log2_hi_exp = - corr_exp * log2_hi
-        exact_log2_hi_exp.set_attributes(tag = "exact_log2_hi_exp", debug = debug_multi, prevent_optimization = True)
-        #std_result =    exact_log2_hi_exp + pre_result
-
-        exact_log2_lo_exp = - corr_exp * log2_lo
-        exact_log2_lo_exp.set_attributes(tag = "exact_log2_lo_exp", debug = debug_multi)#, prevent_optimization = True)
-
-        init = exact_log2_lo_exp    - log_inv_lo
-        init.set_attributes(tag = "init", debug = debug_multi, prevent_optimization = True)
-        fma0 = (red_vxp1 * _poly + init) # - log_inv_lo)
-        fma0.set_attributes(tag = "fma0", debug = debug_multi)
-        step0 = fma0
-        step0.set_attributes(tag = "step0", debug = debug_multi) #, prevent_optimization = True)
-        step1 = step0 + red_vxp1
-        step1.set_attributes(tag = "step1", debug = debug_multi, prevent_optimization = True)
-        step2 = -log_inv_hi + step1
-        step2.set_attributes(tag = "step2", debug = debug_multi, prevent_optimization = True)
-        std_result = exact_log2_hi_exp + step2
-        std_result.set_attributes(tag = "std_result", debug = debug_multi, prevent_optimization = True)
+        result = Conversion(pre_result, precision=self.precision, tag="result", debug=debug_multi)
 
 
         # main scheme
         Log.report(Log.Info, "MDL scheme")
         pre_scheme = ConditionBlock(neg_input,
-                Statement(
+            Statement(
+                ClearException(),
+                Raise(ML_FPE_Invalid),
+                Return(FP_QNaN(self.precision))
+            ),
+            ConditionBlock(vx_nan_or_inf,
+                ConditionBlock(vx_inf,
+                    Statement(
                         ClearException(),
-                        Raise(ML_FPE_Invalid),
-                        Return(FP_QNaN(self.precision))
-                ),
-                ConditionBlock(vx_nan_or_inf,
-                        ConditionBlock(vx_inf,
-                                Statement(
-                                        ClearException(),
-                                        Return(FP_PlusInfty(self.precision)),
-                                ),
-                                Statement(
-                                        ClearException(),
-                                        ConditionBlock(vx_snan,
-                                                Raise(ML_FPE_Invalid)
-                                        ),
-                                        Return(FP_QNaN(self.precision))
-                                )
+                        Return(FP_PlusInfty(self.precision)),
+                    ),
+                    Statement(
+                        ClearException(),
+                        ConditionBlock(vx_snan,
+                            Raise(ML_FPE_Invalid)
                         ),
-                        ConditionBlock(vx_subnormal,
-                                Return(vx),
-                                ConditionBlock(ctz_cond,
-                                        Statement(
-                                                Return(ctz_result),
-                                        ),
-                                        Statement(
-                                                Return(std_result)
-                                        )
-                                )
-                        )
-                )
+                        Return(FP_QNaN(self.precision))
+                    )
+                ),
+                Return(result)
+            )
         )
         scheme = pre_scheme
         return scheme
@@ -259,8 +283,14 @@ class ML_Log1p(ML_FunctionBasis):
         return log1p(input_value)
 
     standard_test_cases = [
+        (4.0, None),
+        (0.5, None),
+        (1.0, None),
+        (1.5, None),
+        (1024.0, None),
         (sollya.parse("0x1.13b2c6p-2"), None),
-        (sollya.parse("0x1.2cb10ap-5"), None)
+        (sollya.parse("0x1.2cb10ap-5"), None),
+        (0.0, None),
     ]
 
 
