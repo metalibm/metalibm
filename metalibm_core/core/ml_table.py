@@ -214,8 +214,8 @@ class ML_Table(ML_LeafNode):
 
 
 def generic_index_function(index_size, variable):
-    """ Build an indexing node for a table assuming index 
-        must be build from floating-point input variable 
+    """ Build an indexing node for a table assuming index
+        must be build from floating-point input variable
         and index is expected to be the index_size-th most significant
         bits of variable """
     assert ML_FP_Format.is_fp_format(variable.get_precision())
@@ -225,17 +225,17 @@ def generic_index_function(index_size, variable):
     index_mask   = Constant(2**index_size - 1, precision = int_precision)
     shift_amount = Constant(
         variable.get_precision().get_field_size() - index_size, precision=int_precision
-    ) 
+    )
     return BitLogicAnd(
         BitLogicRightShift(
             TypeCast(variable, precision=int_precision),
             shift_amount, precision=int_precision
         ),
-        index_mask, precision=int_precision) 
+        index_mask, precision=int_precision)
 
-        
+
 ## New Table class
-#  This class uses ML_TableFormat as precision for the 
+#  This class uses ML_TableFormat as precision for the
 #  table object
 class ML_NewTable(ML_Table):
   ## string used in get_str
