@@ -525,7 +525,7 @@ class PassInstantiateAbstractPrecision(FunctionPass):
 class PassInstantiatePrecision(FunctionPass):
     """ instantiate precision """
     pass_tag = "instantiate_prec"
-    def __init__(self, target, default_precision, default_integer_format=ML_Int32, default_boolean_precision=ML_Int32):
+    def __init__(self, target, default_precision=None, default_integer_format=ML_Int32, default_boolean_precision=ML_Int32):
         FunctionPass.__init__(self, "instantiate_prec")
         self.default_integer_format = default_integer_format
         self.default_boolean_precision = default_boolean_precision
