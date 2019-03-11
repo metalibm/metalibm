@@ -113,37 +113,37 @@ class FunctionTest:
         self.ctor = ctor
         self.arg_map_list = arg_map_list
 
-GEN_LOG_ARGS = {"basis": sollya.exp(1), "function_name": "ml_genlog", "passes" : ["beforecodegen:fuse_fma"]}
-GEN_LOG2_ARGS =  {"basis": 2, "function_name": "ml_genlog2", "passes" : ["beforecodegen:fuse_fma"]}
-GEN_LOG10_ARGS =  {"basis": 10, "function_name": "ml_genlog10", "passes" : ["beforecodegen:fuse_fma"]}
+GEN_LOG_ARGS = {"basis": sollya.exp(1), "function_name": "ml_genlog", "extra_passes" : ["beforecodegen:fuse_fma"]}
+GEN_LOG2_ARGS =  {"basis": 2, "function_name": "ml_genlog2", "extra_passes" : ["beforecodegen:fuse_fma"]}
+GEN_LOG10_ARGS =  {"basis": 10, "function_name": "ml_genlog10", "extra_passes" : ["beforecodegen:fuse_fma"]}
 
 FUNCTION_LIST = [
     # FunctionTest(metalibm_functions.ml_tanh.ML_HyperbolicTangent, [{}])
     # FunctionTest(metalibm_functions.ml_atan.ML_Atan, [{}])
 
-    FunctionTest(metalibm_functions.generic_log.ML_GenericLog,[GEN_LOG_ARGS]),
-    FunctionTest(metalibm_functions.generic_log.ML_GenericLog,[GEN_LOG2_ARGS]),
-    FunctionTest(metalibm_functions.generic_log.ML_GenericLog,[GEN_LOG10_ARGS]),
+   FunctionTest(metalibm_functions.generic_log.ML_GenericLog,[GEN_LOG_ARGS]),
+   FunctionTest(metalibm_functions.generic_log.ML_GenericLog,[GEN_LOG2_ARGS]),
+   FunctionTest(metalibm_functions.generic_log.ML_GenericLog,[GEN_LOG10_ARGS]),
 
-    FunctionTest(metalibm_functions.ml_cosh.ML_HyperbolicCosine, [{}]),
-    FunctionTest(metalibm_functions.ml_sinh.ML_HyperbolicSine, [{}]),
-    FunctionTest(metalibm_functions.ml_exp.ML_Exponential, [{}]),
-    FunctionTest(metalibm_functions.ml_log1p.ML_Log1p, [{}]),
+   FunctionTest(metalibm_functions.ml_cosh.ML_HyperbolicCosine, [{}]),
+   FunctionTest(metalibm_functions.ml_sinh.ML_HyperbolicSine, [{}]),
+   FunctionTest(metalibm_functions.ml_exp.ML_Exponential, [{}]),
+   FunctionTest(metalibm_functions.ml_log1p.ML_Log1p, [{}]),
 
-    FunctionTest(metalibm_functions.ml_div.ML_Division, [{}]),
+   FunctionTest(metalibm_functions.ml_div.ML_Division, [{}]),
 
-    # superseeded by ML_GenericLog
-    # FunctionTest(metalibm_functions.ml_log10.ML_Log10, [{"passes": ["beforecodegen:fuse_fma"]}]),
-    # FunctionTest(metalibm_functions.ml_log.ML_Log, [{}]),
-    # FunctionTest(metalibm_functions.ml_log2.ML_Log2, [{}]),
+   # superseeded by ML_GenericLog
+   # FunctionTest(metalibm_functions.ml_log10.ML_Log10, [{"passes": ["beforecodegen:fuse_fma"]}]),
+   # FunctionTest(metalibm_functions.ml_log.ML_Log, [{}]),
+   # FunctionTest(metalibm_functions.ml_log2.ML_Log2, [{}]),
 
-    FunctionTest(metalibm_functions.ml_exp2.ML_Exp2, [{}]),
-    FunctionTest(metalibm_functions.ml_cbrt.ML_Cbrt, [{}]),
-    FunctionTest(metalibm_functions.ml_sqrt.MetalibmSqrt, [{}]),
-    FunctionTest(metalibm_functions.ml_isqrt.ML_Isqrt, [{}]),
-    FunctionTest(metalibm_functions.ml_vectorizable_log.ML_Log, [{}]),
+   FunctionTest(metalibm_functions.ml_exp2.ML_Exp2, [{}]),
+   FunctionTest(metalibm_functions.ml_cbrt.ML_Cbrt, [{}]),
+   FunctionTest(metalibm_functions.ml_sqrt.MetalibmSqrt, [{}]),
+   FunctionTest(metalibm_functions.ml_isqrt.ML_Isqrt, [{}]),
+   FunctionTest(metalibm_functions.ml_vectorizable_log.ML_Log, [{}]),
 
-    FunctionTest(metalibm_functions.ml_sincos.ML_SinCos, [{}]),
+   FunctionTest(metalibm_functions.ml_sincos.ML_SinCos, [{}]),
 ]
 
 global_test_list = []
@@ -157,7 +157,7 @@ VECTOR_BACKEND = VectorBackend()
 TARGET_OPTIONS_MAP = {
     GENERIC_PROCESSOR: {},
     X86_AVX2: {
-        "passes": [
+        "extra_passes": [
             "beforecodegen:basic_legalization",
             "beforecodegen:expand_multi_precision",
             "beforecodegen:m128_promotion",
@@ -270,12 +270,26 @@ def print_report(msg):
     OUTPUT_FILE.write(msg)
 
 
+def get_cmdline_option(option_list, option_value):
+    OPTION_MAP = {
+        "passes": lambda vlist: ("--passes " + ",".join(vlist)),
+        "extra_passes": lambda vlist: ("--extra-passes " + ",".join(vlist)),
+        "execute_trigger": lambda v: "--execute",
+        "auto_test": lambda v: "--auto-test {}".format(v),
+        "target": lambda v: "--target {}".format(v),
+        "precision": lambda v: "--precision {}".format(v),
+        "vector_size": lambda v: "--vector-size {}".format(v),
+    }
+    return " ".join(OPTION_MAP[option](option_value[option]) for option in option_list) 
+
 print_report("<html><body><div>")
 print_report("<b>Function generation test report:</b>")
 print_report("<p><ul>\n")
 for index, test_case in enumerate(test_list):
     nice_str = "; ".join("{}: {}".format(option, str(test_case[option])) for option in test_case)
-    print_report("<li>({}): {}</li>\n".format(index, nice_str))
+    cmd_str = get_cmdline_option(test_case.keys(), test_case)
+    print_report("<li><b>({}): {}</b></li>\n".format(index, nice_str))
+    print_report("{}\n".format(cmd_str))
 
 print_report("</ul></p>\n\n")
 header = "<table border='1'>"
