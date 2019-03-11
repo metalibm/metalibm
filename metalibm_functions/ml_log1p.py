@@ -74,7 +74,7 @@ class ML_Log1p(ML_FunctionBasis):
                 "precision": ML_Binary32,
                 "accuracy": ML_Faithful,
                 "target": GenericProcessor(),
-                "passes": [("beforecodegen:expand_multi_precision")],
+                "passes": [("start:instantiate_abstract_prec"), ("start:instantiate_prec"), ("start:basic_legalization"), ("start:expand_multi_precision")],
         }
         default_args_log1p.update(kw)
         return DefaultArgTemplate(**default_args_log1p)
@@ -120,8 +120,8 @@ class ML_Log1p(ML_FunctionBasis):
             log_table[i][1] = value_low
 
 
-        neg_input = Comparison(vx, -1, likely=False, specifier=Comparison.Less, debug=debug_multi, tag="neg_input")
-        vx_nan_or_inf = Test(vx, specifier=Test.IsInfOrNaN, likely=False, debug=debug_multi, tag="nan_or_inf")
+        neg_input = Comparison(vx, -1, likely=False, precision=ML_Bool, specifier=Comparison.Less, debug=debug_multi, tag="neg_input")
+        vx_nan_or_inf = Test(vx, specifier=Test.IsInfOrNaN, likely=False, precision=ML_Bool, debug=debug_multi, tag="nan_or_inf")
         vx_snan = Test(vx, specifier=Test.IsSignalingNaN, likely=False, debug=debug_multi, tag="snan")
         vx_inf    = Test(vx, specifier=Test.IsInfty, likely=False, debug=debug_multi, tag="inf")
         vx_subnormal = Test(vx, specifier=Test.IsSubnormal, likely=False, debug=debug_multi, tag="vx_subnormal")
