@@ -72,17 +72,24 @@ for target_name in TargetRegister.target_map:
 
 
 precision_map = {
+    # floating-point formats
     "binary16": ML_Binary16,
     "binary32": ML_Binary32,
     "binary64": ML_Binary64,
-    "int32": ML_Int32,
-    "uint32": ML_UInt32,
-    "int64":  ML_Int64,
-    "uint64": ML_UInt64,
+    # aliases
+    "half": ML_Binary16,
+    "float": ML_Binary32,
+    "double": ML_Binary64,
+    # multi-word formats
     "dd": ML_DoubleDouble,
     "ds": ML_SingleSingle,
     "td": ML_TripleDouble,
     "ts": ML_TripleSingle,
+    # integer formats
+    "int32": ML_Int32,
+    "uint32": ML_UInt32,
+    "int64":  ML_Int64,
+    "uint64": ML_UInt64,
 }
 
 
