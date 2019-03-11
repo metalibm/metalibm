@@ -1402,6 +1402,8 @@ class BooleanOperation(object):
             #  -> to be either True or False (likely = LikelyPossible)
             #  -> undetermined (likely = None)"""
         self.likely = likely
+        # default precision is ML_Bool
+        self.precision = ML_Bool if self.precision is None else self.precision
 
     def get_likely(self):
         """ return likely value """
