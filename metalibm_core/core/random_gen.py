@@ -343,7 +343,7 @@ class FPRandomGen(RandomGenWeightCat):
         FP_PlusOmega, FP_MinusOmega,
         FP_QNaN, FP_SNaN
     ]
-    def __init__(self, precision, weight_map=None, seed=None, generation_map=None):
+    def __init__(self, precision, weight_map=None, seed=None):
         """
             Args:
                 precision (ML_Format): floating-point format
