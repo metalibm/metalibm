@@ -396,5 +396,23 @@ def logical_reduce(op_list, op_ctor=LogicalOr, precision=ML_Bool):
 logical_or_reduce  = lambda op_list: logical_reduce(op_list, LogicalOr, ML_Bool)
 ## Specialization of logical reduce to AND operation
 logical_and_reduce = lambda op_list: logical_reduce(op_list, LogicalAnd, ML_Bool)
+
+
+def UnsignedOperation(lhs, rhs, op_ctor, **kw):
+  """ sign cast  @p lhs and @p rhs to implement a proper
+      binary unsigned addition """
+  return op_ctor(
+    SignCast(lhs, precision=get_unsigned_precision(lhs.get_precision()), specifier = SignCast.Unsigned) if not lhs.get_precision() is ML_StdLogic else lhs,
+    SignCast(rhs, precision=get_unsigned_precision(rhs.get_precision()), specifier = SignCast.Unsigned) if not rhs.get_precision() is ML_StdLogic else rhs,
+    **kw
+  )
+def UnsignedAddition(lhs, rhs, **kw):
+  return UnsignedOperation(lhs, rhs, Addition, **kw)
+def UnsignedSubtraction(lhs, rhs, **kw):
+  return UnsignedOperation(lhs, rhs, Subtraction, **kw)
+def UnsignedMultiplication(lhs, rhs, **kw):
+  return UnsignedOperation(lhs, rhs, Multiplication, **kw)
+
+
 ## @} 
 # end of metalibm's Doxygen ml_hdl_operations group

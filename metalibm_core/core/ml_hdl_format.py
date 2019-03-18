@@ -126,9 +126,8 @@ def HdlVirtualFormat(base_precision):
         get_cst=get_virtual_cst
     )
 
-
-## Format class for multiple bit signals
-class ML_StdLogicVectorFormat(ML_Format):
+class HDL_LowLevelFormat(ML_Format):
+  format_prefix = "undefined_prefix"
   """ Format class for multiple bit signals """
   def __init__(self, bit_size, offset = 0, direction = StdLogicDirection.Downwards):
     ML_Format.__init__(self)
@@ -146,8 +145,11 @@ class ML_StdLogicVectorFormat(ML_Format):
         self.resolved = False
     else:
         self.bit_size = bit_size
-        self.name[VHDL_Code] = "std_logic_vector({direction_descriptor})".format(direction_descriptor = direction.get_descriptor(offset, offset + self.bit_size - 1))
+        self.name[VHDL_Code] = "{format_prefix}({direction_descriptor})".format(
+            format_prefix=self.format_prefix,
+            direction_descriptor = direction.get_descriptor(offset, offset + self.bit_size - 1))
         self.resolved = True
+    self.direction = direction
     self.offset = offset
     self.display_format[VHDL_Code] = "%s"
 
@@ -182,6 +184,25 @@ class ML_StdLogicVectorFormat(ML_Format):
     return isinstance(format2, ML_StdLogicVectorFormat) and self.bit_size == format2.bit_size and self.offset == format2.offset
   def __hash__(self):
     return ML_Format.__hash__(self)
+
+
+
+## Format class for multiple bit signals
+class ML_StdLogicVectorFormat(HDL_LowLevelFormat):
+    """ classic std_logic_vector format """
+    format_prefix = "std_logic_vector"
+    pass
+
+class HDL_NumericVectorFormat(HDL_LowLevelFormat):
+    pass
+
+class HDL_UnsignedVectorFormat(HDL_NumericVectorFormat):
+    """ std_logic_arith unsigned format """
+    format_prefix = "unsigned"
+
+class HDL_SignedVectorFormat(HDL_NumericVectorFormat):
+    """ std_logic_arith unsigned format """
+    format_prefix = "signed"
 
 ## Class of single bit value format
 class ML_StdLogicClass(ML_Format):
@@ -224,4 +245,35 @@ def fixed_point(int_size, frac_size, signed = True, support_format = None):
 #  @return boolean value
 def is_fixed_point(precision):
     return isinstance(precision, ML_Base_FixedPoint_Format)
+
+def get_unsigned_precision(precision):
+    """ convert a sign agnostic precision (std_logic_vector)
+        to its unsigned counterpart (same size, same offset, same
+        direction """
+    if isinstance(precision, HDL_UnsignedVectorFormat):
+        return precision
+    elif isinstance(precision, ML_StdLogicVectorFormat):
+        return HDL_UnsignedVectorFormat(precision.bit_size, precision.offset, precision.direction)
+    else:
+        raise NotImplementedError
+        
+def get_signed_precision(precision):
+    """ convert a sign agnostic precision (std_logic_vector)
+        to its signed counterpart (same size, same offset, same
+        direction """
+    if isinstance(precision, HDL_SignedVectorFormat):
+        return precision
+    elif isinstance(precision, ML_StdLogicVectorFormat):
+        return HDL_SignedVectorFormat(precision.bit_size, precision.offset, precision.direction)
+    else:
+        raise NotImplementedError
+
+def get_numeric_precision(precision, is_signed):
+    """ convert a sign agnostic precision (std_logic_vector)
+        to its signed/unsigned counterpart (same size, same offset, same
+        direction """
+    if is_signed:
+        return get_signed_precision(precision)
+    else:
+        return get_unsigned_precision(precision)
 

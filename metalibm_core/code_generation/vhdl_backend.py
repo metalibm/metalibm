@@ -231,8 +231,8 @@ def negation_modifer(optree):
     result = Addition(
         SignCast(
             BitLogicNegate(neg_input, precision=precision, init_stage=init_stage),
-            specifier = SignCast.Unsigned,
-            precision = precision
+            specifier=SignCast.Unsigned,
+            precision=get_unsigned_precision(precision)
         ),
         Constant(1, precision=ML_StdLogic),
         precision=precision,
@@ -496,14 +496,14 @@ def fixed_comparison_modifier(optree):
         lhs,
         specifier=SignCast.Signed if lhs_precision.get_signed() else
         SignCast.Unsigned,
-        precision=lhs.get_precision(),
+        precision=get_numeric_precision(lhs.get_precision(), lhs_precision.get_signed()),
         tag = "comp_lhs_signcasted"
     )
     rhs = SignCast(
         rhs,
         specifier=SignCast.Signed if rhs_precision.get_signed() else
         SignCast.Unsigned,
-        precision=rhs.get_precision(),
+        precision=get_numeric_precision(rhs.get_precision(), rhs_precision.get_signed()),
         tag = "comp_rhs_signcasted"
     )
     # we must keep every initial properties of the Comparison node
@@ -613,7 +613,7 @@ def fixed_point_op_modifier(optree, op_ctor=Addition):
         result_integer_size - lhs_prec.get_integer_size()
     )
     lhs_ext = SignCast(
-        lhs_ext, precision=lhs_ext.get_precision(),
+        lhs_ext, precision=get_numeric_precision(lhs_ext.get_precision(), signed_op),
         specifier=SignCast.Signed if signed_op else SignCast.Unsigned
     )
 
@@ -622,7 +622,7 @@ def fixed_point_op_modifier(optree, op_ctor=Addition):
         result_integer_size - rhs_prec.get_integer_size()
     )
     rhs_ext = SignCast(
-        rhs_ext, precision=rhs_ext.get_precision(),
+        rhs_ext, precision=get_numeric_precision(rhs_ext.get_precision(), signed_op),
         specifier=SignCast.Signed if signed_op else SignCast.Unsigned
     )
     raw_result = op_ctor(
@@ -665,8 +665,10 @@ def fixed_point_mul_modifier(optree):
         ), init_stage=init_stage,
         tag = "mul_lhs_casted",
     )
-    lhs_casted = SignCast(lhs_casted, precision=lhs_casted.get_precision(
-    ), specifier=SignCast.Signed if lhs_prec.get_signed() else SignCast.Unsigned)
+    lhs_casted = SignCast(
+        lhs_casted,
+        precision=get_numeric_precision(lhs_casted.get_precision(), lhs_prec.get_signed()),
+        specifier=SignCast.Signed if lhs_prec.get_signed() else SignCast.Unsigned)
     rhs_casted = TypeCast(
         rhs,
         precision=ML_StdLogicVectorFormat(
@@ -675,7 +677,8 @@ def fixed_point_mul_modifier(optree):
         tag = "mul_rhs_casted",
     )
     rhs_casted = SignCast(
-        rhs_casted, precision=rhs_casted.get_precision(),
+        rhs_casted,
+        precision=get_numeric_precision(rhs_casted.get_precision(), rhs_prec.get_signed()),
         specifier=SignCast.Signed if rhs_prec.get_signed() else SignCast.Unsigned)
 
     mult_prec = ML_StdLogicVectorFormat(result_frac_size + result_integer_size)
@@ -740,6 +743,14 @@ ML_String.get_cst_map[VHDL_Code] = ML_String.get_cst_map[C_Code]
 
 # class Match custom std logic vector format
 MCSTDLOGICV = TCM(ML_StdLogicVectorFormat)
+
+# class Match custom unsigned vector format
+MCHDLUNSIGNEDV = TCM(HDL_UnsignedVectorFormat)
+
+# class Match custom unsigned vector format
+MCHDLSIGNEDV = TCM(HDL_SignedVectorFormat)
+
+MCHDLNUMERICV = TCM(HDL_NumericVectorFormat)
 
 # class match custom fixed point format
 MCFixedPoint = TCM(ML_Base_FixedPoint_Format)
@@ -916,13 +927,13 @@ vhdl_code_generation_table = {
             ),
             include_std_logic:
             {
-                type_custom_match(MCSTDLOGICV, MCSTDLOGICV, MCSTDLOGICV):
+                type_custom_match(MCSTDLOGICV, MCHDLNUMERICV, MCHDLNUMERICV):
                 SymbolOperator("+", arity=2, force_folding=True),
-                type_custom_match(MCSTDLOGICV, MCSTDLOGICV, FSM(ML_StdLogic)):
+                type_custom_match(MCSTDLOGICV, MCHDLNUMERICV, FSM(ML_StdLogic)):
                 SymbolOperator("+", arity=2, force_folding=True),
-                type_custom_match(MCSTDLOGICV, FSM(ML_StdLogic), MCSTDLOGICV):
+                type_custom_match(MCSTDLOGICV, FSM(ML_StdLogic), MCHDLNUMERICV):
                 SymbolOperator("+", arity=2, force_folding=True),
-                type_custom_match(MCSTDLOGICV, MCSTDLOGICV, FSM(ML_StdLogic)):
+                type_custom_match(MCSTDLOGICV, MCHDLNUMERICV, FSM(ML_StdLogic)):
                 SymbolOperator("+", arity=2, force_folding=True),
             },
             # fallback
@@ -943,7 +954,7 @@ vhdl_code_generation_table = {
                                                         ML_UInt64, ML_Int128, ML_UInt128], 2, SymbolOperator("-", arity=2, force_folding=True), cond=(lambda _: True)),
             include_std_logic:
             {
-                type_custom_match(MCSTDLOGICV, MCSTDLOGICV, MCSTDLOGICV):  SymbolOperator("-", arity=2, force_folding=True),
+                type_custom_match(MCSTDLOGICV, MCHDLNUMERICV, MCHDLNUMERICV):  SymbolOperator("-", arity=2, force_folding=True),
             },
             # fallback
             lambda _: True: {
@@ -959,7 +970,7 @@ vhdl_code_generation_table = {
     Multiplication: {
         None: {
             lambda optree: True: {
-                type_custom_match(MCSTDLOGICV, MCSTDLOGICV, MCSTDLOGICV): SymbolOperator("*", arity=2, force_folding=True),
+                type_custom_match(MCSTDLOGICV, MCHDLNUMERICV, MCHDLNUMERICV): SymbolOperator("*", arity=2, force_folding=True),
                 type_custom_match(MCFixedPoint, MCFixedPoint, MCFixedPoint):
                     ComplexOperator(optree_modifier=fixed_point_mul_modifier),
             },
@@ -1029,7 +1040,7 @@ vhdl_code_generation_table = {
                   type_custom_match(FSM(ML_Bool), FSM(ML_Binary16), FSM(ML_Binary16)):
                   SymbolOperator(
                       vhdl_comp_symbol[specifier], arity=2, force_folding=False),
-                  type_custom_match(FSM(ML_Bool), TCM(ML_StdLogicVectorFormat), TCM(ML_StdLogicVectorFormat)):
+                  type_custom_match(FSM(ML_Bool), MCHDLNUMERICV, MCHDLNUMERICV):
                   SymbolOperator(
                       vhdl_comp_symbol[specifier], arity=2, force_folding=False),
                   type_strict_match(ML_Bool, ML_StdLogic, ML_StdLogic):
@@ -1041,7 +1052,6 @@ vhdl_code_generation_table = {
                       optree_modifier=fixed_comparison_modifier
                   )
               },
-              #build_simplified_operator_generation([ML_Int32, ML_Int64, ML_UInt64, ML_UInt32, ML_Binary32, ML_Binary64], 2, SymbolOperator(">=", arity = 2), result_precision = ML_Int32),
           }) for specifier in [Comparison.Greater, Comparison.GreaterOrEqual, Comparison.Less, Comparison.LessOrEqual]]
         +
         [(specifier,
@@ -1059,9 +1069,12 @@ vhdl_code_generation_table = {
                   type_custom_match(FSM(ML_Bool), FSM(ML_Binary16), FSM(ML_Binary16)):
                   SymbolOperator(
                       vhdl_comp_symbol[specifier], arity=2, force_folding=False),
-                  type_custom_match(FSM(ML_Bool), TCM(ML_StdLogicVectorFormat), TCM(ML_StdLogicVectorFormat)):
-                  SymbolOperator(
-                      vhdl_comp_symbol[specifier], arity=2, force_folding=False),
+                  type_custom_match(FSM(ML_Bool), MCSTDLOGICV, MCSTDLOGICV):
+                      SymbolOperator(
+                          vhdl_comp_symbol[specifier], arity=2, force_folding=False),
+                  type_custom_match(FSM(ML_Bool), MCHDLNUMERICV, MCHDLNUMERICV):
+                      SymbolOperator(
+                          vhdl_comp_symbol[specifier], arity=2, force_folding=False),
                   type_strict_match(ML_Bool, ML_StdLogic, ML_StdLogic):
                     SymbolOperator(
                       vhdl_comp_symbol[specifier], arity=2, force_folding=False),
@@ -1070,7 +1083,6 @@ vhdl_code_generation_table = {
                   SymbolOperator(
                       vhdl_comp_symbol[specifier], arity=2, force_folding=False),
               },
-              #build_simplified_operator_generation([ML_Int32, ML_Int64, ML_UInt64, ML_UInt32, ML_Binary32, ML_Binary64], 2, SymbolOperator(">=", arity = 2), result_precision = ML_Int32),
           }) for specifier in [Comparison.Equal, Comparison.NotEqual]
           ]
         +
@@ -1237,23 +1249,23 @@ vhdl_code_generation_table = {
     SignCast: {
         SignCast.Signed: {
             lambda optree: True: {
-                type_custom_match(MCSTDLOGICV, MCSTDLOGICV): 
+                type_custom_match(MCHDLSIGNEDV, MCSTDLOGICV):
                     FunctionOperator("signed",
                         arity=1,
                         force_folding=False, force_input_variable = True
                     ),
-                type_custom_match(MCFixedPoint, MCFixedPoint): 
+                type_custom_match(MCFixedPoint, MCFixedPoint):
                     TransparentOperator(no_parenthesis=True),
             },
         },
         SignCast.Unsigned: {
             lambda optree: True: {
-                type_custom_match(MCSTDLOGICV, MCSTDLOGICV): 
+                type_custom_match(MCHDLUNSIGNEDV, MCSTDLOGICV):
                     FunctionOperator(
                         "unsigned", arity=1, force_folding=False,
                         force_input_variable = True
                     ),
-                type_custom_match(MCFixedPoint, MCFixedPoint): 
+                type_custom_match(MCFixedPoint, MCFixedPoint):
                     TransparentOperator(no_parenthesis=True),
             },
         },
