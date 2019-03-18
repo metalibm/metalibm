@@ -51,7 +51,9 @@ from metalibm_core.opt.rtl_fixed_point_utils import (
     test_format_equality,
     solve_equal_formats
 )
-from metalibm_core.core.ml_formats import ML_Bool, ML_Integer
+from metalibm_core.core.ml_formats import (
+    ML_Bool, ML_Integer
+)
 from metalibm_core.core.ml_hdl_format import (
     is_fixed_point, fixed_point, ML_StdLogic, ML_StdLogicVectorFormat
 )
@@ -376,7 +378,7 @@ def solve_format_Constant(optree):
     value = optree.get_value()
     if FP_SpecialValue.is_special_value(value):
         return optree.get_precision()
-    elif not optree.get_precision() is None:
+    elif not optree.get_precision() is None and optree.get_precision() != ML_Integer:
         # if precision is already set (manually forced), returns it
         return optree.get_precision()
     else:
