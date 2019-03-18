@@ -409,12 +409,12 @@ class FP_Divider(ML_Entity("fp_div")):
       SignCast(
         biasX2,
         specifier = SignCast.Unsigned,
-        precision = exp_op_precision
+        precision = get_unsigned_precision(exp_op_precision)
       ),
       SignCast(
-        zext(exp_vx, 2), 
+        zext(exp_vx, 2),
         specifier = SignCast.Unsigned,
-        precision = exp_op_precision,
+        precision = get_unsigned_precision(exp_op_precision),
       ),
       precision = exp_op_precision,
       tag = "neg_exp",
@@ -430,8 +430,8 @@ class FP_Divider(ML_Entity("fp_div")):
 
     res_exp = Addition(
       SignCast(
-        neg_exp_field, 
-        precision = exp_vx.get_precision(),
+        neg_exp_field,
+        precision = get_unsigned_precision(exp_vx.get_precision()),
         specifier = SignCast.Unsigned
       ),
       SignCast(
@@ -441,7 +441,7 @@ class FP_Divider(ML_Entity("fp_div")):
           Constant(-1, precision = exp_vx_precision),
           precision = exp_vx_precision
         ),
-        precision = exp_vx_precision,
+        precision = get_unsigned_precision(exp_vx_precision),
         specifier = SignCast.Unsigned
       ),
       precision = exp_vx_precision,
@@ -480,7 +480,7 @@ class FP_Divider(ML_Entity("fp_div")):
       SignCast(
         exp_mant,
         SignCast.Unsigned,
-        precision = exp_mant_precision
+        precision = get_unsigned_precision(exp_mant_precision)
       ),
       round_incr,
       precision = exp_mant_precision,

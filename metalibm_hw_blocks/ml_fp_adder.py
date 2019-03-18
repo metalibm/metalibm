@@ -63,36 +63,29 @@ debug_std = ML_Debug(display_format = " -radix 2 ")
 debug_dec = ML_Debug(display_format = " -radix 10 ")
 
 class FP_Adder(ML_Entity("fp_adder")):
-  def __init__(self, 
-             arg_template = DefaultEntityArgTemplate, 
-             precision = ML_Binary32, 
-             libm_compliant = True, 
-             debug_flag = False, 
-             target = VHDLBackend(), 
-             output_file = "fp_adder.vhd", 
-             entity_name = "fp_adder",
-             language = VHDL_Code,
-             ):
+  def __init__(self, arg_template=DefaultEntityArgTemplate):
     # initializing I/O precision
-    precision = ArgDefault.select_value([arg_template.precision, precision])
-    io_precisions = [precision] * 2
 
     # initializing base class
-    ML_EntityBasis.__init__(self, 
-      base_name = "fp_adder",
-      entity_name = entity_name,
-      output_file = output_file,
-
-      io_precisions = io_precisions,
-
-      backend = target,
-
-      debug_flag = debug_flag,
-      language = language,
+    ML_EntityBasis.__init__(self,
       arg_template = arg_template
     )
 
-    self.precision = precision
+    self.precision = arg_template.precision
+
+  ## Generate default arguments structure (before any user / test overload)
+  @staticmethod
+  def get_default_args(**kw):
+    default_arg_map = {
+      "precision": ML_Binary32,
+      "pipelined": False,
+      "output_file": "fp_adder.vhd",
+      "entity_name": "fp_adder",
+      "language": VHDL_Code,
+      "passes": [("beforecodegen:size_datapath")],
+    }
+    default_arg_map.update(**kw)
+    return DefaultEntityArgTemplate(**default_arg_map)
 
   def generate_scheme(self):
 
@@ -106,8 +99,8 @@ class FP_Adder(ML_Entity("fp_adder")):
     #clk = self.implementation.add_input_signal("clk", ML_StdLogic)
     reset = self.implementation.add_input_signal("reset", ML_StdLogic)
     # declaring main input variable
-    vx = self.implementation.add_input_signal("x", io_precision) 
-    vy = self.implementation.add_input_signal("y", io_precision) 
+    vx = self.implementation.add_input_signal("x", io_precision)
+    vy = self.implementation.add_input_signal("y", io_precision)
 
     p = self.precision.get_mantissa_size()
 
@@ -120,7 +113,7 @@ class FP_Adder(ML_Entity("fp_adder")):
 
     mant_vx = MantissaExtraction(vx, precision = mant_precision)
     mant_vy = MantissaExtraction(vy, precision = mant_precision)
-    
+
     exp_vx = ExponentExtraction(vx, precision = exp_precision)
     exp_vy = ExponentExtraction(vy, precision = exp_precision)
 
@@ -136,7 +129,7 @@ class FP_Adder(ML_Entity("fp_adder")):
     # @param s integer size of the extension
     # @return the Zero extended operation node
     def zext(op,s):
-      op_size = op.get_precision().get_bit_size() 
+      op_size = op.get_precision().get_bit_size()
       ext_precision  = ML_StdLogicVectorFormat(op_size + s)
       return ZeroExt(op, s, precision = ext_precision)
     ## Generate the right zero extended output from @p optree
@@ -147,39 +140,41 @@ class FP_Adder(ML_Entity("fp_adder")):
       return Concatenation(optree, Constant(0, precision = ext_format), precision = out_format)
 
     exp_bias = p + 2
-    exp_precision_ext = ML_StdLogicVectorFormat(self.precision.get_exponent_size() + 2)
-    # Y is first aligned p+2 bit to the left of x 
-    # and then shifted right by 
+    exp_precision_ext = fixed_point(self.precision.get_exponent_size() + 2, 0)
+    exp_precision = fixed_point(self.precision.get_exponent_size(), 0, signed=False)
+    # Y is first aligned p+2 bit to the left of x
+    # and then shifted right by
     # exp_diff = exp_x - exp_y + precision + 2
     # exp_vx in [emin, emax]
     # exp_vx - exp_vx + p +2 in [emin-emax + p + 2, emax - emin + p + 2]
     exp_diff = Subtraction(
-                Addition(
-                  zext(exp_vx, 2), 
-                  Constant(exp_bias, precision = exp_precision_ext),
-                  precision = exp_precision_ext
-                ),
-                zext(exp_vy, 2), 
-                precision = exp_precision_ext,
-                tag = "exp_diff"
+        Addition(
+            TypeCast(exp_vx, precision=exp_precision),
+            Constant(exp_bias, precision=exp_precision_ext),
+        ),
+        TypeCast(exp_vy, precision=exp_precision),
     )
-    exp_diff_lt_0 = Comparison(exp_diff, Constant(0, precision = exp_precision_ext), specifier = Comparison.Less, precision = ML_Bool)
+    exp_diff_lt_0 = Comparison(exp_diff, Constant(0, precision=exp_precision_ext), specifier = Comparison.Less, precision = ML_Bool)
     exp_diff_gt_2pp4 = Comparison(exp_diff, Constant(2*p+4, precision = exp_precision_ext), specifier = Comparison.Greater, precision = ML_Bool)
 
-    shift_amount_prec = ML_StdLogicVectorFormat(int(floor(log2(2*p+4))+1))
+    shift_amount_size = int(floor(log2(2*p+4))+1)
+    shift_amount_prec = ML_StdLogicVectorFormat(shift_amount_size)
 
     mant_shift = Select(
       exp_diff_lt_0,
-      Constant(0, precision = shift_amount_prec),
+      0,
       Select(
         exp_diff_gt_2pp4,
-        Constant(2*p+4, precision = shift_amount_prec),
-        Truncate(exp_diff, precision = shift_amount_prec),
-        precision = shift_amount_prec
+        Constant(2*p+4),
+        exp_diff,
       ),
-      precision = shift_amount_prec,
       tag = "mant_shift",
       debug = ML_Debug(display_format = "-radix 10")
+    )
+
+    mant_shift = TypeCast(
+        Conversion(mant_shift, precision=fixed_point(shift_amount_size, 0, signed=False)),
+        precision=shift_amount_prec
     )
 
     mant_ext_size = 2*p+4
@@ -204,7 +199,7 @@ class FP_Adder(ML_Entity("fp_adder")):
     )
       
 
-    mant_add = Addition(
+    mant_add = UnsignedAddition(
                  zext(shifted_mant_vy, 1),
                  mant_vx_add_op,
                  precision = add_prec,
@@ -302,7 +297,7 @@ class FP_Adder(ML_Entity("fp_adder")):
       debug = debug_std
     )
 
-    rounded_mant = Addition(
+    rounded_mant = UnsignedAddition(
       zext(pre_mant_field, 1),
       round_increment_RN,
       precision = ML_StdLogicVectorFormat(p),
@@ -332,9 +327,9 @@ class FP_Adder(ML_Entity("fp_adder")):
     res_exp_prec_size = self.precision.get_exponent_size() + 2
     res_exp_prec = ML_StdLogicVectorFormat(res_exp_prec_size)
 
-    res_exp_ext = Addition(
-      Subtraction(
-        Addition(
+    res_exp_ext = UnsignedAddition(
+      UnsignedSubtraction(
+        UnsignedAddition(
           zext(exp_vx, 2),
           Constant(3+p, precision = res_exp_prec),
           precision = res_exp_prec
@@ -378,9 +373,12 @@ class FP_Adder(ML_Entity("fp_adder")):
 
 if __name__ == "__main__":
     # auto-test
-    arg_template = ML_EntityArgTemplate(default_entity_name = "new_fp_adder", default_output_file = "ml_fp_adder.vhd" )
+    arg_template = ML_EntityArgTemplate(
+        default_entity_name="new_fp_adder", default_output_file="ml_fp_adder.vhd",
+        default_arg=FP_Adder.get_default_args()
+    )
     # argument extraction 
-    args = parse_arg_index_list = arg_template.arg_extraction()
+    args = arg_template.arg_extraction()
 
     ml_hw_adder      = FP_Adder(args)
 

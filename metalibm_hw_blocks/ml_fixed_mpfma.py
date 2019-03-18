@@ -32,7 +32,7 @@ import sys
 
 import sollya
 
-from sollya import Interval, ceil, floor, round, log2 
+from sollya import Interval, ceil, floor, round, log2
 S2 = sollya.SollyaObject(2)
 from sollya import parse as sollya_parse
 
@@ -257,10 +257,10 @@ class FP_FIXED_MPFMA(ML_Entity("fp_fixed_mpfma")):
     # exp_diff = exp_x - exp_y + offset
     # exp_vx in [emin, emax]
     # exp_vx - exp_vx + p +2 in [emin-emax + p + 2, emax - emin + p + 2]
-    exp_diff = Subtraction(
+    exp_diff = UnsignedSubtraction(
                 exp_acc,
-                Addition(
-                  Addition(
+                UnsignedAddition(
+                  UnsignedAddition(
                     zext(exp_vy, exp_precision_ext_size - vy_precision.get_exponent_size()), 
                     zext(exp_vx, exp_precision_ext_size - vx_precision.get_exponent_size()), 
                     precision = exp_precision_ext
@@ -274,10 +274,11 @@ class FP_FIXED_MPFMA(ML_Entity("fp_fixed_mpfma")):
                 tag = "exp_diff",
                 debug = debug_dec
     )
+    exp_precision_ext_signed = get_signed_precision(exp_precision_ext)
     signed_exp_diff = SignCast(
-      exp_diff, 
-      specifier = SignCast.Signed, 
-      precision = exp_precision_ext
+      exp_diff,
+      specifier = SignCast.Signed,
+      precision = exp_precision_ext_signed
     )
     datapath_full_width = acc_width
     # the maximum exp diff is the size of the datapath
@@ -285,13 +286,13 @@ class FP_FIXED_MPFMA(ML_Entity("fp_fixed_mpfma")):
     max_exp_diff = datapath_full_width - (p + q)
     exp_diff_lt_0 = Comparison(
       signed_exp_diff,
-      Constant(0, precision = exp_precision_ext), 
-      specifier = Comparison.Less, 
-      precision = ML_Bool, 
-      tag = "exp_diff_lt_0", 
+      Constant(0, precision = exp_precision_ext_signed),
+      specifier = Comparison.Less,
+      precision = ML_Bool,
+      tag = "exp_diff_lt_0",
       debug = debug_std
     )
-    exp_diff_gt_max_diff = Comparison(signed_exp_diff, Constant(max_exp_diff, precision = exp_precision_ext), specifier = Comparison.Greater, precision = ML_Bool)
+    exp_diff_gt_max_diff = Comparison(signed_exp_diff, Constant(max_exp_diff, precision = exp_precision_ext_signed), specifier = Comparison.Greater, precision = ML_Bool)
 
     shift_amount_prec = ML_StdLogicVectorFormat(int(floor(log2(max_exp_diff))+1))
 
@@ -310,7 +311,7 @@ class FP_FIXED_MPFMA(ML_Entity("fp_fixed_mpfma")):
     )
 
     prod_prec = ML_StdLogicVectorFormat(p+q)
-    prod = Multiplication(
+    prod = UnsignedMultiplication(
       mant_vx,
       mant_vy,
       precision = prod_prec,
@@ -350,12 +351,12 @@ class FP_FIXED_MPFMA(ML_Entity("fp_fixed_mpfma")):
       add_prec = ML_StdLogicVectorFormat(add_width)
      
       # FIXME: implement with a proper compound adder
-      mant_add_p0_ext = Addition(
+      mant_add_p0_ext = UnsignedAddition(
         zext(shifted_prod, 1),
         zext(acc_negated, 1),
         precision = add_prec
       )
-      mant_add_p1_ext = Addition(
+      mant_add_p1_ext = UnsignedAddition(
         mant_add_p0_ext,
         Constant(1, precision = ML_StdLogic),
         precision = add_prec,
@@ -447,7 +448,7 @@ class FP_FIXED_MPFMA(ML_Entity("fp_fixed_mpfma")):
       add_prec = shift_prec # ML_StdLogicVectorFormat(datapath_full_width + 1)
 
 
-      mant_add = Addition(
+      mant_add = UnsignedAddition(
                    shifted_prod_op,
                    acc,
                    precision = acc_prec,

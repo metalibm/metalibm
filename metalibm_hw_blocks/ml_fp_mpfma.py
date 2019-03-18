@@ -218,9 +218,9 @@ class FP_MPFMA(ML_Entity("fp_mpfma")):
     # exp_diff = exp_x - exp_y + offset
     # exp_vx in [emin, emax]
     # exp_vx - exp_vx + p +2 in [emin-emax + p + 2, emax - emin + p + 2]
-    exp_diff = Subtraction(
-                Addition(
-                  Addition(
+    exp_diff = UnsignedSubtraction(
+                UnsignedAddition(
+                  UnsignedAddition(
                     zext(exp_vy, exp_precision_ext_size - vy_precision.get_exponent_size()), 
                     zext(exp_vx, exp_precision_ext_size - vx_precision.get_exponent_size()), 
                     precision = exp_precision_ext
@@ -233,22 +233,23 @@ class FP_MPFMA(ML_Entity("fp_mpfma")):
                 tag = "exp_diff",
                 debug = debug_std
     )
+    exp_precision_ext_signed = get_signed_precision(exp_precision_ext)
     signed_exp_diff = SignCast(
-      exp_diff, 
-      specifier = SignCast.Signed, 
-      precision = exp_precision_ext
+      exp_diff,
+      specifier = SignCast.Signed,
+      precision = exp_precision_ext_signed
     )
     datapath_full_width = exp_offset + max(o + L_xy, p + q) + 2 + r
     max_exp_diff = datapath_full_width - r
     exp_diff_lt_0 = Comparison(
       signed_exp_diff,
-      Constant(0, precision = exp_precision_ext), 
-      specifier = Comparison.Less, 
-      precision = ML_Bool, 
-      tag = "exp_diff_lt_0", 
+      Constant(0, precision = exp_precision_ext_signed),
+      specifier = Comparison.Less,
+      precision = ML_Bool,
+      tag = "exp_diff_lt_0",
       debug = debug_std
     )
-    exp_diff_gt_max_diff = Comparison(signed_exp_diff, Constant(max_exp_diff, precision = exp_precision_ext), specifier = Comparison.Greater, precision = ML_Bool)
+    exp_diff_gt_max_diff = Comparison(signed_exp_diff, Constant(max_exp_diff, precision = exp_precision_ext_signed), specifier = Comparison.Greater, precision = ML_Bool)
 
     shift_amount_prec = ML_StdLogicVectorFormat(int(floor(log2(max_exp_diff))+1))
 
@@ -267,7 +268,7 @@ class FP_MPFMA(ML_Entity("fp_mpfma")):
     )
 
     prod_prec = ML_StdLogicVectorFormat(p+q)
-    prod = Multiplication(
+    prod = UnsignedMultiplication(
       mant_vx,
       mant_vy,
       precision = prod_prec,
@@ -328,8 +329,8 @@ class FP_MPFMA(ML_Entity("fp_mpfma")):
     prod_add_op = prod_ext
 
     # Compound Addition
-    mant_add_p1 = Addition(
-      Addition(
+    mant_add_p1 = UnsignedAddition(
+      UnsignedAddition(
          addend_op,
          prod_add_op,
          precision = add_prec
@@ -339,7 +340,7 @@ class FP_MPFMA(ML_Entity("fp_mpfma")):
       tag = "mant_add_p1",
       debug = ML_Debug(display_format = " -radix 2")
     )
-    mant_add_p0 = Addition(
+    mant_add_p0 = UnsignedAddition(
       addend_op,
       prod_add_op,
       precision = add_prec,
@@ -463,7 +464,7 @@ class FP_MPFMA(ML_Entity("fp_mpfma")):
       debug = debug_std
     )
 
-    rounded_mant = Addition(
+    rounded_mant = UnsignedAddition(
       zext(pre_mant_field, 1),
       round_increment_RN,
       precision = ML_StdLogicVectorFormat(o),
@@ -501,16 +502,16 @@ class FP_MPFMA(ML_Entity("fp_mpfma")):
 
     # Product biased exponent
     # is computed from both x and y exponent
-    exp_xy_biased = Addition(
-      Addition(
-        Addition(
+    exp_xy_biased = UnsignedAddition(
+      UnsignedAddition(
+        UnsignedAddition(
           zext(exp_vy, res_exp_tmp_size - vy_precision.get_exponent_size()),
           Constant(vy_precision.get_bias(), precision = res_exp_tmp_prec),
           precision = res_exp_tmp_prec,
           tag = "exp_vy_biased",
           debug = debug_dec
         ),
-        Addition(
+        UnsignedAddition(
           zext(exp_vx, res_exp_tmp_size - vx_precision.get_exponent_size()),
           Constant(vx_precision.get_bias(), precision = res_exp_tmp_prec),
           precision = res_exp_tmp_prec,
@@ -529,7 +530,7 @@ class FP_MPFMA(ML_Entity("fp_mpfma")):
     )
     # vz's exponent is biased with the format bias
     # plus the exponent offset so it is left align to datapath MSB
-    exp_vz_biased = Addition(
+    exp_vz_biased = UnsignedAddition(
       zext(exp_vz, res_exp_tmp_size - vz_precision.get_exponent_size()),
       Constant(
         vz_precision.get_bias() + 1,# + exp_offset + 1, 
@@ -554,9 +555,9 @@ class FP_MPFMA(ML_Entity("fp_mpfma")):
 
     # Eventually we add the result exponent base 
     # with the exponent offset and the leading zero count
-    res_exp_ext = Addition(
-      Subtraction(
-        Addition(
+    res_exp_ext = UnsignedAddition(
+      UnsignedSubtraction(
+        UnsignedAddition(
           zext(res_exp_base, 0),
           Constant(-result_precision.get_bias(), precision = res_exp_tmp_prec),
           precision = res_exp_tmp_prec
