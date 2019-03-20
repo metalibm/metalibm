@@ -213,11 +213,11 @@ class ML_Table(ML_LeafNode):
             return new_copy
 
 
-def generic_index_function(index_size, variable):
+def generic_mantissa_msb_index_fct(index_size, variable):
     """ Build an indexing node for a table assuming index
         must be build from floating-point input variable
         and index is expected to be the index_size-th most significant
-        bits of variable """
+        bits of variable's mantissa """
     assert ML_FP_Format.is_fp_format(variable.get_precision())
     # determining integer format whose size matches variable's floating-point format
     int_precision = {32: ML_Int32, 64: ML_Int64}[variable.get_precision().get_bit_size()]
@@ -257,7 +257,7 @@ class ML_ApproxTable(ML_NewTable):
     def __init__(self, index_size=7, index_function=None, **kwords):
         ML_NewTable.__init__(self, **kwords)
         self.index_size = index_size
-        index_function = index_function or (lambda variable: generic_index_function(index_size, variable))
+        index_function = index_function or (lambda variable: generic_mantissa_msb_index_fct(index_size, variable))
         self.index_function = index_function
         self.sourceinfo = SourceInfo.retrieve_source_info(0)
 
