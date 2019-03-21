@@ -37,3 +37,10 @@ def ulp(v, format_):
     """ return a 'unit in last place' value for <v> assuming precision is defined by format _ """
     return S2**(sollya.ceil(sollya.log2(abs(v))) - (format_.get_precision() + 1))
 
+def fp_next(v, format_):
+    assert v > 0
+    return format_.round_sollya_object(v + ulp(v, format_))
+def fp_previous(v, format_):
+    assert v > 0
+    return format_.round_sollya_object(v - ulp(v, format_))
+
