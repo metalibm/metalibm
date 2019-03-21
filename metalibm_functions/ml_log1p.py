@@ -44,7 +44,7 @@ from metalibm_core.core.ml_function import ML_FunctionBasis, DefaultArgTemplate
 from metalibm_core.core.ml_operations import *
 from metalibm_core.core.ml_formats import *
 from metalibm_core.core.polynomials import Polynomial, PolynomialSchemeEvaluator
-from metalibm_core.core.ml_table import ML_NewTable, generic_index_function
+from metalibm_core.core.ml_table import ML_NewTable, generic_mantissa_msb_index_fct
 from metalibm_core.core.precisions import ML_Faithful
 from metalibm_core.core.special_values import (
         FP_QNaN, FP_MinusInfty, FP_PlusInfty, FP_PlusZero
@@ -170,7 +170,7 @@ class ML_Log1p(ML_FunctionBasis):
         rcp_mt = ReciprocalSeed(m_t, tag="rcp_mt", precision=self.precision, debug=debug_multi)
 
         INDEX_SIZE = table_index_size
-        table_index = generic_index_function(INDEX_SIZE, m_t)
+        table_index = generic_mantissa_msb_index_fct(INDEX_SIZE, m_t)
         table_index.set_attributes(tag="table_index", debug=debug_multi)
 
         log_inv_lo = TableLoad(log_table, table_index, 1, tag="log_inv_lo", debug=debug_multi) 
