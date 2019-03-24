@@ -83,6 +83,10 @@ class BinaryFile:
     def load(self):
         return LoadedBinary(self)
 
+    def execute(self):
+        assert not self.shared_object
+        return get_cmd_stdout(self.path)
+
 
 class LoadedBinary:
     def __init__(self, binary_file):

@@ -197,6 +197,9 @@ class ML_FunctionBasis(object):
 
     # source building
     self.build_enable = args.build_enable
+    # embedded binary (test function is linked as shared object and imported
+    # into python environement)
+    self.embedded_binary = args.embedded_binary
     # binary execution
     self.execute_trigger = args.execute_trigger
 
@@ -666,7 +669,7 @@ class ML_FunctionBasis(object):
         function_group.merge_with_group(bench_function_group)
 
     # adding main function
-    if self.bench_enabled or self.auto_test_enable:
+    if not self.embedded_binary:#self.bench_enabled or self.auto_test_enable:
         main_function = CodeFunction("main", output_format=ML_Int32)
         main_function.set_scheme(
             Statement(
@@ -685,8 +688,15 @@ class ML_FunctionBasis(object):
 
     if build_trigger:
         source_file = SourceFile(self.output_file, function_group)
-        bin_name = "./testlib_%s.so" % self.function_name
-        bin_file = source_file.build(self.processor, bin_name, shared_object=True)
+        if self.embedded_binary:
+            bin_name = "./testlib_%s.so" % self.function_name
+            shared_object = True
+            link_trigger = False
+        else:
+            bin_name = "./testbin_%s" % self.function_name
+            shared_object = False
+            link_trigger = True
+        bin_file = source_file.build(self.processor, bin_name, shared_object=shared_object, link=link_trigger)
 
         if bin_file is None:
             Log.report(Log.Error, "build failed: \n", error=BuildError())
@@ -695,20 +705,29 @@ class ML_FunctionBasis(object):
 
 
         # only executing if build was successful
-        if not(bin_file is None) and self.execute_trigger:
-            loaded_module = bin_file.load()
+        if self.execute_trigger:
+            if self.embedded_binary and not(bin_file is None):
+                loaded_module = bin_file.load()
 
-            if self.bench_enabled:
-                cpe_measure = loaded_module.get_function_handle("bench_wrapper")()
-                print("imported cpe_measure={}".format(cpe_measure))
-            if self.auto_test_enable:
-                test_result = loaded_module.get_function_handle("test_wrapper")()
+                if self.bench_enabled:
+                    cpe_measure = loaded_module.get_function_handle("bench_wrapper")()
+                    print("imported cpe_measure={}".format(cpe_measure))
+                if self.auto_test_enable:
+                    test_result = loaded_module.get_function_handle("test_wrapper")()
+                    if not test_result:
+                        Log.report(Log.Info, "VALIDATION SUCCESS")
+                    else:
+                        Log.report(Log.Error, "VALIDATION FAILURE", error=ValidError())
+                if not (self.bench_enabled or self.auto_test_enable):
+                    execution_result = loaded_module.get_function_handle(self.get_execute_handle())()
+            elif not self.embedded_binary:
+                test_result, ret_stdout = bin_file.execute()
+                Log.report(Log.Info, "log: {}".format(ret_stdout))
                 if not test_result:
                     Log.report(Log.Info, "VALIDATION SUCCESS")
                 else:
                     Log.report(Log.Error, "VALIDATION FAILURE", error=ValidError())
-            if not (self.bench_enabled or self.auto_test_enable):
-                execution_result = loaded_module.get_function_handle(self.get_execute_handle())()
+
 
 
   ## externalized an optree: generate a CodeFunction which compute the 
