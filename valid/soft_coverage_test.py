@@ -102,7 +102,7 @@ class VerboseAction(argparse.Action):
 NUM_AUTO_TEST = 1024 # to be divisible by standard vector length
 
 class FunctionTest:
-    def __init__(self, ctor, arg_map_list):
+    def __init__(self, ctor, arg_map_list, title=None):
         """ FunctionTest constructor:
 
             Args:
@@ -112,6 +112,7 @@ class FunctionTest:
         """
         self.ctor = ctor
         self.arg_map_list = arg_map_list
+        self.title = title if not title is None else ctor.function_name
 
 GEN_LOG_ARGS = {"basis": sollya.exp(1), "function_name": "ml_genlog", "extra_passes" : ["beforecodegen:fuse_fma"]}
 GEN_LOG2_ARGS =  {"basis": 2, "function_name": "ml_genlog2", "extra_passes" : ["beforecodegen:fuse_fma"]}
@@ -183,6 +184,8 @@ for scalar_target in SCALAR_TARGET_LIST:
             "target": scalar_target,
             "auto_test": NUM_AUTO_TEST,
             "execute_trigger": True,
+            "output_name": "{}_{}.c".format(precision, scalar_target.target_name),
+            "function_name": "{}_{}".format(precision, scalar_target.target_name),
         }
         options.update(TARGET_OPTIONS_MAP[scalar_target])
         test_list.append(options)
@@ -195,6 +198,8 @@ for vector_target in VECTOR_TARGET_LIST:
                 "vector_size": vector_size,
                 "auto_test": NUM_AUTO_TEST,
                 "execute_trigger": True,
+                "output_name": "v{}-{}_{}.c".format(vector_size, precision, vector_target.target_name),
+                "function_name": "v{}_{}_{}".format(vector_size, precision, vector_target.target_name),
             }
             options.update(TARGET_OPTIONS_MAP[vector_target])
             test_list.append(options)
@@ -206,11 +211,16 @@ for function_test in FUNCTION_LIST:
     for test in test_list:
         for sub_test in function_test.arg_map_list:
             option = test.copy()
+            opt_fname = option["function_name"]
+            opt_oname = option["output_name"]
             option.update(sub_test)
+            fname = sub_test["function_name"] if "function_name" in sub_test else function.function_name
+            option["function_name"] = fname + "_" + opt_fname
+            option["output_name"] = fname + "_" + opt_oname
             local_test_list.append(option)
     test_case = NewSchemeTest(
-        function.get_default_args(**local_test_list[0]).function_name,
-        function,
+        function_test.title,
+        function, # class / constructor
         local_test_list
     )
     global_test_list.append(test_case)
@@ -279,6 +289,8 @@ def get_cmdline_option(option_list, option_value):
         "target": lambda v: "--target {}".format(v),
         "precision": lambda v: "--precision {}".format(v),
         "vector_size": lambda v: "--vector-size {}".format(v),
+        "function_name": lambda v: "--fname {}".format(v),
+        "output_name": lambda v: "--output {}".format(v),
     }
     return " ".join(OPTION_MAP[option](option_value[option]) for option in option_list) 
 
