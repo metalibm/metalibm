@@ -416,6 +416,9 @@ class DefaultArgTemplate:
     check_processor_support = True
     # source elaboration
     build_enable = False
+    # when execution is required, export binary into python runtime
+    # rather than executing it into a sub-process
+    embedded_binary = True
     # list of default optimization passes
     passes = []
     # list of extra optimization passes (to be added to default list)
@@ -733,6 +736,11 @@ class ML_NewArgTemplate(ML_CommonArgTemplate):
             "--libm", dest="libm_compliant", action="store_const",
             const=True, default=False,
             help="generate libm compliante code"
+        )
+        self.parser.add_argument(
+            "--no-embedded-bin", dest="embedded_binary", action="store_const",
+            const=False, default=True,
+            help="link test program as shared object to be embedded"
         )
         self.parser.add_argument(
             "--fname", dest="function_name", 
