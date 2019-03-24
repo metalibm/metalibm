@@ -739,9 +739,9 @@ DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vexp_extraction_f2, ml_int2_t, ml_float2_t, 2, m
 DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vexp_extraction_f4, ml_int4_t, ml_float4_t, 4, ml_exp_extraction_dirty_fp32)
 DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vexp_extraction_f8, ml_int8_t, ml_float8_t, 8, ml_exp_extraction_dirty_fp32)
 
-DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vexp_extraction_d2, ml_int2_t, ml_double2_t, 2, ml_exp_extraction_dirty_fp64)
-DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vexp_extraction_d4, ml_int4_t, ml_double4_t, 4, ml_exp_extraction_dirty_fp64)
-DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vexp_extraction_d8, ml_int8_t, ml_double8_t, 8, ml_exp_extraction_dirty_fp64)
+DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vexp_extraction_d2, ml_long2_t, ml_double2_t, 2, ml_exp_extraction_dirty_fp64)
+DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vexp_extraction_d4, ml_long4_t, ml_double4_t, 4, ml_exp_extraction_dirty_fp64)
+DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vexp_extraction_d8, ml_long8_t, ml_double8_t, 8, ml_exp_extraction_dirty_fp64)
 
 /** Mantissa extraction */
 DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vmantissa_extraction_f2, ml_float2_t, ml_float2_t, 2, ml_mantissa_extraction_fp32)
