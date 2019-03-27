@@ -360,7 +360,7 @@ _mm_unpacklo_pd       = EmmIntrin("_mm_unpacklo_pd", arity = 2,
                                   output_precision = ML_SSE_m128_v2float64)
 
 # SSE4.1 instructions
-_mm_mul_epi32 = SmmIntrin("_mm_mul_epi32", arity = 2,
+_mm_mullo_epi32 = SmmIntrin("_mm_mullo_epi32", arity = 2,
                           output_precision = ML_SSE_m128_v4int32)
 
 # AVX instructions
@@ -811,10 +811,11 @@ def linearize_2d_tableload(optree):
     table = optree.get_input(0)
     assert len(table.dimensions) >= 1
     index_0 = optree.get_input(1)
-    index_1 = optree.get_input(1)
+    index_1 = optree.get_input(2)
     index_prec = index_0.get_precision()
     prec = optree.get_precision()
     result = TableLoad(
+        # TODO: TyoeCast to convert for multi-dim to linear table required
         table,
         Addition(
             Multiplication(
@@ -1704,7 +1705,7 @@ sse41_c_code_generation_table = {
         None: {
             lambda optree: True: {
                 type_strict_match(*(3*(ML_SSE_m128_v4int32,))):
-                    _mm_mul_epi32,
+                    _mm_mullo_epi32,
             },
         },
     },
@@ -2211,9 +2212,9 @@ avx2_c_code_generation_table = {
         None: {
             lambda optree: True: {
                 type_strict_match(*(3*(ML_AVX_m256_v8int32,))):
-                    ImmIntrin("_mm256_mul_epi32", arity = 2),
+                    ImmIntrin("_mm256_mullo_epi32", arity = 2),
                 type_strict_match(*(3*(ML_AVX_m256_v4int64,))):
-                    ImmIntrin("_mm256_mul_epi64", arity = 2),
+                    ImmIntrin("_mm256_mullo_epi64", arity = 2),
             },
         },
     },
