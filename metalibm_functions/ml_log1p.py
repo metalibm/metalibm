@@ -109,11 +109,10 @@ class ML_Log1p(ML_FunctionBasis):
         # table creation
         table_index_size = inv_approx_table.index_size
         log_table = ML_NewTable(dimensions = [2**table_index_size, 2], storage_precision = self.precision)
-        log_table[0][0] = 0.0
-        log_table[0][1] = 0.0
-        for i in range(1, 2**table_index_size):
-            #inv_value = (1.0 + (self.processor.inv_approx_table[i] / S2**9) + S2**-52) * S2**-1
-            inv_value = inv_approx_table[i] # (1.0 + (inv_approx_table[i] / S2**9) ) * S2**-1
+        # storing accurate logarithm approximation of value returned
+        # by the fast reciprocal operation
+        for i in range(0, 2**table_index_size):
+            inv_value = inv_approx_table[i]
             value_high = round(log(inv_value), self.precision.get_field_size() - (self.precision.get_exponent_size() + 1), sollya.RN)
             value_low = round(log(inv_value) - value_high, sollya_precision, sollya.RN)
             log_table[i][0] = value_high
@@ -153,11 +152,11 @@ class ML_Log1p(ML_FunctionBasis):
         #
 
         # argument reduction
-        m = MantissaExtraction(vx, tag="vx", precision=self.precision)
+        m = MantissaExtraction(vx, tag="vx", precision=self.precision, debug=debug_multi)
         e = ExponentExtraction(vx, tag="e", precision=int_precision, debug=debug_multi)
 
         # 2^-e
-        TwoMinusE = ExponentInsertion(-e, tag="Two_minus_e", precision=self.precision)
+        TwoMinusE = ExponentInsertion(-e, tag="Two_minus_e", precision=self.precision, debug=debug_multi)
         t = Addition(TwoMinusE, m, precision=self.precision, tag="t", debug=debug_multi)
 
         m_t = MantissaExtraction(t, tag="m_t", precision=self.precision, debug=debug_multi)
@@ -165,7 +164,7 @@ class ML_Log1p(ML_FunctionBasis):
 
         # 2^(-e-e_t)
         TwoMinusEEt = ExponentInsertion(-e-e_t, tag="Two_minus_e_et", precision=self.precision)
-        TwoMinusEt = ExponentInsertion(-e_t, tag="Two_minus_et", precision=self.precision)
+        TwoMinusEt = ExponentInsertion(-e_t, tag="Two_minus_et", precision=self.precision, debug=debug_multi)
 
         rcp_mt = ReciprocalSeed(m_t, tag="rcp_mt", precision=self.precision, debug=debug_multi)
 
@@ -205,10 +204,17 @@ class ML_Log1p(ML_FunctionBasis):
                 Multiplication(
                     m,
                     TwoMinusEt,
-                    precision=self.precision
+                    precision=self.precision,
+                    tag="pre_mult",
+                    debug=debug_multi,
                 ),
-                precision=ext_precision),
-            precision=ext_precision
+                precision=ext_precision,
+                tag="pre_mult2",
+                debug=debug_multi,
+            ),
+            precision=ext_precision,
+            tag="pre_rtp",
+            debug=debug_multi
         )
         pre_red_vx = Addition(
             pre_rtp,
@@ -283,14 +289,21 @@ class ML_Log1p(ML_FunctionBasis):
         return log1p(input_value)
 
     standard_test_cases = [
-        (4.0, None),
-        (0.5, None),
         (1.0, None),
+        (1.0, None),
+        (1.0, None),
+        (1.0, None),
+    ]
+    _ = [
+        (4.0, None),
+        (1.0, None),
+        (0.5, None),
         (1.5, None),
         (1024.0, None),
         (sollya.parse("0x1.13b2c6p-2"), None),
         (sollya.parse("0x1.2cb10ap-5"), None),
         (0.0, None),
+        (sollya.parse("0x1.ce4492p-21"), None),
     ]
 
 
