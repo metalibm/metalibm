@@ -43,6 +43,8 @@ import metalibm_core.opt.p_function_std as p_function_std
 import metalibm_core.opt.p_function_typing as p_function_typing
 
 
+# high verbosity log-level for optimization engine
+LOG_LEVEL_OPT_ENG_VERBOSE = Log.LogLevel("OptEngVerbose")
 
 
 type_escalation = {
@@ -250,13 +252,15 @@ class OptimizationEngine(object):
         if isinstance(optree, ConditionBlock):
             cond   = optree.inputs[0]
             likely = cond.get_likely()
-            #linearized_optree, validity_mask_list = self.extract_vectorizable_path(optree.get_pre_statement(), fallback_policy)
             vectorized_path = self.extract_vectorizable_path(optree.get_pre_statement(), fallback_policy)
+            Log.report(LOG_LEVEL_OPT_ENG_VERBOSE, "extracting vectorizable path in {}", optree)
             # start by vectorizing the if-then-else pre-statement
             if not vectorized_path.linearized_optree is None:
+              Log.report(LOG_LEVEL_OPT_ENG_VERBOSE, "   vectorizing pre-statement")
               return vectorized_path
             else:
               if likely:
+                  Log.report(LOG_LEVEL_OPT_ENG_VERBOSE, "   cond likely: {}", cond)
                   if_branch = optree.inputs[1]
                   vectorized_path = self.extract_vectorizable_path(if_branch, fallback_policy)
                   return  VectorizedPath(
@@ -265,6 +269,7 @@ class OptimizationEngine(object):
                             vectorized_path.variable_mapping
                           )
               elif likely == False:
+                  Log.report(LOG_LEVEL_OPT_ENG_VERBOSE, "   cond unlikely: {}", cond)
                   if len(optree.inputs) >= 3:
                     # else branch exists
                     else_branch = optree.inputs[2]
@@ -281,6 +286,7 @@ class OptimizationEngine(object):
                     return VectorizedPath(None, [])
               elif len(optree.inputs) >= 3:
                   # no likely identified => using fallback policy
+                  Log.report(LOG_LEVEL_OPT_ENG_VERBOSE, "   cond likely undef: {}", cond)
                   if_branch = optree.inputs[1]
                   else_branch = optree.inputs[2]
                   selected_branch, cond_mask_list = fallback_policy(cond, optree, if_branch, else_branch)
