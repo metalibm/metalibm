@@ -56,7 +56,7 @@ from metalibm_core.code_generation.generic_processor import GenericProcessor, Li
 
 ML_VectorLib_Function = LibFunctionConstructor(["support_lib/ml_vector_lib.h"])
 
-# OpenCL vector support library 
+# OpenCL vector support library
 ML_OCL_VectorLib_Function = LibFunctionConstructor(["support_lib/ml_ocl_vector_lib.h"])
 
 OpenCL_Builtin = LibFunctionConstructor([])
@@ -159,13 +159,13 @@ vector_opencl_code_generation_table = {
   },
   Addition: {
     None: {
-      lambda _: True: 
+      lambda _: True:
         dict(
           sum(
           [
             [
               (type_strict_match(
-                  VECTOR_TYPE_MAP[scalar_type][vector_size], 
+                  VECTOR_TYPE_MAP[scalar_type][vector_size],
                   VECTOR_TYPE_MAP[scalar_type][vector_size],
                   VECTOR_TYPE_MAP[scalar_type][vector_size]
                 ), SymbolOperator("+", arity = 2)
@@ -177,13 +177,13 @@ vector_opencl_code_generation_table = {
   },
   Subtraction: {
     None: {
-      lambda _: True: 
+      lambda _: True:
         dict(
           sum(
           [
             [
               (type_strict_match(
-                  VECTOR_TYPE_MAP[scalar_type][vector_size], 
+                  VECTOR_TYPE_MAP[scalar_type][vector_size],
                   VECTOR_TYPE_MAP[scalar_type][vector_size],
                   VECTOR_TYPE_MAP[scalar_type][vector_size]
                 ), SymbolOperator("-", arity = 2)
@@ -195,13 +195,13 @@ vector_opencl_code_generation_table = {
   },
   BitLogicAnd: {
     None: {
-      lambda _: True: 
+      lambda _: True:
         dict(
           sum(
           [
             [
               (type_strict_match(
-                  VECTOR_TYPE_MAP[scalar_type][vector_size], 
+                  VECTOR_TYPE_MAP[scalar_type][vector_size],
                   VECTOR_TYPE_MAP[scalar_type][vector_size],
                   VECTOR_TYPE_MAP[scalar_type][vector_size]
                 ), SymbolOperator("&", arity = 2)
@@ -213,13 +213,13 @@ vector_opencl_code_generation_table = {
   },
   BitLogicOr: {
     None: {
-      lambda _: True: 
+      lambda _: True:
         dict(
           sum(
           [
             [
               (type_strict_match(
-                  VECTOR_TYPE_MAP[scalar_type][vector_size], 
+                  VECTOR_TYPE_MAP[scalar_type][vector_size],
                   VECTOR_TYPE_MAP[scalar_type][vector_size],
                   VECTOR_TYPE_MAP[scalar_type][vector_size]
                 ), SymbolOperator("|", arity = 2)
@@ -251,13 +251,13 @@ vector_opencl_code_generation_table = {
   },
   Modulo: {
     None: {
-      lambda _: True: 
+      lambda _: True:
         dict(
           sum(
           [
             [
               (type_strict_match(
-                  VECTOR_TYPE_MAP[scalar_type][vector_size], 
+                  VECTOR_TYPE_MAP[scalar_type][vector_size],
                   VECTOR_TYPE_MAP[scalar_type][vector_size],
                   VECTOR_TYPE_MAP[scalar_type][vector_size]
                 ), SymbolOperator("%", arity = 2)
@@ -290,13 +290,13 @@ vector_opencl_code_generation_table = {
   },
   Multiplication: {
     None: {
-      lambda _: True: 
+      lambda _: True:
         dict(
           sum(
           [
             [
               (type_strict_match(
-                  VECTOR_TYPE_MAP[scalar_type][vector_size], 
+                  VECTOR_TYPE_MAP[scalar_type][vector_size],
                   VECTOR_TYPE_MAP[scalar_type][vector_size],
                   VECTOR_TYPE_MAP[scalar_type][vector_size]
                 ), SymbolOperator("*", arity = 2)
@@ -308,7 +308,7 @@ vector_opencl_code_generation_table = {
   },
   Negation: {
     None: {
-      lambda _: True: 
+      lambda _: True:
         dict(
           sum(
           [
@@ -325,7 +325,7 @@ vector_opencl_code_generation_table = {
   },
   FusedMultiplyAdd: {
     FusedMultiplyAdd.Standard: {
-      lambda _: True: 
+      lambda _: True:
         dict(
           sum(
           [
@@ -384,14 +384,14 @@ vector_opencl_code_generation_table = {
   Test: {
     Test.IsNaN: {
         lambda optree: True: {
-            type_strict_match_list([ML_Int32, ML_Bool], [ML_Binary32]): OpenCL_Builtin("isnan", arity = 1), 
-            type_strict_match_list([ML_Int32, ML_Bool], [ML_Binary64]): OpenCL_Builtin("isnan", arity = 1), 
+            type_strict_match_list([ML_Int32, ML_Bool], [ML_Binary32]): OpenCL_Builtin("isnan", arity = 1),
+            type_strict_match_list([ML_Int32, ML_Bool], [ML_Binary64]): OpenCL_Builtin("isnan", arity = 1),
         },
     },
     Test.IsInfty: {
         lambda optree: True: {
-            type_strict_match_list([ML_Int32, ML_Bool], [ML_Binary32]): OpenCL_Builtin("isinf", arity = 1), 
-            type_strict_match_list([ML_Int32, ML_Bool], [ML_Binary64]): OpenCL_Builtin("isinf", arity = 1), 
+            type_strict_match_list([ML_Int32, ML_Bool], [ML_Binary32]): OpenCL_Builtin("isinf", arity = 1),
+            type_strict_match_list([ML_Int32, ML_Bool], [ML_Binary64]): OpenCL_Builtin("isinf", arity = 1),
         },
     },
   },
@@ -433,20 +433,20 @@ vector_opencl_code_generation_table = {
       },
     },
   },
-  Comparison: 
-    #specifier -> 
-    dict ((comp_specifier, 
+  Comparison:
+    #specifier ->
+    dict ((comp_specifier,
       {
-        lambda _: True: 
+        lambda _: True:
           dict(
-            ( 
+            (
               sum(
                 [
                   [
                     (
                       type_strict_match_list(
                         [
-                          #vector_type[ML_Int32][vector_size], 
+                          #vector_type[ML_Int32][vector_size],
                           VECTOR_TYPE_MAP[ML_Bool][vector_size]
                         ],
                         [
@@ -456,7 +456,7 @@ vector_opencl_code_generation_table = {
                           VECTOR_TYPE_MAP[scalar_type][vector_size]
                         ]
                       )
-                      , 
+                      ,
                       SymbolOperator(comp_specifier.symbol, arity = 2),
                     )  for scalar_type in [ML_Binary32, ML_Binary64, ML_Int32, ML_UInt32]
                   ] for vector_size in supported_vector_size
@@ -539,34 +539,34 @@ vector_opencl_code_generation_table = {
   Test: {
     Test.IsMaskAllZero: {
       lambda _: True: {
-        type_strict_match_list([ML_Bool, ML_Int32], [v2bool]): ML_OCL_VectorLib_Function("ml_ocl_is_vmask2_zero", arity = 1, output_precision = ML_Int32), 
-        type_strict_match_list([ML_Bool, ML_Int32], [v3bool]): ML_OCL_VectorLib_Function("ml_ocl_is_vmask3_zero", arity = 1, output_precision = ML_Int32), 
-        type_strict_match_list([ML_Bool, ML_Int32], [v4bool]): ML_OCL_VectorLib_Function("ml_ocl_is_vmask4_zero", arity = 1, output_precision = ML_Int32), 
-        type_strict_match_list([ML_Bool, ML_Int32], [v8bool]): ML_OCL_VectorLib_Function("ml_ocl_is_vmask8_zero", arity = 1, output_precision = ML_Int32), 
+        type_strict_match_list([ML_Bool, ML_Int32], [v2bool]): ML_OCL_VectorLib_Function("ml_ocl_is_vmask2_zero", arity = 1, output_precision = ML_Int32),
+        type_strict_match_list([ML_Bool, ML_Int32], [v3bool]): ML_OCL_VectorLib_Function("ml_ocl_is_vmask3_zero", arity = 1, output_precision = ML_Int32),
+        type_strict_match_list([ML_Bool, ML_Int32], [v4bool]): ML_OCL_VectorLib_Function("ml_ocl_is_vmask4_zero", arity = 1, output_precision = ML_Int32),
+        type_strict_match_list([ML_Bool, ML_Int32], [v8bool]): ML_OCL_VectorLib_Function("ml_ocl_is_vmask8_zero", arity = 1, output_precision = ML_Int32),
       },
     },
     Test.IsMaskAnyZero: {
       lambda _: True: {
-        type_strict_match_list([ML_Bool, ML_Int32], [v2bool]): ML_OCL_VectorLib_Function("ml_ocl_is_vmask2_any_zero", arity = 1, output_precision = ML_Int32), 
-        type_strict_match_list([ML_Bool, ML_Int32], [v3bool]): ML_OCL_VectorLib_Function("ml_ocl_is_vmask3_any_zero", arity = 1, output_precision = ML_Int32), 
-        type_strict_match_list([ML_Bool, ML_Int32], [v4bool]): ML_OCL_VectorLib_Function("ml_ocl_is_vmask4_any_zero", arity = 1, output_precision = ML_Int32), 
-        type_strict_match_list([ML_Bool, ML_Int32], [v8bool]): ML_OCL_VectorLib_Function("ml_ocl_is_vmask8_any_zero", arity = 1, output_precision = ML_Int32), 
+        type_strict_match_list([ML_Bool, ML_Int32], [v2bool]): ML_OCL_VectorLib_Function("ml_ocl_is_vmask2_any_zero", arity = 1, output_precision = ML_Int32),
+        type_strict_match_list([ML_Bool, ML_Int32], [v3bool]): ML_OCL_VectorLib_Function("ml_ocl_is_vmask3_any_zero", arity = 1, output_precision = ML_Int32),
+        type_strict_match_list([ML_Bool, ML_Int32], [v4bool]): ML_OCL_VectorLib_Function("ml_ocl_is_vmask4_any_zero", arity = 1, output_precision = ML_Int32),
+        type_strict_match_list([ML_Bool, ML_Int32], [v8bool]): ML_OCL_VectorLib_Function("ml_ocl_is_vmask8_any_zero", arity = 1, output_precision = ML_Int32),
       },
     },
     Test.IsMaskNotAnyZero: {
       lambda _: True: {
-        type_strict_match_list([ML_Bool, ML_Int32], [v2bool]): ML_OCL_VectorLib_Function("ml_ocl_is_vmask2_not_any_zero", arity = 1, output_precision = ML_Int32), 
-        type_strict_match_list([ML_Bool, ML_Int32], [v3bool]): ML_OCL_VectorLib_Function("ml_ocl_is_vmask3_not_any_zero", arity = 1, output_precision = ML_Int32), 
-        type_strict_match_list([ML_Bool, ML_Int32], [v4bool]): ML_OCL_VectorLib_Function("ml_ocl_is_vmask4_not_any_zero", arity = 1, output_precision = ML_Int32), 
-        type_strict_match_list([ML_Bool, ML_Int32], [v8bool]): ML_OCL_VectorLib_Function("ml_ocl_is_vmask8_not_any_zero", arity = 1, output_precision = ML_Int32), 
+        type_strict_match_list([ML_Bool, ML_Int32], [v2bool]): ML_OCL_VectorLib_Function("ml_ocl_is_vmask2_not_any_zero", arity = 1, output_precision = ML_Int32),
+        type_strict_match_list([ML_Bool, ML_Int32], [v3bool]): ML_OCL_VectorLib_Function("ml_ocl_is_vmask3_not_any_zero", arity = 1, output_precision = ML_Int32),
+        type_strict_match_list([ML_Bool, ML_Int32], [v4bool]): ML_OCL_VectorLib_Function("ml_ocl_is_vmask4_not_any_zero", arity = 1, output_precision = ML_Int32),
+        type_strict_match_list([ML_Bool, ML_Int32], [v8bool]): ML_OCL_VectorLib_Function("ml_ocl_is_vmask8_not_any_zero", arity = 1, output_precision = ML_Int32),
       },
     },
     Test.IsMaskNotAllZero: {
       lambda _: True: {
-        type_strict_match_list([ML_Bool, ML_Int32], [v2bool]): ML_OCL_VectorLib_Function("ml_ocl_is_vmask2_not_all_zero", arity = 1, output_precision = ML_Int32), 
-        type_strict_match_list([ML_Bool, ML_Int32], [v3bool]): ML_OCL_VectorLib_Function("ml_ocl_is_vmask3_not_all_zero", arity = 1, output_precision = ML_Int32), 
-        type_strict_match_list([ML_Bool, ML_Int32], [v4bool]): ML_OCL_VectorLib_Function("ml_ocl_is_vmask4_not_all_zero", arity = 1, output_precision = ML_Int32), 
-        type_strict_match_list([ML_Bool, ML_Int32], [v8bool]): ML_OCL_VectorLib_Function("ml_ocl_is_vmask8_not_all_zero", arity = 1, output_precision = ML_Int32), 
+        type_strict_match_list([ML_Bool, ML_Int32], [v2bool]): ML_OCL_VectorLib_Function("ml_ocl_is_vmask2_not_all_zero", arity = 1, output_precision = ML_Int32),
+        type_strict_match_list([ML_Bool, ML_Int32], [v3bool]): ML_OCL_VectorLib_Function("ml_ocl_is_vmask3_not_all_zero", arity = 1, output_precision = ML_Int32),
+        type_strict_match_list([ML_Bool, ML_Int32], [v4bool]): ML_OCL_VectorLib_Function("ml_ocl_is_vmask4_not_all_zero", arity = 1, output_precision = ML_Int32),
+        type_strict_match_list([ML_Bool, ML_Int32], [v8bool]): ML_OCL_VectorLib_Function("ml_ocl_is_vmask8_not_all_zero", arity = 1, output_precision = ML_Int32),
       },
     },
     Test.IsInfOrNaN: {
@@ -581,9 +581,9 @@ vector_opencl_code_generation_table = {
 }
 
 def type_uniform_op2_match(result_type, op0_type, op1_type, **kw):
-    """ Type match predicates: 
-            a 2-operand where operands and result format must 
-            match 
+    """ Type match predicates:
+            a 2-operand where operands and result format must
+            match
         """
     return result_type == op0_type and op0_type == op1_type
 
@@ -597,7 +597,7 @@ def type_uniform_op2_match_restrain(list_t):
 
 
 def assemble_vector(scalar_results, vector_prec, threshold=4):
-    """ build a vector node from list scalar_results, 
+    """ build a vector node from list scalar_results,
         sub-dividing in half, if vectors exceeds threshold """
     vector_size = vector_prec.get_vector_size()
     if vector_size <= threshold:
@@ -755,7 +755,7 @@ vector_c_code_generation_table = {
             ML_VectorLib_Function("ML_VLOAD", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: "4"}, arity = 4),
         type_custom_match(FSM(v4float32), TCM(ML_TableFormat), FSM(v4int32), FSM(v4int32)):
             ML_VectorLib_Function("ML_VLOAD2D", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2), 4: "4"}, arity = 5),
-        type_custom_match(FSM(v8float32), TCM(ML_TableFormat), FSM(v8int32), FSM(v8int32)): 
+        type_custom_match(FSM(v8float32), TCM(ML_TableFormat), FSM(v8int32), FSM(v8int32)):
             ML_VectorLib_Function("ML_VLOAD2D", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2), 4: "8"}, arity = 5),
         # double precision loading
         type_custom_match(FSM(v4float64), TCM(ML_TableFormat), FSM(v4int32)):
@@ -1131,14 +1131,14 @@ vector_c_code_generation_table = {
   },
   Negation: {
     None: {
-      lambda _: True: 
+      lambda _: True:
         dict(
           sum(
           [
             [
               (
                 type_strict_match(VECTOR_TYPE_MAP[scalar_type][vector_size], VECTOR_TYPE_MAP[scalar_type][vector_size])
-              , 
+              ,
                 ML_VectorLib_Function("ml_vneg%s%d" % (scalar_type_letter[scalar_type], vector_size), arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)}, arity = 1, output_precision = VECTOR_TYPE_MAP[scalar_type][vector_size])
               ) for vector_size in supported_vector_size
             ] for scalar_type in [ML_Binary32, ML_Binary64, ML_Int32, ML_UInt32, ML_Int64, ML_UInt64]
@@ -1418,34 +1418,34 @@ vector_c_code_generation_table = {
   Test: {
     Test.IsMaskAllZero: {
       lambda _: True: {
-        type_strict_match_list([ML_Bool, ML_Int32], [v2bool]): ML_VectorLib_Function("ml_is_vmask2_zero", arity = 1, output_precision = ML_Int32), 
-        type_strict_match_list([ML_Bool, ML_Int32], [v3bool]): ML_VectorLib_Function("ml_is_vmask3_zero", arity = 1, output_precision = ML_Int32), 
-        type_strict_match_list([ML_Bool, ML_Int32], [v4bool]): ML_VectorLib_Function("ml_is_vmask4_zero", arity = 1, output_precision = ML_Int32), 
-        type_strict_match_list([ML_Bool, ML_Int32], [v8bool]): ML_VectorLib_Function("ml_is_vmask8_zero", arity = 1, output_precision = ML_Int32), 
+        type_strict_match_list([ML_Bool, ML_Int32], [v2bool]): ML_VectorLib_Function("ml_is_vmask2_zero", arity = 1, output_precision = ML_Int32),
+        type_strict_match_list([ML_Bool, ML_Int32], [v3bool]): ML_VectorLib_Function("ml_is_vmask3_zero", arity = 1, output_precision = ML_Int32),
+        type_strict_match_list([ML_Bool, ML_Int32], [v4bool]): ML_VectorLib_Function("ml_is_vmask4_zero", arity = 1, output_precision = ML_Int32),
+        type_strict_match_list([ML_Bool, ML_Int32], [v8bool]): ML_VectorLib_Function("ml_is_vmask8_zero", arity = 1, output_precision = ML_Int32),
       },
     },
     Test.IsMaskAnyZero: {
       lambda _: True: {
-        type_strict_match_list([ML_Bool, ML_Int32], [v2bool]): ML_VectorLib_Function("ml_is_vmask2_any_zero", arity = 1, output_precision = ML_Int32), 
-        type_strict_match_list([ML_Bool, ML_Int32], [v3bool]): ML_VectorLib_Function("ml_is_vmask3_any_zero", arity = 1, output_precision = ML_Int32), 
-        type_strict_match_list([ML_Bool, ML_Int32], [v4bool]): ML_VectorLib_Function("ml_is_vmask4_any_zero", arity = 1, output_precision = ML_Int32), 
-        type_strict_match_list([ML_Bool, ML_Int32], [v8bool]): ML_VectorLib_Function("ml_is_vmask8_any_zero", arity = 1, output_precision = ML_Int32), 
+        type_strict_match_list([ML_Bool, ML_Int32], [v2bool]): ML_VectorLib_Function("ml_is_vmask2_any_zero", arity = 1, output_precision = ML_Int32),
+        type_strict_match_list([ML_Bool, ML_Int32], [v3bool]): ML_VectorLib_Function("ml_is_vmask3_any_zero", arity = 1, output_precision = ML_Int32),
+        type_strict_match_list([ML_Bool, ML_Int32], [v4bool]): ML_VectorLib_Function("ml_is_vmask4_any_zero", arity = 1, output_precision = ML_Int32),
+        type_strict_match_list([ML_Bool, ML_Int32], [v8bool]): ML_VectorLib_Function("ml_is_vmask8_any_zero", arity = 1, output_precision = ML_Int32),
       },
     },
     Test.IsMaskNotAnyZero: {
       lambda _: True: {
-        type_strict_match_list([ML_Bool, ML_Int32], [v2bool]): ML_VectorLib_Function("ml_is_vmask2_not_any_zero", arity = 1, output_precision = ML_Int32), 
-        type_strict_match_list([ML_Bool, ML_Int32], [v3bool]): ML_VectorLib_Function("ml_is_vmask3_not_any_zero", arity = 1, output_precision = ML_Int32), 
-        type_strict_match_list([ML_Bool, ML_Int32], [v4bool]): ML_VectorLib_Function("ml_is_vmask4_not_any_zero", arity = 1, output_precision = ML_Int32), 
-        type_strict_match_list([ML_Bool, ML_Int32], [v8bool]): ML_VectorLib_Function("ml_is_vmask8_not_any_zero", arity = 1, output_precision = ML_Int32), 
+        type_strict_match_list([ML_Bool, ML_Int32], [v2bool]): ML_VectorLib_Function("ml_is_vmask2_not_any_zero", arity = 1, output_precision = ML_Int32),
+        type_strict_match_list([ML_Bool, ML_Int32], [v3bool]): ML_VectorLib_Function("ml_is_vmask3_not_any_zero", arity = 1, output_precision = ML_Int32),
+        type_strict_match_list([ML_Bool, ML_Int32], [v4bool]): ML_VectorLib_Function("ml_is_vmask4_not_any_zero", arity = 1, output_precision = ML_Int32),
+        type_strict_match_list([ML_Bool, ML_Int32], [v8bool]): ML_VectorLib_Function("ml_is_vmask8_not_any_zero", arity = 1, output_precision = ML_Int32),
       },
     },
     Test.IsMaskNotAllZero: {
       lambda _: True: {
-        type_strict_match_list([ML_Bool, ML_Int32], [v2bool]): ML_VectorLib_Function("ml_is_vmask2_not_all_zero", arity = 1, output_precision = ML_Int32), 
-        type_strict_match_list([ML_Bool, ML_Int32], [v3bool]): ML_VectorLib_Function("ml_is_vmask3_not_all_zero", arity = 1, output_precision = ML_Int32), 
-        type_strict_match_list([ML_Bool, ML_Int32], [v4bool]): ML_VectorLib_Function("ml_is_vmask4_not_all_zero", arity = 1, output_precision = ML_Int32), 
-        type_strict_match_list([ML_Bool, ML_Int32], [v8bool]): ML_VectorLib_Function("ml_is_vmask8_not_all_zero", arity = 1, output_precision = ML_Int32), 
+        type_strict_match_list([ML_Bool, ML_Int32], [v2bool]): ML_VectorLib_Function("ml_is_vmask2_not_all_zero", arity = 1, output_precision = ML_Int32),
+        type_strict_match_list([ML_Bool, ML_Int32], [v3bool]): ML_VectorLib_Function("ml_is_vmask3_not_all_zero", arity = 1, output_precision = ML_Int32),
+        type_strict_match_list([ML_Bool, ML_Int32], [v4bool]): ML_VectorLib_Function("ml_is_vmask4_not_all_zero", arity = 1, output_precision = ML_Int32),
+        type_strict_match_list([ML_Bool, ML_Int32], [v8bool]): ML_VectorLib_Function("ml_is_vmask8_not_all_zero", arity = 1, output_precision = ML_Int32),
       },
     },
     Test.IsInfOrNaN: {
@@ -1485,7 +1485,7 @@ vector_c_code_generation_table = {
         type_strict_match(v8bool, v8float32): ML_VectorLib_Function("ml_vtestf8_is_zero", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)}, arity = 1, output_precision = v8int32),
       },
     },
-    
+
     Test.IsSubnormal: {
       lambda _: True: {
         type_strict_match(v2bool, v2float32): ML_VectorLib_Function("ml_vtestf2_is_subnormal", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)}, arity = 1, output_precision = v2int32),
@@ -1507,71 +1507,71 @@ vector_c_code_generation_table = {
                 type_strict_match(field_format, op_format),
                 TemplateOperator("%s.hi", arity=1)
             ) for (field_format, op_format) in [
-              (v2float64, v2dualfloat64), 
-              (v3float64, v3dualfloat64), 
-              (v4float64, v4dualfloat64), 
-              (v8float64, v8dualfloat64), 
+              (v2float64, v2dualfloat64),
+              (v3float64, v3dualfloat64),
+              (v4float64, v4dualfloat64),
+              (v8float64, v8dualfloat64),
 
-              (v2float32, v2dualfloat32), 
-              (v3float32, v3dualfloat32), 
-              (v4float32, v4dualfloat32), 
-              (v8float32, v8dualfloat32), 
+              (v2float32, v2dualfloat32),
+              (v3float32, v3dualfloat32),
+              (v4float32, v4dualfloat32),
+              (v8float32, v8dualfloat32),
 
-              (v2float64, v2trifloat64), 
-              (v3float64, v3trifloat64), 
-              (v4float64, v4trifloat64), 
-              (v8float64, v8trifloat64), 
+              (v2float64, v2trifloat64),
+              (v3float64, v3trifloat64),
+              (v4float64, v4trifloat64),
+              (v8float64, v8trifloat64),
 
-              (v2float32, v2trifloat32), 
-              (v3float32, v3trifloat32), 
-              (v4float32, v4trifloat32), 
-              (v8float32, v8trifloat32), 
+              (v2float32, v2trifloat32),
+              (v3float32, v3trifloat32),
+              (v4float32, v4trifloat32),
+              (v8float32, v8trifloat32),
             ]
         )
       },
       ComponentSelection.Me: {
-          lambda optree: True: dict( 
+          lambda optree: True: dict(
             (
                 type_strict_match(field_format, op_format),
                 TemplateOperator("%s.me", arity=1)
             ) for (field_format, op_format) in [
-              (v2float64, v2trifloat64), 
-              (v3float64, v3trifloat64), 
-              (v4float64, v4trifloat64), 
-              (v8float64, v8trifloat64), 
+              (v2float64, v2trifloat64),
+              (v3float64, v3trifloat64),
+              (v4float64, v4trifloat64),
+              (v8float64, v8trifloat64),
 
-              (v2float32, v2trifloat32), 
-              (v3float32, v3trifloat32), 
-              (v4float32, v4trifloat32), 
-              (v8float32, v8trifloat32), 
+              (v2float32, v2trifloat32),
+              (v3float32, v3trifloat32),
+              (v4float32, v4trifloat32),
+              (v8float32, v8trifloat32),
             ]
         )
       },
       ComponentSelection.Lo: {
-          lambda optree: True: dict( 
+          lambda optree: True: dict(
             (
                 type_strict_match(field_format, op_format),
                 TemplateOperator("%s.lo", arity=1)
             ) for (field_format, op_format) in [
-              (v2float64, v2dualfloat64), 
-              (v3float64, v3dualfloat64), 
-              (v4float64, v4dualfloat64), 
-              (v8float64, v8dualfloat64), 
+              (v2float64, v2dualfloat64),
+              (v3float64, v3dualfloat64),
+              (v4float64, v4dualfloat64),
+              (v8float64, v8dualfloat64),
 
-              (v2float32, v2dualfloat32), 
-              (v3float32, v3dualfloat32), 
-              (v4float32, v4dualfloat32), 
-              (v8float32, v8dualfloat32), 
+              (v2float32, v2dualfloat32),
+              (v3float32, v3dualfloat32),
+              (v4float32, v4dualfloat32),
+              (v8float32, v8dualfloat32),
 
-              (v2float64, v2trifloat64), 
-              (v3float64, v3trifloat64), 
-              (v4float64, v4trifloat64), 
-              (v8float64, v8trifloat64), 
+              (v2float64, v2trifloat64),
+              (v3float64, v3trifloat64),
+              (v4float64, v4trifloat64),
+              (v8float64, v8trifloat64),
 
-              (v2float32, v2trifloat32), 
-              (v3float32, v3trifloat32), 
-              (v4float32, v4trifloat32), 
-              (v8float32, v8trifloat32), 
+              (v2float32, v2trifloat32),
+              (v3float32, v3trifloat32),
+              (v4float32, v4trifloat32),
+              (v8float32, v8trifloat32),
             ]
         )
       },
@@ -1583,29 +1583,29 @@ vector_c_code_generation_table = {
                 type_strict_match(op_format, field_format, field_format, field_format),
                 TemplateOperatorFormat("((%s) {{.hi={0} , .me={1}, .lo={2}}})" % op_format.name[C_Code], arity=3)
             ) for (field_format, op_format) in [
-              (v2float64, v2trifloat64), 
-              (v3float64, v3trifloat64), 
-              (v4float64, v4trifloat64), 
-              (v8float64, v8trifloat64), 
+              (v2float64, v2trifloat64),
+              (v3float64, v3trifloat64),
+              (v4float64, v4trifloat64),
+              (v8float64, v8trifloat64),
 
-              (v2float32, v2trifloat32), 
-              (v3float32, v3trifloat32), 
-              (v4float32, v4trifloat32), 
-              (v8float32, v8trifloat32), 
+              (v2float32, v2trifloat32),
+              (v3float32, v3trifloat32),
+              (v4float32, v4trifloat32),
+              (v8float32, v8trifloat32),
             ]] + [
             (
                 type_strict_match(op_format, field_format, field_format),
                 TemplateOperatorFormat("((%s) {{.hi={0} , .lo={1}}})" % op_format.name[C_Code], arity=2)
             ) for (field_format, op_format) in [
-              (v2float64, v2dualfloat64), 
-              (v3float64, v3dualfloat64), 
-              (v4float64, v4dualfloat64), 
-              (v8float64, v8dualfloat64), 
+              (v2float64, v2dualfloat64),
+              (v3float64, v3dualfloat64),
+              (v4float64, v4dualfloat64),
+              (v8float64, v8dualfloat64),
 
-              (v2float32, v2dualfloat32), 
-              (v3float32, v3dualfloat32), 
-              (v4float32, v4dualfloat32), 
-              (v8float32, v8dualfloat32), 
+              (v2float32, v2dualfloat32),
+              (v3float32, v3dualfloat32),
+              (v4float32, v4dualfloat32),
+              (v8float32, v8dualfloat32),
             ]]
         )
       },
@@ -1655,7 +1655,7 @@ class VectorBackend(GenericProcessor):
     Log.report(Log.Verbose, "[VectorBackend] Tested architecture(s) for language %s:" % str(language))
     for parent_proc in self.parent_architecture:
       Log.report(Log.Verbose, "  %s " % parent_proc)
-    Log.report(Log.Error, "the following operation is not supported by vector_backend %s: \n%s" % (self.__class__, optree.get_str(depth = 2, display_precision = True, memoization_map = {}))) 
+    Log.report(Log.Error, "the following operation is not supported by vector_backend %s: \n%s" % (self.__class__, optree.get_str(depth = 2, display_precision = True, memoization_map = {})))
 
 # debug message
 Log.report(LOG_BACKEND_INIT, "Initializing vector backend target")
