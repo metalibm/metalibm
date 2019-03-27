@@ -31,7 +31,7 @@
 ###############################################################################
 
 from metalibm_core.core.ml_operations import (
-    ML_LeafNode, Comparison, 
+    ML_LeafNode, Comparison, BooleanOperation,
 )
 from metalibm_core.core.ml_hdl_operations import (
     PlaceHolder
@@ -81,6 +81,8 @@ def forward_attributes(src, dst):
     dst.set_handle(src.get_handle())
     if hasattr(src.attributes, "init_stage"):
         forward_stage_attributes(src, dst)
+    if isinstance(src, BooleanOperation) and isinstance(dst, BooleanOperation):
+        dst.likely = src.likely
 
 
 def forward_stage_attributes(src, dst):
