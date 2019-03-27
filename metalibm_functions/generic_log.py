@@ -115,7 +115,7 @@ class ML_GenericLog(ML_FunctionBasis):
 
         int_precision = self.precision.get_integer_format()
 
-        vx_exp  = ExponentExtraction(vx, tag="vx_exp", debug=debug_multi)
+        vx_exp  = ExponentExtraction(vx, tag="vx_exp", precision=int_precision, debug=debug_multi)
 
 
 
@@ -172,7 +172,7 @@ class ML_GenericLog(ML_FunctionBasis):
 
         def compute_log(_vx, exp_corr_factor = None):
             _vx_mant = MantissaExtraction(_vx, tag="_vx_mant", precision=self.precision, debug = debug_multi)
-            _vx_exp  = ExponentExtraction(_vx, tag="_vx_exp", debug = debug_multi)
+            _vx_exp  = ExponentExtraction(_vx, tag="_vx_exp", precision=int_precision, debug=debug_multi)
 
             table_index = inv_approx_table.index_function(_vx_mant)
 
