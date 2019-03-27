@@ -935,7 +935,7 @@ vector_c_code_generation_table = {
             (
                 type_strict_match(vformat, vformat, vformat),
                 ML_VectorLib_Function(
-                    "ml_vadd%s%d" % (get_vformat_desc(vformat), vformat.get_vector_size()),
+                    "ml_vmod%s%d" % (get_vformat_desc(vformat), vformat.get_vector_size()),
                     arg_map={0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity=2,
                     output_precision=vformat
                 )
