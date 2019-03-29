@@ -65,6 +65,7 @@ S2 = sollya.SollyaObject(2)
 
 
 class ML_Erf(ML_FunctionBasis):
+    """ Meta implementation of the error-function """
     function_name = "ml_erf"
     def __init__(self, args):
         ML_FunctionBasis.__init__(self, args)
@@ -72,14 +73,18 @@ class ML_Erf(ML_FunctionBasis):
     @staticmethod
     def get_default_args(**kw):
         """ Return a structure containing the arguments for ML_Erf,
-                builtin from a default argument mapping overloaded with @p kw """
+            builtin from a default argument mapping overloaded with @p kw """
         default_args_erf = {
                 "output_file": "my_erf.c",
                 "function_name": "my_erf",
                 "precision": ML_Binary32,
                 "accuracy": ML_Faithful,
                 "target": GenericProcessor(),
-                "passes": [("start:instantiate_abstract_prec"), ("start:instantiate_prec"), ("start:basic_legalization"), ("start:expand_multi_precision")],
+                "passes": [
+                    ("start:instantiate_abstract_prec"),
+                    ("start:instantiate_prec"),
+                    ("start:basic_legalization"),
+                    ("start:expand_multi_precision")],
         }
         default_args_erf.update(kw)
         return DefaultArgTemplate(**default_args_erf)
@@ -88,13 +93,16 @@ class ML_Erf(ML_FunctionBasis):
         vx = self.implementation.add_input_variable("x", self.precision)
         abs_vx = Abs(vx, precision=self.precision)
 
-        #one_limit = search_bound_threshold(sollya.erf, 1.0, 1.0, self.precision.get_max_value(), self.precision)
-        one_limit = search_bound_threshold(sollya.erf, 1.0, 1.0, 10.0, self.precision)
-        Log.report(Log.Debug, "erf(x) = 1.0 limit is {}", one_limit)
+        FCT_LIMIT = 1.0
+
+        one_limit = search_bound_threshold(sollya.erf, FCT_LIMIT, 1.0, 10.0, self.precision)
+        one_limit_exp = int(sollya.floor(sollya.log2(one_limit)))
+        Log.report(Log.Debug, "erf(x) = 1.0 limit is {}, with exp={}", one_limit, one_limit_exp)
 
         upper_approx_bound = 10
 
-        eps_exp = -3
+        # empiral numbers
+        eps_exp = {ML_Binary32: -3, ML_Binary64: -5}[self.precision]
         eps = S2**eps_exp
 
         Log.report(Log.Info, "building mathematical polynomial")
@@ -122,19 +130,23 @@ class ML_Erf(ML_FunctionBasis):
         result.set_attributes(tag="result", debug=debug_multi)
 
 
-        fct_limit = 1.0
-
         eps_target = S2**-(self.precision.get_field_size() +5)
         def offset_div_function(fct):
             return lambda offset: fct(sollya.x + offset)
 
-        near_indexing = SubFPIndexing(2, 6, eps_exp, self.precision)
+        # empiral numbers
+        field_size = {
+            ML_Binary32: 6,
+            ML_Binary64: 8
+        }[self.precision]
+
+        near_indexing = SubFPIndexing(eps_exp, 0, 6, self.precision)
         near_approx = generic_poly_split(offset_div_function(sollya.erf), near_indexing, eps_target, self.precision, abs_vx)
         near_approx.set_attributes(tag="near_approx", debug=debug_multi)
 
         def offset_function(fct):
             return lambda offset: fct(sollya.x + offset)
-        medium_indexing = SubFPIndexing(2, 7, 1, self.precision)
+        medium_indexing = SubFPIndexing(1, one_limit_exp, 7, self.precision)
 
         medium_approx = generic_poly_split(offset_function(sollya.erf), medium_indexing, eps_target, self.precision, abs_vx)
         medium_approx.set_attributes(tag="medium_approx", debug=debug_multi)
@@ -159,6 +171,7 @@ class ML_Erf(ML_FunctionBasis):
         return sollya.erf(input_value)
 
     standard_test_cases = [
+        (sollya.parse("0x1.4c0d4e9f58p-8"),),
         (1.0, None),
         (4.0, None),
         (0.5, None),
