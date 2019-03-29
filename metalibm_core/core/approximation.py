@@ -99,12 +99,15 @@ class SubFPIndexing:
         e bits are extracted from the LSB of exponent
         f bits are extract from the MSB of mantissa
         exponent is offset by l """
-    def __init__(self, exp_bits, field_bits, low_exp_value, precision):
+    def __init__(self, low_exp_value, max_exp_value, field_bits, precision):
+        self.field_bits = field_bits
+        self.low_exp_value = low_exp_value
+        self.max_exp_value = max_exp_value
+        exp_bits = int(sollya.ceil(sollya.log2(max_exp_value - low_exp_value + 1)))
         assert exp_bits >= 0 and field_bits >= 0 and (exp_bits + field_bits) > 0
         self.exp_bits = exp_bits
-        self.field_bits = field_bits
-        self.split_num = 2**(self.exp_bits + self.field_bits)
-        self.low_exp_value = low_exp_value
+        self.split_num = (self.max_exp_value - self.low_exp_value + 1) * 2**(self.field_bits)
+        Log.report(Log.Debug, "split_num={}", self.split_num)
         self.precision = precision
 
     def get_index_node(self, vx):
@@ -175,10 +178,12 @@ class SubFPIndexing:
 
 
 def generic_poly_split(offset_fct, indexing, target_eps, coeff_precision, vx):
-    """ generate the meta approximation for @p over several intervals
-        defined by @p indexing object
+    """ generate the meta approximation for @p offset_fct over several
+        intervals defined by @p indexing object
         For each sub-interval, a polynomial approximation with
-        maximal_error @p target_eps is tabulated """
+        maximal_error @p target_eps is tabulated, and evaluated using format
+        @p coeff_precision.
+        The input variable is @p vx """
     # computing degree for a different polynomial approximation on each
     # sub-interval
     poly_degree_list = [int(sup(guessdegree(offset_fct(offset), sub_interval, target_eps))) for offset, sub_interval in indexing.get_offseted_sub_list()]
@@ -246,7 +251,6 @@ def search_bound_threshold(fct, limit, start_point, end_point, precision):
     left_bound = start_point
     right_bound = end_point
     while left_bound != right_bound and fp_next(left_bound, precision) != right_bound:
-        print(left_bound, right_bound, fp_next(left_bound, precision))
         mid_point = precision.round_sollya_object((left_bound + right_bound) / S2, round_mode=sollya.RU)
         mid_point_img = precision.round_sollya_object(fct(mid_point), round_mode=sollya.RU)
         if mid_point_img >= limit:
