@@ -122,29 +122,29 @@ FUNCTION_LIST = [
     # FunctionTest(metalibm_functions.ml_tanh.ML_HyperbolicTangent, [{}])
     # FunctionTest(metalibm_functions.ml_atan.ML_Atan, [{}])
 
-   FunctionTest(metalibm_functions.generic_log.ML_GenericLog,[GEN_LOG_ARGS]),
-   FunctionTest(metalibm_functions.generic_log.ML_GenericLog,[GEN_LOG2_ARGS]),
-   FunctionTest(metalibm_functions.generic_log.ML_GenericLog,[GEN_LOG10_ARGS]),
+  FunctionTest(metalibm_functions.generic_log.ML_GenericLog,[GEN_LOG_ARGS], title="ml_genlog"),
+  FunctionTest(metalibm_functions.generic_log.ML_GenericLog,[GEN_LOG2_ARGS], title="ml_genlog2"),
+  FunctionTest(metalibm_functions.generic_log.ML_GenericLog,[GEN_LOG10_ARGS], title="ml_genlog10"),
 
-   FunctionTest(metalibm_functions.ml_cosh.ML_HyperbolicCosine, [{}]),
-   FunctionTest(metalibm_functions.ml_sinh.ML_HyperbolicSine, [{}]),
-   FunctionTest(metalibm_functions.ml_exp.ML_Exponential, [{}]),
-   FunctionTest(metalibm_functions.ml_log1p.ML_Log1p, [{}]),
+  FunctionTest(metalibm_functions.ml_cosh.ML_HyperbolicCosine, [{}]),
+  FunctionTest(metalibm_functions.ml_sinh.ML_HyperbolicSine, [{}]),
+  FunctionTest(metalibm_functions.ml_exp.ML_Exponential, [{}]),
+  FunctionTest(metalibm_functions.ml_log1p.ML_Log1p, [{}]),
 
-   FunctionTest(metalibm_functions.ml_div.ML_Division, [{}]),
+  FunctionTest(metalibm_functions.ml_div.ML_Division, [{}]),
 
    # superseeded by ML_GenericLog
    # FunctionTest(metalibm_functions.ml_log10.ML_Log10, [{"passes": ["beforecodegen:fuse_fma"]}]),
    # FunctionTest(metalibm_functions.ml_log.ML_Log, [{}]),
    # FunctionTest(metalibm_functions.ml_log2.ML_Log2, [{}]),
 
-   FunctionTest(metalibm_functions.ml_exp2.ML_Exp2, [{}]),
-   FunctionTest(metalibm_functions.ml_cbrt.ML_Cbrt, [{}]),
-   FunctionTest(metalibm_functions.ml_sqrt.MetalibmSqrt, [{}]),
-   FunctionTest(metalibm_functions.ml_isqrt.ML_Isqrt, [{}]),
-   FunctionTest(metalibm_functions.ml_vectorizable_log.ML_Log, [{}]),
+  FunctionTest(metalibm_functions.ml_exp2.ML_Exp2, [{}]),
+  FunctionTest(metalibm_functions.ml_cbrt.ML_Cbrt, [{}]),
+  FunctionTest(metalibm_functions.ml_sqrt.MetalibmSqrt, [{}]),
+  FunctionTest(metalibm_functions.ml_isqrt.ML_Isqrt, [{}]),
+  FunctionTest(metalibm_functions.ml_vectorizable_log.ML_Log, [{}]),
 
-   FunctionTest(metalibm_functions.ml_sincos.ML_SinCos, [{}]),
+  FunctionTest(metalibm_functions.ml_sincos.ML_SinCos, [{}]),
 ]
 
 global_test_list = []
