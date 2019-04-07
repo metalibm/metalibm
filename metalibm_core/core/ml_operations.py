@@ -323,6 +323,9 @@ class AbstractOperation(ML_Operation):
     #  @return the node evaluated live-range (when available) 
     def get_interval(self):
         return self.attributes.get_interval()
+    @property
+    def interval(self):
+        return self.attributes.get_interval()
     ## set the node live-range interval
     def set_interval(self, new_interval):
         return self.attributes.set_interval(new_interval)
