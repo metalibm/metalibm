@@ -15,7 +15,7 @@ class NewMetaFunction(ML_FunctionBasis):
 	function_name = "new_meta_function"
 ```
 
-### Meta-function describing ###
+### Meta-function description ###
 
 The meta-function implementation must be described using the Meta Description Language (see doc/MDL.md).
 The easiest way is to overload the **generate_scheme** method. This method take a single argument (self) and returns the main expression of the meta-function (most often a Statement node).
@@ -72,14 +72,14 @@ Standard arguments from the commande line (see  doc/USERGUIDE.md) can be used wi
 if __name__ == "__main__":
     # declaring standard argument structure
     arg_template = ML_NewArgTemplate()
-    
+
     # filling arg_template structure with command line options
     args = arg_template.arg_extraction()
 
 	# declaring meta-function instance
     meta_function = NewMetaFunction(args)
 
-	# generating meta_function 
+	# generating meta_function
     meta_function.gen_implementation()
 ```
 
@@ -89,7 +89,7 @@ To indicate to metalibm engine how to emulate the function behavior (e.g. to gen
 
 For example for our new meta-function with two parameters:
 ```
-	# class NewMetaFunction 
+	# class NewMetaFunction
 	def numerical_emulate(self, x, y):
     	return x + y
 ```
@@ -109,10 +109,10 @@ class NewMetaFunction(ML_FunctionBasis):
 	def generate_scheme(self):
         # declare a new input parameters vx whose tag is "x" and whose precision is single precision
         vx = self.implementation.add_input_variable("x", self.get_input_precision(0))
-    
+
     	# declare a new input parameters vy whose tag is "y" and whose precision is single precision
         vy = self.implementation.add_input_variable("x", self.get_input_precision(0))
-    
+
     	main_scheme = Statement(
     		Return(vx + vy, precision=ML_Binary32)
     	)
@@ -122,19 +122,19 @@ class NewMetaFunction(ML_FunctionBasis):
 if __name__ == "__main__":
     # declaring standard argument structure
     arg_template = ML_NewArgTemplate()
-    
+
     # filling arg_template structure with command line options
     args = arg_template.arg_extraction()
 
 	# declaring meta-function instance
     meta_function = NewMetaFunction(args)
 
-	# generating meta_function 
+	# generating meta_function
     meta_function.gen_implementation()
 ```
 
 ```
-	# class NewMetaFunction 
+	# class NewMetaFunction
 	def numerical_emulate(self, x, y):
     	return x + y
 ```

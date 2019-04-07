@@ -60,6 +60,7 @@ A more comprehensive user documentation can be found in [doc/USERGUIDE.md](https
 ## Version History
 
 - Version **1.0.alpha**: Released March 12th, 2018: First alpha for first official version
+- Version **1.0.beta**:  Released March 31th, 2018: First beta for first official version
 
 
 
