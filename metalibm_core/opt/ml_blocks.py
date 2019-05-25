@@ -157,23 +157,34 @@ class MetaBlock:
         """ expand an operation into single-word operations """
         raise NotImplementedError
 
+    def _global_relative_error_eval(self, *args):
+        """ give an upper bound to the relative error of the
+            meta-block applied to @p args while taking into
+            account the error of the inputs """
+        raise NotImplementedError
     def global_relative_error_eval(self, *args):
         """ give an upper bound to the relative error of the
             meta-block applied to @p args while taking into
             account the error of the inputs """
+        return self._global_relative_error_eval(self, *args)
+
+    def _local_relative_error_eval(self, *args):
+        """ give an upper bound to the relative error of the result
+            ONLY introduced by the meta-block, that is assuming inputs
+            were exact """
         raise NotImplementedError
     def local_relative_error_eval(self, *args):
         """ give an upper bound to the relative error of the result
             ONLY introduced by the meta-block, that is assuming inputs
             were exact """
-        raise NotImplementedError
+        return self._local_relative_error_eval(*args)
 
     def relative_error_eval(self, lhs, rhs, global_error=True):
         # TODO: only works for 2-operand meta blocks
         if global_error:
-            return self.global_relative_error_eval(lhs, rhs)
+            return self._global_relative_error_eval(lhs, rhs)
         else:
-            return self.local_relative_error_eval(lhs, rhs)
+            return self._local_relative_error_eval(lhs, rhs)
 
     def get_output_descriptor(self, lhs, rhs, global_error=True):
         """ return a MultiLimb object describing the output
@@ -197,10 +208,10 @@ def MB_CommutedVersion(BaseClass):
                 return BaseClass.expand(self, rhs, lhs)
             def check_input_descriptors(self, lhs, rhs):
                 return BaseClass.check_input_descriptors(self, rhs, lhs)
-            def global_relative_error_eval(self, lhs, rhs):
-                return BaseClass.global_relative_error_eval(self, rhs, lhs)
+            def _global_relative_error_eval(self, lhs, rhs):
+                return BaseClass._global_relative_error_eval(self, rhs, lhs)
             def local_relative_error_eval(self, lhs, rhs):
-                return BaseClass.local_relative_error_eval(self, rhs, lhs)
+                return BaseClass._local_relative_error_eval(self, rhs, lhs)
         return NewClass
     return decorator
 
@@ -242,7 +253,7 @@ def limb_prec_match(mp_prec, prec):
 
 class Op111_MetaBlock(Op_1LimbOut_MetaBlock):
     """ Virtual operation which returns a 2-limb output from two 1-limb inputs """
-    def local_relative_error_eval(self, x, y):
+    def _local_relative_error_eval(self, x, y):
         return S2**-self.main_precision.get_mantissa_size()
 
     def check_input_descriptors(self, lhs, rhs):
@@ -278,18 +289,19 @@ class MB_IntervalMul:
 class MB_Mul111(MB_IntervalMul, Op111_MetaBlock):
     def expand(self, x, y):
         return (Multiplication(*(x + y), precision=self.main_precision),)
-    def global_relative_error_eval(self, x, y):
-        eps_op = self.local_relative_error_eval(x, y)
+    def _global_relative_error_eval(self, x, y):
+        eps_op = self._local_relative_error_eval(x, y)
         # error bound (first order approximation)
+        print("MB_Mul111 eps_op is {}".format(eps_op))
         return x.epsilon + y.epsilon + eps_op
 
 
 class MB_Add111(MB_IntervalAdd, Op111_MetaBlock):
     def expand(self, lhs, rhs):
         return (Addition(*(lhs + rhs), precision=self.main_precision),)
-    def global_relative_error_eval(self, lhs, rhs):
+    def _global_relative_error_eval(self, lhs, rhs):
         # error bound (first order approximation)
-        eps_op = self.local_relative_error_eval(lhs, rhs)
+        eps_op = self._local_relative_error_eval(lhs, rhs)
         eps_in = max(lhs.epsilon, rhs.epsilon)
         return eps_op + eps_in + eps_op * eps_in
 
@@ -297,7 +309,7 @@ class MB_Add111(MB_IntervalAdd, Op111_MetaBlock):
 class Op211_ExactMetaBlock(Op_2LimbOut_MetaBlock):
     """ Virtual operation which returns a 2-limb output
         from two 1-limb inputs """
-    def local_relative_error_eval(self, x, y):
+    def _local_relative_error_eval(self, x, y):
         # ExactMetaBlock is exact
         return 0.0
 
@@ -316,7 +328,7 @@ class Op211_ExactMetaBlock(Op_2LimbOut_MetaBlock):
 class MB_Mul211(MB_IntervalMul, Op211_ExactMetaBlock):
     def expand(self, x, y):
         return Mul211(*(x + y), precision=self.main_precision)
-    def global_relative_error_eval(self, x, y):
+    def _global_relative_error_eval(self, x, y):
         # ExactMetaBlock is exact
         return x.epsilon + y.epsilon + x.epsilon * y.epsilon
 
@@ -330,7 +342,7 @@ class MB_Add211(MB_IntervalAdd, Op211_ExactMetaBlock):
     def expand(self, x, y):
         zh, zl = generate_twosum(*(x + y), precision=self.main_precision)
         return zh, zl
-    def global_relative_error_eval(self, x, y):
+    def _global_relative_error_eval(self, x, y):
         # TODO: check error approximation bound
         return max(x.epsilon, y.epsilon)
 
@@ -362,14 +374,14 @@ class MB_Mul221(MB_IntervalMul, Op_2LimbOut_MetaBlock):
              (rhs.precision == self.main_precision) and \
             limb_prec_match(lhs.precision, self.main_precision)
 
-    def local_relative_error_eval(self, lhs_desc, rhs_desc):
+    def _local_relative_error_eval(self, lhs_desc, rhs_desc):
         lhs_prec = lhs_desc.precision
         eps_op = S2**-(lhs_prec.get_limb_precision(0).get_mantissa_size() + lhs_prec.get_limb_precision(1).get_mantissa_size() - self.DELTA_ERR)
         # error bound (first order approximation)
         return eps_op
 
-    def global_relative_error_eval(self, lhs_desc, rhs_desc):
-        eps_op = self.local_relative_error_eval(lhs_desc, rhs_desc)
+    def _global_relative_error_eval(self, lhs_desc, rhs_desc):
+        eps_op = self._local_relative_error_eval(lhs_desc, rhs_desc)
         # error bound (first order approximation)
         eps = lhs_desc.epsilon + rhs_desc.epsilon + eps_op
         return eps
@@ -382,8 +394,8 @@ class MB_Mul221(MB_IntervalMul, Op_2LimbOut_MetaBlock):
 @MB_CommutedVersion(MB_Mul221)
 class MB_Mul212(Op_2LimbOut_MetaBlock):
     """ Commutated version of MP_Mul221 """
-    def global_relative_error_eval(self, rhs_desc, lhs_desc):
-        eps_op = self.local_relative_error_eval(rhs_desc, lhs_desc)
+    def _global_relative_error_eval(self, rhs_desc, lhs_desc):
+        eps_op = self._local_relative_error_eval(rhs_desc, lhs_desc)
         # error bound (first order approximation)
         eps = lhs_desc.epsilon + rhs_desc.epsilon + eps_op
         return eps
@@ -496,12 +508,12 @@ class MB_Add221(MB_IntervalAdd, Op_2LimbOut_MetaBlock):
             is_single_limb_precision(rhs.precision) and \
             lhs.limb_diff_factor[0] <= S2**-self.main_precision.get_mantissa_size() 
 
-    def global_relative_error_eval(self, lhs_desc, rhs_desc):
-        eps_op = self.local_relative_error_eval(lhs_desc, rhs_desc)
+    def _global_relative_error_eval(self, lhs_desc, rhs_desc):
+        eps_op = self._local_relative_error_eval(lhs_desc, rhs_desc)
         eps_in = max(lhs_desc.epsilon, rhs_desc.epsilon)
         return eps_op + eps_in + eps_op * eps_in
 
-    def local_relative_error_eval(self, lhs_desc, rhs_desc):
+    def _local_relative_error_eval(self, lhs_desc, rhs_desc):
         # TODO: very approximative
         ESTIMATED_ERROR_FACTOR = 3
         return S2**-(self.main_precision.get_mantissa_size() * 2 - ESTIMATED_ERROR_FACTOR)
@@ -546,12 +558,12 @@ class MB_Add222(MB_IntervalAdd, Op_2LimbOut_MetaBlock):
             lhs.limb_diff_factor[0] <= S2**-self.main_precision.get_mantissa_size() and \
             rhs.limb_diff_factor[0] <= S2**-self.main_precision.get_mantissa_size()
 
-    def global_relative_error_eval(self, lhs_desc, rhs_desc):
-        eps_op = self.local_relative_error_eval(lhs_desc, rhs_desc)
+    def _global_relative_error_eval(self, lhs_desc, rhs_desc):
+        eps_op = self._local_relative_error_eval(lhs_desc, rhs_desc)
         eps_in = max(lhs_desc.epsilon, rhs_desc.epsilon)
         return eps_op + eps_in + eps_op * eps_in
 
-    def local_relative_error_eval(self, lhs_desc, rhs_desc):
+    def _local_relative_error_eval(self, lhs_desc, rhs_desc):
         # TODO: very approximative
         ESTIMATED_ERROR_FACTOR = 6
         return S2**-(self.main_precision.get_mantissa_size() * 2 - ESTIMATED_ERROR_FACTOR)
@@ -578,12 +590,12 @@ class MB_Add122(MB_IntervalAdd, Op_1LimbOut_MetaBlock):
             lhs.limb_diff_factor[0] <= S2**-self.main_precision.get_mantissa_size() and \
             rhs.limb_diff_factor[0] <= S2**-self.main_precision.get_mantissa_size()
 
-    def global_relative_error_eval(self, lhs_desc, rhs_desc):
-        eps_op = self.local_relative_error_eval(lhs_desc, rhs_desc)
+    def _global_relative_error_eval(self, lhs_desc, rhs_desc):
+        eps_op = self._local_relative_error_eval(lhs_desc, rhs_desc)
         eps_in = max(lhs_desc.epsilon, rhs_desc.epsilon)
         return eps_op + eps_in + eps_op * eps_in
 
-    def local_relative_error_eval(self, lhs_desc, rhs_desc):
+    def _local_relative_error_eval(self, lhs_desc, rhs_desc):
         # TODO: very approximative
         return S2**-self.main_precision.get_mantissa_size()
 
@@ -601,12 +613,12 @@ class MB_Add121(MB_IntervalAdd, Op_1LimbOut_MetaBlock):
         return is_dual_limb_precision(lhs.precision) and \
             is_single_limb_precision(rhs.precision)
 
-    def global_relative_error_eval(self, lhs_desc, rhs_desc):
-        eps_op = self.local_relative_error_eval(lhs_desc, rhs_desc)
+    def _global_relative_error_eval(self, lhs_desc, rhs_desc):
+        eps_op = self._local_relative_error_eval(lhs_desc, rhs_desc)
         eps_in = max(lhs_desc.epsilon, rhs_desc.epsilon)
         return eps_op + eps_in + eps_op * eps_in
 
-    def local_relative_error_eval(self, lhs_desc, rhs_desc):
+    def _local_relative_error_eval(self, lhs_desc, rhs_desc):
         # TODO: very approximative
         return S2**-self.main_precision.get_mantissa_size()
 
@@ -706,12 +718,12 @@ class MB_Mul222(MB_IntervalMul, Op_2LimbOut_MetaBlock):
             lhs.limb_diff_factor[0] <= S2**-self.main_precision.get_mantissa_size() and \
             rhs.limb_diff_factor[0] <= S2**-self.main_precision.get_mantissa_size()
 
-    def global_relative_error_eval(self, lhs_desc, rhs_desc):
-        eps_op = self.local_relative_error_eval(lhs_desc, rhs_desc)
+    def _global_relative_error_eval(self, lhs_desc, rhs_desc):
+        eps_op = self._local_relative_error_eval(lhs_desc, rhs_desc)
         eps_in = max(lhs_desc.epsilon, rhs_desc.epsilon)
         return eps_op + eps_in + eps_op * eps_in
 
-    def local_relative_error_eval(self, lhs_desc, rhs_desc):
+    def _local_relative_error_eval(self, lhs_desc, rhs_desc):
         # TODO: very approximative
         ESTIMATED_ERROR_FACTOR = 4
         return S2**-(self.main_precision.get_mantissa_size() * 2 - ESTIMATED_ERROR_FACTOR)
@@ -738,12 +750,12 @@ class MB_Mul122(MB_IntervalMul, Op_1LimbOut_MetaBlock):
             lhs.limb_diff_factor[0] <= S2**-self.main_precision.get_mantissa_size() and \
             rhs.limb_diff_factor[0] <= S2**-self.main_precision.get_mantissa_size()
 
-    def global_relative_error_eval(self, lhs_desc, rhs_desc):
-        eps_op = self.local_relative_error_eval(lhs_desc, rhs_desc)
+    def _global_relative_error_eval(self, lhs_desc, rhs_desc):
+        eps_op = self._local_relative_error_eval(lhs_desc, rhs_desc)
         eps_in = max(lhs_desc.epsilon, rhs_desc.epsilon)
         return eps_op + eps_in + eps_op * eps_in
 
-    def local_relative_error_eval(self, lhs_desc, rhs_desc):
+    def _local_relative_error_eval(self, lhs_desc, rhs_desc):
         # TODO: very approximative
         return S2**-(self.main_precision.get_mantissa_size())
 
@@ -765,12 +777,12 @@ class MB_Mul121(MB_IntervalMul, Op_1LimbOut_MetaBlock):
         return is_dual_limb_precision(lhs.precision) and \
             is_single_limb_precision(rhs.precision)
 
-    def global_relative_error_eval(self, lhs_desc, rhs_desc):
-        eps_op = self.local_relative_error_eval(lhs_desc, rhs_desc)
+    def _global_relative_error_eval(self, lhs_desc, rhs_desc):
+        eps_op = self._local_relative_error_eval(lhs_desc, rhs_desc)
         eps_in = max(lhs_desc.epsilon, rhs_desc.epsilon)
         return eps_op + eps_in + eps_op * eps_in
 
-    def local_relative_error_eval(self, lhs_desc, rhs_desc):
+    def _local_relative_error_eval(self, lhs_desc, rhs_desc):
         # TODO: very approximative
         return S2**-(self.main_precision.get_mantissa_size())
 
@@ -834,11 +846,11 @@ class MB_Add333(MB_IntervalAdd, Op_3LimbOut_MetaBlock):
             rhs.limb_diff_factor[0] <= S2**-4 and \
             rhs.limb_diff_factor[1] <= S2**-4
 
-    def global_relative_error_eval(self, lhs_desc, rhs_desc):
-        eps_op = self.local_relative_error_eval(lhs_desc, rhs_desc)
+    def _global_relative_error_eval(self, lhs_desc, rhs_desc):
+        eps_op = self._local_relative_error_eval(lhs_desc, rhs_desc)
         eps_in = max(lhs_desc.epsilon, rhs_desc.epsilon)
         return eps_op + eps_in + eps_op * eps_in
-    def local_relative_error_eval(self, lhs_desc, rhs_desc):
+    def _local_relative_error_eval(self, lhs_desc, rhs_desc):
         # TODO: 47 and 98 are specialized for ML_Binary64
         a_o = sollya.floor(-sollya.log2(lhs_desc.limb_diff_factor[0]))
         a_u = sollya.floor(-sollya.log2(lhs_desc.limb_diff_factor[1]))
@@ -875,11 +887,11 @@ class MB_Add332(MB_IntervalAdd, Op_3LimbOut_MetaBlock):
             lhs.limb_diff_factor[1] <= S2**-1 and \
             rhs.limb_diff_factor[0] <= S2**-self.main_precision.get_mantissa_size()
 
-    def global_relative_error_eval(self, lhs_desc, rhs_desc):
-        eps_op = self.local_relative_error_eval(lhs_desc, rhs_desc)
+    def _global_relative_error_eval(self, lhs_desc, rhs_desc):
+        eps_op = self._local_relative_error_eval(lhs_desc, rhs_desc)
         eps_in = max(lhs_desc.epsilon, rhs_desc.epsilon)
         return eps_op + eps_in + eps_op * eps_in
-    def local_relative_error_eval(self, lhs, rhs):
+    def _local_relative_error_eval(self, lhs, rhs):
         # TODO: 52, 104, 153 are specialized for ML_Binary64
         b_o = sollya.floor(-sollya.log2(lhs.limb_diff_factor[0]))
         b_u = sollya.floor(-sollya.log2(lhs.limb_diff_factor[1]))
@@ -964,11 +976,11 @@ class MB_Add321(MB_IntervalAdd, Op_3LimbOut_MetaBlock):
             is_interval_lt(rhs, S2**-2, lhs) and \
              lhs.limb_diff_factor[0] <= S2**-self.main_precision.get_mantissa_size()
 
-    def global_relative_error_eval(self, lhs_desc, rhs_desc):
-        eps_op = self.local_relative_error_eval(lhs_desc, rhs_desc)
+    def _global_relative_error_eval(self, lhs_desc, rhs_desc):
+        eps_op = self._local_relative_error_eval(lhs_desc, rhs_desc)
         eps_in = max(lhs_desc.epsilon, rhs_desc.epsilon)
         return eps_op + eps_in + eps_op * eps_in
-    def local_relative_error_eval(self, lhs_desc, rhs_desc):
+    def _local_relative_error_eval(self, lhs_desc, rhs_desc):
         return 0.0
 
     def get_output_descriptor(self, lhs_desc, rhs_desc, global_error=True):
@@ -1055,11 +1067,11 @@ class MB_Add322(MB_IntervalAdd, Op_3LimbOut_MetaBlock):
             lhs.limb_diff_factor[0] <= S2**-self.main_precision.get_mantissa_size() and \
             rhs.limb_diff_factor[0] <= S2**-self.main_precision.get_mantissa_size()
 
-    def global_relative_error_eval(self, lhs_desc, rhs_desc):
-        eps_op = self.local_relative_error_eval(lhs_desc, rhs_desc)
+    def _global_relative_error_eval(self, lhs_desc, rhs_desc):
+        eps_op = self._local_relative_error_eval(lhs_desc, rhs_desc)
         eps_in = max(lhs_desc.epsilon, rhs_desc.epsilon)
         return eps_op + eps_in + eps_op * eps_in
-    def local_relative_error_eval(self, lhs_desc, rhs_desc):
+    def _local_relative_error_eval(self, lhs_desc, rhs_desc):
         # TODO: dummy value
         return S2**-120
 
@@ -1092,11 +1104,11 @@ class MB_Add331(MB_IntervalAdd, Op_3LimbOut_MetaBlock):
             lhs.limb_diff_factor[0] <= S2**-2 and \
             lhs.limb_diff_factor[1] <= S2**-1
 
-    def global_relative_error_eval(self, lhs_desc, rhs_desc):
-        eps_op = self.local_relative_error_eval(lhs_desc, rhs_desc)
+    def _global_relative_error_eval(self, lhs_desc, rhs_desc):
+        eps_op = self._local_relative_error_eval(lhs_desc, rhs_desc)
         eps_in = max(lhs_desc.epsilon, rhs_desc.epsilon)
         return eps_op + eps_in + eps_op * eps_in
-    def local_relative_error_eval(self, lhs_desc, rhs_desc):
+    def _local_relative_error_eval(self, lhs_desc, rhs_desc):
         b_o = sollya.floor(-sollya.log2(lhs_desc.limb_diff_factor[0]))
         b_u = sollya.floor(-sollya.log2(lhs_desc.limb_diff_factor[1]))
         return S2**(-52-b_o-b_u) + S2**-154
@@ -1148,11 +1160,12 @@ class MB_Mul322(MB_IntervalMul, Op_3LimbOut_MetaBlock):
             lhs.limb_diff_factor[0] <= S2**-self.main_precision.get_mantissa_size() and \
             rhs.limb_diff_factor[0] <= S2**-self.main_precision.get_mantissa_size()
 
-    def global_relative_error_eval(self, lhs_desc, rhs_desc):
+    def _global_relative_error_eval(self, lhs_desc, rhs_desc):
+        eps_op = self._local_relative_error_eval(lhs_desc, rhs_desc)
         # error bound (first order approximation)
         eps = lhs_desc.epsilon + rhs_desc.epsilon + eps_op
         return eps
-    def local_relative_error_eval(self, lhs_desc, rhs_desc):
+    def _local_relative_error_eval(self, lhs_desc, rhs_desc):
         # TODO: numeric constant specific to ML_Binary64
         return S2**-149
 
@@ -1180,11 +1193,12 @@ class MB_Mul321(MB_IntervalMul, Op_3LimbOut_MetaBlock):
         return is_dual_limb_precision(lhs.precision) and \
             is_single_limb_precision(rhs.precision)
 
-    def global_relative_error_eval(self, lhs_desc, rhs_desc):
+    def _global_relative_error_eval(self, lhs_desc, rhs_desc):
+        eps_op = self._local_relative_error_eval(lhs_desc, rhs_desc)
         # error bound (first order approximation)
         eps = lhs_desc.epsilon + rhs_desc.epsilon + eps_op
         return eps
-    def local_relative_error_eval(self, lhs_desc, rhs_desc):
+    def _local_relative_error_eval(self, lhs_desc, rhs_desc):
         # TODO: numeric constant specific to ML_Binary64
         return S2**-154
 
@@ -1213,11 +1227,12 @@ class MB_Mul332(MB_IntervalMul, Op_3LimbOut_MetaBlock):
             lhs.limb_diff_factor[1] <= S2**-self.main_precision.get_mantissa_size() and \
             rhs.limb_diff_factor[0] <= S2**-self.main_precision.get_mantissa_size()
 
-    def global_relative_error_eval(self, lhs_desc, rhs_desc):
+    def _global_relative_error_eval(self, lhs_desc, rhs_desc):
+        eps_op = self._local_relative_error_eval(lhs_desc, rhs_desc)
         # error bound (first order approximation)
         eps = lhs_desc.epsilon + rhs_desc.epsilon + eps_op
         return eps
-    def local_relative_error_eval(self, lhs_desc, rhs_desc):
+    def _local_relative_error_eval(self, lhs_desc, rhs_desc):
         # TODO: numeric constant specific to ML_Binary64
         b_o = sollya.floor(-sollya.log2(lhs_desc.limb_diff_factor[0]))
         b_u = sollya.floor(-sollya.log2(lhs_desc.limb_diff_factor[1]))
@@ -1319,11 +1334,12 @@ class MB_Mul333(MB_IntervalMul, Op_3LimbOut_MetaBlock):
         b_u = sollya.floor(-sollya.log2(rhs.limb_diff_factor[1]))
         return a_o >= 5 and a_u >= 5 and b_o >= 5 and b_u >= 5
 
-    def global_relative_error_eval(self, lhs_desc, rhs_desc):
+    def _global_relative_error_eval(self, lhs_desc, rhs_desc):
+        eps_op = self._local_relative_error_eval(lhs_desc, rhs_desc)
         # error bound (first order approximation)
         eps = lhs_desc.epsilon + rhs_desc.epsilon + eps_op
         return eps
-    def local_relative_error_eval(self, lhs, rhs):
+    def _local_relative_error_eval(self, lhs, rhs):
         # TODO: numeric constant specific to ML_Binary64
         a_o = sollya.floor(-sollya.log2(lhs.limb_diff_factor[0]))
         a_u = sollya.floor(-sollya.log2(lhs.limb_diff_factor[1]))
@@ -1374,11 +1390,12 @@ class MB_Mul313(MB_IntervalMul, Op_3LimbOut_MetaBlock):
         b_u = sollya.floor(-sollya.log2(rhs.limb_diff_factor[1]))
         return b_o >= 2 and b_u >= 2
 
-    def global_relative_error_eval(self, lhs_desc, rhs_desc):
+    def _global_relative_error_eval(self, lhs_desc, rhs_desc):
         # error bound (first order approximation)
+        eps_op = self._local_relative_error_eval(lhs_desc, rhs_desc)
         eps = lhs_desc.epsilon + rhs_desc.epsilon + eps_op
         return eps
-    def local_relative_error_eval(self, lhs, rhs):
+    def _local_relative_error_eval(self, lhs, rhs):
         # TODO: numeric constant specific to ML_Binary64
         b_o = sollya.floor(-sollya.log2(rhs.limb_diff_factor[0]))
         b_u = sollya.floor(-sollya.log2(rhs.limb_diff_factor[1]))
@@ -1432,7 +1449,7 @@ class MB_Identity:
         return op
 
     @staticmethod
-    def local_relative_error_eval(rhs):
+    def _local_relative_error_eval(rhs):
         return 0
 
     @staticmethod
@@ -1453,12 +1470,12 @@ class MB_Wrapper_2Op:
         rhs = self.wrap_rhs.expand(*rhs)
         return self.meta_block.expand(lhs, rhs)
 
-    def local_relative_error_eval(self, lhs, rhs):
+    def _local_relative_error_eval(self, lhs, rhs):
         lhs_format = self.wrap_lhs.get_output_descriptor(lhs, global_error=False)
         rhs_format = self.wrap_rhs.get_output_descriptor(rhs, global_error=False)
         # we need to take into account lhs's and rhs's error so we must
         # request for global_error to get WHole block local error
-        return self.meta_block.global_relative_error_eval(lhs_format, rhs_format)
+        return self.meta_block._global_relative_error_eval(lhs_format, rhs_format)
 
 class MB_PostWrapper_2Op:
     def __init__(self, meta_block, wrap_op):
@@ -1469,20 +1486,20 @@ class MB_PostWrapper_2Op:
         op = self.meta_block.expand(lhs, rhs)
         return self.wrap_op.expand(op)
 
-    def local_relative_error_eval(self, lhs, rhs):
+    def _local_relative_error_eval(self, lhs, rhs):
         op_format = self.meta_block.get_output_descriptor(lhs, rhs, global_error=False)
         # we need to take into account lhs's and rhs's error so we must
         # request for global_error to get WHole block local error
-        return self.wrap_op.global_relative_error_eval(op_format)
+        return self.wrap_op._global_relative_error_eval(op_format)
 
 
 class MB_Normalize_33(Op_3LimbOut_MetaBlock):
     def relative_error_eval(self, lhs, global_error=True):
         """ single operand version"""
         if global_error:
-            return self.global_relative_error_eval(lhs)
+            return self._global_relative_error_eval(lhs)
         else:
-            return self.local_relative_error_eval(lhs)
+            return self._local_relative_error_eval(lhs)
 
     def get_result_interval(self, op):
         return op.interval
@@ -1501,11 +1518,11 @@ class MB_Normalize_33(Op_3LimbOut_MetaBlock):
         b_o, b_u = self.extract_op_overlap(lhs)
         return b_o >= 2 and b_u >= 2
 
-    def global_relative_error_eval(self, lhs):
+    def _global_relative_error_eval(self, lhs):
         # error bound (first order approximation)
         eps = lhs.epsilon
         return eps
-    def local_relative_error_eval(self, lhs):
+    def _local_relative_error_eval(self, lhs):
         return 0
 
     def get_output_descriptor(self, lhs, global_error=True):
