@@ -45,24 +45,20 @@ S2 = sollya.SollyaObject(2)
 
 from metalibm_core.core.ml_function import ML_Function, ML_FunctionBasis, DefaultArgTemplate
 
-from metalibm_core.core.attributes import ML_Debug
 from metalibm_core.core.ml_operations import *
 from metalibm_core.core.ml_formats import *
-from metalibm_core.core.precisions import ML_Faithful, ML_CorrectlyRounded
+from metalibm_core.core.precisions import ML_Faithful
 from metalibm_core.code_generation.generic_processor import GenericProcessor
 from metalibm_core.core.polynomials import *
 from metalibm_core.core.ml_table import ML_NewTable
-from metalibm_core.core.ml_complex_formats import ML_Mpfr_t
-from metalibm_core.code_generation.generator_utility import FunctionOperator, FO_Result, FO_Arg
 from metalibm_core.core.payne_hanek import generate_payne_hanek
 
-from metalibm_core.core.special_values import    FP_QNaN
+from metalibm_core.core.special_values import FP_QNaN
 
-from metalibm_core.utility.ml_template import ML_NewArgTemplate, ArgDefault
+from metalibm_core.utility.ml_template import ML_NewArgTemplate
 from metalibm_core.utility.log_report    import Log
 from metalibm_core.utility.debug_utils import *
 from metalibm_core.utility.num_utils     import ulp
-from metalibm_core.utility.gappa_utils import is_gappa_installed
 
 # disabling sollya's rounding warning
 sollya.roundingwarnings = sollya.off
@@ -71,7 +67,8 @@ sollya.showmessagenumbers = sollya.on
 
 ## Implementation of sine or cosine sharing a common
 #    approximation scheme
-class ML_SinCos(ML_Function("ml_cos")):
+class ML_SinCos(ML_FunctionBasis):
+    function_name = "ml_cos"
     """ Implementation of cosinus function """
     def __init__(self, args=DefaultArgTemplate):
         # initializing base class
