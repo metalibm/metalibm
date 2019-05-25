@@ -59,6 +59,12 @@ class MLL_Format:
         # initial requirement for epsilon target
         self.eps_target = eps_target
 
+    @property
+    def epsilon(self):
+        """ upper bound to the relative error of the associated
+            multi-precision node """
+        return self.mp_node.epsilon
+
     def __str__(self):
         """ convert to string (used for comprehensive content display) """
         return "(mp_node={}, accuracy={}, meta_block={}, eps_target={})".format(
@@ -136,14 +142,15 @@ class MLL_Context:
         return MIN_ERROR_MAP[ml_format]
 
 
-    def get_format_from_accuracy(self, accuracy, eps_target=None, interval=None):
+    def get_format_from_accuracy(self, accuracy, eps_target=None, interval=None, exact=False):
         # TODO: manage ML_Binary32
+        epsilon = 0 if exact else S2**-accuracy
         ml_format, limb_diff_factors = self.get_ml_format_from_accuracy(accuracy)
         if ml_format is None:
-            return sollya.error
+            Log.report(Log.Error, "unable to find a format for accuracy={}, eps_target={}, interval={}", accuracy, eps_target, interval)
         else:
             eps_target = S2**-accuracy if eps_target is None else eps_target
-            return MLL_Format(MP_Node(ml_format, S2**-accuracy, limb_diff_factors, interval), None, eps_target)
+            return MLL_Format(MP_Node(ml_format, epsilon, limb_diff_factors, interval), None, eps_target)
 
 
     def computeBoundAddition(self, out_format, input_format_lhs, input_format_rhs):
@@ -243,9 +250,12 @@ class MLL_Context:
             valid_eps_list = [mb for mb in ft_compatible_list if check_mb_error_target(mb, epsTarget, lhs, rhs)]
 
             if not len(valid_eps_list):
-                return sollya.error
+                Log.report(Log.Error, "unable to find a MB for OpClass={}, epsTarget={}, lhs={}, rhs={}", OpClass, epsTarget, lhs, rhs)
+                return None
+
         meta_block = min(valid_eps_list, key=get_MB_cost)
-        out_format = meta_block.get_output_descriptor(lhs, rhs, global_error=False)
+        print("select meta_block is {}".format(meta_block))
+        out_format = meta_block.get_output_descriptor(lhs, rhs, global_error=True)
         if renormalize_lhs or renormalize_rhs:
             lhs_block = renorm_MB_lhs if renormalize_lhs else MB_Identity
             rhs_block = renorm_MB_rhs if renormalize_rhs else MB_Identity
@@ -292,7 +302,7 @@ class MLL_Context:
     def computeConstantFormat(self, c):
         if c == 0:
             # default to double precision
-            return self.get_format_from_accuracy(53, eps_target=0, interval=Interval(c))
+            return self.get_format_from_accuracy(53, eps_target=0, interval=Interval(c), exact=True)
         else:
             accuracy = 0
             cN = c
@@ -307,7 +317,7 @@ class MLL_Context:
                 accuracy = 159
             else:
                 eps_target = 0 if cN == 0 else S2**-accuracy
-            return self.get_format_from_accuracy(accuracy, eps_target=eps_target, interval=Interval(c))
+            return self.get_format_from_accuracy(accuracy, eps_target=eps_target, interval=Interval(c), exact=True)
 
 
     
@@ -391,9 +401,10 @@ class MLL_Context:
 
                 return final_format
         else:
-            return sollya.error
+            Log.report(Log.Error, "unable to computeOutputFormatPower for k={}, epsTarget={}, variableFormat={}", k, epsTarget, variableFormat)
+            return None
 
-    
+
     def roundConstant(self, c, epsTarget):
         """ Rounds a given coefficient c into a format that guarantees
            that the rounding error is less than epsTarget. The function
@@ -436,11 +447,71 @@ def legalize_node_format(node, expected_format):
     else:
         return Conversion(node, precision=expected_format)
 
+def get_add_error_budget(lhs, rhs, eps_target):
+    """ How accurate should be the addition of lhs + rhs to
+        ensure that the overall global relative error is limited to eps_target
+    """
+    # lhs_eps = lhs.epsilon
+    # rhs_eps = rhs.epsilon
+    # real result = (lhs (1 + lhs_eps) + rhs (1 + rhs_eps)) (1 + add_eps)
+    # real result = (lhs + rhs + lhs . lhs_eps + rhs . rhs_eps) (1 + add_eps)
+    #             = exact result (1 + (lhs . lhs_eps + rhs . rhs_eps) / exact_result) (1 + add_eps)
+    #  eps_in = (lhs . lhs_eps + rhs . rhs_eps) / exact_result
+    # real result = exact resul * (1 + eps_in + add_eps + eps_in * add_eps)
+    #
+    # objective (eps_in + add_eps + eps_in * add_eps) <= eps_target
+    #           |eps_in| + |add_eps| + |eps_in| * |add_eps| <= eps_target
+    #           |add_eps| (1 + |eps_in|) <= |eps_target| - |eps_in|
+    #           |add_eps|  <= (|eps_target| - |eps_in|) / (1 + |eps_in|)
+    # assuming |eps_target| > |eps_in|
+    eps_in = (sup(abs(lhs.internal)) * lhs.epsilon + sup(abs(rhs.interval)) * rhs.epsilon) / inf(abs(lhs.interval + rhs.interval))
+    assert eps_in > 0
+    assert eps_in >= eps_target
+    add_eps_bound = (eps_target - eps_in) / (1 + eps_in)
+    return add_eps_bound
+
+def get_add_error_split(lhs_interval, rhs_interval, eps_target):
+    """ provide a repartition of the error budget accross lhs's error, rhs'error
+        and addition lhs + rhs error such that the overall relative error is
+        bounded by @p eps_target """
+    min_exact_result = inf(abs(lhs_interval + rhs_interval))
+    lhs_split = (lhs_interval / min_exact_result) * 0.5
+    rhs_split = (rhs_interval / min_exact_result) * 0.5
+    return (lhs_split * eps_target), (rhs_split * eps_target), (0.5 * eps_target)
+
+
+def get_mul_error_budget(lhs, rhs, eps_target):
+    """ How accurate should be the multiplication of lhs * rhs to
+        ensure that the overall global relative error is limited to eps_target
+    """
+    # lhs_eps = lhs.epsilon
+    # rhs_eps = rhs.epsilon
+    # real result = (lhs (1 + lhs_eps) * rhs (1 + rhs_eps)) (1 + mul_eps)
+    # real result = (lhs * rhs) (1 + lhs_eps + rhs_eps + lhs_eps * rhs_eps) (1 + mul_eps)
+    #
+    #  eps_in = lhs_eps + rhs_eps + lhs_eps * rhs_eps
+    # real result = exact resul * (1 + eps_in + mul_eps + eps_in * mul_eps)
+    #
+    # objective (eps_in + mul_eps + eps_in * mul_eps) <= eps_target
+    #           |eps_in| + |mul_eps| + |eps_in| * |mul_eps| <= eps_target
+    #           |mul_eps| (1 + |eps_in|) <= |eps_target| - |eps_in|
+    #           |mul_eps|  <= (|eps_target| - |eps_in|) / (1 + |eps_in|)
+    # assuming |eps_target| > |eps_in|
+    eps_in = lhs.epsilon + rhs.epsilon + lhs.epsilon * rhs.epsilon
+    assert eps_in > 0
+    assert eps_in >= eps_target
+    mul_eps_bound = (eps_target - eps_in) / (1 + eps_in)
+    return mul_eps_bound
 
 def mll_implementpoly_horner(ctx, poly_object, eps, variable):
     """ generate an implementation of polynomail @p poly_object of @p variable
         whose evalution error is bounded by @p eps. @p variable must have a
         interval and a precision set
+
+        @param ctx multi-word precision context to use
+        @param poly_object polynomial object to implement
+        @param eps target relative error bound
+        @param variable polynomial input variable
 
         @return <implementation node>, <real relative error>"""
     if poly_object.degree == 0:
@@ -448,16 +519,25 @@ def mll_implementpoly_horner(ctx, poly_object, eps, variable):
         cst = poly_object.coeff_map[0]
         rounded_cst = ctx.roundConstant(cst, eps)
         cst_format = ctx.computeConstantFormat(rounded_cst)
-        return Constant(cst, precision=cst_format), cst_format.accuracy
+        return Constant(cst, precision=cst_format), cst_format.epsilon
 
     elif poly_object.degree == 1:
         # cst0 + cst1 * var
+        # final relative error is
+        # (cst0 (1 + e0) + cst1 * var (1 + e1) (1 + ev) (1 + em))(1 + ea)
+        # (cst0  + e0 * cst0  + cst1 * var (1 + e1 + ev + e1 * ev) (1 + em))(1 + ea)
+        # (cst0  + e0 * cst0  + cst1 * var (1 + e1 + ev + e1 * ev + em + e1 * em + ev * em + e1 * ev * em) )(1 + ea)
+        # (cst0 + cst1 * var) (1 + ea) (1 + e0 * cst0 + + e1 + ev + e1 * ev + em + e1 * em + ev * em + e1 * ev * em)
+        # em is epsilon for the multiplication
+        # ea is epsilon for the addition
+        # overall error is
         cst0 = poly_object.coeff_map[0]
         cst1 = poly_object.coeff_map[1]
         eps_mul = eps / 4
         eps_add = eps / 2
 
         cst1_rounded = ctx.roundConstant(cst1, eps / 4)
+        cst1_error = abs((cst1 - cst1_rounded) / cst1_rounded)
         cst1_format = ctx.computeConstantFormat(cst1_rounded)
         cst0_rounded = ctx.roundConstant(cst0, eps / 4)
         cst0_format = ctx.computeConstantFormat(cst0_rounded)
@@ -476,7 +556,7 @@ def mll_implementpoly_horner(ctx, poly_object, eps, variable):
                 precision=mul_format
             ),
             precision=add_format
-        ), add_format.accuracy # TODO: local error only
+        ), add_format.epsilon # TODO: local error only
 
     elif poly_object.degree > 1:
         # cst0 + var * poly
@@ -506,7 +586,7 @@ def mll_implementpoly_horner(ctx, poly_object, eps, variable):
                 precision=mul_format
             ),
             precision=add_format
-        ), add_format.accuracy # TODO: local error only
+        ), add_format.epsilon # TODO: local error only
     else:
         Log.report(Log.Error, "poly degree must be positive or null. {}, {}", poly_object.degree, poly_object)
 
@@ -516,12 +596,14 @@ if __name__ == "__main__":
     ctx = MLL_Context(ML_Binary64, approx_interval)
     vx = Variable("x", precision=ctx.variableFormat, interval=approx_interval)
     poly_object = Polynomial.build_from_approximation(
-        sollya.exp(sollya.x), 10,
+        sollya.exp(sollya.x), 6,
         [sollya.doubledouble] * 11,
         vx.interval
     )
     print("poly object is {}".format(poly_object))
-    poly_graph, poly_accuracy = mll_implementpoly_horner(ctx, poly_object, S2**-40, vx)
+    eps_target = S2**-51
+    poly_graph, poly_epsilon = mll_implementpoly_horner(ctx, poly_object, eps_target, vx)
     print("poly_graph is {}".format(poly_graph.get_str(depth=None, display_precision=True)))
-    print("poly accuracy is {}".format(poly_accuracy))
+    print("poly epsilon is {}".format(float(poly_epsilon)))
+    print("poly accuracy is {}".format(get_accuracy_from_epsilon(poly_epsilon)))
 
