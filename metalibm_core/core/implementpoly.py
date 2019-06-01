@@ -11,7 +11,9 @@ sollya.settings.display = sollya.decimal
 
 
 from metalibm_core.core.ml_formats import (
-    ML_DoubleDouble, ML_TripleDouble, ML_Binary64, ML_Void, ML_FP_MultiElementFormat
+    ML_DoubleDouble, ML_TripleDouble, ML_Binary64,
+    ML_SingleSingle, ML_TripleSingle, ML_Binary32,
+    ML_Void, ML_FP_MultiElementFormat
 )
 from metalibm_core.core.ml_complex_formats import ML_Pointer_Format
 from metalibm_core.core.precisions import ML_CorrectlyRounded
@@ -84,12 +86,16 @@ def get_MB_compatible_list(OpClass, lhs, rhs):
 
 class MLL_Context:
     """ Class to wrapper the opaque type which bridges computeErrorBounds
-        and metalibm Lugdunum """
-    def __init__(self, var_format, var_interval):
+        and metalibm Lugdunum
+        @param limb_format defined the main format to be used for limbs
+    """
+    def __init__(self, var_format, var_interval, limb_format=ML_Binary64):
         # dummy 1000-bit accuracy
         if isinstance(var_format, ML_FP_MultiElementFormat):
-                # no overlap
-            overlaps = [S2**-var_format.get_limb_precision(0).get_mantissa_size()] * (var_format.limb_num-1)
+            # no overlap
+            num_overlaps = (var_format.limb_num-1)
+            overlap_value = S2**-var_format.get_limb_precision(0).get_mantissa_size()
+            overlaps = [overlap_value] * num_overlaps
         else:
             overlaps = []
         self.variableFormat = MLL_Format(
@@ -114,6 +120,8 @@ class MLL_Context:
         # minimal difference factor betwen hi and medium limb which triggers
         # the insertion of a renormalization operation
         self.LIMB_DIFF_RENORM_THRESHOLD = S2**-15
+        self.limb_format = limb_format
+        self.MIN_LIMB_ERROR = S2**-self.limb_format.get_mantissa_size()
 
     def __str__(self):
         return "MLL_Context"
@@ -121,23 +129,35 @@ class MLL_Context:
     def get_ml_format_from_accuracy(self, accuracy):
         """ return a tuple (ml_format, limb_diff_factors) which
             best fit accuracy requirement """
-        if accuracy <= 53:
-            return ML_Binary64, []
-        elif accuracy <= 106:
-            return ML_DoubleDouble, [S2**-53]
-        elif accuracy <= 159:
-            return ML_TripleDouble, [S2**-53, S2**-53]
-        else:
-            return None, []
+        ORDERED_FORMAT_LIST = {
+            ML_Binary64: [
+                (ML_Binary64, 0, 53, []),
+                (ML_DoubleDouble, 54, 106, [S2**-53]),
+                (ML_TripleDouble, 107, 159, [S2**-53, S2**-53]),
+            ],
+            ML_Binary32: [
+                (ML_Binary32, 0, 24, []),
+                (ML_SingleSingle, 25, 48, [S2**-24]),
+                (ML_TripleSingle, 49, 72, [S2**-24, S2**-24]),
+            ]
+        }
+        for ml_format, lo_bound, hi_bound, overlap_list in ORDERED_FORMAT_LIST[self.limb_format]:
+            if accuracy <= hi_bound:
+                return ml_format, overlap_list
+        return None, []
 
     def get_smaller_format_min_error(self, ml_format):
         """ return the maximal accuracy / minimal error
             of the format just before @p ml_format in term
             of size """
         MIN_ERROR_MAP = {
-            ML_Binary64: -sollya.log2(0), # no format smaller than ML_Binary64
+            ML_Binary64: -sollya.log2(0), # no format smaller than ML_Binary6(switch to fp32 not managed)
             ML_DoubleDouble: S2**-53,
-            ML_TripleDouble: S2**-106
+            ML_TripleDouble: S2**-106,
+
+            ML_Binary32: -sollya.log2(0), # no format smaller than ML_Binary32
+            ML_SingleSingle: S2**-24,
+            ML_TripleSingle: S2**-48,
         }
         return MIN_ERROR_MAP[ml_format]
 
@@ -324,8 +344,8 @@ class MLL_Context:
     def computeNeededVariableFormat(self, I, epsTarget, variableFormat):
         if epsTarget > 0:
             # TODO: fix to support ML_Binary32
-            if epsTarget >= S2**-53 or variableFormat.mp_node.precision is ML_Binary64:
-                # FIXME: default to minimal precision ML_Binary64
+            if epsTarget >= self.MIN_LIMB_ERROR or variableFormat.mp_node.precision is self.limb_format:
+                # FIXME: default to minimal precision (self.limb_format)
                 return variableFormat
             else:
                 target_accuracy = sollya.ceil(-sollya.log2(epsTarget))
@@ -592,18 +612,26 @@ def mll_implementpoly_horner(ctx, poly_object, eps, variable):
 
 
 if __name__ == "__main__":
-    approx_interval = Interval(-S2**-5, S2**-5)
-    ctx = MLL_Context(ML_Binary64, approx_interval)
-    vx = Variable("x", precision=ctx.variableFormat, interval=approx_interval)
-    poly_object = Polynomial.build_from_approximation(
-        sollya.exp(sollya.x), 6,
-        [sollya.doubledouble] * 11,
-        vx.interval
-    )
-    print("poly object is {}".format(poly_object))
-    eps_target = S2**-51
-    poly_graph, poly_epsilon = mll_implementpoly_horner(ctx, poly_object, eps_target, vx)
-    print("poly_graph is {}".format(poly_graph.get_str(depth=None, display_precision=True)))
-    print("poly epsilon is {}".format(float(poly_epsilon)))
-    print("poly accuracy is {}".format(get_accuracy_from_epsilon(poly_epsilon)))
+    implem_results = []
+    for eps_target in [S2**-40, S2**-50, S2**-55, S2**-60, S2**-65]:
+        approx_interval = Interval(-S2**-5, S2**-5)
+        ctx = MLL_Context(ML_Binary64, approx_interval)
+        vx = Variable("x", precision=ctx.variableFormat, interval=approx_interval)
+        poly_degree = int(sup(sollya.guessdegree(sollya.exp(sollya.x), approx_interval, eps_target)))
+        poly_object = Polynomial.build_from_approximation(
+            sollya.exp(sollya.x), poly_degree,
+            [sollya.doubledouble] * (poly_degree + 1),
+            vx.interval
+        )
+        print("poly object is {}".format(poly_object))
+        poly_graph, poly_epsilon = mll_implementpoly_horner(ctx, poly_object, eps_target, vx)
+        print("poly_graph is {}".format(poly_graph.get_str(depth=None, display_precision=True)))
+        print("poly epsilon is {}".format(float(poly_epsilon)))
+        print("poly accuracy is {}".format(get_accuracy_from_epsilon(poly_epsilon)))
+        implem_results.append((eps_target, poly_degree, poly_object, poly_graph, poly_epsilon))
+
+    for result in implem_results:
+        eps_target, poly_degree, poly_object, poly_graph, poly_epsilon = result
+        epsilon_log2 = int(sollya.floor(sollya.log2(poly_epsilon)))
+        print("epsilon for eps_target={} (degree={}) is {}".format(eps_target, poly_degree, epsilon_log2))
 
