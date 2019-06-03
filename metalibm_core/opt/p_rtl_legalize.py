@@ -46,7 +46,7 @@ from metalibm_core.opt.p_size_datapath import (
 )
 
 from metalibm_core.core.legalizer import (
-    subsignalsection_legalizer, fixed_point_position_legalizer, 
+    subsignalsection_legalizer, fixed_point_position_legalizer,
     minmax_legalizer_wrapper
 )
 
