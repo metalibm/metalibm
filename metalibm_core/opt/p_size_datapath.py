@@ -37,8 +37,9 @@ from metalibm_core.core.passes import OptreeOptimization, Pass, LOG_PASS_INFO
 from metalibm_core.core.ml_operations import (
     Comparison, Addition, Select, Constant, ML_LeafNode, Conversion,
     Statement, ReferenceAssign, BitLogicNegate, Subtraction,
-    SpecificOperation, Negation, BitLogicRightShift, BitLogicLeftShift, 
+    SpecificOperation, Negation, BitLogicRightShift, BitLogicLeftShift,
     BitArithmeticRightShift,
+    TypeCast,
     Min, Max, CountLeadingZeros, Multiplication,
     LogicalOr, LogicalAnd, LogicalNot
 )
@@ -55,7 +56,8 @@ from metalibm_core.core.ml_formats import (
     ML_Bool, ML_Integer
 )
 from metalibm_core.core.ml_hdl_format import (
-    is_fixed_point, fixed_point, ML_StdLogic, ML_StdLogicVectorFormat
+    is_fixed_point, fixed_point, ML_StdLogic, ML_StdLogicVectorFormat,
+    is_unevaluated_format
 )
 from metalibm_core.core.legalizer import (
     legalize_fixed_point_subselection, fixed_point_position_legalizer,
@@ -141,6 +143,17 @@ def solve_format_CLZ(optree):
         return optree.get_precision()
 
 
+def solve_unevaluated_format(precision, format_solver):
+    """ resolve unevaluated @p precision using format solver @p format_solver """
+    assert is_unevaluated_format(precision)
+
+    def node_evaluator(node):
+        return evaluate_cst_graph(node, input_prec_solver=format_solver)
+
+    evaluated_format = precision.evaluate(node_evaluator)
+    Log.report(Log.Info , "Solving unevaluated format {} to {}", str(precision), str(evaluated_format))
+    return evaluated_format
+
 def solve_format_ArithOperation(optree,
     integer_size_func = lambda lhs_prec, rhs_prec: None,
     frac_size_func = lambda lhs_prec, rhs_prec: None,
@@ -166,6 +179,12 @@ def solve_format_ArithOperation(optree,
     if rhs_precision is ML_Integer:
         cst_eval = evaluate_cst_graph(rhs, input_prec_solver=format_solver)
         rhs_precision = solve_format_Constant(Constant(cst_eval))
+
+    if is_unevaluated_format(lhs_precision):
+        lhs_precision = solve_unevaluated_format(lhs_precision, format_solver)
+
+    if is_unevaluated_format(lhs_precision):
+        rhs_precision = solve_unevaluated_format(rhs_precision, format_solver)
 
     if is_fixed_point(lhs_precision) and is_fixed_point(rhs_precision):
         # +1 for carry overflow
@@ -349,6 +368,19 @@ def solve_format_SignCast(optree):
     else:
         Log.report(Log.Error, "unknown specifier {} in solve_format_SignCast".format(optree.specifier))
         
+def solve_format_TypeCast(optree, format_solver):
+    """ Resolve the format for a TypeCast node """
+    assert isinstance(optree, TypeCast)
+    precision = optree.get_precision()
+
+    if is_unevaluated_format(precision):
+        def node_evaluator(node):
+            return evaluate_cst_graph(node, input_prec_solver=format_solver)
+        evaluated_format = precision.evaluate(node_evaluator)
+        Log.report(Log.Info , "Solving unevaluated format {} to {}", str(precision), str(evaluated_format))
+        precision = evaluated_format
+
+    return precision
 
 def solve_format_shift(optree):
     """ Legalize shift node """
@@ -372,12 +404,18 @@ def solve_format_shift(optree):
         return optree.get_precision()
 
 ## determine Constant node precision
-def solve_format_Constant(optree):
+def solve_format_Constant(optree, input_prec_solver=None):
     """ Legalize Constant node """
     assert isinstance(optree, Constant)
     value = optree.get_value()
     if FP_SpecialValue.is_special_value(value):
         return optree.get_precision()
+    elif is_unevaluated_format(optree.get_precision()):
+        # TODO: dangerous complexity, this is the only elif-branch
+        #       which require input_prec_solver != None
+        assert not input_prec_solver is None
+        # managing unevaluated format
+        return solve_unevaluated_format(optree.get_precision(), input_prec_solver)
     elif not optree.get_precision() is None and optree.get_precision() != ML_Integer:
         # if precision is already set (manually forced), returns it
         return optree.get_precision()
@@ -437,7 +475,7 @@ def solve_format_SubSignalSelection(optree, format_solver):
 def format_set_if_undef(optree, new_format):
     """ Define a new format to @p optree if no format was previously
         set. """
-    if optree.get_precision() is None:
+    if optree.get_precision() is None or is_unevaluated_format(optree.get_precision()):
         optree.set_precision(new_format)
     return optree.get_precision()
 
@@ -563,11 +601,11 @@ class FormatSolver:
         elif isinstance(optree, ML_LeafNode):
             new_format = optree.get_precision()
             if isinstance(optree, Constant):
-                new_format = solve_format_Constant(optree)
+                new_format = solve_format_Constant(optree, input_prec_solver=self)
 
             Log.report(Log.Verbose,
-                       "new format {} determined for {}",
-                      str(new_format), optree.get_str(display_precision=True) if Log.is_level_enabled(Log.Verbose) else ""
+                "new format {} determined for Constant {}",
+                str(new_format), optree.get_str(display_precision=True) if Log.is_level_enabled(Log.Verbose) else ""
             )
 
             # updating optree format
@@ -597,7 +635,7 @@ class FormatSolver:
             for op_input in optree.get_inputs():
                 self.solve_format_rec(op_input)
             new_format = optree.get_precision()
-            if not new_format is None:
+            if not new_format is None and not is_unevaluated_format(new_format):
                 Log.report(
                     Log.Verbose,
                     "format {} has already been determined for {}",
@@ -635,11 +673,14 @@ class FormatSolver:
                 new_format = solve_format_FixedPointPosition(optree)
             elif isinstance(optree, SignCast):
                 new_format = solve_format_SignCast(optree)
+            elif isinstance(optree, TypeCast):
+                new_format = solve_format_TypeCast(optree, format_solver=self)
             elif isinstance(optree, Conversion):
                 Log.report(
                     Log.Error,
-                    "Conversion {} must have a defined format".format(
-                        optree.get_str()
+                    "Conversion {} must have a defined format, has {}".format(
+                        optree.get_str(),
+                        str(optree.get_precision())
                     )
                 )
             else:

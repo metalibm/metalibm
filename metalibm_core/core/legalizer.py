@@ -35,11 +35,15 @@
 # description:
 ###############################################################################
 
+import operator
+
+
 from metalibm_core.utility.log_report import Log
 
 from metalibm_core.core.ml_operations import (
     Comparison, Select, Constant, TypeCast, Multiplication, Addition,
     Subtraction, Negation, Test,
+    Max, Min,
     Conversion,
     BitLogicRightShift, BitLogicLeftShift, BitLogicAnd, LogicalAnd
 )
@@ -111,6 +115,7 @@ def safe(operation):
     """ function decorator to forward None value """
     return lambda *args: None if None in args else operation(*args)
 
+# Metalibm Description Language operation predicate
 def is_addition(optree):
     return isinstance(optree, Addition)
 def is_subtraction(optree):
@@ -120,22 +125,33 @@ def is_multiplication(optree):
 def is_constant(optree):
     return isinstance(optree, Constant)
 
+def is_max(optree):
+    """ Max operation predicate """
+    return isinstance(optree, Max)
+def is_min(optree):
+    """ Min operation predicate """
+    return isinstance(optree, Min)
 
-def evalute_bin_op(operation):
-    def eval_routine(optree):
+
+def evaluate_bin_op(operation):
+    """ functor to create a 2-operand formal evaluation
+        using operator @p operation """
+    def eval_routine(optree, input_prec_solver):
         lhs = optree.get_input(0)
         rhs = optree.get_input(1)
         return safe(operation)(
-            evaluate_cst_graph(lhs),
-            evaluate_cst_graph(rhs)
+            evaluate_cst_graph(lhs, input_prec_solver),
+            evaluate_cst_graph(rhs, input_prec_solver)
         )
     return eval_routine
 
-def evalute_un_op(operation):
-    def eval_routine(optree):
+def evaluate_un_op(operation):
+    """ functor to create a 1-operand formal evaluation
+        using operator @p operation """
+    def eval_routine(optree, input_prec_solver):
         op = optree.get_input(0)
         return safe(operation)(
-            evaluate_cst_graph(op),
+            evaluate_cst_graph(op, input_prec_solver),
         )
     return eval_routine
 
@@ -152,6 +168,7 @@ def fixed_point_position_legalizer(optree, input_prec_solver=default_prec_solver
     assert isinstance(optree, FixedPointPosition)
     fixed_input = optree.get_input(0)
     fixed_precision = input_prec_solver(fixed_input)
+    print("fixed_precision of {} is {}".format(fixed_input, fixed_precision))
     if not is_fixed_point(fixed_precision):
         Log.report(
             Log.Error,
@@ -188,19 +205,24 @@ def fixed_point_position_legalizer(optree, input_prec_solver=default_prec_solver
 def evaluate_cst_graph(optree, input_prec_solver=default_prec_solver):
     """ evaluate a Operation Graph if its leaves are Constant """
     evaluation_map = {
+        is_max:
+            lambda optree: evaluate_bin_op(max)(optree, input_prec_solver),
+        is_min:
+            lambda optree: evaluate_bin_op(min)(optree, input_prec_solver),
         is_addition:
-            lambda optree: evaluate_bin_op(operator.__add__),
+            lambda optree: evaluate_bin_op(operator.__add__)(optree, input_prec_solver),
         is_subtraction:
-            lambda optree: evaluate_bin_op(operator.__sub__),
+            lambda optree: evaluate_bin_op(operator.__sub__)(optree, input_prec_solver),
         is_multiplication:
-            lambda optree: evaluate_bin_op(operator.__mul__),
+            lambda optree: evaluate_bin_op(operator.__mul__)(optree, input_prec_solver),
         is_constant:
             lambda optree: optree.get_value(),
         is_negation:
-            lambda optree: evalute_un_op(operator.__neg__),
+            lambda optree: evaluate_un_op(operator.__neg__)(optree, input_prec_solver),
         is_fixed_point_position:
             lambda optree: evaluate_cst_graph(
-                fixed_point_position_legalizer(optree, input_prec_solver = input_prec_solver)
+                fixed_point_position_legalizer(optree, input_prec_solver=input_prec_solver),
+                input_prec_solver
             ),
     }
     for predicate in evaluation_map:

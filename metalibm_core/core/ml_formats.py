@@ -782,7 +782,7 @@ class ML_Base_FixedPoint_Format(ML_Fixed_Format, VirtualFormatNoBase):
           encoded_value = int(cst_value * S2**self.frac_size)
         except (ValueError, TypeError) as e:
           print(e, cst_value, self.frac_size)
-          Log.report(Log.Error, "Error during constant conversion to sollya object")
+          Log.report(Log.Error, "Error during constant conversion to sollya object from format {}", str(self))
           
         return ("" if self.signed else "U") + "INT" + str(self.c_bit_size) + "_C(" + str(encoded_value) + ")"
 

@@ -54,7 +54,9 @@ from metalibm_core.utility.ml_template import (
     ML_EntityArgTemplate, hdl_precision_parser
 )
 from metalibm_core.utility.log_report import Log
-from metalibm_core.core.ml_hdl_format import fixed_point
+from metalibm_core.core.ml_hdl_format import (
+    fixed_point, lazy_fixed_point
+)
 
 from metalibm_functions.unit_tests.utils import TestRunner
 
@@ -80,7 +82,7 @@ class UT_FixedPointPosition(ML_Entity("ml_ut_fixed_point_position"), TestRunner)
             entity_name="ut_fixed_point_position",
             language=VHDL_Code,
             width=width,
-            passes=[("beforecodegen:size_datapath")],
+            passes=[("beforecodegen:size_datapath"), ("beforecodegen:dump")],
         )
 
     def __init__(self, arg_template=None):
@@ -144,9 +146,41 @@ class UT_FixedPointPosition(ML_Entity("ml_ut_fixed_point_position"), TestRunner)
             )
         )
 
+        # testing parameterized fixed-point format
+        dynamic_format = lazy_fixed_point(
+            FixedPointPosition(
+                abstract_formulae,
+                0,
+                tag="lazy_up",
+                align=FixedPointPosition.FromPointToMSB
+            ) - Max(
+                0,
+                FixedPointPosition(
+                    abstract_formulae,
+                    2, align=FixedPointPosition.FromLSBToLSB) - 2
+            ),
+            FixedPointPosition(
+                abstract_formulae,
+                0,
+                align=FixedPointPosition.FromPointToLSB
+            ) + Min(
+                FixedPointPosition(
+                    abstract_formulae,
+                    2, align=FixedPointPosition.FromPointToLSB
+                ) - 0,
+                FixedPointPosition(
+                    abstract_formulae,
+                    2, align=FixedPointPosition.FromPointToLSB,
+                ) - 0
+            ),
+        )
+
+        result = Constant(3, precision=dynamic_format)
+
         self.implementation.add_output_signal("round", round_bit)
         self.implementation.add_output_signal("msb", msb_bit)
         self.implementation.add_output_signal("lsb", lsb_bit)
+        self.implementation.add_output_signal("result", result)
 
 
         return [self.implementation]

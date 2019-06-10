@@ -82,6 +82,42 @@ def generic_get_vhdl_cst(value, bit_size):
   else:
     return "\"%s\"" % bin(value)[2:].replace("L","").zfill(bit_size)
 
+class ML_UnevaluatedFormat:
+    """ generic virtual class for unevaluated format.
+        Unevaluated format is a parameterized format whose parameters can be left
+        partially unevaluated during declaration """
+
+    def evaluate(self, node_value_solver):
+        """ function to compute final value for node parameters
+            returns a fully evaluated node """
+        raise NotImplementedError
+
+    def get_c_cst(self, cst_value):
+        Log.report(Log.Error, "unevaluated format can not be used for get_c_cst")
+        raise NotImplementedError
+
+class UndefinedFixedPointFormat(ML_Base_FixedPoint_Format, ML_UnevaluatedFormat):
+    """ class for undefined fixed-point format: the corresponding
+        object is a fixed-point format whose integer and fractional size
+        have not been determined yet (they can be unevaluated expressions) """
+    def __init__(self, integer_size, frac_size, signed=True, support_format=None, align=0):
+        ML_Base_FixedPoint_Format.__init__(self, integer_size, frac_size, signed, support_format=support_format, align=align)
+        name = "unevaluated_fixed_point"
+        self.name[VHDL_Code] = name
+
+    def evaluate(self, node_value_solver):
+        int_size = node_value_solver(self.integer_size)
+        frac_size = node_value_solver(self.frac_size)
+        return fixed_point(int_size, frac_size, signed=self.signed, support_format=self.support_format) 
+
+    def get_c_cst(self, cst_value):
+        return ML_UnevaluatedFormat.get_c_cst(self, cst_value)
+
+    def __str__(self):
+        if self.signed:
+          return "FS<undef>"
+        else:
+          return "FU<undef>"
 
 class RTL_FixedPointFormat(ML_Base_FixedPoint_Format):
     def __init__(self, integer_size, frac_size, signed = True, support_format = None, align = 0):
@@ -241,10 +277,22 @@ def fixed_point(int_size, frac_size, signed = True, support_format = None):
     )
     return new_precision
 
+def lazy_fixed_point(int_size, frac_size, signed=True, support_format=None):
+    """ Generate a lazy fixed-point format with unevaluated integer and fractionnal sizes """
+    new_precision = UndefinedFixedPointFormat(
+        int_size, frac_size,
+        signed=signed,
+        support_format=support_format
+    )
+    return new_precision
+
 ## Test whether @p precision is a fixed-point format
 #  @return boolean value
 def is_fixed_point(precision):
     return isinstance(precision, ML_Base_FixedPoint_Format)
+
+def is_unevaluated_format(precision):
+    return isinstance(precision, ML_UnevaluatedFormat)
 
 def get_unsigned_precision(precision):
     """ convert a sign agnostic precision (std_logic_vector)
