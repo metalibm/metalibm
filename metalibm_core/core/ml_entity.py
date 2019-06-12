@@ -200,7 +200,6 @@ class ML_EntityBasis(object):
   #  @param output_file string name of source code output file
   #  @param debug_file string name of debug script output file
   #  @param io_precisions input/output ML_Format list
-  #  @param abs_accuracy absolute accuracy
   #  @param libm_compliant boolean flag indicating whether or not the function
   #                        should be compliant with standard libm specification
   #                        (wrt exception, error ...)
@@ -215,7 +214,6 @@ class ML_EntityBasis(object):
              output_file = ArgDefault(None, 2),
              # Specification
              io_precisions = ArgDefault([ML_Binary32], 2),
-             abs_accuracy = ArgDefault(None, 2),
              libm_compliant = ArgDefault(True, 2),
              # Optimization parameters
              backend = ArgDefault(VHDLBackend(), 2),
@@ -236,7 +234,6 @@ class ML_EntityBasis(object):
     debug_file  = arg_template.debug_file
     # Specification
     io_precisions = ArgDefault.select_value([io_precisions])
-    abs_accuracy = ArgDefault.select_value([abs_accuracy])
     # Optimization parameters
     backend = ArgDefault.select_value([arg_template.backend, backend])
     fast_path_extract = ArgDefault.select_value([arg_template.fast_path_extract, fast_path_extract])
@@ -289,7 +286,6 @@ class ML_EntityBasis(object):
     # TODO: incompatible with fixed-point formats
     # self.sollya_precision = self.get_output_precision().get_sollya_object()
 
-    self.abs_accuracy = abs_accuracy if abs_accuracy else S2**(-self.get_output_precision().get_precision())
 
     # target selection
     self.backend = backend
@@ -320,7 +316,7 @@ class ML_EntityBasis(object):
       pass_slot_tag, pass_tag = pass_uplet.split(":")
       pass_slot = PassScheduler.get_tag_class(pass_slot_tag)
       pass_class  = Pass.get_pass_by_tag(pass_tag)
-      pass_object = pass_class(self.backend) 
+      pass_object = pass_class(self.backend)
       self.pass_scheduler.register_pass(pass_object, pass_dep = pass_dep, pass_slot = pass_slot)
       # linearly linking pass in the order they appear
       pass_dep = AfterPassById(pass_object.get_pass_id())

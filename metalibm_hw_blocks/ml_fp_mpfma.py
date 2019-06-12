@@ -88,7 +88,6 @@ class FP_MPFMA(ML_Entity("fp_mpfma")):
       output_file = output_file,
 
       io_precisions = io_precisions,
-      abs_accuracy = None,
 
       backend = target,
 
@@ -626,7 +625,6 @@ if __name__ == "__main__":
     arg_template = ML_EntityArgTemplate(default_entity_name = "new_fp_mpfma", default_output_file = "ml_fp_mpfma.vhd" )
     # accumulator precision (also the output format)
     arg_template.parser.add_argument("--acc-prec", dest = "acc_prec", type = precision_parser, default = ML_Binary32, help = "select accumulator precision")
-    arg_template.parser.add_argument("--pipelined", dest = "pipelined", action = "store_const", default = False, const = True, help = "enable operator pipelining")
     # argument extraction 
     args = parse_arg_index_list = arg_template.arg_extraction()
 

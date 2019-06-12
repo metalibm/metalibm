@@ -102,7 +102,6 @@ class FP_FIXED_MPFMA(ML_Entity("fp_fixed_mpfma")):
       output_file = output_file,
 
       io_precisions = io_precisions,
-      abs_accuracy = None,
 
       backend = target,
 
@@ -501,7 +500,6 @@ if __name__ == "__main__":
     # extra digit command line argument
     arg_template.parser.add_argument("--extra-digit", dest = "extra_digit", type=int, default = 0, help = "set the number of accumulator extra digits")
     arg_template.parser.add_argument("--sign-magnitude", dest = "sign_magnitude", action = "store_const", default = False, const = True, help = "set sign-magnitude encoding for the accumulator")
-    arg_template.parser.add_argument("--pipelined", dest = "pipelined", action = "store_const", default = False, const = True, help = "enable operator pipelining")
     # argument extraction 
     args = parse_arg_index_list = arg_template.arg_extraction()
 
