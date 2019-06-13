@@ -412,6 +412,7 @@ class DefaultArgTemplate:
     break_error = False
     # bench properties
     bench_test_number = 0
+    bench_loop_num = 10000
     bench_test_range = Interval(0, 1)
     bench_function_name = "undefined"
     headers = []
@@ -582,6 +583,10 @@ class ML_CommonArgTemplate(object):
             const=1000, type=int, default=default_arg.bench_test_number,
             help="enable the generation of a performance bench")
         self.parser.add_argument(
+            "--bench-loop-num", dest="bench_loop_num", action="store",
+            type=int, default=default_arg.bench_loop_num,
+            help="define the number of bench loop to run")
+        self.parser.add_argument(
             "--bench-range", dest="bench_test_range", action="store",
             type=interval_parser, default=default_arg.bench_test_range,
             help="define the interval of input values to use during "
@@ -747,7 +752,7 @@ class ML_NewArgTemplate(ML_CommonArgTemplate):
         )
         self.parser.add_argument(
             "--no-embedded-bin", dest="embedded_binary", action="store_const",
-            const=False, default=True,
+            const=False, default=default_arg.embedded_binary,
             help="link test program as shared object to be embedded"
         )
         self.parser.add_argument(

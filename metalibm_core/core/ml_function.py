@@ -189,9 +189,11 @@ class ML_FunctionBasis(object):
     self.break_error = args.break_error
 
     # enable and configure the generation of a performance bench
-    self.bench_enabled = args.bench_test_number 
+    self.bench_enabled = args.bench_test_number
     self.bench_test_number = args.bench_test_number
     self.bench_test_range = args.bench_test_range
+    # number of benchmark loop to run
+    self.bench_loop_num = args.bench_loop_num
 
     self.display_stdout = args.display_stdout
 
@@ -655,8 +657,9 @@ class ML_FunctionBasis(object):
 
     if self.bench_enabled:
         bench_function_group = self.generate_bench_wrapper(
-            test_num = self.bench_test_number if self.bench_test_number else 1000,
-            test_range = self.bench_test_range
+            test_num=self.bench_test_number if self.bench_test_number else 1000,
+            loop_num=self.bench_loop_num,
+            test_range=self.bench_test_range
         )
 
         def bench_check(bench_call):
