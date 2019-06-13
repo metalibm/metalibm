@@ -100,7 +100,7 @@ class CommonTestScheme:
       result_msg = "{} success ! ({}/{})".format(function_name, success_count, len(result_list))
       return TestResult(True, result_msg)
     else:
-      result_msg = "{} success ! ({}/{})\n {}".format(
+      result_msg = "{} failure ! ({}/{} success(es))\n {}".format(
             function_name, success_count, len(result_list), 
             "\n".join(r.get_details() for r in result_list))
       return TestResult(False, result_msg)
