@@ -95,10 +95,18 @@ precision_map = {
 
 # Translation map for standard format, from str
 # to their HDL compatible ML_Format counterpart
+# (floating-point format are wrapper into virtual
+#  formats with HDL support)
 HDL_PRECISION_MAP = {
+    # floating-formats
     "binary16": HdlVirtualFormat(ML_Binary16),
     "binary32": HdlVirtualFormat(ML_Binary32),
     "binary64": HdlVirtualFormat(ML_Binary64),
+    # aliases
+    "half": HdlVirtualFormat(ML_Binary16),
+    "float": HdlVirtualFormat(ML_Binary32),
+    "double": HdlVirtualFormat(ML_Binary64),
+    # integer formats
     "int32": fixed_point(32, 0, signed=True),
     "uint32": fixed_point(32, 0, signed=False),
     "int64": fixed_point(64, 0, signed=True),
@@ -442,7 +450,7 @@ class DefaultEntityArgTemplate(DefaultArgTemplate):
     output_file = "entity.vhd"
     debug_file = None
     # Specification,
-    precision = ML_Binary32
+    precision = HdlVirtualFormat(ML_Binary32)
     io_precisions = None
     accuracy = ML_Faithful
     libm_compliant = False
