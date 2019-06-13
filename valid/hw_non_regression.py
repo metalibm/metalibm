@@ -44,6 +44,7 @@ from metalibm_core.core.ml_formats import  \
 from metalibm_core.utility.ml_template import (
     target_instanciate, DefaultEntityArgTemplate
 )
+from metalibm_core.core.ml_hdl_format import HdlVirtualFormat
 
 from valid.test_utils import *
 
@@ -73,16 +74,16 @@ new_scheme_function_list = [
     metalibm_hw_blocks.ml_fp_mpfma.FP_MPFMA,
     [
     {},
-    {"precision": ML_Binary16, "acc_precision": ML_Binary32}],
+    {"precision": HdlVirtualFormat(ML_Binary16), "acc_precision": HdlVirtualFormat(ML_Binary32)}],
   ),
   EntitySchemeTest(
     "fixed-point accumulation MPFMA",
     metalibm_hw_blocks.ml_fixed_mpfma.FP_FIXED_MPFMA,
     [
       {},
-      {"precision": ML_Binary16, "extra_digits": 16},
-      {"precision": ML_Binary16, "extra_digits": 16, "sign_magnitude": True},
-      {"precision": ML_Binary16, "extra_digits": 16, "pipelined": True},
+      {"precision": HdlVirtualFormat(ML_Binary16), "extra_digits": 16},
+      {"precision": HdlVirtualFormat(ML_Binary16), "extra_digits": 16, "sign_magnitude": True},
+      {"precision": HdlVirtualFormat(ML_Binary16), "extra_digits": 16, "pipelined": True},
     ],
   ),
   EntitySchemeTest(

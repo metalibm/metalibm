@@ -110,7 +110,8 @@ class FP_FIXED_MPFMA(ML_Entity("fp_fixed_mpfma")):
       arg_template = arg_template
     )
 
-    self.precision = precision
+    self.precision = precision.get_base_format()
+    self.io_precision = precision
     # number of extra bits to add to the accumulator fixed precision
     self.extra_digit = arg_template.extra_digit
 
@@ -146,7 +147,7 @@ class FP_FIXED_MPFMA(ML_Entity("fp_fixed_mpfma")):
 
     ## convert @p value from an input floating-point precision
     #  @p in_precision to an output support format @p out_precision
-    io_precision = HdlVirtualFormat(self.precision)
+    io_precision = self.io_precision
     # declaring standard clock and reset input signal
     #clk = self.implementation.add_input_signal("clk", ML_StdLogic)
     # reset = self.implementation.add_input_signal("reset", ML_StdLogic)

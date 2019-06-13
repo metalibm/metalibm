@@ -68,7 +68,7 @@ debug_dec_unsigned = ML_Debug(display_format = " -decimal -unsigned ")
 class FP_MPFMA(ML_Entity("fp_mpfma")):
   def __init__(self, 
              arg_template = DefaultEntityArgTemplate, 
-             precision = ML_Binary32, 
+             precision = HdlVirtualFormat(ML_Binary32), 
              accuracy  = ML_Faithful,
              debug_flag = False, 
              target = VHDLBackend(), 
@@ -114,9 +114,9 @@ class FP_MPFMA(ML_Entity("fp_mpfma")):
 
     ## convert @p value from an input floating-point precision
     #  @p in_precision to an output support format @p out_precision
-    prod_input_precision = HdlVirtualFormat(self.precision)
+    prod_input_precision = self.precision
 
-    accumulator_precision = HdlVirtualFormat(self.acc_precision)
+    accumulator_precision = self.acc_precision
 
     # declaring standard clock and reset input signal
     #clk = self.implementation.add_input_signal("clk", ML_StdLogic)
@@ -132,10 +132,10 @@ class FP_MPFMA(ML_Entity("fp_mpfma")):
     # Inserting post-input pipeline stage
     if self.pipelined: self.implementation.start_new_stage()
 
-    vx_precision     = self.precision
-    vy_precision     = self.precision
-    vz_precision     = self.acc_precision
-    result_precision = self.acc_precision
+    vx_precision     = self.precision.get_base_format()
+    vy_precision     = self.precision.get_base_format()
+    vz_precision     = self.acc_precision.get_base_format()
+    result_precision = self.acc_precision.get_base_format()
 
     # precision for first operand vx which is to be statically 
     # positionned
@@ -624,7 +624,7 @@ if __name__ == "__main__":
     # auto-test
     arg_template = ML_EntityArgTemplate(default_entity_name = "new_fp_mpfma", default_output_file = "ml_fp_mpfma.vhd" )
     # accumulator precision (also the output format)
-    arg_template.parser.add_argument("--acc-prec", dest = "acc_prec", type = precision_parser, default = ML_Binary32, help = "select accumulator precision")
+    arg_template.parser.add_argument("--acc-prec", dest = "acc_prec", type = hdl_precision_parser, default = HdlVirtualFormat(ML_Binary32), help = "select accumulator precision")
     # argument extraction 
     args = parse_arg_index_list = arg_template.arg_extraction()
 
