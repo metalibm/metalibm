@@ -79,7 +79,7 @@ from metalibm_core.code_generation.gappa_code_generator import GappaCodeGenerato
 from metalibm_core.utility.log_report import Log
 from metalibm_core.utility.debug_utils import *
 from metalibm_core.utility.ml_template import DefaultArgTemplate
-from metalibm_core.utility.build_utils import SourceFile
+from metalibm_core.utility.build_utils import SourceFile, get_cmd_stdout
 
 
 
@@ -202,6 +202,7 @@ class ML_FunctionBasis(object):
     # embedded binary (test function is linked as shared object and imported
     # into python environement)
     self.embedded_binary = args.embedded_binary
+    self.cross_platform = args.cross_platform
     # binary execution
     self.execute_trigger = args.execute_trigger
 
@@ -724,7 +725,13 @@ class ML_FunctionBasis(object):
                 if not (self.bench_enabled or self.auto_test_enable):
                     execution_result = loaded_module.get_function_handle(self.get_execute_handle())()
             elif not self.embedded_binary:
-                test_result, ret_stdout = bin_file.execute()
+                if self.cross_platform:
+                    execute_cmd = self.processor.get_execution_command(bin_file.path)
+                    Log.report(Log.Info, "execute cmd: {}", execute_cmd)
+                    test_result, ret_stdout = get_cmd_stdout(execute_cmd)
+                else:
+                    Log.report(Log.Info, "executing : {}", bin_file.path)
+                    test_result, ret_stdout = bin_file.execute()
                 Log.report(Log.Info, "log: {}".format(ret_stdout))
                 if not test_result:
                     Log.report(Log.Info, "VALIDATION SUCCESS")

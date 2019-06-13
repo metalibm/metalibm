@@ -428,6 +428,9 @@ class DefaultArgTemplate:
     # when execution is required, export binary into python runtime
     # rather than executing it into a sub-process
     embedded_binary = True
+    # cross-platform: build is done for and execution will be done on a remote machine (thus
+    # using Target object's execute method is required)
+    cross_platform = False
     # list of default optimization passes
     passes = []
     # list of extra optimization passes (to be added to default list)
@@ -756,7 +759,12 @@ class ML_NewArgTemplate(ML_CommonArgTemplate):
             help="link test program as shared object to be embedded"
         )
         self.parser.add_argument(
-            "--fname", dest="function_name", 
+            "--cross-platform", dest="cross_platform", action="store_const",
+            const=True, default=default_arg.cross_platform,
+            help="build for and execute on a remote platform"
+        )
+        self.parser.add_argument(
+            "--fname", dest="function_name",
             default=default_arg.function_name, help="set function name"
         )
         self.parser.add_argument("--target", dest="target", action="store",
