@@ -1418,6 +1418,7 @@ class ML_FunctionBasis(object):
 
     # common test scheme between scalar and vector functions
     test_scheme = Statement(
+      self.processor.get_init_timestamp(),
       ReferenceAssign(timer, self.processor.get_current_timestamp()),
       Loop(
           ReferenceAssign(vj, Constant(0, precision=ML_Int32)),

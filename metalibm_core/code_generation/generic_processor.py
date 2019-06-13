@@ -1153,6 +1153,11 @@ class GenericProcessor(AbstractBackend):
               precision = ML_Int64
              )
 
+  def get_init_timestamp(self):
+    """ initialize target timestamping mechanism to allow
+        get_current_timestamp to be functionnal """
+    return Statement()
+
   ## return the compiler command line program to use to build
   #  test programs
   def get_compiler(self):
