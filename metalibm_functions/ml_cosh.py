@@ -136,16 +136,18 @@ class ML_HyperbolicCosine(ML_Function("ml_cosh")):
     r = r_hi + r_lo
     r.set_attributes(tag = "r", debug = debug_multi)
 
-    r_eval_error = self.get_eval_error(r_hi, variable_copy_map = 
-      {
-        vx: Variable("vx", interval = Interval(0, 715), precision = self.precision),
-        k: Variable("k", interval = Interval(0, 1024), precision = self.precision)
-      })
+    if is_gappa_installed():
+        r_eval_error = self.get_eval_error(r_hi, variable_copy_map =
+          {
+            vx: Variable("vx", interval = Interval(0, 715), precision = self.precision),
+            k: Variable("k", interval = Interval(0, 1024), precision = self.precision)
+          })
+        print("r_eval_error={}".format(r_eval_error))
 
     approx_interval = Interval(-arg_reg_value, arg_reg_value)
     error_goal_approx = 2**-(self.precision.get_precision())
 
-    poly_degree = sup(guessdegree(exp(sollya.x), approx_interval, error_goal_approx)) 
+    poly_degree = sup(guessdegree(exp(sollya.x), approx_interval, error_goal_approx))
     precision_list = [1] + [self.precision] * (poly_degree)
 
     k_integer = Conversion(k, precision = int_precision, tag = "k_integer", debug = debug_multi)
