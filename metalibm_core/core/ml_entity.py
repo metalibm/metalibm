@@ -324,7 +324,7 @@ class ML_EntityBasis(object):
     # TODO/FIXME: can be overloaded
     if  self.reset_pipeline:
         self.reset_signal = self.implementation.add_input_signal("reset", ML_StdLogic)
-    self.recirculate_signal_map = {}
+    self.recirculate_signal_map = dict((index, self.implementation.add_input_signal(v, ML_StdLogic)) for index, v in arg_template.recirculate_signal_map.items())
 
   def get_pass_scheduler(self):
     return self.pass_scheduler
@@ -406,7 +406,10 @@ class ML_EntityBasis(object):
   def get_recirculate_signal(self, stage_id):
     """ generate / retrieve the signal used to recirculate
         register at pipeline stage <stage_id> """
-    return self.recirculate_signal_map[stage_id]
+    try:
+        return self.recirculate_signal_map[stage_id]
+    except KeyError as e:
+        Log.report(Log.Error, "stage {} has no associated recirculation signal in recirculate_signal_map", stage_id, error=e)
 
 
   def is_main_entity(self, entity):

@@ -478,6 +478,7 @@ class DefaultEntityArgTemplate(DefaultArgTemplate):
     # pipeline register control
     reset_pipeline = False
     recirculate_pipeline = False
+    recirculate_signal_map = {}
 
 
 
@@ -715,6 +716,17 @@ class ML_EntityArgTemplate(ML_CommonArgTemplate):
         self.parser.add_argument(
             "--recirculate-pipeline", dest="recirculate_pipeline",
             action="store_const", default=default_arg.recirculate_pipeline, const=True
+        )
+        def parse_recirculate_signal_map(rsm_s):
+            """ translate a string description of recirculate_signal_map into
+                a dict <stage-inde> : <signal name> """
+            def parse_signal_index(s):
+                index, name = s.split(":")
+                return (int(index), name)
+            return dict(parse_signal_index(v) for v in rsm_s.split(","))
+        self.parser.add_argument(
+            "--recirculate-signal-map", dest="recirculate_signal_map",
+            action="store", default=default_arg.recirculate_signal_map, type=parse_recirculate_signal_map
         )
         self.parser.add_argument(
             "--no-exit",
