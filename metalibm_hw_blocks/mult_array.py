@@ -578,7 +578,6 @@ class MultArray(ML_Entity("mult_array")):
             output_file = output_file,
 
             io_precisions = io_precisions,
-            abs_accuracy = None,
 
             backend = target,
 
