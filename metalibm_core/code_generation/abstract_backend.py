@@ -50,6 +50,12 @@ class AbstractBackend(object):
     """ base abstract processor """
     target_name = "abstract"
 
+    # does the platform support binary embedding in python module
+    support_embedded_bin = False
+    # is the platform native (same platform as the one use to execute
+    # metalibm or is it a remote platform)
+    cross_platform = True
+
     def __init__(self, *args):
         # create ordered list of parent architecture instances
         parent_class_list = get_parent_proc_class_list(self.__class__)

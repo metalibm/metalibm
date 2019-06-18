@@ -162,7 +162,7 @@ class ML_FunctionBasis(object):
   name = "function_basis"
 
   ## constructor
-  #   @param all arguments are transmittaed throughs @p arguments object which 
+  #   @param all arguments are transmittaed throughs @p arguments object which
   #          should inherit from DefaultArgTemplate
   def __init__(self, args=DefaultArgTemplate):
     # selecting argument values among defaults
@@ -202,7 +202,7 @@ class ML_FunctionBasis(object):
     # embedded binary (test function is linked as shared object and imported
     # into python environement)
     self.embedded_binary = args.embedded_binary
-    self.cross_platform = args.cross_platform
+    self.force_cross_platform = args.cross_platform
     # binary execution
     self.execute_trigger = args.execute_trigger
 
@@ -672,8 +672,10 @@ class ML_FunctionBasis(object):
         # appending bench wrapper to general code_function_list
         function_group.merge_with_group(bench_function_group)
 
+    embedding_binary = self.embedded_binary and self.processor.support_embedded_bin
+
     # adding main function
-    if not self.embedded_binary:#self.bench_enabled or self.auto_test_enable:
+    if not embedding_binary:
         main_function = CodeFunction("main", output_format=ML_Int32)
         main_function.set_scheme(
             Statement(
@@ -692,7 +694,7 @@ class ML_FunctionBasis(object):
 
     if build_trigger:
         source_file = SourceFile(self.output_file, function_group)
-        if self.embedded_binary:
+        if embedding_binary:
             bin_name = "./testlib_%s.so" % self.function_name
             shared_object = True
             link_trigger = False
@@ -710,7 +712,7 @@ class ML_FunctionBasis(object):
 
         # only executing if build was successful
         if self.execute_trigger:
-            if self.embedded_binary and not(bin_file is None):
+            if embedding_binary and not(bin_file is None):
                 loaded_module = bin_file.load()
 
                 if self.bench_enabled:
@@ -724,8 +726,8 @@ class ML_FunctionBasis(object):
                         Log.report(Log.Error, "VALIDATION FAILURE", error=ValidError())
                 if not (self.bench_enabled or self.auto_test_enable):
                     execution_result = loaded_module.get_function_handle(self.get_execute_handle())()
-            elif not self.embedded_binary:
-                if self.cross_platform:
+            elif not embedding_binary:
+                if self.force_cross_platform or self.processor.cross_platform:
                     execute_cmd = self.processor.get_execution_command(bin_file.path)
                     Log.report(Log.Info, "execute cmd: {}", execute_cmd)
                     test_result, ret_stdout = get_cmd_stdout(execute_cmd)

@@ -1133,6 +1133,8 @@ class GenericProcessor(AbstractBackend):
 
   target_name = "generic"
   default_compiler = "gcc"
+  support_embedded_bin = True
+  cross_platform = False
 
 
   # code generation table map

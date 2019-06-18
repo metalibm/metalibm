@@ -85,6 +85,7 @@ import metalibm_functions.unit_tests.llvm_code as ut_llvm_code
 import metalibm_functions.unit_tests.multi_precision as ut_multi_precision
 import metalibm_functions.unit_tests.function_ptr as ut_function_ptr
 import metalibm_functions.unit_tests.multi_precision_vectorization as ut_mp_vectorization
+import metalibm_functions.unit_tests.embedded_bin as ut_embedded_bin
 
 unit_test_list = [
   UnitTestScheme(
@@ -258,6 +259,14 @@ unit_test_list = [
     [
         {"precision": ML_DoubleDouble, "vector_size": 4, "target": target_instanciate("vector"), "passes": ["start:basic_legalization", "start:expand_multi_precision"]},
         {"precision": ML_SingleSingle, "vector_size": 4, "target": target_instanciate("vector"), "passes": ["start:basic_legalization", "start:expand_multi_precision"]},
+    ],
+  ),
+  UnitTestScheme(
+    "embedded binary",
+    ut_embedded_bin,
+    [
+        {"embedded_bin": True},
+        {"embedded_bin": False},
     ],
   ),
 ]
