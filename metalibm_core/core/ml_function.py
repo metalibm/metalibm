@@ -869,6 +869,8 @@ class ML_FunctionBasis(object):
     # Call externalizer engine
     call_externalizer = CallExternalizer(self.get_main_code_object())
     scalar_callback_function = call_externalizer.externalize_call(scalar_scheme, scalar_arg_list, callback_name, self.precision)
+    # adding static attributes
+    scalar_callback_function.add_attribute("static")
 
     Log.report(Log.Info, "[SV] optimizing Scalar scheme")
     scalar_scheme = self.optimise_scheme(scalar_scheme)

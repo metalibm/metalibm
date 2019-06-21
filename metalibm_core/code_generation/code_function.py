@@ -31,7 +31,7 @@
 # author(s): Nicolas Brunie (nicolas.brunie@kalray.eu)
 ###############################################################################
 
-from ..core.ml_operations import Variable, FunctionObject
+from ..core.ml_operations import Variable, FunctionObject, FunctionType
 from .code_object import NestedCode
 from .generator_utility import FunctionOperator, FO_Arg
 from .code_constant import *
@@ -39,15 +39,25 @@ from .code_constant import *
 
 class CodeFunction(object):
   """ function code object """
-  def __init__(self, name, arg_list=None, output_format=None, code_object=None, language=C_Code):
+  def __init__(self, name, arg_list=None, output_format=None, code_object=None, language=C_Code, attributes=None):
     """ code function initialization """
-    self.name = name
     self.arg_list = arg_list if arg_list else []
+    arg_list_precision = [arg.get_precision() for arg in self.arg_list]
+    self.function_type = FunctionType(name, arg_list_precision, output_format, attributes)
     self.code_object = code_object
-    self.output_format = output_format 
     self.function_object   = None
     self.function_operator = None
     self.language = language
+
+  @property
+  def name(self):
+    return self.function_type.name
+  @property
+  def output_format(self):
+    return self.function_type.output_format
+  @property
+  def attributes(self):
+    return self.function_type.attributes
 
   def get_name(self):
     return self.name
@@ -55,12 +65,14 @@ class CodeFunction(object):
   def add_input_variable(self, name, vartype, **kw):
     """ declares a new Variable with name @p name and format @p vartype
         and registers it as an input variable """
-    input_var = Variable(name, precision = vartype, **kw) 
+    input_var = Variable(name, precision = vartype, **kw)
     self.arg_list.append(input_var)
+    # WARNING: self.function_type.arg_list_precision is not updated
     return input_var
 
   def register_new_input_variable(self, new_input):
     self.arg_list.append(new_input)
+    # WARNING: self.function_type.arg_list_precision is not updated
 
   def get_arg_list(self):
     return self.arg_list
@@ -75,7 +87,7 @@ class CodeFunction(object):
 
   def build_function_object(self):
     arg_list_precision = [arg.get_precision() for arg in self.arg_list]
-    return FunctionObject(self.name, arg_list_precision, self.output_format, self.get_function_operator())
+    return FunctionObject(self.name, arg_list_precision, self.output_format, self.get_function_operator(), self.attributes)
 
   def get_function_operator(self):
     return self.build_function_operator()
@@ -90,35 +102,36 @@ class CodeFunction(object):
   #  @return ML_Format object
   def get_output_format(self):
     return self.output_format
-  ## define a new format for the function return value(s)
+  ## define a new at for the function return value(s)
   #  @param new_output_format ML_Format object indicated which format is returned by the function
   def set_output_format(self, new_output_format):
-    self.output_format = new_output_format
+    self.function_type.output_format = new_output_format
 
-  def get_C_declaration(self, final=True, language=C_Code):
-    language = self.language if language is None else language
-    arg_format_list = ", ".join("%s %s" % (inp.get_precision().get_name(language = language), inp.get_tag()) for inp in self.arg_list)
-    final_symbol = ";" if final else ""
-    return "%s %s(%s)%s" % (self.output_format.get_name(language = language), self.name, arg_format_list, final_symbol)
+  def add_attribute(self, attribute):
+    assert not attribute in self.attributes
+    self.attributes.append(attribute)
+
+  def get_attributes_dec(self, language=C_Code):
+    """ generate function attribute string """
+    if self.attributes:
+        return " ".join(self.attributes)
+    return ""
 
   def get_LLVM_declaration(self, final=True, language=LLVM_IR_Code):
+    # TODO: support attributes and metadata
     arg_format_list = ", ".join("%s %s" % (inp.get_precision().get_name(language = language), inp.get_tag()) for inp in self.arg_list)
     return "declare %s @%s(%s)" % (self.output_format.get_name(language = language), self.name, arg_format_list)
-    
-  def get_declaration(self, code_generator, final=True, language=None):
-    language = self.language if language is None else language
-    return code_generator.get_function_declaration(
-        self.name, self.output_format, self.arg_list, final, language
-    )
-    
 
-  #def get_declaration(self, final = True, language = None):
-  #  if language is C_Code:
-  #      return self.get_C_declaration(final, language)
-  #  elif language is LLVM_IR_Code:
-  #      return self.get_LLVM_declaration(final, language)
-  #  else:
-  #      Log.report(Log.Error, "unknown language {} in get_declaration".format(language))
+  def update_arg_list_precisions(self):
+    self.function_type.arg_list_precision = [arg.precision for arg in self.arg_list]
+
+  def get_declaration(self, code_generator, final=True, language=None, named_arg_list=False):
+    self.update_arg_list_precisions()
+    language = self.language if language is None else language
+    return code_generator.get_function_declaration(self.function_type, final, language, arg_list=(self.arg_list if named_arg_list else None))
+    #self.name, self.output_format, self.arg_list, final, language
+    #)
+
 
   ## define function implementation
   #  @param scheme ML_Operation object to be defined as function implementation
@@ -130,14 +143,14 @@ class CodeFunction(object):
 
   def get_definition(self, code_generator, language, folded = True, static_cst = False):
     code_object = NestedCode(code_generator, static_cst = static_cst)
-    code_object << self.get_declaration(code_generator, final=False, language=language)
+    code_object << self.get_declaration(code_generator, final=False, language=language, named_arg_list=True)
     code_object.open_level()
     code_generator.generate_expr(code_object, self.scheme, folded = folded, initial = True, language = language)
     code_object.close_level()
     return code_object
 
   def add_definition(self, code_generator, language, code_object, folded = True, static_cst = False):
-    code_object << self.get_declaration(code_generator, final=False, language=language)
+    code_object << self.get_declaration(code_generator, final=False, language=language, named_arg_list=True)
     code_object.open_level()
     code_generator.generate_expr(code_object, self.scheme, folded = folded, initial = True, language = language)
     code_object.close_level()
@@ -193,5 +206,5 @@ class FunctionGroup(object):
             if fct.name == function_name:
                 return fct
         return None
-        
+
 

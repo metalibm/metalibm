@@ -696,7 +696,7 @@ class AbstractVariable(ML_LeafNode):
         var_type = self.get_precision()
         if not isinstance(var_type, FunctionType):
             Log.report(Log.report("Variable {} of format {} is not callable", self, var_type))
-        return FunctionObject(self.get_tag(), var_type.arg_list_precision, var_type.output_precision, None)(*args)
+        return FunctionObject(self.get_tag(), var_type.arg_list_precision, var_type.output_format, None)(*args)
 
     ## generate string description of the Variable node
     def get_str(
@@ -1837,53 +1837,72 @@ def RoundedSignedOverflow(*args, **kwords):
 
 
 class FunctionType(object):
-    """ Function prototype object """
-    def __init__(self, arg_list_precision, output_precision):
-        self.arg_list_precision = arg_list_precision
-        self.output_precision = output_precision
-        self.arity = len(self.arg_list_precision)
-
-    def get_declaration(self, fname, language=C_Code):
-        out_prec = self.output_precision.get_name(language=language)
-        arg_prec_list = ", ".join(
-            arg.get_name(language=language) for arg in self.arg_list_precision
-        )
-        # TODO: duplicate code with LLVM/C CodeGenerator ...
-        prefix = "@" if language is LLVM_IR_Code else ""
-        return "{out_prec} {prefix}{fname}({arg_prec_list});".format(
-            prefix=prefix,
-            out_prec=out_prec,
-            fname=fname,
-            arg_prec_list=arg_prec_list
-        )
-
-class FunctionObject(FunctionType):
-    """ Object to wrap a function """
-    def __init__(self, name, arg_list_precision, output_precision, generator_object):
-        FunctionType.__init__(self, arg_list_precision, output_precision)
+    """ Function prototype object, should be close to ML_Format """
+    def __init__(self, name, arg_list_precision, output_format, attributes=None):
         self.name = name
+        self.arg_list_precision = arg_list_precision
+        self.output_format = output_format
+        self.attributes = [] if attributes is None else attributes
+
+    def get_name(self, language=C_Code):
+        return self.name
+    @property
+    def arity(self):
+        # as self.arg_list_precision is volatile and can be updated
+        # silently, arity is updated dynamically upon read
+        return len(self.arg_list_precision)
+
+    # def get_declaration(self, language=C_Code):
+    #     out_prec = self.output_format.get_name(language=language)
+    #     arg_prec_list = ", ".join(
+    #         arg.get_name(language=language) for arg in self.arg_list_precision
+    #     )
+    #     # TODO: duplicate code with LLVM/C CodeGenerator ...
+    #     prefix = "@" if language is LLVM_IR_Code else ""
+    #     return "{attributes}{out_prec} {prefix}{fname}({arg_prec_list});".format(
+    #         attributes=" ".join(self.attributes),
+    #         prefix=prefix,
+    #         out_prec=out_prec,
+    #         fname=self.name,
+    #         arg_prec_list=arg_prec_list
+    #     )
+
+class FunctionObject(object):
+    """ Object to wrap a function """
+    def __init__(self, name, arg_list_precision, output_format, generator_object, attributes=None):
+        self.function_type = FunctionType(name, arg_list_precision, output_format, attributes)
         self.generator_object = generator_object
 
+    @property
+    def name(self):
+        return self.function_type.name
+    @property
+    def output_format(self):
+        return self.function_type.output_format
+    @property
+    def arity(self):
+        return self.function_type.arity
+
     def __call__(self, *args, **kwords):
-        call_kwords = {"precision": self.output_precision}
+        call_kwords = {"precision": self.output_format}
         call_kwords.update(kwords)
         return FunctionCall(self, *args, **call_kwords)
 
-    def get_declaration(self, language=C_Code):
+    def get_declaration(self, code_generator, language=C_Code):
         """ Generate code declaration for FunctionObject """
-        return FunctionType.get_declaration(self, self.get_function_name(), language)
+        return code_generator.get_function_declaration(self.function_type, language=language)
 
     def get_precision(self):
-        return self.output_precision
+        return self.output_format
 
     def get_arity(self):
         return self.arity
 
     def get_arg_precision(self, arg_index):
-        return self.arg_list_precision[arg_index]
+        return self.function_type.arg_list_precision[arg_index]
 
     def get_arg_precision_tuple(self):
-        return tuple(self.arg_list_precision)
+        return tuple(self.function_type.arg_list_precision)
 
     def get_generator_object(self):
         return self.generator_object

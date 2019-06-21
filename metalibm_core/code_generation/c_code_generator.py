@@ -372,7 +372,7 @@ class CCodeGenerator(object):
             return "%s\n" % symbol_object.get_declaration()
 
         elif isinstance(symbol_object, FunctionObject):
-            return "%s\n" % symbol_object.get_declaration()
+            return "%s\n" % symbol_object.get_declaration(self)
         else:
             Log.report(Log.Error, "{} decl generation not-implemented".format(symbol_object), error=NotImplementedError)
 
@@ -392,21 +392,26 @@ class CCodeGenerator(object):
         """ Generate function argument declaration code """
         if isinstance(arg_type, FunctionType):
             return "{return_format} ({arg_tag})({arg_format_list})".format(
-                return_format=arg_type.output_precision.get_name(language=language),
+                return_format=arg_type.output_format.get_name(language=language),
                 arg_tag=arg_tag,
                 arg_format_list=",".join([self.get_fct_arg_decl(sub_arg_prec, "", language) for sub_arg_prec in arg_type.arg_list_precision])
             )
 
-        else:   
+        else:
             return "{} {}".format(arg_type.get_name(language=language), arg_tag)
 
 
-
-    def get_function_declaration(self, function_name, output_format, arg_list, final=True, language=C_Code):
-        """ generate function declaration code """
-        arg_format_list = ", ".join(self.get_fct_arg_decl(inp.get_precision(), inp.get_tag()) for inp in arg_list)
+    def get_function_declaration(self, fct_type, final=True, language=C_Code, arg_list=None):
+        """ generate a C code function declaration, if @p arg_list is set
+            generated named parameters, else unamed ones """
+        language = self.language if language is None else language
+        attributes = " ".join(fct_type.attributes)
+        if arg_list:
+            arg_format_list = ", ".join("%s %s" % (inp.get_precision().get_name(language=language), inp.get_tag()) for inp in arg_list)
+        else:
+            arg_format_list = ", ".join(input_format.get_name(language=language) for input_format in fct_type.arg_list_precision)
         final_symbol = ";" if final else ""
-        return "%s %s(%s)%s" % (output_format.get_name(language=language), function_name, arg_format_list, final_symbol)
+        return "%s %s %s(%s)%s" % (attributes, fct_type.output_format.get_name(language=language), fct_type.name, arg_format_list, final_symbol)
 
     def generate_debug_msg(self, optree, result, code_object, debug_object = None):
         debug_object = optree.get_debug() if debug_object is None else debug_object

@@ -82,7 +82,7 @@ class ML_UT_FunctionPointer(ML_FunctionBasis, TestRunner):
         #func_implementation = CodeFunction(self.function_name, output_format = self.precision)
         vx = self.implementation.add_input_variable("x", ML_Binary32)
         px = self.implementation.add_input_variable("px", ML_Binary32_p)
-        fct_ptr_format = FunctionType([ML_Binary32, ML_Int32], ML_Binary32)
+        fct_ptr_format = FunctionType("farg", [ML_Binary32, ML_Int32], ML_Binary32)
         fct_ptr = self.implementation.add_input_variable("fct", fct_ptr_format)
 
         result = vx * vx + fct_ptr(vx, Constant(3, precision=ML_Int32))
