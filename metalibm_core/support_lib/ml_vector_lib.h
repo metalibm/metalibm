@@ -578,13 +578,13 @@ static inline int ml_is_vmask4_not_any_zero(ml_bool4_t vop) {
          (vop._[3] != 0);
 }
 static inline int ml_is_vmask8_not_any_zero(ml_bool8_t vop) {
-  return (vop._[0] != 0) && 
-         (vop._[1] != 0) && 
-         (vop._[2] != 0) && 
-         (vop._[3] != 0) && 
-         (vop._[4] != 0) && 
-         (vop._[5] != 0) && 
-         (vop._[6] != 0) && 
+  return (vop._[0] != 0) &&
+         (vop._[1] != 0) &&
+         (vop._[2] != 0) &&
+         (vop._[3] != 0) &&
+         (vop._[4] != 0) &&
+         (vop._[5] != 0) &&
+         (vop._[6] != 0) &&
          (vop._[7] != 0);
 }
 
@@ -592,19 +592,19 @@ static inline int ml_is_vmask2_not_all_zero(ml_bool2_t vop) {
   return (vop._[0] != 0) || (vop._[1] != 0);
 }
 static inline int ml_is_vmask4_not_all_zero(ml_bool4_t vop) {
-  return (vop._[0] != 0) || 
-         (vop._[1] != 0) || 
-         (vop._[2] != 0) || 
+  return (vop._[0] != 0) ||
+         (vop._[1] != 0) ||
+         (vop._[2] != 0) ||
          (vop._[3] != 0);
 }
 static inline int ml_is_vmask8_not_all_zero(ml_bool8_t vop) {
-  return (vop._[0] != 0) || 
-         (vop._[1] != 0) || 
-         (vop._[2] != 0) || 
-         (vop._[3] != 0) || 
-         (vop._[4] != 0) || 
-         (vop._[5] != 0) || 
-         (vop._[6] != 0) || 
+  return (vop._[0] != 0) ||
+         (vop._[1] != 0) ||
+         (vop._[2] != 0) ||
+         (vop._[3] != 0) ||
+         (vop._[4] != 0) ||
+         (vop._[5] != 0) ||
+         (vop._[6] != 0) ||
          (vop._[7] != 0);
 }
 
