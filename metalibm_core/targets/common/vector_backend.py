@@ -709,6 +709,14 @@ vector_c_code_generation_table = {
         }
     },
   },
+  SubVectorExtract: {
+    None: {
+        lambda _: True: {
+            type_strict_match(v2float32, v4float32, ML_Integer, ML_Integer):
+                ML_VectorLib_Function("ml_sub_vec_4to2_extract", arity=3),
+        },
+    },
+  },
   VectorAssembling: {
     None: {
       lambda _: True: {

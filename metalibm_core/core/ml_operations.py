@@ -2027,6 +2027,27 @@ class SwitchBlock(ControlFlowOperation):
 class VectorAssembling(GeneralArithmeticOperation):
     name = "VectorAssembling"
 
+class SubVectorExtract(GeneralArithmeticOperation):
+    """ extraction of a sub-vector from a larger vector """
+    name = "SubVectorExtract"
+    arity = None
+
+    def __init__(self, vector, *elt_indexes, **kwords):
+        self.__class__.__base__.__init__(self, vector, *elt_indexes, **kwords)
+        self.elt_index_list = list(elt_indexes)
+        self.arity = len(elt_indexes) + 1
+
+    def get_codegen_key(self):
+        """ return code generation specific key """
+        return None
+
+
+    def finish_copy(self, new_copy, copy_map=None):
+        # TODO/FIXME: extend to manage non-static elt_index_list
+        # For example if list contains copiable nodes
+        new_copy.elt_index_list = self.elt_index_list
+
+
 class VectorElementSelection(GeneralArithmeticOperation):
     name = "VectorElementSelection"
     arity = 2
@@ -2064,6 +2085,11 @@ class VectorElementSelection(GeneralArithmeticOperation):
 
     def get_elt_index(self):
         return self.elt_index
+
+    def finish_copy(self, new_copy, copy_map=None):
+        # TODO/FIXME: extend to manage non-static elt_index
+        # For example if elt_index is a copiable node
+        new_copy.elt_index = self.elt_index
 
 
 ## N-operand addition

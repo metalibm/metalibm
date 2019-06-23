@@ -60,7 +60,7 @@ from metalibm_core.utility.arg_utils import test_flag_option, extract_option_val
 class ML_UT_VectorCode(ML_Function("ml_ut_vector_code")):
   def __init__(self, args=DefaultArgTemplate): 
     # initializing base class
-    ML_FunctionBasis.__init__(self, args) 
+    ML_FunctionBasis.__init__(self, args)
 
 
   @staticmethod
@@ -92,7 +92,10 @@ class ML_UT_VectorCode(ML_Function("ml_ut_vector_code")):
     vec2 = Multiplication(vec, vec, precision = v2float32)
     vec3 = Addition(vec, vec2, precision = v2float32)
 
-    result = Addition(vec3[0], vec3[1], precision = ML_Binary32)
+    large_vector = VectorAssembling(vec2, vec3, precision=v4float32)
+    sub_vector = SubVectorExtract(large_vector, 0, 3, precision=v2float32)
+
+    result = Addition(sub_vector[0], sub_vector[1], precision = ML_Binary32)
 
     scheme = Statement(
       ReferenceAssign(vec[0], vx),
