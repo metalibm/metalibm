@@ -734,7 +734,7 @@ class ML_FunctionBasis(object):
                 else:
                     Log.report(Log.Info, "executing : {}", bin_file.path)
                     test_result, ret_stdout = bin_file.execute()
-                Log.report(Log.Info, "log: {}".format(ret_stdout))
+                Log.report(Log.Info, "log: {}", ret_stdout)
                 if not test_result:
                     Log.report(Log.Info, "VALIDATION SUCCESS")
                 else:
