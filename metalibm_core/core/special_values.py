@@ -116,6 +116,16 @@ class FP_SpecialValue(object):
   def __rmul__(rhs, lhs):
     return special_value_mul(lhs, rhs)
 
+
+  def __lt__(lhs, rhs):
+    raise NotImplementedError
+  def __le__(lhs, rhs):
+    raise NotImplementedError
+  def __gt__(lhs, rhs):
+    raise NotImplementedError
+  def __ge__(lhs, rhs):
+    raise NotImplementedError
+
 def FP_SpecialValue_get_c_cst(self):
     prefix = self.get_base_precision().get_ml_support_prefix()
     suffix = "." + self.get_base_precision().get_union_field_suffix()
