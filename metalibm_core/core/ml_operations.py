@@ -1444,22 +1444,22 @@ class LogicalAnd(LogicOperation):
     name = "LogicalAnd"
     arity = 2
 
-    def likely_function(self, *ops):
-        return ops[0] and ops[1]
+    def likely_function(self, op0, op1):
+        return op0 and op1
 
 class LogicalOr(LogicOperation):
     name = "LogicalOr"
     arity = 2
 
-    def likely_function(self, *ops):
-        return ops[0] or ops[1]
+    def likely_function(self, op0, op1):
+        return op0 or op1
 
 class LogicalNot(LogicOperation):
     name = "LogicalNot"
     arity = 1
 
-    def likely_function(self, *ops):
-        return not ops[0]
+    def likely_function(self, op):
+        return not op
 
 
 class Test(SpecifierOperation, BooleanOperation, GeneralArithmeticOperation):
