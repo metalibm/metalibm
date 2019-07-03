@@ -37,6 +37,9 @@
 
 import sollya
 
+sollya_nan   = sollya.parse("nan")
+sollya_infty = sollya.parse("infty")
+
 # generic number 2 as a SollyaObject (to force conversion
 # to sollya objects when doing arithmetic)
 S2 = sollya.SollyaObject(2)
@@ -59,6 +62,20 @@ class NumericValue(sollya.SollyaObject):
             return rhs.__rsub__(lhs)
         else:
             return NumericValue(sollya.SollyaObject.__sub__(lhs, rhs))
+
+    @staticmethod
+    def parse(s, precision=None):
+        """ parse a numerical value from a string """
+        obj = sollya.parse(s)
+        if obj == sollya_infty:
+            return FP_PlusInfty(precision)
+        elif obj == -sollya_infty:
+            return FP_MinusInfty(precision)
+        elif obj != obj:
+            # by default Sollya's NaNs are assumed to be quiet NaNs
+            return FP_QNaN(precision)
+        else:
+            return NumericValue(obj)
 
 
 ###############################################################################
