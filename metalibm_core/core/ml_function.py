@@ -1390,8 +1390,9 @@ class ML_FunctionBasis(object):
       )
       for i in range(self.get_arity())
     ]
+    output_precision = FormatAttributeWrapper(self.precision, ["volatile"])
     ## (low, high) are store in output table
-    output_table = ML_NewTable(dimensions = [test_total], storage_precision = self.precision, tag = self.uniquify_name("output_table"), empty = True)
+    output_table = ML_NewTable(dimensions = [test_total], storage_precision = output_precision, tag = self.uniquify_name("output_table"), empty = True)
 
     # random test cases
     for i in range(test_num):
