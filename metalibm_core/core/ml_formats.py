@@ -327,6 +327,9 @@ class ML_Std_FP_Format(ML_FP_Format):
             return self.get_special_value_coding(FP_PlusInfty(self), language)
         elif value == -ml_infty:
             return self.get_special_value_coding(FP_MinusInfty(self), language)
+        elif value != value:
+            # sollya NaN
+            return self.get_special_value_coding(FP_QNaN(self), language)
         else:
             pre_value = value
             value = sollya.round(value, self.get_sollya_object(), sollya.RN)
