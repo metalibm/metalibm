@@ -316,7 +316,7 @@ class CodeObject(CodeConfiguration):
         # inserting proper indentation level
         codeline = re.sub("\n", lambda _: ("\n" + self.tablevel * CodeObject.tab), line)
         # removing trailing whitespaces
-        codeline = re.sub(" +\n", "\n", codeline) 
+        codeline = re.sub(" +\n", "\n", codeline)
         return codeline
 
     def append_code(self, code):
@@ -370,7 +370,7 @@ class CodeObject(CodeConfiguration):
             result += " * " + comment.replace("\n", "\n * ") + "\n"
         result += "**/\n"
         return result
-        
+
 
     def add_library(self, library_file):
         """ add a new library file """
@@ -400,7 +400,7 @@ class CodeObject(CodeConfiguration):
     def get_free_var_name(self, var_type, prefix = "cotmp", declare = True, var_ctor = Variable):
         assert not var_type is None
         free_var_name = self.symbol_table.get_free_name(var_type, self.GENERAL_PREFIX + prefix)
-        # declare free var if required 
+        # declare free var if required
         if declare:
             self.symbol_table.declare_var_name(free_var_name, var_ctor(free_var_name, precision = var_type))
         return free_var_name
@@ -572,7 +572,7 @@ class GappaCodeObject(CodeObject):
 
 class LLVMCodeObject(CodeObject):
     GENERAL_PREFIX = "%"
-    
+
     def __init__(self, language, shared_tables=None, parent_tables=None,
                  rounding_mode=ML_GlobalRoundMode, uniquifier="",
                  main_code_level=None, var_ctor=None):
@@ -591,7 +591,7 @@ class LLVMCodeObject(CodeObject):
     def get(self, code_generator, static_cst=False, static_table=False, headers=False, skip_function = True):
         result = ""
 
-        if headers: 
+        if headers:
             result += self.generate_header_code()
             result += "\n\n"
 
@@ -601,7 +601,7 @@ class LLVMCodeObject(CodeObject):
         declaration_exclusion_list += [MultiSymbolTable.FunctionSymbol] if skip_function else []
         # always exclude the following from llvm-ir code generation
         declaration_exclusion_list += [
-            MultiSymbolTable.VariableSymbol, 
+            MultiSymbolTable.VariableSymbol,
             MultiSymbolTable.LabelSymbol
         ]
 
@@ -629,7 +629,7 @@ class LLVMCodeObject(CodeObject):
         # declaration generation
         parent_code << self.symbol_table.generate_declarations(code_generator, exclusion_list = declaration_exclusion_list)
         parent_code << self.symbol_table.generate_initializations(code_generator, init_required_list = [MultiSymbolTable.ConstantSymbol, MultiSymbolTable.VariableSymbol])
-        parent_code << "\n" 
+        parent_code << "\n"
         parent_code << self.expanded_code
         parent_code << "\n"
 
@@ -891,7 +891,7 @@ class NestedCode(object):
 
         shared_tables = self.global_tables
 
-        self.main_code = self.code_ctor(self.language, shared_tables, uniquifier=self.uniquifier, main_code_level=True) 
+        self.main_code = self.code_ctor(self.language, shared_tables, uniquifier=self.uniquifier, main_code_level=True)
         self.code_list = [self.main_code]
 
     @property
@@ -948,7 +948,7 @@ class NestedCode(object):
 
     def close_level(self, cr = "\n", inc = True, footer=None):
         level_code = self.code_list.pop(0)
-        level_code.push_into_parent_code(self, self.code_generator, static_cst = self.static_cst, static_table = self.static_table, skip_function = True) 
+        level_code.push_into_parent_code(self, self.code_generator, static_cst = self.static_cst, static_table = self.static_table, skip_function = True)
         self.code_list[0].close_level(cr=cr, inc=inc, footer=footer)
 
     def inc_level(self):
@@ -967,7 +967,7 @@ class NestedCode(object):
 
     def get_free_symbol_name(self, symbol_type, symbol_format, symbol_ctor, prefix="tmp", declare=True):
         return self.code_list[0].get_free_symbol_name(symbol_type, symbol_format, prefix, declare, symbol_ctor=symbol_ctor)
-        
+
 
     def get_free_var_name(self, var_type, prefix = "tmpv", declare = True, var_ctor = None):
         # trying not to override code_list[0] default var_ctor
