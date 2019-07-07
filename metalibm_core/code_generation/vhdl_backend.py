@@ -741,6 +741,13 @@ ML_Bool.get_cst_map[VHDL_Code] = get_vhdl_bool_cst
 ML_String.name[VHDL_Code] = "string"
 ML_String.get_cst_map[VHDL_Code] = ML_String.get_cst_map[C_Code]
 
+
+HDL_FILE.name[VHDL_Code] = "file"
+HDL_FILE.get_cst_map[VHDL_Code] = ML_String.get_cst_map[C_Code]
+
+HDL_LINE.name[VHDL_Code] = "line"
+HDL_LINE.get_cst_map[VHDL_Code] = ML_String.get_cst_map[C_Code]
+
 # class Match custom std logic vector format
 MCSTDLOGICV = TCM(ML_StdLogicVectorFormat)
 
@@ -1457,6 +1464,13 @@ vhdl_code_generation_table = {
                     void_function=True
                 ),
             }
+        },
+    },
+    FunctionCall: {
+        None: {
+            lambda optree: True: {
+                type_function_match: FunctionObjectOperator(),
+            },
         },
     },
 }
