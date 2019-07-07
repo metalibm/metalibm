@@ -1285,6 +1285,13 @@ class Loop(ControlFlowOperation):
     name = "Loop"
     arity = 3
 
+class WhileLoop(ControlFlowOperation):
+    """ abstract while loop constructor
+        WhileLoop (exit_condition, loop_body)
+    """
+    name = "WhileLoop"
+    arity = 2
+
 ## Control-flow if-then-else construction
 #  1st operand is a condition expression
 #  2nd operand is the true-condition branch
