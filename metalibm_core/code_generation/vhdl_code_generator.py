@@ -582,8 +582,12 @@ class VHDLCodeGenerator(object):
             return "constant %s : %s := %s%s" % (symbol, precision_symbol, symbol_object.get_precision().get_cst(symbol_object.get_value(), language = self.language), final_symbol) 
 
         elif isinstance(symbol_object, Variable):
-            precision_symbol = (symbol_object.get_precision().get_code_name(language = self.language) + " ")
-            return "variable %s : %s;\n" % (symbol, precision_symbol) 
+            var_format = symbol_object.get_precision()
+            if var_format is HDL_FILE:
+                return "file %s : TEXT;\n" % (symbol) 
+            else:
+                precision_symbol = (var_format.get_code_name(language = self.language) + " ")
+                return "variable %s : %s;\n" % (symbol, precision_symbol) 
 
         elif isinstance(symbol_object, Signal):
             precision_symbol = (symbol_object.get_precision().get_code_name(language = self.language) + " ") if initial else ""

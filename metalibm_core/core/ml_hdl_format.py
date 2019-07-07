@@ -40,7 +40,8 @@ import sollya
 
 from .ml_formats import (
     ML_Format, ML_Base_FixedPoint_Format, ML_Fixed_Format,
-    VirtualFormat, get_virtual_cst
+    VirtualFormat, get_virtual_cst,
+    ML_StringClass, DisplayFormat,
 )
 from ..code_generation.code_constant import VHDL_Code
 
@@ -69,7 +70,6 @@ def get_2scomplement_neg(value, size):
   return (~value+1)
 
 def generic_get_vhdl_cst(value, bit_size):
-  #return "\"%s\"" % bin(value)[2:].zfill(self.bit_size)
   try:
       value = int(value)
       value &= int(2**bit_size - 1)
@@ -325,3 +325,7 @@ def get_numeric_precision(precision, is_signed):
     else:
         return get_unsigned_precision(precision)
 
+## 
+HDL_FILE = ML_StringClass("file", DisplayFormat("%s"), lambda self, s: "\"{}\"".format(s)) 
+
+HDL_LINE = ML_StringClass("line",  DisplayFormat("%s"), lambda self, s: "\"{}\"".format(s)) 
