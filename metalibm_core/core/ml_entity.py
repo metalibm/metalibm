@@ -44,14 +44,18 @@ S2 = sollya.SollyaObject(2)
 
 from metalibm_core.core.ml_optimization_engine import OptimizationEngine
 from metalibm_core.core.ml_operations import (
+    Variable,
     Statement, ReferenceAssign, Constant, Comparison, ConditionBlock,
-    LogicalNot, Conversion, TypeCast
+    WhileLoop,
+    LogicalNot, Conversion, TypeCast,
+    FunctionObject,
 )
 from metalibm_core.core.ml_hdl_operations import (
     Process, Signal, Wait, Report, Concatenation, Assert
 )
 from metalibm_core.core.ml_formats import (
-    ML_Binary32, ML_Bool, ML_String, ML_FP_Format, ML_Fixed_Format
+    ML_Binary32, ML_Bool, ML_String, ML_FP_Format, ML_Fixed_Format,
+    ML_Void,
 )
 from metalibm_core.core.ml_table import ML_Table
 from metalibm_core.core.ml_complex_formats import ML_Mpfr_t
@@ -62,11 +66,15 @@ from metalibm_core.core.precisions import ML_Faithful
 
 from metalibm_core.core.ml_hdl_format import (
     ML_StdLogicVectorFormat, ML_StdLogic,
-    is_fixed_point
+    is_fixed_point,
+    HDL_FILE, HDL_LINE,
 )
 
 from metalibm_core.code_generation.code_object import (
     NestedCode, VHDLCodeObject, CodeObject
+)
+from metalibm_core.code_generation.generator_utility import (
+    FunctionOperator, FO_Arg
 )
 from metalibm_core.code_generation.code_entity import CodeEntity
 from metalibm_core.code_generation.vhdl_backend import VHDLBackend
@@ -257,6 +265,8 @@ class ML_EntityBasis(object):
     self.auto_test_number  = auto_test
     self.auto_test_range   = arg_template.auto_test_range
     self.auto_test_std     = auto_test_std 
+    # embedded test in behavior or externalize inputs/expected in data file
+    self.embedded_test = arg_template.embedded_test
 
     # enable/disable automatic exit once functional test is finished
     self.exit_after_test   = arg_template.exit_after_test
@@ -449,6 +459,8 @@ class ML_EntityBasis(object):
       result.add_header("ieee.std_logic_1164.all")
       result.add_header("ieee.std_logic_arith.all")
       result.add_header("ieee.std_logic_misc.all")
+      result.add_header("STD.textio.all")
+      result.add_header("ieee.std_logic_textio.all")
       code_str += result.get(self.vhdl_code_generator, headers = True)
 
       generated_entity.append(code_entity)
@@ -704,6 +716,137 @@ class ML_EntityBasis(object):
       output_signals[output_tag] = output_signal
     return output_signals
 
+
+
+  def generate_datafile_testbench(self, tc_list, io_map, input_signals, output_signals, time_step):
+    FCT_HexaRead =  FunctionObject("hread", [HDL_FILE, ML_StdLogicVectorFormat], ML_Void, FunctionOperator("hread", void_function=True, arity=2)) 
+    input_line = Variable("input_line", precision=HDL_LINE, var_type=Variable.Local)
+
+    # building ordered list of input and output signal names
+    input_signal_list = [sname for sname in input_signals.keys()]
+    input_statement = Statement()
+    for input_name in input_signal_list:
+        input_var = Variable(
+            "v_" + input_name,
+            precision=input_signals[input_name].precision,
+            var_type=Variable.Local)
+        input_statement.add(FCT_HexaRead(input_line, input_var))
+        input_statement.add(ReferenceAssign(input_signals[input_name], input_var))
+
+    output_signal_list = [sname for sname in output_signals.keys()]
+    output_statement = Statement()
+    for output_name in output_signal_list:
+        output_var = Variable(
+            "v_" + output_name,
+            precision=output_signals[output_name].precision,
+            var_type=Variable.Local)
+        output_statement.add(FCT_HexaRead(input_line, output_var))
+
+        output_signal = output_signals[output_name]
+        #value_msg = get_output_value_msg(output_signal, output_value)
+        test_pass_cond, check_statement = get_output_check_statement(output_signal, output_name, output_var)
+
+        output_statement.add(check_statement)
+        assert_statement = Assert(
+          test_pass_cond,
+          "\"unexpected value for inputs {input_msg}, output {output_tag}, expecting {value_msg}, got: \"".format(input_msg="<undefined>", output_tag=output_name, value_msg="<undefined>"),
+          severity=Assert.Failure
+        )
+        output_statement.add(assert_statement)
+
+    self_component = self.implementation.get_component_object()
+    self_instance = self_component(io_map = io_map, tag = "tested_entity")
+    test_statement = Statement()
+
+    DATA_FILE_NAME = "test.input"
+
+    with open(DATA_FILE_NAME, "w") as data_file:
+        # dumping column tags
+        data_file.write("# " + " ".join(input_signal_list + output_signal_list) + "\n")
+
+        def get_raw_cst_string(cst_format, cst_value):
+            size = int((cst_format.get_bit_size() + 3) / 4)
+            return ("{:x}").format(cst_format.get_base_format().get_integer_coding(cst_value)).zfill(size)
+
+        for input_values, output_values in tc_list:
+            # TODO; generate test data file
+            cst_list = []
+            for input_name in input_signal_list:
+                input_value = input_values[input_name] 
+                input_format = input_signals[input_name].get_precision()
+                cst_list.append(get_raw_cst_string(input_format, input_value))
+
+            for output_name in output_signal_list:
+                output_value = output_values[output_name] 
+                output_format = output_signals[output_name].get_precision()
+                cst_list.append(get_raw_cst_string(output_format, output_value))
+            # dumping line into file
+            data_file.write(" ".join(cst_list) + "\n")
+
+    input_stream = Variable("data_file", precision=HDL_FILE, var_type=Variable.Local)
+    FCT_EndFile = FunctionObject("endfile", [HDL_FILE], ML_Bool, FunctionOperator("endfile", arity=1)) 
+    FCT_OpenFile = FunctionObject(
+        "FILE_OPEN", [HDL_FILE, ML_String], ML_Void,
+        FunctionOperator(
+            "FILE_OPEN",
+            arg_map={0: FO_Arg(0), 1: FO_Arg(1), 2: "READ_MODE"},
+            void_function=True)) 
+    FCT_ReadLine =  FunctionObject(
+        "readline", [HDL_FILE, HDL_LINE], ML_Void,
+        FunctionOperator("readline", void_function=True, arity=2)) 
+
+
+    testbench = CodeEntity("testbench")
+    test_process = Process(
+        FCT_OpenFile(input_stream, DATA_FILE_NAME),
+        # consume legend line
+        FCT_ReadLine(input_stream, input_line), 
+        WhileLoop(
+            LogicalNot(FCT_EndFile(input_stream)),
+            Statement(
+                FCT_ReadLine(input_stream, input_line), 
+                input_statement,
+                Wait(time_step * (self.stage_num + 2)),
+                output_statement,
+            ),
+        ),
+      # end of test
+      Assert(
+        Constant(0, precision = ML_Bool),
+        " \"end of test, no error encountered \"",
+        severity = Assert.Failure
+      )
+    )
+
+    testbench_scheme = Statement(
+      self_instance,
+      test_process
+    )
+
+    if self.pipelined:
+        half_time_step = time_step / 2
+        assert (half_time_step * 2) == time_step
+        # adding clock process for pipelined bench
+        clk_process = Process(
+            Statement(
+                ReferenceAssign(
+                    io_map["clk"],
+                    Constant(1, precision = ML_StdLogic)
+                ),
+                Wait(half_time_step),
+                ReferenceAssign(
+                    io_map["clk"],
+                    Constant(0, precision = ML_StdLogic)
+                ),
+                Wait(half_time_step),
+            )
+        )
+        testbench_scheme.push(clk_process)
+
+    testbench.add_process(testbench_scheme)
+
+    return [testbench]
+
   def generate_auto_test(self, test_num = 10, test_range = Interval(-1.0, 1.0), debug = False, time_step = 10):
     """ time_step: duration of a stage (in ns) """
     # instanciating tested component
@@ -719,9 +862,6 @@ class ML_EntityBasis(object):
     # building list of test cases
     tc_list = []
 
-    self_component = self.implementation.get_component_object()
-    self_instance = self_component(io_map = io_map, tag = "tested_entity")
-    test_statement = Statement()
 
     # initializing random test case generator
     self.init_test_generator()
@@ -744,6 +884,15 @@ class ML_EntityBasis(object):
 
     # filling output values
     tc_list = [compute_results(tc) for tc in tc_list]
+    if self.embedded_test:
+        return self.generate_embedded_testbench(tc_list, io_map, input_signals, output_signals, time_step)
+    else:
+        return self.generate_datafile_testbench(tc_list, io_map, input_signals, output_signals, time_step)
+
+  def generate_embedded_testbench(self, tc_list, io_map, input_signals, output_signals, time_step):
+    self_component = self.implementation.get_component_object()
+    self_instance = self_component(io_map = io_map, tag = "tested_entity")
+    test_statement = Statement()
 
     for input_values, output_values in tc_list:
       test_statement.add(
