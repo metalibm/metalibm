@@ -284,6 +284,19 @@ class VHDLCodeGenerator(object):
             return None
 
 
+        elif isinstance(optree, WhileLoop):
+            exit_condition = optree.inputs[0]
+            loop_body      = optree.inputs[1]
+
+            code_object << "\nwhile (%s) loop\n" % self.generate_expr(code_object, exit_condition, folded=False, language=language).get()
+            code_object.inc_level()
+            self.generate_expr(code_object, loop_body, folded=folded, language=language)
+            code_object.dec_level()
+            code_object << "end loop;\n"
+
+            return None
+
+
         elif isinstance(optree, Process):
             # generating pre_statement for process
             pre_statement = optree.get_pre_statement()
