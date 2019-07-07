@@ -349,7 +349,7 @@ class VHDLCodeGenerator(object):
 
             code_object << "\n{component_tag} : {component_name}\n".format(component_name = component_name, component_tag = component_tag)
             code_object << "  port map (\n"
-            code_object << "  " + ", \n  ".join("{} => {}".format(io_tag, mapped_io[io_tag].get()) for io_tag in mapped_io) 
+            code_object << "  " + ",\n  ".join("{} => {}".format(io_tag, mapped_io[io_tag].get()) for io_tag in mapped_io) 
             code_object << "\n);\n"
 
             return None

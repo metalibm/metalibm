@@ -196,7 +196,7 @@ class CodeEntity(object):
     port_desc = "port (\n  {port_list}\n);".format(port_list = port_format_list)
     if len(port_format_list) == 0:
       port_desc = ""
-    return "entity {entity_name} is \n{port_desc}\nend {entity_name};\n\n".format(entity_name = self.name, port_desc = port_desc)
+    return "entity {entity_name} is\n{port_desc}\nend {entity_name};\n\n".format(entity_name = self.name, port_desc = port_desc)
 
   def get_component_declaration(self, final = True, language = None):
     language = self.language if language is None else language
@@ -208,7 +208,7 @@ class CodeEntity(object):
     if len(port_format_list) == 0:
       port_desc = ""
     # FIXME: add suport for inout and generic
-    return "component {entity_name} \n{port_desc}\nend component;\n\n".format(entity_name = self.name, port_desc = port_desc)
+    return "component {entity_name}\n{port_desc}\nend component;\n\n".format(entity_name = self.name, port_desc = port_desc)
 
   ## @return function implementation (ML_Operation DAG)
   def get_scheme(self):
