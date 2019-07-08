@@ -57,7 +57,7 @@ class VHDLCodeGeneratorParams:
 
 def result_too_long(result, threshold=VHDLCodeGeneratorParams.STRING_LEN_THRESHOLD):
     """ Checks if CodeExpression result exceeds a given threshold """
-    if not isinstance(result, CodeExpression):
+    if not isinstance(result, CodeExpression) or result.precision is ML_String:
         return False
     else:
         return len(result.get()) > threshold
@@ -169,9 +169,13 @@ class VHDLCodeGenerator(object):
             error_msg = optree.get_error_msg()
             severity = optree.get_severity()
 
-            cond_code = self.generate_expr(code_object, cond, folded = False, language = language)
+            cond_code = self.generate_expr(code_object, cond, folded=False, language=language)
+            if isinstance(error_msg, str):
+                error_msg_code = error_msg
+            else:
+                error_msg_code = self.generate_expr(code_object, error_msg, folded=True, language=language).get()
 
-            code_object << " assert {cond} report {error_msg} severity {severity};\n".format(cond = cond_code.get(), error_msg = error_msg, severity = severity.descriptor)
+            code_object << " assert {cond} report {error_msg} severity {severity};\n".format(cond=cond_code.get(), error_msg=error_msg_code, severity = severity.descriptor)
 
             return None
 
