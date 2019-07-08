@@ -719,38 +719,84 @@ class ML_EntityBasis(object):
 
 
   def generate_datafile_testbench(self, tc_list, io_map, input_signals, output_signals, time_step):
-    FCT_HexaRead =  FunctionObject("hread", [HDL_FILE, ML_StdLogicVectorFormat], ML_Void, FunctionOperator("hread", void_function=True, arity=2)) 
+    # textio function to read hexadecimal text
+    FCT_HexaRead = FunctionObject("hread", [HDL_FILE, ML_StdLogicVectorFormat], ML_Void, FunctionOperator("hread", void_function=True, arity=2))
+    # textio function to read binary text
+    FCT_Read = FunctionObject("read", [HDL_FILE, ML_StdLogic], ML_Void, FunctionOperator("read", void_function=True, arity=2))
     input_line = Variable("input_line", precision=HDL_LINE, var_type=Variable.Local)
 
     # building ordered list of input and output signal names
     input_signal_list = [sname for sname in input_signals.keys()]
     input_statement = Statement()
     for input_name in input_signal_list:
+        input_format = input_signals[input_name].precision
         input_var = Variable(
             "v_" + input_name,
-            precision=input_signals[input_name].precision,
+            precision=input_format,
             var_type=Variable.Local)
-        input_statement.add(FCT_HexaRead(input_line, input_var))
+        if input_format is ML_StdLogic:
+            input_statement.add(FCT_Read(input_line, input_var))
+        else:
+            input_statement.add(FCT_HexaRead(input_line, input_var))
         input_statement.add(ReferenceAssign(input_signals[input_name], input_var))
 
     output_signal_list = [sname for sname in output_signals.keys()]
     output_statement = Statement()
     for output_name in output_signal_list:
+        output_format = output_signals[output_name].precision
         output_var = Variable(
             "v_" + output_name,
-            precision=output_signals[output_name].precision,
+            precision=output_format,
             var_type=Variable.Local)
-        output_statement.add(FCT_HexaRead(input_line, output_var))
+        if output_format is ML_StdLogic:
+            output_statement.add(FCT_Read(input_line, output_var))
+        else:
+            output_statement.add(FCT_HexaRead(input_line, output_var))
 
         output_signal = output_signals[output_name]
         #value_msg = get_output_value_msg(output_signal, output_value)
         test_pass_cond, check_statement = get_output_check_statement(output_signal, output_name, output_var)
 
+        def multi_Concatenation(*args, **kw):
+            num_args = len(args)
+            if num_args == 1:
+                return args[0]
+            else:
+                half_num = int(num_args / 2)
+                if not "precision" in kw:
+                    kw.update(precision=ML_String)
+                return Concatenation(
+                    multi_Concatenation(*args[:half_num]),
+                    multi_Concatenation(*args[half_num:]),
+                    **kw
+                )
+
+        def signal_str_conversion(optree, op_format):
+            return Conversion(
+                optree if op_format is ML_StdLogic else
+                TypeCast(
+                    optree,
+                    precision=ML_StdLogicVectorFormat(
+                        op_format.get_bit_size()
+                    )
+                 ),
+                precision=ML_String
+            )
+        input_msg = multi_Concatenation(*tuple(sum([[" %s=" % input_tag, signal_str_conversion(input_signals[input_tag], input_signals[input_tag].precision)] for input_tag in input_signal_list], [])))
+
         output_statement.add(check_statement)
         assert_statement = Assert(
-          test_pass_cond,
-          "\"unexpected value for inputs {input_msg}, output {output_tag}, expecting {value_msg}, got: \"".format(input_msg="<undefined>", output_tag=output_name, value_msg="<undefined>"),
-          severity=Assert.Failure
+            test_pass_cond,
+            multi_Concatenation(
+                "unexpected value for inputs ",
+                input_msg,
+                " expecting :",
+                signal_str_conversion(output_var, output_format),
+                " got :",
+                signal_str_conversion(output_signal, output_format),
+               precision = ML_String
+            ),
+            severity=Assert.Failure
         )
         output_statement.add(assert_statement)
 
@@ -772,12 +818,12 @@ class ML_EntityBasis(object):
             # TODO; generate test data file
             cst_list = []
             for input_name in input_signal_list:
-                input_value = input_values[input_name] 
+                input_value = input_values[input_name]
                 input_format = input_signals[input_name].get_precision()
                 cst_list.append(get_raw_cst_string(input_format, input_value))
 
             for output_name in output_signal_list:
-                output_value = output_values[output_name] 
+                output_value = output_values[output_name]
                 output_format = output_signals[output_name].get_precision()
                 cst_list.append(get_raw_cst_string(output_format, output_value))
             # dumping line into file
