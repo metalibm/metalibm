@@ -59,8 +59,9 @@ from metalibm_core.core.ml_hdl_operations import *
 
 from metalibm_hw_blocks.lzc import ML_LeadingZeroCounter
 
-debug_std = ML_Debug(display_format = " -radix 2 ")
-debug_dec = ML_Debug(display_format = " -radix 10 ")
+from metalibm_core.utility.rtl_debug_utils import (
+    debug_fixed, debug_dec, debug_std, debug_dec_unsigned
+)
 
 class FP_Adder(ML_Entity("fp_adder")):
   def __init__(self, arg_template=DefaultEntityArgTemplate):
@@ -103,13 +104,14 @@ class FP_Adder(ML_Entity("fp_adder")):
     vy = self.implementation.add_input_signal("y", io_precision)
 
     p = self.precision.get_mantissa_size()
+    print("p={}".format(p))
 
     # vx must be aligned with vy
     # the largest shit amount (in absolute value) is precision + 2
     # (1 guard bit and 1 rounding bit)
     exp_precision     = ML_StdLogicVectorFormat(self.precision.get_exponent_size())
 
-    mant_precision    = ML_StdLogicVectorFormat(self.precision.get_field_size())
+    mant_precision    = ML_StdLogicVectorFormat(self.precision.get_mantissa_size())
 
     mant_vx = MantissaExtraction(vx, precision = mant_precision)
     mant_vy = MantissaExtraction(vy, precision = mant_precision)
@@ -137,6 +139,7 @@ class FP_Adder(ML_Entity("fp_adder")):
       op_size = optree.get_precision().get_bit_size()
       ext_format = ML_StdLogicVectorFormat(ext_size)
       out_format = ML_StdLogicVectorFormat(op_size + ext_size)
+      print("rzext {}, {}, {}".format(op_size, ext_size, op_size + ext_size))
       return Concatenation(optree, Constant(0, precision = ext_format), precision = out_format)
 
     exp_bias = p + 2
@@ -181,6 +184,7 @@ class FP_Adder(ML_Entity("fp_adder")):
     shift_prec = ML_StdLogicVectorFormat(3*p+4)
     shifted_mant_vy = BitLogicRightShift(rzext(mant_vy, mant_ext_size), mant_shift, precision = shift_prec, tag = "shifted_mant_vy", debug = debug_std)
     mant_vx_ext = zext(rzext(mant_vx, p+2), p+2+1)
+    mant_vx_ext.set_attributes(tag="mant_vx_ext")
 
     add_prec = ML_StdLogicVectorFormat(3*p+5)
 
@@ -238,18 +242,13 @@ class FP_Adder(ML_Entity("fp_adder")):
     lzc_width = int(floor(log2(3*p+5)) + 1)
     lzc_prec = ML_StdLogicVectorFormat(lzc_width)
 
-    lzc_args = ML_LeadingZeroCounter.get_default_args(width = (3*p+5))
-    LZC_entity = ML_LeadingZeroCounter(lzc_args)
-    lzc_entity_list = LZC_entity.generate_scheme()
-    lzc_implementation = LZC_entity.get_implementation()
 
-    lzc_component = lzc_implementation.get_component_object()
-
-    #lzc_in = SubSignalSelection(mant_add, p+1, 2*p+3)
-    lzc_in = mant_add_abs # SubSignalSelection(mant_add_abs, 0, 3*p+3, precision = ML_StdLogicVectorFormat(3*p+4))
-
-    add_lzc = Signal("add_lzc", precision = lzc_prec, var_type = Signal.Local, debug = debug_dec)
-    add_lzc = PlaceHolder(add_lzc, lzc_component(io_map = {"x": lzc_in, "vr_out": add_lzc}))
+    add_lzc = CountLeadingZeros(
+        mant_add_abs,
+        precision=lzc_prec,
+        tag="add_lzc",
+        debug=debug_dec_unsigned
+    )
 
     #add_lzc = CountLeadingZeros(mant_add, precision = lzc_prec)
     # CP stands for close path, the data path where X and Y are within 1 exp diff
@@ -359,7 +358,7 @@ class FP_Adder(ML_Entity("fp_adder")):
 
     self.implementation.add_output_signal("vr_out", vr_out)
 
-    return lzc_entity_list + [self.implementation]
+    return [self.implementation]
 
   def numeric_emulate(self, io_map):
     vx = io_map["x"]
