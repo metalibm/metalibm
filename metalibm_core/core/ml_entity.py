@@ -266,7 +266,7 @@ class ML_EntityBasis(object):
     self.auto_test_range   = arg_template.auto_test_range
     self.auto_test_std     = auto_test_std 
     # embedded test in behavior or externalize inputs/expected in data file
-    self.embedded_test = arg_template.embedded_test
+    self.externalized_test_data = arg_template.externalized_test_data
 
     # enable/disable automatic exit once functional test is finished
     self.exit_after_test   = arg_template.exit_after_test
@@ -718,7 +718,7 @@ class ML_EntityBasis(object):
 
 
 
-  def generate_datafile_testbench(self, tc_list, io_map, input_signals, output_signals, time_step):
+  def generate_datafile_testbench(self, tc_list, io_map, input_signals, output_signals, time_step, test_fname="test.input"):
     # textio function to read hexadecimal text
     FCT_HexaRead = FunctionObject("hread", [HDL_FILE, ML_StdLogicVectorFormat], ML_Void, FunctionOperator("hread", void_function=True, arity=2))
     # textio function to read binary text
@@ -804,7 +804,7 @@ class ML_EntityBasis(object):
     self_instance = self_component(io_map = io_map, tag = "tested_entity")
     test_statement = Statement()
 
-    DATA_FILE_NAME = "test.input"
+    DATA_FILE_NAME = test_fname
 
     with open(DATA_FILE_NAME, "w") as data_file:
         # dumping column tags
@@ -930,12 +930,12 @@ class ML_EntityBasis(object):
 
     # filling output values
     tc_list = [compute_results(tc) for tc in tc_list]
-    if self.embedded_test:
-        return self.generate_embedded_testbench(tc_list, io_map, input_signals, output_signals, time_step)
+    if self.externalized_test_data:
+        return self.generate_datafile_testbench(tc_list, io_map, input_signals, output_signals, time_step, test_fname=self.externalized_test_data)
     else:
-        return self.generate_datafile_testbench(tc_list, io_map, input_signals, output_signals, time_step)
+        return self.generate_embedded_testbench(tc_list, io_map, input_signals, output_signals, time_step)
 
-  def generate_embedded_testbench(self, tc_list, io_map, input_signals, output_signals, time_step):
+  def generate_embedded_testbench(self, tc_list, io_map, input_signals, output_signals, time_step, test_fname="test.input"):
     self_component = self.implementation.get_component_object()
     self_instance = self_component(io_map = io_map, tag = "tested_entity")
     test_statement = Statement()

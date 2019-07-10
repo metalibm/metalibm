@@ -470,6 +470,7 @@ class DefaultEntityArgTemplate(DefaultArgTemplate):
     auto_test_range = Interval(0, 1)
     auto_test_std = False
     embedded_test = True
+    externalized_test_data = False
     # exit after test
     exit_after_test = True
     # RTL elaboration
@@ -747,8 +748,8 @@ class ML_EntityArgTemplate(ML_CommonArgTemplate):
             default=default_arg.input_precisions,
             help="comma separated list of input formats")
         self.parser.add_argument(
-            "--externalize-test", dest="embedded_test", action="store_const",
-            const=False, default=True, help="externalize test inputs/expected in data file")
+            "--externalize-test", dest="externalized_test_data", action="store", nargs="?",
+            const="test.input", default=False, help="externalize test inputs/expected in the specified data file")
 
 
 # new argument template based on argparse module
