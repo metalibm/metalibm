@@ -174,7 +174,7 @@ class CodeEntity(object):
         return out_value.get_precision()
     else:
         return out_signal.get_precision()
-    
+
   def get_declaration(self, final = True, language = None):
     language = self.language if language is None else language
     def get_in_prec_code_name(node, language=None):

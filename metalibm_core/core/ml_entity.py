@@ -301,7 +301,7 @@ class ML_EntityBasis(object):
     self.backend = backend
 
     # register control
-    self.reset_pipeline = arg_template.reset_pipeline
+    self.reset_pipeline, self.synchronous_reset = arg_template.reset_pipeline
     self.recirculate_pipeline = arg_template.recirculate_pipeline
 
 
@@ -526,7 +526,7 @@ class ML_EntityBasis(object):
     #    )
 
     if self.pipelined:
-        self.stage_num = generate_pipeline_stage(self, reset=self.reset_pipeline, recirculate=self.recirculate_pipeline)
+        self.stage_num = generate_pipeline_stage(self, reset=self.reset_pipeline, recirculate=self.recirculate_pipeline, synchronous_reset=self.synchronous_reset)
     else:
         self.stage_num = 1
     Log.report(Log.Info, "there is/are {} pipeline stage(s)".format(self.stage_num)) 

@@ -477,8 +477,8 @@ class DefaultEntityArgTemplate(DefaultArgTemplate):
     build_enable = False
     # pipelined deisgn
     pipelined = False
-    # pipeline register control
-    reset_pipeline = False
+    # pipeline register control (reset, synchronous)
+    reset_pipeline = (False, True)
     recirculate_pipeline = False
     recirculate_signal_map = {}
 
@@ -713,7 +713,11 @@ class ML_EntityArgTemplate(ML_CommonArgTemplate):
         )
         self.parser.add_argument(
             "--reset-pipeline", dest="reset_pipeline",
-            action="store_const", default=default_arg.reset_pipeline, const=True
+            action="store_const", default=default_arg.reset_pipeline, const=(True, True),
+        )
+        self.parser.add_argument(
+            "--async-reset-pipeline", dest="reset_pipeline",
+            action="store_const", default=default_arg.reset_pipeline, const=(True, False),
         )
         self.parser.add_argument(
             "--recirculate-pipeline", dest="recirculate_pipeline",

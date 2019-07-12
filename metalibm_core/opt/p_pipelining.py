@@ -202,8 +202,15 @@ def retime_op(op, retime_map):
     retime_map.addToProcessed(op)
 
 
-def generate_pipeline_stage(entity, reset=False, recirculate=False, one_process_per_stage=True):
-    """ Process a entity to generate pipeline stages required """
+def generate_pipeline_stage(entity, reset=False, recirculate=False, one_process_per_stage=True, synchronous_reset=True):
+    """ Process a entity to generate pipeline stages required,
+        @param one_process_per_stage forces the generation of a separate process for each
+               pipeline stage (else a unique process is generated for all the stages
+        @param synchronous_reset triggers the generation of a clocked reset
+        @param recirculate trigger the integration of a recirculation signal to the stage
+            flopping condition
+
+    """
     retiming_map = {}
     retime_map = RetimeMap()
     output_assign_list = entity.implementation.get_output_assign()
@@ -214,14 +221,17 @@ def generate_pipeline_stage(entity, reset=False, recirculate=False, one_process_
         recirculate_ctrl = entity.recirculate_signal_map[recirculate_stage]
         Log.report(Log.Verbose, "generating pipeline from recirculation control signal {}", recirculate_ctrl)
         retime_op(recirculate_ctrl, retime_map)
-        
+
     process_statement = Statement()
 
     # adding stage forward process
     clk = entity.get_clk_input()
     clock_statement = Statement()
+    global_reset_statement = Statement()
+
+
     # handle towards the first clock Process (in generation order)
-    # which must be the one whose pre_statement is filled with 
+    # which must be the one whose pre_statement is filled with
     # signal required to be generated outside the processes
     first_process = False
     for stage_id in sorted(retime_map.stage_forward.keys()):
@@ -237,7 +247,7 @@ def generate_pipeline_stage(entity, reset=False, recirculate=False, one_process_
 
             if recirculate:
                 # inserting recirculation condition
-                recirculate_signal = entity.get_recirculate_signal(stage_id) 
+                recirculate_signal = entity.get_recirculate_signal(stage_id)
                 stage_statement = ConditionBlock(
                     Comparison(
                         recirculate_signal,
@@ -247,14 +257,21 @@ def generate_pipeline_stage(entity, reset=False, recirculate=False, one_process_
                     ),
                     stage_statement
                 )
-                
-            stage_statement = ConditionBlock(
-                Comparison(
-                    entity.reset_signal, Constant(1, precision=ML_StdLogic), specifier=Comparison.Equal, precision=ML_Bool
-                ),
-                reset_statement,
-                stage_statement
-            )
+
+            if synchronous_reset:
+                # build a compound statement with reset and flops statement
+                stage_statement = ConditionBlock(
+                    Comparison(
+                        entity.reset_signal, Constant(1, precision=ML_StdLogic), specifier=Comparison.Equal, precision=ML_Bool
+                    ),
+                    reset_statement,
+                    stage_statement
+                )
+            else:
+                # for asynchronous reset, reset is in a non-clocked statement
+                # and will be added at the end of stage to the same process than
+                # register clocking
+                global_reset_statement.add(reset_statement)
 
         # To meet simulation / synthesis tools, we build
         # a single if clock predicate block per stage
@@ -273,21 +290,40 @@ def generate_pipeline_stage(entity, reset=False, recirculate=False, one_process_
         )
 
         if one_process_per_stage:
-            clock_process = Process(clock_block, sensibility_list=[clk])
+            if reset and not synchronous_reset:
+                clock_block = ConditionBlock(
+                    Comparison(
+                        entity.reset_signal, Constant(1, precision=ML_StdLogic),
+                        specifier=Comparison.Equal, precision=ML_Bool
+                    ),
+                    reset_statement,
+                    clock_block
+                )
+                clock_process = Process(clock_block, sensibility_list=[clk, entity.reset_signal])
+
+            else:
+                # no reset, or synchronous reset (already appended to clock_block)
+                clock_process = Process(clock_block, sensibility_list=[clk])
             entity.implementation.add_process(clock_process)
+
             first_process = first_process or clock_process
         else:
             clock_statement.add(clock_block)
     if one_process_per_stage:
+        # reset and clock processed where generated at each stage loop
         pass
     else:
         process_statement.add(clock_statement)
-        pipeline_process = Process(process_statement, sensibility_list=[clk])
+        if synchronous_reset:
+            pipeline_process = Process(process_statement, sensibility_list=[clk])
+        else:
+            process_statement.add(global_reset_statement)
+            pipeline_process = Process(process_statement, sensibility_list=[clk, entity.reset_signal])
         entity.implementation.add_process(pipeline_process)
         first_process = pipeline_process
     # statement that gather signals which must be pre-computed
     for op in retime_map.pre_statement:
         first_process.add_to_pre_statement(op)
     stage_num = len(retime_map.stage_forward.keys())
-    #print "there are %d pipeline stages" % (stage_num)
-    return stage_num 
+    Log.report(Log.Info, "there are {} pipeline stage(s)", stage_num)
+    return stage_num
