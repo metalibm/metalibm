@@ -49,8 +49,8 @@ def check_precision_validity(optree):
   else:
     return not optree.get_precision() is None
 
-## Generic vector promotion pass
 class Pass_CheckGeneric(OptreeOptimization):
+  """ Generic check passes (not functionnal without a predicate definition) """
   pass_tag = "check_generic"
   def __init__(self, target, check_function = lambda optree: True, description = "check_generic pass"):
     OptreeOptimization.__init__(self, description, target)
@@ -81,9 +81,8 @@ class Pass_CheckGeneric(OptreeOptimization):
       return check_result
 
 
-
-## Generic vector promotion pass
 class Pass_CheckPrecision(Pass_CheckGeneric):
+  """ CHeck precision of every node appearing in the graph """
   pass_tag = "check_precision"
   def __init__(self, target):
     Pass_CheckGeneric.__init__(self, target, check_precision_validity, "check_precision pass")

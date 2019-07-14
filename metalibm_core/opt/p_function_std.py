@@ -316,7 +316,7 @@ class PassSilenceFPOperation(FunctionPass):
 
 
 class PassFuseFMA(FunctionPass):
-    """ fuse floating-point MAC into FMA"""
+    """ Fuse floating-point MAC into FMA"""
     pass_tag = "fuse_fma"
     def __init__(self, target, change_handle=True, dot_product_enabled=False, silence=False):
         FunctionPass.__init__(self, "fuse_fma")
@@ -334,7 +334,7 @@ class PassFuseFMA(FunctionPass):
 
 
 class PassSubExpressionSharing(FunctionPass):
-    """ fuse floating-point MAC into FMA"""
+    """ Factorize sub-expression shared between control flow branches """
     pass_tag = "sub_expr_sharing"
     def __init__(self, target):
         FunctionPass.__init__(self, "sub_expr_sharing")
@@ -347,6 +347,7 @@ class PassSubExpressionSharing(FunctionPass):
 
 
 class PassCheckProcessorSupport(FunctionPass):
+    """ Check if the intended target supports every operation appearing in the graph """
     pass_tag = "check_processor_support"
     def __init__(self, target, language=C_Code, debug=False):
         FunctionPass.__init__(self, "check_processor_support")

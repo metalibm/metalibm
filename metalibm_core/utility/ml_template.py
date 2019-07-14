@@ -321,7 +321,7 @@ class PassListAction(argparse.Action):
                 BColors.OKGREEN,
                 tag,
                 BColors.ENDC,
-                Pass.get_pass_by_tag(tag),
+                Pass.get_pass_by_tag(tag).__doc__,
                 )
             )
         exit(0)

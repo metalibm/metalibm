@@ -42,8 +42,9 @@ from metalibm_core.core.passes import OptreeOptimization, Pass, LOG_PASS_INFO
 from metalibm_core.opt.p_vector_promotion import Pass_Vector_Promotion
 
 
-## _m256 register promotion
 class Pass_M256_Promotion(Pass_Vector_Promotion):
+  """ Vector register promotion from generic vector formats
+      to x86's m256 based vector formats """
   pass_tag = "m256_promotion"
   ## Translation table between standard formats
   #  and __m256-based register formats

@@ -118,7 +118,7 @@ def legalize_single_operation(optree, format_solver=None):
 ## Legalize the precision of a datapath by finely tuning the size
 #  of each operations (limiting width while preventing overflow)
 class Pass_RTLLegalize(OptreeOptimization):
-    """ implementation of datapath sizing pass """
+    """ Legalization of RTL operations """
     pass_tag = "rtl_legalize"
 
     def __init__(self, target):

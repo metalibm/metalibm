@@ -501,7 +501,8 @@ def dirty_multi_node_expand(node, precision, mem_map=None, fma=True):
 
 
 class Pass_ExpandMultiPrecision(Pass_NodeTransformation):
-    """ Generic Multi-Precision expansion pass """
+    """ Expand node working with Multi-Precision formats into
+        expanded operation sub-graph working only with single-word formats """
     pass_tag = "expand_multi_precision"
 
     def __init__(self, target):

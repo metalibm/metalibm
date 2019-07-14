@@ -35,8 +35,8 @@ from metalibm_core.code_generation.code_constant import C_Code
 from metalibm_core.utility.log_report import Log
 
 
-## Check support of operation graph on a given target
 class Pass_CheckSupport(OptreeOptimization):
+  """ Verify that each node has a precision assigned to it """
   pass_tag = "check_target_support"
 
   def __init__(self, target, language=C_Code):

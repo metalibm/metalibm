@@ -45,6 +45,8 @@ from metalibm_core.opt.p_vector_promotion import Pass_Vector_Promotion
 
 ## _m128 register promotion
 class Pass_M128_Promotion(Pass_Vector_Promotion):
+  """ Vector register promotion from generic vector formats
+      to x86's m128 based vector formats """
   pass_tag = "m128_promotion"
   ## Translation table between standard formats
   #  and __m128-based register formats

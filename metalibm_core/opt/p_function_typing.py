@@ -509,7 +509,8 @@ def instantiate_precision(optree, default_precision=None, memoization_map=None, 
     return optree.get_precision()
 
 class PassInstantiateAbstractPrecision(FunctionPass):
-    """ instantiate abstract precision """
+    """ Instantiate node formats: determining an abstract precision for each
+        node whose format is undefined """
     pass_tag = "instantiate_abstract_prec"
     def __init__(self, target, default_precision=None):
         FunctionPass.__init__(self, "instantiate_abstract_prec")
@@ -523,7 +524,7 @@ class PassInstantiateAbstractPrecision(FunctionPass):
         return optree
 
 class PassInstantiatePrecision(FunctionPass):
-    """ instantiate precision """
+    """ Instantiate node formats: determining a physical format for each node  """
     pass_tag = "instantiate_prec"
     def __init__(self, target, default_precision=None, default_integer_format=ML_Int32, default_boolean_precision=ML_Int32):
         FunctionPass.__init__(self, "instantiate_prec")

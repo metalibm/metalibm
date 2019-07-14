@@ -303,6 +303,8 @@ class FunctionPass(OptreeOptimization):
 
 
 class PassQuit(FunctionPass):
+    """ Pass to trigger pipeline stop on execution (stop the optimisation pipeline
+        and metalibm process) """
     pass_tag = "quit"
     def __init__(self, *args):
         OptimizationPass.__init__(self, "quit")
@@ -320,6 +322,7 @@ class PassQuit(FunctionPass):
         self.execute(self, fct_group)
 
 class PassDump(FunctionPass):
+  """ Dump in a textual form the operation graph """
   pass_tag = "dump"
   def __init__(self, *args):
     OptimizationPass.__init__(self, "dump")
@@ -334,6 +337,7 @@ class PassDump(FunctionPass):
     return self.execute(optree)
 
 class PassDumpWithStages(OptreeOptimization):
+  """ Dump in a textual form the operation graph (with pipeline stage annotations) """
   pass_tag = "dump_with_stages"
   def __init__(self, *args):
     OptimizationPass.__init__(self, "dump_with_stages")
