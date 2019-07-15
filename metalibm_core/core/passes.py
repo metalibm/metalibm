@@ -205,6 +205,12 @@ class PassScheduler:
       passes_to_execute = self.update_rdy_pass_list()
     return intermediary_values
 
+def METALIBM_PASS_REGISTER(pass_class):
+    """ decorator to automate pass registering """
+    Log.report(LOG_PASS_INFO, "registerting {} pass.", pass_class.pass_tag)
+    Pass.register(pass_class)
+    return pass_class
+
 
 ## System to manage dynamically defined optimization pass
 class Pass:
@@ -302,6 +308,7 @@ class FunctionPass(OptreeOptimization):
         return fct_group.apply_to_all_functions(local_fct_apply)
 
 
+@METALIBM_PASS_REGISTER
 class PassQuit(FunctionPass):
     """ Pass to trigger pipeline stop on execution (stop the optimisation pipeline
         and metalibm process) """
@@ -321,6 +328,7 @@ class PassQuit(FunctionPass):
         Log.report(Log.Info, "executing pass {} on fct group {}".format(self.pass_tag, fct_group))
         self.execute(self, fct_group)
 
+@METALIBM_PASS_REGISTER
 class PassDump(FunctionPass):
   """ Dump in a textual form the operation graph """
   pass_tag = "dump"
@@ -336,6 +344,7 @@ class PassDump(FunctionPass):
   def execute_on_optree(self, optree, fct=None, fct_group=None, memoization_map=None):
     return self.execute(optree)
 
+@METALIBM_PASS_REGISTER
 class PassDumpWithStages(OptreeOptimization):
   """ Dump in a textual form the operation graph (with pipeline stage annotations) """
   pass_tag = "dump_with_stages"
@@ -349,8 +358,8 @@ class PassDumpWithStages(OptreeOptimization):
         custom_callback = lambda op: " [S={}] ".format(op.attributes.init_stage)
     ))
 
-Log.report(LOG_PASS_INFO, "registerting basic passes (Quit,Dump,DumpWithStages)")
+# Log.report(LOG_PASS_INFO, "registerting basic passes (Quit,Dump,DumpWithStages)")
 # registering commidity pass
-Pass.register(PassQuit)
-Pass.register(PassDump)
-Pass.register(PassDumpWithStages)
+# Pass.register(PassQuit)
+# Pass.register(PassDump)
+# Pass.register(PassDumpWithStages)
