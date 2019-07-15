@@ -31,7 +31,10 @@
 # author(s): Nicolas Brunie (nicolas.brunie@kalray.eu)
 ###############################################################################
 
+
+
 class TargetRegister(object):
+    """ target register """
     target_map = {}
 
     @staticmethod
@@ -46,3 +49,9 @@ class TargetRegister(object):
     @staticmethod
     def register_new_target(target_name, target_build_function):
         TargetRegister.target_map[target_name] = target_build_function
+
+    @staticmethod
+    def METALIBM_TARGET_REGISTER(target_class):
+        """ decorator to automate target class registerting """
+        TargetRegister.register_new_target(target_class.target_name, target_class)
+        return target_class

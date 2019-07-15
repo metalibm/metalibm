@@ -41,6 +41,7 @@ from ..core.ml_formats import *
 from ..core.ml_table import *
 from ..core.ml_operations import *
 from ..core.legalizer import min_legalizer, max_legalizer
+from ..core.target import TargetRegister
 
 from ..core.multi_precision import (
     legalize_mp_2elt_comparison, legalize_mp_3elt_comparison
@@ -1126,7 +1127,7 @@ gappa_code_generation_table = {
 
 
 
-## Generic C Capable Backend
+@TargetRegister.METALIBM_TARGET_REGISTER
 class GenericProcessor(AbstractBackend):
   """ Generic class for instruction selection,
       corresponds to a portable C-implementation """

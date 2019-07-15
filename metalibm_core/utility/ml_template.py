@@ -64,7 +64,6 @@ from metalibm_core.opt import *
 
 # populating target_map
 target_map = {}
-target_map["generic"] = GenericProcessor
 for target_name in TargetRegister.target_map:
     target_map[target_name] = TargetRegister.get_target_by_name(
         target_name
