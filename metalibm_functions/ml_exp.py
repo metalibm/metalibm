@@ -430,6 +430,11 @@ class ML_Exponential(ML_FunctionBasis):
         """ Numeric emaluation of exponential """
         return sollya.exp(input_value)
 
+    standard_test_cases = [
+        (sollya.parse("0xbf50bc3a"),),
+        #(sollya.parse("-0.815372109413"),),
+    ]
+
 
 if __name__ == "__main__":
     # auto-test
