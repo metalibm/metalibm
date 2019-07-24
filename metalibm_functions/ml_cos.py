@@ -268,9 +268,6 @@ class ML_Cosine(ML_FunctionBasis):
               tag_map["red_vx_d"]:  gappa_vx,
           }
 
-          print("opt_scheme")
-          print(opt_scheme.get_str(depth = None, display_precision = True, memoization_map = {}))
-
           eval_error = self.gappa_engine.get_eval_error_v2(self.opt_engine, opt_scheme, cg_eval_error_copy_map, gappa_filename = "red_arg_%d.g" % i)
           poly_range = cos(approx_interval+i*pi/S2**frac_pi_index)
           rel_error_list.append(eval_error / poly_range)

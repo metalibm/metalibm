@@ -367,7 +367,7 @@ class CodeObject(CodeConfiguration):
     def get_multiline_comment(self, comment_list):
         result = "/**\n"
         for comment in comment_list:
-            result += " * " + comment.replace("\n", "\n * ") + "\n"
+            result += " * " + comment.replace("\n", "\n *") + "\n"
         result += "**/\n"
         return result
 
@@ -586,7 +586,7 @@ class LLVMCodeObject(CodeObject):
     def get_multiline_comment(self, comment_list):
         result = ""
         for comment in comment_list:
-            result += "; " + comment.replace("\n", "\n; ") + "\n"
+            result += "; " + comment.replace("\n", "\n;") + "\n"
         return result
 
     def get(self, code_generator, static_cst=False, static_table=False, headers=False, skip_function = True):
