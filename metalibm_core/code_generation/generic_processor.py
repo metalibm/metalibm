@@ -43,6 +43,8 @@ from ..core.ml_operations import *
 from ..core.legalizer import min_legalizer, max_legalizer
 from ..core.target import TargetRegister
 
+from ..core.ml_complex_formats import ML_Pointer_Format
+
 from ..core.multi_precision import (
     legalize_mp_2elt_comparison, legalize_mp_3elt_comparison
 )
@@ -413,6 +415,9 @@ c_code_generation_table = {
                 # 1-dimension tables with integer indexes
                 type_custom_match(type_all_match, TCM(ML_TableFormat), type_table_index_match):
                     TemplateOperatorFormat("{0}[{1}]", arity = 2), 
+                # Load from pointer index
+                type_custom_match(type_all_match, TCM(ML_Pointer_Format), type_table_index_match):
+                    TemplateOperatorFormat("{0}[{1}]", arity=2), 
             },
         },
     },
@@ -427,6 +432,8 @@ c_code_generation_table = {
                 # 1-dimension tables with integer indexes
                 type_custom_match(FSM(ML_Void), type_all_match, TCM(ML_TableFormat), type_table_index_match):
                     TemplateOperatorFormat("{1}[{2}] = {0}", arity = 3, void_function = True), 
+                type_custom_match(FSM(ML_Void), type_all_match, TCM(ML_Pointer_Format), type_table_index_match):
+                    TemplateOperatorFormat("{1}[{2}] = {0}", arity=3, void_function=True), 
             },
         },
     },
