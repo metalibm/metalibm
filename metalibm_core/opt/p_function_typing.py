@@ -374,43 +374,55 @@ def instantiate_abstract_precision(optree, default_precision=None,
             memoization_map[optree] = abstract_format
             return abstract_format
 
-def merge_ops_abstract_format(optree, args, default_precision = None):
-    """ merging input format in multi-ary operation to determined result format """
-    max_binary_size = 0
-    for arg in args:
-        if isinstance(arg.get_precision(), ML_AbstractFormat): continue
-        try:
-            arg_bit_size = arg.get_precision().get_bit_size()
-        except:
-            print("ERROR in get_bit_size during merge_ops_abstract_format")
-            print("optree: ")
-            print(optree.get_inputs())
-            print(optree.get_precision())
-            print(optree.get_str(display_precision = True, memoization_map = {})) # Exception print
-            print("arg: ")
-            print(arg.get_precision(), arg.get_str(display_precision = True, memoization_map = {})) # Exception print
+def merge_ops_abstract_integer_format(arg_format_list, default_precision=None):
+    is_signed = any(op_format.get_signed() for op_format in arg_format_list if not is_abstract_format(op_format))
+    # + [0] is required for python2 compatibility (python2 does not support
+    # default keyword argument in max)
+    arg_bit_size = max([arg_format.get_bit_size() for arg_format in arg_format_list if not is_abstract_format(arg_format)] + [0])
 
-            raise Exception()
-        if arg_bit_size > max_binary_size:
-            max_binary_size = arg_bit_size
-    merge_table = {
-        ML_Float: {
-            32: ML_Binary32,
-            64: ML_Binary64,
-        },
-        ML_Integer: {
+    INTEGER_MERGE_FORMAT = {
+        True: {# signed
             32: ML_Int32,
-            64: ML_Int64,
+            64: ML_Int64
+        },
+        False: {#unsigned
+            32: ML_UInt32,
+            64: ML_UInt64
+
         },
     }
-    
+
+    return INTEGER_MERGE_FORMAT[is_signed][arg_bit_size]
+
+
+def merge_ops_abstract_float_format(arg_format_list, default_precision=None):
+    # + [0] is required for python2 compatibility (python2 does not support
+    # default keyword argument in max)
+    arg_bit_size = max(arg_format.get_bit_size() for arg_format in arg_format_list if not is_abstract_format(arg_format))
+
+    FORMAT_MERGE_TABLE = {
+        32: ML_Binary32,
+        64: ML_Binary64
+    }
+
+    return FORMAT_MERGE_TABLE[arg_bit_size]
+
+
+def merge_ops_abstract_format(optree, args, default_precision = None):
+    """ merging input format in multi-ary operation to determined result format.
+        This function assumes that the result should be of the larger format
+        which appears in the operand list. """
     try:
-        result_format = merge_table[optree.get_precision()][max_binary_size]
-    except KeyError:
-        Log.report(Log.Error, "unable to find record in merge_table for {}/{}".format(
-            optree.get_precision(), max_binary_size
+        if optree.get_precision() is ML_Float:
+            return merge_ops_abstract_float_format(list(arg.get_precision() for arg in args))
+        elif optree.get_precision() is ML_Integer:
+            return merge_ops_abstract_integer_format(list(arg.get_precision() for arg in args))
+        else:
+            raise NotImplementedError
+    except KeyError as e:
+        Log.report(Log.Error, "unable to find record in merge_table for {}".format(
+            optree.get_precision(), error=e
         ))
-    return result_format
 
 
 def get_integer_format(backend, optree):
@@ -444,7 +456,7 @@ def propagate_format_to_cst(optree, new_optree_format, index_list = []):
         if isinstance(inp, Constant) and isinstance(inp.get_precision(), ML_AbstractFormat):
             inp.set_precision(new_optree_format)
 
-def merge_format(optree, args, default_precision = None):
+def merge_format(optree, args, default_precision=None):
     """ merging input format in multi-ary operation to determined result format """
     max_binary_size = 0
     for arg in args:
@@ -468,7 +480,16 @@ def merge_format(optree, args, default_precision = None):
     }
     
     try:
-      result_format = merge_table[merge_abstract_format(*args)][max_binary_size]
+      merged_abstract_format = merge_abstract_format(*args)
+      # if we have only unsigned integer, we merge to an unsigned integer also
+      is_signed = merged_abstract_format is ML_Integer and not any(arg.get_signed() for arg in args if not arg.is_vector_format() and not is_abstract_format(arg))
+      if is_signed:
+        result_format = {
+            32: ML_UInt32,
+            64: ML_UInt64
+        }[max_binary_size]
+      else:
+        result_format = merge_table[merged_abstract_format][max_binary_size]
     except KeyError:
       Log.report(Log.Info, "KeyError in merge_format")
       return None
