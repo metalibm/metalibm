@@ -247,6 +247,9 @@ class ML_AbstractFormat(ML_Format):
     def is_cst_decl_required(self):
       return False
 
+def is_abstract_format(ml_format):
+    return isinstance(ml_format, ML_AbstractFormat)
+
 ## ML object for exact format (no rounding involved)
 ML_Exact = ML_AbstractFormat("ML_Exact")
 
