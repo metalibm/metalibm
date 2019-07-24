@@ -72,7 +72,7 @@ class Pass_CheckSupport(OptreeOptimization):
       elif isinstance(optree, Return):
         pass
       elif isinstance(optree, ReferenceAssign):
-        pass 
+        pass
       elif isinstance(optree, PlaceHolder):
         pass
       elif isinstance(optree, SwitchBlock):
