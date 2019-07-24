@@ -86,7 +86,10 @@ class ML_Format(object):
     def get_name(self, language = C_Code):
         if language in self.name:
             return self.name[language]
-        else: return self.name[C_Code]
+        elif C_Code in self.name:
+            return self.name[C_Code]
+        else:
+            return "undefined format"
 
     def __repr__(self):
 	    return self.get_code_name()
