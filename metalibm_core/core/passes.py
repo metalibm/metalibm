@@ -111,14 +111,18 @@ class PassScheduler:
 
   @staticmethod
   def get_tag_class(tag):
-    return {
+    TAG_CLASS_MAP = {
       PassScheduler.Start.tag: PassScheduler.Start,
       PassScheduler.Typing.tag: PassScheduler.Typing,
       PassScheduler.Whenever.tag: PassScheduler.Whenever,
+      PassScheduler.Optimization.tag: PassScheduler.Optimization,
       PassScheduler.JustBeforeCodeGen.tag: PassScheduler.JustBeforeCodeGen,
       PassScheduler.BeforePipelining.tag: PassScheduler.BeforePipelining,
       PassScheduler.AfterPipelining.tag: PassScheduler.AfterPipelining,
-    }[tag]
+    }
+    if not tag in TAG_CLASS_MAP:
+        Log.report(Log.Error, "{} is not a valid pass slot tag (possible are: {}", tag, TAG_CLASS_MAP.keys())
+    return TAG_CLASS_MAP[tag]
 
   def __init__(self, pass_tag_list=None):
     pass_tag_list = pass_tag_list or [
