@@ -47,9 +47,7 @@ from metalibm_core.core.ml_complex_formats import ML_Mpfr_t
 from metalibm_core.core.ml_call_externalizer import CallExternalizer
 from metalibm_core.core.ml_vectorizer import StaticVectorizer
 from metalibm_core.core.precisions import *
-from metalibm_core.core.random_gen import (
-    FPRandomGen, MPFPRandomGen, FixedPointRandomGen
-)
+from metalibm_core.core.random_gen import get_precision_rng
 
 from metalibm_core.code_generation.code_object import (
     NestedCode, CodeObject, LLVMCodeObject, MultiSymbolTable
@@ -64,7 +62,7 @@ from metalibm_core.code_generation.llvm_ir_code_generator import LLVMIRCodeGener
 from metalibm_core.code_generation.code_constant import C_Code
 #from metalibm_core.code_generation.generator_utility import *
 from metalibm_core.core.passes import (
-    Pass, PassScheduler, PassDependency, AfterPassById
+    Pass, PassScheduler, PassDependency, AfterPassById,
 )
 
 from metalibm_core.opt.p_function_std import (
@@ -1020,17 +1018,6 @@ class ML_FunctionBasis(object):
           input_list.append(input_value)
         test_case_list.append(tuple(input_list))
 
-    def get_precision_rng(precision, inf_bound, sup_bound):
-        """ build a random number generator for format @p precision
-            which generates values within the range [inf_bound, sup_bound] """
-        if isinstance(precision, ML_FP_MultiElementFormat):
-            return MPFPRandomGen.from_interval(precision, inf_bound, sup_bound)
-        elif isinstance(precision, ML_FP_Format):
-            return FPRandomGen.from_interval(precision, inf_bound, sup_bound)
-        elif isinstance(precision, ML_Fixed_Format):
-            FixedPointRandomGen.from_interval(precision, inf_bound, sup_bound)
-        else:
-            Log.report(Log.error, "unsupported format {} in get_precision_rng", precision)
 
     # TODO/FIXME: implement proper input range depending on input index
     rng_map = [get_precision_rng(precision, low_input, high_input) for precision in self.input_precisions]
