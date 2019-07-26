@@ -37,8 +37,8 @@
 
 import sollya
 
-sollya_nan   = sollya.parse("nan")
-sollya_infty = sollya.parse("infty")
+SOLLYA_NAN   = sollya.parse("nan")
+SOLLYA_INFTY = sollya.parse("infty")
 
 # generic number 2 as a SollyaObject (to force conversion
 # to sollya objects when doing arithmetic)
@@ -67,9 +67,9 @@ class NumericValue(sollya.SollyaObject):
     def parse(s, precision=None):
         """ parse a numerical value from a string """
         obj = sollya.parse(s)
-        if obj == sollya_infty:
+        if obj == SOLLYA_INFTY:
             return FP_PlusInfty(precision)
-        elif obj == -sollya_infty:
+        elif obj == -SOLLYA_INFTY:
             return FP_MinusInfty(precision)
         elif obj != obj:
             # by default Sollya's NaNs are assumed to be quiet NaNs
@@ -382,6 +382,8 @@ class FP_QNaN(FP_MathSpecialValue):
     return mant | (((sign << exp_size) | exp) << field_size)
   def __str__(self):
     return "qNaN"
+  def _sollya_(self):
+    return SOLLYA_NAN
 
 class FP_SNaN(FP_SpecialValue):
   """ Floating-point signaling NaN """
@@ -397,6 +399,8 @@ class FP_SNaN(FP_SpecialValue):
     return mant | (((sign << exp_size) | exp) << field_size)
   def __str__(self):
     return "sNaN"
+  def _sollya_(self):
+    return SOLLYA_NAN
 
 def is_qnan(value):
     """ testing if a value is an instance of a quiet NaN """
