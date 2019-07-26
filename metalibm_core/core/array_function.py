@@ -50,29 +50,14 @@ from metalibm_core.core.ml_operations import (
 )
 from metalibm_core.core.special_values import FP_QNaN
 from metalibm_core.core.ml_table import ML_NewTable
-from metalibm_core.core.random_gen import (
-    FPRandomGen, MPFPRandomGen, FixedPointRandomGen
-)
+from metalibm_core.core.random_gen import get_precision_rng
 from metalibm_core.core.ml_function import (
     ML_FunctionBasis, DefaultArgTemplate
 )
 from metalibm_core.core.ml_formats import (
     ML_Int32, ML_UInt32, ML_Void,
-    ML_FP_MultiElementFormat, ML_FP_Format, ML_Fixed_Format,
 )
 
-# TODO/FXIME: to be factorize with core.ml_function get_default_rng definition
-def get_precision_rng(precision, inf_bound, sup_bound):
-    """ build a random number generator for format @p precision
-        which generates values within the range [inf_bound, sup_bound] """
-    if isinstance(precision, ML_FP_MultiElementFormat):
-        return MPFPRandomGen.from_interval(precision, inf_bound, sup_bound)
-    elif isinstance(precision, ML_FP_Format):
-        return FPRandomGen.from_interval(precision, inf_bound, sup_bound)
-    elif isinstance(precision, ML_Fixed_Format):
-        return FixedPointRandomGen.from_interval(precision, inf_bound, sup_bound)
-    else:
-        Log.report(Log.Error, "unsupported format {} in get_precision_rng", precision)
 
 class ML_ArrayFunction(ML_FunctionBasis):
     """ generic function working on arbitrary length arrays """

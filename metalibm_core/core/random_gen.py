@@ -48,6 +48,9 @@ from metalibm_core.core.special_values import (
 
 
 import metalibm_core.core.ml_formats as ml_formats
+from metalibm_core.core.ml_formats import (
+    ML_FP_MultiElementFormat, ML_FP_Format, ML_Fixed_Format,
+)
 
 def random_bool():
     """ random boolean generation """
@@ -435,6 +438,17 @@ class MPFPRandomGen:
         return acc
 
 
+def get_precision_rng(precision, inf_bound, sup_bound):
+    """ build a random number generator for format @p precision
+        which generates values within the range [inf_bound, sup_bound] """
+    if isinstance(precision, ML_FP_MultiElementFormat):
+        return MPFPRandomGen.from_interval(precision, inf_bound, sup_bound)
+    elif isinstance(precision, ML_FP_Format):
+        return FPRandomGen.from_interval(precision, inf_bound, sup_bound)
+    elif isinstance(precision, ML_Fixed_Format):
+        return FixedPointRandomGen.from_interval(precision, inf_bound, sup_bound)
+    else:
+        Log.report(Log.Error, "unsupported format {} in get_precision_rng", precision)
 
 # auto-test
 if __name__ == "__main__":
