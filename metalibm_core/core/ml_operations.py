@@ -1909,6 +1909,12 @@ class FunctionObject(object):
         return self.arity
 
     def get_arg_precision(self, arg_index):
+        if arg_index >= len(self.function_type.arg_list_precision):
+            Log.report(
+                Log.Error,
+                "arg indexed {} does not exist in function {} expecting {}",
+                arg_index, self.name, self.function_type.arg_list_precision
+            )
         return self.function_type.arg_list_precision[arg_index]
 
     def get_arg_precision_tuple(self):
