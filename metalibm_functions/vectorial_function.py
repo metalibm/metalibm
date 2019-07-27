@@ -36,6 +36,8 @@ from metalibm_core.core.ml_operations import (
     Variable, Constant,
     Loop, ReferenceAssign, Statement,
     TableLoad, TableStore,
+    Return, ML_LeafNode,
+    FunctionObject,
 )
 from metalibm_core.core.ml_formats import (
     ML_UInt32, ML_Int32, ML_Binary32, ML_Void,
@@ -45,10 +47,15 @@ from metalibm_core.core.ml_table import (
 )
 from metalibm_core.core.ml_complex_formats import ML_Pointer_Format
 from metalibm_core.core.precisions import (
-    ML_CorrectlyRounded,
+    ML_CorrectlyRounded, ML_Faithful,
 )
-from metalibm_core.code_generation.generic_processor import GenericProcessor
 from metalibm_core.core.ml_function import DefaultArgTemplate
+from metalibm_core.core.array_function import ML_ArrayFunction
+
+
+from metalibm_core.code_generation.generic_processor import GenericProcessor
+from metalibm_core.code_generation.generator_utility import FunctionOperator
+
 
 from metalibm_core.utility.ml_template import ML_NewArgTemplate
 from metalibm_core.utility.log_report  import Log
@@ -56,12 +63,40 @@ from metalibm_core.utility.debug_utils import (
     debug_multi
 )
 
-from metalibm_core.core.array_function import ML_ArrayFunction
+
+
+from metalibm_functions.ml_exp import ML_Exponential
 
 
 
-class ML_SoftMax(ML_ArrayFunction):
-    function_name = "ml_softmax"
+def inline_function(fct_scheme, dst_var, input_var, input_value):
+    """ generate an operation graph which inline function scheme @p fct_scheme
+        assuming @p input_var is replace by @p input_value
+        and stores its result into dst_var """
+    memoization_map = {}
+    def recursive_inline(node):
+        if node in memoization_map:
+            return memoization_map[node]
+        elif node is input_var:
+            memoization_map[node] = input_value
+            return input_value
+        elif isinstance(node, Return):
+            node_value = recursive_inline(node.get_input(0))
+            new_node = ReferenceAssign(dst_var, node_value)
+            memoization_map[node] = new_node
+            return new_node
+        elif isinstance(node, ML_LeafNode):
+            memoization_map[node] = node
+            return node
+        else:
+            for i, op in enumerate(node.inputs):
+                node.set_input(i, recursive_inline(op))
+            memoization_map[node] = node
+            return node
+    return recursive_inline(fct_scheme)
+
+class ML_VectorialFunction(ML_ArrayFunction):
+    function_name = "ml_vectorial_function"
     def __init__(self, args=DefaultArgTemplate):
         # initializing base class
         ML_ArrayFunction.__init__(self, args)
@@ -73,16 +108,17 @@ class ML_SoftMax(ML_ArrayFunction):
             precision_ptr,
             index_format
         ]
+        self.use_libm_function = args.use_libm_function
 
     @staticmethod
     def get_default_args(**kw):
-        """ Return a structure containing the arguments for ML_SoftMax,
+        """ Return a structure containing the arguments for ML_VectorialFunction,
             builtin from a default argument mapping overloaded with @p kw """
         default_args_exp = {
-            "output_file": "ml_softmax.c",
-            "function_name": "ml_softmax",
+            "output_file": "ml_vectorial_function.c",
+            "function_name": "ml_vectorial_function",
             "precision": ML_Binary32,
-            "accuracy": ML_CorrectlyRounded,
+            "accuracy": ML_Faithful,
             "target": GenericProcessor()
         }
         default_args_exp.update(kw)
@@ -101,13 +137,41 @@ class ML_SoftMax(ML_ArrayFunction):
         CU1 = Constant(1, precision=index_format)
         CU0 = Constant(0, precision=index_format)
         inc = i+CU1
-        print(inc.get_str(display_precision=True))
+
+        elt_input = TableLoad(src, i, precision=self.precision)
+
+        local_exp = Variable("local_exp", precision=self.precision, var_type=Variable.Local)
+
+        if self.use_libm_function:
+            libm_exp_operator = FunctionOperator("expf", arity=1)
+            libm_exp = FunctionObject("expf", [ML_Binary32], ML_Binary32, libm_exp_operator)
+
+            elt_result = ReferenceAssign(local_exp, libm_exp(elt_input))
+        else:
+            exponential_args = ML_Exponential.get_default_args(
+                precision=self.precision,
+                libm_compliant=False,
+            )
+
+            meta_exponential = ML_Exponential(exponential_args)
+            exponential_scheme = meta_exponential.generate_scheme()
+
+            elt_result = inline_function(
+                exponential_scheme,
+                local_exp,
+                meta_exponential.implementation.arg_list[0],
+                elt_input,
+            )
+
+
 
         main_loop = Loop(
             ReferenceAssign(i, CU0),
             i < n,
             Statement(
-                TableStore(TableLoad(src, i, precision=self.precision), dst, i, precision=ML_Void),
+                ReferenceAssign(local_exp, 0),
+                elt_result,
+                TableStore(local_exp, dst, i, precision=ML_Void),
                 ReferenceAssign(i, inc)
             ),
         )
@@ -118,7 +182,7 @@ class ML_SoftMax(ML_ArrayFunction):
 
     def numeric_emulate(self, input_value):
         """ Numeric emaluation of exponential """
-        return input_value
+        return sollya.exp(input_value)
 
     standard_test_cases = [
     ]
@@ -126,10 +190,13 @@ class ML_SoftMax(ML_ArrayFunction):
 
 if __name__ == "__main__":
     # auto-test
-    arg_template = ML_NewArgTemplate(default_arg=ML_SoftMax.get_default_args())
+    arg_template = ML_NewArgTemplate(default_arg=ML_VectorialFunction.get_default_args())
+    arg_template.get_parser().add_argument(
+        "--use-libm-fct", dest="use_libm_function", default=False, const=True,
+        action="store_const", help="use standard libm function to implement element computation")
     # argument extraction
     args = arg_template.arg_extraction()
 
-    ml_softmax = ML_SoftMax(args)
+    ml_vectorial_function = ML_VectorialFunction(args)
 
-    ml_softmax.gen_implementation()
+    ml_vectorial_function.gen_implementation()
