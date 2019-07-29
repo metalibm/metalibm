@@ -93,7 +93,7 @@ class ML_ArrayFunction(ML_FunctionBasis):
         """ single element emulation of function """
         raise NotImplementedError
 
-    def generate_test_wrapper(self, test_num=10, index_range=[0, 100], test_range=Interval(-1.0, 1.0), debug=False):
+    def generate_test_wrapper(self, test_num=10, index_range=[0, 10], test_range=Interval(-1.0, 1.0), debug=False):
         low_input = inf(test_range)
         high_input = sup(test_range)
         auto_test = CodeFunction("test_wrapper", output_format = ML_Int32)
@@ -301,7 +301,7 @@ class ML_ArrayFunction(ML_FunctionBasis):
             ReferenceAssign(vi, Constant(0, precision = ML_Int32)),
             vi < test_num_cst,
             Statement(
-                ReferenceAssign(array_len, Constant(17)),
+                ReferenceAssign(array_len, INPUT_ARRAY_MAX_SIZE),
                 function_call,
                 post_statement,
                 ReferenceAssign(acc_num, acc_num + Conversion(array_len, precision=acc_num.precision)),
@@ -320,7 +320,7 @@ class ML_ArrayFunction(ML_FunctionBasis):
     #    @param test_num     number of test to perform
     #    @param test_range numeric range for test's inputs
     #    @param debug enable debug mode
-    def generate_bench_wrapper(self, test_num=1, loop_num=100000, test_range=Interval(-1.0, 1.0), debug=False, index_range=[1, 117]):
+    def generate_bench_wrapper(self, test_num=1, loop_num=100000, test_range=Interval(-1.0, 1.0), debug=False, index_range=[1, 10]):
         low_input = inf(test_range)
         high_input = sup(test_range)
         auto_test = CodeFunction("bench_wrapper", output_format=ML_Binary64)
