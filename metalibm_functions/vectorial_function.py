@@ -56,6 +56,8 @@ from metalibm_core.core.array_function import ML_ArrayFunction
 from metalibm_core.code_generation.generic_processor import GenericProcessor
 from metalibm_core.code_generation.generator_utility import FunctionOperator
 
+from metalibm_core.opt.p_function_inlining import inline_function
+
 
 from metalibm_core.utility.ml_template import ML_NewArgTemplate
 from metalibm_core.utility.log_report  import Log
@@ -67,33 +69,6 @@ from metalibm_core.utility.debug_utils import (
 
 from metalibm_functions.ml_exp import ML_Exponential
 
-
-
-def inline_function(fct_scheme, dst_var, input_var, input_value):
-    """ generate an operation graph which inline function scheme @p fct_scheme
-        assuming @p input_var is replace by @p input_value
-        and stores its result into dst_var """
-    memoization_map = {}
-    def recursive_inline(node):
-        if node in memoization_map:
-            return memoization_map[node]
-        elif node is input_var:
-            memoization_map[node] = input_value
-            return input_value
-        elif isinstance(node, Return):
-            node_value = recursive_inline(node.get_input(0))
-            new_node = ReferenceAssign(dst_var, node_value)
-            memoization_map[node] = new_node
-            return new_node
-        elif isinstance(node, ML_LeafNode):
-            memoization_map[node] = node
-            return node
-        else:
-            for i, op in enumerate(node.inputs):
-                node.set_input(i, recursive_inline(op))
-            memoization_map[node] = node
-            return node
-    return recursive_inline(fct_scheme)
 
 class ML_VectorialFunction(ML_ArrayFunction):
     function_name = "ml_vectorial_function"
