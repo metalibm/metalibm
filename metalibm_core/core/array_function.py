@@ -145,7 +145,7 @@ class ML_ArrayFunction(ML_FunctionBasis):
         #check_array_loop = self.generate_array_check_loop(input_tables, expected_table, output_array, array_len)
             
         # accumulate element number
-        acc_num = Variable("acc_num", precision=ML_Int64, var_type=Variable.local)
+        acc_num = Variable("acc_num", precision=ML_Int64, var_type=Variable.Local)
 
         test_loop = self.get_array_test_wrapper(
             test_total, tested_function, input_tables,
@@ -195,6 +195,28 @@ class ML_ArrayFunction(ML_FunctionBasis):
         printf_input_function = FunctionObject("printf", [ML_Int32] + self.get_input_precisions() + [self.precision], ML_Void, printf_op)
         return printf_input_function
 
+
+    def generate_expected_table(self, input_tables):
+        """ Generate the complete table of expected results """
+        ## output values required to check results are stored in output table
+        num_output_value = self.accuracy.get_num_output_value()
+        NUM_INPUT_ARRAY = len(input_tables)
+
+        def expected_value_gen(row_id):
+            """ generate a full row of expected values using inputs from input_tables"""
+            output_values = self.accuracy.get_output_check_value(self, tuple(input_tables[table_index][row_id] for table_index in range(NUM_INPUT_ARRAY)))
+            return output_values
+
+        # generating expected value table
+        expected_table = generate_2d_table(
+            INPUT_ARRAY_MAX_SIZE, num_output_value,
+            self.precision,
+            "expected_table",
+            value_gen=expected_value_gen
+        )
+        return expected_table
+
+
     def generate_array_check_loop(self, input_tables, output_array, array_len, INPUT_ARRAY_MAX_SIZE):
         # internal array iterator index
         vj = Variable("j", precision=ML_UInt32, var_type=Variable.Local)
@@ -216,22 +238,7 @@ class ML_ArrayFunction(ML_FunctionBasis):
 
         NUM_INPUT_ARRAY = len(input_tables)
 
-        ## output values required to check results are stored in output table
-        num_output_value = self.accuracy.get_num_output_value()
-
-
-        def expected_value_gen(row_id):
-            """ generate a full row of expected values using inputs from input_tables"""
-            output_values = self.accuracy.get_output_check_value(self, tuple(input_tables[table_index][row_id] for table_index in range(NUM_INPUT_ARRAY)))
-            return output_values
-
-        # generating expected value table
-        expected_table = generate_2d_table(
-            INPUT_ARRAY_MAX_SIZE, num_output_value,
-            self.precision,
-            "expected_table",
-            value_gen=expected_value_gen
-        )
+        expected_table = self.generate_expected_table(input_tables)
 
         local_inputs = tuple(TableLoad(input_tables[in_id], vj) for in_id in range(NUM_INPUT_ARRAY))
         expected_values = [TableLoad(expected_table, vj, i) for i in range(self.accuracy.get_num_output_value())]
