@@ -1044,7 +1044,7 @@ class ML_FunctionBasis(object):
       for in_id in range(self.get_arity()):
         input_tables[in_id][table_index] = input_tuple[in_id]
       # computing and storing output values
-      output_values = self.accuracy.get_output_check_value(self, input_tuple)
+      output_values = self.accuracy.get_output_check_value(self.numeric_emulate(*input_tuple))
       for o in range(num_output_value):
         output_table[table_index][o] = output_values[o]
 

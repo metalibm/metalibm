@@ -49,9 +49,9 @@ class ML_FunctionPrecision(object):
   def get_precision(self):
     return self.precision
   ## return a tuple of output values required to check a test
-  # @param emulated_function is an object with a numeric_emulate methode
-  # @param input_values is a tuple of input values
-  def get_output_check_value(self, emulated_function, input_values):
+  # @param exact_value exact (possibly unevaluated expression) representation of the value
+  #        to be checked
+  def get_output_check_value(self, exact_value):
     """ return the reference values required to check result """
     raise NotImplementedError
   ## return an Operation graph for testing if test_result
@@ -73,16 +73,16 @@ class ML_TwoFactorPrecision(ML_FunctionPrecision):
     """ Precision defined by two bounds (low and high) """
     def get_num_output_value(self):
         return 2
-    def get_check_value_low_bound(self, emulated_function, input_values):
+    def get_check_value_low_bound(self, exact_value):
         """ return the low bound of the expected interval """
         raise NotImplementedError
-    def get_check_value_high_bound(self, emulated_function, input_values):
+    def get_check_value_high_bound(self, exact_value):
         """ return the high bound of the expected interval """
         raise NotImplementedError
-    def get_output_check_value(self, emulated_function, input_values):
+    def get_output_check_value(self, exact_value):
         """ return the reference values required to check result """
-        low_bound = self.get_check_value_low_bound(emulated_function, input_values)
-        high_bound = self.get_check_value_high_bound(emulated_function, input_values)
+        low_bound = self.get_check_value_low_bound(exact_value)
+        high_bound = self.get_check_value_high_bound(exact_value)
         return low_bound, high_bound
 
     def compute_error(self, local_result, stored_outputs, relative = False):
@@ -115,13 +115,6 @@ class ML_TwoFactorPrecision(ML_FunctionPrecision):
             self.precision.get_display_format().pre_process_fct("{1}"),
         )
         printf_op = TemplateOperatorFormat(printf_template, arity=2, void_function=True)
-        #printf_op = FunctionOperator(
-        #  "printf", 
-        #  arg_map = {
-        #    0: "\"[{display_format};{display_format}]{footer}\"".format(display_format = self.precision.get_display_format(), footer = footer), 
-        #    1: FO_Arg(0), 
-        #    2: FO_Arg(1) 
-        #  }, void_function = True) 
         printf_function = FunctionObject("printf", [self.precision] * 2, ML_Void, printf_op)
         return printf_function
 
@@ -134,8 +127,8 @@ class ML_TwoFactorPrecision(ML_FunctionPrecision):
 class ML_CorrectlyRounded(ML_FunctionPrecision):
   def get_num_output_value(self):
     return 1
-  def get_output_check_value(self, emulated_function, input_values):
-    expected_value = self.precision.round_sollya_object(emulated_function.numeric_emulate(*input_values), sollya.RN)
+  def get_output_check_value(self, exact_value):
+    expected_value = self.precision.round_sollya_object(exact_value, sollya.RN)
     return (expected_value,)
 
   def compute_error(self, local_result, output_values, relative = False):
@@ -151,8 +144,8 @@ class ML_CorrectlyRounded(ML_FunctionPrecision):
   def get_output_check_test(self, test_result, stored_outputs):
     expected_value,  = stored_outputs
     failure_test = Comparison(
-      test_result, 
-      expected_value, 
+      test_result,
+      expected_value,
       specifier = Comparison.NotEqual
     )
     return failure_test
@@ -163,12 +156,6 @@ class ML_CorrectlyRounded(ML_FunctionPrecision):
         self.precision.get_display_format().pre_process_fct("{0}")
     )
     printf_op = TemplateOperatorFormat(printf_template, arity=1, void_function=True)
-    #printf_op = FunctionOperator(
-    #  "printf", 
-    #  arg_map = {
-    #    0: "\"{display_format}{footer}\"".format(display_format = self.precision.get_display_format(), footer = footer), 
-    #    1: FO_Arg(0) 
-    #  }, void_function = True) 
     printf_function = FunctionObject("printf", [self.precision], ML_Void, printf_op)
     return printf_function
 
@@ -180,11 +167,11 @@ class ML_CorrectlyRounded(ML_FunctionPrecision):
 ## Faithful (error <= 1 ulp) rounding output precision indication
 class ML_Faithful(ML_TwoFactorPrecision):
     """ Faithful (abs(error) < 1 ulp) precision """ 
-    def get_check_value_low_bound(self, emulated_function, input_values):
-        low_bound  = self.precision.round_sollya_object(emulated_function.numeric_emulate(*input_values), sollya.RD)
+    def get_check_value_low_bound(self, exact_value):
+        low_bound  = self.precision.round_sollya_object(exact_value, sollya.RD)
         return low_bound
-    def get_check_value_high_bound(self, emulated_function, input_values):
-        high_bound = self.precision.round_sollya_object(emulated_function.numeric_emulate(*input_values), sollya.RU)
+    def get_check_value_high_bound(self, exact_value):
+        high_bound = self.precision.round_sollya_object(exact_value, sollya.RU)
         return high_bound
 
 ## Degraded accuracy function output precision indication
@@ -196,16 +183,15 @@ class ML_DegradedAccuracy(ML_TwoFactorPrecision):
     def get_value_error_goal(self, value):
         raise NotImplementedError
 
-    def get_check_value_cr(self, emulated_function, input_values):
+    def get_check_value_cr(self, exact_value):
         """ return correctly rounded value """
-        return self.precision.round_sollya_object(
-            emulated_function.numeric_emulate(*input_values), sollya.RN)
-    def get_check_value_low_bound(self, emulated_function, input_values):
-        cr_value = self.get_check_value_cr(emulated_function, input_values)
+        return self.precision.round_sollya_object(exact_value, sollya.RN)
+    def get_check_value_low_bound(self, exact_value):
+        cr_value = self.get_check_value_cr(exact_value)
         value_goal = self.get_value_error_goal(cr_value)
         return cr_value - value_goal
-    def get_check_value_high_bound(self, emulated_function, input_values):
-        cr_value = self.get_check_value_cr(emulated_function, input_values)
+    def get_check_value_high_bound(self, exact_value):
+        cr_value = self.get_check_value_cr(exact_value)
         value_goal = self.get_value_error_goal(cr_value)
         return cr_value + value_goal
 
