@@ -411,7 +411,14 @@ class CCodeGenerator(object):
         else:
             arg_format_list = ", ".join(input_format.get_name(language=language) for input_format in fct_type.arg_list_precision)
         final_symbol = ";" if final else ""
-        return "%s %s %s(%s)%s" % (attributes, fct_type.output_format.get_name(language=language), fct_type.name, arg_format_list, final_symbol)
+        return "{attributes}{attr_del}{fct_ret_format} {fct_name}({arg_format_list}){final}".format(
+            attributes=attributes,
+            # delimiter between attribute and function's return format
+            attr_del=" " if attributes != "" else "",
+            fct_ret_format=fct_type.output_format.get_name(language=language),
+            fct_name=fct_type.name,
+            arg_format_list=arg_format_list,
+            final=final_symbol)
 
     def generate_debug_msg(self, optree, result, code_object, debug_object = None):
         debug_object = optree.get_debug() if debug_object is None else debug_object
