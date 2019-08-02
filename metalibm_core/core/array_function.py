@@ -132,10 +132,10 @@ class ML_ArrayFunction(ML_FunctionBasis):
 
         test_total   = test_num + len(self.standard_test_cases)
 
-        sollya_precision = self.precision.get_sollya_object()
-        interval_size = high_input - low_input
-
+        # number of arrays expected as inputs for tested_function
         NUM_INPUT_ARRAY = 1
+        # position of the input array in tested_function operands (generally
+        # equals to 1 as to 0-th input is often the destination array)
         INPUT_INDEX_OFFSET = 1
 
         # concatenating standard test array at the beginning of randomly
@@ -156,8 +156,6 @@ class ML_ArrayFunction(ML_FunctionBasis):
         # assuming a single input array
         input_precisions = [self.get_input_precision(1).get_data_precision()]
         rng_map = [get_precision_rng(precision, low_input, high_input) for precision in input_precisions]
-
-        assert test_num == 1
 
         # generated table of inputs
         input_tables = [
@@ -280,10 +278,12 @@ class ML_ArrayFunction(ML_FunctionBasis):
         # generate the expected table for the whole multi-array
         expected_table = self.generate_expected_table(input_tables, table_size_offset_array)
 
-
+        # inputs for the (vj)-th entry of the sub-arrat
         local_inputs = tuple(TableLoad(input_tables[in_id], array_offset + vj) for in_id in range(NUM_INPUT_ARRAY))
+        # expected values for the (vj)-th entry of the sub-arrat
         expected_values = [TableLoad(expected_table, array_offset + vj, i) for i in range(self.accuracy.get_num_output_value())]
-        local_result = TableLoad(output_array, vj)
+        # local result for the (vj)-th entry of the sub-arrat
+        local_result = TableLoad(output_array, array_offset + vj)
 
         if self.break_error:
             return_statement_break = Statement(
@@ -297,6 +297,8 @@ class ML_ArrayFunction(ML_FunctionBasis):
                 Return(Constant(1, precision = ML_Int32))
             )
 
+        # loop implementation to check sub-array array_offset
+        # results validity
         check_array_loop = Loop(
             ReferenceAssign(vj, 0),
             vj < array_len,
