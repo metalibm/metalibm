@@ -41,6 +41,9 @@ from .ml_operations import (
 from .attributes import Attributes, attr_init
 from .ml_formats import (
     ML_Int32, ML_Int64, ML_UInt32, ML_UInt64, ML_Format, ML_FP_Format)
+from .ml_complex_formats import (
+    ML_Pointer_Format,
+)
 from ..code_generation.code_constant import *
 from ..code_generation.code_configuration import CodeConfiguration
 from .special_values import is_numeric_value
@@ -252,6 +255,9 @@ class ML_NewTable(ML_Table):
 
   def get_precision(self):
     return self.precision
+
+  def get_precision_as_pointer_format(self):
+    return ML_Pointer_Format(self.precision.storage_precision)
 
 
 ## Table specifically used to described an approximation i.e a seed-like
