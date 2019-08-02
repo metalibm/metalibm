@@ -548,6 +548,12 @@ c_code_generation_table = {
             type_strict_match(ML_DoubleDouble, ML_DoubleDouble, ML_Binary64): ML_Multi_Prec_Lib_Function("ml_add_dd_d_dd", arity = 2, arg_map = {0: FO_Arg(1), 1: FO_Arg(0)}, output_precision = ML_DoubleDouble),
             type_strict_match(ML_DoubleDouble, ML_DoubleDouble, ML_DoubleDouble): ML_Multi_Prec_Lib_Function("ml_add_dd_dd2", arity = 2, output_precision = ML_DoubleDouble),
           },
+          lambda _: True: {
+            type_custom_match(TCM(ML_Pointer_Format), TCM(ML_TableFormat), TCM(ML_Fixed_Format)):
+                SymbolOperator("+", arity=2),
+            type_custom_match(TCM(ML_Pointer_Format), TCM(ML_Pointer_Format), TCM(ML_Fixed_Format)):
+                SymbolOperator("+", arity=2),
+          },
         },
     },
     Subtraction: {
