@@ -52,7 +52,9 @@ from metalibm_core.core.precisions import (
 )
 from metalibm_core.core.ml_function import DefaultArgTemplate
 from metalibm_core.core.array_function import (
-    ML_ArrayFunction, generate_2d_multi_table
+    ML_ArrayFunction, generate_2d_multi_table,
+    ML_ArrayFunction, DefaultArrayFunctionArgTemplate,
+    ML_ArrayFunctionArgTemplate
 )
 
 
@@ -62,12 +64,10 @@ from metalibm_core.code_generation.generator_utility import FunctionOperator
 from metalibm_core.opt.p_function_inlining import inline_function
 
 
-from metalibm_core.utility.ml_template import ML_NewArgTemplate
 from metalibm_core.utility.log_report  import Log
 from metalibm_core.utility.debug_utils import (
     debug_multi
 )
-
 
 
 from metalibm_functions.ml_exp import ML_Exponential
@@ -97,10 +97,11 @@ class ML_SoftMax(ML_ArrayFunction):
             "function_name": "ml_softmax",
             "precision": ML_Binary32,
             "accuracy": ML_Faithful,
+            "use_libm_function": False,
             "target": GenericProcessor()
         }
         default_args_exp.update(kw)
-        return DefaultArgTemplate(**default_args_exp)
+        return DefaultArrayFunctionArgTemplate(**default_args_exp)
 
     def generate_scheme(self):
         # declaring target and instantiating optimization engine
@@ -237,7 +238,7 @@ class ML_SoftMax(ML_ArrayFunction):
 
 if __name__ == "__main__":
     # auto-test
-    arg_template = ML_NewArgTemplate(default_arg=ML_SoftMax.get_default_args())
+    arg_template = ML_ArrayFunctionArgTemplate(default_arg=ML_SoftMax.get_default_args())
     arg_template.get_parser().add_argument(
         "--use-libm-fct", dest="use_libm_function", default=False, const=True,
         action="store_const", help="use standard libm function to implement element computation")

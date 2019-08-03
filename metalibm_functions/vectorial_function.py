@@ -50,8 +50,10 @@ from metalibm_core.core.precisions import (
     ML_CorrectlyRounded, ML_Faithful,
 )
 from metalibm_core.core.ml_function import DefaultArgTemplate
-from metalibm_core.core.array_function import ML_ArrayFunction
-
+from metalibm_core.core.array_function import (
+    ML_ArrayFunction, DefaultArrayFunctionArgTemplate,
+    ML_ArrayFunctionArgTemplate
+)
 
 from metalibm_core.code_generation.generic_processor import GenericProcessor
 from metalibm_core.code_generation.generator_utility import FunctionOperator
@@ -72,7 +74,7 @@ from metalibm_functions.ml_exp import ML_Exponential
 
 class ML_VectorialFunction(ML_ArrayFunction):
     function_name = "ml_vectorial_function"
-    def __init__(self, args=DefaultArgTemplate):
+    def __init__(self, args=DefaultArrayFunctionArgTemplate):
         # initializing base class
         ML_ArrayFunction.__init__(self, args)
         self.arity = 3
@@ -92,12 +94,13 @@ class ML_VectorialFunction(ML_ArrayFunction):
         default_args_exp = {
             "output_file": "ml_vectorial_function.c",
             "function_name": "ml_vectorial_function",
+            "use_libm_function": False,
             "precision": ML_Binary32,
             "accuracy": ML_Faithful,
             "target": GenericProcessor()
         }
         default_args_exp.update(kw)
-        return DefaultArgTemplate(**default_args_exp)
+        return DefaultArrayFunctionArgTemplate(**default_args_exp)
 
     def generate_scheme(self):
         # declaring target and instantiating optimization engine
@@ -165,7 +168,7 @@ class ML_VectorialFunction(ML_ArrayFunction):
 
 if __name__ == "__main__":
     # auto-test
-    arg_template = ML_NewArgTemplate(default_arg=ML_VectorialFunction.get_default_args())
+    arg_template = ML_ArrayFunctionArgTemplate(default_arg=ML_VectorialFunction.get_default_args())
     arg_template.get_parser().add_argument(
         "--use-libm-fct", dest="use_libm_function", default=False, const=True,
         action="store_const", help="use standard libm function to implement element computation")

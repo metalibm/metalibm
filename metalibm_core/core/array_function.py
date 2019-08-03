@@ -61,6 +61,8 @@ from metalibm_core.core.ml_formats import (
     FormatAttributeWrapper,
 )
 
+from metalibm_core.utility.ml_template import ML_NewArgTemplate
+
 def generate_1d_table(dim, storage_precision, tag, value_gen=lambda index: None, empty=False):
     """ generate a 1D ML_NewTable by using the given value generator @p value_gen """
     gen_table = ML_NewTable(
@@ -109,14 +111,33 @@ def generate_2d_multi_table(size_offset_list, dim1, storage_precision, tag, valu
                 gen_table[offset + i0][i1] = row_values[i1]
     return gen_table
 
+class DefaultArrayFunctionArgTemplate(DefaultArgTemplate):
+    test_index_range = [0, 10]
+
+class ML_ArrayFunctionArgTemplate(ML_NewArgTemplate):
+    def __init__(self, default_arg=DefaultArrayFunctionArgTemplate):
+        ML_NewArgTemplate.__init__(self, default_arg)
+        self.parser.add_argument(
+            "--test-index-range", dest="test_index_range", action="store",
+            type=(lambda s: list(int(v) for v in s.split(","))),
+            default=default_arg.test_index_range,
+            help="interval for test arrays size"
+        )
+
 
 class ML_ArrayFunction(ML_FunctionBasis):
     """ generic function working on arbitrary length arrays """
+    def __init__(self, args=DefaultArrayFunctionArgTemplate):
+        ML_FunctionBasis.__init__(self, args)
+        self.test_index_range = args.test_index_range
+
     def element_numeric_emulate(self):
         """ single element emulation of function """
         raise NotImplementedError
 
-    def generate_test_wrapper(self, test_num=10, index_range=[0, 10], test_range=Interval(-1.0, 1.0), debug=False):
+    def generate_test_wrapper(self, test_num=10, test_range=Interval(-1.0, 1.0), debug=False):
+        index_range = self.test_index_range
+
         low_input = inf(test_range)
         high_input = sup(test_range)
         auto_test = CodeFunction("test_wrapper", output_format = ML_Int32)
@@ -374,7 +395,7 @@ class ML_ArrayFunction(ML_FunctionBasis):
 
         return test_statement
 
-    ## Generate a test wrapper for the @p self function 
+    ## Generate a test wrapper for the @p self function
     #    @param test_num     number of test to perform
     #    @param test_range numeric range for test's inputs
     #    @param debug enable debug mode
@@ -406,8 +427,6 @@ class ML_ArrayFunction(ML_FunctionBasis):
         # assuming a single input array
         input_precisions = [self.get_input_precision(1).get_data_precision()]
         rng_map = [get_precision_rng(precision, low_input, high_input) for precision in input_precisions]
-
-        assert test_num == 1
 
         # generated table of inputs
         input_tables = [
