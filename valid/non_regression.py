@@ -50,6 +50,9 @@ import metalibm_functions.external_bench
 import metalibm_functions.ml_tanh
 import metalibm_functions.ml_div
 
+import metalibm_functions.softmax
+import metalibm_functions.vectorial_function
+
 from metalibm_core.core.ml_formats import ML_Binary32, ML_Binary64, ML_Int32
 from metalibm_core.targets.common.vector_backend import VectorBackend
 from metalibm_core.targets.intel.x86_processor import (
@@ -297,6 +300,20 @@ new_scheme_function_list = [
     [
         {"precision": ML_Binary32, "auto_test": 1000, "execute": True},
         {"precision": ML_Binary64, "auto_test": 1000, "execute": True},
+    ],
+  ),
+  NewSchemeTest(
+    "basic softmax test",
+    metalibm_functions.softmax.ML_SoftMax,
+    [
+        {"precision": ML_Binary32, "auto_test": 10, "execute": True},
+    ],
+  ),
+  NewSchemeTest(
+    "basic vector function test",
+    metalibm_functions.vectorial_function.ML_VectorialFunction,
+    [
+        {"precision": ML_Binary32, "auto_test": 10, "execute": True},
     ],
   ),
 ]
