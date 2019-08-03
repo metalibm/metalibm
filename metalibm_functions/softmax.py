@@ -52,7 +52,7 @@ from metalibm_core.core.precisions import (
 )
 from metalibm_core.core.ml_function import DefaultArgTemplate
 from metalibm_core.core.array_function import (
-    ML_ArrayFunction, generate_2d_table
+    ML_ArrayFunction, generate_2d_multi_table
 )
 
 
@@ -179,39 +179,47 @@ class ML_SoftMax(ML_ArrayFunction):
         return main_scheme
 
 
-    def generate_expected_table(self, input_tables):
+    def generate_expected_table(self, input_tables, table_size_offset_array):
         """ Generate the complete table of expected results """
         ## output values required to check results are stored in output table
         num_output_value = self.accuracy.get_num_output_value()
         NUM_INPUT_ARRAY = len(input_tables)
 
-
         TABLE_SIZE = input_tables[0].dimensions[0]
+        NUM_SUBTABLE = table_size_offset_array.dimensions[0]
+
         EXP_TABLE = [None] * TABLE_SIZE
         sum_exp = sollya.SollyaObject(0)
 
-        # compute elemnt-wise exponential and sum of exponential
+        # compute elemnt-wise exponential
         for row_id in range(TABLE_SIZE):
             local_exp = sollya.exp(input_tables[0][row_id])
             EXP_TABLE[row_id] = local_exp
-            sollya.settings.display = sollya.hexadecimal
-            sum_exp = local_exp + sum_exp
 
-        sum_rcp = 1.0 / sum_exp
+        # for each sub-array, compute the sum of exponential, its reciprocal
+        # and the each element softmax
+        for table_id in range(NUM_SUBTABLE):
+            sub_size, sub_offset = table_size_offset_array[table_id]
+            if sub_size == 0:
+                # avoid division by zero by skipping empty arrays
+                continue
+            sum_exp = sum(EXP_TABLE[sub_offset:(sub_offset + sub_size)])
+            sum_rcp = 1.0 / sum_exp
+            for sub_row_id in range(sub_size):
+                row_id = sub_row_id + sub_offset
+                EXP_TABLE[row_id] = EXP_TABLE[row_id] * sum_rcp
 
-        for row_id in range(TABLE_SIZE):
-            EXP_TABLE[row_id] = EXP_TABLE[row_id] * sum_rcp
-            sollya.settings.display = sollya.hexadecimal
-
-        def expected_value_gen(row_id):
+        def expected_value_gen(table_id, table_row_id):
             """ generate a full row of expected values using inputs from
-                @p input_tables"""
+                input_tables"""
+            table_offset = table_size_offset_array[table_id][1]
+            row_id = table_offset + table_row_id
             output_values = self.accuracy.get_output_check_value(EXP_TABLE[row_id])
             return output_values
 
         # generating expected value table
-        expected_table = generate_2d_table(
-            TABLE_SIZE, num_output_value,
+        expected_table = generate_2d_multi_table(
+            table_size_offset_array, num_output_value,
             self.precision,
             "expected_table",
             value_gen=expected_value_gen
