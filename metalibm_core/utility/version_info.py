@@ -5,7 +5,7 @@
 ###############################################################################
 # MIT License
 #
-# Copyright (c) 2018 Kalray
+# Copyright (c) 2018- Kalray
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -24,13 +24,11 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
+#
 ###############################################################################
-# Version history:
-# - 1.0: cleaning headers
-# - ....
-# - 0.1d: adding vhdl support (backend, code generation,
-#        ml_entity and code_entity)
-# - ....
+#
+# Version history: see ./RELEASES.txt
+#
 ###############################################################################
 
 """ Version information for Metalibm """
@@ -82,7 +80,7 @@ def extract_cmdline():
 
 # statically extracting info once (at module init)
 GIT_SHA = extract_git_hash()
-VERSION_NUM = "1.0"
+VERSION_NUM = "1.1"
 VERSION_DESCRIPTION = "alpha"
 NOTES = """ metalibm core """
 GIT_STATUS = check_git_status()

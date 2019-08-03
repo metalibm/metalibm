@@ -1,3 +1,6 @@
+1.2:
+    - Adding support for array function (function working on array input/outputs)
+    - Adding meta implementation for the softmax function
 
 1.1:
     - Extending support for multi-precision construct in metalibm_core.opt.ml_blocks
