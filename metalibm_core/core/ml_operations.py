@@ -1205,6 +1205,8 @@ class TableLoad(GeneralArithmeticOperation):
     name = "TableLoad"
     arity = 2
     def bare_range_function(self, ops):
+        # TODO/FIXME: coarse-grained: could be refined by using index
+        # interval to refine sub-table interval
         return ops[0]
 
 ## Memory Store to a Multi-Dimensional
