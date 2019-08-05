@@ -153,7 +153,115 @@ def vector_elt_assign(vector_node, elt_index, elt_value):
             VectorElementSelection(vector_node, elt_index), elt_value
         )]
     return assign_list
-  
+
+
+
+def generate_c_vector_wrapper(main_precision, vector_size, vec_arg_list,
+                              vector_scheme, vector_mask, vec_res,
+                              scalar_callback):
+    """ Generate a C-compatible wrapper for a vectorized scheme 
+        @p vector_scheme by testing vector mask element and branching
+        to scalar callback when necessary
+        
+        @param vector_size number of element in a vector
+        @param vector_arg_list
+        @param vector_scheme
+        @param vector_mask """
+    vi = Variable("i", precision = ML_Int32, var_type = Variable.Local)
+    vec_elt_arg_tuple = tuple(
+        VectorElementSelection(vec_arg, vi, precision = main_precision)
+        for vec_arg in vec_arg_list
+    )
+
+    function_scheme = Statement(
+        vector_scheme,
+        ConditionBlock(
+            # if there is not any zero in the mask. then
+            # the vector result may be returned
+            Test(
+                vector_mask,
+                specifier=Test.IsMaskNotAnyZero,
+                precision=ML_Bool,
+                likely=True,
+                debug=debug_multi,
+                tag="full_vector_valid"
+            ),
+            Return(vector_scheme, precision=vector_scheme.get_precision()),
+            Statement(
+                ReferenceAssign(vec_res, vector_scheme),
+                Loop(
+                    ReferenceAssign(vi, Constant(0, precision = ML_Int32)),
+                    vi < Constant(vector_size, precision = ML_Int32),
+                    Statement(
+                        ConditionBlock(
+                            LogicalNot(
+                                Likely(
+                                    VectorElementSelection(
+                                        vector_mask, vi, precision = ML_Bool,
+                                        tag="vmask_i",
+                                    ),
+                                    None
+                                ),
+                                precision = ML_Bool
+                            ),
+                            ReferenceAssign(
+                                VectorElementSelection(
+                                    vec_res, vi, precision=main_precision,
+                                    tag="vres_i"
+                                ),
+                                scalar_callback(*vec_elt_arg_tuple)
+                            )
+                        ),
+                        ReferenceAssign(vi, vi + 1)
+                    ),
+                ),
+                Return(vec_res, precision=vec_res.get_precision())
+            )
+        )
+    )
+    return function_scheme
+
+def generate_opencl_vector_wrapper(main_precision, vector_size, vec_arg_list,
+                                   vector_scheme, vector_mask, vec_res,
+                                   scalar_callback):
+    """ Generate an OpenCL-compatible wrapper for a vectorized scheme 
+        @p vector_scheme by testing vector mask element and branching
+        to scalar callback when necessary """
+    unrolled_cond_allocation = Statement()
+    for i in range(vector_size):
+        elt_index = Constant(i)
+        vec_elt_arg_tuple = tuple(VectorElementSelection(vec_arg, elt_index, precision = main_precision) for vec_arg in vec_arg_list)
+        unrolled_cond_allocation.add(
+            ConditionBlock(
+                Likely(
+                    LogicalNot(
+                        VectorElementSelection(
+                            vector_mask, 
+                            elt_index, 
+                            precision = ML_Bool
+                        ),
+                        precision = ML_Bool
+                    ),
+                    None
+                ),
+                ReferenceAssign(VectorElementSelection(vec_res, elt_index, precision = main_precision), scalar_callback(*vec_elt_arg_tuple)),
+            )
+        ) 
+
+    function_scheme = Statement(
+        vector_scheme,
+        ConditionBlock(
+            Test(vector_mask, specifier = Test.IsMaskNotAnyZero, precision = ML_Bool, likely = True, debug = debug_multi),
+            Return(vector_scheme),
+            Statement(
+                ReferenceAssign(vec_res, vector_scheme),
+                unrolled_cond_allocation,
+                Return(vec_res)
+            )
+        )
+    )
+    return function_scheme
+
 
 ## Base class for all metalibm function (metafunction)
 class ML_FunctionBasis(object):
@@ -752,112 +860,11 @@ class ML_FunctionBasis(object):
     return ext_function.get_function_object()(*arg_list), ext_function
 
 
-  ## Generate an OpenCL-compatible wrapper for a vectorized scheme 
-  #  @p vector_scheme by testing vector mask element and branching
-  #  to scalar callback when necessary
-  def generate_opencl_vector_wrapper(self, vector_size, vec_arg_list, vector_scheme, vector_mask, vec_res, scalar_callback):
-    unrolled_cond_allocation = Statement()
-    for i in range(vector_size):
-      elt_index = Constant(i)
-      vec_elt_arg_tuple = tuple(VectorElementSelection(vec_arg, elt_index, precision = self.precision) for vec_arg in vec_arg_list)
-      unrolled_cond_allocation.add(
-        ConditionBlock(
-          Likely(
-            LogicalNot(
-              VectorElementSelection(
-                vector_mask, 
-                elt_index, 
-                precision = ML_Bool
-              ),
-              precision = ML_Bool
-            ),
-            None
-          ),
-          ReferenceAssign(VectorElementSelection(vec_res, elt_index, precision = self.precision), scalar_callback(*vec_elt_arg_tuple)),
-          # ReferenceAssign(VectorElementSelection(vec_res, elt_index, precision = self.precision), VectorElementSelection(vector_scheme, elt_index, precision = self.precision))
-        )
-      ) 
 
-    function_scheme = Statement(
-      vector_scheme,
-      ConditionBlock(
-        Test(vector_mask, specifier = Test.IsMaskNotAnyZero, precision = ML_Bool, likely = True, debug = debug_multi),
-        Return(vector_scheme),
-        Statement(
-          ReferenceAssign(vec_res, vector_scheme),
-          unrolled_cond_allocation,
-          Return(vec_res)
-        )
-      )
-    )
-    return function_scheme
-
-  ## Generate a C-compatible wrapper for a vectorized scheme 
-  #  @p vector_scheme by testing vector mask element and branching
-  #  to scalar callback when necessary
-  #
-  #  @param vector_size number of element in a vector
-  #  @param vector_arg_list
-  #  @param vector_scheme
-  #  @param vector_mask
-  def generate_c_vector_wrapper(self, vector_size, vec_arg_list, vector_scheme, vector_mask, vec_res, scalar_callback):
-
-    vi = Variable("i", precision = ML_Int32, var_type = Variable.Local)
-    vec_elt_arg_tuple = tuple(
-      VectorElementSelection(vec_arg, vi, precision = self.precision)
-      for vec_arg in vec_arg_list
-    )
-
-    function_scheme = Statement(
-      vector_scheme,
-      ConditionBlock(
-        # if there is not any zero in the mask. then
-        # the vector result may be returned
-        Test(
-          vector_mask,
-          specifier=Test.IsMaskNotAnyZero,
-          precision=ML_Bool,
-          likely=True,
-          debug=debug_multi,
-          tag="full_vector_valid"
-        ),
-        Return(vector_scheme, precision=vector_scheme.get_precision()),
-        Statement(
-          ReferenceAssign(vec_res, vector_scheme),
-          Loop(
-            ReferenceAssign(vi, Constant(0, precision = ML_Int32)),
-            vi < Constant(vector_size, precision = ML_Int32),
-            Statement(
-              ConditionBlock(
-                LogicalNot(
-                  Likely(
-                    VectorElementSelection(
-                      vector_mask, vi, precision = ML_Bool,
-                      tag="vmask_i",
-                    ),
-                    None
-                  ),
-                  precision = ML_Bool
-                ),
-                ReferenceAssign(
-                  VectorElementSelection(
-                    vec_res, vi, precision=self.precision,
-                    tag="vres_i"
-                  ),
-                  scalar_callback(*vec_elt_arg_tuple)
-                )
-              ),
-              ReferenceAssign(vi, vi + 1)
-            ),
-          ),
-          Return(vec_res, precision=vec_res.get_precision())
-        )
-      )
-    )
-    return function_scheme
 
   def generate_vector_implementation(self, scalar_scheme, scalar_arg_list,
-                                     vector_size = 2):
+                                     vector_size=2):
+    """ generate a vector implementation of self's scheme """
     # declaring optimizer
     self.opt_engine.set_boolean_format(ML_Bool)
     self.vectorizer = StaticVectorizer(self.opt_engine)
@@ -915,12 +922,16 @@ class ML_FunctionBasis(object):
         Return(vector_scheme, precision=vector_output_format)
       )
     elif self.language is OpenCL_Code:
-      function_scheme = self.generate_opencl_vector_wrapper(vector_size, vec_arg_list, vector_scheme, vector_mask, vec_res, scalar_callback)
+      function_scheme = generate_opencl_vector_wrapper(self.main_precision,
+                                                       vector_size, vec_arg_list,
+                                                       vector_scheme, vector_mask,
+                                                       vec_res, scalar_callback)
 
     else:
-      function_scheme = self.generate_c_vector_wrapper(vector_size, vec_arg_list, vector_scheme, vector_mask, vec_res, scalar_callback)
-
-    # print "vectorized_scheme: ", function_scheme.get_str(depth = None, display_precision = True, memoization_map = {})
+      function_scheme = generate_c_vector_wrapper(self.precision, vector_size,
+                                                  vec_arg_list, vector_scheme,
+                                                  vector_mask, vec_res,
+                                                  scalar_callback)
 
     for vec_arg in vec_arg_list:
       self.implementation.register_new_input_variable(vec_arg)
