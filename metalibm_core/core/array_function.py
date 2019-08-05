@@ -205,8 +205,7 @@ class ML_ArrayFunction(ML_FunctionBasis):
             input_tables,
             output_array,
             acc_num,
-            self.generate_array_check_loop,
-            INPUT_ARRAY_SIZE)
+            self.generate_array_check_loop)
 
         # common test scheme between scalar and vector functions
         test_scheme = Statement(
@@ -337,11 +336,13 @@ class ML_ArrayFunction(ML_FunctionBasis):
         return check_array_loop
 
     def get_array_test_wrapper(
-            self, test_num, tested_function,
+            self,
+            test_num, tested_function,
             table_size_offset_array,
             input_tables, output_array,
             acc_num,
-            post_statement_generator, INPUT_ARRAY_MAX_SIZE, NUM_INPUT_ARRAY=1):
+            post_statement_generator,
+            NUM_INPUT_ARRAY=1):
         """ generate a test loop for multi-array tests
              @param test_num number of elementary array tests to be executed
              @param tested_function FunctionObject to be tested
@@ -351,7 +352,9 @@ class ML_ArrayFunction(ML_FunctionBasis):
              @param output_table ML_NewTable containing multi-array test outputs
              @param post_statement_generator is generator used to generate
                     a statement executed at the end of the test of one of the
-                    arrays of the multi-test
+                    arrays of the multi-test. It expects 6 arguments:
+                    (input_tables, output_array, table_size_offset_array,
+                     array_offset, array_len, test_id)
              @param printf_function FunctionObject to print error case
         """
         test_id = Variable("test_id", precision = ML_Int32, var_type = Variable.Local)
@@ -399,7 +402,10 @@ class ML_ArrayFunction(ML_FunctionBasis):
     #    @param test_num     number of test to perform
     #    @param test_range numeric range for test's inputs
     #    @param debug enable debug mode
-    def generate_bench_wrapper(self, test_num=1, loop_num=100000, test_range=Interval(-1.0, 1.0), debug=False, index_range=[1, 10]):
+    def generate_bench_wrapper(self, test_num=1, loop_num=100000, test_range=Interval(-1.0, 1.0), debug=False):
+        # interval where the array lenght is chosen from (randomly)
+        index_range = self.test_index_range
+
         low_input = inf(test_range)
         high_input = sup(test_range)
         auto_test = CodeFunction("bench_wrapper", output_format=ML_Binary64)
@@ -418,9 +424,27 @@ class ML_ArrayFunction(ML_FunctionBasis):
 
         test_total = test_num
 
-        NUM_INPUT_ARRAY = 1
         INPUT_INDEX_OFFSET = 1
-        INPUT_ARRAY_MAX_SIZE = max(index_range)
+        # number of arrays expected as inputs for tested_function
+        NUM_INPUT_ARRAY = 1
+        # position of the input array in tested_function operands (generally
+        # equals to 1 as to 0-th input is often the destination array)
+        INPUT_INDEX_OFFSET = 1
+
+
+        # concatenating standard test array at the beginning of randomly
+        # generated array
+        TABLE_SIZE_VALUES = [len(std_table) for std_table in self.standard_test_cases] + [random.randrange(index_range[0], index_range[1] + 1) for i in range(test_num)]
+        OFFSET_VALUES = [sum(TABLE_SIZE_VALUES[:i]) for i in range(test_total)]
+
+        table_size_offset_array = generate_2d_table(
+            test_total, 2,
+            ML_UInt32,
+            self.uniquify_name("table_size_array"),
+            value_gen=(lambda row_id: (TABLE_SIZE_VALUES[row_id], OFFSET_VALUES[row_id]))
+        )
+
+        INPUT_ARRAY_SIZE = sum(TABLE_SIZE_VALUES)
 
 
         # TODO/FIXME: implement proper input range depending on input index
@@ -431,7 +455,7 @@ class ML_ArrayFunction(ML_FunctionBasis):
         # generated table of inputs
         input_tables = [
             generate_1d_table(
-                INPUT_ARRAY_MAX_SIZE,
+                INPUT_ARRAY_SIZE,
                 self.get_input_precision(INPUT_INDEX_OFFSET + table_id).get_data_precision(),
                 self.uniquify_name("input_table_arg%d" % table_id),
                 value_gen=(lambda _: input_precisions[table_id].round_sollya_object(rng_map[table_id].get_new_value(), sollya.RN))
@@ -440,7 +464,7 @@ class ML_ArrayFunction(ML_FunctionBasis):
 
         # generate output_array
         output_array = generate_1d_table(
-            INPUT_ARRAY_MAX_SIZE,
+            INPUT_ARRAY_SIZE,
             output_precision,
             self.uniquify_name("output_array"),
             #value_gen=(lambda _: FP_QNaN(self.precision))
@@ -452,12 +476,17 @@ class ML_ArrayFunction(ML_FunctionBasis):
         # accumulate element number
         acc_num = Variable("acc_num", precision=ML_Int64, var_type=Variable.Local)
 
+        def empty_post_statement_gen(input_tables, output_array,
+                                     table_size_offset_array, array_offset,
+                                     array_len, test_id):
+            return Statement()
+
         test_loop = self.get_array_test_wrapper(
             test_total, tested_function,
-            input_tables,
-            output_array,
+            table_size_offset_array,
+            input_tables, output_array,
             acc_num,
-            lambda a, b, c, d: Statement(), INPUT_ARRAY_MAX_SIZE)
+            empty_post_statement_gen)
 
         timer = Variable("timer", precision = ML_Int64, var_type = Variable.Local)
         printf_timing_op = FunctionOperator(
