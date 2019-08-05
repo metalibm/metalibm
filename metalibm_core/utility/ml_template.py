@@ -478,6 +478,8 @@ class DefaultEntityArgTemplate(DefaultArgTemplate):
     pipelined = False
     # pipeline register control (reset, synchronous)
     reset_pipeline = (False, True)
+    negate_reset = False
+    reset_name = "reset"
     recirculate_pipeline = False
     recirculate_signal_map = {}
 
@@ -718,6 +720,14 @@ class ML_EntityArgTemplate(ML_CommonArgTemplate):
             "--async-reset-pipeline", dest="reset_pipeline",
             action="store_const", default=default_arg.reset_pipeline, const=(True, False),
         )
+        self.parser.add_argument(
+            "--negate-reset", dest="negate_reset",
+            action="store_const", default=default_arg.negate_reset, const=True,
+            help="set reset signal command to opposite (reset trigger when reset signal is 0)")
+        self.parser.add_argument(
+            "--reset-name", dest="reset_name",
+            action="store", default=default_arg.reset_name,
+            help="name of reset signal")
         self.parser.add_argument(
             "--recirculate-pipeline", dest="recirculate_pipeline",
             action="store_const", default=default_arg.recirculate_pipeline, const=True

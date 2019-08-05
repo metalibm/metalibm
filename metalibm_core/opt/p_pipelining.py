@@ -124,7 +124,7 @@ def node_should_be_pipelined(optree):
 
 
 def node_has_inputs(optree):
-    if isinstance(optree, ML_LeafNode): 
+    if isinstance(optree, ML_LeafNode):
         return False
     else:
         return True
@@ -202,15 +202,15 @@ def retime_op(op, retime_map):
     retime_map.addToProcessed(op)
 
 
-def generate_pipeline_stage(entity, reset=False, recirculate=False, one_process_per_stage=True, synchronous_reset=True):
+def generate_pipeline_stage(entity, reset=False, recirculate=False, one_process_per_stage=True, synchronous_reset=True, negate_reset=False):
     """ Process a entity to generate pipeline stages required,
         @param one_process_per_stage forces the generation of a separate process for each
                pipeline stage (else a unique process is generated for all the stages
         @param synchronous_reset triggers the generation of a clocked reset
         @param recirculate trigger the integration of a recirculation signal to the stage
             flopping condition
-
-    """
+        @param negate_reset if set indicates the reset is triggered when reset signal is 0
+                            (else 1) """
     retiming_map = {}
     retime_map = RetimeMap()
     output_assign_list = entity.implementation.get_output_assign()
@@ -262,7 +262,9 @@ def generate_pipeline_stage(entity, reset=False, recirculate=False, one_process_
                 # build a compound statement with reset and flops statement
                 stage_statement = ConditionBlock(
                     Comparison(
-                        entity.reset_signal, Constant(1, precision=ML_StdLogic), specifier=Comparison.Equal, precision=ML_Bool
+                        entity.reset_signal,
+                        Constant(0 if negate_reset else 1, precision=ML_StdLogic),
+                        specifier=Comparison.Equal, precision=ML_Bool
                     ),
                     reset_statement,
                     stage_statement
@@ -293,7 +295,8 @@ def generate_pipeline_stage(entity, reset=False, recirculate=False, one_process_
             if reset and not synchronous_reset:
                 clock_block = ConditionBlock(
                     Comparison(
-                        entity.reset_signal, Constant(1, precision=ML_StdLogic),
+                        entity.reset_signal,
+                        Constant(0 if negate_reset else 1, precision=ML_StdLogic),
                         specifier=Comparison.Equal, precision=ML_Bool
                     ),
                     reset_statement,

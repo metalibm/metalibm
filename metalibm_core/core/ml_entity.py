@@ -264,7 +264,7 @@ class ML_EntityBasis(object):
     self.auto_test_enable  = (auto_test != False or auto_test_std != False)
     self.auto_test_number  = auto_test
     self.auto_test_range   = arg_template.auto_test_range
-    self.auto_test_std     = auto_test_std 
+    self.auto_test_std     = auto_test_std
     # embedded test in behavior or externalize inputs/expected in data file
     self.externalized_test_data = arg_template.externalized_test_data
 
@@ -302,6 +302,8 @@ class ML_EntityBasis(object):
 
     # register control
     self.reset_pipeline, self.synchronous_reset = arg_template.reset_pipeline
+    self.negate_reset = arg_template.negate_reset
+    self.reset_name = arg_template.reset_name
     self.recirculate_pipeline = arg_template.recirculate_pipeline
 
 
@@ -333,7 +335,7 @@ class ML_EntityBasis(object):
 
     # TODO/FIXME: can be overloaded
     if  self.reset_pipeline:
-        self.reset_signal = self.implementation.add_input_signal("reset", ML_StdLogic)
+        self.reset_signal = self.implementation.add_input_signal(self.reset_name, ML_StdLogic)
     self.recirculate_signal_map = dict((index, self.implementation.add_input_signal(v, ML_StdLogic)) for index, v in arg_template.recirculate_signal_map.items())
 
   def get_pass_scheduler(self):
@@ -526,7 +528,7 @@ class ML_EntityBasis(object):
     #    )
 
     if self.pipelined:
-        self.stage_num = generate_pipeline_stage(self, reset=self.reset_pipeline, recirculate=self.recirculate_pipeline, synchronous_reset=self.synchronous_reset)
+        self.stage_num = generate_pipeline_stage(self, reset=self.reset_pipeline, recirculate=self.recirculate_pipeline, synchronous_reset=self.synchronous_reset, negate_reset=self.negate_reset)
     else:
         self.stage_num = 1
     Log.report(Log.Info, "there is/are {} pipeline stage(s)".format(self.stage_num)) 
