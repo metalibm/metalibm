@@ -57,12 +57,6 @@ from metalibm_core.core.ml_formats import (
     ML_Binary32, ML_Bool, ML_String, ML_FP_Format, ML_Fixed_Format,
     ML_Void,
 )
-from metalibm_core.core.ml_table import ML_Table
-from metalibm_core.core.ml_complex_formats import ML_Mpfr_t
-from metalibm_core.core.ml_call_externalizer import CallExternalizer
-from metalibm_core.core.ml_vectorizer import StaticVectorizer
-
-from metalibm_core.core.precisions import ML_Faithful
 
 from metalibm_core.core.ml_hdl_format import (
     ML_StdLogicVectorFormat, ML_StdLogic,
