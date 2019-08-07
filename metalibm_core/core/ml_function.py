@@ -44,7 +44,9 @@ from metalibm_core.core.ml_optimization_engine import OptimizationEngine
 from metalibm_core.core.ml_operations import *
 from metalibm_core.core.ml_table import ML_NewTable
 from metalibm_core.core.ml_complex_formats import ML_Mpfr_t
-from metalibm_core.core.ml_call_externalizer import CallExternalizer
+from metalibm_core.core.ml_call_externalizer import (
+    CallExternalizer, generate_function_from_optree
+)
 from metalibm_core.core.ml_vectorizer import StaticVectorizer
 from metalibm_core.core.precisions import *
 from metalibm_core.core.random_gen import get_precision_rng
@@ -60,7 +62,6 @@ from metalibm_core.code_generation.mpfr_backend import MPFRProcessor
 from metalibm_core.code_generation.c_code_generator import CCodeGenerator
 from metalibm_core.code_generation.llvm_ir_code_generator import LLVMIRCodeGenerator
 from metalibm_core.code_generation.code_constant import C_Code
-#from metalibm_core.code_generation.generator_utility import *
 from metalibm_core.core.passes import (
     Pass, PassScheduler, PassDependency, AfterPassById,
 )
@@ -855,11 +856,8 @@ class ML_FunctionBasis(object):
   # @return pair ML_Operation, CodeFunction
   def externalize_call(self, optree, arg_list, tag = "foo", result_format = None, name_factory = None):
     # Call externalizer engine
-    call_externalizer = CallExternalizer(self.get_main_code_object())
-    ext_function = call_externalizer.externalize_call(optree, arg_list, tag, result_format)
+    ext_function = generate_function_from_optree(self.get_main_code_object(), optree, arg_list, tag, result_format)
     return ext_function.get_function_object()(*arg_list), ext_function
-
-
 
 
   def generate_vector_implementation(self, scalar_scheme, scalar_arg_list,
@@ -871,9 +869,7 @@ class ML_FunctionBasis(object):
 
     callback_name = self.uniquify_name("scalar_callback")
 
-    # Call externalizer engine
-    call_externalizer = CallExternalizer(self.get_main_code_object())
-    scalar_callback_function = call_externalizer.externalize_call(scalar_scheme, scalar_arg_list, callback_name, self.precision)
+    scalar_callback_function = generate_function_from_optree(self.get_main_code_object(), scalar_scheme, scalar_arg_list, callback_name, self.precision)
     # adding static attributes
     scalar_callback_function.add_attribute("static")
 
@@ -882,6 +878,9 @@ class ML_FunctionBasis(object):
     scalar_scheme.set_tag("scalar_scheme")
 
     scalar_callback          = scalar_callback_function.get_function_object()
+
+    # Call externalizer engine
+    call_externalizer = CallExternalizer(self.get_main_code_object())
 
     Log.report(Log.Info, "[SV] vectorizing scheme")
     sub_vector_size = self.processor.get_preferred_sub_vector_size(self.precision, vector_size) if self.sub_vector_size is None else self.sub_vector_size

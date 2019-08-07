@@ -43,21 +43,27 @@ from metalibm_core.code_generation.generator_utility import FunctionOperator
 
 from metalibm_core.utility.log_report import Log
 
-class CallExternalizer(object):
-  def __init__(self, name_factory):
-    self.name_factory = name_factory
 
 
-  ## 
-  # @param optree ML_Operation object to be externalized
-  # @param arg_list list of ML_Operation objects to be used as arguments
-  # @return pair ML_Operation, ML_Funct
-  def externalize_call(self, optree, arg_list, tag = "foo", result_format = None):
+def generate_function_from_optree(name_factory, optree, arg_list, tag="foo", result_format=None):
+    """ Function which transform a sub-graph @p optree whose inputs are @p arg_list
+        into a meta function
+        @param optree operation graph to be incorporated as function boday
+        @param arg_list list of @p optree's parameters to be used as function arguments
+        @param name_factory engine to generate unique function name and to register function
+        @param tag string to be used as seed to generate function name
+        @param result_format hint to indicate function's return format (if optree is not
+            an arithmetic operation (e.g. it already contains a Return node, then @p result_format
+            must be used to specify the funciton return format)
+
+        @return CodeFunction object containing the function implementation (plus the function
+            would have been declared into name_factory)
+        
+        """
     # determining return format
     return_format = optree.get_precision() if result_format is None else result_format
     assert(not return_format is None and "external call result format must be defined")
-    # function_name = self.main_code_object.declare_free_function_name(tag)
-    function_name = self.name_factory.declare_free_function_name(tag)
+    function_name = name_factory.declare_free_function_name(tag)
 
     ext_function = CodeFunction(function_name, output_format = return_format)
 
@@ -73,10 +79,24 @@ class CallExternalizer(object):
     optree_copy = optree.copy(copy_map = arg_map)
     # instanciating external function scheme
     if isinstance(optree, ML_ArithmeticOperation):
-      function_optree = Statement(Return(optree_copy))
+        function_optree = Statement(Return(optree_copy))
     else:
-      function_optree = Statement(optree_copy)
+        function_optree = Statement(optree_copy)
     ext_function.set_scheme(function_optree)
-    self.name_factory.declare_function(function_name, ext_function.get_function_object())
+    name_factory.declare_function(function_name, ext_function.get_function_object())
 
     return ext_function
+
+class CallExternalizer(object):
+    """ Engine to transform sub-graphs into a proper function, the engine object
+        embedds a pre-defined name factory used for function name generation
+        and registerting """
+    def __init__(self, name_factory):
+        # object to generate unique function name 
+        self.name_factory = name_factory
+
+    def externalize_call(self, optree, arg_list, tag="foo", result_format=None):
+        return generate_function_from_optree(self.name_factory, optree, arg_list,
+                                             self.name_factory, tag=tag,
+                                             result_format=result_format)
+
