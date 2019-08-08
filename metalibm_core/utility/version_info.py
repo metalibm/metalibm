@@ -38,6 +38,7 @@
 import inspect
 import os
 import subprocess
+import sys
 
 
 def extract_git_hash():
@@ -58,6 +59,10 @@ def extract_git_hash():
         return git_sha
     except:
         return "<undefined>"
+
+def extract_cmdline():
+    """ Rebuild the command line which one used to generate a function """
+    return " ".join(sys.argv)
 
 GIT_SHA = extract_git_hash()
 VERSION_NUM = "1.0"

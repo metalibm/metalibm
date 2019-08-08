@@ -48,6 +48,21 @@ from ..core.ml_formats import ML_GlobalRoundMode, ML_Fixed_Format, ML_FP_Format,
 from ..utility import version_info as ml_version_info
 from .code_configuration import CodeConfiguration
 
+def insert_line_break(full_line, break_char=" \\\n    ", sep=" ", break_len=80):
+    """ Break a string into multiple lines """
+    lexem_list = full_line.split(sep)
+    result_line = ""
+    sub_line = ""
+    for lexem in lexem_list:
+        if len(sub_line) + len(lexem) + len(sep) > break_len:
+            result_line = result_line + sub_line + break_char
+            sub_line = lexem
+        else:
+            sub_line = sub_line + sep + lexem
+    result_line = result_line + sub_line
+
+    return result_line
+
 
 class DataLayout(object):
     def __init__(self):
@@ -380,9 +395,11 @@ class CodeObject(CodeConfiguration):
     def generate_header_code(self, git_tag = True):
         """ generate code for header file inclusion """
         result = ""
+
         # generating git comment
         if git_tag:
             git_comment = "generated using metalibm %s \n sha1 git: %s \n" % (ml_version_info.VERSION_NUM, ml_version_info.GIT_SHA)
+            git_comment += "command used for generation:\n  %s\n" % insert_line_break(ml_version_info.extract_cmdline(), break_len=70)
             self.header_comment.insert(0, git_comment)
         # generating header comments
         result += self.get_multiline_comment(self.header_comment)
@@ -701,12 +718,15 @@ class VHDLCodeObject(CodeConfiguration):
         result = ""
         # generating git comment
         if git_tag:
-            git_comment = "generated using metalibm %s \n sha1 git: %s \n" % (ml_version_info.VERSION_NUM, ml_version_info.GIT_SHA)
+            git_comment = "generated using metalibm %s\n sha1 git: %s\n" % (ml_version_info.VERSION_NUM, ml_version_info.GIT_SHA)
+            git_comment += "command used for generation:\n%s\n" % insert_line_break(ml_version_info.extract_cmdline(), break_len=70)
             self.header_comment.insert(0, git_comment)
         # generating header comments
         result += "--\n"
         for comment in self.header_comment:
             result += "-- " + comment.replace("\n", "\n-- ") + "\n"
+        # TODO/FIXME: erase trailing white spaces properly
+        result.replace("-- \n", "--\n")
         result += "--\n"
 
         for library_file in self.library_list:
