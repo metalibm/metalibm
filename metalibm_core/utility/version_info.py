@@ -78,10 +78,12 @@ def extract_cmdline():
     """ Rebuild the command line which one used to generate a function """
     return " ".join(sys.argv)
 
+# statically extracting info once (at module init)
 GIT_SHA = extract_git_hash()
 VERSION_NUM = "1.0"
 VERSION_DESCRIPTION = "alpha"
 NOTES = """ metalibm core """
+GIT_STATUS = check_git_status()
 
 if __name__ == "__main__":
     print("git hash:   {}".format(extract_git_hash()))
