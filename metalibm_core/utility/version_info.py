@@ -40,25 +40,39 @@ import os
 import subprocess
 import sys
 
+# Locate script directory, it will be used to execute a git command
+# (as we know the metalibm git should be accessible in the script directory)
+SCRIPT_DIR = os.path.join(
+    os.path.dirname(
+      os.path.abspath(inspect.getfile(inspect.currentframe()))
+    ),
+    "..",
+    "..",
+)
 
 def extract_git_hash():
     """ extract current git sha1 """
-    cwd = os.getcwd()
-    script_dir = os.path.join(
-        os.path.dirname(
-          os.path.abspath(inspect.getfile(inspect.currentframe()))
-        ),
-        "..",
-        "..",
-    )
     cmd = [sub for sub in """git log -n 1 --pretty=format:"%H" """.split(" ") if sub != ""]
 
     try:
-        git_sha_process = subprocess.Popen(cmd, stdout=subprocess.PIPE, cwd=script_dir)
+        git_sha_process = subprocess.Popen(cmd, stdout=subprocess.PIPE, cwd=SCRIPT_DIR)
         git_sha = git_sha_process.stdout.read()
         return git_sha
     except:
         return "<undefined>"
+
+def check_git_status():
+    """ Return True if git status is clean (no pending modification), False
+        if it is dirty and None if an error occurs """
+    cmd = [sub for sub in """git diff --quiet""".split(" ") if sub != ""]
+
+    try:
+        git_status_process = subprocess.Popen(cmd, cwd=SCRIPT_DIR)
+        git_status_process.wait()
+        git_status = git_status_process.returncode
+        return git_status == 0
+    except:
+        return None
 
 def extract_cmdline():
     """ Rebuild the command line which one used to generate a function """
@@ -70,4 +84,5 @@ VERSION_DESCRIPTION = "alpha"
 NOTES = """ metalibm core """
 
 if __name__ == "__main__":
-    print(extract_git_hash())
+    print("git hash:   {}".format(extract_git_hash()))
+    print("git status: {}".format(check_git_status()))
