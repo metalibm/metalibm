@@ -50,24 +50,26 @@ SCRIPT_DIR = os.path.join(
     "..",
 )
 
-def extract_git_hash():
+def extract_git_hash(exec_dir=SCRIPT_DIR):
     """ extract current git sha1 """
     cmd = [sub for sub in """git log -n 1 --pretty=format:"%H" """.split(" ") if sub != ""]
 
     try:
-        git_sha_process = subprocess.Popen(cmd, stdout=subprocess.PIPE, cwd=SCRIPT_DIR)
+        git_sha_process = subprocess.Popen(cmd, stdout=subprocess.PIPE, cwd=exec_dir)
         git_sha = git_sha_process.stdout.read()
         return git_sha
     except:
         return "<undefined>"
 
-def check_git_status():
+def check_git_status(exec_dir=SCRIPT_DIR):
     """ Return True if git status is clean (no pending modification), False
-        if it is dirty and None if an error occurs """
+        if it is dirty and None if an error occurs
+        @param exec_dir git diff/status command is executed from this directory
+    """
     cmd = [sub for sub in """git diff --quiet""".split(" ") if sub != ""]
 
     try:
-        git_status_process = subprocess.Popen(cmd, cwd=SCRIPT_DIR)
+        git_status_process = subprocess.Popen(cmd, cwd=exec_dir)
         git_status_process.wait()
         git_status = git_status_process.returncode
         return git_status == 0
