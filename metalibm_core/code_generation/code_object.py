@@ -383,7 +383,7 @@ class CodeObject(CodeConfiguration):
 
         # generating git comment
         if git_tag:
-            git_comment = self.get_common_git_comment()
+            git_comment = CodeConfiguration.get_git_comment()
             self.header_comment.insert(0, git_comment)
         # generating header comments
         result += self.get_multiline_comment(self.header_comment)
@@ -702,7 +702,7 @@ class VHDLCodeObject(CodeConfiguration):
         result = ""
         # generating git comment
         if git_tag:
-            git_comment = self.get_common_git_comment()
+            git_comment = CodeConfiguration.get_git_comment()
             self.header_comment.insert(0, git_comment)
 
         # generating header comments
