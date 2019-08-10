@@ -5,7 +5,7 @@
 ###############################################################################
 # MIT License
 #
-# Copyright (c) 2018 Kalray
+# Copyright (c) 2019 Kalray
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -25,38 +25,33 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 ###############################################################################
-# created:          Mar  3rd, 2019
-# last-modified:    Mar  3rd, 2019
+# created:          Aug 10th, 2019
+# last-modified:    Aug 10th, 2019
 #
-# author(s): Nicolas Brunie (nicolas.brunie@kalray.eu)
+# author(s):    Nicolas Brunie (nicolas.brunie@kalray.eu)
+# description:  This file contains implementation of basic utility functions
+#               for source code generation
 ###############################################################################
 
 
-from .code_utility import insert_line_break
-from ..utility import version_info as ml_version_info
+def insert_line_break(full_line, break_char=" \\\n    ", sep=" ", break_len=80):
+    """ Break a string into multiple lines
+        @param full_line line to be broken
+        @param break_char the sub-string inserted when the input line is broken
+        @param sep line-breaking is only possible on a sep sub-string
+        @param break_len maximal size allowed for an unbroken line
+        @return new string containing broken down version of @p full_line """
+    lexem_list = full_line.split(sep)
+    result_line = ""
+    sub_line = ""
+    for lexem in lexem_list:
+        if len(sub_line) + len(lexem) + len(sep) > break_len:
+            result_line = result_line + sub_line + break_char
+            sub_line = lexem
+        else:
+            sub_line = sub_line + sep + lexem
+    result_line = result_line + sub_line
 
-
-
-def get_common_git_comment():
-    git_comment = "generated using metalibm %s\n sha1 git: %s\n" % (ml_version_info.VERSION_NUM, ml_version_info.GIT_SHA)
-    if not ml_version_info.GIT_STATUS:
-        git_comment += "\nWARNING: git status was not clean when file was generated !\n\n"
-        Log.report(Log.Warning, "git status was not clean when file was generated !")
-    else:
-        git_comment += "\nINFO: git status was clean when file was generated.\n\n"
-    git_comment += "command used for generation:\n  %s\n" % insert_line_break(ml_version_info.extract_cmdline(), break_len=70)
-
-    return git_comment
-
-
-GLOBAL_GET_GIT_COMMENT = get_common_git_comment
-
-class CodeConfiguration(object):
-    """ constants to configure coding style """
-    tab = "    "
-
-    @staticmethod
-    def get_git_comment():
-        return GLOBAL_GET_GIT_COMMENT()
+    return result_line
 
 
