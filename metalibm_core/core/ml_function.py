@@ -155,9 +155,89 @@ def vector_elt_assign(vector_node, elt_index, elt_value):
         )]
     return assign_list
 
+def no_scalar_fallback_required(mask):
+    """ Test whether a vector-mask is fully set to True, in order to
+        disable scalar fallback generation """
+    if isinstance(mask, VectorAssembling):
+        # recursive application for sub-vector support
+        return reduce(lambda acc, v: (no_scalar_fallback_required(v) and acc), mask.get_inputs(), True)
+    elif isinstance(mask, Conversion):
+        return no_scalar_fallback_required(mask.get_input(0))
+
+    return isinstance(mask, Constant) and \
+            reduce(lambda v, acc: (v and acc), mask.get_value(), True)
+
+def generate_vector_implementation(scalar_scheme, scalar_arg_list,
+                                   vector_size, name_factory, precision):
+    """ generate a vector implementation of @p scalar_scheme """
+    # declaring optimizer
+    vectorizer = StaticVectorizer(self.opt_engine)
+
+    callback_name = self.uniquify_name("scalar_callback")
+
+    scalar_callback_function = generate_function_from_optree(name_factory, scalar_scheme, scalar_arg_list, callback_name, precision)
+    # adding static attributes
+    scalar_callback_function.add_attribute("static")
+
+    Log.report(Log.Info, "[SV] optimizing Scalar scheme")
+    scalar_scheme = self.optimise_scheme(scalar_scheme)
+    scalar_scheme.set_tag("scalar_scheme")
+
+    scalar_callback          = scalar_callback_function.get_function_object()
+
+    # Call externalizer engine
+    call_externalizer = CallExternalizer(self.get_main_code_object())
+
+    Log.report(Log.Info, "[SV] vectorizing scheme")
+    sub_vector_size = self.processor.get_preferred_sub_vector_size(self.precision, vector_size) if self.sub_vector_size is None else self.sub_vector_size
+    vec_arg_list, vector_scheme, vector_mask = \
+        vectorizer.vectorize_scheme(scalar_scheme, scalar_arg_list,
+                                         vector_size, call_externalizer,
+                                         output_precision, sub_vector_size)
+
+    vector_output_format = vectorizer.vectorize_format(output_precision,
+                                                       vector_size)
 
 
-def generate_c_vector_wrapper(main_precision, vector_size, vec_arg_list,
+    Log.report(Log.Info, "vector_output_format is {}".format(vector_output_format))
+    vec_res = Variable("vec_res", precision=vector_output_format,
+                       var_type=Variable.Local)
+
+
+    vector_mask.set_attributes(tag="vector_mask", debug=debug_multi)
+
+
+    if self.language in [C_Code, OpenCL_Code]:
+        self.get_main_code_object().add_header("support_lib/ml_vector_format.h")
+
+    Log.report(Log.Info, "[SV] building vectorized main statement")
+    if no_scalar_fallback_required(vector_mask):
+        function_scheme = Statement(
+            Return(vector_scheme, precision=vector_output_format)
+        )
+    elif self.language is OpenCL_Code:
+        function_scheme = generate_opencl_vector_wrapper(self.main_precision,
+                                                       vector_size, vec_arg_list,
+                                                       vector_scheme, vector_mask,
+                                                       vec_res, scalar_callback)
+
+    else:
+        function_scheme = generate_c_vector_wrapper(self.precision, vector_size,
+                                                  vec_arg_list, vector_scheme,
+                                                  vector_mask, vec_res,
+                                                  scalar_callback)
+
+    for vec_arg in vec_arg_list:
+        self.implementation.register_new_input_variable(vec_arg)
+    self.implementation.set_output_format(vector_output_format)
+
+    # dummy scheme to make functionnal code generation
+    self.implementation.set_scheme(function_scheme)
+
+    Log.report(Log.Info, "[SV] end of generate_vector_implementation")
+    return FunctionGroup([self.implementation], [scalar_callback_function])
+
+def generate_c_vector_wrapper(vector_size, vec_arg_list,
                               vector_scheme, vector_mask, vec_res,
                               scalar_callback):
     """ Generate a C-compatible wrapper for a vectorized scheme 
@@ -167,17 +247,22 @@ def generate_c_vector_wrapper(main_precision, vector_size, vec_arg_list,
         @param vector_size number of element in a vector
         @param vector_arg_list
         @param vector_scheme
-        @param vector_mask """
+        @param vector_mask 
+        @param vec_res Variable node destination of the scheme result
+        @param scalar_callback Scalar function which implement the scalar version
+                                of the vector scheme and which is used to manage
+                                special cases """
     vi = Variable("i", precision = ML_Int32, var_type = Variable.Local)
     vec_elt_arg_tuple = tuple(
-        VectorElementSelection(vec_arg, vi, precision = main_precision)
+        VectorElementSelection(vec_arg, vi, precision=vec_arg.get_precision().get_scalar_format())
         for vec_arg in vec_arg_list
     )
 
     function_scheme = Statement(
+        # prospective execution of the full vector scheme 
         vector_scheme,
         ConditionBlock(
-            # if there is not any zero in the mask. then
+            # if there is not a single zero in the mask. then
             # the vector result may be returned
             Test(
                 vector_mask,
@@ -188,6 +273,8 @@ def generate_c_vector_wrapper(main_precision, vector_size, vec_arg_list,
                 tag="full_vector_valid"
             ),
             Return(vector_scheme, precision=vector_scheme.get_precision()),
+            # else the vector must be processed and every element which
+            # failed the validity test is dereffered to the scalar callback
             Statement(
                 ReferenceAssign(vec_res, vector_scheme),
                 Loop(
@@ -207,7 +294,7 @@ def generate_c_vector_wrapper(main_precision, vector_size, vec_arg_list,
                             ),
                             ReferenceAssign(
                                 VectorElementSelection(
-                                    vec_res, vi, precision=main_precision,
+                                    vec_res, vi, precision=vec_res.get_precision().get_scalar_format(),
                                     tag="vres_i"
                                 ),
                                 scalar_callback(*vec_elt_arg_tuple)
@@ -900,18 +987,6 @@ class ML_FunctionBasis(object):
 
     vector_mask.set_attributes(tag = "vector_mask", debug = debug_multi)
 
-    def no_scalar_fallback_required(mask):
-      """ Test whether a vector-mask is fully set to True, in order to
-          disable scalar fallback generation """
-      if isinstance(mask, VectorAssembling):
-        # recursive application for sub-vector support
-        return reduce(lambda acc, v: (no_scalar_fallback_required(v) and acc), mask.get_inputs(), True)
-      elif isinstance(mask, Conversion):
-        return no_scalar_fallback_required(mask.get_input(0))
-
-      return isinstance(mask, Constant) and \
-            reduce(lambda v, acc: (v and acc), mask.get_value(), True)
-
     if self.language in [C_Code, OpenCL_Code]:
         self.get_main_code_object().add_header("support_lib/ml_vector_format.h")
 
@@ -927,7 +1002,7 @@ class ML_FunctionBasis(object):
                                                        vec_res, scalar_callback)
 
     else:
-      function_scheme = generate_c_vector_wrapper(self.precision, vector_size,
+      function_scheme = generate_c_vector_wrapper(vector_size,
                                                   vec_arg_list, vector_scheme,
                                                   vector_mask, vec_res,
                                                   scalar_callback)
