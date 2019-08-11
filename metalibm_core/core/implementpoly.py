@@ -15,7 +15,6 @@ from metalibm_core.core.ml_formats import (
     ML_SingleSingle, ML_TripleSingle, ML_Binary32,
     ML_Void, ML_FP_MultiElementFormat
 )
-from metalibm_core.core.ml_complex_formats import ML_Pointer_Format
 from metalibm_core.core.precisions import ML_CorrectlyRounded
 from metalibm_core.code_generation.code_constant import C_Code
 from metalibm_core.core.polynomials import Polynomial
@@ -617,7 +616,9 @@ if __name__ == "__main__":
         approx_interval = Interval(-S2**-5, S2**-5)
         ctx = MLL_Context(ML_Binary64, approx_interval)
         vx = Variable("x", precision=ctx.variableFormat, interval=approx_interval)
+        # guessding the best degree
         poly_degree = int(sup(sollya.guessdegree(sollya.exp(sollya.x), approx_interval, eps_target)))
+        # asking sollya to provide the approximation
         poly_object = Polynomial.build_from_approximation(
             sollya.exp(sollya.x), poly_degree,
             [sollya.doubledouble] * (poly_degree + 1),
