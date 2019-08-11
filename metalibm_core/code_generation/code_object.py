@@ -53,9 +53,13 @@ class DataLayout(object):
     def __init__(self):
         pass
 
+from collections import OrderedDict
+
 class SymbolTable(object):
-    def __init__(self, uniquifier = ""):
-        self.table = {}
+    def __init__(self, uniquifier=""):
+        # using an ordered ditcionnary to ensure processing order
+        # during code generation
+        self.table = OrderedDict()
         self.reverse_map = {}
         self.prefix_index = {}
         self.uniquifier = uniquifier
@@ -159,17 +163,19 @@ class MultiSymbolTable(object):
 
         self.parent_tables = parent_tables
 
-        self.table_list = {
-            MultiSymbolTable.ConstantSymbol: self.constant_table,
-            MultiSymbolTable.FunctionSymbol: self.function_table,
-            MultiSymbolTable.VariableSymbol: self.variable_table,
-            MultiSymbolTable.SignalSymbol:   self.signal_table,
-            MultiSymbolTable.ProtectedSymbol: self.protected_table,
-            MultiSymbolTable.TableSymbol: self.table_table,
-            MultiSymbolTable.ComponentSymbol: self.component_table,
-            MultiSymbolTable.EntitySymbol: self.entity_table,
-            MultiSymbolTable.LabelSymbol: self.label_table,
-        }
+        # initializing through a list of paire (key, value) to ensure
+        # known ordering
+        self.table_list = OrderedDict([
+            (MultiSymbolTable.ConstantSymbol, self.constant_table),
+            (MultiSymbolTable.FunctionSymbol, self.function_table),
+            (MultiSymbolTable.VariableSymbol, self.variable_table),
+            (MultiSymbolTable.SignalSymbol,   self.signal_table),
+            (MultiSymbolTable.ProtectedSymbol, self.protected_table),
+            (MultiSymbolTable.TableSymbol, self.table_table),
+            (MultiSymbolTable.ComponentSymbol, self.component_table),
+            (MultiSymbolTable.EntitySymbol, self.entity_table),
+            (MultiSymbolTable.LabelSymbol, self.label_table),
+        ])
 
         self.prefix_index = {}
 
