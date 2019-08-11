@@ -37,7 +37,7 @@ from metalibm_core.utility.log_report import *
 
 from metalibm_core.core.target import TargetRegister
 from metalibm_core.core.ml_formats import *
-from metalibm_core.core.ml_table import ML_TableFormat
+from metalibm_core.core.ml_table import ML_TableFormat, ML_Pointer_Format
 from metalibm_core.core.ml_operations import *
 from metalibm_core.core.ml_vectorizer import StaticVectorizer
 from metalibm_core.core.legalizer import (
@@ -751,21 +751,21 @@ vector_c_code_generation_table = {
   TableLoad: {
     None: {
       lambda _: True: {
-        # single precision loading
+        # single precision loading (gather)
         type_custom_match(FSM(v2float32), TCM(ML_TableFormat), FSM(v2int32)):
             ML_VectorLib_Function("ML_VLOAD", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: "2"}, arity = 4),
         type_custom_match(FSM(v2float32), TCM(ML_TableFormat), FSM(v2int32), FSM(v2int32)):
             ML_VectorLib_Function("ML_VLOAD2D", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2), 4: "2"}, arity = 5),
         type_custom_match(FSM(v4float32), TCM(ML_TableFormat), FSM(v4int32)):
             ML_VectorLib_Function("ML_VLOAD", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: "4"}, arity = 4),
-        # variant with unsigned index
+        # variant with unsigned index (gather)
         type_custom_match(FSM(v4float32), TCM(ML_TableFormat), FSM(v4uint32)):
             ML_VectorLib_Function("ML_VLOAD", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: "4"}, arity = 4),
         type_custom_match(FSM(v4float32), TCM(ML_TableFormat), FSM(v4int32), FSM(v4int32)):
             ML_VectorLib_Function("ML_VLOAD2D", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2), 4: "4"}, arity = 5),
         type_custom_match(FSM(v8float32), TCM(ML_TableFormat), FSM(v8int32), FSM(v8int32)):
             ML_VectorLib_Function("ML_VLOAD2D", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2), 4: "8"}, arity = 5),
-        # double precision loading
+        # double precision loading (gather)
         type_custom_match(FSM(v4float64), TCM(ML_TableFormat), FSM(v4int32)):
             ML_VectorLib_Function("ML_VLOAD", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: "4"}, arity = 4),
         type_custom_match(FSM(v4float64), TCM(ML_TableFormat), FSM(v4int32), FSM(v4int32)):
@@ -774,7 +774,7 @@ vector_c_code_generation_table = {
             ML_VectorLib_Function("ML_VLOAD", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: "2"}, arity = 4),
         type_custom_match(FSM(v2float64), TCM(ML_TableFormat), FSM(v2int32), FSM(v2int32)):
             ML_VectorLib_Function("ML_VLOAD2D", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2), 4: "2"}, arity = 5),
-        # double precision loading with unsigned index
+        # double precision loading with unsigned index (gather)
         type_custom_match(FSM(v4float64), TCM(ML_TableFormat), FSM(v4uint32)):
             ML_VectorLib_Function("ML_VLOAD", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: "4"}, arity = 4),
         type_custom_match(FSM(v4float64), TCM(ML_TableFormat), FSM(v4uint32), FSM(v4uint32)):
@@ -783,14 +783,41 @@ vector_c_code_generation_table = {
             ML_VectorLib_Function("ML_VLOAD2D", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2), 4: "4"}, arity = 5),
 
 
-        # 8-element vectors
+        # 8-element vectors (gather)
         type_custom_match(FSM(v8float64), TCM(ML_TableFormat), FSM(v8int64), FSM(v8int32)):
             ML_VectorLib_Function("ML_VLOAD2D", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2), 4: "8"}, arity = 5),
         type_custom_match(FSM(v8float32), TCM(ML_TableFormat), FSM(v8uint32)):
             ML_VectorLib_Function("ML_VLOAD", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3:  "8"}, arity = 4),
         type_custom_match(FSM(v8float64), TCM(ML_TableFormat), FSM(v8uint32)):
             ML_VectorLib_Function("ML_VLOAD", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3:  "8"}, arity = 4),
+            
+        # vector load (contiguous)
+        type_custom_match(FSM(v2float32), TCM(ML_TableFormat), type_table_index_match):
+            TemplateOperatorFormat("memcpy({0}._, ((ml_float2_t*)({1}+ {2})), 8)", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity=3, require_header=["string.h"]),
+        type_custom_match(FSM(v4float32), TCM(ML_TableFormat), type_table_index_match):
+            TemplateOperatorFormat("memcpy({0}._, ((ml_float4_t*)({1}+ {2})), 16)", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity=3, require_header=["string.h"]),
+
+        type_custom_match(FSM(v2float32), TCM(ML_Pointer_Format), type_table_index_match):
+            TemplateOperatorFormat("memcpy({0}._, ((ml_float2_t*)({1}+ {2})), 8)", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity=3, require_header=["string.h"]),
+        type_custom_match(FSM(v4float32), TCM(ML_Pointer_Format), type_table_index_match):
+            TemplateOperatorFormat("memcpy({0}._, ((ml_float4_t*)({1}+ {2})), 16)", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity=3, require_header=["string.h"]),
       },
+    },
+  },
+  TableStore: {
+    None: {
+        lambda _: True: {
+            type_custom_match(FSM(ML_Void), FSM(v2float32), TCM(ML_TableFormat), type_table_index_match):
+                TemplateOperatorFormat("memcpy(((ml_float2_t*)({1}+ {2})), {0}._,  8)", arg_map = {0: FO_Arg(0), 1: FO_Arg(1), 2: FO_Arg(2)}, arity=3, void_function=True, require_header=["string.h"]),
+            type_custom_match(FSM(ML_Void), FSM(v4float32), TCM(ML_TableFormat), type_table_index_match):
+                TemplateOperatorFormat("memcpy(((ml_float4_t*)({1}+ {2})), {0}._, 16)", arg_map = {0: FO_Arg(0), 1: FO_Arg(1), 2: FO_Arg(2)}, arity=3,void_function=True,  require_header=["string.h"]),
+
+            type_custom_match(FSM(ML_Void), FSM(v2float32), TCM(ML_Pointer_Format), type_table_index_match):
+                TemplateOperatorFormat("memcpy(((ml_float2_t*)({1}+ {2})), {0}._,  8)", arg_map = {0: FO_Arg(0), 1: FO_Arg(1), 2: FO_Arg(2)}, arity=3, void_function=True, require_header=["string.h"]),
+            type_custom_match(FSM(ML_Void), FSM(v4float32), TCM(ML_Pointer_Format), type_table_index_match):
+                TemplateOperatorFormat("memcpy(((ml_float4_t*)({1}+ {2})), {0}._, 16)", arg_map = {0: FO_Arg(0), 1: FO_Arg(1), 2: FO_Arg(2)}, arity=3, void_function=True, require_header=["string.h"]),
+
+        },
     },
   },
   Max: {
