@@ -47,7 +47,9 @@ from metalibm_core.core.ml_complex_formats import ML_Mpfr_t
 from metalibm_core.core.ml_call_externalizer import (
     CallExternalizer, generate_function_from_optree
 )
-from metalibm_core.core.ml_vectorizer import StaticVectorizer
+from metalibm_core.core.ml_vectorizer import (
+    StaticVectorizer, no_scalar_fallback_required
+)
 from metalibm_core.core.precisions import *
 from metalibm_core.core.random_gen import get_precision_rng
 
@@ -155,17 +157,6 @@ def vector_elt_assign(vector_node, elt_index, elt_value):
         )]
     return assign_list
 
-def no_scalar_fallback_required(mask):
-    """ Test whether a vector-mask is fully set to True, in order to
-        disable scalar fallback generation """
-    if isinstance(mask, VectorAssembling):
-        # recursive application for sub-vector support
-        return reduce(lambda acc, v: (no_scalar_fallback_required(v) and acc), mask.get_inputs(), True)
-    elif isinstance(mask, Conversion):
-        return no_scalar_fallback_required(mask.get_input(0))
-
-    return isinstance(mask, Constant) and \
-            reduce(lambda v, acc: (v and acc), mask.get_value(), True)
 
 def generate_vector_implementation(scalar_scheme, scalar_arg_list,
                                    vector_size, name_factory, precision):
@@ -192,8 +183,7 @@ def generate_vector_implementation(scalar_scheme, scalar_arg_list,
     sub_vector_size = self.processor.get_preferred_sub_vector_size(self.precision, vector_size) if self.sub_vector_size is None else self.sub_vector_size
     vec_arg_list, vector_scheme, vector_mask = \
         vectorizer.vectorize_scheme(scalar_scheme, scalar_arg_list,
-                                         vector_size, call_externalizer,
-                                         output_precision, sub_vector_size)
+                                    vector_size, sub_vector_size)
 
     vector_output_format = vectorizer.vectorize_format(output_precision,
                                                        vector_size)
@@ -952,7 +942,7 @@ class ML_FunctionBasis(object):
     """ generate a vector implementation of self's scheme """
     # declaring optimizer
     self.opt_engine.set_boolean_format(ML_Bool)
-    self.vectorizer = StaticVectorizer(self.opt_engine)
+    self.vectorizer = StaticVectorizer()
 
     callback_name = self.uniquify_name("scalar_callback")
 
@@ -973,8 +963,7 @@ class ML_FunctionBasis(object):
     sub_vector_size = self.processor.get_preferred_sub_vector_size(self.precision, vector_size) if self.sub_vector_size is None else self.sub_vector_size
     vec_arg_list, vector_scheme, vector_mask = \
         self.vectorizer.vectorize_scheme(scalar_scheme, scalar_arg_list,
-                                         vector_size, call_externalizer,
-                                         self.get_output_precision(), sub_vector_size)
+                                         vector_size, sub_vector_size)
 
     vector_output_format = self.vectorizer.vectorize_format(self.precision,
                                                             vector_size)
