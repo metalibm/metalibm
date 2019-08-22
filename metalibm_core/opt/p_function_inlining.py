@@ -30,7 +30,7 @@
 ###############################################################################
 
 from metalibm_core.core.ml_operations import (
-    ReferenceAssign, Return, ML_LeafNode,
+    ReferenceAssign, Return, ML_LeafNode, Variable,
 )
 
 def inline_function(fct_scheme, dst_var, input_var, input_value):
@@ -46,9 +46,12 @@ def inline_function(fct_scheme, dst_var, input_var, input_value):
             return input_value
         elif isinstance(node, Return):
             node_value = recursive_inline(node.get_input(0))
-            new_node = ReferenceAssign(dst_var, node_value)
-            memoization_map[node] = new_node
-            return new_node
+            if not node_value is dst_var:
+                new_node = ReferenceAssign(dst_var, node_value)
+                memoization_map[node] = new_node
+                return new_node
+            else:
+                return node_value
         elif isinstance(node, ML_LeafNode):
             memoization_map[node] = node
             return node
