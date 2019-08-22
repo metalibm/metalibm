@@ -38,9 +38,12 @@ from metalibm_core.core.ml_operations import (
     TableLoad, TableStore,
     Return, ML_LeafNode,
     FunctionObject,
+    VectorElementSelection, VectorAssembling,
+    Division, Modulo,
 )
 from metalibm_core.core.ml_formats import (
     ML_UInt32, ML_Int32, ML_Binary32, ML_Void,
+    VECTOR_TYPE_MAP, ML_Integer,
 )
 from metalibm_core.core.ml_table import (
     ML_NewTable,
@@ -49,17 +52,32 @@ from metalibm_core.core.ml_complex_formats import ML_Pointer_Format
 from metalibm_core.core.precisions import (
     ML_CorrectlyRounded, ML_Faithful,
 )
-from metalibm_core.core.ml_function import DefaultArgTemplate
+from metalibm_core.core.ml_function import (
+    DefaultArgTemplate, generate_c_vector_wrapper
+)
 from metalibm_core.core.array_function import (
     ML_ArrayFunction, DefaultArrayFunctionArgTemplate,
     ML_ArrayFunctionArgTemplate
 )
+from metalibm_core.core.ml_call_externalizer import (
+    generate_function_from_optree
+)
+from metalibm_core.core.ml_vectorizer import (
+    StaticVectorizer, no_scalar_fallback_required
+)
+
 
 from metalibm_core.code_generation.generic_processor import GenericProcessor
+from metalibm_core.code_generation.code_function import (
+    FunctionGroup
+)
 from metalibm_core.code_generation.generator_utility import FunctionOperator
 
-from metalibm_core.opt.p_function_inlining import inline_function
 
+from metalibm_core.opt.p_function_inlining import inline_function
+from metalibm_core.opt.p_function_typing import (
+    PassInstantiateAbstractPrecision, PassInstantiatePrecision,
+)
 
 from metalibm_core.utility.ml_template import ML_NewArgTemplate
 from metalibm_core.utility.log_report  import Log
@@ -68,9 +86,70 @@ from metalibm_core.utility.debug_utils import (
 )
 
 
-
 from metalibm_functions.ml_exp import ML_Exponential
 
+
+def generate_inline_fct_scheme(FctClass, dst_var, input_arg, custom_class_params):
+    """ generate the sub-graph corresponding to the implementation of
+        @p FctClass with argument dict @p custom_class_params
+        the result is stored in the node @p dst_var and the function's
+        parameters are given in @p input_arg """
+    # build argument dict for meta class
+    meta_args = FctClass.get_default_args(**custom_class_params)
+
+    meta_fct_object = FctClass(meta_args)
+
+    # generate implementation DAG
+    meta_scheme = meta_fct_object.generate_scheme()
+
+    result_statement = inline_function(
+        meta_scheme,
+        dst_var,
+        meta_fct_object.implementation.arg_list[0],
+        input_arg
+    )
+    return result_statement
+
+def vectorize_function_scheme(vectorizer, name_factory, scalar_scheme,
+                              scalar_output_format,
+                              scalar_arg_list, vector_size,
+                              sub_vector_size=None):
+    """ Use a vectorization engine @p vectorizer to vectorize the sub-graph @p
+        scalar_scheme, that is transforming and inputs and outputs from scalar
+        to vectors and performing required internal path duplication """
+
+    sub_vector_size = vector_size if sub_vector_size is None else sub_vector_size
+
+    vec_arg_list, vector_scheme, vector_mask = \
+        vectorizer.vectorize_scheme(scalar_scheme, scalar_arg_list,
+                                    vector_size, sub_vector_size)
+
+    vector_output_format = vectorizer.vectorize_format(scalar_output_format,
+                                                       vector_size)
+
+    vec_res = Variable("vec_res", precision=vector_output_format,
+                       var_type=Variable.Local)
+
+    vector_mask.set_attributes(tag="vector_mask", debug = debug_multi)
+
+    callback_name = "scalar_callback"
+    scalar_callback_fct = generate_function_from_optree(name_factory,
+                                                        scalar_scheme,
+                                                        scalar_arg_list,
+                                                        callback_name,
+                                                        scalar_output_format)
+    scalar_callback          = scalar_callback_fct.get_function_object()
+
+    if no_scalar_fallback_required(vector_mask):
+        function_scheme = Statement(
+            Return(vector_scheme, precision=vector_output_format)
+        )
+    function_scheme = generate_c_vector_wrapper(vector_size,
+                                                vec_arg_list, vector_scheme,
+                                                vector_mask, vec_res,
+                                                scalar_callback)
+
+    return vec_res, vec_arg_list, function_scheme, scalar_callback, scalar_callback_fct
 
 class ML_VectorialFunction(ML_ArrayFunction):
     function_name = "ml_vectorial_function"
@@ -86,6 +165,7 @@ class ML_VectorialFunction(ML_ArrayFunction):
             index_format
         ]
         self.use_libm_function = args.use_libm_function
+        self.multi_elt_num = args.multi_elt_num
 
     @staticmethod
     def get_default_args(**kw):
@@ -95,6 +175,7 @@ class ML_VectorialFunction(ML_ArrayFunction):
             "output_file": "ml_vectorial_function.c",
             "function_name": "ml_vectorial_function",
             "use_libm_function": False,
+            "multi_elt_num": 1,
             "precision": ML_Binary32,
             "accuracy": ML_Faithful,
             "target": GenericProcessor()
@@ -106,56 +187,139 @@ class ML_VectorialFunction(ML_ArrayFunction):
         # declaring target and instantiating optimization engine
         precision_ptr = self.get_input_precision(0)
         index_format = self.get_input_precision(2)
+        multi_elt_num = self.multi_elt_num
 
         dst = self.implementation.add_input_variable("dst", precision_ptr)
         src = self.implementation.add_input_variable("src", precision_ptr)
         n = self.implementation.add_input_variable("len", index_format)
 
         i = Variable("i", precision=index_format, var_type=Variable.Local)
-        CU1 = Constant(1, precision=index_format)
         CU0 = Constant(0, precision=index_format)
-        inc = i+CU1
 
-        elt_input = TableLoad(src, i, precision=self.precision)
+        element_format = self.precision
 
-        local_exp = Variable("local_exp", precision=self.precision, var_type=Variable.Local)
+        self.function_list = []
+
+        if multi_elt_num > 1:
+            element_format = VECTOR_TYPE_MAP[self.precision][multi_elt_num]
+
+        elt_input = TableLoad(src, i, precision=element_format)
+
+        local_exp = Variable("local_exp", precision=element_format, var_type=Variable.Local)
 
         if self.use_libm_function:
             libm_exp_operator = FunctionOperator("expf", arity=1)
             libm_exp = FunctionObject("expf", [ML_Binary32], ML_Binary32, libm_exp_operator)
 
-            elt_result = ReferenceAssign(local_exp, libm_exp(elt_input))
+            elt_result = Statement()
+            if multi_elt_num > 1:
+                result_list = [libm_exp(VectorElementSelection(elt_input, Constant(elt_id, precision=ML_Integer), precision=self.precision)) for elt_id in range(multi_elt_num)]
+                result = VectorAssembling(*result_list, precision=element_format)
+            else:
+                result = libm_exp(elt_input)
+            elt_result = ReferenceAssign(local_exp, result)
         else:
-            exponential_args = ML_Exponential.get_default_args(
-                precision=self.precision,
-                libm_compliant=False,
-            )
+            if multi_elt_num > 1:
+                # scalar_input = Variable("scalar_input", precision=self.precision, var_type=Variable.Local)
+                scalar_result = Variable("scalar_result", precision=self.precision, var_type=Variable.Local)
+                exponential_args = ML_Exponential.get_default_args(
+                    precision=self.precision,
+                    libm_compliant=False,
+                )
 
-            meta_exponential = ML_Exponential(exponential_args)
-            exponential_scheme = meta_exponential.generate_scheme()
+                meta_exponential = ML_Exponential(exponential_args)
+                exponential_scheme = meta_exponential.generate_scheme()
 
-            elt_result = inline_function(
-                exponential_scheme,
-                local_exp,
-                meta_exponential.implementation.arg_list[0],
-                elt_input,
-            )
+                # instanciating required passes for typing
+                pass_inst_abstract_prec = PassInstantiateAbstractPrecision(self.processor)
+                pass_inst_prec = PassInstantiatePrecision(self.processor, default_precision=None)
 
+                # exectuting format instanciation passes on optree
+                exponential_scheme = pass_inst_abstract_prec.execute_on_optree(exponential_scheme)
+                exponential_scheme = pass_inst_prec.execute_on_optree(exponential_scheme)
 
+                vectorizer = StaticVectorizer()
+
+                # extracting scalar argument from meta_exponential meta function
+                scalar_input = meta_exponential.implementation.arg_list[0]
+
+                # vectorize scalar scheme
+                vector_result, vec_arg_list, vector_scheme, scalar_callback, scalar_callback_fct = vectorize_function_scheme(
+                    vectorizer, self.get_main_code_object(),
+                    exponential_scheme, element_format.get_scalar_format(),
+                    [scalar_input], multi_elt_num)
+
+                elt_result = inline_function(
+                    vector_scheme,
+                    vector_result,
+                    vec_arg_list[0],
+                    elt_input
+                )
+
+                local_exp = vector_result
+
+                self.function_list.append(scalar_callback_fct)
+                libm_exp = scalar_callback
+
+            else:
+                scalar_input = elt_input
+                scalar_result = local_exp
+
+                elt_result = generate_inline_fct_scheme(
+                    ML_Exponential, scalar_result, scalar_input,
+                    {"precision": self.precision, "libm_compliant": False}
+                )
+
+        CU1 = Constant(1, precision=index_format)
+
+        local_exp_init_value = Constant(0, precision=self.precision)
+        if multi_elt_num > 1:
+            local_exp_init_value = Constant([0]*multi_elt_num, precision=element_format)
+            # iter_n = Division(n, multi_element_format, precision=index_format)
+            remain_n = Modulo(n, multi_elt_num, precision=index_format)
+            iter_n = n - remain_n
+            CU_ELTNUM = Constant(multi_elt_num, precision=index_format)
+            #CU1 = Constant(1, precision=index_format)
+            inc = i+CU_ELTNUM
+        else:
+            remain_n = None
+            iter_n = n
+            inc = i+CU1
 
         main_loop = Loop(
             ReferenceAssign(i, CU0),
-            i < n,
+            i < iter_n,
             Statement(
-                ReferenceAssign(local_exp, 0),
+                ReferenceAssign(local_exp, local_exp_init_value),
                 elt_result,
                 TableStore(local_exp, dst, i, precision=ML_Void),
                 ReferenceAssign(i, inc)
             ),
         )
+        if not remain_n is None:
+            # TODO/FIXME: try alternative method for processing epilog
+            #             by using full vector length and mask
+            epilog_loop = Loop(
+                Statement(),
+                i < n,
+                Statement(
+                    TableStore(
+                        libm_exp(TableLoad(src, i, precision=self.precision)),
+                        dst, i, precision=ML_Void),
+                    ReferenceAssign(i, i+CU1),
+                )
+            )
+            main_loop = Statement(
+                main_loop,
+                epilog_loop
+            )
 
 
         return main_loop
+
+    def generate_function_list(self):
+        self.implementation.set_scheme(self.generate_scheme())
+        return FunctionGroup([self.implementation], self.function_list)
 
 
     def numeric_emulate(self, input_value):
@@ -172,6 +336,9 @@ if __name__ == "__main__":
     arg_template.get_parser().add_argument(
         "--use-libm-fct", dest="use_libm_function", default=False, const=True,
         action="store_const", help="use standard libm function to implement element computation")
+    arg_template.get_parser().add_argument(
+        "--multi-elt-num", dest="multi_elt_num", default=1, type=int,
+        action="store", help="number of vector element to be computed at each loop iteration")
     # argument extraction
     args = arg_template.arg_extraction()
 
