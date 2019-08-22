@@ -32,6 +32,8 @@
 # desciprition:    Static Vectorizer implementation for Metalibm
 ###############################################################################
 
+from functools import reduce
+
 from .ml_formats import VECTOR_TYPE_MAP, ML_Bool
 from .ml_operations import *
 from metalibm_core.core.ml_table import ML_NewTable
@@ -40,99 +42,115 @@ from metalibm_core.core.ml_table import ML_NewTable
 # high verbosity log-level for optimization engine
 LOG_LEVEL_VECTORIZER_VERBOSE = Log.LogLevel("VectorizerVerbose")
 
+
+def fallback_policy(cond, cond_block, if_branch, else_branch):
+    """ default fallback policy used by StaticVectorizer: if no
+        likely branch can be found then the if-branch is selected """
+    return if_branch, [cond]
+
+
+def and_merge_conditions(condition_list, bool_precision=ML_Bool):
+    """ merge predicates listed in @p condition_list using a conjonctive form
+        (logical and) """
+    assert(len(condition_list) >= 1)
+    if len(condition_list) == 1:
+        return condition_list[0]
+    else:
+        half_size = int(len(condition_list) / 2)
+        first_half    = and_merge_conditions(condition_list[:half_size])
+        second_half = and_merge_conditions(condition_list[half_size:])
+        return LogicalAnd(first_half, second_half, precision = bool_precision)
+
+
+def assembling_vector(args, precision=None, tag=None):
+    """ Assembling a vector from sub-vectors, simplify to identity
+        if there is only ONE sub-vector """
+    if len(args) == 1:
+        return args[0]
+    else:
+        return VectorAssembling(*args, precision=precision, tag=tag)
+
+def extract_const(in_dict):
+    """ extract all constant node from node:node dict @p in_dict """
+    result_dict = {}
+    for keys, values in in_dict.items():
+        if isinstance(keys, Constant):
+            result_dict.update({keys:values})
+    return result_dict
+
+
+def instanciate_variable(optree, variable_mapping, processed_map=None):
+    """ instanciate intermediary variable according
+        to the association indicated by variable_mapping
+        @param optree ML_Operation root of the input operation graph
+        @param variable_mapping dict ML_Operation -> ML_Operation
+                       mapping a variable to its sub-graph
+        @param processed_map dictionnary of node -> mapping storing
+              already processed node
+        @return an updated version of optree with variables replaced
+                        by the corresponding sub-graph if any
+    """
+    processed_map = {} if processed_map is None else processed_map
+    if optree in processed_map:
+        return processed_map[optree]
+    elif isinstance(optree, Variable) and optree in variable_mapping:
+        processed_map[optree] = variable_mapping[optree]
+        return variable_mapping[optree]
+    elif isinstance(optree, ML_LeafNode):
+        processed_map[optree] = optree
+        return optree
+    else:
+        for index, op_in in enumerate(optree.get_inputs()):
+            optree.set_input(
+                index,
+                instanciate_variable(
+                    op_in, variable_mapping, processed_map
+                )
+            )
+        processed_map[optree] = optree
+        return optree
+
+
+def no_scalar_fallback_required(mask):
+    """ Test whether a vector-mask is fully set to True, in order to
+        disable scalar fallback generation """
+    if isinstance(mask, VectorAssembling):
+        # recursive application for sub-vector support
+        return reduce(lambda acc, v: (no_scalar_fallback_required(v) and acc), mask.get_inputs(), True)
+    elif isinstance(mask, Conversion):
+        return no_scalar_fallback_required(mask.get_input(0))
+
+    return isinstance(mask, Constant) and \
+            reduce(lambda v, acc: (v and acc), mask.get_value(), True)
+
 ##
 class StaticVectorizer(object):
     """ Mapping of size, scalar format to vector format """
-    ## initialize static vectorizer object
-    #    @param OptimizationEngine object
-    def __init__(self, opt_engine):
-        self.opt_engine = opt_engine
-
-
-    def vectorize_scheme(self, optree, arg_list, vector_size, call_externalizer,
-                         output_precision, sub_vector_size=None):
+    def vectorize_scheme(self, optree, arg_list, vector_size, sub_vector_size=None):
         """ optree static vectorization
             @param optree ML_Operation object, root of the DAG to be vectorized
             @param arg_list list of ML_Operation objects used as arguments by
                    optree
             @param vector_size integer size of the vectors to be generated
-            @param call_externalizer function to handle call_externalization
                    process
-            @param output_precision scalar precision to be used in scalar
-                   callback
             @return pair ML_Operation, CodeFunction of vectorized scheme and
                     scalar callback
         """
         # defaulting sub_vector_size to vector_size    when undefined
         sub_vector_size = vector_size if sub_vector_size is None else sub_vector_size
 
-        def fallback_policy(cond, cond_block, if_branch, else_branch):
-            return if_branch, [cond]
-        def and_merge_conditions(condition_list, bool_precision = ML_Bool):
-            assert(len(condition_list) >= 1)
-            if len(condition_list) == 1:
-                return condition_list[0]
-            else:
-                half_size = int(len(condition_list) / 2)
-                first_half    = and_merge_conditions(condition_list[:half_size])
-                second_half = and_merge_conditions(condition_list[half_size:])
-                return LogicalAnd(first_half, second_half, precision = bool_precision)
-
-        def instanciate_variable(optree, variable_mapping, processed_map=None):
-            """ instanciate intermediary variable according
-                to the association indicated by variable_mapping
-                @param optree ML_Operation root of the input operation graph
-                @param variable_mapping dict ML_Operation -> ML_Operation
-                               mapping a variable to its sub-graph
-                @param processed_map dictionnary of node -> mapping storing
-                      already processed node
-                @return an updated version of optree with variables replaced
-                                by the corresponding sub-graph if any
-            """
-            processed_map = {} if processed_map is None else processed_map
-            if optree in processed_map:
-                return processed_map[optree]
-            elif isinstance(optree, Variable) and optree in variable_mapping:
-                processed_map[optree] = variable_mapping[optree]
-                return variable_mapping[optree]
-            elif isinstance(optree, ML_LeafNode):
-                processed_map[optree] = optree
-                return optree
-            else:
-                for index, op_in in enumerate(optree.get_inputs()):
-                    optree.set_input(
-                        index,
-                        instanciate_variable(
-                            op_in, variable_mapping, processed_map
-                        )
-                    )
-                processed_map[optree] = optree
-                return optree
-
         vectorized_path = self.extract_vectorizable_path(optree, fallback_policy)
         linearized_most_likely_path = vectorized_path.linearized_optree
         validity_list = vectorized_path.validity_mask_list
+
+        Log.report(Log.Verbose, "linearized_most_likely_path: {}", linearized_most_likely_path.get_str(depth=None, display_precision=True))
+
         # replacing temporary variables by their latest assigned values
         linearized_most_likely_path = instanciate_variable(linearized_most_likely_path, vectorized_path.variable_mapping)
 
         vector_paths        = []
         vector_masks        = []
         vector_arg_list = []
-
-        def assembling_vector(args, precision=None, tag=None):
-            """ Assembling a vector from sub-vectors, simplify to identity
-                if there is only ONE sub-vector """
-            if len(args) == 1:
-                return args[0]
-            else:
-                return VectorAssembling(*args, precision=precision, tag=tag)
-
-        def extract_const(in_dict):
-            result_dict = {}
-            for keys, values in in_dict.items():
-                if isinstance(keys, Constant):
-                    result_dict.update({keys:values})
-            return result_dict
 
         # dictionnary of arg_node (scalar) -> new variable (vector) mapping
         vec_arg_dict = dict(
