@@ -159,9 +159,14 @@ class StaticVectorizer(object):
 
         for i in range(int(vector_size / sub_vector_size)):
             if sub_vector_size == vector_size:
-                arg_list_copy = dict((arg_node, Variable("vec_%s" % arg_node.get_tag() , precision = arg_node.get_precision())) for arg_node in arg_list)
+                # if there is only one sub_vector, we must be carreful not to replicate input variable
+                # in a new Variable node, as it break node unicity required to detect scheme
+                # input variables properly
+                arg_list_copy = dict((arg_node, vec_arg_dict[arg_node]) for arg_node in arg_list)
                 sub_vec_arg_list = [arg_list_copy[arg_node] for arg_node in arg_list]
-                vectorization_map = {}
+                # vector argument variables are already vectorized and should
+                # be used directly in vectorized scheme
+                vectorization_map = dict((vec_arg_dict[arg_node], vec_arg_dict[arg_node]) for arg_node in arg_list)
             else :
                 # selection of a subset of the large vector to be the
                 # sub-vector operand of this sub-vector path
