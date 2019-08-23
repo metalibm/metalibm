@@ -36,7 +36,7 @@ from metalibm_core.core.ml_operations import (
     Variable, Constant,
     Loop, ReferenceAssign, Statement,
     TableLoad, TableStore,
-    Return, ML_LeafNode,
+    Return,
     FunctionObject,
     VectorElementSelection, VectorAssembling,
     Division, Modulo,
@@ -45,15 +45,13 @@ from metalibm_core.core.ml_formats import (
     ML_UInt32, ML_Int32, ML_Binary32, ML_Void,
     VECTOR_TYPE_MAP, ML_Integer,
 )
-from metalibm_core.core.ml_table import (
-    ML_NewTable,
-)
+from metalibm_core.core.ml_table import ML_NewTable
 from metalibm_core.core.ml_complex_formats import ML_Pointer_Format
 from metalibm_core.core.precisions import (
     ML_CorrectlyRounded, ML_Faithful,
 )
 from metalibm_core.core.ml_function import (
-    DefaultArgTemplate, generate_c_vector_wrapper
+    generate_c_vector_wrapper
 )
 from metalibm_core.core.array_function import (
     ML_ArrayFunction, DefaultArrayFunctionArgTemplate,
@@ -68,9 +66,7 @@ from metalibm_core.core.ml_vectorizer import (
 
 
 from metalibm_core.code_generation.generic_processor import GenericProcessor
-from metalibm_core.code_generation.code_function import (
-    FunctionGroup
-)
+from metalibm_core.code_generation.code_function import FunctionGroup
 from metalibm_core.code_generation.generator_utility import FunctionOperator
 
 
@@ -79,7 +75,6 @@ from metalibm_core.opt.p_function_typing import (
     PassInstantiateAbstractPrecision, PassInstantiatePrecision,
 )
 
-from metalibm_core.utility.ml_template import ML_NewArgTemplate
 from metalibm_core.utility.log_report  import Log
 from metalibm_core.utility.debug_utils import (
     debug_multi
@@ -211,7 +206,6 @@ class ML_VectorialFunction(ML_ArrayFunction):
             libm_exp_operator = FunctionOperator("expf", arity=1)
             libm_exp = FunctionObject("expf", [ML_Binary32], ML_Binary32, libm_exp_operator)
 
-            elt_result = Statement()
             if multi_elt_num > 1:
                 result_list = [libm_exp(VectorElementSelection(elt_input, Constant(elt_id, precision=ML_Integer), precision=self.precision)) for elt_id in range(multi_elt_num)]
                 result = VectorAssembling(*result_list, precision=element_format)
@@ -220,7 +214,6 @@ class ML_VectorialFunction(ML_ArrayFunction):
             elt_result = ReferenceAssign(local_exp, result)
         else:
             if multi_elt_num > 1:
-                # scalar_input = Variable("scalar_input", precision=self.precision, var_type=Variable.Local)
                 scalar_result = Variable("scalar_result", precision=self.precision, var_type=Variable.Local)
                 exponential_args = ML_Exponential.get_default_args(
                     precision=self.precision,
@@ -275,17 +268,16 @@ class ML_VectorialFunction(ML_ArrayFunction):
         local_exp_init_value = Constant(0, precision=self.precision)
         if multi_elt_num > 1:
             local_exp_init_value = Constant([0]*multi_elt_num, precision=element_format)
-            # iter_n = Division(n, multi_element_format, precision=index_format)
             remain_n = Modulo(n, multi_elt_num, precision=index_format)
             iter_n = n - remain_n
             CU_ELTNUM = Constant(multi_elt_num, precision=index_format)
-            #CU1 = Constant(1, precision=index_format)
             inc = i+CU_ELTNUM
         else:
             remain_n = None
             iter_n = n
             inc = i+CU1
 
+        # main loop processing multi_elt_num element(s) per iteration
         main_loop = Loop(
             ReferenceAssign(i, CU0),
             i < iter_n,
@@ -296,6 +288,8 @@ class ML_VectorialFunction(ML_ArrayFunction):
                 ReferenceAssign(i, inc)
             ),
         )
+        # epilog to process remaining item (when the length is not a multiple
+        # of multi_elt_num)
         if not remain_n is None:
             # TODO/FIXME: try alternative method for processing epilog
             #             by using full vector length and mask
@@ -313,7 +307,6 @@ class ML_VectorialFunction(ML_ArrayFunction):
                 main_loop,
                 epilog_loop
             )
-
 
         return main_loop
 
