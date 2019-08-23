@@ -47,13 +47,16 @@ class TestResult:
   #  @param details string with test information
   #  @param test_object CommonTestScheme object defining the test
   #  @param test_case specific test parameters used in the test
-  def __init__(self, result, details, test_object=None, test_case=None, error=None, title=""):
+  #  @param expected_to_fail boolean indicating that a test failure was expected
+  def __init__(self, result, details, test_object=None, test_case=None, error=None, title="", expected_to_fail=False, unexpected_count=None):
     self.result = result
     self.details = details
     self.test_object = test_object
     self.test_case = test_case
     self.error = error
     self.title = title
+    self.expected_to_fail = expected_to_fail
+    self.unexpected_count = unexpected_count
 
   def get_result(self):
     return self.result
@@ -83,11 +86,16 @@ class CommonTestScheme:
   def perform_all_test_no_reduce(self, debug=False):
     """ perform all test in CommonTestScheme and returns
         raw TestResult list """
-    return [self.single_test(tc, debug = debug) for tc in self.argument_tc]
+    return [self.single_test(tc, debug=debug) for tc in self.argument_tc]
 
   def get_success_count(self, result_list):
     success_count = [r.get_result() for r in result_list].count(True)
     return success_count
+
+  def get_unexpected_failure_count(self, result_list):
+    """ count the number of unexpected failure """
+    failure_count = [(r.get_result() or r.expected_to_fail) for r in result_list].count(False)
+    return failure_count
 
   def reduce_test_result(self, result_list):
     """ Reduce a test result list to a single agglomerated test result """
@@ -96,14 +104,17 @@ class CommonTestScheme:
     overall_success = (success_count >= 0) and (failure_count == 0)
     function_name = self.get_title()
 
+    unexpected_failure_count = self.get_unexpected_failure_count(result_list)
+    unexpected_failure = (unexpected_failure_count != 0)
+
     if overall_success:
       result_msg = "{} success ! ({}/{})".format(function_name, success_count, len(result_list))
-      return TestResult(True, result_msg)
+      return TestResult(not unexpected_failure, result_msg, unexpected_count=unexpected_failure_count)
     else:
-      result_msg = "{} failure ! ({}/{} success(es))\n {}".format(
-            function_name, success_count, len(result_list), 
-            "\n".join(r.get_details() for r in result_list))
-      return TestResult(False, result_msg)
+      result_msg = "{} failure ! ({}/{} success(es) inc. {} unexpected failure(s))\n    {}".format(
+            function_name, success_count, len(result_list), unexpected_failure_count, 
+            "\n    ".join(r.get_details() for r in result_list))
+      return TestResult(not unexpected_failure, result_msg, unexpected_count=unexpected_failure_count)
 
   def perform_all_test(self, debug=False):
     """ Perform all test of the scheme ahd then reduce test results
@@ -122,10 +133,11 @@ class NewSchemeTest(CommonTestScheme):
     def build_arg_template(self, **kw):
         return self.ctor.get_default_args(**kw)
 
-    def single_test(self, arg_tc, debug = False):
+    def single_test(self, arg_tc, debug=False):
         function_name = self.get_title()
         test_desc = "{}/{}".format(function_name, str(arg_tc))
         arg_template = self.build_arg_template(**arg_tc)
+        expected_to_fail = arg_tc["expected_to_fail"] if "expected_to_fail" in arg_tc else False
 
         if debug:
             fct = self.ctor(arg_template)
@@ -134,13 +146,15 @@ class NewSchemeTest(CommonTestScheme):
             try:
                 fct = self.ctor(arg_template)
             except:
-                return TestResult(False, "{} ctor failed".format(test_desc), title=self.title)
+                return TestResult(False, "{} ctor failed".format(test_desc), title=self.title, expected_to_fail=expected_to_fail)
             try:
                 fct.gen_implementation()
-            except (BuildError, ValidError) as e:
-                return TestResult(False, "{} gen_implementation failed".format(test_desc), error=e, title=self.title)
+            except BuildError as e:
+                return TestResult(False, "{} build failed".format(test_desc), error=e, title=self.title, expected_to_fail=expected_to_fail)
+            except ValidError as e:
+                return TestResult(False, "{} validation failed".format(test_desc), error=e, title=self.title, expected_to_fail=expected_to_fail)
             except:
-                return TestResult(False, "{} gen_implementation failed".format(test_desc), error=GenerationError(), title=self.title)
+                return TestResult(False, "{} gen_implementation failed".format(test_desc), error=GenerationError(), title=self.title, expected_to_fail=expected_to_fail)
             
         return TestResult(True, "{} succeed".format(test_desc), title=self.title)
 
