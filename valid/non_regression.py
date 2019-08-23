@@ -28,7 +28,10 @@ import argparse
 import sys
 import re
 
-from sollya import Interval
+from sollya import Interval, SollyaObject
+
+# numeric value 2 as a sollya object
+S2 = SollyaObject(2)
 
 # import meta-function script from metalibm_functions directory
 import metalibm_functions.ml_log10
@@ -54,6 +57,8 @@ import metalibm_functions.softmax
 import metalibm_functions.vectorial_function
 
 from metalibm_core.core.ml_formats import ML_Binary32, ML_Binary64, ML_Int32
+from metalibm_core.core.precisions import dar
+
 from metalibm_core.targets.common.vector_backend import VectorBackend
 from metalibm_core.targets.intel.x86_processor import (
         X86_Processor, X86_SSE_Processor, X86_SSE2_Processor,
@@ -147,7 +152,8 @@ new_scheme_function_list = [
     metalibm_functions.ml_log2.ML_Log2,
     [
         {"precision": ML_Binary32},
-        {"precision": ML_Binary64, "auto_test": 10000, "execute_trigger": True, "expected_to_fail": True}
+        {"precision": ML_Binary64, "auto_test": 10000, "execute_trigger": True,
+         "expected_to_fail": True}
     ]
   ),
   NewSchemeTest(
@@ -189,54 +195,43 @@ new_scheme_function_list = [
         "auto_test_execute": 100},
         {"precision": ML_Binary64, "function_name": "my_exp2", "auto_test": 100,
          "auto_test_execute": 100},
-    #{"precision": ML_Binary32, "target": k1b, "function_name": "my_exp2", "auto_test": 100, "auto_test_execute": 100},
-    #{"precision": ML_Binary64, "target": k1b, "function_name": "my_exp2", "auto_test": 100, "auto_test_execute": 100},
     ]
   ),
   NewSchemeTest(
     "basic cubic square test",
     metalibm_functions.ml_cbrt.ML_Cbrt,
     [
-        #{"precision": ML_Binary32, "target" : k1b},
-        #{"precision": ML_Binary64, "target" : k1b}
     ]
   ),
   NewSchemeTest(
     "basic square root test",
     metalibm_functions.ml_sqrt.MetalibmSqrt,
     [
-        #{"precision": ML_Binary32, "target" : k1b, "num_iter" : 1},
-        #{"precision": ML_Binary64, "target" : k1b, "num_iter" : 1}
     ]
   ),
   NewSchemeTest(
     "auto execute sqrt test",
     metalibm_functions.ml_sqrt.MetalibmSqrt,
     [
-    #{"precision": ML_Binary32, "target": k1b, "function_name": "my_sqrt", "auto_test": 100, "auto_test_execute": 100, "num_iter" : 1},
-    #{"precision": ML_Binary64, "target": k1b, "function_name": "my_sqrt", "auto_test": 100, "auto_test_execute": 100, "num_iter" : 1},
     ]
   ),
   NewSchemeTest(
     "basic inverse square root test",
     metalibm_functions.ml_isqrt.ML_Isqrt,
     [
-        #{"precision": ML_Binary32, "target" : k1b, "num_iter" : 3}, {"precision": ML_Binary64, "target" : k1b, "num_iter" : 3}
     ]
   ),
   NewSchemeTest(
     "auto execute isqrt test",
     metalibm_functions.ml_isqrt.ML_Isqrt,
     [
-    #{"precision": ML_Binary32, "target": k1b, "function_name": "my_isqrt", "auto_test": 100, "auto_test_execute": 100, "num_iter" : 3},
-    #{"precision": ML_Binary64, "target": k1b, "function_name": "my_isqrt", "auto_test": 100, "auto_test_execute": 100, "num_iter" : 3},
     ]
   ),
   NewSchemeTest(
     "basic cosine test",
     metalibm_functions.ml_sincos.ML_SinCos,
     [{"precision": ML_Binary32}, {"precision": ML_Binary64}]
-  ), 
+  ),
   NewSchemeTest(
     "basic sine test",
     metalibm_functions.ml_sincos.ML_SinCos,
@@ -246,15 +241,12 @@ new_scheme_function_list = [
     "basic arctangent test",
     metalibm_functions.ml_atan.ML_Atan,
     [
-        #{"precision": ML_Binary32, "target": k1b}, {"precision": ML_Binary64, "target": k1b}
     ]
   ),
   NewSchemeTest(
     "auto execute atan test",
     metalibm_functions.ml_atan.ML_Atan,
     [
-        #{"precision": ML_Binary32, "target": k1b, "function_name": "my_atan", "auto_test_execute": 100, "auto_test_std" : True},
-    # {"precision": ML_Binary64, "target": k1b, "function_name": "my_atan", "auto_test_execute": 100, "auto_test_std" : True},
     ]
   ),
   NewSchemeTest(
@@ -306,7 +298,8 @@ new_scheme_function_list = [
     "basic softmax test",
     metalibm_functions.softmax.ML_SoftMax,
     [
-        {"precision": ML_Binary32, "auto_test": 10, "execute_trigger": True, "expected_to_fail": True},
+        {"precision": ML_Binary32, "auto_test": 10, "execute_trigger": True,
+         "accuracy": dar(S2**-22)},
     ],
   ),
   NewSchemeTest(
