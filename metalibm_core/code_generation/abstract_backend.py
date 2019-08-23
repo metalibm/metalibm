@@ -69,6 +69,9 @@ class AbstractBackend(object):
         """ Nice description string """
         return self.target_name
 
+    def __repr__(self):
+        return self.target_name
+
     ## return the backend target name
     def get_target_name(sef):
         return self.target_name
