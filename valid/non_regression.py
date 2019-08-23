@@ -365,9 +365,14 @@ for test_scheme in args.test_list:
     if not test_result.get_result():
       success = False
 
+unexpected_failure_count = 0
+
 # Printing test summary for new scheme
 for result in result_details:
   print(result.get_details())
+  unexpected_failure_count += result.unexpected_count
+
+print(" {} unexpected failure(s)".format(unexpected_failure_count))
 
 if success:
   print("OVERALL SUCCESS")
