@@ -804,6 +804,9 @@ class ML_Base_SW_FixedPoint_Format(ML_Base_FixedPoint_Format):
     """ Base Fixed-Point format for software implementation,
         try to infer the required size of C-format to support
         this format """
+    MAX_BIT_SIZE = 128
+    MIN_BIT_SIZE = 1
+
     def __init__(self, integer_size, frac_size, signed=True, support_format=None, align=0):
         ML_Base_FixedPoint_Format.__init__(
             self,
@@ -814,7 +817,7 @@ class ML_Base_SW_FixedPoint_Format(ML_Base_FixedPoint_Format):
         )
         # guess the minimal bit_size required in the c repesentation
         bit_size = integer_size + frac_size
-        if bit_size < 1 or bit_size > 128:
+        if bit_size < self.MIN_BIT_SIZE or bit_size > self.MAX_BIT_SIZE:
             Log.report(Log.Warning, "unsupported bit_size {} in ML_Base_SW_FixedPoint_Format".format(bit_size))
             self.dbg_name = ("" if self.signed else "u") + "int" + str(bit_size)
         else:
@@ -857,6 +860,9 @@ class ML_Custom_FixedPoint_Format(ML_Base_SW_FixedPoint_Format):
     def __ne__(self, other):
         """ unequality predicate for custom fixed-point format object """
         return not (self == other)
+
+    def __hash__(self):
+        return self.integer_size * self.frac_size * 2 + 1 if self.signed else 0
 
 
     @staticmethod
