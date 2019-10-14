@@ -2034,6 +2034,11 @@ avx_c_code_generation_table = {
             lambda optree: True: {
                 type_strict_match(ML_AVX_m256_v8int32, ML_AVX_m256_v8float32):
                     ImmIntrin("_mm256_cvtps_epi32", arity = 1),
+                type_strict_match(*(2*(ML_AVX_m256_v4float64,))):
+                    ImmIntrin("_mm256_round_pd", arity=1,
+                              arg_map={0: FO_Arg(0),
+                                       1: "_MM_FROUND_TO_NEAREST_INT"},
+                              output_precision=ML_AVX_m256_v4float64),
             },
         },
     },
