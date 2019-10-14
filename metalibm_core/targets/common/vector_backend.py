@@ -1175,7 +1175,7 @@ vector_c_code_generation_table = {
         type_strict_match(v8int64, v8float64): ML_VectorLib_Function("ml_vnearbyintd8", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)}, arity = 1, output_precision = v8int64),
 
         type_strict_match(v2float64, v2float64):
-            ML_VectorLib_Function("ml_vrintd4", arg_map={0: FO_ResultRef(0), 1: FO_Arg(0)}, arity=1, output_precision=v2float64),
+            ML_VectorLib_Function("ml_vrintd2", arg_map={0: FO_ResultRef(0), 1: FO_Arg(0)}, arity=1, output_precision=v2float64),
         type_strict_match(v4float64, v4float64):
             ML_VectorLib_Function("ml_vrintd4", arg_map={0: FO_ResultRef(0), 1: FO_Arg(0)}, arity=1, output_precision=v4float64),
         type_strict_match(v8float64, v8float64):
