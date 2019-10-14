@@ -319,7 +319,7 @@ class FPRandomGen(RandomGenWeightCat):
                 mantissa = 1.0 + field * S2**-generator.precision.get_field_size()
                 return NumericValue(mantissa * sign * S2**exp)
         class ZeroExp:
-            """ Normal number category """
+            """ number with zero valued exponent """
             @staticmethod
             def generate_value(generator):
                 """ Generate a single value in the normal range """
