@@ -2,34 +2,6 @@ image: registry.gitlab.com/nibrunie/metalibm:metalibm_ci_sollya7.0
 
 before_script:
 
-soft_unit_tests:
-  script:
-    - export PATH=/app/local/bin:$PATH
-    - export LD_LIBRARY_PATH=/app/local/lib/
-    - export PYTHONPATH=/app/local/python2
-    - PYTHONPATH=$PWD:$PYTHONPATH ML_SRC_DIR=$PWD python2.7 valid/soft_unit_test.py --debug
-
-rtl_unit_tests:
-  script:
-    - export PATH=/app/local/bin:$PATH
-    - export LD_LIBRARY_PATH=/app/local/lib/
-    - export PYTHONPATH=/app/local/python2/
-    - PYTHONPATH=$PWD:$PYTHONPATH ML_SRC_DIR=$PWD python2.7 valid/rtl_unit_test.py --debug
-
-non_regression:
-  script:
-    - export PATH=/app/local/bin:$PATH
-    - export LD_LIBRARY_PATH=/app/local/lib/
-    - export PYTHONPATH=/app/local/python2
-    - PYTHONPATH=$PWD:$PYTHONPATH  ML_SRC_DIR=$PWD python2.7 valid/non_regression.py
-
-rtl_regression:
-  script:
-    - export PATH=/app/local/bin:$PATH
-    - export LD_LIBRARY_PATH=/app/local/lib/
-    - export PYTHONPATH=/app/local/python2
-    - PYTHONPATH=$PWD:$PYTHONPATH  ML_SRC_DIR=$PWD python2.7 valid/hw_non_regression.py --debug
-
 soft_unit_tests_py3:
   script:
     - export PATH=/app/local/bin:$PATH
@@ -58,17 +30,6 @@ rtl_regression_py3:
     - export PYTHONPATH=/app/local/python3/
     - PYTHONPATH=$PWD:$PYTHONPATH  ML_SRC_DIR=$PWD python3 valid/hw_non_regression.py --debug
 
-determinism_py2:
-  script:
-    - export PATH=/app/local/bin:$PATH
-    - export LD_LIBRARY_PATH=/app/local/lib/
-    - export PYTHONPATH=/app/local/python2
-    - PYTHONPATH=$PWD:$PYTHONPATH  ML_SRC_DIR=$PWD python2.7 metalibm_functions/ml_exp.py --output test_exp.c
-    - cp test_exp.c test_exp0.c
-    - PYTHONPATH=$PWD:$PYTHONPATH  ML_SRC_DIR=$PWD python2.7 metalibm_functions/ml_exp.py --output test_exp.c
-    - cp test_exp.c test_exp1.c
-    - diff test_exp0.c test_exp1.c
-
 determinism_py3:
   script:
     - export PATH=/app/local/bin:$PATH
@@ -96,7 +57,7 @@ pages:
     - export LD_LIBRARY_PATH=/app/local/lib/
     - export PYTHONPATH=/app/local/python2/
     - mkdir -p public
-    - PYTHONPATH=$PWD:$PYTHONPATH  ML_SRC_DIR=$PWD python2 valid/soft_coverage_test.py --report-only --output public/report.${CI_COMMIT_REF_NAME}.html
+    - PYTHONPATH=$PWD:$PYTHONPATH  ML_SRC_DIR=$PWD python3 valid/soft_coverage_test.py --report-only --output public/report.${CI_COMMIT_REF_NAME}.html
   artifacts:
     paths:
     - public/
