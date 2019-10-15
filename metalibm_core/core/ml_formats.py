@@ -583,8 +583,8 @@ class VirtualFormat(ML_Format):
 
   ## return name for the format
   def get_name(self, language = C_Code):
-    raise NotImplementedError
-    return self.base_format.get_name(language = language)
+    #raise NotImplementedError
+    return self.support_format.get_name(language = language)
 
   ## return source code name for the format
   def get_code_name(self, language=None):
