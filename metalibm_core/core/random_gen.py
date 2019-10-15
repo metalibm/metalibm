@@ -52,6 +52,8 @@ from metalibm_core.core.ml_formats import (
     ML_FP_MultiElementFormat, ML_FP_Format, ML_Fixed_Format,
 )
 
+from metalibm_core.utility.log_report import Log
+
 def random_bool():
     """ random boolean generation """
     return bool(random.getrandbits(1))
@@ -174,17 +176,20 @@ class IntRandomGen(RandomGenWeightCat):
         return 0
     def gen_high_value(self):
         """ generate near maximal value """
-        return self.gen_max_value() - self.random.randrange(self.highlow_range)
+        return self.rectify_value(self.gen_max_value() - self.random.randrange(self.highlow_range))
     def gen_low_value(self):
         """ generate new minimal value """
-        return self.gen_min_value() + self.random.randrange(self.highlow_range)
+        return self.rectify_value(self.gen_min_value() + self.random.randrange(self.highlow_range))
+    def rectify_value(self, value):
+        """ Transform value so that it fits within valid range """
+        return max(self.min_value, min(self.max_value, value))
 
     def gen_near_zero(self):
         """ generate near zero value """
         if self.signed:
             start_value = self.gen_zero_value() - self.highlow_range
             random_offset = self.random.randrange(self.highlow_range * 2)
-            return start_value + random_offset
+            return self.rectify_value(start_value + random_offset)
         else:
             return self.gen_low_value()
     def gen_standard_value(self):
@@ -193,7 +198,7 @@ class IntRandomGen(RandomGenWeightCat):
 
 
 class FixedPointRandomGen(IntRandomGen):
-    def __init__(self, int_size=1, frac_size=31, signed=True, seed=None):
+    def __init__(self, int_size=1, frac_size=31, signed=True, seed=None, min_value=None, max_value=None):
         """ Initializing Integer random generators """
         int_weight_map = normalize_map({
             IntRandomGen.Category.MaxValue: 0.01,
@@ -219,8 +224,8 @@ class FixedPointRandomGen(IntRandomGen):
         self.highlow_range = 2**(int(self.size / 5))
 
         # scaled extremal values
-        self.max_value = self.gen_max_value() if max_value is None else max_value
-        self.min_value = self.gen_min_value() if min_value is None else min_value
+        self.max_value = self.gen_raw_max_value() if max_value is None else max_value
+        self.min_value = self.gen_raw_min_value() if min_value is None else min_value
         # unscaled extremal values (used for random field generation)
         self.max_unscaled_value = self.unscale(self.max_value)
         self.min_unscaled_value = self.unscale(self.min_value)
@@ -230,34 +235,38 @@ class FixedPointRandomGen(IntRandomGen):
     def unscale(self, value):
         return value * S2**self.frac_size
 
-    def gen_max_value(self, scale=True):
+    def gen_raw_max_value(self, scale=True):
         """ generate the maximal format value """
         scale_func = (lambda x: self.scale(x)) if scale else (lambda x: x)
         power = self.size - (1 if self.signed else 0)
         return scale_func(S2**power - 1)
-    def gen_min_value(self, scale=True):
+    def gen_raw_min_value(self, scale=True):
         """ generate the minimal format value """
         scale_func = (lambda x: self.scale(x)) if scale else (lambda x: x)
         if self.signed:
             return scale_func(-S2**(self.size - 1))
         else:
             return scale_func(self.gen_zero_value())
+    def gen_min_value(self, scale=True):
+        return self.rectify_value(self.gen_raw_min_value(scale))
+    def gen_max_value(self, scale=True):
+        return self.rectify_value(self.gen_raw_max_value(scale))
     def gen_zero_value(self):
         """ generate zero value """
         return 0
     def gen_high_value(self):
         """ generate near maximal value """
-        return self.max_value - self.scale(self.random.randrange(self.highlow_range))
+        return self.rectify_value(self.max_value - self.scale(self.random.randrange(self.highlow_range)))
     def gen_low_value(self):
         """ generate new minimal value """
-        return self.min_value + self.scale(self.random.randrange(self.highlow_range))
+        return self.rectify_value(self.min_value + self.scale(self.random.randrange(self.highlow_range)))
 
     def gen_near_zero(self):
         """ generate near zero value """
         if self.signed:
             start_value = self.gen_zero_value() - self.highlow_range
             random_offset = self.random.randrange(self.highlow_range * 2)
-            return self.scale(start_value + random_offset)
+            return self.rectify_value(self.scale(start_value + random_offset))
         else:
             return self.scale(self.gen_low_value())
     def gen_standard_value(self):
@@ -271,7 +280,7 @@ class FixedPointRandomGen(IntRandomGen):
     @staticmethod
     def from_interval(precision, low_bound, high_bound):
         return FixedPointRandomGen(
-            precision.int_size,
+            precision.integer_size,
             precision.frac_size,
             precision.signed,
             min_value=low_bound, max_value=high_bound
@@ -441,14 +450,15 @@ class MPFPRandomGen:
 def get_precision_rng(precision, inf_bound, sup_bound):
     """ build a random number generator for format @p precision
         which generates values within the range [inf_bound, sup_bound] """
-    if isinstance(precision, ML_FP_MultiElementFormat):
+    base_format = precision.get_base_format()
+    if isinstance(base_format, ML_FP_MultiElementFormat):
         return MPFPRandomGen.from_interval(precision, inf_bound, sup_bound)
-    elif isinstance(precision, ML_FP_Format):
+    elif isinstance(base_format, ML_FP_Format):
         return FPRandomGen.from_interval(precision, inf_bound, sup_bound)
-    elif isinstance(precision, ML_Fixed_Format):
+    elif isinstance(base_format, ML_Fixed_Format):
         return FixedPointRandomGen.from_interval(precision, inf_bound, sup_bound)
     else:
-        Log.report(Log.Error, "unsupported format {} in get_precision_rng", precision)
+        Log.report(Log.Error, "unsupported format {}/{} in get_precision_rng", precision, base_format)
 
 # auto-test
 if __name__ == "__main__":
