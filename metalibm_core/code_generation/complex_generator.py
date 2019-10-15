@@ -36,7 +36,7 @@ from ..utility.source_info import SourceInfo
 
 from .generator_utility import ML_CG_Operator
 
-
+LOG_LEVEL_COMPLEX_OPERATOR = Log.LogLevel("ComplexOperatorVerbose")
 
 ## complex generator for symbol-like operators, 
 #  the generate expression modifies the optree before calling the 
@@ -65,6 +65,7 @@ class ComplexOperator(ML_CG_Operator):
   # @param kwords         generic keywords dictionnary (see ML_CG_Operator() class for list of supported arguments)
   def generate_expr(self, code_generator, code_object, optree, arg_tuple, generate_pre_process = None, **kwords):
     new_optree = self.optree_modifier(optree)
+    Log.report(LOG_LEVEL_COMPLEX_OPERATOR, "modified {} to {} ", optree, new_optree)
     if new_optree is None and self.backup_operator != None:
       return self.backup_operator.generate_expr(code_generator, code_object, optree, arg_tuple, generate_pre_process = generate_pre_process, **kwords)
     else:
