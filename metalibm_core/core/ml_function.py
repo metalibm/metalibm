@@ -1062,13 +1062,12 @@ class ML_FunctionBasis(object):
 
     Log.report(Log.Info, "test test_total, test_num, diff: {} {} {}".format(test_total, test_num, diff))
 
-    sollya_precision = self.precision.get_sollya_object()
-    interval_size = high_input - low_input 
+    interval_size = high_input - low_input
 
     input_tables = [
       ML_NewTable(
-        dimensions = [test_total], 
-        storage_precision = self.get_input_precision(i), 
+        dimensions = [test_total],
+        storage_precision = self.get_input_precision(i),
         tag = self.uniquify_name("input_table_arg%d" % i)
       ) for i in range(self.get_arity())
     ]
@@ -1440,12 +1439,11 @@ class ML_FunctionBasis(object):
     test_total += diff
     test_num   += diff
 
-    sollya_precision = self.precision.get_sollya_object()
-    interval_size = high_input - low_input 
+    interval_size = high_input - low_input
 
     input_tables = [
       ML_NewTable(
-        dimensions = [test_total], 
+        dimensions = [test_total],
         storage_precision = self.get_input_precision(i), 
         tag = self.uniquify_name("input_table_arg%d" %i)
       )
