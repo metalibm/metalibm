@@ -108,11 +108,11 @@ class ML_TwoFactorPrecision(ML_FunctionPrecision):
         return failure_test
     def get_output_print_function(self, function_name, footer="\\n"):
         printf_template = "printf(\"[%s;%s]%s\", %s, %s)" % (
-            self.precision.get_display_format().format_string,
-            self.precision.get_display_format().format_string,
+            self.precision.get_display_format(C_Code).format_string,
+            self.precision.get_display_format(C_Code).format_string,
             footer,
-            self.precision.get_display_format().pre_process_fct("{0}"),
-            self.precision.get_display_format().pre_process_fct("{1}"),
+            self.precision.get_display_format(C_Code).pre_process_fct("{0}"),
+            self.precision.get_display_format(C_Code).pre_process_fct("{1}"),
         )
         printf_op = TemplateOperatorFormat(printf_template, arity=2, void_function=True)
         printf_function = FunctionObject("printf", [self.precision] * 2, ML_Void, printf_op)

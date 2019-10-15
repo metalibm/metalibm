@@ -613,6 +613,15 @@ class VirtualFormat(ML_Format):
   def is_vector_format(self):
       return False
 
+  def round_sollya_object(self, value, round_mode=sollya.RN):
+    return self.get_base_format().round_sollya_object(value, round_mode)
+
+  def get_display_format(self, language):
+    if self is self.get_base_format():
+        print(self)
+        raise Exception()
+    return self.get_base_format().get_display_format(language)
+
 
 def get_virtual_cst(prec, value, language):
     """ constant get for virtual format """
@@ -624,6 +633,7 @@ def get_virtual_cst(prec, value, language):
 class VirtualFormatNoForward(VirtualFormat):
     def get_match_format(self):
         return self
+
 
 class VirtualFormatNoBase(VirtualFormat):
     """ Virtual format class which does not point towards a distinct
@@ -826,10 +836,14 @@ class ML_Base_SW_FixedPoint_Format(ML_Base_FixedPoint_Format):
             if self.c_bit_size is None:
                 Log.report(Log.Error, "not able to find a compatible c_bit_size for {} = {} + {}", bit_size, integer_size, frac_size)
             c_name = ("" if self.signed else "u") + "int" + str(self.c_bit_size) + "_t"
-            c_display_format = "%\"PRIx" + str(self.c_bit_size) + "\""
+            c_display_format = DisplayFormat("%\"PRIx" + str(self.c_bit_size) + "\"")
             self.name[C_Code] = c_name
             self.display_format[C_Code] = c_display_format
             self.dbg_name = c_name
+
+    def get_display_format(self, language=C_Code):
+        return self.display_format[language]
+
 
 
 ## Ancestor to standard (meaning integers)  fixed-point format
@@ -873,10 +887,10 @@ class ML_Custom_FixedPoint_Format(ML_Base_SW_FixedPoint_Format):
             the format object """
         assert not format_match is None
         name = format_match.group("name")
-        int_size = int(format_match.group("integer"))
+        integer_size = int(format_match.group("integer"))
         frac_size = int(format_match.group("frac"))
         is_signed = (name == "FS")
-        return ML_Custom_FixedPoint_Format(int_size, frac_size, signed=is_signed)
+        return ML_Custom_FixedPoint_Format(integer_size, frac_size, signed=is_signed)
 
     ## parse a string describing a ML_Custom_FixedPoint_Format object
     #  @param format_str string describing the format object
@@ -1370,9 +1384,10 @@ def merge_abstract_format(*args):
     has_integer = False
     has_bool = False
     for arg_type in args:
-        if isinstance(arg_type, ML_FP_Format): has_float = True
-        if isinstance(arg_type, ML_Fixed_Format): has_integer = True
-        if isinstance(arg_type, ML_Bool_Format): has_bool = True
+        arg_base = arg_type.get_base_format()
+        if isinstance(arg_base, ML_FP_Format): has_float = True
+        if isinstance(arg_base, ML_Fixed_Format): has_integer = True
+        if isinstance(arg_base, ML_Bool_Format): has_bool = True
 
     if has_float: return ML_Float
     if has_integer: return ML_Integer

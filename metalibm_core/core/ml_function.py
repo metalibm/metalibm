@@ -1143,15 +1143,15 @@ class ML_FunctionBasis(object):
   #  and a result value
   def get_printf_input_function(self):
     # build the complete format string from the input precisions
-    input_display_formats = ", ".join(prec.get_display_format().format_string for prec in self.get_input_precisions())
-    input_display_vars = ", ".join(prec.get_display_format().pre_process_fct("{%d}" % index) for index, prec in enumerate(self.get_input_precisions(), 1))
+    input_display_formats = ", ".join(prec.get_display_format(self.language).format_string for prec in self.get_input_precisions())
+    input_display_vars = ", ".join(prec.get_display_format(self.language).pre_process_fct("{%d}" % index) for index, prec in enumerate(self.get_input_precisions(), 1))
 
     result_arg_id = 1 + len(self.get_input_precisions())
     # expected_arg_id = 1 + result_arg_id
     # build the format string for result/expected display
-    result_display_format = self.precision.get_display_format().format_string
-    result_display_vars = self.precision.get_display_format().pre_process_fct("{%d}" % result_arg_id)
-    # expected_display_vars = self.precision.get_display_format().pre_process_fct("{%d}" % expected_arg_id)
+    result_display_format = self.precision.get_display_format(self.language).format_string
+    result_display_vars = self.precision.get_display_format(self.language).pre_process_fct("{%d}" % result_arg_id)
+    # expected_display_vars = self.precision.get_display_format(self.language).pre_process_fct("{%d}" % expected_arg_id)
 
     template = ("printf(\"error[%d]: {fct_name}({arg_display_format}),"
                 " result is {result_display_format} "
@@ -1242,10 +1242,10 @@ class ML_FunctionBasis(object):
 
       printf_error_template = "printf(\"max %s error is %s \\n\", %s)" % (
         self.function_name,
-        self.precision.get_display_format().format_string,
-        self.precision.get_display_format().pre_process_fct("{0}")
+        self.precision.get_display_format(self.language).format_string,
+        self.precision.get_display_format(self.language).pre_process_fct("{0}")
       )
-      # printf_error_op = FunctionOperator("printf", arg_map = {0: "\"max %s error is %s \\n \"" % (self.function_name, self.precision.get_display_format()), 1: FO_Arg(0)}, void_function = True) 
+      # printf_error_op = FunctionOperator("printf", arg_map = {0: "\"max %s error is %s \\n \"" % (self.function_name, self.precision.get_display_format(self.language)), 1: FO_Arg(0)}, void_function = True) 
       printf_error_op = TemplateOperatorFormat(printf_error_template, arity=1, void_function=True)
       printf_error_function = FunctionObject("printf", [self.precision], ML_Void, printf_error_op)
 
@@ -1329,8 +1329,8 @@ class ML_FunctionBasis(object):
 
     printf_error_template = "printf(\"max %s error is %s \\n\", %s)" % (
       self.function_name,
-      self.precision.get_display_format().format_string,
-      self.precision.get_display_format().pre_process_fct("{0}")
+      self.precision.get_display_format(self.language).format_string,
+      self.precision.get_display_format(self.language).pre_process_fct("{0}")
     )
     printf_error_op = TemplateOperatorFormat(printf_error_template, arity=1, void_function=True)
 
