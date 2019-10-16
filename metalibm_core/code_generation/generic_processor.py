@@ -99,10 +99,29 @@ def exclude_for_mult(optree):
 def include_for_mult(optree):
     return not exclude_for_mult(optree)
 
-def fp_std_cond(optree):    
+def fp_std_cond(optree):
     return True
     #return (not isinstance(optree.get_precision(), ML_FP_Format)) or std_cond(optree)
 
+
+def legalize_bfloat16_to_float32(optree):
+    """ Legalize a conversion from BFloat16 to ML_Binary32
+        applying zero extension """
+    op_input = optree.get_input(0)
+    C16 = Constant(16, precision=ML_UInt32)
+    uint16_casted = TypeCast(op_input, precision=ML_UInt16)
+    uint32_conv = Conversion(uint16_casted, precision=ML_UInt32)
+    uint32_shifted = BitLogicLeftShift(uint32_conv, C16, precision=ML_UInt32)
+    return TypeCast(uint32_shifted, precision=ML_Binary32)
+
+def legalize_float32_to_bfloat16_trunk(optree):
+    """ Legalize a conversion from ML_Binary32 to BFloat16 with truncation """
+    op_input = optree.get_input(0)
+    C16 = Constant(16, precision=ML_UInt32)
+    uint32_casted = TypeCast(op_input, precision=ML_UInt32)
+    uint32_shifted = BitLogicRightShift(uint32_casted, C16, precision=ML_UInt32)
+    uint16_casted = Conversion(uint32_shifted, precision=ML_UInt16)
+    return TypeCast(uint16_casted, precision=BFloat16)
 
 def gen_raise_custom_gen_expr(self, code_generator, code_object, optree, arg_tuple, **kwords):
     exception_translation = {
@@ -835,6 +854,10 @@ c_code_generation_table = {
               type_strict_match(ML_Binary32, ML_SingleSingle): 
                   ComplexOperator(optree_modifier = lambda x: ComponentSelection(x.get_input(0), precision=ML_Binary32, specifier=ComponentSelection.Hi)),
               type_strict_match(ML_DoubleDouble, ML_Binary64): FunctionOperator("ml_conv_dd_d", arity = 1), 
+              type_custom_match(FSM(ML_Binary32), FSM(BFloat16)):
+                ComplexOperator(optree_modifier=legalize_bfloat16_to_float32),
+              type_custom_match(FSM(BFloat16), FSM(ML_Binary32)):
+                ComplexOperator(optree_modifier=legalize_float32_to_bfloat16_trunk),
             },
         },
     },
@@ -861,6 +884,11 @@ c_code_generation_table = {
                 type_strict_match(ML_Int64, ML_UInt64): SymbolOperator("(int64_t)", arity = 1, require_header = [ "stdint.h" ], force_folding = False),
                 type_strict_match(ML_UInt128, ML_Int128): IdentityOperator(),
                 type_strict_match(ML_Int128, ML_UInt128): SymbolOperator("(__int128)", arity = 1, require_header = [ "stdint.h" ], force_folding = False),
+
+                type_strict_match(ML_UInt16, BFloat16): IdentityOperator(),
+                type_strict_match(BFloat16, ML_UInt16): IdentityOperator(),
+                type_strict_match(ML_Int16, BFloat16): IdentityOperator(),
+                type_strict_match(BFloat16, ML_Int16): IdentityOperator(),
             },
         },
     },

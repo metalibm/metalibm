@@ -511,6 +511,7 @@ class ML_Std_FP_Format(ML_FP_Format):
                 ML_Binary32: ML_Int32,
                 ML_Binary64: ML_Int64,
                 ML_Binary80: None,
+                BFloat16: ML_Int16,
                 }
         return int_precision[self]
 
@@ -521,6 +522,7 @@ class ML_Std_FP_Format(ML_FP_Format):
                 ML_Binary16: ML_UInt16,
                 ML_Binary32: ML_UInt32,
                 ML_Binary64: ML_UInt64,
+                BFloat16: ML_UInt16,
                 ML_Binary80: None,
                 }
         return uint_precision[self]
@@ -910,6 +912,9 @@ ML_Binary80 = ML_Std_FP_Format(80, 15, 64, "L", "long double", "fp80", DisplayFo
 ## IEEE binary16 (fp16) half precision floating-point format
 ML_Binary16 = ML_Std_FP_Format(16, 5, 10, "__ERROR__", "half", "fp16", DisplayFormat("%a"), sollya.binary16)
 
+BFloat16_Base = ML_Std_FP_Format(16, 8, 7, "__ERROR__", "bfloat16", "bfloat16", DisplayFormat("%a"), sollya.binary32)
+
+
 
 # Standard integer format declarations
 ML_Int8    = ML_Standard_FixedPoint_Format(8, 0, True)
@@ -928,6 +933,18 @@ ML_Int128    = ML_Standard_FixedPoint_Format(128, 0, True)
 ML_UInt128   = ML_Standard_FixedPoint_Format(128, 0, False)
 
 ML_Int256    = ML_Standard_FixedPoint_Format(256, 0, True)
+
+
+def bfloat16_get_cst(cst_value, language):
+    return ML_UInt16.get_cst(ML_Binary32.get_integer_coding(cst_value) >> 16, language)
+
+
+# Brain Float16 format
+BFloat16 = VirtualFormatNoForward(
+    base_format=BFloat16_Base,
+    support_format=ML_UInt16,
+    get_cst=(lambda self, cst_value, language: bfloat16_get_cst(cst_value, language))
+)
 
 def bool_get_c_cst(self, cst_value):
   if cst_value:
