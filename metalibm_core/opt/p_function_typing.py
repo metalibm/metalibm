@@ -402,7 +402,8 @@ def merge_ops_abstract_float_format(arg_format_list, default_precision=None):
 
     FORMAT_MERGE_TABLE = {
         32: ML_Binary32,
-        64: ML_Binary64
+        64: ML_Binary64,
+        16: BFloat16,
     }
 
     return FORMAT_MERGE_TABLE[arg_bit_size]
