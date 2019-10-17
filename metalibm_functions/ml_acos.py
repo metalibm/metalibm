@@ -32,7 +32,7 @@ import sys
 
 import sollya
 
-from sollya import S2, SollyaObject, Interval, log2, log10, acos, sup
+from sollya import S2, SollyaObject, Interval, log2, acos, sup
 
 from metalibm_core.core.ml_function import (
     ML_Function, ML_FunctionBasis, DefaultArgTemplate
@@ -45,128 +45,71 @@ from metalibm_core.core.precisions import ML_Faithful
 from metalibm_core.code_generation.generic_processor import GenericProcessor
 from metalibm_core.core.polynomials import *
 from metalibm_core.core.ml_table import ML_NewTable
-from metalibm_core.core.ml_complex_formats import ML_Mpfr_t
-
-from metalibm_core.code_generation.gappa_code_generator import GappaCodeGenerator
-from metalibm_core.code_generation.generator_utility import FunctionOperator, FO_Result, FO_Arg
 
 from metalibm_core.utility.gappa_utils import execute_gappa_script_extract
 from metalibm_core.utility.ml_template import ML_NewArgTemplate
 
-from metalibm_core.utility.arg_utils import test_flag_option, extract_option_value  
 from metalibm_core.utility.debug_utils import *
 
 class ML_Acos(ML_FunctionBasis):
-  function_name = "ml_acos"
-  def __init__(self, args=DefaultArgTemplate):
-    # initializing base class
-    ML_FunctionBasis.__init__(self, args)
+    function_name = "ml_acos"
+    def __init__(self, args=DefaultArgTemplate):
+        # initializing base class
+        ML_FunctionBasis.__init__(self, args)
 
-  @staticmethod
-  def get_default_args(**kw):
-    """ Return a structure containing the arguments for ML_Acos,
-        builtin from a default argument mapping overloaded with @p kw """
-    default_args_acos = {
-        "output_file": "my_exp.c",
-        "function_name": "my_exp",
-        "precision": ML_Binary32,
-        "accuracy": ML_Faithful,
-        "target": GenericProcessor()
-    }
-    default_args_acos.update(kw)
-    return DefaultArgTemplate(**default_args_acos)
+    @staticmethod
+    def get_default_args(**kw):
+        """ Return a structure containing the arguments for ML_Acos,
+            builtin from a default argument mapping overloaded with @p kw """
+        default_args_acos = {
+            "output_file": "ml_acos.c",
+            "function_name": "ml_acos",
+            "precision": ML_Binary32,
+            "accuracy": ML_Faithful,
+            "target": GenericProcessor()
+        }
+        default_args_acos.update(kw)
+        return DefaultArgTemplate(**default_args_acos)
 
-  def generate_emulate(self, result, mpfr_x, mpfr_rnd):
-    """ generate the emulation code for ML_Log2 functions
-        mpfr_x is a mpfr_t variable which should have the right precision
-        mpfr_rnd is the rounding mode
-    """
-    emulate_func_name = "mpfr_acos"
-    emulate_func_op = FunctionOperator(emulate_func_name, arg_map = {0: FO_Result(0), 1: FO_Arg(0), 2: FO_Arg(1)}, require_header = ["mpfr.h"]) 
-    emulate_func   = FunctionObject(emulate_func_name, [ML_Mpfr_t, ML_Int32], ML_Mpfr_t, emulate_func_op)
-    mpfr_call = Statement(ReferenceAssign(result, emulate_func(mpfr_x, mpfr_rnd)))
+    def generate_scheme(self):
+        """ generate scheme """
+        vx = self.implementation.add_input_variable("x", self.get_input_precision())
 
-    return mpfr_call
+        approx_interval = Interval(-0.5, 0.5)
+        target_epsilon = S2**-(self.precision.get_field_size())
+        poly_degree = sup(sollya.guessdegree(acos(sollya.x), approx_interval, target_epsilon))
 
+        Log.report(Log.Info, "poly_degree={}", poly_degree)
 
-  def generate_scheme(self):
-    """ generate scheme """
-    vx = self.implementation.add_input_variable("x", self.get_input_precision())
+        poly_object, poly_error = Polynomial.build_from_approximation_with_error(
+            acos(sollya.x),
+            poly_degree,
+            [self.precision] * (poly_degree+1),
+            approx_interval,
+            sollya.absolute)
 
-    # retrieving processor inverse approximation table
-    lo_bound_global = SollyaObject(0.0)
-    hi_bound_global = SollyaObject(0.75)
-    approx_interval = Interval(lo_bound_global, hi_bound_global)
-    approx_interval_size = hi_bound_global - lo_bound_global
+        Log.report(Log.Info, "poly_error={}", poly_error)
 
-    # table creation
-    table_index_size = 7
-    field_index_size = 2
-    exp_index_size = table_index_size - field_index_size
+        poly_scheme = PolynomialSchemeEvaluator.generate_horner_scheme(poly_object, vx, unified_precision=self.precision)
 
-    table_size = 2**table_index_size
-    table_index_range = range(table_size)
+        main_block = ConditionBlock(
+            LogicalOr(vx > 1.0, vx < -1.0, likely=False),
+            Return(FP_QNaN(self.precision)),
+            Return(poly_scheme)
+        )
 
-    local_degree = 9
-    coeff_table = ML_NewTable(
-        dimensions=[table_size, local_degree],
-        storage_precision=self.precision)
+        scheme = Statement(main_block)
+        return scheme
 
-    exp_lo = 2**exp_index_size
-    for i in table_index_range:
-      lo_bound = (1.0 + (i % 2**field_index_size) * S2**-field_index_size) * S2**(i / 2**field_index_size - exp_lo)
-      hi_bound = (1.0 + ((i % 2**field_index_size) + 1) * S2**-field_index_size) * S2**(i / 2**field_index_size - exp_lo)
-      local_approx_interval = Interval(lo_bound, hi_bound)
-      local_poly_object, local_error = Polynomial.build_from_approximation_with_error(
-        acos(1 - sollya.x),
-        local_degree,
-        [self.precision] * (local_degree+1),
-        local_approx_interval,
-        sollya.absolute)
-      local_error = int(log2(sup(abs(local_error / acos(1 - local_approx_interval)))))
-      coeff_table
-      for d in range(local_degree):
-        coeff_table[i][d] = sollya.coeff(local_poly_object.get_sollya_object(), d) 
-
-    table_index = BitLogicRightShift(
-        vx, vx.get_precision().get_field_size() - field_index_size
-    ) - (exp_lo << field_index_size)
-
-
-
-
-    print "building mathematical polynomial"
-    poly_degree = sup(sollya.guessdegree(acos(x), approx_interval, S2**-(self.precision.get_field_size()))) 
-    print "guessed polynomial degree: ", int(poly_degree)
-    #global_poly_object = Polynomial.build_from_approximation(log10(1+x)/x, poly_degree, [self.precision]*(poly_degree+1), approx_interval, absolute)
-
-    print "generating polynomial evaluation scheme"
-    #_poly = PolynomialSchemeEvaluator.generate_horner_scheme(poly_object, _red_vx, unified_precision = self.precision)
-
-    # building eval error map
-    #eval_error_map = {
-    #  red_vx: Variable("red_vx", precision = self.precision, interval = red_vx.get_interval()),
-    #  log_inv_hi: Variable("log_inv_hi", precision = self.precision, interval = table_high_interval),
-    #  log_inv_lo: Variable("log_inv_lo", precision = self.precision, interval = table_low_interval),
-    #}
-    # computing gappa error
-    #poly_eval_error = self.get_eval_error(result, eval_error_map)
-
-
-
-    # main scheme
-    print "MDL scheme"
-    scheme = Statement(Return(vx))
-    return scheme
-
+    def numeric_emulate(self, input_value):
+        """ Numeric emaluation of arc cosine """
+        return sollya.acos(input_value)
 
 
 if __name__ == "__main__":
-  # auto-test
-  arg_template = ML_NewArgTemplate(
-    default_arg=ML_Acos.get_default_args())
-  args = arg_template.arg_extraction()
+    # auto-test
+    arg_template = ML_NewArgTemplate( default_arg=ML_Acos.get_default_args())
+    args = arg_template.arg_extraction()
 
-
-  ml_acos          = ML_Acos(args)
-  ml_acos.gen_implementation()
+    ml_acos          = ML_Acos(args)
+    ml_acos.gen_implementation()
