@@ -54,6 +54,7 @@ import metalibm_functions.ml_tanh
 import metalibm_functions.ml_div
 import metalibm_functions.generic_log
 import metalibm_functions.erf
+import metalibm_functions.ml_acos
 
 from metalibm_core.utility.log_report import Log
 
@@ -148,6 +149,8 @@ FUNCTION_LIST = [
   FunctionTest(metalibm_functions.ml_sincos.ML_SinCos, [{}]),
 
   FunctionTest(metalibm_functions.erf.ML_Erf, [{}]),
+
+  FunctionTest(metalibm_functions.ml_acos.ML_Acos, [{}]),
 ]
 
 global_test_list = []
