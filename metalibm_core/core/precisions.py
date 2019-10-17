@@ -35,7 +35,9 @@
 ###############################################################################
 
 import sollya
-from .ml_operations import LogicalOr, Comparison, FunctionObject, Min, Abs, Subtraction, Division
+from .ml_operations import (
+    LogicalAnd, LogicalNot,
+    Comparison, FunctionObject, Min, Abs, Subtraction, Division)
 from metalibm_core.code_generation.generator_utility import *
 
 ## Parent class for output precision indication/constraint
@@ -101,10 +103,16 @@ class ML_TwoFactorPrecision(ML_FunctionPrecision):
 
     def get_output_check_test(self, test_result, stored_outputs):
         low_bound, high_bound = stored_outputs
-        failure_test = LogicalOr(
-          Comparison(test_result, low_bound, specifier = Comparison.Less),
-          Comparison(test_result, high_bound, specifier = Comparison.Greater)
+        # to circumvent issue #25: failure to detected unpexcted NaNs
+        # check for failure was changed for an inverted check for success
+        # such that the test succeed only if the value is within the bound
+        # and not fails if the value lies outside the bound (which fails to
+        # raise unexpected NaNs as failure)
+        success_test = LogicalAnd(
+          Comparison(test_result, low_bound, specifier=Comparison.GreaterOrEqual),
+          Comparison(test_result, high_bound, specifier=Comparison.LessOrEqual)
         )
+        failure_test = LogicalNot(success_test)
         return failure_test
     def get_output_print_function(self, function_name, footer="\\n"):
         printf_template = "printf(\"[%s;%s]%s\", %s, %s)" % (
