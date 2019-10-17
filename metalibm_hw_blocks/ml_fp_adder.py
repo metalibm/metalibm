@@ -103,15 +103,16 @@ class FP_Adder(ML_Entity("fp_adder")):
     vx = self.implementation.add_input_signal("x", io_precision)
     vy = self.implementation.add_input_signal("y", io_precision)
 
-    p = self.precision.get_mantissa_size()
+    base_precision = self.precision.get_base_format()
+    p = base_precision.get_mantissa_size()
     print("p={}".format(p))
 
     # vx must be aligned with vy
     # the largest shit amount (in absolute value) is precision + 2
     # (1 guard bit and 1 rounding bit)
-    exp_precision     = ML_StdLogicVectorFormat(self.precision.get_exponent_size())
+    exp_precision     = ML_StdLogicVectorFormat(base_precision.get_exponent_size())
 
-    mant_precision    = ML_StdLogicVectorFormat(self.precision.get_mantissa_size())
+    mant_precision    = ML_StdLogicVectorFormat(base_precision.get_mantissa_size())
 
     mant_vx = MantissaExtraction(vx, precision = mant_precision)
     mant_vy = MantissaExtraction(vy, precision = mant_precision)
@@ -143,8 +144,8 @@ class FP_Adder(ML_Entity("fp_adder")):
       return Concatenation(optree, Constant(0, precision = ext_format), precision = out_format)
 
     exp_bias = p + 2
-    exp_precision_ext = fixed_point(self.precision.get_exponent_size() + 2, 0)
-    exp_precision = fixed_point(self.precision.get_exponent_size(), 0, signed=False)
+    exp_precision_ext = fixed_point(base_precision.get_exponent_size() + 2, 0)
+    exp_precision = fixed_point(base_precision.get_exponent_size(), 0, signed=False)
     # Y is first aligned p+2 bit to the left of x
     # and then shifted right by
     # exp_diff = exp_x - exp_y + precision + 2
@@ -201,7 +202,7 @@ class FP_Adder(ML_Entity("fp_adder")):
       tag = "mant_vx_add_op",
       debug = ML_Debug(display_format = " ")
     )
-      
+
 
     mant_add = UnsignedAddition(
                  zext(shifted_mant_vy, 1),
@@ -323,7 +324,7 @@ class FP_Adder(ML_Entity("fp_adder")):
       debug = debug_std
     )
 
-    res_exp_prec_size = self.precision.get_exponent_size() + 2
+    res_exp_prec_size = base_precision.get_exponent_size() + 2
     res_exp_prec = ML_StdLogicVectorFormat(res_exp_prec_size)
 
     res_exp_ext = UnsignedAddition(
@@ -342,14 +343,14 @@ class FP_Adder(ML_Entity("fp_adder")):
       debug = debug_std
     )
 
-    res_exp = Truncate(res_exp_ext, precision = ML_StdLogicVectorFormat(self.precision.get_exponent_size()), tag = "res_exp", debug = debug_dec)
+    res_exp = Truncate(res_exp_ext, precision = ML_StdLogicVectorFormat(base_precision.get_exponent_size()), tag = "res_exp", debug = debug_dec)
 
     vr_out = TypeCast(
       FloatBuild(
-        res_sign, 
-        res_exp, 
-        res_mant_field, 
-        precision = self.precision,
+        res_sign,
+        res_exp,
+        res_mant_field,
+        precision = base_precision,
       ),
       precision = io_precision,
       tag = "result",
