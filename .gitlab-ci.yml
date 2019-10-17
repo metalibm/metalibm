@@ -55,7 +55,7 @@ pages:
   script:
     - export PATH=/app/local/bin:$PATH
     - export LD_LIBRARY_PATH=/app/local/lib/
-    - export PYTHONPATH=/app/local/python2/
+    - export PYTHONPATH=/app/local/python3/
     - mkdir -p public
     - PYTHONPATH=$PWD:$PYTHONPATH  ML_SRC_DIR=$PWD python3 valid/soft_coverage_test.py --report-only --output public/report.${CI_COMMIT_REF_NAME}.html
   artifacts:
