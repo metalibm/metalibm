@@ -32,7 +32,8 @@ import sys
 
 import sollya
 
-from sollya import S2, SollyaObject, Interval, log2, acos, sup
+from sollya import SollyaObject, Interval, log2, acos, sup
+S2 = SollyaObject(2)
 
 from metalibm_core.core.ml_function import (
     ML_Function, ML_FunctionBasis, DefaultArgTemplate
@@ -98,7 +99,8 @@ class ML_Acos(ML_FunctionBasis):
             Return(poly_scheme)
         )
 
-        scheme = Statement(main_block)
+        #scheme = Statement(main_block)
+        scheme = Statement(Return(FP_QNaN(self.precision)))
         return scheme
 
     def numeric_emulate(self, input_value):

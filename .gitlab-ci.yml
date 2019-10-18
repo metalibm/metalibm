@@ -49,9 +49,6 @@ lint:
 
 pages:
   stage: deploy
-  only:
-    refs:
-        - master
   script:
     - export PATH=/app/local/bin:$PATH
     - export LD_LIBRARY_PATH=/app/local/lib/
