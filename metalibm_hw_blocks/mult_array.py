@@ -13,6 +13,8 @@ import random
 import math
 import re
 
+from functools import reduce
+
 from enum import Enum
 
 import sollya
@@ -108,10 +110,6 @@ def multiplication_descriptor_parser(arg_str):
 
 def comp_3to2(a, b, c):
     """ 3 digits to 2 digits compressor """
-    #full = Addition(a, b, c, precision=ML_StdLogicVectorFormat(2))
-    #carry = BitSelection(full, 1)
-    #digit = BitSelection(full, 0)
-    #return carry, digit
     s = BitLogicXor(a, BitLogicXor(b, c, precision=ML_StdLogic), precision=ML_StdLogic)
     c = BitLogicOr(
         BitLogicAnd(a, b, precision=ML_StdLogic),
@@ -197,7 +195,7 @@ def dadda_4to2_reduction(previous_bit_heap):
     # new_count. However it is not necessary to reduce over it
     while previous_bit_heap.max_count() > 0:
         bit_list, w = previous_bit_heap.pop_lower_bits(4)
-        # if a carry frmo this weight exists, we must try to 
+        # if a carry from this weight exists, we must try to
         # accumulate it
         if carry_bit_heap.bit_count(w) > 0:
             cin = carry_bit_heap.pop_bit(w)
@@ -211,7 +209,7 @@ def dadda_4to2_reduction(previous_bit_heap):
             if cin:
                 next_bit_heap.insert_bit(w, cin)
         elif (0 if cin is None else 1) + previous_bit_heap.bit_count(w) + len(bit_list) + next_bit_heap.bit_count(w) <= new_count:
-            print "dropping bits without compression"
+            print("dropping bits without compression")
             # drop every bit in next stage
             if not cin is None:
                 next_bit_heap.insert_bit(w, cin)
@@ -653,7 +651,7 @@ class MultArray(ML_Entity("mult_array")):
         b_inputs = {}
 
         for index, operation_input in enumerate(self.op_expr):
-            print "%s" % str(operation_input)
+            print("%s" % str(operation_input))
 
         stage_map = {}
 
@@ -708,10 +706,15 @@ class MultArray(ML_Entity("mult_array")):
 
 
         def merge_product_in_heap(operand_list, pos_bit_heap, neg_bit_heap):
+            """ generate product operand_list[0] * operand_list[1] and
+                insert all the partial products into the heaps
+                @p pos_bit_heap (positive bits) and @p neg_bit_heap (negative
+                bits) """
             a_i, b_i = operand_list
             if self.booth_mode:
                 booth_radix4_multiply(a_i, b_i, pos_bit_heap, neg_bit_heap)
             else:
+                # non-booth product generation
                 a_i_precision = a_i.get_precision()
                 b_i_precision = b_i.get_precision()
                 a_i_signed = a_i_precision.get_signed()
@@ -735,6 +738,7 @@ class MultArray(ML_Entity("mult_array")):
                             pos_bit_heap.insert_bit(pp_weight, local_bit)
 
         def merge_addition_in_heap(operand_list, pos_bit_heap, neg_bit_heap):
+            """ expand addition of operand_list[0] to the bit heaps """
             add_op = operand_list[0]
             precision = add_op.get_precision()
             size = precision.get_bit_size()
@@ -751,7 +755,7 @@ class MultArray(ML_Entity("mult_array")):
 
         # fixing precision
         for index, operation in enumerate(self.op_expr):
-            print str(operation)
+            print(str(operation))
 
         stage_operation_map = {}
 
@@ -786,25 +790,37 @@ class MultArray(ML_Entity("mult_array")):
             # Partial Product reduction
             while pos_bit_heap.max_count() > limit:
                 pos_bit_heap = REDUCTION_METHOD_MAP[self.reduction_method](pos_bit_heap)
+                dump_heap_stats("pos_bit_heap", pos_bit_heap)
             while neg_bit_heap.max_count() > limit:
                 neg_bit_heap = REDUCTION_METHOD_MAP[self.reduction_method](neg_bit_heap)
+                dump_heap_stats("neg_bit_heap", neg_bit_heap)
             return pos_bit_heap, neg_bit_heap
+
+        def dump_heap_stats(title, bit_heap):
+            Log.report(Log.Verbose, "  {} max count: {}", title, bit_heap.max_count())
+
+
 
         stage_index_list = sorted(stage_operation_map.keys())
         for stage_id in stage_index_list:
+            Log.report(Log.Verbose, "considering stage: {}".format(stage_id))
             # synchronizing pipeline stage
             if stage_id is None:
                 pass
             else:
                 while stage_id > self.implementation.get_current_stage():
-                    print "reducing bit heaps and inserting new stage"
-                    pos_bit_heap, neg_bit_heap = reduce_heap(pos_bit_heap, neg_bit_heap)
+                    current_stage_id = self.implementation.get_current_stage()
+                    pos_bit_heap, neg_bit_heap = reduce_heap(pos_bit_heap, neg_bit_heap, limit=self.stage_height_limit[current_stage_id])
+                    Log.report(Log.Verbose, "Inserting a new pipeline stage, stage_id={}, current_stage={}", stage_id, self.implementation.get_current_stage())
                     self.implementation.start_new_stage()
 
+            # inserting input operations that appears at this stage
             operation_list = stage_operation_map[stage_id]
             for merge_ctor, operand_list in operation_list:
+                Log.report(Log.Verbose, "merging a new operation result")
                 merge_ctor(operand_list, pos_bit_heap, neg_bit_heap)
 
+        Log.report(Log.Verbose, "final stage reduction")
 
         # final stage reduction
         pos_bit_heap, neg_bit_heap = reduce_heap(pos_bit_heap, neg_bit_heap)
@@ -915,7 +931,7 @@ if __name__ == "__main__":
             "--stage-height-limit",
             type=lambda s: [int(v) for v in s.split(",")],
             default=[None],
-            help="deefine the list of height limit (lower) for each compression stage"
+            help="define the list of height limit (lower) for each compression stage"
         )
         # argument extraction
         args = parse_arg_index_list = arg_template.arg_extraction()
