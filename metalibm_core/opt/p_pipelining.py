@@ -49,7 +49,7 @@ class RetimeMap:
         # from <stage_index> -> <stage_index + 1>
         self.stage_forward = {}
         # list of nodes already retimed
-        self.processed = []
+        self.processed = set()
         #
         self.pre_statement = set()
         # number of flip/flops (bit registers)
@@ -66,7 +66,7 @@ class RetimeMap:
     def addToProcessed(self, op):
         """ add op to the list of processed nodes """
         op_key = self.get_op_key(op)
-        return self.processed.append(op_key)
+        return self.processed.add(op_key)
 
     def contains(self, op, stage):
         """ check if the pair (op, stage) is defined in the stage map """
@@ -80,8 +80,8 @@ class RetimeMap:
         self.stage_map[(op_key, stage)] = op
 
     def add_stage_forward(self, op_dst, op_src, stage):
-        Log.report(Log.Verbose, " adding stage forward {op_src} to {op_dst} @ stage {stage}".format(
-            op_src=op_src, op_dst=op_dst, stage=stage))
+        Log.report(Log.Verbose, " adding stage forward {op_src} to {op_dst} @ stage {stage}",
+            op_src=op_src, op_dst=op_dst, stage=stage)
         if not stage in self.stage_forward:
             self.stage_forward[stage] = []
         self.stage_forward[stage].append(
@@ -94,8 +94,8 @@ class RetimeMap:
 #  in @p stage
 def propagate_op(op, stage, retime_map):
     op_key = retime_map.get_op_key(op)
-    Log.report(Log.Verbose, " propagating {op} (key={op_key}) to stage {stage}".format(
-        op=op, op_key=op_key, stage=stage))
+    Log.report(Log.Verbose, " propagating {op} (key={op_key}) to stage {stage}",
+        op=op, op_key=op_key, stage=stage)
     # look for the latest stage where op is defined
     current_stage = op_key.attributes.init_stage
     while retime_map.contains(op_key, current_stage + 1):
@@ -137,7 +137,7 @@ def retime_op(op, retime_map):
     """ Process each input of op and if necessary generate necessary
         forwarding stage """
     op_stage = op.attributes.init_stage
-    Log.report(Log.Verbose, "retiming op [S=%d] %s " % (op_stage, op.get_str(depth=1)))
+    Log.report(Log.Verbose, "retiming op [S={}] {} ", op_stage, op)
     if retime_map.hasBeenProcessed(op):
         Log.report(Log.Verbose, "  retiming already processed")
         return
@@ -150,10 +150,9 @@ def retime_op(op, retime_map):
             in_stage = in_op.attributes.init_stage
             Log.report(
                 Log.Verbose,
-                "retiming input {inp} of {op} stage {in_stage} -> {op_stage}".format(
-                    inp=in_op.get_str(depth=1), op=op, in_stage=in_stage,
-                    op_stage=op_stage
-                )
+                "retiming input {inp} of {op} stage {in_stage} -> {op_stage}",
+                inp=in_op, op=op, in_stage=in_stage,
+                op_stage=op_stage
             )
             if not retime_map.hasBeenProcessed(in_op):
                 retime_op(in_op, retime_map)
@@ -171,9 +170,9 @@ def retime_op(op, retime_map):
                     op_stage = delay_op.attributes.init_stage + delay_value
                 else:
                     op_stage = delay_value
-                Log.report(Log.Verbose, "squashing StaticDelay on {delay_op}, delay={delay}".format(
+                Log.report(Log.Verbose, "squashing StaticDelay on {delay_op}, delay={delay}",
                     delay_op=delay_op, delay=delay_value
-                ))
+                )
                 if not retime_map.contains(delay_op, op_stage):
                     propagate_op(delay_op, op_stage, retime_map)
                 new_in = retime_map.get(delay_op, op_stage)
@@ -183,8 +182,8 @@ def retime_op(op, retime_map):
                 if not retime_map.contains(in_op, op_stage):
                     propagate_op(in_op, op_stage, retime_map)
                 new_in = retime_map.get(in_op, op_stage)
-                Log.report(Log.Verbose, "new version of input {inp} for {op} is {new_in}".format(
-                    inp=in_op, op=op, new_in=new_in))
+                Log.report(Log.Verbose, "new version of input {inp} for {op} is {new_in}",
+                    inp=in_op, op=op, new_in=new_in)
                 op.set_input(in_id, new_in)
             elif in_stage > op_stage:
                 Log.report(Log.Error, "stages {in_stage} -> {op_stage}, input {inp} of {op} is defined at a later stage".format(
