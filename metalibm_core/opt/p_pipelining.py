@@ -52,6 +52,8 @@ class RetimeMap:
         self.processed = []
         #
         self.pre_statement = set()
+        # number of flip/flops (bit registers)
+        self.register_count = 0
 
     def get_op_key(self, op):
         op_key = op.attributes.init_op if not op.attributes.init_op is None else op
@@ -85,6 +87,7 @@ class RetimeMap:
         self.stage_forward[stage].append(
             ReferenceAssign(op_dst, op_src)
         )
+        self.register_count += op_dst.get_precision().get_bit_size()
         self.pre_statement.add(op_src)
 
 # propagate forward @p op until it is defined
@@ -229,6 +232,8 @@ def generate_pipeline_stage(entity, reset=False, recirculate=False, one_process_
     clock_statement = Statement()
     global_reset_statement = Statement()
 
+
+    Log.report(Log.Info, "design has {} flip-flop(s).", retime_map.register_count)
 
     # handle towards the first clock Process (in generation order)
     # which must be the one whose pre_statement is filled with
