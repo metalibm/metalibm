@@ -110,7 +110,6 @@ class ML_Isqrt(ML_FunctionBasis):
   def __init__(self, args):
     # initializing base class
     ML_FunctionBasis.__init__(self, args)
-    self.accuracy  = args.accuracy
     self.num_iter = args.num_iter
 
 
@@ -166,7 +165,7 @@ class ML_Isqrt(ML_FunctionBasis):
     return_NaN_or_neg = Statement(Return(FP_QNaN(self.precision)))
     return_inf = Statement(Return(C0))
     
-    NR_init = InverseSquareRootSeed(vx, precision = self.precision, tag = "sqrt_seed", debug = debug_multi)
+    NR_init = ReciprocalSquareRootSeed(vx, precision = self.precision, tag = "sqrt_seed", debug = debug_multi)
     result = compute_isqrt(vx, NR_init, int(self.num_iter), precision = self.precision)
     
     return_non_std = ConditionBlock(
