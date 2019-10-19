@@ -610,13 +610,14 @@ class MultArray(ML_Entity("mult_array")):
             "Method": ReductionMethod.Wallace_4to2,
             "pipelined": False,
             "dummy_mode": False,
+            "booth_mode": False,
+            "method": ReductionMethod.Wallace,
+            "op_expr": multiplication_descriptor_parser("FS9.0xFS13.0"),
+            "stage_height_limit": [None],
             "passes": [
                 ("beforepipelining:size_datapath"),
                 ("beforepipelining:rtl_legalize"),
-                #("beforepipelining:dump_with_stages"),
-                #("beforepipelining:quit"),
                 ("beforepipelining:unify_pipeline_stages"),
-                #("beforecodegen:dump"),
                 ],
         }
         default_dict.update(kw)
@@ -660,8 +661,8 @@ class MultArray(ML_Entity("mult_array")):
                 mult_input = operation_input
                 a_i = self.implementation.add_input_signal("a_%d_i" % index, mult_input.lhs_precision)
                 b_i = self.implementation.add_input_signal("b_%d_i" % index, mult_input.rhs_precision)
-                lhs_stage = clean_stage(mult_input.lhs_stage)
-                rhs_stage = clean_stage(mult_input.rhs_stage)
+                lhs_stage = self.clean_stage(mult_input.lhs_stage)
+                rhs_stage = self.clean_stage(mult_input.rhs_stage)
                 a_i.set_attributes(init_stage=lhs_stage)
                 b_i.set_attributes(init_stage=rhs_stage)
                 op_stage = max(lhs_stage, rhs_stage)
