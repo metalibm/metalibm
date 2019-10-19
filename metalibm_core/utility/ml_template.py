@@ -102,7 +102,7 @@ HDL_PRECISION_MAP = {
     "binary16": HdlVirtualFormat(ML_Binary16),
     "binary32": HdlVirtualFormat(ML_Binary32),
     "binary64": HdlVirtualFormat(ML_Binary64),
-    "bfloat16": HdlVirtualFormat(BFloat16),
+    "bfloat16": HdlVirtualFormat(BFloat16_Base),
     # aliases
     "half": HdlVirtualFormat(ML_Binary16),
     "float": HdlVirtualFormat(ML_Binary32),
