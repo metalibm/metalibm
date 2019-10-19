@@ -37,6 +37,8 @@ import metalibm_hw_blocks.ml_fp_mpfma
 import metalibm_hw_blocks.ml_fixed_mpfma
 import metalibm_hw_blocks.ml_fp_div
 import metalibm_hw_blocks.bipartite_approx
+import metalibm_hw_blocks.mult_array as mult_array
+from metalibm_hw_blocks.mult_array import multiplication_descriptor_parser as mult_array_parser
 
 from metalibm_core.core.ml_formats import  \
   ML_Binary16, ML_Binary32, ML_Binary64, ML_Int32
@@ -108,6 +110,19 @@ new_scheme_function_list = [
         {"width": 32, "signed": True}, {"width": 13, "signed": True},
     ]
   ),
+  EntitySchemeTest(
+    "multiplication array",
+    mult_array.MultArray,
+    [
+        {"op_expr": mult_array_parser("FS9.0xFS9.0+FU13.0")},
+        {"dummy_mode": True, "method": mult_array.ReductionMethod.Wallace},
+        {"booth_mode": True, "method": mult_array.ReductionMethod.Dadda_4to2,
+         "op_expr": mult_array_parser("FS9.4xFS9.-2+FU13.3") },
+        {"dummy_mode": True, "method": mult_array.ReductionMethod.Wallace_4to2,
+         "op_expr": mult_array_parser("FS9.4xFS9.-2+FU13.3xFS3.3") },
+        {"booth_mode": True, "method": mult_array.ReductionMethod.Dadda},
+    ]
+  ),
 ]
 
 test_tag_map = {}
@@ -121,7 +136,7 @@ class ListTestAction(argparse.Action):
           print(test.get_tag_title())
         exit(0)
 
-# generate list of test object from string 
+# generate list of test object from string
 # of comma separated test's tag
 def parse_test_list(test_list):
   test_tags = test_list.split(",")
