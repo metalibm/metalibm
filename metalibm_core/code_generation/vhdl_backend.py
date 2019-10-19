@@ -1115,6 +1115,9 @@ vhdl_code_generation_table = {
                 type_custom_match(TCM(ML_StdLogicVectorFormat), FSM(ML_Binary32)):
                 SymbolOperator("(30 downto 23)", lspace="", inverse=True, \
                                arity=1),
+                type_custom_match(TCM(ML_StdLogicVectorFormat), FSM(BFloat16_Base)):
+                SymbolOperator("(14 downto 7)", lspace="", inverse=True, \
+                               arity=1),
                 type_custom_match(TCM(ML_StdLogicVectorFormat), FSM(ML_Binary16)):
                 SymbolOperator("(14 downto 10)", lspace="", inverse=True, \
                                arity=1),
@@ -1213,12 +1216,14 @@ vhdl_code_generation_table = {
     MantissaExtraction: {
         None: {
             lambda optree: True: {
-                # TemplateOperator("%s(22 downto 0)", arity = 1),
-                type_custom_match(MCSTDLOGICV, FSM(ML_Binary16)): ComplexOperator(optree_modifier=mantissa_extraction_modifier),
-                # TemplateOperator("%s(22 downto 0)", arity = 1),
-                type_custom_match(MCSTDLOGICV, FSM(ML_Binary32)): ComplexOperator(optree_modifier=mantissa_extraction_modifier),
-                # TemplateOperator("%s(22 downto 0)", arity = 1),
-                type_custom_match(MCSTDLOGICV, FSM(ML_Binary64)): ComplexOperator(optree_modifier=mantissa_extraction_modifier),
+                type_custom_match(MCSTDLOGICV, FSM(ML_Binary16)):
+                    ComplexOperator(optree_modifier=mantissa_extraction_modifier),
+                type_custom_match(MCSTDLOGICV, FSM(BFloat16_Base)):
+                    ComplexOperator(optree_modifier=mantissa_extraction_modifier),
+                type_custom_match(MCSTDLOGICV, FSM(ML_Binary32)):
+                    ComplexOperator(optree_modifier=mantissa_extraction_modifier),
+                type_custom_match(MCSTDLOGICV, FSM(ML_Binary64)):
+                    ComplexOperator(optree_modifier=mantissa_extraction_modifier),
             },
         },
     },
@@ -1285,6 +1290,13 @@ vhdl_code_generation_table = {
                 type_custom_match(FSM(ML_Binary16), FSM(ML_Binary16)):
 					TransparentOperator(output_precision=ML_Binary16, no_parenthesis=True),
                 type_custom_match(MCSTDLOGICV, FSM(ML_Binary16)):
+					TransparentOperator(no_parenthesis=True),
+
+                type_custom_match(FSM(BFloat16_Base), TCM(ML_StdLogicVectorFormat)):
+					TransparentOperator(output_precision=BFloat16_Base, no_parenthesis=True),
+                type_custom_match(FSM(BFloat16_Base), FSM(BFloat16_Base)):
+					TransparentOperator(output_precision=BFloat16_Base, no_parenthesis=True),
+                type_custom_match(MCSTDLOGICV, FSM(BFloat16_Base)):
 					TransparentOperator(no_parenthesis=True),
 
                 type_custom_match(FSM(ML_Binary32), TCM(ML_StdLogicVectorFormat)):
@@ -1389,6 +1401,8 @@ vhdl_code_generation_table = {
     SpecificOperation: {
         SpecificOperation.CopySign: {
             lambda optree: True: {
+                type_custom_match(FSM(ML_StdLogic), FSM(BFloat16_Base)):
+                    TemplateOperator("%s(15)", arity=1),
                 type_custom_match(FSM(ML_StdLogic), FSM(ML_Binary16)):
                     TemplateOperator("%s(15)", arity=1),
                 type_custom_match(FSM(ML_StdLogic), FSM(ML_Binary32)):
