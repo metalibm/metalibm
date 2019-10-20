@@ -912,8 +912,32 @@ ML_Binary80 = ML_Std_FP_Format(80, 15, 64, "L", "long double", "fp80", DisplayFo
 ## IEEE binary16 (fp16) half precision floating-point format
 ML_Binary16 = ML_Std_FP_Format(16, 5, 10, "__ERROR__", "half", "fp16", DisplayFormat("%a"), sollya.binary16)
 
-BFloat16_Base = ML_Std_FP_Format(16, 8, 7, "__ERROR__", "bfloat16", "bfloat16", DisplayFormat("%a"), sollya.binary32)
 
+def round_to_bfloat16(value, round_mode=sollya.RN, flush_sub_to_zero=True):
+    """ round value to Brain Float16 format """
+    # when given a number of digit, sollya assumes infinite exponent range
+    rounded_value = sollya.round(value, 11, round_mode)
+    # we flush subnormal to 0.0
+    if abs(rounded_value) < ML_Binary32.get_min_normal_value():
+        if flush_sub_to_zero:
+            return FP_PlusZero(BFloat16_Base) if rounded_value >= 0 else FP_MinusZero(BFloat16_Base)
+        else:
+            raise NotImplementedError("bfloat16 rounding only support flushing subnormal to 0")
+    # second rounding to binary32 ensure that overflow are detected properly
+    return sollya.round(rounded_value, sollya.binary32, round_mode)
+
+def bfloat16_get_cst(cst_value, language):
+    return ML_UInt16.get_cst(ML_Binary32.get_integer_coding(cst_value) >> 16, language)
+
+class BFloat16_Class(ML_Std_FP_Format):
+    def __init__(self, flush_sub_to_zero=True):
+        ML_Std_FP_Format.__init__(self, 16, 8, 7, "__ERROR__", "bfloat16", "bfloat16", DisplayFormat("%a"), sollya.SollyaObject(10))
+        self.flush_sub_to_zero = flush_sub_to_zero
+
+    def round_sollya_object(self, value, round_mode=sollya.RN):
+        return round_to_bfloat16(value, round_mode=round_mode, flush_sub_to_zero=self.flush_sub_to_zero)
+
+BFloat16_Base = BFloat16_Class(flush_sub_to_zero=True)
 
 
 # Standard integer format declarations
@@ -935,8 +959,6 @@ ML_UInt128   = ML_Standard_FixedPoint_Format(128, 0, False)
 ML_Int256    = ML_Standard_FixedPoint_Format(256, 0, True)
 
 
-def bfloat16_get_cst(cst_value, language):
-    return ML_UInt16.get_cst(ML_Binary32.get_integer_coding(cst_value) >> 16, language)
 
 
 # Brain Float16 format
