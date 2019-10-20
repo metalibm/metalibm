@@ -834,7 +834,12 @@ class ML_Base_SW_FixedPoint_Format(ML_Base_FixedPoint_Format):
             Log.report(Log.Warning, "unsupported bit_size {} in ML_Base_SW_FixedPoint_Format".format(bit_size))
             self.dbg_name = ("" if self.signed else "u") + "int" + str(bit_size)
         else:
-            self.c_bit_size = min((n for n in self.POSSIBLE_SIZES if n >= bit_size), default=None)
+            # for python2 compatibility min without default argument is used
+            possible_list = [n for n in self.POSSIBLE_SIZES if n >= bit_size]
+            if len(possible_list) == 0:
+                self.c_bit_size = None
+            else:
+                self.c_bit_size = min(possible_list)
             if self.c_bit_size is None:
                 Log.report(Log.Error, "not able to find a compatible c_bit_size for {} = {} + {}", bit_size, integer_size, frac_size)
             c_name = ("" if self.signed else "u") + "int" + str(self.c_bit_size) + "_t"
