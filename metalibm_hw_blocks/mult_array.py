@@ -901,6 +901,20 @@ class MultArray(ML_Entity("mult_array")):
         # assert acc >= 0
         return {"result_o": acc}
 
+OP_EXPR_HELP = """\
+Multiplication Input descriptor using fixed-point type descriptor plus
+optional stage id and tag.
+
+syntax is "+"-separated list of operations,
+where operations is either <format>x<format> for product or <format>
+and format is: <fixed-point format>[optional stage, optional tag]
+
+e.g. FS3.3xFS4.2[1]+FS3.4[2,my_tag]
+
+- stage indicates at which pipeline stage a value is availble
+- tag is a used-defined name for the value input signal
+- tag is only available if a stage is given
+"""
 
 if __name__ == "__main__":
         # auto-test
@@ -915,7 +929,7 @@ if __name__ == "__main__":
             dest="op_expr",
             type=multiplication_descriptor_parser,
             default=None,
-            help="Multiplication Input descriptor")
+            help="Multiplication Input descriptor using fixed-point type descriptor, optional stage id and tag")
         arg_template.parser.add_argument(
             "--dummy-mode",
             dest="dummy_mode",
