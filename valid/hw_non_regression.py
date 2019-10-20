@@ -121,6 +121,10 @@ new_scheme_function_list = [
         {"dummy_mode": True, "method": mult_array.ReductionMethod.Wallace_4to2,
          "op_expr": mult_array_parser("FS9.4xFS9.-2+FU13.3xFS3.3") },
         {"booth_mode": True, "method": mult_array.ReductionMethod.Dadda},
+        # covering tag option
+        {"dummy_mode": True, "method": mult_array.ReductionMethod.Wallace_4to2,
+         "pipelined": True,
+         "op_expr": mult_array_parser("FS9.4xFS9.-2[0,mytag]+FU13.3[1,other_tag]") },
     ]
   ),
 ]

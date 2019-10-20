@@ -14,6 +14,7 @@ import math
 import re
 
 from functools import reduce
+import collections
 
 from enum import Enum
 
@@ -59,50 +60,59 @@ from metalibm_core.utility.ml_template import hdl_precision_parser
 
 
 # re pattern to match format and stage index strings
-OP_PATTERN = "(?P<format>F[US]-?\d+\.-?\d+)(\[(?P<stage>\d+)\])?"
+OP_PATTERN = "(?P<format>F[US]-?\d+\.-?\d+)(\[(?P<stage>\d+)(?P<tag>,\w+|)\])?"
 
 
 class OpInput(object):
-    def __init__(self, precision, stage=None):
+    def __init__(self, precision, stage=None, tag=None):
         self.precision = precision
         self.stage = stage
+        self.tag = tag
 
     def __str__(self):
-        return "+ %s[%s]" % (str(self.precision), self.stage)
+        tag_label = "" if self.tag is None else "," + self.tag
+        return "+ %s[%s%s]" % (str(self.precision), self.stage, tag_label)
 
 
 def extract_format_stage(s):
     group_match = re.match(OP_PATTERN, s)
     precision = group_match.group("format")
     stage = group_match.group("stage")
-    return precision, stage if stage is None else int(stage)
+    tag = group_match.group("tag")
+    return precision, (stage if stage is None else int(stage)), (tag if tag is None else tag[1:])
 
 class MultInput:
-    def __init__(self, lhs_precision, rhs_precision, lhs_stage=None, rhs_stage=None):
+    def __init__(self, lhs_precision, rhs_precision, lhs_stage=None, rhs_stage=None, lhs_tag=None, rhs_tag=None):
         self.lhs_precision = lhs_precision
         self.rhs_precision = rhs_precision
         self.lhs_stage = lhs_stage
         self.rhs_stage = rhs_stage
+        self.lhs_tag = lhs_tag
+        self.rhs_tag = rhs_tag
 
 
     def __str__(self):
-        return "%s[%s] x %s[%s]" % (str(self.lhs_precision), self.lhs_stage, str(self.rhs_precision), self.rhs_stage)
+        lhs_desc = "{}, {}".format(self.lhs_stage, self.lhs_tag)
+        rhs_desc = "{}, {}".format(self.rhs_stage, self.rhs_tag)
+        return "%s[%s] x %s[%s]" % (str(self.lhs_precision), lhs_desc, str(self.rhs_precision), rhs_desc)
 
     @staticmethod
     def parse(s):
         if "x" in s:
             lhs, rhs = s.split("x")
-            lhs_format, lhs_stage = extract_format_stage(lhs)
-            rhs_format, rhs_stage = extract_format_stage(rhs)
+            lhs_format, lhs_stage, lhs_tag = extract_format_stage(lhs)
+            rhs_format, rhs_stage, rhs_tag = extract_format_stage(rhs)
             return MultInput(
                 hdl_precision_parser(lhs_format),
                 hdl_precision_parser(rhs_format),
                 lhs_stage=lhs_stage,
-                rhs_stage=rhs_stage
+                rhs_stage=rhs_stage,
+                lhs_tag=lhs_tag,
+                rhs_tag=rhs_tag
             )
         else:
-            precision, stage = extract_format_stage(s)
-            return OpInput(hdl_precision_parser(precision), stage)
+            precision, stage, tag = extract_format_stage(s)
+            return OpInput(hdl_precision_parser(precision), stage, tag=tag)
 
 
 def multiplication_descriptor_parser(arg_str):
@@ -641,6 +651,40 @@ class MultArray(ML_Entity("mult_array")):
             return stage_id
 
 
+    def instanciate_inputs(self,
+                           insert_mul_callback=(lambda a,b: (Multiplication, [a,b])),
+                           insert_op_callback=(lambda op: ((lambda v: v), [op]))):
+        """ Generate an ordered dict of <stage_id> -> callback to add operation
+            for each multiplication input and addition/standard input encountered
+            in self.op_expr.
+            A specific callback is used for multiplication and another for
+            addition.
+            Each callback return a tuple (method, op_list) and will call
+            method(op_list) to insert the operation at the proper stage """
+        stage_map = collections.defaultdict(list)
+        for index, operation_input in enumerate(self.op_expr):
+            if isinstance(operation_input, MultInput):
+                mult_input = operation_input
+                a_i_tag = "a_%d_i" % index if mult_input.lhs_tag is None else mult_input.lhs_tag
+                b_i_tag = "b_%d_i" % index if mult_input.rhs_tag is None else mult_input.rhs_tag
+                a_i = self.implementation.add_input_signal(a_i_tag, mult_input.lhs_precision)
+                b_i = self.implementation.add_input_signal(b_i_tag, mult_input.rhs_precision)
+                lhs_stage = self.clean_stage(mult_input.lhs_stage)
+                rhs_stage = self.clean_stage(mult_input.rhs_stage)
+                a_i.set_attributes(init_stage=lhs_stage)
+                b_i.set_attributes(init_stage=rhs_stage)
+                op_stage = max(lhs_stage, rhs_stage)
+                stage_map[op_stage].append(insert_mul_callback(a_i, b_i))
+            elif isinstance(operation_input, OpInput):
+                c_i_tag = "c_%d_i" % index if operation_input.tag is None else operation_input.tag
+                c_i = self.implementation.add_input_signal(c_i_tag, operation_input.precision)
+                op_stage = self.clean_stage(operation_input.stage)
+                c_i.set_attributes(init_stage=self.clean_stage(op_stage))
+                stage_map[op_stage].append(insert_op_callback(c_i))
+
+        return stage_map
+
+
     def generate_dummy_scheme(self):
         Log.report(
             Log.Info,
@@ -654,26 +698,7 @@ class MultArray(ML_Entity("mult_array")):
         for index, operation_input in enumerate(self.op_expr):
             print("%s" % str(operation_input))
 
-        stage_map = {}
-
-        for index, operation_input in enumerate(self.op_expr):
-            if isinstance(operation_input, MultInput):
-                mult_input = operation_input
-                a_i = self.implementation.add_input_signal("a_%d_i" % index, mult_input.lhs_precision)
-                b_i = self.implementation.add_input_signal("b_%d_i" % index, mult_input.rhs_precision)
-                lhs_stage = self.clean_stage(mult_input.lhs_stage)
-                rhs_stage = self.clean_stage(mult_input.rhs_stage)
-                a_i.set_attributes(init_stage=lhs_stage)
-                b_i.set_attributes(init_stage=rhs_stage)
-                op_stage = max(lhs_stage, rhs_stage)
-                if not op_stage in stage_map: stage_map[op_stage] = []
-                stage_map[op_stage].append((Multiplication, [a_i, b_i]))
-            elif isinstance(operation_input, OpInput):
-                c_i = self.implementation.add_input_signal("c_%d_i" % index, operation_input.precision)
-                op_stage = operation_input.stage
-                c_i.set_attributes(init_stage=self.clean_stage(op_stage))
-                if not op_stage in stage_map: stage_map[op_stage] = []
-                stage_map[op_stage].append((lambda v: v, [c_i]))
+        stage_map = self.instanciate_inputs()
 
         stage_index_list = sorted(stage_map.keys())
         for stage_id in stage_index_list:
@@ -758,26 +783,10 @@ class MultArray(ML_Entity("mult_array")):
         for index, operation in enumerate(self.op_expr):
             print(str(operation))
 
-        stage_operation_map = {}
-
         # generating input signals
-        for index, operation_input in enumerate(self.op_expr):
-            if isinstance(operation_input, MultInput):
-                a_i = self.implementation.add_input_signal("a_%d_i" % index, operation_input.lhs_precision)
-                b_i = self.implementation.add_input_signal("b_%d_i" % index, operation_input.rhs_precision)
-                lhs_stage = self.clean_stage(operation_input.lhs_stage)
-                rhs_stage = self.clean_stage(operation_input.rhs_stage)
-                a_i.set_attributes(init_stage=lhs_stage)
-                b_i.set_attributes(init_stage=rhs_stage)
-                op_stage = max(lhs_stage, rhs_stage)
-                if not op_stage in stage_operation_map: stage_operation_map[op_stage] = []
-                stage_operation_map[op_stage].append((merge_product_in_heap, [a_i, b_i]))
-            elif isinstance(operation_input, OpInput):
-                c_i = self.implementation.add_input_signal("c_%d_i" % index, operation_input.precision)
-                op_stage = self.clean_stage(operation_input.stage)
-                c_i.set_attributes(init_stage=self.clean_stage(op_stage))
-                if not op_stage in stage_operation_map: stage_operation_map[op_stage] = []
-                stage_operation_map[op_stage].append((merge_addition_in_heap, [c_i]))
+        stage_operation_map = self.instanciate_inputs(
+            insert_mul_callback=lambda a, b: (merge_product_in_heap, [a, b]),
+            insert_op_callback=lambda op: (merge_addition_in_heap, [op]))
 
 
         # heap of positive bits
