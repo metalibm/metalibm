@@ -32,7 +32,7 @@ import sys
 
 import sollya
 
-from sollya import Interval, floor, round, log2 
+from sollya import Interval, floor, round, log2
 from sollya import parse as sollya_parse
 
 from metalibm_core.core.attributes import ML_Debug
@@ -66,13 +66,13 @@ debug_dec_unsigned = ML_Debug(display_format = " -decimal -unsigned ")
 
 
 class FP_MPFMA(ML_Entity("fp_mpfma")):
-  def __init__(self, 
-             arg_template = DefaultEntityArgTemplate, 
-             precision = HdlVirtualFormat(ML_Binary32), 
+  def __init__(self,
+             arg_template = DefaultEntityArgTemplate,
+             precision = HdlVirtualFormat(ML_Binary32),
              accuracy  = ML_Faithful,
-             debug_flag = False, 
-             target = VHDLBackend(), 
-             output_file = "fp_mpfma.vhd", 
+             debug_flag = False,
+             target = VHDLBackend(),
+             output_file = "fp_mpfma.vhd",
              entity_name = "fp_mpfma",
              language = VHDL_Code,
              acc_prec = None,
@@ -82,7 +82,7 @@ class FP_MPFMA(ML_Entity("fp_mpfma")):
     io_precisions = [precision] * 2
 
     # initializing base class
-    ML_EntityBasis.__init__(self, 
+    ML_EntityBasis.__init__(self,
       base_name = "fp_mpfma",
       entity_name = entity_name,
       output_file = output_file,
@@ -122,8 +122,8 @@ class FP_MPFMA(ML_Entity("fp_mpfma")):
     #clk = self.implementation.add_input_signal("clk", ML_StdLogic)
     # reset = self.implementation.add_input_signal("reset", ML_StdLogic)
     # declaring main input variable
-    vx = self.implementation.add_input_signal("x", prod_input_precision) 
-    vy = self.implementation.add_input_signal("y", prod_input_precision) 
+    vx = self.implementation.add_input_signal("x", prod_input_precision)
+    vy = self.implementation.add_input_signal("y", prod_input_precision)
     vz = self.implementation.add_input_signal("z", accumulator_precision)
 
     # extra reset input port
@@ -137,7 +137,7 @@ class FP_MPFMA(ML_Entity("fp_mpfma")):
     vz_precision     = self.acc_precision.get_base_format()
     result_precision = self.acc_precision.get_base_format()
 
-    # precision for first operand vx which is to be statically 
+    # precision for first operand vx which is to be statically
     # positionned
     p = vx_precision.get_mantissa_size()
     # precision for second operand vy which is to be dynamically shifted
@@ -163,7 +163,7 @@ class FP_MPFMA(ML_Entity("fp_mpfma")):
     mant_vx = MantissaExtraction(vx, precision = mant_vx_precision)
     mant_vy = MantissaExtraction(vy, precision = mant_vy_precision)
     mant_vz = MantissaExtraction(vz, precision = mant_vz_precision)
-    
+
     exp_vx = ExponentExtraction(vx, precision = exp_vx_precision)
     exp_vy = ExponentExtraction(vy, precision = exp_vy_precision)
     exp_vz = ExponentExtraction(vz, precision = exp_vz_precision)
@@ -175,7 +175,7 @@ class FP_MPFMA(ML_Entity("fp_mpfma")):
     # Maximum number of leading zero for normalized <vz> mantissa
     L_z = 0
     # Maximum number of leading zero for the product of <x>.<y>
-    # mantissa. 
+    # mantissa.
     L_xy = L_x + L_y + 1
 
     sign_vx = CopySign(vx, precision = ML_StdLogic)
@@ -207,27 +207,27 @@ class FP_MPFMA(ML_Entity("fp_mpfma")):
     # Determine a working precision to accomodate exponent difference
     # FIXME: check interval and exponent operations size
     exp_precision_ext_size = max(
-      vx_precision.get_exponent_size(), 
+      vx_precision.get_exponent_size(),
       vy_precision.get_exponent_size(),
       vz_precision.get_exponent_size()
     ) + 2
     exp_precision_ext = ML_StdLogicVectorFormat(exp_precision_ext_size)
-    # Y is first aligned offset = max(o+L_y,q) + 2 bits to the left of x 
-    # and then shifted right by 
+    # Y is first aligned offset = max(o+L_y,q) + 2 bits to the left of x
+    # and then shifted right by
     # exp_diff = exp_x - exp_y + offset
     # exp_vx in [emin, emax]
     # exp_vx - exp_vx + p +2 in [emin-emax + p + 2, emax - emin + p + 2]
     exp_diff = UnsignedSubtraction(
                 UnsignedAddition(
                   UnsignedAddition(
-                    zext(exp_vy, exp_precision_ext_size - vy_precision.get_exponent_size()), 
-                    zext(exp_vx, exp_precision_ext_size - vx_precision.get_exponent_size()), 
+                    zext(exp_vy, exp_precision_ext_size - vy_precision.get_exponent_size()),
+                    zext(exp_vx, exp_precision_ext_size - vx_precision.get_exponent_size()),
                     precision = exp_precision_ext
                   ),
                   Constant(exp_bias + prod_exp_offset, precision = exp_precision_ext),
                   precision = exp_precision_ext
                 ),
-                zext(exp_vz, exp_precision_ext_size - vz_precision.get_exponent_size()), 
+                zext(exp_vz, exp_precision_ext_size - vz_precision.get_exponent_size()),
                 precision = exp_precision_ext,
                 tag = "exp_diff",
                 debug = debug_std
@@ -294,8 +294,8 @@ class FP_MPFMA(ML_Entity("fp_mpfma")):
 
     add_prec = ML_StdLogicVectorFormat(datapath_full_width + 1)
 
-    ## Here we make the supposition that 
-    #  the product is slower to compute than 
+    ## Here we make the supposition that
+    #  the product is slower to compute than
     #  aligning <vz> and negating it if necessary
     #  which means that mant_add as the same sign as the product
     #prod_add_op = Select(
@@ -403,7 +403,7 @@ class FP_MPFMA(ML_Entity("fp_mpfma")):
     # building a sub-operator inside this operator
     self.implementation.instanciate_dyn_attributes()
 
-    # lzc_in = mant_add_abs 
+    # lzc_in = mant_add_abs
 
     add_lzc_sig = Signal("add_lzc", precision = lzc_prec, var_type = Signal.Local, debug = debug_dec)
     add_lzc = PlaceHolder(add_lzc_sig, lzc_component(io_map = {"x": mant_add_abs, "vr_out": add_lzc_sig}, tag = "lzc_i"), tag = "place_holder")
@@ -433,7 +433,7 @@ class FP_MPFMA(ML_Entity("fp_mpfma")):
     mant_lsb  = BitExtraction(res_normed_mant, IntCst(mant_lsb_index))
     sticky_prec = ML_StdLogicVectorFormat(datapath_full_width - o)
     sticky_input = SubSignalSelection(
-      res_normed_mant, 0, datapath_full_width - o - 1, 
+      res_normed_mant, 0, datapath_full_width - o - 1,
       precision =  sticky_prec
     )
     sticky_bit = Select(
@@ -471,9 +471,9 @@ class FP_MPFMA(ML_Entity("fp_mpfma")):
       debug = debug_std
     )
     rounded_overflow = BitExtraction(
-      rounded_mant, 
-      IntCst(o-1), 
-      tag = "rounded_overflow", 
+      rounded_mant,
+      IntCst(o-1),
+      tag = "rounded_overflow",
       debug = debug_std
     )
     res_mant_field = Select(
@@ -492,7 +492,7 @@ class FP_MPFMA(ML_Entity("fp_mpfma")):
 
 
     res_exp_tmp_size = max(
-      vx_precision.get_exponent_size(), 
+      vx_precision.get_exponent_size(),
       vy_precision.get_exponent_size(),
       vz_precision.get_exponent_size()
     ) + 2
@@ -532,7 +532,7 @@ class FP_MPFMA(ML_Entity("fp_mpfma")):
     exp_vz_biased = UnsignedAddition(
       zext(exp_vz, res_exp_tmp_size - vz_precision.get_exponent_size()),
       Constant(
-        vz_precision.get_bias() + 1,# + exp_offset + 1, 
+        vz_precision.get_bias() + 1,# + exp_offset + 1,
         precision = res_exp_tmp_prec
       ),
       precision = res_exp_tmp_prec,
@@ -552,7 +552,7 @@ class FP_MPFMA(ML_Entity("fp_mpfma")):
       debug = debug_dec
     )
 
-    # Eventually we add the result exponent base 
+    # Eventually we add the result exponent base
     # with the exponent offset and the leading zero count
     res_exp_ext = UnsignedAddition(
       UnsignedSubtraction(
@@ -561,7 +561,7 @@ class FP_MPFMA(ML_Entity("fp_mpfma")):
           Constant(-result_precision.get_bias(), precision = res_exp_tmp_prec),
           precision = res_exp_tmp_prec
         ),
-        zext(add_lzc, res_exp_tmp_size - lzc_width), 
+        zext(add_lzc, res_exp_tmp_size - lzc_width),
         precision = res_exp_tmp_prec
       ),
       rounded_overflow,
@@ -576,9 +576,9 @@ class FP_MPFMA(ML_Entity("fp_mpfma")):
 
     vr_out = TypeCast(
       FloatBuild(
-        res_sign, 
-        res_exp, 
-        res_mant_field, 
+        res_sign,
+        res_exp,
+        res_mant_field,
         precision = accumulator_precision,
       ),
       precision = accumulator_precision,
@@ -599,7 +599,7 @@ class FP_MPFMA(ML_Entity("fp_mpfma")):
     vy = io_map["y"]
     vz = io_map["z"]
     result = {}
-    result["vr_out"] = sollya.round(vx * vy + vz, self.precision.get_sollya_object(), sollya.RN)
+    result["vr_out"] = self.precision.round_sollya_object(vx * vy + vz, sollya.RN)
     return result
 
   standard_test_cases = [
@@ -624,10 +624,10 @@ if __name__ == "__main__":
     # auto-test
     arg_template = ML_EntityArgTemplate(default_entity_name = "new_fp_mpfma", default_output_file = "ml_fp_mpfma.vhd" )
     # accumulator precision (also the output format)
-    arg_template.parser.add_argument("--acc-prec", dest = "acc_prec", type = hdl_precision_parser, default = HdlVirtualFormat(ML_Binary32), help = "select accumulator precision")
-    # argument extraction 
+    arg_template.parser.add_argument("--acc-prec", dest = "acc_prec", type=hdl_precision_parser, default = HdlVirtualFormat(ML_Binary32), help = "select accumulator precision")
+    # argument extraction
     args = parse_arg_index_list = arg_template.arg_extraction()
 
-    ml_hw_mpfma      = FP_MPFMA(args, acc_prec = args.acc_prec, pipelined = args.pipelined)
+    ml_hw_mpfma      = FP_MPFMA(args, acc_prec=args.acc_prec, pipelined=args.pipelined)
 
     ml_hw_mpfma.gen_implementation()
