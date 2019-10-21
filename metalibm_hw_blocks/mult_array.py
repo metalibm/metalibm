@@ -59,7 +59,7 @@ from metalibm_core.utility.rtl_debug_utils import (
 from metalibm_core.utility.ml_template import hdl_precision_parser
 
 
-# re pattern to match format and stage index strings
+# re pattern to match <format>, <stage index> and <tag> strings
 OP_PATTERN = "(?P<format>F[US]-?\d+\.-?\d+)(\[(?P<stage>\d+)(?P<tag>,\w+|)\])?"
 
 
@@ -79,7 +79,9 @@ def extract_format_stage(s):
     precision = group_match.group("format")
     stage = group_match.group("stage")
     tag = group_match.group("tag")
-    return precision, (stage if stage is None else int(stage)), (tag if tag is None else tag[1:])
+    result = precision, (stage if stage is None else int(stage)), (None if (tag is None or tag == '') else tag[1:])
+    print(result)
+    return result
 
 class MultInput:
     def __init__(self, lhs_precision, rhs_precision, lhs_stage=None, rhs_stage=None, lhs_tag=None, rhs_tag=None):
@@ -661,12 +663,15 @@ class MultArray(ML_Entity("mult_array")):
             addition.
             Each callback return a tuple (method, op_list) and will call
             method(op_list) to insert the operation at the proper stage """
+        self.io_tags = {}
         stage_map = collections.defaultdict(list)
         for index, operation_input in enumerate(self.op_expr):
             if isinstance(operation_input, MultInput):
                 mult_input = operation_input
                 a_i_tag = "a_%d_i" % index if mult_input.lhs_tag is None else mult_input.lhs_tag
                 b_i_tag = "b_%d_i" % index if mult_input.rhs_tag is None else mult_input.rhs_tag
+                self.io_tags[("lhs", index)] = a_i_tag
+                self.io_tags[("rhs", index)] = b_i_tag
                 a_i = self.implementation.add_input_signal(a_i_tag, mult_input.lhs_precision)
                 b_i = self.implementation.add_input_signal(b_i_tag, mult_input.rhs_precision)
                 lhs_stage = self.clean_stage(mult_input.lhs_stage)
@@ -677,6 +682,7 @@ class MultArray(ML_Entity("mult_array")):
                 stage_map[op_stage].append(insert_mul_callback(a_i, b_i))
             elif isinstance(operation_input, OpInput):
                 c_i_tag = "c_%d_i" % index if operation_input.tag is None else operation_input.tag
+                self.io_tags[("op", index)] = c_i_tag
                 c_i = self.implementation.add_input_signal(c_i_tag, operation_input.precision)
                 op_stage = self.clean_stage(operation_input.stage)
                 c_i.set_attributes(init_stage=self.clean_stage(op_stage))
@@ -872,15 +878,17 @@ class MultArray(ML_Entity("mult_array")):
         test_case_min = {}
         for index, operation in enumerate(self.op_expr):
             if isinstance(operation, MultInput):
-                test_case_max["a_%d_i" % index] = operation.lhs_precision.get_max_value()
-                test_case_max["b_%d_i" % index] = operation.rhs_precision.get_max_value()
+                a_i_tag = self.io_tags[("lhs", index)]
+                b_i_tag = self.io_tags[("rhs", index)]
+                test_case_max[a_i_tag] = operation.lhs_precision.get_max_value()
+                test_case_max[b_i_tag] = operation.rhs_precision.get_max_value()
 
-                test_case_min["a_%d_i" % index] = operation.lhs_precision.get_min_value()
-                test_case_min["b_%d_i" % index] = operation.rhs_precision.get_min_value()
+                test_case_min[a_i_tag] = operation.lhs_precision.get_min_value()
+                test_case_min[b_i_tag] = operation.rhs_precision.get_min_value()
             elif isinstance(operation, OpInput):
-                test_case_max["c_%d_i" % index] = operation.precision.get_max_value()
-
-                test_case_min["c_%d_i" % index] = operation.precision.get_min_value()
+                c_i_tag = self.io_tags[("op", index)]
+                test_case_max[c_i_tag] = operation.precision.get_max_value()
+                test_case_min[c_i_tag] = operation.precision.get_min_value()
             else:
                 raise NotImplementedError
 
@@ -891,11 +899,14 @@ class MultArray(ML_Entity("mult_array")):
         acc = 0
         for index, operation in enumerate(self.op_expr):
             if isinstance(operation, MultInput):
-                a_i = io_map["a_%d_i" % index]
-                b_i = io_map["b_%d_i" % index]
+                a_i_tag = self.io_tags[("lhs", index)]
+                b_i_tag = self.io_tags[("rhs", index)]
+                a_i = io_map[a_i_tag]
+                b_i = io_map[b_i_tag]
                 acc += a_i * b_i
             elif isinstance(operation, OpInput):
-                c_i = io_map["c_%d_i" % index]
+                c_i_tag = self.io_tags[("op", index)]
+                c_i = io_map[c_i_tag]
                 acc += c_i
 
         # assert acc >= 0
