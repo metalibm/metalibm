@@ -770,11 +770,9 @@ class ML_EntityArgTemplate(ML_CommonArgTemplate):
 # new argument template based on argparse module
 class ML_NewArgTemplate(ML_CommonArgTemplate):
     def __init__(
-            self, #default_function_name,
+            self,
             default_arg=DefaultArgTemplate
         ):
-        #self.default_output_file = default_output_file
-        #self.default_function_name = default_function_name
 
         parser = argparse.ArgumentParser(
             " Metalibm {} function generation script".format(
