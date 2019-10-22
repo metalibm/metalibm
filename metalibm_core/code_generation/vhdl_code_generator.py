@@ -185,29 +185,7 @@ class VHDLCodeGenerator(object):
             return None
 
         elif isinstance(optree, SwitchBlock):
-            switch_value = optree.inputs[0]
-            
-            # generating pre_statement
-            self.generate_expr(code_object, optree.get_pre_statement(), folded = folded, language = language)
-
-            switch_value_code = self.generate_expr(code_object, switch_value, folded = folded, language = language)
-            case_map = optree.get_case_map()
-
-            code_object << "\nswitch(%s) {\n" % switch_value_code.get()
-            for case in case_map:
-              case_value = case
-              case_statement = case_map[case]
-              if isinstance(case_value, tuple):
-                for sub_case in case:
-                  code_object << "case %s:\n" % sub_case
-              else:
-                code_object << "case %s:\n" % case
-              code_object.open_level()
-              self.generate_expr(code_object, case_statement, folded = folded, language = language) 
-              code_object.close_level()
-            code_object << "}\n"
-
-            return None
+            raise NotImplementedError("SwitchBlock are not supported in VHDL code generation")
 
         elif isinstance(optree, ReferenceAssign):
             output_var = optree.inputs[0]
@@ -277,18 +255,7 @@ class VHDLCodeGenerator(object):
             return None
 
         elif isinstance(optree, Loop):
-            init_statement = optree.inputs[0]
-            exit_condition = optree.inputs[1]
-            loop_body      = optree.inputs[2]
-
-            self.generate_expr(code_object, init_statement, folded = folded, language = language)
-            code_object << "\nfor (;%s;)" % self.generate_expr(code_object, exit_condition, folded = False, language = language).get()
-            code_object.open_level()
-            self.generate_expr(code_object, loop_body, folded = folded, language = language)
-            code_object.close_level()
-
-            return None
-
+            raise NotImplementedError("Loop are not supported in VHDL code generation")
 
         elif isinstance(optree, WhileLoop):
             exit_condition = optree.inputs[0]
