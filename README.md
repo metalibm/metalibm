@@ -15,7 +15,7 @@ meta-function generation report (master branch): https://nibrunie.gitlab.io/meta
         or Pythonsollya can be downloaded from https://gitlab.com/metalibm-dev/pythonsollya
     - Some features of Metalibm require Gappa (http://gappa.gforge.inria.fr/)
 
-* Python version compatibility: as of version 1.0, metalibm works with both python2 (>= 2.7) and python3 (tested with 3.4)
+* Python version compatibility: as of version 1.0, metalibm works with python3 (tested with 3.4). A legacy support for python2 (>= 2.7) is maintained but will be dropped soon.
 
 
 * Installation procedure for standard users
@@ -27,27 +27,27 @@ meta-function generation report (master branch): https://nibrunie.gitlab.io/meta
 Example of metafunctions can be found under the **metalibm_functions/** directory.
 
 * Example to generate a faithful (default) approximation of the exponential function for single precision on a x86 AVX2 target:
-```python2 metalibm_functions/ml_exp.py --precision binary32 --target x86_avx2 --output x86_avx2_exp2d.c ```
+```python3 metalibm_functions/ml_exp.py --precision binary32 --target x86_avx2 --output x86_avx2_exp2d.c ```
 
 * Explore the other functions of this directory, e.g. :
-``` python2 metalibm_functions/ml_log.py --help  ```
+``` python3 metalibm_functions/ml_log.py --help  ```
 
 A more comprehensive user documentation can be found in [doc/USERGUIDE.md](https://github.com/kalray/metalibm/blob/master/doc/USERGUIDE.md)
 
 
 ## TEST
 * Unit-testing (software code generation):
-  ``` python2 valid/soft_unit_test.py ```
+  ``` python3 valid/soft_unit_test.py ```
 * Unit-testing (hardware code generation):
-  ``` python2 valid/rtl_unit_test.py ```
+  ``` python3 valid/rtl_unit_test.py ```
 
 * Non-regression tests (software code generation):
-  ``` python2 valid/non_regression.py ```
+  ``` python3 valid/non_regression.py ```
 * Non-regression tests (hardware code generation):
-  ``` python2 valid/hw_non_regression.py ```
+  ``` python3 valid/hw_non_regression.py ```
 
 * Functionnal coverage (generate a report on meta-functions' generation/build/valid status):
-  ``` python2 valid/soft_coverage_test.py --report-only --output report.html ```
+  ``` python3 valid/soft_coverage_test.py --report-only --output report.html ```
 
 ## DOCUMENTATION
 
