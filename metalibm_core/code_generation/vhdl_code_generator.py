@@ -251,8 +251,10 @@ class VHDLCodeGenerator(object):
 
             #code_object << self.generate_assignation(output_var_code.get(), result_value_code.get())
             #code_object << output_var.get_precision().generate_c_assignation(output_var_code, result_value_code)
-            
-            return None
+
+            # result setting rather than return to force
+            # memoization and to avoid multiple generation of ReferenceAssign
+            result = None
 
         elif isinstance(optree, RangeLoop):
             iterator  = optree.get_input(0)
@@ -536,8 +538,11 @@ class VHDLCodeGenerator(object):
                         resolved[op] = memo
 
             # processing list in reverse order (starting with deeper node to avoid too much recursion)
-            for op in processing_list[::-1]:
-                _ = self.generate_expr(code_object, op, folded=folded, initial=initial, language=language)
+            if not folded:
+                # if generation is folded, no pre generation can occur
+                # as a complete CodeExpression needs to be generated
+                for op in processing_list[::-1]:
+                    _ = self.generate_expr(code_object, op, folded=folded, initial=initial, language=language)
 
             # processing main node
             generate_pre_process = self.generate_clear_exception if optree.get_clearprevious() else None
