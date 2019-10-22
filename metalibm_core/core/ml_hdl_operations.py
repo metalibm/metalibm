@@ -238,17 +238,19 @@ class ComponentObject(object):
   def get_declaration(self):
     return self.generator_object.get_component_declaration()
 
-## This operation gets several inputs while only one is used
-#  as effective output
-class PlaceHolder(AbstractOperationConstructor("AbstractOperation")):
-  def __init__(self, *args, **kw):
-    PlaceHolder.__base__.__init__(self, *args, **kw)
 
-  def get_main_input(self):
-    return self.get_input(0)
+class PlaceHolder(AbstractOperationConstructor("PlaceHolder")):
+    """ This operation has an arbitrary arity.
+        For all purpose it is equal to its first input (main_input)
+        but carries on several inputs """
+    def __init__(self, *args, **kw):
+        PlaceHolder.__base__.__init__(self, *args, **kw)
 
-  def get_precision(self):
-    return self.get_main_input().get_precision()
+    def get_main_input(self):
+        return self.get_input(0)
+
+    def get_precision(self):
+        return self.get_main_input().get_precision()
 
 
 ## Boolean assertion
