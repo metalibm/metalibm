@@ -96,7 +96,8 @@ import subprocess
 def generate_random_fp_value(precision, inf, sup):
     """ Generate a random floating-point value of format precision """
     assert isinstance(precision, ML_FP_Format)
-    value = random.uniform(0.5, 1.0) * S2**random.randrange(precision.get_emin_normal(), 1) * (sup - inf) + inf
+    random_exp = S2**random.randrange(precision.get_emin_normal(), 1)
+    value = random.uniform(0.5, 1.0) * random_exp * (sup - inf) + inf
     rounded_value = precision.round_sollya_object(value, sollya.RN)
     return rounded_value
 
@@ -106,10 +107,7 @@ def generate_random_fixed_value(precision):
     # fixed point format
     lo_value = precision.get_min_value()
     hi_value = precision.get_max_value()
-    value = random.uniform(
-      lo_value,
-      hi_value
-    )
+    value = random.uniform( lo_value, hi_value)
     rounded_value = precision.round_sollya_object(value)
     return rounded_value
 
@@ -137,6 +135,7 @@ def get_input_msg(input_tag, input_signal, input_value):
       input_signal.get_precision().get_base_format().get_integer_coding(input_value)
     )
     return " {}={} ".format(input_tag, value_msg)
+
 
 def get_output_check_statement(output_signal, output_tag, output_value):
     """ Generate output value check statement """
@@ -179,14 +178,38 @@ def get_output_value_msg(output_signal, output_value):
     value_msg = "{} / {}".format(expected_dec, expected_hex)
     return value_msg
 
-# return a random value in the given @p interval
-# Samplin is done uniformly on value exponent,
-# not on the value itself
-def random_log_sample(interval):
-  lo = sollya.inf(interval)
-  hi = sollya.sup(interval)
+
+def multi_Concatenation(*args, **kw):
+    """ multiple input concatenation """
+    num_args = len(args)
+    if num_args == 1:
+        return args[0]
+    else:
+        half_num = int(num_args / 2)
+        if not "precision" in kw:
+            kw.update(precision=ML_String)
+        return Concatenation(
+            multi_Concatenation(*args[:half_num]),
+            multi_Concatenation(*args[half_num:]),
+            **kw
+        )
+
+def signal_str_conversion(optree, op_format):
+    """ converision of @p optree from op_format to ML_String """
+    return Conversion(
+        optree if op_format is ML_StdLogic else
+        TypeCast(
+            optree,
+            precision=ML_StdLogicVectorFormat(
+                op_format.get_bit_size()
+            )
+         ),
+        precision=ML_String
+    )
 
 
+
+# utility tcl function to display fixed-point value
 debug_utils_lib = """proc get_fixed_value {value weight} {
   return [expr $value * pow(2.0, $weight)]
 }\n"""
@@ -285,10 +308,6 @@ class ML_EntityBasis(object):
     # debug display
     self.display_after_gen = arg_template.display_after_gen
     self.display_after_opt = arg_template.display_after_opt
-
-    # TODO: FIX which i/o precision to select
-    # TODO: incompatible with fixed-point formats
-    # self.sollya_precision = self.get_output_precision().get_sollya_object()
 
 
     # target selection
@@ -511,18 +530,12 @@ class ML_EntityBasis(object):
       entity_execute_pass
     )
 
-    #print "before pipelining dump: "
-    #for code_entity in code_entity_list:
-    #    scheme = code_entity.get_scheme()
-    #    print scheme.get_str(
-    #        depth = None,
-    #        display_precision = True,
-    #        memoization_map = {},
-    #        custom_callback = lambda op: " [S={}] ".format(op.attributes.init_stage)
-    #    )
-
     if self.pipelined:
-        self.stage_num = generate_pipeline_stage(self, reset=self.reset_pipeline, recirculate=self.recirculate_pipeline, synchronous_reset=self.synchronous_reset, negate_reset=self.negate_reset)
+        self.stage_num = generate_pipeline_stage(
+            self, reset=self.reset_pipeline,
+            recirculate=self.recirculate_pipeline,
+            synchronous_reset=self.synchronous_reset,
+            negate_reset=self.negate_reset)
     else:
         self.stage_num = 1
     Log.report(Log.Info, "there is/are {} pipeline stage(s)".format(self.stage_num)) 
@@ -699,6 +712,7 @@ class ML_EntityBasis(object):
     return input_signals
 
   def get_output_signal_map(self, io_map):
+    """ generate map of output signals """
     # map of output_tag -> output_signal
     output_signals = {}
     # excluding clock and reset signals from argument list
@@ -714,8 +728,9 @@ class ML_EntityBasis(object):
     return output_signals
 
 
-
   def generate_datafile_testbench(self, tc_list, io_map, input_signals, output_signals, time_step, test_fname="test.input"):
+    """ Generate testbench with input and output data externalized in
+        a data file """
     # textio function to read hexadecimal text
     FCT_HexaRead = FunctionObject("hread", [HDL_FILE, ML_StdLogicVectorFormat], ML_Void, FunctionOperator("hread", void_function=True, arity=2))
     # textio function to read binary text
@@ -754,31 +769,6 @@ class ML_EntityBasis(object):
         #value_msg = get_output_value_msg(output_signal, output_value)
         test_pass_cond, check_statement = get_output_check_statement(output_signal, output_name, output_var)
 
-        def multi_Concatenation(*args, **kw):
-            num_args = len(args)
-            if num_args == 1:
-                return args[0]
-            else:
-                half_num = int(num_args / 2)
-                if not "precision" in kw:
-                    kw.update(precision=ML_String)
-                return Concatenation(
-                    multi_Concatenation(*args[:half_num]),
-                    multi_Concatenation(*args[half_num:]),
-                    **kw
-                )
-
-        def signal_str_conversion(optree, op_format):
-            return Conversion(
-                optree if op_format is ML_StdLogic else
-                TypeCast(
-                    optree,
-                    precision=ML_StdLogicVectorFormat(
-                        op_format.get_bit_size()
-                    )
-                 ),
-                precision=ML_String
-            )
         input_msg = multi_Concatenation(*tuple(sum([[" %s=" % input_tag, signal_str_conversion(input_signals[input_tag], input_signals[input_tag].precision)] for input_tag in input_signal_list], [])))
 
         output_statement.add(check_statement)
