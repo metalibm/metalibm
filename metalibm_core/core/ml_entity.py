@@ -693,7 +693,7 @@ class ML_EntityBasis(object):
       input_tag = input_port.get_tag()
       input_signal = Signal(input_tag + "_i", precision = input_port.get_precision(), var_type = Signal.Local)
       io_map[input_tag] = input_signal
-      if not input_tag in ["clk", "reset"]:
+      if not input_tag in ["clk", self.reset_name] + [sig.get_tag() for sig in self.recirculate_signal_map.values()]:
         input_signals[input_tag] = input_signal
     return input_signals
 
@@ -941,8 +941,23 @@ class ML_EntityBasis(object):
           self.implement_test_case(io_map, input_values, output_signals, output_values, time_step)
       )
 
+    reset_statement = Statement()
+    if self.reset_pipeline:
+        # TODO: fix pipeline register reset
+        reset_value = 0 if self.negate_reset else 1
+        unreset_value = 1 - reset_value
+        reset_signal = io_map[self.reset_name]
+        reset_statement.add(ReferenceAssign(reset_signal, Constant(reset_value, precision=ML_StdLogic)))
+        # to account for synchronous reset
+        reset_statement.add(Wait(time_step * 3))
+        reset_statement.add(ReferenceAssign(reset_signal, Constant(unreset_value, precision=ML_StdLogic)))
+        reset_statement.add(Wait(time_step * 3))
+        for recirculate_signal in self.recirculate_signal_map.values():
+            reset_statement.add(ReferenceAssign(io_map[recirculate_signal.get_tag()], Constant(0, precision=ML_StdLogic)))
+
     testbench = CodeEntity("testbench")
     test_process = Process(
+      reset_statement,
       test_statement,
       # end of test
       Assert(
