@@ -693,6 +693,7 @@ class ML_EntityBasis(object):
       input_tag = input_port.get_tag()
       input_signal = Signal(input_tag + "_i", precision = input_port.get_precision(), var_type = Signal.Local)
       io_map[input_tag] = input_signal
+      # excluding clk, reset and recirculate signals
       if not input_tag in ["clk", self.reset_name] + [sig.get_tag() for sig in self.recirculate_signal_map.values()]:
         input_signals[input_tag] = input_signal
     return input_signals
@@ -832,21 +833,23 @@ class ML_EntityBasis(object):
         FunctionOperator(
             "FILE_OPEN",
             arg_map={0: FO_Arg(0), 1: FO_Arg(1), 2: "READ_MODE"},
-            void_function=True)) 
+            void_function=True))
     FCT_ReadLine =  FunctionObject(
         "readline", [HDL_FILE, HDL_LINE], ML_Void,
-        FunctionOperator("readline", void_function=True, arity=2)) 
+        FunctionOperator("readline", void_function=True, arity=2))
 
+    reset_statement = self.get_reset_statement(io_map, time_step)
 
     testbench = CodeEntity("testbench")
     test_process = Process(
+        reset_statement,
         FCT_OpenFile(input_stream, DATA_FILE_NAME),
         # consume legend line
-        FCT_ReadLine(input_stream, input_line), 
+        FCT_ReadLine(input_stream, input_line),
         WhileLoop(
             LogicalNot(FCT_EndFile(input_stream)),
             Statement(
-                FCT_ReadLine(input_stream, input_line), 
+                FCT_ReadLine(input_stream, input_line),
                 input_statement,
                 Wait(time_step * (self.stage_num + 2)),
                 output_statement,
@@ -931,16 +934,7 @@ class ML_EntityBasis(object):
     else:
         return self.generate_embedded_testbench(tc_list, io_map, input_signals, output_signals, time_step)
 
-  def generate_embedded_testbench(self, tc_list, io_map, input_signals, output_signals, time_step, test_fname="test.input"):
-    self_component = self.implementation.get_component_object()
-    self_instance = self_component(io_map = io_map, tag = "tested_entity")
-    test_statement = Statement()
-
-    for input_values, output_values in tc_list:
-      test_statement.add(
-          self.implement_test_case(io_map, input_values, output_signals, output_values, time_step)
-      )
-
+  def get_reset_statement(self, io_map, time_step):
     reset_statement = Statement()
     if self.reset_pipeline:
         # TODO: fix pipeline register reset
@@ -954,6 +948,20 @@ class ML_EntityBasis(object):
         reset_statement.add(Wait(time_step * 3))
         for recirculate_signal in self.recirculate_signal_map.values():
             reset_statement.add(ReferenceAssign(io_map[recirculate_signal.get_tag()], Constant(0, precision=ML_StdLogic)))
+    return reset_statement
+
+  def generate_embedded_testbench(self, tc_list, io_map, input_signals, output_signals, time_step, test_fname="test.input"):
+    """ Generate testbench with embedded input and output data """
+    self_component = self.implementation.get_component_object()
+    self_instance = self_component(io_map = io_map, tag = "tested_entity")
+    test_statement = Statement()
+
+    for input_values, output_values in tc_list:
+      test_statement.add(
+          self.implement_test_case(io_map, input_values, output_signals, output_values, time_step)
+      )
+
+    reset_statement = self.get_reset_statement(io_map, time_step)
 
     testbench = CodeEntity("testbench")
     test_process = Process(
