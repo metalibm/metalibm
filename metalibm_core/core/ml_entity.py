@@ -337,7 +337,8 @@ class ML_EntityBasis(object):
     self.pass_scheduler = PassScheduler()
     # recursive pass dependency
     pass_dep = PassDependency()
-    for pass_uplet in arg_template.passes:
+    print("extra_passes: {}".format(arg_template.extra_passes))
+    for pass_uplet in arg_template.passes + arg_template.extra_passes:
       pass_slot_tag, pass_tag = pass_uplet.split(":")
       pass_slot = PassScheduler.get_tag_class(pass_slot_tag)
       pass_class  = Pass.get_pass_by_tag(pass_tag)
@@ -519,6 +520,13 @@ class ML_EntityBasis(object):
 
     # generate scheme
     code_entity_list = self.generate_entity_list()
+
+    Log.report(Log.Info, "Applying passes just before pipelining")
+    code_entity_list = self.pass_scheduler.get_full_execute_from_slot(
+      code_entity_list,
+      PassScheduler.Start,
+      entity_execute_pass
+    )
 
     # defaulting pipeline stage to None
     self.implementation.set_current_stage(None)
