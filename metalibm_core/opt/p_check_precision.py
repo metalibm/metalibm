@@ -36,6 +36,7 @@ from metalibm_core.core.ml_hdl_operations import (
 )
 from metalibm_core.core.passes import OptreeOptimization, Pass, LOG_PASS_INFO
 
+from functools import reduce
 
 ## Check if @p optree has a valid precision
 def check_precision_validity(optree):
