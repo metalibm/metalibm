@@ -318,12 +318,6 @@ class Pass_CriticalPathEval(OptreeOptimization):
         else:
             Log.report(Log.Error, "unkwown node in evaluate_critical_path: {}", optree)
 
-    def display_longest_path(longest_path):
-        def generate_op_name(optree):
-            """ generate a pretty operation description with class name
-                and basic information size """
-            pass
-
 
     def execute(self, optree):
         self.evaluate_critical_path(optree)
@@ -337,14 +331,41 @@ class Pass_CriticalPathEval(OptreeOptimization):
         while not current is None:
             longest_path.append(current)
             current = current.previous
-        for critical_path in longest_path[::-1]:
-            def name_cleaner(cp):
-                tag = cp.node.get_tag()
-                if tag is None:
-                    return "<undef>"
-                else:
-                    return tag
-            print("{:30} {:>25}> = {:.2f}".format(name_cleaner(critical_path), critical_path.node.name, critical_path.value))
+        display_path_info(longest_path)
+
+
+def display_path_info(path):
+    """ Display information on the path which is the ordered
+        list of nodes of the longest critical path """
+    def generate_op_name(optree):
+        """ generate a pretty operation description with class name
+            and basic information size """
+        op_class_name = optree.name
+        op_size = optree.get_precision().get_bit_size()
+        def get_op_size(index):
+            return optree.get_input(index).get_precision().get_bit_size()
+        if isinstance(optree, Addition):
+            op_desc = "{:4} <- {} + {}".format(op_size, get_op_size(0), get_op_size(1))
+        elif isinstance(optree, Multiplication):
+            op_desc = "{:4} <- {} * {}".format(op_size, get_op_size(0), get_op_size(1))
+        elif isinstance(optree, Subtraction):
+            op_desc = "{:4} <- {} - {}".format(op_size, get_op_size(0), get_op_size(1))
+        else:
+            op_desc = "{:4}".format(op_size)
+        return "{:>30}{:2}{:20}".format(op_class_name, optree.attributes.init_stage, "[" + op_desc + "]")
+
+    for critical_path in path[::-1]:
+        def name_cleaner(cp):
+            tag = cp.node.get_tag()
+            if tag is None:
+                return "<undef>"
+            else:
+                return tag
+        print("{:30} {}> = {:.2f}".format(
+            name_cleaner(critical_path),
+            generate_op_name(critical_path.node),
+            critical_path.value))
+
 
 
 
