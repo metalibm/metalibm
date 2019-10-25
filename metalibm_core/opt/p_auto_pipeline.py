@@ -43,10 +43,15 @@ CP_LOG2_CST = math.log(2.0)
 
 
 def cp_log2(v):
+    """ Dummy implementation of log2(x) """
     return math.log(v) / CP_LOG2_CST
 
 @total_ordering
 class CriticalPath(object):
+    """ object to store critical path:
+        @param node leaf node
+        @param value path timing value 
+        @param previous previous node in the chain) """
     def __init__(self, node, value, previous=None):
         self.node = node
         self.value = value
@@ -122,12 +127,23 @@ def shift_cp_eval_optree(optree):
     cp = shift_cp_eval_value(o, n, r)
     return CriticalPath(optree, cp)
 
-def complex_timing(local_eval_fct, arity=2):
+def mant_extraction_cp_eval_optree(optree):
+    # we assume mantissa extraction is an OR on the exponent bit
+    # to determine the implicit bit value
+    n = optree.get_input(0).get_precision().get_base_format().get_exponent_size()
+    cp = tree_cp_eval_value(
+        n,
+        TimingModel.OR_LEVEL
+    )
+    return CriticalPath(optree, cp)
+
+
+def complex_timing(local_eval_fct, arity=None):
     def cp_evaluator(evaluator, optree):
         op_cp = max(
             evaluator.evaluate_critical_path(
                 optree.get_input(index)
-            ) for index in range(arity)
+            ) for index in range(optree.arity if arity is None else arity)
         )
         return local_eval_fct(optree) + op_cp
     return cp_evaluator
@@ -153,12 +169,45 @@ def lzc_cp_eval_optree(optree):
         tree_cp_eval_value(n, max(TimingModel.AND_LEVEL, TimingModel.OR_LEVEL))
     )
 
+def test_cp_eval_optree(optree):
+    """ Evaluate critical path for Test operation class """
+    if optree.specifier is Test.IsZero:
+        # floating-point is zero comparison is assumed to be equivalent
+        # to a AND reduction on exponent + mantissa size
+        operand = optree.get_input(0)
+        base_precision = operand.get_precision().get_base_format()
+        return CriticalPath(
+            optree,
+            tree_cp_eval_value(base_precision.get_exponent_size() + base_precision.get_mantissa_size(), TimingModel.AND_LEVEL)
+        )
+    elif optree.specifier in [Test.IsNaN, Test.IsInfty, Test.IsPositiveInfty, Test.IsNegativeInfty]:
+        # floating-point is nan/(+/-)infty test is assumed to be equivalent
+        # to a AND reduction on exponent and an OR reduction on mantissa
+        # plus neglected terms
+        operand = optree.get_input(0)
+        base_precision = operand.get_precision().get_base_format()
+        return CriticalPath(
+            optree,
+            TimingModel.AND_LEVEL + max(
+                tree_cp_eval_value(base_precision.get_exponent_size(), TimingModel.AND_LEVEL),
+                tree_cp_eval_value(base_precision.get_mantissa_size(), TimingModel.OR_LEVEL)
+            )
+        )
+
+    else:
+        Log.report(Log.Error, "unknown Test specifier in test_cp_eval_optree: {}", optree)
+
 
 OPERATION_CLASS_TIMING_MODEL = {
     Addition: complex_timing(add_cp_eval_optree),
     Subtraction: complex_timing(add_cp_eval_optree),
     Comparison: complex_timing(cmp_cp_eval_optree),
     Multiplication: complex_timing(mul_cp_eval_optree),
+    # FIXME: assuming Negation is an Incrementer whose timing is equivalent
+    # to an addition
+    Negation: complex_timing(add_cp_eval_optree, arity=1),
+
+    MantissaExtraction: complex_timing(mant_extraction_cp_eval_optree, arity=1),
 
     CountLeadingZeros: complex_timing(lzc_cp_eval_optree, arity=1),
 
@@ -173,6 +222,8 @@ OPERATION_CLASS_TIMING_MODEL = {
     BitLogicAnd: level_timing(TimingModel.AND_LEVEL),
     BitLogicOr: level_timing(TimingModel.OR_LEVEL),
     BitLogicNegate: level_timing(TimingModel.NOT_LEVEL, arity=1),
+
+    Test: complex_timing(test_cp_eval_optree),
 
     # transparent operators (no delay)
     ExponentExtraction: level_timing(0.0, arity=1),
@@ -241,6 +292,15 @@ class Pass_CriticalPathEval(OptreeOptimization):
             return self.memoize_result(assign_var, assign_cp)
         elif isinstance(optree, FixedPointPosition):
             return CriticalPath(None, 0.0)
+        elif isinstance(optree, Min) or isinstance(optree, Max):
+            lhs = optree.get_input(0)
+            rhs = optree.get_input(1)
+            lhs_cp = self.evaluate_critical_path(lhs)
+            rhs_cp = self.evaluate_critical_path(rhs)
+            # evalute opree as an Addition, to get Comparison (Subtraction) timing
+            comp_cp_value = add_cp_eval_value(optree.get_precision().get_bit_size())
+            minmax_cp = CriticalPath(optree, TimingModel.MUX_LEVEL + comp_cp_value) + max(lhs_cp, rhs_cp)
+            return self.memoize_result(optree, minmax_cp)
         elif isinstance(optree, Select):
             cond = optree.get_input(0)
             if_value = optree.get_input(1)
@@ -258,17 +318,33 @@ class Pass_CriticalPathEval(OptreeOptimization):
         else:
             Log.report(Log.Error, "unkwown node in evaluate_critical_path: {}", optree)
 
+    def display_longest_path(longest_path):
+        def generate_op_name(optree):
+            """ generate a pretty operation description with class name
+                and basic information size """
+            pass
+
+
     def execute(self, optree):
         self.evaluate_critical_path(optree)
         ordered_list = [op for op in self.memoization_map.keys() if not self.memoization_map[op] is None]
         ordered_list = sorted(ordered_list, key=lambda v: self.memoization_map[v].value, reverse=True)
 
-        longest_path = self.memoization_map[ordered_list[0]]
-        current = longest_path
-        while current != None:
-            print(current.node.get_tag(), current.value)
+        longest_path_exit = self.memoization_map[ordered_list[0]]
+        current = longest_path_exit
+        longest_path = []
+        # reversing list to start longest path from the root
+        while not current is None:
+            longest_path.append(current)
             current = current.previous
-
+        for critical_path in longest_path[::-1]:
+            def name_cleaner(cp):
+                tag = cp.node.get_tag()
+                if tag is None:
+                    return "<undef>"
+                else:
+                    return tag
+            print("{:30} {:>25}> = {:.2f}".format(name_cleaner(critical_path), critical_path.node.name, critical_path.value))
 
 
 
