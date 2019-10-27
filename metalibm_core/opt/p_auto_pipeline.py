@@ -31,13 +31,32 @@ import collections
 from functools import total_ordering
 
 from metalibm_core.core.passes import OptreeOptimization, Pass, LOG_PASS_INFO
-from metalibm_core.core.ml_operations import *
+from metalibm_core.core.ml_operations import (
+    Addition, Subtraction, Comparison, Multiplication, Negation,
+
+    MantissaExtraction, CountLeadingZeros,
+    BitLogicRightShift, BitLogicLeftShift,
+
+    LogicalOr, LogicalAnd, LogicalNot,
+    BitLogicXor, BitLogicAnd, BitLogicOr, BitLogicNegate,
+    Select, Test,
+
+    ExponentExtraction,
+    VectorElementSelection, Conversion,
+
+    Min, Max,
+
+    Statement, Variable,
+    TypeCast, Constant,
+    SpecificOperation, ReferenceAssign,
+)
 from metalibm_core.core.ml_hdl_operations import (
     Signal, SubSignalSelection, Concatenation, ZeroExt
 )
 from metalibm_core.core.advanced_operations import (
     FixedPointPosition
 )
+from metalibm_core.core.ml_formats import ML_AbstractFormat
 from metalibm_core.utility.log_report import Log
 
 CP_LOG2_CST = math.log(2.0)
@@ -48,6 +67,7 @@ def cp_log2(v):
     return math.log(v) / CP_LOG2_CST
 
 def cp_add_stage_aware(cp0, cp1):
+    """ Addition of two CriticalPath object in stage-aware mode """
     assert cp0.stage >= cp1.stage
     stage = cp0.stage
     if cp1.stage < cp0.stage:
@@ -60,24 +80,42 @@ def cp_add_stage_aware(cp0, cp1):
 
 
 def cp_add_combinatorial(cp0, cp1):
+    """ Addition of two CriticalPath objects in combinatorial mode """
     comb_latency = cp0.comb_latency + cp1.comb_latency
     return CriticalPath(cp0.node, comb_latency, previous=cp1, combinatorial=cp0.combinatorial)
 
 def cp_lt_stage_aware(cp0, cp1):
+    """ Less-than comparison of two CriticalPath objects in stage-aware mode """
+    if cp0.stage is None:
+        # CriticalPath with None stage is always shorter than any other
+        # critical path
+        return True
+    elif cp1.stage is None:
+        return False
     return (cp0.stage < cp1.stage) or (cp0.stage == cp1.stage and cp0.comb_latency < cp1.comb_latency)
 
 def cp_eq_stage_aware(cp0, cp1):
+    """ Equal comparison of two CriticalPath objects in stage-aware mode """
     return cp0.stage == cp1.stage and cp0.comb_latency == cp1.comb_latency
 
 def cp_lt_combinatorial(cp0, cp1):
-    return (cp0.comb_latency < cp1.comb_latency)
+    """ Less-than comparison of two CriticalPath objects in combinatorial mode """
+    return cp0.comb_latency < cp1.comb_latency
 
 def cp_eq_combinatorial(cp0, cp1):
+    """ Equal comparison of two CriticalPath objects in combinatorial mode """
     return cp0.comb_latency == cp1.comb_latency
 
 @total_ordering
 class CriticalPath(object):
     """ object to store critical path:
+        This class distinguishes two modes:
+        - combinatorial is a mode where node's stage is not taken into account,
+        the whole meta entity is considered as combinatorial (not pipelined) and
+        the critical path is constructed from input to output.
+        - stage-aware is a mode where a node's pipeline stage (init_stage) is
+        taken into account. The meta entity is considered stage-by-stage to
+        compute a critical path for each stage
         @param node leaf node
         @param value path timing value
         @param previous previous node in the chain
@@ -97,11 +135,9 @@ class CriticalPath(object):
         return "[{}, {}]".format(self.stage, self.comb_latency)
 
     @property
-    def full_value(self):
-        return self.stage, self.comb_latency
-
-    @property
     def stage(self):
+        """ return pipeline stage associated with the head of @p self
+            critical path object """
         if self.node is None:
             if self.previous is None:
                 return None
@@ -118,18 +154,21 @@ class CriticalPath(object):
             return cp_add_stage_aware(self, cp1)
 
     def __lt__(self, cp1):
+        """ Comparison less-than of two critical path objects: self and cp1 """
         if self.combinatorial:
             return cp_lt_combinatorial(self, cp1)
         else:
             return cp_lt_stage_aware(self, cp1)
 
     def __eq__(self, cp1):
+        """ Comparison equal of two critical path objects: self and cp1 """
         if self.combinatorial:
             return cp_eq_combinatorial(self, cp1)
         else:
             return cp_eq_stage_aware(self, cp1)
 
 class TimingModel:
+    """ Basic timing model for various RTL "gates" """
     ADD_LEVEL = 2.0
     AND_LEVEL = 1.0
     OR_LEVEL = 1.0
@@ -144,17 +183,25 @@ def tree_cp_eval_value(n, level_value, r=1):
     return level_value * (cp_log2(n) - cp_log2(r))
 
 def add_cp_eval_optree(optree, combinatorial):
+    """ Evaluation of the critical path object associated with
+        @p optree Addition node in @p combinatorial mode """
     n = optree.get_precision().get_bit_size()
     return CriticalPath(optree, add_cp_eval_value(n), combinatorial=combinatorial)
 def add_cp_eval_value(n):
+    """ Evaluation of the numerical value of critical-path latency
+        for an n-bit addition """
     return (TimingModel.ADD_LEVEL * cp_log2(n))
 
 def mul_cp_eval_optree(optree, combinatorial):
+    """ Evaluation of the critical path object associated with
+        @p optree Multiplication node in @p combinatorial mode """
     n = optree.get_input(0).get_precision().get_bit_size()
     m = optree.get_input(1).get_precision().get_bit_size()
     o = optree.get_precision().get_bit_size()
     return CriticalPath(optree, mul_cp_eval_value(n, m, o), combinatorial=combinatorial)
 def mul_cp_eval_value(n, m, o):
+    """ Evaluation of the numerical value of critical-path latency
+        for an n-bit x m-bit -> o-bit multiplication  """
     # one level to evaluate partial product
     cp = TimingModel.AND_LEVEL
     # compression tree
@@ -178,7 +225,11 @@ def cmp_cp_eval_optree(optree, combinatorial):
         return add_cp_eval_optree(optree, combinatorial)
 
 def shift_cp_eval_value(output_size, data_size, amount_size):
-    return TimingModel.MUX_LEVEL * min(amount_size, cp_log2(max(data_size, output_size)))
+    """ Evaluation of the numerical value of critical-path latency
+        for an data_size-bit [<<|>>] amount_size-bit -> output_size-bit shift
+    """
+    num_levels = min(amount_size, cp_log2(max(data_size, output_size)))
+    return TimingModel.MUX_LEVEL * num_levels
 
 def shift_cp_eval_optree(optree, combinatorial):
     """ Evaluate critical path for binary shift """
@@ -217,23 +268,32 @@ def level_timing(level_timing, arity=2):
         as local added latency to the maximum of inputs critical path
         latencies """
     def cp_evaluator(evaluator, optree, combinatorial=False):
-        input_cp = [evaluator.evaluate_critical_path(optree.get_input(index), combinatorial=combinatorial) for index in range(arity)]
-        return CriticalPath(optree, level_timing, combinatorial=combinatorial) + max(input_cp)
+        """ local critical-path evaluation for level_timing constructor """
+        input_cp = [
+            evaluator.evaluate_critical_path(
+                optree.get_input(index),
+                combinatorial=combinatorial
+            ) for index in range(arity)]
+        return CriticalPath(optree, level_timing,
+                            combinatorial=combinatorial) + max(input_cp)
     return cp_evaluator
 
 def static_timing(timing_value, arity=1):
+    """ build a critical_path evaluator which always returns a constant latency
+        equals to @p timing_value """
     def cp_evaluator(evaluator, optree, combinatorial=False):
+        """ local critical-path evaluation for static_timing constructor """
         return CriticalPath(timing_value, optree, combinatorial)
     return cp_evaluator
 
 def lzc_cp_eval_optree(optree, combinatorial):
     """ Evaluate CountLeadingZeros critical path """
     op = optree.get_input(0)
-    n = op.get_precision().get_bit_size()
+    size = op.get_precision().get_bit_size()
     # FIXME: make more precision
     return CriticalPath(
         optree,
-        tree_cp_eval_value(n, max(TimingModel.AND_LEVEL, TimingModel.OR_LEVEL)),
+        tree_cp_eval_value(size, max(TimingModel.AND_LEVEL, TimingModel.OR_LEVEL)),
         combinatorial=combinatorial
     )
 
@@ -330,7 +390,8 @@ class Pass_CriticalPathEval(OptreeOptimization):
     #  @param debug enable debug messages
     #  @return boolean support
     def evaluate_critical_path(self, optree, combinatorial=False):
-        """  evalute the critical path of optree towards any input """
+        """  evalute the critical path of optree towards any input
+            in mode @p combinatorial """
         if optree in self.memoization_map:
             return self.memoization_map[(optree, combinatorial)]
         elif isinstance(optree, Statement):
@@ -392,12 +453,14 @@ class Pass_CriticalPathEval(OptreeOptimization):
 
 
     def execute(self, optree):
-
+        """ Execute Pass_CriticalPathEval on node @p optree """
         self.evaluate_critical_path_by_stage(optree)
 
         self.evaluate_critical_path_combinatorial(optree)
 
     def evaluate_critical_path_by_stage(self, optree):
+        """ Evaluate critical-path starting with node @p optree
+            in stage-by-stage mode """
         self.evaluate_critical_path(optree, combinatorial=False)
 
         valid_entry_list = [op for (op, combinatorial) in self.memoization_map.keys() if not combinatorial and not self.memoization_map[(op, combinatorial)] is None]
@@ -421,6 +484,8 @@ class Pass_CriticalPathEval(OptreeOptimization):
             print("\n")
 
     def evaluate_critical_path_combinatorial(self, optree):
+        """ Evaluate critical-path starting with node @p optree
+            in combinatorial mode """
         combinatorial_flag = True
         self.evaluate_critical_path(optree, combinatorial=combinatorial_flag)
 
@@ -455,6 +520,7 @@ def display_path_info(path):
         op_class_name = optree.name
         op_size = optree.get_precision().get_bit_size()
         def get_op_size(index):
+            """ Retrieve optree's index-th operand output bit size """
             operand_format = optree.get_input(index).get_precision()
             if isinstance(operand_format, ML_AbstractFormat):
                 return None
@@ -471,11 +537,12 @@ def display_path_info(path):
 
     for critical_path in path[::-1]:
         def name_cleaner(cp):
+            """ generate cleaned name (converting None) for
+                CriticalPath object cp """
             tag = cp.node.get_tag()
             if tag is None:
                 return "<undef>"
-            else:
-                return tag
+            return tag
         print("{:30} {}> = {:.2f}".format(
             name_cleaner(critical_path),
             generate_op_name(critical_path.node),
