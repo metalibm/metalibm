@@ -217,9 +217,10 @@ class ML_UT_EntityPass(ML_Entity("ml_lzc"), TestRunner):
     ml_ut_block_lzcnt = ML_UT_EntityPass(args)
     ml_ut_block_lzcnt.gen_implementation()
 
-    expected_id_list = [2, 5, 3, 4]
+    expected_id_list = [1, 2, 5, 3, 4]
 
     Log.report(Log.Verbose, "expected_id_list: ", expected_id_list)
+    Log.report(Log.Verbose, "executed_id_list: {}", executed_id_list)
     assert reduce(
       lambda lhs, rhs: lhs and rhs,
       [exp == real for exp,real in zip(executed_id_list, expected_id_list)],
@@ -242,9 +243,10 @@ if __name__ == "__main__":
 
     ml_lzc.gen_implementation()
 
-    expected_id_list = [2, 5, 3, 4]
+    expected_id_list = [1, 2, 5, 3, 4]
 
-    Log.report(Log.Verbose, "expected_id_list: ", expected_id_list)
+    Log.report(Log.Verbose, "expected_id_list: {}", expected_id_list)
+    Log.report(Log.Verbose, "executed_id_list: {}", executed_id_list)
     assert reduce(
       lambda lhs, rhs: lhs and rhs,
       [exp == real for exp,real in zip(executed_id_list, expected_id_list)],
