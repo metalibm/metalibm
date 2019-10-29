@@ -462,15 +462,26 @@ class LLVMIRCodeGenerator(object):
     def get_llvm_varname(self, tag):
         return "%" + tag
 
+    def get_function_definition(self, fct_type, final=True, language=LLVM_IR_Code, arg_list=None):
+        """ generate function definition prolog code """
+        return self.get_function_common(fct_type, "define", final, language, arg_list)
     def get_function_declaration(self, fct_type, final=True, language=LLVM_IR_Code, arg_list=None):
         """ generate function declaration code """
+        return self.get_function_common(fct_type, "declare", final, language, arg_list)
+
+    def get_function_common(self, fct_type, common_keyword, final=True, language=LLVM_IR_Code, arg_list=None):
+        """ :param common_keyword: llvm-ir specialization function declaration or definition """
         if arg_list:
             arg_format_list = ", ".join("%s %s" % (llvm_ir_format(inp.get_precision()), self.get_llvm_varname(inp.get_tag())) for inp in arg_list)
         else:
             arg_format_list = ", ".join(input_format.get_name(language=language) for input_format in fct_type.arg_list_precision)
         function_name = fct_type.name
         output_format = fct_type.output_format
-        return "define %s @%s(%s)\n" % (llvm_ir_format(output_format), function_name, arg_format_list)
+        return "{keyword} {out_format} @{name}({arg_list})\n".format(
+            keyword=common_keyword,
+            out_format=llvm_ir_format(output_format),
+            name=function_name,
+            arg_list=arg_format_list)
 
 
     def generate_untied_statement(self, expression_code, final=True):
@@ -490,11 +501,12 @@ class LLVMIRCodeGenerator(object):
         elif isinstance(symbol_object, ML_Table):
             raise NotImplementedError
         elif isinstance(symbol_object, CodeFunction):
-            return "%s\n" % symbol_object.get_LLVM_declaration()
+            return "%s\n" % symbol_object.get_LLVM_definition()
             #return "%s\n" % symbol_object.get_declaration()
 
         elif isinstance(symbol_object, FunctionObject):
-            return "declare %s\n" % symbol_object.get_declaration(language=LLVM_IR_Code)
+            # declare an external function object
+            return "{};\n".format(symbol_object.get_declaration(self, language=LLVM_IR_Code))
         elif isinstance(symbol_object, Label):
             return "ERROR<%s:>\n" % symbol_object.name
         else:
