@@ -1,5 +1,8 @@
 # Metalibm Architecture
 
+This document describes metalibm's internal mechanism to declare, define and use user-define passes.
+To use pre-defined passes, please refer to metalibm's USERGUIDE.md
+
 ### Registering a new pass
 
 ### Displaying pass graph
