@@ -338,13 +338,15 @@ class BasicBlockGraph:
         """ test if op0 dominates op1 """
         return self.bb_map[op0] in self.dominator_map[self.bb_map[op1]]
 
-
+BB_EMPTY_ERROR_MSG = """\
+basic block {} is empty and does not have a last op (hint: could disappear after running basic_block_simplification pass.
+"""
 
 def build_cfg_edges_set(bb_list):
     cfg_edges = set()
     for bb in bb_list.inputs:
         if bb.empty:
-            Log.report(Log.Error, "basic block {} is empty and does not have a last op", bb)
+            Log.report(Log.Error, BB_EMPTY_ERROR_MSG, bb)
         last_op = bb.get_inputs()[-1]
         if isinstance(last_op, UnconditionalBranch):
             dst = last_op.get_input(0)

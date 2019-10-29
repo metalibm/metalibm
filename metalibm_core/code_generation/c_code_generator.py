@@ -400,6 +400,9 @@ class CCodeGenerator(object):
         else:
             return "{} {}".format(arg_type.get_name(language=language), arg_tag)
 
+    def get_function_definition(self, fct_type, final=True, language=C_Code, arg_list=None):
+        """ C function definition prolog is the same as the function declaration """
+        return self.get_function_declaration(fct_type, final, language, arg_list)
 
     def get_function_declaration(self, fct_type, final=True, language=C_Code, arg_list=None):
         """ generate a C code function declaration, if @p arg_list is set

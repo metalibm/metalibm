@@ -117,18 +117,27 @@ class CodeFunction(object):
         return " ".join(self.attributes)
     return ""
 
-  def get_LLVM_declaration(self, final=True, language=LLVM_IR_Code):
+  def get_LLVM_definition(self, final=True, language=LLVM_IR_Code):
     # TODO: support attributes and metadata
     arg_format_list = ", ".join("%s %s" % (inp.get_precision().get_name(language = language), inp.get_tag()) for inp in self.arg_list)
-    return "declare %s @%s(%s)" % (self.output_format.get_name(language = language), self.name, arg_format_list)
+    return "define %s @%s(%s)" % (self.output_format.get_name(language = language), self.name, arg_format_list)
 
   def update_arg_list_precisions(self):
     self.function_type.arg_list_precision = [arg.precision for arg in self.arg_list]
 
-  def get_declaration(self, code_generator, final=True, language=None, named_arg_list=False):
+  def get_declaration(self, code_generator, final=True, language=None, named_arg_list=False, is_definition=False):
+    """
+        :param self:
+        :param for_definition: indicate if the declaration is a definition prolog or a true declaration
+        :type for_definition: bool
+    """
     self.update_arg_list_precisions()
     language = self.language if language is None else language
-    return code_generator.get_function_declaration(self.function_type, final, language, arg_list=(self.arg_list if named_arg_list else None))
+    if is_definition:
+        return code_generator.get_function_definition(self.function_type, final, language, arg_list=(self.arg_list if named_arg_list else None))
+    else:
+        # pure declaration
+        return code_generator.get_function_declaration(self.function_type, final, language, arg_list=(self.arg_list if named_arg_list else None))
     #self.name, self.output_format, self.arg_list, final, language
     #)
 
@@ -143,14 +152,14 @@ class CodeFunction(object):
 
   def get_definition(self, code_generator, language, folded = True, static_cst = False):
     code_object = NestedCode(code_generator, static_cst = static_cst)
-    code_object << self.get_declaration(code_generator, final=False, language=language, named_arg_list=True)
+    code_object << self.get_declaration(code_generator, final=False, language=language, named_arg_list=True, is_definition=True)
     code_object.open_level()
     code_generator.generate_expr(code_object, self.scheme, folded = folded, initial = True, language = language)
     code_object.close_level()
     return code_object
 
   def add_definition(self, code_generator, language, code_object, folded = True, static_cst = False):
-    code_object << self.get_declaration(code_generator, final=False, language=language, named_arg_list=True)
+    code_object << self.get_declaration(code_generator, final=False, language=language, named_arg_list=True, is_definition=True)
     code_object.open_level()
     code_generator.generate_expr(code_object, self.scheme, folded = folded, initial = True, language = language)
     code_object.close_level()
