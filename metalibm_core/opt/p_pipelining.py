@@ -25,6 +25,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 ###############################################################################
+""" Optimization pass to generate pipelined meta entity """
 import re
 
 from metalibm_core.utility.log_report import Log
@@ -42,6 +43,8 @@ from metalibm_core.core.ml_hdl_format import ML_StdLogic
 
 
 class RetimeMap:
+    """This is class to store retimed signal map (correspondance between signal
+       and stage) """
     def __init__(self):
         # map (op_key, stage) -> stage's op
         self.stage_map = {}
@@ -56,30 +59,74 @@ class RetimeMap:
         self.register_count = 0
 
     def get_op_key(self, op):
+        """ get the RetimeMap's key associated with op
+
+            :param op: operand
+            :type op: metalibm_core.core.ML_Operation """
         op_key = op.attributes.init_op if not op.attributes.init_op is None else op
         return op_key
 
     def hasBeenProcessed(self, op):
-        """ test if op has already been processed """
+        """ test if op has already been processed
+
+            :param op: input node
+            :type op: ML_Operation
+            :return: true if node has been processed, false otherwise
+            :rtype: bool """
         return self.get_op_key(op) in self.processed
 
     def addToProcessed(self, op):
-        """ add op to the list of processed nodes """
+        """ add op to the list of processed nodes
+
+            :param op: input node
+            :type op: ML_Operation
+        """
         op_key = self.get_op_key(op)
         return self.processed.add(op_key)
 
     def contains(self, op, stage):
-        """ check if the pair (op, stage) is defined in the stage map """
+        """ check if the pair (op, stage) is defined in the stage map
+
+            :param op: input node
+            :type op: ML_Operation
+            :param stage: input pipeline stage index
+            :type stage: int
+            :return: true if (op, stage) is defined in stage map
+            :rtype: bool """
         return (self.get_op_key(op), stage) in self.stage_map
 
     def get(self, op, stage):
+        """ get the delayed node associated to the key pair (op, stage) in the stage map
+
+            :param op: input node
+            :type op: ML_Operation
+            :param stage: input pipeline stage index
+            :type stage: int
+            :return: delayed node
+            :rtype: ML_Operation """
         return self.stage_map[(self.get_op_key(op), stage)]
 
     def set(self, op, stage):
+        """ define the delayed node in stage map
+
+            :param op: delayed version of node
+            :type op: ML_Operation
+            :param stage: input pipeline stage index
+            :type stage: int
+        """
         op_key = self.get_op_key(op)
         self.stage_map[(op_key, stage)] = op
 
     def add_stage_forward(self, op_dst, op_src, stage):
+        """ Adding a node to forward op_src to op_dst at stage index
+
+            :param op_dst: stage output node (register output)
+            :type op_dst: ML_Operation
+            :param op_src: stage input node (register entry)
+            :type op_src: ML_Operation
+            :param stage: destination stage index
+            :type stage: int
+        """
         Log.report(Log.Verbose, " adding stage forward {op_src} to {op_dst} @ stage {stage}",
             op_src=op_src, op_dst=op_dst, stage=stage)
         if not stage in self.stage_forward:
@@ -90,9 +137,17 @@ class RetimeMap:
         self.register_count += op_dst.get_precision().get_bit_size()
         self.pre_statement.add(op_src)
 
-# propagate forward @p op until it is defined
-#  in @p stage
 def propagate_op(op, stage, retime_map):
+    """ propagate the node op until stage by forwarding it through the pipeline
+        and adding intermediate register at each stage crossed
+
+        :param op: node to be propagated in the pipeline
+        :type op: ML_Operation
+        :param stage: index of the final pipeline stage
+        :type stage: int
+        :param retime_map: retiming-map to use to store propagation steps
+        :type retime_map: RetimeMap
+    """
     op_key = retime_map.get_op_key(op)
     Log.report(Log.Verbose, " propagating {op} (key={op_key}) to stage {stage}",
         op=op, op_key=op_key, stage=stage)
@@ -117,7 +172,15 @@ def propagate_op(op, stage, retime_map):
 
 
 def node_should_be_pipelined(optree):
-    """ Predicate to authorize pipeline to node """
+    """ Predicate to determined if a node should be pipelined when forwarded
+        accross stages or can be propagated as is (e.g. Constant should not
+        be propagated)
+
+        :param optree: input node
+        :type optree: ML_Operation
+        :return: true if node should be pipelined, false otherwise
+        :rtype: bool
+    """
     if isinstance(optree, FixedPointPosition):
         return False
     elif isinstance(optree, Constant):
@@ -127,6 +190,13 @@ def node_should_be_pipelined(optree):
 
 
 def node_has_inputs(optree):
+    """ Predicate checking if node has inputs
+
+        :param optree: input node
+        :type optree: ML_Operation
+        :return: true if optree is not a leaf node
+        :rtype: bool
+    """
     if isinstance(optree, ML_LeafNode):
         return False
     else:
@@ -135,7 +205,13 @@ def node_has_inputs(optree):
 
 def retime_op(op, retime_map):
     """ Process each input of op and if necessary generate necessary
-        forwarding stage """
+        forwarding stage
+
+        :param op: input node
+        :type op: ML_Operation
+        :param retime_map: retiming map
+        :type retime_map: RetimeMap
+    """
     op_stage = op.attributes.init_stage
     Log.report(Log.Verbose, "retiming op [S={}] {} ", op_stage, op)
     if retime_map.hasBeenProcessed(op):
@@ -205,14 +281,25 @@ def retime_op(op, retime_map):
 
 
 def generate_pipeline_stage(entity, reset=False, recirculate=False, one_process_per_stage=True, synchronous_reset=True, negate_reset=False):
-    """ Process a entity to generate pipeline stages required,
-        @param one_process_per_stage forces the generation of a separate process for each
-               pipeline stage (else a unique process is generated for all the stages
-        @param synchronous_reset triggers the generation of a clocked reset
-        @param recirculate trigger the integration of a recirculation signal to the stage
+    """ Process a entity to generate pipeline stages required to implement
+        pipeline structure described by node's stage attributes.
+
+        :param entity: input entity to pipeline
+        :type entity: ML_EntityBasis
+        :param reset: indicate if a reset must be generated for pipeline registers
+        :type reset: bool
+        :param recirculate: trigger the integration of a recirculation signal to the stage
             flopping condition
-        @param negate_reset if set indicates the reset is triggered when reset signal is 0
-                            (else 1) """
+        :type recirculate: bool
+        :param one_process_per_stage:forces the generation of a separate process for each
+               pipeline stage (else a unique process is generated for all the stages
+        :type one_process_per_stage: bool
+        :param synchronous_reset: triggers the generation of a clocked reset
+        :type synchronous_reset: bool
+        :param negate_reset: if set indicates the reset is triggered when reset signal is 0
+                            (else 1)
+        :type negate_reset: bool
+    """
     retiming_map = {}
     retime_map = RetimeMap()
     output_assign_list = entity.implementation.get_output_assign()
