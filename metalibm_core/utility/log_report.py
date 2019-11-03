@@ -113,11 +113,11 @@ class Log(object):
         if level is Log.Error:
             if Log.break_on_error:
               pdb.set_trace()
-              raise error or Exception()
+              raise error or Exception(msg.format(*args, **kw))
             elif Log.exit_on_error:
               sys.exit(1)
             else:
-              raise error or Exception()
+              raise error or Exception(msg.format(*args, **kw))
 
     ## enable display of the specific log level
     #  @param level log-level to be enabled
