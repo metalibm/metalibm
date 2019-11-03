@@ -29,7 +29,8 @@
 ###############################################################################
 
 from metalibm_core.core.ml_formats import *
-from metalibm_core.core.passes import FunctionPass, Pass, LOG_PASS_INFO
+from metalibm_core.core.passes import (
+    FunctionPass, Pass, LOG_PASS_INFO, METALIBM_PASS_REGISTER)
 from metalibm_core.core.ml_table import ML_NewTable, ML_TableFormat
 from metalibm_core.core.ml_operations import (
         ML_LeafNode, VectorElementSelection, FunctionCall, Conversion, Constant,
@@ -41,13 +42,24 @@ from metalibm_core.opt.p_check_support import Pass_CheckSupport
 LOG_LEVEL_VPROMO_VERBOSE = Log.LogLevel("VPromoVerbose")
 LOG_LEVEL_VPROMO_INFO = Log.LogLevel("VPromoInfo")
 
-## Test if @p optree is a non-constant leaf node
-#    @param optree operation node to be tested
-#    @return boolean result of predicate evaluation
 def is_leaf_no_Constant(optree):
-	return isinstance(optree, ML_LeafNode) and not isinstance(optree, Constant)
+    """ Test if an operation node is a non-constant leaf node
+
+        :param optree: input node
+        :type optree: ML_Operation
+        :return: boolean predicate result
+        :rtype: bool """
+    return isinstance(optree, ML_LeafNode) and not isinstance(optree, Constant)
 
 def insert_conversion_when_required(op_input, final_precision):
+    """ Generate a conversion of op_input to format final_precision if required 
+
+        :param op_input: input operation node
+        :type op_input: ML_Operation
+        :param final_precision: target format
+        :type final_precision: ML_Format
+        :return: op_input converted to final_precision if required
+        :rtype: ML_Operation """
     # assert not final_precision is None
     if op_input.get_precision() != final_precision:
         return Conversion(op_input, precision = final_precision)
@@ -56,6 +68,7 @@ def insert_conversion_when_required(op_input, final_precision):
 
 
 ## Generic vector promotion pass
+@METALIBM_PASS_REGISTER
 class Pass_Vector_Promotion(FunctionPass):
     """ Generic pass to promote node format to better format for the final
         target. This pass is specially dedicated to promote generic vector
@@ -215,6 +228,6 @@ class Pass_Vector_Promotion(FunctionPass):
         return self.promote_node(optree, optree.precision)
 
 
-Log.report(LOG_PASS_INFO, "Registering vector_conversion pass")
+#Log.report(LOG_PASS_INFO, "Registering vector_conversion pass")
 # register pass
-Pass.register(Pass_Vector_Promotion)
+#Pass.register(Pass_Vector_Promotion)
