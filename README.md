@@ -5,13 +5,18 @@ Metalibm is available under MIT Licence (see LICENSE file) from https://github.c
 ## INTEGRATION STATUS
 master branch: [![pipeline status](https://gitlab.com/nibrunie/metalibm_github/badges/master/pipeline.svg)](https://gitlab.com/nibrunie/metalibm_github/commits/master)
 
-meta-function generation report (master branch): https://nibrunie.gitlab.io/metalibm/report.master.html
+meta-function generation report (master branch): https://nibrunie.gitlab.io/metalibm/perfs/report.master.html
+
+## DOCUMENTATION
+
+Documentation (for master branch) is available on gitlab's pages: https://nibrunie.gitlab.io/metalibm/doc/index.html
+
 
 ## INSTALL
 
 * Dependencies:
     - metalibm depends on Pythonsollya (python wrapper to Sollya library).
-        easy install (if sollya is already installed): pip install git+https://gitlab.com/metalibm-dev/pythonsollya
+        easy install (if sollya is already installed): `pip install git+https://gitlab.com/metalibm-dev/pythonsollya`
         or Pythonsollya can be downloaded from https://gitlab.com/metalibm-dev/pythonsollya
     - Some features of Metalibm require Gappa (http://gappa.gforge.inria.fr/)
 
