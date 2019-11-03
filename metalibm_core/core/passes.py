@@ -243,7 +243,10 @@ class Pass:
       Log.report(LOG_PASS_INFO, "registering pass {} associated to tag {}".format(pass_class, tag))
       Pass.pass_map[tag] = pass_class
     else:
-      Log.report(Log.Error, "a pass with name {} has already been registered while trying to register {}".format(tag, pass_class))
+      if Pass.pass_map[tag] == pass_class:
+        Log.report(Log.Warning, "trying to register {} multiple times (always associated with {})", tag, pass_class)
+      else:
+        Log.report(Log.Error, "a pass with name {} ({}) has already been registered while trying to register {}".format(tag, Pass.pass_map[tag], pass_class))
 
   ## return the pass class associated with name @p tag
   #  @param tag[str] pass name
