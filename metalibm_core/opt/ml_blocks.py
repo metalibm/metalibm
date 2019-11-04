@@ -165,7 +165,14 @@ class MetaBlock:
     def global_relative_error_eval(self, *args):
         """ give an upper bound to the relative error of the
             meta-block applied to @p args while taking into
-            account the error of the inputs """
+            account the error of the inputs
+
+            this methods exists in 2 flavours
+            - global_relative_error_eval is the entry point
+            - _global_relative_error_eval is internal
+            These flavours are used to implement easily commutated version
+            of meta-blocks
+        """
         return self._global_relative_error_eval(self, *args)
 
     def _local_relative_error_eval(self, *args):
@@ -176,7 +183,14 @@ class MetaBlock:
     def local_relative_error_eval(self, *args):
         """ give an upper bound to the relative error of the result
             ONLY introduced by the meta-block, that is assuming inputs
-            were exact """
+            were exact
+
+            this methods exists in 2 flavours
+            - local_relative_error_eval is the entry point
+            - _local_relative_error_eval is internal
+            These flavours are used to implement easily commutated version
+            of meta-blocks
+        """
         return self._local_relative_error_eval(*args)
 
     def relative_error_eval(self, lhs, rhs, global_error=True):
@@ -210,7 +224,7 @@ def MB_CommutedVersion(BaseClass):
                 return BaseClass.check_input_descriptors(self, rhs, lhs)
             def _global_relative_error_eval(self, lhs, rhs):
                 return BaseClass._global_relative_error_eval(self, rhs, lhs)
-            def local_relative_error_eval(self, lhs, rhs):
+            def _local_relative_error_eval(self, lhs, rhs):
                 return BaseClass._local_relative_error_eval(self, rhs, lhs)
         return NewClass
     return decorator
@@ -395,7 +409,9 @@ class MB_Mul221(MB_IntervalMul, Op_2LimbOut_MetaBlock):
 class MB_Mul212(Op_2LimbOut_MetaBlock):
     """ Commutated version of MP_Mul221 """
     def _global_relative_error_eval(self, rhs_desc, lhs_desc):
-        eps_op = self._local_relative_error_eval(rhs_desc, lhs_desc)
+        # inversing right and left and side when calling
+        # _local_relative_error_eval as this is MB_Mul221's method
+        eps_op = self._local_relative_error_eval(lhs_desc, rhs_desc)
         # error bound (first order approximation)
         eps = lhs_desc.epsilon + rhs_desc.epsilon + eps_op
         return eps
