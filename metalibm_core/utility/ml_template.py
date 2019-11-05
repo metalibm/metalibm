@@ -62,6 +62,8 @@ from metalibm_core.code_generation.vhdl_backend import VHDLBackend
 # import optimization passes
 from metalibm_core.opt import *
 
+import metalibm_core.utility.gappa_utils as gappa_utils
+
 # populating target_map
 target_map = {}
 for target_name in TargetRegister.target_map:
@@ -256,6 +258,14 @@ class ExitOnErrorAction(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
         Log.exit_on_error = True
 
+class DisablingGappa(argparse.Action):
+    """ Custom action for command-line command --exit-on-error """
+    def __init__(self, option_strings, dest, nargs=None, **kwargs):
+        super(DisablingGappa, self).__init__(
+            option_strings, dest, nargs=nargs, **kwargs)
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        gappa_utils.DISABLE_GAPPA = True
 
 class VerboseAction(argparse.Action):
     def __init__(self, option_strings, dest, nargs=None, **kwargs):
@@ -615,6 +625,13 @@ class ML_CommonArgTemplate(object):
             action=DisplayExceptionAction, const=False,
             nargs=0,
             help="Display the full Exception trace when an error occurs")
+
+        self.parser.add_argument(
+            "--disable-gappa", dest="disable_gappa",
+            action=DisablingGappa, const=True,
+            default=False,
+            nargs=0,
+            help="disable gappa usage (even if installed)")
 
         self.parser.add_argument(
             "--exit-on-error", dest="exit_on_error",

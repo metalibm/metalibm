@@ -70,9 +70,12 @@ def execute_gappa_script_extract(gappa_code, gappa_filename = "gappa_tmp.g"):
         result[var] = parse_gappa_interval(interval_value)
     return result
 
+DISABLE_GAPPA = False
 
 ## Check if gappa binary is available in the execution environement
 def is_gappa_installed():
+    if DISABLE_GAPPA:
+        return False
     """ check if gappa is present on the execution environement """
     dev_null = open("/dev/null", "w")
     gappa_test = subprocess.call("gappa --help 2> /dev/null", shell=True)
