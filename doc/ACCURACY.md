@@ -17,7 +17,7 @@ For a more serious definition of the ulp and its many variants, please refer to:
 
 ### Correctly Rounded
 
-Less than half a ulp
+Less than half a "ulp"
 
 On metalibm command line, such accuracy can be indicated by:
     --accuracy cr
@@ -33,5 +33,5 @@ On metalibm command line, such accuracy can be indicated by:
 This type of accuracy is used to indicate anything that does not fit into any of the previous categories
 
 On metalibm command line, such accuracy can be indicated by:
-    --accuracy daa(goal) # degraded accuracy absolute with abs(value - exact) < goal
-    --accuracy dar(goal) # degraded accuracy relative with abs ((value - exact) / exact) < goal
+    --accuracy 'daa(goal)' # degraded accuracy absolute with abs(value - exact) < goal
+    --accuracy 'dar(goal)' # degraded accuracy relative with abs ((value - exact) / exact) < goal
