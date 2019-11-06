@@ -43,6 +43,8 @@ from metalibm_core.code_generation.generic_processor import GenericProcessor
 
 from metalibm_core.core.target import TargetRegister
 
+from metalibm_core.opt.opt_utils import forward_attributes
+
 
 def fixed_modifier(optree, op_class = Addition):
   """ modify addition optree to be mapped on standard integer format 
@@ -170,6 +172,52 @@ def conv_from_fp_modifier(optree):
   return result
 
 
+
+def legalize_fixed_point_comparison(optree):
+    """ Legalization a fixed-point comparison into integer operation """
+    predicate = optree.specifier
+    lhs = optree.get_input(0)
+    rhs = optree.get_input(1)
+
+    if lhs.get_precision() == rhs.get_precision():
+        # if format match, a single cast will suffice
+        # get_std_integer_support_format should managed signedness properly
+        support_format = get_std_integer_support_format(lhs.get_precision())
+        new_node = Comparison(
+            TypeCast(lhs, precision=support_format),
+            TypeCast(rhs, precision=support_format),
+            specifier=predicate
+        )
+        forward_attributes(optree, new_node)
+        return new_node
+    else:
+        encapsulating_integer_size = max(
+            lhs.get_precision().get_integer_size(),
+            rhs.get_precision().get_integer_size()
+        )
+        encapsulating_frac_size = max(
+            lhs.get_precision().get_frac_size(),
+            rhs.get_precision().get_frac_size()
+        )
+        encapsulating_signedness = lhs.get_signed() or rhs.get_signed()
+        encapsulating_format = ML_Custom_FixedPoint_Format(
+            encapsulating_integer_size,
+            encapsulating_frac_size,
+            signed=encapsulating_signedness
+        )
+        if encapsulating_format != lhs.get_precision():
+            lhs = Conversion(lhs, precision=encapsulating_format)
+        if encapsulating_format != rhs.get_precision():
+            rhs = Conversion(rhs, precision=encapsulating_format)
+
+        new_node = Comparison(
+            lhs,
+            rhs,
+            specifier=predicate
+        )
+        forward_attributes(optree, new_node)
+        return new_node
+
 ## Lower the Conversion optree which converts a fixed-point value
 #  into a floating-point results
 #  @return the lowered conversion
@@ -263,6 +311,14 @@ fixed_c_code_generation_table = {
               #is_cast_simplification_invalid: IdentityOperator(),
           },
       },
+  },
+  Comparison: {
+    Comparison.NotEqual: {
+        lambda optree: True: {
+            type_custom_match(FSM(ML_Bool), MCFIPF, MCFIPF):
+                ComplexOperator(optree_modifier=legalize_fixed_point_comparison),
+        },
+    },
   },
 }
 
