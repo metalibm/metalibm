@@ -44,12 +44,26 @@ sollya.settings.verbosity = 2
 
 def get_accuracy_from_epsilon(epsilon):
     """ convert a numerical relative error into
-        a number of accuracy bits """
+        a number of accuracy bits
+
+        :param epsilon: error to convert
+        :type epsilon: number
+        :return: accuracy corresponding to the error
+        :rtype: SollyaObject
+    """
     return sollya.floor(-sollya.log2(abs(epsilon)))
 
 class MLL_Format:
     """ Container for all information required to
-        describe a node format as infered by MLL_Context """
+        describe a node format as infered by MLL_Context
+
+        :param mp_node: multi-precision node
+        :type mp_node: MP_Node
+        :param meta_block: meta-block
+        :type meta_block: MetaBlock
+        :param eps_target: relative error target
+        :type eps_target: number
+        """
     def __init__(self, mp_node, meta_block, eps_target):
         # support format
         self.mp_node = mp_node
@@ -527,12 +541,17 @@ def mll_implementpoly_horner(ctx, poly_object, eps, variable):
         whose evalution error is bounded by @p eps. @p variable must have a
         interval and a precision set
 
-        @param ctx multi-word precision context to use
-        @param poly_object polynomial object to implement
-        @param eps target relative error bound
-        @param variable polynomial input variable
+        :param ctx: multi-word precision context to use
+        :type ctx: MLL_Context
+        :param poly_object: polynomial object to implement
+        :type poly_object:
+        :param eps: target relative error bound
+        :param variable: polynomial input variable
+        :type variable: ML_Operation
 
-        @return <implementation node>, <real relative error>"""
+        :return: <implementation node>, <real relative error>
+        :rtype: tuple(ML_Operation, SollyaObject)
+    """
     if poly_object.degree == 0:
         # constant only
         cst = poly_object.coeff_map[0]
