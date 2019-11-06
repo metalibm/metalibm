@@ -818,7 +818,9 @@ class ML_Base_SW_FixedPoint_Format(ML_Base_FixedPoint_Format):
         this format """
     MAX_BIT_SIZE = 128
     MIN_BIT_SIZE = 1
-    POSSIBLE_SIZES = [8, 16, 32, 64, 128]
+    POSSIBLE_SIZES = [8, 16, 32, 64, 128, 256]
+    # class initialized to allow proper format comparison
+    C_DISPLAY_FORMAT = dict((size, DisplayFormat("%\"PRIx" + str(size) + "\"")) for size in POSSIBLE_SIZES)
 
     def __init__(self, integer_size, frac_size, signed=True, support_format=None, align=0):
         ML_Base_FixedPoint_Format.__init__(
@@ -843,7 +845,7 @@ class ML_Base_SW_FixedPoint_Format(ML_Base_FixedPoint_Format):
             if self.c_bit_size is None:
                 Log.report(Log.Error, "not able to find a compatible c_bit_size for {} = {} + {}", bit_size, integer_size, frac_size)
             c_name = ("" if self.signed else "u") + "int" + str(self.c_bit_size) + "_t"
-            c_display_format = DisplayFormat("%\"PRIx" + str(self.c_bit_size) + "\"")
+            c_display_format = self.C_DISPLAY_FORMAT[self.c_bit_size]
             self.name[C_Code] = c_name
             self.display_format[C_Code] = c_display_format
             self.dbg_name = c_name
