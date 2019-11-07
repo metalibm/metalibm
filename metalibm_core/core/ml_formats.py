@@ -49,6 +49,7 @@ from metalibm_core.core.special_values import (
 
 from metalibm_core.core.display_utils import (
     DisplayFormat,
+    fixed_point_beautify,
     DISPLAY_DD, DISPLAY_TD, DISPLAY_DS, DISPLAY_TS
 )
 
@@ -820,7 +821,6 @@ class ML_Base_SW_FixedPoint_Format(ML_Base_FixedPoint_Format):
     MIN_BIT_SIZE = 1
     POSSIBLE_SIZES = [8, 16, 32, 64, 128, 256]
     # class initialized to allow proper format comparison
-    C_DISPLAY_FORMAT = dict((size, DisplayFormat("%\"PRIx" + str(size) + "\"")) for size in POSSIBLE_SIZES)
     DISPLAY_FORMAT_MAP = {}
     C_NAME_MAP = {
         True: {
@@ -871,11 +871,6 @@ class ML_Base_SW_FixedPoint_Format(ML_Base_FixedPoint_Format):
     def build_display_format_object(self):
         key = (self.integer_size, self.frac_size, self.support_format)
         if not key in ML_Base_SW_FixedPoint_Format.DISPLAY_FORMAT_MAP:
-            def fixed_point_beautify(v):
-                return "({v} * (double) {scale}), {v}".format(
-                    v=v,
-                    scale=2**-self.frac_size
-                )
             display_format = DisplayFormat(
                 format_string="%e/%\"PRI" + ("i" if self.signed else "u")  + str(self.c_bit_size) + "\"",
                 pre_process_fct=fixed_point_beautify
