@@ -44,11 +44,12 @@ from ..core.ml_operations import (
 from ..core.ml_hdl_operations import *
 from ..core.ml_table import ML_Table
 from ..core.ml_formats import *
-from ..core.attributes import ML_Debug, ML_AdvancedDebug
 from .code_constant import VHDL_Code
 from .code_element import CodeVariable, CodeExpression
 from .code_function import CodeFunction
 from .code_object import MultiSymbolTable
+
+from ..utility.debug_utils import ML_Debug, ML_AdvancedDebug
 
 class VHDLCodeGeneratorParams:
     # limit on the size of a result string

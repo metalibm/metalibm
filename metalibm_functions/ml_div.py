@@ -35,7 +35,6 @@ import sollya
 from sollya import Interval
 S2 = sollya.SollyaObject(2)
 
-from metalibm_core.core.attributes import ML_Debug
 from metalibm_core.core.ml_operations import *
 from metalibm_core.core.ml_formats import *
 from metalibm_core.core.precisions import ML_CorrectlyRounded

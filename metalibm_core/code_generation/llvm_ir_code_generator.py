@@ -47,7 +47,6 @@ from ..core.bb_operations import (
 )
 from ..core.ml_table import ML_Table
 from ..core.ml_formats import *
-from ..core.attributes import ML_Debug
 from .generator_utility import C_Code, Gappa_Code, RoundOperator
 from .code_element import CodeVariable, CodeExpression
 from .code_object import MultiSymbolTable

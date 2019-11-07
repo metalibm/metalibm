@@ -36,7 +36,6 @@ from sollya import (
         log10, guessdegree
 )
 
-from metalibm_core.core.attributes import ML_Debug
 from metalibm_core.core.ml_operations import *
 from metalibm_core.core.ml_formats import *
 from metalibm_core.code_generation.c_code_generator import CCodeGenerator
@@ -50,6 +49,7 @@ from metalibm_core.core.ml_table import ML_NewTable
 
 from metalibm_core.code_generation.gappa_code_generator import GappaCodeGenerator
 
+from metalibm_core.utility.debug_utils import debugd
 from metalibm_core.utility.gappa_utils import execute_gappa_script_extract
 from metalibm_core.utility.ml_template import ML_ArgTemplate
 
@@ -74,19 +74,6 @@ class ML_Logarithm(object):
         vx = func_implementation.add_input_variable("x", self.precision) 
 
         sollya_precision = self.precision.sollya_object
-
-        # debug utilities
-        debugf        = ML_Debug(display_format = "%f")
-        debuglf       = ML_Debug(display_format = "%lf")
-        debugx        = ML_Debug(display_format = "%x")
-        debuglx       = ML_Debug(display_format = "%\"PRIx64\"", )
-        debugd        = ML_Debug(display_format = "%d", pre_process = lambda v: "(int) %s" % v)
-        debugld        = ML_Debug(display_format = "%ld")
-        #debug_lftolx  = ML_Debug(display_format = "%\"PRIx64\"", pre_process = lambda v: "double_to_64b_encoding(%s)" % v)
-        debug_lftolx  = ML_Debug(display_format = "%\"PRIx64\" ev=%x", pre_process = lambda v: "double_to_64b_encoding(%s), __k1_fpu_get_exceptions()" % v)
-        debug_ddtolx  = ML_Debug(display_format = "%\"PRIx64\" %\"PRIx64\"", pre_process = lambda v: "double_to_64b_encoding(%s.hi), double_to_64b_encoding(%s.lo)" % (v, v))
-        debug_dd      = ML_Debug(display_format = "{.hi=%lf, .lo=%lf}", pre_process = lambda v: "%s.hi, %s.lo" % (v, v))
-
 
         vx_exp = RawSignExpExtraction(vx, tag = "vx_exp", precision = ML_Int32, debug = debugd)
         vx_exp_u = Conversion(vx_exp, precision = ML_UInt32)

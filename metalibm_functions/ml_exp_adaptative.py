@@ -35,7 +35,8 @@ from sollya import (
         S2, Interval, ceil, floor, round, inf, sup, log, exp, guessdegree
 )
 
-from metalibm_core.core.attributes import ML_Debug
+# FIXME: use debug_utils pre-defined object rather than ML_Debug
+from metalibm_core.utility.debug_utils import ML_Debug
 from metalibm_core.core.ml_operations import *
 from metalibm_core.core.ml_formats import *
 from metalibm_core.code_generation.c_code_generator import CCodeGenerator

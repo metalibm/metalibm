@@ -31,7 +31,6 @@ import sys
 
 from sollya import S2
 
-from metalibm_core.core.attributes import ML_Debug
 from metalibm_core.core.ml_operations import *
 from metalibm_core.core.ml_formats import *
 from metalibm_core.code_generation.c_code_generator import CCodeGenerator

@@ -44,7 +44,9 @@ from ..core.ml_operations import (
 )
 from ..core.ml_table import ML_Table, ML_NewTable
 from ..core.ml_formats import *
-from ..core.attributes import ML_Debug
+
+from ..utility.debug_utils import ML_Debug
+
 from .code_constant import C_Code
 from .code_element import CodeVariable, CodeExpression
 from .code_function import CodeFunction

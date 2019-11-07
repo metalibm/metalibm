@@ -34,13 +34,16 @@
 import sys
 
 from .code_element import CodeVariable, CodeExpression
-from ..core.ml_operations import Variable, Constant, ConditionBlock, Return, TableLoad, Statement, SpecificOperation, Conversion
+from ..core.ml_operations import (
+    Variable, Constant, ConditionBlock, Return, TableLoad, Statement,
+    SpecificOperation, Conversion)
 from ..core.ml_table import ML_Table
 from ..core.ml_formats import *
+
 from .generator_utility import C_Code, Gappa_Code, RoundOperator
-from ..core.attributes import ML_Debug
 from .code_object import Gappa_Unknown, GappaCodeObject
 
+from ..utility.debug_utils import ML_Debug
 from ..utility.gappa_utils import execute_gappa_script_extract
 from ..utility.log_report import Log
 

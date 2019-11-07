@@ -40,7 +40,7 @@ from metalibm_core.core.ml_complex_formats import ML_Pointer_Format
 from metalibm_core.core.ml_operations import *
 from metalibm_core.core.target import TargetRegister
 from metalibm_core.core.ml_table import ML_TableFormat
-from metalibm_core.core.attributes import ML_Debug
+from metalibm_core.utility.debug_utils import ML_Debug
 from metalibm_core.core.special_values import (FP_PlusZero, FP_MinusZero)
 
 from metalibm_core.utility.log_report import Log

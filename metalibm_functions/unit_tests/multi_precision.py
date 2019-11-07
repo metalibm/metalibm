@@ -37,7 +37,6 @@ import sys
 
 from metalibm_core.core.ml_function import ML_Function, ML_FunctionBasis
 
-from metalibm_core.core.attributes import ML_Debug
 from metalibm_core.core.ml_operations import (
     Return, Statement, Conversion,
     Addition, Multiplication, Subtraction,

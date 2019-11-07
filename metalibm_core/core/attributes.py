@@ -58,59 +58,6 @@ def attr_init(attrs, attr_name, default_value = None, required = False):
             return default_value
 
 
-## Debug attributes class to adapt the debug display message properties
-#  @param display_format C string used when displaying debug message
-#  @param color of the debug message
-#  @param pre_process  pre_process function to be applied to the Node
-#         before display
-#  @param require_header list of headers required to generate the debug message
-class ML_Debug(object):
-    ## initialization of a new ML_Debug object
-    def __init__(self, display_format = None, color = None, pre_process = lambda v: v, require_header = []):
-        self.display_format = display_format
-        self.color = color
-        self.pre_process = pre_process
-        self.require_header = require_header
-
-    def get_display_format(self, default = "%f"):
-        return self.display_format if self.display_format else default
-
-    def get_pre_process(self, value_to_display, optree):
-        return self.pre_process(value_to_display)
-
-    def get_require_header(self):
-        return self.require_header
-
-    def select_object(self, optree):
-        return self
-
-class ML_MultiDebug(ML_Debug):
-    """ Debug object which automatically select Debug message display
-        according to node output precision """
-    def __init__(self, debug_object_map, key_function = lambda optree: optree.get_precision()):
-        self.debug_object_map = debug_object_map
-        self.key_function = key_function
-
-    def select_object(self, optree):
-        """ Select debug_object corresponding to input optree
-           in ML_MultiDebug debug_object_map dict """
-        dbg_key = self.key_function(optree)
-        try:
-            return self.debug_object_map[dbg_key]
-        except KeyError:
-            Log.report(
-                Log.Error,
-                "unable to found key({}) in debug_object_map".format(dbg_key)
-            )
-
-    def add_mapping(self, debug_key, debug_object):
-        """ Declare a new mapping between @p debug_key and @p debug_object """
-        self.debug_object_map[debug_key] = debug_object
-
-class ML_AdvancedDebug(ML_Debug):
-  def get_pre_process(self, value_to_display, optree):
-    return self.pre_process(value_to_display, optree)
-
 
 ## Object to keep track of ML's node accross the several optimizations passes
 class Handle(object):

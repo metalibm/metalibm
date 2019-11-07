@@ -42,7 +42,6 @@ from sollya import (
 
 from metalibm_core.core.ml_function import ML_FunctionBasis
 
-from metalibm_core.core.attributes import ML_Debug
 from metalibm_core.core.ml_operations import *
 from metalibm_core.core.ml_formats import *
 from metalibm_core.code_generation.generic_processor import GenericProcessor
