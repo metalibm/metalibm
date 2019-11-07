@@ -821,8 +821,26 @@ class ML_Base_SW_FixedPoint_Format(ML_Base_FixedPoint_Format):
     POSSIBLE_SIZES = [8, 16, 32, 64, 128, 256]
     # class initialized to allow proper format comparison
     C_DISPLAY_FORMAT = dict((size, DisplayFormat("%\"PRIx" + str(size) + "\"")) for size in POSSIBLE_SIZES)
+    DISPLAY_FORMAT_MAP = {}
+    C_NAME_MAP = {
+        True: {
+            8: "int8_t",
+            16: "int16_t",
+            32: "int32_t",
+            64: "int64_t",
+            128: "__int128"
+        },
+        False: {
+            8: "uint8_t",
+            16: "uint16_t",
+            32: "uint32_t",
+            64: "uint64_t",
+            128: "unsigned __int128"
+        },
+    }
 
     def __init__(self, integer_size, frac_size, signed=True, support_format=None, align=0):
+        # FIXME: align parameter is not used
         ML_Base_FixedPoint_Format.__init__(
             self,
             integer_size,
@@ -844,11 +862,31 @@ class ML_Base_SW_FixedPoint_Format(ML_Base_FixedPoint_Format):
                 self.c_bit_size = min(possible_list)
             if self.c_bit_size is None:
                 Log.report(Log.Error, "not able to find a compatible c_bit_size for {} = {} + {}", bit_size, integer_size, frac_size)
-            c_name = ("" if self.signed else "u") + "int" + str(self.c_bit_size) + "_t"
-            c_display_format = self.C_DISPLAY_FORMAT[self.c_bit_size]
+            c_name = ML_Base_SW_FixedPoint_Format.C_NAME_MAP[self.signed][self.c_bit_size]
+            c_display_format = self.build_display_format_object()
             self.name[C_Code] = c_name
             self.display_format[C_Code] = c_display_format
             self.dbg_name = c_name
+
+    def build_display_format_object(self):
+        key = (self.integer_size, self.frac_size, self.support_format)
+        if not key in ML_Base_SW_FixedPoint_Format.DISPLAY_FORMAT_MAP:
+            def fixed_point_beautify(v):
+                return "({v} * (double) {scale}), {v}".format(
+                    v=v,
+                    scale=2**-self.frac_size
+                )
+            display_format = DisplayFormat(
+                format_string="%e/%\"PRI" + ("i" if self.signed else "u")  + str(self.c_bit_size) + "\"",
+                pre_process_fct=fixed_point_beautify
+            )
+            # using class map memoization to simplify type comparison
+            # by keeping a single display object for isomorphic type objects
+            ML_Base_SW_FixedPoint_Format.DISPLAY_FORMAT_MAP[key] = display_format
+        else:
+            display_format = ML_Base_SW_FixedPoint_Format.DISPLAY_FORMAT_MAP[key]
+
+        return display_format
 
     def get_display_format(self, language=C_Code):
         return self.display_format[language]
