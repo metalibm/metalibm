@@ -319,6 +319,18 @@ fixed_c_code_generation_table = {
                 ComplexOperator(optree_modifier=legalize_fixed_point_comparison),
         },
     },
+    Comparison.GreaterOrEqual: {
+        lambda optree: True: {
+            type_custom_match(FSM(ML_Bool), MCFIPF, MCFIPF):
+                ComplexOperator(optree_modifier=legalize_fixed_point_comparison),
+        },
+    },
+    Comparison.LessOrEqual: {
+        lambda optree: True: {
+            type_custom_match(FSM(ML_Bool), MCFIPF, MCFIPF):
+                ComplexOperator(optree_modifier=legalize_fixed_point_comparison),
+        },
+    },
   },
 }
 
