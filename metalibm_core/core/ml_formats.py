@@ -806,7 +806,38 @@ class ML_Base_FixedPoint_Format(ML_Fixed_Format, VirtualFormatNoBase):
           print(e, cst_value, self.frac_size)
           Log.report(Log.Error, "Error during constant conversion to sollya object from format {}", str(self))
           
-        return ("" if self.signed else "U") + "INT" + str(self.c_bit_size) + "_C(" + str(encoded_value) + ")"
+        if self.c_bit_size in [8, 16, 32, 64]:
+            return ("" if self.signed else "U") + "INT" + str(self.c_bit_size) + "_C(" + str(encoded_value) + ")"
+        elif self.c_bit_size == 128:
+            return self.get_128b_c_cst(cst_value)
+
+        else:
+          Log.report(Log.Error, "Error unsupported format {} with c_bit_size={} in get_c_cst", str(self), self.c_bit_size)
+
+    def get_128b_c_cst(self, cst_value):
+        """ specific get_cst function for 128-bit ML_Standard_FixedPoint_Format
+
+            :param self: fixed-point format object
+            :type self: ML_Standard_FixedPoint_Format
+            :param cst_value: numerical constant value
+            :type cst_value: SollyaObject
+            :return: string encoding of 128-bit constant
+            :rtype: str
+        """
+        try:
+            encoded_value = int(cst_value * S2**self.frac_size)
+            lo_value = encoded_value % 2**64
+            assert lo_value >= 0
+            hi_value = encoded_value >> 64
+        except (ValueError, TypeError) as e:
+            print(e, cst_value, self.frac_size)
+            Log.report(Log.Error, "Error during constant conversion to sollya object from format {}", str(self))
+        return "(((({u}__int128) {hi_value}{postfix}) << 64) + ((unsigned __int128) {lo_value}ull))".format(
+            u="unsigned " if not self.signed else "",
+            postfix="ull" if not self.signed else "ll",
+            hi_value=str(hi_value),
+            lo_value=str(lo_value)
+        )
 
     def get_gappa_cst(self, cst_value):
         """ Gappa-language constant generation """
