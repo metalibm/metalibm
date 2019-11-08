@@ -873,7 +873,7 @@ class ML_Base_SW_FixedPoint_Format(ML_Base_FixedPoint_Format):
         if not key in ML_Base_SW_FixedPoint_Format.DISPLAY_FORMAT_MAP:
             display_format = DisplayFormat(
                 format_string="%e/%\"PRI" + ("i" if self.signed else "u")  + str(self.c_bit_size) + "\"",
-                pre_process_fct=fixed_point_beautify
+                pre_process_fct=fixed_point_beautify(self.frac_size)
             )
             # using class map memoization to simplify type comparison
             # by keeping a single display object for isomorphic type objects

@@ -32,19 +32,21 @@
 # author(s): Nicolas Brunie (nicolas.brunie@kalray.eu)
 ###############################################################################
 
-def fixed_point_beautify(v):
-    """ pre-processing function targetting DisplayFormat objects for
-        fixed-point values
+def fixed_point_beautify(frac_size):
+    """ meta function which generate a pre-processing function targetting
+        DisplayFormat objects for fixed-point values
 
         :param v: name of the variable value to display
         :type v: str
         :return: C display format string
         :rtype: str
     """
-    return "({v} * (double) {scale}), {v}".format(
-        v=v,
-        scale=2**-self.frac_size
-    )
+    def fixed_point_pre_process(v):
+        return "({v} * (double) {scale}), {v}".format(
+            v=v,
+            scale=2**-frac_size
+        )
+    return fixed_point_pre_process
 
 class DisplayFormat:
     """ Generic class to describe the display/print of a format value """
