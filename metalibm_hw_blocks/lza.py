@@ -32,10 +32,9 @@ import sys
 
 import sollya
 
-from sollya import floor, log2 
+from sollya import floor, log2
 from sollya import parse as sollya_parse
 
-from metalibm_core.core.attributes import ML_Debug
 from metalibm_core.core.ml_operations import *
 from metalibm_core.core.ml_formats import *
 from metalibm_core.core.ml_table import ML_Table

@@ -36,7 +36,6 @@ from sollya import Interval, floor, round, log2
 S2 = sollya.SollyaObject(2)
 from sollya import parse as sollya_parse
 
-from metalibm_core.core.attributes import ML_Debug
 from metalibm_core.core.ml_operations import *
 from metalibm_core.core.ml_formats import *
 from metalibm_core.core.ml_table import ML_Table
@@ -48,7 +47,6 @@ from metalibm_core.code_generation.generator_utility import FunctionOperator, FO
 
 from metalibm_core.utility.ml_template import *
 from metalibm_core.utility.log_report  import Log
-from metalibm_core.utility.debug_utils import *
 from metalibm_core.utility.num_utils   import ulp
 from metalibm_core.utility.gappa_utils import is_gappa_installed
 
@@ -60,7 +58,7 @@ from metalibm_core.core.ml_hdl_operations import *
 from metalibm_hw_blocks.lzc import ML_LeadingZeroCounter
 
 from metalibm_core.utility.rtl_debug_utils import (
-    debug_fixed, debug_dec, debug_std, debug_dec_unsigned
+    debug_fixed, debug_dec, debug_std, debug_dec_unsigned, debug_cst_dec
 )
 
 class FP_Adder(ML_Entity("fp_adder")):
@@ -125,7 +123,7 @@ class FP_Adder(ML_Entity("fp_adder")):
 
     # determining if the operation is an addition (effective_op = '0')
     # or a subtraction (effective_op = '1')
-    effective_op = BitLogicXor(sign_vx, sign_vy, precision = ML_StdLogic, tag = "effective_op", debug = ML_Debug(display_format = "-radix 2"))
+    effective_op = BitLogicXor(sign_vx, sign_vy, precision = ML_StdLogic, tag = "effective_op", debug=debug_std)
 
     ## Wrapper for zero extension
     # @param op the input operation tree
@@ -173,7 +171,7 @@ class FP_Adder(ML_Entity("fp_adder")):
         exp_diff,
       ),
       tag = "mant_shift",
-      debug = ML_Debug(display_format = "-radix 10")
+      debug = debug_dec
     )
 
     mant_shift = TypeCast(
@@ -200,7 +198,7 @@ class FP_Adder(ML_Entity("fp_adder")):
       mant_vx_ext,
       precision = add_prec,
       tag = "mant_vx_add_op",
-      debug = ML_Debug(display_format = " ")
+      debug=debug_cst_dec
     )
 
 
@@ -209,7 +207,7 @@ class FP_Adder(ML_Entity("fp_adder")):
                  mant_vx_add_op,
                  precision = add_prec,
                  tag = "mant_add",
-                 debug = ML_Debug(display_format = " -radix 2")
+                 debug=debug_std
               )
 
     # if the addition overflows, then it meant vx has been negated and
@@ -221,7 +219,7 @@ class FP_Adder(ML_Entity("fp_adder")):
         effective_op,
         precision = ML_StdLogic,
         tag = "add_is_negative",
-        debug = ML_Debug(" -radix 2")
+        debug = debug_std
       )
     # Negate mantissa addition result if it is negative
     mant_add_abs = Select(

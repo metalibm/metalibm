@@ -29,7 +29,7 @@
 #
 # Author(s): Nicolas Brunie <nbrunie@kalray.eu>
 ###############################################################################
-from metalibm_core.core.attributes import ML_Debug, ML_AdvancedDebug, ML_MultiDebug
+from metalibm_core.utility.debug_utils import ML_Debug, ML_AdvancedDebug, ML_MultiDebug
 from metalibm_core.core.ml_formats import *
 
 from metalibm_core.utility.log_report import Log

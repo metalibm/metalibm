@@ -36,19 +36,18 @@ from sollya import Interval, ceil, floor, round, log2
 S2 = sollya.SollyaObject(2)
 from sollya import parse as sollya_parse
 
-from metalibm_core.core.attributes import ML_Debug
 from metalibm_core.core.ml_operations import *
 from metalibm_core.core.ml_formats import *
 from metalibm_core.core.ml_table import ML_Table
 from metalibm_core.code_generation.vhdl_backend import VHDLBackend
 from metalibm_core.core.polynomials import *
 from metalibm_core.core.ml_entity import ML_Entity, ML_EntityBasis, DefaultEntityArgTemplate
-from metalibm_core.code_generation.generator_utility import FunctionOperator, FO_Result, FO_Arg
 
 
 from metalibm_core.utility.ml_template import *
 from metalibm_core.utility.log_report  import Log
-from metalibm_core.utility.debug_utils import *
+from metalibm_core.utility.rtl_debug_utils import (
+    debug_std, debug_dec, debug_cst_dec)
 from metalibm_core.utility.num_utils   import ulp
 from metalibm_core.utility.gappa_utils import is_gappa_installed
 
@@ -220,8 +219,8 @@ class FP_FIXED_MPFMA(ML_Entity("fp_fixed_mpfma")):
 
     # determining if the operation is an addition (effective_op = '0')
     # or a subtraction (effective_op = '1')
-    sign_xy = BitLogicXor(sign_vx, sign_vy, precision = ML_StdLogic, tag = "sign_xy", debug = ML_Debug(display_format = "-radix 2"))
-    effective_op = BitLogicXor(sign_xy, sign_acc, precision = ML_StdLogic, tag = "effective_op", debug = ML_Debug(display_format = "-radix 2"))
+    sign_xy = BitLogicXor(sign_vx, sign_vy, precision = ML_StdLogic, tag = "sign_xy", debug = debug_std)
+    effective_op = BitLogicXor(sign_xy, sign_acc, precision = ML_StdLogic, tag = "effective_op", debug = debug_std)
 
     exp_vx_bias = vx_precision.get_bias()
     exp_vy_bias = vy_precision.get_bias()
@@ -307,7 +306,7 @@ class FP_FIXED_MPFMA(ML_Entity("fp_fixed_mpfma")):
       ),
       precision = shift_amount_prec,
       tag = "mant_shift",
-      debug = ML_Debug(display_format = "-radix 10")
+      debug = debug_dec
     )
 
     prod_prec = ML_StdLogicVectorFormat(p+q)
@@ -361,7 +360,7 @@ class FP_FIXED_MPFMA(ML_Entity("fp_fixed_mpfma")):
         Constant(1, precision = ML_StdLogic),
         precision = add_prec,
         tag = "mant_add",
-        debug = ML_Debug(display_format = " -radix 2")
+        debug = debug_std
       )
       # discarding carry overflow bit
       mant_add_p0 = SubSignalSelection(mant_add_p0_ext, 0, acc_width - 1, precision = acc_prec)
@@ -453,7 +452,7 @@ class FP_FIXED_MPFMA(ML_Entity("fp_fixed_mpfma")):
                    acc,
                    precision = acc_prec,
                    tag = "mant_add",
-                   debug = ML_Debug(display_format = " -radix 2")
+                   debug = debug_std
                 )
 
       if self.pipelined: self.implementation.start_new_stage()

@@ -36,7 +36,6 @@ from sollya import Interval, ceil, floor, round, inf, sup, log, exp, expm1, log2
 S2= sollya.SollyaObject(2)
 from sollya import parse as sollya_parse
 
-from metalibm_core.core.attributes import ML_Debug
 from metalibm_core.core.ml_operations import *
 from metalibm_core.core.ml_formats import *
 from metalibm_core.core.ml_table import ML_Table

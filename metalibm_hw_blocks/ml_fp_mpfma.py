@@ -35,7 +35,6 @@ import sollya
 from sollya import Interval, floor, round, log2
 from sollya import parse as sollya_parse
 
-from metalibm_core.core.attributes import ML_Debug
 from metalibm_core.core.ml_operations import *
 from metalibm_core.core.ml_formats import *
 from metalibm_core.core.ml_table import ML_Table
@@ -58,11 +57,8 @@ from metalibm_core.core.ml_hdl_operations import *
 
 from metalibm_hw_blocks.lzc import ML_LeadingZeroCounter
 from metalibm_hw_blocks.rtl_blocks import zext, rzext
+from metalibm_core.utility.rtl_debug_utils import debug_std, debug_dec, debug_dec_unsigned
 
-## Helper for debug enabling
-debug_std          = ML_Debug(display_format = " -radix 2 ")
-debug_dec          = ML_Debug(display_format = " -radix 10 ")
-debug_dec_unsigned = ML_Debug(display_format = " -decimal -unsigned ")
 
 
 class FP_MPFMA(ML_Entity("fp_mpfma")):
@@ -184,8 +180,8 @@ class FP_MPFMA(ML_Entity("fp_mpfma")):
 
     # determining if the operation is an addition (effective_op = '0')
     # or a subtraction (effective_op = '1')
-    sign_xy = BitLogicXor(sign_vx, sign_vy, precision = ML_StdLogic, tag = "sign_xy", debug = ML_Debug(display_format = "-radix 2"))
-    effective_op = BitLogicXor(sign_xy, sign_vz, precision = ML_StdLogic, tag = "effective_op", debug = ML_Debug(display_format = "-radix 2"))
+    sign_xy = BitLogicXor(sign_vx, sign_vy, precision = ML_StdLogic, tag = "sign_xy", debug = debug_std)
+    effective_op = BitLogicXor(sign_xy, sign_vz, precision = ML_StdLogic, tag = "effective_op", debug = debug_std)
 
     exp_vx_bias = vx_precision.get_bias()
     exp_vy_bias = vy_precision.get_bias()
@@ -263,7 +259,7 @@ class FP_MPFMA(ML_Entity("fp_mpfma")):
       ),
       precision = shift_amount_prec,
       tag = "mant_shift",
-      debug = ML_Debug(display_format = "-radix 10")
+      debug = debug_dec
     )
 
     prod_prec = ML_StdLogicVectorFormat(p+q)
@@ -309,7 +305,7 @@ class FP_MPFMA(ML_Entity("fp_mpfma")):
     #  prod_ext,
     #  precision = add_prec,
     #  tag = "prod_add_op",
-    #  debug = ML_Debug(display_format = " ")
+    #  debug = debug_cst_dec
     #)
     addend_op = Select(
       Comparison(
@@ -337,14 +333,14 @@ class FP_MPFMA(ML_Entity("fp_mpfma")):
       Constant(1, precision = ML_StdLogic),
       precision = add_prec,
       tag = "mant_add_p1",
-      debug = ML_Debug(display_format = " -radix 2")
+      debug = debug_std
     )
     mant_add_p0 = UnsignedAddition(
       addend_op,
       prod_add_op,
       precision = add_prec,
       tag = "mant_add_p0",
-      debug = ML_Debug(display_format = " -radix 2")
+      debug = debug_std
     )
 
     # if the addition overflows, then it meant vx has been negated and
@@ -356,7 +352,7 @@ class FP_MPFMA(ML_Entity("fp_mpfma")):
         effective_op,
         precision = ML_StdLogic,
         tag = "add_is_negative",
-        debug = ML_Debug(" -radix 2")
+        debug = debug_std
       )
     # Negate mantissa addition result if it is negative
     mant_add_abs = Select(
