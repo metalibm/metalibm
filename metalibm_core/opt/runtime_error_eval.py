@@ -38,6 +38,7 @@
 
 from metalibm_core.core.ml_operations import (
     is_leaf_node, FunctionObject,
+    Conversion, is_conversion,
     TypeCast, is_typecast,
     Constant, Abs, Subtraction)
 from metalibm_core.core.legalizer import is_constant
@@ -60,6 +61,9 @@ def evaluate_typecast_value(optree, value):
     Log.report(LOG_RUNTIME_EVAL_ERROR, "value={}, input_value= {}, output_value={}", value, input_value, output_value) 
     return output_value
 
+def evaluate_conversion_value(optree, value):
+    return optree.get_precision().round_sollya_object(value)
+
 
 def evaluate_graph_value(optree, input_mapping, memoization_map=None):
     """ Given the node -> value mapping input_mapping, evaluate
@@ -77,6 +81,9 @@ def evaluate_graph_value(optree, input_mapping, memoization_map=None):
     elif is_typecast(optree):
         input_value = evaluate_graph_value(optree.get_input(0), input_mapping, memoization_map)
         value = evaluate_typecast_value(optree, input_value)
+    elif is_conversion(optree):
+        input_value = evaluate_graph_value(optree.get_input(0), input_mapping, memoization_map)
+        value = evaluate_conversion_value(optree, input_value)
     else:
         args_interval = tuple(
             evaluate_graph_value(op, input_mapping, memoization_map) for op in
@@ -101,8 +108,8 @@ def get_printf_value(optree, error_value, expected_value, language=C_Code):
     expected_vars = expected_display_format.pre_process_fct("{2}")
     result_vars = result_display_format.pre_process_fct("{0}")
 
-    template = ("printf(\"node<{}> error is {}, expected {} got {}\\n\", {}, {}, {})").format(
-                    optree.get_tag(),
+    template = ("printf(\"node {:35} error is {}, expected {} got {}\\n\", {}, {}, {})").format(
+                    str(optree.get_tag()),
                     error_display_format.format_string,
                     expected_display_format.format_string,
                     result_display_format.format_string,

@@ -1344,6 +1344,10 @@ class Conversion(GeneralArithmeticOperation):
     name = "Conversion"
     arity = 1
 
+def is_conversion(optree):
+    """ Predicate to test Conversion class operations """
+    return isinstance(optree, Conversion)
+
 class TypeCast(GeneralArithmeticOperation):
     """ abstract conversion operation """
     name = "TypeCast"
