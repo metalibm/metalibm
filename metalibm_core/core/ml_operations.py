@@ -1351,6 +1351,9 @@ class TypeCast(GeneralArithmeticOperation):
     def bare_range_function(self, ops):
         return None
 
+def is_typecast(optree):
+    return isinstance(optree, TypeCast)
+
 class Dereference(GeneralArithmeticOperation):
     """ abstract pointer derefence operation """
     name = "Dereference"
