@@ -49,7 +49,7 @@ from metalibm_core.core.special_values import (
 
 from metalibm_core.core.display_utils import (
     DisplayFormat,
-    fixed_point_beautify,
+    fixed_point_beautify, multi_word_fixed_point_beautify,
     DISPLAY_DD, DISPLAY_TD, DISPLAY_DS, DISPLAY_TS
 )
 
@@ -925,10 +925,20 @@ class ML_Base_SW_FixedPoint_Format(ML_Base_FixedPoint_Format):
     def build_display_format_object(self):
         key = (self.integer_size, self.frac_size, self.support_format)
         if not key in ML_Base_SW_FixedPoint_Format.DISPLAY_FORMAT_MAP:
-            display_format = DisplayFormat(
-                format_string="%e/%\"PRI" + ("i" if self.signed else "u")  + str(self.c_bit_size) + "\"",
-                pre_process_fct=fixed_point_beautify(self.frac_size)
-            )
+            if self.c_bit_size <= 64:
+                display_format = DisplayFormat(
+                    format_string="%e/%\"PRI" + ("i" if self.signed else "u")  + str(self.c_bit_size) + "\"",
+                    pre_process_fct=fixed_point_beautify(self.frac_size)
+                )
+            else:
+                assert (self.c_bit_size % 64 == 0)
+                num_64b_chunk = int(self.c_bit_size / 64)
+                format_string = "%e / " + ("%\"PRIx64\"" * num_64b_chunk)
+                display_format = DisplayFormat(
+                    format_string=format_string,
+                    pre_process_fct=multi_word_fixed_point_beautify(num_64b_chunk, self.frac_size)
+                )
+
             # using class map memoization to simplify type comparison
             # by keeping a single display object for isomorphic type objects
             ML_Base_SW_FixedPoint_Format.DISPLAY_FORMAT_MAP[key] = display_format

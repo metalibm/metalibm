@@ -48,6 +48,23 @@ def fixed_point_beautify(frac_size):
         )
     return fixed_point_pre_process
 
+def multi_word_fixed_point_beautify(word_num, frac_size, word_size=64):
+    """ meta function which generate a pre-processing function targetting
+        DisplayFormat objects for fixed-point values
+
+        :param v: name of the variable value to display
+        :type v: str
+        :return: C display format string
+        :rtype: str
+    """
+    def fixed_point_pre_process(v):
+        raw_format_var = ", ".join("(uint64_t) ({v} >> %d)" % (word_size * i) for i in range(word_num))
+        return ("({v} * (double) {scale}), " + raw_format_var).format(
+            v=v,
+            scale=2**-frac_size
+        )
+    return fixed_point_pre_process
+
 class DisplayFormat:
     """ Generic class to describe the display/print of a format value """
     def __init__(self, format_string, pre_process_fct=None, required_header=None, pre_process_arity=1):
