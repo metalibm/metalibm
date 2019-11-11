@@ -128,6 +128,15 @@ class ML_Format(object):
     def generate_initialization(self, *args, **kwords):
       return None
 
+    def get_value_from_integer_coding(self, value, base=10):
+        """ convert integer value to self's format value
+            assuming value is the canonical encoding
+            if base is None, value is assumed to be a number
+            else value is assumed to be a str """
+        raise NotImplementedError
+    def get_integer_coding(self, value):
+        raise NotImplementedError
+
     def saturate(self, value):
         """ Return value if it fits in self format range, else
             the closest format bound """
@@ -708,6 +717,14 @@ class ML_Base_FixedPoint_Format(ML_Fixed_Format, VirtualFormatNoBase):
     def get_c_bit_size(self):
         return self.c_bit_size
 
+    def get_integer_coding(self, value):
+        # FIXME: managed c_bit_size & sign properly
+        return value * 2**self.frac_size
+    def get_value_from_integer_coding(self, value, base=10):
+        # FIXME: managed c_bit_size & sign properly
+        if not  base is None:
+            value = int(value, base)
+        return value * 2**-self.frac_size
 
     @staticmethod
     def match(format_str):
