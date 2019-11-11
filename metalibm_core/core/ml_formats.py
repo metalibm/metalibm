@@ -873,7 +873,7 @@ class ML_Base_SW_FixedPoint_Format(ML_Base_FixedPoint_Format):
         this format """
     MAX_BIT_SIZE = 128
     MIN_BIT_SIZE = 1
-    POSSIBLE_SIZES = [8, 16, 32, 64, 128, 256]
+    POSSIBLE_SIZES = [8, 16, 32, 64, 128]
     # class initialized to allow proper format comparison
     DISPLAY_FORMAT_MAP = {}
     C_NAME_MAP = {
