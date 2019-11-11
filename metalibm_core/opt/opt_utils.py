@@ -87,3 +87,29 @@ def forward_attributes(src, dst):
 
 def forward_stage_attributes(src, dst):
     dst.attributes.init_stage = src.attributes.init_stage
+
+
+def depth_node_ordering(start_node, end_nodes):
+    """ order the node between root start_node end end_nodes
+        by depth (root first, starting with start_node)
+        
+        :param start_node: root of the sort (first node)
+        :type start_node: ML_Operation
+        :param end_nodes: nodes where the depth sort must end
+        :type end_nodes: iterator over ML_Operation
+        :return: depth ordered list of nodes
+        :rtype: list(ML_Operation)
+    """
+    ordered_list = []
+    ordered_set = set()
+    w = [start_node]
+    while w != []:
+        node = w.pop(0)
+        if not node in ordered_set:
+            ordered_set.add(node)
+            ordered_list.append(node)
+        if not is_leaf_node(node) and not node in end_nodes:
+            for op in node.get_inputs():
+                w.append(op)
+    return ordered_list
+
