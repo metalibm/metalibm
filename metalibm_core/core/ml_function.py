@@ -363,10 +363,11 @@ class ML_FunctionBasis(object):
     self.input_precisions = [self.precision] * self.get_arity() if args.input_precisions is None else args.input_precisions
 
     # enable the generation of numeric/functionnal auto-test
-    self.auto_test_enable = (args.auto_test != False or args.auto_test_std != False)
+    self.auto_test_enable = (args.auto_test != False or args.auto_test_std != False or args.value_test != [])
     self.auto_test_number = args.auto_test
     self.auto_test_range = args.auto_test_range
     self.auto_test_std   = args.auto_test_std 
+    self.value_test = args.value_test
 
     # enable the computation of maximal error during functional testing
     self.compute_max_error = args.compute_max_error
@@ -1051,9 +1052,16 @@ class ML_FunctionBasis(object):
     test_total   = test_num 
     # compute the number of standard test cases
     num_std_case = len(self.standard_test_cases)
+    non_random_test_cases = []
     # add them to the total if standard test enabled
     if self.auto_test_std:
-      test_total += num_std_case
+        if not num_std_case:
+            Log.report(Log.Warning, "{} standard test case found!", num_std_case)
+        non_random_test_cases += self.standard_test_cases
+        test_total += num_std_case
+    if self.value_test != []:
+        test_total += len(self.value_test)
+        non_random_test_cases += self.value_test
     # round up the number of tests to the implementation vector-size
     diff = (self.get_vector_size() - (test_total % self.get_vector_size())) % self.get_vector_size()
     assert diff >= 0
@@ -1080,14 +1088,13 @@ class ML_FunctionBasis(object):
 
     test_case_list = []
 
-    if self.auto_test_std:
-      if not num_std_case:
-        Log.report(Log.Warning, "{} standard test case found!", num_std_case)
+
+    if len(non_random_test_cases):
       # standard test cases
-      for i in range(num_std_case):
+      for i, test_case in enumerate(non_random_test_cases):# in range(num_std_case):
         input_list = []
         for in_id in range(self.get_arity()):
-          input_value = self.get_input_precision(in_id).round_sollya_object(self.standard_test_cases[i][in_id], RN)
+          input_value = self.get_input_precision(in_id).round_sollya_object(test_case[in_id], RN)
           input_list.append(input_value)
         test_case_list.append(tuple(input_list))
 

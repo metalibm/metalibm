@@ -418,6 +418,7 @@ class DefaultArgTemplate:
     auto_test = False
     auto_test_range = Interval(0, 1)
     auto_test_std = False
+    value_test = []
     # enable max error computation
     compute_max_error = False
     break_error = False
@@ -585,6 +586,12 @@ class ML_CommonArgTemplate(object):
             "--auto-test-std", dest="auto_test_std", action="store_const",
             const=True, default=default_arg.auto_test_std,
             help="enabling function test on standard test case list")
+
+        self.parser.add_argument(
+            "--value-test", dest="value_test", action="store",
+            type=(lambda s: [tuple(sollya.parse(v) for v in t.split(",")) for t in s.split(":")]),
+            default=default_arg.value_test,
+            help="give input value for tests as ':'-separated list of tuples")
 
         # enable the computation of eval error (if self-testing enabled)
         self.parser.add_argument(

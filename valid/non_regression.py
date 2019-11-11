@@ -175,6 +175,11 @@ new_scheme_function_list = [
     [{"precision": ML_Binary32}, {"precision": ML_Binary64}]
   ),
   NewSchemeTest(
+    "exp value test",
+    metalibm_functions.ml_exp.ML_Exponential,
+    [{"precision": ML_Binary32, "value_test": [(1.0,),(0.0,)], "execute_trigger": True}]
+  ),
+  NewSchemeTest(
     "auto execute exp test",
     metalibm_functions.ml_exp.ML_Exponential,
     [
