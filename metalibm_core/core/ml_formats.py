@@ -128,6 +128,11 @@ class ML_Format(object):
     def generate_initialization(self, *args, **kwords):
       return None
 
+    def saturate(self, value):
+        """ Return value if it fits in self format range, else
+            the closest format bound """
+        raise NotImplementedError
+
     ## return the C code for value assignation to var
     # @param var variable assigned
     # @param value value being assigned
@@ -323,6 +328,11 @@ class ML_Std_FP_Format(ML_FP_Format):
             in self format """
         assert FP_SpecialValue.is_special_value(sv)
         return sv.get_integer_coding()
+
+    def saturate(self, value):
+        if abs(value) > self.get_max_value():
+            return FP_PlusInfty(self) if value > 0 else FP_MinusInfty(sel)
+        return value
 
     ## return the integer coding of @p value
     #  @param value numeric value to be converted
@@ -747,7 +757,7 @@ class ML_Base_FixedPoint_Format(ML_Fixed_Format, VirtualFormatNoBase):
             return 0
         else:
             max_code_exp = self.get_integer_size() + self.get_frac_size()
-            code_value = S2**(max_code_exp - 1) 
+            code_value = S2**(max_code_exp - 1)
             return - (code_value * S2**-self.get_frac_size())
 
     ## if value exceeds formats then
@@ -756,7 +766,7 @@ class ML_Base_FixedPoint_Format(ML_Fixed_Format, VirtualFormatNoBase):
         masked_value = int(descaled_value) & int(S2**self.get_bit_size() - 1)
         scaled_value = masked_value * S2**-self.get_frac_size()
         if scaled_value > self.get_max_value():
-            scaled_value -= S2**self.get_integer_size() 
+            scaled_value -= S2**self.get_integer_size()
         return scaled_value
 
     def __str__(self):
@@ -779,12 +789,8 @@ class ML_Base_FixedPoint_Format(ML_Fixed_Format, VirtualFormatNoBase):
     def saturate(self, value):
         """ Saturate value to stay within:
             [self.get_min_value(), self.get_max_value()] """
-        if value > self.get_max_value():
-            return self.get_max_value()
-        elif value < self.get_min_value():
-            return self.get_min_value()
-        else:
-            return value
+        return min(max(value, self.get_min_value()), self.get_max_value())
+
 
     def get_integer_coding(self, value, language=C_Code):
       if value > self.get_max_value() or  value < self.get_min_value():

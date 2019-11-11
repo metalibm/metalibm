@@ -197,11 +197,11 @@ class ML_DegradedAccuracy(ML_TwoFactorPrecision):
     def get_check_value_low_bound(self, exact_value):
         cr_value = self.get_check_value_cr(exact_value)
         value_goal = self.get_value_error_goal(cr_value)
-        return cr_value - value_goal
+        return self.precision.saturate(cr_value - value_goal)
     def get_check_value_high_bound(self, exact_value):
         cr_value = self.get_check_value_cr(exact_value)
         value_goal = self.get_value_error_goal(cr_value)
-        return cr_value + value_goal
+        return self.precision.saturate(cr_value + value_goal)
 
     def set_precision(self, precision):
         self.precision = precision
