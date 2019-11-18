@@ -299,6 +299,11 @@ fixed_c_code_generation_table = {
         type_custom_match(MCFIPF, MCFIPF) : ComplexOperator(optree_modifier = conv_modifier), 
         type_custom_match(MCFIPF, FSM(ML_Binary32)) : ComplexOperator(optree_modifier = conv_from_fp_modifier), 
         type_custom_match(FSM(ML_Binary32), MCFIPF) : ComplexOperator(optree_modifier = conv_fixed_to_fp_modifier),
+
+        type_custom_match(MCFIPF, FSM(ML_Binary64)):
+            ComplexOperator(optree_modifier=conv_from_fp_modifier),
+        type_custom_match(FSM(ML_Binary64), MCFIPF):
+            ComplexOperator(optree_modifier=conv_fixed_to_fp_modifier),
       },
 
     },
