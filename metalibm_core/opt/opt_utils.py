@@ -32,6 +32,7 @@
 
 from metalibm_core.core.ml_operations import (
     ML_LeafNode, Comparison, BooleanOperation,
+    is_leaf_node,
 )
 from metalibm_core.core.ml_hdl_operations import (
     PlaceHolder
@@ -92,7 +93,7 @@ def forward_stage_attributes(src, dst):
 def depth_node_ordering(start_node, end_nodes):
     """ order the node between root start_node end end_nodes
         by depth (root first, starting with start_node)
-        
+
         :param start_node: root of the sort (first node)
         :type start_node: ML_Operation
         :param end_nodes: nodes where the depth sort must end
