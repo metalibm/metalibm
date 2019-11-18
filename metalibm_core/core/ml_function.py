@@ -537,6 +537,7 @@ class ML_FunctionBasis(object):
 
   def get_execute_handle(self):
     """ return the name of the main function to be called on execution """
+    Log.report(Log.Error, "current function has not execution handle (possible reason could be no main or no test/bench requested)", error=NotImplementedError)
     raise NotImplementedError
 
 
