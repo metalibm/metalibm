@@ -990,12 +990,20 @@ class type_result_match(object):
     def __call__(self, *arg_tuple, **kwords):
         return arg_tuple[0] == self.result_type
 
-def type_function_match(*arg_tuple, **kwords): #optree = None):
-    optree = kwords["optree"]
+def type_function_match(*arg_tuple, optree=None, **kw):
+    """ Matching predicate for function call operation.
+        This function performs on-the-fly validation of FunctionCall
+        operation node, by checking the function call inputs and output
+        formats against the FunctionObject it references """
+    #optree = kwords["optree"]
     function_object = optree.get_function_object()
     arg_tuple = tuple(inp.get_precision() for inp in optree.inputs)
-    match_function = type_strict_match(*function_object.get_arg_precision_tuple())
-    return type_strict_match(*arg_tuple)
+    expected_arg_tuple = function_object.get_arg_precision_tuple()
+    match_function = type_strict_match(*expected_arg_tuple)
+    match_result = match_function(*arg_tuple)
+    if not match_result:
+        Log.report(Log.Info, "could not match FunctionCall {} with arg_tuple {} vs expected {}", optree, arg_tuple, expected_arg_tuple)
+    return match_result
 
 
 def build_simplified_operator_generation_nomap(
