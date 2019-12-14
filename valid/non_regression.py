@@ -69,7 +69,8 @@ from metalibm_core.targets.intel.x86_processor import (
 
 from metalibm_core.targets.intel.m128_promotion import Pass_M128_Promotion
 from metalibm_core.targets.intel.m256_promotion import Pass_M256_Promotion
-from metalibm_core.utility.ml_template import target_instanciate
+from metalibm_core.utility.ml_template import (
+    target_instanciate, VerboseAction, ExitOnErrorAction)
 
 from valid.test_utils import *
 
@@ -347,8 +348,18 @@ arg_parser.add_argument("--list", action = ListTestAction, help = "list availabl
 arg_parser.add_argument("--execute", dest = "test_list", type = parse_test_list, default = new_scheme_function_list, help = "list of comma separated test to be executed")
 
 arg_parser.add_argument("--match", dest = "match_regex", type = str, default = ".*", help = "list of comma separated match regexp to be used for test selection")
+arg_parser.add_argument(
+    "--exit-on-error", dest="exit_on_error",
+    action=ExitOnErrorAction, const=True,
+    default=False,
+    nargs=0,
+    help="convert Fatal error to sys exit rather than exception")
 
 
+arg_parser.add_argument(
+    "--verbose", dest="verbose_enable", action=VerboseAction,
+    const=True, default=False,
+    help="enable Verbose log level")
 
 
 args = arg_parser.parse_args(sys.argv[1:])
