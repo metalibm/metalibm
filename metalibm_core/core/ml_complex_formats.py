@@ -72,7 +72,16 @@ class ML_Pointer_Format(ML_Format):
   def get_data_precision(self):
     return self.data_precision
 
-def is_pointer(_format):
+
+  def __eq__(self, other):
+      """ equality predicate for custom fixed-point format object """
+      return (is_pointer_format(other)) and (self.data_precision == other.data_precision)
+
+  def __ne__(self, other):
+      """ unequality predicate for custom fixed-point format object """
+      return not (self == other)
+
+def is_pointer_format(_format):
   """ boolean test to check whether _format is a pointer _format """
   return isinstance(_format, ML_Pointer_Format)
 
