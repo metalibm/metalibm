@@ -232,7 +232,7 @@ class ML_ArrayFunction(ML_FunctionBasis):
         result_display_vars = self.precision.get_display_format().pre_process_fct("{%d}" % result_arg_id)
         # expected_display_vars = self.precision.get_display_format().pre_process_fct("{%d}" % expected_arg_id)
 
-        template = ("printf(\"error[%d]: {fct_name}({arg_display_format}),"
+        template = ("printf(\"error[%u]: {fct_name}({arg_display_format}),"
                     " result is {result_display_format} "
                     "vs expected \""
                     ", {{0}}, {arg_display_vars}, {result_display_vars}"
@@ -246,7 +246,7 @@ class ML_ArrayFunction(ML_FunctionBasis):
                         #expected_display_vars=expected_display_vars
                     )
         printf_op = TemplateOperatorFormat(template, void_function=True, arity=(result_arg_id+1)) 
-        printf_input_function = FunctionObject("printf", [ML_Int32] + self.get_input_precisions() + [self.precision], ML_Void, printf_op)
+        printf_input_function = FunctionObject("printf", [ML_UInt32] + input_precisions + [self.precision], ML_Void, printf_op)
         return printf_input_function
 
 
