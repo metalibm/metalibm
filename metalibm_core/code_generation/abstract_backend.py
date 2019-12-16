@@ -35,13 +35,8 @@ import inspect
 
 
 from ..utility.log_report import Log
-from .generator_utility import *
-from .code_element import *
-from .complex_generator import *
-from ..core.ml_formats import *
-from ..core.ml_table import ML_ApproxTable
-from ..core.ml_operations import *
-from .generator_helper import *
+from .generator_utility import MatchResult, is_impl_list, ImplemList
+from .code_constant import C_Code
 
 LOG_BACKEND_INIT = Log.LogLevel(Log.Info, "backend_init")
 
@@ -52,7 +47,7 @@ class AbstractBackend(object):
 
     # does the platform support binary embedding in python module
     support_embedded_bin = False
-    # is the platform native (same platform as the one use to execute
+    # is the platform native (same platform as the one used to execute
     # metalibm or is it a remote platform)
     cross_platform = True
 
@@ -76,11 +71,11 @@ class AbstractBackend(object):
     def get_target_name(sef):
         return self.target_name
 
-    def generate_expr(self, code_generator, code_object, optree, arg_tuple, **kwords): #folded = True, language = C_Code, result_var = None):
+    def generate_expr(self, code_generator, code_object, optree, arg_tuple, **kwords):
         """ processor generate expression """
         language = kwords["language"] if "language" in kwords else C_Code
         implementation = self.get_recursive_implementation(optree, language)
-        return implementation.generate_expr(code_generator, code_object, optree, arg_tuple, **kwords)#folded = folded, result_var = result_var)
+        return implementation.generate_expr(code_generator, code_object, optree, arg_tuple, **kwords)
 
     def generate_supported_op_map(self, language = C_Code, table_getter = lambda self: self.code_generation_table):
         """ generate a map of every operations supported by the processor hierarchy,
@@ -119,10 +114,12 @@ class AbstractBackend(object):
         #key_getter = AbstractBackend.get_operation_keys if key_getter is None else key_getter
         table = table_getter(self)
         op_class, interface, codegen_key = key_getter(self, optree)
+        possible_impl = ImplemList()
         for condition in table[language][op_class][codegen_key]:
             if condition(optree):
                 for interface_condition in table[language][op_class][codegen_key][condition]:
-                    if interface_condition(*interface, optree = optree):
+                    possible_match = interface_condition(*interface, optree=optree)
+                    if possible_match:
                         implementation = table[language][op_class][codegen_key][condition][interface_condition]
                         sourceinfo = implementation.get_source_info()
                         Log.report(
@@ -131,28 +128,54 @@ class AbstractBackend(object):
                             optree,
                             str(sourceinfo)
                         )
-                        return implementation
-        return None
+                        if possible_match is True:
+                            return implementation
+                        elif isinstance(possible_match, MatchResult):
+                            if possible_match.weak:
+                                Log.report(Log.Verbose, "found weak match")
+                                possible_impl.append((possible_match, implementation))
+                            else:
+                                return implementation
+                        else:
+                            Log.report(Log.Error, "unsupported match result: {} for optree {}", possible_match, optree)
+        return possible_impl
 
-    def get_recursive_implementation(self, optree, language = None, table_getter = lambda self: self.code_generation_table, key_getter = lambda self, optree: self.get_operation_keys(optree)):
-        """ recursively search for an implementation of optree in the processor class hierarchy """
+    def get_recursive_implementation(self, optree, language=None,
+                                     table_getter=lambda self: self.code_generation_table,
+                                     key_getter=lambda self, optree: self.get_operation_keys(optree)):
+        """ recursively search for an implementation of optree in the processor
+            class hierarchy """
+        impl_list = ImplemList()
         if self.is_local_supported_operation(optree, language = language, table_getter = table_getter, key_getter = key_getter):
             local_implementation = self.get_implementation(optree, language, table_getter = table_getter, key_getter = key_getter)
-            return local_implementation
-        else:
-            for parent_proc in self.parent_architecture:
-                if parent_proc.is_local_supported_operation(optree, language = language, table_getter = table_getter, key_getter = key_getter):
-                    return parent_proc.get_implementation(optree, language, table_getter = table_getter, key_getter = key_getter)
-            # no implementation were found
-            Log.report(Log.Verbose, "Tested architecture(s) for language %s:" % language)
-            for parent_proc in self.parent_architecture:
-              Log.report(Log.Verbose, "  %s " % parent_proc)
-            Log.report(
-                Log.Error,
-                "the following operation is not supported by {}: \n{}",
-                self.__class__,
-                optree
-            )
+            # check if local_implementation is a list of weak implementation
+            # or a single "string implementation
+            if is_impl_list(local_implementation):
+                impl_list += local_implementation
+            else:
+                return local_implementation
+        for parent_proc in self.parent_architecture:
+            if parent_proc.is_local_supported_operation(optree, language = language, table_getter = table_getter, key_getter = key_getter):
+                parent_implementation = parent_proc.get_implementation(optree, language, table_getter = table_getter, key_getter = key_getter)
+                if is_impl_list(parent_implementation):
+                    impl_list += parent_implementation
+                else:
+                    return parent_implementation
+        if len(impl_list) > 0:
+            # select the first weak implementation match
+            match, implementation = impl_list[0]
+            return implementation
+
+        # no implementation were found
+        Log.report(Log.Verbose, "Tested architecture(s) for language %s:" % language)
+        for parent_proc in self.parent_architecture:
+          Log.report(Log.Verbose, "  %s " % parent_proc)
+        Log.report(
+            Log.Error,
+            "the following operation is not supported by {}: \n{}",
+            self.__class__,
+            optree
+        )
 
     def is_map_supported_operation(self, op_map, optree, language = C_Code, debug = False,  key_getter = lambda self, optree: self.get_operation_keys(optree)):
         """ return wheter or not the operation performed by optree has a local implementation """
@@ -205,11 +228,14 @@ class AbstractBackend(object):
         """ return whether or not the operation performed by optree is supported by any level of the processor hierarchy """
         return self.is_map_supported_operation(self.simplified_rec_op_map, optree, language, debug = debug, key_getter = key_getter)
 
-    ## Test if an operation class with given prototype is supported
-    def test_operation_support(self, op_class, out_format, in_formats, specifier = None):
-      dummy_inputs = [Variable("dummy_%d" % i, precision = input_format) for i,input_format in enumerate(in_formats)]
-      dummy_op = op_class(*dummy_inputs, precision = out_format, specifier = specifier)
-      return self.is_supported_operation(dummy_op)
+    def test_operation_support(self, op_class, out_format, in_formats, specifier=None):
+        """ Test if an operation class whose prototype is out_format <- in_formats
+            is supported by self target """
+        # building a dummy list of inputs
+        dummy_inputs = [Variable("dummy_%d" % i, precision=input_format) for i, input_format in enumerate(in_formats)]
+        # build a dummy operation node
+        dummy_op = op_class(*dummy_inputs, precision=out_format, specifier=specifier)
+        return self.is_supported_operation(dummy_op)
 
     @staticmethod
     def get_operation_keys(optree):
@@ -227,18 +253,6 @@ class AbstractBackend(object):
         interface = result_type + arg_type
         codegen_key = optree.get_codegen_key()
         return op_class, interface, codegen_key
-
-    @staticmethod
-    def get_local_implementation(proc_class, optree, language = C_Code, table_getter = lambda c: c.code_generation_table, key_getter = lambda self, optree: self.get_operation_keys(optree)):
-        """ return the implementation provided by <proc_class> of the operation performed by <optree> """
-        op_class, interface, codegen_key = key_getter(proc_class, optree)
-        table = table_getter(proc_class)
-        for condition in table[language][op_class][codegen_key]:
-            if condition(optree):
-                for interface_condition in table[language][op_class][codegen_key][condition]:
-                    if interface_condition(*interface, optree = optree):
-                        return table[language][op_class][codegen_key][condition][interface_condition]
-        raise Exception()
 
 
     def get_preferred_sub_vector_size(self, scalar_precision, vector_size):

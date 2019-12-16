@@ -33,7 +33,7 @@
 ###############################################################################
 
 
-from metalibm_core.utility.log_report import *
+from metalibm_core.utility.log_report import Log
 
 from metalibm_core.core.target import TargetRegister
 from metalibm_core.core.ml_formats import *
@@ -48,6 +48,7 @@ from metalibm_core.core.multi_precision import (
 )
 
 from metalibm_core.code_generation.generator_utility import *
+from metalibm_core.code_generation.generator_utility import MatchResult, is_impl_list, ImplemList
 from metalibm_core.code_generation.complex_generator import *
 from metalibm_core.code_generation.abstract_backend import LOG_BACKEND_INIT
 from metalibm_core.code_generation.generic_processor import GenericProcessor, LibFunctionConstructor
@@ -1693,13 +1694,30 @@ class VectorBackend(GenericProcessor):
       return language_supported
 
   def get_recursive_implementation(self, optree, language = None, table_getter = lambda self: self.code_generation_table,  key_getter = lambda self, optree: self.get_operation_keys(optree)):
+    """ overloading of AbstractBackend's get_recursive_implementation method
+        to allow fallback to C implementation if no OpenCL implementation
+        is found """
+    possible_impl = ImplemList()
     if self.is_local_supported_operation(optree, language = language, table_getter = table_getter, key_getter = key_getter):
       local_implementation = self.get_implementation(optree, language, table_getter = table_getter, key_getter = key_getter)
-      return local_implementation
+      if is_impl_list(local_implementation):
+        possible_impl += local_implementation
+      else:
+        return local_implementation
     else:
       for parent_proc in self.parent_architecture:
         if parent_proc.is_local_supported_operation(optree, language = language, table_getter = table_getter, key_getter = key_getter):
-          return parent_proc.get_implementation(optree, language, table_getter = table_getter, key_getter = key_getter)
+          parent_implementation = parent_proc.get_implementation(optree, language, table_getter = table_getter, key_getter = key_getter)
+          if is_impl_list(parent_implementation):
+            possible_impl += parent_implementation
+          else:
+            return parent_implementation
+
+    if len(possible_impl) > 0:
+        # if there is at least one OpenCL implementation, even a weak match
+        # we return it
+        match, implementation = possible_impl[0]
+        return implementation
 
     ## fallback to C_Code when no OpenCL_Code implementation is found
     if language is OpenCL_Code:
