@@ -34,7 +34,13 @@
 from functools import reduce
 
 from ..utility.log_report import Log
-from ..core.ml_formats import *
+from ..core.ml_formats import (
+    is_table_index_format, is_std_integer_format,
+    ML_Fixed_Format, ML_Exact, ML_Void,
+    ML_DoubleDouble,
+    ML_FP_Format, ML_Binary32, ML_Binary64, ML_Integer,
+    ML_RoundToNearest, ML_RoundTowardPlusInfty, ML_RoundTowardMinusInfty,
+    ML_RoundTowardZero)
 from .code_element import CodeVariable, CodeExpression
 from .code_constant import C_Code, Gappa_Code
 
@@ -394,9 +400,8 @@ class SymbolOperator(ML_CG_Operator):
             else:
                 return CodeExpression("(%s)" % result_code, optree.get_precision())
 
-## Constant node operator
 class ConstantOperator(ML_CG_Operator):
-    """ symbol operator generator """
+    """ Code generator for constant node """
     def __init__(self, force_decl=False, **kwords):
         """ symbol operator initialization function """
         ML_CG_Operator.__init__(self, **kwords)
@@ -446,14 +451,6 @@ class ConstantOperator(ML_CG_Operator):
                         optree.get_value(), language = language
                     ), precision
                 )
-                #try:
-                #except:
-                #    Log.report(
-                #        Log.Error,
-                #        "Error during get_cst call for Constant: {} ".format(
-                #            optree.get_str(display_precision = True)
-                #        )
-                #    )
 
 
 class FO_Arg(object):
