@@ -390,7 +390,8 @@ c_code_generation_table = {
     Constant: {
         None: {
             lambda optree: True: {
-                type_custom_match(type_all_match): ConstantOperator(),
+                type_strict_match(ML_Binary32): ConstantOperator(),
+                type_custom_match(type_all_match, weak=True): ConstantOperator(),
             }
         },
     },

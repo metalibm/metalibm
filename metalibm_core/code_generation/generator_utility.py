@@ -906,6 +906,32 @@ class FSM(object):
     return self.format_obj == arg_format
 
 
+class BackendImplMatchPredicated:
+    """ weak, is set to True if this match succeed it  will be used only
+        if it is the only one. If set to False, this match will be used if it
+        is the first one encountered (after none or any number of weak matches)
+    """
+    def __init__(self, weak=False):
+        self.weak = weak
+
+    def evaluate_match_value(self, target, match_info):
+        """ return a numerical value to evaluate match quality,
+            lower is better """
+        return None
+
+class MatchResult:
+    """ result of a match operation """
+    def __init__(self, weak=False):
+        self.weak = weak
+
+class ImplemList(list):
+    """ list of possible implementation, overloading list class
+        to ease list of implementation detection """
+
+def is_impl_list(obj):
+    """ predicate testing if obj is an object of class ImplemList """
+    return isinstance(obj, ImplemList)
+
 class type_strict_match(object):
     """ Build a type matching predicate from a list of type,
         a node is matched by the predicate if it has as many operands
@@ -924,7 +950,7 @@ class type_strict_match_list(object):
     """ Build a type matching predicate from list of formats,
         result and operands must match one of the item of the list formats
         corresponding to their position """
-    def __init__(self, *type_tuple_list):
+    def __init__(self, *type_tuple_list, weak=False):
         """ check that argument and constrain type match strictly """
         self.type_tuple_list = type_tuple_list
 
@@ -953,18 +979,21 @@ class type_fixed_match(object):
     def __call__(self, *arg_tuple, **kwords):
         return reduce(lambda acc, v: acc and (v[0] == v[1] or (v[0] == ML_Fixed_Format)) and isinstance(v[1], ML_Fixed_Format), zip(self.type_tuple, arg_tuple))
 
-class type_custom_match(object):
+class type_custom_match(BackendImplMatchPredicated):
     """ Callable class that checks whether all arguments match with their
         respective custom matching function. """
-    def __init__(self, *type_tuple):
+    def __init__(self, *type_tuple, weak=False):
+        BackendImplMatchPredicated.__init__(self, weak=weak)
         self.type_tuple = type_tuple
 
     def __call__(self, *arg_tuple, **kwords):
         acc = True
         if len(self.type_tuple) != len(arg_tuple):
-          return False
+            return False
         for match_func, t in zip(self.type_tuple, arg_tuple):
-          acc = acc and match_func(t)
+            acc = acc and match_func(t)
+        if acc:
+            return MatchResult(weak=self.weak)
         return acc
         #return reduce((lambda acc, v: acc and (v[0](v[1]))), zip(self.type_tuple, arg_tuple))
 
