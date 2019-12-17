@@ -116,6 +116,10 @@ class FunctionTest:
         self.arg_map_list = arg_map_list
         self.title = title if not title is None else ctor.function_name
 
+    @property
+    def tag(self):
+        return self.ctor.function_name
+
 GEN_LOG_ARGS = {"basis": sollya.exp(1), "function_name": "ml_genlog", "extra_passes" : ["beforecodegen:fuse_fma"]}
 GEN_LOG2_ARGS =  {"basis": 2, "function_name": "ml_genlog2", "extra_passes" : ["beforecodegen:fuse_fma"]}
 GEN_LOG10_ARGS =  {"basis": 10, "function_name": "ml_genlog10", "extra_passes" : ["beforecodegen:fuse_fma"]}
@@ -212,7 +216,31 @@ for vector_target in VECTOR_TARGET_LIST:
             options.update(TARGET_OPTIONS_MAP[vector_target])
             test_list.append(options)
 
-for function_test in FUNCTION_LIST:
+
+arg_parser = argparse.ArgumentParser(" Metalibm non-regression tests")
+# enable debug mode
+arg_parser.add_argument("--debug", dest="debug", action="store_const",
+                        default=False, const=True,
+                        help="enable debug mode")
+arg_parser.add_argument("--report-only", dest="report_only", action="store_const",
+                        default=False, const=True,
+                        help="limit display to final report")
+arg_parser.add_argument("--output", dest="output", action="store",
+                        default="report.html",
+                        help="define output file")
+arg_parser.add_argument("--select", dest="select", action="store",
+                        default=None, type=(lambda v: v.split(",")),
+                        help="limit test to those whose tag matching one a string list")
+arg_parser.add_argument(
+    "--verbose", dest="verbose_enable", action=VerboseAction,
+    const=True, default=False,
+    help="enable Verbose log level")
+
+args = arg_parser.parse_args(sys.argv[1:])
+
+print([f.tag for f in FUNCTION_LIST])
+
+for function_test in [f for f in FUNCTION_LIST if (args.select is None or f.tag in args.select)]:
     function = function_test.ctor
     local_test_list = []
     # updating copy
@@ -232,24 +260,6 @@ for function_test in FUNCTION_LIST:
         local_test_list
     )
     global_test_list.append(test_case)
-
-arg_parser = argparse.ArgumentParser(" Metalibm non-regression tests")
-# enable debug mode
-arg_parser.add_argument("--debug", dest="debug", action="store_const",
-                        default=False, const=True,
-                        help="enable debug mode")
-arg_parser.add_argument("--report-only", dest="report_only", action="store_const",
-                        default=False, const=True,
-                        help="limit display to final report")
-arg_parser.add_argument("--output", dest="output", action="store",
-                        default="report.html",
-                        help="define output file")
-arg_parser.add_argument(
-    "--verbose", dest="verbose_enable", action=VerboseAction,
-    const=True, default=False,
-    help="enable Verbose log level")
-
-args = arg_parser.parse_args(sys.argv[1:])
 
 success = True
 success_count = 0
