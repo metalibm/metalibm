@@ -1184,6 +1184,31 @@ vector_c_code_generation_table = {
       }
     }
   },
+  Floor: {
+    None: {
+        lambda _: True: {
+
+            # TODO fixme, error in 3rd parameter of VECTORIZE_OP1
+            type_strict_match(v2float32, v2float32):
+                ML_VectorLib_Function("VECTORIZE_OP1", arg_map = {0: "floor", 1: FO_ResultRef(0), 2: FO_Arg(0), 3: "2"}, arity = 1, output_precision = v2float32),
+            type_strict_match(v4float32, v4float32):
+                ML_VectorLib_Function("VECTORIZE_OP1", arg_map = {0: "floor", 1: FO_ResultRef(0), 2: FO_Arg(0), 3: "4"}, arity = 1, output_precision = v4float32),
+            # TODO fixme, error in 3rd parameter of VECTORIZE_OP1
+            type_strict_match(v8float32, v8float32):
+                ML_VectorLib_Function("VECTORIZE_OP1", arg_map = {0: "floor", 1: FO_ResultRef(0), 2: FO_Arg(0), 3: "8"}, arity = 1, output_precision = v8float32),
+
+            # TODO fixme, error in 3rd parameter of VECTORIZE_OP1
+            type_strict_match(v2float64, v2float64):
+                ML_VectorLib_Function("VECTORIZE_OP1", arg_map = {0: "floor", 1: FO_ResultRef(0), 2: FO_Arg(0), 3: "2"}, arity = 1, output_precision = v2float64),
+            type_strict_match(v4float64, v4float64):
+                ML_VectorLib_Function("VECTORIZE_OP1", arg_map = {0: "floor", 1: FO_ResultRef(0), 2: FO_Arg(0), 3: "4"}, arity = 1, output_precision = v4float64),
+            # TODO fixme, error in 3rd parameter of VECTORIZE_OP1
+            type_strict_match(v8float64, v8float64):
+                ML_VectorLib_Function("VECTORIZE_OP1", arg_map = {0: "floor", 1: FO_ResultRef(0), 2: FO_Arg(0), 3: "8"}, arity = 1, output_precision = v8float64),
+        },
+     },
+
+  },
   Negation: {
     None: {
       lambda _: True:
