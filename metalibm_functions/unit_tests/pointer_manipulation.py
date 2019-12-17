@@ -37,15 +37,10 @@ from metalibm_core.core.ml_operations import *
 from metalibm_core.core.ml_formats import *
 from metalibm_core.core.ml_complex_formats import * 
 
-from metalibm_core.code_generation.c_code_generator import CCodeGenerator
 from metalibm_core.code_generation.generic_processor import GenericProcessor
 from metalibm_core.code_generation.mpfr_backend import MPFRProcessor
-from metalibm_core.code_generation.code_object import CodeObject
-from metalibm_core.code_generation.code_function import CodeFunction
-from metalibm_core.code_generation.code_constant import C_Code 
-from metalibm_core.core.ml_optimization_engine import OptimizationEngine
 from metalibm_core.core.polynomials import *
-from metalibm_core.core.ml_table import ML_Table
+from metalibm_core.core.ml_table import ML_NewTable
 
 from metalibm_core.code_generation.gappa_code_generator import GappaCodeGenerator
 
@@ -76,15 +71,30 @@ class ML_UT_PointerManipulation(ML_Function("ml_ut_pointer_manipulation")):
     return DefaultArgTemplate(**default_args)
 
   def generate_scheme(self):
-    #func_implementation = CodeFunction(self.function_name, output_format = self.precision)
     vx = self.implementation.add_input_variable("x", ML_Binary32)
     px = self.implementation.add_input_variable("px", ML_Binary32_p)
 
     result = vx * vx
-    #result.set_precision(ML_Binary32)
-    #vx_assign = ReferenceAssign(px, result)
+    # pointer dereferencing and value assignment
     px_assign = ReferenceAssign(Dereference(px, precision = ML_Binary32), result)
-    scheme = Statement(px_assign)
+
+    # pointer to pointer cast
+    py = Variable("py", precision=ML_Binary64_p, vartype=Variable.Local)
+    py_assign = ReferenceAssign(py, TypeCast(px, precision=ML_Binary64_p))
+
+
+    table_size = 16
+    row_size   = 2
+
+    new_table = ML_NewTable(dimensions = [table_size, row_size], storage_precision = self.precision)
+    for i in range(table_size):
+      new_table[i][0]= i 
+      new_table[i][1]= i + 1
+    # cast between table and pointer
+    pz = Variable("pz", precision=ML_Pointer_Format(self.precision), vartype=Variable.Local)
+    pz_assign = ReferenceAssign(pz, TypeCast(new_table, precision=ML_Binary64_p))
+
+    scheme = Statement(px_assign, py_assign, pz_assign)
 
     return scheme
     
