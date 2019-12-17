@@ -759,6 +759,8 @@ vector_c_code_generation_table = {
             ML_VectorLib_Function("ML_VLOAD2D", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2), 4: "2"}, arity = 5),
         type_custom_match(FSM(v4float32), TCM(ML_TableFormat), FSM(v4int32)):
             ML_VectorLib_Function("ML_VLOAD", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: "4"}, arity = 4),
+        type_custom_match(FSM(v8float32), TCM(ML_TableFormat), FSM(v8int32)):
+            ML_VectorLib_Function("ML_VLOAD", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: "8"}, arity = 4),
         # variant with unsigned index (gather)
         type_custom_match(FSM(v4float32), TCM(ML_TableFormat), FSM(v4uint32)):
             ML_VectorLib_Function("ML_VLOAD", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: "4"}, arity = 4),
@@ -769,6 +771,8 @@ vector_c_code_generation_table = {
         # double precision loading (gather)
         type_custom_match(FSM(v4float64), TCM(ML_TableFormat), FSM(v4int32)):
             ML_VectorLib_Function("ML_VLOAD", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: "4"}, arity = 4),
+        type_custom_match(FSM(v4float64), TCM(ML_TableFormat), FSM(v4int64)):
+            ML_VectorLib_Function("ML_VLOAD", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: "4"}, arity = 4),
         type_custom_match(FSM(v4float64), TCM(ML_TableFormat), FSM(v4int32), FSM(v4int32)):
             ML_VectorLib_Function("ML_VLOAD2D", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2), 4: "4"}, arity = 5),
         type_custom_match(FSM(v2float64), TCM(ML_TableFormat), FSM(v2int32)):
@@ -778,11 +782,16 @@ vector_c_code_generation_table = {
         # double precision loading with unsigned index (gather)
         type_custom_match(FSM(v4float64), TCM(ML_TableFormat), FSM(v4uint32)):
             ML_VectorLib_Function("ML_VLOAD", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: "4"}, arity = 4),
+        type_custom_match(FSM(v4float64), TCM(ML_TableFormat), FSM(v4int64)):
+            ML_VectorLib_Function("ML_VLOAD", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: "4"}, arity = 4),
         type_custom_match(FSM(v4float64), TCM(ML_TableFormat), FSM(v4uint32), FSM(v4uint32)):
             ML_VectorLib_Function("ML_VLOAD2D", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2), 4: "4"}, arity = 5),
         type_custom_match(FSM(v4float64), TCM(ML_TableFormat), FSM(v4int64), FSM(v4int32)):
             ML_VectorLib_Function("ML_VLOAD2D", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2), 4: "4"}, arity = 5),
 
+        # 8-element double precision vectors
+        type_custom_match(FSM(v8float64), TCM(ML_TableFormat), FSM(v8int64)):
+            ML_VectorLib_Function("ML_VLOAD", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: "8"}, arity = 4),
 
         # 8-element vectors (gather)
         type_custom_match(FSM(v8float64), TCM(ML_TableFormat), FSM(v8int64), FSM(v8int32)):
