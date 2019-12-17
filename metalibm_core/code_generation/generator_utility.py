@@ -893,6 +893,13 @@ class TCM(object):
   def __call__(self, arg_format):
     return isinstance(arg_format, self.format_class)
 
+class TCLM(object):
+  """ Type Class List Match """
+  def __init__(self, format_class_list):
+    self.format_class_list = format_class_list
+
+  def __call__(self, arg_format):
+    return any(isinstance(arg_format, format_class) for format_class in self.format_class_list)
 
 ## Format Strict match, used to described match-test function
 #  based on the strict comparison of argument formats against
