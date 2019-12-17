@@ -93,7 +93,9 @@ class ML_Exp2(ML_FunctionBasis):
         kwords["function_name"] = self.function_name
         return RaiseReturn(*args, **kwords)
 
-    r_interval = Interval(-0.5, 0.5)
+    # r_interval = Interval(0, 1.0)
+    index_size = 3
+    r_interval = Interval(-2**(-index_size), 2**-index_size)
 
     local_ulp = sup(ulp(2**r_interval, self.precision))
     Log.report(Log.Info, "ulp: ", local_ulp)
@@ -103,10 +105,17 @@ class ML_Exp2(ML_FunctionBasis):
     sollya_precision = {ML_Binary32: sollya.binary32, ML_Binary64: sollya.binary64}[self.precision]
     int_precision = {ML_Binary32: ML_Int32, ML_Binary64: ML_Int64}[self.precision]
 
-    #Argument Reduction
-    vx_int = NearestInteger(vx, precision = int_precision, tag = 'vx_int', debug = debug_multi)
-    vx_intf = Conversion(vx_int, precision = self.precision)
+
+    # Argument Reduction
+    # r = x - floor(x), r >= 0
+    vx_floor = Floor(vx, precision=self.precision, tag='vx_floor', debug=debug_multi)
+    vx_int = Conversion(vx_floor, precision=int_precision, tag="vx_int", debug=debug_multi)
+    vx_intf = vx_floor # Conversion(vx_int, precision = self.precision)
     vx_r = vx - vx_intf
+    r_hi = NearestInteger(vx_r * 2**index_size, precision=self.precision, tag="r_hi", debug=debug_multi)
+    r_hi_int = Conversion(r_hi, precision=int_precision, tag="r_hi_int", debug=debug_multi)
+    r_lo = vx_r - r_hi * 2**-index_size
+    r_lo.set_attributes(tag="r_lo", debug=debug_multi)
     vx_r.set_attributes(tag = "vx_r", debug = debug_multi)
     degree = sup(guessdegree(2**(sollya.x), r_interval, error_goal)) + 2
     precision_list = [1] + [self.precision] * degree
@@ -120,10 +129,17 @@ class ML_Exp2(ML_FunctionBasis):
     poly_object, poly_error = Polynomial.build_from_approximation_with_error(2**(sollya.x) - 1 , degree, precision_list, r_interval, sollya.absolute)
     Log.report(Log.Info, "Poly : %s" % poly_object)
     Log.report(Log.Info, "poly_error : ", poly_error)
-    poly = polynomial_scheme_builder(poly_object.sub_poly(start_index = 1), vx_r, unified_precision = self.precision)
+    poly = polynomial_scheme_builder(poly_object.sub_poly(start_index=1), r_lo, unified_precision=self.precision)
     poly.set_attributes(tag = "poly", debug = debug_multi)
 
+    hi_part_table = ML_NewTable(dimensions=[2**index_size + 1], storage_precision=self.precision, tag=self.uniquify_name("exp2_table"))
+    for i in range(2**index_size + 1):
+      input_value = i * 2**-index_size
+      tab_value = self.precision.round_sollya_object(sollya.SollyaObject(2)**(input_value))
+      hi_part_table[i] = tab_value
 
+
+    hi_part_value = TableLoad(hi_part_table, r_hi_int, precision=self.precision, tag="hi_part_value", debug=debug_multi)
 
     #Handling special cases
     oflow_bound = Constant(self.precision.get_emax() + 1, precision = self.precision)
@@ -145,12 +161,12 @@ class ML_Exp2(ML_FunctionBasis):
     subnormal_offset.set_attributes( tag = "offset", debug = debug_multi)
     exp_offset = ExponentInsertion(subnormal_offset, precision = self.precision, debug = debug_multi, tag = "exp_offset")
     exp_min = ExponentInsertion(uflow_bound, precision = self.precision, debug = debug_multi, tag = "exp_min")
-    subnormal_result = exp_offset*exp_min*poly + exp_offset*exp_min
+    subnormal_result = hi_part_value * exp_offset*exp_min*poly + hi_part_value * exp_offset*exp_min
     
     test_std = LogicalOr(test_overflow, test_underflow, precision = ML_Bool, tag = "std_test", likely = False)
     
     #Reconstruction
-    result = exp_X*poly + exp_X
+    result = hi_part_value * exp_X * poly + hi_part_value * exp_X
     result.set_attributes(tag = "result", debug = debug_multi)
     
     C0 = Constant(0, precision = self.precision)
@@ -197,7 +213,9 @@ class ML_Exp2(ML_FunctionBasis):
   def numeric_emulate(self, input_value):
     return sollya.SollyaObject(2)**(input_value)
 
-  standard_test_cases =[[sollya.parse(x)] for x in  ["0x1.ffead1bac7ad2p+9", "-0x1.ee9cb4p+1", "-0x1.db0928p+3"]]
+  standard_test_cases =[[sollya.parse(x)] for x in  [
+    "0x1.ffead1bac7ad2p+9", "-0x1.ee9cb4p+1", "-0x1.db0928p+3", "0x1.c3a07c4c711cfp-1",
+    "0x1.e79d45fd647f3p-1"]]
 
 if __name__ == "__main__":
     # auto-test
