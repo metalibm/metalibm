@@ -136,6 +136,14 @@ def gen_raise_custom_gen_expr(self, code_generator, code_object, optree, arg_tup
     # assembling parent operator code
     return self.assemble_code(code_generator, code_object, optree, arg_result, **kwords)
 
+def pointer_cast_gen_expr(self, code_generator, code_object, optree, arg_tuple, **kwords):
+    """ specific generate_expr method for TypeCast to pointer format """
+    assert len(arg_tuple) == 1 # single argument expected for TypeCast
+    data_format = optree.get_precision().get_data_precision()
+    cast_input = code_generator.generate_expr(code_object, arg_tuple[0])
+    arg_result = [CodeExpression("({}*)".format(data_format.get_name(language=C_Code)), None)] + [cast_input]
+    return self.assemble_code(code_generator, code_object, optree, arg_result, **kwords)
+
 def full_mul_modifier(optree):
     """ extend the precision of arguments of a multiplication to get the full result of the multiplication """
     op0 = optree.get_input(0)
@@ -890,6 +898,9 @@ c_code_generation_table = {
                 type_strict_match(BFloat16, ML_UInt16): IdentityOperator(),
                 type_strict_match(ML_Int16, BFloat16): IdentityOperator(),
                 type_strict_match(BFloat16, ML_Int16): IdentityOperator(),
+
+                type_custom_match(TCM(ML_Pointer_Format), TCLM([ML_TableFormat, ML_Pointer_Format])):
+                    TemplateOperatorFormat("{0} {1}", arity=2, custom_generate_expr=pointer_cast_gen_expr),
             },
         },
     },
