@@ -814,9 +814,13 @@ def linearize_2d_tableload(optree):
     index_1 = optree.get_input(2)
     index_prec = index_0.get_precision()
     prec = optree.get_precision()
+
+    table_ptr = TypeCast(table, precision=ML_Pointer_Format(prec.get_scalar_format()))
+
+
     result = TableLoad(
         # TODO: TyoeCast to convert for multi-dim to linear table required
-        table,
+        table_ptr,
         Addition(
             Multiplication(
                 index_0,
@@ -2718,7 +2722,7 @@ avx2_c_code_generation_table = {
             lambda optree: True: {
                 # XMM version with 32-bit indices
                 type_custom_match(FSM(ML_SSE_m128_v4float32),
-                                  TCM(ML_TableFormat),
+                                  TCLM([ML_TableFormat, ML_Pointer_Format]),
                                   type_strict_match_list([
                                       ML_SSE_m128_v4uint32,
                                       ML_SSE_m128_v4int32,
