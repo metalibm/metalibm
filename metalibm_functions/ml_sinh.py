@@ -93,17 +93,14 @@ class ML_HyperbolicSine(ML_FunctionBasis):
         if self.debug_flag:
                 Log.report(Log.Info, "\033[31;1m debug has been enabled \033[0;m")
 
-        # local overloading of RaiseReturn operation
-        def ExpRaiseReturn(*args, **kwords):
-                kwords["arg_value"] = vx
-                kwords["function_name"] = self.function_name
-                return RaiseReturn(*args, **kwords)
-
-        index_size = 3
+        index_size = 5
 
         comp_lo = (vx < 0)
         comp_lo.set_attributes(tag = "comp_lo", precision = ML_Bool)
         sign = Select(comp_lo, -1, 1, precision = self.precision)
+
+        # as sinh is an odd function, we can simplify the input to its absolute
+        # value once the sign has been extracted
         vx = Abs(vx)
         int_precision = self.precision.get_integer_format()
 
@@ -184,7 +181,7 @@ class ML_HyperbolicSine(ML_FunctionBasis):
         # k / 2^index_size = h + l * 2^-index_size, with k, h, l integers
         # exp(x) = exp(r) * 2^h * 2^(l *2^-index_size)
         #
-        # sinh(x) = exp(r) * 2^(h-1) 2^(l *2^-index_size) - exp(-r) * 2^(-h-1) * 2^(-l *2^-index_size)
+        # sinh(x) = exp(r) * 2^(h-1) * 2^(l *2^-index_size) - exp(-r) * 2^(-h-1) * 2^(-l *2^-index_size)
         # S=2^(h-1), T = 2^(-h-1)
         # exp(r)    = 1 + poly_pos(r)
         # exp(-r) = 1 + poly_neg(r)
@@ -219,11 +216,13 @@ class ML_HyperbolicSine(ML_FunctionBasis):
             Subtraction(-k_hi, Constant(1, precision=int_precision), precision=int_precision, tag="k_neg", debug=debug_multi),
             Constant(self.precision.get_emin_normal(), precision = int_precision))
 
-        pow_exp_pos = ExponentInsertion(k_plus, precision = self.precision)
-        pow_exp_neg = ExponentInsertion(k_neg, precision = self.precision)
+        # 2^(h-1)
+        pow_exp_pos = ExponentInsertion(k_plus, precision = self.precision, tag="pow_exp_pos", debug=debug_multi)
+        # 2^(-h-1)
+        pow_exp_neg = ExponentInsertion(k_neg, precision = self.precision, tag="pow_exp_neg", debug=debug_multi)
 
         hi_terms = (pos_value_load_hi * pow_exp_pos - neg_value_load_hi * pow_exp_neg)
-        hi_terms.set_attributes(tag = "hi_terms")
+        hi_terms.set_attributes(tag = "hi_terms", debug=debug_multi)
 
 
         pos_exp = (pos_value_load_hi * poly_pos + (pos_value_load_lo + pos_value_load_lo * poly_pos)) * pow_exp_pos
