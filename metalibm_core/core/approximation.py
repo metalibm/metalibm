@@ -41,10 +41,14 @@ S2 = sollya.SollyaObject(2)
 
 from metalibm_core.core.ml_table import ML_NewTable
 from metalibm_core.utility.num_utils import fp_next
-from metalibm_core.core.polynomials import Polynomial, PolynomialSchemeEvaluator
+from metalibm_core.core.polynomials import (
+    Polynomial, PolynomialSchemeEvaluator, SollyaError)
 from metalibm_core.core.ml_operations import (
-    Constant, FMA, TableLoad, BitLogicAnd, Subtraction, BitLogicRightShift, 
-    TypeCast,
+    Constant, FMA, TableLoad, BitLogicAnd, BitLogicRightShift,
+    Multiplication, Subtraction,
+    TypeCast, Conversion,
+    Max, Min,
+    NearestInteger,
 )
 from metalibm_core.core.ml_formats import (
     ML_Binary32, ML_Binary64, ML_SingleSingle, ML_DoubleDouble
@@ -260,4 +264,141 @@ def search_bound_threshold(fct, limit, start_point, end_point, precision):
         else:
             Log.report(Log.Error, "function must be increasing in search_bound_threshold")
     return left_bound
+
+
+def piecewise_approximation(
+        function,
+        variable,
+        precision,
+        bound_low=-1.0,
+        bound_high=1.0,
+        num_intervals=16,
+        max_degree=2,
+        error_threshold=S2**-24):
+    """ Generate a piecewise approximation
+
+        :param function: function to be approximated
+        :type function: SollyaObject
+        :param variable: input variable
+        :type variable: Variable
+        :param precision: variable's format
+        :type precision: ML_Format
+        :param bound_low: lower bound for the approximation interval
+        :param bound_high: upper bound for the approximation interval
+        :param num_intervals: number of sub-interval / sub-division of the main interval
+        :param max_degree: maximum degree for an approximation on any sub-interval
+        :param error_threshold: error bound for an approximation on any sub-interval
+
+        :return: pair (scheme, error) where scheme is a graph node for an
+            approximation scheme of function evaluated at variable, and error
+            is the maximum approximation error encountered
+        :rtype tuple(ML_Operation, SollyaObject): """
+    # table to store coefficients of the approximation on each segment
+    coeff_table = ML_NewTable(
+        dimensions=[num_intervals,max_degree+1],
+        storage_precision=precision,
+        tag="coeff_table"
+    )
+
+    error_function = lambda p, f, ai, mod, t: sollya.dirtyinfnorm(p - f, ai)
+    max_approx_error = 0.0
+    interval_size = (bound_high - bound_low) / num_intervals
+
+    for i in range(num_intervals):
+        subint_low = bound_low + i * interval_size
+        subint_high = bound_low + (i+1) * interval_size
+
+        #local_function = function(sollya.x)
+        #local_interval = Interval(subint_low, subint_high)
+        local_function = function(sollya.x + subint_low)
+        local_interval = Interval(-interval_size, interval_size)
+
+        local_degree = sollya.guessdegree(local_function, local_interval, error_threshold) 
+        if local_degree > max_degree:
+            Log.report(Log.Warning, "local_degree {} exceeds max_degree bound ({}) in piecewise_approximation", local_degree, max_degree)
+        degree = min(max_degree, local_degree)
+
+        if function(subint_low) == 0.0:
+            # if the lower bound is a zero to the function, we
+            # need to force value=0 for the constant coefficient
+            # and extend the approximation interval
+            degree_list = range(1, degree+1)
+            poly_object, approx_error = Polynomial.build_from_approximation_with_error(
+                function(sollya.x),
+                degree_list,
+                [precision] * len(degree_list),
+                Interval(-subint_high,subint_high),
+                sollya.absolute,
+                error_function=error_function
+            )
+        else:
+            try:
+                poly_object, approx_error = Polynomial.build_from_approximation_with_error(
+                    local_function,
+                    degree,
+                    [precision] * (degree + 1),
+                    local_interval,
+                    sollya.absolute,
+                    error_function=error_function
+                )
+            except SollyaError as err:
+                print("degree: {}".format(degree))
+                raise err
+        for ci in range(degree+1):
+            if ci in poly_object.coeff_map:
+                coeff_table[i][ci] = poly_object.coeff_map[ci]
+            else:
+                coeff_table[i][ci] = 0.0
+
+        if approx_error > error_threshold:
+            Log.report(Log.Warning, "piecewise_approximation on index {} exceeds error threshold: {} > {}", i, approx_error, error_threshold)
+        max_approx_error = max(max_approx_error,abs(approx_error))
+    # computing offset
+    diff = Subtraction(
+        variable,
+        Constant(bound_low, precision=precision),
+        tag="diff",
+        debug=debug_multi,
+        precision=precision
+    )
+    int_prec = precision.get_integer_format()
+
+    # delta = bound_high - bound_low
+    delta_ratio = Constant(num_intervals / (bound_high - bound_low), precision=precision)
+    # computing table index
+    # index = nearestint(diff / delta * <num_intervals>)
+    index = Max(0,
+        Min(
+            NearestInteger(
+                Multiplication(
+                    diff,
+                    delta_ratio,
+                    precision=precision
+                ),
+                precision=int_prec,
+            ),
+            num_intervals - 1
+        ),
+        tag="index",
+        debug=debug_multi,
+        precision=int_prec
+    )
+    poly_var = Subtraction(
+        diff,
+        Multiplication(
+            Conversion(index, precision=precision),
+            Constant(interval_size, precision=precision)
+        ),
+        precision=precision,
+        tag="poly_var",
+        debug=debug_multi
+    )
+    # generating indexed polynomial
+    coeffs = [(ci, TableLoad(coeff_table, index, ci)) for ci in range(degree+1)][::-1]
+    poly_scheme = PolynomialSchemeEvaluator.generate_horner_scheme2(
+        coeffs,
+        poly_var,
+        precision, {}, precision
+    )
+    return poly_scheme, max_approx_error
 
