@@ -53,6 +53,8 @@ from metalibm_core.core.ml_operations import (
 )
 from metalibm_core.core.ml_table import ML_NewTable
 
+from metalibm_core.core.approximation import piecewise_approximation
+
 from metalibm_core.code_generation.generic_processor import GenericProcessor
 
 from metalibm_core.utility.ml_template import ML_NewArgTemplate, ArgDefault
@@ -64,142 +66,9 @@ sollya.verbosity = 0
 sollya.showmessagenumbers = sollya.on
 
 
-def piecewise_approximation(
-        function,
-        variable,
-        precision,
-        bound_low=-1.0,
-        bound_high=1.0,
-        num_intervals=16,
-        max_degree=2,
-        error_threshold=S2**-24):
-    """ Generate a piecewise approximation
-
-        :param function: function to be approximated
-        :type function: SollyaObject
-        :param variable: input variable
-        :type variable: Variable
-        :param precision: variable's format
-        :type precision: ML_Format
-        :param bound_low: lower bound for the approximation interval
-        :param bound_high: upper bound for the approximation interval
-        :param num_intervals: number of sub-interval / sub-division of the main interval
-        :param max_degree: maximum degree for an approximation on any sub-interval
-        :param error_threshold: error bound for an approximation on any sub-interval
-
-        :return: pair (scheme, error) where scheme is a graph node for an
-            approximation scheme of function evaluated at variable, and error
-            is the maximum approximation error encountered
-        :rtype tuple(ML_Operation, SollyaObject): """
-    # table to store coefficients of the approximation on each segment
-    coeff_table = ML_NewTable(
-        dimensions=[num_intervals,max_degree+1],
-        storage_precision=precision,
-        tag="coeff_table"
-    )
-
-    error_function = lambda p, f, ai, mod, t: sollya.dirtyinfnorm(p - f, ai)
-    max_approx_error = 0.0
-    interval_size = (bound_high - bound_low) / num_intervals
-
-    for i in range(num_intervals):
-        subint_low = bound_low + i * interval_size
-        subint_high = bound_low + (i+1) * interval_size
-
-        #local_function = function(sollya.x)
-        #local_interval = Interval(subint_low, subint_high)
-        local_function = function(sollya.x + subint_low)
-        local_interval = Interval(-interval_size, interval_size)
-
-        local_degree = sollya.guessdegree(local_function, local_interval, error_threshold) 
-        degree = min(max_degree, local_degree)
-
-        if function(subint_low) == 0.0:
-            # if the lower bound is a zero to the function, we
-            # need to force value=0 for the constant coefficient
-            # and extend the approximation interval
-            degree_list = range(1, degree+1)
-            poly_object, approx_error = Polynomial.build_from_approximation_with_error(
-                function(sollya.x),
-                degree_list,
-                [precision] * len(degree_list),
-                Interval(-subint_high,subint_high),
-                sollya.absolute,
-                error_function=error_function
-            )
-        else:
-            try:
-                poly_object, approx_error = Polynomial.build_from_approximation_with_error(
-                    local_function,
-                    degree,
-                    [precision] * (degree + 1),
-                    local_interval,
-                    sollya.absolute,
-                    error_function=error_function
-                )
-            except SollyaError as err:
-                print("degree: {}".format(degree))
-                raise err
-        for ci in range(degree+1):
-            if ci in poly_object.coeff_map:
-                coeff_table[i][ci] = poly_object.coeff_map[ci]
-            else:
-                coeff_table[i][ci] = 0.0
-
-        max_approx_error = max(max_approx_error,abs(approx_error))
-    # computing offset
-    diff = Subtraction(
-        variable,
-        Constant(bound_low, precision=precision),
-        tag="diff",
-        precision=precision
-    )
-    int_prec = precision.get_integer_format()
-
-    # delta = bound_high - bound_low
-    delta_ratio = Constant(num_intervals / (bound_high - bound_low), precision=precision)
-    # computing table index
-    # index = nearestint(diff / delta * <num_intervals>)
-    index = Max(0,
-        Min(
-            NearestInteger(
-                Multiplication(
-                    diff,
-                    delta_ratio,
-                    precision=precision
-                ),
-                precision=int_prec,
-            ),
-            num_intervals - 1
-        ),
-        tag="index",
-        debug=True,
-        precision=int_prec
-    )
-    poly_var = Subtraction(
-        diff,
-        Multiplication(
-            Conversion(index, precision=precision),
-            Constant(interval_size, precision=precision)
-        ),
-        precision=precision,
-        tag="poly_var",
-        debug=True
-    )
-    # generating indexed polynomial
-    coeffs = [(ci, TableLoad(coeff_table, index, ci)) for ci in range(degree+1)][::-1]
-    poly_scheme = PolynomialSchemeEvaluator.generate_horner_scheme2(
-        coeffs,
-        poly_var,
-        precision, {}, precision
-    )
-    return poly_scheme, max_approx_error
-
-
-## Implementation of sine or cosine sharing a common
-#  approximation scheme
-class ML_HyperbolicTangent(ML_Function("ml_tanh")):
+class ML_HyperbolicTangent(ML_FunctionBasis):
     """ Implementation of hyperbolic tangent function """
+    function_name = "ml_tanh"
     def __init__(self, args=DefaultArgTemplate):
         # initializing base class
         ML_FunctionBasis.__init__(self,
