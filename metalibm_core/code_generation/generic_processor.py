@@ -1184,7 +1184,6 @@ gappa_code_generation_table = {
 class GenericProcessor(AbstractBackend):
   """ Generic class for instruction selection,
       corresponds to a portable C-implementation """
-
   target_name = "generic"
   default_compiler = "gcc"
   support_embedded_bin = True

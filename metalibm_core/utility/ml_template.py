@@ -211,10 +211,9 @@ def target_parser(target_name):
 
 
 def target_instanciate(target_name):
-    """ instanciate target object from target string 
+    """ instanciate target object from target string
         Args:
             target_name (str): name of the target to instantiate
-            
         Return:
             target object instance
     """
