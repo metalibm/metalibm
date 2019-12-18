@@ -53,5 +53,5 @@ class TargetRegister(object):
     @staticmethod
     def METALIBM_TARGET_REGISTER(target_class):
         """ decorator to automate target class registerting """
-        TargetRegister.register_new_target(target_class.target_name, target_class)
+        TargetRegister.register_new_target(target_class.target_name, lambda _: target_class)
         return target_class
