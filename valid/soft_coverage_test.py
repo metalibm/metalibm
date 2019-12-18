@@ -125,7 +125,7 @@ GEN_LOG2_ARGS =  {"basis": 2, "function_name": "ml_genlog2", "extra_passes" : ["
 GEN_LOG10_ARGS =  {"basis": 10, "function_name": "ml_genlog10", "extra_passes" : ["beforecodegen:fuse_fma"]}
 
 FUNCTION_LIST = [
-    # FunctionTest(metalibm_functions.ml_tanh.ML_HyperbolicTangent, [{}])
+  FunctionTest(metalibm_functions.ml_tanh.ML_HyperbolicTangent, [{}], title="ml_tanh"),
     # FunctionTest(metalibm_functions.ml_atan.ML_Atan, [{}])
 
   FunctionTest(metalibm_functions.generic_log.ML_GenericLog,[GEN_LOG_ARGS], title="ml_genlog"),
