@@ -73,7 +73,24 @@ def piecewise_approximation(
         num_intervals=16,
         max_degree=2,
         error_threshold=S2**-24):
-    """ To be documented """
+    """ Generate a piecewise approximation
+
+        :param function: function to be approximated
+        :type function: SollyaObject
+        :param variable: input variable
+        :type variable: Variable
+        :param precision: variable's format
+        :type precision: ML_Format
+        :param bound_low: lower bound for the approximation interval
+        :param bound_high: upper bound for the approximation interval
+        :param num_intervals: number of sub-interval / sub-division of the main interval
+        :param max_degree: maximum degree for an approximation on any sub-interval
+        :param error_threshold: error bound for an approximation on any sub-interval
+
+        :return: pair (scheme, error) where scheme is a graph node for an
+            approximation scheme of function evaluated at variable, and error
+            is the maximum approximation error encountered
+        :rtype tuple(ML_Operation, SollyaObject): """
     # table to store coefficients of the approximation on each segment
     coeff_table = ML_NewTable(
         dimensions=[num_intervals,max_degree+1],
@@ -137,6 +154,8 @@ def piecewise_approximation(
         tag="diff",
         precision=precision
     )
+    int_prec = precision.get_integer_format()
+
     # delta = bound_high - bound_low
     delta_ratio = Constant(num_intervals / (bound_high - bound_low), precision=precision)
     # computing table index
@@ -149,13 +168,13 @@ def piecewise_approximation(
                     delta_ratio,
                     precision=precision
                 ),
-                precision=ML_Int32
+                precision=int_prec,
             ),
             num_intervals - 1
         ),
         tag="index",
         debug=True,
-        precision=ML_Int32
+        precision=int_prec
     )
     poly_var = Subtraction(
         diff,
@@ -206,11 +225,12 @@ class ML_HyperbolicTangent(ML_Function("ml_tanh")):
         error_function = lambda p, f, ai, mod, t: sollya.dirtyinfnorm(p - f, ai)
         # Some issues encountered when 0 is one of the interval bound
         # so we use a symetric interval around it
-        approx_interval = Interval(-high_bound, high_bound)
+        approx_interval = Interval(2**-100, high_bound)
         local_function = function / sollya.x
 
         degree = sollya.sup(sollya.guessdegree(local_function, approx_interval, error_bound))
-        degree_list = range(0, int(degree)+1, 1)
+        degree_list = range(0, int(degree)+4, 2)
+
 
         poly_object, approx_error = Polynomial.build_from_approximation_with_error(
             function / sollya.x,
