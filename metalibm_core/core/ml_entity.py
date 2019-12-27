@@ -65,7 +65,7 @@ from metalibm_core.core.ml_hdl_format import (
 )
 
 from metalibm_core.code_generation.code_object import (
-    NestedCode, VHDLCodeObject, CodeObject
+    NestedCode, VHDLCodeObject, CodeObject, MultiSymbolTable
 )
 from metalibm_core.code_generation.generator_utility import (
     FunctionOperator, FO_Arg
@@ -327,7 +327,12 @@ class ML_EntityBasis(object):
 
     self.vhdl_code_generator = VHDLCodeGenerator(self.backend, declare_cst = False, disable_debug = not self.debug_flag, language = self.language)
     uniquifier = self.entity_name
-    self.main_code_object = NestedCode(self.vhdl_code_generator, static_cst = False, uniquifier = "{0}_".format(self.entity_name), code_ctor = VHDLCodeObject)
+    self.main_code_object = NestedCode(
+        self.vhdl_code_generator, static_cst=False,
+        uniquifier="{0}_".format(self.entity_name),
+        code_ctor=VHDLCodeObject,
+        shared_symbol_list=[MultiSymbolTable.EntitySymbol, MultiSymbolTable.ProtectedSymbol]
+    )
     if self.debug_flag:
       self.debug_code_object = CodeObject(self.language)
       self.debug_code_object << debug_utils_lib
@@ -465,7 +470,12 @@ class ML_EntityBasis(object):
       code_entity = code_entity_list.pop(0)
       if code_entity in generated_entity:
         continue
-      entity_code_object = NestedCode(self.vhdl_code_generator, static_cst = False, uniquifier = "{0}_".format(self.entity_name), code_ctor = VHDLCodeObject)
+      entity_code_object = NestedCode(
+        self.vhdl_code_generator, static_cst=False,
+        uniquifier="{0}_".format(self.entity_name),
+        code_ctor=VHDLCodeObject,
+        shared_symbol_list=[MultiSymbolTable.EntitySymbol, MultiSymbolTable.ProtectedSymbol],
+      )
       if self.is_main_entity(code_entity):
         self.vhdl_code_generator.disable_debug = not self.debug_flag
       else:
