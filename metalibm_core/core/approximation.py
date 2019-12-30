@@ -342,8 +342,18 @@ def piecewise_approximation(
                     error_function=error_function
                 )
             except SollyaError as err:
-                print("degree: {}".format(degree))
-                raise err
+                # try to see if function is constant on the interval (possible
+                # failure cause for fpminmax)
+                cst_value = precision.round_sollya_object(function(subint_low), sollya.RN)
+                accuracy = error_threshold
+                diff_with_cst_range = sollya.supnorm(cst_value, local_function, local_interval, sollya.absolute, accuracy)
+                diff_with_cst = sup(abs(diff_with_cst_range))
+                if diff_with_cst < error_threshold:
+                    Log.report(Log.Info, "constant polynomial detected")
+                    poly_object = Polynomial([function(subint_low)] + [0] * degree)
+                    approx_error = diff_with_cst
+                else:
+                    Log.report(Log.error, "degree: {} for index {}, diff_with_cst={} (vs error_threshold={}) ", degree, i, diff_with_cst, error_threshold, error=err)
         for ci in range(degree+1):
             if ci in poly_object.coeff_map:
                 coeff_table[i][ci] = poly_object.coeff_map[ci]
