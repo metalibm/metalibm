@@ -59,6 +59,7 @@ from metalibm_core.code_generation.generic_processor import GenericProcessor
 
 from metalibm_core.utility.ml_template import ML_NewArgTemplate, ArgDefault
 from metalibm_core.utility.log_report  import Log
+from metalibm_core.utility.debug_utils import debug_multi
 
 # disabling sollya's rounding warning
 sollya.roundingwarnings = sollya.off
@@ -129,7 +130,6 @@ class ML_HyperbolicTangent(ML_FunctionBasis):
         # registering the single input variable to the function
         vx = self.implementation.add_input_variable("x", self.precision)
 
-        #Log.set_dump_stdout(True)
         # tanh(x) = sinh(x) / cosh(x)
         #         = (e^x - e^-x) / (e^x + e^-x)
         #         = (e^(2x) - 1) / (e^(2x) + 1)
@@ -161,11 +161,16 @@ class ML_HyperbolicTangent(ML_FunctionBasis):
         high_bound = (p+2) * sollya.log(2) / 2
         near_zero_bound = 0.125
         interval_num = 1024
+        Log.report(Log.Verbose, "high_bound={}, near_zero_bound={}, interval_num={}", float(high_bound), near_zero_bound, interval_num)
 
         interval_size = (high_bound - near_zero_bound) / (1024)
         new_interval_size = S2**int(sollya.log2(interval_size))
         interval_num *= 2
         high_bound = new_interval_size * interval_num + near_zero_bound
+        Log.report(Log.Verbose, "high_bound={}, near_zero_bound={}, interval_num={}", float(high_bound), near_zero_bound, interval_num)
+
+        ERROR_THRESHOLD = S2**-p
+        Log.report(Log.Info, "ERROR_THRESHOLD={}", ERROR_THRESHOLD)
 
         # Near 0 approximation
         near_zero_scheme, near_zero_error = self.generate_approx_poly_near_zero(
@@ -176,7 +181,7 @@ class ML_HyperbolicTangent(ML_FunctionBasis):
         )
 
         # approximation parameters
-        poly_degree = 5
+        poly_degree = 7
         approx_interval = Interval(near_zero_bound, high_bound)
 
         sollya.settings.points = 117
@@ -188,22 +193,26 @@ class ML_HyperbolicTangent(ML_FunctionBasis):
             bound_low=near_zero_bound,
             bound_high=high_bound,
             num_intervals=interval_num,
-            max_degree=5,
-            error_threshold=S2**-p
+            max_degree=poly_degree,
+            error_threshold=ERROR_THRESHOLD
         )
         Log.report(Log.Warning, "approx_error={}".format(approx_error))
 
+        comp_near_zero_bound = abs_vx < near_zero_bound
+        comp_near_zero_bound.set_attributes(tag="comp_near_zero_bound", debug=debug_multi)
+        comp_high_bound = abs_vx < high_bound
+        comp_high_bound.set_attributes(tag="comp_high_bound", debug=debug_multi)
+
         complete_scheme = Select(
-            abs_vx < near_zero_bound,
+            comp_near_zero_bound,
             near_zero_scheme,
             Select(
-                abs_vx < high_bound,
+                comp_high_bound,
                 approx_scheme,
-                Constant(1.0,precision=self.precision)
+                Constant(1.0, precision=self.precision)
             )
         )
 
-        Log.report(Log.Info, "\033[33;1m generating implementation scheme \033[0m")
         scheme = Return(
             Select(
                 vx<0,Negation(complete_scheme),complete_scheme
@@ -219,7 +228,8 @@ class ML_HyperbolicTangent(ML_FunctionBasis):
         "0x1.af0bf2p+1",
         "-0x1.af0bf2p+1",
         "-0x1.51b618p-13",
-        "0x1.ffb99ep-1"
+        "0x1.ffb99ep-1",
+        "0x1.f68b2cp-4"
     ]]
 
 
