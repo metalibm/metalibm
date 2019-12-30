@@ -313,6 +313,7 @@ new_scheme_function_list = [
     metalibm_functions.vectorial_function.ML_VectorialFunction,
     [
         {"precision": ML_Binary32, "auto_test": 10, "execute_trigger": True},
+        {"precision": ML_Binary32, "use_libm_function": "expf", "auto_test": 10, "execute_trigger": True},
         {"precision": ML_Binary32, "multi_elt_num": 4, "target": VectorBackend(), "auto_test": 10, "index_test_range": [16, 32], "execute_trigger": True},
         {"precision": ML_Binary64, "multi_elt_num": 4, "target": VectorBackend(), "auto_test": 10,  "index_test_range": [16, 32], "execute_trigger": True, "expected_to_fail": True},
     ],
