@@ -144,10 +144,6 @@ class CriticalPath(object):
             return self.previous.stage
         return self.node.attributes.init_stage
 
-    @property
-    def stage(self):
-        return self.node.attributes.init_stage
-
     def __add__(self, cp1):
         """ non commutative addition of 2 critical paths
             left-hand-side must be at a latter (or equal) stage compared to cp1
