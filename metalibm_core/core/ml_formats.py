@@ -363,27 +363,27 @@ class ML_Std_FP_Format(ML_FP_Format):
             sign = int(1 if value < 0 else 0)
             value = abs(value)
             if value == 0.0:
-              Log.report(Log.Warning, "+0.0 forced during get_integer_coding conversion")
-              exp_biased = 0
-              mant = 0
-            else:
-              try: 
-                exp        = int(sollya.floor(sollya.log2(value)))
-              except ValueError as e:
-                Log.report(Log.Error, "unable to compute int(sollya.floor(sollya.log2({}))), pre_value={}", value, pre_value, error=e)
-              exp_biased = int(exp - self.get_bias())
-              if exp < self.get_emin_normal():
+                Log.report(Log.Warning, "+0.0 forced during get_integer_coding conversion")
                 exp_biased = 0
-                mant = int((value / S2**self.get_emin_subnormal()))
-              else:
-                mant = int((value / S2**exp - 1.0) * (S2**self.get_field_size()))
+                mant = 0
+            else:
+                try:
+                    exp = int(sollya.floor(sollya.log2(value)))
+                except ValueError as e:
+                    Log.report(Log.Error, "unable to compute int(sollya.floor(sollya.log2({}))), pre_value={}", value, pre_value, error=e)
+                exp_biased = int(exp - self.get_bias())
+                if exp < self.get_emin_normal():
+                    exp_biased = 0
+                    mant = int((value / S2**self.get_emin_subnormal()))
+                else:
+                    mant = int((value / S2**exp - 1.0) * (S2**self.get_field_size()))
             return mant | (exp_biased << self.get_field_size()) | (sign << (self.get_field_size() + self.get_exponent_size()))
 
     def get_value_from_integer_coding(self, value, base=10):
         """ Convert a value binary encoded following IEEE-754 standard
             to its floating-point numerical (or special) counterpart """
         value = int(value, base)
-        exponent_field = ((value >> self.get_field_size()) & (2**self.get_exponent_size() - 1)) 
+        exponent_field = ((value >> self.get_field_size()) & (2**self.get_exponent_size() - 1))
         is_subnormal = (exponent_field == 0)
         mantissa = value & (2**self.get_field_size() - 1)
         sign_bit = value >> (self.get_field_size() + self.get_exponent_size())
@@ -424,7 +424,7 @@ class ML_Std_FP_Format(ML_FP_Format):
         """ return the minimal normal number in @p self format """
         return S2**self.get_emin_normal()
 
-    ## return the exponent field corresponding to 
+    ## return the exponent field corresponding to
     #  a special value (inf or NaN)
     def get_nanorinf_exp_field(self):
         return S2**self.get_exponent_size() - 1
@@ -554,7 +554,7 @@ def is_std_float(precision):
 ## Generic constructor for Metalibm formats
 class ML_FormatConstructor(ML_Format):
     """ Generic constructor for Metalibm formats """
-    ## Object constructor 
+    ## Object constructor
     #  @param bit_size size of the format (in bits)
     #  @param c_name name of the format in the C language
     #  @param c_display_format string format to display @p self format value
@@ -824,11 +824,10 @@ class ML_Base_FixedPoint_Format(ML_Fixed_Format, VirtualFormatNoBase):
     def get_c_cst(self, cst_value):
         """ C-language constant generation """
         try:
-          encoded_value = int(cst_value * S2**self.frac_size)
+            encoded_value = int(cst_value * S2**self.frac_size)
         except (ValueError, TypeError) as e:
-          print(e, cst_value, self.frac_size)
-          Log.report(Log.Error, "Error during constant conversion to sollya object from format {}", str(self))
-          
+            print(e, cst_value, self.frac_size)
+            Log.report(Log.Error, "Error during constant conversion to sollya object from format {}", str(self))
         if self.c_bit_size in [8, 16, 32, 64]:
             return ("" if self.signed else "U") + "INT" + str(self.c_bit_size) + "_C(" + str(encoded_value) + ")"
         elif self.c_bit_size == 128:
@@ -1108,7 +1107,7 @@ class ML_StringClass(ML_String_Format):
         return "ML_String"
 
 ## Metalibm string format
-ML_String = ML_StringClass("char*", DisplayFormat("%s"), lambda self, s: "\"{}\"".format(s)) 
+ML_String = ML_StringClass("char*", DisplayFormat("%s"), lambda self, s: "\"{}\"".format(s))
 
 ## Predicate checking if @p precision is a standard integer format
 def is_std_integer_format(precision):
@@ -1206,7 +1205,7 @@ class ML_Compound_Format(ML_Format):
 
     def round_sollya_object(self, value, round_mode=sollya.RN):
       """ Round a numerical value encapsulated in a SollyaObject
-          to @p self format with rounding mode @p round_mode 
+          to @p self format with rounding mode @p round_mode
           @return SollyaObject """
       return sollya.round(value, self.get_sollya_object(), round_mode)
 
@@ -1329,13 +1328,13 @@ class ML_CompoundVectorFormat(ML_VectorFormat, ML_Compound_Format):
       return "(%s)(%s)" % (self.get_name(language = OpenCL_Code), (", ".join(elt_value_list)))
     else:
       Log.report(Log.Error, "unsupported language in ML_CompoundVectorFormat.get_cst: %s" % (language))
-      
+
   def get_cst(self, cst_value, language = C_Code):
     if self.cst_callback is None:
       return self.get_cst_default(cst_value, language)
     else:
       return self.cst_callback(self, cst_value, language)
-  
+
 
 class ML_IntegerVectorFormat(ML_CompoundVectorFormat, ML_Fixed_Format):
   pass
@@ -1344,7 +1343,7 @@ class ML_FloatingPointVectorFormat(ML_CompoundVectorFormat, ML_FP_Format):
   pass
 
 class ML_MultiPrecision_VectorFormat(ML_CompoundVectorFormat):
-    @property 
+    @property
     def limb_num(self):
         return self.scalar_format.limb_num
     def get_limb_precision(self, limb_index):
