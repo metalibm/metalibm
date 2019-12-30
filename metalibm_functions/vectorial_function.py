@@ -81,7 +81,9 @@ from metalibm_core.utility.debug_utils import (
 )
 
 
+# TODO/FIXME: implement cleaner way to register and list meta-functions
 from metalibm_functions.ml_exp import ML_Exponential
+from metalibm_functions.ml_tanh import ML_HyperbolicTangent
 
 
 def generate_inline_fct_scheme(FctClass, dst_var, input_arg, custom_class_params):
@@ -161,6 +163,8 @@ class ML_VectorialFunction(ML_ArrayFunction):
         ]
         self.use_libm_function = args.use_libm_function
         self.multi_elt_num = args.multi_elt_num
+        self.function_ctor = args.function_ctor
+        self.scalar_emulate = args.scalar_emulate
 
     @staticmethod
     def get_default_args(**kw):
@@ -169,7 +173,9 @@ class ML_VectorialFunction(ML_ArrayFunction):
         default_args_exp = {
             "output_file": "ml_vectorial_function.c",
             "function_name": "ml_vectorial_function",
+            "function_ctor": ML_Exponential,
             "use_libm_function": False,
+            "scalar_emulate": sollya.exp,
             "multi_elt_num": 1,
             "precision": ML_Binary32,
             "accuracy": ML_Faithful,
@@ -203,25 +209,25 @@ class ML_VectorialFunction(ML_ArrayFunction):
         local_exp = Variable("local_exp", precision=element_format, var_type=Variable.Local)
 
         if self.use_libm_function:
-            libm_exp_operator = FunctionOperator("expf", arity=1)
-            libm_exp = FunctionObject("expf", [ML_Binary32], ML_Binary32, libm_exp_operator)
+            libm_fct_operator = FunctionOperator(self.use_libm_function, arity=1)
+            libm_fct = FunctionObject(self.use_libm_function, [ML_Binary32], ML_Binary32, libm_fct_operator)
 
             if multi_elt_num > 1:
-                result_list = [libm_exp(VectorElementSelection(elt_input, Constant(elt_id, precision=ML_Integer), precision=self.precision)) for elt_id in range(multi_elt_num)]
+                result_list = [libm_fct(VectorElementSelection(elt_input, Constant(elt_id, precision=ML_Integer), precision=self.precision)) for elt_id in range(multi_elt_num)]
                 result = VectorAssembling(*result_list, precision=element_format)
             else:
-                result = libm_exp(elt_input)
+                result = libm_fct(elt_input)
             elt_result = ReferenceAssign(local_exp, result)
         else:
             if multi_elt_num > 1:
                 scalar_result = Variable("scalar_result", precision=self.precision, var_type=Variable.Local)
-                exponential_args = ML_Exponential.get_default_args(
+                fct_ctor_args = self.function_ctor.get_default_args(
                     precision=self.precision,
                     libm_compliant=False,
                 )
 
-                meta_exponential = ML_Exponential(exponential_args)
-                exponential_scheme = meta_exponential.generate_scheme()
+                meta_function = self.function_ctor(fct_ctor_args)
+                exponential_scheme = meta_function.generate_scheme()
 
                 # instanciating required passes for typing
                 pass_inst_abstract_prec = PassInstantiateAbstractPrecision(self.processor)
@@ -234,7 +240,7 @@ class ML_VectorialFunction(ML_ArrayFunction):
                 vectorizer = StaticVectorizer()
 
                 # extracting scalar argument from meta_exponential meta function
-                scalar_input = meta_exponential.implementation.arg_list[0]
+                scalar_input = meta_function.implementation.arg_list[0]
 
                 # vectorize scalar scheme
                 vector_result, vec_arg_list, vector_scheme, scalar_callback, scalar_callback_fct = vectorize_function_scheme(
@@ -252,14 +258,14 @@ class ML_VectorialFunction(ML_ArrayFunction):
                 local_exp = vector_result
 
                 self.function_list.append(scalar_callback_fct)
-                libm_exp = scalar_callback
+                libm_fct = scalar_callback
 
             else:
                 scalar_input = elt_input
                 scalar_result = local_exp
 
                 elt_result = generate_inline_fct_scheme(
-                    ML_Exponential, scalar_result, scalar_input,
+                    self.function_ctor, scalar_result, scalar_input,
                     {"precision": self.precision, "libm_compliant": False}
                 )
 
@@ -298,7 +304,7 @@ class ML_VectorialFunction(ML_ArrayFunction):
                 i < n,
                 Statement(
                     TableStore(
-                        libm_exp(TableLoad(src, i, precision=self.precision)),
+                        libm_fct(TableLoad(src, i, precision=self.precision)),
                         dst, i, precision=ML_Void),
                     ReferenceAssign(i, i+CU1),
                 )
@@ -317,21 +323,38 @@ class ML_VectorialFunction(ML_ArrayFunction):
 
     def numeric_emulate(self, input_value):
         """ Numeric emaluation of exponential """
-        return sollya.exp(input_value)
+        return self.scalar_emulate(input_value)
 
     standard_test_cases = [
     ]
+
+# dict of (str) -> tuple(ctor, dict(ML_Format -> str))
+# the first level key is the function name
+# the first value of value tuple is the meta-function constructor
+# the second value of the value tuple is a dict which associates to a ML_Format
+# the corresponding libm function
+FUNCTION_MAP = {
+    "exp": ML_Exponential,
+    "tanh": ML_HyperbolicTangent,
+}
 
 
 if __name__ == "__main__":
     # auto-test
     arg_template = ML_ArrayFunctionArgTemplate(default_arg=ML_VectorialFunction.get_default_args())
     arg_template.get_parser().add_argument(
-        "--use-libm-fct", dest="use_libm_function", default=False, const=True,
-        action="store_const", help="use standard libm function to implement element computation")
+        "--function", dest="function_ctor", default=ML_Exponential, type=(lambda v: FUNCTION_MAP[v]),
+        help="define the function to be applied elementwise")
+    arg_template.get_parser().add_argument(
+        "--use-libm-fct", dest="use_libm_function", default=None,
+        action="store", help="use standard libm function to implement element computation")
     arg_template.get_parser().add_argument(
         "--multi-elt-num", dest="multi_elt_num", default=1, type=int,
         action="store", help="number of vector element to be computed at each loop iteration")
+    arg_template.get_parser().add_argument(
+        "--scalar-emulate", dest="scalar_emulate", default=sollya.exp,
+        type=(lambda s: eval(s, {"sollya": sollya})),
+        action="store", help="function to use to compute exact expected value")
     # argument extraction
     args = arg_template.arg_extraction()
 
