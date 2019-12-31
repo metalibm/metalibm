@@ -88,6 +88,18 @@ from metalibm_core.utility.build_utils import SourceFile, get_cmd_stdout
 ## \defgroup ml_function ml_function
 ## @{
 
+def execute_pass_on_fct_group(scheduler, pass_object, function_group):
+    """ execute an optimization pass on a function_group 
+        :param scheduler: pass scheduler
+        :type scheduler: PassScheduler
+        :param pass_object: pass to be executed 
+        :type pass_object: Pass
+        :param function_group: group of functions on which the pass object
+                               will be executed 
+        :return: pass execution result
+        :rtype: bool
+    """
+    return pass_object.execute_on_fct_group(function_group)
 
 class BuildError(Exception):
     """ Exception to indicate that a build stage failed """
@@ -701,6 +713,8 @@ class ML_FunctionBasis(object):
     output_stream = open(self.output_file, "w")
     output_stream.write(self.result.get(self.main_code_generator))
     output_stream.close()
+    source_file = SourceFile(self.output_file, function_group)
+    return source_file
 
   ## generate C code for function implenetation
   #  Code is generated within the main code object
@@ -744,6 +758,8 @@ class ML_FunctionBasis(object):
     output_stream = open(self.output_file, "w")
     output_stream.write(self.result.get(self.main_code_generator))
     output_stream.close()
+    source_file = SourceFile(self.output_file, function_group)
+    return source_file
 
   def gen_implementation(self, display_after_gen=False,
                          display_after_opt=False,
@@ -760,12 +776,20 @@ class ML_FunctionBasis(object):
     # generate scheme
     function_group = self.generate_function_list()
 
-    ## apply @p pass_object optimization pass
-    #  to the scheme of each entity in code_entity_list
-    def execute_pass_on_fct_group(scheduler, pass_object, function_group):
-        """ execute an optimization pass on a function_group """
-        return pass_object.execute_on_fct_group(function_group)
+    function_group = self.transform_function_group(function_group)
 
+    main_pre_statement, main_statement, function_group = self.instrument_function_group(function_group, enable_subexpr_sharing=enable_subexpr_sharing)
+
+    embedding_binary = self.embedded_binary and self.processor.support_embedded_bin
+
+    source_file = self.generate_output(embedding_binary, main_pre_statement, main_statement, function_group)
+
+    self.execute_output(embedding_binary, source_file)
+
+
+
+  def transform_function_group(self, function_group):
+    """ Apply registered passes to a function_group """
     Log.report(Log.Info, "Applying <Start> stage passes")
     _ = self.pass_scheduler.get_full_execute_from_slot(
       function_group,
@@ -808,7 +832,18 @@ class ML_FunctionBasis(object):
         PassScheduler.JustBeforeCodeGen,
         execute_pass_on_fct_group
     )
+    return function_group
 
+
+  def instrument_function_group(self, function_group, enable_subexpr_sharing=False):
+    """ Insert testing and benchmarking tooling into function_group
+    
+        :param function_group: group of function to be instrumented
+        :type function_group: FunctionGroup
+        :param enable_subexpr_sharing: enable sharing of sub-expression during op graph optimization
+        :type enable_subexpr_sharing: bool
+        :return: resulting instrumented group of function
+        :rtype: FunctionGroup """
     main_pre_statement = Statement()
     main_statement = Statement()
 
@@ -857,9 +892,24 @@ class ML_FunctionBasis(object):
         )
         # appending bench wrapper to general code_function_list
         function_group.merge_with_group(bench_function_group)
+    return main_pre_statement, main_statement, function_group
 
-    embedding_binary = self.embedded_binary and self.processor.support_embedded_bin
 
+  def generate_output(self, embedding_binary, main_pre_statement, main_statement, function_group):
+    """ Generate output of code generation (including source file if any)
+        :param embedding_binary: enable embedded of binary executable file in
+                                 python program (allowing easier result extraction)
+        :type embedding_binary: bool
+        :param main_pre_statement: Statement node before main section
+        :type main_pre_statement: Statement
+        :param main_statement: Statement node for main section
+        :type main_statement: Statement
+        :param function_group: group of function being generated
+        :type function_group: FunctionGroup
+        :return: source file result
+        :rtype: SourceFile
+
+    """
     # adding main function
     if not embedding_binary:
         main_function = CodeFunction("main", output_format=ML_Int32)
@@ -873,13 +923,23 @@ class ML_FunctionBasis(object):
         function_group.add_core_function(main_function)
 
     # generate C code to implement scheme
-    self.generate_code(function_group, language=self.language)
+    source_file = self.generate_code(function_group, language=self.language)
+    return source_file
 
+
+  def execute_output(self, embedding_binary, source_file):
+    """ If any, run executable code from source file and extract results 
+        :param embedding_binary: enable embedded of binary executable file in
+                                 python program (allowing easier result extraction)
+        :type embedding_binary: bool
+        :param source_file: source file containing code to be executed
+        :type source_file: SourceFile
+
+    """
     build_trigger = self.build_enable or self.execute_trigger
     link_trigger = self.execute_trigger
 
     if build_trigger:
-        source_file = SourceFile(self.output_file, function_group)
         if embedding_binary:
             bin_name = "./testlib_%s.so" % self.function_name
             shared_object = True
