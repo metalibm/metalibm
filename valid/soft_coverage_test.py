@@ -101,7 +101,10 @@ class VerboseAction(argparse.Action):
             Log.enable_level(level, sub_level=sub_level)
 
 
+# number of self-checking test to be generated
 NUM_AUTO_TEST = 1024 # to be divisible by standard vector length
+# number of benchmark loop to be executed
+NUM_BENCH_TEST = 100
 
 class FunctionTest:
     def __init__(self, ctor, arg_map_list, title=None):
@@ -157,6 +160,104 @@ FUNCTION_LIST = [
   FunctionTest(metalibm_functions.ml_acos.ML_Acos, [{}]),
 ]
 
+def get_cmdline_option(option_list, option_value):
+    """ generate the command line equivalent to the list of options and their
+        corresponding values """
+    OPTION_MAP = {
+        "passes": lambda vlist: ("--passes " + ",".join(vlist)),
+        "extra_passes": lambda vlist: ("--extra-passes " + ",".join(vlist)),
+        "execute_trigger": lambda v: "--execute",
+        "auto_test": lambda v: "--auto-test {}".format(v),
+        "bench_test_number": lambda v: "--bench {}".format(v),
+        "auto_test_std": lambda _: "--auto-test-std ",
+        "target": lambda v: "--target {}".format(v),
+        "precision": lambda v: "--precision {}".format(v),
+        "vector_size": lambda v: "--vector-size {}".format(v),
+        "function_name": lambda v: "--fname {}".format(v),
+        "output_name": lambda v: "--output {}".format(v),
+    }
+    return " ".join(OPTION_MAP[option](option_value[option]) for option in option_list) 
+
+
+def generate_pretty_report(filename, test_summary):
+    """ generate a HTML pretty version of the test report """
+    # extracting summary properties (for compatibility with legacy print code)
+    success_count = test_summary.success_count
+    success = test_summary.success
+    result_map = test_summary.result_map
+    NUM_TESTS = test_summary.NUM_TESTS
+
+    with open(args.output, "w") as OUTPUT_FILE:
+        def print_report(msg):
+            OUTPUT_FILE.write(msg)
+
+        print_report("<html><body><div>")
+        print_report("<b>Function generation test report:</b>")
+        print_report("<p><ul>\n")
+        for index, test_case in enumerate(test_list):
+            nice_str = "; ".join("{}: {}".format(option, str(test_case[option])) for option in test_case)
+            cmd_str = get_cmdline_option(test_case.keys(), test_case)
+            print_report("<li><b>({}): {}</b></li>\n".format(index, nice_str))
+            print_report("{}\n".format(cmd_str))
+
+        print_report("</ul></p>\n\n")
+        header = "<table border='1'>"
+        header += "<th>{:10}</th>".format("function "[:20])
+        header += "".join(["\t\t<th> {:2} </th>\n".format(i) for i in range(len(test_list))])
+        header += "\n"
+        print_report(header)
+
+        def color_cell(msg, submsg="", color="red", subcolor="black", markup="td", indent="\t\t"):
+            return """{indent}<{markup} style="color:{color}; text-align: center">{msg}<font color={subcolor}>{submsg}</font></{markup}>\n""".format(
+                indent=indent, color=color, msg=msg, markup=markup,
+                submsg=submsg, subcolor=subcolor
+            )
+
+        # report display
+        for test_scheme in sorted(result_map.keys(), key=(lambda ts: str.lower(ts.title))):
+            name = test_scheme.title
+            msg = "<tr>\n\t\t<td>{:15}</td>\n".format(name)
+            for result in result_map[test_scheme]:
+                if result.get_result():
+                    cpe_measure = "-"
+                    if result.return_value != None:
+                        print("return_value: ", result.return_value)
+                        if "cpe_measure" in result.return_value:
+                            cpe_measure = "{:.2f}".format(result.return_value["cpe_measure"])
+                    msg += color_cell("  OK     ", submsg="<br />[%s]" % cpe_measure, color="green")
+                elif isinstance(result.error, GenerationError):
+                    msg += color_cell("  KO[G]  ", "red")
+                elif isinstance(result.error, BuildError):
+                    msg += color_cell(" KO[B] ", "red")
+                elif isinstance(result.error, ValidError):
+                    msg += color_cell(" KO[V] ", "orange")
+                else:
+                    msg += color_cell(" KO[{}] ".format(result.error), "red")
+            msg += "</tr>"
+            print_report(msg)
+
+        print_report("</table>")
+        print_report("<p>\n")
+        print_report("Total {}/{}/{} test(s)".format(
+                    color_cell("+%d" % success_count, color="green", markup="span"),
+                    color_cell("-%d" % (NUM_TESTS - success_count), color="red", markup="span"),
+                    NUM_TESTS)
+             )
+        print_report("      Success: {:.1f}%".format(float(success_count) / NUM_TESTS * 100))
+
+        print_report("</p>\n<p>\n")
+
+        if success:
+            print_report("OVERALL SUCCESS")
+        else:
+            print_report("OVERALL FAILURE")
+        print_report("</p>\n")
+        print_report("generated: {}".format(datetime.datetime.today()))
+
+        print_report("</div></body></html>")
+
+
+
 global_test_list = []
 
 # instantiating target objects
@@ -187,6 +288,8 @@ VECTOR_PRECISION_LIST = [ML_Binary32, ML_Binary64]
 
 # list of all possible test for a single function
 test_list = []
+
+# generating scalar tests and adding them to test_list
 for scalar_target in SCALAR_TARGET_LIST:
     for precision in SCALAR_PRECISION_LIST:
         options = {
@@ -195,11 +298,13 @@ for scalar_target in SCALAR_TARGET_LIST:
             "auto_test": NUM_AUTO_TEST,
             "auto_test_std": True,
             "execute_trigger": True,
+            "bench_test_number": NUM_BENCH_TEST,
             "output_name": "{}_{}.c".format(precision, scalar_target.target_name),
             "function_name": "{}_{}".format(precision, scalar_target.target_name),
         }
         options.update(TARGET_OPTIONS_MAP[scalar_target])
         test_list.append(options)
+# generating vector tests and adding them to test_list
 for vector_target in VECTOR_TARGET_LIST:
     for precision in VECTOR_PRECISION_LIST:
         for vector_size in [4, 8]:
@@ -208,6 +313,7 @@ for vector_target in VECTOR_TARGET_LIST:
                 "target": vector_target,
                 "vector_size": vector_size,
                 "auto_test": NUM_AUTO_TEST,
+                "bench_test_number": NUM_BENCH_TEST,
                 "auto_test_std": True,
                 "execute_trigger": True,
                 "output_name": "v{}-{}_{}.c".format(vector_size, precision, vector_target.target_name),
@@ -240,6 +346,7 @@ args = arg_parser.parse_args(sys.argv[1:])
 
 print([f.tag for f in FUNCTION_LIST])
 
+# generating global test list
 for function_test in [f for f in FUNCTION_LIST if (args.select is None or f.tag in args.select)]:
     function = function_test.ctor
     local_test_list = []
@@ -261,120 +368,58 @@ for function_test in [f for f in FUNCTION_LIST if (args.select is None or f.tag 
     )
     global_test_list.append(test_case)
 
-success = True
-success_count = 0
-# list of TestResult objects generated by execution
-# of new scheme tests
-result_details = []
+def execute_test_list(test_list):
+    result_map = {}
+    # forcing exception cause to be raised
+    Log.exit_on_error = False
+    for test_scheme in test_list:
+        test_results = test_scheme.perform_all_test_no_reduce(debug=args.debug)
+        result_map[test_scheme] = test_results
 
-NUM_TESTS = functools.reduce(lambda acc, v: acc + v.num_test, global_test_list, 0)
+    test_summary = TestSummary.init_from_test_list(test_list, result_map)
 
-RESULT_MAP = {}
+    return test_summary
+
+class TestSummary:
+    def __init__(self):
+        self.success_count = None
+        self.success = None
+        self.result_map = {}
+        self.result_details = []
+        self.NUM_TESTS = None
+
+    @staticmethod
+    def init_from_test_list(global_test_list, result_map):
+        test_summary = TestSummary()
+        # reset success
+        test_summary.success = True
+        # reset success_count
+        test_summary.success_count = 0
+        # list of TestResult objects generated by execution
+        # of new scheme tests
+        test_summary.result_details = []
+        test_summary.result_map = result_map
+
+        test_summary.NUM_TESTS = functools.reduce(lambda acc, v: acc + v.num_test, global_test_list, 0)
+
+        for test_scheme in test_summary.result_map:
+            result_list = test_summary.result_map[test_scheme]
+            test_result = test_scheme.reduce_test_result(result_list)
+            test_summary.success_count += test_scheme.get_success_count(result_list)
+            test_summary.result_details.append(test_result)
+            if not test_result.get_result():
+                test_summary.success = False
+        return test_summary
 
 
 # forcing exception cause to be raised
 Log.exit_on_error = False
 
-for test_scheme in global_test_list:
-    test_results = test_scheme.perform_all_test_no_reduce(debug=args.debug)
-    RESULT_MAP[test_scheme] = test_results
-
-for test_scheme in RESULT_MAP:
-    result_list = RESULT_MAP[test_scheme]
-    test_result = test_scheme.reduce_test_result(result_list)
-    success_count += test_scheme.get_success_count(result_list)
-    result_details.append(test_result)
-    if not test_result.get_result():
-        success = False
+test_summary = execute_test_list(global_test_list)
 
 if not args.report_only:
     # Printing test summary for new scheme
-    for result in result_details:
+    for result in test_summary.result_details:
         print(result.get_details())
-
-OUTPUT_FILE = open(args.output, "w")
-
-def print_report(msg):
-    OUTPUT_FILE.write(msg)
-
-
-def get_cmdline_option(option_list, option_value):
-    OPTION_MAP = {
-        "passes": lambda vlist: ("--passes " + ",".join(vlist)),
-        "extra_passes": lambda vlist: ("--extra-passes " + ",".join(vlist)),
-        "execute_trigger": lambda v: "--execute",
-        "auto_test": lambda v: "--auto-test {}".format(v),
-        "auto_test_std": lambda _: "--auto-test-std ",
-        "target": lambda v: "--target {}".format(v),
-        "precision": lambda v: "--precision {}".format(v),
-        "vector_size": lambda v: "--vector-size {}".format(v),
-        "function_name": lambda v: "--fname {}".format(v),
-        "output_name": lambda v: "--output {}".format(v),
-    }
-    return " ".join(OPTION_MAP[option](option_value[option]) for option in option_list) 
-
-print_report("<html><body><div>")
-print_report("<b>Function generation test report:</b>")
-print_report("<p><ul>\n")
-for index, test_case in enumerate(test_list):
-    nice_str = "; ".join("{}: {}".format(option, str(test_case[option])) for option in test_case)
-    cmd_str = get_cmdline_option(test_case.keys(), test_case)
-    print_report("<li><b>({}): {}</b></li>\n".format(index, nice_str))
-    print_report("{}\n".format(cmd_str))
-
-print_report("</ul></p>\n\n")
-header = "<table border='1'>"
-header += "<th>{:10}</th>".format("function "[:20])
-header += "".join(["\t\t<th> {:2} </th>\n".format(i) for i in range(len(test_list))])
-header += "\n"
-#header += ("----------"+ "|----" * len(test_list))
-#header += "|"
-print_report(header)
-
-def color_cell(msg, color="red", markup="td", indent="\t\t"):
-    return """{indent}<{markup} style="color:{color}; text-align: center">{msg}</{markup}>\n""".format(
-        indent=indent, color=color, msg=msg, markup=markup
-    )
-
-# report dusplay
-for test_scheme in sorted(RESULT_MAP.keys(), key=(lambda ts: str.lower(ts.title))):
-    # name = test_scheme.ctor.get_default_args().function_name
-    name = test_scheme.title
-    msg = "<tr>\n\t\t<td>{:15}</td>\n".format(name)
-    for result in RESULT_MAP[test_scheme]:
-        if result.get_result():
-            msg += color_cell("  OK    ", "green")
-        elif isinstance(result.error, GenerationError):
-            msg += color_cell("  KO[G]  ", "red")
-        elif isinstance(result.error, BuildError):
-            msg += color_cell(" KO[B] ", "red")
-        elif isinstance(result.error, ValidError):
-            msg += color_cell(" KO[V] ", "orange")
-        else:
-            msg += color_cell(" KO[{}] ".format(result.error), "red")
-    msg += "</tr>"
-    print_report(msg)
-
-print_report("</table>")
-print_report("<p>\n")
-print_report("Total {}/{}/{} test(s)".format(
-            color_cell("+%d" % success_count, color="green", markup="span"),
-            color_cell("-%d" % (NUM_TESTS - success_count), color="red", markup="span"),
-            NUM_TESTS)
-     )
-print_report("      Success: {:.1f}%".format(float(success_count) / NUM_TESTS * 100))
-
-print_report("</p>\n<p>\n")
-
-if success:
-    print_report("OVERALL SUCCESS")
-else:
-    print_report("OVERALL FAILURE")
-print_report("</p>\n")
-print_report("generated: {}".format(datetime.datetime.today()))
-
-print_report("</div></body></html>")
-
-OUTPUT_FILE.close()
-
+generate_pretty_report(args.output, test_summary)
 exit(0)
