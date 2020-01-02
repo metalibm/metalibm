@@ -48,7 +48,7 @@ class TestResult:
   #  @param test_object CommonTestScheme object defining the test
   #  @param test_case specific test parameters used in the test
   #  @param expected_to_fail boolean indicating that a test failure was expected
-  def __init__(self, result, details, test_object=None, test_case=None, error=None, title="", expected_to_fail=False, unexpected_count=None):
+  def __init__(self, result, details, test_object=None, test_case=None, error=None, title="", expected_to_fail=False, unexpected_count=None, return_value=None):
     self.result = result
     self.details = details
     self.test_object = test_object
@@ -57,6 +57,7 @@ class TestResult:
     self.title = title
     self.expected_to_fail = expected_to_fail
     self.unexpected_count = unexpected_count
+    self.return_value = return_value
 
   def get_result(self):
     return self.result
@@ -138,6 +139,7 @@ class NewSchemeTest(CommonTestScheme):
         test_desc = "{}/{}".format(function_name, str(arg_tc))
         arg_template = self.build_arg_template(**arg_tc)
         expected_to_fail = arg_tc["expected_to_fail"] if "expected_to_fail" in arg_tc else False
+        return_value = None
 
         if debug:
             fct = self.ctor(arg_template)
@@ -148,7 +150,7 @@ class NewSchemeTest(CommonTestScheme):
             except:
                 return TestResult(False, "{} ctor failed".format(test_desc), title=self.title, expected_to_fail=expected_to_fail)
             try:
-                fct.gen_implementation()
+                return_value = fct.gen_implementation()
             except BuildError as e:
                 return TestResult(False, "{} build failed".format(test_desc), error=e, title=self.title, expected_to_fail=expected_to_fail)
             except ValidError as e:
@@ -156,5 +158,5 @@ class NewSchemeTest(CommonTestScheme):
             except:
                 return TestResult(False, "{} gen_implementation failed".format(test_desc), error=GenerationError(), title=self.title, expected_to_fail=expected_to_fail)
             
-        return TestResult(True, "{} succeed".format(test_desc), title=self.title)
+        return TestResult(True, "{} succeed".format(test_desc), title=self.title, return_value=return_value)
 
