@@ -784,7 +784,8 @@ class ML_FunctionBasis(object):
 
     source_file = self.generate_output(embedding_binary, main_pre_statement, main_statement, function_group)
 
-    self.execute_output(embedding_binary, source_file)
+    # returning execution result, if any
+    return self.execute_output(embedding_binary, source_file)
 
 
 
@@ -939,6 +940,8 @@ class ML_FunctionBasis(object):
     build_trigger = self.build_enable or self.execute_trigger
     link_trigger = self.execute_trigger
 
+    exec_result = {}
+
     if build_trigger:
         if embedding_binary:
             bin_name = "./testlib_%s.so" % self.function_name
@@ -963,15 +966,18 @@ class ML_FunctionBasis(object):
 
                 if self.bench_enabled:
                     cpe_measure = loaded_module.get_function_handle("bench_wrapper")()
+                    exec_result["cpe_measure"] = cpe_measure
                     print("imported cpe_measure={}".format(cpe_measure))
                 if self.auto_test_enable:
                     test_result = loaded_module.get_function_handle("test_wrapper")()
+                    exec_result["test_result"] = test_result
                     if not test_result:
                         Log.report(Log.Info, "VALIDATION SUCCESS")
                     else:
                         Log.report(Log.Error, "VALIDATION FAILURE", error=ValidError())
                 if not (self.bench_enabled or self.auto_test_enable):
                     execution_result = loaded_module.get_function_handle(self.get_execute_handle())()
+                return exec_result
             elif not embedding_binary:
                 if self.force_cross_platform or self.processor.cross_platform:
                     execute_cmd = self.processor.get_execution_command(bin_file.path)
@@ -985,6 +991,8 @@ class ML_FunctionBasis(object):
                     Log.report(Log.Info, "VALIDATION SUCCESS")
                 else:
                     Log.report(Log.Error, "VALIDATION FAILURE", error=ValidError())
+            return None
+        return None
 
 
 
@@ -1496,7 +1504,7 @@ class ML_FunctionBasis(object):
     printf_success_op = FunctionOperator("printf", arg_map = {0: "\"test successful %s\\n\"" % function_name}, void_function = True) 
     printf_success_function = FunctionObject("printf", [], ML_Void, printf_success_op)
 
-    test_total   = test_num 
+    test_total   = test_num
     # compute the number of standard test cases
     num_std_case = len(self.standard_test_cases)
     # add them to the total if standard test enabled
@@ -1512,7 +1520,7 @@ class ML_FunctionBasis(object):
     input_tables = [
       ML_NewTable(
         dimensions = [test_total],
-        storage_precision = self.get_input_precision(i), 
+        storage_precision = self.get_input_precision(i),
         tag = self.uniquify_name("input_table_arg%d" %i)
       )
       for i in range(self.get_arity())
@@ -1522,7 +1530,7 @@ class ML_FunctionBasis(object):
     output_table = ML_NewTable(dimensions = [test_total], storage_precision = output_precision, tag = self.uniquify_name("output_table"), empty = True)
 
     # random test cases
-    for i in range(test_num):
+    for i in range(test_total):
       for in_id in range(self.get_arity()):
         input_value = random.uniform(low_input, high_input)
         input_value = self.precision.round_sollya_object(input_value, RN)
