@@ -179,7 +179,7 @@ def get_cmdline_option(option_list, option_value):
     return " ".join(OPTION_MAP[option](option_value[option]) for option in option_list) 
 
 
-def generate_pretty_report(filename, test_summary):
+def generate_pretty_report(filename, test_summary, evolution_map):
     """ generate a HTML pretty version of the test report """
     # extracting summary properties (for compatibility with legacy print code)
     success_count = test_summary.success_count
@@ -218,21 +218,39 @@ def generate_pretty_report(filename, test_summary):
             name = test_scheme.title
             msg = "<tr>\n\t\t<td>{:15}</td>\n".format(name)
             for result in result_map[test_scheme]:
+                evolution_summary = ""
+                if result.title in evolution:
+                    local_evolution = evolution[result.title]
+                    if local_evolution == "downgraded":
+                        evolution_summary = """<font color="red"> &#8600; </font>"""
+                    elif local_evolution == "upgraded":
+                        evolution_summary = """<font color="green"> &#8599; </font>"""
+                    elif local_evolution == "not found":
+                        evolution_summary = "NA"
+                    elif isinstance(local_evolution, float):
+                        if local_evolution > 0:
+                            evolution_summary = """<font color="green"> +{:.2f}% </font>""".format(local_evolution)
+                        elif local_evolution < 0:
+                            evolution_summary = """<font color="red"> {:.2f}% </font>""".format(local_evolution)
+                        else:
+                            evolution_summary = str(local_evolution)
+                    else:
+                        evolution_summary = "-" 
                 if result.get_result():
                     cpe_measure = "-"
                     if result.return_value != None:
                         print("return_value: ", result.return_value)
                         if "cpe_measure" in result.return_value:
                             cpe_measure = "{:.2f}".format(result.return_value["cpe_measure"])
-                    msg += color_cell("  OK     ", submsg="<br />[%s]" % cpe_measure, color="green")
+                    msg += color_cell("  OK     ", submsg="<br />[%s]%s" % (cpe_measure, evolution_summary), color="green")
                 elif isinstance(result.error, GenerationError):
-                    msg += color_cell("  KO[G]  ", "red")
+                    msg += color_cell("  KO[G]  ", submsg=evolution_summary, color="red")
                 elif isinstance(result.error, BuildError):
-                    msg += color_cell(" KO[B] ", "red")
+                    msg += color_cell(" KO[B] ", submsg=evolution_summary, color="red")
                 elif isinstance(result.error, ValidError):
-                    msg += color_cell(" KO[V] ", "orange")
+                    msg += color_cell(" KO[V] ", submsg=evolution_summary, color="orange")
                 else:
-                    msg += color_cell(" KO[{}] ".format(result.error), "red")
+                    msg += color_cell(" KO[{}] ".format(result.error), submsg=evolution_summary, color="red")
             msg += "</tr>"
             print_report(msg)
 
@@ -337,6 +355,12 @@ arg_parser.add_argument("--output", dest="output", action="store",
 arg_parser.add_argument("--select", dest="select", action="store",
                         default=None, type=(lambda v: v.split(",")),
                         help="limit test to those whose tag matching one a string list")
+arg_parser.add_argument("--reference", dest="reference", action="store",
+                        default=None,
+                        help="load a reference result and compare them")
+arg_parser.add_argument("--gen-reference", dest="gen_reference", action="store",
+                        default=None,
+                        help="generate a new reference file")
 arg_parser.add_argument(
     "--verbose", dest="verbose_enable", action=VerboseAction,
     const=True, default=False,
@@ -345,6 +369,11 @@ arg_parser.add_argument(
 args = arg_parser.parse_args(sys.argv[1:])
 
 print([f.tag for f in FUNCTION_LIST])
+
+class SubFunctionTest(NewSchemeTest):
+    def sub_case_title(self, arg_tc):
+        """ method to generate sub-case title """
+        return arg_tc["function_name"]
 
 # generating global test list
 for function_test in [f for f in FUNCTION_LIST if (args.select is None or f.tag in args.select)]:
@@ -361,7 +390,7 @@ for function_test in [f for f in FUNCTION_LIST if (args.select is None or f.tag 
             option["function_name"] = fname + "_" + opt_fname
             option["output_name"] = fname + "_" + opt_oname
             local_test_list.append(option)
-    test_case = NewSchemeTest(
+    test_case = SubFunctionTest(
         function_test.title,
         function, # class / constructor
         local_test_list
@@ -369,6 +398,7 @@ for function_test in [f for f in FUNCTION_LIST if (args.select is None or f.tag 
     global_test_list.append(test_case)
 
 def execute_test_list(test_list):
+    """ execute all the tests listed in test_list """
     result_map = {}
     # forcing exception cause to be raised
     Log.exit_on_error = False
@@ -376,11 +406,12 @@ def execute_test_list(test_list):
         test_results = test_scheme.perform_all_test_no_reduce(debug=args.debug)
         result_map[test_scheme] = test_results
 
-    test_summary = TestSummary.init_from_test_list(test_list, result_map)
+    test_summary = GlobalTestResult.init_from_test_list(test_list, result_map)
 
     return test_summary
 
-class TestSummary:
+class GlobalTestResult:
+    """ Summary of global test execution """
     def __init__(self):
         self.success_count = None
         self.success = None
@@ -390,7 +421,8 @@ class TestSummary:
 
     @staticmethod
     def init_from_test_list(global_test_list, result_map):
-        test_summary = TestSummary()
+        """ Generate a GlobalTestResult from a result_map """
+        test_summary = GlobalTestResult()
         # reset success
         test_summary.success = True
         # reset success_count
@@ -411,15 +443,107 @@ class TestSummary:
                 test_summary.success = False
         return test_summary
 
+    def compare_with_summary(self, ref_summary):
+        raise NotImplementedError
+
+    def summarize(self):
+        test_map = {}
+        for test_scheme in sorted(self.result_map.keys(), key=(lambda ts: str.lower(ts.title))):
+            for result in self.result_map[test_scheme]:
+                name = result.title
+                if result.get_result():
+                    cpe_measure = "-"
+                    if result.return_value != None:
+                        if "cpe_measure" in result.return_value:
+                            cpe_measure = "{:.2f}".format(result.return_value["cpe_measure"])
+                    summary = ["OK", cpe_measure]
+                elif isinstance(result.error, GenerationError):
+                    summary = ["KO[G]"]
+                elif isinstance(result.error, BuildError):
+                    summary = ["KO[B]"]
+                elif isinstance(result.error, ValidError):
+                    summary = ["KO[V]"]
+                else:
+                    summary = ["KO[{}]".format(result.error)]
+                test_map[name] = summary
+        return TestSummary(test_map)
+
+class TestSummary:
+    def __init__(self, test_map):
+        self.test_map = test_map
+
+    def dump(self, write_callback):
+        for name in self.test_map:
+            write_callback(" ".join([name] + self.test_map[name]) + "\n")
+
+    @staticmethod
+    def import_from_file(ref_file):
+        with open(ref_file, "r") as stream:
+            test_map = {}
+            for line in stream.readlines():
+                fields = line.replace('\n','').split(" ")
+                name = fields[0]
+                test_map[name] = fields[1:]
+            return TestSummary(test_map)
+
+    def compare(ref, res):
+        # number of tests found in ref but not in res
+        not_found = 0
+        # number of tests successful in ref but fail in res
+        downgraded = 0
+        upgraded = 0
+        perf_downgraded = 0
+        perf_upgraded = 0
+        compare_result = {}
+        for label in ref.test_map:
+            if not label in res.test_map:
+                not_found += 1
+                compare_result[label] = "not found"
+            else:
+                ref_status = ref.test_map[label][0]
+                res_status = res.test_map[label][0]
+                if ref_status == "OK" and res_status != "OK":
+                    downgraded += 1
+                    compare_result[label] = "downgraded"
+                elif ref_status != "OK" and res_status == "OK":
+                    upgraded += 1
+                    compare_result[label] = "upgraded"
+                elif ref_status == "OK" and res_status == "OK":
+                    ref_cpe = float(ref.test_map[label][1])
+                    res_cpe = float(res.test_map[label][1])
+                    if ref_cpe > res_cpe:
+                        perf_downgraded += 1
+                        compare_result[label] = ((1 - res_cpe / ref_cpe) * 100)
+                    elif ref_cpe < res_cpe:
+                        perf_upgraded += 1
+                        compare_result[label] = ((1 - res_cpe / ref_cpe) * 100)
+                        #compare_result[label] = "improved"
+                    else:
+                        compare_result[label] = "equal"
+        return compare_result
+
 
 # forcing exception cause to be raised
 Log.exit_on_error = False
 
-test_summary = execute_test_list(global_test_list)
+test_result = execute_test_list(global_test_list)
+    
 
 if not args.report_only:
     # Printing test summary for new scheme
-    for result in test_summary.result_details:
+    for result in test_result.result_details:
         print(result.get_details())
-generate_pretty_report(args.output, test_summary)
+test_summary = test_result.summarize()
+
+evolution = {}
+if args.reference:
+    reference_summary = TestSummary.import_from_file(args.reference)
+    reference_summary.dump(lambda s: print("REF " + s, end=""))
+    evolution = reference_summary.compare(test_summary)
+    print("evolution: ", evolution)
+generate_pretty_report(args.output, test_result, evolution)
+if args.gen_reference:
+    with open(args.gen_reference, "w") as new_ref:
+        test_summary.dump(lambda s: new_ref.write(s))
+
 exit(0)
