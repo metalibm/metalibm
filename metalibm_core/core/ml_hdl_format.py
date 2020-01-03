@@ -69,18 +69,30 @@ def get_2scomplement_neg(value, size):
   assert value < (S2**(size-1) - 1)
   return (~value+1)
 
-def generic_get_vhdl_cst(value, bit_size):
-  try:
-      value = int(value)
-      value &= int(2**bit_size - 1)
-  except TypeError:
-    Log.report(Log.Error, "unsupported value={}/bit_size={} in generic_get_vhdl_cst".format(value, bit_size), error=TypeError)
-  assert bit_size > 0
-  assert value <= (2**bit_size - 1)
-  if bit_size % 4 == 0:
-    return "X\"%s\"" % hex(value)[2:].replace("L","").zfill(bit_size // 4)
-  else:
-    return "\"%s\"" % bin(value)[2:].replace("L","").zfill(bit_size)
+def generic_get_vhdl_cst(value, bit_size, is_std_logic=False):
+    """
+        :param is_std_logic: indicates whether or not fixed-point support format
+            is a single-bit std_logic (rather than std_logic_vector) which implies
+            particular value string generation
+        :type is_std_logic: bool
+
+    """
+    try:
+        value = int(value)
+        value &= int(2**bit_size - 1)
+    except TypeError:
+        Log.report(Log.Error, "unsupported value={}/bit_size={} in generic_get_vhdl_cst".format(value, bit_size), error=TypeError)
+    assert bit_size > 0
+    assert value <= (2**bit_size - 1)
+    if is_std_logic:
+        assert bit_size == 1
+        if bit_size != 1:
+            Log.report(Log.Error, "bit_size must be 1 (not {}) for generic_get_vhdl_cst is_std_logic=True)", bit_size)
+        return "'%s'" % bin(value)[2:].replace("L","")
+    elif bit_size % 4 == 0:
+        return "X\"%s\"" % hex(value)[2:].replace("L","").zfill(bit_size // 4)
+    else:
+        return "\"%s\"" % bin(value)[2:].replace("L","").zfill(bit_size)
 
 class ML_UnevaluatedFormat:
     """ generic virtual class for unevaluated format.
@@ -126,7 +138,8 @@ class RTL_FixedPointFormat(ML_Base_FixedPoint_Format):
         self.name[VHDL_Code] = name
 
     def get_vhdl_cst(self, cst_value):
-        return generic_get_vhdl_cst(cst_value * S2**self.get_frac_size(), self.get_bit_size())
+        is_std_logic = (self.support_format == ML_StdLogic)
+        return generic_get_vhdl_cst(cst_value * S2**self.get_frac_size(), self.get_bit_size(), is_std_logic=is_std_logic)
 
     def get_name(self, language = VHDL_Code):
         return self.support_format.get_name(language)
