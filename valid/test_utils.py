@@ -130,6 +130,10 @@ class NewSchemeTest(CommonTestScheme):
         CommonTestScheme.__init__(self, title, argument_tc)
         self.ctor = ctor
 
+    def sub_case_title(self, arg_tc):
+        """ method to generate sub-case title """
+        return self.title
+
     ## Build an argument template from dict
     def build_arg_template(self, **kw):
         return self.ctor.get_default_args(**kw)
@@ -145,18 +149,19 @@ class NewSchemeTest(CommonTestScheme):
             fct = self.ctor(arg_template)
             fct.gen_implementation()
         else:
+            title = self.sub_case_title(arg_tc)
             try:
                 fct = self.ctor(arg_template)
             except:
-                return TestResult(False, "{} ctor failed".format(test_desc), title=self.title, expected_to_fail=expected_to_fail)
+                return TestResult(False, "{} ctor failed".format(test_desc), title=title, expected_to_fail=expected_to_fail)
             try:
                 return_value = fct.gen_implementation()
             except BuildError as e:
-                return TestResult(False, "{} build failed".format(test_desc), error=e, title=self.title, expected_to_fail=expected_to_fail)
+                return TestResult(False, "{} build failed".format(test_desc), error=e, title=title, expected_to_fail=expected_to_fail)
             except ValidError as e:
-                return TestResult(False, "{} validation failed".format(test_desc), error=e, title=self.title, expected_to_fail=expected_to_fail)
+                return TestResult(False, "{} validation failed".format(test_desc), error=e, title=title, expected_to_fail=expected_to_fail)
             except:
-                return TestResult(False, "{} gen_implementation failed".format(test_desc), error=GenerationError(), title=self.title, expected_to_fail=expected_to_fail)
+                return TestResult(False, "{} gen_implementation failed".format(test_desc), error=GenerationError(), title=title, expected_to_fail=expected_to_fail)
             
-        return TestResult(True, "{} succeed".format(test_desc), title=self.title, return_value=return_value)
+        return TestResult(True, "{} succeed".format(test_desc), title=title, return_value=return_value)
 
