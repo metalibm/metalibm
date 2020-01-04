@@ -38,6 +38,7 @@ import metalibm_hw_blocks.ml_fixed_mpfma
 import metalibm_hw_blocks.ml_fp_div
 import metalibm_hw_blocks.bipartite_approx
 import metalibm_hw_blocks.mult_array as mult_array
+import metalibm_hw_blocks.compound_adder as compound_adder
 from metalibm_hw_blocks.mult_array import multiplication_descriptor_parser as mult_array_parser
 
 from metalibm_core.core.ml_formats import  \
@@ -125,6 +126,13 @@ new_scheme_function_list = [
         {"dummy_mode": True, "method": mult_array.ReductionMethod.Wallace_4to2,
          "pipelined": True,
          "op_expr": mult_array_parser("FS9.4xFS9.-2[0,mytag]+FU13.3[1,other_tag]") },
+    ]
+  ),
+  EntitySchemeTest(
+    "compound adder",
+    compound_adder.CompoundAdder,
+    [
+        {},
     ]
   ),
 ]
