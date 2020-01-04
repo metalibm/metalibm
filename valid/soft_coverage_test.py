@@ -101,10 +101,6 @@ class VerboseAction(argparse.Action):
             Log.enable_level(level, sub_level=sub_level)
 
 
-# number of self-checking test to be generated
-NUM_AUTO_TEST = 1024 # to be divisible by standard vector length
-# number of benchmark loop to be executed
-NUM_BENCH_TEST = 100
 
 class FunctionTest:
     def __init__(self, ctor, arg_map_list, title=None):
@@ -225,7 +221,7 @@ class PerfCompResult(CompResult):
         self.abs_delta = abs_delta
         self.rel_delta = rel_delta
 
-def generate_pretty_report(filename, test_summary, evolution_map):
+def generate_pretty_report(filename, test_list, test_summary, evolution_map):
     """ generate a HTML pretty version of the test report
 
         :param filename: output file name
@@ -280,7 +276,6 @@ def generate_pretty_report(filename, test_summary, evolution_map):
                 if result.get_result():
                     cpe_measure = "-"
                     if result.return_value != None:
-                        print("return_value: ", result.return_value)
                         if "cpe_measure" in result.return_value:
                             cpe_measure = "{:.2f}".format(result.return_value["cpe_measure"])
                     msg += color_cell("  OK     ", submsg="<br />[%s]%s" % (cpe_measure, evolution_summary), color="green")
@@ -345,41 +340,45 @@ SCALAR_PRECISION_LIST = [ML_Binary32, ML_Binary64]
 VECTOR_TARGET_LIST = [VECTOR_BACKEND, X86_AVX2]
 VECTOR_PRECISION_LIST = [ML_Binary32, ML_Binary64]
 
-# list of all possible test for a single function
-test_list = []
 
-# generating scalar tests and adding them to test_list
-for scalar_target in SCALAR_TARGET_LIST:
-    for precision in SCALAR_PRECISION_LIST:
-        options = {
-            "precision": precision,
-            "target": scalar_target,
-            "auto_test": NUM_AUTO_TEST,
-            "auto_test_std": True,
-            "execute_trigger": True,
-            "bench_test_number": NUM_BENCH_TEST,
-            "output_name": "{}_{}.c".format(precision, scalar_target.target_name),
-            "function_name": "{}_{}".format(precision, scalar_target.target_name),
-        }
-        options.update(TARGET_OPTIONS_MAP[scalar_target])
-        test_list.append(options)
-# generating vector tests and adding them to test_list
-for vector_target in VECTOR_TARGET_LIST:
-    for precision in VECTOR_PRECISION_LIST:
-        for vector_size in [4, 8]:
+def generate_test_list(NUM_AUTO_TEST, NUM_BENCH_TEST):
+    """ generate a list of test """
+    # list of all possible test for a single function
+    test_list = []
+
+    # generating scalar tests and adding them to test_list
+    for scalar_target in SCALAR_TARGET_LIST:
+        for precision in SCALAR_PRECISION_LIST:
             options = {
                 "precision": precision,
-                "target": vector_target,
-                "vector_size": vector_size,
+                "target": scalar_target,
                 "auto_test": NUM_AUTO_TEST,
-                "bench_test_number": NUM_BENCH_TEST,
                 "auto_test_std": True,
                 "execute_trigger": True,
-                "output_name": "v{}-{}_{}.c".format(vector_size, precision, vector_target.target_name),
-                "function_name": "v{}_{}_{}".format(vector_size, precision, vector_target.target_name),
+                "bench_test_number": NUM_BENCH_TEST,
+                "output_name": "{}_{}.c".format(precision, scalar_target.target_name),
+                "function_name": "{}_{}".format(precision, scalar_target.target_name),
             }
-            options.update(TARGET_OPTIONS_MAP[vector_target])
+            options.update(TARGET_OPTIONS_MAP[scalar_target])
             test_list.append(options)
+    # generating vector tests and adding them to test_list
+    for vector_target in VECTOR_TARGET_LIST:
+        for precision in VECTOR_PRECISION_LIST:
+            for vector_size in [4, 8]:
+                options = {
+                    "precision": precision,
+                    "target": vector_target,
+                    "vector_size": vector_size,
+                    "auto_test": NUM_AUTO_TEST,
+                    "bench_test_number": NUM_BENCH_TEST,
+                    "auto_test_std": True,
+                    "execute_trigger": True,
+                    "output_name": "v{}-{}_{}.c".format(vector_size, precision, vector_target.target_name),
+                    "function_name": "v{}_{}_{}".format(vector_size, precision, vector_target.target_name),
+                }
+                options.update(TARGET_OPTIONS_MAP[vector_target])
+                test_list.append(options)
+    return test_list
 
 
 
@@ -482,7 +481,6 @@ class TestSummary:
                 return None
             property_list = [tuple(v.split("=")) for v in header_line.split(" ") if "=" in v]
             properties = dict(property_list)
-            print(property_list, properties)
             ref_format_version = properties["format_version"]
             if not ref_format_version in TestSummary.format_version_compatible_list:
                 Log.report(Log.Error, "reference format_version={} is not in compatibility list {}", ref_format_version, TestSummary.format_version_compatible_list)
@@ -517,15 +515,20 @@ class TestSummary:
                     upgraded += 1
                     compare_result[label] = CompResult(Upgraded)
                 elif ref_status == "OK" and res_status == "OK":
-                    ref_cpe = float(ref.test_map[label][1])
-                    res_cpe = float(res.test_map[label][1])
-                    abs_delta = ref_cpe - res_cpe
-                    rel_delta = ((1 - res_cpe / ref_cpe) * 100)
-                    compare_result[label] = PerfCompResult(abs_delta, rel_delta)
-                    if ref_cpe > res_cpe:
-                        perf_downgraded += 1
-                    elif ref_cpe < res_cpe:
-                        perf_upgraded += 1
+                    try:
+                        ref_cpe = float(ref.test_map[label][1])
+                        res_cpe = float(res.test_map[label][1])
+                    except ValueError:
+                        compare_result[label] = CompResult(NotFound)
+
+                    else:
+                        abs_delta = ref_cpe - res_cpe
+                        rel_delta = ((1 - res_cpe / ref_cpe) * 100)
+                        compare_result[label] = PerfCompResult(abs_delta, rel_delta)
+                        if ref_cpe > res_cpe:
+                            perf_downgraded += 1
+                        elif ref_cpe < res_cpe:
+                            perf_upgraded += 1
         return compare_result
 
 if __name__ == "__main__":
@@ -552,12 +555,19 @@ if __name__ == "__main__":
     arg_parser.add_argument("--gen-reference", dest="gen_reference", action="store",
                             default=None,
                             help="generate a new reference file")
+    arg_parser.add_argument("--bench-test-number", dest="bench_test_number", action="store",
+                            default=None,
+                            help="set the number of loop to run during performance bench (0 disable performance benching altogether)")
     arg_parser.add_argument(
         "--verbose", dest="verbose_enable", action=VerboseAction,
         const=True, default=False,
         help="enable Verbose log level")
-
     args = arg_parser.parse_args(sys.argv[1:])
+
+    # number of self-checking test to be generated
+    NUM_AUTO_TEST = 1024 # to be divisible by standard vector length
+    test_list = generate_test_list(NUM_AUTO_TEST, args.bench_test_number)
+
     # generating global test list
     for function_test in [f for f in FUNCTION_LIST if (not f.tag in args.exclude and (args.select is None or f.tag in args.select))]:
         function = function_test.ctor
@@ -587,19 +597,14 @@ if __name__ == "__main__":
     test_result = execute_test_list(global_test_list)
 
 
-    if not args.report_only:
-        # Printing test summary for new scheme
-        for result in test_result.result_details:
-            print(result.get_details())
     test_summary = test_result.summarize()
 
     evolution = {}
     if args.reference:
         reference_summary = TestSummary.import_from_file(args.reference)
-        reference_summary.dump(lambda s: print("REF " + s, end=""))
+        #reference_summary.dump(lambda s: print("REF " + s, end=""))
         evolution = reference_summary.compare(test_summary)
-        print("evolution: ", evolution)
-    generate_pretty_report(args.output, test_result, evolution)
+    generate_pretty_report(args.output, test_list, test_result, evolution)
     if args.gen_reference:
         with open(args.gen_reference, "w") as new_ref:
             test_summary.dump(lambda s: new_ref.write(s))
