@@ -854,7 +854,6 @@ class VHDLCodeObject(CodeConfiguration):
         parent_code << "\n"
         parent_code << ("begin\n" if not self.main_code_level else "")
         parent_code.inc_level()
-        parent_code << "\n"
         parent_code << self.expanded_code
 
     def add_comment(self, comment):
