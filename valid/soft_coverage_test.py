@@ -128,36 +128,36 @@ GEN_LOG2_ARGS =  {"basis": 2, "function_name": "ml_genlog2", "extra_passes" : ["
 GEN_LOG10_ARGS =  {"basis": 10, "function_name": "ml_genlog10", "extra_passes" : ["beforecodegen:fuse_fma"]}
 
 FUNCTION_LIST = [
-  FunctionTest(metalibm_functions.ml_tanh.ML_HyperbolicTangent, [{}], title="ml_tanh"),
-    # FunctionTest(metalibm_functions.ml_atan.ML_Atan, [{}])
+    FunctionTest(metalibm_functions.ml_tanh.ML_HyperbolicTangent, [{}], title="ml_tanh"),
+      # FunctionTest(metalibm_functions.ml_atan.ML_Atan, [{}])
 
-  FunctionTest(metalibm_functions.generic_log.ML_GenericLog,[GEN_LOG_ARGS], title="ml_genlog"),
-  FunctionTest(metalibm_functions.generic_log.ML_GenericLog,[GEN_LOG2_ARGS], title="ml_genlog2"),
-  FunctionTest(metalibm_functions.generic_log.ML_GenericLog,[GEN_LOG10_ARGS], title="ml_genlog10"),
+    FunctionTest(metalibm_functions.generic_log.ML_GenericLog,[GEN_LOG_ARGS], title="ml_genlog"),
+    FunctionTest(metalibm_functions.generic_log.ML_GenericLog,[GEN_LOG2_ARGS], title="ml_genlog2"),
+    FunctionTest(metalibm_functions.generic_log.ML_GenericLog,[GEN_LOG10_ARGS], title="ml_genlog10"),
 
-  FunctionTest(metalibm_functions.ml_cosh.ML_HyperbolicCosine, [{}]),
-  FunctionTest(metalibm_functions.ml_sinh.ML_HyperbolicSine, [{}]),
-  FunctionTest(metalibm_functions.ml_exp.ML_Exponential, [{}]),
-  FunctionTest(metalibm_functions.ml_log1p.ML_Log1p, [{}]),
+    FunctionTest(metalibm_functions.ml_cosh.ML_HyperbolicCosine, [{}]),
+    FunctionTest(metalibm_functions.ml_sinh.ML_HyperbolicSine, [{}]),
+    FunctionTest(metalibm_functions.ml_exp.ML_Exponential, [{}]),
+    FunctionTest(metalibm_functions.ml_log1p.ML_Log1p, [{}]),
 
-  FunctionTest(metalibm_functions.ml_div.ML_Division, [{}]),
+    FunctionTest(metalibm_functions.ml_div.ML_Division, [{}]),
 
-   # superseeded by ML_GenericLog
-   # FunctionTest(metalibm_functions.ml_log10.ML_Log10, [{"passes": ["beforecodegen:fuse_fma"]}]),
-   # FunctionTest(metalibm_functions.ml_log.ML_Log, [{}]),
-   # FunctionTest(metalibm_functions.ml_log2.ML_Log2, [{}]),
+     # superseeded by ML_GenericLog
+     # FunctionTest(metalibm_functions.ml_log10.ML_Log10, [{"passes": ["beforecodegen:fuse_fma"]}]),
+     # FunctionTest(metalibm_functions.ml_log.ML_Log, [{}]),
+     # FunctionTest(metalibm_functions.ml_log2.ML_Log2, [{}]),
 
-  FunctionTest(metalibm_functions.ml_exp2.ML_Exp2, [{}]),
-  FunctionTest(metalibm_functions.ml_cbrt.ML_Cbrt, [{}]),
-  FunctionTest(metalibm_functions.ml_sqrt.MetalibmSqrt, [{}]),
-  FunctionTest(metalibm_functions.ml_isqrt.ML_Isqrt, [{}]),
-  FunctionTest(metalibm_functions.ml_vectorizable_log.ML_Log, [{}]),
+    FunctionTest(metalibm_functions.ml_exp2.ML_Exp2, [{}]),
+    FunctionTest(metalibm_functions.ml_cbrt.ML_Cbrt, [{}]),
+    FunctionTest(metalibm_functions.ml_sqrt.MetalibmSqrt, [{}]),
+    FunctionTest(metalibm_functions.ml_isqrt.ML_Isqrt, [{}]),
+    FunctionTest(metalibm_functions.ml_vectorizable_log.ML_Log, [{}]),
 
-  FunctionTest(metalibm_functions.ml_sincos.ML_SinCos, [{}]),
+    FunctionTest(metalibm_functions.ml_sincos.ML_SinCos, [{}]),
 
-  FunctionTest(metalibm_functions.erf.ML_Erf, [{}]),
+    FunctionTest(metalibm_functions.erf.ML_Erf, [{}]),
 
-  FunctionTest(metalibm_functions.ml_acos.ML_Acos, [{}]),
+    FunctionTest(metalibm_functions.ml_acos.ML_Acos, [{}]),
 ]
 
 def get_cmdline_option(option_list, option_value):
@@ -178,9 +178,64 @@ def get_cmdline_option(option_list, option_value):
     }
     return " ".join(OPTION_MAP[option](option_value[option]) for option in option_list) 
 
+class CompResultType:
+    pass
+class Downgraded(CompResultType):
+    """ Test used to be OK, but is now KO """
+    @staticmethod
+    def html_msg(_):
+        return  """<font color="red"> &#8600; </font>"""
+class Upgraded(CompResultType):
+    """ Test used to be KO, but is now OK """
+    @staticmethod
+    def html_msg(_):
+        return """<font color="green"> &#8599; </font>"""
+class NotFound(CompResultType):
+    """ Test was not found in reference """
+    @staticmethod
+    def html_msg(_):
+        return "NA"
+class Improved(CompResultType):
+    """ Test was and is OK, performance has improved """
+    @staticmethod
+    def html_msg(comp_result):
+        return """<font color="green"> +{:.2f}% </font>""".format(comp_result.rel_delta)
+class Decreased(CompResultType):
+    """ Test was and is OK, performance has decreased """
+    @staticmethod
+    def html_msg(comp_result):
+        return """<font color="red"> {:.2f}% </font>""".format(comp_result.rel_delta)
+
+class CompResult:
+    """ test comparison result """
+    def __init__(self, comp_result):
+        self.comp_result = comp_result
+
+    @property
+    def html_msg(self):
+        return self.comp_result.html_msg(self)
+
+class PerfCompResult(CompResult):
+    def __init__(self, abs_delta, rel_delta):
+        if abs_delta > 0:
+            comp_result = Decreased
+        else:
+            comp_result = Improved
+        CompResult.__init__(self, comp_result)
+        self.abs_delta = abs_delta
+        self.rel_delta = rel_delta
 
 def generate_pretty_report(filename, test_summary, evolution_map):
-    """ generate a HTML pretty version of the test report """
+    """ generate a HTML pretty version of the test report
+
+        :param filename: output file name
+        :type filename: str
+        :param test_summary: summary of test results
+        !type test_summary: TestSummary
+        :param evolution_map: dictionnary of changes between this test and
+                              a reference report
+        :type evolution_map: dict
+    """
     # extracting summary properties (for compatibility with legacy print code)
     success_count = test_summary.success_count
     success = test_summary.success
@@ -221,21 +276,7 @@ def generate_pretty_report(filename, test_summary, evolution_map):
                 evolution_summary = ""
                 if result.title in evolution:
                     local_evolution = evolution[result.title]
-                    if local_evolution == "downgraded":
-                        evolution_summary = """<font color="red"> &#8600; </font>"""
-                    elif local_evolution == "upgraded":
-                        evolution_summary = """<font color="green"> &#8599; </font>"""
-                    elif local_evolution == "not found":
-                        evolution_summary = "NA"
-                    elif isinstance(local_evolution, float):
-                        if local_evolution > 0:
-                            evolution_summary = """<font color="green"> +{:.2f}% </font>""".format(local_evolution)
-                        elif local_evolution < 0:
-                            evolution_summary = """<font color="red"> {:.2f}% </font>""".format(local_evolution)
-                        else:
-                            evolution_summary = str(local_evolution)
-                    else:
-                        evolution_summary = "-" 
+                    evolution_summary = local_evolution.html_msg
                 if result.get_result():
                     cpe_measure = "-"
                     if result.return_value != None:
@@ -341,64 +382,11 @@ for vector_target in VECTOR_TARGET_LIST:
             test_list.append(options)
 
 
-arg_parser = argparse.ArgumentParser(" Metalibm non-regression tests")
-# enable debug mode
-arg_parser.add_argument("--debug", dest="debug", action="store_const",
-                        default=False, const=True,
-                        help="enable debug mode")
-arg_parser.add_argument("--report-only", dest="report_only", action="store_const",
-                        default=False, const=True,
-                        help="limit display to final report")
-arg_parser.add_argument("--output", dest="output", action="store",
-                        default="report.html",
-                        help="define output file")
-arg_parser.add_argument("--select", dest="select", action="store",
-                        default=None, type=(lambda v: v.split(",")),
-                        help="limit test to those whose tag matches one of string list")
-arg_parser.add_argument("--exclude", dest="exclude", action="store",
-                        default=[], type=(lambda v: v.split(",")),
-                        help="limit test to those whose tag does not match one of string list")
-arg_parser.add_argument("--reference", dest="reference", action="store",
-                        default=None,
-                        help="load a reference result and compare them")
-arg_parser.add_argument("--gen-reference", dest="gen_reference", action="store",
-                        default=None,
-                        help="generate a new reference file")
-arg_parser.add_argument(
-    "--verbose", dest="verbose_enable", action=VerboseAction,
-    const=True, default=False,
-    help="enable Verbose log level")
-
-args = arg_parser.parse_args(sys.argv[1:])
-
-print([f.tag for f in FUNCTION_LIST])
 
 class SubFunctionTest(NewSchemeTest):
     def sub_case_title(self, arg_tc):
         """ method to generate sub-case title """
         return arg_tc["function_name"]
-
-# generating global test list
-for function_test in [f for f in FUNCTION_LIST if (not f.tag in args.exclude and (args.select is None or f.tag in args.select))]:
-    function = function_test.ctor
-    local_test_list = []
-    # updating copy
-    for test in test_list:
-        for sub_test in function_test.arg_map_list:
-            option = test.copy()
-            opt_fname = option["function_name"]
-            opt_oname = option["output_name"]
-            option.update(sub_test)
-            fname = sub_test["function_name"] if "function_name" in sub_test else function.function_name
-            option["function_name"] = fname + "_" + opt_fname
-            option["output_name"] = fname + "_" + opt_oname
-            local_test_list.append(option)
-    test_case = SubFunctionTest(
-        function_test.title,
-        function, # class / constructor
-        local_test_list
-    )
-    global_test_list.append(test_case)
 
 def execute_test_list(test_list):
     """ execute all the tests listed in test_list """
@@ -446,10 +434,9 @@ class GlobalTestResult:
                 test_summary.success = False
         return test_summary
 
-    def compare_with_summary(self, ref_summary):
-        raise NotImplementedError
 
     def summarize(self):
+        """ convert a GlobalTestResult into a TestSummary """
         test_map = {}
         for test_scheme in sorted(self.result_map.keys(), key=(lambda ts: str.lower(ts.title))):
             for result in self.result_map[test_scheme]:
@@ -472,17 +459,34 @@ class GlobalTestResult:
         return TestSummary(test_map)
 
 class TestSummary:
+    # current version of the test summary format version
+    format_version = "0"
+    # list of format versions compatible with this implementation
+    format_version_compatible_list = ["0"]
     def __init__(self, test_map):
         self.test_map = test_map
 
     def dump(self, write_callback):
+        write_callback("# format_version={}\n".format(TestSummary.format_version))
         for name in self.test_map:
             write_callback(" ".join([name] + self.test_map[name]) + "\n")
 
     @staticmethod
     def import_from_file(ref_file):
+        """ import a test summary from a file """
         with open(ref_file, "r") as stream:
             test_map = {}
+            header_line = stream.readline().replace('\n', '')
+            if header_line[0] != "#":
+                Log.report(Log.Error, "failed to read starter char '#' in header \"{}\"", header_line)
+                return None
+            property_list = [tuple(v.split("=")) for v in header_line.split(" ") if "=" in v]
+            properties = dict(property_list)
+            print(property_list, properties)
+            ref_format_version = properties["format_version"]
+            if not ref_format_version in TestSummary.format_version_compatible_list:
+                Log.report(Log.Error, "reference format_version={} is not in compatibility list {}", ref_format_version, TestSummary.format_version_compatible_list)
+            
             for line in stream.readlines():
                 fields = line.replace('\n','').split(" ")
                 name = fields[0]
@@ -490,6 +494,7 @@ class TestSummary:
             return TestSummary(test_map)
 
     def compare(ref, res):
+        """ compare to test summaries and record differences """
         # number of tests found in ref but not in res
         not_found = 0
         # number of tests successful in ref but fail in res
@@ -507,46 +512,96 @@ class TestSummary:
                 res_status = res.test_map[label][0]
                 if ref_status == "OK" and res_status != "OK":
                     downgraded += 1
-                    compare_result[label] = "downgraded"
+                    compare_result[label] = CompResult(Downgraded)
                 elif ref_status != "OK" and res_status == "OK":
                     upgraded += 1
-                    compare_result[label] = "upgraded"
+                    compare_result[label] = CompResult(Upgraded)
                 elif ref_status == "OK" and res_status == "OK":
                     ref_cpe = float(ref.test_map[label][1])
                     res_cpe = float(res.test_map[label][1])
+                    abs_delta = ref_cpe - res_cpe
+                    rel_delta = ((1 - res_cpe / ref_cpe) * 100)
+                    compare_result[label] = PerfCompResult(abs_delta, rel_delta)
                     if ref_cpe > res_cpe:
                         perf_downgraded += 1
-                        compare_result[label] = ((1 - res_cpe / ref_cpe) * 100)
                     elif ref_cpe < res_cpe:
                         perf_upgraded += 1
-                        compare_result[label] = ((1 - res_cpe / ref_cpe) * 100)
-                        #compare_result[label] = "improved"
-                    else:
-                        compare_result[label] = "equal"
         return compare_result
 
+if __name__ == "__main__":
+    arg_parser = argparse.ArgumentParser(" Metalibm non-regression tests")
+    # enable debug mode
+    arg_parser.add_argument("--debug", dest="debug", action="store_const",
+                            default=False, const=True,
+                            help="enable debug mode")
+    arg_parser.add_argument("--report-only", dest="report_only", action="store_const",
+                            default=False, const=True,
+                            help="limit display to final report")
+    arg_parser.add_argument("--output", dest="output", action="store",
+                            default="report.html",
+                            help="define output file")
+    arg_parser.add_argument("--select", dest="select", action="store",
+                            default=None, type=(lambda v: v.split(",")),
+                            help="limit test to those whose tag matches one of string list")
+    arg_parser.add_argument("--exclude", dest="exclude", action="store",
+                            default=[], type=(lambda v: v.split(",")),
+                            help="limit test to those whose tag does not match one of string list")
+    arg_parser.add_argument("--reference", dest="reference", action="store",
+                            default=None,
+                            help="load a reference result and compare them")
+    arg_parser.add_argument("--gen-reference", dest="gen_reference", action="store",
+                            default=None,
+                            help="generate a new reference file")
+    arg_parser.add_argument(
+        "--verbose", dest="verbose_enable", action=VerboseAction,
+        const=True, default=False,
+        help="enable Verbose log level")
 
-# forcing exception cause to be raised
-Log.exit_on_error = False
+    args = arg_parser.parse_args(sys.argv[1:])
+    # generating global test list
+    for function_test in [f for f in FUNCTION_LIST if (not f.tag in args.exclude and (args.select is None or f.tag in args.select))]:
+        function = function_test.ctor
+        local_test_list = []
+        # updating copy
+        for test in test_list:
+            for sub_test in function_test.arg_map_list:
+                option = test.copy()
+                opt_fname = option["function_name"]
+                opt_oname = option["output_name"]
+                option.update(sub_test)
+                fname = sub_test["function_name"] if "function_name" in sub_test else function.function_name
+                option["function_name"] = fname + "_" + opt_fname
+                option["output_name"] = fname + "_" + opt_oname
+                local_test_list.append(option)
+        test_case = SubFunctionTest(
+            function_test.title,
+            function, # class / constructor
+            local_test_list
+        )
+        global_test_list.append(test_case)
 
-test_result = execute_test_list(global_test_list)
-    
 
-if not args.report_only:
-    # Printing test summary for new scheme
-    for result in test_result.result_details:
-        print(result.get_details())
-test_summary = test_result.summarize()
+    # forcing exception cause to be raised
+    Log.exit_on_error = False
 
-evolution = {}
-if args.reference:
-    reference_summary = TestSummary.import_from_file(args.reference)
-    reference_summary.dump(lambda s: print("REF " + s, end=""))
-    evolution = reference_summary.compare(test_summary)
-    print("evolution: ", evolution)
-generate_pretty_report(args.output, test_result, evolution)
-if args.gen_reference:
-    with open(args.gen_reference, "w") as new_ref:
-        test_summary.dump(lambda s: new_ref.write(s))
+    test_result = execute_test_list(global_test_list)
 
-exit(0)
+
+    if not args.report_only:
+        # Printing test summary for new scheme
+        for result in test_result.result_details:
+            print(result.get_details())
+    test_summary = test_result.summarize()
+
+    evolution = {}
+    if args.reference:
+        reference_summary = TestSummary.import_from_file(args.reference)
+        reference_summary.dump(lambda s: print("REF " + s, end=""))
+        evolution = reference_summary.compare(test_summary)
+        print("evolution: ", evolution)
+    generate_pretty_report(args.output, test_result, evolution)
+    if args.gen_reference:
+        with open(args.gen_reference, "w") as new_ref:
+            test_summary.dump(lambda s: new_ref.write(s))
+
+    exit(0)
