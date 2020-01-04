@@ -144,12 +144,12 @@ class NewSchemeTest(CommonTestScheme):
         arg_template = self.build_arg_template(**arg_tc)
         expected_to_fail = arg_tc["expected_to_fail"] if "expected_to_fail" in arg_tc else False
         return_value = None
+        title = self.sub_case_title(arg_tc)
 
         if debug:
             fct = self.ctor(arg_template)
             fct.gen_implementation()
         else:
-            title = self.sub_case_title(arg_tc)
             try:
                 fct = self.ctor(arg_template)
             except:
@@ -162,6 +162,6 @@ class NewSchemeTest(CommonTestScheme):
                 return TestResult(False, "{} validation failed".format(test_desc), error=e, title=title, expected_to_fail=expected_to_fail)
             except:
                 return TestResult(False, "{} gen_implementation failed".format(test_desc), error=GenerationError(), title=title, expected_to_fail=expected_to_fail)
-            
+
         return TestResult(True, "{} succeed".format(test_desc), title=title, return_value=return_value)
 
