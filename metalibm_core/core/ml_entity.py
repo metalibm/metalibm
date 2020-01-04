@@ -754,9 +754,12 @@ class ML_EntityBasis(object):
     """ Generate testbench with input and output data externalized in
         a data file """
     # textio function to read hexadecimal text
-    FCT_HexaRead = FunctionObject("hread", [HDL_FILE, ML_StdLogicVectorFormat], ML_Void, FunctionOperator("hread", void_function=True, arity=2))
+    def FCT_HexaRead_gen(input_format):
+        legalized_input_format = input_format
+        FCT_HexaRead = FunctionObject("hread", [HDL_LINE, legalized_input_format], ML_Void, FunctionOperator("hread", void_function=True, arity=2))
+        return FCT_HexaRead
     # textio function to read binary text
-    FCT_Read = FunctionObject("read", [HDL_FILE, ML_StdLogic], ML_Void, FunctionOperator("read", void_function=True, arity=2))
+    FCT_Read = FunctionObject("read", [HDL_LINE, ML_StdLogic], ML_Void, FunctionOperator("read", void_function=True, arity=2))
     input_line = Variable("input_line", precision=HDL_LINE, var_type=Variable.Local)
 
     # building ordered list of input and output signal names
@@ -771,7 +774,7 @@ class ML_EntityBasis(object):
         if input_format is ML_StdLogic:
             input_statement.add(FCT_Read(input_line, input_var))
         else:
-            input_statement.add(FCT_HexaRead(input_line, input_var))
+            input_statement.add(FCT_HexaRead_gen(input_format)(input_line, input_var))
         input_statement.add(ReferenceAssign(input_signals[input_name], input_var))
 
     output_signal_list = [sname for sname in output_signals.keys()]
@@ -785,7 +788,7 @@ class ML_EntityBasis(object):
         if output_format is ML_StdLogic:
             output_statement.add(FCT_Read(input_line, output_var))
         else:
-            output_statement.add(FCT_HexaRead(input_line, output_var))
+            output_statement.add(FCT_HexaRead_gen(output_format)(input_line, output_var))
 
         output_signal = output_signals[output_name]
         #value_msg = get_output_value_msg(output_signal, output_value)
