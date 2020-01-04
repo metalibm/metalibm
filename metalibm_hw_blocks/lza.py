@@ -42,10 +42,9 @@ import metalibm_core.code_generation.vhdl_backend as vhdl_backend
 from metalibm_core.core.polynomials import *
 from metalibm_core.core.ml_entity import (
     ML_Entity, ML_EntityBasis, DefaultEntityArgTemplate,
-    get_input_assign, get_input_msg, get_output_value_msg, 
+    get_input_assign, get_input_msg, get_output_value_msg,
     get_output_check_statement
 )
-from metalibm_core.code_generation.generator_utility import FunctionOperator, FO_Result, FO_Arg
 
 
 from metalibm_core.utility.ml_template import *
@@ -95,7 +94,7 @@ class ML_LeadingZeroAnticipator(ML_Entity("ml_lza")):
             common_size, 0,
             signed=(lhs_signed or rhs_signed)
         )
-        common_raw_format = ML_StdLogicVectorFormat(common_size) 
+        common_raw_format = ML_StdLogicVectorFormat(common_size)
 
         lhs = TypeCast(
             Conversion(
