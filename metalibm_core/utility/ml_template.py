@@ -474,6 +474,7 @@ class DefaultEntityArgTemplate(DefaultArgTemplate):
     # Specification,
     precision = HdlVirtualFormat(ML_Binary32)
     io_precisions = None
+    io_formats = None
     accuracy = ML_Faithful
     libm_compliant = False
     # Optimization parameters,
