@@ -188,6 +188,13 @@ def hdl_format_list_parser(format_str):
         format string """
     return [hdl_precision_parser(prec_str) for prec_str in format_str.split(",")]
 
+def hdl_format_map_parser(format_str):
+    """ convert a comma separated list of tag:format into
+        a dict of tag -> format object """
+    tag_prec_list = format_str.split(",")
+    tag_prec_split = [tuple(tag_prec.split(":")) for tag_prec in tag_prec_list]
+    return dict((tag, hdl_precision_parser(prec)) for tag, prec in tag_prec_split)
+
 
 def accuracy_parser(accuracy_str):
     """ string -> Accuracry, convert an accuracy description string
@@ -784,6 +791,11 @@ class ML_EntityArgTemplate(ML_CommonArgTemplate):
             "--input-formats", dest="input_precisions",
             type=hdl_format_list_parser,
             default=default_arg.input_precisions,
+            help="comma separated list of input formats")
+        self.parser.add_argument(
+            "--io-formats", dest="io_formats",
+            type=hdl_format_map_parser,
+            default=default_arg.io_formats,
             help="comma separated list of input formats")
         self.parser.add_argument(
             "--externalize-test", dest="externalized_test_data", action="store", nargs="?",

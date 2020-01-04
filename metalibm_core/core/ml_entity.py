@@ -269,6 +269,7 @@ class ML_EntityBasis(object):
     auto_test_std = arg_template.auto_test_std
 
     self.precision = arg_template.precision
+    self.io_formats = arg_template.io_formats
     self.pipelined = arg_template.pipelined
 
     # io_precisions must be a list
@@ -397,6 +398,9 @@ class ML_EntityBasis(object):
 
   def get_input_precision(self):
     return self.io_precisions[-1]
+
+  def get_io_format(self, tag):
+    return self.io_formats[tag]
 
 
   def get_sollya_precision(self):
