@@ -354,7 +354,10 @@ arg_parser.add_argument("--output", dest="output", action="store",
                         help="define output file")
 arg_parser.add_argument("--select", dest="select", action="store",
                         default=None, type=(lambda v: v.split(",")),
-                        help="limit test to those whose tag matching one a string list")
+                        help="limit test to those whose tag matches one of string list")
+arg_parser.add_argument("--exclude", dest="exclude", action="store",
+                        default=[], type=(lambda v: v.split(",")),
+                        help="limit test to those whose tag does not match one of string list")
 arg_parser.add_argument("--reference", dest="reference", action="store",
                         default=None,
                         help="load a reference result and compare them")
@@ -376,7 +379,7 @@ class SubFunctionTest(NewSchemeTest):
         return arg_tc["function_name"]
 
 # generating global test list
-for function_test in [f for f in FUNCTION_LIST if (args.select is None or f.tag in args.select)]:
+for function_test in [f for f in FUNCTION_LIST if (not f.tag in args.exclude and (args.select is None or f.tag in args.select))]:
     function = function_test.ctor
     local_test_list = []
     # updating copy
