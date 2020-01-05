@@ -274,7 +274,7 @@ class FP_Divider(ML_Entity("fp_div")):
       # mult-precision
       (2, 2 * p - 1),
       # error precision
-      (- (3 * approx_index_size) / 2, approx_index_size * 2 + p - 1),
+      (int(- (3 * approx_index_size) / 2), approx_index_size * 2 + p - 1),
       # mult approx mult precision
       (2, approx_index_size * 2 + p - 1),
       # approx precision
@@ -291,7 +291,7 @@ class FP_Divider(ML_Entity("fp_div")):
       last_it_input,
       final_approx,
       (2, 2 * p),
-      (-(4 * p)/5, 2 * p),
+      (int(-(4 * p)/5), 2 * p),
       (2, 2 * p),
       (2, 2 * p),
       self.implementation,
