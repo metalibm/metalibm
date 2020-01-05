@@ -1104,7 +1104,7 @@ class ML_StringClass(ML_String_Format):
         return self.get_cst_map[language](self, value)
 
     def __str__(self):
-        return "ML_String"
+        return self.name[C_Code]
 
 ## Metalibm string format
 ML_String = ML_StringClass("char*", DisplayFormat("%s"), lambda self, s: "\"{}\"".format(s))

@@ -1089,6 +1089,13 @@ vhdl_code_generation_table = {
                   type_custom_match(FSM(ML_Bool), MCFixedPoint, MCFixedPoint):
                   SymbolOperator(
                       vhdl_comp_symbol[specifier], arity=2, force_folding=False),
+                  # string comparison
+                  type_custom_match(FSM(ML_Bool), FSM(ML_String), FSM(ML_String)):
+                      SymbolOperator(
+                          vhdl_comp_symbol[specifier], arity=2, force_folding=False),
+                  type_custom_match(FSM(ML_Bool), TCM(ML_StringClass), TCM(ML_StringClass)):
+                      SymbolOperator(
+                          vhdl_comp_symbol[specifier], arity=2, force_folding=False),
               },
           }) for specifier in [Comparison.Equal, Comparison.NotEqual]
           ]
