@@ -301,6 +301,8 @@ def sub_signal_generator(optree):
     op = optree.get_input(0)
     inf_index = evaluate_cst_graph(optree.get_inf_index())
     sup_index = evaluate_cst_graph(optree.get_sup_index())
+    assert isinstance(inf_index, int)
+    assert isinstance(sup_index, int)
     if isinstance(op, Constant):
         assert sup_index >= inf_index
         value = op.get_value()
