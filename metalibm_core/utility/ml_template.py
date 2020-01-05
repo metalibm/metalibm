@@ -494,6 +494,8 @@ class DefaultEntityArgTemplate(DefaultArgTemplate):
     exit_after_test = True
     # RTL elaboration
     build_enable = False
+    # RTL elaboration & simulation tool
+    simulator = "vsim"
     # pipelined deisgn
     pipelined = False
     # pipeline register control (reset, synchronous)
@@ -801,6 +803,11 @@ class ML_EntityArgTemplate(ML_CommonArgTemplate):
         self.parser.add_argument(
             "--externalize-test", dest="externalized_test_data", action="store", nargs="?",
             const="test.input", default=False, help="externalize test inputs/expected in the specified data file")
+        self.parser.add_argument(
+            "--simulator", dest="simulator",
+            choices = ["vsim", "ghdl"],
+            default=default_arg.simulator,
+            help="select RTL elaboration and simulation tool")
 
 
 # new argument template based on argparse module
