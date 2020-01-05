@@ -407,7 +407,7 @@ class ML_EntityBasis(object):
     self.pass_scheduler = PassScheduler()
     # recursive pass dependency
     pass_dep = PassDependency()
-    print("extra_passes: {}".format(arg_template.extra_passes))
+    Log.report(Log.Verbose, "extra_passes: {}".format(arg_template.extra_passes))
     for pass_uplet in arg_template.passes + arg_template.extra_passes:
       pass_slot_tag, pass_tag = pass_uplet.split(":")
       pass_slot = PassScheduler.get_tag_class(pass_slot_tag)

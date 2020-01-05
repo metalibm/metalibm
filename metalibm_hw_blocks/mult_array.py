@@ -80,7 +80,6 @@ def extract_format_stage(s):
     stage = group_match.group("stage")
     tag = group_match.group("tag")
     result = precision, (stage if stage is None else int(stage)), (None if (tag is None or tag == '') else tag[1:])
-    print(result)
     return result
 
 class MultInput:
@@ -221,7 +220,7 @@ def dadda_4to2_reduction(previous_bit_heap):
             if cin:
                 next_bit_heap.insert_bit(w, cin)
         elif (0 if cin is None else 1) + previous_bit_heap.bit_count(w) + len(bit_list) + next_bit_heap.bit_count(w) <= new_count:
-            print("dropping bits without compression")
+            Log.report(Log.Verbose, "dropping bits without compression")
             # drop every bit in next stage
             if not cin is None:
                 next_bit_heap.insert_bit(w, cin)
@@ -342,7 +341,6 @@ class BitHeap:
         self.count = {}
 
     def insert_bit(self, index, value):
-        #print "inserting bit {} with weight {}".format(value, index)
         if not index in self.heap:
             self.heap[index] = []
             self.count[index] = 0
@@ -371,7 +369,6 @@ class BitHeap:
         if self.count[index] == 0:
             self.heap.pop(index)
             self.count.pop(index)
-        #print "popping bit {} from weight {}".format(bit, index)
         return bit
 
     def bit_count(self, index):
@@ -701,9 +698,6 @@ class MultArray(ML_Entity("mult_array")):
         a_inputs = {}
         b_inputs = {}
 
-        for index, operation_input in enumerate(self.op_expr):
-            print("%s" % str(operation_input))
-
         stage_map = self.instanciate_inputs()
 
         stage_index_list = sorted(stage_map.keys())
@@ -783,11 +777,6 @@ class MultArray(ML_Entity("mult_array")):
             # any other bit
             for index in range(size - 1):
                 pos_bit_heap.insert_bit(index + offset, BitSelection(add_op, index))
-
-
-        # fixing precision
-        for index, operation in enumerate(self.op_expr):
-            print(str(operation))
 
         # generating input signals
         stage_operation_map = self.instanciate_inputs(
