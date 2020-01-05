@@ -59,7 +59,7 @@ from metalibm_core.core.ml_hdl_operations import *
 
 class ML_LeadingZeroCounter(ML_Entity("ml_lzc")):
   @staticmethod
-  def get_default_args(width=32, entity_name="my_lzc"):
+  def get_default_args(width=32, entity_name="my_lzc", **kw):
     return DefaultEntityArgTemplate( 
              precision = ML_Int32, 
              debug_flag = False, 
@@ -68,6 +68,7 @@ class ML_LeadingZeroCounter(ML_Entity("ml_lzc")):
              entity_name = entity_name,
              language = VHDL_Code,
              width = width,
+             **kw
            )
 
   def __init__(self, arg_template = None):

@@ -64,7 +64,7 @@ from metalibm_hw_blocks.lzc import ML_LeadingZeroCounter
 
 class ML_LeadingZeroAnticipator(ML_Entity("ml_lza")):
     @staticmethod
-    def get_default_args(width=32, signed=False):
+    def get_default_args(width=32, signed=False, **kw):
         return DefaultEntityArgTemplate(
              precision = ML_Int32,
              debug_flag = False,
@@ -74,6 +74,7 @@ class ML_LeadingZeroAnticipator(ML_Entity("ml_lza")):
              language = VHDL_Code,
              width = width,
              signed = signed,
+             **kw
         )
 
     @staticmethod
