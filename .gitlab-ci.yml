@@ -1,4 +1,4 @@
-image: registry.gitlab.com/nibrunie/metalibm:metalibm_ci_30102019
+image: registry.gitlab.com/nibrunie/metalibm:metalibm_ci_ghdl
 
 before_script:
   - python3 --version

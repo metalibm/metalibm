@@ -65,7 +65,9 @@ new_scheme_function_list = [
   EntitySchemeTest(
     "basic Leading Zero Count",
     metalibm_hw_blocks.lzc.ML_LeadingZeroCounter,
-    [{"width": 32}, {"width": 13},]
+    [
+        {"width": 32, "simulator": "ghdl", "execute_trigger": True, "auto_test": 10},
+        {"width": 13, "simulator": "ghdl", "execute_trigger": True, "auto_test": 10},]
   ),
   EntitySchemeTest(
     "basic floating-point adder",
@@ -107,8 +109,10 @@ new_scheme_function_list = [
     "basic Leading Zero Anticipator",
     metalibm_hw_blocks.lza.ML_LeadingZeroAnticipator,
     [
-        {"width": 32}, {"width": 13},
-        {"width": 32, "signed": True}, {"width": 13, "signed": True},
+        {"width": 32, "simulator": "ghdl", "execute_trigger": True, "auto_test": 10},
+        {"width": 13, "simulator": "ghdl", "execute_trigger": True, "auto_test": 10},
+        {"width": 32, "signed": True, "simulator": "ghdl", "execute_trigger": True, "auto_test": 10},
+        {"width": 13, "signed": True, "simulator": "ghdl", "execute_trigger": True, "auto_test": 10},
     ]
   ),
   EntitySchemeTest(
