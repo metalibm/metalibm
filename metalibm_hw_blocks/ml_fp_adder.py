@@ -103,7 +103,6 @@ class FP_Adder(ML_Entity("fp_adder")):
 
     base_precision = self.precision.get_base_format()
     p = base_precision.get_mantissa_size()
-    print("p={}".format(p))
 
     # vx must be aligned with vy
     # the largest shit amount (in absolute value) is precision + 2
@@ -138,7 +137,6 @@ class FP_Adder(ML_Entity("fp_adder")):
       op_size = optree.get_precision().get_bit_size()
       ext_format = ML_StdLogicVectorFormat(ext_size)
       out_format = ML_StdLogicVectorFormat(op_size + ext_size)
-      print("rzext {}, {}, {}".format(op_size, ext_size, op_size + ext_size))
       return Concatenation(optree, Constant(0, precision = ext_format), precision = out_format)
 
     exp_bias = p + 2

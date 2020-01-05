@@ -684,7 +684,7 @@ def fixed_point_mul_modifier(optree):
         specifier=SignCast.Signed if rhs_prec.get_signed() else SignCast.Unsigned)
 
     mult_prec = ML_StdLogicVectorFormat(result_frac_size + result_integer_size)
-    print("Multiplication {}: {} x {} = {} bits".format(
+    Log.report(Log. Verbose, "Multiplication {}: {} x {} = {} bits".format(
         optree.get_tag(),
         lhs_casted.get_precision().get_bit_size(),
         rhs_casted.get_precision().get_bit_size(),

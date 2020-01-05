@@ -272,8 +272,6 @@ class FP_MPFMA(ML_Entity("fp_mpfma")):
     )
 
     mant_ext_size = max_exp_diff
-    print("mant_ext_size: %d" % max_exp_diff)
-    print("datapath_full_width: %d" % datapath_full_width)
     shift_prec = ML_StdLogicVectorFormat(datapath_full_width)
     mant_vz_ext = rzext(mant_vz, mant_ext_size)
     shifted_mant_vz = BitLogicRightShift(mant_vz_ext, mant_shift, precision = shift_prec, tag = "shifted_mant_vz", debug = debug_std)
@@ -373,18 +371,15 @@ class FP_MPFMA(ML_Entity("fp_mpfma")):
     # as the same sign as the product
     res_sign = BitLogicXor(add_is_negative, sign_xy, precision = ML_StdLogic, tag = "res_sign")
 
-    print("pre lzc stage: %d " % self.implementation.get_current_stage())
     # adding pipeline stage after addition computation
     if self.pipelined: self.implementation.start_new_stage()
 
-    print("lzc stage: %d " % self.implementation.get_current_stage())
 
     # Precision for leading zero count
     lzc_width = int(floor(log2(datapath_full_width + 1)) + 1)
     lzc_prec = ML_StdLogicVectorFormat(lzc_width)
 
     current_stage = self.implementation.get_current_stage()
-    print("saving current_stage: %d" % current_stage)
 
     lzc_args = ML_LeadingZeroCounter.get_default_args(width = (datapath_full_width + 1))
     LZC_entity = ML_LeadingZeroCounter(lzc_args)

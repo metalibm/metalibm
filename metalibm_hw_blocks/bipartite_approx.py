@@ -213,8 +213,6 @@ class BipartiteApprox(ML_Entity("bipartite_approx")):
         range_size_log2 = int(sollya.log2(range_size))
         assert 2**range_size_log2 == range_size
 
-        print("range_size_log2={}".format(range_size_log2))
-
         reduced_x = Conversion(
             BitLogicRightShift(
                 vx - range_lo,
@@ -356,7 +354,7 @@ class BipartiteApprox(ML_Entity("bipartite_approx")):
         offset_precision = get_fixed_type_from_interval(
             offset_interval, 16
         )
-        print("offset_precision is {} ({} bits)".format(offset_precision, offset_precision.get_bit_size()))
+        Log.report(Log.Verbose, "offset_precision is {} ({} bits)".format(offset_precision, offset_precision.get_bit_size()))
         table_offset.get_precision().storage_precision = offset_precision
 
         # rounding table value
@@ -403,12 +401,12 @@ class BipartiteApprox(ML_Entity("bipartite_approx")):
                     local_error = abs(1 / (table_x) - approx_value)
                     approx_error = max(approx_error, local_error) 
         error_log2 = float(sollya.log2(approx_error))
-        print("approx_error is {}, error_log2 is {}".format(float(approx_error), error_log2))
+        Log.report(Log.Verbose, "approx_error is {}, error_log2 is {}".format(float(approx_error), error_log2))
 
         # table size
         table_iv_size = 2**(alpha+beta)
         table_offset_size = 2**(alpha+gamma)
-        print("tables' size are {} entries".format(table_iv_size + table_offset_size)) 
+        Log.report(Log.Verbose, "tables' size are {} entries".format(table_iv_size + table_offset_size)) 
 
         return [self.implementation]
 
@@ -451,7 +449,6 @@ class BipartiteApprox(ML_Entity("bipartite_approx")):
             self.precision.get_frac_size(),
             rnd_mode
         )
-        print("numeric_emulate, ", io_map, result)
         return result
 
 
