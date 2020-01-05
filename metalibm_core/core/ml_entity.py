@@ -215,6 +215,68 @@ debug_utils_lib = """proc get_fixed_value {value weight} {
 }\n"""
 
 
+class HDLSimulation:
+    def __init__(self, source_file_list):
+        self.source_file_list = source_file_list
+
+    def elab(self):
+        raise NotImplementedError
+
+    def run(self, simulation_time, debug=False, exit_after_test=True):
+        raise NotImplementedError
+
+    def elab_and_run(self, simulation_time, debug=False, exit_after_test=True):
+        elab_result = self.elab()
+        if elab_result:
+            return elab_result
+        sim_result = self.run(simulation_time, debug=debug, exit_after_test=exit_after_test)
+        return sim_result
+
+class ModelsimSimulation(HDLSimulation):
+    def __init__(self, source_file_list, debug_file=None):
+        HDLSimulation.__init__(self, source_file_list)
+        self.debug_file = debug_file
+    def elab(self):
+        # TODO/FIXME: a single file supported for now
+        output_file = self.source_file_list[0]
+        modelsim_elab_cmd = "vlib work && vcom -2008 {}".format(output_file)
+        Log.report(Log.Info, "elaboration command:\n{}".format(modelsim_elab_cmd))
+        elab_result = subprocess.call(modelsim_elab_cmd, shell=True)
+        Log.report(Log.Info, "elaboration result:{}".format(elab_result))
+        return elab_result
+
+    def run(self, simulation_time, debug=False, exit_after_test=True):
+        debug_cmd = "do {debug_file};".format(debug_file=self.debug_file) if debug else "" 
+        debug_cmd += " exit;" if exit_after_test else ""
+        # simulation
+        modelsim_run_cmd = "vsim -c work.testbench -do \"run {test_delay} ns; {debug_cmd}\"".format(
+            debug_cmd=debug_cmd, test_delay=simulation_time)
+        Log.report(Log.Info, "simulation command:\n{}".format(modelsim_run_cmd))
+        sim_result = subprocess.call(modelsim_run_cmd, shell=True)
+        Log.report(Log.Info, "simulation result:{}".format(sim_result))
+        return sim_result
+
+class GHDLSimulation(HDLSimulation):
+    def elab(self):
+        # TODO/FIXME: a single file supported for now
+        output_file = self.source_file_list[0]
+        ghdl_elab_cmd = "ghdl -c --ieee=synopsys --std=08 {} -e testbench".format(output_file)
+        Log.report(Log.Info, "elaboration command:\n{}".format(ghdl_elab_cmd))
+        elab_result = subprocess.call(ghdl_elab_cmd, shell=True)
+        Log.report(Log.Info, "elaboration result:{}".format(elab_result))
+        return elab_result
+
+
+    def elab_and_run(self, simulation_time, debug=False, exit_after_test=True):
+        output_file = self.source_file_list[0]
+        ghdl_elab_run_cmd = "ghdl -c --ieee=synopsys --std=08 {} -r testbench --stop-time={}ns ".format(output_file, simulation_time)
+        Log.report(Log.Info, "simulation command:\n{}".format(ghdl_elab_run_cmd))
+        sim_result = subprocess.call(ghdl_elab_run_cmd, shell=True)
+        Log.report(Log.Info, "simulation result:{}".format(sim_result))
+        return sim_result
+
+
+
 ## Base class for all metalibm function (metafunction)
 class ML_EntityBasis(object):
   name = "entity_basis"
@@ -293,6 +355,8 @@ class ML_EntityBasis(object):
     self.build_enable = arg_template.build_enable
     # enable post-elaboration simulation
     self.execute_trigger = arg_template.execute_trigger
+
+    self.simulator = arg_template.simulator
 
     self.language = language
 
@@ -604,30 +668,24 @@ class ML_EntityBasis(object):
     # generate VHDL code to implement scheme
     self.generate_code(code_entity_list, language = self.language)
 
+    if self.simulator == "vsim":
+        simulation = ModelsimSimulation([self.output_file], self.debug_file)
+    elif self.simulator == "ghdl":
+        simulation = GHDLSimulation([self.output_file])
+    else:
+        Log.report(Log.Error, "unknown RTL elab and simulation tool: {}", self.simulator)
+
     if self.execute_trigger:
-      # rtl elaboration
-      print("Elaborating {}".format(self.output_file))
-      elab_cmd = "vlib work && vcom -2008 {}".format(self.output_file)
-      elab_result = subprocess.call(elab_cmd, shell = True)
-      print("Elaboration result: ", elab_result)
-      # debug cmd
-      debug_cmd = "do {debug_file};".format(debug_file = self.debug_file) if self.debug_flag else "" 
-      debug_cmd += " exit;" if self.exit_after_test else ""
-      # simulation
       test_delay = time_step * (self.stage_num + 2) * (self.auto_test_number + (len(self.standard_test_cases) if self.auto_test_std else 0) + 100) 
-      sim_cmd = "vsim -c work.testbench -do \"run {test_delay} ns; {debug_cmd}\"".format(entity = self.entity_name, debug_cmd = debug_cmd, test_delay = test_delay)
-      Log.report(Log.Info, "simulation command:\n{}".format(sim_cmd))
-      sim_result = subprocess.call(sim_cmd, shell = True)
+      sim_result = simulation.elab_and_run(test_delay, debug=self.debug_flag, exit_after_test=self.exit_after_test)
+      # rtl elaboration
       if sim_result:
         Log.report(Log.Error, "simulation failed [{}]".format(sim_result))
       else:
         Log.report(Log.Info, "simulation success")
 
     elif self.build_enable:
-      print("Elaborating {}".format(self.output_file))
-      elab_cmd = "vlib work && vcom -2008 {}".format(self.output_file)
-      Log.report(Log.Info, "elaboration command:\n{}".format(elab_cmd))
-      elab_result = subprocess.call(elab_cmd, shell = True)
+      elab_result = simulation.elab()
       if elab_result:
         Log.report(Log.Error, "failed to elaborate [{}]".format(elab_result))
       else:
