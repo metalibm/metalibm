@@ -61,7 +61,7 @@ from metalibm_core.core.ml_formats import (
 from metalibm_core.core.ml_hdl_format import (
     ML_StdLogicVectorFormat, ML_StdLogic,
     is_fixed_point,
-    HDL_FILE, HDL_LINE,
+    HDL_FILE, HDL_LINE, HDL_OPEN_FILE_STATUS,
 )
 
 from metalibm_core.code_generation.code_object import (
@@ -660,7 +660,7 @@ class ML_EntityBasis(object):
 
     Log.report(Log.Info, "Applying passes just before codegen")
     code_entity_list = self.pass_scheduler.get_full_execute_from_slot(
-      code_entity_list, 
+      code_entity_list,
       PassScheduler.JustBeforeCodeGen,
       entity_execute_pass
     )
@@ -900,23 +900,33 @@ class ML_EntityBasis(object):
             data_file.write(" ".join(cst_list) + "\n")
 
     input_stream = Variable("data_file", precision=HDL_FILE, var_type=Variable.Local)
+    file_status = Variable("file_status", precision=HDL_OPEN_FILE_STATUS, var_type=Variable.Local)
     FCT_EndFile = FunctionObject("endfile", [HDL_FILE], ML_Bool, FunctionOperator("endfile", arity=1)) 
     FCT_OpenFile = FunctionObject(
-        "FILE_OPEN", [HDL_FILE, ML_String], ML_Void,
+        "FILE_OPEN", [HDL_OPEN_FILE_STATUS, HDL_FILE, ML_String], ML_Void,
         FunctionOperator(
             "FILE_OPEN",
-            arg_map={0: FO_Arg(0), 1: FO_Arg(1), 2: "READ_MODE"},
+            arg_map={0: FO_Arg(0), 1: FO_Arg(1), 2: FO_Arg(2), 3: "READ_MODE"},
             void_function=True))
     FCT_ReadLine =  FunctionObject(
         "readline", [HDL_FILE, HDL_LINE], ML_Void,
         FunctionOperator("readline", void_function=True, arity=2))
 
     reset_statement = self.get_reset_statement(io_map, time_step)
+    OPEN_OK = Constant("OPEN_OK", precision=HDL_OPEN_FILE_STATUS)
 
     testbench = CodeEntity("testbench")
     test_process = Process(
         reset_statement,
-        FCT_OpenFile(input_stream, DATA_FILE_NAME),
+        FCT_OpenFile(file_status, input_stream, DATA_FILE_NAME),
+        ConditionBlock(
+            Comparison(file_status, OPEN_OK, specifier=Comparison.NotEqual),
+          Assert(
+            Constant(0, precision=ML_Bool),
+            " \"failed to open file {}\"".format(DATA_FILE_NAME),
+            severity=Assert.Failure
+          )
+        ),
         # consume legend line
         FCT_ReadLine(input_stream, input_line),
         WhileLoop(
@@ -932,8 +942,15 @@ class ML_EntityBasis(object):
       Assert(
         Constant(0, precision = ML_Bool),
         " \"end of test, no error encountered \"",
-        severity = Assert.Failure
-      )
+        severity = Assert.Warning
+      ),
+      # infinite end loop
+        WhileLoop(
+            Constant(1, precision=ML_Bool),
+            Statement(
+                Wait(time_step * (self.stage_num + 2)),
+            )
+        )
     )
 
     testbench_scheme = Statement(
@@ -1044,8 +1061,15 @@ class ML_EntityBasis(object):
       Assert(
         Constant(0, precision = ML_Bool),
         " \"end of test, no error encountered \"",
-        severity = Assert.Failure
-      )
+        severity = Assert.Warning
+      ),
+      # infinite end loop
+        WhileLoop(
+            Constant(1, precision=ML_Bool),
+            Statement(
+                Wait(time_step * (self.stage_num + 2)),
+            )
+        )
     )
 
     testbench_scheme = Statement(

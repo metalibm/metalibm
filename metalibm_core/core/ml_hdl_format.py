@@ -43,7 +43,7 @@ from .ml_formats import (
     VirtualFormat, get_virtual_cst,
     ML_StringClass, DisplayFormat,
 )
-from ..code_generation.code_constant import VHDL_Code
+from ..code_generation.code_constant import VHDL_Code, C_Code
 
 from ..utility.log_report import Log
 
@@ -342,3 +342,6 @@ def get_numeric_precision(precision, is_signed):
 HDL_FILE = ML_StringClass("file", DisplayFormat("%s"), lambda self, s: "\"{}\"".format(s)) 
 
 HDL_LINE = ML_StringClass("line",  DisplayFormat("%s"), lambda self, s: "\"{}\"".format(s)) 
+
+HDL_OPEN_FILE_STATUS = ML_StringClass("file_open_status", DisplayFormat("%s"), lambda self, s: "{}".format(s)) 
+HDL_OPEN_FILE_STATUS.get_cst_map[VHDL_Code] = HDL_OPEN_FILE_STATUS.get_cst_map[C_Code]
