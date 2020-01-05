@@ -95,14 +95,14 @@ new_scheme_function_list = [
     "floating-point division",
     metalibm_hw_blocks.ml_fp_div.FP_Divider,
     [
-        {},
+        {"build_enable": True},
     ]
   ),
   EntitySchemeTest(
     "bipartite approximation operator",
     metalibm_hw_blocks.bipartite_approx.BipartiteApprox,
     [
-        {},
+        {"build_enable": True},
     ]
   ),
   EntitySchemeTest(
@@ -119,17 +119,17 @@ new_scheme_function_list = [
     "multiplication array",
     mult_array.MultArray,
     [
-        {"op_expr": mult_array_parser("FS9.0xFS9.0+FU13.0")},
-        {"dummy_mode": True, "method": mult_array.ReductionMethod.Wallace},
+        {"op_expr": mult_array_parser("FS9.0xFS9.0+FU13.0"), "build_enable": True},
+        {"dummy_mode": True, "method": mult_array.ReductionMethod.Wallace, "build_enable": True},
         {"booth_mode": True, "method": mult_array.ReductionMethod.Dadda_4to2,
-         "op_expr": mult_array_parser("FS9.4xFS9.-2+FU13.3") },
+         "op_expr": mult_array_parser("FS9.4xFS9.-2+FU13.3") , "build_enable": True},
         {"dummy_mode": True, "method": mult_array.ReductionMethod.Wallace_4to2,
-         "op_expr": mult_array_parser("FS9.4xFS9.-2+FU13.3xFS3.3") },
-        {"booth_mode": True, "method": mult_array.ReductionMethod.Dadda},
+         "op_expr": mult_array_parser("FS9.4xFS9.-2+FU13.3xFS3.3") , "build_enable": True},
+        {"booth_mode": True, "method": mult_array.ReductionMethod.Dadda, "build_enable": True},
         # covering tag option
         {"dummy_mode": True, "method": mult_array.ReductionMethod.Wallace_4to2,
          "pipelined": True,
-         "op_expr": mult_array_parser("FS9.4xFS9.-2[0,mytag]+FU13.3[1,other_tag]") },
+         "op_expr": mult_array_parser("FS9.4xFS9.-2[0,mytag]+FU13.3[1,other_tag]") , "build_enable": True},
     ]
   ),
   EntitySchemeTest(
