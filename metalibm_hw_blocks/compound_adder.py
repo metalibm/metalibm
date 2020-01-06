@@ -56,17 +56,21 @@ from metalibm_core.core.ml_hdl_operations import Signal
 class CompoundAdder(ML_EntityBasis):
     entity_name = "compound_adder"
     @staticmethod
-    def get_default_args(entity_name="my_compound_adder"):
+    def get_default_args(entity_name="my_compound_adder", **kw):
+        DEFAULT_VALUES = {
+             "precision": fixed_point(34, 0, signed=False),
+             "debug_flag": False,
+             "target": vhdl_backend.VHDLBackend(),
+             "output_file": "my_compound_adder.vhd",
+             "io_formats": {"x": fixed_point(32, 0, signed=False), "y": fixed_point(32, 0, signed=False)},
+             "passes": ["beforepipelining:size_datapath", "beforepipelining:rtl_legalize", "beforepipelining:unify_pipeline_stages"],
+             "entity_name": entity_name,
+             "language": VHDL_Code,
+        }
+        DEFAULT_VALUES.update(kw)
         return DefaultEntityArgTemplate(
-             precision = ML_Int32,
-             debug_flag = False,
-             target = vhdl_backend.VHDLBackend(),
-             output_file = "my_compound_adder.vhd",
-             io_formats = {"x": fixed_point(32, 0, signed=False), "y": fixed_point(32, 0, signed=False)},
-             passes= ["beforepipelining:size_datapath", "beforepipelining:rtl_legalize", "beforepipelining:unify_pipeline_stages"],
-             entity_name = entity_name,
-             language = VHDL_Code,
-           )
+            **DEFAULT_VALUES,
+        )
 
     def __init__(self, arg_template=None):
         # building default arg_template if necessary
