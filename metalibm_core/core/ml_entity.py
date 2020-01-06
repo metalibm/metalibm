@@ -219,7 +219,7 @@ class HDLSimulation:
     def __init__(self, source_file_list):
         self.source_file_list = source_file_list
 
-    def elab(self):
+    def elab(self, entity_name=None):
         raise NotImplementedError
 
     def run(self, simulation_time, debug=False, exit_after_test=True):
@@ -236,7 +236,7 @@ class ModelsimSimulation(HDLSimulation):
     def __init__(self, source_file_list, debug_file=None):
         HDLSimulation.__init__(self, source_file_list)
         self.debug_file = debug_file
-    def elab(self):
+    def elab(self, entity_name=None):
         # TODO/FIXME: a single file supported for now
         output_file = self.source_file_list[0]
         modelsim_elab_cmd = "vlib work && vcom -2008 {}".format(output_file)
@@ -257,10 +257,10 @@ class ModelsimSimulation(HDLSimulation):
         return sim_result
 
 class GHDLSimulation(HDLSimulation):
-    def elab(self):
+    def elab(self, entity_name):
         # TODO/FIXME: a single file supported for now
         output_file = self.source_file_list[0]
-        ghdl_elab_cmd = "ghdl -c --ieee=synopsys --std=08 {} -e testbench".format(output_file)
+        ghdl_elab_cmd = "ghdl -c --ieee=synopsys --std=08 {} -e {} ".format(output_file, entity_name)
         Log.report(Log.Info, "elaboration command:\n{}".format(ghdl_elab_cmd))
         elab_result = subprocess.call(ghdl_elab_cmd, shell=True)
         Log.report(Log.Info, "elaboration result:{}".format(elab_result))
@@ -581,9 +581,9 @@ class ML_EntityBasis(object):
       debug_stream.close()
 
 
-  def gen_implementation(self, 
-			display_after_gen = False, 
-			display_after_opt = False, 
+  def gen_implementation(self,
+			display_after_gen = False,
+			display_after_opt = False,
 			enable_subexpr_sharing = True
 		):
     ## apply @p pass_object optimization pass
@@ -624,11 +624,11 @@ class ML_EntityBasis(object):
             negate_reset=self.negate_reset)
     else:
         self.stage_num = 1
-    Log.report(Log.Info, "there is/are {} pipeline stage(s)".format(self.stage_num)) 
+    Log.report(Log.Info, "there is/are {} pipeline stage(s)".format(self.stage_num))
 
     Log.report(Log.Info, "Applying passes just after pipelining")
     code_entity_list = self.pass_scheduler.get_full_execute_from_slot(
-      code_entity_list, 
+      code_entity_list,
       PassScheduler.AfterPipelining,
       entity_execute_pass
     )
@@ -638,7 +638,7 @@ class ML_EntityBasis(object):
 
     if self.auto_test_enable:
       code_entity_list += self.generate_auto_test(
-				test_num = self.auto_test_number if self.auto_test_number else 0, 
+				test_num = self.auto_test_number if self.auto_test_number else 0,
 				test_range = self.auto_test_range,
                 time_step = time_step
 			)
@@ -685,7 +685,7 @@ class ML_EntityBasis(object):
         Log.report(Log.Info, "simulation success")
 
     elif self.build_enable:
-      elab_result = simulation.elab()
+      elab_result = simulation.elab(self.entity_name)
       if elab_result:
         Log.report(Log.Error, "failed to elaborate [{}]".format(elab_result))
       else:
