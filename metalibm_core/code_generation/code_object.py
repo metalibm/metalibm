@@ -489,6 +489,9 @@ class CodeObject(CodeConfiguration):
     def add_comment(self, comment):
         """ add a full line comment """
         self << ("/* %s */\n" % comment)
+    def add_multiline_comment(self, comment):
+        self.add_comment(comment)
+
 
 class Gappa_Unknown(object):
     def __str__(self):
@@ -714,9 +717,9 @@ class VHDLCodeObject(CodeConfiguration):
         # generating header comments
         result += "--\n"
         for comment in self.header_comment:
-            result += "-- " + comment.replace("\n", "\n-- ") + "\n"
+            result += "-- " + comment.replace("\n", "\n--") + "\n"
         # TODO/FIXME: erase trailing white spaces properly
-        result.replace("-- \n", "--\n")
+        result.replace("--\n", "--\n")
         result += "--\n"
 
         for library_file in self.library_list:
@@ -858,8 +861,11 @@ class VHDLCodeObject(CodeConfiguration):
 
     def add_comment(self, comment):
         """ add a full line comment """
-        self << ("-- %s \n" % comment)
+        self << ("-- %s\n" % comment)
 
+    def add_multiline_comment(self, comment):
+        for line in comment.split("\n"):
+            if line != "": self.add_comment(line) 
 
 ## Nested code object
 #  language is derived from code_generator's language
@@ -929,6 +935,8 @@ class NestedCode(object):
 
     def add_comment(self, comment):
         self.code_list[0].add_comment(comment)
+    def add_multiline_comment(self, comment):
+        self.code_list[0].add_multiline_comment(comment)
 
     def open_level(self, extra_shared_tables=None, inc=True, var_ctor=None, header=None):
         """ Open a new level of code """
