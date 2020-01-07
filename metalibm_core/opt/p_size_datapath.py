@@ -680,14 +680,14 @@ class FormatSolver:
                     Log.Error,
                     "Conversion {} must have a defined format, has {}".format(
                         optree.get_str(),
-                        str(optree.get_precision())
+                        str(optree.get_precision(display_precision=True))
                     )
                 )
             else:
                 Log.report(
                     Log.Error,
                     "unsupported operation in solve_format_rec: {}".format(
-                        optree.get_str())
+                        optree.get_str(display_precision=True))
                 )
 
             # updating optree format
