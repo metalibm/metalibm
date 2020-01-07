@@ -318,7 +318,8 @@ def sub_signal_generator(optree):
             "%s({sup_index} {direction} {inf_index})".format(
                 inf_index=inf_index, direction=range_direction,
                 sup_index=sup_index
-            ), arity=1, force_folding=True
+            ), arity=1, force_folding=True,
+            no_parenthesis=True
         )
 
 def integer2fixed_conversion_modifier(optree):
@@ -1344,7 +1345,8 @@ vhdl_code_generation_table = {
                 type_custom_match(MCFixedPoint, MCFixedPoint):
                     ComplexOperator(optree_modifier = fixed_cast_legalizer),
                 type_custom_match(MCSTDLOGICV, MCSTDLOGICV):
-                    TransparentOperator()
+                    TransparentOperator(no_parenthesis=True)
+
             },
         },
     },
