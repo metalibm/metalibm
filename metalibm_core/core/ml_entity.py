@@ -51,7 +51,8 @@ from metalibm_core.core.ml_operations import (
     FunctionObject,
 )
 from metalibm_core.core.ml_hdl_operations import (
-    Process, Signal, Wait, Report, Concatenation, Assert
+    Process, Signal, Wait, Report, Concatenation, Assert,
+    multi_Concatenation,
 )
 from metalibm_core.core.ml_formats import (
     ML_Binary32, ML_Bool, ML_String, ML_FP_Format, ML_Fixed_Format,
@@ -179,20 +180,6 @@ def get_output_value_msg(output_signal, output_value):
     return value_msg
 
 
-def multi_Concatenation(*args, **kw):
-    """ multiple input concatenation """
-    num_args = len(args)
-    if num_args == 1:
-        return args[0]
-    else:
-        half_num = int(num_args / 2)
-        if not "precision" in kw:
-            kw.update(precision=ML_String)
-        return Concatenation(
-            multi_Concatenation(*args[:half_num]),
-            multi_Concatenation(*args[half_num:]),
-            **kw
-        )
 
 def signal_str_conversion(optree, op_format):
     """ converision of @p optree from op_format to ML_String """
