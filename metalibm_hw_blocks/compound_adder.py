@@ -50,8 +50,28 @@ from metalibm_core.utility.rtl_debug_utils import debug_dec
 
 
 from metalibm_core.core.ml_hdl_format import (
-    ML_StdLogicVectorFormat, fixed_point)
-from metalibm_core.core.ml_hdl_operations import Signal
+    ML_StdLogicVectorFormat, fixed_point, ML_StdLogic)
+from metalibm_core.core.ml_hdl_operations import (
+    Concatenation, multi_Concatenation,
+    Signal, SubSignalSelection, BitSelection)
+
+def vector_concatenation(*args):
+    """ Concatenate a list of signals of arbitrary length into
+        a single ML_StdLogicVectorFormat node whose correct precision set """
+    num_args = len(args)
+    if num_args == 1:
+        return args[0]
+    else:
+        half_num = int(num_args / 2)
+        lhs = vector_concatenation(*args[:half_num])
+        rhs = vector_concatenation(*args[half_num:])
+        return Concatenation(
+            lhs,
+            rhs,
+            precision=ML_StdLogicVectorFormat(
+                lhs.get_precision().get_bit_size() + rhs.get_precision().get_bit_size()
+            )
+        )
 
 class CompoundAdder(ML_EntityBasis):
     entity_name = "compound_adder"
@@ -111,13 +131,111 @@ class CompoundAdder(ML_EntityBasis):
         # retrieving I/Os
         vx, vy = self.generate_interfaces()
 
+        # carry-select
+        def rec_add(op_x, op_y, level=0):
+            n_x = op_x.get_precision().get_bit_size()
+            n_y = op_y.get_precision().get_bit_size()
+            n = max(n_x, n_y)
+            if n == 1:
+                # end of recursion
+                def LSB(op): return BitSelection(op, 0)
+                bit_x = LSB(op_x)
+                bit_y = LSB(op_y)
+                return (
+                    # add
+                    Conversion(BitLogicXor(bit_x, bit_y, precision=ML_StdLogic), precision=ML_StdLogicVectorFormat(1)),
+                    # add + 1
+                    Conversion(BitLogicNegate(BitLogicXor(bit_x, bit_y, precision=ML_StdLogic), precision=ML_StdLogic), precision=ML_StdLogicVectorFormat(1)),
+                    # generate
+                    BitLogicAnd(bit_x, bit_y, precision=ML_StdLogic),
+                    # propagate
+                    BitLogicXor(bit_x, bit_y, precision=ML_StdLogic)
+                )
+
+            half_n = int(n / 2)
+            def subdivide(op, split_index_list):
+                """ subdivide op node in len(split_index_list) + 1 slices
+                    [0 to split_index_list[0]],
+                    [split_index_list[0] + 1: split_index_list[1]], .... """
+                n = op.get_precision().get_bit_size()
+                sub_list = []
+                lo_index = 0
+                hi_index = None
+                for s in split_index_list:
+                    if lo_index >= n:
+                        break
+                    hi_index = min(s, n -1)
+                    local_slice = SubSignalSelection(op, lo_index, hi_index) #, precision=fixed_point(hi_index - lo_index + 1, 0, signed=False))
+                    sub_list.append(local_slice)
+                    # key invariant to allow adding multiple subdivision together:
+                    # the LSB weight must be uniform
+                    lo_index = s + 1
+                if hi_index < n - 1:
+                    local_slice = SubSignalSelection(op, lo_index, n - 1)
+                    sub_list.append(local_slice)
+                # padding list
+                while len(sub_list) < len(split_index_list) + 1:
+                    sub_list.append(Constant(0))
+                return sub_list
+
+            x_slices = subdivide(op_x, [half_n - 1])
+            y_slices = subdivide(op_y, [half_n - 1])
+
+            # list of (x + y), (x + y + 1), generate, propagate
+            add_slices = [rec_add(sub_x, sub_y, level=level+1) for sub_x, sub_y in zip(x_slices, y_slices)]
+
+            NUM_SLICES = len(add_slices)
+
+            def tree_reduce(gen_list, prop_list):
+                return LogicalOr(gen_list[-1], LogicalAnd(prop_list[-1], tree_reduce(gen_list[:-1], prop_list[:-1])))
+
+            add_list = [op[0] for op in add_slices]
+            addp1_list = [op[1] for op in add_slices]
+            generate_list = [op[2] for op in add_slices]
+            propagate_list = [op[3] for op in add_slices]
+
+            carry_propagate = [propagate_list[0]]
+            carry_generate = [generate_list[0]]
+            add_result = [add_list[0]]
+            addp1_result = [addp1_list[0]]
+            for i in range(1, NUM_SLICES):
+                def sub_name(prefix, index):
+                    return "%s_%d_%d" % (prefix, level, index)
+                carry_propagate.append(BitLogicAnd(propagate_list[i], carry_propagate[i-1], tag=sub_name("carry_propagate", i), precision=ML_StdLogic))
+                carry_generate.append(BitLogicOr(generate_list[i], BitLogicAnd(propagate_list[i], carry_generate[i-1], precision=ML_StdLogic), tag=sub_name("carry_generate", i), precision=ML_StdLogic))
+                add_result.append(Select(carry_generate[i-1], addp1_list[i], add_list[i], tag=sub_name("add_result", i), precision=addp1_list[i].get_precision()))
+                addp1_result.append(Select(BitLogicOr(carry_propagate[i-1], carry_generate[i-1], precision=ML_StdLogic), addp1_list[i], add_list[i], tag=sub_name("addp1_result", i), precision=addp1_list[i].get_precision()))
+            add_result_full = vector_concatenation(
+                    #Conversion(carry_generate[-1], precision=ML_StdLogicVectorFormat(1)),
+                    *tuple(add_result[::-1]))
+            addp1_result_full = vector_concatenation(
+                    #Conversion(BitLogicOr(carry_generate[-1], carry_propagate[-1], precision=ML_StdLogic), precision=ML_StdLogicVectorFormat(1)),
+                    *tuple(addp1_result[::-1]))
+            return add_result_full, addp1_result_full, carry_generate[-1], carry_propagate[-1]
+
+        pre_add, pre_addp1, last_generate, last_propagate = rec_add(vx, vy)
+        # concatenating final carry
+        add = vector_concatenation(Conversion(last_generate, precision=ML_StdLogicVectorFormat(1)), pre_add)
+        addp1 = vector_concatenation(
+            Conversion(BitLogicOr(last_generate, last_propagate, precision=ML_StdLogic), precision=ML_StdLogicVectorFormat(1)),
+            pre_addp1)
         dummy_add_r = Signal("add_r", precision=self.precision, var_type=Variable.Local)
         dummy_addp1_r = Signal("add_process", precision=self.precision, var_type=Variable.Local)
 
-        self.implementation.set_output_signal("add_r", Conversion(vx + vy, precision=self.precision))
-        self.implementation.set_output_signal("addp1_r", Conversion(vx + vy + 1, precision=self.precision))
+        cvt_add = Conversion(TypeCast(add, precision=fixed_point(add.get_precision().get_bit_size(), 0, signed=False)), precision=self.precision)
+        cvt_addp1 = Conversion(TypeCast(addp1, precision=fixed_point(addp1.get_precision().get_bit_size(), 0, signed=False)), precision=self.precision)
+
+        self.implementation.set_output_signal("add_r", cvt_add)
+        self.implementation.set_output_signal("addp1_r", cvt_addp1)
 
         return [self.implementation]
+
+    standard_test_cases = [
+        #({"x": 0xa, "y": 0x6}, None),
+        #({"x": 0xa1, "y": 0x6d}, None),
+        #({"x": 0x244f40a, "y": 0x8a768c6d}, None),
+        #({"x": 0x5529922f, "y": 0xd18e7c}, None),
+    ]
 
 
 Log.report(Log.Info, "installing CompoundAdder legalizer in vhdl backend")
