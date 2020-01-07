@@ -418,6 +418,20 @@ def UnsignedSubtraction(lhs, rhs, **kw):
 def UnsignedMultiplication(lhs, rhs, **kw):
   return UnsignedOperation(lhs, rhs, Multiplication, **kw)
 
+def multi_Concatenation(*args, **kw):
+    """ multiple input concatenation """
+    num_args = len(args)
+    if num_args == 1:
+        return args[0]
+    else:
+        half_num = int(num_args / 2)
+        if not "precision" in kw:
+            kw.update(precision=ML_String)
+        return Concatenation(
+            multi_Concatenation(*args[:half_num], **kw),
+            multi_Concatenation(*args[half_num:], **kw),
+            **kw
+        )
 
 ## @} 
 # end of metalibm's Doxygen ml_hdl_operations group
