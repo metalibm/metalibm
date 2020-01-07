@@ -810,6 +810,14 @@ def bit_selection_legalizer(optree):
     else:
         return optree
 
+def bit_to_vector_conversion(optree):
+    """ legalize a  std_logic to std_logic_vector(0 downto 0) """
+    op_input = optree.get_input(0)
+    assert optree.get_precision().get_bit_size() == 1
+    result = Signal("conv", precision=optree.get_precision(), var_type=Variable.Local)
+    vector_assign = ReferenceAssign(BitSelection(result, 0), op_input)
+    return PlaceHolder(result, vector_assign)
+
 
 def conversion_legalizer(optree):
     """ Legalize conversion operation. Currently supports
@@ -1203,6 +1211,8 @@ vhdl_code_generation_table = {
             lambda optree: True: {
                 type_custom_match(TCM(ML_StdLogicVectorFormat), FSM(ML_Integer)):
                     DynamicOperator(conversion_generator),
+                type_custom_match(TCM(ML_StdLogicVectorFormat), FSM(ML_StdLogic)):
+                    ComplexOperator(optree_modifier=bit_to_vector_conversion),
                 type_custom_match(MCSTDLOGICV, MCSTDLOGICV):
                     ComplexOperator(optree_modifier = conversion_legalizer),
                 type_strict_match(ML_StdLogic, ML_Bool):
