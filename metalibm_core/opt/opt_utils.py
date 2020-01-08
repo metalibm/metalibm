@@ -76,7 +76,13 @@ def evaluate_range(optree):
 
 
 def forward_attributes(src, dst):
-    """ forward compatible attributes from src node to dst node """
+    """ forward compatible attributes from src node to dst node
+
+        :param src: source source for attributes values
+        :type src: ML_Operation
+        :param dst: destination node for attributes copies
+        :type dst: ML_Operation
+    """
     dst.set_tag(src.get_tag())
     dst.set_debug(src.get_debug())
     dst.set_handle(src.get_handle())
