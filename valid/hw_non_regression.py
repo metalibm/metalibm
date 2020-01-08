@@ -136,7 +136,8 @@ new_scheme_function_list = [
     "compound adder",
     compound_adder.CompoundAdder,
     [
-        {"auto_test": 10, "execute_trigger": True, "simulator": "ghdl"},
+        {"auto_test": 100, "execute_trigger": True, "simulator": "ghdl"},
+        {"decorate_code": True, "build_enable": True, "simulator": "ghdl"},
     ]
   ),
 ]
