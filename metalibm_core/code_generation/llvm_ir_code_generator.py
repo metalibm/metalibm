@@ -443,7 +443,7 @@ class LLVMIRCodeGenerator(object):
           result.strip_outer_parenthesis()
         return result
 
-    def generate_code_assignation(self, code_object, result_var, expr_code, final=True):
+    def generate_code_assignation(self, code_object, result_var, expr_code, final=True, original_node=None):
         return self.generate_assignation(result_var, expr_code, final=final)
 
     def generate_assignation(self, result_var, expression_code, final=True, precision=None):

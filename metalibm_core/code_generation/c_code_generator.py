@@ -326,7 +326,7 @@ class CCodeGenerator(object):
         #generate_pre_process(code_generator, code_object, optree, var_arg_list, **kwords)
         self.generate_expr(code_object, ClearException(), language = language)
 
-    def generate_code_assignation(self, code_object, result_var, expr_code, final=True):
+    def generate_code_assignation(self, code_object, result_var, expr_code, final=True, original_node=None):
         return self.generate_assignation(result_var, expr_code, final=final)
 
 
