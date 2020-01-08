@@ -361,6 +361,8 @@ class ML_EntityBasis(object):
     self.display_after_gen = arg_template.display_after_gen
     self.display_after_opt = arg_template.display_after_opt
 
+    self.decorate_code=arg_template.decorate_code
+
 
     # target selection
     self.backend = backend
@@ -377,7 +379,7 @@ class ML_EntityBasis(object):
 
     self.implementation = CodeEntity(self.entity_name)
 
-    self.vhdl_code_generator = VHDLCodeGenerator(self.backend, declare_cst = False, disable_debug = not self.debug_flag, language = self.language)
+    self.vhdl_code_generator = VHDLCodeGenerator(self.backend, declare_cst = False, disable_debug = not self.debug_flag, language = self.language, decorate_code=self.decorate_code)
     uniquifier = self.entity_name
     self.main_code_object = NestedCode(
         self.vhdl_code_generator, static_cst=False,

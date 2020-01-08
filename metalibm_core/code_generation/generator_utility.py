@@ -303,7 +303,7 @@ class IdentityOperator(ML_CG_Operator):
             result_varname = result_var if result_var != None else code_object.get_free_var_name(optree.get_precision(), prefix = prefix)
             if generate_pre_process != None:
                 generate_pre_process(code_generator, code_object, optree, var_arg_list, **kwords)
-            code_object << code_generator.generate_code_assignation(code_object, result_varname, result_code) 
+            code_object << code_generator.generate_code_assignation(code_object, result_varname, result_code, original_node=optree) 
             return CodeVariable(result_varname, optree.get_precision())
         else:
             if self.no_parenthesis:
@@ -392,7 +392,7 @@ class SymbolOperator(ML_CG_Operator):
             result_varname = result_var if result_var != None else code_object.get_free_var_name(optree.get_precision(), prefix = prefix)
             if generate_pre_process != None:
                 generate_pre_process(code_generator, code_object, optree, var_arg_list, **kwords)
-            code_object << code_generator.generate_code_assignation(code_object, result_varname, result_code) 
+            code_object << code_generator.generate_code_assignation(code_object, result_varname, result_code, original_node=optree) 
             return CodeVariable(result_varname, optree.get_precision())
         else:
             if self.no_parenthesis:
@@ -714,7 +714,7 @@ class FunctionOperator(ML_CG_Operator):
               result_varname = result_var if result_var != None else code_object.get_free_var_name(optree.get_precision(), prefix = prefix)
               if generate_pre_process != None:
                   generate_pre_process(code_generator, code_object, optree, var_arg_list, **kwords)
-              code_object << code_generator.generate_code_assignation(code_object, result_varname, result_code) 
+              code_object << code_generator.generate_code_assignation(code_object, result_varname, result_code, original_node=optree) 
               return CodeVariable(result_varname, optree.get_precision())
           else:
               return CodeExpression("%s" % result_code, optree.get_precision())
@@ -864,7 +864,7 @@ class RoundOperator(FunctionOperator):
                 result_varname = result_var if result_var != None else code_object.get_free_var_name(optree.get_precision(), prefix = prefix)
                 if generate_pre_process != None:
                     generate_pre_process(code_generator, code_object, optree, var_arg_list, **kwords)
-                code_object << code_generator.generate_code_assignation(code_object, result_varname, result_code) 
+                code_object << code_generator.generate_code_assignation(code_object, result_varname, result_code, original_node=optree) 
                 return CodeVariable(result_varname, optree.get_precision())
             else:
                 return CodeExpression("%s" % result_code, optree.get_precision())

@@ -67,13 +67,16 @@ class VHDLCodeGenerator(object):
     language = C_Code
 
     """ C language code generator """
-    def __init__(self, processor, declare_cst = False, disable_debug = False, libm_compliant = False, default_silent = None, language = C_Code):
+    def __init__(self, processor, declare_cst = False, disable_debug = False,
+                 libm_compliant=False, default_silent=None, language=C_Code,
+                 decorate_code=False):
         self.memoization_map = [{}]
         self.processor = processor
         self.declare_cst = declare_cst
         self.disable_debug = disable_debug
         self.libm_compliant = libm_compliant
         self.language = language
+        self.decorate_code = decorate_code
         # memoization map for debug wrappers
         self.debug_map = {}
         Log.report(Log.Info, "VHDLCodeGenerator initialized with language: %s" % self.language)
@@ -125,7 +128,7 @@ class VHDLCodeGenerator(object):
                 result_precision = result.precision
                 prefix_tag = optree.get_tag(default="var_result") if force_variable_storing  else "tmp_result" 
                 final_var = result_var if result_var else code_object.get_free_var_name(result_precision, prefix=prefix_tag, declare=True)
-                code_object << self.generate_code_assignation(code_object, final_var, result.get())
+                code_object << self.generate_code_assignation(code_object, final_var, result.get(), original_node=optree)
                 result = CodeVariable(final_var, result_precision)
             return result
 
@@ -530,7 +533,7 @@ class VHDLCodeGenerator(object):
             result_precision = result.precision
             prefix_tag = optree.get_tag(default="var_result") if force_variable_storing  else "tmp_result"
             final_var = result_var if result_var else code_object.get_free_var_name(result_precision, prefix = prefix_tag, declare = True)
-            code_object << self.generate_code_assignation(code_object, final_var, result.get())
+            code_object << self.generate_code_assignation(code_object, final_var, result.get(), original_node=optree)
             return CodeVariable(final_var, result_precision)
 
         return result
@@ -539,12 +542,14 @@ class VHDLCodeGenerator(object):
         #generate_pre_process(code_generator, code_object, optree, var_arg_list, **kwords)
         self.generate_expr(code_object, ClearException(), language = language)
 
-    def generate_code_assignation(self, code_object, result_var, expression_code, final=True, assign_sign=None):
+    def generate_code_assignation(self, code_object, result_var, expression_code, final=True, assign_sign=None, original_node=None):
         assign_sign_map = {
             Signal: "<=",
             Variable: ":=",
             None: "<="
         }
+        if self.decorate_code and not original_node is None:
+            code_object.add_multiline_comment(original_node.get_str(depth=2, display_precision=True))
         assign_sign = assign_sign or assign_sign_map[code_object.default_var_ctor]
         return self.generate_assignation(result_var, expression_code, final=final, assign_sign = assign_sign)
         
@@ -651,7 +656,7 @@ class VHDLCodeGenerator(object):
             )
           final_var = code_object.get_free_signal_name(optree.get_precision(), prefix = "dbg_"+ optree.get_tag())
           #code_object << "{} <= {};\n".format(final_var, result.get())
-          code_object << self.generate_code_assignation(code_object, final_var, result.get())
+          code_object << self.generate_code_assignation(code_object, final_var, result.get(), original_node=optree)
           result = CodeVariable(final_var, optree.get_precision())
         signal_name = "testbench.tested_entity.{}".format(result.get())
         # display_result = debug_object.get_pre_process(result.get(), optree) if isinstance(debug_object, ML_Debug) else result.get()
