@@ -505,6 +505,8 @@ class DefaultEntityArgTemplate(DefaultArgTemplate):
     recirculate_pipeline = False
     recirculate_signal_map = {}
 
+    decorate_code = False
+
 
 
 # Common ancestor for Argument Template class
@@ -808,6 +810,11 @@ class ML_EntityArgTemplate(ML_CommonArgTemplate):
             choices = ["vsim", "ghdl"],
             default=default_arg.simulator,
             help="select RTL elaboration and simulation tool")
+        self.parser.add_argument(
+            "--decorate-code", dest="decorate_code",
+            action="store_const", const=True,
+            default=default_arg.decorate_code,
+            help="enable code decoration with original operaiton graph")
 
 
 # new argument template based on argparse module
