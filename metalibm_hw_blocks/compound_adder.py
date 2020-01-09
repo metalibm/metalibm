@@ -52,6 +52,7 @@ from metalibm_core.utility.rtl_debug_utils import debug_dec
 from metalibm_core.core.ml_hdl_format import (
     ML_StdLogicVectorFormat, fixed_point, ML_StdLogic)
 from metalibm_core.core.ml_hdl_operations import (
+    logical_reduce,
     Concatenation, multi_Concatenation,
     Signal, SubSignalSelection, BitSelection)
 
@@ -86,6 +87,7 @@ class CompoundAdder(ML_EntityBasis):
              "passes": ["beforepipelining:size_datapath", "beforepipelining:rtl_legalize", "beforepipelining:unify_pipeline_stages"],
              "entity_name": entity_name,
              "language": VHDL_Code,
+             "lower_limit": 1,
         }
         DEFAULT_VALUES.update(kw)
         return DefaultEntityArgTemplate(
@@ -104,6 +106,7 @@ class CompoundAdder(ML_EntityBasis):
 
         self.accuracy  = arg_template.accuracy
         self.precision = arg_template.precision
+        self.lower_limit = arg_template.lower_limit
 
     def numeric_emulate(self, io_map):
         vx = io_map["x"]
@@ -132,25 +135,41 @@ class CompoundAdder(ML_EntityBasis):
         vx, vy = self.generate_interfaces()
 
         # carry-select
-        def rec_add(op_x, op_y, level=0):
+        def rec_add(op_x, op_y, level=0, lower_limit=1):
+            print("calling rec_add")
             n_x = op_x.get_precision().get_bit_size()
             n_y = op_y.get_precision().get_bit_size()
             n = max(n_x, n_y)
-            if n == 1:
-                # end of recursion
-                def LSB(op): return BitSelection(op, 0)
-                bit_x = LSB(op_x)
-                bit_y = LSB(op_y)
-                return (
-                    # add
-                    Conversion(BitLogicXor(bit_x, bit_y, precision=ML_StdLogic), precision=ML_StdLogicVectorFormat(1)),
-                    # add + 1
-                    Conversion(BitLogicNegate(BitLogicXor(bit_x, bit_y, precision=ML_StdLogic), precision=ML_StdLogic), precision=ML_StdLogicVectorFormat(1)),
-                    # generate
-                    BitLogicAnd(bit_x, bit_y, precision=ML_StdLogic),
-                    # propagate
-                    BitLogicXor(bit_x, bit_y, precision=ML_StdLogic)
-                )
+            if n <= lower_limit:
+                if n == 1:
+                    # end of recursion
+                    def LSB(op): return BitSelection(op, 0)
+                    bit_x = LSB(op_x)
+                    bit_y = LSB(op_y)
+                    return (
+                        # add
+                        Conversion(BitLogicXor(bit_x, bit_y, precision=ML_StdLogic), precision=ML_StdLogicVectorFormat(1)),
+                        # add + 1
+                        Conversion(BitLogicNegate(BitLogicXor(bit_x, bit_y, precision=ML_StdLogic), precision=ML_StdLogic), precision=ML_StdLogicVectorFormat(1)),
+                        # generate
+                        BitLogicAnd(bit_x, bit_y, precision=ML_StdLogic),
+                        # propagate
+                        BitLogicXor(bit_x, bit_y, precision=ML_StdLogic)
+                    )
+                else:
+                    numeric_x = TypeCast(op_x, precision=fixed_point(n_x, 0, signed=False))
+                    numeric_y = TypeCast(op_y, precision=fixed_point(n_y, 0, signed=False))
+                    pre_add = numeric_x + numeric_y
+                    pre_addp1 = pre_add + 1
+                    add = SubSignalSelection(pre_add, 0, n - 1)
+                    addp1 = SubSignalSelection(pre_addp1, 0, n - 1)
+                    generate = BitSelection(pre_add, n)
+                    # TODO/FIXME: padd when op_x's size does not match op_y' size
+                    bitwise_xor = BitLogicXor(op_x, op_y, precision=ML_StdLogicVectorFormat(n))
+                    op_list = [BitSelection(bitwise_xor, i) for i in range(n)]
+                    propagate = logical_reduce(op_list, op_ctor=BitLogicAnd, precision=ML_StdLogic)
+
+                    return add, addp1, generate, propagate
 
             half_n = int(n / 2)
             def subdivide(op, split_index_list):
@@ -181,8 +200,9 @@ class CompoundAdder(ML_EntityBasis):
             x_slices = subdivide(op_x, [half_n - 1])
             y_slices = subdivide(op_y, [half_n - 1])
 
+
             # list of (x + y), (x + y + 1), generate, propagate
-            add_slices = [rec_add(sub_x, sub_y, level=level+1) for sub_x, sub_y in zip(x_slices, y_slices)]
+            add_slices = [rec_add(sub_x, sub_y, level=level+1, lower_limit=lower_limit) for sub_x, sub_y in zip(x_slices, y_slices)]
 
             NUM_SLICES = len(add_slices)
 
@@ -213,7 +233,7 @@ class CompoundAdder(ML_EntityBasis):
                     *tuple(addp1_result[::-1]))
             return add_result_full, addp1_result_full, carry_generate[-1], carry_propagate[-1]
 
-        pre_add, pre_addp1, last_generate, last_propagate = rec_add(vx, vy)
+        pre_add, pre_addp1, last_generate, last_propagate = rec_add(vx, vy, lower_limit=self.lower_limit)
         # concatenating final carry
         add = vector_concatenation(Conversion(last_generate, precision=ML_StdLogicVectorFormat(1)), pre_add)
         addp1 = vector_concatenation(
@@ -247,6 +267,11 @@ if __name__ == "__main__":
         default_entity_name="compound_adder",
         default_output_file="compound_adder.vhd",
         default_arg=CompoundAdder.get_default_args())
+
+    arg_template.parser.add_argument(
+        "--lower-limit", action="store",
+        default=1, type=int,
+        help="set the minimum sub-slice width before a standard unexpanded Adder is used")
 
     # argument extraction
     args = parse_arg_index_list = arg_template.arg_extraction()
