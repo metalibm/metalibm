@@ -130,6 +130,9 @@ class VHDLCodeGenerator(object):
                 final_var = result_var if result_var else code_object.get_free_var_name(result_precision, prefix=prefix_tag, declare=True)
                 code_object << self.generate_code_assignation(code_object, final_var, result.get(), original_node=optree)
                 result = CodeVariable(final_var, result_precision)
+                # update memoized value
+                self.add_memoization(optree, result)
+
             return result
 
         result = None
