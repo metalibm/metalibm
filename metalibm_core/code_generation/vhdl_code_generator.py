@@ -394,7 +394,7 @@ class VHDLCodeGenerator(object):
                 Log.report(Log.Error, "last condition in flatten select differs from None")
 
              gen_list = []
-             for op, cond in select_opcond_list: 
+             for op, cond in select_opcond_list:
                op = legalize_select_input(op)
                op_code = self.generate_expr(code_object, op, folded = folded, language = language)
                if not cond is None:
@@ -433,48 +433,9 @@ class VHDLCodeGenerator(object):
 
             code_object << "\t{} when others;\n".format(table.get_precision().get_storage_precision().get_cst(default_value))
 
-             # result is set 
-
-
-        elif isinstance(optree, Return):
-            return_result = optree.inputs[0]
-            return_code = self.generate_expr(code_object, return_result, folded = folded, language = language)
-            code_object << "return %s;\n" % return_code.get()
-            return None #return_code
-
-        elif isinstance(optree, ExceptionOperation):
-            if optree.get_specifier() in [ExceptionOperation.RaiseException, ExceptionOperation.ClearException, ExceptionOperation.RaiseReturn]:
-                result_code = self.processor.generate_expr(self, code_object, optree, optree.inputs, folded = False, result_var = result_var, language = language)
-                code_object << "%s;\n" % result_code.get()
-                if optree.get_specifier() == ExceptionOperation.RaiseReturn:
-                    if self.libm_compliant:
-                        # libm compliant exception management
-                        code_object.add_header("support_lib/ml_libm_compatibility.h")
-                        return_value = self.generate_expr(code_object, optree.get_return_value(), folded = folded, language = language)
-                        arg_value = self.generate_expr(code_object, optree.get_arg_value(), folded = folded, language = language)
-                        function_name = optree.function_name
-                        exception_list = [op.get_value() for op in optree.inputs]
-                        if ML_FPE_Inexact in exception_list:
-                            exception_list.remove(ML_FPE_Inexact)
-
-                        if len(exception_list) > 1:
-                            raise NotImplementedError
-                        if ML_FPE_Overflow in exception_list:
-                            code_object << "return ml_raise_libm_overflowf(%s, %s, \"%s\");\n" % (return_value.get(), arg_value.get(), function_name)
-                        elif ML_FPE_Underflow in exception_list:
-                            code_object << "return ml_raise_libm_underflowf(%s, %s, \"%s\");\n" % (return_value.get(), arg_value.get(), function_name)
-                        elif ML_FPE_Invalid in exception_list:
-                            code_object << "return %s;\n" % return_value.get() 
-                    else:
-                        return_precision = optree.get_return_value().get_precision()
-                        self.generate_expr(code_object, Return(optree.get_return_value(), precision = return_precision), folded = folded, language = language)
-                return None
-            else:
-                result = self.processor.generate_expr(self, code_object, optree, optree.inputs, folded = folded, result_var = result_var, language = language)
-
         elif isinstance(optree, NoResultOperation):
             result_code = self.processor.generate_expr(self, code_object, optree, optree.inputs, folded = False, result_var = result_var, language = language)
-            code_object << "%s;\n" % result_code.get() 
+            code_object << "%s;\n" % result_code.get()
             return None
 
         elif isinstance(optree, Statement):
@@ -520,7 +481,10 @@ class VHDLCodeGenerator(object):
 
             # processing main node
             generate_pre_process = self.generate_clear_exception if optree.get_clearprevious() else None
-            result = self.processor.generate_expr(self, code_object, optree, optree.inputs, generate_pre_process = generate_pre_process, folded = folded, result_var = result_var, language = language)
+            result = self.processor.generate_expr(
+                self, code_object, optree,
+                optree.inputs, generate_pre_process=generate_pre_process,
+                folded=folded, result_var=result_var, language=language)
 
         # registering result into memoization table
         self.add_memoization(optree, result)
@@ -546,19 +510,37 @@ class VHDLCodeGenerator(object):
         self.generate_expr(code_object, ClearException(), language = language)
 
     def generate_code_assignation(self, code_object, result_var, expression_code, final=True, assign_sign=None, original_node=None):
+        """ Generate the code to assign a rvalue expression to an lvalue
+            result_var
+
+            :param code_object: target code object
+            :type code_object: CodeObject
+            :param result_var: lvalue variable which is assigned a new value
+            :type result_var: CodeVariable
+            :param expression_code: rvalue being assigned
+            :type expression_code: CodeExpression
+            :param final: flag to indicate whether this assignation is the onlye
+                          one on the current source code line
+            :type final: bool
+            :param assign_sign: assignation symbol to be used if defined
+            :param original_node: operation node which was generated to the rvalue
+            :type original_node: ML_Operation
+        """
         assign_sign_map = {
             Signal: "<=",
             Variable: ":=",
             None: "<="
         }
         if self.decorate_code and not original_node is None:
-            code_object.add_multiline_comment(original_node.get_str(depth=2, display_precision=True))
+            code_decoration = original_node.get_str(depth=2, display_precision=True)
+            code_object.add_multiline_comment(code_decoration)
         assign_sign = assign_sign or assign_sign_map[code_object.default_var_ctor]
-        return self.generate_assignation(result_var, expression_code, final=final, assign_sign = assign_sign)
-        
+        return self.generate_assignation(result_var, expression_code,
+                                         final=final, assign_sign=assign_sign)
+
 
     def generate_assignation(self, result_var, expression_code, final = True, assign_sign = "<="):
-        """ generate code for assignation of value <expression_code> to 
+        """ generate code for assignation of value <expression_code> to
             variable <result_var> """
         final_symbol = ";\n" if final else ""
         return "{result} {assign_sign} {expr}{final_symbol}".format(
@@ -568,28 +550,38 @@ class VHDLCodeGenerator(object):
             final_symbol = final_symbol
         )
 
-    def generate_untied_statement(self, expression_code, final = True):
-      final_symbol = ";\n" if final else ""
-      return "%s%s" % (expression_code, final_symbol) 
+    def generate_untied_statement(self, expression_code, final=True):
+        """ Generation of the code string corresponding to an untied piece
+            of code (e.g. used for functioncall with
+            result as one of the function argument)
+
+            :param expression_code: code to be generated
+            :type expression_code: str
+            :param final: flag indicating whether this statement is alone on its
+                          line of code
+            :return: code string representing the untied statement
+            :rtype: str """
+        final_symbol = ";\n" if final else ""
+        return "%s%s" % (expression_code, final_symbol)
 
 
     def generate_declaration(self, symbol, symbol_object, initial = True, final = True):
         if isinstance(symbol_object, Constant):
             precision_symbol = (symbol_object.get_precision().get_code_name(language = self.language) + " ") 
-            final_symbol = ";\n" 
+            final_symbol = ";\n"
             return "constant %s : %s := %s%s" % (symbol, precision_symbol, symbol_object.get_precision().get_cst(symbol_object.get_value(), language = self.language), final_symbol) 
 
         elif isinstance(symbol_object, Variable):
             var_format = symbol_object.get_precision()
             if var_format is HDL_FILE:
-                return "file %s : TEXT;\n" % (symbol) 
+                return "file %s : TEXT;\n" % (symbol)
             else:
                 precision_symbol = (var_format.get_code_name(language = self.language) + " ")
-                return "variable %s : %s;\n" % (symbol, precision_symbol) 
+                return "variable %s : %s;\n" % (symbol, precision_symbol)
 
         elif isinstance(symbol_object, Signal):
             precision_symbol = (symbol_object.get_precision().get_code_name(language = self.language) + " ") if initial else ""
-            return "signal %s : %s;\n" % (symbol, precision_symbol) 
+            return "signal %s : %s;\n" % (symbol, precision_symbol)
 
         elif isinstance(symbol_object, ML_Table):
             initial_symbol = (symbol_object.get_definition(symbol, final = "", language = self.language) + " ") if initial else ""
