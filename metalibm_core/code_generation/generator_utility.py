@@ -700,6 +700,8 @@ class FunctionOperator(ML_CG_Operator):
         result_code = self.generate_call_code(result_arg_list)
 
         if result_in_args:
+          # if the Function result is one of the function argument
+          # they function call must be generated as an untied statement
           code_object << code_generator.generate_untied_statement(result_code)
           return result_in_args
 
