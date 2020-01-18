@@ -198,10 +198,6 @@ def special_value_add(lhs, rhs):
         return rhs
     elif is_number(lhs) and is_number(rhs):
         return lhs + rhs
-    elif is_sv_omega(lhs):
-        return lhs.get_value() + rhs
-    elif is_sv_omega(rhs):
-        return lhs + rhs.get_value()
     else:
         raise NotImplementedError
 
@@ -224,10 +220,6 @@ def special_value_sub(lhs, rhs):
     elif is_infty(lhs):
         # invalid inf - inf excluded previous
         return lhs
-    elif is_sv_omega(lhs):
-        return lhs.get_value() - rhs
-    elif is_sv_omega(rhs):
-        return lhs - rhs.get_value()
     elif is_infty(rhs):
         return -rhs
     else:
@@ -271,10 +263,6 @@ def special_value_mul(lhs, rhs):
         return -lhs
     elif is_zero(rhs) and is_negative(lhs):
         return -rhs
-    elif is_sv_omega(lhs):
-        return lhs.get_value() * rhs
-    elif is_sv_omega(rhs):
-        return lhs * rhs.get_value()
     else:
         raise NotImplementedError
 
@@ -308,44 +296,33 @@ class FP_MinusInfty(FP_MathSpecialValue):
   def __neg__(self):
     return FP_PlusInfty(self.precision)
 
-def legalize_omega(x):
-    """ convert x to a numerical value """
-    if is_sv_omega(x):
-        return x.get_value()
-    else:
-        return x
 
 # TODO: management of omega induces extra cost for any non omega value
 #      should be optimized
 class FP_NumericSpecialValue(FP_SpecialValue):
     def __le__(self, y):
-        return self.get_value() <= legalize_omega(y)
+        return self.get_value() <= (y)
     def __lt__(self, y):
-        return self.get_value() < legalize_omega(y)
+        return self.get_value() < (y)
     def __ge__(self, y):
-        return self.get_value() >= legalize_omega(y)
+        return self.get_value() >= (y)
     def __gt__(self, y):
-        return self.get_value() > legalize_omega(y)
+        return self.get_value() > (y)
     def __eq__(self, y):
-        return self.get_value() == legalize_omega(y)
+        return self.get_value() == (y)
     def __ne__(self, y):
-        return self.get_value() != legalize_omega(y)
+        return self.get_value() != (y)
     def __abs__(self):
         """ Absolute implementation for numerical value """
         return abs(self.get_value())
 
-class FP_PlusOmega(FP_NumericSpecialValue):
-  ml_support_name = "_sv_PlusOmega"
-  def get_integer_coding(self):
-    return self.get_base_precision().get_integer_coding(self.get_base_precision().get_omega())
-  def get_value(self):
-    return NumericValue(self.get_base_precision().get_omega())
-class FP_MinusOmega(FP_NumericSpecialValue):
-  ml_support_name = "_sv_MinusOmega"
-  def get_integer_coding(self):
-    return self.get_base_precision().get_integer_coding(-self.get_base_precision().get_omega())
-  def get_value(self):
-    return NumericValue(-self.get_base_precision().get_omega())
+def FP_PlusOmega(precision):
+    """ alias for positive omega value """
+    return precision.get_base_format().get_omega()
+def FP_MinusOmega(precision):
+    """ alias for positive omega value """
+    return -precision.get_base_format().get_omega()
+
 
 class FP_PlusZero(FP_SpecialValue):
   ml_support_name = "_sv_PlusZero"
@@ -428,12 +405,13 @@ def is_number(value):
     """ Only partially valid """
     return not isinstance(value, FP_SpecialValue)
 def is_sv_omega(value):
-    return isinstance(value, FP_PlusOmega) or isinstance(value, FP_MinusOmega)
+    assert False, "omega is not a special value anymore (but an alias to a numerical value"
+    raise NotImplementedError
 
 
 def is_numeric_value(vx):
     """ predicate testing if vx is a numeric value (including omega) """
-    return is_sv_omega(vx) or not(FP_SpecialValue.is_special_value(vx))
+    return not(FP_SpecialValue.is_special_value(vx))
 
 from metalibm_core.core.ml_formats import *
 
