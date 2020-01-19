@@ -88,6 +88,7 @@ import metalibm_functions.unit_tests.multi_precision_vectorization as ut_mp_vect
 import metalibm_functions.unit_tests.embedded_bin as ut_embedded_bin
 import metalibm_functions.unit_tests.bfloat16 as ut_bfloat16
 import metalibm_functions.unit_tests.ut_eval_error as ut_eval_error
+import metalibm_functions.unit_tests.special_values as ut_special_values
 
 unit_test_list = [
   UnitTestScheme(
@@ -281,6 +282,11 @@ unit_test_list = [
     ut_eval_error,
     [{"target": target_instanciate("fixed_point")}]
   ),
+  UnitTestScheme(
+    "special values",
+    ut_special_values,
+    [{}]
+  )
 ]
 
 # TODO: factorize / encapsulate in object/function
