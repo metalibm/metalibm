@@ -35,6 +35,7 @@
 ## @package special_values
 #  Metalibm Formats special_values
 
+import collections
 import sollya
 
 SOLLYA_NAN   = sollya.parse("nan")
@@ -62,6 +63,26 @@ class NumericValue(sollya.SollyaObject):
             return rhs.__rsub__(lhs)
         else:
             return NumericValue(sollya.SollyaObject.__sub__(lhs, rhs))
+
+    def __lt__(lhs, rhs):
+        # TODO/FIXME: could be optimized as we know lhs to be a numerical value
+        return number_less_than_special_value(lhs, rhs)
+    def __le__(lhs, rhs):
+        # TODO/FIXME: could be optimized as we know lhs to be a numerical value
+        return rhs >= lhs
+    def __gt__(lhs, rhs):
+        # TODO/FIXME: could be optimized as we know lhs to be a numerical value
+        return number_less_than_special_value(rhs, lhs)
+    def __ge__(lhs, rhs):
+        # TODO/FIXME: could be optimized as we know lhs to be a numerical value
+        return negate_predicate(number_less_than_special_value(lhs, rhs))
+    def __eq__(lhs, rhs):
+        if not is_numeric_value(rhs):
+            return False
+        else:
+            return sollya.SollyaObject.__eq__(sollya.SollyaObject(lhs), sollya.SollyaObject(rhs))
+    def __ne__(lhs, rhs):
+        return negate_predicate(NumericValue.__eq__(lhs, rhs))
 
     @staticmethod
     def parse(s, precision=None):
@@ -135,13 +156,17 @@ class FP_SpecialValue(object):
 
 
   def __lt__(lhs, rhs):
-    raise NotImplementedError
+    return special_value_less_than(lhs, rhs)
   def __le__(lhs, rhs):
-    raise NotImplementedError
+    return rhs >= lhs
   def __gt__(lhs, rhs):
-    raise NotImplementedError
+    return special_value_less_than(rhs, lhs)
   def __ge__(lhs, rhs):
-    raise NotImplementedError
+    return negate_predicate(special_value_less_than(lhs, rhs))
+  def __eq__(lhs, rhs):
+    return special_value_equal(lhs, rhs)
+  def __ne__(lhs, rhs):
+    return negate_predicate(special_value_equal(lhs, rhs))
 
 def FP_SpecialValue_get_c_cst(self):
     prefix = self.get_base_precision().get_ml_support_prefix()
@@ -161,6 +186,110 @@ class FP_MathSpecialValue(FP_SpecialValue):
     QUIET_BIT_SET_FOR_QNAN = True
     def get_c_cst(self):
         return self.ml_support_name
+
+def negate_predicate(predicate):
+    """ inverse the given predicate result
+        (True -> False, False -> True, Unordered -> Unordered) """
+    if predicate is Unordered:
+        return Unordered
+    else:
+        return not predicate
+
+class UnorderedPredicate:
+    """ Unordered comparison predicate """
+    def __str__(self):
+        return "Unordered"
+    def __repr__(self):
+        return "Unordered"
+    def __bool__(self):
+        raise NotImplementedError
+
+Unordered = UnorderedPredicate()
+
+def number_less_than_special_value(lhs, rhs):
+    if is_nan(rhs):
+        return Unordered
+    elif is_minus_infty(rhs):
+        return True
+    elif is_plus_infty(rhs):
+        return False
+    elif is_zero(rhs):
+        return sollya.SollyaObject.__lt__(sollya.SollyaObject(lhs), sollya.SollyaObject(0))
+    elif is_number(rhs):
+        return sollya.SollyaObject.__lt__(sollya.SollyaObject(lhs), sollya.SollyaObject(rhs))
+    else:
+        raise NotImplementedError
+
+def special_value_less_than(lhs, rhs):
+    """ Implementation of inequality predicate lhs < rhs
+
+        :param lhs: left hand side operand
+        :type lhs: FP_SpecialValue (or NumericValue)
+        :param rhs: right hand side operand
+        :type rhs: FP_SpecialValue (or NumericValue)
+        :return: predicate value (True, False or Unordered)
+        """
+    if is_nan(lhs) or is_nan(rhs):
+        return Unordered
+    elif is_minus_infty(lhs):
+        if is_minus_infty(rhs):
+            return False
+        else:
+            return True
+    elif is_zero(lhs):
+        if is_zero(rhs):
+            return False
+        elif is_plus_infty(rhs):
+            return True
+        elif is_minus_infty(rhs):
+            return False
+        elif is_number(rhs):
+            return 0 < rhs
+        else:
+            raise NotImplementedError
+    elif is_plus_infty(lhs):
+        return False
+    elif is_numeric_value(lhs):
+        if is_numeric_value(rhs):
+            return lhs < rhs
+        elif is_minus_infty(rhs):
+            return False
+        elif is_plus_infty(rhs):
+            return True
+        elif is_zero(rhs):
+            return lhs < 0
+        else:
+            raise NotImplementedError
+    else:
+        raise NotImplementedError
+
+def special_value_equal(lhs, rhs):
+    """ Implementation of equality predicate lhs == rhs
+
+        :param lhs: left hand side operand
+        :type lhs: FP_SpecialValue (or NumericValue)
+        :param rhs: right hand side operand
+        :type rhs: FP_SpecialValue (or NumericValue)
+        :return: predicate value (True, False or Unordered)
+        """
+    if is_plus_infty(lhs):
+        return is_plus_infty(rhs)
+    elif is_minus_infty(lhs):
+        return is_minus_infty(rhs)
+    elif is_zero(lhs):
+        # zeros compare equal regardless of their sign
+        return is_zero(rhs)
+    elif is_nan(lhs):
+        return False
+    elif is_numeric_value(lhs):
+        if is_special_value(rhs):
+            return False
+        else:
+            return sollya.SollyaObject.__eq__(sollya.SollyaObject(lhs), sollya.SollyaObject(rhs))
+    else:
+        raise NotImplementedError
+
+
 
 
 def special_value_add(lhs, rhs):
@@ -318,10 +447,10 @@ class FP_NumericSpecialValue(FP_SpecialValue):
 
 def FP_PlusOmega(precision):
     """ alias for positive omega value """
-    return precision.get_base_format().get_omega()
+    return NumericValue(precision.get_base_format().get_omega())
 def FP_MinusOmega(precision):
     """ alias for positive omega value """
-    return -precision.get_base_format().get_omega()
+    return NumericValue(-precision.get_base_format().get_omega())
 
 
 class FP_PlusZero(FP_SpecialValue):
@@ -381,7 +510,7 @@ class FP_SNaN(FP_SpecialValue):
 
 def is_qnan(value):
     """ testing if a value is an instance of a quiet NaN """
-    return isinstance(value, FP_QNaN) 
+    return isinstance(value, FP_QNaN)
 def is_snan(value):
     """ testing if a value is an instance of a signaling NaN """
     return isinstance(value, FP_SNaN)
@@ -394,7 +523,7 @@ def is_plus_zero(value):
 def is_minus_zero(value):
     return isinstance(value, FP_MinusZero)
 def is_zero(value):
-    return is_plus_zero(value) or is_minus_zero(value) or value == 0
+    return is_plus_zero(value) or is_minus_zero(value) or (is_numeric_value(value) and value == 0)
 def is_plus_infty(value):
     return isinstance(value, FP_PlusInfty)
 def is_minus_infty(value):
@@ -424,21 +553,25 @@ if __name__ == "__main__":
         FP_MinusZero(PRECISION),
         FP_QNaN(PRECISION),
         FP_SNaN(PRECISION),
-        FP_PlusOmega(PRECISION),
-        FP_MinusOmega(PRECISION),
         NumericValue(7.0),
         NumericValue(-3.0),
+        FP_PlusOmega(PRECISION),
+        FP_MinusOmega(PRECISION),
     ]
-    op_map = {
-        "+": operator.__add__,
-        "-": operator.__sub__,
-        "*": operator.__mul__,
-    }
-    #for op in op_map:
-    #    for lhs in value_list:
-    #        for rhs in value_list:
-    #            print( "{} {} {} = ".format(lhs, op, rhs))
-    #            print("{}".format(op_map[op](lhs, rhs)))
+    op_map = collections.OrderedDict([
+        ("+", operator.__add__),
+        ("-", operator.__sub__),
+        ("*", operator.__mul__),
+        ("<", operator.__lt__),
+        ("<=", operator.__le__),
+        ("==", operator.__eq__),
+    ])
+    for op in op_map:
+        for lhs in value_list:
+            for rhs in value_list:
+                print( "{} {} {} = ".format(lhs, op, rhs))
+                print("{}".format(op_map[op](lhs, rhs)))
+
 
     print(
         "FP_PlusOmega(ML_Binary32) > 2 = {}".format(
@@ -455,5 +588,15 @@ if __name__ == "__main__":
             FP_MinusOmega(ML_Binary32) > FP_PlusOmega(ML_Binary32)
         )
     )
+    TEST_CASE = [
+        (FP_PlusOmega(PRECISION), "<", FP_SNaN(PRECISION)),
+        (FP_PlusOmega(PRECISION), "<=", FP_SNaN(PRECISION)),
+        (FP_PlusInfty(PRECISION), "==", FP_PlusInfty(PRECISION)),
+        (FP_PlusInfty(PRECISION), "==", FP_QNaN(PRECISION)),
+        (FP_PlusZero(PRECISION), "==", FP_MinusZero(PRECISION)),
+    ]
+    for lhs, op, rhs in TEST_CASE:
+        print( "{} {} {} = ".format(lhs, op, rhs))
+        print("{}".format(op_map[op](lhs, rhs)))
 
 
