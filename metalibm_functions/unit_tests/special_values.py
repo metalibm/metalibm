@@ -57,6 +57,7 @@ op_map = collections.OrderedDict([
     ("-", operator.__sub__),
     ("*", operator.__mul__),
     ("<", operator.__lt__),
+    (">", operator.__gt__),
     ("<=", operator.__le__),
     ("==", operator.__eq__),
     ("!=", operator.__ne__),
@@ -78,6 +79,9 @@ class ML_UT_SpecialValue(TestRunner):
                 (FP_PlusZero(PRECISION), "!=", FP_MinusZero(PRECISION), False),
                 (FP_QNaN(PRECISION), "==", FP_QNaN(PRECISION), False),
                 (FP_PlusInfty(PRECISION), "==", -FP_MinusInfty(PRECISION), True),
+                (FP_MinusInfty(PRECISION), ">", 0, False),
+                (FP_MinusInfty(PRECISION), ">", FP_PlusZero(PRECISION), False),
+                (FP_MinusInfty(PRECISION), ">", FP_MinusZero(PRECISION), False),
             ]
             for lhs, op, rhs, expected in TEST_CASE:
                 result = op_map[op](lhs, rhs)
