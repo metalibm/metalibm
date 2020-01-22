@@ -1350,6 +1350,24 @@ class ML_MultiPrecision_VectorFormat(ML_CompoundVectorFormat):
         limb_format = self.scalar_format.get_limb_precision(limb_index)
         return VECTOR_TYPE_MAP[limb_format][self.vector_size]
 
+    def get_cst_default(self, cst_value, language = C_Code):
+        elt_value_list = [self.scalar_format.get_cst(cst_value[i], language = language) for i in range(self.vector_size)]
+        field_str_list = []
+        cst_value_array = [[None for i in range(self.vector_size)] for j in range(self.limb_num)]
+        for field_name, field_format in zip(self.scalar_format.c_field_list, self.scalar_format.field_format_list):
+            field_str_list.append(".%s" % field_name)
+        # FIXME, round is only valid for double_double or triple_double stype format
+        for lane_id in range(self.vector_size):
+            for limb_id in range(self.limb_num):
+                tmp_cst = cst_value[lane_id]
+                field_value = sollya.round(tmp_cst, field_format.sollya_object, sollya.RN)
+                tmp_cst = tmp_cst - field_value
+                cst_value_array[limb_id][lane_id] = field_value
+        if language is C_Code:
+            return "{" + ",".join("{} = {}".format(field_str_list[limb_id], self.get_limb_precision(limb_id).get_cst(cst_value_array[limb_id], language=language)) for limb_id in range(self.limb_num)) + "}"
+        else:
+          Log.report(Log.Error, "unsupported language in ML_MultiPrecision_VectorFormat.get_cst: %s" % (language))
+
 ## helper function to generate a vector format
 #  @param format_name string name of the result format
 #  @param vector_size integer number of element in the vector
