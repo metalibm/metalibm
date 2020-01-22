@@ -2940,7 +2940,7 @@ class X86_SSE_Processor(X86_Processor):
         if scalar_precision in self.TARGET_PREFERRED_VECTOR_SIZE_MAP:
             return min(self.TARGET_PREFERRED_VECTOR_SIZE_MAP[scalar_precision], vector_size)
         else:
-            return super(X86_AVX_Processor, self).get_preferred_sub_vector_size(
+            return super(X86_SSE_Processor, self).get_preferred_sub_vector_size(
                 scalar_precision, vector_size
             )
 
