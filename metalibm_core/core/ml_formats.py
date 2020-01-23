@@ -1315,7 +1315,7 @@ class ML_VectorFormat(ML_Format):
 class ML_CompoundVectorFormat(ML_VectorFormat, ML_Compound_Format):
   def __init__(self, c_format_name, opencl_format_name, vector_size, scalar_format, sollya_precision = None, cst_callback = None):
     ML_VectorFormat.__init__(self, scalar_format, vector_size, c_format_name)
-    ML_Compound_Format.__init__(self, c_format_name, ["_[%d]" % i for i in range(vector_size)], [scalar_format for i in range(vector_size)], "", "", sollya_precision)
+    ML_Compound_Format.__init__(self, c_format_name, ["[%d]" % i for i in range(vector_size)], [scalar_format for i in range(vector_size)], "", "", sollya_precision)
     # registering OpenCL-C format name
     self.name[OpenCL_Code] = opencl_format_name
     self.cst_callback = cst_callback
@@ -1323,7 +1323,7 @@ class ML_CompoundVectorFormat(ML_VectorFormat, ML_Compound_Format):
   def get_cst_default(self, cst_value, language = C_Code):
     elt_value_list = [self.scalar_format.get_cst(cst_value[i], language = language) for i in range(self.vector_size)]
     if language is C_Code:
-      return "{._ = {%s}}" % (", ".join(elt_value_list))
+      return "{%s}" % (", ".join(elt_value_list))
     elif language is OpenCL_Code:
       return "(%s)(%s)" % (self.get_name(language = OpenCL_Code), (", ".join(elt_value_list)))
     else:
