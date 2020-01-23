@@ -1,61 +1,57 @@
 /*******************************************************************************
 * This file is part of Kalray's Metalibm tool
-* Copyright (2016)
+* Copyright (2016-2020)
 * All rights reserved
 * created:          Feb  2nd, 2016
-* last-modified:    Feb  2nd, 2016
+* last-modified:    Jan 23rd, 2020
 *
 * author(s): Nicolas Brunie (nicolas.brunie@kalray.eu)
 *******************************************************************************/
-#include <stdint.h>
-
 #ifndef __ML_VECTOR_FORMAT_H__
 #define __ML_VECTOR_FORMAT_H__
 
-#define DEC_ML_FORMAT(FORMAT_NAME, FIELD_FORMAT, SIZE) \
-typedef struct {\
-  FIELD_FORMAT _[SIZE];\
-} FORMAT_NAME;
+#include <stdint.h>
 
 /** Return a pointer to the address of the vector field '_'
- *  of vector value @p x 
+ *  of vector value @p x
  */
-#define GET_VEC_FIELD_ADDR(x) ((x._))
+#define GET_VEC_FIELD_ADDR(x) (&(x))
+
 
 // single precision vector format
-DEC_ML_FORMAT(ml_float2_t, float, 2)
-DEC_ML_FORMAT(ml_float4_t, float, 4)
-DEC_ML_FORMAT(ml_float8_t, float, 8)
+typedef float ml_float2_t __attribute__ ((vector_size (8)));
+typedef float ml_float4_t __attribute__ ((vector_size (16)));
+typedef float ml_float8_t __attribute__ ((vector_size (32)));
 
 // double precision vector format
-DEC_ML_FORMAT(ml_double2_t, double, 2)
-DEC_ML_FORMAT(ml_double4_t, double, 4)
-DEC_ML_FORMAT(ml_double8_t, double, 8)
+typedef float ml_double2_t __attribute__ ((vector_size (16)));
+typedef float ml_double4_t __attribute__ ((vector_size (32)));
+typedef float ml_double8_t __attribute__ ((vector_size (64)));
 
 // 32-b integer vector format
-DEC_ML_FORMAT(ml_int2_t, int32_t, 2)
-DEC_ML_FORMAT(ml_int4_t, int32_t, 4)
-DEC_ML_FORMAT(ml_int8_t, int32_t, 8)
+typedef int32_t ml_int2_t __attribute__ ((vector_size (8)));
+typedef int32_t ml_int4_t __attribute__ ((vector_size (16)));
+typedef int32_t ml_int8_t __attribute__ ((vector_size (32)));
 
 // 32-b unsigned integer vector format
-DEC_ML_FORMAT(ml_uint2_t, uint32_t, 2)
-DEC_ML_FORMAT(ml_uint4_t, uint32_t, 4)
-DEC_ML_FORMAT(ml_uint8_t, uint32_t, 8)
+typedef uint32_t ml_uint2_t __attribute__ ((vector_size (8)));
+typedef uint32_t ml_uint4_t __attribute__ ((vector_size (16)));
+typedef uint32_t ml_uint8_t __attribute__ ((vector_size (32)));
 
-// 32-b integer vector format
-DEC_ML_FORMAT(ml_long2_t, int64_t, 2)
-DEC_ML_FORMAT(ml_long4_t, int64_t, 4)
-DEC_ML_FORMAT(ml_long8_t, int64_t, 8)
+// 64-b integer vector format
+typedef int64_t ml_long2_t __attribute__ ((vector_size (16)));
+typedef int64_t ml_long4_t __attribute__ ((vector_size (32)));
+typedef int64_t ml_long8_t __attribute__ ((vector_size (64)));
 
-// 32-b unsigned integer vector format
-DEC_ML_FORMAT(ml_ulong2_t, uint64_t, 2)
-DEC_ML_FORMAT(ml_ulong4_t, uint64_t, 4)
-DEC_ML_FORMAT(ml_ulong8_t, uint64_t, 8)
+// 64-b unsigned integer vector format
+typedef uint64_t ml_ulong2_t __attribute__ ((vector_size (16)));
+typedef uint64_t ml_ulong4_t __attribute__ ((vector_size (32)));
+typedef uint64_t ml_ulong8_t __attribute__ ((vector_size (64)));
 
-// boolean vector formats
-DEC_ML_FORMAT(ml_bool2_t, int, 2)
-DEC_ML_FORMAT(ml_bool4_t, int, 4)
-DEC_ML_FORMAT(ml_bool8_t, int, 8)
+// boolean vector formats as 32-b integer vector format
+typedef int32_t ml_bool2_t __attribute__ ((vector_size (8)));
+typedef int32_t ml_bool4_t __attribute__ ((vector_size (16)));
+typedef int32_t ml_bool8_t __attribute__ ((vector_size (32)));
 
 /** Multi-precision vector format */
 #define DEC_ML_MP2_VEC_FORMAT(FORMAT_NAME, FIELD_FORMAT) \
