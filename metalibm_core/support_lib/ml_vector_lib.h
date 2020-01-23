@@ -6,125 +6,45 @@
 
 #define VECTORIZE_OP1(OP, r, x, size) {\
   unsigned i;\
-  for (i = 0; i < size; ++i) (r)->_[i] = OP((x)._[i]);\
+  for (i = 0; i < size; ++i) *(r)[i] = OP((x)[i]);\
 }
-
-#define VECTORIZE_OP2(OP, r, x, y, size) {\
-  unsigned i;\
-  for (i = 0; i < size; ++i) r[i] = OP(x[i], y[i]);\
-}
-  
 
 
 #define DEF_ML_VECTOR_PRIMITIVES_OP3(FUNC_NAME, VECTOR_FORMAT, SCALAR_FORMAT, VECTOR_SIZE, SCALAR_OP0, SCALAR_OP1) \
 static inline void FUNC_NAME(VECTOR_FORMAT *r, VECTOR_FORMAT vop0, VECTOR_FORMAT vop1, VECTOR_FORMAT vop2) {\
   unsigned i;\
   for (i = 0; i < VECTOR_SIZE; ++i) {\
-    (*r)._[i] = vop0._[i] SCALAR_OP0 vop1._[i] SCALAR_OP1 vop2._[i];\
+    (*r)[i] = vop0[i] SCALAR_OP0 vop1[i] SCALAR_OP1 vop2[i];\
   };\
 }
 #define DEF_ML_VECTOR_PRIMITIVES_FUNC3(FUNC_NAME, VECTOR_FORMAT, SCALAR_FORMAT, VECTOR_SIZE, SCALAR_FUNC, SCALAR_OP0, SCALAR_OP1, SCALAR_OP2) \
 static inline void FUNC_NAME(VECTOR_FORMAT *r, VECTOR_FORMAT vop0, VECTOR_FORMAT vop1, VECTOR_FORMAT vop2) {\
   unsigned i;\
   for (i = 0; i < VECTOR_SIZE; ++i) {\
-    (*r)._[i] = SCALAR_FUNC(SCALAR_OP0(vop0._[i]), SCALAR_OP1(vop1._[i]), SCALAR_OP2( vop2._[i]));\
+    (*r)[i] = SCALAR_FUNC(SCALAR_OP0(vop0[i]), SCALAR_OP1(vop1[i]), SCALAR_OP2( vop2[i]));\
   };\
 }
 #define DEF_ML_VECTOR_PRIMITIVES_OP2(FUNC_NAME, VECTOR_FORMAT, SCALAR_FORMAT, VECTOR_SIZE, SCALAR_OP) \
 static inline void FUNC_NAME(VECTOR_FORMAT *r, VECTOR_FORMAT vop0, VECTOR_FORMAT vop1) {\
   unsigned i;\
   for (i = 0; i < VECTOR_SIZE; ++i) {\
-    (*r)._[i] = vop0._[i] SCALAR_OP vop1._[i];\
+    (*r)[i] = vop0[i] SCALAR_OP vop1[i];\
   };\
 }
 #define DEF_ML_VECTOR_PRIMITIVES_OP1(FUNC_NAME, VECTOR_FORMAT, SCALAR_FORMAT, VECTOR_SIZE, SCALAR_OP) \
 static inline void FUNC_NAME(VECTOR_FORMAT *r, VECTOR_FORMAT vop) {\
   unsigned i;\
   for (i = 0; i < VECTOR_SIZE; ++i) {\
-    (*r)._[i] = SCALAR_OP vop._[i];\
+    (*r)[i] = SCALAR_OP vop[i];\
   };\
 }
 
 #define ML_ASSEMBLE_VECTOR(vr, va, vb, size_a, size_b) {\
   int __k; \
-  for(__k = 0; __k < (size_a); __k++) (vr)->_[__k] = (va)._[__k];\
-  for(__k = 0; __k < (size_b); __k++) (vr)->_[__k + (size_a)] = (vb)._[__k];\
+  for(__k = 0; __k < (size_a); __k++) *(vr)[__k] = (va)[__k];\
+  for(__k = 0; __k < (size_b); __k++) *(vr)[__k + (size_a)] = (vb)[__k];\
 }
 
-/** Vector Addition */
-DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vaddf2, ml_float2_t, float, 2, +)
-DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vaddf4, ml_float4_t, float, 4, +)
-DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vaddf8, ml_float8_t, float, 8, +)
-
-DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vaddd2, ml_double2_t, double, 2, +)
-DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vaddd4, ml_double4_t, double, 4, +)
-DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vaddd8, ml_double8_t, double, 8, +)
-
-DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vaddi2, ml_int2_t, int32_t, 2, +)
-DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vaddi4, ml_int4_t, int32_t, 4, +)
-DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vaddi8, ml_int8_t, int32_t, 8, +)
-
-DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vaddu2, ml_uint2_t, uint32_t, 2, +)
-DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vaddu4, ml_uint4_t, uint32_t, 4, +)
-DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vaddu8, ml_uint8_t, uint32_t, 8, +)
-
-DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vaddl2, ml_long2_t, int64_t, 2, +)
-DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vaddl4, ml_long4_t, int64_t, 4, +)
-DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vaddl8, ml_long8_t, int64_t, 8, +)
-
-DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vaddul2, ml_ulong2_t, uint64_t, 2, +)
-DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vaddul4, ml_ulong4_t, uint64_t, 4, +)
-DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vaddul8, ml_ulong8_t, uint64_t, 8, +)
-
-/** Vector Subtraction */
-DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsubf2, ml_float2_t, float, 2, -)
-DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsubf4, ml_float4_t, float, 4, -)
-DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsubf8, ml_float8_t, float, 8, -)
-
-DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsubd2, ml_double2_t, double, 2, -)
-DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsubd4, ml_double4_t, double, 4, -)
-DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsubd8, ml_double8_t, double, 8, -)
-
-DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsubi2, ml_int2_t, int32_t, 2, -)
-DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsubi4, ml_int4_t, int32_t, 4, -)
-DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsubi8, ml_int8_t, int32_t, 8, -)
-
-DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsubu2, ml_uint2_t, uint32_t, 2, -)
-DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsubu4, ml_uint4_t, uint32_t, 4, -)
-DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsubu8, ml_uint8_t, uint32_t, 8, -)
-
-DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsubl2, ml_long2_t, int64_t, 2, -)
-DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsubl4, ml_long4_t, int64_t, 4, -)
-DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsubl8, ml_long8_t, int64_t, 8, -)
-
-DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsubul2, ml_ulong2_t, uint64_t, 2, -)
-DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsubul4, ml_ulong4_t, uint64_t, 4, -)
-DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vsubul8, ml_ulong8_t, uint64_t, 8, -)
-
-/** Vector Multiplication */
-DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vmulf2, ml_float2_t, float, 2, *)
-DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vmulf4, ml_float4_t, float, 4, *)
-DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vmulf8, ml_float8_t, float, 8, *)
-
-DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vmuld2, ml_double2_t, double, 2, *)
-DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vmuld4, ml_double4_t, double, 4, *)
-DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vmuld8, ml_double8_t, double, 8, *)
-
-DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vmuli2, ml_int2_t, int32_t, 2, *)
-DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vmuli4, ml_int4_t, int32_t, 4, *)
-DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vmuli8, ml_int8_t, int32_t, 8, *)
-
-DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vmulu2, ml_uint2_t, uint32_t, 2, *)
-DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vmulu4, ml_uint4_t, uint32_t, 4, *)
-DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vmulu8, ml_uint8_t, uint32_t, 8, *)
-
-DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vmull2, ml_long2_t, int64_t, 2, *)
-DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vmull4, ml_long4_t, int64_t, 4, *)
-DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vmull8, ml_long8_t, int64_t, 8, *)
-
-DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vmulul2, ml_ulong2_t, uint64_t, 2, *)
-DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vmulul4, ml_ulong4_t, uint64_t, 4, *)
-DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vmulul8, ml_ulong8_t, uint64_t, 8, *)
 
 /** Vector Division */
 DEF_ML_VECTOR_PRIMITIVES_OP2(ml_vdivf2, ml_float2_t, float, 2, /)
@@ -359,7 +279,7 @@ DEF_ML_VECTOR_PRIMITIVES_OP1(ml_vbwnotu8, ml_uint8_t, int32_t, 8,~)
 static inline void FUNC_NAME(RESULT_FORMAT *r, VECTOR_FORMAT vop0, VECTOR_FORMAT vop1) {\
   unsigned i;\
   for (i = 0; i < VECTOR_SIZE; ++i) {\
-    (*r)._[i] = vop0._[i] COMP_OP vop1._[i];\
+    (*r)[i] = vop0[i] COMP_OP vop1[i];\
   };\
 }
 
@@ -484,7 +404,7 @@ DEF_ML_VECTOR_COMPARATOR_OP2(ml_comp_ne_ul8, ml_bool8_t, ml_ulong8_t, 8, !=)
 static inline void FUNC_NAME(RESULT_FORMAT *r, VECTOR_FORMAT vop) {\
   unsigned i;\
   for (i = 0; i < VECTOR_SIZE; ++i) {\
-    (*r)._[i] = SCALAR_TEST_FUNC(vop._[i]);\
+    (*r)[i] = SCALAR_TEST_FUNC(vop[i]);\
   };\
 }
 
@@ -529,111 +449,111 @@ DEF_ML_VECTOR_TEST_FUNC_OP1(ml_vtestd4_is_subnormal, ml_bool4_t, ml_double4_t, 4
 DEF_ML_VECTOR_TEST_FUNC_OP1(ml_vtestd8_is_subnormal, ml_bool8_t, ml_double8_t, 8, ml_is_subnormal)
 
 static inline int ml_is_vmask2_zero(ml_bool2_t vop) {
-  return (vop._[0] == 0) && (vop._[1] == 0);
+  return (vop[0] == 0) && (vop[1] == 0);
 }
 static inline int ml_is_vmask4_zero(ml_bool4_t vop) {
-  return (vop._[0] == 0) && 
-         (vop._[1] == 0) && 
-         (vop._[2] == 0) && 
-         (vop._[3] == 0);
+  return (vop[0] == 0) &&
+         (vop[1] == 0) &&
+         (vop[2] == 0) &&
+         (vop[3] == 0);
 }
 static inline int ml_is_vmask8_zero(ml_bool8_t vop) {
-  return (vop._[0] == 0) && 
-         (vop._[1] == 0) && 
-         (vop._[2] == 0) && 
-         (vop._[3] == 0) && 
-         (vop._[4] == 0) && 
-         (vop._[5] == 0) && 
-         (vop._[6] == 0) && 
-         (vop._[7] == 0);
+  return (vop[0] == 0) &&
+         (vop[1] == 0) &&
+         (vop[2] == 0) &&
+         (vop[3] == 0) &&
+         (vop[4] == 0) &&
+         (vop[5] == 0) &&
+         (vop[6] == 0) &&
+         (vop[7] == 0);
 }
 
 static inline int ml_is_vmask2_any_zero(ml_bool2_t vop) {
-  return (vop._[0] == 0) || (vop._[1] == 0);
+  return (vop[0] == 0) || (vop[1] == 0);
 }
 static inline int ml_is_vmask4_any_zero(ml_bool4_t vop) {
-  return (vop._[0] == 0) || 
-         (vop._[1] == 0) || 
-         (vop._[2] == 0) || 
-         (vop._[3] == 0);
+  return (vop[0] == 0) ||
+         (vop[1] == 0) ||
+         (vop[2] == 0) ||
+         (vop[3] == 0);
 }
 static inline int ml_is_vmask8_any_zero(ml_bool8_t vop) {
-  return (vop._[0] == 0) || 
-         (vop._[1] == 0) || 
-         (vop._[2] == 0) || 
-         (vop._[3] == 0) || 
-         (vop._[4] == 0) || 
-         (vop._[5] == 0) || 
-         (vop._[6] == 0) || 
-         (vop._[7] == 0);
+  return (vop[0] == 0) ||
+         (vop[1] == 0) ||
+         (vop[2] == 0) ||
+         (vop[3] == 0) ||
+         (vop[4] == 0) ||
+         (vop[5] == 0) ||
+         (vop[6] == 0) ||
+         (vop[7] == 0);
 }
 
 static inline int ml_is_vmask2_not_any_zero(ml_bool2_t vop) {
-  return (vop._[0] != 0) && (vop._[1] != 0);
+  return (vop[0] != 0) && (vop[1] != 0);
 }
 static inline int ml_is_vmask4_not_any_zero(ml_bool4_t vop) {
-  return (vop._[0] != 0) && 
-         (vop._[1] != 0) && 
-         (vop._[2] != 0) && 
-         (vop._[3] != 0);
+  return (vop[0] != 0) &&
+         (vop[1] != 0) &&
+         (vop[2] != 0) &&
+         (vop[3] != 0);
 }
 static inline int ml_is_vmask8_not_any_zero(ml_bool8_t vop) {
-  return (vop._[0] != 0) &&
-         (vop._[1] != 0) &&
-         (vop._[2] != 0) &&
-         (vop._[3] != 0) &&
-         (vop._[4] != 0) &&
-         (vop._[5] != 0) &&
-         (vop._[6] != 0) &&
-         (vop._[7] != 0);
+  return (vop[0] != 0) &&
+         (vop[1] != 0) &&
+         (vop[2] != 0) &&
+         (vop[3] != 0) &&
+         (vop[4] != 0) &&
+         (vop[5] != 0) &&
+         (vop[6] != 0) &&
+         (vop[7] != 0);
 }
 
 static inline int ml_is_vmask2_not_all_zero(ml_bool2_t vop) {
-  return (vop._[0] != 0) || (vop._[1] != 0);
+  return (vop[0] != 0) || (vop[1] != 0);
 }
 static inline int ml_is_vmask4_not_all_zero(ml_bool4_t vop) {
-  return (vop._[0] != 0) ||
-         (vop._[1] != 0) ||
-         (vop._[2] != 0) ||
-         (vop._[3] != 0);
+  return (vop[0] != 0) ||
+         (vop[1] != 0) ||
+         (vop[2] != 0) ||
+         (vop[3] != 0);
 }
 static inline int ml_is_vmask8_not_all_zero(ml_bool8_t vop) {
-  return (vop._[0] != 0) ||
-         (vop._[1] != 0) ||
-         (vop._[2] != 0) ||
-         (vop._[3] != 0) ||
-         (vop._[4] != 0) ||
-         (vop._[5] != 0) ||
-         (vop._[6] != 0) ||
-         (vop._[7] != 0);
+  return (vop[0] != 0) ||
+         (vop[1] != 0) ||
+         (vop[2] != 0) ||
+         (vop[3] != 0) ||
+         (vop[4] != 0) ||
+         (vop[5] != 0) ||
+         (vop[6] != 0) ||
+         (vop[7] != 0);
 }
 
 /** Vector Assembling functions **/
 #define DEF_ML_VECTOR_ASSEMBLY_FUNC_1_2(FUNC_NAME, RESULT_FORMAT, SCALAR_FORMAT) \
 static inline void FUNC_NAME(RESULT_FORMAT *r, SCALAR_FORMAT op1, SCALAR_FORMAT op2) {\
-    (*r)._[0] = op1; (*r)._[1] = op2;\
+    (*r)[0] = op1; (*r)[1] = op2;\
 }
 
 #define DEF_ML_VECTOR_ASSEMBLY_FUNC_1_4(FUNC_NAME, RESULT_FORMAT, SCALAR_FORMAT) \
 static inline void FUNC_NAME(RESULT_FORMAT *r, SCALAR_FORMAT op1, SCALAR_FORMAT op2, SCALAR_FORMAT op3, SCALAR_FORMAT op4) {\
-    (*r)._[0] = op1; (*r)._[1] = op2; (*r)._[2] = op3; (*r)._[3] = op4;\
+    (*r)[0] = op1; (*r)[1] = op2; (*r)[2] = op3; (*r)[3] = op4;\
 }
 
 #define DEF_ML_VECTOR_ASSEMBLY_FUNC_2_4(FUNC_NAME, RESULT_FORMAT, VECTOR_FORMAT) \
 static inline void FUNC_NAME(RESULT_FORMAT *r, VECTOR_FORMAT vop1, VECTOR_FORMAT vop2) {\
-  (*r)._[0] = vop1._[0]; (*r)._[1] = vop1._[1] ; (*r)._[2] = vop2._[0] ; (*r)._[3] = vop2._[1] ;\
+  (*r)[0] = vop1[0]; (*r)[1] = vop1[1] ; (*r)[2] = vop2[0] ; (*r)[3] = vop2[1] ;\
 }
 
 #define DEF_ML_VECTOR_ASSEMBLY_FUNC_2_8(FUNC_NAME, RESULT_FORMAT, VECTOR_FORMAT) \
 static inline void FUNC_NAME(RESULT_FORMAT *r, VECTOR_FORMAT vop1, VECTOR_FORMAT vop2, VECTOR_FORMAT vop3, VECTOR_FORMAT vop4) {\
-  (*r)._[0] = vop1._[0]; (*r)._[1] = vop1._[1] ; (*r)._[2] = vop2._[0] ; (*r)._[3] = vop2._[1] ;\
-  (*r)._[4] = vop3._[0]; (*r)._[5] = vop3._[1] ; (*r)._[6] = vop4._[0] ; (*r)._[7] = vop4._[1] ;\
+  (*r)[0] = vop1[0]; (*r)[1] = vop1[1] ; (*r)[2] = vop2[0] ; (*r)[3] = vop2[1] ;\
+  (*r)[4] = vop3[0]; (*r)[5] = vop3[1] ; (*r)[6] = vop4[0] ; (*r)[7] = vop4[1] ;\
 }
 
 #define DEF_ML_VECTOR_ASSEMBLY_FUNC_4_8(FUNC_NAME, RESULT_FORMAT, VECTOR_FORMAT) \
 static inline void FUNC_NAME(RESULT_FORMAT *r, VECTOR_FORMAT vop1, VECTOR_FORMAT vop2) {\
-  (*r)._[0] = vop1._[0]; (*r)._[1] = vop1._[1] ; (*r)._[2] = vop1._[2] ; (*r)._[3] = vop1._[3] ;\
-  (*r)._[4] = vop2._[0]; (*r)._[5] = vop2._[1] ; (*r)._[6] = vop2._[2] ; (*r)._[7] = vop2._[3] ;\
+  (*r)[0] = vop1[0]; (*r)[1] = vop1[1] ; (*r)[2] = vop1[2] ; (*r)[3] = vop1[3] ;\
+  (*r)[4] = vop2[0]; (*r)[5] = vop2[1] ; (*r)[6] = vop2[2] ; (*r)[7] = vop2[3] ;\
 }
 
 DEF_ML_VECTOR_ASSEMBLY_FUNC_1_2(ml_vec_assembling_1_2_float, ml_float2_t, float)
@@ -664,7 +584,7 @@ DEF_ML_VECTOR_ASSEMBLY_FUNC_4_8(ml_vec_assembling_4_8_double, ml_double8_t, ml_d
 static inline void FUNC_NAME(RESULT_FORMAT *r, VECTOR_FORMAT vop) {\
   unsigned i;\
   for (i = 0; i < VECTOR_SIZE; ++i) {\
-    (*r)._[i] = SCALAR_TEST_FUNC(vop._[i]);\
+    (*r)[i] = SCALAR_TEST_FUNC(vop[i]);\
   };\
 }
 
@@ -672,46 +592,6 @@ DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vnearbyintd2, ml_long2_t, ml_double2_t, 2, nearb
 DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vnearbyintd4, ml_long4_t, ml_double4_t, 4, nearbyint)
 DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vnearbyintd8, ml_long8_t, ml_double8_t, 8, nearbyint)
 
-#ifdef __k1__
-static inline void ml_vnearbyintf2(ml_int2_t *r, ml_float2_t vop) {
-  unsigned i;
-  for (i = 0; i < 2; ++i) {
-    (*r)._[i] = __builtin_k1_fixed(_K1_FPU_NEAREST_EVEN, vop._[i], 0);
-  };
-}
-static inline void ml_vnearbyintf4(ml_int4_t *r, ml_float4_t vop) {
-  unsigned i;
-  for (i = 0; i < 4; ++i) {
-    (*r)._[i] = __builtin_k1_fixed(_K1_FPU_NEAREST_EVEN, vop._[i], 0);
-  };
-}
-static inline void ml_vnearbyintf8(ml_int8_t *r, ml_float8_t vop) {
-  unsigned i;
-  for (i = 0; i < 8; ++i) {
-    (*r)._[i] = __builtin_k1_fixed(_K1_FPU_NEAREST_EVEN, vop._[i], 0);
-  };
-}
-
-static inline void ml_vrintf2(ml_float2_t *r, ml_float2_t vop) {
-  unsigned i;
-  for (i = 0; i < 2; ++i) {
-    (*r)._[i] = __builtin_k1_float(_K1_FPU_NEAREST_EVEN, __builtin_k1_fixed(_K1_FPU_NEAREST_EVEN, vop._[i], 0), 0);
-  };
-}
-static inline void ml_vrintf4(ml_float4_t *r, ml_float4_t vop) {
-  unsigned i;
-  for (i = 0; i < 4; ++i) {
-    (*r)._[i] = __builtin_k1_float(_K1_FPU_NEAREST_EVEN, __builtin_k1_fixed(_K1_FPU_NEAREST_EVEN, vop._[i], 0), 0);
-  };
-}
-static inline void ml_vrintf8(ml_float8_t *r, ml_float8_t vop) {
-  unsigned i;
-  for (i = 0; i < 8; ++i) {
-    (*r)._[i] = __builtin_k1_float(_K1_FPU_NEAREST_EVEN, __builtin_k1_fixed(_K1_FPU_NEAREST_EVEN, vop._[i], 0), 0);
-  };
-}
-
-#else
 DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vnearbyintf2, ml_int2_t, ml_float2_t, 2, nearbyintf)
 DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vnearbyintf4, ml_int4_t, ml_float4_t, 4, nearbyintf)
 DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vnearbyintf8, ml_int8_t, ml_float8_t, 8, nearbyintf)
@@ -719,7 +599,7 @@ DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vnearbyintf8, ml_int8_t, ml_float8_t, 8, nearbyi
 DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vrintf2, ml_float2_t, ml_float2_t, 2, rintf)
 DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vrintf4, ml_float4_t, ml_float4_t, 4, rintf)
 DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vrintf8, ml_float8_t, ml_float8_t, 8, rintf)
-#endif
+
 
 DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vrintd2, ml_double2_t, ml_double2_t, 2, rint)
 DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vrintd4, ml_double4_t, ml_double4_t, 4, rint)
@@ -755,14 +635,14 @@ DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vmantissa_extraction_d8, ml_double8_t, ml_double
 
 /** Vector element-wise selection */
 #define ML_VSELECT(result,test,op0,op1,size) {\
-  unsigned __k; for (__k = 0; __k < size; ++__k) (result)->_[__k] = (test)._[__k] ? (op0)._[__k] : (op1)._[__k]; };
+  unsigned __k; for (__k = 0; __k < size; ++__k) *(result)[__k] = (test)[__k] ? (op0)[__k] : (op1)[__k]; };
 
 /** Vector element-wise load (gather) */
 #define ML_VLOAD(result,table,addr,size) {\
-  unsigned __k; for (__k = 0; __k < size; ++__k) (result)->_[__k] = table[(addr)._[__k]]; };
+  unsigned __k; for (__k = 0; __k < size; ++__k) *(result)[__k] = table[(addr)[__k]]; };
 /** Vector element-wise load (gather) for 2D table */
 #define ML_VLOAD2D(result,table,addr0,addr1,size) {\
-  unsigned __k; for (__k = 0; __k < size; ++__k) (result)->_[__k] = table[(addr0)._[__k]][(addr1)._[__k]]; };
+  unsigned __k; for (__k = 0; __k < size; ++__k) *(result)[__k] = table[(addr0)[__k]][(addr1)[__k]]; };
 /** Implicit vector conversion */
 #define ML_VCONV(dst,src,size) {\
-  unsigned __k; for (__k = 0; __k < size; ++__k) (dst)->_[__k] = (src)._[__k]; };
+  unsigned __k; for (__k = 0; __k < size; ++__k) *(dst)[__k] = (src)[__k]; };
