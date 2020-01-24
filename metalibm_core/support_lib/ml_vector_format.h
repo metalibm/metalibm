@@ -24,9 +24,9 @@ typedef float ml_float4_t __attribute__ ((vector_size (16)));
 typedef float ml_float8_t __attribute__ ((vector_size (32)));
 
 // double precision vector format
-typedef float ml_double2_t __attribute__ ((vector_size (16)));
-typedef float ml_double4_t __attribute__ ((vector_size (32)));
-typedef float ml_double8_t __attribute__ ((vector_size (64)));
+typedef double ml_double2_t __attribute__ ((vector_size (16)));
+typedef double ml_double4_t __attribute__ ((vector_size (32)));
+typedef double ml_double8_t __attribute__ ((vector_size (64)));
 
 // 32-b integer vector format
 typedef int32_t ml_int2_t __attribute__ ((vector_size (8)));
