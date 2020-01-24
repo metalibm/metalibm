@@ -134,28 +134,28 @@ debug_ds      = ML_Debug(display_format="{.hi=%f, .lo=%f)", pre_process= lambda 
 debug_td      = ML_Debug(display_format="{.hi=%lf, .me=%lf, .lo=%lf}", pre_process= lambda v: "%s.hi, %s.me, %s.lo" % (v, v, v))
 debug_ts      = ML_Debug(display_format="{.hi=%f, .me=%f, .lo=%f)", pre_process= lambda v : "%s.hi, %s.me, %s.lo" % (v, v, v))
 
-debug_float2  = ML_Debug(display_format = "{%a, %a}", pre_process = lambda v: "%s._[0], %s._[1]" % (v, v))
-debug_float4  = ML_Debug(display_format = "{%a, %a, %a, %a}", pre_process = lambda v: "%s._[0], %s._[1], %s._[2], %s._[3]" % (v, v, v, v))
-debug_float8  = ML_Debug(display_format = "{%a, %a, %a, %a, %a, %a, %a, %a}", pre_process = lambda v: "%s._[0], %s._[1], %s._[2], %s._[3], %s._[4], %s._[5], %s._[6], %s._[7]" % (v, v, v, v, v, v, v, v))
+debug_float2  = ML_Debug(display_format = "{%a, %a}", pre_process = lambda v: "%s[0], %s[1]" % (v, v))
+debug_float4  = ML_Debug(display_format = "{%a, %a, %a, %a}", pre_process = lambda v: "%s[0], %s[1], %s[2], %s[3]" % (v, v, v, v))
+debug_float8  = ML_Debug(display_format = "{%a, %a, %a, %a, %a, %a, %a, %a}", pre_process = lambda v: "%s[0], %s[1], %s[2], %s[3], %s[4], %s[5], %s[6], %s[7]" % (v, v, v, v, v, v, v, v))
 
-debug_int2  = ML_Debug(display_format = "{%d, %d}", pre_process = lambda v: "%s._[0], %s._[1]" % (v, v))
-debug_int4  = ML_Debug(display_format = "{%d, %d, %d, %d}", pre_process = lambda v: "%s._[0], %s._[1], %s._[2], %s._[3]" % (v, v, v, v))
-debug_int8  = ML_Debug(display_format = "{%d, %d, %d, %d, %d, %d, %d, %d}", pre_process = lambda v: "%s._[0], %s._[1], %s._[2], %s._[3], %s._[4], %s._[5], %s._[6], %s._[7]" % (v, v, v, v, v, v, v, v))
+debug_int2  = ML_Debug(display_format = "{%d, %d}", pre_process = lambda v: "%s[0], %s[1]" % (v, v))
+debug_int4  = ML_Debug(display_format = "{%d, %d, %d, %d}", pre_process = lambda v: "%s[0], %s[1], %s[2], %s[3]" % (v, v, v, v))
+debug_int8  = ML_Debug(display_format = "{%d, %d, %d, %d, %d, %d, %d, %d}", pre_process = lambda v: "%s[0], %s[1], %s[2], %s[3], %s[4], %s[5], %s[6], %s[7]" % (v, v, v, v, v, v, v, v))
 
-debug_uint2  = ML_Debug(display_format = "{%u, %u}", pre_process = lambda v: "%s._[0], %s._[1]" % (v, v))
-debug_uint4  = ML_Debug(display_format = "{%u, %u, %u, %u}", pre_process = lambda v: "%s._[0], %s._[1], %s._[2], %s._[3]" % (v, v, v, v))
-debug_uint8  = ML_Debug(display_format = "{%u, %u, %u, %u, %u, %u, %u, %u}", pre_process = lambda v: "%s._[0], %s._[1], %s._[2], %s._[3], %s._[4], %s._[5], %s._[6], %s._[7]" % (v, v, v, v, v, v, v, v))
+debug_uint2  = ML_Debug(display_format = "{%u, %u}", pre_process = lambda v: "%s[0], %s[1]" % (v, v))
+debug_uint4  = ML_Debug(display_format = "{%u, %u, %u, %u}", pre_process = lambda v: "%s[0], %s[1], %s[2], %s[3]" % (v, v, v, v))
+debug_uint8  = ML_Debug(display_format = "{%u, %u, %u, %u, %u, %u, %u, %u}", pre_process = lambda v: "%s[0], %s[1], %s[2], %s[3], %s[4], %s[5], %s[6], %s[7]" % (v, v, v, v, v, v, v, v))
 
-debug_long2  = ML_Debug(display_format = "{%ld, %ld}", pre_process = lambda v: "%s._[0], %s._[1]" % (v, v))
-debug_long4  = ML_Debug(display_format = "{%ld, %ld, %ld, %ld}", pre_process = lambda v: "%s._[0], %s._[1], %s._[2], %s._[3]" % (v, v, v, v))
-debug_long8  = ML_Debug(display_format = "{%ld, %ld, %ld, %ld, %ld, %ld, %ld, %ld}", pre_process = lambda v: "%s._[0], %s._[1], %s._[2], %s._[3], %s._[4], %s._[5], %s._[6], %s._[7]" % (v, v, v, v, v, v, v, v))
+debug_long2  = ML_Debug(display_format = "{%ld, %ld}", pre_process = lambda v: "%s[0], %s[1]" % (v, v))
+debug_long4  = ML_Debug(display_format = "{%ld, %ld, %ld, %ld}", pre_process = lambda v: "%s[0], %s[1], %s[2], %s[3]" % (v, v, v, v))
+debug_long8  = ML_Debug(display_format = "{%ld, %ld, %ld, %ld, %ld, %ld, %ld, %ld}", pre_process = lambda v: "%s[0], %s[1], %s[2], %s[3], %s[4], %s[5], %s[6], %s[7]" % (v, v, v, v, v, v, v, v))
 
-debug_ulong2  = ML_Debug(display_format = "{%lu, %lu}", pre_process = lambda v: "%s._[0], %s._[1]" % (v, v))
-debug_ulong4  = ML_Debug(display_format = "{%lu, %lu, %lu, %lu}", pre_process = lambda v: "%s._[0], %s._[1], %s._[2], %s._[3]" % (v, v, v, v))
-debug_ulong8  = ML_Debug(display_format = "{%lu, %lu, %lu, %lu, %lu, %lu, %lu, %lu}", pre_process = lambda v: "%s._[0], %s._[1], %s._[2], %s._[3], %s._[4], %s._[5], %s._[6], %s._[7]" % (v, v, v, v, v, v, v, v))
+debug_ulong2  = ML_Debug(display_format = "{%lu, %lu}", pre_process = lambda v: "%s[0], %s[1]" % (v, v))
+debug_ulong4  = ML_Debug(display_format = "{%lu, %lu, %lu, %lu}", pre_process = lambda v: "%s[0], %s[1], %s[2], %s[3]" % (v, v, v, v))
+debug_ulong8  = ML_Debug(display_format = "{%lu, %lu, %lu, %lu, %lu, %lu, %lu, %lu}", pre_process = lambda v: "%s[0], %s[1], %s[2], %s[3], %s[4], %s[5], %s[6], %s[7]" % (v, v, v, v, v, v, v, v))
 
 
-debug_v4dualfloat64 = ML_Debug(display_format="[{%a, %a}, {%a, %a}, {%a, %a}, {%a, %a}]", pre_process=lambda v: (", ".join("{v}.hi._[%d], {v}.lo._[%d]" % (i, i) for i in range(4))).format(v=v)) 
+debug_v4dualfloat64 = ML_Debug(display_format="[{%a, %a}, {%a, %a}, {%a, %a}, {%a, %a}]", pre_process=lambda v: (", ".join("{v}.hi[%d], {v}.lo[%d]" % (i, i) for i in range(4))).format(v=v)) 
 
 class MultiDebugKey: pass
 class Is32bFixedPoint: pass
