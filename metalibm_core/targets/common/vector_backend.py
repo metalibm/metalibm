@@ -987,7 +987,7 @@ vector_c_code_generation_table = {
                   VECTOR_TYPE_MAP[scalar_type][vector_size]
                 ), SymbolOperator("+", arity = 2)
               ) for vector_size in supported_vector_size
-            ] for scalar_type in [ML_Binary32, ML_Binary64, ML_Int32, ML_UInt32]
+            ] for scalar_type in [ML_Binary32, ML_Binary64, ML_Int32, ML_UInt32, ML_Int64, ML_UInt64]
           ], [])
         )
      }
