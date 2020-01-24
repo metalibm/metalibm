@@ -6,7 +6,7 @@
 
 #define VECTORIZE_OP1(OP, r, x, size) {\
   unsigned i;\
-  for (i = 0; i < size; ++i) *(r)[i] = OP((x)[i]);\
+  for (i = 0; i < size; ++i) (*(r))[i] = OP((x)[i]);\
 }
 
 
@@ -41,8 +41,8 @@ static inline void FUNC_NAME(VECTOR_FORMAT *r, VECTOR_FORMAT vop) {\
 
 #define ML_ASSEMBLE_VECTOR(vr, va, vb, size_a, size_b) {\
   int __k; \
-  for(__k = 0; __k < (size_a); __k++) *(vr)[__k] = (va)[__k];\
-  for(__k = 0; __k < (size_b); __k++) *(vr)[__k + (size_a)] = (vb)[__k];\
+  for(__k = 0; __k < (size_a); __k++) (*(vr))[__k] = (va)[__k];\
+  for(__k = 0; __k < (size_b); __k++) (*(vr))[__k + (size_a)] = (vb)[__k];\
 }
 
 
@@ -279,7 +279,7 @@ DEF_ML_VECTOR_PRIMITIVES_OP1(ml_vbwnotu8, ml_uint8_t, int32_t, 8,~)
 static inline void FUNC_NAME(RESULT_FORMAT *r, VECTOR_FORMAT vop0, VECTOR_FORMAT vop1) {\
   unsigned i;\
   for (i = 0; i < VECTOR_SIZE; ++i) {\
-    (*r)[i] = vop0[i] COMP_OP vop1[i];\
+    (*(r))[i] = vop0[i] COMP_OP vop1[i];\
   };\
 }
 
@@ -404,7 +404,7 @@ DEF_ML_VECTOR_COMPARATOR_OP2(ml_comp_ne_ul8, ml_bool8_t, ml_ulong8_t, 8, !=)
 static inline void FUNC_NAME(RESULT_FORMAT *r, VECTOR_FORMAT vop) {\
   unsigned i;\
   for (i = 0; i < VECTOR_SIZE; ++i) {\
-    (*r)[i] = SCALAR_TEST_FUNC(vop[i]);\
+    (*(r))[i] = SCALAR_TEST_FUNC(vop[i]);\
   };\
 }
 
@@ -531,29 +531,29 @@ static inline int ml_is_vmask8_not_all_zero(ml_bool8_t vop) {
 /** Vector Assembling functions **/
 #define DEF_ML_VECTOR_ASSEMBLY_FUNC_1_2(FUNC_NAME, RESULT_FORMAT, SCALAR_FORMAT) \
 static inline void FUNC_NAME(RESULT_FORMAT *r, SCALAR_FORMAT op1, SCALAR_FORMAT op2) {\
-    (*r)[0] = op1; (*r)[1] = op2;\
+    (*(r))[0] = op1; (*(r))[1] = op2;\
 }
 
 #define DEF_ML_VECTOR_ASSEMBLY_FUNC_1_4(FUNC_NAME, RESULT_FORMAT, SCALAR_FORMAT) \
-static inline void FUNC_NAME(RESULT_FORMAT *r, SCALAR_FORMAT op1, SCALAR_FORMAT op2, SCALAR_FORMAT op3, SCALAR_FORMAT op4) {\
-    (*r)[0] = op1; (*r)[1] = op2; (*r)[2] = op3; (*r)[3] = op4;\
+static inline void FUNC_NAME(RESULT_FORMAT *(r), SCALAR_FORMAT op1, SCALAR_FORMAT op2, SCALAR_FORMAT op3, SCALAR_FORMAT op4) {\
+    (*(r))[0] = op1; (*(r))[1] = op2; (*(r))[2] = op3; (*(r))[3] = op4;\
 }
 
 #define DEF_ML_VECTOR_ASSEMBLY_FUNC_2_4(FUNC_NAME, RESULT_FORMAT, VECTOR_FORMAT) \
-static inline void FUNC_NAME(RESULT_FORMAT *r, VECTOR_FORMAT vop1, VECTOR_FORMAT vop2) {\
-  (*r)[0] = vop1[0]; (*r)[1] = vop1[1] ; (*r)[2] = vop2[0] ; (*r)[3] = vop2[1] ;\
+static inline void FUNC_NAME(RESULT_FORMAT *(r), VECTOR_FORMAT vop1, VECTOR_FORMAT vop2) {\
+  (*(r))[0] = vop1[0]; (*(r))[1] = vop1[1] ; (*(r))[2] = vop2[0] ; (*(r))[3] = vop2[1] ;\
 }
 
 #define DEF_ML_VECTOR_ASSEMBLY_FUNC_2_8(FUNC_NAME, RESULT_FORMAT, VECTOR_FORMAT) \
-static inline void FUNC_NAME(RESULT_FORMAT *r, VECTOR_FORMAT vop1, VECTOR_FORMAT vop2, VECTOR_FORMAT vop3, VECTOR_FORMAT vop4) {\
-  (*r)[0] = vop1[0]; (*r)[1] = vop1[1] ; (*r)[2] = vop2[0] ; (*r)[3] = vop2[1] ;\
-  (*r)[4] = vop3[0]; (*r)[5] = vop3[1] ; (*r)[6] = vop4[0] ; (*r)[7] = vop4[1] ;\
+static inline void FUNC_NAME(RESULT_FORMAT *(r), VECTOR_FORMAT vop1, VECTOR_FORMAT vop2, VECTOR_FORMAT vop3, VECTOR_FORMAT vop4) {\
+  (*(r))[0] = vop1[0]; (*(r))[1] = vop1[1] ; (*(r))[2] = vop2[0] ; (*(r))[3] = vop2[1] ;\
+  (*(r))[4] = vop3[0]; (*(r))[5] = vop3[1] ; (*(r))[6] = vop4[0] ; (*(r))[7] = vop4[1] ;\
 }
 
 #define DEF_ML_VECTOR_ASSEMBLY_FUNC_4_8(FUNC_NAME, RESULT_FORMAT, VECTOR_FORMAT) \
-static inline void FUNC_NAME(RESULT_FORMAT *r, VECTOR_FORMAT vop1, VECTOR_FORMAT vop2) {\
-  (*r)[0] = vop1[0]; (*r)[1] = vop1[1] ; (*r)[2] = vop1[2] ; (*r)[3] = vop1[3] ;\
-  (*r)[4] = vop2[0]; (*r)[5] = vop2[1] ; (*r)[6] = vop2[2] ; (*r)[7] = vop2[3] ;\
+static inline void FUNC_NAME(RESULT_FORMAT *(r), VECTOR_FORMAT vop1, VECTOR_FORMAT vop2) {\
+  (*(r))[0] = vop1[0]; (*(r))[1] = vop1[1] ; (*(r))[2] = vop1[2] ; (*(r))[3] = vop1[3] ;\
+  (*(r))[4] = vop2[0]; (*(r))[5] = vop2[1] ; (*(r))[6] = vop2[2] ; (*(r))[7] = vop2[3] ;\
 }
 
 DEF_ML_VECTOR_ASSEMBLY_FUNC_1_2(ml_vec_assembling_1_2_float, ml_float2_t, float)
@@ -584,7 +584,7 @@ DEF_ML_VECTOR_ASSEMBLY_FUNC_4_8(ml_vec_assembling_4_8_double, ml_double8_t, ml_d
 static inline void FUNC_NAME(RESULT_FORMAT *r, VECTOR_FORMAT vop) {\
   unsigned i;\
   for (i = 0; i < VECTOR_SIZE; ++i) {\
-    (*r)[i] = SCALAR_TEST_FUNC(vop[i]);\
+    (*(r))[i] = SCALAR_TEST_FUNC(vop[i]);\
   };\
 }
 
@@ -635,14 +635,14 @@ DEF_ML_VECTOR_NONUN_FUNC_OP1(ml_vmantissa_extraction_d8, ml_double8_t, ml_double
 
 /** Vector element-wise selection */
 #define ML_VSELECT(result,test,op0,op1,size) {\
-  unsigned __k; for (__k = 0; __k < size; ++__k) *(result)[__k] = (test)[__k] ? (op0)[__k] : (op1)[__k]; };
+  unsigned __k; for (__k = 0; __k < size; ++__k) (*(result))[__k] = (test)[__k] ? (op0)[__k] : (op1)[__k]; };
 
 /** Vector element-wise load (gather) */
 #define ML_VLOAD(result,table,addr,size) {\
-  unsigned __k; for (__k = 0; __k < size; ++__k) *(result)[__k] = table[(addr)[__k]]; };
+  unsigned __k; for (__k = 0; __k < size; ++__k) (*(result))[__k] = table[(addr)[__k]]; };
 /** Vector element-wise load (gather) for 2D table */
 #define ML_VLOAD2D(result,table,addr0,addr1,size) {\
-  unsigned __k; for (__k = 0; __k < size; ++__k) *(result)[__k] = table[(addr0)[__k]][(addr1)[__k]]; };
+  unsigned __k; for (__k = 0; __k < size; ++__k) (*(result))[__k] = table[(addr0)[__k]][(addr1)[__k]]; };
 /** Implicit vector conversion */
 #define ML_VCONV(dst,src,size) {\
-  unsigned __k; for (__k = 0; __k < size; ++__k) *(dst)[__k] = (src)[__k]; };
+  unsigned __k; for (__k = 0; __k < size; ++__k) (*(dst))[__k] = (src)[__k]; };
