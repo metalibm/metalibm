@@ -71,7 +71,21 @@ scalar_type_letter = {
   ML_Int64:    "l",
 }
 
+COMPARATOR_SYMBOL_MAP = {
+    Comparison.Equal: "==",
+    Comparison.NotEqual: "==",
+    Comparison.LessOrEqual: "<=",
+    Comparison.Less: "<",
+    Comparison.Greater: ">",
+    Comparison.GreaterOrEqual: ">="
+}
+
 supported_vector_size = [2, 3, 4, 8]
+
+VECTOR_BOOLEAN_FORMAT_LIST = [
+    v2bool, v3bool, v4bool, v8bool,
+    v2lbool, v3lbool, v4lbool, v8lbool
+]
 
 
 def promote_operand(op_index, precision):
@@ -277,7 +291,7 @@ vector_opencl_code_generation_table = {
             [
               (type_strict_match(
                   VECTOR_TYPE_MAP[scalar_type][vector_size],
-                  VECTOR_TYPE_MAP[ML_Bool][vector_size],
+                  VECTOR_TYPE_MAP[ML_Bool][scalar_type.get_bit_size()][vector_size],
                   VECTOR_TYPE_MAP[scalar_type][vector_size],
                   VECTOR_TYPE_MAP[scalar_type][vector_size]
                 ), TemplateOperator("%s ? %s : %s", arity = 3)
@@ -426,12 +440,12 @@ vector_opencl_code_generation_table = {
   },
   LogicalOr: {
     None: {
-      lambda _: True: {
-        type_strict_match(v2bool, v2bool, v2bool): SymbolOperator("||", arity = 2),
-        type_strict_match(v3bool, v3bool, v3bool): SymbolOperator("||", arity = 2),
-        type_strict_match(v4bool, v4bool, v4bool): SymbolOperator("||", arity = 2),
-        type_strict_match(v8bool, v8bool, v8bool): SymbolOperator("||", arity = 2),
-      },
+      lambda _: True: dict(
+        (
+            type_strict_match(vbool_format, vbool_format, vbool_format),
+            SymbolOperator("||", arity = 2)
+        ) for vbool_format in VECTOR_BOOLEAN_FORMAT_LIST
+       )
     },
   },
   Comparison:
@@ -447,8 +461,7 @@ vector_opencl_code_generation_table = {
                     (
                       type_strict_match_list(
                         [
-                          #vector_type[ML_Int32][vector_size],
-                          VECTOR_TYPE_MAP[ML_Bool][vector_size]
+                          VECTOR_TYPE_MAP[ML_Bool][scalar_type.get_bit_size()][vector_size]
                         ],
                         [
                           VECTOR_TYPE_MAP[scalar_type][vector_size]
@@ -540,10 +553,14 @@ vector_opencl_code_generation_table = {
   Test: {
     Test.IsMaskAllZero: {
       lambda _: True: {
-        type_strict_match_list([ML_Bool, ML_Int32], [v2bool]): ML_OCL_VectorLib_Function("ml_ocl_is_vmask2_zero", arity = 1, output_precision = ML_Int32),
-        type_strict_match_list([ML_Bool, ML_Int32], [v3bool]): ML_OCL_VectorLib_Function("ml_ocl_is_vmask3_zero", arity = 1, output_precision = ML_Int32),
-        type_strict_match_list([ML_Bool, ML_Int32], [v4bool]): ML_OCL_VectorLib_Function("ml_ocl_is_vmask4_zero", arity = 1, output_precision = ML_Int32),
-        type_strict_match_list([ML_Bool, ML_Int32], [v8bool]): ML_OCL_VectorLib_Function("ml_ocl_is_vmask8_zero", arity = 1, output_precision = ML_Int32),
+        type_strict_match_list([ML_Bool, ML_Int32], [v2bool]):
+            ML_OCL_VectorLib_Function("ml_ocl_is_vmask2_zero", arity = 1, output_precision = ML_Int32),
+        type_strict_match_list([ML_Bool, ML_Int32], [v3bool]):
+            ML_OCL_VectorLib_Function("ml_ocl_is_vmask3_zero", arity = 1, output_precision = ML_Int32),
+        type_strict_match_list([ML_Bool, ML_Int32], [v4bool]):
+            ML_OCL_VectorLib_Function("ml_ocl_is_vmask4_zero", arity = 1, output_precision = ML_Int32),
+        type_strict_match_list([ML_Bool, ML_Int32], [v8bool]):
+            ML_OCL_VectorLib_Function("ml_ocl_is_vmask8_zero", arity = 1, output_precision = ML_Int32),
       },
     },
     Test.IsMaskAnyZero: {
@@ -1388,33 +1405,42 @@ vector_c_code_generation_table = {
     },
   },
   LogicalNot: {
+    #None: {
+    #  lambda _: True: {
+    #    type_strict_match(v2bool, v2bool): ML_VectorLib_Function("ml_vnotb2", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)}, arity = 1, output_precision = v2int32),
+    #    type_strict_match(v3bool, v3bool): ML_VectorLib_Function("ml_vnotb3", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)}, arity = 1, output_precision = v3int32),
+    #    type_strict_match(v4bool, v4bool): ML_VectorLib_Function("ml_vnotb4", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)}, arity = 1, output_precision = v4int32),
+    #    type_strict_match(v8bool, v8bool): ML_VectorLib_Function("ml_vnotb8", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)}, arity = 1, output_precision = v8int32),
+    #  },
+    #},
     None: {
-      lambda _: True: {
-        type_strict_match(v2bool, v2bool): ML_VectorLib_Function("ml_vnotb2", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)}, arity = 1, output_precision = v2int32),
-        type_strict_match(v3bool, v3bool): ML_VectorLib_Function("ml_vnotb3", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)}, arity = 1, output_precision = v3int32),
-        type_strict_match(v4bool, v4bool): ML_VectorLib_Function("ml_vnotb4", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)}, arity = 1, output_precision = v4int32),
-        type_strict_match(v8bool, v8bool): ML_VectorLib_Function("ml_vnotb8", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)}, arity = 1, output_precision = v8int32),
-      },
+      lambda _: True: dict(
+        (type_strict_match(vformat, vformat),
+        # TODO/FIXME: trying to use bitwise operator for logical operation
+        SymbolOperator("~", arity=1)) for vformat in VECTOR_BOOLEAN_FORMAT_LIST
+      )
+        
     },
   },
   LogicalOr: {
     None: {
-      lambda _: True: {
-        type_strict_match(v2bool, v2bool, v2bool): ML_VectorLib_Function("ml_vorb2", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v2int32),
-        type_strict_match(v3bool, v3bool, v3bool): ML_VectorLib_Function("ml_vorb3", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v3int32),
-        type_strict_match(v4bool, v4bool, v4bool): ML_VectorLib_Function("ml_vorb4", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v4int32),
-        type_strict_match(v8bool, v8bool, v8bool): ML_VectorLib_Function("ml_vorb8", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v8int32),
-      },
+      lambda _: True: dict(
+        (type_strict_match(vformat, vformat, vformat),
+        # TODO/FIXME: trying to use bitwise operator for logical operation
+        SymbolOperator("|", arity=2)) for vformat in VECTOR_BOOLEAN_FORMAT_LIST
+      )
+        
     },
   },
   LogicalAnd: {
     None: {
-      lambda _: True: {
-        type_strict_match(v2bool, v2bool, v2bool): ML_VectorLib_Function("ml_vandb2", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v2int32),
-        type_strict_match(v3bool, v3bool, v3bool): ML_VectorLib_Function("ml_vandb3", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v3int32),
-        type_strict_match(v4bool, v4bool, v4bool): ML_VectorLib_Function("ml_vandb4", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v4int32),
-        type_strict_match(v8bool, v8bool, v8bool): ML_VectorLib_Function("ml_vandb8", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2, output_precision = v8int32),
-      },
+      lambda _: True: dict(
+       (
+            type_strict_match(vbool_format, vbool_format, vbool_format),
+            # TODO/FIXME: trying to use bitwise operator for logical operation
+            SymbolOperator("&", arity=2)
+        ) for vbool_format in VECTOR_BOOLEAN_FORMAT_LIST
+      )
     },
   },
   Comparison:
@@ -1431,7 +1457,7 @@ vector_c_code_generation_table = {
                       type_strict_match_list(
                         [
                           #vector_type[ML_Int32][vector_size],
-                          VECTOR_TYPE_MAP[ML_Bool][vector_size]
+                          VECTOR_TYPE_MAP[ML_Bool][scalar_type.get_bit_size()][vector_size]
                         ],
                         [
                           VECTOR_TYPE_MAP[scalar_type][vector_size]
@@ -1441,18 +1467,7 @@ vector_c_code_generation_table = {
                         ]
                       )
                       ,
-                      ML_VectorLib_Function(
-                          "ml_comp_%s_%s%d" % (comp_specifier.opcode,
-                                               scalar_type_letter[scalar_type],
-                                               vector_size),
-                          arg_map = {
-                              0: FO_ResultRef(0),
-                              1: FO_Arg(0),
-                              2: FO_Arg(1)
-                              },
-                          arity = 2,
-                          output_precision = VECTOR_TYPE_MAP[ML_Bool][vector_size]
-                          )
+                      SymbolOperator(COMPARATOR_SYMBOL_MAP[comp_specifier], arity=2)
                     ) for scalar_type in [
                         ML_Binary32, ML_Binary64,
                         ML_Int32, ML_UInt32,
@@ -1508,10 +1523,10 @@ vector_c_code_generation_table = {
         type_strict_match(v4bool, v4float32): ML_VectorLib_Function("ml_vtestf4_is_nan_or_inf", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)}, arity = 1, output_precision = v4int32),
         type_strict_match(v8bool, v8float32): ML_VectorLib_Function("ml_vtestf8_is_nan_or_inf", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)}, arity = 1, output_precision = v8int32),
 
-        type_strict_match(v4bool, v4float64):
-            ML_VectorLib_Function("ml_vtestd4_is_nan_or_inf", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)}, arity = 1, output_precision = v4bool),
-        type_strict_match(v8bool, v8float64):
-            ML_VectorLib_Function("ml_vtestd8_is_nan_or_inf", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)}, arity = 1, output_precision = v8bool),
+        type_strict_match(v4lbool, v4float64):
+            ML_VectorLib_Function("ml_vtestd4_is_nan_or_inf", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)}, arity = 1, output_precision=v4lbool),
+        type_strict_match(v8lbool, v8float64):
+            ML_VectorLib_Function("ml_vtestd8_is_nan_or_inf", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)}, arity = 1, output_precision=v8lbool),
       },
     },
     Test.IsInfty: {
@@ -1546,10 +1561,10 @@ vector_c_code_generation_table = {
         type_strict_match(v4bool, v4float32): ML_VectorLib_Function("ml_vtestf4_is_subnormal", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)}, arity = 1, output_precision = v4int32),
         type_strict_match(v8bool, v8float32): ML_VectorLib_Function("ml_vtestf8_is_subnormal", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)}, arity = 1, output_precision = v8int32),
         # double precision
-        type_strict_match(v4bool, v4float64):
-            ML_VectorLib_Function("ml_vtestd4_is_subnormal", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)}, arity = 1, output_precision = v4bool),
-        type_strict_match(v8bool, v8float64):
-            ML_VectorLib_Function("ml_vtestd8_is_subnormal", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)}, arity = 1, output_precision = v8bool),
+        type_strict_match(v4lbool, v4float64):
+            ML_VectorLib_Function("ml_vtestd4_is_subnormal", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)}, arity = 1, output_precision = v4lbool),
+        type_strict_match(v8lbool, v8float64):
+            ML_VectorLib_Function("ml_vtestd8_is_subnormal", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)}, arity = 1, output_precision = v8lbool),
       },
     },
   },
