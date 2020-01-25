@@ -53,6 +53,11 @@ typedef int32_t ml_bool2_t __attribute__ ((vector_size (8)));
 typedef int32_t ml_bool4_t __attribute__ ((vector_size (16)));
 typedef int32_t ml_bool8_t __attribute__ ((vector_size (32)));
 
+// boolean vector formats as 64-b integer vector format
+typedef int64_t ml_lbool2_t __attribute__ ((vector_size (16)));
+typedef int64_t ml_lbool4_t __attribute__ ((vector_size (32)));
+typedef int64_t ml_lbool8_t __attribute__ ((vector_size (64)));
+
 /** Multi-precision vector format */
 #define DEC_ML_MP2_VEC_FORMAT(FORMAT_NAME, FIELD_FORMAT) \
 typedef struct { \
