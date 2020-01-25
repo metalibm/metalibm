@@ -556,7 +556,7 @@ if __name__ == "__main__":
                             default=None,
                             help="generate a new reference file")
     arg_parser.add_argument("--bench-test-number", dest="bench_test_number", action="store",
-                            default=None,
+                            default=None, type=int,
                             help="set the number of loop to run during performance bench (0 disable performance benching alltogether)")
     arg_parser.add_argument(
         "--verbose", dest="verbose_enable", action=VerboseAction,
