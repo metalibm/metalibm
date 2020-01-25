@@ -224,7 +224,11 @@ class StaticVectorizer(object):
     def vectorize_format(self, scalar_format, vector_size):
         """ Return the vector version of size @p vectori_size of the scalar precision
             @p scalar_format """
-        return VECTOR_TYPE_MAP[scalar_format][vector_size]
+        if scalar_format is ML_Bool:
+            # boolean format must be mapped to virtual boolean format
+            return VECTOR_TYPE_MAP[scalar_format][None][vector_size]
+        else:
+            return VECTOR_TYPE_MAP[scalar_format][vector_size]
 
     def is_vectorizable(self, optree):
         """ Predicate to test if @p optree can be vectorized """
