@@ -383,24 +383,6 @@ def equal_to(optree, cst_value):
         precision = ML_Bool
     )
 
-def logical_reduce(op_list, op_ctor=LogicalOr, precision=ML_Bool, **kw):
-    """ Logical/Boolean operand list reduction """
-    local_list = [op for op in op_list]
-    while len(local_list) > 1:
-        op0 = local_list.pop(0)
-        op1 = local_list.pop(0)
-        local_list.append(
-            op_ctor(op0, op1, precision=precision)
-        )
-    # assigning attributes to the resulting node
-    result = local_list[0]
-    result.set_attributes(**kw)
-    return result
-
-## Specialization of logical reduce to OR operation
-logical_or_reduce  = lambda op_list, **kw: logical_reduce(op_list, LogicalOr, ML_Bool, **kw)
-## Specialization of logical reduce to AND operation
-logical_and_reduce = lambda op_list, **kw: logical_reduce(op_list, LogicalAnd, ML_Bool, **kw)
 
 
 def UnsignedOperation(lhs, rhs, op_ctor, **kw):
