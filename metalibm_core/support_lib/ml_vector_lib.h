@@ -449,16 +449,16 @@ DEF_ML_VECTOR_TEST_FUNC_OP1(ml_vtestd4_is_subnormal, ml_bool4_t, ml_double4_t, 4
 DEF_ML_VECTOR_TEST_FUNC_OP1(ml_vtestd8_is_subnormal, ml_bool8_t, ml_double8_t, 8, ml_is_subnormal)
 
 static inline int ml_is_vmask2_zero(ml_bool2_t vop) {
-  return (vop[0] == 0) && (vop[1] == 0);
+    return (vop[0] == 0) && (vop[1] == 0);
 }
 static inline int ml_is_vmask4_zero(ml_bool4_t vop) {
-  return (vop[0] == 0) &&
+    return (vop[0] == 0) &&
          (vop[1] == 0) &&
          (vop[2] == 0) &&
          (vop[3] == 0);
 }
 static inline int ml_is_vmask8_zero(ml_bool8_t vop) {
-  return (vop[0] == 0) &&
+    return (vop[0] == 0) &&
          (vop[1] == 0) &&
          (vop[2] == 0) &&
          (vop[3] == 0) &&
@@ -469,16 +469,16 @@ static inline int ml_is_vmask8_zero(ml_bool8_t vop) {
 }
 
 static inline int ml_is_vmask2_any_zero(ml_bool2_t vop) {
-  return (vop[0] == 0) || (vop[1] == 0);
+    return (vop[0] == 0) || (vop[1] == 0);
 }
 static inline int ml_is_vmask4_any_zero(ml_bool4_t vop) {
-  return (vop[0] == 0) ||
+    return (vop[0] == 0) ||
          (vop[1] == 0) ||
          (vop[2] == 0) ||
          (vop[3] == 0);
 }
 static inline int ml_is_vmask8_any_zero(ml_bool8_t vop) {
-  return (vop[0] == 0) ||
+    return (vop[0] == 0) ||
          (vop[1] == 0) ||
          (vop[2] == 0) ||
          (vop[3] == 0) ||
@@ -489,16 +489,16 @@ static inline int ml_is_vmask8_any_zero(ml_bool8_t vop) {
 }
 
 static inline int ml_is_vmask2_not_any_zero(ml_bool2_t vop) {
-  return (vop[0] != 0) && (vop[1] != 0);
+    return (vop[0] != 0) && (vop[1] != 0);
 }
 static inline int ml_is_vmask4_not_any_zero(ml_bool4_t vop) {
-  return (vop[0] != 0) &&
+    return (vop[0] != 0) &&
          (vop[1] != 0) &&
          (vop[2] != 0) &&
          (vop[3] != 0);
 }
 static inline int ml_is_vmask8_not_any_zero(ml_bool8_t vop) {
-  return (vop[0] != 0) &&
+    return (vop[0] != 0) &&
          (vop[1] != 0) &&
          (vop[2] != 0) &&
          (vop[3] != 0) &&
@@ -509,16 +509,16 @@ static inline int ml_is_vmask8_not_any_zero(ml_bool8_t vop) {
 }
 
 static inline int ml_is_vmask2_not_all_zero(ml_bool2_t vop) {
-  return (vop[0] != 0) || (vop[1] != 0);
+    return (vop[0] != 0) || (vop[1] != 0);
 }
 static inline int ml_is_vmask4_not_all_zero(ml_bool4_t vop) {
-  return (vop[0] != 0) ||
+    return (vop[0] != 0) ||
          (vop[1] != 0) ||
          (vop[2] != 0) ||
          (vop[3] != 0);
 }
 static inline int ml_is_vmask8_not_all_zero(ml_bool8_t vop) {
-  return (vop[0] != 0) ||
+    return (vop[0] != 0) ||
          (vop[1] != 0) ||
          (vop[2] != 0) ||
          (vop[3] != 0) ||
