@@ -104,9 +104,9 @@ new_scheme_function_list = [
     "vector hyperbolic cosine gen test",
     metalibm_functions.ml_cosh.ML_HyperbolicCosine,
     [{"precision": ML_Binary32, "vector_size": 4, "auto_test": 128,
-      "execute_trigger": True, "target": VectorBackend()},
+      "execute_trigger": True, "target": VectorBackend(),  "passes": ["beforecodegen:virtual_vector_bool_legalization", "beforecodegen:vector_mask_test_legalization"]},
     {"precision": ML_Binary32, "vector_size": 8, "auto_test": 128,
-    "execute_trigger": True, "target": VectorBackend()},
+    "execute_trigger": True, "target": VectorBackend(),  "passes": ["beforecodegen:virtual_vector_bool_legalization", "beforecodegen:vector_mask_test_legalization"]},
      ]
   ),
   NewSchemeTest(
@@ -279,7 +279,11 @@ new_scheme_function_list = [
   NewSchemeTest(
     "vector exp test",
     metalibm_functions.ml_exp.ML_Exponential,
-    [{"precision": ML_Binary32, "vector_size": 2, "target": VectorBackend()}, ]
+    [
+        {"precision": ML_Binary32, "vector_size": 2, "target": VectorBackend(),
+         "passes": ["beforecodegen:virtual_vector_bool_legalization", "beforecodegen:vector_mask_test_legalization"]
+        },
+    ]
   ),
   NewSchemeTest(
     "external bench test",
@@ -312,10 +316,10 @@ new_scheme_function_list = [
     "basic vector function test",
     metalibm_functions.vectorial_function.ML_VectorialFunction,
     [
-        {"precision": ML_Binary32, "auto_test": 10, "execute_trigger": True},
-        {"precision": ML_Binary32, "use_libm_function": "expf", "auto_test": 10, "execute_trigger": True},
-        {"precision": ML_Binary32, "multi_elt_num": 4, "target": VectorBackend(), "auto_test": 10, "index_test_range": [16, 32], "execute_trigger": True},
-        {"precision": ML_Binary64, "multi_elt_num": 4, "target": VectorBackend(), "auto_test": 10,  "index_test_range": [16, 32], "execute_trigger": True, "expected_to_fail": True},
+        {"precision": ML_Binary32, "auto_test": 10, "execute_trigger": True,  "passes": ["beforecodegen:virtual_vector_bool_legalization", "beforecodegen:vector_mask_test_legalization"]},
+        {"precision": ML_Binary32, "use_libm_function": "expf", "auto_test": 10, "execute_trigger": True, "passes": ["beforecodegen:virtual_vector_bool_legalization", "beforecodegen:vector_mask_test_legalization"]},
+        {"precision": ML_Binary32, "multi_elt_num": 4, "target": VectorBackend(), "auto_test": 10, "index_test_range": [16, 32], "execute_trigger": True,  "passes": ["beforecodegen:virtual_vector_bool_legalization", "beforecodegen:vector_mask_test_legalization"]},
+        {"precision": ML_Binary64, "multi_elt_num": 4, "target": VectorBackend(), "auto_test": 10,  "index_test_range": [16, 32], "execute_trigger": True, "expected_to_fail": True,  "passes": ["beforecodegen:virtual_vector_bool_legalization", "beforecodegen:vector_mask_test_legalization"]},
     ],
   ),
 ]
