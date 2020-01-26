@@ -814,6 +814,8 @@ vector_c_code_generation_table = {
             ML_VectorLib_Function("ML_VLOAD", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: "8"}, arity = 4),
 
         # 8-element vectors (gather)
+        type_custom_match(FSM(v8float64), TCM(ML_TableFormat), FSM(v8int64), FSM(v8int64)):
+            ML_VectorLib_Function("ML_VLOAD2D", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2), 4: "8"}, arity = 5),
         type_custom_match(FSM(v8float64), TCM(ML_TableFormat), FSM(v8int64), FSM(v8int32)):
             ML_VectorLib_Function("ML_VLOAD2D", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2), 4: "8"}, arity = 5),
         type_custom_match(FSM(v8float32), TCM(ML_TableFormat), FSM(v8uint32)):
