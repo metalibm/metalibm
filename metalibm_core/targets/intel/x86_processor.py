@@ -179,10 +179,14 @@ debug_sse_vuint32  = ML_Debug(
 # virtual vector boolean format
 ML_SSE_m128_v4bool = VirtualFormatNoForward(
     v4bool, ML_SSE_m128i, get_sseavx_vector_bool_cst, True)
+ML_SSE_m128_v2lbool  = VirtualFormatNoForward(
+    v2lbool, ML_SSE_m128i, get_sseavx_vector_bool_cst, True)
 
 ML_AVX_m256_v8bool  = VirtualFormatNoForward(
     v8bool, ML_AVX_m256i, get_sseavx_vector_bool_cst, True)
 
+ML_AVX_m256_v4lbool  = VirtualFormatNoForward(
+    v4lbool, ML_AVX_m256i, get_sseavx_vector_bool_cst, True)
 # registering ML_SSE_m128_v<i>float32 specific format
 debug_multi.add_mapping(ML_SSE_m128_v4float32, debug_sse_vfloat32)
 debug_multi.add_mapping(ML_SSE_m128_v2float32, debug_sse_vfloat32)
@@ -733,7 +737,11 @@ def squash_sse_avx_cst_select(optree):
     if is_vector_cst_with_value(lhs, VIRTUAL_CST_MASK_M1) and is_vector_cst_with_value(rhs, VIRTUAL_CST_MASK_0):
         return wrapper(new_cond)
     elif is_vector_cst_with_value(lhs, VIRTUAL_CST_MASK_0) and is_vector_cst_with_value(rhs, VIRTUAL_CST_MASK_M1):
-        new_cond.specifier = invert_comp_specifier(cond.specifier)
+        opposed_specifier = invert_comp_specifier(cond.specifier)
+        if isinstance(new_cond, TypeCast):
+            new_cond.get_input(0).specifier = opposed_specifier
+        else:
+            new_cond.specifier = opposed_specifier
         return wrapper(new_cond)
     else:
         raise NotImplementedError
@@ -798,7 +806,10 @@ def convert_select_to_logic(optree):
         Log.Verbose,
         "legalizing Select(\n\t{},\n\t{}\n\t{}\n) into {}".format(
             cond, lhs, rhs,
-            result
+            # TODO/FIXME: do not let explicit call to get_str in prod
+            # as it will be executed even if verbosity level if not enough
+            # to display this message
+            result.get_str(depth=3, display_precision=True)
         )
     )
     return result
@@ -1144,7 +1155,7 @@ sse_c_code_generation_table = {
                     IdentityOperator(),
                 # m128 float vector from ML's generic vector format
                 type_strict_match(ML_SSE_m128_v4uint32, v4uint32):
-                    IdentityOperator(),
+                    SymbolOperator("(__m128i)", arity=1),
                 # m128 float vector to ML's generic vector format
                 type_strict_match(v4float32, ML_SSE_m128_v4float32):
                     IdentityOperator(),
@@ -1152,7 +1163,7 @@ sse_c_code_generation_table = {
                     SymbolOperator("(ml_uint4_t)", arity=1),
                 # signed integer format
                 type_strict_match(ML_SSE_m128_v4int32, v4int32):
-                    IdentityOperator(),
+                    SymbolOperator("(__m128i)", arity=1),
                 type_strict_match(v4int32, ML_SSE_m128_v4int32):
                     SymbolOperator("(ml_int4_t)", arity=1),
                 # identity operators
@@ -1445,13 +1456,14 @@ sse2_c_code_generation_table = {
                 type_strict_match(ML_Int32, ML_SSE_m128_v1int32):
                     EmmIntrin("_mm_cvtsi128_si32", arity = 1),
                 type_strict_match(v4int32, ML_SSE_m128_v4int32):
-                    IdentityOperator(),
+                    SymbolOperator("(ml_int4_t)", arity=1),
                 type_strict_match(*((ML_SSE_m128_v4int32,) + 4*(ML_Int32,))):
                     XmmIntrin("_mm_set_epi32", arity = 4),
                 #type_strict_match(ML_SSE_m128_v4int32, v4int32):
                 #    ComplexOperator(optree_modifier = v4_to_m128_modifier),
                 type_strict_match(ML_SSE_m128_v4int32, v4int32):
-                    IdentityOperator(),
+                    SymbolOperator("(__m128i)", arity=1),
+                    #IdentityOperator(),
                 # broadcast implemented as conversions
                 type_strict_match(ML_SSE_m128_v4int32, ML_Int32):
                     XmmIntrin("_mm_set1_epi32", arity = 1),
@@ -1693,6 +1705,8 @@ avx_c_code_generation_table = {
             lambda optree: True: {
                 type_strict_match(ML_Bool, ML_AVX_m256_v8bool):
                     ComplexOperator(optree_modifier=legalize_test_IsMaskNotAnyZero),
+                type_strict_match(ML_Bool, ML_AVX_m256_v4lbool):
+                    ComplexOperator(optree_modifier=legalize_test_IsMaskNotAnyZero),
             },
         },
         Test.IsMaskAllZero: {
@@ -1772,27 +1786,32 @@ avx_c_code_generation_table = {
                 type_strict_match(ML_AVX_m256_v8int32, ML_AVX_m256_v8float32):
                     ImmIntrin("_mm256_cvtps_epi32", arity = 1),
                 type_strict_match(ML_AVX_m256_v8float32, v8float32):
-                    IdentityOperator(),
+                    SymbolOperator("(__m256)", arity=1),
                 # __m256 float vector to ML's generic vector format
                 type_strict_match(v8float32, ML_AVX_m256_v8float32):
-                    IdentityOperator(),
+                    SymbolOperator("(ml_float8_t)", arity=1),
                 type_strict_match(ML_AVX_m256_v4float64, v4float64):
-                    IdentityOperator(),
+                    SymbolOperator("(__m256d)", arity=1),
                 type_strict_match(v4float64, ML_AVX_m256_v4float64):
-                    IdentityOperator(),
+                    SymbolOperator("(ml_double4_t)", arity=1),
                 type_strict_match_list(
-                    [v8int32, v8uint32],
+                    [v8int32],
                     [ML_AVX_m256_v8int32, ML_AVX_m256_v8uint32]
                     ):
-                        IdentityOperator(),
-                type_strict_match(v4uint64, ML_AVX_m256_v4uint64): 
-                    IdentityOperator(),
+                        SymbolOperator("(ml_int8_t)", arity=1),
+                type_strict_match_list(
+                    [v8uint32],
+                    [ML_AVX_m256_v8int32, ML_AVX_m256_v8uint32]
+                    ):
+                        SymbolOperator("(ml_uint8_t)", arity=1),
+                type_strict_match(v4uint64, ML_AVX_m256_v4uint64):
+                    SymbolOperator("(ml_ulong4_t)", arity=1),
                 #type_strict_match(*((ML_SSE_m128_v4int32,) + 4*(ML_Int32,))):
                 #    ImmIntrin("_mm256_set_epi32", arity = 4),
                 type_strict_match_list([ML_AVX_m256_v8int32, ML_AVX_m256_v8uint32], [v8int32, v8uint32]):
-                    IdentityOperator(),
+                    SymbolOperator("(__m256i)", arity=1),
                 type_strict_match(ML_AVX_m256_v4uint64, v4uint64):
-                    IdentityOperator(),
+                    SymbolOperator("(__m256i)", arity=1),
                 type_strict_match(ML_AVX_m256_v8int32, ML_Int32):
                     ImmIntrin("_mm256_set1_epi32", arity = 1),
                 type_strict_match(ML_AVX_m256_v8uint32, ML_UInt32):
@@ -1807,19 +1826,23 @@ avx_c_code_generation_table = {
                 type_strict_match(ML_AVX_m256_v4uint64, ML_UInt64):
                     ImmIntrin("_mm256_set1_epi64x", arity = 1),
                 type_strict_match(ML_AVX_m256_v4int64, v4int64):
-                    IdentityOperator(),
+                    SymbolOperator("(__m256i)", arity=1),
                 type_strict_match(v4int64, ML_AVX_m256_v4int64):
-                    IdentityOperator(),
+                    SymbolOperator("(ml_long4_t)", arity=1),
                 type_strict_match(ML_AVX_m256_v4float64, ML_SSE_m128_v4int32):
                     _mm256_cvtepi32_pd,
                 # signed/unsigned conversions
                 type_strict_match(ML_AVX_m256_v8int32, ML_AVX_m256_v8uint32):
-                    TransparentOperator(),
+                    SymbolOperator("(ml_int8_t)", arity=1),
                 type_strict_match(ML_AVX_m256_v8uint32, ML_AVX_m256_v8int32):
-                    TransparentOperator(),
+                    SymbolOperator("(__m256i)", arity=1),
                 # boolean conversion
                 type_strict_match(v8bool, ML_AVX_m256_v8bool):
-                    IdentityOperator(),
+                    SymbolOperator("(ml_bool8_t)", arity=1),
+                type_strict_match(v4lbool, ML_AVX_m256_v4lbool):
+                    SymbolOperator("(ml_lbool4_t)", arity=1),
+                type_strict_match(ML_AVX_m256_v4lbool, v4lbool):
+                    SymbolOperator("(__m256i)", arity=1),
             },
             # AVX-based conversion of 4 int64 to 4 float64, valid if inputs fit
             # into 4 int32.
@@ -1968,9 +1991,14 @@ avx_c_code_generation_table = {
                     TransparentOperator(),
                 type_strict_match(ML_AVX_m256_v8bool, ML_AVX_m256_v8int32):
                     TransparentOperator(),
+                type_strict_match(ML_AVX_m256_v4lbool, ML_AVX_m256_v4int64):
+                    TransparentOperator(),
                 type_strict_match(ML_AVX_m256_v8bool, ML_AVX_m256_v8float32):
                     ImmIntrin("_mm256_castps_si256", arity = 1,
                               output_precision = ML_AVX_m256_v8bool),
+                type_strict_match(ML_AVX_m256_v4lbool, ML_AVX_m256_v4float64):
+                    ImmIntrin("_mm256_castps_si256", arity = 1,
+                              output_precision = ML_AVX_m256_v4lbool),
             },
         },
     },
@@ -2183,7 +2211,9 @@ avx2_c_code_generation_table = {
     LogicalNot: {
         None: {
             lambda _: True: {
-                type_strict_match(ML_AVX_m256_v8bool, ML_AVX_m256_v8bool):
+                type_strict_match_list(
+                    [ML_AVX_m256_v8bool, ML_AVX_m256_v4lbool],
+                    [ML_AVX_m256_v8bool, ML_AVX_m256_v4lbool]):
                     ImmIntrin("_mm256_andnot_si256", arity = 2)(
                               FO_Arg(0),
                               FO_Value("_mm256_set1_epi32(-1)",
@@ -2195,7 +2225,10 @@ avx2_c_code_generation_table = {
     LogicalAnd: {
         None: {
             lambda optree: True: {
-                type_strict_match(*(3*(ML_AVX_m256_v8bool,))):
+                type_strict_match_list(
+                    [ML_AVX_m256_v8bool, ML_AVX_m256_v4lbool],
+                    [ML_AVX_m256_v8bool, ML_AVX_m256_v4lbool],
+                    [ML_AVX_m256_v8bool, ML_AVX_m256_v4lbool]):
                     ImmIntrin("_mm256_and_si256", arity = 2,
                               output_precision = ML_AVX_m256_v8bool),
             },
@@ -2204,7 +2237,10 @@ avx2_c_code_generation_table = {
     LogicalOr: {
         None: {
             lambda optree: True: {
-                type_strict_match(*(3*(ML_AVX_m256_v8bool,))):
+                type_strict_match_list(
+                    [ML_AVX_m256_v8bool, ML_AVX_m256_v4lbool],
+                    [ML_AVX_m256_v8bool, ML_AVX_m256_v4lbool],
+                    [ML_AVX_m256_v8bool, ML_AVX_m256_v4lbool]):
                     ImmIntrin("_mm256_or_si256", arity = 2,
                               output_precision = ML_AVX_m256_v8bool),
             },
