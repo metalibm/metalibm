@@ -39,6 +39,7 @@ from metalibm_core.core.ml_formats import (
 )
 
 from metalibm_core.core.ml_operations import (
+    VectorAssembling,
     Comparison, BooleanOperation,
     LogicalNot, LogicalOr, LogicalAnd,
     Test,
@@ -56,7 +57,7 @@ EXPANDABLE_TEST_LIST = [
 ]
 
 def is_virtual_bool_node(node):
-    return isinstance(node, BooleanOperation) and \
+    return (isinstance(node, BooleanOperation) or isinstance(node, VectorAssembling)) and \
         node.get_precision().is_vector_format() and \
         node.get_precision().get_scalar_format() is ML_Bool
 
@@ -89,6 +90,14 @@ class VirtualBoolVectorLegalizer(object):
             scalar_bit_size = node.get_input(0).get_precision().get_scalar_format().get_bit_size()
             legalized_format = VECTOR_TYPE_MAP[ML_Bool][scalar_bit_size][node.get_precision().get_vector_size()]
             Log.report(LOG_VERBOSE_VBOOL_LEGALIZATION, "legalizing format of {} from {} to {}", node, node.get_precision(), legalized_format)
+            node.set_attributes(precision=legalized_format)
+            result = node
+        elif isinstance(node, VectorAssembling):
+            scalar_bit_size = max(
+                node.get_input(0).get_precision().get_scalar_format().get_bit_size(),
+                node.get_input(1).get_precision().get_scalar_format().get_bit_size()
+            )
+            legalized_format = VECTOR_TYPE_MAP[ML_Bool][scalar_bit_size][node.get_precision().get_vector_size()]
             node.set_attributes(precision=legalized_format)
             result = node
         else:
