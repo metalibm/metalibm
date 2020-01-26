@@ -52,9 +52,10 @@ from metalibm_core.utility.rtl_debug_utils import debug_dec
 from metalibm_core.core.ml_hdl_format import (
     ML_StdLogicVectorFormat, fixed_point, ML_StdLogic)
 from metalibm_core.core.ml_hdl_operations import (
-    logical_reduce,
     Concatenation, multi_Concatenation,
     Signal, SubSignalSelection, BitSelection)
+
+from metalibm_core.opt.opt_utils import logical_reduce
 
 def vector_concatenation(*args):
     """ Concatenate a list of signals of arbitrary length into
