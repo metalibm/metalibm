@@ -327,9 +327,9 @@ TARGET_OPTIONS_MAP = {
             "beforecodegen:basic_legalization",
             "beforecodegen:expand_multi_precision",
             "beforecodegen:virtual_vector_bool_legalization",
-            #"beforecodegen:vector_mask_test_legalization"
             "beforecodegen:m128_promotion",
-            "beforecodegen:m256_promotion"
+            "beforecodegen:m256_promotion",
+            "beforecodegen:vector_mask_test_legalization"
         ]
     },
     VECTOR_BACKEND: {
@@ -587,13 +587,18 @@ if __name__ == "__main__":
                 opt_oname = option["output_name"]
                 # extra_passes requrie specific management, as we do not wish to
                 # overwrite one list with the other, but rather to concatenate them
-                extra_passes = option["extra_passes"] if "extra_passes" in option else []
-                extra_passes += sub_test["extra_passes"] if "extra_passes" in sub_test else []
+                extra_passes = []
+                if "extra_passes" in option:
+                    extra_passes += [ep for ep in option["extra_passes"] if not ep in extra_passes]
+                if "extra_passes" in sub_test:
+                    extra_passes += [ep for ep in sub_test["extra_passes"] if not ep in extra_passes]
+
                 option.update(sub_test)
                 fname = sub_test["function_name"] if "function_name" in sub_test else function.function_name
                 option["extra_passes"] = extra_passes
                 option["function_name"] = fname + "_" + opt_fname
                 option["output_name"] = fname + "_" + opt_oname
+                print(option)
                 local_test_list.append(option)
         test_case = SubFunctionTest(
             function_test.title,
