@@ -73,12 +73,10 @@ def get_compatible_bool_format(optree):
     """ Return a boolean format whose vector-size is compatible
         with optree format """
     if optree.get_precision().is_vector_format():
-        return {
-            2: v2bool,
-            3: v3bool,
-            4: v4bool,
-            8: v8bool
-        }[optree.get_precision().get_vector_size()]
+        scalar_format = optree.get_precision().get_scalar_format()
+        scalar_size = scalar_format.get_bit_size()
+        vector_size = optree.get_precision().get_vector_size()
+        return VECTOR_TYPE_MAP[ML_Bool][scalar_size][vector_size]
     else:
         return ML_Bool
 
@@ -414,7 +412,7 @@ def generate_test_expansion(predicate, test_input):
     test_bool_format = get_compatible_bool_format(test_input)
     if test_input.precision.is_vector_format():
         input_scalar_precision = test_input.precision.get_scalar_format()
-        vector_size = test_input.precision.get_vector_size() 
+        vector_size = test_input.precision.get_vector_size()
         int_precision = {
             ML_Int32: {
                 2: v2int32,
