@@ -1141,63 +1141,20 @@ sse_c_code_generation_table = {
                     _mm_cvtsd_f64,
                 # m128 float vector from ML's generic vector format
                 type_strict_match(ML_SSE_m128_v4float32, v4float32):
-                    XmmIntrin("_mm_load_ps", arity = 1,
-                              output_precision = ML_SSE_m128_v4float32)(
-                                  TemplateOperatorFormat(
-                                      "GET_VEC_FIELD_ADDR({})", arity = 1,
-                                      output_precision = ML_Pointer_Format(
-                                          ML_Binary32
-                                          )
-                                      )
-                                  ),
+                    IdentityOperator(),
                 # m128 float vector from ML's generic vector format
                 type_strict_match(ML_SSE_m128_v4uint32, v4uint32):
-                    XmmIntrin("_mm_load_si128", arity = 1,
-                              output_precision = ML_SSE_m128_v4uint32)(
-                              __m128ip_cast_operator(
-                                  TemplateOperatorFormat(
-                                      "GET_VEC_FIELD_ADDR({})", arity = 1,
-                                      output_precision = ML_Pointer_Format(
-                                          ML_UInt32
-                                          )
-                                      )
-                                  )),
+                    IdentityOperator(),
                 # m128 float vector to ML's generic vector format
                 type_strict_match(v4float32, ML_SSE_m128_v4float32):
-                    TemplateOperatorFormat(
-                        "_mm_store_ps(GET_VEC_FIELD_ADDR({}), {})",
-                        arity = 1,
-                        arg_map = {0: FO_Result(0), 1: FO_Arg(0)},
-                        require_header = ["xmmintrin.h"]
-                        ),
-                    #XmmIntrin("_mm_store_ps", arity = 2, arg_map = {0: FO_Result(0), 1: FO_Arg(0)})
-                    #  (FunctionOperator("GET_VEC_FIELD_ADDR", arity = 1, output_precision = ML_Pointer_Format(ML_Binary32))(FO_Result(0)), FO_Arg(0)),
+                    IdentityOperator(),
                 type_strict_match(v4uint32, ML_SSE_m128_v4uint32):
-                    TemplateOperatorFormat(
-                        "_mm_store_si128((__m128i*)GET_VEC_FIELD_ADDR({}), {})",
-                        arity = 1,
-                        arg_map = {0: FO_Result(0), 1: FO_Arg(0)},
-                        require_header = ["emmintrin.h"]
-                        ),
+                    SymbolOperator("(ml_uint4_t)", arity=1),
                 # signed integer format
                 type_strict_match(ML_SSE_m128_v4int32, v4int32):
-                    XmmIntrin("_mm_load_si128", arity = 1,
-                              output_precision = ML_SSE_m128_v4int32)(
-                              __m128ip_cast_operator(
-                                  TemplateOperatorFormat(
-                                      "GET_VEC_FIELD_ADDR({})", arity = 1,
-                                      output_precision = ML_Pointer_Format(
-                                          ML_Int32
-                                          )
-                                      )
-                                  )),
+                    IdentityOperator(),
                 type_strict_match(v4int32, ML_SSE_m128_v4int32):
-                    TemplateOperatorFormat(
-                        "_mm_store_si128((__m128i*)GET_VEC_FIELD_ADDR({}), {})",
-                        arity = 1,
-                        arg_map = {0: FO_Result(0), 1: FO_Arg(0)},
-                        require_header = ["emmintrin.h"]
-                        ),
+                    SymbolOperator("(ml_int4_t)", arity=1),
                 # identity operators
                 lambda dst_type, src_type, **kwords: dst_type == src_type:
                     IdentityOperator(),
@@ -1488,25 +1445,13 @@ sse2_c_code_generation_table = {
                 type_strict_match(ML_Int32, ML_SSE_m128_v1int32):
                     EmmIntrin("_mm_cvtsi128_si32", arity = 1),
                 type_strict_match(v4int32, ML_SSE_m128_v4int32):
-                    TemplateOperatorFormat(
-                        "_mm_store_si128((__m128i*){0}, {1})",
-                        arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)},
-                        void_function = True
-                        ),
+                    IdentityOperator(),
                 type_strict_match(*((ML_SSE_m128_v4int32,) + 4*(ML_Int32,))):
                     XmmIntrin("_mm_set_epi32", arity = 4),
                 #type_strict_match(ML_SSE_m128_v4int32, v4int32):
                 #    ComplexOperator(optree_modifier = v4_to_m128_modifier),
                 type_strict_match(ML_SSE_m128_v4int32, v4int32):
-                    XmmIntrin(
-                        "_mm_load_si128", arity = 1,
-                        output_precision = ML_SSE_m128_v4int32
-                        )(__m128ip_cast_operator(
-                            TemplateOperatorFormat(
-                                "GET_VEC_FIELD_ADDR({})", arity = 1,
-                                output_precision = ML_Pointer_Format(ML_Int32)
-                                )
-                            )),
+                    IdentityOperator(),
                 # broadcast implemented as conversions
                 type_strict_match(ML_SSE_m128_v4int32, ML_Int32):
                     XmmIntrin("_mm_set1_epi32", arity = 1),
@@ -1514,22 +1459,10 @@ sse2_c_code_generation_table = {
                     XmmIntrin("_mm_set1_ps", arity = 1),
                 # boolean vectors
                 type_strict_match(v4bool, ML_SSE_m128_v4bool):
-                    TemplateOperatorFormat(
-                        "_mm_store_si128((__m128i*){0}, {1})",
-                        arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)},
-                        void_function = True
-                        ),
+                    SymbolOperator("(ml_bool4_t)", arity=1),
                 # dummy implementation
                 type_strict_match(ML_SSE_m128_v4bool, v4bool):
-                    XmmIntrin(
-                        "_mm_load_si128", arity = 1,
-                        output_precision = ML_SSE_m128_v4bool
-                        )(__m128ip_cast_operator(
-                            TemplateOperatorFormat(
-                                "GET_VEC_FIELD_ADDR({})", arity = 1,
-                                output_precision = ML_Pointer_Format(ML_Bool)
-                                )
-                            )),
+                    IdentityOperator(),
             },
         },
     },
@@ -1839,98 +1772,27 @@ avx_c_code_generation_table = {
                 type_strict_match(ML_AVX_m256_v8int32, ML_AVX_m256_v8float32):
                     ImmIntrin("_mm256_cvtps_epi32", arity = 1),
                 type_strict_match(ML_AVX_m256_v8float32, v8float32):
-                    ImmIntrin(
-                        "_mm256_load_ps", arity = 1,
-                        output_precision = ML_AVX_m256_v8float32)(
-                            TemplateOperatorFormat(
-                                "GET_VEC_FIELD_ADDR({})",
-                                arity = 1,
-                                output_precision = ML_Pointer_Format(
-                                    ML_Binary32
-                                    )
-                                )
-                            ),
+                    IdentityOperator(),
                 # __m256 float vector to ML's generic vector format
                 type_strict_match(v8float32, ML_AVX_m256_v8float32):
-                    TemplateOperatorFormat(
-                        "_mm256_store_ps(GET_VEC_FIELD_ADDR({}), {})",
-                        arity = 1,
-                        arg_map = {0: FO_Result(0), 1: FO_Arg(0)},
-                        require_header = ["immintrin.h"]
-                        ),
+                    IdentityOperator(),
                 type_strict_match(ML_AVX_m256_v4float64, v4float64):
-                    ImmIntrin(
-                        "_mm256_load_pd", arity = 1,
-                        output_precision = ML_AVX_m256_v4float64)(
-                            TemplateOperatorFormat(
-                                "GET_VEC_FIELD_ADDR({})",
-                                arity = 1,
-                                output_precision = ML_Pointer_Format(
-                                    ML_Binary64
-                                    )
-                                )
-                            ),
+                    IdentityOperator(),
                 type_strict_match(v4float64, ML_AVX_m256_v4float64):
-                    TemplateOperatorFormat(
-                        "_mm256_store_pd(GET_VEC_FIELD_ADDR({}), {})",
-                        arity = 1,
-                        arg_map = {0: FO_Result(0), 1: FO_Arg(0)},
-                        require_header = ["immintrin.h"]
-                        ),
+                    IdentityOperator(),
                 type_strict_match_list(
                     [v8int32, v8uint32],
                     [ML_AVX_m256_v8int32, ML_AVX_m256_v8uint32]
-                    ): TemplateOperatorFormat(
-                        "_mm256_store_si256((__m256i*){0}, {1})",
-                        arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)},
-                        void_function = True,
-                        require_header = ['immintrin.h']
-                        ),
+                    ):
+                        IdentityOperator(),
                 type_strict_match(v4uint64, ML_AVX_m256_v4uint64): 
-                    TemplateOperatorFormat(
-                        "_mm256_store_si256((__m256i*){0}, {1})",
-                        arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)},
-                        void_function = True,
-                        require_header = ['immintrin.h']
-                        ),
+                    IdentityOperator(),
                 #type_strict_match(*((ML_SSE_m128_v4int32,) + 4*(ML_Int32,))):
                 #    ImmIntrin("_mm256_set_epi32", arity = 4),
                 type_strict_match_list([ML_AVX_m256_v8int32, ML_AVX_m256_v8uint32], [v8int32, v8uint32]):
-                    ImmIntrin(
-                        "_mm256_load_si256", arity = 1,
-                        output_precision = ML_AVX_m256_v8int32
-                        )(TemplateOperatorFormat(
-                            "(__m256i*){}", arity = 1,
-                            output_precision = ML_Pointer_Format(
-                                ML_AVX_m256_v8int32
-                                )
-                            )(
-                                TemplateOperatorFormat(
-                                    "GET_VEC_FIELD_ADDR({})", arity = 1,
-                                    output_precision = ML_Pointer_Format(
-                                        ML_Int32
-                                        )
-                                    )
-                                )
-                            ),
+                    IdentityOperator(),
                 type_strict_match(ML_AVX_m256_v4uint64, v4uint64):
-                    ImmIntrin(
-                        "_mm256_load_si256", arity = 1,
-                        output_precision = ML_AVX_m256_v4uint64
-                        )(TemplateOperatorFormat(
-                            "(__m256i*){}", arity = 1,
-                            output_precision = ML_Pointer_Format(
-                                ML_AVX_m256_v4uint64
-                                )
-                            )(
-                                TemplateOperatorFormat(
-                                    "GET_VEC_FIELD_ADDR({})", arity = 1,
-                                    output_precision = ML_Pointer_Format(
-                                        ML_UInt64
-                                        )
-                                    )
-                                )
-                            ),
+                    IdentityOperator(),
                 type_strict_match(ML_AVX_m256_v8int32, ML_Int32):
                     ImmIntrin("_mm256_set1_epi32", arity = 1),
                 type_strict_match(ML_AVX_m256_v8uint32, ML_UInt32):
@@ -1945,30 +1807,9 @@ avx_c_code_generation_table = {
                 type_strict_match(ML_AVX_m256_v4uint64, ML_UInt64):
                     ImmIntrin("_mm256_set1_epi64x", arity = 1),
                 type_strict_match(ML_AVX_m256_v4int64, v4int64):
-                    ImmIntrin(
-                        "_mm256_load_si256", arity = 1,
-                        output_precision = ML_AVX_m256_v4int64
-                        )(TemplateOperatorFormat(
-                            "(__m256i*){}", arity = 1,
-                            output_precision = ML_Pointer_Format(
-                                ML_AVX_m256_v4int64
-                                )
-                            )(
-                                TemplateOperatorFormat(
-                                    "GET_VEC_FIELD_ADDR({})", arity = 1,
-                                    output_precision = ML_Pointer_Format(
-                                        ML_Int64
-                                        )
-                                    )
-                                )
-                            ),
+                    IdentityOperator(),
                 type_strict_match(v4int64, ML_AVX_m256_v4int64):
-                    TemplateOperatorFormat(
-                        "_mm256_store_si256((__m256i*){0}, {1})",
-                        arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)},
-                        void_function = True,
-                        require_header = ['immintrin.h']
-                        ),
+                    IdentityOperator(),
                 type_strict_match(ML_AVX_m256_v4float64, ML_SSE_m128_v4int32):
                     _mm256_cvtepi32_pd,
                 # signed/unsigned conversions
@@ -1978,11 +1819,7 @@ avx_c_code_generation_table = {
                     TransparentOperator(),
                 # boolean conversion
                 type_strict_match(v8bool, ML_AVX_m256_v8bool):
-                    TemplateOperatorFormat(
-                        "_mm256_store_si256((__m256i*){0}, {1})",
-                        arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)},
-                        void_function = True
-                        ),
+                    IdentityOperator(),
             },
             # AVX-based conversion of 4 int64 to 4 float64, valid if inputs fit
             # into 4 int32.
