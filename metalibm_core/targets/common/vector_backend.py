@@ -959,14 +959,14 @@ vector_c_code_generation_table = {
         type_strict_match(v8float32, v8bool, v8float32, v8float32):
             ML_VectorLib_Function("ML_VSELECT", arg_map={0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2), 4: "8"}, arity=3, output_precision=v8float32),
         # long int select
-        type_strict_match(v2int64, v2bool, v2int64, v2int64): ML_VectorLib_Function("ML_VSELECT", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2), 4: "2"}, arity = 3),
-        type_strict_match(v3int64, v3bool, v3int64, v3int64): ML_VectorLib_Function("ML_VSELECT", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2), 4: "4"}, arity = 3, output_precision = v3int64),
-        type_strict_match(v4int64, v4bool, v4int64, v4int64): ML_VectorLib_Function("ML_VSELECT", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2), 4: "4"}, arity = 3, output_precision = v4int64),
-        type_strict_match(v8int64, v8bool, v8int64, v8int64): ML_VectorLib_Function("ML_VSELECT", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2), 4: "8"}, arity = 3, output_precision = v8int64),
+        type_strict_match(v2int64, v2lbool, v2int64, v2int64): ML_VectorLib_Function("ML_VSELECT", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2), 4: "2"}, arity = 3),
+        type_strict_match(v3int64, v3lbool, v3int64, v3int64): ML_VectorLib_Function("ML_VSELECT", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2), 4: "4"}, arity = 3, output_precision = v3int64),
+        type_strict_match(v4int64, v4lbool, v4int64, v4int64): ML_VectorLib_Function("ML_VSELECT", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2), 4: "4"}, arity = 3, output_precision = v4int64),
+        type_strict_match(v8int64, v8lbool, v8int64, v8int64): ML_VectorLib_Function("ML_VSELECT", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2), 4: "8"}, arity = 3, output_precision = v8int64),
         # double select
-        type_strict_match(v4float64, v4bool, v4float64, v4float64):
+        type_strict_match(v4float64, v4lbool, v4float64, v4float64):
             ML_VectorLib_Function("ML_VSELECT", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2), 4: "4"}, arity = 3, output_precision = v4float64),
-        type_strict_match(v8float64, v8bool, v8float64, v8float64):
+        type_strict_match(v8float64, v8lbool, v8float64, v8float64):
             ML_VectorLib_Function("ML_VSELECT", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2), 4: "8"}, arity = 3, output_precision = v8float64),
       },
     },
