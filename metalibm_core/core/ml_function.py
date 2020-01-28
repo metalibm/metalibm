@@ -708,13 +708,7 @@ class ML_FunctionBasis(object):
     #                                             language, code_object,
     #                                             static_cst = True)
 
-    # adding headers
-    Log.report(Log.Info, "Generating LLVM-IR code in " + self.output_file)
-    output_stream = open(self.output_file, "w")
-    output_stream.write(self.result.get(self.main_code_generator))
-    output_stream.close()
-    source_file = SourceFile(self.output_file, function_group)
-    return source_file
+    return self.result
 
   ## generate C code for function implenetation
   #  Code is generated within the main code object
@@ -754,21 +748,13 @@ class ML_FunctionBasis(object):
     self.result.add_header("stdio.h")
     self.result.add_header("inttypes.h")
 
-    Log.report(Log.Info, "Generating C code in " + self.output_file)
-    output_stream = open(self.output_file, "w")
-    output_stream.write(self.result.get(self.main_code_generator))
-    output_stream.close()
-    source_file = SourceFile(self.output_file, function_group)
-    return source_file
+    return self.result
 
-  def gen_implementation(self, display_after_gen=False,
-                         display_after_opt=False,
-                         enable_subexpr_sharing=True):
-    """ generate implementation
+
+  def fill_code_object(self, enable_subexpr_sharing=True):
+    """ generate source code as CodeObject
 
         Args:
-            display_after_gen enable (bool): I.R dump after generation
-            display_after_opt enable (bool): I.R dump after optimization
             enable_subexpr_sharing (bool): I.R enable sub-expression sharing
                optimization
 
@@ -782,11 +768,34 @@ class ML_FunctionBasis(object):
 
     embedding_binary = self.embedded_binary and self.processor.support_embedded_bin
 
-    source_file = self.generate_output(embedding_binary, main_pre_statement, main_statement, function_group)
+    source_code = self.generate_output(embedding_binary, main_pre_statement, main_statement, function_group)
+    return function_group, source_code
 
+  def generate_full_source_code(self, enable_subexpr_sharing=True):
+    _, source_code_object = self.fill_code_object(enable_subexpr_sharing=enable_subexpr_sharing)
+    return source_code_object.get(self.main_code_generator)
+
+
+  def gen_implementation(self, display_after_gen=False,
+                         display_after_opt=False,
+                         enable_subexpr_sharing=True):
+    """ Generate source code in self.output_file and execute result if any
+
+        Args:
+            display_after_gen enable (bool): I.R dump after generation
+            display_after_opt enable (bool): I.R dump after optimization
+            enable_subexpr_sharing (bool): I.R enable sub-expression sharing
+    """
+
+    function_group, source_code = self.fill_code_object(enable_subexpr_sharing=enable_subexpr_sharing)
+
+    Log.report(Log.Info, "Generating C code in " + self.output_file)
+    with open(self.output_file, "w") as output_stream:
+        output_stream.write(source_code.get(self.main_code_generator))
+    source_file = SourceFile(self.output_file, function_group)
     # returning execution result, if any
+    embedding_binary = self.embedded_binary and self.processor.support_embedded_bin
     return self.execute_output(embedding_binary, source_file)
-
 
 
   def transform_function_group(self, function_group):
