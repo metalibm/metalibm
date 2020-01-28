@@ -104,12 +104,11 @@ class Log(object):
     def report(level, msg, *args, **kw):
         error = kw.pop("error", None)
         """ report log message """
-        if Log.log_stream:
-            Log.log_stream.write(msg.format(*args, **kw) + eol)
+        if Log.filter_log_level(Log.enabled_levels, level):
+            if Log.log_stream:
+                Log.log_stream.write(msg.format(*args, **kw))
             if Log.dump_stdout:
-              print("%s: %s" % (level.name, msg.format(*args, **kw)))
-        elif Log.filter_log_level(Log.enabled_levels, level):
-            print("%s: %s" % (level.name, msg.format(*args, **kw)))
+                print("%s: %s" % (level.name, msg.format(*args, **kw)))
         if level is Log.Error:
             if Log.break_on_error:
               pdb.set_trace()
