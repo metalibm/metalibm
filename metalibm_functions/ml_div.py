@@ -339,10 +339,10 @@ class ML_Division(ML_FunctionBasis):
         # gappa_init_approx = init_approx
 
         # managing special cases
-        # x inf and y inf 
-        pre_scheme = ConditionBlock(x_inf_or_nan, 
+        # x inf and y inf
+        pre_scheme = ConditionBlock(x_inf_or_nan,
             ConditionBlock(x_inf,
-                ConditionBlock(y_inf_or_nan, 
+                ConditionBlock(y_inf_or_nan,
                     Statement(
                         ConditionBlock(y_snan, Raise(ML_FPE_Invalid)),
                         Return(FP_QNaN(self.precision)),
@@ -380,7 +380,7 @@ class ML_Division(ML_FunctionBasis):
                     ConditionBlock(y_zero,
                         Statement(
                             Raise(ML_FPE_DivideByZero),
-                            ConditionBlock(comp_sign, 
+                            ConditionBlock(comp_sign,
                                 Return(FP_MinusInfty(self.precision)),
                                 Return(FP_PlusInfty(self.precision))
                             )
@@ -437,17 +437,6 @@ class ML_Division(ML_FunctionBasis):
 
     def misc(self):
         print("Gappa script generation")
-        
-        cg = CCodeGenerator(processor, declare_cst = False, disable_debug = not debug_flag, libm_compliant = libm_compliant)
-        self.result = exp_implementation.get_definition(cg, C_Code, static_cst = True)
-        self.result.add_header("math.h")
-        self.result.add_header("stdio.h")
-        self.result.add_header("inttypes.h")
-        self.result.add_header("support_lib/ml_special_values.h")
-
-        output_stream = open(output_file, "w")
-        output_stream.write(self.result.get(cg))
-        output_stream.close()
         seed_var = Variable("seed", precision = self.precision, interval = Interval(0.5, 1))
         cg_eval_error_copy_map = {
             gappa_init_approx.get_handle().get_node(): seed_var,
