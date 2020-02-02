@@ -373,7 +373,7 @@ class CodeObject(CodeConfiguration):
     def get_multiline_comment(self, comment_list):
         result = "/**\n"
         for comment in comment_list:
-            result += " * " + comment.replace("\n", "\n *") + "\n"
+            result += " * " + comment.replace("\n", "\n * ") + "\n"
         result += "**/\n"
         return result
 
