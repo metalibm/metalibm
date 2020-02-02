@@ -75,11 +75,32 @@ def create_multi_dim_array(dimensions, init_data = None):
 
 ## return the C encoding of the array @table whose dimension tuple is @p dimensions
 #  and data's format is @p storage_precision
-def get_table_content(table, dimensions, storage_precision, language = C_Code):
+def get_table_content(table, dimensions, storage_precision, language=C_Code, max_len=80):
+    row_suffix = "\n" + CodeConfiguration.tab
     if len(dimensions) == 1:
-        return "{" + ", ".join([storage_precision.get_cst(value, language = language) for value in table]) + "}"
+        code = ""
+        new_line = "{"
+        for value in table:
+            value_str = storage_precision.get_cst(value, language=language)
+            if len(new_line) + len(value_str) > max_len:
+                if new_line[0] == "{":
+                    # if we are at the first line and an actual line break
+                    # occurs then we insert a CR after the opening {
+                    new_line = "{" + row_suffix + new_line[1:]
+                code += new_line + row_suffix
+                new_line = ""
+            new_line += " " + value_str +","
+        # removing terminal'','
+        if new_line[-1] == ",":
+            new_line = new_line[:-1]
+        if new_line[0] == "{":
+            # no line break => closing '}' on the same line
+            code += new_line + "}"
+        else:
+            # at least one line break => closing '}' on the next line
+            code += new_line + "\n" + "}"
+        return code
     else:
-        row_suffix = "\n" + CodeConfiguration.tab
         code = "{" + row_suffix
         code += ("," + row_suffix).join(get_table_content(line, dimensions[1:], storage_precision, language = language) for line in table)
         code += "\n}"
