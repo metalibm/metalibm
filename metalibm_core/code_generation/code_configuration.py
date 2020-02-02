@@ -39,7 +39,7 @@ from ..utility.log_report import Log
 
 
 def get_common_git_comment():
-    git_comment = "generated using metalibm %s\n sha1 git: %s(%s)\n" % (ml_version_info.VERSION_NUM, ml_version_info.GIT_SHA, "clean" if ml_version_info.GIT_STATUS else "dirty")
+    git_comment = "generated using metalibm %s\nsha1 git: %s(%s)\n" % (ml_version_info.VERSION_NUM, ml_version_info.GIT_SHA, "clean" if ml_version_info.GIT_STATUS else "dirty")
     if not ml_version_info.GIT_STATUS:
         git_comment += "\nWARNING: git status was not clean when file was generated !\n\n"
         Log.report(Log.Warning, "git status was not clean when file was generated !")
