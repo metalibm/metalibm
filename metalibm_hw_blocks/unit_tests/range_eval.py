@@ -28,7 +28,7 @@
 # last-modified:    Mar  7th, 2018
 # Author(s): Nicolas Brunie <nbrunie@kalray.eu>
 ###############################################################################
-""" Adaptative fixed-point size unit test """
+""" Node range evaluation unit test """
 
 import sollya
 
@@ -36,7 +36,8 @@ from sollya import parse as sollya_parse
 from sollya import Interval, inf, sup
 
 from metalibm_core.core.ml_operations import (
-    Comparison, Addition, Select, Constant, Conversion, Min, Max, Ceil, Floor, Trunc
+    Comparison, Addition, Select, Constant, Conversion,
+    Min, Max, Ceil, Floor, Trunc
 )
 from metalibm_core.code_generation.code_constant import VHDL_Code
 from metalibm_core.core.ml_formats import (
@@ -114,7 +115,7 @@ class RangeEvalEntity(ML_Entity("ml_range_eval_entity"), TestRunner):
 
     def generate_scheme(self):
         """ main scheme generation """
-        
+
         int_size = 3
         frac_size = self.width - int_size
 
@@ -142,10 +143,10 @@ class RangeEvalEntity(ML_Entity("ml_range_eval_entity"), TestRunner):
         cst = Constant(42.5, tag = "cst")
         expected_interval[cst] = Interval(42.5)
 
-        conv_ceil = Ceil(var_x, tag = "ceil") 
+        conv_ceil = Ceil(var_x, tag = "ceil")
         expected_interval[conv_ceil] = sollya.ceil(x_interval)
 
-        conv_floor = Floor(var_y, tag = "floor") 
+        conv_floor = Floor(var_y, tag = "floor")
         expected_interval[conv_floor] = sollya.floor(y_interval)
 
         mult = var_z * var_x
@@ -155,7 +156,7 @@ class RangeEvalEntity(ML_Entity("ml_range_eval_entity"), TestRunner):
 
         large_add = (var_x + var_y) - mult
         large_add.set_attributes(tag = "large_add")
-        large_add_interval = (x_interval + y_interval) - mult_interval 
+        large_add_interval = (x_interval + y_interval) - mult_interval
         expected_interval[large_add] = large_add_interval
 
 
@@ -178,7 +179,7 @@ class RangeEvalEntity(ML_Entity("ml_range_eval_entity"), TestRunner):
         )
         select_interval = interval_union(reduced_result_interval, z_interval)
         expected_interval[select_result] = select_interval
-    
+
 
         # checking interval evaluation
         for var in [cst, var_x, var_y, mult, large_add, reduced_result, select_result, conv_ceil, conv_floor]:
@@ -186,7 +187,7 @@ class RangeEvalEntity(ML_Entity("ml_range_eval_entity"), TestRunner):
             expected = expected_interval[var]
             print("{}: {} vs expected {}".format(var.get_tag(), interval, expected))
             assert not interval is None
-            assert interval == expected 
+            assert interval == expected
 
 
         return [self.implementation]
