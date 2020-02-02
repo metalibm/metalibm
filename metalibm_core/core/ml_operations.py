@@ -43,6 +43,8 @@ import operator
 from sollya import Interval, SollyaObject, nearestint, floor, ceil, inf, sup
 import sollya
 
+S2 = sollya.SollyaObject(2)
+
 from ..utility.log_report import Log
 from .attributes import Attributes, attr_init
 from .ml_formats import (
@@ -1383,15 +1385,39 @@ class ExponentInsertion(SpecifierOperation, GeneralArithmeticOperation):
         """ return code generation specific key """
         return self.specifier
 
+    def bare_range_function(self, op_interval):
+        if op_interval is None:
+            return None
+        else:
+            # TODO/FIXME: manage cases when inf/nan are part of op_interval
+            lo_bound = S2**inf(op_interval[0])
+            hi_bound = S2**sup(op_interval[0])
+            return Interval(lo_bound, hi_bound)
+
 class MantissaExtraction(GeneralArithmeticOperation):
     """ return the input's mantissa as a floating-point value, whose absolute value lies between 1 (included) and 2 (excluded), input sign is kept unmodified  """
     name = "MantissaExtraction"
     airty = 1
 
+    def bare_range_function(self, op_interval):
+        # TODO/FIXME upper bound 2 could be refined to 2 - 2**-mantissa_size
+        # if mantissa size if known
+        return Interval(1, 2)
+
 class ExponentExtraction(GeneralArithmeticOperation):
     """ extraction of the exponent field of a floating-point value """
     name = "ExponentExtraction"
     arity = 1
+
+    def bare_range_function(self, input_intervals):
+        op_interval = input_intervals[0]
+        if op_interval is None:
+            return None
+        else:
+            # TODO/FIXME: manage cases when inf/nan are part of op_interval
+            lo_bound = floor(sollya.log2(inf(abs(op_interval))))
+            hi_bound = floor(sollya.log2(sup(abs(op_interval))))
+            return Interval(lo_bound, hi_bound)
 
 class RawSignExpExtraction(GeneralArithmeticOperation):
     name = "RawSignExpExtraction"
@@ -1403,6 +1429,15 @@ class RawSignExpExtraction(GeneralArithmeticOperation):
 class CountLeadingZeros(GeneralArithmeticOperation):
     name = "CountLeadingZeros"
     arity = 1
+
+    def range_function(self, ops):
+        op = ops[0]
+        if op.get_precision() is None:
+            return None
+        else:
+            # TODO/FIXME: could be refined by looking at ops range
+            # alongside its format bit_size
+            return Interval(0, op.get_precision().get_bit_size())
 
 class TestSpecifier(object):
     """ Common parent to all Test specifiers """
