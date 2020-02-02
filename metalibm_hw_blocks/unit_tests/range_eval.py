@@ -34,14 +34,17 @@ import sollya
 
 from sollya import parse as sollya_parse
 from sollya import Interval, inf, sup
+S2 = sollya.SollyaObject(2)
 
 from metalibm_core.core.ml_operations import (
+    Variable, CountLeadingZeros,
     Comparison, Addition, Select, Constant, Conversion,
-    Min, Max, Ceil, Floor, Trunc
+    Min, Max, Ceil, Floor, Trunc, ExponentInsertion,
+    MantissaExtraction, ExponentExtraction,
 )
 from metalibm_core.code_generation.code_constant import VHDL_Code
 from metalibm_core.core.ml_formats import (
-    ML_Int32
+    ML_Int32, ML_Binary32,
 )
 from metalibm_core.code_generation.vhdl_backend import VHDLBackend
 from metalibm_core.core.ml_entity import (
@@ -159,6 +162,8 @@ class RangeEvalEntity(ML_Entity("ml_range_eval_entity"), TestRunner):
         large_add_interval = (x_interval + y_interval) - mult_interval
         expected_interval[large_add] = large_add_interval
 
+        var_x_lzc = CountLeadingZeros(var_x, tag="var_x_lzc")
+        expected_interval[var_x_lzc] = Interval(0, input_precision.get_bit_size())
 
         reduced_result = Max(0, Min(large_add, 13))
         reduced_result.set_tag("reduced_result")
@@ -180,12 +185,32 @@ class RangeEvalEntity(ML_Entity("ml_range_eval_entity"), TestRunner):
         select_interval = interval_union(reduced_result_interval, z_interval)
         expected_interval[select_result] = select_interval
 
+        # floating-point operation on mantissa and exponents
+        fp_x_range = Interval(-0.01, 100)
+
+        unbound_fp_var = Variable("fp_x", precision=ML_Binary32, interval=fp_x_range)
+        mant_fp_x = MantissaExtraction(unbound_fp_var, tag="mant_fp_x", precision=ML_Binary32)
+        exp_fp_x = ExponentExtraction(unbound_fp_var, tag="exp_fp_x", precision=ML_Int32)
+        ins_exp_fp_x = ExponentInsertion(exp_fp_x, tag="ins_exp_fp_x", precision=ML_Binary32)
+
+        expected_interval[unbound_fp_var] = fp_x_range
+        expected_interval[exp_fp_x] = Interval(
+            sollya.floor(sollya.log2(sollya.inf(abs(fp_x_range)))),
+            sollya.floor(sollya.log2(sollya.sup(abs(fp_x_range))))
+        )
+        expected_interval[mant_fp_x] = Interval(1, 2)
+        expected_interval[ins_exp_fp_x] = Interval(
+            S2**sollya.inf(expected_interval[exp_fp_x]),
+            S2**sollya.sup(expected_interval[exp_fp_x])
+        )
+
 
         # checking interval evaluation
-        for var in [cst, var_x, var_y, mult, large_add, reduced_result, select_result, conv_ceil, conv_floor]:
+        for var in [var_x_lzc, exp_fp_x, unbound_fp_var, mant_fp_x, ins_exp_fp_x, cst, var_x, var_y, mult, large_add, reduced_result, select_result, conv_ceil, conv_floor]:
             interval = evaluate_range(var)
             expected = expected_interval[var]
-            print("{}: {} vs expected {}".format(var.get_tag(), interval, expected))
+            print("{}: {}".format(var.get_tag(), interval))
+            print("  vs expected {}".format(expected))
             assert not interval is None
             assert interval == expected
 
