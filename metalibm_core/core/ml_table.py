@@ -32,6 +32,7 @@
 
 ## @package ml_table
 #  Metalibm Table (numerical array)
+import itertools
 
 from sollya import Interval
 
@@ -187,10 +188,8 @@ class ML_Table(ML_LeafNode):
     ## return the interval containing each value of the Table
     def get_interval(self):
         def build_range_set(dimensions, prefix = []):
-          if len(dimensions) == 1:
-            return [(prefix + [i]) for i in range(dimensions[0])]
-          else:
-            return sum([build_range_set(dimensions[1:], prefix = prefix + [i]) for i in range(dimensions[0])], [])
+          """ construct a range containing each value in dimensions """
+          return itertools.product(*[range(d) for d in dimensions])
 
         def get_rec_index(table, range_tuple):
           if len(range_tuple) == 1:
