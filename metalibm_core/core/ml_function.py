@@ -427,6 +427,8 @@ class ML_FunctionBasis(object):
     self.libm_compliant = args.libm_compliant
     self.accuracy_class = args.accuracy
     self.accuracy = args.accuracy(self.get_output_precision())
+
+    self.input_intervals = (args.input_interval,) * self.arity
     
     self.processor = args.target
 
