@@ -164,7 +164,7 @@ class ML_FloatingPointException: pass
 ## class for type of floating-point exceptions
 class ML_FloatingPointException_Type(ML_Format):
   ## dummy placeholder to generate C constant for FP exception (should raise error)
-  def get_cst(self, value, language = C_Code):
+  def get_cst(self, value, language = C_Code, no_round=False):
     return "NONE"
   def is_cst_decl_required(self):
     return False
@@ -472,19 +472,19 @@ class ML_Std_FP_Format(ML_FP_Format):
     def get_mantissa_size(self):
         return self.field_size + 1
 
-    def get_cst(self, cst_value, language = C_Code):
+    def get_cst(self, cst_value, language = C_Code, no_round=False):
       """Return how a constant of value cst_value should be written in the
       language language for this meta-format.
       """
       if language is C_Code:
-        return self.get_c_cst(cst_value)
+        return self.get_c_cst(cst_value, no_round=no_round)
       elif language is Gappa_Code:
         return self.get_gappa_cst(cst_value)
       else:
         # default case
         return self.get_c_cst(cst_value)
 
-    def get_c_cst(self, cst_value):
+    def get_c_cst(self, cst_value, no_round=False):
         """ C code for constant cst_value """
         if isinstance(cst_value, FP_SpecialValue):
             return cst_value.get_c_cst()
@@ -500,7 +500,7 @@ class ML_Std_FP_Format(ML_FP_Format):
             elif isinstance(cst_value, int):
                 conv_result = str(float(cst_value)) + self.c_suffix
             else:
-              if isinstance(cst_value, sollya.SollyaObject):
+              if isinstance(cst_value, sollya.SollyaObject) and not no_round:
                 conv_result  = str(self.round_sollya_object(cst_value)) + self.c_suffix
               else:
                 conv_result  = str(cst_value) + self.c_suffix
@@ -573,7 +573,7 @@ class ML_FormatConstructor(ML_Format):
 
     ## generate a constant value with numerical value @p value
     #  in language @p language
-    def get_cst(self, value, language = C_Code):
+    def get_cst(self, value, language = C_Code, no_round=False):
         return self.get_cst_map[language](self, value)
 
     def __str__(self):
