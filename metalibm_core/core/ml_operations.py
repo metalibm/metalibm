@@ -1741,10 +1741,20 @@ class DivisionSeed(GeneralArithmeticOperation):
 class ReciprocalSeed(GeneralArithmeticOperation):
     arity = 1
     name = "ReciprocalSeed"
+
+    def bare_range_function(self, ops):
+        op_range = ops[0]
+        # TODO/FIXME: not taking into account op accuracy
+        return  1 / op_range
+
 class ReciprocalSquareRootSeed(GeneralArithmeticOperation):
     arity = 1
     name = "ReciprocalSquareRootSeed"
 
+    def bare_range_function(self, ops):
+        op_range = ops[0]
+        # TODO/FIXME: not taking into account op accuracy
+        return  1 / sollya.sqrt(op_range)
 
 class SpecificOperation(SpecifierOperation, GeneralOperation):
     name = "SpecificOperation"
