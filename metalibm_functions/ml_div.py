@@ -244,8 +244,8 @@ class ML_Division(ML_FunctionBasis):
 
     def generate_scheme(self):
         # We wish to compute vx / vy
-        vx = self.implementation.add_input_variable("x", self.precision)
-        vy = self.implementation.add_input_variable("y", self.precision)
+        vx = self.implementation.add_input_variable("x", self.precision, interval=self.input_intervals[0])
+        vy = self.implementation.add_input_variable("y", self.precision, interval=self.input_intervals[1])
 
         # maximum exponent magnitude (to avoid overflow/ underflow during
         # intermediary computations
