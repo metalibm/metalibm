@@ -38,7 +38,7 @@ import pdb
 class Log(object):
     """ log report class """
     log_stream     = None
-    dump_stdout    = False
+    dump_stdout    = True
     ## disable display of Exception backtrace when Log.Error level message
     #  is display
     exit_on_error  = False
