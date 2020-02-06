@@ -858,7 +858,6 @@ class ML_FunctionBasis(object):
     main_statement = Statement()
 
     CstError = Constant(1, precision=ML_Int32)
-    CstSuccess = Constant(0, precision=ML_Int32)
 
     def add_fct_call_check_in_main(fct_group, code_function, check=lambda op: op):
         """ adding call to code_function with return value check
@@ -920,6 +919,7 @@ class ML_FunctionBasis(object):
         :rtype: SourceFile
 
     """
+    CstSuccess = Constant(0, precision=ML_Int32)
     # adding main function
     if not embedding_binary:
         main_function = CodeFunction("main", output_format=ML_Int32)
