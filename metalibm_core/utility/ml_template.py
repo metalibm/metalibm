@@ -39,6 +39,8 @@ import argparse
 import traceback
 
 from sollya import Interval
+import sollya
+ml_infty = sollya.parse("infty")
 
 from .arg_utils import extract_option_value, test_flag_option
 from .log_report import Log
@@ -408,7 +410,7 @@ class DefaultArgTemplate:
     abs_accuracy = None
     accuracy = ML_Faithful
     libm_compliant = False
-    input_interval = Interval(0, 1)
+    input_interval = Interval(-ml_infty, ml_infty)
     # Optimization parameters
     target = GenericProcessor()
     fuse_fma = False
