@@ -50,7 +50,7 @@ def is_comparison(optree):
 
 ## Assuming @p optree has no pre-defined range, recursively compute a range
 #  from the node inputs
-def evaluate_range(optree):
+def evaluate_range(optree, update_interval=False):
     """ evaluate the range of an Operation node
 
         Args:
@@ -67,15 +67,21 @@ def evaluate_range(optree):
         if isinstance(optree, ML_LeafNode):
             return optree.get_interval()
         elif is_comparison(optree):
-            return evaluate_comparison_range(optree)
+            op_range = evaluate_comparison_range(optree)
+            if update_interval: optree.set_interval(op_range)
+            return op_range
         elif isinstance(optree, PlaceHolder):
-            return evaluate_range(optree.get_input(0))
+            op_range = evaluate_range(optree.get_input(0), update_interval=update_interval)
+            if update_interval: optree.set_interval(op_range)
+            return op_range
         else:
             args_interval = tuple(
-                evaluate_range(op) for op in
+                evaluate_range(op, update_interval=update_interval) for op in
                 optree.get_inputs()
             )
-            return optree.apply_bare_range_function(args_interval)
+            op_range = optree.apply_bare_range_function(args_interval)
+            if update_interval: optree.set_interval(op_range)
+            return op_range
 
 
 def forward_attributes(src, dst):
