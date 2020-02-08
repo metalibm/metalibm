@@ -45,7 +45,11 @@ from metalibm_core.core.ml_operations import (
     Subtraction, Negation, Test,
     Max, Min,
     Conversion,
-    BitLogicRightShift, BitLogicLeftShift, BitLogicAnd, LogicalAnd
+    BitLogicRightShift, BitLogicLeftShift, BitLogicAnd,
+    LogicalAnd, LogicalOr,
+    ReciprocalSeed, CopySign,
+    TableLoad,
+    ExponentExtraction, ExponentInsertion,
 )
 from metalibm_core.core.ml_hdl_operations import (
     SubSignalSelection
@@ -64,6 +68,9 @@ from metalibm_core.core.ml_formats import (
 from metalibm_core.core.ml_hdl_format import (
     is_fixed_point, ML_StdLogicVectorFormat
 )
+
+from metalibm_core.core.generic_approximation import invsqrt_approx_table, generic_inv_approx_table
+from metalibm_core.utility.debug_utils import debug_multi
 
 from metalibm_core.opt.opt_utils import (
     forward_attributes, forward_stage_attributes
@@ -547,6 +554,55 @@ def generate_test_expansion(predicate, test_input):
 
 def legalize_test(optree):
     return generate_test_expansion(optree.specifier, optree.get_input(0))
+
+def legalize_reciprocal_seed(optree):
+    """ Legalize an ReciprocalSeed optree """
+    assert isinstance(optree, ReciprocalSeed)
+    op_prec = optree.get_precision()
+    initial_prec = op_prec
+    back_convert = False
+    op_input = optree.get_input(0)
+
+    INV_APPROX_TABLE_FORMAT = generic_inv_approx_table.get_storage_precision()
+
+    if op_prec != INV_APPROX_TABLE_FORMAT:
+        op_input = Conversion(op_input, precision=INV_APPROX_TABLE_FORMAT)
+        op_prec = INV_APPROX_TABLE_FORMAT
+        back_convert = True
+    # input = 1.m_hi-m_lo * 2^e
+    # approx = 2^(-int(e/2)) * approx_insqrt(1.m_hi) * (e % 2 ? 1.0 : ~2**-0.5)
+
+    # TODO: fix integer precision selection
+    #       as we are in a late code generation stage, every node's precision
+    #       must be set
+    int_prec = op_prec.get_integer_format()
+    op_sign = CopySign(op_input, Constant(1.0, precision=op_prec), precision=op_prec)
+    op_exp = ExponentExtraction(op_input, tag="op_exp", debug=debug_multi, precision=int_prec)
+    neg_exp = Negation(op_exp, precision=int_prec)
+    approx_exp = ExponentInsertion(neg_exp, tag="approx_exp", debug=debug_multi, precision=op_prec)
+    table_index = generic_inv_approx_table.get_index_function()(op_input)
+    table_index.set_attributes(tag="inv_index", debug=debug_multi)
+    approx = Multiplication(
+        TableLoad(
+            generic_inv_approx_table,
+            table_index,
+            precision=op_prec
+        ),
+        Multiplication(
+            approx_exp,
+            op_sign,
+            precision=op_prec
+        ),
+        tag="inv_approx",
+        debug=debug_multi,
+        precision=op_prec
+    )
+    if back_convert:
+        return Conversion(approx, precision=initial_prec)
+    else:
+        return approx
+
+
 
 class Legalizer:
     """ """

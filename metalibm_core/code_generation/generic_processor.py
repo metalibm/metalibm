@@ -40,8 +40,9 @@ from ..utility.log_report import *
 from ..core.ml_formats import *
 from ..core.ml_table import *
 from ..core.ml_operations import *
-from ..core.legalizer import min_legalizer, max_legalizer
+from ..core.legalizer import min_legalizer, max_legalizer, legalize_reciprocal_seed
 from ..core.target import TargetRegister
+from ..core.generic_approximation import invsqrt_approx_table, generic_inv_approx_table
 
 from ..core.ml_complex_formats import ML_Pointer_Format
 
@@ -184,35 +185,6 @@ unsigned_integer_precision = {
   ML_Int128: ML_UInt128,
 }
 
-generic_inv_approx_table = ML_ApproxTable(
-    dimensions = [2**7], 
-    index_size=7,
-    storage_precision = ML_Binary32,
-    init_data = [
-        sollya.round(1/(1.0 + i * S2**-7), 9, sollya.RN) for i in range(2**7)
-    ]
-
-#        ((1.0 + (t_value / S2**9) ) * S2**-1) for t_value in 
-#    [508, 500, 492, 485, 477, 470, 463, 455, 448, 441, 434, 428, 421, 414, 408,
-#     401, 395, 389, 383, 377, 371, 365, 359, 353, 347, 342, 336, 331, 326, 320,
-#     315, 310, 305, 300, 295, 290, 285, 280, 275, 271, 266, 261, 257, 252, 248,
-#     243, 239, 235, 231, 226, 222, 218, 214, 210, 206, 202, 198, 195, 191, 187,
-#     183, 180, 176, 172, 169, 165, 162, 158, 155, 152, 148, 145, 142, 138, 135,
-#     132, 129, 126, 123, 120, 117, 114, 111, 108, 105, 102, 99, 96, 93, 91, 88,
-#     85, 82, 80, 77, 74, 72, 69, 67, 64, 62, 59, 57, 54, 52, 49, 47, 45, 42, 40,
-#     38, 35, 33, 31, 29, 26, 24, 22, 20, 18, 15, 13, 11, 9, 7, 5, 3, 0
-#    ]
-#    ]
-)
-
-invsqrt_approx_table = ML_ApproxTable(
-    dimensions = [2**8],
-    index_size=8,
-    storage_precision = ML_Binary32,
-    init_data = [
-        sollya.round(1/sollya.sqrt(1.0 + i * S2**-8), 9, sollya.RN) for i in range(2**8)
-    ]
-)
 
 def legalize_invsqrt_seed(optree):
     """ Legalize an InverseSquareRootSeed optree """
@@ -273,51 +245,6 @@ def legalize_invsqrt_seed(optree):
     )
     if approx_prec != op_prec:
         return Conversion(approx, precision=op_prec)
-    else:
-        return approx
-
-
-def legalize_reciprocal_seed(optree):
-    """ Legalize an ReciprocalSeed optree """
-    assert isinstance(optree, ReciprocalSeed) 
-    op_prec = optree.get_precision()
-    initial_prec = op_prec
-    back_convert = False
-    op_input = optree.get_input(0)
-    if op_prec != ML_Binary32:
-        op_input = Conversion(op_input, precision=ML_Binary32)
-        op_prec = ML_Binary32
-        back_convert = True
-    # input = 1.m_hi-m_lo * 2^e
-    # approx = 2^(-int(e/2)) * approx_insqrt(1.m_hi) * (e % 2 ? 1.0 : ~2**-0.5)
-
-    # TODO: fix integer precision selection
-    #       as we are in a late code generation stage, every node's precision
-    #       must be set
-    int_prec = op_prec.get_integer_format()
-    op_sign = CopySign(op_input, Constant(1.0, precision=op_prec), precision=op_prec)
-    op_exp = ExponentExtraction(op_input, tag="op_exp", debug=debug_multi, precision=int_prec)
-    neg_exp = Negation(op_exp, precision=int_prec)
-    approx_exp = ExponentInsertion(neg_exp, tag="approx_exp", debug=debug_multi, precision=op_prec)
-    table_index = generic_inv_approx_table.get_index_function()(op_input)
-    table_index.set_attributes(tag="inv_index", debug=debug_multi)
-    approx = Multiplication(
-        TableLoad(
-            generic_inv_approx_table,
-            table_index,
-            precision=op_prec
-        ),
-        Multiplication(
-            approx_exp,
-            op_sign,
-            precision=op_prec
-        ),
-        tag="inv_approx",
-        debug=debug_multi,
-        precision=op_prec
-    )
-    if back_convert:
-        return Conversion(approx, precision=initial_prec)
     else:
         return approx
 
