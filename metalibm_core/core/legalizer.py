@@ -555,6 +555,50 @@ def generate_test_expansion(predicate, test_input):
 def legalize_test(optree):
     return generate_test_expansion(optree.specifier, optree.get_input(0))
 
+def legalize_comp_sign(node):
+    """ legalize a Test.CompSign node to a series of
+        comparison with 0 and logical operation """
+    # TODO/IDEA: could also be implemented by two 2 copy sign with 1.0 and valuda
+    # comparison
+    lhs = node.get_input(0)
+    lhs_zero = Constant(0, precision=lhs.get_precision())
+    rhs = node.get_input(1)
+    rhs_zero = Constant(0, precision=rhs.get_precision())
+    return LogicalOr(
+        LogicalAnd(lhs >= lhs_zero, rhs >= rhs_zero),
+        LogicalAnd(lhs <= lhs_zero, rhs <= rhs_zero),
+    )
+
+def legalize_fma_to_std(node):
+    """ legalize any FusedMultiplyAdd node to a
+        FusedMultiplyAdd.Standard node """
+    # map of specifier -> input transformer, output transformer
+    SPECIFIER_TRANSFORMER = {
+        FusedMultiplyAdd.Standard:
+            ((lambda op: op.inputs),
+            (lambda op: op)),
+        FusedMultiplyAdd.Negate:
+            ((lambda op: op.inputs),
+            (lambda op: Negation(op, precision=op.get_precision()))),
+        FusedMultiplyAdd.Subtract:
+            ((lambda op: (op.get_input(0), op.get_input(1), Negation(op.get_input(2), precision=op.get_input(2).get_precision()))),
+            (lambda op: op)),
+        FusedMultiplyAdd.SubtractNegate:
+            ((lambda op: (
+                Negation(op.get_input(0), precision=op.get_input(2).get_precision()),
+                op.get_input(1), op.get_input(2))),
+            (lambda op: op)),
+    }
+    transformation = SPECIFIER_TRANSFORMER[node.specifier]
+    legalized_inputs = transformation[0](node)
+    pre_node = FusedMultiplyAdd(
+        legalized_inputs[0], legalized_inputs[1], legalized_inputs[2],
+        specifier=FusedMultiplyAdd.Standard,
+        precision=node.get_precision()
+    )
+    return transformation[1](pre_node)
+
+
 def legalize_reciprocal_seed(optree):
     """ Legalize an ReciprocalSeed optree """
     assert isinstance(optree, ReciprocalSeed)
