@@ -49,16 +49,20 @@ from metalibm_core.core.ml_operations import (
     BitLogicAnd,
     NearestInteger,
     ExponentInsertion,
-    LogicalAnd, LogicalNot,
+    LogicalAnd, LogicalNot, LogicalOr,
     Test, Comparison,
     Return,
     FunctionObject,
     Conversion, TypeCast,
     VectorElementSelection,
     Constant,
+    FusedMultiplyAdd,
+    ReciprocalSeed,
 )
 from metalibm_core.core.legalizer import (
-    min_legalizer, max_legalizer, legalize_test, legalize_exp_insertion
+    min_legalizer, max_legalizer, legalize_test, legalize_exp_insertion,
+    legalize_comp_sign, legalize_fma_to_std,
+    legalize_reciprocal_seed,
 )
 
 from metalibm_core.code_generation.generator_utility import (
@@ -220,11 +224,11 @@ def generate_comp_mapping(predicate, fdesc, idesc):
              llvm_icomp_function(idesc, precision)
          ) for precision in [
              v4int32
-         ]] 
+         ]]
      )
 
 def legalize_integer_nearest(optree):
-    """ transform a NearestInteger node floating-point to integer 
+    """ transform a NearestInteger node floating-point to integer
         into a sequence of floating-point NearestInteger and Conversion.
         This conversion is lossy """
     op_input = optree.get_input(0)
@@ -295,6 +299,42 @@ llvm_ir_code_generation_table = {
                     #ComplexOperator(optree_modifier=legalize_integer_nearest),
             },
         },
+    },
+    FusedMultiplyAdd: {
+        FusedMultiplyAdd.Standard: {
+            (lambda _ : True): {
+                type_strict_match(ML_Binary32, ML_Binary32, ML_Binary32, ML_Binary32):
+                    LLVMIrIntrinsicOperator("llvm.fma.f32", arity=3, output_precision=ML_Binary32, input_formats=3 * [ML_Binary32]),
+                type_strict_match(ML_Binary64, ML_Binary64, ML_Binary64, ML_Binary64):
+                    LLVMIrIntrinsicOperator("llvm.fma.f64", arity=3, output_precision=ML_Binary64, input_formats=3 * [ML_Binary64]),
+
+            }
+        },
+        FusedMultiplyAdd.Subtract: {
+            (lambda _ : True): {
+                type_strict_match(ML_Binary32, ML_Binary32, ML_Binary32, ML_Binary32):
+                    ComplexOperator(optree_modifier=legalize_fma_to_std),
+                type_strict_match(ML_Binary64, ML_Binary64, ML_Binary64, ML_Binary64):
+                    ComplexOperator(optree_modifier=legalize_fma_to_std),
+            },
+        },
+        FusedMultiplyAdd.Negate: {
+            (lambda _ : True): {
+                type_strict_match(ML_Binary32, ML_Binary32, ML_Binary32, ML_Binary32):
+                    ComplexOperator(optree_modifier=legalize_fma_to_std),
+                type_strict_match(ML_Binary64, ML_Binary64, ML_Binary64, ML_Binary64):
+                    ComplexOperator(optree_modifier=legalize_fma_to_std),
+            },
+        },
+        FusedMultiplyAdd.SubtractNegate: {
+            (lambda _ : True): {
+                type_strict_match(ML_Binary32, ML_Binary32, ML_Binary32, ML_Binary32):
+                    ComplexOperator(optree_modifier=legalize_fma_to_std),
+                type_strict_match(ML_Binary64, ML_Binary64, ML_Binary64, ML_Binary64):
+                    ComplexOperator(optree_modifier=legalize_fma_to_std),
+            },
+        },
+
     },
     Addition: {
         None: {
@@ -368,6 +408,22 @@ llvm_ir_code_generation_table = {
                     (
                         type_strict_match(precision, precision, precision),
                             llvm_op_function("and", precision)
+                    ) for precision in [
+                        ML_Bool,
+                        v2bool, v4bool, v8bool,
+                    ]
+                ]
+                )
+        },
+    },
+    LogicalOr: {
+        None: {
+            (lambda _: True):
+                dict(
+                [
+                    (
+                        type_strict_match(precision, precision, precision),
+                            llvm_op_function("or", precision)
                     ) for precision in [
                         ML_Bool,
                         v2bool, v4bool, v8bool,
@@ -600,11 +656,27 @@ llvm_ir_code_generation_table = {
                     ComplexOperator(legalize_test),
             }
         },
+        Test.CompSign: {
+            lambda _: True: {
+                type_strict_match_list([ML_Int32, ML_Bool], [ML_Binary32], [ML_Binary32]):
+                    ComplexOperator(legalize_comp_sign),
+            }
+        },
         Test.IsMaskNotAnyZero: {
             lambda _: True: {
                 type_strict_match(ML_Bool, v4bool):
                     ComplexOperator(optree_modifier=legalize_vector_reduction_test),
             }
+        },
+    },
+    ReciprocalSeed: {
+        None: {
+            lambda optree: True: {
+                type_strict_match(ML_Binary32, ML_Binary32):
+                    ComplexOperator(optree_modifier=legalize_reciprocal_seed),
+                type_strict_match(ML_Binary64, ML_Binary64):
+                    ComplexOperator(optree_modifier=legalize_reciprocal_seed),
+            },
         },
     },
 }
