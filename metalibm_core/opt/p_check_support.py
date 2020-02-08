@@ -86,7 +86,7 @@ class Pass_CheckSupport(OptreeOptimization):
         print("Operation' keys are: {}".format(self.processor.get_operation_keys(optree))) # Error print
         print("Operation tree is:")
         print(optree.get_str(display_precision = True, display_id = True, memoization_map = {})) # Error print
-        Log.report(Log.Error, "unsupported operation in Pass_CheckSupport's check_processor_support\n")
+        Log.report(Log.Error, "unsupported operation in Pass_CheckSupport's check_processor_support:\n{}", optree)
     # memoization
     memoization_map[optree] = True
     return True
