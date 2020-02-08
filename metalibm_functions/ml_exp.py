@@ -98,7 +98,7 @@ class ML_Exponential(ML_FunctionBasis):
 
     def generate_scheme(self):
         # declaring target and instantiating optimization engine
-        vx = self.implementation.add_input_variable("x", self.precision)
+        vx = self.implementation.add_input_variable("x", self.precision, interval=self.input_intervals[0])
 
         Log.set_dump_stdout(True)
 
