@@ -29,23 +29,35 @@
 #
 # Description:      Meta-implementation of floating-point division
 ###############################################################################
-import sys
 import sollya
 
 from sollya import Interval
-S2 = sollya.SollyaObject(2)
 
-from metalibm_core.core.ml_operations import *
-from metalibm_core.core.ml_formats import *
+from metalibm_core.core.ml_operations import (
+    Variable,
+    FusedMultiplyAdd, FMSN, FMA,
+    Min, Max, Comparison,
+    ReciprocalSeed, Constant,
+    SpecificOperation, Test,
+    ConditionBlock, Statement, Return,
+    ExponentInsertion, ExponentExtraction,
+    EmptyOperand, Raise,
+    LogicalOr, Select,
+)
+from metalibm_core.core.attributes import Attributes
+from metalibm_core.core.ml_formats import (
+    ML_Binary32, ML_Binary64, ML_SingleSingle, ML_DoubleDouble,
+    ML_RoundToNearest, ML_GlobalRoundMode,
+    ML_FPE_Invalid, ML_FPE_DivideByZero, ML_FPE_Inexact, ML_FPE_Underflow,
+    ML_Bool, ML_Exact,
+)
+from metalibm_core.core.special_values import (
+    FP_QNaN, FP_MinusInfty, FP_PlusInfty,
+    FP_MinusZero, FP_PlusZero,
+)
 from metalibm_core.core.precisions import ML_CorrectlyRounded
-from metalibm_core.code_generation.c_code_generator import CCodeGenerator
 from metalibm_core.code_generation.generic_processor import GenericProcessor
-from metalibm_core.code_generation.code_object import CodeObject
-from metalibm_core.code_generation.code_function import CodeFunction
 from metalibm_core.code_generation.code_constant import C_Code
-from metalibm_core.core.ml_optimization_engine import OptimizationEngine
-from metalibm_core.core.polynomials import *
-from metalibm_core.core.ml_table import ML_NewTable
 from metalibm_core.core.ml_function import ML_FunctionBasis
 
 from metalibm_core.code_generation.gappa_code_generator import GappaCodeGenerator
@@ -53,6 +65,9 @@ from metalibm_core.code_generation.gappa_code_generator import GappaCodeGenerato
 from metalibm_core.utility.gappa_utils import execute_gappa_script_extract
 from metalibm_core.utility.ml_template import ML_NewArgTemplate, DefaultArgTemplate
 from metalibm_core.utility.debug_utils import debug_multi
+from metalibm_core.utility.log_report import Log
+
+S2 = sollya.SollyaObject(2)
 
 class NR_Iteration(object):
     """ Newton-Raphson iteration generator """
@@ -101,6 +116,7 @@ class NR_Iteration(object):
         gcg.add_hint(gappa_code, rule2, rule3)
         gcg.add_hint(gappa_code, subrule, rule4)
 
+
 def dividend_mult(div_approx, inv_approx, dividend, divisor, index):
     """ Second part of iteration to converge to dividend / divisor
         from inv_approx ~ 1 / divisor 
@@ -112,6 +128,7 @@ def dividend_mult(div_approx, inv_approx, dividend, divisor, index):
     new_div = FMA(yerr, inv_approx, div_approx)
     new_div.set_attributes(tag="new_div%d" % index, debug=debug_multi)
     return new_div
+
 
 def compute_reduced_reciprocal(init_approx, vy, num_iteration):
     """ Compute the correctly rounded approximation of 1.0 / vy
@@ -163,11 +180,11 @@ def compute_reduced_division(vx, vy, recp_approx):
 
 
 def scaling_div_result(div_approx, scaling_ex, scaling_factor_y, precision):
-    """ Reconstruct division result from approximation of scaled inputs 
+    """ Reconstruct division result from approximation of scaled inputs
         vx was scaled by scaling_factor_x = 2**-ex
-        vy was scaled by scaling_factor_y = 2**-ey 
+        vy was scaled by scaling_factor_y = 2**-ey
         so real result is
-            = div_approx * scaling_factor_y / scaling_factor_x 
+            = div_approx * scaling_factor_y / scaling_factor_x
             = div_approx * 2**(-ey + ex) """
     # To avoid overflow / underflow when computing 2**(-ey + ex)
     # the scaling could be performed in 2 steps
@@ -205,14 +222,6 @@ def subnormalize_result(recp_approx, div_approx, ex, ey, yerr_last, precision):
     subnormal_result = subnormal_pre_result * ExponentInsertion(sub_scale_factor, precision=precision)
 
     return subnormal_result 
-
-def bit_match(fp_optree, bit_id, likely = False, **kwords):
-    return NotEqual(BitLogicAnd(TypeCast(fp_optree, precision = ML_Int64), 1 << bit_id), 0, likely = likely, **kwords)
-
-
-def extract_and_inject_sign(sign_source, sign_dest, int_precision = ML_Int64, fp_precision = ML_Binary64, **kwords):
-    int_sign_dest = sign_dest if isinstance(sign_dest.get_precision(), ML_Fixed_Format) else TypeCast(sign_dest, precision = int_precision)
-    return TypeCast(BitLogicOr(BitLogicAnd(TypeCast(sign_source, precision = int_precision), 1 << (sign_source.precision.bit_size - 1)), int_sign_dest), precision = fp_precision)
 
 
 class ML_Division(ML_FunctionBasis):
@@ -268,12 +277,26 @@ class ML_Division(ML_FunctionBasis):
         scaling_factor_x = ExponentInsertion(-ex, tag="sfx_ei", precision=self.precision, debug=debug_multi) 
         scaling_factor_y = ExponentInsertion(-ey, tag="sfy_ei", precision=self.precision, debug=debug_multi) 
 
-        # scaled version of vx and vy
-        scaled_vx = vx * scaling_factor_x
-        scaled_vy = vy * scaling_factor_y
+        def test_interval_out_of_bound_risk(x_range, y_range):
+            """ Try to determine from x and y's interval if there is a risk
+                of underflow or overflow """
+            div_range = abs(x_range / y_range)
+            underflow_risk = sollya.inf(div_range) < S2**(self.precision.get_emin_normal() + 2)
+            overflow_risk = sollya.sup(div_range) > S2**(self.precision.get_emax() - 2)
+            return underflow_risk or overflow_risk
 
-        scaled_vx.set_attributes(tag="scaled_vx", debug=debug_multi)
-        scaled_vy.set_attributes(tag="scaled_vy", debug=debug_multi)
+        out_of_bound_risk = (self.input_intervals[0] is None or self.input_intervals[0] is None) or test_interval_out_of_bound_risk(self.input_intervals[0], self.input_intervals[1])
+        Log.report(Log.Info, "out_of_bound_risk: {}".format(out_of_bound_risk))
+
+        # scaled version of vx and vy, to avoid overflow and underflow
+        if out_of_bound_risk:
+            scaled_vx = vx * scaling_factor_x
+            scaled_vy = vy * scaling_factor_y
+            scaled_vx.set_attributes(tag="scaled_vx", debug=debug_multi)
+            scaled_vy.set_attributes(tag="scaled_vy", debug=debug_multi)
+        else:
+            scaled_vx = vx
+            scaled_vy = vy
 
 
         # We need a first approximation to 1 / scaled_vy
@@ -327,16 +350,16 @@ class ML_Division(ML_FunctionBasis):
         # approximation of scaled_vx / scaled_vy
         yerr_last, reduced_div_approx = compute_reduced_division(scaled_vx, scaled_vy, recp_approx)
 
-        unscaled_result = scaling_div_result(reduced_div_approx, ex, scaling_factor_y, self.precision)
+        if out_of_bound_risk:
+            unscaled_result = scaling_div_result(reduced_div_approx, ex, scaling_factor_y, self.precision)
 
-        subnormal_result = subnormalize_result(recp_approx, reduced_div_approx, exact_ex, exact_ey, yerr_last, self.precision)
+            subnormal_result = subnormalize_result(recp_approx, reduced_div_approx, exact_ex, exact_ey, yerr_last, self.precision)
+        else:
+            unscaled_result = reduced_div_approx
+            subnormal_result = reduced_div_approx
 
         x_inf_or_nan = Test(vx, specifier = Test.IsInfOrNaN, likely=False)
         y_inf_or_nan = Test(vy, specifier = Test.IsInfOrNaN, likely=False, tag="y_inf_or_nan", debug = debug_multi)
-
-        # gappa_vx = scaled_vx
-        # gappa_vy = scaled_vy
-        # gappa_init_approx = init_approx
 
         # managing special cases
         # x inf and y inf
@@ -482,7 +505,7 @@ if __name__ == "__main__":
          "--num-iter", dest="num_iter", default=3, type=int,
         action="store", help="number of newton-raphson iterations")
 
-    args = arg_template.arg_extraction()
+    ARGS = arg_template.arg_extraction()
 
-    ml_div = ML_Division(args)
+    ml_div = ML_Division(ARGS)
     ml_div.gen_implementation()
