@@ -56,7 +56,7 @@ LOG_VERBOSE_NUMERICAL_SIMPLIFICATION = Log.LogLevel("NumericalSimplificationVerb
 def is_simplifiable_to_cst(node):
     """ node can be simplified to a constant """
     node_interval = node.get_interval()
-    if node_interval is None:
+    if node_interval is None or isinstance(node, Constant):
         return False
     elif sollya.inf(node_interval) == sollya.sup(node_interval):
         return True
