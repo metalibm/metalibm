@@ -1129,7 +1129,7 @@ class Multiplication(ArithmeticOperationConstructor("Multiplication", range_func
     pass
 
 
-class Division(ArithmeticOperationConstructor("Division", range_function = lambda self, ops: safe(operator.__div__)(ops[0], ops[1]))): 
+class Division(ArithmeticOperationConstructor("Division", range_function = lambda self, ops: safe(operator.__truediv__)(ops[0], ops[1]))): 
     """ abstract addition """
     pass
 
