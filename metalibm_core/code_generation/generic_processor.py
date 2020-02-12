@@ -40,7 +40,10 @@ from ..utility.log_report import *
 from ..core.ml_formats import *
 from ..core.ml_table import *
 from ..core.ml_operations import *
-from ..core.legalizer import min_legalizer, max_legalizer, legalize_reciprocal_seed
+from ..core.legalizer import (
+    min_legalizer, max_legalizer,
+    legalize_reciprocal_seed, legalize_invsqrt_seed,
+)
 from ..core.target import TargetRegister
 from ..core.generic_approximation import invsqrt_approx_table, generic_inv_approx_table
 
@@ -185,68 +188,6 @@ unsigned_integer_precision = {
   ML_Int128: ML_UInt128,
 }
 
-
-def legalize_invsqrt_seed(optree):
-    """ Legalize an InverseSquareRootSeed optree """
-    assert isinstance(optree, ReciprocalSquareRootSeed) 
-    op_prec = optree.get_precision()
-    # input = 1.m_hi-m_lo * 2^e
-    # approx = 2^(-int(e/2)) * approx_insqrt(1.m_hi) * (e % 2 ? 1.0 : ~2**-0.5)
-    op_input = optree.get_input(0)
-    convert_back = False
-    approx_prec = ML_Binary32
-
-    if op_prec != approx_prec:
-        op_input = Conversion(op_input, precision=ML_Binary32)
-        convert_back = True
-
-
-    # TODO: fix integer precision selection
-    #       as we are in a late code generation stage, every node's precision
-    #       must be set
-    op_exp = ExponentExtraction(op_input, tag="op_exp", debug=debug_multi, precision=ML_Int32)
-    neg_half_exp = Division(
-        Negation(op_exp, precision=ML_Int32),
-        Constant(2, precision=ML_Int32),
-        precision=ML_Int32
-    )
-    approx_exp = ExponentInsertion(neg_half_exp, tag="approx_exp", debug=debug_multi, precision=approx_prec)
-    op_exp_parity = Modulo(
-        op_exp, Constant(2, precision=ML_Int32), precision=ML_Int32)
-    approx_exp_correction = Select(
-        Equal(op_exp_parity, Constant(0, precision=ML_Int32)),
-        Constant(1.0, precision=approx_prec),
-        Select(
-            Equal(op_exp_parity, Constant(-1, precision=ML_Int32)),
-            Constant(S2**0.5, precision=approx_prec),
-            Constant(S2**-0.5, precision=approx_prec),
-            precision=approx_prec
-        ),
-        precision=approx_prec,
-        tag="approx_exp_correction",
-        debug=debug_multi
-    )
-    table_index = invsqrt_approx_table.get_index_function()(op_input)
-    table_index.set_attributes(tag="invsqrt_index", debug=debug_multi)
-    approx = Multiplication(
-        TableLoad(
-            invsqrt_approx_table,
-            table_index,
-            precision=approx_prec
-        ),
-        Multiplication(
-            approx_exp_correction,
-            approx_exp,
-            precision=approx_prec
-        ),
-        tag="invsqrt_approx",
-        debug=debug_multi,
-        precision=approx_prec
-    )
-    if approx_prec != op_prec:
-        return Conversion(approx, precision=op_prec)
-    else:
-        return approx
 
 
 generic_approx_table_map = {
