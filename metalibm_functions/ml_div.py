@@ -31,7 +31,7 @@
 ###############################################################################
 import sollya
 
-from sollya import Interval
+from sollya import Interval, sup
 
 from metalibm_core.core.ml_operations import (
     Variable,
@@ -87,6 +87,7 @@ class NR_Iteration(object):
             self.new_approx = self.approx + self.error * self.approx
 
     def get_hint_rules(self, gcg, gappa_code, exact):
+        """ generate a hint rule to help gappa find a closer error bound """
         divisor = self.divisor.get_handle().get_node()
         approx = self.approx.get_handle().get_node()
         new_approx = self.new_approx.get_handle().get_node()
@@ -98,7 +99,7 @@ class NR_Iteration(object):
         else:
             rule0 = 1.0 - divisor * approx
         rule1 = 1.0 - divisor * (approx - exact) - 1.0
-        
+
         rule2 = new_approx - exact
         subrule = approx * (2 - divisor * approx)
         rule3 = (new_approx - subrule) - (approx - exact) * (approx - exact) * divisor
@@ -221,7 +222,7 @@ def subnormalize_result(recp_approx, div_approx, ex, ey, yerr_last, precision):
     sub_scale_factor = ex - ey
     subnormal_result = subnormal_pre_result * ExponentInsertion(sub_scale_factor, precision=precision)
 
-    return subnormal_result 
+    return subnormal_result
 
 
 class ML_Division(ML_FunctionBasis):
@@ -347,6 +348,12 @@ class ML_Division(ML_FunctionBasis):
 
         recp_approx.set_attributes(tag="recp_approx", debug=debug_multi)
 
+        eval_error_range = self.solve_eval_error(init_approx, recp_approx, scaled_vy, inv_iteration_list)
+        eval_error = sup(abs(eval_error_range))
+        recp_interval = 1 / scaled_vy.get_interval() + eval_error_range
+        print("recp_interval: {}".format(recp_interval))
+        recp_approx.set_interval(recp_interval)
+
         # approximation of scaled_vx / scaled_vy
         yerr_last, reduced_div_approx = compute_reduced_division(scaled_vx, scaled_vy, recp_approx)
 
@@ -458,21 +465,26 @@ class ML_Division(ML_FunctionBasis):
     def numeric_emulate(self, x, y):
         return x / y
 
-    def misc(self):
-        print("Gappa script generation")
-        seed_var = Variable("seed", precision = self.precision, interval = Interval(0.5, 1))
+    def solve_eval_error(self, gappa_init_approx, gappa_current_approx, gappa_vy, inv_iteration_list):
+        """ compute the evaluation error of reciprocal approximation of
+            (1 / gappa_vy) """
+        seed_var = Variable("seed", precision=self.precision, interval = Interval(0.5, 1))
         cg_eval_error_copy_map = {
             gappa_init_approx.get_handle().get_node(): seed_var,
-            gappa_vx.get_handle().get_node(): Variable("x", precision = self.precision, interval = Interval(1, 2)),
             gappa_vy.get_handle().get_node(): Variable("y", precision = self.precision, interval = Interval(1, 2)),
         }
+        # copying cg_eval_error_copy_map to allow mutation during
+        # optimise_scheme while keeping a clean copy for later use
+        optimisation_copy_map = cg_eval_error_copy_map.copy()
+        gappa_current_approx = self.optimise_scheme(gappa_current_approx, copy=optimisation_copy_map)
+        print("gappa_current_approx: {}", gappa_current_approx.get_str(depth=None, display_precision=True))
         G1 = Constant(1, precision = ML_Exact)
         exact = G1 / gappa_vy
         exact.set_precision(ML_Exact)
         exact.set_tag("div_exact")
-        gappa_goal = gappa_current_approx.get_handle().get_node() - exact
+        gappa_goal = gappa_current_approx - exact
         gappa_goal.set_precision(ML_Exact)
-        gappacg = GappaCodeGenerator(target, declare_cst = False, disable_debug = True)
+        gappacg = GappaCodeGenerator(self.processor, declare_cst=False, disable_debug=True)
         gappa_code = gappacg.get_interval_code(gappa_goal, cg_eval_error_copy_map)
 
         new_exact_node = exact.get_handle().get_node()
@@ -486,9 +498,11 @@ class ML_Division(ML_FunctionBasis):
 
         try:
             eval_error = execute_gappa_script_extract(gappa_code.get(gappacg))["goal"]
-            print("eval_error: "), eval_error
+            print("eval_error: ", eval_error)
         except:
             print("error during gappa run")
+            eval_error = None
+        return eval_error
 
     standard_test_cases = [
         (sollya.parse("-0x1.34a246p-2"), sollya.parse("-0x1.26e2e2p-1")),
