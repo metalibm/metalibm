@@ -413,13 +413,17 @@ class GappaCodeGenerator(object):
 
 
     def get_interval_code(self, pre_goal, variable_copy_map = {}, goal_precision = ML_Exact, update_handle = True):
+        """ create a new GappaCodeObject whose goal is a copy of pre_goal assuming
+            the mapping described in variable_copy_map and registering hypothesis
+            which correspond to variable_copy_map bounds """
         # registering initial bounds
         bound_list = [op for op in variable_copy_map]
+        print("bound_list: {}", bound_list)
 
         # copying pre-operation tree
         goal = pre_goal.copy(variable_copy_map)
-        goal.set_attributes(precision = goal_precision, tag = "goal")
-        Log.report(Log.Info, "goal: ", goal)
+        goal.set_attributes(precision=goal_precision, tag="goal")
+        Log.report(Log.Debug, "goal: ", goal)
 
         # updating handle
         if update_handle:
