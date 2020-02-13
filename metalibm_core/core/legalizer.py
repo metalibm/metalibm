@@ -37,6 +37,7 @@
 
 import operator
 
+import sollya
 
 from metalibm_core.utility.log_report import Log
 
@@ -48,7 +49,8 @@ from metalibm_core.core.ml_operations import (
     BitLogicRightShift, BitLogicLeftShift, BitLogicAnd,
     LogicalAnd, LogicalOr,
     ReciprocalSeed, CopySign,
-    TableLoad,
+    ReciprocalSquareRootSeed,
+    TableLoad, Division, Modulo, Equal,
     ExponentExtraction, ExponentInsertion,
 )
 from metalibm_core.core.ml_hdl_operations import (
@@ -62,6 +64,7 @@ from metalibm_core.core.ml_formats import (
     v2int64, v4int64, v8int64,
     v2float32, v4float32, v8float32,
     v2float64, v4float64, v8float64,
+    ML_Binary32,
     is_std_integer_format, ML_FP_Format,
     VECTOR_TYPE_MAP
 )
@@ -75,6 +78,8 @@ from metalibm_core.utility.debug_utils import debug_multi
 from metalibm_core.opt.opt_utils import (
     forward_attributes, forward_stage_attributes
 )
+
+S2 = sollya.SollyaObject(2)
 
 def get_compatible_bool_format(optree):
     """ Return a boolean format whose vector-size is compatible
