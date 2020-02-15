@@ -412,18 +412,28 @@ class GappaCodeGenerator(object):
         return eval_error_list
 
 
-    def get_interval_code(self, pre_goal, variable_copy_map = {}, goal_precision = ML_Exact, update_handle = True):
-        """ create a new GappaCodeObject whose goal is a copy of pre_goal assuming
+
+    def get_interval_code(self, pre_goal_list, bound_list, variable_copy_map=None, goal_precision=ML_Exact, update_handle=True, gappa_code=None, register_bound_hypothesis=True):
+        """ build a gappa proof to determine the liverange for each node in pre_goal_list.
+            The gappa proof is built assuming nodes in bound_list are roots of the operation graph.
+            variable_copy_map is used to copy the graph.
+        
+            This method creates a new GappaCodeObject whose goal is a copy of pre_goal assuming
             the mapping described in variable_copy_map and registering hypothesis
             which correspond to variable_copy_map bounds """
+        variable_copy_map = variable_copy_map or {}
         # registering initial bounds
-        bound_list = [op for op in variable_copy_map]
-        print("bound_list: {}", bound_list)
+        # bound_list = [op for op in variable_copy_map]
+        gappa_code = gappa_code or GappaCodeObject()
 
+        # to avoid infinite loop is the old API of get_interval_code is used
+        # and a node (with __getitem__) is passed as pre_goal_list
+        assert isinstance(pre_goal_list, list)
         # copying pre-operation tree
-        goal = pre_goal.copy(variable_copy_map)
-        goal.set_attributes(precision=goal_precision, tag="goal")
-        Log.report(Log.Debug, "goal: ", goal)
+        goal_list = [pre_goal.copy(variable_copy_map) for pre_goal in pre_goal_list]
+        for goal in goal_list:
+            goal.set_attributes(precision=goal_precision)
+            self.add_goal(gappa_code, goal)
 
         # updating handle
         if update_handle:
@@ -431,12 +441,9 @@ class GappaCodeGenerator(object):
                 new_v = variable_copy_map[v]
                 v.get_handle().set_node(new_v)
 
-        gappa_code = GappaCodeObject()
-
-        #gappa_result_approx = self.generate_expr(gappa_code, goal, initial = False, exact = False)
-        self.add_goal(gappa_code, goal)
-        for v in bound_list:
-            self.add_hypothesis(gappa_code, variable_copy_map[v], variable_copy_map[v].get_interval())
+        if register_bound_hypothesis:
+            for v in bound_list:
+                self.add_hypothesis(gappa_code, variable_copy_map[v], variable_copy_map[v].get_interval())
 
         return gappa_code
 
