@@ -56,16 +56,22 @@ from metalibm_core.core.special_values import (
     FP_MinusZero, FP_PlusZero,
 )
 from metalibm_core.core.precisions import ML_CorrectlyRounded
-from metalibm_core.code_generation.generic_processor import GenericProcessor
-from metalibm_core.code_generation.code_constant import C_Code
 from metalibm_core.core.ml_function import ML_FunctionBasis
 
+from metalibm_core.core.meta_interval import MetaInterval, MetaIntervalList
+
+from metalibm_core.code_generation.generic_processor import GenericProcessor
+from metalibm_core.code_generation.code_constant import C_Code
+from metalibm_core.code_generation.code_object import  GappaCodeObject
 from metalibm_core.code_generation.gappa_code_generator import GappaCodeGenerator
 
 from metalibm_core.utility.gappa_utils import execute_gappa_script_extract
 from metalibm_core.utility.ml_template import ML_NewArgTemplate, DefaultArgTemplate
 from metalibm_core.utility.debug_utils import debug_multi
 from metalibm_core.utility.log_report import Log
+
+
+
 
 S2 = sollya.SollyaObject(2)
 
@@ -287,17 +293,23 @@ class ML_Division(ML_FunctionBasis):
             return underflow_risk or overflow_risk
 
         out_of_bound_risk = (self.input_intervals[0] is None or self.input_intervals[0] is None) or test_interval_out_of_bound_risk(self.input_intervals[0], self.input_intervals[1])
-        Log.report(Log.Info, "out_of_bound_risk: {}".format(out_of_bound_risk))
+        Log.report(Log.Debug, "out_of_bound_risk: {}".format(out_of_bound_risk))
 
         # scaled version of vx and vy, to avoid overflow and underflow
         if out_of_bound_risk:
             scaled_vx = vx * scaling_factor_x
             scaled_vy = vy * scaling_factor_y
-            scaled_vx.set_attributes(tag="scaled_vx", debug=debug_multi)
-            scaled_vy.set_attributes(tag="scaled_vy", debug=debug_multi)
+            # True intervals for vx and vy is Interval(-2, -1) Union Interval(1, 2)
+            scaled_vx.set_attributes(tag="scaled_vx", debug=debug_multi, interval=Interval(-2, 2))
+            scaled_vy.set_attributes(tag="scaled_vy", debug=debug_multi, interval=Interval(-2, 2))
+            seed_interval = MetaIntervalList(
+                MetaInterval(1 / Interval(1, 2)),
+                MetaInterval(1 / Interval(-2, -1))
+            )
         else:
             scaled_vx = vx
             scaled_vy = vy
+            seed_interval = 1 / scaled_vy.get_interval()
 
 
         # We need a first approximation to 1 / scaled_vy
@@ -348,14 +360,16 @@ class ML_Division(ML_FunctionBasis):
 
         recp_approx.set_attributes(tag="recp_approx", debug=debug_multi)
 
-        eval_error_range = self.solve_eval_error(init_approx, recp_approx, scaled_vy, inv_iteration_list)
+
+        # approximation of scaled_vx / scaled_vy
+        yerr_last, reduced_div_approx = compute_reduced_division(scaled_vx, scaled_vy, recp_approx)
+
+
+        eval_error_range = self.solve_eval_error(init_approx, recp_approx, reduced_div_approx, scaled_vx, scaled_vy, inv_iteration_list, S2**-7, seed_interval)
         eval_error = sup(abs(eval_error_range))
         recp_interval = 1 / scaled_vy.get_interval() + eval_error_range
         print("recp_interval: {}".format(recp_interval))
         recp_approx.set_interval(recp_interval)
-
-        # approximation of scaled_vx / scaled_vy
-        yerr_last, reduced_div_approx = compute_reduced_division(scaled_vx, scaled_vy, recp_approx)
 
         if out_of_bound_risk:
             unscaled_result = scaling_div_result(reduced_div_approx, ex, scaling_factor_y, self.precision)
@@ -465,44 +479,71 @@ class ML_Division(ML_FunctionBasis):
     def numeric_emulate(self, x, y):
         return x / y
 
-    def solve_eval_error(self, gappa_init_approx, gappa_current_approx, gappa_vy, inv_iteration_list):
+    def solve_eval_error(self, gappa_init_approx, gappa_current_approx, div_approx, gappa_vx, gappa_vy, inv_iteration_list, seed_accuracy, seed_interval):
         """ compute the evaluation error of reciprocal approximation of
-            (1 / gappa_vy) """
-        seed_var = Variable("seed", precision=self.precision, interval = Interval(0.5, 1))
+            (1 / gappa_vy)
+
+            :param seed_accuracy: absolute error for seed value
+            :type seed_accuracy: SollyaObject
+
+        """
+        seed_var = Variable("seed", precision=self.precision, interval=seed_interval)
         cg_eval_error_copy_map = {
             gappa_init_approx.get_handle().get_node(): seed_var,
             gappa_vy.get_handle().get_node(): Variable("y", precision = self.precision, interval = Interval(1, 2)),
+            gappa_vx.get_handle().get_node(): Variable("x", precision = self.precision, interval = Interval(1, 2)),
         }
         # copying cg_eval_error_copy_map to allow mutation during
         # optimise_scheme while keeping a clean copy for later use
         optimisation_copy_map = cg_eval_error_copy_map.copy()
         gappa_current_approx = self.optimise_scheme(gappa_current_approx, copy=optimisation_copy_map)
-        print("gappa_current_approx: {}", gappa_current_approx.get_str(depth=None, display_precision=True))
+        div_approx = self.optimise_scheme(div_approx, copy=optimisation_copy_map)
         G1 = Constant(1, precision = ML_Exact)
-        exact = G1 / gappa_vy
-        exact.set_precision(ML_Exact)
-        exact.set_tag("div_exact")
-        gappa_goal = gappa_current_approx - exact
-        gappa_goal.set_precision(ML_Exact)
+        exact_recp = G1 / gappa_vy
+        exact_recp.set_precision(ML_Exact)
+        exact_recp.set_tag("exact_recp")
+        recp_approx_error_goal = gappa_current_approx - exact_recp
+        recp_approx_error_goal.set_attributes(precision=ML_Exact, tag="recp_approx_error_goal")
+
         gappacg = GappaCodeGenerator(self.processor, declare_cst=False, disable_debug=True)
-        gappa_code = gappacg.get_interval_code(gappa_goal, cg_eval_error_copy_map)
+        gappa_code = GappaCodeObject()
 
-        new_exact_node = exact.get_handle().get_node()
+        exact_div = gappa_vx * exact_recp
+        exact_div.set_attributes(precision=ML_Exact, tag="exact_div")
+        div_approx_error_goal = div_approx - exact_div
+        div_approx_error_goal.set_attributes(precision=ML_Exact, tag="div_approx_error_goal")
 
+        bound_list = [op for op in cg_eval_error_copy_map]
+
+        gappa_code = gappacg.get_interval_code(
+            [recp_approx_error_goal, div_approx_error_goal],
+            bound_list, cg_eval_error_copy_map, gappa_code=gappa_code,
+            register_bound_hypothesis=False)
+
+        for node in bound_list:
+            gappacg.add_hypothesis(gappa_code, cg_eval_error_copy_map[node], cg_eval_error_copy_map[node].get_interval())
+
+        new_exact_node = exact_recp.get_handle().get_node()
+
+        # adding specific hints for Newton-Raphson reciprocal iteration
         for nr in inv_iteration_list:
             nr.get_hint_rules(gappacg, gappa_code, new_exact_node)
 
         seed_wrt_exact = seed_var - new_exact_node
-        seed_wrt_exact.set_precision(ML_Exact)
-        gappacg.add_hypothesis(gappa_code, seed_wrt_exact, Interval(-S2**-7, S2**-7))
+        seed_wrt_exact.set_attributes(precision=ML_Exact, tag="seed_wrt_exact")
+        gappacg.add_hypothesis(gappa_code, seed_wrt_exact, Interval(-seed_accuracy, seed_accuracy))
 
         try:
-            eval_error = execute_gappa_script_extract(gappa_code.get(gappacg))["goal"]
-            print("eval_error: ", eval_error)
+            gappa_results = execute_gappa_script_extract(gappa_code.get(gappacg))
+            recp_eval_error = gappa_results["recp_approx_error_goal"]
+            div_eval_error = gappa_results["div_approx_error_goal"]
+            print("eval error(s): recp={}, div={}".format(recp_eval_error, div_eval_error))
         except:
             print("error during gappa run")
-            eval_error = None
-        return eval_error
+            raise
+            recp_eval_error = None
+            div_eval_error = None
+        return recp_eval_error
 
     standard_test_cases = [
         (sollya.parse("-0x1.34a246p-2"), sollya.parse("-0x1.26e2e2p-1")),
