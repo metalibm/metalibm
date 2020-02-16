@@ -47,6 +47,7 @@ from ..core.ml_formats import ML_GlobalRoundMode, ML_Fixed_Format, ML_FP_Format,
 
 from .code_configuration import CodeConfiguration
 
+from metalibm_core.core.meta_interval import MetaIntervalList, MetaInterval
 
 
 class DataLayout(object):
@@ -523,14 +524,20 @@ class GappaCodeObject(CodeObject):
         return result
 
     def gen_complete_goal(self):
-        result = "# goalee\n"
+        result = "# goals\n"
         hypothesis = []
         for hc, hv in self.hypothesis_table:
-          hypothesis.append("%s in %s" % (hc.get(), self.get_value_str(hv)))
-          if isinstance(hc.precision, ML_Fixed_Format):
-            hypothesis.append("@FIX(%s,%s)" % (hc.get(), str(- hc.precision.get_frac_size())))
-          if isinstance(hc.precision, ML_FP_Format):
-            hypothesis.append("@FLT(%s,%s)" % (hc.get(), str(hc.precision.get_field_size()+1)))
+            if isinstance(hv, MetaIntervalList):
+                disjonction = ""
+                for sub_interval in hv.interval_list:
+                    disjonction += ("%s in %s" % (hc.get(), self.get_value_str(sub_interval)))
+                hypothesis.append("( %s )" % disjonction)
+            else:
+                hypothesis.append("%s in %s" % (hc.get(), self.get_value_str(hv)))
+            if isinstance(hc.precision, ML_Fixed_Format):
+                hypothesis.append("@FIX(%s,%s)" % (hc.get(), str(- hc.precision.get_frac_size())))
+            if isinstance(hc.precision, ML_FP_Format):
+                hypothesis.append("@FLT(%s,%s)" % (hc.get(), str(hc.precision.get_field_size()+1)))
         goal = ["%s in %s" % (hc.get(), self.get_value_str(hv)) for hc, hv in self.goal_table]
         result += "{ %s -> %s }\n\n" % (" /\ ".join(hypothesis), " /\ ".join(goal))
         return result
@@ -539,6 +546,12 @@ class GappaCodeObject(CodeObject):
     def get_value_str(self, value):
         if value is Gappa_Unknown:
             return "?"
+        elif isinstance(value, MetaInterval):
+            return self.get_value_str(value.interval)
+        elif isinstance(value, MetaIntervalList):
+            # MetaIntervalList should have been catched early and 
+            # should have generated a disjonction of cases
+            raise NotImplementedError
         elif isinstance(value, sollya.SollyaObject) and value.is_range():
             return "[%s, %s]" % (sollya.inf(value), sollya.sup(value))
         else:
