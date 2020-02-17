@@ -78,7 +78,7 @@ S2 = sollya.SollyaObject(2)
 class NR_Iteration(object):
     """ Newton-Raphson iteration generator """
     def __init__(self, approx, divisor, force_fma=False):
-        """ 
+        """
             @param approx initial approximation of 1.0 / @p divisor
             @param divisor reciprocal input
             @param force_fma force the use of Fused Multiply and Add """
@@ -92,7 +92,7 @@ class NR_Iteration(object):
             self.error = 1 - divisor * approx
             self.new_approx = self.approx + self.error * self.approx
 
-    def get_hint_rules(self, gcg, gappa_code, exact):
+    def get_hint_rules(self, gcg, gappa_code, recp_exact):
         """ generate a hint rule to help gappa find a closer error bound """
         divisor = self.divisor.get_handle().get_node()
         approx = self.approx.get_handle().get_node()
@@ -104,11 +104,11 @@ class NR_Iteration(object):
             rule0 = FusedMultiplyAdd(divisor, approx, 1.0, specifier = FusedMultiplyAdd.SubtractNegate)
         else:
             rule0 = 1.0 - divisor * approx
-        rule1 = 1.0 - divisor * (approx - exact) - 1.0
+        rule1 = 1.0 - divisor * (approx - recp_exact) - 1.0
 
-        rule2 = new_approx - exact
+        rule2 = new_approx - recp_exact
         subrule = approx * (2 - divisor * approx)
-        rule3 = (new_approx - subrule) - (approx - exact) * (approx - exact) * divisor
+        rule3 = (new_approx - subrule) - (approx - recp_exact) * (approx - recp_exact) * divisor
 
         if self.force_fma:
             new_error = FusedMultiplyAdd(divisor, approx, 1.0, specifier = FusedMultiplyAdd.SubtractNegate)
@@ -123,18 +123,146 @@ class NR_Iteration(object):
         gcg.add_hint(gappa_code, rule2, rule3)
         gcg.add_hint(gappa_code, subrule, rule4)
 
+class DividendMultIteration:
+    """ Encapsulation of division iteration (to obtain division
+        result from a reciprocal approximation) """
+    def __init__(self, div_approx, inv_approx, dividend, divisor, index, yerr_rndmode=ML_RoundToNearest, yerr_silent=True, new_div_rndmode=ML_RoundToNearest, new_div_silent=True):
+        self.div_approx = div_approx
+        self.inv_approx = inv_approx
+        self.dividend = dividend
+        self.divisor = divisor
+        self.index = index
 
-def dividend_mult(div_approx, inv_approx, dividend, divisor, index):
+        self.yerr, self.new_div_approx = dividend_mult(
+            self.div_approx, self.inv_approx, self.dividend,
+            self.divisor, self.index,
+            yerr_rndmode=yerr_rndmode, yerr_silent=yerr_silent,
+            new_div_rndmode=new_div_rndmode, new_div_silent=new_div_silent)
+
+    def get_hint_rules(self, gcg, gappa_code, inv_exact, div_exact):
+        div_approx = self.div_approx.get_handle().get_node()
+        divisor = self.divisor.get_handle().get_node()
+        dividend = self.dividend.get_handle().get_node()
+        inv_approx = self.inv_approx.get_handle().get_node()
+        yerr = self.yerr.get_handle().get_node()
+        print("hint rule yerr: {}".format(yerr))
+
+        Attributes.set_default_precision(ML_Exact)
+
+        gcg.add_hint(gappa_code, div_approx, div_approx - dividend * inv_approx + dividend * inv_approx)
+        gcg.add_hint(gappa_code, div_approx - div_exact, div_approx - dividend * inv_approx + dividend * inv_approx - div_exact)
+        gcg.add_hint(
+            gappa_code,
+            div_approx - dividend * inv_approx + dividend * inv_approx - div_exact,
+            div_approx - dividend * inv_approx + dividend * inv_approx - dividend * inv_exact)
+        gcg.add_hint(
+            gappa_code,
+            div_approx - dividend * inv_approx + dividend * inv_approx - dividend * inv_exact,
+            div_approx - dividend * inv_approx + dividend * (inv_approx - inv_exact),
+            )
+        gcg.add_hint(
+            gappa_code,
+            div_approx - div_exact,
+            div_approx - dividend * inv_approx + dividend * (inv_approx - inv_exact)
+        )
+
+        gcg.add_hint(gappa_code, yerr, (yerr - (- div_approx * divisor + dividend)) + (dividend - div_approx * divisor))
+        gcg.add_hint(gappa_code, dividend - div_approx * divisor, dividend - (div_approx - div_exact + div_exact) * divisor)
+        gcg.add_hint(gappa_code,
+            dividend - (div_approx - div_exact + div_exact) * divisor,
+            - (div_approx - div_exact) * divisor)
+        gcg.add_hint(gappa_code, yerr, (yerr - (- div_approx * divisor + dividend)) - (div_approx - div_exact) * divisor)
+        gcg.add_hint(gappa_code,
+            yerr,
+            #(yerr - (dividend - div_approx * divisor)) - (div_approx - div_exact) * divisor,
+            (yerr - (- div_approx * divisor + dividend)) - (div_approx - dividend * inv_approx + dividend * (inv_approx - inv_exact)) * divisor
+            )
+
+        Attributes.unset_default_precision()
+
+
+class DivisionLastIteration:
+    def __init__(self, div_approx, recp_approx, vy, vx):
+        self.div_approx = div_approx
+        self.recp_approx = recp_approx
+        self.vy = vy
+        self.vx = vx
+
+        # last iteration
+        yerr_last = FMSN(div_approx, vy, vx) #, clearprevious = True)
+        Attributes.unset_default_rounding_mode()
+        Attributes.unset_default_silent()
+        last_div_approx = FMA(
+            yerr_last, recp_approx, div_approx, rounding_mode=ML_GlobalRoundMode)
+
+        yerr_last.set_attributes(tag="yerr_last", debug=debug_multi)
+        self.yerr_last = yerr_last
+        self.last_div_approx = last_div_approx
+
+
+    def get_hint_rules(self, gcg, gappa_code, inv_exact, div_exact):
+        div_approx = self.div_approx.get_handle().get_node()
+        vx = self.vx.get_handle().get_node()
+        vy = self.vy.get_handle().get_node()
+
+        Attributes.set_default_precision(ML_Exact)
+        gcg.add_hint(
+            gappa_code,
+            yerr_last,
+            (yerr_last + div_approx * vy - vx) - div_approx * vy + vx
+        )
+        gcg.add_hint(
+            gappa_code,
+            div_approx,
+            div_approx - div_exact + div_exact
+        )
+        gcg.add_hint(
+            gappa_code,
+            - div_approx * vy + vx,
+            (-div_approx + div_exact) * vy - div_exact * vy + vx
+        )
+        gcg.add_hint(
+            gappa_code,
+            yerr_last,
+            (yerr_last + div_approx * vy - vx) + (-div_approx + div_exact) * vy
+        )
+
+        gcg.add_hint(
+            gappa_code,
+            last_div_approx - div_exact,
+            (last_div_approx - yerr_last * recp_approx - div_approx) + yerr_last * recp_approx + div_approx - div_exact
+        )
+
+        Attributes.unset_default_precision()
+
+def dividend_mult(
+        div_approx, inv_approx, dividend, divisor, index,
+        yerr_rndmode=ML_RoundToNearest, yerr_silent=True,
+        new_div_rndmode=ML_RoundToNearest, new_div_silent=True):
     """ Second part of iteration to converge to dividend / divisor
-        from inv_approx ~ 1 / divisor 
+        from inv_approx ~ 1 / divisor
         and  div_approx ~ dividend / divisor """
+    Attributes.set_default_rounding_mode(yerr_rndmode)
+    Attributes.set_default_silent(yerr_silent)
+
     # yerr = dividend - div_approx * divisor
     yerr = FMSN(div_approx, divisor, dividend)
     yerr.set_attributes(tag="yerr%d" % index, debug=debug_multi)
+
+    if new_div_rndmode != yerr_rndmode:
+        Attributes.unset_default_rounding_mode()
+        Attributes.set_default_rounding_mode(new_div_rndmode)
+    if new_div_silent != yerr_silent:
+        Attributes.unset_default_silent()
+        if new_div_silent != None:
+            Attributes.set_default_silent(new_div_silent)
+
     # new_div = div_approx + yerr * inv_approx
     new_div = FMA(yerr, inv_approx, div_approx)
     new_div.set_attributes(tag="new_div%d" % index, debug=debug_multi)
-    return new_div
+    Attributes.unset_default_rounding_mode()
+    Attributes.unset_default_silent()
+    return yerr, new_div
 
 
 def compute_reduced_reciprocal(init_approx, vy, num_iteration):
@@ -170,20 +298,31 @@ def compute_reduced_division(vx, vy, recp_approx):
     # to get correctly rounded full division _vx / _vy
     current_div_approx = vx * recp_approx
     num_dividend_mult_iteration = 1
+    div_mult_iteration = []
     for i in range(num_dividend_mult_iteration):
-        current_div_approx = dividend_mult(current_div_approx, recp_approx, vx, vy, i)
+        new_div_mult_iteration = DividendMultIteration(current_div_approx, recp_approx, vx, vy, i)
+        current_div_approx = new_div_mult_iteration.new_div_approx
+        div_mult_iteration.append(new_div_mult_iteration)
 
+    last_div_iteration = DividendMultIteration(
+        current_div_approx, recp_approx, vx, vy, num_dividend_mult_iteration,
+        new_div_rndmode=ML_GlobalRoundMode,
+        new_div_silent=None)
     # last iteration
-    yerr_last = FMSN(current_div_approx, vy, vx) #, clearprevious = True)
-    Attributes.unset_default_rounding_mode()
-    Attributes.unset_default_silent()
-    last_div_approx = FMA(
-        yerr_last, recp_approx, current_div_approx, rounding_mode=ML_GlobalRoundMode)
+    #yerr_last = FMSN(current_div_approx, vy, vx) #, clearprevious = True)
+    #Attributes.unset_default_rounding_mode()
+    #Attributes.unset_default_silent()
+    #last_div_approx = FMA(
+    #    yerr_last, recp_approx, current_div_approx, rounding_mode=ML_GlobalRoundMode)
 
+    last_div_approx = last_div_iteration.div_approx
+    yerr_last = last_div_iteration.yerr
     yerr_last.set_attributes(tag = "yerr_last", debug=debug_multi)
 
+    div_mult_iteration.append(last_div_iteration)
+
     result = last_div_approx
-    return yerr_last, result
+    return yerr_last, result, div_mult_iteration
 
 
 def scaling_div_result(div_approx, scaling_ex, scaling_factor_y, precision):
@@ -299,9 +438,13 @@ class ML_Division(ML_FunctionBasis):
         if out_of_bound_risk:
             scaled_vx = vx * scaling_factor_x
             scaled_vy = vy * scaling_factor_y
+            scaled_interval = MetaIntervalList(
+                MetaInterval(1 / Interval(1, 2)),
+                MetaInterval(1 / Interval(-2, -1))
+            )
             # True intervals for vx and vy is Interval(-2, -1) Union Interval(1, 2)
-            scaled_vx.set_attributes(tag="scaled_vx", debug=debug_multi, interval=Interval(-2, 2))
-            scaled_vy.set_attributes(tag="scaled_vy", debug=debug_multi, interval=Interval(-2, 2))
+            scaled_vx.set_attributes(tag="scaled_vx", debug=debug_multi, interval=scaled_interval)
+            scaled_vy.set_attributes(tag="scaled_vy", debug=debug_multi, interval=scaled_interval)
             seed_interval = MetaIntervalList(
                 MetaInterval(1 / Interval(1, 2)),
                 MetaInterval(1 / Interval(-2, -1))
@@ -362,14 +505,19 @@ class ML_Division(ML_FunctionBasis):
 
 
         # approximation of scaled_vx / scaled_vy
-        yerr_last, reduced_div_approx = compute_reduced_division(scaled_vx, scaled_vy, recp_approx)
+        yerr_last, reduced_div_approx, div_iteration_list = compute_reduced_division(scaled_vx, scaled_vy, recp_approx)
 
 
-        eval_error_range = self.solve_eval_error(init_approx, recp_approx, reduced_div_approx, scaled_vx, scaled_vy, inv_iteration_list, S2**-7, seed_interval)
+        eval_error_range, div_eval_error_range = self.solve_eval_error(
+            init_approx, recp_approx, reduced_div_approx, scaled_vx, scaled_vy,
+            inv_iteration_list, div_iteration_list, S2**-7, seed_interval)
         eval_error = sup(abs(eval_error_range))
         recp_interval = 1 / scaled_vy.get_interval() + eval_error_range
         print("recp_interval: {}".format(recp_interval))
         recp_approx.set_interval(recp_interval)
+
+        div_interval = scaled_vx.get_interval() / scaled_vy.get_interval() + div_eval_error_range
+        reduced_div_approx.set_interval(div_interval)
 
         if out_of_bound_risk:
             unscaled_result = scaling_div_result(reduced_div_approx, ex, scaling_factor_y, self.precision)
@@ -479,7 +627,7 @@ class ML_Division(ML_FunctionBasis):
     def numeric_emulate(self, x, y):
         return x / y
 
-    def solve_eval_error(self, gappa_init_approx, gappa_current_approx, div_approx, gappa_vx, gappa_vy, inv_iteration_list, seed_accuracy, seed_interval):
+    def solve_eval_error(self, gappa_init_approx, gappa_current_approx, div_approx, gappa_vx, gappa_vy, inv_iteration_list, div_iteration_list, seed_accuracy, seed_interval):
         """ compute the evaluation error of reciprocal approximation of
             (1 / gappa_vy)
 
@@ -493,11 +641,16 @@ class ML_Division(ML_FunctionBasis):
             gappa_vy.get_handle().get_node(): Variable("y", precision = self.precision, interval = Interval(1, 2)),
             gappa_vx.get_handle().get_node(): Variable("x", precision = self.precision, interval = Interval(1, 2)),
         }
+    
+        yerr_last = div_iteration_list[-1].yerr
+
         # copying cg_eval_error_copy_map to allow mutation during
         # optimise_scheme while keeping a clean copy for later use
         optimisation_copy_map = cg_eval_error_copy_map.copy()
         gappa_current_approx = self.optimise_scheme(gappa_current_approx, copy=optimisation_copy_map)
         div_approx = self.optimise_scheme(div_approx, copy=optimisation_copy_map)
+        yerr_last = self.optimise_scheme(yerr_last, copy=optimisation_copy_map)
+        yerr_last.get_handle().set_node(yerr_last)
         G1 = Constant(1, precision = ML_Exact)
         exact_recp = G1 / gappa_vy
         exact_recp.set_precision(ML_Exact)
@@ -515,6 +668,8 @@ class ML_Division(ML_FunctionBasis):
 
         bound_list = [op for op in cg_eval_error_copy_map]
 
+        gappacg.add_goal(gappa_code, yerr_last)
+
         gappa_code = gappacg.get_interval_code(
             [recp_approx_error_goal, div_approx_error_goal],
             bound_list, cg_eval_error_copy_map, gappa_code=gappa_code,
@@ -523,13 +678,17 @@ class ML_Division(ML_FunctionBasis):
         for node in bound_list:
             gappacg.add_hypothesis(gappa_code, cg_eval_error_copy_map[node], cg_eval_error_copy_map[node].get_interval())
 
-        new_exact_node = exact_recp.get_handle().get_node()
+        new_exact_recp_node = exact_recp.get_handle().get_node()
+        new_exact_div_node = exact_div.get_handle().get_node()
 
         # adding specific hints for Newton-Raphson reciprocal iteration
         for nr in inv_iteration_list:
-            nr.get_hint_rules(gappacg, gappa_code, new_exact_node)
+            nr.get_hint_rules(gappacg, gappa_code, new_exact_recp_node)
 
-        seed_wrt_exact = seed_var - new_exact_node
+        for div_iter in div_iteration_list:
+            div_iter.get_hint_rules(gappacg, gappa_code, new_exact_recp_node, new_exact_div_node)
+
+        seed_wrt_exact = seed_var - new_exact_recp_node
         seed_wrt_exact.set_attributes(precision=ML_Exact, tag="seed_wrt_exact")
         gappacg.add_hypothesis(gappa_code, seed_wrt_exact, Interval(-seed_accuracy, seed_accuracy))
 
@@ -543,7 +702,7 @@ class ML_Division(ML_FunctionBasis):
             raise
             recp_eval_error = None
             div_eval_error = None
-        return recp_eval_error
+        return recp_eval_error, div_eval_error
 
     standard_test_cases = [
         (sollya.parse("-0x1.34a246p-2"), sollya.parse("-0x1.26e2e2p-1")),
