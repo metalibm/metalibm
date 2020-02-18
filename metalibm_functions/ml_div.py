@@ -305,6 +305,7 @@ def compute_reduced_division(vx, vy, recp_approx):
 
     last_div_iteration = DividendMultIteration(
         current_div_approx, recp_approx, vx, vy, num_dividend_mult_iteration,
+        yerr_silent=False, # yerr_last should not be silent has it raises inexact
         new_div_rndmode=ML_GlobalRoundMode,
         new_div_silent=None)
     # last iteration
@@ -579,22 +580,24 @@ class ML_Division(ML_FunctionBasis):
                             Test(unscaled_result, specifier=Test.IsSubnormal, likely=False),
                             # result is subnormal
                             Statement(
-                                ConditionBlock(
-                                    Comparison(
-                                        yerr_last, 0,
-                                        specifier=Comparison.NotEqual, likely=True),
-                                    Statement(Raise(ML_FPE_Inexact, ML_FPE_Underflow))
-                                ),
+                                # inexact flag should have been raised when computing yerr_last
+                                # ConditionBlock(
+                                #    Comparison(
+                                #        yerr_last, 0,
+                                #        specifier=Comparison.NotEqual, likely=True),
+                                #    Statement(Raise(ML_FPE_Inexact, ML_FPE_Underflow))
+                                #),
                                 Return(subnormal_result),
                             ),
                             # result is normal
                             Statement(
-                                ConditionBlock(
-                                    Comparison(
-                                        yerr_last, 0,
-                                        specifier=Comparison.NotEqual, likely=True),
-                                    Raise(ML_FPE_Inexact)
-                                ),
+                                # inexact flag should have been raised when computing yerr_last
+                                #ConditionBlock(
+                                #    Comparison(
+                                #        yerr_last, 0,
+                                #        specifier=Comparison.NotEqual, likely=True),
+                                #    Raise(ML_FPE_Inexact)
+                                #),
                                 Return(unscaled_result)
                             )
                         )
