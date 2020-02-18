@@ -287,6 +287,7 @@ class VerboseAction(argparse.Action):
                 level, sub_level = level_str.split(":")
             else:
                 level, sub_level = level_str, None
+            print("enabling: ", level)
             Log.enable_level(level, sub_level=sub_level)
 
 # list the available targets
@@ -400,7 +401,7 @@ class DefaultArgTemplate:
     verbose_enable = False
     # enable dump of executed binary stdout
     display_stdout = True
-    # 
+    #
     arity = 1
     # output/intermediate format Specification
     precision = ML_Binary32

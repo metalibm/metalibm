@@ -93,7 +93,7 @@ class ML_Format(object):
             return "undefined format"
 
     def __repr__(self):
-	    return self.get_code_name()
+        return self.get_code_name()
 
     ## return source code name for the format
     def get_code_name(self, language=None):

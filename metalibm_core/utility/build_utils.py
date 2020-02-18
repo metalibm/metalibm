@@ -115,6 +115,7 @@ class SourceFile:
         self.function_list = function_list
         self.path = path
 
+
     def build(self, target, bin_name=None, shared_object=False, link=False):
         """ Build @p self source file for @p target processor 
             Args:
