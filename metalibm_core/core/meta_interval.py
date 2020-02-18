@@ -1,6 +1,25 @@
-from sollya import Interval, sup, inf
+from sollya import Interval, sup, inf, SollyaObject
 import itertools
 
+def convert_to_MetaInterval(obj):
+    if isinstance(obj, MetaInterval):
+        return obj
+    elif isinstance(obj, SollyaObject) and obj.is_range():
+        return MetaInterval(obj)
+    elif isinstance(obj, (float, int, SollyaObject)):
+        return MetaInterval(rhs=obj)
+    else:
+        raise NotImplementedError
+
+def convert_to_MetaIntervalList(obj):
+    if isinstance(obj, MetaIntervalList):
+        return obj
+    elif isinstance(obj, MetaInterval):
+        return MetaIntervalList([obj])
+    elif isinstance(obj, (float, int, SollyaObject)):
+        return MetaIntervalList([convert_to_MetaInterval(obj)])
+    else:
+        raise NotImplementedError
 
 class MetaInterval:
     """ Metalibm numerical contiguous interval object """
@@ -18,6 +37,8 @@ class MetaInterval:
 
     def __or__(lhs, rhs):
         """ interval union """
+        lhs = convert_to_MetaInterval(lhs)
+        rhs = convert_to_MetaInterval(rhs)
         if lhs.sup < rhs.inf:
             return MetaIntervalList([lhs, rhs])
         elif rhs.sup < lhs.inf:
@@ -26,6 +47,8 @@ class MetaInterval:
             return MetaInterval(lhs=min(lhs.inf, rhs.inf), rhs=max(lhs.sup, rhs.sup))
     def __and__(lhs, rhs):
         """ interval intersection """
+        lhs = convert_to_MetaInterval(lhs)
+        rhs = convert_to_MetaInterval(rhs)
         if lhs.sup < rhs.inf or rhs.sup < lhs.inf:
             return MetaInterval(None)
         else:
@@ -38,6 +61,8 @@ class MetaInterval:
         elif lhs.interval is None or rhs.interval is None:
             return MetaInterval(None)
         else:
+            lhs = convert_to_MetaInterval(lhs)
+            rhs = convert_to_MetaInterval(rhs)
             return MetaInterval(interval=lhs.interval + rhs.interval)
             # return MetaInterval(lhs=lhs.inf+rhs.inf, rhs=lhs.sup+rhs.sup)
     def __sub__(lhs, rhs):
@@ -46,7 +71,9 @@ class MetaInterval:
         elif lhs.interval is None or rhs.interval is None:
             return MetaInterval(None)
         else:
-           return  MetaInterval(interval=lhs.interval - rhs.interval)
+            lhs = convert_to_MetaInterval(lhs)
+            rhs = convert_to_MetaInterval(rhs)
+            return  MetaInterval(interval=lhs.interval - rhs.interval)
             #MetaInterval(lhs=min(lhs.inf - rhs.sup, rhs.inf - lhs.sup), rhs=max(lhs.sup - rhs.inf, rhs.sup - lhs.inf))
     def __mul__(lhs, rhs):
         if isinstance(rhs, MetaIntervalList):
@@ -54,6 +81,8 @@ class MetaInterval:
         elif lhs.interval is None or rhs.interval is None:
             return MetaInterval(None)
         else:
+            lhs = convert_to_MetaInterval(lhs)
+            rhs = convert_to_MetaInterval(rhs)
             return MetaInterval(interval=lhs.interval * rhs.interval)
             #extrema_list = [
             #    lhs.inf * rhs.inf,
@@ -62,11 +91,15 @@ class MetaInterval:
             #    lhs.sup * rhs.sup,
             #]
             #return MetaInterval(lhs=min(extrema_list), rhs=max(extrema_list))
-    def __div__(lhs, rhs):
+    def __truediv__(lhs, rhs):
         if isinstance(rhs, MetaIntervalList):
             MetaIntervalList.__div__(MetaIntervalList([lhs.interval]), rhs)
+        elif isinstance(rhs, (int, float)):
+            rhs = MetaInterval(Interval(rhs))
         elif lhs.interval is None or rhs.interval is None:
             return MetaInterval(None)
+        lhs = convert_to_MetaInterval(lhs)
+        rhs = convert_to_MetaInterval(rhs)
         return MetaInterval(interval=lhs.interval / rhs.interval)
 
     def __contains__(self, value):
@@ -112,29 +145,32 @@ class MetaIntervalList:
         return " \/ ".join("{}".format(interval) for interval in self.interval_list)
 
     def __add__(lhs, rhs):
-        if isinstance(rhs, MetaInterval):
-            rhs = MetaIntervalList([rhs])
+        rhs = convert_to_MetaIntervalList(rhs)
         result = MetaIntervalList((lhs_sub + rhs_sub) for lhs_sub, rhs_sub in itertools.product(lhs.interval_list, rhs.interval_list))
         result.refine()
         return result
     def __sub__(lhs, rhs):
-        if isinstance(rhs, MetaInterval):
-            rhs = MetaIntervalList([rhs])
+        rhs = convert_to_MetaIntervalList(rhs)
         result = MetaIntervalList((lhs_sub - rhs_sub) for lhs_sub, rhs_sub in itertools.product(lhs.interval_list, rhs.interval_list))
         result.refine()
         return result
     def __mul__(lhs, rhs):
-        if isinstance(rhs, MetaInterval):
-            rhs = MetaIntervalList([rhs])
+        rhs = convert_to_MetaIntervalList(rhs)
         result = MetaIntervalList((lhs_sub * rhs_sub) for lhs_sub, rhs_sub in itertools.product(lhs.interval_list, rhs.interval_list))
         result.refine()
         return result
-    def __div__(lhs, rhs):
-        if isinstance(rhs, MetaInterval):
-            rhs = MetaIntervalList([rhs])
+    def __truediv__(lhs, rhs):
+        rhs = convert_to_MetaIntervalList(rhs)
         result = MetaIntervalList((lhs_sub / rhs_sub) for lhs_sub, rhs_sub in itertools.product(lhs.interval_list, rhs.interval_list))
         result.refine()
         return result
+    def __rtruediv__(rhs, lhs):
+        lhs = convert_to_MetaIntervalList(lhs)
+        result = MetaIntervalList((lhs_sub / rhs_sub) for lhs_sub, rhs_sub in itertools.product(lhs.interval_list, rhs.interval_list))
+        result.refine()
+        return result
+        
+
 
 
 if __name__ == "__main__":
