@@ -1,4 +1,5 @@
-from sollya import Interval, sup, inf, SollyaObject
+from sollya import Interval, SollyaObject
+import sollya
 import itertools
 
 def convert_to_MetaInterval(obj):
@@ -126,29 +127,49 @@ class MetaInterval:
     def inf(self):
         return inf(self.interval)
 
+    @property
+    def is_empty(self):
+        return self.interval == None
+
+def refine_interval_list(interval_list):
+    """ canonize internal interval_list to contains
+        sorted, disjoint intervals """
+    sorted_list = sorted(interval_list, key=lambda i: i.inf)
+    refined_list = [sorted_list[0]]
+    for sub_interval in sorted_list[1:]:
+        if sub_interval.inf <= refined_list[-1].sup:
+            # merge interval
+            refined_list[-1] = refined_list[-1] | sub_interval
+        else:
+            refined_list.append(sub_interval)
+    return refined_list
 
 
 class MetaIntervalList:
     """ extended interval object which can store
         union of disjoint intervals """
     def __init__(self, interval_list):
-        self.interval_list = list(interval_list)
+        # refine on creation => allow to easily retrieve inf and sup bound
+        # as interval order will not be modified
+        self._interval_list = refine_interval_list(list(interval_list))
+    
+    @property
+    def interval_list(self):
+        """ specific getter for interval_list to avoid defining a setter """
+        return self._interval_list
+
+    @property
+    def inf(self):
+        return self._interval_list[0].inf
+    @property
+    def sup(self):
+        return self._interval_list[-1].sup
+    @property
+    def is_empty(self):
+        return all(sub.is_empty for sub in self.interval_list)
 
     def __contains__(self, value):
         return any(value in interval for interval in self.interval_set)
-
-    def refine(self):
-        """ canonize internal interval_list to contains
-            sorted, disjoint intervals """
-        self.interval_list.sort(key=lambda i: i.inf)
-        refined_list = [self.interval_list[0]]
-        for sub_interval in self.interval_list[1:]:
-            if sub_interval.inf <= refined_list[-1].sup:
-                # merge interval
-                refined_list[-1] = refined_list[-1] | sub_interval
-            else:
-                refined_list.append(sub_interval)
-        self.interval_list = refined_list
 
     def __repr__(self):
         return " \/ ".join("{}".format(interval) for interval in self.interval_list)
@@ -156,32 +177,45 @@ class MetaIntervalList:
     def __add__(lhs, rhs):
         rhs = convert_to_MetaIntervalList(rhs)
         result = MetaIntervalList((lhs_sub + rhs_sub) for lhs_sub, rhs_sub in itertools.product(lhs.interval_list, rhs.interval_list))
-        result.refine()
         return result
     def __sub__(lhs, rhs):
         rhs = convert_to_MetaIntervalList(rhs)
         result = MetaIntervalList((lhs_sub - rhs_sub) for lhs_sub, rhs_sub in itertools.product(lhs.interval_list, rhs.interval_list))
-        result.refine()
         return result
     def __mul__(lhs, rhs):
         rhs = convert_to_MetaIntervalList(rhs)
         result = MetaIntervalList((lhs_sub * rhs_sub) for lhs_sub, rhs_sub in itertools.product(lhs.interval_list, rhs.interval_list))
-        result.refine()
         return result
     def __truediv__(lhs, rhs):
         rhs = convert_to_MetaIntervalList(rhs)
         result = MetaIntervalList((lhs_sub / rhs_sub) for lhs_sub, rhs_sub in itertools.product(lhs.interval_list, rhs.interval_list))
-        result.refine()
         return result
     def __rtruediv__(rhs, lhs):
         lhs = convert_to_MetaIntervalList(lhs)
         result = MetaIntervalList((lhs_sub / rhs_sub) for lhs_sub, rhs_sub in itertools.product(lhs.interval_list, rhs.interval_list))
-        result.refine()
         return result
     def __neg__(self):
         return MetaIntervalList(-sub for sub in self.interval_list)
 
 
+def inf(obj):
+    """ generic getter for interval inferior bound """
+    if isinstance(obj, SollyaObject) and obj.is_range():
+        return sollya.inf(obj)
+    elif isinstance(obj, (MetaInterval, MetaIntervalList)):
+        return obj.inf
+    else:
+        raise NotImplementedError
+
+
+def sup(obj):
+    """ generic getter for interval superior bound """
+    if isinstance(obj, SollyaObject) and obj.is_range():
+        return sollya.sup(obj)
+    elif isinstance(obj, (MetaInterval, MetaIntervalList)):
+        return obj.sup
+    else:
+        raise NotImplementedError
 
 if __name__ == "__main__":
     int0 = MetaInterval(lhs=1, rhs=2)
