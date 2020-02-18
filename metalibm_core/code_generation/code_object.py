@@ -528,9 +528,9 @@ class GappaCodeObject(CodeObject):
         hypothesis = []
         for hc, hv in self.hypothesis_table:
             if isinstance(hv, MetaIntervalList):
-                disjonction = ""
-                for sub_interval in hv.interval_list:
-                    disjonction += ("%s in %s" % (hc.get(), self.get_value_str(sub_interval)))
+                disjonction_list =[
+                    ("%s in %s" % (hc.get(), self.get_value_str(sub_interval))) for sub_interval in hv.interval_list]
+                disjonction = " \/ ".join(disjonction_list)
                 hypothesis.append("( %s )" % disjonction)
             else:
                 hypothesis.append("%s in %s" % (hc.get(), self.get_value_str(hv)))
