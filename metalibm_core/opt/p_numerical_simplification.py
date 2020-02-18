@@ -28,7 +28,9 @@
 ###############################################################################
 
 import sollya
-from sollya import inf, sup
+# must not import inf or sup from sollya, as overloaded functions
+# are imported from core.meta_interval
+from sollya import SollyaObject
 
 from metalibm_core.core.passes import FunctionPass, Pass, LOG_PASS_INFO
 
@@ -46,6 +48,7 @@ from metalibm_core.core.ml_operations import (
     Statement,
 )
 from metalibm_core.core.legalizer import is_constant
+from metalibm_core.core.meta_interval import MetaInterval, MetaIntervalList, inf, sup
 
 from metalibm_core.utility.log_report import Log
 from metalibm_core.utility.debug_utils import debug_multi
@@ -58,9 +61,10 @@ def is_simplifiable_to_cst(node):
     node_interval = node.get_interval()
     if node_interval is None or isinstance(node, Constant):
         return False
-    elif sollya.inf(node_interval) == sollya.sup(node_interval):
-        return True
-        #return Constant(sollya.inf(node_interval), precision=node.get_precision())
+    elif isinstance(node_interval, SollyaObject) and node_interval.is_range():
+        return sollya.inf(node_interval) == sollya.sup(node_interval)
+    elif isinstance(node_interval, (MetaInterval, MetaIntervalList)):
+        return not node_interval.is_empty and (node_interval.inf == node_interval.sup)
     else:
         return False
 
