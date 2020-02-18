@@ -145,7 +145,6 @@ class DividendMultIteration:
         dividend = self.dividend.get_handle().get_node()
         inv_approx = self.inv_approx.get_handle().get_node()
         yerr = self.yerr.get_handle().get_node()
-        print("hint rule yerr: {}".format(yerr))
 
         Attributes.set_default_precision(ML_Exact)
 
@@ -439,16 +438,15 @@ class ML_Division(ML_FunctionBasis):
             scaled_vx = vx * scaling_factor_x
             scaled_vy = vy * scaling_factor_y
             scaled_interval = MetaIntervalList(
-                MetaInterval(1 / Interval(1, 2)),
-                MetaInterval(1 / Interval(-2, -1))
+                [MetaInterval(1 / Interval(1, 2)),
+                MetaInterval(1 / Interval(-2, -1))]
             )
             # True intervals for vx and vy is Interval(-2, -1) Union Interval(1, 2)
             scaled_vx.set_attributes(tag="scaled_vx", debug=debug_multi, interval=scaled_interval)
             scaled_vy.set_attributes(tag="scaled_vy", debug=debug_multi, interval=scaled_interval)
-            seed_interval = MetaIntervalList(
+            seed_interval = MetaIntervalList([
                 MetaInterval(1 / Interval(1, 2)),
-                MetaInterval(1 / Interval(-2, -1))
-            )
+                MetaInterval(1 / Interval(-2, -1))])
         else:
             scaled_vx = vx
             scaled_vy = vy
@@ -513,7 +511,6 @@ class ML_Division(ML_FunctionBasis):
             inv_iteration_list, div_iteration_list, S2**-7, seed_interval)
         eval_error = sup(abs(eval_error_range))
         recp_interval = 1 / scaled_vy.get_interval() + eval_error_range
-        print("recp_interval: {}".format(recp_interval))
         recp_approx.set_interval(recp_interval)
 
         div_interval = scaled_vx.get_interval() / scaled_vy.get_interval() + div_eval_error_range
