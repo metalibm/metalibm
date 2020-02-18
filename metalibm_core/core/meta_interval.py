@@ -8,7 +8,7 @@ def convert_to_MetaInterval(obj):
     elif isinstance(obj, SollyaObject) and obj.is_range():
         return MetaInterval(obj)
     elif isinstance(obj, (float, int, SollyaObject)):
-        return MetaInterval(rhs=obj)
+        return MetaInterval(lhs=obj)
     else:
         raise NotImplementedError
 
