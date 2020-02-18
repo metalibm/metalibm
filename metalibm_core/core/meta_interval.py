@@ -2,6 +2,7 @@ from sollya import Interval, sup, inf, SollyaObject
 import itertools
 
 def convert_to_MetaInterval(obj):
+    """ convert basic numeric objects to MetaInterval if possible """
     if isinstance(obj, MetaInterval):
         return obj
     elif isinstance(obj, SollyaObject) and obj.is_range():
@@ -12,6 +13,7 @@ def convert_to_MetaInterval(obj):
         raise NotImplementedError
 
 def convert_to_MetaIntervalList(obj):
+    """ convert basic numeric object to MetaIntervalList if possible """
     if isinstance(obj, MetaIntervalList):
         return obj
     elif isinstance(obj, MetaInterval):
@@ -102,6 +104,11 @@ class MetaInterval:
         rhs = convert_to_MetaInterval(rhs)
         return MetaInterval(interval=lhs.interval / rhs.interval)
 
+    def __neg__(self):
+        if self.interval is None:
+            return self
+        return MetaInterval(interval=-self.interval)
+
     def __contains__(self, value):
         if self.interval is None:
             return False
@@ -122,6 +129,8 @@ class MetaInterval:
 
 
 class MetaIntervalList:
+    """ extended interval object which can store
+        union of disjoint intervals """
     def __init__(self, interval_list):
         self.interval_list = list(interval_list)
 
@@ -169,7 +178,8 @@ class MetaIntervalList:
         result = MetaIntervalList((lhs_sub / rhs_sub) for lhs_sub, rhs_sub in itertools.product(lhs.interval_list, rhs.interval_list))
         result.refine()
         return result
-        
+    def __neg__(self):
+        return MetaIntervalList(-sub for sub in self.interval_list)
 
 
 
