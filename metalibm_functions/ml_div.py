@@ -71,8 +71,6 @@ from metalibm_core.utility.debug_utils import debug_multi
 from metalibm_core.utility.log_report import Log
 
 
-
-
 S2 = sollya.SollyaObject(2)
 
 class NR_Iteration(object):
@@ -126,7 +124,9 @@ class NR_Iteration(object):
 class DividendMultIteration:
     """ Encapsulation of division iteration (to obtain division
         result from a reciprocal approximation) """
-    def __init__(self, div_approx, inv_approx, dividend, divisor, index, yerr_rndmode=ML_RoundToNearest, yerr_silent=True, new_div_rndmode=ML_RoundToNearest, new_div_silent=True):
+    def __init__(self, div_approx, inv_approx, dividend, divisor, index,
+                 yerr_rndmode=ML_RoundToNearest, yerr_silent=True,
+                 new_div_rndmode=ML_RoundToNearest, new_div_silent=True):
         self.div_approx = div_approx
         self.inv_approx = inv_approx
         self.dividend = dividend
@@ -173,66 +173,11 @@ class DividendMultIteration:
         gcg.add_hint(gappa_code, yerr, (yerr - (- div_approx * divisor + dividend)) - (div_approx - div_exact) * divisor)
         gcg.add_hint(gappa_code,
             yerr,
-            #(yerr - (dividend - div_approx * divisor)) - (div_approx - div_exact) * divisor,
             (yerr - (- div_approx * divisor + dividend)) - (div_approx - dividend * inv_approx + dividend * (inv_approx - inv_exact)) * divisor
             )
 
         Attributes.unset_default_precision()
 
-
-class DivisionLastIteration:
-    def __init__(self, div_approx, recp_approx, vy, vx):
-        self.div_approx = div_approx
-        self.recp_approx = recp_approx
-        self.vy = vy
-        self.vx = vx
-
-        # last iteration
-        yerr_last = FMSN(div_approx, vy, vx) #, clearprevious = True)
-        Attributes.unset_default_rounding_mode()
-        Attributes.unset_default_silent()
-        last_div_approx = FMA(
-            yerr_last, recp_approx, div_approx, rounding_mode=ML_GlobalRoundMode)
-
-        yerr_last.set_attributes(tag="yerr_last", debug=debug_multi)
-        self.yerr_last = yerr_last
-        self.last_div_approx = last_div_approx
-
-
-    def get_hint_rules(self, gcg, gappa_code, inv_exact, div_exact):
-        div_approx = self.div_approx.get_handle().get_node()
-        vx = self.vx.get_handle().get_node()
-        vy = self.vy.get_handle().get_node()
-
-        Attributes.set_default_precision(ML_Exact)
-        gcg.add_hint(
-            gappa_code,
-            yerr_last,
-            (yerr_last + div_approx * vy - vx) - div_approx * vy + vx
-        )
-        gcg.add_hint(
-            gappa_code,
-            div_approx,
-            div_approx - div_exact + div_exact
-        )
-        gcg.add_hint(
-            gappa_code,
-            - div_approx * vy + vx,
-            (-div_approx + div_exact) * vy - div_exact * vy + vx
-        )
-        gcg.add_hint(
-            gappa_code,
-            yerr_last,
-            (yerr_last + div_approx * vy - vx) + (-div_approx + div_exact) * vy
-        )
-
-        gcg.add_hint(
-            gappa_code,
-            last_div_approx - div_exact,
-            (last_div_approx - yerr_last * recp_approx - div_approx) + yerr_last * recp_approx + div_approx - div_exact
-        )
-
-        Attributes.unset_default_precision()
 
 def dividend_mult(
         div_approx, inv_approx, dividend, divisor, index,
@@ -438,16 +383,14 @@ class ML_Division(ML_FunctionBasis):
         if out_of_bound_risk:
             scaled_vx = vx * scaling_factor_x
             scaled_vy = vy * scaling_factor_y
-            scaled_interval = MetaIntervalList(
-                [MetaInterval(1 / Interval(1, 2)),
-                MetaInterval(1 / Interval(-2, -1))]
-            )
-            # True intervals for vx and vy is Interval(-2, -1) Union Interval(1, 2)
+            scaled_interval = MetaIntervalList([
+                MetaInterval(Interval(-2, -1)),
+                MetaInterval(Interval(1, 2))
+            ])
             scaled_vx.set_attributes(tag="scaled_vx", debug=debug_multi, interval=scaled_interval)
             scaled_vy.set_attributes(tag="scaled_vy", debug=debug_multi, interval=scaled_interval)
-            seed_interval = MetaIntervalList([
-                MetaInterval(1 / Interval(1, 2)),
-                MetaInterval(1 / Interval(-2, -1))])
+            seed_interval = 1 / scaled_interval
+            print("seed_interval=1/{}={}".format(scaled_interval, seed_interval))
         else:
             scaled_vx = vx
             scaled_vy = vy
@@ -490,18 +433,13 @@ class ML_Division(ML_FunctionBasis):
         x_inf = Test(vx, specifier=Test.IsInfty, likely=False, tag="x_inf", precision=ML_Bool)
         y_inf = Test(vy, specifier=Test.IsInfty, likely=False, tag="y_inf", debug=debug_multi, precision=ML_Bool)
 
-
         scheme = None
         gappa_vx, gappa_vy = None, None
-        # gappa_init_approx = None
-        # gappa_current_approx = None
-
 
         # initial reciprocal approximation of 1.0 / scaled_vy
         inv_iteration_list, recp_approx = compute_reduced_reciprocal(init_approx, scaled_vy, self.num_iter)
 
         recp_approx.set_attributes(tag="recp_approx", debug=debug_multi)
-
 
         # approximation of scaled_vx / scaled_vy
         yerr_last, reduced_div_approx, div_iteration_list = compute_reduced_division(scaled_vx, scaled_vy, recp_approx)
@@ -627,7 +565,9 @@ class ML_Division(ML_FunctionBasis):
     def numeric_emulate(self, x, y):
         return x / y
 
-    def solve_eval_error(self, gappa_init_approx, gappa_current_approx, div_approx, gappa_vx, gappa_vy, inv_iteration_list, div_iteration_list, seed_accuracy, seed_interval):
+    def solve_eval_error(self, gappa_init_approx, gappa_current_approx,
+                         div_approx, gappa_vx, gappa_vy, inv_iteration_list,
+                         div_iteration_list, seed_accuracy, seed_interval):
         """ compute the evaluation error of reciprocal approximation of
             (1 / gappa_vy)
 
@@ -641,7 +581,7 @@ class ML_Division(ML_FunctionBasis):
             gappa_vy.get_handle().get_node(): Variable("y", precision = self.precision, interval = Interval(1, 2)),
             gappa_vx.get_handle().get_node(): Variable("x", precision = self.precision, interval = Interval(1, 2)),
         }
-    
+
         yerr_last = div_iteration_list[-1].yerr
 
         # copying cg_eval_error_copy_map to allow mutation during
