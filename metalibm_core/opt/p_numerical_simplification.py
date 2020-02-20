@@ -55,6 +55,7 @@ from metalibm_core.utility.debug_utils import debug_multi
 
 LOG_VERBOSE_NUMERICAL_SIMPLIFICATION = Log.LogLevel("NumericalSimplificationVerbose")
 
+from metalibm_core.opt.opt_utils import is_false, is_true
 
 def is_simplifiable_to_cst(node):
     """ node can be simplified to a constant """
@@ -68,14 +69,31 @@ def is_simplifiable_to_cst(node):
     else:
         return False
 
+
 def simplify_logical_op(node):
+    """ Simplify LogicOperation node """
     if isinstance(node, LogicalAnd):
         lhs = node.get_input(0)
         rhs = node.get_input(1)
-        return Constant(lhs.get_value() and rhs.get_value(), precision=node.get_precision())
+        if is_false(lhs) or is_false(rhs):
+            # FIXME: manage vector constant
+            return Constant(False, precision=node.get_precision())
+        elif is_true(lhs) and is_true(rhs):
+            # FIXME: manage vector constant
+            return Constant(True, precision=node.get_precision())
+        elif is_true(lhs):
+            return rhs
+        elif is_true(rhs):
+            return lhs
     elif isinstance(node, LogicalOr):
         lhs = node.get_input(0)
         rhs = node.get_input(1)
+        if is_false(lhs) and is_false(rhs):
+            # FIXME: manage vector constant
+            return Constant(False, precision=node.get_precision())
+        elif is_true(lhs) or is_true(rhs):
+            # FIXME: manage vector constant
+            return Constant(True, precision=node.get_precision())
         return Constant(lhs.get_value() or rhs.get_value(), precision=node.get_precision())
     elif isinstance(node, LogicalNot):
         return Constant(not node.get_input(0), precision=node.get_precision())
@@ -135,6 +153,7 @@ class BooleanValue:
 
 
 def is_simplifiable_cmp(node, lhs, rhs):
+    """ test wheter the Comparison node(lhs, rhs) can be simplified """
     lhs_interval = lhs.get_interval()
     rhs_interval = rhs.get_interval()
     if lhs_interval is None or rhs_interval is None:
@@ -172,9 +191,10 @@ def is_simplifiable_cmp(node, lhs, rhs):
         else:
             return BooleanValue.Indecisive
     return BooleanValue.Indecisive
-    
+
 
 def is_simplifiable_test(node, simp_node_inputs):
+    """ test it the Test node(simp_node_inputs) is simplifiable """
     if node.specifier is Test.IsZero:
         op = simp_node_inputs[0] or node.get_input(0)
         if not op.get_interval() is None:
@@ -210,7 +230,17 @@ def is_simplifiable_test(node, simp_node_inputs):
         # nothing to say
         return BooleanValue.Indecisive
 
-        
+
+def is_simplifiable_logical_op(node, node_inputs):
+    """ test if the LogicOperation node(node_inputs) is simplifiable """
+    if isinstance(node, (LogicalAnd, LogicalOr)):
+        lhs = node_inputs[0]
+        rhs = node_inputs[1]
+        return is_constant(lhs) or is_constant(rhs)
+    elif isinstance(node, LogicalNot):
+        return is_constant(node_inputs[0])
+    else:
+        return False
 
 class NumericalSimplifier:
     def __init__(self, target):
@@ -227,6 +257,8 @@ class NumericalSimplifier:
         elif isinstance(node, Comparison) and not is_simplifiable_cmp(node, node.get_input(0), node.get_input(1)) is BooleanValue.Indecisive:
             return True
         elif isinstance(node, Test) and not is_simplifiable_test(node, node.inputs) is BooleanValue.Indecisive:
+            return True
+        elif isinstance(node, LogicOperation) and is_simplifiable_logical_op(node, node.inputs):
             return True
         elif isinstance(node, ConditionBlock):
             result = simplify_condition_block(node)
@@ -281,8 +313,7 @@ class NumericalSimplifier:
             elif isinstance(node, ConditionBlock):
                 result = simplify_condition_block(node)
             elif isinstance(node, LogicOperation):
-                if all(is_constant(op) for op in node.inputs):
-                    result = simplify_logical_op(node)
+                result = simplify_logical_op(node)
             if not result is None:
                 Log.report(LOG_VERBOSE_NUMERICAL_SIMPLIFICATION, "{} has been simplified to {}", node, result)
             self.memoization_map[node] = result
