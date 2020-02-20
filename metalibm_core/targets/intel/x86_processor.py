@@ -43,6 +43,9 @@ from metalibm_core.core.ml_table import ML_TableFormat
 from metalibm_core.utility.debug_utils import ML_Debug
 from metalibm_core.core.special_values import (FP_PlusZero, FP_MinusZero)
 
+from metalibm_core.opt.opt_utils import (
+    uniform_list_check, uniform_vector_constant_check, uniform_shift_check)
+
 from metalibm_core.utility.log_report import Log
 from metalibm_core.utility.debug_utils import debug_multi
 
@@ -436,29 +439,6 @@ _mm256_max_epi32 = ImmIntrin("_mm256_max_epi32", arity = 2,
 _mm256_and_si256 = ImmIntrin("_mm256_and_si256", arity = 2,
                              output_precision = ML_AVX_m256_v8int32)
 
-
-
-## check that list if made of only a single value replicated in each element
-def uniform_list_check(value_list):
-	return reduce((lambda acc, value: acc and value == value_list[0]), value_list, True)
-
-## check whether @p optree is a uniform vector constant
-def uniform_vector_constant_check(optree):
-    if isinstance(optree, Constant) and not optree.get_precision() is None \
-            and optree.get_precision().is_vector_format():
-        return uniform_list_check(optree.get_value())
-    else:
-        return False
-
-## check whether @p optree is a bit shift by a uniform vector constant
-def uniform_shift_check(optree):
-    if (isinstance(optree, BitLogicLeftShift)
-            or isinstance(optree, BitLogicRightShift)
-            or isinstance(optree, BitArithmeticRightShift)):
-        return uniform_vector_constant_check(optree.get_input(1)) \
-                or not optree.get_input(1).get_precision().is_vector_format()
-    else:
-        return False
 
 ## check whether @p optree is not a bit shift by a uniform vector constant
 def variable_shift_check(optree):

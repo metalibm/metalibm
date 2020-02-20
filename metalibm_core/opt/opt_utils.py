@@ -31,11 +31,13 @@
 ###############################################################################
 
 from metalibm_core.core.ml_formats import ML_Bool
+from functools import reduce
 
 from metalibm_core.core.ml_operations import (
     ML_LeafNode, Comparison, BooleanOperation,
     is_leaf_node,
-    LogicalAnd, LogicalOr,
+    LogicalAnd, LogicalOr, Constant,
+    BitLogicLeftShift, BitLogicRightShift,
 )
 from metalibm_core.core.ml_hdl_operations import (
     PlaceHolder
@@ -147,3 +149,39 @@ def logical_reduce(op_list, op_ctor=LogicalOr, precision=ML_Bool, **kw):
 logical_or_reduce  = lambda op_list, **kw: logical_reduce(op_list, LogicalOr, ML_Bool, **kw)
 ## Specialization of logical reduce to AND operation
 logical_and_reduce = lambda op_list, **kw: logical_reduce(op_list, LogicalAnd, ML_Bool, **kw)
+
+
+
+def uniform_list_check(value_list):
+    """ Check that value_list is made of only a single value replicated in
+        each element """
+    return reduce((lambda acc, value: acc and value == value_list[0]), value_list, True)
+
+def uniform_vector_constant_check(optree):
+    """ check whether optree is a uniform vector constant """
+    if isinstance(optree, Constant) and not optree.get_precision() is None \
+            and optree.get_precision().is_vector_format():
+        return uniform_list_check(optree.get_value())
+    else:
+        return False
+
+def uniform_shift_check(optree):
+    """ check whether optree is a bit shift by a uniform vector constant """
+    if (isinstance(optree, BitLogicLeftShift)
+            or isinstance(optree, BitLogicRightShift)
+            or isinstance(optree, BitArithmeticRightShift)):
+        return uniform_vector_constant_check(optree.get_input(1)) \
+                or not optree.get_input(1).get_precision().is_vector_format()
+    else:
+        return False
+
+
+def is_false(node):
+    return is_scalar_cst(node, False) or is_vector_uniform_cst(node, False)
+def is_true(node):
+    return is_scalar_cst(node, True) or is_vector_uniform_cst(node, True)
+
+def is_scalar_cst(node, value):
+    return isinstance(node, Constant) and not node.get_precision().is_vector_format() and node.get_value() == value
+def is_vector_uniform_cst(node, scalar_value):
+    return isinstance(node, Constant) and node.get_precision().is_vector_format() and node.get_value() == [scalar_value] * node.get_precision().get_vector_size()
