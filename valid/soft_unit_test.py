@@ -89,6 +89,7 @@ import metalibm_functions.unit_tests.embedded_bin as ut_embedded_bin
 import metalibm_functions.unit_tests.bfloat16 as ut_bfloat16
 import metalibm_functions.unit_tests.ut_eval_error as ut_eval_error
 import metalibm_functions.unit_tests.special_values as ut_special_values
+import metalibm_functions.unit_tests.numerical_simplification as ut_numerical_simplification
 
 unit_test_list = [
   UnitTestScheme(
@@ -286,7 +287,12 @@ unit_test_list = [
     "special values",
     ut_special_values,
     [{}]
-  )
+  ),
+  UnitTestScheme(
+    "numerical simplification",
+    ut_numerical_simplification,
+    [{}]
+  ),
 ]
 
 # TODO: factorize / encapsulate in object/function

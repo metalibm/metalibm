@@ -122,7 +122,10 @@ class UT_NumericalSimplification(ML_FunctionBasis, TestRunner):
         result = min_yz + new_cst
 
         scheme = ConditionBlock(
-            LogicalOr(cst0 > cst1, LogicalNot(cst1 > cst0)),
+            LogicalAnd(
+                LogicalOr(cst0 > cst1, LogicalNot(cst1 > cst0)),
+                var_x > var_y,
+            ),
             Return(result),
             Return(cst2)
         )
