@@ -70,6 +70,12 @@ def is_simplifiable_to_cst(node):
         return False
 
 
+def generate_uniform_cst(value, precision):
+    if not precision.is_vector_format():
+        return Constant(value, precision=precision)
+    else:
+        return Constant([value] * precision.get_vector_size(), precision=precision)
+
 def simplify_logical_op(node):
     """ Simplify LogicOperation node """
     if isinstance(node, LogicalAnd):
@@ -77,10 +83,12 @@ def simplify_logical_op(node):
         rhs = node.get_input(1)
         if is_false(lhs) or is_false(rhs):
             # FIXME: manage vector constant
-            return Constant(False, precision=node.get_precision())
+            cst = generate_uniform_cst(False, node.get_precision())
+            return cst
         elif is_true(lhs) and is_true(rhs):
             # FIXME: manage vector constant
-            return Constant(True, precision=node.get_precision())
+            cst = generate_uniform_cst(True, node.get_precision())
+            return cst
         elif is_true(lhs):
             return rhs
         elif is_true(rhs):
@@ -90,13 +98,30 @@ def simplify_logical_op(node):
         rhs = node.get_input(1)
         if is_false(lhs) and is_false(rhs):
             # FIXME: manage vector constant
-            return Constant(False, precision=node.get_precision())
+            cst = generate_uniform_cst(False, node.get_precision())
+            return cst
         elif is_true(lhs) or is_true(rhs):
             # FIXME: manage vector constant
-            return Constant(True, precision=node.get_precision())
-        return Constant(lhs.get_value() or rhs.get_value(), precision=node.get_precision())
+            cst = generate_uniform_cst(True, node.get_precision())
+            return cst
+        elif is_constant(lhs) and is_constant(rhs):
+            if node.get_precision().is_vector_format():
+                return Constant(
+                    [(sub_lhs or sub_rhs) for sub_lhs, sub_rhs in zip(lhs.get_value(), rhs.get_value())],
+                    precision=node.get_precision())
+            else:
+                return Constant(lhs.get_value() or rhs.get_value(), precision=node.get_precision())
     elif isinstance(node, LogicalNot):
-        return Constant(not node.get_input(0), precision=node.get_precision())
+        op = node.get_input(0)
+        if is_constant(op):
+            # only support simplification of LogicalNot(Constant)
+            if not op.get_precision().is_vector_format():
+                return Constant(not op.get_value(), precision=node.get_precision())
+            else:
+                return Constant(
+                    [not elt_value for elt_value in op.get_value()]
+                    , precision=node.get_precision())
+    return None
 
 
 def is_simplifiable_min(node, lhs, rhs):
@@ -209,10 +234,15 @@ def is_simplifiable_test(node, simp_node_inputs):
     elif node.specifier is Test.IsSubnormal:
         op = simp_node_inputs[0] or node.get_input(0)
         if not op.get_interval() is None and not op.get_precision() is None:
-            if inf(op.get_interval()) >= op.get_precision().get_min_normal_value():
+            op_precision = op.get_precision()
+            if op.get_precision().is_vector_format():
+                elt_precision = op_precision.get_scalar_format()
+            else:
+                elt_precision = op_precision
+            if inf(op.get_interval()) >= elt_precision.get_min_normal_value():
                 # test always False
                 return BooleanValue.AlwaysFalse
-            elif sup(op.get_interval()) <= op.get_precision().get_max_subnormal_value():
+            elif sup(op.get_interval()) <= elt_precision.get_max_subnormal_value():
                 # test always True
                 return BooleanValue.AlwaysTrue
         # nothing to say
@@ -301,15 +331,15 @@ class NumericalSimplifier:
             elif isinstance(node, Comparison):
                 cmp_value = is_simplifiable_cmp(node, get_node_input(0), get_node_input(1))
                 if cmp_value is BooleanValue.AlwaysTrue:
-                    result = Constant(True, precision=node.get_precision())
+                    result = generate_uniform_cst(True, node.get_precision())
                 elif cmp_value is BooleanValue.AlwaysFalse:
-                    result = Constant(False, precision=node.get_precision())
+                    result = generate_uniform_cst(False, node.get_precision())
             elif isinstance(node, Test):
                 test_value = is_simplifiable_test(node, node.inputs)
                 if test_value is BooleanValue.AlwaysTrue:
-                    result = Constant(True, precision=node.get_precision())
+                    result = generate_uniform_cst(True, node.get_precision())
                 elif test_value is BooleanValue.AlwaysFalse:
-                    result = Constant(False, precision=node.get_precision())
+                    result = generate_uniform_cst(False, node.get_precision())
             elif isinstance(node, ConditionBlock):
                 result = simplify_condition_block(node)
             elif isinstance(node, LogicOperation):
