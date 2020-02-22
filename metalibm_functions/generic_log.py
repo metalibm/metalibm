@@ -46,6 +46,7 @@ from metalibm_core.code_generation.generic_processor import GenericProcessor
 from metalibm_core.core.polynomials import *
 from metalibm_core.core.ml_table import ML_NewTable
 from metalibm_core.core.ml_complex_formats import ML_Mpfr_t
+from metalibm_core.core.simple_scalar_function import ScalarUnaryFunction
 
 from metalibm_core.opt.ml_blocks import Mul211, Add222, Add212, Mul222
 
@@ -62,7 +63,7 @@ from metalibm_core.utility.debug_utils import debug_multi
 
 
 
-class ML_GenericLog(ML_FunctionBasis):
+class ML_GenericLog(ScalarUnaryFunction):
     function_name = "ml_genlog"
     def __init__(self, args):
         # initializing base class
@@ -86,9 +87,7 @@ class ML_GenericLog(ML_FunctionBasis):
         return DefaultArgTemplate(**default_args_log)
 
 
-    def generate_scheme(self):
-        vx = self.implementation.add_input_variable("x", self.get_input_precision())
-
+    def generate_scalar_scheme(self, vx):
         sollya_precision = self.get_input_precision().get_sollya_object()
 
         log_f = sollya.log(sollya.x) # /sollya.log(self.basis)

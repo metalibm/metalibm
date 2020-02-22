@@ -54,6 +54,7 @@ from metalibm_core.core.special_values import (
     FP_PlusZero, FP_MinusZero, FP_QNaN, FP_PlusInfty
 )
 from metalibm_core.core.precisions import ML_Faithful
+from metalibm_core.core.simple_scalar_function import ScalarUnaryFunction
 
 from metalibm_core.code_generation.generic_processor import GenericProcessor
 
@@ -147,12 +148,12 @@ def compute_sqrt(vx, init_approx, num_iter, debug_lftolx = None, precision = ML_
 
 
 
-class MetalibmSqrt(ML_FunctionBasis):
+class MetalibmSqrt(ScalarUnaryFunction):
     function_name = "ml_sqrt"
 
     def __init__(self, args=DefaultArgTemplate):
         # initializing base class
-        ML_FunctionBasis.__init__(self, args)
+        super().__init__(args)
         self.num_iter = args.num_iter
 
 
@@ -171,10 +172,7 @@ class MetalibmSqrt(ML_FunctionBasis):
         default_args_sqrt.update(kw)
         return DefaultArgTemplate(**default_args_sqrt)
 
-    def generate_scheme(self):
-        # declaring target and instantiating optimization engine
-
-        vx = self.implementation.add_input_variable("x", self.precision)
+    def generate_scalar_scheme(self, vx):
         vx.set_attributes(precision = self.precision, tag = "vx", debug =debug_multi)
         Log.set_dump_stdout(True)
 

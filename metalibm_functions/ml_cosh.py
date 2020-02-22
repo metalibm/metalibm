@@ -52,6 +52,7 @@ from metalibm_core.code_generation.generator_utility import (
 )
 from metalibm_core.core.ml_complex_formats import ML_Mpfr_t
 from metalibm_core.core.special_values import FP_PlusInfty
+from metalibm_core.core.simple_scalar_function import ScalarUnaryFunction
 
 
 from metalibm_core.utility.ml_template import *
@@ -62,10 +63,11 @@ from metalibm_core.utility.gappa_utils import is_gappa_installed
 
 
 
-class ML_HyperbolicCosine(ML_Function("ml_cosh")):
+class ML_HyperbolicCosine(ScalarUnaryFunction):
+  function_name = "ml_cosh"
   def __init__(self, args=DefaultArgTemplate):
     # initializing base class
-    ML_FunctionBasis.__init__(self, args=args)
+    super().__init__(args=args)
 
   @staticmethod
   def get_default_args(**args):
@@ -83,11 +85,8 @@ class ML_HyperbolicCosine(ML_Function("ml_cosh")):
     default_cosh_args.update(args)
     return DefaultArgTemplate(**default_cosh_args)
 
-  def generate_scheme(self):
+  def generate_scalar_scheme(self, vx):
     # declaring target and instantiating optimization engine
-
-    vx = self.implementation.add_input_variable("x", self.precision)
-
     Log.set_dump_stdout(True)
 
     Log.report(Log.Info, "\033[33;1m generating implementation scheme \033[0m")

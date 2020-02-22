@@ -632,7 +632,9 @@ class ML_FunctionBasis(object):
 
   def generate_scheme(self):
     """ generate MDL scheme for function implementation """
-    Log.report(Log.Error, "generate_scheme must be overloaded by ML_FunctionBasis child")
+    Log.report(Log.Error,
+               "generate_scheme must be overloaded by ML_FunctionBasis child",
+               error=NotImplementedError)
 
   ## Return the list of CodeFunction objects (main function
   #  and sub-functions) to be used to build @p self implementation

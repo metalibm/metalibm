@@ -53,6 +53,7 @@ from metalibm_core.core.special_values import (
 from metalibm_core.core.approximation import (
     search_bound_threshold, generic_poly_split, SubFPIndexing
 )
+from metalibm_core.core.simple_scalar_function import ScalarUnaryFunction
 
 from metalibm_core.code_generation.generic_processor import GenericProcessor
 
@@ -64,11 +65,11 @@ from metalibm_core.utility.debug_utils import debug_multi
 S2 = sollya.SollyaObject(2)
 
 
-class ML_Erf(ML_FunctionBasis):
+class ML_Erf(ScalarUnaryFunction):
     """ Meta implementation of the error-function """
     function_name = "ml_erf"
     def __init__(self, args):
-        ML_FunctionBasis.__init__(self, args)
+        super().__init__(args)
 
     @staticmethod
     def get_default_args(**kw):
@@ -89,8 +90,7 @@ class ML_Erf(ML_FunctionBasis):
         default_args_erf.update(kw)
         return DefaultArgTemplate(**default_args_erf)
 
-    def generate_scheme(self):
-        vx = self.implementation.add_input_variable("x", self.precision)
+    def generate_scalar_scheme(self, vx):
         abs_vx = Abs(vx, precision=self.precision)
 
         FCT_LIMIT = 1.0

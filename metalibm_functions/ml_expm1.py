@@ -44,7 +44,7 @@ from metalibm_core.code_generation.generator_utility import FunctionOperator, FO
 from metalibm_core.core.ml_complex_formats import ML_Mpfr_t
 
 from metalibm_core.core.special_values import FP_PlusInfty, FP_QNaN
-
+from metalibm_core.core.simple_scalar_function import ScalarUnaryFunction
 
 from metalibm_core.utility.ml_template import *
 from metalibm_core.utility.log_report  import Log
@@ -54,11 +54,11 @@ from metalibm_core.utility.gappa_utils import is_gappa_installed
 
 
 
-class ML_ExponentialM1_Red(ML_FunctionBasis):
+class ML_ExponentialM1_Red(ScalarUnaryFunction):
   function_name = "ml_expm1"
   def __init__(self, args):
     # initializing base class
-    ML_FunctionBasis.__init__(self, args)
+    super().__init__(args)
 
 
   @staticmethod
@@ -75,11 +75,7 @@ class ML_ExponentialM1_Red(ML_FunctionBasis):
     default_args_expm1.update(kw)
     return DefaultArgTemplate(**default_args_expm1)
 
-  def generate_scheme(self):
-    # declaring target and instantiating optimization engine
-
-    vx = self.implementation.add_input_variable("x", self.precision)
-    
+  def generate_scalar_scheme(self, vx):
     Log.set_dump_stdout(True)
     
     Log.report(Log.Info, "\033[33;1m generating implementation scheme \033[0m")
