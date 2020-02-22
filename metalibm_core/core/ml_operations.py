@@ -1137,7 +1137,15 @@ class Extract(ArithmeticOperationConstructor("Extract")):
     """ abstract word or vector extract-from-vector operation """
     pass
 
-class Modulo(ArithmeticOperationConstructor("Modulo", range_function = lambda self, ops: safe(operator.__mod__)(ops[0], ops[1]))):
+def numerical_modulo(lhs, rhs):
+    if (isinstance(rhs, SollyaObject) and rhs.is_range()) or isinstance(rhs, (MetaInterval, MetaIntervalList)):
+        # TODO: manage properly range for euclidian modulo operation
+        return rhs
+    else:
+        raise NotImplementedError("support for {} object not implemented in numerical_modulo".format(rhs))
+
+
+class Modulo(ArithmeticOperationConstructor("Modulo", range_function = lambda self, ops: safe(numerical_modulo)(ops[0], ops[1]))):
     """ abstract modulo operation """
     pass
 
