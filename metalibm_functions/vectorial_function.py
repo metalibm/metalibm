@@ -64,13 +64,16 @@ from metalibm_core.core.ml_vectorizer import (
     StaticVectorizer, no_scalar_fallback_required
 )
 
+from metalibm_functions.function_map import FUNCTION_MAP
+
 
 from metalibm_core.code_generation.generic_processor import GenericProcessor
 from metalibm_core.code_generation.code_function import FunctionGroup
 from metalibm_core.code_generation.generator_utility import FunctionOperator
 
 
-from metalibm_core.opt.p_function_inlining import inline_function
+from metalibm_core.opt.p_function_inlining import (
+    inline_function, generate_inline_fct_scheme)
 from metalibm_core.opt.p_function_typing import (
     PassInstantiateAbstractPrecision, PassInstantiatePrecision,
 )
@@ -81,31 +84,8 @@ from metalibm_core.utility.debug_utils import (
 )
 
 
-# TODO/FIXME: implement cleaner way to register and list meta-functions
 from metalibm_functions.ml_exp import ML_Exponential
-from metalibm_functions.ml_tanh import ML_HyperbolicTangent
 
-
-def generate_inline_fct_scheme(FctClass, dst_var, input_arg, custom_class_params):
-    """ generate the sub-graph corresponding to the implementation of
-        @p FctClass with argument dict @p custom_class_params
-        the result is stored in the node @p dst_var and the function's
-        parameters are given in @p input_arg """
-    # build argument dict for meta class
-    meta_args = FctClass.get_default_args(**custom_class_params)
-
-    meta_fct_object = FctClass(meta_args)
-
-    # generate implementation DAG
-    meta_scheme = meta_fct_object.generate_scheme()
-
-    result_statement = inline_function(
-        meta_scheme,
-        dst_var,
-        meta_fct_object.implementation.arg_list[0],
-        input_arg
-    )
-    return result_statement
 
 def vectorize_function_scheme(vectorizer, name_factory, scalar_scheme,
                               scalar_output_format,
@@ -328,15 +308,6 @@ class ML_VectorialFunction(ML_ArrayFunction):
     standard_test_cases = [
     ]
 
-# dict of (str) -> tuple(ctor, dict(ML_Format -> str))
-# the first level key is the function name
-# the first value of value tuple is the meta-function constructor
-# the second value of the value tuple is a dict which associates to a ML_Format
-# the corresponding libm function
-FUNCTION_MAP = {
-    "exp": ML_Exponential,
-    "tanh": ML_HyperbolicTangent,
-}
 
 
 if __name__ == "__main__":

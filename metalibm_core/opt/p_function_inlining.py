@@ -62,3 +62,25 @@ def inline_function(fct_scheme, dst_var, input_var, input_value):
             return node
     return recursive_inline(fct_scheme)
 
+
+def generate_inline_fct_scheme(FctClass, dst_var, input_arg, custom_class_params):
+    """ generate the sub-graph corresponding to the implementation of
+        @p FctClass with argument dict @p custom_class_params
+        the result is stored in the node @p dst_var and the function's
+        parameters are given in @p input_arg """
+    # build argument dict for meta class
+    meta_args = FctClass.get_default_args(**custom_class_params)
+
+    meta_fct_object = FctClass(meta_args)
+
+    # generate implementation DAG
+    meta_scheme = meta_fct_object.generate_scheme()
+
+    result_statement = inline_function(
+        meta_scheme,
+        dst_var,
+        meta_fct_object.implementation.arg_list[0],
+        input_arg
+    )
+    return result_statement
+
