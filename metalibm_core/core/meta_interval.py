@@ -113,7 +113,19 @@ class MetaInterval:
     def __contains__(self, value):
         if self.interval is None:
             return False
-        return value >= self.inf and value <= self.sup
+        if isinstance(value, (int, float)):
+            return value >= self.inf and value <= self.sup
+        elif isinstance(value, SollyaObject):
+            if value.is_range():
+                inf(value) >= self.inf and sup(value) <= self.sup
+            else:
+                return value >= self.inf and value <= self.sup
+        elif isinstance(value, MetaInterval):
+            return value.interval in self
+        elif isinstance(value, MetaIntervalList):
+            return any(sub in self for sub in value.interval_list)
+        else: 
+            raise NotImplementedError
 
     def __repr__(self):
         if self.interval is None:
