@@ -52,6 +52,7 @@ from metalibm_core.core.ml_operations import (
     ReciprocalSquareRootSeed,
     TableLoad, Division, Modulo, Equal,
     ExponentExtraction, ExponentInsertion,
+    FunctionCall,
 )
 from metalibm_core.core.ml_hdl_operations import (
     SubSignalSelection
@@ -132,6 +133,8 @@ def is_subtraction(optree):
     return isinstance(optree, Subtraction)
 def is_multiplication(optree):
     return isinstance(optree, Multiplication)
+def is_division(optree):
+    return isinstance(optree, Division)
 def is_constant(optree):
     return isinstance(optree, Constant)
 
@@ -141,27 +144,29 @@ def is_max(optree):
 def is_min(optree):
     """ Min operation predicate """
     return isinstance(optree, Min)
+def is_function_call(node):
+    """ determine if node is a FunctionCall node """
+    return isinstance(node, FunctionCall)
 
-
-def evaluate_bin_op(operation):
+def evaluate_bin_op(operation, recursive_eval):
     """ functor to create a 2-operand formal evaluation
         using operator @p operation """
-    def eval_routine(optree, input_prec_solver):
+    def eval_routine(optree):
         lhs = optree.get_input(0)
         rhs = optree.get_input(1)
         return safe(operation)(
-            evaluate_cst_graph(lhs, input_prec_solver),
-            evaluate_cst_graph(rhs, input_prec_solver)
+            recursive_eval(lhs),
+            recursive_eval(rhs)
         )
     return eval_routine
 
-def evaluate_un_op(operation):
+def evaluate_un_op(operation, recursive_eval):
     """ functor to create a 1-operand formal evaluation
         using operator @p operation """
-    def eval_routine(optree, input_prec_solver):
+    def eval_routine(optree):
         op = optree.get_input(0)
         return safe(operation)(
-            evaluate_cst_graph(op, input_prec_solver),
+            recursive_eval(op),
         )
     return eval_routine
 
@@ -212,33 +217,75 @@ def fixed_point_position_legalizer(optree, input_prec_solver=default_prec_solver
     forward_attributes(optree, result)
     return result
 
-def evaluate_cst_graph(optree, input_prec_solver=default_prec_solver):
-    """ evaluate a Operation Graph if its leaves are Constant """
+def evaluate_graph(optree, value_mapping, fct_mapping):
+    """ evaluate value for graph optree assuming
+        the nodes in value_mapping have the associated value
+        this function does not support FixedPointPosition """
+    def recursive_eval(node):
+        if node in value_mapping:
+            return value_mapping[node]
+        for predicate in evaluation_map:
+            if predicate(node):
+                return evaluation_map[predicate](node)
+        return None
+
+    def eval_func_call(node):
+        # FIXME: need cleaner way of linking numeric_emulate
+        func_tag = node.get_function_object().name
+        op = node.get_input(0)
+        return safe(fct_mapping[func_tag])(recursive_eval(op))
+
     evaluation_map = {
         is_max:
-            lambda optree: evaluate_bin_op(max)(optree, input_prec_solver),
+            lambda optree: evaluate_bin_op(max, recursive_eval)(optree),
         is_min:
-            lambda optree: evaluate_bin_op(min)(optree, input_prec_solver),
+            lambda optree: evaluate_bin_op(min, recursive_eval)(optree),
         is_addition:
-            lambda optree: evaluate_bin_op(operator.__add__)(optree, input_prec_solver),
+            lambda optree: evaluate_bin_op(operator.__add__, recursive_eval)(optree),
         is_subtraction:
-            lambda optree: evaluate_bin_op(operator.__sub__)(optree, input_prec_solver),
+            lambda optree: evaluate_bin_op(operator.__sub__, recursive_eval)(optree),
         is_multiplication:
-            lambda optree: evaluate_bin_op(operator.__mul__)(optree, input_prec_solver),
+            lambda optree: evaluate_bin_op(operator.__mul__, recursive_eval)(optree),
+        is_division:
+            lambda optree: evaluate_bin_op(operator.__truediv__, recursive_eval)(optree),
         is_constant:
             lambda optree: optree.get_value(),
         is_negation:
-            lambda optree: evaluate_un_op(operator.__neg__)(optree, input_prec_solver),
+            lambda optree: evaluate_un_op(operator.__neg__, recursive_eval)(optree),
+        is_function_call:
+            lambda optree: eval_func_call(optree),
+    }
+    return recursive_eval(optree)
+
+def evaluate_cst_graph(optree, input_prec_solver=default_prec_solver):
+    """ evaluate a Operation Graph if its leaves are Constant """
+    def recursive_eval(node):
+        for predicate in evaluation_map:
+            if predicate(node):
+                result = evaluation_map[predicate](node)
+                return result
+        return None
+    evaluation_map = {
+        is_max:
+            lambda optree: evaluate_bin_op(max, recursive_eval)(optree),
+        is_min:
+            lambda optree: evaluate_bin_op(min, recursive_eval)(optree),
+        is_addition:
+            lambda optree: evaluate_bin_op(operator.__add__, recursive_eval)(optree),
+        is_subtraction:
+            lambda optree: evaluate_bin_op(operator.__sub__, recursive_eval)(optree),
+        is_multiplication:
+            lambda optree: evaluate_bin_op(operator.__mul__, recursive_eval)(optree),
+        is_constant:
+            lambda optree: optree.get_value(),
+        is_negation:
+            lambda optree: evaluate_un_op(operator.__neg__, recursive_eval)(optree),
         is_fixed_point_position:
-            lambda optree: evaluate_cst_graph(
-                fixed_point_position_legalizer(optree, input_prec_solver=input_prec_solver),
-                input_prec_solver
+            lambda optree: recursive_eval(
+                fixed_point_position_legalizer(optree, input_prec_solver=input_prec_solver)
             ),
     }
-    for predicate in evaluation_map:
-        if predicate(optree):
-            return evaluation_map[predicate](optree)
-    return None
+    return recursive_eval(optree)
 
 def legalize_fixed_point_subselection(optree, input_prec_solver = default_prec_solver):
     """ Legalize a SubSignalSelection on a fixed-point node """
