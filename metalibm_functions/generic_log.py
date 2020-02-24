@@ -212,7 +212,9 @@ class ML_GenericLog(ScalarUnaryFunction):
                 precision=self.precision,
                 tag="pre_arg_red_index", debug = debug_multi)
 
-            arg_red_index = Select(Equal(table_index, 0), 1.0, pre_arg_red_index, tag = "arg_red_index", debug = debug_multi)
+            index_comp_0 = Equal(table_index, 0, tag="index_comp_0", debug=debug_multi)
+
+            arg_red_index = Select(index_comp_0, 1.0, pre_arg_red_index, tag = "arg_red_index", debug = debug_multi)
             _red_vx        = arg_red_index * _vx_mant - 1.0
             inv_err = S2**-6
             red_interval = Interval(1 - inv_err, 1 + inv_err)
@@ -330,20 +332,20 @@ class ML_GenericLog(ScalarUnaryFunction):
             Statement(
                 ClearException(),
                 Raise(ML_FPE_Invalid),
-                Return(FP_QNaN(self.precision))
+                Return(FP_QNaN(self.precision), precision=self.precision)
             ),
             ConditionBlock(vx_nan_or_inf,
                 ConditionBlock(vx_inf,
                     Statement(
                         ClearException(),
-                        Return(FP_PlusInfty(self.precision)),
+                        Return(FP_PlusInfty(self.precision), precision=self.precision),
                     ),
                     Statement(
                         ClearException(),
                         ConditionBlock(vx_snan,
                             Raise(ML_FPE_Invalid)
                         ),
-                        Return(FP_QNaN(self.precision))
+                        Return(FP_QNaN(self.precision), precision=self.precision)
                     )
                 ),
                 ConditionBlock(vx_subnormal,
@@ -351,7 +353,7 @@ class ML_GenericLog(ScalarUnaryFunction):
                         Statement(
                             ClearException(),
                             Raise(ML_FPE_DivideByZero),
-                            Return(FP_MinusInfty(self.precision)),
+                            Return(FP_MinusInfty(self.precision), precision=self.precision),
                         ),
                         Return(result_subnormal)
                     ),
