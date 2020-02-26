@@ -4,10 +4,12 @@ Metalibm Description Language (MDL) is the entry point for Metalibm.
 An implementation is built using MDL and static generation allowed by the Metalibm framework (e.g. generating table content using pythonsollya). The power of metalibm lies on mixing mathematical and code generation tools to generate an efficient implementation.
 
 # Basics MDL constructs
-MDL is based on operation constructs such as **Addition**, **Multiplication**, **Variable**, **Constant** or **Return** for example.
+MDL is based on mix of control flow and dataflow nodes.
+Dataflow takes the form of operation expressions using nodes such as **Addition**, **Multiplication**, **Variable**, **Constant**.
+Control flow uses nodes such as **ConditionBlock**, **SwitchBlock** or **Return**.
 
 ### Expression
-MDL expression are composition of leaf nodes (**Constant**, **Variable**) with expression nodes.
+MDL expressions are a composition of leaf nodes (**Constant**, **Variable**) and operation nodes (**Addition**, **Multiplication**, ...).
 
     # a variable called x with undefined precision
     x = Variable("x")
@@ -27,6 +29,14 @@ Control flow can be described in MDL using Statement constructs such as **Condit
 	    Return(a),
 	    Return(b)
 	)
+
+### Variable and scope
+
+MDL provides several variable construct.
+By default a variable is an input to the current scheme, it is considered alive everywhere (declared outside the scope of the scheme).
+A Variable node can be declared of **var_type** Variable.Local, it such a case its scope is reduced.
+If a variable first appears in an expression is scope is limited to the Statement surrounding the expression.
+If a variable first appears alone in a Statement is scope is the statement and every encapsulated sub-statement.
 
 ### Tables
 
