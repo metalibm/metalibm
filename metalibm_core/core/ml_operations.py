@@ -1318,7 +1318,7 @@ class ConditionBlock(ControlFlowOperation):
 
     def __init__(self, *args, **kwords):
         """ condition block initialization """
-        self.__class__.__base__.__init__(self, *args, **kwords)
+        super().__init__(*args, **kwords)
         self.parent_list = []
         # statement being executed before the condition or either of the branch is executed 
         self.pre_statement = Statement()
@@ -1330,16 +1330,15 @@ class ConditionBlock(ControlFlowOperation):
     def set_parent_list(self, parent_list):
         self.parent_list = parent_list
 
-    def get_parent_list(self):
-        return self.parent_list
-
     def get_pre_statement(self):
         return self.pre_statement
 
     def add_to_pre_statement(self, optree):
+        raise NotImplementedError
         self.pre_statement.add(optree)
 
     def push_to_pre_statement(self, optree):
+        raise NotImplementedError
         self.pre_statement.push(optree)
 
     def finish_copy(self, new_copy, copy_map = None):
@@ -2052,17 +2051,17 @@ class SwitchBlock(ControlFlowOperation):
     def set_parent_list(self, parent_list):
         self.parent_list = parent_list
 
-    def get_parent_list(self):
-        return self.parent_list
-
     def get_pre_statement(self):
+        raise NotImplementedError("pre_statement is no longer supported")
         return self.pre_statement
 
     def add_to_pre_statement(self, optree):
-        self.pre_statement.add(optree)
+        raise NotImplementedError("pre_statement is no longer supported")
+        #self.pre_statement.add(optree)
 
     def push_to_pre_statement(self, optree):
-        self.pre_statement.push(optree)
+        raise NotImplementedError("pre_statement is no longer supported")
+        #self.pre_statement.push(optree)
 
     def get_str(
             self, depth = 2, display_precision = False,

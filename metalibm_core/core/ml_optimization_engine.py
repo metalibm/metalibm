@@ -207,21 +207,17 @@ class OptimizationEngine(object):
 
 
     def extract_fast_path(self, optree):
-        """ extracting fast path (most likely execution path leading 
+        """ extracting fast path (most likely execution path leading
             to a Return operation) from <optree> """
         if isinstance(optree, ConditionBlock):
             cond = optree.inputs[0]
             likely = cond.get_likely()
-            pre_statement_fast_path = self.extract_fast_path(optree.get_pre_statement())
-            if pre_statement_fast_path != None:
-                return pre_statement_fast_path
+            if likely:
+                return self.extract_fast_path(optree.inputs[1])
+            elif likely == False and len(optree.inputs) >= 3:
+                return self.extract_fast_path(optree.inputs[2])
             else:
-                if likely:
-                    return self.extract_fast_path(optree.inputs[1])
-                elif likely == False and len(optree.inputs) >= 3:
-                    return self.extract_fast_path(optree.inputs[2])
-                else:
-                    return None
+                return None
         elif isinstance(optree, Statement):
             for sub_stat in optree.inputs:
                 ss_fast_path = self.extract_fast_path(sub_stat)
@@ -234,13 +230,11 @@ class OptimizationEngine(object):
 
 
     def factorize_fast_path(self, optree):
-        """ extract <optree>'s fast path and add it to be pre-computed at 
+        """ extract <optree>'s fast path and add it to be pre-computed at
             the start of <optree> computation """
         fast_path = self.extract_fast_path(optree)
-        if fast_path == None: 
+        if fast_path == None:
             return
-        elif isinstance(optree, ConditionBlock):
-            optree.push_to_pre_statement(fast_path)
         elif isinstance(optree, Statement):
             optree.push(fast_path)
         else:
@@ -296,7 +290,6 @@ class OptimizationEngine(object):
                 self.check_processor_support(inp, memoization_map, debug = debug, language = language)
 
             if isinstance(optree, ConditionBlock):
-                self.check_processor_support(optree.get_pre_statement(), memoization_map, debug = debug, language = language)
                 pass
             elif isinstance(optree, Statement):
                 pass
@@ -305,12 +298,10 @@ class OptimizationEngine(object):
             elif isinstance(optree, Return):
                 pass
             elif isinstance(optree, ReferenceAssign):
-                pass 
+                pass
             elif isinstance(optree, PlaceHolder):
                 pass
             elif isinstance(optree, SwitchBlock):
-                #self.check_processor_support(optree.get_pre_statement(), memoization_map)
-
                 for op in optree.get_extra_inputs():
                   # TODO: assert case is integer constant
                   self.check_processor_support(op, memoization_map, debug = debug, language = language)
@@ -381,7 +372,7 @@ class OptimizationEngine(object):
                 if cond(optree, exact_format):
                     new_optree = exactify_rule[optree.__class__][None][cond](self, optree, exact_format)
                     memoization_map[optree] = new_optree
-                    return new_optree   
+                    return new_optree
 
         memoization_map[optree] = optree
         return optree
@@ -389,7 +380,7 @@ class OptimizationEngine(object):
 
     def static_vectorization(self, optree):
       pass
-        
+
 
 
     def optimization_process(self, pre_scheme, default_precision, copy = False, fuse_fma = True, subexpression_sharing = True, silence_fp_operations = True, factorize_fast_path = True, language = C_Code):
@@ -399,7 +390,7 @@ class OptimizationEngine(object):
         if fuse_fma:
             Log.report(Log.Info, "Fusing FMA")
         scheme_post_fma = scheme if not fuse_fma else self.fuse_multiply_add(scheme, silence = silence_fp_operations)
-        
+
         Log.report(Log.Info, "Infering types")
         self.instantiate_abstract_precision(scheme_post_fma, None)
         Log.report(Log.Info, "Instantiating precisions")

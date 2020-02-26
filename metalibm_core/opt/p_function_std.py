@@ -27,6 +27,7 @@
 # SOFTWARE.
 ###############################################################################
 
+import collections
 from sollya import inf, sup
 
 from metalibm_core.core.ml_formats import *
@@ -43,7 +44,8 @@ from metalibm_core.core.ml_operations import (
     BitLogicLeftShift, BitLogicRightShift, BitArithmeticRightShift,
     Return, TableLoad, SpecificOperation, ExceptionOperation,
     NoResultOperation, Split, ComponentSelection, FunctionCall,
-    Conversion, DivisionSeed
+    Conversion, DivisionSeed,
+    ControlFlowOperation,
 )
 from metalibm_core.core.ml_hdl_operations import (
     Process, Loop, ComponentInstance, Assert, Wait, PlaceHolder
@@ -234,12 +236,14 @@ def fuse_multiply_add(optree, silence=False, memoization=None, change_handle=Tru
             return optree
 
 
-def subexpression_sharing(optree, sharing_map=None, level_sharing_map=None, current_parent_list=None):
-    """ reseach and factorize sub-graphs between branches """
+def subexpression_sharing(optree, sharing_map=None, level_sharing_map=None,
+                          current_parent_list=None, ancestor_map=None):
+    """ reseach and factorize sub-graphs between ConditionBlock, Loop,
+        SwitchBlock branches """
     # init
-    sharing_map = sharing_map or {}
-    level_sharing_map = level_sharing_map or [{}]
-    current_parent_list = current_parent_list or []
+    sharing_map = {} if sharing_map is None else sharing_map
+    level_sharing_map = [{}] if level_sharing_map is None else level_sharing_map
+    current_parent_list = [] if current_parent_list is None else current_parent_list
     def search_level_map(optree):
         """ search if optree has been defined among the active node """
         for level in level_sharing_map:
@@ -247,7 +251,7 @@ def subexpression_sharing(optree, sharing_map=None, level_sharing_map=None, curr
         return False
 
     def common_ancestor(parent_list_0, parent_list_1):
-        """ search the closest node of parent_list_0, 
+        """ search the closest node of parent_list_0,
             also registered in parent_list_1 """
         for b in parent_list_0[::-1]:
             if b in parent_list_1:
@@ -255,48 +259,43 @@ def subexpression_sharing(optree, sharing_map=None, level_sharing_map=None, curr
         return None
 
     if isinstance(optree, ConditionBlock):
-        optree.set_parent_list(current_parent_list)
         # condition
-        subexpression_sharing(optree.inputs[0], sharing_map, level_sharing_map, current_parent_list + [optree])
+        subexpression_sharing(optree.inputs[0], sharing_map, level_sharing_map, current_parent_list + [optree], ancestor_map=ancestor_map)
         # branches
         for op in optree.inputs[1:]:
-            subexpression_sharing(op, sharing_map, [{}] + level_sharing_map, current_parent_list + [optree])
+            subexpression_sharing(op, sharing_map, [{}] + level_sharing_map, current_parent_list + [optree], ancestor_map=ancestor_map)
 
     elif isinstance(optree, SwitchBlock):
-        optree.set_parent_list(current_parent_list)
-
         # switch value
-        subexpression_sharing(optree.inputs[0], sharing_map, level_sharing_map, current_parent_list + [optree])
+        subexpression_sharing(optree.inputs[0], sharing_map, level_sharing_map, current_parent_list + [optree], ancestor_map=ancestor_map)
         # case_statement
         case_map = optree.get_case_map()
         for case in case_map:
             op = case_map[case]
-            subexpression_sharing(op, sharing_map, [{}] + level_sharing_map, current_parent_list + [optree])
+            subexpression_sharing(op, sharing_map, [{}] + level_sharing_map, current_parent_list + [optree], ancestor_map=ancestor_map)
 
     elif isinstance(optree, Statement):
-        if not optree.get_prevent_optimization(): 
+        if not optree.get_prevent_optimization():
           for op in optree.inputs:
-              subexpression_sharing(op, sharing_map, [{}] + level_sharing_map, current_parent_list)
+              subexpression_sharing(op, sharing_map, [{}] + level_sharing_map, current_parent_list, ancestor_map=ancestor_map)
 
     elif isinstance(optree, Loop):
         pass
-        #for op in optree.inputs:
-        #    subexpression_sharing(op, sharing_map, [{}] + level_sharing_map, current_parent_list)
 
     elif isinstance(optree, ML_LeafNode):
         pass
     else:
         if optree in sharing_map:
-            if not search_level_map(optree): 
+            if not search_level_map(optree):
                 # parallel branch sharing possibility
-                ancestor = common_ancestor(sharing_map[optree], current_parent_list)            
+                ancestor = common_ancestor(sharing_map[optree], current_parent_list)
                 if ancestor != None:
-                    ancestor.add_to_pre_statement(optree)
+                    ancestor_map[ancestor].append(optree)
         else:
             sharing_map[optree] = current_parent_list
             level_sharing_map[0][optree] = current_parent_list
             for op in optree.inputs:
-                subexpression_sharing(op, sharing_map, level_sharing_map, current_parent_list)
+                subexpression_sharing(op, sharing_map, level_sharing_map, current_parent_list, ancestor_map=ancestor_map)
 
 
 ## Generic vector promotion pass
@@ -332,6 +331,25 @@ class PassFuseFMA(FunctionPass):
             optree, self.silence, memoization_map, self.change_handle,
             self.dot_product_enabled)
 
+def insert_pre_statement(node, ancestor_map):
+    """ ancestor_map contains a list of node associated to each key (ancesstor)
+        this function, starting from root node, insert in the statement
+        surrounding ancestor a decleration for each node in the list """
+    if isinstance(node, Statement):
+        result_input_list = []
+        for op in node.inputs:
+            if op in ancestor_map:
+                result_input_list = result_input_list + [pre_node for pre_node in ancestor_map[op]]
+            insert_pre_statement(op, ancestor_map)
+            result_input_list.append(op)
+        node.inputs = result_input_list
+    elif isinstance(node, ControlFlowOperation):
+        for op in node.inputs:
+            insert_pre_statement(op, ancestor_map)
+    else:
+        # non control flow operation
+        pass
+
 
 class PassSubExpressionSharing(FunctionPass):
     """ Factorize sub-expression shared between control flow branches """
@@ -341,7 +359,10 @@ class PassSubExpressionSharing(FunctionPass):
         self.memoization_map = {}
 
     def execute_on_optree(self, optree, fct=None, fct_group=None, memoization_map=None): 
-        subexpression_sharing(optree)
+        ancestor_map = collections.defaultdict(list)
+        sharing_map = {}
+        subexpression_sharing(optree, sharing_map=sharing_map, ancestor_map=ancestor_map)
+        insert_pre_statement(optree, ancestor_map)
         return optree
 
 
@@ -378,7 +399,6 @@ class PassCheckProcessorSupport(FunctionPass):
                 self.check_processor_support(inp, memoization_map, debug = debug, language = language)
 
             if isinstance(optree, ConditionBlock):
-                self.check_processor_support(optree.get_pre_statement(), memoization_map, debug = debug, language = language)
                 pass
             elif isinstance(optree, Statement):
                 pass
@@ -393,11 +413,10 @@ class PassCheckProcessorSupport(FunctionPass):
             elif isinstance(optree, Return):
                 pass
             elif isinstance(optree, ReferenceAssign):
-                pass 
+                pass
             elif isinstance(optree, PlaceHolder):
                 pass
             elif isinstance(optree, SwitchBlock):
-                #self.check_processor_support(optree.get_pre_statement(), memoization_map)
 
                 for op in optree.get_extra_inputs():
                   # TODO: assert case is integer constant
