@@ -278,82 +278,12 @@ class OptimizationEngine(object):
           self.recursive_swap_format(node, old_format, new_format)
 
 
-
     def check_processor_support(self, optree, memoization_map = {}, debug = False, language = C_Code):
-        """ check if all precision-instantiated operation are supported by the processor """
-        if debug:
-          print("checking processor support: ", self.processor.__class__) # Debug print
-        if  optree in memoization_map:
-            return True
-        if not isinstance(optree, ML_LeafNode):
-            for inp in optree.inputs:
-                self.check_processor_support(inp, memoization_map, debug = debug, language = language)
-
-            if isinstance(optree, ConditionBlock):
-                pass
-            elif isinstance(optree, Statement):
-                pass
-            elif isinstance(optree, Loop):
-                pass
-            elif isinstance(optree, Return):
-                pass
-            elif isinstance(optree, ReferenceAssign):
-                pass
-            elif isinstance(optree, PlaceHolder):
-                pass
-            elif isinstance(optree, SwitchBlock):
-                for op in optree.get_extra_inputs():
-                  # TODO: assert case is integer constant
-                  self.check_processor_support(op, memoization_map, debug = debug, language = language)
-            elif not self.processor.is_supported_operation(optree, debug = debug, language = language):
-                # trying operand format escalation
-                init_optree = optree
-                old_list = optree.inputs
-                while False: #optree.__class__ in type_escalation:
-                    match_found = False
-                    for result_type_cond in type_escalation[optree.__class__]:
-                        if result_type_cond(optree.get_precision()): 
-                            for op_index in range(len(optree.inputs)):
-                                op = optree.inputs[op_index]
-                                for op_type_cond in type_escalation[optree.__class__][result_type_cond]:
-                                    if op_type_cond(op.get_precision()): 
-                                        new_type = type_escalation[optree.__class__][result_type_cond][op_type_cond](optree) 
-                                        if op.get_precision() != new_type:
-                                            # conversion insertion
-                                            input_list = list(optree.inputs)
-                                            input_list[op_index] = Conversion(op, precision = new_type)
-                                            optree.inputs = tuple(input_list)
-                                            match_found = True
-                                            break
-                            break
-                    if not match_found:
-                        break
-                # checking final processor support
-                if not self.processor.is_supported_operation(optree):
-                    # look for possible simplification
-                    if self.has_support_simplification(optree):
-                        simplified_tree = self.get_support_simplification(optree)
-                        Log.report(Log.Verbose, "simplifying %s" % optree.get_str(depth = 2, display_precision = True))
-                        Log.report(Log.Verbose, "into %s" % simplified_tree.get_str(depth = 2, display_precision = True))
-                        optree.change_to(simplified_tree)
-                        if self.processor.is_supported_operation(optree):
-                            memoization_map[optree] = True
-                            return True
-                        
-                    print("Node pre escalation: ", old_list) # Error print
-                    print("Node's operation keys: {}".format(self.processor.get_operation_keys(optree))) # Error print
-                    print("Operation tree: ") 
-                    print(optree.get_str(display_precision=True, display_id=True, memoization_map = {})) # Error print
-                    Log.report(Log.Error, "unsupported operation in OptimizationEngine's check_processor_support \n")
-        # memoization
-        memoization_map[optree] = True
-        return True
-
+        return p_check_support.check_processor_support(self.processor, optree, memoization_map, debug, langage) 
 
     def swap_format(self, optree, new_format):
         optree.set_precision(new_format)
         return optree
-
 
     def exactify(self, optree, exact_format = ML_Exact, memoization_map = {}):
         """ recursively process <optree> according to table exactify_rule 
@@ -377,10 +307,8 @@ class OptimizationEngine(object):
         memoization_map[optree] = optree
         return optree
 
-
     def static_vectorization(self, optree):
       pass
-
 
 
     def optimization_process(self, pre_scheme, default_precision, copy = False, fuse_fma = True, subexpression_sharing = True, silence_fp_operations = True, factorize_fast_path = True, language = C_Code):
