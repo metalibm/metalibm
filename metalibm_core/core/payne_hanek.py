@@ -92,14 +92,14 @@ def generate_payne_hanek(
     vx, frac_pi, precision, n = 100, k = 4, chunk_num = None, debug = False
   ):
   """ generate payne and hanek argument reduction for frac_pi * variable """
-  
+
   sollya.roundingwarnings = sollya.off
   debug_precision = debug_multi
   int_precision = {
     ML_Binary32 : ML_Int32,
     ML_Binary64 : ML_Int64
     }[precision]
-  
+
   p = precision.get_field_size()
 
   # weight of the most significant digit of the constant
@@ -111,7 +111,7 @@ def generate_payne_hanek(
   # chunk size has to be so than multiplication by a splitted <v>
   # (vx_hi or vx_lo) is exact
   chunk_size = precision.get_field_size() / 2 - 2
-  chunk_number = int(ceil((cst_exp_range + chunk_size - 1) / chunk_size)) 
+  chunk_number = int(ceil((cst_exp_range + chunk_size - 1) / chunk_size))
   scaling_factor = S2**-(chunk_size/2)
 
   chunk_size_cst = Constant(chunk_size, precision = ML_Int32)
@@ -159,10 +159,12 @@ def generate_payne_hanek(
   # Bits vi so that i <= (vx_exp - p + 1 -k)  are not needed, because they result
   # in a multiple of 2pi and do not contribute to trig functions.    
 
-  vx_exp = ExponentExtraction(vx)
+  vx_exp = ExponentExtraction(vx, precision=vx.get_precision().get_integer_format())
+  vx_exp = Conversion(vx_exp, precision=ML_Int32)
   
   msb_exp = -(vx_exp - p + 1 - k)
   msb_exp.set_attributes(tag = "msb_exp", debug = debug_multi)
+  msb_exp = Conversion(msb_exp, precision=ML_Int32)
 
   # Select the highest index where the reduction should start
   msb_index = Select(cst_msb_node < msb_exp, 0, (cst_msb_node - msb_exp) / chunk_size_cst)
@@ -173,6 +175,7 @@ def generate_payne_hanek(
   
   lsb_exp = -(vx_exp + n + 4)
   lsb_exp.set_attributes(tag = "lsb_exp", debug = debug_multi)
+  lsb_exp = Conversion(lsb_exp, precision=ML_Int32)
 
   # Index of the corresponding chunk
   lsb_index = (cst_msb_node - lsb_exp) / chunk_size_cst
