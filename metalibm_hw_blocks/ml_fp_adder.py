@@ -71,7 +71,7 @@ class FP_Adder(ML_Entity("fp_adder")):
     @staticmethod
     def get_default_args(**kw):
         default_arg_map = {
-            "precision": ML_Binary32,
+            "precision": HdlVirtualFormat(ML_Binary32),
             "pipelined": False,
             "output_file": "fp_adder.vhd",
             "entity_name": "fp_adder",
@@ -88,7 +88,7 @@ class FP_Adder(ML_Entity("fp_adder")):
                 prec.get_base_format().get_integer_coding(value, language))
         ## convert @p value from an input floating-point precision
         #  @p in_precision to an output support format @p out_precision
-        io_precision = HdlVirtualFormat(self.precision)
+        io_precision = self.precision
         # declaring standard clock and reset input signal
         #clk = self.implementation.add_input_signal("clk", ML_StdLogic)
         reset = self.implementation.add_input_signal("reset", ML_StdLogic)
@@ -356,7 +356,8 @@ class FP_Adder(ML_Entity("fp_adder")):
         vx = io_map["x"]
         vy = io_map["y"]
         result = {}
-        result["vr_out"] = sollya.round(vx + vy, self.precision.get_sollya_object(), sollya.RN)
+        base_format = self.precision.get_base_format()
+        result["vr_out"] = sollya.round(vx + vy, base_format.get_sollya_object(), sollya.RN)
         return result
 
     standard_test_cases = [({"x": 1.0, "y": (S2**-11 + S2**-17)}, None)]

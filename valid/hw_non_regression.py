@@ -72,7 +72,7 @@ new_scheme_function_list = [
   EntitySchemeTest(
     "basic floating-point adder",
     metalibm_hw_blocks.ml_fp_adder.FP_Adder,
-    [{"precision": ML_Binary32}, {"precision": ML_Binary64},]
+    [{"precision": HdlVirtualFormat(ML_Binary32)}, {"precision": HdlVirtualFormat(ML_Binary64)},]
   ),
   EntitySchemeTest(
     "mixed-precision fused multiply-add",
