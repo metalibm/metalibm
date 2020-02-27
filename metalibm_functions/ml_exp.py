@@ -201,7 +201,7 @@ class ML_Exponential(ScalarUnaryFunction):
         exact_hi_part.set_attributes(exact = True, tag = "exact_hi", debug = debug_multi, prevent_optimization = True)
         exact_lo_part = - k * log2_lo
         exact_lo_part.set_attributes(tag = "exact_lo", debug = debug_multi, prevent_optimization = True)
-        r =  exact_hi_part + exact_lo_part 
+        r =  exact_hi_part + exact_lo_part
         r.set_tag("r")
         r.set_attributes(debug = debug_multi)
 
@@ -249,7 +249,6 @@ class ML_Exponential(ScalarUnaryFunction):
         else:
             Log.report(Log.Error, "unknown accuracy: %s" % self.accuracy)
 
-            
 
         # error_goal = local_ulp #S2**-(self.precision.get_field_size()+1)
         error_goal_approx = S2**-1 * error_goal
@@ -263,7 +262,9 @@ class ML_Exponential(ScalarUnaryFunction):
         polynomial_scheme_builder = PolynomialSchemeEvaluator.generate_estrin_scheme
         #polynomial_scheme_builder = PolynomialSchemeEvaluator.generate_horner_scheme
 
-        while 1:
+        MAX_NUM_ITERATION = 20
+
+        for _ in range(MAX_NUM_ITERATION):
             Log.report(Log.Info, "attempting poly degree: %d" % poly_degree)
             precision_list = [1] + [self.precision] * (poly_degree)
             poly_object, poly_approx_error = Polynomial.build_from_approximation_with_error(expm1(sollya.x), poly_degree, precision_list, approx_interval, sollya.absolute, error_function = error_function)
@@ -378,7 +379,7 @@ class ML_Exponential(ScalarUnaryFunction):
 
         late_underflow_test = Comparison(k, self.precision.get_emin_normal(), specifier = Comparison.LessOrEqual, likely=False, tag="late_underflow_test")
         underflow_exp_offset = 2 * self.precision.get_field_size()
-        corrected_exp = Addition( 
+        corrected_exp = Addition(
           ik,
           Constant(
             underflow_exp_offset,
@@ -404,7 +405,7 @@ class ML_Exponential(ScalarUnaryFunction):
         scheme = ConditionBlock(
             test_nan_or_inf,
             Statement(
-                ClearException() if self.libm_compliant else Statement(), 
+                ClearException() if self.libm_compliant else Statement(),
                 specific_return
             ),
             std_return
