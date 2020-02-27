@@ -202,8 +202,8 @@ class OptimizationEngine(object):
                 self.cb_parent_tagging(op, parent_block = parent_block)
 
 
-    def subexpression_sharing(self, optree, sharing_map = None, level_sharing_map = [{}], current_parent_list = []):
-        return p_function_std.subexpression_sharing(optree, sharing_map, level_sharing_map, current_parent_list)
+    def subexpression_sharing(self, optree):
+        return p_function_std.subexpression_sharing(optree)
 
 
     def extract_fast_path(self, optree):
@@ -279,7 +279,7 @@ class OptimizationEngine(object):
 
 
     def check_processor_support(self, optree, memoization_map = {}, debug = False, language = C_Code):
-        return p_check_support.check_processor_support(self.processor, optree, memoization_map, debug, langage) 
+        return p_function_std.PassCheckProcessorSupport.check_processor_support(self.processor, optree, memoization_map, debug, langage) 
 
     def swap_format(self, optree, new_format):
         optree.set_precision(new_format)

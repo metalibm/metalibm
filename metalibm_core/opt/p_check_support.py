@@ -35,7 +35,7 @@ from metalibm_core.code_generation.code_constant import C_Code
 from metalibm_core.utility.log_report import Log
 
 ## Test if @p optree is supported by self.target
-def check_processor_support(target, optree, memoization_map=None, debug=False, language=C_Code):
+def check_target_support(target, optree, memoization_map=None, debug=False, language=C_Code):
     """ check if all precision-instantiated operation are supported by the processor <target>
     
         :param optree: operation tree to be tested
@@ -55,10 +55,10 @@ def check_processor_support(target, optree, memoization_map=None, debug=False, l
         return True
     if not isinstance(optree, ML_LeafNode):
         for inp in optree.inputs:
-            check_processor_support(target, inp, memoization_map, debug = debug)
+            check_target_support(target, inp, memoization_map, debug = debug)
 
         if isinstance(optree, ConditionBlock):
-            check_processor_support(target, optree.get_pre_statement(), memoization_map, debug = debug)
+            check_target_support(target, optree.get_pre_statement(), memoization_map, debug = debug)
         elif isinstance(optree, ConditionalBranch):
             pass
         elif isinstance(optree, UnconditionalBranch):
@@ -78,13 +78,14 @@ def check_processor_support(target, optree, memoization_map=None, debug=False, l
 
             for op in optree.get_extra_inputs():
                 # TODO: assert case is integer constant
-                check_processor_support(target, op, memoization_map, debug = debug)
+                check_target_support(target, op, memoization_map, debug = debug)
         elif not target.is_supported_operation(optree, language=language, debug=debug):
             print("languages is {}".format(language))
             print("Operation' keys are: {}".format(target.get_operation_keys(optree))) # Error print
             print("Operation tree is:")
             print(optree.get_str(display_precision = True, display_id = True, memoization_map = {})) # Error print
             Log.report(Log.Error, "unsupported operation in Pass_CheckSupport's check_processor_support:\n{}", optree)
+
     # memoization
     memoization_map[optree] = True
     return True
@@ -100,7 +101,7 @@ class Pass_CheckSupport(OptreeOptimization):
 
   def execute(self, optree):
     memoization_map = {}
-    return check_processor_support(self.processor, optree, memoization_map, language=self.language)
+    return check_target_support(self.processor, optree, memoization_map, language=self.language)
 
 
 Log.report(LOG_PASS_INFO, "Registering check_target_support pass")

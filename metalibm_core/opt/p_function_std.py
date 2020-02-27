@@ -236,14 +236,9 @@ def fuse_multiply_add(optree, silence=False, memoization=None, change_handle=Tru
             return optree
 
 
-def subexpression_sharing(optree, sharing_map=None, level_sharing_map=None,
-                          current_parent_list=None, ancestor_map=None):
+def subexpression_sharing(root_node):
     """ reseach and factorize sub-graphs between ConditionBlock, Loop,
         SwitchBlock branches """
-    # init
-    sharing_map = {} if sharing_map is None else sharing_map
-    level_sharing_map = [{}] if level_sharing_map is None else level_sharing_map
-    current_parent_list = [] if current_parent_list is None else current_parent_list
     def search_level_map(optree):
         """ search if optree has been defined among the active node """
         for level in level_sharing_map:
@@ -258,45 +253,55 @@ def subexpression_sharing(optree, sharing_map=None, level_sharing_map=None,
                 return b
         return None
 
-    if isinstance(optree, ConditionBlock):
-        # condition
-        subexpression_sharing(optree.inputs[0], sharing_map, level_sharing_map, current_parent_list + [optree], ancestor_map=ancestor_map)
-        # branches
-        for op in optree.inputs[1:]:
-            subexpression_sharing(op, sharing_map, [{}] + level_sharing_map, current_parent_list + [optree], ancestor_map=ancestor_map)
+    def recursive_ancestor_lookup(optree, sharing_map=None, level_sharing_map=None,
+                                  current_parent_list=None, ancestor_map=None):
+        if isinstance(optree, ConditionBlock):
+            # condition
+            recursive_ancestor_lookup(optree.inputs[0], sharing_map, level_sharing_map, current_parent_list + [optree], ancestor_map=ancestor_map)
+            # branches
+            for op in optree.inputs[1:]:
+                recursive_ancestor_lookup(op, sharing_map, [{}] + level_sharing_map, current_parent_list + [optree], ancestor_map=ancestor_map)
 
-    elif isinstance(optree, SwitchBlock):
-        # switch value
-        subexpression_sharing(optree.inputs[0], sharing_map, level_sharing_map, current_parent_list + [optree], ancestor_map=ancestor_map)
-        # case_statement
-        case_map = optree.get_case_map()
-        for case in case_map:
-            op = case_map[case]
-            subexpression_sharing(op, sharing_map, [{}] + level_sharing_map, current_parent_list + [optree], ancestor_map=ancestor_map)
+        elif isinstance(optree, SwitchBlock):
+            # switch value
+            recursive_ancestor_lookup(optree.inputs[0], sharing_map, level_sharing_map, current_parent_list + [optree], ancestor_map=ancestor_map)
+            # case_statement
+            case_map = optree.get_case_map()
+            for case in case_map:
+                op = case_map[case]
+                recursive_ancestor_lookup(op, sharing_map, [{}] + level_sharing_map, current_parent_list + [optree], ancestor_map=ancestor_map)
 
-    elif isinstance(optree, Statement):
-        if not optree.get_prevent_optimization():
-          for op in optree.inputs:
-              subexpression_sharing(op, sharing_map, [{}] + level_sharing_map, current_parent_list, ancestor_map=ancestor_map)
+        elif isinstance(optree, Statement):
+            if not optree.get_prevent_optimization():
+              for op in optree.inputs:
+                  recursive_ancestor_lookup(op, sharing_map, [{}] + level_sharing_map, current_parent_list, ancestor_map=ancestor_map)
 
-    elif isinstance(optree, Loop):
-        pass
+        elif isinstance(optree, Loop):
+            pass
 
-    elif isinstance(optree, ML_LeafNode):
-        pass
-    else:
-        if optree in sharing_map:
-            if not search_level_map(optree):
-                # parallel branch sharing possibility
-                ancestor = common_ancestor(sharing_map[optree], current_parent_list)
-                if ancestor != None:
-                    ancestor_map[ancestor].append(optree)
+        elif isinstance(optree, ML_LeafNode):
+            pass
         else:
-            sharing_map[optree] = current_parent_list
-            level_sharing_map[0][optree] = current_parent_list
-            for op in optree.inputs:
-                subexpression_sharing(op, sharing_map, level_sharing_map, current_parent_list, ancestor_map=ancestor_map)
+            if optree in sharing_map:
+                if not search_level_map(optree):
+                    # parallel branch sharing possibility
+                    ancestor = common_ancestor(sharing_map[optree], current_parent_list)
+                    if ancestor != None:
+                        ancestor_map[ancestor].append(optree)
+            else:
+                sharing_map[optree] = current_parent_list
+                level_sharing_map[0][optree] = current_parent_list
+                for op in optree.inputs:
+                    recursive_ancestor_lookup(op, sharing_map, level_sharing_map, current_parent_list, ancestor_map=ancestor_map)
 
+    # init
+    sharing_map = {} 
+    level_sharing_map = [{}] 
+    current_parent_list = []
+    ancestor_map = collections.defaultdict(list)
+    recursive_ancestor_lookup(root_node, sharing_map, level_sharing_map,
+                              current_parent_list, ancestor_map)
+    insert_pre_statement(root_node, ancestor_map)
 
 ## Generic vector promotion pass
 class PassSilenceFPOperation(FunctionPass):
@@ -359,12 +364,25 @@ class PassSubExpressionSharing(FunctionPass):
         self.memoization_map = {}
 
     def execute_on_optree(self, optree, fct=None, fct_group=None, memoization_map=None): 
-        ancestor_map = collections.defaultdict(list)
-        sharing_map = {}
-        subexpression_sharing(optree, sharing_map=sharing_map, ancestor_map=ancestor_map)
-        insert_pre_statement(optree, ancestor_map)
+        subexpression_sharing(optree)
         return optree
 
+def has_support_simplification(optree):
+    """ check if node optree can be simplified """
+    if optree.__class__ in support_simplification:
+        code_gen_key = optree.get_codegen_key()
+        if code_gen_key in support_simplification[optree.__class__]:
+            for cond in support_simplification[optree.__class__][code_gen_key]:
+              if cond(optree): return True
+    return False
+
+def get_support_simplification(optree, processor):
+    """ retrieve support simplified version of optree"""
+    code_gen_key = optree.get_codegen_key()
+    for cond in support_simplification[optree.__class__][code_gen_key]:
+        if cond(optree):
+            return support_simplification[optree.__class__][code_gen_key][cond](optree, processor)
+    Log.report(Log.Error, "support simplification mapping not found")
 
 
 class PassCheckProcessorSupport(FunctionPass):
@@ -380,106 +398,97 @@ class PassCheckProcessorSupport(FunctionPass):
         memoization_map = memoization_map if not memoization_map is None else {}
         Log.report(Log.Info, "executing check-processor with target {}".format(self.processor))
         check_result = self.check_processor_support(
+            self.processor,
             optree, memoization_map, self.debug, self.language
         )
         return optree
 
-    def check_processor_support(self, optree, memoization_map=None, debug=False, language=C_Code):
+    @staticmethod
+    def check_processor_support(processor, root, memoization_map=None, debug=False, language=C_Code):
         """ check if all precision-instantiated operation are supported by the processor """
         memoization_map = memoization_map if not memoization_map is None else {}
-        if debug:
-            print("checking processor support: ", self.processor.__class__) # Debug print
-        if  optree in memoization_map:
+
+        Log.report(Log.Info, "checking processor support: {}", processor.__class__)
+
+        def recursive_support_check(optree):
+            if  optree in memoization_map:
+                return True
+
+            elif not isinstance(optree, ML_LeafNode):
+                # memoization
+                memoization_map[optree] = True
+                for inp in optree.inputs:
+                    recursive_support_check(inp)
+
+                if isinstance(optree, ConditionBlock):
+                    pass
+                elif isinstance(optree, Statement):
+                    pass
+                elif isinstance(optree, ConditionalBranch):
+                    pass
+                elif isinstance(optree, UnconditionalBranch):
+                    pass
+                elif isinstance(optree, BasicBlock):
+                    pass
+                elif isinstance(optree, Loop):
+                    pass
+                elif isinstance(optree, Return):
+                    pass
+                elif isinstance(optree, ReferenceAssign):
+                    pass
+                elif isinstance(optree, PlaceHolder):
+                    pass
+                elif isinstance(optree, SwitchBlock):
+
+                    for op in optree.get_extra_inputs():
+                      # TODO: assert case is integer constant
+                      recursive_support_check(op)
+                elif not processor.is_supported_operation(optree, debug = debug, language = language):
+                    # trying operand format escalation
+                    init_optree = optree
+                    old_list = optree.inputs
+                    while False: #optree.__class__ in type_escalation:
+                        match_found = False
+                        for result_type_cond in type_escalation[optree.__class__]:
+                            if result_type_cond(optree.get_precision()): 
+                                for op_index in range(len(optree.inputs)):
+                                    op = optree.inputs[op_index]
+                                    for op_type_cond in type_escalation[optree.__class__][result_type_cond]:
+                                        if op_type_cond(op.get_precision()): 
+                                            new_type = type_escalation[optree.__class__][result_type_cond][op_type_cond](optree) 
+                                            if op.get_precision() != new_type:
+                                                # conversion insertion
+                                                input_list = list(optree.inputs)
+                                                input_list[op_index] = Conversion(op, precision = new_type)
+                                                optree.inputs = tuple(input_list)
+                                                match_found = True
+                                                break
+                                break
+                        if not match_found:
+                            break
+                    # checking final processor support
+                    if not processor.is_supported_operation(optree):
+                        # look for possible simplification
+                        if has_support_simplification(optree):
+                            simplified_tree = get_support_simplification(optree, processor)
+                            Log.report(Log.Verbose, "simplifying %s" % optree.get_str(depth = 2, display_precision = True))
+                            Log.report(Log.Verbose, "into %s" % simplified_tree.get_str(depth = 2, display_precision = True))
+                            optree.change_to(simplified_tree)
+                            if processor.is_supported_operation(optree):
+                                memoization_map[optree] = True
+                                return True
+                        print("pre escalation node is: ", old_list) # Error print
+                        print("languages is {}".format(language))
+                        print("Operation' keys are: {}".format(processor.get_operation_keys(optree))) # Error print
+                        print("Operation tree is: \n", optree.get_str(display_precision=True, depth=1, display_id=True, memoization_map=None)) # Error print
+                        Log.report(Log.Error, "unsupported operation in PassCheckProcessorSupport's check_processor_support:\n{}", optree)
+            else:
+                # memoization
+                memoization_map[optree] = True
             return True
 
-        elif not isinstance(optree, ML_LeafNode):
-            # memoization
-            memoization_map[optree] = True
-            for inp in optree.inputs:
-                self.check_processor_support(inp, memoization_map, debug = debug, language = language)
+        return recursive_support_check(root)
 
-            if isinstance(optree, ConditionBlock):
-                pass
-            elif isinstance(optree, Statement):
-                pass
-            elif isinstance(optree, ConditionalBranch):
-                pass
-            elif isinstance(optree, UnconditionalBranch):
-                pass
-            elif isinstance(optree, BasicBlock):
-                pass
-            elif isinstance(optree, Loop):
-                pass
-            elif isinstance(optree, Return):
-                pass
-            elif isinstance(optree, ReferenceAssign):
-                pass
-            elif isinstance(optree, PlaceHolder):
-                pass
-            elif isinstance(optree, SwitchBlock):
-
-                for op in optree.get_extra_inputs():
-                  # TODO: assert case is integer constant
-                  self.check_processor_support(op, memoization_map, debug = debug, language = language)
-            elif not self.processor.is_supported_operation(optree, debug = debug, language = language):
-                # trying operand format escalation
-                init_optree = optree
-                old_list = optree.inputs
-                while False: #optree.__class__ in type_escalation:
-                    match_found = False
-                    for result_type_cond in type_escalation[optree.__class__]:
-                        if result_type_cond(optree.get_precision()): 
-                            for op_index in range(len(optree.inputs)):
-                                op = optree.inputs[op_index]
-                                for op_type_cond in type_escalation[optree.__class__][result_type_cond]:
-                                    if op_type_cond(op.get_precision()): 
-                                        new_type = type_escalation[optree.__class__][result_type_cond][op_type_cond](optree) 
-                                        if op.get_precision() != new_type:
-                                            # conversion insertion
-                                            input_list = list(optree.inputs)
-                                            input_list[op_index] = Conversion(op, precision = new_type)
-                                            optree.inputs = tuple(input_list)
-                                            match_found = True
-                                            break
-                            break
-                    if not match_found:
-                        break
-                # checking final processor support
-                if not self.processor.is_supported_operation(optree):
-                    # look for possible simplification
-                    if self.has_support_simplification(optree):
-                        simplified_tree = self.get_support_simplification(optree)
-                        Log.report(Log.Verbose, "simplifying %s" % optree.get_str(depth = 2, display_precision = True))
-                        Log.report(Log.Verbose, "into %s" % simplified_tree.get_str(depth = 2, display_precision = True))
-                        optree.change_to(simplified_tree)
-                        if self.processor.is_supported_operation(optree):
-                            memoization_map[optree] = True
-                            return True
-                        
-                    print("pre escalation node is: ", old_list) # Error print
-                    print("languages is {}".format(language))
-                    print("Operation' keys are: {}".format(self.processor.get_operation_keys(optree))) # Error print
-                    print("Operation tree is: \n", optree.get_str(display_precision=True, depth=1, display_id=True, memoization_map=None)) # Error print
-                    Log.report(Log.Error, "unsupported operation in PassCheckProcessorSupport's check_processor_support:\n{}", optree)
-        else:
-            # memoization
-            memoization_map[optree] = True
-        return True
-
-    def has_support_simplification(self, optree):
-        if optree.__class__ in support_simplification:
-            code_gen_key = optree.get_codegen_key()
-            if code_gen_key in support_simplification[optree.__class__]:
-                for cond in support_simplification[optree.__class__][code_gen_key]:
-                  if cond(optree): return True
-        return False
-
-    def get_support_simplification(self, optree):
-        code_gen_key = optree.get_codegen_key()
-        for cond in support_simplification[optree.__class__][code_gen_key]:
-            if cond(optree):
-                return support_simplification[optree.__class__][code_gen_key][cond](optree, self.processor)
-        Log.report(Log.Error, "support simplification mapping not found")
 
 # register pass
 Log.report(LOG_PASS_INFO, "Registering silence_fp_operations pass")
