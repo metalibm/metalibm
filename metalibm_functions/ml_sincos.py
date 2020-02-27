@@ -54,6 +54,7 @@ from metalibm_core.core.ml_table import ML_NewTable
 from metalibm_core.core.payne_hanek import generate_payne_hanek
 
 from metalibm_core.core.special_values import FP_QNaN
+from metalibm_core.core.simple_scalar_function import ScalarUnaryFunction
 
 from metalibm_core.utility.ml_template import ML_NewArgTemplate
 from metalibm_core.utility.log_report    import Log
@@ -67,12 +68,12 @@ sollya.showmessagenumbers = sollya.on
 
 ## Implementation of sine or cosine sharing a common
 #    approximation scheme
-class ML_SinCos(ML_FunctionBasis):
+class ML_SinCos(ScalarUnaryFunction):
     function_name = "ml_cos"
     """ Implementation of cosinus function """
     def __init__(self, args=DefaultArgTemplate):
         # initializing base class
-        ML_FunctionBasis.__init__(self, args)
+        super().__init__(args)
         self.sin_output = args.sin_output
 
     @staticmethod
@@ -91,10 +92,7 @@ class ML_SinCos(ML_FunctionBasis):
         return DefaultArgTemplate(**default_args_sincos)
 
 
-    def generate_scheme(self):
-        # declaring CodeFunction and retrieving input variable
-        vx = self.implementation.add_input_variable("x", self.precision)
-
+    def generate_scalar_scheme(self, vx):
         Log.report(Log.Info, "generating implementation scheme")
         if self.debug_flag:
             Log.report(Log.Info, "debug has been enabled")
@@ -119,12 +117,13 @@ class ML_SinCos(ML_FunctionBasis):
           ML_Binary64 : ML_Int64
         }[self.precision]
 
+        # determining bound to use payne and hanek method
         if self.precision is ML_Binary32:
-          ph_bound = S2**10
+            ph_bound = S2**10
         else:
-          ph_bound = S2**33
+            ph_bound = S2**33
 
-        test_ph_bound = Comparison(vx, ph_bound, specifier = Comparison.GreaterOrEqual, precision = ML_Bool, likely = False)
+        test_ph_bound = Comparison(vx, ph_bound, specifier=Comparison.GreaterOrEqual, precision=ML_Bool, likely=False)
 
         # argument reduction
         # m
@@ -143,7 +142,7 @@ class ML_SinCos(ML_FunctionBasis):
         inv_frac_pi_lo = round(pi / S2**frac_pi_index - inv_frac_pi, sollya_precision, sollya.RN)
 
         # computing k
-        vx.set_attributes(tag = "vx", debug = debug_multi);
+        vx.set_attributes(tag = "vx", debug=debug_multi)
 
         vx_pi = Addition(
           Multiplication(
@@ -216,8 +215,9 @@ class ML_SinCos(ML_FunctionBasis):
         table_index_size = frac_pi_index+1
         cos_table = ML_NewTable(dimensions = [2**table_index_size, 1], storage_precision = self.precision, tag = self.uniquify_name("cos_table"))
 
+        common_factor = round(pi/S2**frac_pi_index, 200, sollya.RN)
         for i in range(2**(frac_pi_index+1)):
-          local_x = i*pi/S2**frac_pi_index
+          local_x = i*common_factor
           cos_local = round(cos(local_x), self.precision.get_sollya_object(), sollya.RN)
           cos_table[i][0] = cos_local
 
