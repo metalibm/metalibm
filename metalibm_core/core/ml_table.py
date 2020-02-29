@@ -213,12 +213,14 @@ class ML_Table(ML_LeafNode):
     def get_str(
             self, depth = None, display_precision = False,
             tab_level = 0, memoization_map = {}, display_attribute = False,
-            display_id = False, custom_callback = lambda optree: ""
+            display_id = False, custom_callback = lambda optree: "",
+            display_interval=False
         ):
         id_str     = ("[id=%x]" % id(self)) if display_id else ""
         attribute_str = "" if not display_attribute else self.attributes.get_str(tab_level = tab_level)
         precision_str = "" if not display_precision else "[%s]" % str(self.get_storage_precision())
         custom_str = custom_callback(self)
+        # TODO: implement display_interval support
         return CodeConfiguration.tab * tab_level + custom_str + "%s[%s]%s%s%s\n" % (
             self.str_name,
             "][".join([str(dim) for dim in self.dimensions]),
