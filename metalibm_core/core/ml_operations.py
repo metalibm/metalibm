@@ -475,13 +475,16 @@ class AbstractOperation(ML_Operation):
         return self.get_str(display_precision=True)
 
 
-    def get_str_descriptor(self, display_precision=True, display_id=False, display_attribute=False, tab_level=0):
+    def get_str_descriptor(self, display_precision=True, display_id=False,
+                           display_attribute=False, tab_level=0,
+                           display_interval=False):
         precision_str = "" if not display_precision else "[%s]" % str(self.get_precision())
         silent_str = "[S]" if self.get_silent() else ""
         dbg_str = "[DBG]" if self.get_debug() else ""
         id_str     = ("[id=%x]" % id(self)) if display_id else ""
+        interval_str = "" if not display_interval else "[I={}]".format(self.get_interval())
         attribute_str = "" if not display_attribute else self.attributes.get_str(tab_leve=tab_level)
-        return precision_str + silent_str + dbg_str + id_str + attribute_str
+        return precision_str + silent_str + interval_str + dbg_str + id_str + attribute_str
 
     ## string conversion
     #  @param  depth [integer/None] node depth where the display recursion stops
@@ -498,6 +501,7 @@ class AbstractOperation(ML_Operation):
             tab_level = 0, memoization_map = None,
             display_attribute = False, display_id = False,
             custom_callback = lambda op: "",
+            display_interval=False,
         ):
         memoization_map = {} if memoization_map is None else memoization_map
         new_depth = None
@@ -510,7 +514,7 @@ class AbstractOperation(ML_Operation):
         if self in memoization_map:
             return tab_str + "%s\n" % memoization_map[self]
         str_tag = self.get_tag() if self.get_tag() else ("tag_%d" % len(memoization_map))
-        desc_str = self.get_str_descriptor(display_precision, display_id, display_attribute, tab_level)
+        desc_str = self.get_str_descriptor(display_precision, display_id, display_attribute, tab_level, display_interval=display_interval)
         memoization_map[self] = str_tag
 
         return tab_str + "{name}{desc} -------> {tag}\n{args}".format(
@@ -524,7 +528,8 @@ class AbstractOperation(ML_Operation):
                     memoization_map=memoization_map,
                     display_attribute=display_attribute,
                     display_id=display_id,
-                    custom_callback=custom_callback
+                    custom_callback=custom_callback,
+                    display_interval=display_interval
                 ) for inp in self.inputs)
         )
 
@@ -567,8 +572,6 @@ class ML_ArithmeticOperation(AbstractOperation):
     """ init function for abstract operation """
     AbstractOperation.__init__(self, **init_map)
     self.inputs = tuple(implicit_op(op) for op in ops)
-    if self.get_interval() == None:
-        self.set_interval(self.range_function(self.inputs))
 
 ## Parent for AbstractOperation with no expected input
 class ML_LeafNode(AbstractOperation):
@@ -582,6 +585,7 @@ class EmptyOperand(ML_LeafNode):
             tab_level = 0, memoization_map = None, 
             display_attribute = False, display_id = False,
             custom_callback = lambda op: "",
+            display_interval=False,
         ):
         memoization_map = {} if memoization_map is None else memoization_map
         precision_str = "" if not display_precision else "[%s]" % str(self.get_precision())
@@ -638,10 +642,11 @@ class Constant(ML_LeafNode):
         self.value = new_value
 
     def get_str(
-            self, depth = None, display_precision = False, 
-            tab_level = 0, memoization_map = None, 
+            self, depth = None, display_precision = False,
+            tab_level = 0, memoization_map = None,
             display_attribute = False, display_id = False,
             custom_callback = lambda op: "",
+            display_interval=False,
         ):
         memoization_map = {} if memoization_map is None else memoization_map
         precision_str = "" if not display_precision else "[%s]" % str(self.get_precision())
@@ -705,16 +710,19 @@ class AbstractVariable(ML_LeafNode):
 
     ## generate string description of the Variable node
     def get_str(
-            self, depth = None, display_precision = False, tab_level = 0, 
+            self, depth = None, display_precision = False, tab_level = 0,
             memoization_map = None, display_attribute = False, display_id = False,
-            custom_callback = lambda op: ""
+            custom_callback = lambda op: "",
+            display_interval=False
         ):
         memoization_map = {} if memoization_map is None else memoization_map
 
         precision_str = "" if not display_precision else "[%s]" % str(self.get_precision())
         attribute_str = "" if not display_attribute else self.attributes.get_str(tab_level = tab_level)
         id_str        = ("[id=%x]" % id(self)) if display_id else ""
-        return AbstractOperation.str_del * tab_level + custom_callback(self) + "Var(%s)%s%s%s\n" % (self.get_tag(), precision_str, attribute_str, id_str)
+        interval_str = "" if not display_interval else "[I={}]".format(self.get_interval())
+        descriptor_str = precision_str + interval_str + attribute_str + id_str
+        return AbstractOperation.str_del * tab_level + custom_callback(self) + "Var(%s)%s\n" % (self.get_tag(), descriptor_str)
 
 
     def copy(self, copy_map=None):
@@ -799,8 +807,6 @@ def AbstractOperation_init(self, *ops, **init_map):
   """ init function for abstract operation """
   AbstractOperation.__init__(self, **init_map)
   self.inputs = tuple(implicit_op(op) for op in ops)
-  if self.get_interval() == None:
-      self.set_interval(self.range_function(self.inputs))
 
 class GeneralOperation(AbstractOperation):
     arity = 2
@@ -811,8 +817,6 @@ class GeneralOperation(AbstractOperation):
     def __init__(self, *ops, **init_map):
         AbstractOperation.__init__(self, **init_map)
         self.inputs = tuple(implicit_op(op) for op in ops)
-        if self.get_interval() == None:
-            self.set_interval(self.range_function(self.inputs))
     def get_codegen_key(self):
         return None
     def copy(self, copy_map=None):
@@ -1940,9 +1944,10 @@ class FunctionType(object):
 
 class FunctionObject(object):
     """ Object to wrap a function """
-    def __init__(self, name, arg_list_precision, output_format, generator_object, attributes=None):
+    def __init__(self, name, arg_list_precision, output_format, generator_object, attributes=None, range_function=None):
         self.function_type = FunctionType(name, arg_list_precision, output_format, attributes)
         self.generator_object = generator_object
+        self.range_function = range_function
 
     @property
     def name(self):
@@ -1987,13 +1992,16 @@ class FunctionObject(object):
     def get_function_name(self):
         return self.name
 
+    def evaluate_range(self, ops):
+        return self.range_function(*ops)
+
 
 class FunctionCall(GeneralOperation):
     name = "FunctionCall"
     def __init__(self, function_object, *args, **kwords):
-        GeneralOperation.__init__(self, *args, **kwords)
-        self.arity = len(args)
         self.function_object = function_object
+        self.arity = len(args)
+        GeneralOperation.__init__(self, *args, **kwords)
 
     def get_precision(self):
         return self.function_object.get_precision()
@@ -2003,6 +2011,11 @@ class FunctionCall(GeneralOperation):
 
     def get_name(self):
       return "FunctionCall to %s" % self.get_function_object().get_function_name()
+
+    def bare_range_function(self, ops):
+        result =  self.get_function_object().evaluate_range(ops)
+        print("{}({}) = {} ".format(self.function_object.name, ops, result))
+        return result
 
     @staticmethod
     def propagate_format_to_cst(optree):
