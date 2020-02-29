@@ -81,7 +81,11 @@ def evaluate_range(optree, update_interval=False):
                 evaluate_range(op, update_interval=update_interval) for op in
                 optree.get_inputs()
             )
-            op_range = optree.apply_bare_range_function(args_interval)
+            args_interval_map = {op: op_interval for op, op_interval in zip(optree.inputs, args_interval)} 
+            # evaluate_range cannot rely on bare_range_function only as some
+            # operations (e.g. CountLeadingZeros) do not base interval computation
+            # on their inputs' intervals but on other parameters
+            op_range = optree.range_function(optree.inputs, ops_interval_getter=lambda op: args_interval_map[op])
             if update_interval: optree.set_interval(op_range)
             return op_range
 

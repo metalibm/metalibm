@@ -780,13 +780,16 @@ def interval_check(lrange):
     else:
         raise InvalidInterval()
 
+def default_op_interval_getter(node):
+    return node.get_interval()
+
 ## Extend interval verification to a list of operands
 #  an interval is extract from each operand and checked for validity
 #  if all intervals are valid, @p interval_op is applied and a 
 #  resulting interval is returned
-def interval_wrapper(self, interval_op, ops):
+def interval_wrapper(self, interval_op, ops, ops_interval_getter=default_op_interval_getter):
     try:
-        return interval_op(self, tuple(interval_check(op.get_interval()) for op in ops))
+        return interval_op(self, tuple(interval_check(ops_interval_getter(op)) for op in ops))
     except InvalidInterval:
         return None
 
@@ -795,10 +798,17 @@ def interval_wrapper(self, interval_op, ops):
 #  to an object method which inputs operations trees
 def interval_func(interval_op):
     """ interval function builder for multi-arity interval operation """
+
+    def range_function_None(node, ops, ops_interval_getter=default_op_interval_getter):
+        return None
+
+    def range_function_wrapper(node, ops, ops_interval_getter=default_op_interval_getter): 
+        return interval_wrapper(node, interval_op, ops, ops_interval_getter)
+
     if interval_op == None:
-        return lambda self, ops: None
+        return range_function_None
     else:
-        return lambda self, ops: interval_wrapper(self, interval_op, ops)
+        return range_function_wrapper
 
 def AbstractOperation_get_codegen_key(self):
     return None
@@ -840,11 +850,11 @@ class ControlFlowOperation(GeneralOperation):
 
 
 class GeneralArithmeticOperation(ML_ArithmeticOperation, GeneralOperation):
-    def range_function(self, ops):
+    def range_function(self, ops, ops_interval_getter=lambda op: op.get_interval()):
         """ Generic wrapper for node range evaluation """
         try:
             return self.bare_range_function(
-                tuple(interval_check(op.get_interval()) for op in ops)
+                tuple(interval_check(ops_interval_getter(op)) for op in ops)
             )
         except InvalidInterval:
             return None
@@ -1263,8 +1273,10 @@ class Select(GeneralArithmeticOperation):
     """ Ternary operator """
     name = "Select"
     arity = 3
-    def bare_range_function(self, ops):
-        return safe(interval_union)(ops[1], ops[2])
+    def range_function(self, ops, ops_interval_getter=default_op_interval_getter):
+        # we can not rely on bare_range_function as range evaluation for ops[0]
+        # may throw an exception
+        return safe(interval_union)(ops_interval_getter(ops[1]), ops_interval_getter(ops[2]))
 
 
 ## Computes the maximum of its 2 operands
@@ -1441,7 +1453,7 @@ class CountLeadingZeros(GeneralArithmeticOperation):
     name = "CountLeadingZeros"
     arity = 1
 
-    def range_function(self, ops):
+    def range_function(self, ops, ops_interval_getter=None):
         op = ops[0]
         if op.get_precision() is None:
             return None
@@ -2080,7 +2092,8 @@ class SwitchBlock(ControlFlowOperation):
             self, depth = 2, display_precision = False,
             tab_level = 0, memoization_map = None,
             display_attribute = False, display_id = False,
-            custom_callback = lambda optree: ""
+            custom_callback = lambda optree: "",
+            display_interval=False
         ):
         """ string conversion for operation graph
             depth:                  number of level to be crossed (None: infty)
