@@ -85,10 +85,8 @@ class ML_UT_SpecialValue(TestRunner):
             ]
             for lhs, op, rhs, expected in TEST_CASE:
                 result = op_map[op](lhs, rhs)
-                print( "{} {} {} = ".format(lhs, op, rhs))
-                print("{} vs expected {} ".format(result, expected))
-                assert result == expected, "test failure"
-        print("Test success")
+                assert result == expected, "failure: {} {} {} = {} vs expected {} ".format(lhs, op, rhsresult, expected)
+        return True
 
 # principal test runner
 run_test = ML_UT_SpecialValue
