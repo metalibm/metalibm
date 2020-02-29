@@ -58,6 +58,8 @@ from metalibm_core.utility.arg_utils import test_flag_option, extract_option_val
 
 from metalibm_core.utility.debug_utils import *
 
+from metalibm_core.opt.opt_utils import evaluate_range
+
 class ML_UT_ImplicitIntervalEval(ML_Function("ml_ut_implicit_interval_eval")):
   def __init__(self, args=DefaultArgTemplate):
     # initializing base class
@@ -103,6 +105,11 @@ class ML_UT_ImplicitIntervalEval(ML_Function("ml_ut_implicit_interval_eval")):
 
     r_interval = vx_interval + cst_interval * vx_interval  + shl_interval - cst_interval
     expected_interval[r] = r_interval
+
+    
+    # NOTES: implicit interval eval is no longer enforced: explicit call
+    # to evaluate_range is required
+    evaluate_range(r, update_interval=True)
 
     for var in [vx, cst, r, shl]:
         if var.get_interval() != expected_interval[var]:
