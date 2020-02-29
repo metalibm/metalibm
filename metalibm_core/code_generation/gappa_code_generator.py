@@ -443,7 +443,10 @@ class GappaCodeGenerator(object):
 
         if register_bound_hypothesis:
             for v in bound_list:
-                self.add_hypothesis(gappa_code, variable_copy_map[v], variable_copy_map[v].get_interval())
+                v_interval = variable_copy_map[v].get_interval()
+                if v_interval is None:
+                    Log.report(Log.Error, "node {} has not defined interval in gappa get_interval_code", v)
+                self.add_hypothesis(gappa_code, variable_copy_map[v], v_interval)
 
         return gappa_code
 
