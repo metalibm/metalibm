@@ -98,7 +98,7 @@ class ML_SoftMax(ML_ArrayFunction):
             "precision": ML_Binary32,
             "accuracy": ML_Faithful,
             "use_libm_function": False,
-            "target": GenericProcessor()
+            "target": GenericProcessor.get_target_instance()
         }
         default_args_exp.update(kw)
         return DefaultArrayFunctionArgTemplate(**default_args_exp)

@@ -75,7 +75,7 @@ class ML_FastSinCos(ML_FunctionBasis):
                debug_flag = False, 
                fuse_fma = True, 
                fast_path_extract = True,
-               processor = GenericProcessor(), 
+               processor = GenericProcessor.get_target_instance(), 
                output_file = "cosf.c", 
                function_name = "cosf", 
                input_interval = Interval(0, 1),

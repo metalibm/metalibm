@@ -73,7 +73,7 @@ class ML_UT_OpenCLCode(ML_FunctionBasis):
         "output_file": "ut_opencl_code.c",
         "function_name": "ut_opencl_code",
         "precision": ML_Binary32,
-        "target": VectorBackend(),
+        "target": VectorBackend.get_target_instance(),
         "vector_size": 2,
         "language": C_Code,
         "fast_path_extract": True,

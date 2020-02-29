@@ -68,7 +68,7 @@ class ML_Log(ML_Function("ml_log")):
         "function_name": "my_log",
         "precision": ML_Binary32,
         "accuracy": ML_Faithful,
-        "target": GenericProcessor()
+        "target": GenericProcessor.get_target_instance()
     }
     default_args_log.update(kw)
     return DefaultArgTemplate(**default_args_log)

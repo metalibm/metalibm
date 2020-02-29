@@ -63,7 +63,7 @@ class ML_UT_FuseFMA(ML_FunctionBasis):
     default_args = {
         "output_file": "ut_fuse_fma.c",
         "function_name": "ut_fuse_fma",
-        "target": GenericProcessor(),
+        "target": GenericProcessor.get_target_instance(),
         "fast_path_extract": True,
         "fuse_fma": True,
         "libm_compliant": True,

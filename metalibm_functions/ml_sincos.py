@@ -85,7 +85,7 @@ class ML_SinCos(ScalarUnaryFunction):
             "function_name": "my_sincos",
             "precision": ML_Binary32,
             "accuracy": ML_Faithful,
-            "target": GenericProcessor(),
+            "target": GenericProcessor.get_target_instance(),
             "sin_output": False
         }
         default_args_sincos.update(kw)

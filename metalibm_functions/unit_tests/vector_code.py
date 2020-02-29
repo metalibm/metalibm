@@ -70,7 +70,7 @@ class ML_UT_VectorCode(ML_Function("ml_ut_vector_code")):
         "output_file": "ut_vector_code.c",
         "function_name": "ut_vector_code",
         "precision": ML_Binary32,
-        "target": VectorBackend(),
+        "target": VectorBackend.get_target_instance(),
         "passes": ["beforecodegen:virtual_vector_bool_legalization", "beforecodegen:vector_mask_test_legalization"],
         "fast_path_extract": True,
         "fuse_fma": True,

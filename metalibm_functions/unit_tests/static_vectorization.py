@@ -70,7 +70,7 @@ class ML_UT_StaticVectorization(ML_FunctionBasis, TestRunner):
         "output_file": "ut_static_vectorization.c",
         "function_name": "ut_static_vectorization",
         "precision": ML_Binary32,
-        "target": VectorBackend(),
+        "target": VectorBackend.get_target_instance(),
         "passes": ["beforecodegen:virtual_vector_bool_legalization", "beforecodegen:vector_mask_test_legalization"],
         "fast_path_extract": True,
         "fuse_fma": True,

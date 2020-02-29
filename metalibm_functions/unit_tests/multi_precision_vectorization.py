@@ -76,7 +76,7 @@ class ML_UT_MultiPrecisionVectorization(ML_FunctionBasis, TestRunner):
                 "output_file": "ut_mp_vectorization.c",
                 "function_name": "ut_mp_vectorization",
                 "precision": ML_DoubleDouble,
-                "target": GenericProcessor(),
+                "target": GenericProcessor.get_target_instance(),
                 "fast_path_extract": True,
                 "fuse_fma": True,
                 "passes": ["start:basic_legalization", "start:expand_multi_precision"],

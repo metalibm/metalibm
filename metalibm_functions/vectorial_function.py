@@ -159,7 +159,7 @@ class ML_VectorialFunction(ML_ArrayFunction):
             "multi_elt_num": 1,
             "precision": ML_Binary32,
             "accuracy": ML_Faithful,
-            "target": GenericProcessor()
+            "target": GenericProcessor.get_target_instance()
         }
         default_args_exp.update(kw)
         return DefaultArrayFunctionArgTemplate(**default_args_exp)

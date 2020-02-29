@@ -35,7 +35,7 @@
 
 from metalibm_core.utility.log_report import Log
 
-from metalibm_core.core.target import TargetRegister
+from metalibm_core.core.target import UniqueTargetDecorator
 from metalibm_core.core.ml_formats import *
 from metalibm_core.core.ml_table import ML_TableFormat, ML_Pointer_Format
 from metalibm_core.core.ml_operations import *
@@ -1688,9 +1688,9 @@ vector_c_code_generation_table = {
 vector_gappa_code_generation_table = {
 }
 
+@UniqueTargetDecorator
 class VectorBackend(GenericProcessor):
   target_name = "vector"
-  TargetRegister.register_new_target(target_name, lambda _: VectorBackend)
 
   code_generation_table = {
     C_Code: vector_c_code_generation_table,

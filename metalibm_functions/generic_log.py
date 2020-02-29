@@ -80,7 +80,7 @@ class ML_GenericLog(ScalarUnaryFunction):
             "function_name": "ml_genlog",
             "precision": ML_Binary32,
             "accuracy": ML_Faithful,
-            "target": GenericProcessor(),
+            "target": GenericProcessor.get_target_instance(),
             "basis": exp(1),
         }
         default_args_log.update(kw)

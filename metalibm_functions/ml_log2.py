@@ -70,7 +70,7 @@ class ML_Log2(ML_Function("ml_log2")):
         "function_name": "my_log2f",
         "precision": ML_Binary32,
         "accuracy": ML_Faithful,
-        "target": GenericProcessor()
+        "target": GenericProcessor.get_target_instance()
     }
     default_args_log2.update(kw)
     return DefaultArgTemplate(**default_args_log2)

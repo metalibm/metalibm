@@ -73,7 +73,7 @@ class ML_UT_Accuracies(ML_Function("ml_ut_accuracies")):
             "output_file": "ut_accuracies.c",
             "function_name": "ut_accuracies",
             "precision": ML_Binary32,
-            "target": GenericProcessor(),
+            "target": GenericProcessor.get_target_instance(),
             "fast_path_extract": True,
             "fuse_fma": True,
             "debug": True,

@@ -77,7 +77,7 @@ class ML_Atan(ML_Function("atan")):
         "function_name": "my_atan",
         "precision": ML_Binary32,
         "accuracy": ML_Faithful,
-        "target": GenericProcessor()
+        "target": GenericProcessor.get_target_instance()
     }
     default_args_exp.update(kw)
     return DefaultArgTemplate(**default_args_exp)

@@ -73,7 +73,7 @@ class ML_UT_CallExternaliation(ML_Function("ml_ut_call_externalization")):
         "output_file": "ut_call_externalization.c",
         "function_name": "ut_call_externalization",
         "precision": ML_Binary32,
-        "target": FixedPointBackend(),
+        "target": FixedPointBackend.get_target_instance(),
         "fast_path_extract": True,
         "fuse_fma": True,
         "libm_compliant": True

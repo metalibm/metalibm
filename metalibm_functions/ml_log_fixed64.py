@@ -63,7 +63,7 @@ class ML_Log(ML_Function("ml_log")):
                debug_flag = False, 
                fuse_fma = True, 
                fast_path_extract = True,
-               target = GenericProcessor(), 
+               target = GenericProcessor.get_target_instance(), 
                output_file = "log_fixed.c", 
                function_name = "log_fixed"):
     # initializing I/O precision

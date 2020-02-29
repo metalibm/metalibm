@@ -79,7 +79,7 @@ class ML_Cbrt(ML_FunctionBasis):
                 "function_name": "my_cbrt",
                 "precision": ML_Binary32,
                 "accuracy": ML_Faithful,
-                "target": GenericProcessor()
+                "target": GenericProcessor.get_target_instance()
         }
         default_args_cbrt.update(kw)
         return DefaultArgTemplate(**default_args_cbrt)

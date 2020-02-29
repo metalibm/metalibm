@@ -76,7 +76,7 @@ class ML_UT_MultiPrecision(ML_FunctionBasis, TestRunner):
                 "output_file": "ut_multi_precision.c",
                 "function_name": "ut_multi_precision",
                 "precision": ML_Binary32,
-                "target": GenericProcessor(),
+                "target": GenericProcessor.get_target_instance(),
                 "language": C_Code,
                 "arity": 2,
                 "input_precisions": [ML_Binary32, ML_Binary32],

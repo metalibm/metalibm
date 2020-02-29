@@ -83,8 +83,8 @@ except ImportError:
     k1b = None
 
 # target instanciation
-x86_processor = X86_Processor()
-x86_avx2_processor = X86_AVX2_Processor()
+x86_processor = X86_Processor.get_target_instance()
+x86_avx2_processor = X86_AVX2_Processor.get_target_instance()
 avx2_pass_m128_promotion = Pass_M128_Promotion(x86_avx2_processor)
 avx2_pass_m256_promotion = Pass_M256_Promotion(x86_avx2_processor)
 
@@ -104,9 +104,9 @@ new_scheme_function_list = [
     "vector hyperbolic cosine gen test",
     metalibm_functions.ml_cosh.ML_HyperbolicCosine,
     [{"precision": ML_Binary32, "vector_size": 4, "auto_test": 128,
-      "execute_trigger": True, "target": VectorBackend(),  "passes": ["beforecodegen:virtual_vector_bool_legalization", "beforecodegen:vector_mask_test_legalization"]},
+      "execute_trigger": True, "target": VectorBackend.get_target_instance(),  "passes": ["beforecodegen:virtual_vector_bool_legalization", "beforecodegen:vector_mask_test_legalization"]},
     {"precision": ML_Binary32, "vector_size": 8, "auto_test": 128,
-    "execute_trigger": True, "target": VectorBackend(),  "passes": ["beforecodegen:virtual_vector_bool_legalization", "beforecodegen:vector_mask_test_legalization"]},
+    "execute_trigger": True, "target": VectorBackend.get_target_instance(),  "passes": ["beforecodegen:virtual_vector_bool_legalization", "beforecodegen:vector_mask_test_legalization"]},
      ]
   ),
   NewSchemeTest(
@@ -280,7 +280,7 @@ new_scheme_function_list = [
     "vector exp test",
     metalibm_functions.ml_exp.ML_Exponential,
     [
-        {"precision": ML_Binary32, "vector_size": 2, "target": VectorBackend(),
+        {"precision": ML_Binary32, "vector_size": 2, "target": VectorBackend.get_target_instance(),
          "passes": ["beforecodegen:virtual_vector_bool_legalization", "beforecodegen:vector_mask_test_legalization"]
         },
     ]
@@ -318,8 +318,8 @@ new_scheme_function_list = [
     [
         {"precision": ML_Binary32, "auto_test": 10, "execute_trigger": True,  "passes": ["beforecodegen:virtual_vector_bool_legalization", "beforecodegen:vector_mask_test_legalization"]},
         {"precision": ML_Binary32, "use_libm_function": "expf", "auto_test": 10, "execute_trigger": True, "passes": ["beforecodegen:virtual_vector_bool_legalization", "beforecodegen:vector_mask_test_legalization"]},
-        {"precision": ML_Binary32, "multi_elt_num": 4, "target": VectorBackend(), "auto_test": 10, "index_test_range": [16, 32], "execute_trigger": True,  "passes": ["beforecodegen:virtual_vector_bool_legalization", "beforecodegen:vector_mask_test_legalization"]},
-        {"precision": ML_Binary64, "multi_elt_num": 4, "target": VectorBackend(), "auto_test": 10,  "index_test_range": [16, 32], "execute_trigger": True, "expected_to_fail": True,  "passes": ["beforecodegen:virtual_vector_bool_legalization", "beforecodegen:vector_mask_test_legalization"]},
+        {"precision": ML_Binary32, "multi_elt_num": 4, "target": VectorBackend.get_target_instance(), "auto_test": 10, "index_test_range": [16, 32], "execute_trigger": True,  "passes": ["beforecodegen:virtual_vector_bool_legalization", "beforecodegen:vector_mask_test_legalization"]},
+        {"precision": ML_Binary64, "multi_elt_num": 4, "target": VectorBackend.get_target_instance(), "auto_test": 10,  "index_test_range": [16, 32], "execute_trigger": True, "expected_to_fail": True,  "passes": ["beforecodegen:virtual_vector_bool_legalization", "beforecodegen:vector_mask_test_legalization"]},
     ],
   ),
 ]

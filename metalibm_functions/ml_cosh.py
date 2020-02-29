@@ -76,7 +76,7 @@ class ML_HyperbolicCosine(ScalarUnaryFunction):
     default_cosh_args = {
         "precision": ML_Binary32,
         "accuracy": ML_Faithful,
-        "target": GenericProcessor(),
+        "target": GenericProcessor.get_target_instance(),
         "output_file": "my_cosh.c",
         "function_name": "my_cosh",
         "language": C_Code,

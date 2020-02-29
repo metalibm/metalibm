@@ -77,7 +77,7 @@ class ML_UT_ErrorEval(ML_FunctionBasis, TestRunner):
             "output_file": "ut_eval_error.c",
             "function_name": "ut_eval_error",
             "precision": FIXED_FORMAT,
-            "target": GenericProcessor(),
+            "target": GenericProcessor.get_target_instance(),
             "fast_path_extract": True,
             "fuse_fma": True,
             "debug": True,

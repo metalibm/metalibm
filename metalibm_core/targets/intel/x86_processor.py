@@ -38,7 +38,7 @@ from metalibm_core.code_generation.complex_generator import ComplexOperator
 from metalibm_core.core.ml_formats import *
 from metalibm_core.core.ml_complex_formats import ML_Pointer_Format
 from metalibm_core.core.ml_operations import *
-from metalibm_core.core.target import TargetRegister
+from metalibm_core.core.target import UniqueTargetDecorator
 from metalibm_core.core.ml_table import ML_TableFormat
 from metalibm_core.utility.debug_utils import ML_Debug
 from metalibm_core.core.special_values import (FP_PlusZero, FP_MinusZero)
@@ -2742,17 +2742,16 @@ x86_c_code_generation_table = {
 }
 
 
+@UniqueTargetDecorator
 class X86_Processor(VectorBackend):
     target_name = "x86"
-    TargetRegister.register_new_target(target_name,
-                                       lambda _: X86_Processor)
 
     code_generation_table = {
         C_Code: x86_c_code_generation_table,
     }
 
     def __init__(self):
-        VectorBackend.__init__(self)
+        super().__init__()
 
     def get_current_timestamp(self):
         return SpecificOperation(
@@ -2761,10 +2760,9 @@ class X86_Processor(VectorBackend):
                 )
 
 
+@UniqueTargetDecorator
 class X86_SSE_Processor(X86_Processor):
     target_name = "x86_sse"
-    TargetRegister.register_new_target(target_name,
-                                       lambda _: X86_SSE_Processor)
 
     code_generation_table = {
         C_Code: sse_c_code_generation_table,
@@ -2782,7 +2780,7 @@ class X86_SSE_Processor(X86_Processor):
 
 
     def __init__(self):
-        super(X86_SSE_Processor, self).__init__()
+        super().__init__()
 
     def get_compilation_options(self):
         return super(X86_SSE_Processor, self).get_compilation_options() \
@@ -2799,27 +2797,25 @@ class X86_SSE_Processor(X86_Processor):
             )
 
 
+@UniqueTargetDecorator
 class X86_SSE2_Processor(X86_SSE_Processor):
     target_name = "x86_sse2"
-    TargetRegister.register_new_target(target_name,
-                                       lambda _: X86_SSE2_Processor)
 
     code_generation_table = {
         C_Code: sse2_c_code_generation_table,
     }
 
     def __init__(self):
-        super(X86_SSE2_Processor, self).__init__()
+        super().__init__()
 
     def get_compilation_options(self):
         return super(X86_SSE2_Processor, self).get_compilation_options() \
                 + ['-msse2']
 
 
+@UniqueTargetDecorator
 class X86_SSE3_Processor(X86_SSE2_Processor):
     target_name = "x86_sse3"
-    TargetRegister.register_new_target(target_name,
-                                       lambda _: X86_SSE3_Processor)
 
     code_generation_table = {
         C_Code: sse3_c_code_generation_table,
@@ -2830,61 +2826,57 @@ class X86_SSE3_Processor(X86_SSE2_Processor):
                 + ['-msse3']
 
 
+@UniqueTargetDecorator
 class X86_SSSE3_Processor(X86_SSE3_Processor):
     target_name = "x86_ssse3"
-    TargetRegister.register_new_target(target_name,
-                                       lambda _: X86_SSSE3_Processor)
 
     code_generation_table = {
         C_Code: ssse3_c_code_generation_table,
     }
 
     def __init__(self):
-        super(X86_SSSE3_Processor, self).__init__()
+        super().__init__()
 
     def get_compilation_options(self):
       return super(X86_SSSE3_Processor, self).get_compilation_options() \
               + ['-mssse3']
 
 
+@UniqueTargetDecorator
 class X86_SSE41_Processor(X86_SSSE3_Processor):
     target_name = "x86_sse41"
-    TargetRegister.register_new_target(target_name,
-                                       lambda _: X86_SSE41_Processor)
 
     code_generation_table = {
         C_Code: sse41_c_code_generation_table,
     }
 
     def __init__(self):
-        super(X86_SSE41_Processor, self).__init__()
+        super().__init__()
 
     def get_compilation_options(self):
         return super(X86_SSE41_Processor, self).get_compilation_options() \
                 + ['-msse4.1']
 
 
+@UniqueTargetDecorator
 class X86_SSE42_Processor(X86_SSE41_Processor):
     target_name = "x86_sse42"
-    TargetRegister.register_new_target(target_name,
-                                       lambda _: X86_SSE42_Processor)
 
     code_generation_table = {
         C_Code: sse42_c_code_generation_table,
     }
 
     def __init__(self):
-        super(X86_SSE42_Processor, self).__init__()
+        super().__init__()
 
     def get_compilation_options(self):
         return super(X86_SSE42_Processor, self).get_compilation_options() \
                 + ['-msse4.2']
 
 
+@UniqueTargetDecorator
 class X86_AVX_Processor(X86_SSE42_Processor):
     target_name = "x86_avx"
-    TargetRegister.register_new_target(target_name,
-                                       lambda _: X86_AVX_Processor)
 
     code_generation_table = {
         C_Code: avx_c_code_generation_table,
@@ -2897,25 +2889,23 @@ class X86_AVX_Processor(X86_SSE42_Processor):
     }
 
     def __init__(self):
-        super(X86_AVX_Processor, self).__init__()
+        super().__init__()
 
     def get_compilation_options(self):
         return super(X86_AVX_Processor, self).get_compilation_options() \
                 + ['-mavx']
 
 
-
+@UniqueTargetDecorator
 class X86_AVX2_Processor(X86_AVX_Processor):
     target_name = "x86_avx2"
-    TargetRegister.register_new_target(target_name,
-                                       lambda _: X86_AVX2_Processor)
 
     code_generation_table = {
         C_Code: avx2_c_code_generation_table,
     }
 
     def __init__(self):
-        super(X86_AVX2_Processor, self).__init__()
+        super().__init__()
 
     def get_compilation_options(self):
       return super(X86_AVX2_Processor, self).get_compilation_options() \

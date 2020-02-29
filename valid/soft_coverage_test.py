@@ -315,10 +315,10 @@ def generate_pretty_report(filename, test_list, test_summary, evolution_map):
 global_test_list = []
 
 # instantiating target objects
-X86_AVX2 = X86_AVX2_Processor()
-GENERIC_PROCESSOR = GenericProcessor()
-X86_PROCESSOR = X86_Processor()
-VECTOR_BACKEND = VectorBackend()
+X86_AVX2 = X86_AVX2_Processor.get_target_instance()
+GENERIC_PROCESSOR = GenericProcessor.get_target_instance()
+X86_PROCESSOR = X86_Processor.get_target_instance()
+VECTOR_BACKEND = VectorBackend.get_target_instance()
 
 TARGET_OPTIONS_MAP = {
     GENERIC_PROCESSOR: {},

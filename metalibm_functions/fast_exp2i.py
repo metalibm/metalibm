@@ -62,7 +62,7 @@ class ML_FastExpi(object):
                  debug_flag = False, 
                  fuse_fma = True, 
                  fast_path_extract = True,
-                 target = GenericProcessor(), 
+                 target = GenericProcessor.get_target_instance(), 
                  output_file = "fast_expi.c", 
                  function_name = "fast_expi"):
         # declaring CodeFunction and retrieving input variable

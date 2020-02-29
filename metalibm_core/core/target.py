@@ -31,7 +31,13 @@
 # author(s): Nicolas Brunie (nicolas.brunie@kalray.eu)
 ###############################################################################
 
+def UniqueTargetDecorator(cls):
+    """ decorator to build a unique target object """
 
+    TargetSingletonRegistryFactory = lambda _: cls
+    TargetRegister.register_new_target(cls.target_name, TargetSingletonRegistryFactory)
+
+    return cls
 
 class TargetRegister(object):
     """ target register """

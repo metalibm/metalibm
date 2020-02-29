@@ -330,7 +330,7 @@ class ML_Division(ML_FunctionBasis):
         default_div_args = {
             "precision": ML_Binary32,
             "accuracy": ML_CorrectlyRounded,
-            "target": GenericProcessor(),
+            "target": GenericProcessor.get_target_instance(),
             "output_file": "my_div.c",
             "function_name": "my_div",
             "language": C_Code,

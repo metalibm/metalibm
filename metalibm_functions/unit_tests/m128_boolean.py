@@ -65,7 +65,7 @@ class ML_UT_M128Boolean(ML_Function("ml_ut_m128_boolean")):
         "output_file": "ut_m128_boolean.c",
         "function_name": "ut_m128_boolean",
         "precision": ML_Int32,
-        "target": X86_AVX2_Processor(),
+        "target": X86_AVX2_Processor.get_target_instance(),
         "fast_path_extract": True,
         "fuse_fma": True,
         "libm_compliant": True,

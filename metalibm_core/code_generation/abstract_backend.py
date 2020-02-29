@@ -40,6 +40,8 @@ from .code_constant import C_Code
 
 LOG_BACKEND_INIT = Log.LogLevel(Log.Info, "backend_init")
 
+TARGET_INSTANCE_MAP = {}
+
 ## abstract backend class
 class AbstractBackend(object):
     """ base abstract processor """
@@ -54,11 +56,20 @@ class AbstractBackend(object):
     def __init__(self, *args):
         # create ordered list of parent architecture instances
         parent_class_list = get_parent_proc_class_list(self.__class__)
-        self.parent_architecture = [parent(*args) for parent in create_proc_hierarchy(parent_class_list, [])]
+        self.parent_architecture = [parent.get_target_instance(*args) for parent in create_proc_hierarchy(parent_class_list, [])]
 
         # create simplified of operation supported by the processor hierarchy
         self.simplified_rec_op_map = {}
         self.simplified_rec_op_map[C_Code] = self.generate_supported_op_map(language = C_Code)
+
+    @classmethod
+    def get_target_instance(TargetClass, *args, **kw):
+        if TargetClass in TARGET_INSTANCE_MAP:
+            return TARGET_INSTANCE_MAP[TargetClass]
+        else:
+            target_instance = TargetClass(*args, **kw)
+            TARGET_INSTANCE_MAP[TargetClass] = target_instance
+            return target_instance
 
     def __str__(self):
         """ Nice description string """

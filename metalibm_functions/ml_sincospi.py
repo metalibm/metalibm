@@ -55,7 +55,7 @@ class ML_SinCospi(ML_Function):
                  output_file = None,
                  io_precision = ML_Binary32, 
                  libm_compliant = True, 
-                 processor = GenericProcessor(), 
+                 processor = GenericProcessor.get_target_instance(), 
                  fuse_fma = True, 
                  fast_path_extract = True,
                  debug_flag = False

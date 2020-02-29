@@ -70,7 +70,7 @@ class ML_ExponentialM1_Red(ScalarUnaryFunction):
         "function_name": "my_expm1",
         "precision": ML_Binary32,
         "accuracy": ML_Faithful,
-        "target": GenericProcessor()
+        "target": GenericProcessor.get_target_instance()
     }
     default_args_expm1.update(kw)
     return DefaultArgTemplate(**default_args_expm1)

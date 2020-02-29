@@ -63,7 +63,7 @@ class ML_Logarithm(object):
                  debug_flag = False,
                  fuse_fma = True,
                  fast_path_extract = True,
-                 target = GenericProcessor(),
+                 target = GenericProcessor.get_target_instance(),
                  output_file = "log_fixed.c",
                  function_name = "log_fixed"):
         # declaring CodeFunction and retrieving input variable

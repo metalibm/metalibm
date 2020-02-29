@@ -80,7 +80,7 @@ class ML_Erf(ScalarUnaryFunction):
                 "function_name": "my_erf",
                 "precision": ML_Binary32,
                 "accuracy": ML_Faithful,
-                "target": GenericProcessor(),
+                "target": GenericProcessor.get_target_instance(),
                 "passes": [
                     ("start:instantiate_abstract_prec"),
                     ("start:instantiate_prec"),

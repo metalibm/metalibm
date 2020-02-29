@@ -108,7 +108,7 @@ class ML_Isqrt(ML_FunctionBasis):
             "precision": ML_Binary32,
             "accuracy": ML_Faithful,
             "num_iter": 4,
-            "target": GenericProcessor()
+            "target": GenericProcessor.get_target_instance()
         }
         default_args_isqrt.update(kw)
         return DefaultArgTemplate(**default_args_isqrt)

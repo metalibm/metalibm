@@ -44,7 +44,7 @@ from ..core.legalizer import (
     min_legalizer, max_legalizer,
     legalize_reciprocal_seed, legalize_invsqrt_seed,
 )
-from ..core.target import TargetRegister
+from ..core.target import UniqueTargetDecorator
 from ..core.generic_approximation import invsqrt_approx_table, generic_inv_approx_table
 
 from ..core.ml_complex_formats import ML_Pointer_Format
@@ -1050,7 +1050,7 @@ gappa_code_generation_table = {
 
 
 
-@TargetRegister.METALIBM_TARGET_REGISTER
+@UniqueTargetDecorator
 class GenericProcessor(AbstractBackend):
   """ Generic class for instruction selection,
       corresponds to a portable C-implementation """

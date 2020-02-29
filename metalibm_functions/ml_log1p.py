@@ -73,7 +73,7 @@ class ML_Log1p(ML_FunctionBasis):
                 "function_name": "my_log1pf",
                 "precision": ML_Binary32,
                 "accuracy": ML_Faithful,
-                "target": GenericProcessor(),
+                "target": GenericProcessor.get_target_instance(),
                 "passes": [("start:instantiate_abstract_prec"), ("start:instantiate_prec"), ("start:basic_legalization"), ("start:expand_multi_precision")],
         }
         default_args_log1p.update(kw)

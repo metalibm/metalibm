@@ -72,7 +72,7 @@ class ML_UT_LegalizeReciprocalSeed(ML_Function("ml_ut_legalize_rcp")):
             "output_file": "ut_legalize_rcp.c",
             "function_name": "ut_legalize_rcp",
             "precision": ML_Binary32,
-            "target": GenericProcessor(),
+            "target": GenericProcessor.get_target_instance(),
             "fast_path_extract": True,
             "fuse_fma": True,
             "debug": True,

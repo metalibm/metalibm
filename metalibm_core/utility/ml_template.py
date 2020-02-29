@@ -228,7 +228,7 @@ def target_instanciate(target_name):
     """
     target_class = target_parser(target_name)
     try:
-        target_object = target_class()
+        target_object = target_class.get_target_instance()
     except Exception as e:
         exc_type, exc_obj, exc_tb = sys.exc_info()
         fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
@@ -413,7 +413,7 @@ class DefaultArgTemplate:
     libm_compliant = False
     input_interval = Interval(-ml_infty, ml_infty)
     # Optimization parameters
-    target = GenericProcessor()
+    target = GenericProcessor.get_target_instance()
     fuse_fma = False
     fast_path_extract = True
     dot_product_enabled = False

@@ -77,7 +77,7 @@ class ML_ImplementPoly(ML_Function("ml_implementpoly")):
       "output_file": "POLY.c",
       "function_name": "POLY",
       "precision": ML_Binary64,
-      "target": GenericProcessor(),
+      "target": GenericProcessor.get_target_instance(),
       "function": None,
       "interval": None,
       "epsilon": None

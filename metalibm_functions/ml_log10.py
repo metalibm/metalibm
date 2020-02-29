@@ -78,7 +78,7 @@ class ML_Log10(ML_Function("log10")):
         "basis": 10,
         "precision": ML_Binary32,
         "accuracy": ML_Faithful,
-        "target": GenericProcessor()
+        "target": GenericProcessor.get_target_instance()
     }
     default_args_log10.update(kw)
     return DefaultArgTemplate(**default_args_log10)

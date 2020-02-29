@@ -65,7 +65,7 @@ class ML_UT_M128Conversion(ML_Function("ml_ut_m128_conversion")):
         "output_file": "ut_m128_conversion.c",
         "function_name": "ut_m128_conversion",
         "precision": ML_Binary32,
-        "target": X86_AVX2_Processor(),
+        "target": X86_AVX2_Processor.get_target_instance(),
         "fast_path_extract": True,
         "fuse_fma": True,
         "libm_compliant": True,

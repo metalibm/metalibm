@@ -141,7 +141,7 @@ class ML_Log(ML_Function("ml_log")):
         "function_name": "LOG",
         "precision": ML_Binary32,
         "accuracy": ML_Faithful,
-        "target": GenericProcessor(),
+        "target": GenericProcessor.get_target_instance(),
         "cgpe_index": 0,
         "tbl_index_size": 7,
         "no_subnormal": False,

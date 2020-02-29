@@ -64,7 +64,7 @@ class ML_UT_EmbeddedBin(ML_FunctionBasis, TestRunner):
                 builtin from a default argument mapping overloaded with @p kw """
         default_args = {
                 "precision": ML_Int32,
-                "target": GenericProcessor(),
+                "target": GenericProcessor.get_target_instance(),
                 "bench_test_number": 10,
                 "execute_trigger": True,
                 "embedded_bin": False,

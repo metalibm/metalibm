@@ -92,7 +92,7 @@ class ML_Exponential(ScalarUnaryFunction):
             "function_name": "ml_exp",
             "precision": ML_Binary32,
             "accuracy": ML_Faithful,
-            "target": GenericProcessor()
+            "target": GenericProcessor.get_target_instance()
         }
         default_args_exp.update(kw)
         return DefaultArgTemplate(**default_args_exp)

@@ -38,7 +38,7 @@ from ..core.ml_formats import *
 from ..core.ml_complex_formats import ML_Mpfr_t
 from ..core.ml_table import ML_ApproxTable
 from ..core.ml_operations import *
-from metalibm_core.core.target import TargetRegister
+from metalibm_core.core.target import UniqueTargetDecorator
 
 
 from .generic_processor import LibFunctionConstructor, GenericProcessor
@@ -71,13 +71,12 @@ mpfr_c_code_generation_table = {
     },
   },
 }
- 
 
+
+@UniqueTargetDecorator
 class MPFRProcessor(GenericProcessor):
   """ description of MPFR's Backend """
   target_name = "mpfr_backend"
-  TargetRegister.register_new_target(target_name, lambda _: MPFRProcessor)
-
 
   code_generation_table = {
     C_Code: mpfr_c_code_generation_table,
@@ -88,4 +87,4 @@ class MPFRProcessor(GenericProcessor):
     GenericProcessor.__init__(self)
     print("initializing MPFR target")
     tab = self.simplified_rec_op_map[C_Code][Conversion][None]
-      
+

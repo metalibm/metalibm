@@ -57,7 +57,7 @@ class ML_Empty(object):
                  debug_flag = False, 
                  fuse_fma = True, 
                  fast_path_extract = True,
-                 target = GenericProcessor(), 
+                 target = GenericProcessor.get_target_instance(), 
                  output_file = "empty.c", 
                  function_name = "empty"):
         pass

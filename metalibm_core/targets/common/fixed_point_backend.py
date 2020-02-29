@@ -41,7 +41,7 @@ from metalibm_core.core.ml_operations import *
 from metalibm_core.code_generation.abstract_backend import LOG_BACKEND_INIT
 from metalibm_core.code_generation.generic_processor import GenericProcessor
 
-from metalibm_core.core.target import TargetRegister
+from metalibm_core.core.target import UniqueTargetDecorator
 
 from metalibm_core.opt.opt_utils import forward_attributes
 
@@ -349,9 +349,9 @@ fixed_gappa_code_generation_table = {
   },
 }
 
+@UniqueTargetDecorator
 class FixedPointBackend(GenericProcessor):
   target_name = "fixed_point"
-  TargetRegister.register_new_target(target_name, lambda _: FixedPointBackend)
 
   code_generation_table = {
     C_Code: fixed_c_code_generation_table, 

@@ -66,7 +66,7 @@ class ML_Acos(ML_FunctionBasis):
             "function_name": "ml_acos",
             "precision": ML_Binary32,
             "accuracy": ML_Faithful,
-            "target": GenericProcessor()
+            "target": GenericProcessor.get_target_instance()
         }
         default_args_acos.update(kw)
         return DefaultArgTemplate(**default_args_acos)

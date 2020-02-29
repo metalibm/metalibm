@@ -481,7 +481,7 @@ class PassCheckProcessorSupport(FunctionPass):
                         print("languages is {}".format(language))
                         print("Operation' keys are: {}".format(processor.get_operation_keys(optree))) # Error print
                         print("Operation tree is: \n", optree.get_str(display_precision=True, depth=1, display_id=True, memoization_map=None)) # Error print
-                        Log.report(Log.Error, "unsupported operation in PassCheckProcessorSupport's check_processor_support:\n{}", optree)
+                        Log.report(Log.Error, "unsupported operation in PassCheckProcessorSupport's check_processor_support {}:\n{}", processor, optree)
             else:
                 # memoization
                 memoization_map[optree] = True

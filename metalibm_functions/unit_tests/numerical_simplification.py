@@ -82,7 +82,7 @@ class UT_NumericalSimplification(ML_FunctionBasis, TestRunner):
             "passes": ["beforecodegen:dump", "beforecodegen:numerical_simplification", "beforecodegen:dump"],
             "precision": ML_Binary32,
             "accuracy": ML_Faithful,
-            "target": GenericProcessor()
+            "target": GenericProcessor.get_target_instance()
         }
         default_args.update(kw)
         return DefaultArgTemplate(**default_args)

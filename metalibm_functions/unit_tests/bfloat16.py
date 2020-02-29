@@ -81,7 +81,7 @@ class ML_UT_BFloat16(ML_FunctionBasis, TestRunner):
             "function_name": "ut_bfloat16",
             "precision": ML_Binary32,
             "input_precisions": [ML_UInt32],
-            "target": GenericProcessor(),
+            "target": GenericProcessor.get_target_instance(),
             "fast_path_extract": True,
             "fuse_fma": True,
             "debug": True,

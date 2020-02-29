@@ -64,7 +64,7 @@ class ML_UT_FixedPoint(ML_Function("ml_ut_fixed_point")):
     default_args = {
         "output_file": "ut_fixed_point.c",
         "function_name": "ut_fixed_point",
-        "target": FixedPointBackend(),
+        "target": FixedPointBackend.get_target_instance(),
         "fast_path_extract": True,
         "fuse_fma": True,
         "libm_compliant": True,
