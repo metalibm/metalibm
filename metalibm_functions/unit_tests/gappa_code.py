@@ -115,7 +115,9 @@ class ML_UT_GappaCode(ML_FunctionBasis):
                 Variable("x", precision=ML_Binary32, interval=vx.get_interval())
         }
         # generating gappa code to determine interval for <opt_expr>
-        gappa_code = self.gappa_engine.get_interval_code([opt_expr], var_bound.keys(), var_bound)
+        # NOTES: var_bound must be converted from an iterator to a list to avoid
+        # implicit modification by get_interval_code
+        gappa_code = self.gappa_engine.get_interval_code([opt_expr], list(var_bound.keys()), var_bound)
 
         # add a manual hint to the gappa code
         # which state thtat vy * (1 / vy) -> 1 { vy <> 0 };
