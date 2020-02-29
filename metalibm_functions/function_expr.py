@@ -40,6 +40,7 @@ from metalibm_core.core.ml_formats import *
 from metalibm_core.core.legalizer import evaluate_graph
 
 from metalibm_core.opt.p_function_inlining import generate_inline_fct_scheme
+from metalibm_core.opt.opt_utils import evaluate_range
 
 
 from metalibm_core.code_generation.gappa_code_generator import GappaCodeGenerator
@@ -56,11 +57,10 @@ from metalibm_functions.function_map import FUNCTION_MAP
 LOG_VERBOSE_FUNCTION_EXPR = Log.LogLevel("FunctionExprVerbose")
 
 def function_parser(str_desc, var_mapping):
-    exp = FunctionObject("exp", [ML_Float], ML_Float, None)
-    sqrt = FunctionObject("sqrt", [ML_Float], ML_Float, None)
+    exp = FunctionObject("exp", [ML_Float], ML_Float, None, range_function=lambda vi: sollya.exp(vi))
+    sqrt = FunctionObject("sqrt", [ML_Float], ML_Float, None, range_function=lambda vi: sollya.exp(vi))
     local_mapping = {"exp": exp, "sqrt": sqrt}
     local_mapping.update(var_mapping)
-    print(local_mapping)
     graph = eval(str_desc, None, local_mapping)
     return graph
 
@@ -114,6 +114,7 @@ class FunctionExpression(ML_FunctionBasis):
                 statement.add(result_var) # making sure result var is declared previously
                 statement.add(fct_scheme)
                 new_node = result_var
+                new_node.set_interval(node.get_interval())
             elif isinstance(node, ML_LeafNode):
                 # unmodified
                 new_node = None
@@ -140,12 +141,14 @@ class FunctionExpression(ML_FunctionBasis):
 
         self.function_expr = function_parser(self.function_expr_str, self.var_mapping)
 
+        Log.report(Log.Info, "evaluating function range")
+        evaluate_range(self.function_expr, update_interval=True)
+
         function_expr_copy = self.function_expr.copy(dict((var, var) for var in self.var_mapping.items()))
-        print(function_expr_copy)
 
         result, scheme = self.instanciate_graph(function_expr_copy)
         scheme.add(Return(result))
-        print("scheme is: \n{}", scheme.get_str(depth=None))
+        Log.report(LOG_VERBOSE_FUNCTION_EXPR, "scheme is: \n{}", scheme.get_str(depth=None))
 
         return scheme
 
