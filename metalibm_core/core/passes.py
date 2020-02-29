@@ -365,6 +365,19 @@ class PassDumpWithStages(OptreeOptimization):
         custom_callback = lambda op: " [S={}] ".format(op.attributes.init_stage)
     ))
 
+@METALIBM_PASS_REGISTER
+class PassDumpRange(PassDump):
+    """ Dump in a textual form the operation graph including
+        interval information """
+    pass_tag = "dump_with_range"
+
+    def execute(self, optree):
+        Log.report(Log.Info, "executing PassDump")
+        print(optree.get_str(
+            depth=None, display_precision=True, memoization_map={},
+            display_interval=True
+        ))
+
 # Log.report(LOG_PASS_INFO, "registerting basic passes (Quit,Dump,DumpWithStages)")
 # registering commidity pass
 # Pass.register(PassQuit)
