@@ -149,7 +149,7 @@ class ML_HyperbolicCosine(ScalarUnaryFunction):
     precision_list = [1] + [self.precision] * (poly_degree)
 
     k_integer = Conversion(k, precision = int_precision, tag = "k_integer", debug = debug_multi)
-    k_hi = BitLogicRightShift(k_integer, Constant(index_size), tag = "k_int_hi", precision = int_precision, debug = debug_multi)
+    k_hi = BitLogicRightShift(k_integer, Constant(index_size, precision=int_precision), tag = "k_int_hi", precision = int_precision, debug = debug_multi)
     k_lo = Modulo(k_integer, 2**index_size, tag = "k_int_lo", precision = int_precision, debug = debug_multi)
     pow_exp = ExponentInsertion(Conversion(k_hi, precision = int_precision), precision = self.precision, tag = "pow_exp", debug = debug_multi)
 
