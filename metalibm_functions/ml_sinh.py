@@ -37,7 +37,7 @@ from sollya import (
 S2 = sollya.SollyaObject(2)
 
 from metalibm_core.core.ml_function import (
-    ML_Function, ML_FunctionBasis, DefaultArgTemplate)
+    DefaultArgTemplate)
 
 from metalibm_core.core.ml_operations import *
 from metalibm_core.core.ml_formats import *
@@ -54,19 +54,19 @@ from metalibm_core.utility.debug_utils import debug_multi
 from metalibm_core.utility.num_utils     import ulp
 from metalibm_core.utility.gappa_utils import is_gappa_installed
 
+from metalibm_core.core.simple_scalar_function import ScalarUnaryFunction
+
 # disabling sollya's rounding warning
 sollya.roundingwarnings = sollya.off
 sollya.verbosity = 0
 sollya.showmessagenumbers = sollya.on
 
-class ML_HyperbolicSine(ML_FunctionBasis):
+class ML_HyperbolicSine(ScalarUnaryFunction):
     function_name = "ml_sinh"
     """ Implementation of hyperbolic sine function """
     def __init__(self, args=DefaultArgTemplate):
         # initializing base class
-        ML_FunctionBasis.__init__(self,
-                args
-        )
+        super().__init__(args)
 
     @staticmethod
     def get_default_args(**kw):
@@ -83,10 +83,7 @@ class ML_HyperbolicSine(ML_FunctionBasis):
         return DefaultArgTemplate(**default_args_sinh)
 
 
-    def generate_scheme(self):
-        # declaring CodeFunction and retrieving input variable
-        vx = self.implementation.add_input_variable("x", self.precision)
-
+    def generate_scalar_scheme(self, vx):
         Log.set_dump_stdout(True)
 
         Log.report(Log.Info, "\033[33;1m generating implementation scheme \033[0m")

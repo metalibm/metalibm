@@ -48,11 +48,8 @@ from metalibm_core.core.ml_formats import *
 from metalibm_core.core.ml_table import ML_NewTable
 from metalibm_core.code_generation.generic_processor import GenericProcessor
 from metalibm_core.core.polynomials import *
-from metalibm_core.core.ml_function import ML_FunctionBasis, DefaultArgTemplate
-from metalibm_core.code_generation.generator_utility import (
-    FunctionOperator, FO_Result, FO_Arg
-)
-from metalibm_core.core.ml_complex_formats import ML_Mpfr_t
+from metalibm_core.core.ml_function import DefaultArgTemplate
+from metalibm_core.core.simple_scalar_function import ScalarUnaryFunction
 
 
 from metalibm_core.utility.ml_template import *
@@ -63,11 +60,11 @@ from metalibm_core.utility.gappa_utils import is_gappa_installed
 
 
 
-class ML_Cbrt(ML_FunctionBasis):
+class ML_Cbrt(ScalarUnaryFunction):
     function_name = "ml_cbrt"
     def __init__(self, args=DefaultArgTemplate):
         # initializing base class
-        ML_FunctionBasis.__init__(self, args)
+        super().__init__(args)
 
 
     @staticmethod

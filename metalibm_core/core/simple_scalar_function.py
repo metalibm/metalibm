@@ -36,6 +36,7 @@ from metalibm_core.opt.p_function_inlining import inline_function
 
 class ScalarUnaryFunction(ML_FunctionBasis):
     """ Basic class for function with a single input, single output """
+    arity = 1
 
     def generate_scalar_scheme(self, vx):
         """ generate scheme assuming single input is vx """
