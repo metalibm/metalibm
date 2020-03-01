@@ -139,8 +139,7 @@ class ML_SoftMax(ML_ArrayFunction):
             elt_result = inline_function(
                 exponential_scheme,
                 local_exp,
-                meta_exponential.implementation.arg_list[0],
-                elt_input,
+                {meta_exponential.implementation.arg_list[0]: elt_input},
             )
 
 

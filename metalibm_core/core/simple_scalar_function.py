@@ -48,7 +48,7 @@ class ScalarUnaryFunction(ML_FunctionBasis):
             and variable is the result variable """
         result_var = Variable("r", precision=self.get_precision(), var_type=Variable.Local)
         scalar_scheme = self.generate_scalar_scheme(vx)
-        result_scheme = inline_function(scalar_scheme, result_var, vx, vx)
+        result_scheme = inline_function(scalar_scheme, result_var, {vx: vx})
 
         return result_var, result_scheme
 
