@@ -820,7 +820,6 @@ def AbstractOperation_init(self, *ops, **init_map):
 
 class GeneralOperation(AbstractOperation):
     arity = 2
-    range_function = interval_func(empty_range)
     bare_range_function = empty_range
     error_function = None
 
@@ -844,12 +843,6 @@ class GeneralOperation(AbstractOperation):
         self.finish_copy(new_copy, copy_map)
         return new_copy
 
-
-class ControlFlowOperation(GeneralOperation):
-    """ Parent for all control-flow operation """
-
-
-class GeneralArithmeticOperation(ML_ArithmeticOperation, GeneralOperation):
     def range_function(self, ops, ops_interval_getter=lambda op: op.get_interval()):
         """ Generic wrapper for node range evaluation """
         try:
@@ -858,6 +851,14 @@ class GeneralArithmeticOperation(ML_ArithmeticOperation, GeneralOperation):
             )
         except InvalidInterval:
             return None
+
+
+class ControlFlowOperation(GeneralOperation):
+    """ Parent for all control-flow operation """
+
+
+class GeneralArithmeticOperation(ML_ArithmeticOperation, GeneralOperation):
+    pass
 
 
 def GeneralOperationConstructor(name, arity = 2, range_function = empty_range, error_function = None, inheritance = [], base_class = AbstractOperation):
