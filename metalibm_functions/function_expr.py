@@ -76,6 +76,7 @@ def function_parser(str_desc, var_mapping):
         :return: resulting operation graph
         :rtype: ML_Operation
     """
+    var_mapping = var_mapping.copy()
     var_mapping.update(FUNCTION_OBJECT_MAPPING)
     graph = eval(str_desc, None, var_mapping)
     return graph
@@ -187,14 +188,15 @@ class FunctionExpression(ML_FunctionBasis):
         function_expr_copy = self.function_expr.copy(copy_map)
 
         result, scheme = self.instanciate_graph(function_expr_copy)
-        scheme.add(Return(result))
+        scheme.add(Return(result, precision=self.precision))
         Log.report(LOG_VERBOSE_FUNCTION_EXPR, "scheme is: \n{}", scheme.get_str(depth=None))
 
         return scheme
 
-    def numeric_emulate(self, input_value):
+    def numeric_emulate(self, *input_values):
+        """ exact numerical emulation of self's function """
         value_mapping = {
-            self.var_mapping["x"]: input_value
+            self.var_mapping[var_tag]: input_values[arg_index] for arg_index, var_tag in enumerate(["x", "y", "z", "t"]) if var_tag in self.var_mapping
         }
         function_mapping = {
             "exp": (sollya.exp),
