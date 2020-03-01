@@ -54,7 +54,7 @@ from metalibm_core.core.passes import (
     Pass, LOG_PASS_INFO, FunctionPass
 )
 from metalibm_core.core.bb_operations import (
-    UnconditionalBranch, ConditionalBranch, BasicBlock
+    UnconditionalBranch, ConditionalBranch, BasicBlock, PhiNode
 )
 
 
@@ -429,6 +429,8 @@ class PassCheckProcessorSupport(FunctionPass):
                 elif isinstance(optree, UnconditionalBranch):
                     pass
                 elif isinstance(optree, BasicBlock):
+                    pass
+                elif isinstance(optree, PhiNode):
                     pass
                 elif isinstance(optree, Loop):
                     pass
