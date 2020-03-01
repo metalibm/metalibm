@@ -52,28 +52,33 @@ import metalibm_functions.generic_log
 import metalibm_functions.erf
 import metalibm_functions.ml_acos
 
+from sollya_extra_functions import cbrt
+
+
+S2 = sollya.SollyaObject(2)
+
 # dict of (str) -> tuple(ctor, dict(ML_Format -> str))
 # the first level key is the function name
 # the first value of value tuple is the meta-function constructor
 # the second value of the value tuple is a dict which associates to a ML_Format
 # the corresponding libm function
 FUNCTION_MAP = {
-    "exp": (metalibm_functions.ml_exp.ML_Exponential, {}),
-    "tanh": (metalibm_functions.ml_tanh.ML_HyperbolicTangent, {}),
-    "sqrt": (metalibm_functions.ml_sqrt.MetalibmSqrt, {}),
-    "log": (metalibm_functions.generic_log.ML_GenericLog, {"basis": sollya.exp(1)}),
-    "log2": (metalibm_functions.generic_log.ML_GenericLog, {"basis": 2}),
-    "log10": (metalibm_functions.generic_log.ML_GenericLog, {"basis": 10}),
-    "exp2": (metalibm_functions.ml_exp2.ML_Exp2, {}),
+    "exp": (metalibm_functions.ml_exp.ML_Exponential, {}, sollya.exp),
+    "tanh": (metalibm_functions.ml_tanh.ML_HyperbolicTangent, {}, sollya.tanh),
+    "sqrt": (metalibm_functions.ml_sqrt.MetalibmSqrt, {}, sollya.sqrt),
+    "log": (metalibm_functions.generic_log.ML_GenericLog, {"basis": sollya.exp(1)}, sollya.log),
+    "log2": (metalibm_functions.generic_log.ML_GenericLog, {"basis": 2}, sollya.log2),
+    "log10": (metalibm_functions.generic_log.ML_GenericLog, {"basis": 10}, sollya.log10),
+    "exp2": (metalibm_functions.ml_exp2.ML_Exp2, {}, (lambda x: S2**x)),
 
-    "div": (metalibm_functions.ml_div.ML_Division, {}),
-    "cbrt": (metalibm_functions.ml_cbrt.ML_Cbrt, {}),
+    "div": (metalibm_functions.ml_div.ML_Division, {}, (lambda x,y: x / y)),
+    "cbrt": (metalibm_functions.ml_cbrt.ML_Cbrt, {}, cbrt),
 
-    "cosh": (metalibm_functions.ml_cosh.ML_HyperbolicCosine, {}),
-    "sinh": (metalibm_functions.ml_sinh.ML_HyperbolicSine, {}),
+    "cosh": (metalibm_functions.ml_cosh.ML_HyperbolicCosine, {}, sollya.cosh),
+    "sinh": (metalibm_functions.ml_sinh.ML_HyperbolicSine, {}, sollya.sinh),
 
-    "cos": (metalibm_functions.ml_sincos.ML_SinCos, {"sin_output": False}),
-    "sin": (metalibm_functions.ml_sincos.ML_SinCos, {"sin_output": True}),
+    "cos": (metalibm_functions.ml_sincos.ML_SinCos, {"sin_output": False}, sollya.cos),
+    "sin": (metalibm_functions.ml_sincos.ML_SinCos, {"sin_output": True}, sollya.sin),
 
-    "erf": (metalibm_functions.erf.ML_Erf, {}),
+    "erf": (metalibm_functions.erf.ML_Erf, {}, sollya.erf),
 }
