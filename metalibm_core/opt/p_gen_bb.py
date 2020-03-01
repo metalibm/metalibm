@@ -523,7 +523,7 @@ def phi_node_insertion(bbg):
                 if not y in F:
                     # add phi-node x <- at entry of y
                     # TODO: manage more than 2 predecessor for v
-                    phi_fct = PhiNode(v, v, None, v, None)
+                    phi_fct = PhiNode(v, v, None, v, None, precision=v.get_precision())
                     y.push(phi_fct)
                     # adding  phi funciton to bb map
                     bbg.bb_map[phi_fct] = y
