@@ -53,6 +53,7 @@ class ConditionalBranch(ControlFlowOperation):
             tab_level=0, memoization_map=None,
             display_attribute=False, display_id=False,
             custom_callback=lambda op: "",
+            display_interval=None,
         ):
         memoization_map = {} if memoization_map is None else memoization_map
         new_depth = None
@@ -79,7 +80,8 @@ class ConditionalBranch(ControlFlowOperation):
                     memoization_map=memoization_map,
                     display_attribute=display_attribute,
                     display_id=display_id,
-                    custom_callback=custom_callback
+                    custom_callback=custom_callback,
+                    display_interval=display_interval,
                 ) for inp, op_depth in zip(self.inputs, [new_depth, 0, 0]))
         )
         return node_str
@@ -96,6 +98,7 @@ class UnconditionalBranch(ControlFlowOperation):
             tab_level=0, memoization_map=None,
             display_attribute=False, display_id=False,
             custom_callback=lambda op: "",
+            display_interval=None,
         ):
         memoization_map = {} if memoization_map is None else memoization_map
         new_depth = None
@@ -122,7 +125,8 @@ class UnconditionalBranch(ControlFlowOperation):
                     memoization_map=memoization_map,
                     display_attribute=display_attribute,
                     display_id=display_id,
-                    custom_callback=custom_callback
+                    custom_callback=custom_callback,
+                    display_interval=display_interval
                 ) for inp, op_depth in zip(self.inputs, [0]))
         )
         return node_str
@@ -156,6 +160,7 @@ class BasicBlock(Statement):
             tab_level=0, memoization_map=None,
             display_attribute=False, display_id=False,
             custom_callback=lambda op: "",
+            display_interval=None,
         ):
         memoization_map = {} if memoization_map is None else memoization_map
         new_depth = None
@@ -174,7 +179,7 @@ class BasicBlock(Statement):
         memoization_map[self] = str_tag
 
         node_str = tab_str + "{name}{desc} -------> {tag}\n{args}".format(
-            name=self.get_name(), 
+            name=self.get_name(),
             desc=desc_str,
             tag=str_tag,
             args="".join(
@@ -184,7 +189,8 @@ class BasicBlock(Statement):
                     memoization_map=memoization_map,
                     display_attribute=display_attribute,
                     display_id=display_id,
-                    custom_callback=custom_callback
+                    custom_callback=custom_callback,
+                    display_interval=display_interval
                 ) for inp in self.inputs)
         )
         return node_str
