@@ -231,8 +231,7 @@ class ML_VectorialFunction(ML_ArrayFunction):
                 elt_result = inline_function(
                     vector_scheme,
                     vector_result,
-                    vec_arg_list[0],
-                    elt_input
+                    {vec_arg_list[0]: elt_input}
                 )
 
                 local_exp = vector_result
