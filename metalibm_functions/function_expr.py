@@ -60,7 +60,7 @@ FUNCTION_OBJECT_MAPPING = {
                          ML_Float, None) for name in FUNCTION_MAP
 }
 
-FCT_DESC_PATTERN = r"([-+/* ().]|\d+|{}|[xyzt])*".format("|".join(FUNCTION_OBJECT_MAPPING.keys()))
+FCT_DESC_PATTERN = r"([-+/* ().,]|\d+|{}|[xyzt])*".format("|".join(FUNCTION_OBJECT_MAPPING.keys()))
 
 def check_fct_expr(str_desc):
     """ check if function expression string is potentially valid """
@@ -79,6 +79,13 @@ def function_parser(str_desc, var_mapping):
     var_mapping.update(FUNCTION_OBJECT_MAPPING)
     graph = eval(str_desc, None, var_mapping)
     return graph
+
+def count_expr_arity(str_desc):
+    """ Determine the arity of an expression directly from its str
+        descriptor """
+    # we start by extracting all words in the string
+    # and then count the unique occurence of words matching "x", "y", "z" or "t"
+    return len(set(var for var in re.findall("\w+", str_desc) if re.fullmatch("[xyzt]", var)))
 
 
 def instanciate_fct_call(node, precision):
@@ -103,6 +110,7 @@ class FunctionExpression(ML_FunctionBasis):
         # initializing base class
         ML_FunctionBasis.__init__(self, args)
         self.function_expr_str = args.function_expr_str[0]
+        self.arity = count_expr_arity(self.function_expr_str)
         self.function_expr = None
         self.var_mapping = None
 
