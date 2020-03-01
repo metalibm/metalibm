@@ -29,10 +29,28 @@
 # last-modified:    Feb 22nd, 2020
 ###############################################################################
 
+import sollya
+
 # TODO/FIXME: implement cleaner way to register and list meta-functions
-from metalibm_functions.ml_exp import ML_Exponential
-from metalibm_functions.ml_tanh import ML_HyperbolicTangent
-from metalibm_functions.ml_sqrt import MetalibmSqrt
+import metalibm_functions.ml_log10
+import metalibm_functions.ml_log1p
+import metalibm_functions.ml_log2
+import metalibm_functions.ml_log
+import metalibm_functions.ml_exp
+import metalibm_functions.ml_expm1
+import metalibm_functions.ml_exp2
+import metalibm_functions.ml_cbrt
+import metalibm_functions.ml_sqrt
+import metalibm_functions.ml_isqrt
+import metalibm_functions.ml_cosh
+import metalibm_functions.ml_sinh
+import metalibm_functions.ml_sincos
+import metalibm_functions.ml_atan
+import metalibm_functions.ml_tanh
+import metalibm_functions.ml_div
+import metalibm_functions.generic_log
+import metalibm_functions.erf
+import metalibm_functions.ml_acos
 
 # dict of (str) -> tuple(ctor, dict(ML_Format -> str))
 # the first level key is the function name
@@ -40,7 +58,22 @@ from metalibm_functions.ml_sqrt import MetalibmSqrt
 # the second value of the value tuple is a dict which associates to a ML_Format
 # the corresponding libm function
 FUNCTION_MAP = {
-    "exp": ML_Exponential,
-    "tanh": ML_HyperbolicTangent,
-    "sqrt": MetalibmSqrt,
+    "exp": (metalibm_functions.ml_exp.ML_Exponential, {}),
+    "tanh": (metalibm_functions.ml_tanh.ML_HyperbolicTangent, {}),
+    "sqrt": (metalibm_functions.ml_sqrt.MetalibmSqrt, {}),
+    "log": (metalibm_functions.generic_log.ML_GenericLog, {"basis": sollya.exp(1)}),
+    "log2": (metalibm_functions.generic_log.ML_GenericLog, {"basis": 2}),
+    "log10": (metalibm_functions.generic_log.ML_GenericLog, {"basis": 10}),
+    "exp2": (metalibm_functions.ml_exp2.ML_Exp2, {}),
+
+    "div": (metalibm_functions.ml_div.ML_Division, {}),
+    "cbrt": (metalibm_functions.ml_cbrt.ML_Cbrt, {}),
+
+    "cosh": (metalibm_functions.ml_cosh.ML_HyperbolicCosine, {}),
+    "sinh": (metalibm_functions.ml_sinh.ML_HyperbolicSine, {}),
+
+    "cos": (metalibm_functions.ml_sincos.ML_SinCos, {"sin_output": False}),
+    "sin": (metalibm_functions.ml_sincos.ML_SinCos, {"sin_output": True}),
+
+    "erf": (metalibm_functions.erf.ML_Erf, {}),
 }
