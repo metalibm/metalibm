@@ -43,12 +43,16 @@ from metalibm_core.core.ml_hdl_operations import (
     PlaceHolder
 )
 
+from metalibm_core.utility.log_report import Log
+
 
 def evaluate_comparison_range(optree):
     return None
 
 def is_comparison(optree):
     return isinstance(optree, Comparison)
+
+LOG_VERBOSE_EVALUATE_RANGE = Log.LogLevel("EvaluateRangeVerbose")
 
 ## Assuming @p optree has no pre-defined range, recursively compute a range
 #  from the node inputs
@@ -62,20 +66,18 @@ def evaluate_range(optree, update_interval=False):
             sollya Interval: evaluated range of optree or None if no range
                              could be determined
     """
-    init_interval =  optree.get_interval()
+    init_interval = optree.get_interval()
     if not init_interval is None:
         return init_interval
     else:
         if isinstance(optree, ML_LeafNode):
-            return optree.get_interval()
+            op_range = optree.get_interval()
         elif is_comparison(optree):
             op_range = evaluate_comparison_range(optree)
             if update_interval: optree.set_interval(op_range)
-            return op_range
         elif isinstance(optree, PlaceHolder):
             op_range = evaluate_range(optree.get_input(0), update_interval=update_interval)
             if update_interval: optree.set_interval(op_range)
-            return op_range
         else:
             args_interval = tuple(
                 evaluate_range(op, update_interval=update_interval) for op in
@@ -87,7 +89,8 @@ def evaluate_range(optree, update_interval=False):
             # on their inputs' intervals but on other parameters
             op_range = optree.range_function(optree.inputs, ops_interval_getter=lambda op: args_interval_map[op])
             if update_interval: optree.set_interval(op_range)
-            return op_range
+        Log.report(LOG_VERBOSE_EVALUATE_RANGE, "range of {} is {}", optree, op_range)
+        return op_range
 
 
 def forward_attributes(src, dst):
