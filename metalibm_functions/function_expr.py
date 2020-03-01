@@ -92,13 +92,13 @@ def count_expr_arity(str_desc):
 def instanciate_fct_call(node, precision):
     """ replace FunctionCall node by the actual function
         scheme """
-    vx = node.get_input(0)
+    vx_list = [node.get_input(i) for i in range(node.get_function_object().arity)]
     func_name = node.get_function_object().name
-    fct_ctor, fct_args = FUNCTION_MAP[func_name]
+    fct_ctor, fct_args, fct_range_function = FUNCTION_MAP[func_name]
     var_result = Variable("local_result", precision=precision, var_type=Variable.Local)
     local_args = {"precision": precision, "libm_compliant": False}
     local_args.update(fct_args)
-    fct_scheme = generate_inline_fct_scheme(fct_ctor, var_result, vx,
+    fct_scheme = generate_inline_fct_scheme(fct_ctor, var_result, vx_list,
                                             local_args)
     return var_result, fct_scheme
 

@@ -245,7 +245,7 @@ class ML_VectorialFunction(ML_ArrayFunction):
                 scalar_result = local_exp
 
                 elt_result = generate_inline_fct_scheme(
-                    self.function_ctor, scalar_result, scalar_input,
+                    self.function_ctor, scalar_result, [scalar_input],
                     {"precision": self.precision, "libm_compliant": False}
                 )
 

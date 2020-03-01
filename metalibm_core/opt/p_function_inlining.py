@@ -33,15 +33,16 @@ from metalibm_core.core.ml_operations import (
     ReferenceAssign, Return, ML_LeafNode, Variable,
 )
 
-def inline_function(fct_scheme, dst_var, input_var, input_value):
+def inline_function(fct_scheme, dst_var, inputs_var2value):
     """ generate an operation graph which inline function scheme @p fct_scheme
-        assuming @p input_var is replace by @p input_value
+        assuming @p inputs_var2value contains var -> value mapping for replacing
         and stores its result into dst_var """
     memoization_map = {}
     def recursive_inline(node):
         if node in memoization_map:
             return memoization_map[node]
-        elif node is input_var:
+        elif node in inputs_var2value:
+            input_value = inputs_var2value[node]
             memoization_map[node] = input_value
             return input_value
         elif isinstance(node, Return):
@@ -63,7 +64,7 @@ def inline_function(fct_scheme, dst_var, input_var, input_value):
     return recursive_inline(fct_scheme)
 
 
-def generate_inline_fct_scheme(FctClass, dst_var, input_arg, custom_class_params):
+def generate_inline_fct_scheme(FctClass, dst_var, input_arg_list, custom_class_params):
     """ generate the sub-graph corresponding to the implementation of
         @p FctClass with argument dict @p custom_class_params
         the result is stored in the node @p dst_var and the function's
@@ -79,8 +80,7 @@ def generate_inline_fct_scheme(FctClass, dst_var, input_arg, custom_class_params
     result_statement = inline_function(
         meta_scheme,
         dst_var,
-        meta_fct_object.implementation.arg_list[0],
-        input_arg
+        { meta_fct_object.implementation.arg_list[i]: input_arg_list[i] for i in range(meta_fct_object.arity)}
     )
     return result_statement
 
