@@ -211,6 +211,9 @@ def interval_parser(interval_str):
     """ string -> Interval conversion """
     return eval(interval_str)
 
+def interval_list_parser(list_str):
+    return list(map(interval_parser, list_str.split(":")))
+
 ## return the Target Constructor associated with
 #  the string @p target_name
 def target_parser(target_name):
@@ -411,7 +414,7 @@ class DefaultArgTemplate:
     abs_accuracy = None
     accuracy = ML_Faithful
     libm_compliant = False
-    input_interval = Interval(-ml_infty, ml_infty)
+    input_intervals = [Interval(-ml_infty, ml_infty)]
     # Optimization parameters
     target = GenericProcessor.get_target_instance()
     fuse_fma = False
@@ -566,8 +569,8 @@ class ML_CommonArgTemplate(object):
             help="display MDL IR after implementation generation")
 
         self.parser.add_argument(
-            "--input-interval", dest="input_interval", type=interval_parser,
-            default=default_arg.input_interval, help="select input range")
+            "--input-intervals", dest="input_intervals", type=interval_list_parser,
+            default=default_arg.input_intervals, help="':' seperated list of input ranges")
 
         self.parser.add_argument(
             "--vector-size", dest="vector_size", type=int,

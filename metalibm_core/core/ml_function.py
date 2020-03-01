@@ -428,7 +428,7 @@ class ML_FunctionBasis(object):
     self.accuracy_class = args.accuracy
     self.accuracy = args.accuracy(self.get_output_precision())
 
-    self.input_intervals = (args.input_interval,) * self.arity
+    self.input_intervals = args.input_intervals
     
     self.processor = args.target
 
