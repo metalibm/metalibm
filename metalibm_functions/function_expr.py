@@ -122,6 +122,7 @@ class FunctionExpression(ML_FunctionBasis):
         default_args_log = {
             "output_file": "func_expr.c",
             "function_name": "func_expr",
+            "function_expr_str": "exp(x)",
             "precision": ML_Binary32,
             "accuracy": ML_Faithful,
             "target": GenericProcessor.get_target_instance(),
