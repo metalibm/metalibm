@@ -27,41 +27,57 @@
 ###############################################################################
 # last-modified:    Mar  7th, 2018
 ###############################################################################
-import sys
-
+import re
 import sollya
 
-S2 = sollya.SollyaObject(2)
 
-from metalibm_core.core.ml_function import ML_FunctionBasis, DefaultArgTemplate
-
-from metalibm_core.core.ml_operations import *
-from metalibm_core.core.ml_formats import *
+from metalibm_core.core.ml_function import ML_FunctionBasis
+from metalibm_core.core.ml_operations import (
+    Variable, FunctionObject, FunctionCall, Return, Statement,
+    is_leaf_node
+)
+from metalibm_core.core.ml_formats import ML_Binary32, ML_Float
 from metalibm_core.core.legalizer import evaluate_graph
+from metalibm_core.core.precisions import ML_Faithful
 
 from metalibm_core.opt.p_function_inlining import generate_inline_fct_scheme
 from metalibm_core.opt.opt_utils import evaluate_range
 
 
-from metalibm_core.code_generation.gappa_code_generator import GappaCodeGenerator
 from metalibm_core.code_generation.generic_processor import GenericProcessor
 
-from metalibm_core.utility.gappa_utils import execute_gappa_script_extract, is_gappa_installed
-from metalibm_core.utility.ml_template import *
+from metalibm_core.utility.ml_template import DefaultArgTemplate, ML_NewArgTemplate
+from metalibm_core.utility.log_report import Log
 
-from metalibm_core.utility.debug_utils import debug_multi
 
 from metalibm_functions.function_map import FUNCTION_MAP
 
 
 LOG_VERBOSE_FUNCTION_EXPR = Log.LogLevel("FunctionExprVerbose")
 
+FUNCTION_OBJECT_MAPPING = {
+    name: FunctionObject(name, [ML_Float] * FUNCTION_MAP[name][0].arity,
+                         ML_Float, None) for name in FUNCTION_MAP
+}
+
+FCT_DESC_PATTERN = r"([-+/* ().]|\d+|{}|[xyzt])*".format("|".join(FUNCTION_OBJECT_MAPPING.keys()))
+
+def check_fct_expr(str_desc):
+    """ check if function expression string is potentially valid """
+    return not re.fullmatch(FCT_DESC_PATTERN, str_desc) is None
+
 def function_parser(str_desc, var_mapping):
-    exp = FunctionObject("exp", [ML_Float], ML_Float, None, range_function=lambda vi: sollya.exp(vi))
-    sqrt = FunctionObject("sqrt", [ML_Float], ML_Float, None, range_function=lambda vi: sollya.exp(vi))
-    local_mapping = {"exp": exp, "sqrt": sqrt}
-    local_mapping.update(var_mapping)
-    graph = eval(str_desc, None, local_mapping)
+    """ parser of function expression, from str to ML_Operation graph
+
+        :arg str_desc: expression string
+        :type str_desc: str
+        :arg var_mapping: pre-existing mapping str to Variable/ML_Operation
+        :type var_mapping: dict
+        :return: resulting operation graph
+        :rtype: ML_Operation
+    """
+    var_mapping.update(FUNCTION_OBJECT_MAPPING)
+    graph = eval(str_desc, None, var_mapping)
     return graph
 
 
@@ -70,20 +86,25 @@ def instanciate_fct_call(node, precision):
         scheme """
     vx = node.get_input(0)
     func_name = node.get_function_object().name
-    fct_ctor = FUNCTION_MAP[func_name]
+    fct_ctor, fct_args = FUNCTION_MAP[func_name]
     var_result = Variable("local_result", precision=precision, var_type=Variable.Local)
+    local_args = {"precision": precision, "libm_compliant": False}
+    local_args.update(fct_args)
     fct_scheme = generate_inline_fct_scheme(fct_ctor, var_result, vx,
-        {"precision": precision, "libm_compliant": False}
-    )
+                                            local_args)
     return var_result, fct_scheme
 
 
 class FunctionExpression(ML_FunctionBasis):
+    """ class for meta-function taking as argument a string expression
+        and generating the correspond implementation """
     function_name = "generic_function"
     def __init__(self, args):
         # initializing base class
         ML_FunctionBasis.__init__(self, args)
         self.function_expr_str = args.function_expr_str[0]
+        self.function_expr = None
+        self.var_mapping = None
 
 
     @staticmethod
@@ -101,21 +122,28 @@ class FunctionExpression(ML_FunctionBasis):
         return DefaultArgTemplate(**default_args_log)
 
     def instanciate_graph(self, op_graph, memoization_map=None):
+        """ instanciate function graph, replacing FunctionCall node
+            by expanded function implementation """
         memoization_map = memoization_map or {}
         statement = Statement()
         def rec_instanciate(node):
+            """ recursive internal function for function graph instaciation """
             new_node = None
             if node in memoization_map:
                 return memoization_map[node]
             elif isinstance(node, FunctionCall):
-                # FIXME: manage only unary functions
-                input_node = rec_instanciate(node.get_input(0))
+                # recursively going through the input graph of FunctionCall for
+                # instanciation
+                for arg_index in range(node.get_function_object().arity):
+                    input_node = rec_instanciate(node.get_input(arg_index))
+                    if not input_node is None:
+                        node.set_input(arg_index, input_node)
                 result_var, fct_scheme = instanciate_fct_call(node, self.precision)
                 statement.add(result_var) # making sure result var is declared previously
                 statement.add(fct_scheme)
                 new_node = result_var
                 new_node.set_interval(node.get_interval())
-            elif isinstance(node, ML_LeafNode):
+            elif is_leaf_node(node):
                 # unmodified
                 new_node = None
             else:
@@ -144,7 +172,10 @@ class FunctionExpression(ML_FunctionBasis):
         Log.report(Log.Info, "evaluating function range")
         evaluate_range(self.function_expr, update_interval=True)
 
-        function_expr_copy = self.function_expr.copy(dict((var, var) for var in self.var_mapping.items()))
+        # defined copy map to avoid copying input Variables
+        copy_map = dict((var, var) for var in self.var_mapping.items())
+
+        function_expr_copy = self.function_expr.copy(copy_map)
 
         result, scheme = self.instanciate_graph(function_expr_copy)
         scheme.add(Return(result))
@@ -157,8 +188,8 @@ class FunctionExpression(ML_FunctionBasis):
             self.var_mapping["x"]: input_value
         }
         function_mapping = {
-            "exp": (lambda v: sollya.exp(v)),
-            "sqrt": (lambda v: sollya.sqrt(v)),
+            "exp": (sollya.exp),
+            "sqrt": (sollya.sqrt),
         }
         return evaluate_graph(self.function_expr, value_mapping, function_mapping)
 
@@ -171,7 +202,7 @@ if __name__ == "__main__":
         help="function expression to generate"
     )
 
-    args = ARG_TEMPLATE.arg_extraction()
+    ARGS = ARG_TEMPLATE.arg_extraction()
 
-    ml_function_expr = FunctionExpression(args)
-    ml_function_expr.gen_implementation()
+    ML_FUNCTION_EXPR = FunctionExpression(ARGS)
+    ML_FUNCTION_EXPR.gen_implementation()
