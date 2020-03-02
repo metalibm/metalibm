@@ -1060,6 +1060,16 @@ gappa_code_generation_table = {
 
 
 def instanciate_default_pass_pipeline(pass_scheduler, processor, extra_passes, language):
+    """ Instanciate a generic optimization pass pipeline 
+
+        :arg pass_scheduler: pass scheduler
+        :type pass_scheduler: PassScheduler
+        :arg processor: backend target
+        :type processo: AbstractBackend
+        :arg extra_passes: list of <slot>:<pass_name>
+        :type extra_passes: list,
+        :arg language: target source code language
+    """
     Log.report(Log.Info, "inserting sub-expr sharing pass\n")
     pass_SES_id = pass_scheduler.register_pass(
         PassSubExpressionSharing(processor),
@@ -1157,6 +1167,7 @@ class GenericProcessor(AbstractBackend):
     return [" -I{} ".format(support_lib_dir)]
 
   def instanciate_pass_pipeline(self, pass_scheduler, processor, extra_passes, language=C_Code):
+    """ instanciate an optimization pass pipeline for Generic targets """
     return instanciate_default_pass_pipeline(pass_scheduler, processor, extra_passes, language)
 
 
