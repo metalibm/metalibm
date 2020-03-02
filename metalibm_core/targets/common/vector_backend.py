@@ -1747,5 +1747,12 @@ class VectorBackend(GenericProcessor):
       Log.report(Log.Verbose, "  %s " % parent_proc)
     Log.report(Log.Error, "the following operation is not supported by vector_backend %s: \n%s" % (self.__class__, optree.get_str(depth = 2, display_precision = True, memoization_map = {})))
 
+  def instanciate_pass_pipeline(self, pass_scheduler, processor, extra_passes, language=C_Code):
+    """ instanciate an optimization pass pipeline for VectorBackend targets """
+    EXTRA_VECTOR_PASSES = ["beforecodegen:vector_mask_test_legalization", "beforecodegen:virtual_vector_bool_legalization"]
+    return GenericProcessor.instanciate_pass_pipeline(self, pass_scheduler, processor,
+                                                      EXTRA_VECTOR_PASSES + extra_passes,
+                                                      language=language)
+
 # debug message
 Log.report(LOG_BACKEND_INIT, "Initializing vector backend target")

@@ -228,7 +228,7 @@ unit_test_list = [
   UnitTestScheme(
     "llvm code generation test",
     ut_llvm_code,
-    [{"passes": ["beforecodegen:gen_basic_block", "beforecodegen:ssa_translation"]}]
+    [{}]
   ),
   UnitTestScheme(
     "multi precision expansion",

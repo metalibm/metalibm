@@ -714,6 +714,17 @@ class LLVMBackend(GenericProcessor):
         """ return list of compiler options """
         return [" "]
 
+    def instanciate_pass_pipeline(self, pass_scheduler, processor, extra_passes, language=LLVM_IR_Code):
+        """ instanciate an optimization pass pipeline for VectorBackend targets """
+        EXTRA_VECTOR_PASSES = [
+            "beforecodegen:gen_basic_block",
+            "beforecodegen:basic_block_simplification",
+            "beforecodegen:ssa_translation",
+        ]
+        return GenericProcessor.instanciate_pass_pipeline(self, pass_scheduler, processor,
+                                                          EXTRA_VECTOR_PASSES + extra_passes,
+                                                          language=language)
+
 
 # debug message
 Log.report(LOG_BACKEND_INIT, "Initializing llvm backend target")
