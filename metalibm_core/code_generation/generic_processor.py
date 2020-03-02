@@ -62,6 +62,17 @@ from .abstract_backend import *
 
 from metalibm_core.utility.debug_utils import debug_multi
 
+
+from metalibm_core.core.passes import (
+    Pass, PassScheduler, PassDependency, AfterPassById,
+)
+from metalibm_core.opt.p_function_std import (
+    PassCheckProcessorSupport, PassSubExpressionSharing, PassFuseFMA
+)
+from metalibm_core.opt.p_function_typing import (
+    PassInstantiateAbstractPrecision, PassInstantiatePrecision,
+)
+
 def LibFunctionConstructor(require_header):
     def extend_kwords(kwords, ext_list):
         require_header_arg = [] if ((not "require_header" in kwords) or not kwords["require_header"]) else kwords["require_header"]
@@ -1048,6 +1059,53 @@ gappa_code_generation_table = {
 }
 
 
+def instanciate_default_pass_pipeline(pass_scheduler, processor, extra_passes, language):
+    Log.report(Log.Info, "inserting sub-expr sharing pass\n")
+    pass_SES_id = pass_scheduler.register_pass(
+        PassSubExpressionSharing(processor),
+        pass_slot=PassScheduler.Optimization
+    )
+    Log.report(Log.Info, "inserting instantiate abstract precision pass\n")
+    pass_inst_abstract_prec = PassInstantiateAbstractPrecision(processor)
+    pass_IAP_id = pass_scheduler.register_pass(
+        pass_inst_abstract_prec,
+        pass_slot=PassScheduler.Typing
+        )
+    Log.report(Log.Info, "inserting instantiate precision pass\n")
+    pass_inst_prec = PassInstantiatePrecision(processor, default_precision=None)
+    pass_IP_id = pass_scheduler.register_pass(
+        pass_inst_prec,
+        pass_dep = AfterPassById(pass_IAP_id),
+        pass_slot=PassScheduler.Typing
+        )
+
+    pass_slot_deps = {
+        PassScheduler.Optimization: AfterPassById(pass_SES_id),
+        PassScheduler.Typing: AfterPassById(pass_IP_id),
+        PassScheduler.JustBeforeCodeGen: PassDependency(),
+    }
+    # adding user-defined passes before check processor support
+    # empty pass dependency
+    for pass_uplet in extra_passes:
+      pass_slot_tag, pass_tag = pass_uplet.split(":")
+      pass_slot = PassScheduler.get_tag_class(pass_slot_tag)
+      pass_class  = Pass.get_pass_by_tag(pass_tag)
+      pass_object = pass_class(processor)
+      if not pass_slot in pass_slot_deps:
+        pass_slot_deps[pass_slot] = PassDependency()
+      pass_dep = pass_slot_deps[pass_slot]
+      custom_pass_id = pass_scheduler.register_pass(pass_object, pass_dep=pass_dep, pass_slot=pass_slot)
+      # linearly linking pass in the order they appear
+      pass_slot_deps[pass_slot] = AfterPassById(custom_pass_id)
+
+    # appending check_processor_support pass after custom passes
+    Log.report(Log.Info, "inserting target support check pass\n")
+    pass_scheduler.register_pass(
+        PassCheckProcessorSupport(processor, language),
+        pass_slot=PassScheduler.JustBeforeCodeGen,
+        pass_dep=pass_slot_deps[PassScheduler.JustBeforeCodeGen],
+    )
+
 
 
 @UniqueTargetDecorator
@@ -1097,6 +1155,9 @@ class GenericProcessor(AbstractBackend):
     support_lib_dir = os.path.join(local_dir, "../support_lib/")
     
     return [" -I{} ".format(support_lib_dir)]
+
+  def instanciate_pass_pipeline(self, pass_scheduler, processor, extra_passes, language=C_Code):
+    return instanciate_default_pass_pipeline(pass_scheduler, processor, extra_passes, language)
 
 
 if __name__ == "__main__":
