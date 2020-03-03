@@ -477,6 +477,7 @@ class ML_FunctionBasis(object):
                                              args.passes + args.extra_passes,
                                              language=self.language)
 
+    Log.report(Log.LogLevel("DumpPassInfo"), self.pass_scheduler.dump_pass_info())
 
 
   def get_codegen_class(self, language):

@@ -92,22 +92,26 @@ def default_execute_pass(pass_scheduler, pass_object, inputs):
   return [pass_object.execute(pass_input) for pass_input in inputs]
 
 class PassScheduler:
-  class Start: 
+  class Start:
     tag = "start"
   class Whenever:
     tag = "whenever"
-  class BeforePipelining: 
+  class BeforePipelining:
     tag = "beforepipelining"
-  class AfterPipelining: 
+  class AfterPipelining:
     tag = "afterpipelining"
   class AfterTargetCheck:
     tag = "aftertargetcheck"
-  class JustBeforeCodeGen: 
+  class JustBeforeCodeGen:
     tag = "beforecodegen"
   class Typing:
     tag = "typing"
   class Optimization:
     tag = "optimization"
+  STANDARD_SLOT_LIST = [
+        Start, Whenever, JustBeforeCodeGen,
+        BeforePipelining, AfterPipelining
+  ]
 
   @staticmethod
   def get_tag_class(tag):
@@ -125,10 +129,7 @@ class PassScheduler:
     return TAG_CLASS_MAP[tag]
 
   def __init__(self, pass_tag_list=None):
-    pass_tag_list = pass_tag_list or [
-        PassScheduler.Start, PassScheduler.Whenever, PassScheduler.JustBeforeCodeGen,
-        PassScheduler.BeforePipelining, PassScheduler.AfterPipelining
-    ]
+    pass_tag_list = pass_tag_list or STANDARD_SLOT_LIST
     self.pass_map = {
       None: [], # should remain empty
     }
@@ -147,7 +148,7 @@ class PassScheduler:
             pass_slot
         )
     )
-    self.pass_map[pass_slot].append(PassWrapper(pass_object, pass_dep)) 
+    self.pass_map[pass_slot].append(PassWrapper(pass_object, pass_dep))
     return pass_object.get_pass_id()
 
   def get_executed_passes(self):
@@ -168,7 +169,7 @@ class PassScheduler:
     self.waiting_pass_wrappers += self.pass_map[pass_slot]
     self.pass_map[pass_slot] = []
 
-  ## @param pass_slot, add all remaining passes supposed to 
+  ## @param pass_slot, add all remaining passes supposed to
   #  start after pass_slot to the waiting list
   #  than update the ready passe list and execute ready passes
   #  each updating @p pass_input in turn
@@ -185,9 +186,8 @@ class PassScheduler:
     self.ready_passes = []
     return ready_passes
 
-
   ## Execute all the ready passes from the given @p pass_slot
-  #  @param execution_function takes a pass and inputs as arguments and return 
+  #  @param execution_function takes a pass and inputs as arguments and return
   #         the corresponding  outputs
   def get_full_execute_from_slot(
       self, 
@@ -208,6 +208,22 @@ class PassScheduler:
       self.flush_rdy_pass_list()
       passes_to_execute = self.update_rdy_pass_list()
     return intermediary_values
+
+  def dump_pass_info(self):
+    """ dump pass pipeline information """
+    pass_tag_list = []
+    for pass_slot in PassScheduler.STANDARD_SLOT_LIST:
+      if not pass_slot in self.pass_map:
+        continue
+      for pass_wrapper in self.pass_map[pass_slot]:
+        pass_tag_list.append(pass_wrapper.pass_object.pass_tag)
+
+    max_tag_len = max(map(len, pass_tag_list))
+    max_tag_len += (max_tag_len % 2)
+    result = ""
+    inter_line = ("||".center(max_tag_len)) + "\n" + ("\/".center(max_tag_len)) + "\n"
+    result = inter_line.join(map(lambda s: s.center(max_tag_len) + "\n", ["Input"] + pass_tag_list + ["Backend"]))
+    return "\n" + result
 
 def METALIBM_PASS_REGISTER(pass_class):
     """ decorator to automate pass registering """
