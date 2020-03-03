@@ -2796,6 +2796,18 @@ class X86_SSE_Processor(X86_Processor):
                 scalar_precision, vector_size
             )
 
+    def instanciate_pass_pipeline(self, pass_scheduler, processor, extra_passes, language=C_Code):
+        """ instanciate an optimization pass pipeline for X86_SSE_Processor targets """
+        EXTRA_X86_SSE_PASSES = [
+            "beforecodegen:basic_legalization",
+            "beforecodegen:expand_multi_precision",
+            "beforecodegen:virtual_vector_bool_legalization",
+            "beforecodegen:m128_promotion",
+            "beforecodegen:vector_mask_test_legalization"
+        ]
+        return super().instanciate_pass_pipeline(pass_scheduler, processor,
+                                             EXTRA_X86_SSE_PASSES + extra_passes,
+                                             language=language)
 
 @UniqueTargetDecorator
 class X86_SSE2_Processor(X86_SSE_Processor):
@@ -2895,6 +2907,12 @@ class X86_AVX_Processor(X86_SSE42_Processor):
         return super(X86_AVX_Processor, self).get_compilation_options() \
                 + ['-mavx']
 
+    def instanciate_pass_pipeline(self, pass_scheduler, processor, extra_passes, language=C_Code):
+        """ instanciate an optimization pass pipeline for X86_AVX_Processor targets """
+        EXTRA_X86_AVX_PASSES = ["beforecodegen:m256_promotion"]
+        return super().instanciate_pass_pipeline(pass_scheduler, processor,
+                                             EXTRA_X86_AVX_PASSES + extra_passes,
+                                             language=language)
 
 @UniqueTargetDecorator
 class X86_AVX2_Processor(X86_AVX_Processor):
