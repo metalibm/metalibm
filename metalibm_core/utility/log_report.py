@@ -45,6 +45,7 @@ class Log(object):
     ## Tribber PDB break when an Error level message is reported
     break_on_error = False
 
+
     @staticmethod
     def set_dump_stdout(new_dump_stdout):
       Log.dump_stdout = new_dump_stdout
@@ -54,11 +55,22 @@ class Log(object):
       print("setting break on error ", value)
       Log.break_on_error = value
 
+    @staticmethod
+    def dump_level_list():
+        """ dump the list of existing levels """
+        print("Register log levels:\n  ", end="")
+        print("\n  ".join(Log.LogLevel.level_list), end="")
+
     class LogLevel(object):
+        level_list = []
         """ log level builder """
         def __init__(self, level_name, sub_level=None):
             self.name = level_name
             self.sub_level = sub_level
+            self.level_list.append("{}:{}".format(self.name, self.sub_level))
+
+        def gen_sub_level(self, sub_level):
+            return Log.LogLevelFilter(self.name, sub_level=sub_level)
     class LogLevelFilter(LogLevel):
         """ filtering log message """
         def match(self, tested_level):

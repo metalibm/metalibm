@@ -38,7 +38,7 @@ from ..utility.log_report import Log
 from .generator_utility import MatchResult, is_impl_list, ImplemList
 from .code_constant import C_Code
 
-LOG_BACKEND_INIT = Log.LogLevel(Log.Info, "backend_init")
+LOG_BACKEND_INIT = Log.Info.gen_sub_level("backend_init")
 
 TARGET_INSTANCE_MAP = {}
 

@@ -349,6 +349,19 @@ class PassListAction(argparse.Action):
             )
         exit(0)
 
+
+class LoggingLevelListAction(argparse.Action):
+    def __init__(self, option_strings, dest, nargs=None, **kwargs):
+        if nargs is not None:
+            raise ValueError("nargs not allowed")
+        super(LoggingLevelListAction, self).__init__(
+            option_strings, dest, nargs=0, **kwargs)
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        print("list of registered logging level")
+        Log.dump_level_list()
+        exit(0)
+
 # Command line action to set break on error in load module
 
 
@@ -670,6 +683,9 @@ class ML_CommonArgTemplate(object):
         self.parser.add_argument(
             "--pass-info", action=PassListAction,
             help="list available optmization passes")
+        self.parser.add_argument(
+            "--logging-info", action=LoggingLevelListAction,
+            help="list available logging levels")
 
         # list of
         self.parser.add_argument(
