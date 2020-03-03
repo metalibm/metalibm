@@ -620,6 +620,7 @@ def is_leaf_node(node):
 
 ## Constant node class
 class Constant(ML_LeafNode):
+    name = "Constant"
     ## Initializer
     #  @param value numerical value of the constant
     #  @param init_map dictionnary for attributes initialization
@@ -741,7 +742,9 @@ class AbstractVariable(ML_LeafNode):
         copy_map[self] = new_copy
         return new_copy
 
-class Variable(AbstractVariable): pass
+class Variable(AbstractVariable):
+    """ Base class for non-abstract variable """
+    name = "Variable"
 
 class InstanciatedOperation(ML_Operation):
   """ parent to Metalibm's type-instanciated operation """
