@@ -129,7 +129,7 @@ class PassScheduler:
     return TAG_CLASS_MAP[tag]
 
   def __init__(self, pass_tag_list=None):
-    pass_tag_list = pass_tag_list or STANDARD_SLOT_LIST
+    pass_tag_list = pass_tag_list or self.STANDARD_SLOT_LIST
     self.pass_map = {
       None: [], # should remain empty
     }
