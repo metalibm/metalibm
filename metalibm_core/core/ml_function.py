@@ -196,6 +196,7 @@ def generate_vector_implementation(scalar_scheme, scalar_arg_list,
 
 
     Log.report(Log.Info, "vector_output_format is {}".format(vector_output_format))
+    Log.report(Log.Info, "vector_mask is {}".format(vector_mask))
     vec_res = Variable("vec_res", precision=vector_output_format,
                        var_type=Variable.Local)
 

@@ -138,12 +138,12 @@ class StaticVectorizer(object):
         """
         # defaulting sub_vector_size to vector_size    when undefined
         sub_vector_size = vector_size if sub_vector_size is None else sub_vector_size
-
         vectorized_path = self.extract_vectorizable_path(optree, fallback_policy)
         linearized_most_likely_path = vectorized_path.linearized_optree
         validity_list = vectorized_path.validity_mask_list
 
-        Log.report(Log.Verbose, "linearized_most_likely_path: {}", linearized_most_likely_path.get_str(depth=None, display_precision=True))
+        Log.report(LOG_LEVEL_VECTORIZER_VERBOSE, "validity_list: {}", validity_list)
+        Log.report(LOG_LEVEL_VECTORIZER_VERBOSE, "linearized_most_likely_path: {}", linearized_most_likely_path.get_str(depth=None, display_precision=True))
 
         # replacing temporary variables by their latest assigned values
         linearized_most_likely_path = instanciate_variable(linearized_most_likely_path, vectorized_path.variable_mapping)
@@ -204,7 +204,7 @@ class StaticVectorizer(object):
 
             # no validity condition for vectorization (always valid)
             if len(validity_list) == 0:
-                Log.report(Log.Info, "empty validity list encountered during vectorization")
+                Log.report(Log.Warning, "empty validity list encountered during vectorization")
                 sub_vector_mask = Constant(True, precision = ML_Bool)
             else:
                 sub_vector_mask = and_merge_conditions(validity_list).copy(arg_list_copy)
@@ -285,7 +285,6 @@ class StaticVectorizer(object):
                          branch_to_consider, validity_mask_list
             @return VectorizedPath object containing linearized optree, 
                 validity mask list and variable_mapping """
-
         class VectorizedPath:
             """ structure to store vectorizable path sub-graph """
             def __init__(self, linearized_optree, validity_mask_list, variable_mapping = None):
