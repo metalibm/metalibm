@@ -293,10 +293,12 @@ class StaticVectorizer(object):
         local_mapping = {} if local_mapping is None else local_mapping
         class VectorizedPath:
             """ structure to store vectorizable path sub-graph """
-            def __init__(self, linearized_optree, validity_mask_list, variable_mapping = None):
+            def __init__(self, linearized_optree, validity_mask_list, variable_mapping=None, final=False):
                 self.linearized_optree = linearized_optree
                 self.validity_mask_list = validity_mask_list
                 self.variable_mapping = {} if variable_mapping is None else variable_mapping
+                # does the path contains a Return value
+                self.final = final
 
         """ look for the most likely Return statement """
         if isinstance(optree, ConditionBlock):
@@ -314,7 +316,7 @@ class StaticVectorizer(object):
                   if_branch = optree.inputs[1]
                   vectorized_path = self.extract_vectorizable_path(if_branch, fallback_policy, local_mapping=local_mapping)
                   return  VectorizedPath(
-                            vectorized_path.linearized_optree, 
+                            vectorized_path.linearized_optree,
                             vectorized_path.validity_mask_list + [cond],
                             vectorized_path.variable_mapping
                           )
@@ -342,7 +344,7 @@ class StaticVectorizer(object):
                   selected_branch, cond_mask_list = fallback_policy(cond, optree, if_branch, else_branch)
                   vectorized_path = self.extract_vectorizable_path(selected_branch, fallback_policy, local_mapping=local_mapping)
                   return  VectorizedPath(
-                    vectorized_path.linearized_optree, 
+                    vectorized_path.linearized_optree,
                     (cond_mask_list + vectorized_path.validity_mask_list),
                     vectorized_path.variable_mapping
                   )
@@ -360,6 +362,9 @@ class StaticVectorizer(object):
                 merged_validity_list += vectorized_path.validity_mask_list
                 if not vectorized_path.linearized_optree is None and result_path.linearized_optree is None: 
                     result_path =  vectorized_path
+                if vectorized_path.final:
+                    # if vectorized_path is final, we can exit now
+                    break
             return VectorizedPath(result_path.linearized_optree, merged_validity_list, merged_variable_mapping)
         elif isinstance(optree, ReferenceAssign):
             var_dst   = optree.get_input(0)
@@ -368,11 +373,12 @@ class StaticVectorizer(object):
             # value we copy the value assocaited with the variable, using
             # local_mapping to solve any pre-defined Variable-to-Value mapping
             var_value = pre_var_value.copy(local_mapping.copy())
+            assert(var_value != None)
 
             local_mapping[var_dst] = var_value
             return VectorizedPath(None, [], {var_dst: var_value})
         elif isinstance(optree, Return):
-            return VectorizedPath(optree.inputs[0], [])
+            return VectorizedPath(optree.inputs[0].copy(local_mapping.copy()), [], final=True)
         else:
             return VectorizedPath(None, [])
 
