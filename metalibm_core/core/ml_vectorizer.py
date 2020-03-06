@@ -382,21 +382,3 @@ class StaticVectorizer(object):
         else:
             return VectorizedPath(None, [])
 
-if __name__ == "__main__":
-    va = Variable("a")
-    vb = Variable("b")
-    vc = Variable("c")
-    scheme = Statement(
-        ReferenceAssign(va, Constant(3)),
-        ConditionBlock(
-            (va > vb).modify_attributes(likely=True),
-            ReferenceAssign(vb, va)
-        ),
-        ReferenceAssign(va, Constant(7)),
-        Return(vb)
-    )
-    vectorized_path = StaticVectorizer().extract_vectorizable_path(scheme, fallback_policy)
-    print("scheme: {}".format(scheme.get_str()))
-    
-    linearized_most_likely_path = instanciate_variable(vectorized_path.linearized_optree, vectorized_path.variable_mapping)
-    print("linearized_most_likely_path: {}".format(linearized_most_likely_path))
