@@ -700,7 +700,7 @@ class ML_FunctionBasis(object):
     # adding headers
     self.result.add_header("support_lib/ml_special_values.h")
     self.result.add_header("math.h")
-    self.result.add_header("stdio.h")
+    if self.debug_flag: self.result.add_header("stdio.h")
     self.result.add_header("inttypes.h")
 
     return self.result
@@ -1205,7 +1205,7 @@ class ML_FunctionBasis(object):
                     result_display_vars=result_display_vars,
                     #expected_display_vars=expected_display_vars
                 )
-    printf_op = TemplateOperatorFormat(template, void_function=True, arity=(result_arg_id+1)) 
+    printf_op = TemplateOperatorFormat(template, void_function=True, arity=(result_arg_id+1), require_header=["stdio.h"]) 
     printf_input_function = FunctionObject("printf", [ML_Int32] + self.get_input_precisions() + [self.precision], ML_Void, printf_op)
     return printf_input_function
 
@@ -1514,7 +1514,8 @@ class ML_FunctionBasis(object):
             0: "\"%s %%\"PRIi64\" elts computed in %%\"PRIi64\" cycles => %%.3f CPE \\n\"" % function_name,
             1: FO_Arg(0), 2: FO_Arg(1),
             3: FO_Arg(2)
-        }, void_function = True
+        }, void_function = True,
+        require_header=["stdio.h"]
     )
     printf_timing_function = FunctionObject("printf", [ML_Int64, ML_Int64, ML_Binary64], ML_Void, printf_timing_op)
 
