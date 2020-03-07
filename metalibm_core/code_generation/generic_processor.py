@@ -1158,11 +1158,9 @@ class GenericProcessor(AbstractBackend):
 
   def get_execution_command(self, test_file):
     return "./%s" % test_file
-  ## Return a list of compiler option strings for the @p self target
-  def get_compilation_options(self):
-    local_filename = inspect.getfile(inspect.currentframe()) # script filename (usually with path)
-    local_dir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))) # script directory
-    support_lib_dir = os.path.join(local_dir, "../support_lib/")
+  def get_compilation_options(self, ML_SRC_DIR):
+    """ Return a list of compiler option strings for the @p self target """
+    support_lib_dir = os.path.join(ML_SRC_DIR, "metalibm_core", "support_lib")
     
     return [" -I{} ".format(support_lib_dir)]
 

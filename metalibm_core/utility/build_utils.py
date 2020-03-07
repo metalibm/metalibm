@@ -115,21 +115,16 @@ class SourceFile:
         self.function_list = function_list
         self.path = path
 
-
-    def build(self, target, bin_name=None, shared_object=False, link=False):
-        """ Build @p self source file for @p target processor 
-            Args:
-                target: target processor
-                bin_name(str): name of the binary file (build result)
-                shared_object: build as shared object
-                link: enable/disable link
-            Return:
-                BinaryFile, str (error, stdout) """
-        bin_name = bin_name or sha256_file(self.path) 
+    @staticmethod
+    def get_build_command(path,  target, bin_name=None, shared_object=False, link=False, expand_env_var=True):
+        ML_SRC_DIR = "$ML_SRC_DIR" if not expand_env_var else os.environ["ML_SRC_DIR"]
+        bin_name = bin_name or sha256_file(path)
         compiler = target.get_compiler()
         DEFAULT_OPTIONS = ["-O2", "-DML_DEBUG"]
-        compiler_options = " ".join(DEFAULT_OPTIONS + target.get_compilation_options())
-        src_list = [self.path]
+        compiler_options = " ".join(DEFAULT_OPTIONS + target.get_compilation_options(ML_SRC_DIR))
+        src_list = [path]
+
+
         if not(link):
             # build only, disable link
             if shared_object:
@@ -138,8 +133,8 @@ class SourceFile:
                 compiler_options += " -c  "
         else:
             src_list += [
-                "%s/metalibm_core/support_lib/ml_libm_compatibility.c" % (os.environ["ML_SRC_DIR"]),
-                "%s/metalibm_core/support_lib/ml_multi_prec_lib.c" % (os.environ["ML_SRC_DIR"]),
+                "%s/metalibm_core/support_lib/ml_libm_compatibility.c" % (ML_SRC_DIR),
+                "%s/metalibm_core/support_lib/ml_multi_prec_lib.c" % (ML_SRC_DIR),
             ]
         Log.report(Log.Info, "Compiler options: \"{}\"".format(compiler_options))
 
@@ -149,7 +144,19 @@ class SourceFile:
             src_file=(" ".join(src_list)),
             bin_name=bin_name,
             options=compiler_options,
-            ML_SRC_DIR=os.environ["ML_SRC_DIR"])
+            ML_SRC_DIR=ML_SRC_DIR)
+        return build_command
+
+    def build(self, target, bin_name=None, shared_object=False, link=False):
+        """ Build @p self source file for @p target processor
+            Args:
+                target: target processor
+                bin_name(str): name of the binary file (build result)
+                shared_object: build as shared object
+                link: enable/disable link
+            Return:
+                BinaryFile, str (error, stdout) """
+        build_command = SourceFile.get_build_command(self.path, target, bin_name, shared_object, link, expand_env_var=True)
 
         Log.report(Log.Info, "Building source with command: {}".format(build_command))
         build_result, build_stdout = get_cmd_stdout(build_command)
@@ -158,8 +165,6 @@ class SourceFile:
             return None
         else:
             return BinaryFile(bin_name, self, shared_object=shared_object)
-
-        
 
 
 class BuildProject:
