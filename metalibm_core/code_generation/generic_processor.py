@@ -1161,7 +1161,7 @@ class GenericProcessor(AbstractBackend):
   def get_compilation_options(self, ML_SRC_DIR):
     """ Return a list of compiler option strings for the @p self target """
     support_lib_dir = os.path.join(ML_SRC_DIR, "metalibm_core", "support_lib")
-    
+
     return [" -I{} ".format(support_lib_dir)]
 
   def instanciate_pass_pipeline(self, pass_scheduler, processor, extra_passes, language=C_Code):

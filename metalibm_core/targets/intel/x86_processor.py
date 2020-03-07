@@ -2782,8 +2782,8 @@ class X86_SSE_Processor(X86_Processor):
     def __init__(self):
         super().__init__()
 
-    def get_compilation_options(self):
-        return super(X86_SSE_Processor, self).get_compilation_options() \
+    def get_compilation_options(self, ML_SRC_DIR):
+        return super(X86_SSE_Processor, self).get_compilation_options(ML_SRC_DIR) \
                 + ['-msse']
 
     def get_preferred_sub_vector_size(self, scalar_precision, vector_size):
@@ -2820,8 +2820,8 @@ class X86_SSE2_Processor(X86_SSE_Processor):
     def __init__(self):
         super().__init__()
 
-    def get_compilation_options(self):
-        return super(X86_SSE2_Processor, self).get_compilation_options() \
+    def get_compilation_options(self, ML_SRC_DIR):
+        return super(X86_SSE2_Processor, self).get_compilation_options(ML_SRC_DIR) \
                 + ['-msse2']
 
 
@@ -2833,8 +2833,8 @@ class X86_SSE3_Processor(X86_SSE2_Processor):
         C_Code: sse3_c_code_generation_table,
     }
 
-    def get_compilation_options(self):
-        return super(X86_SSE3_Processor, self).get_compilation_options() \
+    def get_compilation_options(self, ML_SRC_DIR):
+        return super(X86_SSE3_Processor, self).get_compilation_options(ML_SRC_DIR) \
                 + ['-msse3']
 
 
@@ -2849,8 +2849,8 @@ class X86_SSSE3_Processor(X86_SSE3_Processor):
     def __init__(self):
         super().__init__()
 
-    def get_compilation_options(self):
-      return super(X86_SSSE3_Processor, self).get_compilation_options() \
+    def get_compilation_options(self, ML_SRC_DIR):
+      return super(X86_SSSE3_Processor, self).get_compilation_options(ML_SRC_DIR) \
               + ['-mssse3']
 
 
@@ -2865,8 +2865,8 @@ class X86_SSE41_Processor(X86_SSSE3_Processor):
     def __init__(self):
         super().__init__()
 
-    def get_compilation_options(self):
-        return super(X86_SSE41_Processor, self).get_compilation_options() \
+    def get_compilation_options(self, ML_SRC_DIR):
+        return super(X86_SSE41_Processor, self).get_compilation_options(ML_SRC_DIR) \
                 + ['-msse4.1']
 
 
@@ -2881,8 +2881,8 @@ class X86_SSE42_Processor(X86_SSE41_Processor):
     def __init__(self):
         super().__init__()
 
-    def get_compilation_options(self):
-        return super(X86_SSE42_Processor, self).get_compilation_options() \
+    def get_compilation_options(self, ML_SRC_DIR):
+        return super(X86_SSE42_Processor, self).get_compilation_options(ML_SRC_DIR) \
                 + ['-msse4.2']
 
 
@@ -2903,8 +2903,8 @@ class X86_AVX_Processor(X86_SSE42_Processor):
     def __init__(self):
         super().__init__()
 
-    def get_compilation_options(self):
-        return super(X86_AVX_Processor, self).get_compilation_options() \
+    def get_compilation_options(self, ML_SRC_DIR):
+        return super(X86_AVX_Processor, self).get_compilation_options(ML_SRC_DIR) \
                 + ['-mavx']
 
     def instanciate_pass_pipeline(self, pass_scheduler, processor, extra_passes, language=C_Code):
@@ -2925,8 +2925,8 @@ class X86_AVX2_Processor(X86_AVX_Processor):
     def __init__(self):
         super().__init__()
 
-    def get_compilation_options(self):
-      return super(X86_AVX2_Processor, self).get_compilation_options() \
+    def get_compilation_options(self, ML_SRC_DIR):
+      return super(X86_AVX2_Processor, self).get_compilation_options(ML_SRC_DIR) \
               + ["-mfma", "-mavx2"]
 
 

@@ -710,7 +710,7 @@ class LLVMBackend(GenericProcessor):
         return LLVMBackend.default_compiler
 
     ## Return a list of compiler option strings for the @p self target
-    def get_compilation_options(self):
+    def get_compilation_options(self, ML_SRC_DIR):
         """ return list of compiler options """
         return [" "]
 
