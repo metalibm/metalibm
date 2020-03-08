@@ -212,7 +212,8 @@ class ML_GenericLog(ScalarUnaryFunction):
                 precision=self.precision,
                 tag="pre_arg_red_index", debug = debug_multi)
 
-            index_comp_0 = Equal(table_index, 0, tag="index_comp_0", debug=debug_multi)
+            C0 = Constant(0, precision=table_index.get_precision())
+            index_comp_0 = Equal(table_index, C0, tag="index_comp_0", debug=debug_multi)
 
             arg_red_index = Select(index_comp_0, 1.0, pre_arg_red_index, tag = "arg_red_index", debug = debug_multi)
             _red_vx        = arg_red_index * _vx_mant - 1.0
@@ -321,7 +322,7 @@ class ML_GenericLog(ScalarUnaryFunction):
         #poly2.set_attributes(tag = "poly2", debug = debug_multi)
         #result2 = (poly2 - log_inv_hi - log_inv_lo)
 
-        m100 = -100
+        m100 = Constant(-100, precision=int_precision)
         S2100 = Constant(S2**100, precision = self.precision)
         result_subnormal = compute_log(vx * S2100, exp_corr_factor=m100)
 
