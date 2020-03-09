@@ -486,6 +486,13 @@ class FP_QNaN(FP_MathSpecialValue):
     sign, mant = FP_QNaN.ml_nan_field(self, field_size)
     mant |= quiet_bit
     return mant | (((sign << exp_size) | exp) << field_size)
+  def get_c_cst(self):
+    if self.precision.get_bit_size() == 32:
+        return "__builtin_nanf(\"\")"
+    elif self.precision.get_bit_size() == 64:
+        return "__builtin_nan(\"\")"
+    else:
+        super().get_c_cst()
   def __str__(self):
     return "qNaN"
   def _sollya_(self):

@@ -497,9 +497,9 @@ class ML_Std_FP_Format(ML_FP_Format):
                 conv_result = "INFINITY"
             elif cst_value != cst_value:
                 # NaN detection
-                if self == ML_Binary32:
+                if self.get_bit_size() == 32:
                     conv_result = "__builtin_nanf(\"\")"
-                elif self == ML_Binary64:
+                elif self.get_bit_size() == 64:
                     conv_result = "__builtin_nan(\"\")"
                 else:
                     conv_result = "NAN"
