@@ -30,6 +30,7 @@
 ###############################################################################
 
 import sollya
+import bigfloat
 
 # TODO/FIXME: implement cleaner way to register and list meta-functions
 import metalibm_functions.ml_log10
@@ -51,6 +52,7 @@ import metalibm_functions.ml_div
 import metalibm_functions.generic_log
 import metalibm_functions.erf
 import metalibm_functions.ml_acos
+import metalibm_functions.fmod
 
 from sollya_extra_functions import cbrt
 
@@ -81,4 +83,5 @@ FUNCTION_MAP = {
     "sin": (metalibm_functions.ml_sincos.ML_SinCos, {"sin_output": True}, sollya.sin),
 
     "erf": (metalibm_functions.erf.ML_Erf, {}, sollya.erf),
+    "fmod": (metalibm_functions.fmod.MetaFMOD, {}, bigfloat.fmod),
 }
