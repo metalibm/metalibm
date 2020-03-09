@@ -37,6 +37,7 @@
 import sollya
 from .ml_operations import (
     LogicalAnd, LogicalNot,
+    LogicalOr, NotEqual,
     Comparison, FunctionObject, Min, Abs, Subtraction, Division)
 from metalibm_core.code_generation.generator_utility import *
 
@@ -108,9 +109,19 @@ class ML_TwoFactorPrecision(ML_FunctionPrecision):
         # such that the test succeed only if the value is within the bound
         # and not fails if the value lies outside the bound (which fails to
         # raise unexpected NaNs as failure)
-        success_test = LogicalAnd(
-          Comparison(test_result, low_bound, specifier=Comparison.GreaterOrEqual),
-          Comparison(test_result, high_bound, specifier=Comparison.LessOrEqual)
+        success_test = LogicalOr(
+            LogicalAnd(
+              Comparison(test_result, low_bound, specifier=Comparison.GreaterOrEqual),
+              Comparison(test_result, high_bound, specifier=Comparison.LessOrEqual)
+            ),
+            # NaN comparison
+            LogicalAnd(
+                LogicalOr(
+                    NotEqual(low_bound, low_bound),
+                    NotEqual(high_bound, high_bound),
+                ),
+                NotEqual(test_result, test_result)
+            )
         )
         failure_test = LogicalNot(success_test)
         return failure_test
