@@ -1321,9 +1321,10 @@ vector_c_code_generation_table = {
   TypeCast: {
       None: {
           lambda optree: True: {
-
-              type_strict_match(v4float32, v4int32) : ML_VectorLib_Function("VECTORIZE_OP1", arg_map = {0: "float_from_32b_encoding", 1: FO_ResultRef(0), 2: FO_Arg(0), 3: "4"}, arity = 1, output_precision = v4float32),
-              type_strict_match(v4int32, v4float32) : ML_VectorLib_Function("VECTORIZE_OP1", arg_map = {0: "float_to_32b_encoding", 1: FO_ResultRef(0), 2: FO_Arg(0), 3: "4"}, arity = 1, output_precision = v4int32),
+              type_strict_match(v4float32, v4int32):
+                  ML_VectorLib_Function("v4si_cast2_v4sf", arity=1, output_precision = v4float32),
+              type_strict_match(v4int32, v4float32):
+                  ML_VectorLib_Function("v4sf_cast2_v4si", arity=1, output_precision = v4float32),
 
               type_strict_match(v3float32, v3int32) : ML_VectorLib_Function("VECTORIZE_OP1", arg_map = {0: "float_from_32b_encoding", 1: FO_ResultRef(0), 2: FO_Arg(0), 3: "4"}, arity = 1, output_precision = v3float32),
               type_strict_match(v3int32, v3float32) : ML_VectorLib_Function("VECTORIZE_OP1", arg_map = {0: "float_to_32b_encoding", 1: FO_ResultRef(0), 2: FO_Arg(0), 3: "4"}, arity = 1, output_precision = v3int32),

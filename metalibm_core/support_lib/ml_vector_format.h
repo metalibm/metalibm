@@ -23,6 +23,7 @@ typedef float ml_float2_t __attribute__ ((vector_size (8)));
 typedef float ml_float4_t __attribute__ ((vector_size (16)));
 typedef float ml_float8_t __attribute__ ((vector_size (32)));
 
+
 // double precision vector format
 typedef double ml_double2_t __attribute__ ((vector_size (16)));
 typedef double ml_double4_t __attribute__ ((vector_size (32)));
@@ -57,6 +58,14 @@ typedef int32_t ml_bool8_t __attribute__ ((vector_size (32)));
 typedef int64_t ml_lbool2_t __attribute__ ((vector_size (16)));
 typedef int64_t ml_lbool4_t __attribute__ ((vector_size (32)));
 typedef int64_t ml_lbool8_t __attribute__ ((vector_size (64)));
+
+
+/** Union type for 4x 32-b element vectors */
+typedef union {
+    ml_uint4_t u;
+    ml_int4_t i;
+    ml_float4_t f;
+} ml_vec4_32b_uif;
 
 /** Multi-precision vector format */
 #define DEC_ML_MP2_VEC_FORMAT(FORMAT_NAME, FIELD_FORMAT) \

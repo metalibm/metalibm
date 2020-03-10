@@ -9,6 +9,16 @@
   for (i = 0; i < size; ++i) (*(r))[i] = OP((x)[i]);\
 }
 
+ml_float4_t v4si_cast2_v4sf(ml_int4_t v) {
+    ml_vec4_32b_uif vconv = {.i = v};
+    return vconv.f;
+}
+
+ml_int4_t v4sf_cast2_v4si(ml_float4_t v) {
+    ml_vec4_32b_uif vconv = {.f = v};
+    return vconv.i;
+}
+
 
 #define DEF_ML_VECTOR_PRIMITIVES_OP3(FUNC_NAME, VECTOR_FORMAT, SCALAR_FORMAT, VECTOR_SIZE, SCALAR_OP0, SCALAR_OP1) \
 static inline void FUNC_NAME(VECTOR_FORMAT *r, VECTOR_FORMAT vop0, VECTOR_FORMAT vop1, VECTOR_FORMAT vop2) {\
