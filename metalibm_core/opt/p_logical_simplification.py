@@ -36,7 +36,7 @@ from metalibm_core.core.passes import FunctionPass, Pass, LOG_PASS_INFO
 
 from metalibm_core.opt.node_transformation import Pass_NodeTransformation
 from metalibm_core.opt.opt_utils import (
-    forward_attributes,
+    forward_attributes, logical_reduce,
 )
 
 
@@ -54,6 +54,89 @@ from metalibm_core.opt.opt_utils import is_false, is_true
 
 
 
+def is_logical_and_not(node):
+    """ test if node is a tree of And(Not(), And(..)) """
+    if not isinstance(node, LogicalAnd):
+        return False
+    lhs = node.get_input(0)
+    rhs = node.get_input(0)
+    def input_predicate(op):
+        return isinstance(op, LogicalNot) or is_logical_and_not(op)
+    return input_predicate(lhs) and input_predicate(rhs)
+
+def is_logical_or_not(node):
+    """ test if node is a tree of And(Not(), And(..)) """
+    if not isinstance(node, LogicalOr):
+        return False
+    lhs = node.get_input(0)
+    rhs = node.get_input(0)
+    def input_predicate(op):
+        return isinstance(op, LogicalNot) or is_logical_or_not(op)
+    return input_predicate(lhs) and input_predicate(rhs)
+
+def simplify_logical_tree(node,
+                             op_predicate=lambda n: isinstance(n, LogicalAnd),
+                             leaf_predicate=lambda n: isinstance(n, LogicalNot),
+                             result_ctor=lambda node, input_list: None):
+    """ simplify a tree of operation matching the following conditions:
+        - each internal node verifies op_predicate(node)
+        - each leaf verifies leaf_predicate(node)
+
+        a list is built with the leaf node and the result is built
+        by calling result_ctor(<input node>, <list>) """
+    def get_input_list(op):
+        if leaf_predicate(op):
+            # extract input of input (decapsulating LogicalNot)
+            return [op]
+        elif op_predicate(op):
+            return get_input_list(op.get_input(0)) + get_input_list(op.get_input(1))
+        else:
+            raise NotImplementedError
+    input_list = get_input_list(node)
+    result = result_ctor(node, input_list)
+    #result = LogicalNot(logical_or_reduce(list(map(leaf_transform, input_list))))
+    forward_attributes(node, result)
+    return result
+
+def simplify_logical_and_not(node, leaf_transform):
+    """ Simplify a tree of LogicalAnd nodes, whose
+        leaf are LogicalNot nodes """
+    # the leaf_function transforms a leaf by extracting
+    # its single input (decapsulating LogicalNot) and 
+    # calling leaf_transform on this input
+    def leaf_function(op):
+        return leaf_transform(op.get_input(0))
+
+    result = simplify_logical_tree(node,
+        op_predicate=(lambda op: isinstance(op, LogicalAnd)),
+        leaf_predicate=(lambda op: isinstance(op, LogicalNot)),
+        result_ctor=lambda op, op_list: LogicalNot(logical_reduce(
+            list(map(leaf_function, op_list)),
+            LogicalOr,
+            precision=node.get_precision()
+        ), precision=node.get_precision())
+    )
+    forward_attributes(node, result)
+    return result
+
+def simplify_logical_or_not(node, leaf_transform):
+    """ Simplify a tree of LogicalOr nodes, whose
+        leaf are LogicalNot nodes """
+    # the leaf_function transforms a leaf by extracting
+    # its single input (decapsulating LogicalNot) and 
+    # calling leaf_transform on this input
+    def leaf_function(op):
+        return leaf_transform(op.get_input(0))
+
+    result = simplify_logical_tree(node,
+        op_predicate=(lambda op: isinstance(op, LogicalOr)),
+        leaf_predicate=(lambda op: isinstance(op, LogicalNot)),
+        result_ctor=lambda op, op_list: LogicalNot(logical_reduce(
+            list(map(leaf_transform, op_list)), LogicalAnd, precision=node.get_precision()
+        ), precision=node.get_precision())
+    )
+    forward_attributes(node, result)
+    return result
 
 
 class LogicalSimplification:
@@ -62,12 +145,12 @@ class LogicalSimplification:
         self.memoization_map = {}
 
     def is_simplifiable(self, node):
-        if isinstance(node, (LogicalAnd, LogicalOr)):
+        if is_logical_and_not(node):
             # And(Not(lhs), Not(rhs)) => Not(Or(lhs, rhs)) : 3 ops -> 2 ops
+            return True
+        elif is_logical_or_not(node):
             # Or(Not(lhs), Not(rhs)) => Not(And(lhs, rhs)) : 3 ops -> 2 ops
-            lhs = node.get_input(0)
-            rhs = node.get_input(1)
-            return isinstance(lhs, LogicalNot) and isinstance(rhs, LogicalNot)
+            return True
         else:
             return False
 
@@ -83,21 +166,12 @@ class LogicalSimplification:
             return self.memoization_map[node]
         else:
             if self.is_simplifiable(node):
-                if isinstance(node, (LogicalAnd, LogicalOr)):
-                    # And(Not(lhs), Not(rhs)) => Not(Or(lhs, rhs)) : 3 ops -> 2 ops
-                    # Or(Not(lhs), Not(rhs)) => Not(And(lhs, rhs)) : 3 ops -> 2 ops
-                    lhs = node.get_input(0)
-                    rhs = node.get_input(1)
-                    assert isinstance(lhs, LogicalNot)
-                    assert isinstance(rhs, LogicalNot)
-                    lhs = self.simplify(lhs.get_input(0))
-                    rhs = self.simplify(rhs.get_input(0))
-                    ctor = LogicalAnd if isinstance(node, LogicalOr) else LogicalOr
-                    result = LogicalNot(
-                        ctor(lhs, rhs, precision=node.get_precision()),
-                        precision=node.get_precision()
-                    )
-                    forward_attributes(result, node)
+                if isinstance(node, LogicalAnd):
+                    result = simplify_logical_and_not(node, self.simplify)
+                elif isinstance(node, LogicalOr):
+                    result = simplify_logical_or_not(node, self.simplify)
+                else:
+                    raise NotImplementedError
             elif not is_leaf_node(node):
                 for index, op in enumerate(node.inputs):
                     new_op = self.simplify(op)
