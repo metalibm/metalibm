@@ -341,13 +341,27 @@ class FPRandomGen(RandomGenWeightCat):
             def __init__(self, inf_bound, sup_bound):
                 self.inf_bound = inf_bound
                 self.sup_bound = sup_bound
+                self.zero_in_interval = 0 in sollya.Interval(inf_bound, sup_bound)
+                self.min_exp = None if self.zero_in_interval else min(sollya.ceil(sollya.log2(abs(inf_bound))), sollya.ceil(sollya.log2(abs(sup_bound))))
+                self.max_exp = max(sollya.ceil(sollya.log2(abs(inf_bound))), sollya.ceil(sollya.log2(abs(sup_bound))))
 
             def generate_value(self, generator):
                 # TODO/FIXME random.uniform only generate a machine precision
                 # number (generally a double) which may not be suitable
                 # for larger format
-                value = generator.precision.round_sollya_object(random.uniform(self.inf_bound, self.sup_bound))
-                return NumericValue(value)
+                field_size = generator.precision.get_field_size()
+                exp = generator.random.randrange(
+                    generator.precision.get_emin_normal() if self.min_exp is None else self.min_exp,
+                    (generator.precision.get_emax() + 1) if self.max_exp is None else self.max_exp
+                )
+                sign = generator.generate_sign()
+                field = generator.random.randrange(2**field_size)
+                mantissa = 1.0 + field * S2**-generator.precision.get_field_size()
+                random_value = mantissa * sign * S2**exp
+                return NumericValue(min(max(self.inf_bound, random_value), self.sup_bound))
+
+                # value = generator.precision.round_sollya_object(random.uniform(self.inf_bound, self.sup_bound))
+                # return NumericValue(value)
 
     special_value_ctor = [
         FP_PlusInfty, FP_MinusInfty,
