@@ -35,7 +35,7 @@ import bigfloat
 from metalibm_core.core.ml_operations import (
     Return, Statement, Division, Trunc, Conversion,
     FusedMultiplyAdd, Variable, ReferenceAssign, Loop,
-    Constant, Abs, FMA,
+    Constant, Abs, FMA, ConditionBlock,
 )
 from metalibm_core.core.precisions import ML_Faithful
 from metalibm_core.core.ml_formats import ML_Binary32
@@ -45,6 +45,7 @@ from metalibm_core.core.simple_scalar_function import ScalarBinaryFunction
 from metalibm_core.code_generation.generic_processor import GenericProcessor
 
 from metalibm_core.utility.ml_template import ML_NewArgTemplate
+from metalibm_core.utility.debug_utils import debug_multi
 
 # SollyaObject for the numerical value 2.0
 S2 = sollya.SollyaObject(2)
@@ -80,6 +81,10 @@ class MetaFMOD(ScalarBinaryFunction):
         qi_bound = Constant(S2**self.precision.get_mantissa_size())
         init_rem = FusedMultiplyAdd(-div_if, vy, vx)
 
+        # factorizing 1 / vy to save time
+        # NOTES: it makes rem / vy approximate
+        # shared_rcp = Division(1, vy, precision=self.precision)
+
         iterative_fmod = Loop(
             Statement(
                 ReferenceAssign(rem, init_rem),
@@ -89,7 +94,8 @@ class MetaFMOD(ScalarBinaryFunction):
             Statement(
                 ReferenceAssign(
                     qi,
-                    Trunc(Division(rem, vy, precision=self.precision), precision=self.precision)
+                    #Trunc(shared_rcp * rem, precision=self.precision)
+                    Trunc(rem / vy, precision=self.precision)
                 ),
                 ReferenceAssign(
                     rem,
@@ -103,8 +109,14 @@ class MetaFMOD(ScalarBinaryFunction):
         )
         scheme = Statement(
             rem,
+            # shared_rcp,
             iterative_fmod,
-            Return(rem),
+            ConditionBlock(
+                # if rem's sign and vx sign mismatch
+                (rem  * vx < 0.0).modify_attributes(tag="update_cond", debug=debug_multi),
+                Return(rem + vy),
+                Return(rem),
+            )
         )
         return scheme
 
@@ -115,6 +127,7 @@ class MetaFMOD(ScalarBinaryFunction):
     standard_test_cases = [
         (10,0),
         (S2**100,1337 * S2**-20),
+        (sollya.parse("0x1.7768b8p+32"), sollya.parse("0x1.b825bp-41")),
     ]
 
 
