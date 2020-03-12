@@ -34,7 +34,8 @@ import bigfloat
 
 from metalibm_core.core.ml_operations import (
     Return, Statement, Division, Trunc, Conversion,
-    FusedMultiplyAdd,
+    FusedMultiplyAdd, Variable, ReferenceAssign, Loop,
+    Constant, Abs, FMA,
 )
 from metalibm_core.core.precisions import ML_Faithful
 from metalibm_core.core.ml_formats import ML_Binary32
@@ -45,8 +46,11 @@ from metalibm_core.code_generation.generic_processor import GenericProcessor
 
 from metalibm_core.utility.ml_template import ML_NewArgTemplate
 
+# SollyaObject for the numerical value 2.0
+S2 = sollya.SollyaObject(2)
 
 class MetaFMOD(ScalarBinaryFunction):
+    """ Meta-function description for fmod """
     function_name = "ml_fmod"
     def __init__(self, args=DefaultArgTemplate):
         # initializing base class
@@ -71,8 +75,35 @@ class MetaFMOD(ScalarBinaryFunction):
     def generate_scalar_scheme(self, vx, vy):
         div = Division(vx, vy, precision=self.precision)
         div_if = Trunc(div, precision=self.precision)
-        rem = FusedMultiplyAdd(-div_if, vy, vx)
+        rem = Variable("rem", var_type=Variable.Local, precision=self.precision)
+        qi = Variable("qi", var_type=Variable.Local, precision=self.precision)
+        qi_bound = Constant(S2**self.precision.get_mantissa_size())
+        init_rem = FusedMultiplyAdd(-div_if, vy, vx)
+
+        iterative_fmod = Loop(
+            Statement(
+                ReferenceAssign(rem, init_rem),
+                ReferenceAssign(qi, div_if),
+            ),
+            Abs(qi) > qi_bound,
+            Statement(
+                ReferenceAssign(
+                    qi,
+                    Trunc(Division(rem, vy, precision=self.precision), precision=self.precision)
+                ),
+                ReferenceAssign(
+                    rem,
+                    FMA(
+                        -qi,
+                        vy,
+                        rem
+                    )
+                )
+            )
+        )
         scheme = Statement(
+            rem,
+            iterative_fmod,
             Return(rem),
         )
         return scheme
@@ -83,6 +114,7 @@ class MetaFMOD(ScalarBinaryFunction):
 
     standard_test_cases = [
         (10,0),
+        (S2**100,1337 * S2**-20),
     ]
 
 
