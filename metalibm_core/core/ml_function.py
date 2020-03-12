@@ -1493,11 +1493,16 @@ class ML_FunctionBasis(object):
     ## (low, high) are store in output table
     output_table = ML_NewTable(dimensions = [test_total], storage_precision = output_precision, tag = self.uniquify_name("output_table"), empty = True)
 
+    # TODO/FIXME: implement proper input range depending on input index
+    rng_map = [get_precision_rng(precision, low_input, high_input) for precision in self.input_precisions]
+
+    # TODO: factorize with auto-test wrapper generation function
     # random test cases
     for i in range(test_total):
       for in_id in range(self.get_arity()):
-        input_value = random.uniform(low_input, high_input)
-        input_value = self.precision.round_sollya_object(input_value, RN)
+        input_value = rng_map[in_id].get_new_value() #random.uniform(low_input, high_input)
+        input_precision = self.get_input_precision(in_id)
+        input_value = input_precision.round_sollya_object(input_value, RN)
         input_tables[in_id][i] = input_value
 
     if self.implementation.get_output_format().is_vector_format():
