@@ -1429,7 +1429,7 @@ class ML_FunctionBasis(object):
               ReferenceAssign(eval_error, local_error),
               ReferenceAssign(max_input, vi/loop_increment),
               ReferenceAssign(max_vi, vi),
-              ReferenceAssign(max_result, local_result)              
+              ReferenceAssign(max_result, local_result)
             ),
             Statement()),
           ReferenceAssign(vi, vi + loop_increment)
@@ -1449,7 +1449,7 @@ class ML_FunctionBasis(object):
     return test_statement
 
 
-  ## Generate a test wrapper for the @p self function 
+  ## Generate a test wrapper for the @p self function
   #  @param test_num   number of test to perform
   #  @param test_range numeric range for test's inputs
   #  @param debug enable debug mode
