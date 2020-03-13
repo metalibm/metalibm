@@ -323,12 +323,16 @@ class TransparentOperator(IdentityOperator):
         # registering headers
         self.register_headers(code_object)
 
+        assert len(var_arg_list) == 1
+
         # generating result code
         result_code = "".join([var_arg.get() for var_arg in var_arg_list])
 
         # generating assignation if required
         folded = kwords["folded"]
-        if self.no_parenthesis:
+        if isinstance(var_arg_list[0], CodeVariable):
+            return var_arg_list[0]
+        elif self.no_parenthesis:
             return CodeExpression("%s" % result_code, optree.get_precision())
         else:
             return CodeExpression("(%s)" % result_code, optree.get_precision())
