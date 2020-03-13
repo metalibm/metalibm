@@ -51,7 +51,7 @@ def fixed_debug_pre_process(value_name, optree):
   fixed_prec = optree.get_precision()
   signed_attr = "-signed" if fixed_prec.get_signed() else "-unsigned"
   # return "echo [get_fixed_value [examine -value {signed_attr} {value}] {weight}]".format(signed_attr = signed_attr, value = value_name, weight = -fixed_prec.get_frac_size())
-  return "echo [get_fixed_value [examine -radix 10 {value}] {weight}]".format(signed_attr = signed_attr, value = value_name, weight = -fixed_prec.get_frac_size())
+  return "echo [get_fixed_value [examine -radix 10 {signed_attr} {value}] {weight}]".format(signed_attr = signed_attr, value = value_name, weight = -fixed_prec.get_frac_size())
 
 
 ## Debug attributes specific for Fixed-Point values
