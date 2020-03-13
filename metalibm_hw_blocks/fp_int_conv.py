@@ -104,18 +104,21 @@ class FP_Trunc(ML_Entity("fp_trunc")):
             )
 
         p = base_format.get_field_size()
+        n = support_format.get_bit_size()
 
-        vx_exp = fixed_exponent(vx)
+        vx_exp = fixed_exponent(vx).modify_attributes(tag="vx_exp", debug=debug_fixed)
         vx_mant = fixed_mantissa(vx)
         fixed_support_format = fixed_point(support_format.get_bit_size(), 0, signed=False)
         # shift amount to normalize mantissa into an integer
-        int_norm_shift = Max(p - vx_exp + base_format.get_bias(), 0)
-        pre_mant_mask = Constant(2**p-1, precision=fixed_support_format)
-        neg_mant_mask = TypeCast(
-            BitLogicRightShift(pre_mant_mask, int_norm_shift, precision=fixed_support_format),
-            precision=support_format
+        int_norm_shift = Max(p - (vx_exp + base_format.get_bias()), 0, tag="int_norm_shift", debug=debug_fixed)
+        pre_mant_mask = Constant(2**n-1, precision=fixed_support_format)
+        mant_mask = TypeCast(
+            BitLogicLeftShift(pre_mant_mask, int_norm_shift, precision=fixed_support_format),
+            precision=support_format,
+            tag="mant_mask",
+            debug=debug_std
         )
-        mant_mask = BitLogicNegate(neg_mant_mask, precision=support_format)
+        #mant_mask = BitLogicNegate(neg_mant_mask, precision=support_format, tag="mant_mask", debug=debug_std)
 
         normed_result = TypeCast(
             BitLogicAnd(
@@ -147,10 +150,13 @@ class FP_Trunc(ML_Entity("fp_trunc")):
         vx = io_map["vx"]
         result = {}
         base_format = self.precision.get_base_format()
-        result["vr_out"] = (sollya.ceil if vx > 0 else sollya.floor)(vx)
+        result["vr_out"] = (sollya.floor if vx > 0 else sollya.ceil)(vx)
         return result
 
-    standard_test_cases = [({"x": 1.0, "y": (S2**-11 + S2**-17)}, None)]
+    standard_test_cases = [
+        ({"vx": ML_Binary32.get_value_from_integer_coding("0x48bef48d", base=16)}, None),
+        ({"vx": 1.0}, None),
+    ]
 
 
 if __name__ == "__main__":
