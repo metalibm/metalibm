@@ -46,7 +46,7 @@ from metalibm_core.utility.log_report import Log
 LOG_VERBOSE_SIMPLIFY_RTL = Log.LogLevel("SimplifyRTLVerbose")
 
 def is_simplifiable(node):
-    return (isinstance(node, VectorElementSelection) and isinstance(node.get_input(0), SubSignalSelection)) or \
+    return (isinstance(node, VectorElementSelection) and isinstance(node.get_input(0), (Constant, SubSignalSelection))) or \
         (isinstance(node, SubSignalSelection) and isinstance(node.get_input(0), SubSignalSelection))
 
 class BasicSimplifier(object):
@@ -80,6 +80,14 @@ class BasicSimplifier(object):
                 parent_input = op_input.get_input(0)
                 base_index = evaluate_cst_graph(op_input.get_input(1))
                 new_node = BitSelection(parent_input, base_index + op_index)
+                forward_attributes(node, new_node)
+                result = new_node
+            elif isinstance(op_input, Constant):
+                offset = 0
+                if is_fixed_point(op_input.get_precision()):
+                    offset = -op_input.get_precision().get_frac_size()
+                bit_value = (op_input.get_value() >> (op_index + offset)) & 1
+                new_node = Constant(bit_value, precision=node.get_precision())
                 forward_attributes(node, new_node)
                 result = new_node
         else:
