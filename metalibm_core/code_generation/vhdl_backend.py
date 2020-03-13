@@ -791,6 +791,8 @@ formal_generation_table = {
 
 
 def bit_selection_legalizer(optree):
+    """ Legalize a VectorElementSelection operation
+        with a fixed-point main input and an integer index """
     assert isinstance(optree, VectorElementSelection)
     op_input = optree.get_input(0)
     op_index = optree.get_input(1)
