@@ -564,6 +564,9 @@ class ML_Division(ML_FunctionBasis):
         return scheme
 
     def numeric_emulate(self, x, y):
+        if x != 0 and y == 0:
+            # multiplication to correct the sign
+            return x * sollya.parse("infty") 
         return x / y
 
     def solve_eval_error(self, gappa_init_approx, gappa_current_approx,
