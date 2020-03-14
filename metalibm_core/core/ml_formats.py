@@ -61,7 +61,7 @@ S2 = sollya.SollyaObject(2)
 #  @{
 
 # numerical floating-point constants
-ml_nan   = sollya.parse("nan")
+ml_nan = sollya.parse("nan")
 ml_infty = sollya.parse("infty")
 
 def get_sollya_from_long(v):
@@ -493,8 +493,10 @@ class ML_Std_FP_Format(ML_FP_Format):
             sollya.settings.display = sollya.hexadecimal
             if cst_value == sollya.SollyaObject(0):
                 conv_result = "0.0" + self.c_suffix
-            if cst_value == ml_infty:
+            elif cst_value == ml_infty:
                 conv_result = "INFINITY"
+            elif cst_value == -ml_infty:
+                conv_result = "-INFINITY"
             elif cst_value != cst_value:
                 # NaN detection
                 if self.get_bit_size() == 32:
