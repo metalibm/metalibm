@@ -95,7 +95,7 @@ unit_test_list = [
   UnitTestScheme(
     "legalize_reciprocal_seed",
     ut_legalize_reciprocal_seed,
-    [{"auto_test": 1024, "execute_trigger": True, "accuracy": dar(S2**-6)}]
+    [{"auto_test": 1024, "execute_trigger": True, "accuracy": dar(S2**-6), "auto_test_range": Interval(S2**-8, S2**8), }]
   ),
   UnitTestScheme(
     "fuse_fma pass test",

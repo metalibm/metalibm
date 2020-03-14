@@ -77,7 +77,7 @@ class ML_UT_LegalizeReciprocalSeed(ML_Function("ml_ut_legalize_rcp")):
             "fuse_fma": True,
             "debug": True,
             "libm_compliant": True,
-            "test_range": Interval(S2**-8, S2**8),
+            "auto_test_range": Interval(S2**-8, S2**8),
             "accuracy": dar(S2**-6),
         }
         default_args.update(kw)
@@ -106,6 +106,8 @@ class ML_UT_LegalizeReciprocalSeed(ML_Function("ml_ut_legalize_rcp")):
         # mantissa = abs_x / S2**sollya.floor(sollya.log2(abs_x))
         # index = sollya.floor((mantissa - 1.0) * 2**8)
         # result = sollya.round(1/sollya.sqrt(1.0 + index * S2**-8), 9, sollya.RN)
+        if x == 0:
+            return sollya.parse("infty")
         result = sollya.round(1.0/x, 9, sollya.RN)
         return result
 
