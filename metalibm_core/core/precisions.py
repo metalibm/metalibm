@@ -41,8 +41,10 @@ from .ml_operations import (
     Comparison, FunctionObject, Min, Abs, Subtraction, Division)
 from metalibm_core.code_generation.generator_utility import *
 
+ml_infty = sollya.parse("infty")
+
 ## Parent class for output precision indication/constraint
-class ML_FunctionPrecision(object): 
+class ML_FunctionPrecision(object):
   def __init__(self, precision):
     self.precision = precision
   ## return the number of output values required
@@ -213,10 +215,14 @@ class ML_DegradedAccuracy(ML_TwoFactorPrecision):
     def get_check_value_low_bound(self, exact_value):
         cr_value = self.get_check_value_cr(exact_value)
         value_goal = self.get_value_error_goal(cr_value)
+        if abs(cr_value) == ml_infty:
+            return cr_value
         return self.precision.saturate(cr_value - value_goal)
     def get_check_value_high_bound(self, exact_value):
         cr_value = self.get_check_value_cr(exact_value)
         value_goal = self.get_value_error_goal(cr_value)
+        if abs(cr_value) == ml_infty:
+            return cr_value
         return self.precision.saturate(cr_value + value_goal)
 
     def set_precision(self, precision):
