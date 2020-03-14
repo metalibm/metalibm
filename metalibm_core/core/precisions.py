@@ -162,10 +162,15 @@ class ML_CorrectlyRounded(ML_FunctionPrecision):
 
   def get_output_check_test(self, test_result, stored_outputs):
     expected_value,  = stored_outputs
-    failure_test = Comparison(
-      test_result,
-      expected_value,
-      specifier = Comparison.NotEqual
+    nan_expected = NotEqual(expected_value, expected_value)
+    nan_detected = NotEqual(test_result, test_result)
+    failure_test = LogicalAnd(
+        Comparison(
+          test_result,
+          expected_value,
+          specifier = Comparison.NotEqual
+        ),
+        LogicalAnd(nan_expected, LogicalNot(nan_detected))
     )
     return failure_test
   def get_output_print_function(self, function_name, footer="\\n"):
