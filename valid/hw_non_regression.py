@@ -40,6 +40,7 @@ import metalibm_hw_blocks.bipartite_approx
 import metalibm_hw_blocks.mult_array as mult_array
 import metalibm_hw_blocks.compound_adder as compound_adder
 from metalibm_hw_blocks.mult_array import multiplication_descriptor_parser as mult_array_parser
+import metalibm_hw_blocks.fp_int_conv as fp_int_conv
 
 from metalibm_core.core.ml_formats import  \
   ML_Binary16, ML_Binary32, ML_Binary64, ML_Int32
@@ -138,6 +139,14 @@ new_scheme_function_list = [
     [
         {"auto_test": 100, "execute_trigger": True, "simulator": "ghdl"},
         {"decorate_code": True, "build_enable": True, "simulator": "ghdl"},
+    ]
+  ),
+  EntitySchemeTest(
+    "fp trunc",
+    fp_int_conv.FP_Trunc,
+    [
+        {"auto_test": 100, "precision": HdlVirtualFormat(ML_Binary32),
+         "execute_trigger": True, "simulator": "ghdl"},
     ]
   ),
 ]
