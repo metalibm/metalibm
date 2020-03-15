@@ -430,6 +430,7 @@ class DefaultArgTemplate:
     input_intervals = [Interval(-ml_infty, ml_infty)]
     # Optimization parameters
     target = GenericProcessor.get_target_instance()
+    target_exec_options = None
     fuse_fma = False
     fast_path_extract = True
     dot_product_enabled = False
@@ -872,6 +873,13 @@ class ML_NewArgTemplate(ML_CommonArgTemplate):
         self.parser.add_argument("--target", dest="target", action="store",
             type=target_instanciate, default=default_arg.target,
             help="select generation target"
+        )
+        def target_exec_options_parser(s):
+            """ Parser for target execution options string """
+            return dict(kv.split(':') for kv in s.split(","))
+        self.parser.add_argument("--target-exec-options", dest="target_exec_options", action="store",
+            type=target_exec_options_parser, default=default_arg.target_exec_options,
+            help="options forwarded to target for execution"
         )
         self.parser.add_argument(
             "--precision", dest="precision", type=precision_parser,
