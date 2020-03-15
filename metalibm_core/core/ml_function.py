@@ -36,6 +36,7 @@
 import os
 import random
 import subprocess
+import re
 
 from sollya import *
 
@@ -426,6 +427,7 @@ class ML_FunctionBasis(object):
     self.input_intervals = args.input_intervals
     
     self.processor = args.target
+    self.target_exec_options = args.target_exec_options
 
     self.fuse_fma = args.fuse_fma
     self.dot_product_enabled = args.dot_product_enabled
@@ -944,9 +946,18 @@ class ML_FunctionBasis(object):
                 return exec_result
             elif not embedding_binary:
                 if self.force_cross_platform or self.processor.cross_platform:
-                    execute_cmd = self.processor.get_execution_command(bin_file.path)
+                    if self.target_exec_options is None:
+                        execute_cmd = self.processor.get_execution_command(bin_file.path)
+                    else:
+                        execute_cmd = self.processor.get_execution_command(bin_file.path, **self.target_exec_options)
                     Log.report(Log.Info, "execute cmd: {}", execute_cmd)
                     test_result, ret_stdout = get_cmd_stdout(execute_cmd)
+                    ret_stdout = str(ret_stdout)
+                    if self.bench_enabled:
+                        cpe_match = re.search("(?P<cpe_measure>\d+\.\d+) CPE", ret_stdout)
+                        if cpe_match is None:
+                            Log.report(Log.Error, "not able to extract CPE measure from log: {}", ret_stdout)
+                        exec_result["cpe_measure"] = cpe_match.group("cpe_measure")
                 else:
                     Log.report(Log.Info, "executing : {}", bin_file.path)
                     test_result, ret_stdout = bin_file.execute()
@@ -955,6 +966,7 @@ class ML_FunctionBasis(object):
                     Log.report(Log.Info, "VALIDATION SUCCESS")
                 else:
                     Log.report(Log.Error, "VALIDATION FAILURE", error=ValidError())
+                return exec_result
             return None
         return None
 
