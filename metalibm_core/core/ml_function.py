@@ -1075,6 +1075,25 @@ class ML_FunctionBasis(object):
   def numeric_emulate(self, input_value):
     raise NotImplementedError
 
+  def generate_rand_input_iterator(self, test_num, low_input, high_input):
+    """ generate a random list of test inputs """
+    # TODO/FIXME: implement proper input range depending on input index
+    rng_map = [get_precision_rng(precision, low_input, high_input) for precision in self.input_precisions]
+
+    # random test cases
+    for i in range(test_num):
+      input_list = []
+      for in_id in range(self.get_arity()):
+        # this random generator is limited to python float precision
+        # (generally machine double precision)
+        # TODO/FIXME: implement proper high precision generation
+        # based on real input_precision (e.g. ML_DoubleDouble)
+        input_precision = self.get_input_precision(in_id)
+        # input_value = rng_map[in_id].get_new_value() # random.uniform(low_input, high_input)
+        input_value =  random.uniform(low_input, high_input)
+        input_value = input_precision.round_sollya_object(input_value, RN)
+        input_list.append(input_value)
+      yield tuple(input_list)
 
   ## Generate a test wrapper for the @p self function 
   #  @param test_num   number of test to perform
@@ -1144,23 +1163,8 @@ class ML_FunctionBasis(object):
         test_case_list.append(tuple(input_list))
 
 
-    # TODO/FIXME: implement proper input range depending on input index
-    rng_map = [get_precision_rng(precision, low_input, high_input) for precision in self.input_precisions]
-
-
-    # random test cases
-    for i in range(test_num):
-      input_list = []
-      for in_id in range(self.get_arity()):
-        # this random generator is limited to python float precision
-        # (generally machine double precision)
-        # TODO/FIXME: implement proper high precision generation
-        # based on real input_precision (e.g. ML_DoubleDouble)
-        input_precision = self.get_input_precision(in_id)
-        input_value = rng_map[in_id].get_new_value() # random.uniform(low_input, high_input)
-        input_value = input_precision.round_sollya_object(input_value, RN)
-        input_list.append(input_value)
-      test_case_list.append(tuple(input_list))
+    # adding randomly generated inputs
+    test_case_list += list(self.generate_rand_input_iterator(test_num, low_input, high_input))
 
     # generating output from the concatenated list
     # of all inputs
@@ -1505,17 +1509,12 @@ class ML_FunctionBasis(object):
     ## (low, high) are store in output table
     output_table = ML_NewTable(dimensions = [test_total], storage_precision = output_precision, tag = self.uniquify_name("output_table"), empty = True)
 
-    # TODO/FIXME: implement proper input range depending on input index
-    rng_map = [get_precision_rng(precision, low_input, high_input) for precision in self.input_precisions]
 
     # TODO: factorize with auto-test wrapper generation function
     # random test cases
-    for i in range(test_total):
+    for index, input_tuple in enumerate(self.generate_rand_input_iterator(test_total, low_input, high_input)):
       for in_id in range(self.get_arity()):
-        input_value = rng_map[in_id].get_new_value() #random.uniform(low_input, high_input)
-        input_precision = self.get_input_precision(in_id)
-        input_value = input_precision.round_sollya_object(input_value, RN)
-        input_tables[in_id][i] = input_value
+        input_tables[in_id][index] = input_tuple[in_id]
 
     if self.implementation.get_output_format().is_vector_format():
       # vector implementation bench
