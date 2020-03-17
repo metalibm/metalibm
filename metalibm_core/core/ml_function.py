@@ -1392,7 +1392,7 @@ class ML_FunctionBasis(object):
     printf_error_function = FunctionObject("printf", [self.precision], ML_Void, printf_error_op)
     
     printf_max_op = FunctionOperator("printf", arg_map = {0: "\"max %s error is reached at input number %s \\n \"" % (self.function_name, "%d"), 1: FO_Arg(0)}, void_function = True) 
-    printf_max_function = FunctionObject("printf", [self.precision], ML_Void, printf_max_op)
+    printf_max_function = FunctionObject("printf", [ML_Int32], ML_Void, printf_max_op)
 
     loop_increment = self.get_vector_size()
     
