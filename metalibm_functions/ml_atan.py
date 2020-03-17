@@ -38,11 +38,13 @@ from metalibm_core.core.ml_function import ML_FunctionBasis, DefaultArgTemplate
 
 from metalibm_core.core.ml_operations import (
     Select, Statement, Return,
+    LogicalOr, LogicalAnd, LogicalNot,
 )
 from metalibm_core.core.ml_formats import ML_Binary32
 from metalibm_core.core.precisions import ML_Faithful
 from metalibm_core.code_generation.generic_processor import GenericProcessor
 from metalibm_core.core.polynomials import Polynomial, PolynomialSchemeEvaluator
+from metalibm_core.core.approximation import piecewise_approximation
 
 from metalibm_core.utility.ml_template import ML_NewArgTemplate
 from metalibm_core.utility.log_report  import Log
@@ -79,46 +81,71 @@ class MetaAtan(ML_FunctionBasis):
         # input variable
         vx = self.implementation.add_input_variable("x", self.get_input_precision())
 
+        # if abs_vx < 1.0 then atan(abx_vx) is directly approximated
+        # if abs_vx >= 1.0 then atan(abs_vx) = pi/2 - atan(1 / abs_vx)
+
         # computing absolute value of vx
-        abs_vx = Select(vx < 0, -vx, vx)
+        abs_vx = Select(vx < 0, -vx, vx, tag="abs_vx", debug=debug_multi)
+        cond = LogicalOr(
+            LogicalAnd(vx < 0, LogicalNot(abs_vx > 1)),
+            vx > 1,
+            tag="cond", debug=debug_multi
+        )
+        sign_vx = Select(cond, -1, 1, precision=self.precision, tag="sign_vx", debug=debug_multi)
+
+        bound_cond = abs_vx > 1
+        red_vx = Select(bound_cond, 1 / abs_vx, abs_vx, precision=self.precision, tag="red_vx", debug=debug_multi)
+        cst = Select(vx < 0, -1, 1, precision=self.precision) * Select(bound_cond, sollya.pi / 2, 0, precision=self.precision)
 
         approx_fct = sollya.atan(sollya.x)
-        approx_interval = Interval(0, 0.5)
 
-        # determining the degree of the polynomial approximation
-        poly_degree_range = sollya.guessdegree(approx_fct / sollya.x,
-                                               approx_interval,
-                                               S2**-(self.precision.get_field_size() + 2))
-        poly_degree = int(sollya.sup(poly_degree_range)) + 4
-        Log.report(Log.Info, "poly_degree={}".format(poly_degree))
 
-        # arctan is an odd function, so only odd coefficient must be non-zero
-        poly_degree_list = list(range(1, poly_degree+1, 2))
-        poly_object, poly_error = Polynomial.build_from_approximation_with_error(
-            approx_fct, poly_degree_list,
-            [1] + [self.precision.get_sollya_object()] * (len(poly_degree_list)-1),
-            approx_interval)
+        approx, eval_error = piecewise_approximation(approx_fct,
+                                red_vx,
+                                self.precision,
+                                bound_low=0.0,
+                                bound_high=1.0,
+                                max_degree=5,
+                                num_intervals=32)
 
-        odd_predicate = lambda index, _: ((index-1) % 4 != 0)
-        even_predicate = lambda index, _: (index != 1 and (index-1) % 4 == 0)
+        result = cst + sign_vx * approx
 
-        poly_odd_object = poly_object.sub_poly_cond(odd_predicate, offset=1)
-        poly_even_object = poly_object.sub_poly_cond(even_predicate, offset=1)
+        if False:
+            approx_interval = Interval(0, 0.5)
+            # determining the degree of the polynomial approximation
+            poly_degree_range = sollya.guessdegree(approx_fct / sollya.x,
+                                                   approx_interval,
+                                                   S2**-(self.precision.get_field_size() + 2))
+            poly_degree = int(sollya.sup(poly_degree_range)) + 4
+            Log.report(Log.Info, "poly_degree={}".format(poly_degree))
 
-        sollya.settings.display = sollya.hexadecimal
-        Log.report(Log.Info, "poly_error: {}".format(poly_error))
-        Log.report(Log.Info, "poly_odd: {}".format(poly_odd_object))
-        Log.report(Log.Info, "poly_even: {}".format(poly_even_object))
+            # arctan is an odd function, so only odd coefficient must be non-zero
+            poly_degree_list = list(range(1, poly_degree+1, 2))
+            poly_object, poly_error = Polynomial.build_from_approximation_with_error(
+                approx_fct, poly_degree_list,
+                [1] + [self.precision.get_sollya_object()] * (len(poly_degree_list)-1),
+                approx_interval)
 
-        poly_odd = PolynomialSchemeEvaluator.generate_horner_scheme(poly_odd_object, abs_vx)
-        poly_odd.set_attributes(tag="poly_odd", debug=debug_multi)
-        poly_even = PolynomialSchemeEvaluator.generate_horner_scheme(poly_even_object, abs_vx)
-        poly_even.set_attributes(tag="poly_even", debug=debug_multi)
-        exact_sum = poly_odd + poly_even
+            odd_predicate = lambda index, _: ((index-1) % 4 != 0)
+            even_predicate = lambda index, _: (index != 1 and (index-1) % 4 == 0)
 
-        # poly_even should be (1 + poly_even)
-        result = vx + vx * exact_sum
-        result.set_attributes(tag="result", precision=self.precision)
+            poly_odd_object = poly_object.sub_poly_cond(odd_predicate, offset=1)
+            poly_even_object = poly_object.sub_poly_cond(even_predicate, offset=1)
+
+            sollya.settings.display = sollya.hexadecimal
+            Log.report(Log.Info, "poly_error: {}".format(poly_error))
+            Log.report(Log.Info, "poly_odd: {}".format(poly_odd_object))
+            Log.report(Log.Info, "poly_even: {}".format(poly_even_object))
+
+            poly_odd = PolynomialSchemeEvaluator.generate_horner_scheme(poly_odd_object, abs_vx)
+            poly_odd.set_attributes(tag="poly_odd", debug=debug_multi)
+            poly_even = PolynomialSchemeEvaluator.generate_horner_scheme(poly_even_object, abs_vx)
+            poly_even.set_attributes(tag="poly_even", debug=debug_multi)
+            exact_sum = poly_odd + poly_even
+
+            # poly_even should be (1 + poly_even)
+            result = vx + vx * exact_sum
+            result.set_attributes(tag="result", precision=self.precision)
 
         std_scheme = Statement(
             Return(result)
