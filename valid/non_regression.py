@@ -245,15 +245,8 @@ new_scheme_function_list = [
   ),
   NewSchemeTest(
     "basic arctangent test",
-    metalibm_functions.ml_atan.ML_Atan,
-    [
-    ]
-  ),
-  NewSchemeTest(
-    "auto execute atan test",
-    metalibm_functions.ml_atan.ML_Atan,
-    [
-    ]
+    metalibm_functions.ml_atan.MetaAtan,
+    [{}]
   ),
   NewSchemeTest(
     "basic vectorizable_log tests",
