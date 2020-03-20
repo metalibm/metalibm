@@ -38,6 +38,8 @@ import random
 import subprocess
 import re
 
+import matplotlib.pyplot as plt
+
 from sollya import *
 
 from metalibm_core.core.ml_formats import *
@@ -432,6 +434,11 @@ class ML_FunctionBasis(object):
     self.fuse_fma = args.fuse_fma
     self.dot_product_enabled = args.dot_product_enabled
     self.fast_path_extract = args.fast_path_extract
+
+    # plotting options
+    self.plot_enabled = args.plot_enabled
+    self.plot_range = args.plot_range
+    self.plot_steps = args.plot_steps
 
     # instance of CodeFunction containing the function implementation
     self.implementation = CodeFunction(self.function_name, output_format=self.get_output_precision())
@@ -929,6 +936,15 @@ class ML_FunctionBasis(object):
         if self.execute_trigger:
             if embedding_binary and not(bin_file is None):
                 loaded_module = bin_file.load()
+
+                if self.plot_enabled:
+                    plot_range_size = sup(self.plot_range) - inf(self.plot_range)
+                    x_list = [float(inf(self.plot_range) + i / self.plot_steps * plot_range_size) for i in range(self.plot_steps)] 
+                    # extracting main function from compiled binary
+                    binary_function = loaded_module.get_function_handle(self.function_name)
+                    plt.plot(x_list, [binary_function(v) for v in x_list])
+                    plt.ylabel('{}(x) plot'.format(self.function_name))
+                    plt.show()
 
                 if self.bench_enabled:
                     cpe_measure = loaded_module.get_function_handle("bench_wrapper")()
