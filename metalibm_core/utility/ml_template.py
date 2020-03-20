@@ -476,6 +476,11 @@ class DefaultArgTemplate:
     # built binary execution
     execute_trigger = False
 
+    # plotting options
+    plot_enabled = False
+    plot_range = Interval(-1, 1)
+    plot_steps = 100
+
     def __init__(self, **kw):
         for key in kw:
             setattr(self, key, kw[key])
@@ -890,6 +895,21 @@ class ML_NewArgTemplate(ML_CommonArgTemplate):
             type=format_list_parser,
             default=default_arg.input_precisions,
             help="comma separated list of input formats")
+        # plotting options
+        self.parser.add_argument(
+            "--plot", dest="plot_enabled",
+            action="store_const", default=default_arg.plot_enabled, const=True,
+            help="plot function")
+        self.parser.add_argument(
+            "--plot-steps", dest="plot_steps",
+            type=int,
+            action="store", default=default_arg.plot_steps,
+            help="number of points in function plot")
+        self.parser.add_argument(
+            "--plot-range", dest="plot_range",
+            type=interval_parser,
+            action="store", default=default_arg.plot_range,
+            help="plot function range")
 
 
 
