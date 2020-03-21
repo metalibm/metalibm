@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
-
+""" Implementation of fast exponentation of integers to floating-point values
+"""
 ###############################################################################
 # This file is part of metalibm (https://github.com/kalray/metalibm)
 ###############################################################################
@@ -25,118 +26,69 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 ###############################################################################
-# last-modified:    Mar  7th, 2018
+# last-modified:    Mar  21st, 2020
 # Author(s): Nicolas Brunie <nbrunie@kalray.eu>
 ###############################################################################
-import sys
+from metalibm_core.core.ml_operations import (Max, Min, ExponentInsertion, Return)
+from metalibm_core.core.ml_formats import (ML_Int32, ML_Binary32)
+from metalibm_core.core.precisions import ML_Faithful
+from metalibm_core.core.simple_scalar_function import ScalarUnaryFunction
 
-from sollya import S2
+from metalibm_core.code_generation.generic_processor import GenericProcessor
 
-from core.ml_operations import *
-from core.ml_formats import *
-from code_generation.c_code_generator import CCodeGenerator
-from code_generation.generic_processor import GenericProcessor
-from code_generation.code_object import CodeObject
-from code_generation.code_function import CodeFunction
-from code_generation.code_constant import C_Code 
-from core.ml_optimization_engine import OptimizationEngine
-from core.polynomials import *
-from core.ml_table import ML_NewTable
-
-from kalray_proprietary.k1a_processor import K1A_Processor
-from kalray_proprietary.k1b_processor import K1B_Processor
-from code_generation.x86_processor import X86_FMA_Processor, X86_SSE_Processor
-from code_generation.gappa_code_generator import GappaCodeGenerator
-
-from utility.gappa_utils import execute_gappa_script_extract
-from ml_functions.ml_template import ML_ArgTemplate, precision_map
-
-from utility.common import test_flag_option, extract_option_value  
-
-class ML_FastExpi(object):
-    def __init__(self, 
-                 input_precision = ML_Int32, 
-                 output_precision = ML_Binary32,
-                 abs_accuracy = S2**-24, 
-                 libm_compliant = True, 
-                 debug_flag = False, 
-                 fuse_fma = True, 
-                 fast_path_extract = True,
-                 target = GenericProcessor.get_target_instance(), 
-                 output_file = "fast_expi.c", 
-                 function_name = "fast_expi"):
-        # declaring CodeFunction and retrieving input variable
-        self.function_name = function_name
-        self.processor = target
-        func_implementation = CodeFunction(self.function_name, output_format = output_precision)
-        vx = func_implementation.add_input_variable("x", input_precision) 
+from metalibm_core.utility.ml_template import (
+    DefaultArgTemplate, ML_NewArgTemplate)
+from metalibm_core.utility.debug_utils import debug_multi
 
 
-        bias = 2**(output_precision.get_exponent_size() - 1) - 1
-        bound_exp = Max(vx + bias, 2**output_precision.get_exponent_size() - 1) 
-        scheme = ExponentInsertion(bound_exp, specifier = ExponentInsertion.NoOffset)
+class FastExp2i(ScalarUnaryFunction):
+    """ Meta-implementation of fast-exponentation of integers to
+        floating-point values """
+    function_name = "fast_exp2i"
 
-        #print scheme.get_str(depth = None, display_precision = True)
+    def __init__(self, args=DefaultArgTemplate):
+        # initializing base class
+        super(ScalarUnaryFunction, self).__init__(args)
 
-        opt_eng = OptimizationEngine(self.processor)
+    def generate_scalar_scheme(self, vx):
+        output_precision = self.precision
+        input_precision = vx.get_precision()
 
-        # fusing FMA
-        print "MDL fusing FMA"
-        scheme = opt_eng.fuse_multiply_add(scheme, silence = True)
+        bias = -output_precision.get_bias()
+        bound_exp = Max(
+            Min(vx, output_precision.get_emax(), precision=input_precision),
+            output_precision.get_emin_normal(), precision=input_precision) + bias
+        scheme = Return(
+            ExponentInsertion(bound_exp,
+                              specifier=ExponentInsertion.NoOffset,
+                              precision=self.precision), tag="result", debug=debug_multi)
+        return scheme
 
-        print "MDL abstract scheme"
-        opt_eng.instantiate_abstract_precision(scheme, None)
-
-        #print scheme.get_str(depth = None, display_precision = True)
-
-        print "MDL instantiated scheme"
-        opt_eng.instantiate_precision(scheme, default_precision = output_precision)
+    def numeric_emulate(self, input_value):
+        return 2**input_value
 
 
-        print "subexpression sharing"
-        opt_eng.subexpression_sharing(scheme)
-
-        print "silencing operation"
-        opt_eng.silence_fp_operations(scheme)
-
-        # registering scheme as function implementation
-        func_implementation.set_scheme(scheme)
-
-        # check processor support
-        opt_eng.check_processor_support(scheme)
-
-        # factorizing fast path
-        opt_eng.factorize_fast_path(scheme)
-        #print scheme.get_str(depth = None, display_precision = True)
-        
-        cg = CCodeGenerator(self.processor, declare_cst = False, disable_debug = not debug_flag, libm_compliant = libm_compliant)
-        self.result = func_implementation.get_definition(cg, C_Code, static_cst = True)
-        self.result.add_header("support_lib/ml_special_values.h")
-        self.result.add_header("math.h")
-        self.result.add_header("stdio.h")
-        self.result.add_header("inttypes.h")
-        #print self.result.get(cg)
-        output_stream = open("%s.c" % func_implementation.get_name(), "w")
-        output_stream.write(self.result.get(cg))
-        output_stream.close()
+    @staticmethod
+    def get_default_args(**kw):
+        """ Return a structure containing the arguments for MetalibmSqrt,
+            builtin from a default argument mapping overloaded with @p kw """
+        default_args_fast_exp2i = {
+            "output_file": "fast_expi.c",
+            "function_name": "fast_expi",
+            "input_precisions": [ML_Int32],
+            "precision": ML_Binary32,
+            "accuracy": ML_Faithful,
+            "target": GenericProcessor.get_target_instance()
+        }
+        default_args_fast_exp2i.update(kw)
+        return DefaultArgTemplate(**default_args_fast_exp2i)
 
 
 if __name__ == "__main__":
     # auto-test
-    arg_template = ML_ArgTemplate(default_function_name = "fast_expi", default_output_file = "fast_expi.c" )
-    arg_template.sys_arg_extraction()
+    ARG_TEMPLATE = ML_NewArgTemplate(default_arg=FastExp2i.get_default_args())
 
-    input_precision = precision_map[extract_option_value("--input_precision", "int32")]
-    output_precision = precision_map[extract_option_value("--output_precision", "binary32")]
+    ARGS = ARG_TEMPLATE.arg_extraction()
 
-
-    ml_fast_exp_i          = ML_FastExpi(
-                                  input_precision           = input_precision,
-                                  output_precision          = output_precision,
-                                  libm_compliant            = arg_template.libm_compliant, 
-                                  debug_flag                = arg_template.debug_flag, 
-                                  target                    = arg_template.target, 
-                                  fuse_fma                  = arg_template.fuse_fma, 
-                                  fast_path_extract         = arg_template.fast_path,
-                                  function_name             = arg_template.function_name,
-                                  output_file               = arg_template.output_file)
+    ML_FAST_EXP_I = FastExp2i(ARGS)
+    ML_FAST_EXP_I.gen_implementation()
