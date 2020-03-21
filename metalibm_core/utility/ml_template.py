@@ -477,7 +477,8 @@ class DefaultArgTemplate:
     execute_trigger = False
 
     # plotting options
-    plot_enabled = False
+    plot_function = False
+    plot_error = False
     plot_range = Interval(-1, 1)
     plot_steps = 100
 
@@ -894,9 +895,13 @@ class ML_NewArgTemplate(ML_CommonArgTemplate):
             help="comma separated list of input formats")
         # plotting options
         self.parser.add_argument(
-            "--plot", dest="plot_enabled",
-            action="store_const", default=default_arg.plot_enabled, const=True,
-            help="plot function")
+            "--plot-function", dest="plot_function",
+            action="store_const", default=default_arg.plot_function, const=True,
+            help="plot function numerical values")
+        self.parser.add_argument(
+            "--plot-error", dest="plot_error",
+            action="store_const", default=default_arg.plot_error, const=True,
+            help="plot function numerical error")
         self.parser.add_argument(
             "--plot-steps", dest="plot_steps",
             type=int,

@@ -44,7 +44,7 @@ try:
 except:
     matplotlib = None
 
-from sollya import *
+from sollya import inf, sup, Interval
 
 from metalibm_core.core.ml_formats import *
 from metalibm_core.core.ml_optimization_engine import OptimizationEngine
@@ -440,9 +440,12 @@ class ML_FunctionBasis(object):
     self.fast_path_extract = args.fast_path_extract
 
     # plotting options
-    self.plot_enabled = args.plot_enabled
+    self.plot_function = args.plot_function
+    self.plot_error = args.plot_error
     self.plot_range = args.plot_range
     self.plot_steps = args.plot_steps
+    # internal flag which indicate that at least one plot must be generated
+    self.plot_enabled = self.plot_function or self.plot_error
 
     # instance of CodeFunction containing the function implementation
     self.implementation = CodeFunction(self.function_name, output_format=self.get_output_precision())
@@ -947,8 +950,15 @@ class ML_FunctionBasis(object):
             x_list = [float(inf(self.plot_range) + i / self.plot_steps * plot_range_size) for i in range(self.plot_steps)] 
             # extracting main function from compiled binary
             binary_function = loaded_module.get_function_handle(self.function_name)
-            matplotlib.plot(x_list, [binary_function(v) for v in x_list])
-            matplotlib.ylabel('{}(x) plot'.format(self.function_name))
+            if self.plot_function:
+                matplotlib.plot(x_list, [binary_function(v) for v in x_list])
+                matplotlib.ylabel('{}(x) function plot'.format(self.function_name))
+            if self.plot_error:
+                error_list = [(abs(sollya.round(binary_function(v) - self.numeric_emulate(v), sollya.binary64, sollya.RN))) for v in x_list]
+                error_list = [float(v) for v in error_list]
+                matplotlib.plot(x_list, error_list, 'bo')
+                matplotlib.yscale('log', basey=2) 
+                matplotlib.ylabel('{}(x) error plot'.format(self.function_name))
             matplotlib.show()
 
         # only executing if build was successful
@@ -1117,7 +1127,7 @@ class ML_FunctionBasis(object):
         input_precision = self.get_input_precision(in_id)
         # input_value = rng_map[in_id].get_new_value() # random.uniform(low_input, high_input)
         input_value =  random.uniform(low_input, high_input)
-        input_value = input_precision.round_sollya_object(input_value, RN)
+        input_value = input_precision.round_sollya_object(input_value, sollya.RN)
         input_list.append(input_value)
       yield tuple(input_list)
 
@@ -1184,7 +1194,7 @@ class ML_FunctionBasis(object):
       for i, test_case in enumerate(non_random_test_cases):# in range(num_std_case):
         input_list = []
         for in_id in range(self.get_arity()):
-          input_value = self.get_input_precision(in_id).round_sollya_object(test_case[in_id], RN)
+          input_value = self.get_input_precision(in_id).round_sollya_object(test_case[in_id], sollya.RN)
           input_list.append(input_value)
         test_case_list.append(tuple(input_list))
 
