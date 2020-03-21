@@ -565,7 +565,7 @@ class ML_FunctionBasis(object):
 
   ## emulation code generation
   def generate_emulate(self):
-    raise NotImplementedError
+    raise Exception("generate emulate is deprecated")
 
   ## generation the wrapper to the emulation code
   #  @param test_input Variable where the test input is read from
