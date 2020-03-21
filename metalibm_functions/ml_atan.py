@@ -26,7 +26,8 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 ###############################################################################
-# last-modified:    Mar  7th, 2018
+# created:          Mar  7th, 2018
+# last-modified:    Mar 18th, 2020
 # Author(s): Nicolas Brunie <nbrunie@kalray.eu>
 ###############################################################################
 
@@ -61,6 +62,11 @@ sollya.showmessagenumbers = sollya.on
 class MetaAtan(ML_FunctionBasis):
     """ Meta implementation of arctangent function """
     function_name = "ml_atan"
+    arity = 1
+    def __init__(self, args):
+        super().__init__(args)
+        self.method = args.method
+
     @staticmethod
     def get_default_args(**kw):
         """ Return a structure containing the arguments for MetaAtan,
@@ -71,6 +77,7 @@ class MetaAtan(ML_FunctionBasis):
             "function_name": "my_atan",
             "precision": ML_Binary32,
             "accuracy": ML_Faithful,
+            "method": "piecewise",
             "target": GenericProcessor.get_target_instance()
         }
         default_args_exp.update(kw)
@@ -91,27 +98,42 @@ class MetaAtan(ML_FunctionBasis):
             vx > 1,
             tag="cond", debug=debug_multi
         )
-        sign_vx = Select(cond, -1, 1, precision=self.precision, tag="sign_vx", debug=debug_multi)
-
-        bound_cond = abs_vx > 1
-        red_vx = Select(bound_cond, 1 / abs_vx, abs_vx, precision=self.precision, tag="red_vx", debug=debug_multi)
-        cst = Select(vx < 0, -1, 1, precision=self.precision) * Select(bound_cond, sollya.pi / 2, 0, precision=self.precision)
 
         approx_fct = sollya.atan(sollya.x)
 
+        if self.method == "piecewise":
+            sign_vx = Select(cond, -1, 1, precision=self.precision, tag="sign_vx", debug=debug_multi)
 
-        approx, eval_error = piecewise_approximation(approx_fct,
-                                red_vx,
-                                self.precision,
-                                bound_low=0.0,
-                                bound_high=1.0,
-                                max_degree=5,
-                                num_intervals=32)
+            bound_cond = abs_vx > 1
+            # reduced argument
+            red_vx = Select(bound_cond, 1 / abs_vx, abs_vx,
+                            precision=self.precision, tag="red_vx",
+                            debug=debug_multi)
+            cst_sign = Select(vx < 0, -1, 1, precision=self.precision)
+            cst = cst_sign * Select(bound_cond, sollya.pi / 2, 0, precision=self.precision)
 
-        result = cst + sign_vx * approx
 
-        if False:
-            approx_interval = Interval(0, 0.5)
+            bound_low = 0.0
+            bound_high = 1.0
+            num_intervals = 8
+            error_threshold = S2**-(self.precision.get_mantissa_size() + 8)
+
+
+
+            approx, eval_error = piecewise_approximation(approx_fct,
+                                    red_vx,
+                                    self.precision,
+                                    bound_low=bound_low,
+                                    bound_high=bound_high,
+                                    max_degree=None,
+                                    num_intervals=num_intervals,
+                                    error_threshold=error_threshold,
+                                    odd=True)
+
+            result = cst + sign_vx * approx
+
+        elif self.method == "single":
+            approx_interval = Interval(0, 1.0)
             # determining the degree of the polynomial approximation
             poly_degree_range = sollya.guessdegree(approx_fct / sollya.x,
                                                    approx_interval,
@@ -147,6 +169,9 @@ class MetaAtan(ML_FunctionBasis):
             result = vx + vx * exact_sum
             result.set_attributes(tag="result", precision=self.precision)
 
+        else:
+            raise NotImplementedError
+
         std_scheme = Statement(
             Return(result)
         )
@@ -164,6 +189,11 @@ class MetaAtan(ML_FunctionBasis):
 if __name__ == "__main__":
     # auto-test
     arg_template = ML_NewArgTemplate(default_arg=MetaAtan.get_default_args())
+    # extra options
+    arg_template.get_parser().add_argument(
+        "--method", dest="method", default="piecewise", choices=["piecewise", "single"],
+        action="store", help="select approximation method")
+
     args = arg_template.arg_extraction()
     ml_atan = MetaAtan(args)
     ml_atan.gen_implementation()
