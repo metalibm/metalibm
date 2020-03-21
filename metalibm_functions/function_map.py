@@ -53,6 +53,7 @@ import metalibm_functions.generic_log
 import metalibm_functions.erf
 import metalibm_functions.ml_acos
 import metalibm_functions.fmod
+import metalibm_functions.ml_atan
 
 from sollya_extra_functions import cbrt
 
@@ -81,6 +82,7 @@ FUNCTION_MAP = {
 
     "cos": (metalibm_functions.ml_sincos.ML_SinCos, {"sin_output": False}, sollya.cos),
     "sin": (metalibm_functions.ml_sincos.ML_SinCos, {"sin_output": True}, sollya.sin),
+    "atan": (metalibm_functions.ml_atan.MetaAtan, {}, sollya.atan),
 
     "erf": (metalibm_functions.erf.ML_Erf, {}, sollya.erf),
     "fmod": (metalibm_functions.fmod.MetaFMOD, {}, bigfloat.fmod),
