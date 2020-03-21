@@ -38,7 +38,11 @@ import random
 import subprocess
 import re
 
-import matplotlib.pyplot as plt
+try:
+    # matplotlib import is optionnal (using for plotting only)
+    import matplotlib.pyplot as matplotlib
+except:
+    matplotlib = None
 
 from sollya import *
 
@@ -902,7 +906,7 @@ class ML_FunctionBasis(object):
 
 
   def execute_output(self, embedding_binary, source_file):
-    """ If any, run executable code from source file and extract results 
+    """ If any, run executable code from source file and extract results
         :param embedding_binary: enable embedded of binary executable file in
                                  python program (allowing easier result extraction)
         :type embedding_binary: bool
@@ -910,7 +914,8 @@ class ML_FunctionBasis(object):
         :type source_file: SourceFile
 
     """
-    build_trigger = self.build_enable or self.execute_trigger
+    # plotting function requires it to be build and imported
+    build_trigger = self.build_enable or self.execute_trigger or self.plot_enabled
     link_trigger = self.execute_trigger
 
     exec_result = {}
@@ -931,20 +936,25 @@ class ML_FunctionBasis(object):
         else:
             Log.report(Log.Info, "build succedeed\n")
 
+        # only plotting if build was successful
+        if self.plot_enabled:
+            if not embedding_binary:
+                Log.report(Log.Error, "plot only work with embedded binary (--no-embedded-bin not supported)")
+            if matplotlib is None:
+                Log.report(Log.Error, "matplotlib module is not availble (required for plot)")
+            loaded_module = bin_file.loaded_binary
+            plot_range_size = sup(self.plot_range) - inf(self.plot_range)
+            x_list = [float(inf(self.plot_range) + i / self.plot_steps * plot_range_size) for i in range(self.plot_steps)] 
+            # extracting main function from compiled binary
+            binary_function = loaded_module.get_function_handle(self.function_name)
+            matplotlib.plot(x_list, [binary_function(v) for v in x_list])
+            matplotlib.ylabel('{}(x) plot'.format(self.function_name))
+            matplotlib.show()
 
         # only executing if build was successful
         if self.execute_trigger:
             if embedding_binary and not(bin_file is None):
-                loaded_module = bin_file.load()
-
-                if self.plot_enabled:
-                    plot_range_size = sup(self.plot_range) - inf(self.plot_range)
-                    x_list = [float(inf(self.plot_range) + i / self.plot_steps * plot_range_size) for i in range(self.plot_steps)] 
-                    # extracting main function from compiled binary
-                    binary_function = loaded_module.get_function_handle(self.function_name)
-                    plt.plot(x_list, [binary_function(v) for v in x_list])
-                    plt.ylabel('{}(x) plot'.format(self.function_name))
-                    plt.show()
+                loaded_module = bin_file.loaded_binary
 
                 if self.bench_enabled:
                     cpe_measure = loaded_module.get_function_handle("bench_wrapper")()

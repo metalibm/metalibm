@@ -79,9 +79,19 @@ class BinaryFile:
         self.source_object = source_object
         self.shared_object = shared_object
         self.main = main
+        # DLL handle
+        self._loaded_binary = None
 
     def load(self):
         return LoadedBinary(self)
+
+    @property
+    def loaded_binary(self):
+        """ smart accessor to the corresponding LoadedBinary object
+            which loads it if necessary and memoize it """
+        if self._loaded_binary is None:
+            self._loaded_binary = self.load()
+        return self._loaded_binary
 
     def execute(self):
         assert not self.shared_object
