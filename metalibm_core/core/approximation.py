@@ -266,6 +266,25 @@ def search_bound_threshold(fct, limit, start_point, end_point, precision):
     return left_bound
 
 
+def piecewise_approximation_degree_generator(
+        function,
+        bound_low=-1.0,
+        bound_high=1.0,
+        num_intervals=16,
+        max_degree=2,
+        error_threshold=S2**-24):
+    """ """
+    interval_size = (bound_high - bound_low) / num_intervals
+    for i in range(num_intervals):
+        subint_low = bound_low + i * interval_size
+        subint_high = bound_low + (i+1) * interval_size
+
+        local_function = function(sollya.x + subint_low)
+        local_interval = Interval(-interval_size, interval_size)
+
+        local_degree = sollya.guessdegree(local_function, local_interval, error_threshold) 
+        yield int(sollya.sup(local_degree))
+
 def piecewise_approximation(
         function,
         variable,
@@ -274,7 +293,9 @@ def piecewise_approximation(
         bound_high=1.0,
         num_intervals=16,
         max_degree=2,
-        error_threshold=S2**-24):
+        error_threshold=S2**-24,
+        odd=False,
+        even=False):
     """ Generate a piecewise approximation
 
         :param function: function to be approximated
@@ -293,6 +314,17 @@ def piecewise_approximation(
             approximation scheme of function evaluated at variable, and error
             is the maximum approximation error encountered
         :rtype tuple(ML_Operation, SollyaObject): """
+
+    degree_generator = piecewise_approximation_degree_generator(
+        function, bound_low, bound_high,
+        num_intervals=num_intervals,
+        error_threshold=error_threshold,
+    )
+    degree_list = list(degree_generator)
+
+    # if max_degree is None then we determine it locally
+    if max_degree is None:
+        max_degree = max(degree_list)
     # table to store coefficients of the approximation on each segment
     coeff_table = ML_NewTable(
         dimensions=[num_intervals,max_degree+1],
@@ -308,29 +340,32 @@ def piecewise_approximation(
         subint_low = bound_low + i * interval_size
         subint_high = bound_low + (i+1) * interval_size
 
-        #local_function = function(sollya.x)
-        #local_interval = Interval(subint_low, subint_high)
         local_function = function(sollya.x + subint_low)
         local_interval = Interval(-interval_size, interval_size)
 
-        local_degree = sollya.guessdegree(local_function, local_interval, error_threshold) 
+        local_degree = degree_list[i]
         if local_degree > max_degree:
             Log.report(Log.Warning, "local_degree {} exceeds max_degree bound ({}) in piecewise_approximation", local_degree, max_degree)
-        degree = min(max_degree, local_degree)
+        # as max_degree defines the size of the table we can use
+        # it as the degree for each sub-interval polynomial
+        # as there is nothing to gain (yet) by using a smaller polynomial
+        degree = max_degree # min(max_degree, local_degree)
 
         if function(subint_low) == 0.0:
             # if the lower bound is a zero to the function, we
             # need to force value=0 for the constant coefficient
             # and extend the approximation interval
-            degree_list = range(1, degree+1)
+            local_poly_degree_list = list(range(1 if even else 0, degree+1, 2 if odd or even else 1))
             poly_object, approx_error = Polynomial.build_from_approximation_with_error(
-                function(sollya.x),
-                degree_list,
-                [precision] * len(degree_list),
-                Interval(-subint_high,subint_high),
+                function(sollya.x) / sollya.x,
+                local_poly_degree_list,
+                [precision] * len(local_poly_degree_list),
+                Interval(-subint_high * 0.95,subint_high),
                 sollya.absolute,
                 error_function=error_function
             )
+            # multiply by sollya.x
+            poly_object = poly_object.sub_poly(offset=-1)
         else:
             try:
                 poly_object, approx_error = Polynomial.build_from_approximation_with_error(
@@ -354,7 +389,7 @@ def piecewise_approximation(
                     approx_error = diff_with_cst
                 else:
                     Log.report(Log.error, "degree: {} for index {}, diff_with_cst={} (vs error_threshold={}) ", degree, i, diff_with_cst, error_threshold, error=err)
-        for ci in range(degree+1):
+        for ci in range(max_degree+1):
             if ci in poly_object.coeff_map:
                 coeff_table[i][ci] = poly_object.coeff_map[ci]
             else:
@@ -404,7 +439,7 @@ def piecewise_approximation(
         debug=debug_multi
     )
     # generating indexed polynomial
-    coeffs = [(ci, TableLoad(coeff_table, index, ci)) for ci in range(degree+1)][::-1]
+    coeffs = [(ci, TableLoad(coeff_table, index, ci)) for ci in range(max_degree+1)][::-1]
     poly_scheme = PolynomialSchemeEvaluator.generate_horner_scheme2(
         coeffs,
         poly_var,
