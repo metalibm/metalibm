@@ -501,11 +501,8 @@ class DefaultEntityArgTemplate(DefaultArgTemplate):
     io_precisions = None
     io_formats = None
     accuracy = ML_Faithful
-    libm_compliant = False
     # Optimization parameters,
     backend = VHDLBackend()
-    fuse_fma = None
-    fast_path_extract = False
     # Debug verbosity,
     debug = False
     language = VHDL_Code
@@ -556,7 +553,7 @@ class ML_CommonArgTemplate(object):
 
         self.parser.add_argument(
             "--arity", dest="arity",
-            action="store", 
+            action="store",
             type=int,
             default=default_arg.arity,
             help="function arity (number of inputs)")
@@ -595,7 +592,7 @@ class ML_CommonArgTemplate(object):
             "--vector-size", dest="vector_size", type=int,
             default=default_arg.vector_size,
             help="define size of vector (1: scalar implemenation)")
-            
+
         self.parser.add_argument(
             "--sub-vector-size", dest="sub_vector_size", type=int,
             default=default_arg.sub_vector_size,
