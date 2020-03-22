@@ -476,6 +476,9 @@ class DefaultArgTemplate:
     # built binary execution
     execute_trigger = False
 
+    # enable code decoration with internal operation graph IR
+    decorate_code = False
+
     # plotting options
     plot_function = False
     plot_error = False
@@ -528,7 +531,6 @@ class DefaultEntityArgTemplate(DefaultArgTemplate):
     recirculate_pipeline = False
     recirculate_signal_map = {}
 
-    decorate_code = False
 
 
 
@@ -721,6 +723,12 @@ class ML_CommonArgTemplate(object):
             action="store_const", default=True, const=False,
             help="disable display of binary stdout (test, bench execution)")
 
+        self.parser.add_argument(
+            "--decorate-code", dest="decorate_code",
+            action="store_const", const=True,
+            default=default_arg.decorate_code,
+            help="enable code decoration with original operaiton graph")
+
     # Extract argument from the command-line (sys.argv)
     def arg_extraction(self):
         self.args = self.parser.parse_args(sys.argv[1:])
@@ -836,11 +844,6 @@ class ML_EntityArgTemplate(ML_CommonArgTemplate):
             choices = ["vsim", "ghdl"],
             default=default_arg.simulator,
             help="select RTL elaboration and simulation tool")
-        self.parser.add_argument(
-            "--decorate-code", dest="decorate_code",
-            action="store_const", const=True,
-            default=default_arg.decorate_code,
-            help="enable code decoration with original operaiton graph")
 
 
 # new argument template based on argparse module

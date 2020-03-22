@@ -254,7 +254,7 @@ class LLVMIRCodeGenerator(object):
     """ LLVM-IR language code generator """
     language = LLVM_IR_Code
 
-    def __init__(self, processor, declare_cst=True, disable_debug=False, libm_compliant=False, language=LLVM_IR_Code):
+    def __init__(self, processor, declare_cst=True, disable_debug=False, libm_compliant=False, language=LLVM_IR_Code, decorate_code=False):
         # on level for each of exact_mode possible values
         self.generated_map = [{}]
         self.processor = processor
@@ -265,6 +265,7 @@ class LLVMIRCodeGenerator(object):
         self.end_label = None
         # map of basic blocks (bb node -> label)
         self.bb_map = {}
+        if decorate_code: Log.report(Log.Error, "decorate_code option is not supported in LLVMIRCodeGenerator")
 
     def open_memoization_level(self):
         """ Create a new memoization level on top of the stack """

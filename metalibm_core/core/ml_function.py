@@ -405,10 +405,6 @@ class ML_FunctionBasis(object):
     # binary execution
     self.execute_trigger = args.execute_trigger
 
-    self.language = args.language
-
-    Log.report(Log.Info, "auto test: {}, {}, {}".format(self.auto_test_enable, self.auto_test_number,  self.auto_test_range))
-
     # Naming logic, using provided information if available, otherwise deriving from base_name
     # base_name is e.g. exp
     # function_name is e.g. expf or expd or whatever 
@@ -416,7 +412,9 @@ class ML_FunctionBasis(object):
 
     self.output_file = args.output_file if args.output_file else self.function_name + ".c"
 
+    self.language = args.language
     self.debug_flag = args.debug
+    self.decorate_code = args.decorate_code
 
     self.vector_size = args.vector_size
     self.sub_vector_size = args.sub_vector_size
@@ -459,7 +457,8 @@ class ML_FunctionBasis(object):
 
     self.main_code_generator = CODE_GENERATOR_CLASS(
         self.processor, declare_cst=False, disable_debug=not self.debug_flag,
-        libm_compliant=self.libm_compliant, language=self.language
+        libm_compliant=self.libm_compliant, language=self.language,
+        decorate_code=self.decorate_code
     )
     uniquifier = self.function_name
     shared_symbol_list = [
