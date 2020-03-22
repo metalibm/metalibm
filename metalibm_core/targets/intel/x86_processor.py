@@ -43,6 +43,7 @@ from metalibm_core.core.ml_table import ML_TableFormat
 from metalibm_core.utility.debug_utils import ML_Debug
 from metalibm_core.core.special_values import (FP_PlusZero, FP_MinusZero)
 from metalibm_core.core.meta_interval import MetaInterval
+from metalibm_core.core.legalizer import minmax_legalizer_wrapper
 
 from metalibm_core.opt.opt_utils import (
     uniform_list_check, uniform_vector_constant_check, uniform_shift_check)
@@ -602,10 +603,14 @@ def generate_sse_avx_select_boolean_value(cond, precision, negate=False):
         ML_SSE_m128_v4int32: "epi32",
         ML_SSE_m128_v4uint32: "epi32",
         ML_SSE_m128_v4float32: "ps",
+        ML_SSE_m128_v2float64: "pd",
 
         ML_AVX_m256_v8int32: "epi32",
         ML_AVX_m256_v8uint32: "epi32",
         ML_AVX_m256_v8float32: "ps",
+
+        ML_AVX_m256_v4int64: "epi64",
+        ML_AVX_m256_v4float64: "pd",
     }
     format_prefix = {
         ML_SSE_m128_v4int32: "mm",
@@ -615,6 +620,9 @@ def generate_sse_avx_select_boolean_value(cond, precision, negate=False):
         ML_AVX_m256_v8int32: "mm256",
         ML_AVX_m256_v8uint32: "mm256",
         ML_AVX_m256_v8float32: "mm256",
+
+        ML_AVX_m256_v4int64: "mm256",
+        ML_AVX_m256_v4float64: "mm256",
     }
     intrinsic_builder = {
         ML_SSE_m128_v4int32: XmmIntrin,
@@ -624,6 +632,8 @@ def generate_sse_avx_select_boolean_value(cond, precision, negate=False):
         ML_AVX_m256_v8int32: ImmIntrin,
         ML_AVX_m256_v8uint32: ImmIntrin,
         ML_AVX_m256_v8float32: ImmIntrin,
+        ML_AVX_m256_v4int64: ImmIntrin,
+        ML_AVX_m256_v4float64: ImmIntrin,
     }
     def opcode_builder(precision, cond_specifier):
         """ Build a function generator for comparison intrinsics
@@ -664,7 +674,11 @@ def generate_sse_avx_select_boolean_value(cond, precision, negate=False):
 
         ML_AVX_m256_v8int32: opcode_builder,
         ML_AVX_m256_v8uint32: opcode_builder,
+
         ML_AVX_m256_v8float32: specifier_op_builder,
+        ML_AVX_m256_v4float64: specifier_op_builder,
+
+        ML_AVX_m256_v4int64: opcode_builder,
 
     }
     cond_specifier = cond.specifier if not negate \
@@ -1702,6 +1716,8 @@ avx_c_code_generation_table = {
             lambda optree: True: {
                 type_strict_match(*(3*(ML_AVX_m256_v8float32,))):
                     ImmIntrin("_mm256_min_ps", arity = 2),
+                type_strict_match(*(3*(ML_AVX_m256_v4int64,))):
+                    ComplexOperator(optree_modifier=minmax_legalizer_wrapper(Comparison.Less, bool_prec=ML_AVX_m256_v4lbool)),
             },
         },
     },
@@ -1710,6 +1726,8 @@ avx_c_code_generation_table = {
             lambda optree: True: {
                 type_strict_match(*(3*(ML_AVX_m256_v8float32,))):
                     ImmIntrin("_mm256_max_ps", arity = 2),
+                type_strict_match(*(3*(ML_AVX_m256_v4int64,))):
+                    ComplexOperator(optree_modifier=minmax_legalizer_wrapper(Comparison.Greater, bool_prec=ML_AVX_m256_v4lbool)),
             },
         },
     },
@@ -1978,7 +1996,7 @@ avx_c_code_generation_table = {
                     ImmIntrin("_mm256_castps_si256", arity = 1,
                               output_precision = ML_AVX_m256_v8bool),
                 type_strict_match(ML_AVX_m256_v4lbool, ML_AVX_m256_v4float64):
-                    ImmIntrin("_mm256_castps_si256", arity = 1,
+                    ImmIntrin("_mm256_castpd_si256", arity = 1,
                               output_precision = ML_AVX_m256_v4lbool),
             },
         },
@@ -2281,7 +2299,9 @@ avx2_c_code_generation_table = {
                 type_strict_match_or_list([ 3*(ML_AVX_m256_v8int32,),
                                             3*(ML_AVX_m256_v8uint32,),
                                             3*(ML_AVX_m256_v4int64,),
-                                            3*(ML_AVX_m256_v4uint64,) ]):
+                                            3*(ML_AVX_m256_v4uint64,),
+                                            3*(ML_AVX_m256_v4float64,),
+                                        ]):
                     ComplexOperator(expand_avx2_comparison),
                 # 3 Dummy operators used to allow m256_promotion to promote squashable comparison
                 type_strict_match(ML_AVX_m256_v8bool, ML_AVX_m256_v8int32, ML_AVX_m256_v8int32):
@@ -2294,7 +2314,10 @@ avx2_c_code_generation_table = {
             lambda _: True: {
                 type_strict_match_or_list([ 3*(ML_AVX_m256_v8int32,),
                                             3*(ML_AVX_m256_v8uint32,),
-                                            3*(ML_AVX_m256_v8float32,)]):
+                                            3*(ML_AVX_m256_v8float32,),
+                                            3*(ML_AVX_m256_v4int64,),
+                                            3*(ML_AVX_m256_v4float64,),
+                                        ]):
                     DynamicOperator(generate_sse_avx_comparison),
                 # 3 Dummy operators used to allow m256_promotion to promote
                 # squashable comparison
@@ -2310,7 +2333,11 @@ avx2_c_code_generation_table = {
             lambda _: True: {
                 type_strict_match_or_list([ 3*(ML_AVX_m256_v8int32,),
                                             3*(ML_AVX_m256_v8uint32,),
-                                            3*(ML_AVX_m256_v8float32,),]):
+                                            3*(ML_AVX_m256_v8float32,),
+                                            3*(ML_AVX_m256_v4int64,),
+                                            3*(ML_AVX_m256_v4uint64,),
+                                            3*(ML_AVX_m256_v4float64,),
+                                            ]):
                     # TODO rename generate_sse_avx_comparison to reflect AVX
                     # support?
                     DynamicOperator(generate_sse_avx_comparison),
@@ -2320,6 +2347,10 @@ avx2_c_code_generation_table = {
                     (ML_AVX_m256_v8bool, ML_AVX_m256_v8int32, ML_AVX_m256_v8int32),
                     (ML_AVX_m256_v8bool, ML_AVX_m256_v8uint32, ML_AVX_m256_v8uint32),
                     (ML_AVX_m256_v8bool, ML_AVX_m256_v8float32, ML_AVX_m256_v8float32),
+                    # 4-element
+                    (ML_AVX_m256_v4lbool, ML_AVX_m256_v4int64, ML_AVX_m256_v4int64),
+                    (ML_AVX_m256_v4lbool, ML_AVX_m256_v4uint64, ML_AVX_m256_v4uint64),
+                    (ML_AVX_m256_v4lbool, ML_AVX_m256_v4float64, ML_AVX_m256_v4float64),
                     ]):
                     ComplexOperator(expand_sse_avx_bool_comparison),
             },
@@ -2329,6 +2360,8 @@ avx2_c_code_generation_table = {
                 type_strict_match_or_list([
                     (ML_AVX_m256_v8int32, ML_AVX_m256_v8int32, ML_AVX_m256_v8int32),
                     (ML_AVX_m256_v8uint32, ML_AVX_m256_v8uint32, ML_AVX_m256_v8uint32),
+                    (ML_AVX_m256_v4int64, ML_AVX_m256_v4int64, ML_AVX_m256_v4int64),
+                    3* (ML_AVX_m256_v4float64,),
                     ]):
                     ComplexOperator(expand_avx2_comparison),
                 # 3 Dummy operators used to allow m128_promotion to promote squashable comparison
@@ -2336,6 +2369,10 @@ avx2_c_code_generation_table = {
                     (ML_AVX_m256_v8bool, ML_AVX_m256_v8int32, ML_AVX_m256_v8int32),
                     (ML_AVX_m256_v8bool, ML_AVX_m256_v8uint32, ML_AVX_m256_v8uint32),
                     (ML_AVX_m256_v8bool, ML_AVX_m256_v8float32, ML_AVX_m256_v8float32),
+                    # 4-element
+                    (ML_AVX_m256_v4lbool, ML_AVX_m256_v4int64, ML_AVX_m256_v4int64),
+                    (ML_AVX_m256_v4lbool, ML_AVX_m256_v4uint64, ML_AVX_m256_v4uint64),
+                    (ML_AVX_m256_v4lbool, ML_AVX_m256_v4float64, ML_AVX_m256_v4float64),
                     ]):
                     ComplexOperator(expand_sse_avx_bool_comparison),
                 type_strict_match(ML_AVX_m256_v8float32, ML_AVX_m256_v8float32, ML_AVX_m256_v8float32):
@@ -2347,15 +2384,25 @@ avx2_c_code_generation_table = {
                 type_strict_match_or_list([ 3*(ML_AVX_m256_v8int32,),
                                             3*(ML_AVX_m256_v8uint32,) ]):
                     ComplexOperator(expand_avx2_comparison),
+                type_strict_match_or_list([ 3*(ML_AVX_m256_v4int64,),
+                                            3*(ML_AVX_m256_v4uint64,) ]):
+                    ComplexOperator(expand_avx2_comparison),
                 # 3 Dummy operators used to allow m128_promotion to promote
                 # squashable comparison
                 type_strict_match_or_list([
                     (ML_AVX_m256_v8bool, ML_AVX_m256_v8int32, ML_AVX_m256_v8int32),
                     (ML_AVX_m256_v8bool, ML_AVX_m256_v8uint32, ML_AVX_m256_v8uint32),
                     (ML_AVX_m256_v8bool, ML_AVX_m256_v8float32, ML_AVX_m256_v8float32),
+                    # 4-element
+                    (ML_AVX_m256_v4lbool, ML_AVX_m256_v4int64, ML_AVX_m256_v4int64),
+                    (ML_AVX_m256_v4lbool, ML_AVX_m256_v4uint64, ML_AVX_m256_v4uint64),
+                    (ML_AVX_m256_v4lbool, ML_AVX_m256_v4float64, ML_AVX_m256_v4float64),
                     ]):
                     ComplexOperator(expand_sse_avx_bool_comparison),
-                type_strict_match(ML_AVX_m256_v8float32, ML_AVX_m256_v8float32, ML_AVX_m256_v8float32):
+                type_strict_match_or_list([
+                    (ML_AVX_m256_v8float32, ML_AVX_m256_v8float32, ML_AVX_m256_v8float32),
+                    (ML_AVX_m256_v4float64, ML_AVX_m256_v4float64, ML_AVX_m256_v4float64)
+                ]):
                     DynamicOperator(generate_sse_avx_comparison),
             },
         },
@@ -2363,7 +2410,8 @@ avx2_c_code_generation_table = {
             lambda _: True: {
                 type_strict_match_or_list([
                     (ML_AVX_m256_v8int32, ML_AVX_m256_v8int32, ML_AVX_m256_v8int32),
-                    (ML_AVX_m256_v8uint32, ML_AVX_m256_v8uint32, ML_AVX_m256_v8uint32)
+                    (ML_AVX_m256_v8uint32, ML_AVX_m256_v8uint32, ML_AVX_m256_v8uint32),
+                    (ML_AVX_m256_v4int64, ML_AVX_m256_v4int64, ML_AVX_m256_v4int64),
                     ]):
                     ComplexOperator(expand_avx2_comparison),
                 type_strict_match(ML_AVX_m256_v8float32, ML_AVX_m256_v8float32, ML_AVX_m256_v8float32):
@@ -2554,9 +2602,17 @@ avx2_c_code_generation_table = {
                                   ML_AVX_m256_v8float32, ML_AVX_m256_v8float32):
                     # TODO update the naming to reflect AVX support
                     ComplexOperator(squash_sse_avx_cst_select),
+                type_strict_match(ML_AVX_m256_v4int64, ML_AVX_m256_v4lbool, ML_AVX_m256_v4int64, ML_AVX_m256_v4int64):
+                    ComplexOperator(squash_sse_avx_cst_select),
+                type_strict_match(ML_AVX_m256_v4uint64, ML_AVX_m256_v4lbool, ML_AVX_m256_v4uint64, ML_AVX_m256_v4uint64):
+                    ComplexOperator(squash_sse_avx_cst_select),
             },
             not_pred_vector_select_one_zero: {
                 type_strict_match(ML_AVX_m256_v8float32, ML_AVX_m256_v8bool, ML_AVX_m256_v8float32, ML_AVX_m256_v8float32):
+                    ComplexOperator(convert_select_to_logic),
+                type_strict_match(ML_AVX_m256_v4int64, ML_AVX_m256_v4lbool, ML_AVX_m256_v4int64, ML_AVX_m256_v4int64):
+                    ComplexOperator(convert_select_to_logic),
+                type_strict_match(ML_AVX_m256_v4uint64, ML_AVX_m256_v4lbool, ML_AVX_m256_v4uint64, ML_AVX_m256_v4uint64):
                     ComplexOperator(convert_select_to_logic),
             }
         },
