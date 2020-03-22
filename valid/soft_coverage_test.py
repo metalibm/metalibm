@@ -70,6 +70,7 @@ from metalibm_core.targets.intel.x86_processor import (
         X86_AVX_Processor, X86_AVX2_Processor
         )
 from metalibm_core.code_generation.generic_processor import GenericProcessor
+from metalibm_core.code_generation.code_configuration import CodeConfiguration
 
 
 from metalibm_core.targets.intel.m128_promotion import Pass_M128_Promotion
@@ -199,6 +200,8 @@ def generate_pretty_report(filename, test_list, test_summary, evolution_map):
 
         print_report("<html><body><div>")
         print_report("<b>Function generation test report:</b>")
+        print_report("generated with metalibm: <br/>")
+        print_report("<br/>".join(CodeConfiguration.get_git_comment().split("\n")))
         print_report("<p><ul>\n")
         for index, test_case in enumerate(test_list):
             nice_str = "; ".join("{}: {}".format(option, str(test_case[option])) for option in test_case)

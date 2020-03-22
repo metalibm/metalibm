@@ -26,6 +26,7 @@
 import argparse
 import collections
 
+from metalibm_core.code_generation.code_configuration import CodeConfiguration
 
 from metalibm_core.utility.log_report import Log
 
@@ -101,14 +102,16 @@ class PerfCompResult(CompResult):
 class TestSummary:
     """ test summary object """
     # current version of the test summary format version
-    format_version = "0"
+    format_version = "1"
     # list of format versions compatible with this implementation
-    format_version_compatible_list = ["0"]
+    format_version_compatible_list = ["0", "1"]
     def __init__(self, test_map):
         self.test_map = test_map
 
     def dump(self, write_callback):
         write_callback("# format_version={}\n".format(TestSummary.format_version))
+        comment_lines = ["# {}\n".format(line) for line in CodeConfiguration.get_git_comment().split("\n")]
+        write_callback("".join(comment_lines))
         for name in self.test_map:
             write_callback(" ".join([name] + self.test_map[name]) + "\n")
 
@@ -128,6 +131,9 @@ class TestSummary:
                 Log.report(Log.Error, "reference format_version={} is not in compatibility list {}", ref_format_version, TestSummary.format_version_compatible_list)
             
             for line in stream.readlines():
+                if line[0] == '#':
+                    # skip comment lines
+                    continue
                 fields = line.replace('\n','').split(" ")
                 name = fields[0]
                 test_map[name] = fields[1:]
