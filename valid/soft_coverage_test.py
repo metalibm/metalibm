@@ -77,6 +77,7 @@ from metalibm_core.targets.intel.m256_promotion import Pass_M256_Promotion
 from metalibm_core.utility.ml_template import target_instanciate
 
 from valid.test_utils import *
+from valid.test_summary import TestSummary
 
 try:
     from metalibm_core.targets.kalray.k1b_processor import K1B_Processor
@@ -174,52 +175,6 @@ def get_cmdline_option(option_list, option_value):
     }
     return " ".join(OPTION_MAP[option](option_value[option]) for option in option_list) 
 
-class CompResultType:
-    pass
-class Downgraded(CompResultType):
-    """ Test used to be OK, but is now KO """
-    @staticmethod
-    def html_msg(_):
-        return  """<font color="red"> &#8600; </font>"""
-class Upgraded(CompResultType):
-    """ Test used to be KO, but is now OK """
-    @staticmethod
-    def html_msg(_):
-        return """<font color="green"> &#8599; </font>"""
-class NotFound(CompResultType):
-    """ Test was not found in reference """
-    @staticmethod
-    def html_msg(_):
-        return "NA"
-class Improved(CompResultType):
-    """ Test was and is OK, performance has improved """
-    @staticmethod
-    def html_msg(comp_result):
-        return """<font color="green"> +{:.2f}% </font>""".format(comp_result.rel_delta)
-class Decreased(CompResultType):
-    """ Test was and is OK, performance has decreased """
-    @staticmethod
-    def html_msg(comp_result):
-        return """<font color="red"> {:.2f}% </font>""".format(comp_result.rel_delta)
-
-class CompResult:
-    """ test comparison result """
-    def __init__(self, comp_result):
-        self.comp_result = comp_result
-
-    @property
-    def html_msg(self):
-        return self.comp_result.html_msg(self)
-
-class PerfCompResult(CompResult):
-    def __init__(self, abs_delta, rel_delta):
-        if abs_delta > 0:
-            comp_result = Decreased
-        else:
-            comp_result = Improved
-        CompResult.__init__(self, comp_result)
-        self.abs_delta = abs_delta
-        self.rel_delta = rel_delta
 
 def generate_pretty_report(filename, test_list, test_summary, evolution_map):
     """ generate a HTML pretty version of the test report
@@ -463,80 +418,6 @@ class GlobalTestResult:
                     summary = ["KO[{}]".format(result.error)]
                 test_map[name] = summary
         return TestSummary(test_map)
-
-class TestSummary:
-    # current version of the test summary format version
-    format_version = "0"
-    # list of format versions compatible with this implementation
-    format_version_compatible_list = ["0"]
-    def __init__(self, test_map):
-        self.test_map = test_map
-
-    def dump(self, write_callback):
-        write_callback("# format_version={}\n".format(TestSummary.format_version))
-        for name in self.test_map:
-            write_callback(" ".join([name] + self.test_map[name]) + "\n")
-
-    @staticmethod
-    def import_from_file(ref_file):
-        """ import a test summary from a file """
-        with open(ref_file, "r") as stream:
-            test_map = {}
-            header_line = stream.readline().replace('\n', '')
-            if header_line[0] != "#":
-                Log.report(Log.Error, "failed to read starter char '#' in header \"{}\"", header_line)
-                return None
-            property_list = [tuple(v.split("=")) for v in header_line.split(" ") if "=" in v]
-            properties = dict(property_list)
-            ref_format_version = properties["format_version"]
-            if not ref_format_version in TestSummary.format_version_compatible_list:
-                Log.report(Log.Error, "reference format_version={} is not in compatibility list {}", ref_format_version, TestSummary.format_version_compatible_list)
-            
-            for line in stream.readlines():
-                fields = line.replace('\n','').split(" ")
-                name = fields[0]
-                test_map[name] = fields[1:]
-            return TestSummary(test_map)
-
-    def compare(ref, res):
-        """ compare to test summaries and record differences """
-        # number of tests found in ref but not in res
-        not_found = 0
-        # number of tests successful in ref but fail in res
-        downgraded = 0
-        upgraded = 0
-        perf_downgraded = 0
-        perf_upgraded = 0
-        compare_result = {}
-        for label in ref.test_map:
-            if not label in res.test_map:
-                not_found += 1
-                compare_result[label] = "not found"
-            else:
-                ref_status = ref.test_map[label][0]
-                res_status = res.test_map[label][0]
-                if ref_status == "OK" and res_status != "OK":
-                    downgraded += 1
-                    compare_result[label] = CompResult(Downgraded)
-                elif ref_status != "OK" and res_status == "OK":
-                    upgraded += 1
-                    compare_result[label] = CompResult(Upgraded)
-                elif ref_status == "OK" and res_status == "OK":
-                    try:
-                        ref_cpe = float(ref.test_map[label][1])
-                        res_cpe = float(res.test_map[label][1])
-                    except ValueError:
-                        compare_result[label] = CompResult(NotFound)
-
-                    else:
-                        abs_delta = ref_cpe - res_cpe
-                        rel_delta = ((1 - res_cpe / ref_cpe) * 100)
-                        compare_result[label] = PerfCompResult(abs_delta, rel_delta)
-                        if ref_cpe > res_cpe:
-                            perf_downgraded += 1
-                        elif ref_cpe < res_cpe:
-                            perf_upgraded += 1
-        return compare_result
 
 if __name__ == "__main__":
     arg_parser = argparse.ArgumentParser(" Metalibm non-regression tests")
