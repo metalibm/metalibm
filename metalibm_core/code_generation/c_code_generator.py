@@ -50,13 +50,14 @@ from ..utility.debug_utils import ML_Debug
 from .code_constant import C_Code
 from .code_element import CodeVariable, CodeExpression
 from .code_function import CodeFunction
+from .generator_utility import DummyTree
 
 
 class CCodeGenerator(object):
     language = C_Code
 
     """ C language code generator """
-    def __init__(self, processor, declare_cst = True, disable_debug = False, libm_compliant = False, default_rounding_mode = ML_GlobalRoundMode, default_silent = None, language = C_Code):
+    def __init__(self, processor, declare_cst = True, disable_debug = False, libm_compliant = False, default_rounding_mode = ML_GlobalRoundMode, default_silent = None, language = C_Code, decorate_code=False):
         self.memoization_map = [{}]
         self.processor = processor
         self.declare_cst = declare_cst
@@ -64,6 +65,7 @@ class CCodeGenerator(object):
         self.libm_compliant = libm_compliant
         self.fp_context = FP_Context(rounding_mode = default_rounding_mode, silent = default_silent)
         self.language = language
+        self.decorate_code = decorate_code
         Log.report(Log.Info, "CCodeGenerator initialized with language: %s" % self.language)
 
 
@@ -327,6 +329,9 @@ class CCodeGenerator(object):
         self.generate_expr(code_object, ClearException(), language = language)
 
     def generate_code_assignation(self, code_object, result_var, expr_code, final=True, original_node=None):
+        if self.decorate_code and not original_node is None and not isinstance(original_node, DummyTree):
+            code_decoration = original_node.get_str(depth=2, display_precision=True)
+            code_object.add_multiline_comment(code_decoration)
         return self.generate_assignation(result_var, expr_code, final=final)
 
 
