@@ -94,16 +94,16 @@ def get_compatible_bool_format(optree):
         return ML_Bool
 
 
-def minmax_legalizer_wrapper(predicate):
+def minmax_legalizer_wrapper(predicate, bool_prec=None):
     """ Legalize a min/max node by converting it to a Select operation
         with the predicate given as argument """
     def minmax_legalizer(optree):
         op0 = optree.get_input(0)
         op1 = optree.get_input(1)
-        bool_prec = get_compatible_bool_format(optree)
+        local_bool_prec = get_compatible_bool_format(optree) if bool_prec is None else bool_prec
         comp = Comparison(
             op0, op1, specifier=predicate,
-            precision=bool_prec,
+            precision=local_bool_prec,
             tag="minmax_pred"
         )
         # forward_stage_attributes(optree, comp)
