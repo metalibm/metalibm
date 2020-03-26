@@ -35,9 +35,12 @@ import sollya
 
 from sollya import Interval
 
-from metalibm_core.core.ml_function import ML_FunctionBasis, DefaultArgTemplate
+from metalibm_core.core.ml_function import DefaultArgTemplate
+from metalibm_core.core.simple_scalar_function import (
+    ScalarBinaryFunction, ScalarUnaryFunction)
 
 from metalibm_core.core.ml_operations import (
+    Abs,
     Select, Statement, Return,
     LogicalOr, LogicalAnd, LogicalNot,
 )
@@ -59,10 +62,9 @@ sollya.verbosity = 0
 sollya.showmessagenumbers = sollya.on
 
 
-class MetaAtan(ML_FunctionBasis):
+class MetaAtan(ScalarUnaryFunction):
     """ Meta implementation of arctangent function """
     function_name = "ml_atan"
-    arity = 1
     def __init__(self, args):
         super().__init__(args)
         self.method = args.method
@@ -83,32 +85,51 @@ class MetaAtan(ML_FunctionBasis):
         default_args_exp.update(kw)
         return DefaultArgTemplate(**default_args_exp)
 
-    def generate_scheme(self):
+    def generate_scalar_scheme(self, vx):
         """ Evaluation scheme generation """
-        # input variable
-        vx = self.implementation.add_input_variable("x", self.get_input_precision())
-
         # if abs_vx < 1.0 then atan(abx_vx) is directly approximated
         # if abs_vx >= 1.0 then atan(abs_vx) = pi/2 - atan(1 / abs_vx)
+        return self.generic_atan2_generate(vx)
 
+    def generic_atan2_generate(self, _vx, vy=None):
         # computing absolute value of vx
-        abs_vx = Select(vx < 0, -vx, vx, tag="abs_vx", debug=debug_multi)
-        cond = LogicalOr(
-            LogicalAnd(vx < 0, LogicalNot(abs_vx > 1)),
-            vx > 1,
-            tag="cond", debug=debug_multi
-        )
+        vx = _vx if vy is None else _vx / vy
+
+        if vx is None:
+            abs_vx = Select(vx < 0, -vx, vx, tag="abs_vx", debug=debug_multi)
+            bound_cond = abs_vx > 1
+            inv_abs_vx = 1 / abs_vx
+
+            cond = LogicalOr(
+                LogicalAnd(vx < 0, LogicalNot(bound_cond)),
+                vx > 1,
+                tag="cond", debug=debug_multi
+            )
+
+            # reduced argument
+            red_vx = Select(bound_cond, inv_abs_vx, abs_vx, tag="red_vx", debug=debug_multi)
+        else:
+            bound_cond = Abs(_vx) > Abs(vy)
+            sign_cond = (_vx * vy) < 0
+            # atan input is negative
+            cond = LogicalOr(
+                LogicalAnd(sign_cond, LogicalNot(bound_cond)),
+                vx > 1,
+                tag="cond", debug=debug_multi
+            )
+
+            numerator = Select(cond, _vx, vy, tag="numerator", debug=debug_multi)
+            denominator = Select(cond, vy, _vx, tag="denominator", debug=debug_multi)
+            # reduced argument
+            red_vx = numerator / denominator
+            red_vx.set_attributes(tag="red_vx", debug=debug_multi)
+
 
         approx_fct = sollya.atan(sollya.x)
 
         if self.method == "piecewise":
             sign_vx = Select(cond, -1, 1, precision=self.precision, tag="sign_vx", debug=debug_multi)
 
-            bound_cond = abs_vx > 1
-            # reduced argument
-            red_vx = Select(bound_cond, 1 / abs_vx, abs_vx,
-                            precision=self.precision, tag="red_vx",
-                            debug=debug_multi)
             cst_sign = Select(vx < 0, -1, 1, precision=self.precision)
             cst = cst_sign * Select(bound_cond, sollya.pi / 2, 0, precision=self.precision)
 
@@ -185,6 +206,54 @@ class MetaAtan(ML_FunctionBasis):
     standard_test_cases = [[sollya.parse(x)] for x in  ["0x1.107a78p+0", "0x1.9e75a6p+0"]]
 
 
+
+class MetaAtan2(ScalarBinaryFunction, MetaAtan):
+    """ Meta-function for 2-argument arc tangent (atan2) """
+
+    def generate_scalar_scheme(self, vy, vx):
+        # as in standard library atan2(y, x), take y as first
+        # parameter and x as second, we inverse vy and vx in method
+        # argument list
+        # extract of atan2 specification from man page
+        # If y is +0 (-0) and x is less than 0, +pi (-pi) is returned.
+        # If y is +0 (-0) and x is greater than 0, +0 (-0) is returned.
+        # If y is less than 0 and x is +0 or -0, -pi/2 is returned.
+        # If y is greater than 0 and x is +0 or -0, pi/2 is returned.
+        # If either x or y is NaN, a NaN is returned.
+        # If y is +0 (-0) and x is -0, +pi (-pi) is returned.
+        # If y is +0 (-0) and x is +0, +0 (-0) is returned.
+        # If  y  is  a  finite  value  greater  (less)  than 0, and x is negative infinity, +pi (-pi) is
+        # returned.
+        # If y is a finite value greater (less) than 0, and x is positive infinity, +0 (-0) is returned.
+        # If y is positive infinity (negative infinity), and x is finite, pi/2 (-pi/2) is returned.
+        # If y is positive infinity (negative infinity) and x is negative infinity, +3*pi/4 (-3*pi/4) is
+        # returned.
+        # If  y  is  positive  infinity (negative infinity) and x is positive infinity, +pi/4 (-pi/4) is
+        # returned.
+        vy.set_attributes(tag="y")
+        vx.set_attributes(tag="x")
+        return self.generic_atan2_generate(vy, vx)
+
+    @staticmethod
+    def get_default_args(**kw):
+        """ Return a structure containing the arguments for MetaAtan,
+                builtin from a default argument mapping overloaded with @p kw
+        """
+        default_args_exp = {
+            "output_file": "my_atan2.c",
+            "function_name": "my_atan2",
+            "precision": ML_Binary32,
+            "accuracy": ML_Faithful,
+            "input_intervals": [DefaultArgTemplate.input_intervals[0]] * 2,
+            "method": "piecewise",
+            "target": GenericProcessor.get_target_instance()
+        }
+        default_args_exp.update(kw)
+        return DefaultArgTemplate(**default_args_exp)
+
+
+    def numeric_emulate(self, vy, vx):
+        return sollya.atan(vy / vx)
 
 if __name__ == "__main__":
     # auto-test
