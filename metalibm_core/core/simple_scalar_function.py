@@ -65,6 +65,18 @@ class ScalarBinaryFunction(ML_FunctionBasis):
     """ Basic class for function with two inputs, single output """
     arity = 2
 
+    def __init__(self, args):
+        super().__init__(args)
+        self.arity = ScalarBinaryFunction.arity
+
+    @staticmethod
+    def get_default_args(**kw):
+        default_args = {
+            "arity": 2
+        }
+        default_args.update(kw)
+        return DefaultArgTemplate(**default_args)
+
     def generate_scalar_scheme(self, vx, vy):
         """ generate scheme assuming two inputs vx and vy """
         raise NotImplementedError

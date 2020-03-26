@@ -47,15 +47,16 @@ from metalibm_core.code_generation.generic_processor import GenericProcessor
 from metalibm_functions.unit_tests.utils import TestRunner
 
 from metalibm_core.utility.ml_template import (
-        DefaultArgTemplate, ML_NewArgTemplate
+        DefaultMultiAryArgTemplate, MultiAryArgTemplate
 )
 
 
 class ML_UT_EmbeddedBin(ML_FunctionBasis, TestRunner):
     function_name = "ml_ut_embedded_bin"
-    def __init__(self, args=DefaultArgTemplate):
+    def __init__(self, args=DefaultMultiAryArgTemplate):
         # initializing base class
         ML_FunctionBasis.__init__(self, args)
+        self.arity = args.arity
 
 
     @staticmethod
@@ -72,7 +73,7 @@ class ML_UT_EmbeddedBin(ML_FunctionBasis, TestRunner):
                 "arity": 2
         }
         default_args.update(kw)
-        return DefaultArgTemplate(**default_args)
+        return DefaultMultiAryArgTemplate(**default_args)
 
 
     def generate_scheme(self):
@@ -95,7 +96,7 @@ run_test = ML_UT_EmbeddedBin
 
 if __name__ == "__main__":
     # auto-test
-    arg_template = ML_NewArgTemplate(default_arg=ML_UT_EmbeddedBin.get_default_args())
+    arg_template = MultiAryArgTemplate(default_arg=ML_UT_EmbeddedBin.get_default_args())
     args = arg_template.arg_extraction()
 
     if ML_UT_EmbeddedBin.__call__(args):

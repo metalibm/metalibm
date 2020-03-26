@@ -64,7 +64,6 @@ class ML_UT_MultiPrecisionVectorization(ML_FunctionBasis, TestRunner):
     def __init__(self, args=DefaultArgTemplate):
         # initializing base class
         ML_FunctionBasis.__init__(self, args)
-        self.arity = 2
 
 
     @staticmethod

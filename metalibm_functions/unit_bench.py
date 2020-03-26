@@ -311,8 +311,6 @@ class UnitBench(ML_Function("ml_unit_bench")):
     def __init__(self,
                  args=DefaultArgTemplate,
                  ):
-        arity = 0
-
         # initializing base class
         ML_FunctionBasis.__init__(self, args=args)
 

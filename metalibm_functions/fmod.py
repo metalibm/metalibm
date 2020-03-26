@@ -68,7 +68,6 @@ class MetaFMOD(ScalarBinaryFunction):
             "precision": ML_Binary32,
             "accuracy": ML_Faithful,
             "target": GenericProcessor.get_target_instance(),
-            "arity": MetaFMOD.arity,
         }
         default_args_exp.update(kw)
         return DefaultArgTemplate(**default_args_exp)

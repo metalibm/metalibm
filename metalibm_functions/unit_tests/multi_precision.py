@@ -57,15 +57,16 @@ from metalibm_functions.unit_tests.utils import TestRunner
 
 
 from metalibm_core.utility.ml_template import (
-    DefaultArgTemplate, ML_NewArgTemplate
+    DefaultMultiAryArgTemplate, MultiAryArgTemplate
 )
 
 
 class ML_UT_MultiPrecision(ML_FunctionBasis, TestRunner):
     function_name = "ml_ut_multi_precision"
-    def __init__(self, args=DefaultArgTemplate):
+    def __init__(self, args=DefaultMultiAryArgTemplate):
         # initializing base class
         ML_FunctionBasis.__init__(self, args)
+        self.arity = args.arity
 
 
     @staticmethod
@@ -86,7 +87,7 @@ class ML_UT_MultiPrecision(ML_FunctionBasis, TestRunner):
                 "libm_compliant": True
         }
         default_args.update(kw)
-        return DefaultArgTemplate(**default_args)
+        return DefaultMultiAryArgTemplate(**default_args)
 
 
     def generate_scheme(self):
@@ -170,7 +171,7 @@ run_test = ML_UT_MultiPrecision
 
 if __name__ == "__main__":
     # auto-test
-    arg_template = ML_NewArgTemplate(default_arg=ML_UT_MultiPrecision.get_default_args())
+    arg_template = MultiAryArgTemplate(default_arg=ML_UT_MultiPrecision.get_default_args())
     args = arg_template.arg_extraction()
 
     if ML_UT_MultiPrecision.__call__(args):

@@ -338,7 +338,6 @@ class ML_Division(ML_FunctionBasis):
             "num_iter": 3,
             "passes": ["typing:basic_legalization", "beforecodegen:expand_multi_precision"],
             "vector_size": 1,
-            "arity": ML_Division.arity,
         }
         default_div_args.update(args)
         return DefaultArgTemplate(**default_div_args)

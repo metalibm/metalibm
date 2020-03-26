@@ -50,7 +50,8 @@ from metalibm_core.core.ml_complex_formats import ML_Mpfr_t
 from metalibm_core.code_generation.generator_utility import FunctionOperator, FO_Result, FO_Arg
 from metalibm_core.core.payne_hanek import generate_payne_hanek
 
-from metalibm_core.utility.ml_template import ML_NewArgTemplate, ArgDefault, precision_parser
+from metalibm_core.utility.ml_template import (
+    MultiAryArgTemplate, DefaultMultiAryArgTemplate, precision_parser)
 from metalibm_core.utility.log_report  import Log
 from metalibm_core.utility.debug_utils import *
 from metalibm_core.utility.num_utils   import ulp
@@ -60,8 +61,7 @@ from metalibm_core.utility.gappa_utils import is_gappa_installed
 
 class ML_ExternalBench(ML_Function("ml_external_bench")):
   """ Implementation of external bench function wrapper """
-  def __init__(self, args=DefaultArgTemplate):
-    #arity = len(arg_template.input_precisions)
+  def __init__(self, args=DefaultMultiAryArgTemplate):
     # initializing base class
     ML_FunctionBasis.__init__(self, args)
     # initializing specific properties
@@ -82,14 +82,14 @@ class ML_ExternalBench(ML_Function("ml_external_bench")):
         "target": GenericProcessor.get_target_instance()
     }
     default_args_exp.update(kw)
-    return DefaultArgTemplate(**default_args_exp)
+    return DefaultMultiAryArgTemplate(**default_args_exp)
 
 
-  def generate_scheme(self): 
+  def generate_scheme(self):
     # declaring CodeFunction and retrieving input variable
     inputs = [self.implementation.add_input_variable("x%d" % i, precision) for i,precision in enumerate(self.get_input_precisions())]
 
-    external_function_op = FunctionOperator(self.bench_function_name, arity = self.get_arity(), output_precision = self.precision, require_header = self.headers)
+    external_function_op = FunctionOperator(self.bench_function_name, arity = self.arity, output_precision = self.precision, require_header = self.headers)
     external_function = FunctionObject(self.bench_function_name, self.get_input_precisions(), self.precision, external_function_op)
 
     scheme = Statement(
@@ -106,7 +106,7 @@ class ML_ExternalBench(ML_Function("ml_external_bench")):
 
 if __name__ == "__main__":
   # auto-test
-  arg_template = ML_NewArgTemplate(default_arg=ML_ExternalBench.get_default_args())
+  arg_template = MultiAryArgTemplate(default_arg=ML_ExternalBench.get_default_args())
   def precision_list_parser(s):
     return [precision_parser(p) for p in s.split(",")]
 

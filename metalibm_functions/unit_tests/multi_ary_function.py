@@ -46,6 +46,7 @@ from metalibm_core.utility.ml_template import *
 from metalibm_core.utility.debug_utils import * 
 
 class ML_UT_MultiAryFunction(ML_Function("ml_ut_multi_ary_function")):
+  arity = 3
   def __init__(self, args=DefaultArgTemplate): 
     # initializing base class
     ML_FunctionBasis.__init__(self, args) 
@@ -58,7 +59,6 @@ class ML_UT_MultiAryFunction(ML_Function("ml_ut_multi_ary_function")):
     default_args = {
         "output_file": "ut_multi_ary_function.c",
         "function_name": "ut_multi_ary_function",
-        "arity": 3,
     }
     default_args.update(kw)
     return DefaultArgTemplate(**default_args)

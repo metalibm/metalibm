@@ -72,6 +72,7 @@ from metalibm_core.utility.rtl_debug_utils import (
 class UT_NumericalSimplification(ML_FunctionBasis, TestRunner):
     function_name = "ml_num_simplification"
     """ Numerical Simplification unit-test """
+    arity = 3
     @staticmethod
     def get_default_args(**kw):
         """ Return a structure containing the arguments for ML_Exponential,
@@ -94,7 +95,6 @@ class UT_NumericalSimplification(ML_FunctionBasis, TestRunner):
 
         self.accuracy = args.accuracy
         self.precision = args.precision
-        self.arity = 3
 
     def generate_scheme(self):
         """ main scheme generation """

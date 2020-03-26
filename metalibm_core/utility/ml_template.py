@@ -406,8 +406,7 @@ class ArgDefault(object):
 # default argument template to be used when no specific value
 #  are given for a specific parameter
 
-
-class DefaultArgTemplate:
+class DefaultCommonArgTemplate:
     base_name = "unknown_function"
     function_name = "undef_function"
     output_file = "undef.c"
@@ -417,8 +416,6 @@ class DefaultArgTemplate:
     verbose_enable = False
     # enable dump of executed binary stdout
     display_stdout = True
-    #
-    arity = 1
     # output/intermediate format Specification
     precision = ML_Binary32
     input_precisions = None
@@ -490,6 +487,8 @@ class DefaultArgTemplate:
             setattr(self, key, kw[key])
 
 
+class DefaultArgTemplate(DefaultCommonArgTemplate):
+    pass
 
 ## default argument template to be used for entity
 #  when no specific value are given for a specific parameter
@@ -553,13 +552,6 @@ class ML_CommonArgTemplate(object):
             "--output", action="store", dest="output_file",
             default=default_arg.output_file,
             help="set output file")
-
-        self.parser.add_argument(
-            "--arity", dest="arity",
-            action="store",
-            type=int,
-            default=default_arg.arity,
-            help="function arity (number of inputs)")
 
         self.parser.add_argument(
             "--accuracy", dest="accuracy", default=default_arg.accuracy,
@@ -923,6 +915,26 @@ class ML_NewArgTemplate(ML_CommonArgTemplate):
             type=interval_parser,
             action="store", default=default_arg.plot_range,
             help="plot function range")
+
+
+class DefaultMultiAryArgTemplate(DefaultArgTemplate):
+    arity = 1
+
+
+class MultiAryArgTemplate(ML_NewArgTemplate):
+    """ template argument class for meta-function with an arbitrary arity
+        which must be knwon at generation-time """
+    def __init__(
+            self,
+            default_arg=DefaultMultiAryArgTemplate
+        ):
+        self.parser.add_argument(
+            "--arity", dest="arity",
+            action="store",
+            type=int,
+            default=default_arg.arity,
+            help="function arity (number of inputs)")
+
 
 
 
