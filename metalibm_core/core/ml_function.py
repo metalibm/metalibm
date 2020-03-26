@@ -856,7 +856,7 @@ class ML_FunctionBasis(object):
     if self.auto_test_enable:
         auto_test_function_group = self.generate_test_wrapper(
             test_num = self.auto_test_number if self.auto_test_number else 0,
-            test_range = self.auto_test_range
+            test_ranges = self.auto_test_range
         )
         auto_test_function_group.apply_to_all_functions(add_fct_call_check_in_main)
         # appending auto-test wrapper to general code_function_list
@@ -866,7 +866,7 @@ class ML_FunctionBasis(object):
         bench_function_group = self.generate_bench_wrapper(
             test_num=self.bench_test_number if self.bench_test_number else 1000,
             loop_num=self.bench_loop_num,
-            test_range=self.bench_test_range
+            test_ranges=self.bench_test_range
         )
 
         def bench_check(bench_call):
@@ -1116,10 +1116,10 @@ class ML_FunctionBasis(object):
   def numeric_emulate(self, input_value):
     raise NotImplementedError
 
-  def generate_rand_input_iterator(self, test_num, low_input, high_input):
+  def generate_rand_input_iterator(self, test_num, test_ranges):
     """ generate a random list of test inputs """
     # TODO/FIXME: implement proper input range depending on input index
-    rng_map = [get_precision_rng(precision, low_input, high_input) for precision in self.input_precisions]
+    rng_map = [get_precision_rng(precision, inf(test_range), sup(test_range)) for precision, test_range in zip(self.input_precisions, test_ranges)]
 
     # random test cases
     for i in range(test_num):
@@ -1131,6 +1131,8 @@ class ML_FunctionBasis(object):
         # based on real input_precision (e.g. ML_DoubleDouble)
         input_precision = self.get_input_precision(in_id)
         # input_value = rng_map[in_id].get_new_value() # random.uniform(low_input, high_input)
+        low_input = inf(test_ranges[in_id])
+        high_input = sup(test_ranges[in_id])
         input_value =  random.uniform(low_input, high_input)
         input_value = input_precision.round_sollya_object(input_value, sollya.RN)
         input_list.append(input_value)
@@ -1140,9 +1142,7 @@ class ML_FunctionBasis(object):
   #  @param test_num   number of test to perform
   #  @param test_range numeric range for test's inputs
   #  @param debug enable debug mode
-  def generate_test_wrapper(self, test_num = 10, test_range=Interval(-1.0, 1.0), debug=False):
-    low_input = inf(test_range)
-    high_input = sup(test_range)
+  def generate_test_wrapper(self, test_num = 10, test_ranges=[Interval(-1.0, 1.0)], debug=False):
     auto_test = CodeFunction("test_wrapper", output_format = ML_Int32)
 
     tested_function    = self.implementation.get_function_object()
@@ -1175,7 +1175,6 @@ class ML_FunctionBasis(object):
 
     Log.report(Log.Info, "test test_total, test_num, diff: {} {} {}".format(test_total, test_num, diff))
 
-    interval_size = high_input - low_input
 
     input_tables = [
       ML_NewTable(
@@ -1205,7 +1204,7 @@ class ML_FunctionBasis(object):
 
 
     # adding randomly generated inputs
-    test_case_list += list(self.generate_rand_input_iterator(test_num, low_input, high_input))
+    test_case_list += list(self.generate_rand_input_iterator(test_num, test_ranges))
 
     # generating output from the concatenated list
     # of all inputs
@@ -1510,9 +1509,7 @@ class ML_FunctionBasis(object):
   #  @param test_num   number of test to perform
   #  @param test_range numeric range for test's inputs
   #  @param debug enable debug mode
-  def generate_bench_wrapper(self, test_num = 10, loop_num=100000, test_range = Interval(-1.0, 1.0), debug = False):
-    low_input = inf(test_range)
-    high_input = sup(test_range)
+  def generate_bench_wrapper(self, test_num = 10, loop_num=100000, test_ranges = [Interval(-1.0, 1.0)], debug = False):
     auto_test = CodeFunction("bench_wrapper", output_format=ML_Binary64)
 
     tested_function    = self.implementation.get_function_object()
@@ -1536,7 +1533,6 @@ class ML_FunctionBasis(object):
     test_total += diff
     test_num   += diff
 
-    interval_size = high_input - low_input
 
     input_tables = [
       ML_NewTable(
@@ -1553,7 +1549,7 @@ class ML_FunctionBasis(object):
 
     # TODO: factorize with auto-test wrapper generation function
     # random test cases
-    for index, input_tuple in enumerate(self.generate_rand_input_iterator(test_total, low_input, high_input)):
+    for index, input_tuple in enumerate(self.generate_rand_input_iterator(test_total, test_ranges)):
       for in_id in range(self.arity):
         input_tables[in_id][index] = input_tuple[in_id]
 

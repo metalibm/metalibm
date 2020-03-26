@@ -606,7 +606,7 @@ class ML_CommonArgTemplate(object):
 
         self.parser.add_argument(
             "--auto-test-range", dest="auto_test_range", action="store",
-            type=interval_parser, default=default_arg.auto_test_range,
+            type=interval_list_parser, default=default_arg.auto_test_range,
             help="define the range of input values to be used during "
                  "functional testing")
 
@@ -650,7 +650,7 @@ class ML_CommonArgTemplate(object):
             help="define the number of bench loop to run")
         self.parser.add_argument(
             "--bench-range", dest="bench_test_range", action="store",
-            type=interval_parser, default=default_arg.bench_test_range,
+            type=interval_list_parser, default=default_arg.bench_test_range,
             help="define the interval of input values to use during "
                   "performance bench")
 
