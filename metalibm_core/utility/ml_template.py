@@ -623,9 +623,17 @@ class ML_CommonArgTemplate(object):
             const=True, default=default_arg.auto_test_std,
             help="enabling function test on standard test case list")
 
+        def parse_with_error(s):
+            """ parse string s as a SollyaObject, 
+                raise an error if the value conversion fails """
+            v = sollya.parse(s)
+            if v == sollya.error:
+                Log.report(Log.Error, "not able to parse value {} => {}", s, v)
+            return v
+
         self.parser.add_argument(
             "--value-test", dest="value_test", action="store",
-            type=(lambda s: [tuple(sollya.parse(v) for v in t.split(",")) for t in s.split(":")]),
+            type=(lambda s: [tuple(parse_with_error(v) for v in t.split(",")) for t in s.split(":")]),
             default=default_arg.value_test,
             help="give input value for tests as ':'-separated list of tuples")
 
