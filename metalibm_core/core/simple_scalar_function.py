@@ -65,8 +65,8 @@ class ScalarBinaryFunction(ML_FunctionBasis):
     """ Basic class for function with two inputs, single output """
     arity = 2
 
-    def generate_scalar_scheme(self, vx):
-        """ generate scheme assuming single input is vx """
+    def generate_scalar_scheme(self, vx, vy):
+        """ generate scheme assuming two inputs vx and vy """
         raise NotImplementedError
 
     def generate_inline_scheme(self, vx):
