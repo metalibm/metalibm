@@ -246,7 +246,7 @@ new_scheme_function_list = [
   NewSchemeTest(
     "basic arctangent test",
     metalibm_functions.ml_atan.MetaAtan,
-    [{}]
+    [{"precision": ML_Binary32}, {"precision": ML_Binary64}]
   ),
   NewSchemeTest(
     "basic vectorizable_log tests",

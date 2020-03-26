@@ -95,7 +95,7 @@ class MetaAtan(ScalarUnaryFunction):
         # computing absolute value of vx
         vx = _vx if vy is None else _vx / vy
 
-        if vx is None:
+        if vy is None:
             abs_vx = Select(vx < 0, -vx, vx, tag="abs_vx", debug=debug_multi)
             bound_cond = abs_vx > 1
             inv_abs_vx = 1 / abs_vx
