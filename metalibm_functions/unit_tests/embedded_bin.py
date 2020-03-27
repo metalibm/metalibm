@@ -70,6 +70,8 @@ class ML_UT_EmbeddedBin(ML_FunctionBasis, TestRunner):
                 "execute_trigger": True,
                 "embedded_bin": False,
                 "function_name": "ml_ut_embedded_bin",
+                "bench_test_range": DefaultMultiAryArgTemplate.bench_test_range * 2,
+                "auto_test_range": DefaultMultiAryArgTemplate.auto_test_range * 2,
                 "arity": 2
         }
         default_args.update(kw)

@@ -95,7 +95,7 @@ unit_test_list = [
   UnitTestScheme(
     "legalize_reciprocal_seed",
     ut_legalize_reciprocal_seed,
-    [{"auto_test": 1024, "execute_trigger": True, "accuracy": dar(S2**-6), "auto_test_range": Interval(S2**-8, S2**8), }]
+    [{"auto_test": 1024, "execute_trigger": True, "accuracy": dar(S2**-6), "auto_test_range": [Interval(S2**-8, S2**8)], }]
   ),
   UnitTestScheme(
     "fuse_fma pass test",
@@ -208,12 +208,12 @@ unit_test_list = [
   UnitTestScheme(
     "new table test",
     ut_new_table,
-    [{"auto_test_range": Interval(0, 100), "precision": ML_Int32, "auto_test_execute": 10}],
+    [{"auto_test_range": [Interval(0, 100)], "precision": ML_Int32, "auto_test_execute": 10}],
   ),
   UnitTestScheme(
     "perf bench test",
     ut_new_table,
-    [{"bench_range": Interval(0, 100), "precision": ML_Int32, "bench_execute": 100, "target": target_instanciate("x86")}],
+    [{"bench_range": [Interval(0, 100)], "precision": ML_Int32, "bench_execute": 100, "target": target_instanciate("x86")}],
   ),
   UnitTestScheme(
     "multi ary function",

@@ -334,6 +334,8 @@ class ML_Division(ML_FunctionBasis):
             "output_file": "my_div.c",
             "function_name": "my_div",
             "input_intervals": [DefaultArgTemplate.input_intervals[0]] * 2,
+            "auto_test_range": DefaultArgTemplate.auto_test_range * 2,
+            "bench_test_range": DefaultArgTemplate.bench_test_range * 2,
             "language": C_Code,
             "num_iter": 3,
             "passes": ["typing:basic_legalization", "beforecodegen:expand_multi_precision"],

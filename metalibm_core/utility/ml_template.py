@@ -439,7 +439,7 @@ class DefaultCommonArgTemplate:
     language = C_Code
     # auto-test properties
     auto_test = False
-    auto_test_range = Interval(0, 1)
+    auto_test_range = [Interval(0, 1)]
     auto_test_std = False
     value_test = []
     # enable max error computation
@@ -448,7 +448,7 @@ class DefaultCommonArgTemplate:
     # bench properties
     bench_test_number = 0
     bench_loop_num = 10000
-    bench_test_range = Interval(0, 1)
+    bench_test_range = [Interval(0, 1)]
     bench_function_name = "undefined"
     headers = []
     libraries = []
