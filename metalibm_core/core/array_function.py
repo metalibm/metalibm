@@ -135,11 +135,9 @@ class ML_ArrayFunction(ML_FunctionBasis):
         """ single element emulation of function """
         raise NotImplementedError
 
-    def generate_test_wrapper(self, test_num=10, test_range=Interval(-1.0, 1.0), debug=False):
+    def generate_test_wrapper(self, test_num=10, test_ranges=[Interval(-1.0, 1.0)], debug=False):
         index_range = self.test_index_range
 
-        low_input = inf(test_range)
-        high_input = sup(test_range)
         auto_test = CodeFunction("test_wrapper", output_format = ML_Int32)
 
         tested_function    = self.implementation.get_function_object()
@@ -176,7 +174,7 @@ class ML_ArrayFunction(ML_FunctionBasis):
         # TODO/FIXME: implement proper input range depending on input index
         # assuming a single input array
         input_precisions = [self.get_input_precision(1).get_data_precision()]
-        rng_map = [get_precision_rng(precision, low_input, high_input) for precision in input_precisions]
+        rng_map = [get_precision_rng(precision, inf(test_range), sup(test_range)) for precision, test_range in zip(input_precisions, test_ranges)]
 
         # generated table of inputs
         input_tables = [
@@ -402,12 +400,10 @@ class ML_ArrayFunction(ML_FunctionBasis):
     #    @param test_num     number of test to perform
     #    @param test_range numeric range for test's inputs
     #    @param debug enable debug mode
-    def generate_bench_wrapper(self, test_num=1, loop_num=100000, test_range=Interval(-1.0, 1.0), debug=False):
+    def generate_bench_wrapper(self, test_num=1, loop_num=100000, test_ranges=[Interval(-1.0, 1.0)], debug=False):
         # interval where the array lenght is chosen from (randomly)
         index_range = self.test_index_range
 
-        low_input = inf(test_range)
-        high_input = sup(test_range)
         auto_test = CodeFunction("bench_wrapper", output_format=ML_Binary64)
 
         tested_function        = self.implementation.get_function_object()
@@ -450,7 +446,7 @@ class ML_ArrayFunction(ML_FunctionBasis):
         # TODO/FIXME: implement proper input range depending on input index
         # assuming a single input array
         input_precisions = [self.get_input_precision(1).get_data_precision()]
-        rng_map = [get_precision_rng(precision, low_input, high_input) for precision in input_precisions]
+        rng_map = [get_precision_rng(precision, inf(test_range), sup(test_range)) for precision, test_range in zip(input_precisions, test_ranges)]
 
         # generated table of inputs
         input_tables = [

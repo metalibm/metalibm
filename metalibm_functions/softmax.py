@@ -81,7 +81,9 @@ class ML_SoftMax(ML_ArrayFunction):
         self.arity = 3
         precision_ptr = ML_Pointer_Format(self.precision)
         index_format = ML_UInt32
-        self.input_precisions = [
+        # self.input_precisions is not longer accessible directly
+        # the internal value _input_precisions must be modified
+        self._input_precisions = [
             precision_ptr,
             precision_ptr,
             index_format
