@@ -136,7 +136,8 @@ class ML_VectorialFunction(ML_ArrayFunction):
         self.arity = 3
         precision_ptr = ML_Pointer_Format(self.precision)
         index_format = ML_UInt32
-        self.input_precisions = [
+        # self.input_precisions can no longer be modified directly
+        self._input_precisions = [
             precision_ptr,
             precision_ptr,
             index_format
