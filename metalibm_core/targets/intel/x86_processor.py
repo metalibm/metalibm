@@ -450,16 +450,18 @@ def variable_shift_check(optree):
 ## If optree is vector uniform constant modify it to be a
 #  conversion between a scalar constant and a vector
 def vector_constant_op(optree):
-	assert isinstance(optree, Constant)
-	cst_value_v = optree.get_value()
-	op_format = optree.get_precision()
-	if uniform_list_check(cst_value_v):
-		scalar_format = op_format.get_scalar_format()
-		scalar_cst = Constant(cst_value_v[0], precision = scalar_format)
-		## TODO: Conversion class may be changed to VectorBroadCast
-		return Conversion(scalar_cst, precision = op_format)
-	else:
-		raise NotImplementedError
+    assert isinstance(optree, Constant)
+    cst_value_v = optree.get_value()
+    op_format = optree.get_precision()
+    if uniform_list_check(cst_value_v):
+        scalar_format = op_format.get_scalar_format()
+        if isinstance(cst_value_v[0], VIRTUAL_CST_MASK):
+            raise Exception()
+        scalar_cst = Constant(cst_value_v[0], precision = scalar_format)
+        ## TODO: Conversion class may be changed to VectorBroadCast
+        return Conversion(scalar_cst, precision = op_format)
+    else:
+        raise NotImplementedError
 
 
 def x86_fma_intrinsic_builder(intr_name):
@@ -526,7 +528,7 @@ def is_vector_cst_with_value(optree, value):
     if not isinstance(optree, Constant):
         return False
     else:
-        return all(map(lambda v: v == value, optree.get_value()))
+        return all(map(lambda v: value == v, optree.get_value()))
 
 def build_format_constant(value, precision):
     """ Build a constant whose format is @p precision
@@ -537,6 +539,21 @@ def build_format_constant(value, precision):
     else:
         return Constant(value, precision=precision)
 
+def is_cond_comparison_tree(cond):
+    """ Test if cond is a Comparison or a combination
+        (LogicalOr/LogicalAnd/LogicalNot) or Comparison """
+    if isinstance(cond, Comparison):
+        return True
+    elif isinstance(cond, LogicalNot):
+        op = cond.get_input(0)
+        return is_cond_comparison_tree(op)
+    elif isinstance(cond, (LogicalAnd, LogicalOr)):
+        lhs = cond.get_input(0)
+        rhs = cond.get_input(1)
+        return is_cond_comparison_tree(lhs) and is_cond_comparison_tree(rhs)
+    else:
+        return False
+
 def pred_vector_select_mone_zero(optree):
     """ Predicate returns True if and only if
         optree is Select(cond, -1, 0) or Select(cond, 0, -1)
@@ -545,7 +562,8 @@ def pred_vector_select_mone_zero(optree):
         to a mask fully set, and 0 to a mask fully cleared) """
     if not isinstance(optree, Select):
         return False
-    elif not isinstance(optree.get_input(0), Comparison):
+    elif not is_cond_comparison_tree(optree.get_input(0)):
+        # Only Select with comparison conditions are supported
         return False
     elif not optree.get_precision().is_vector_format():
         return False
@@ -732,38 +750,61 @@ def squash_sse_avx_cst_select(optree):
     if is_vector_cst_with_value(lhs, VIRTUAL_CST_MASK_M1) and is_vector_cst_with_value(rhs, VIRTUAL_CST_MASK_0):
         return wrapper(new_cond)
     elif is_vector_cst_with_value(lhs, VIRTUAL_CST_MASK_0) and is_vector_cst_with_value(rhs, VIRTUAL_CST_MASK_M1):
-        opposed_specifier = invert_comp_specifier(cond.specifier)
-        if isinstance(new_cond, TypeCast):
-            new_cond.get_input(0).specifier = opposed_specifier
+        if isinstance(cond, Comparison):
+            opposed_specifier = invert_comp_specifier(cond.specifier)
+            if isinstance(new_cond, TypeCast):
+                new_cond.get_input(0).specifier = opposed_specifier
+            else:
+                new_cond.specifier = opposed_specifier
+        elif isinstance(cond, LogicalNot):
+            if isinstance(new_cond, TypeCast):
+                # transform TypeCast(LogicalNot(<op>)) into TypeCast(<op>)
+                new_cond.set_input(0, cond.get_input(0))
+            else:
+                new_cond = new_cond.get_input(0)
+        elif isinstance(cond, (LogicalAnd, LogicalOr)):
+            if isinstance(new_cond, TypeCast):
+                # transform TypeCast(<op>) into TypeCast(LogicalNot(<op>))
+                new_cond.set_input(0, LogicalNot(new_cond.get_input(0), precision=cond.precision))
+            else:
+                new_cond = LogicalNot(new_cond.get_input(0), precision=new_cond.precision)
         else:
-            new_cond.specifier = opposed_specifier
+            Log.report(Log.Error, "Optree's not supprted in squash_sse_avx_cst_select: {}", cond)
         return wrapper(new_cond)
+
     else:
         raise NotImplementedError
 
 
 class VIRTUAL_CST_MASK:
     """ Virtual constant value for  mask,
-        used to avoid confusion with constant with identical numerical value 
-        but different physical values  when manipulating binary mask """
-    
-class VIRTUAL_CST_MASK_M1(VIRTUAL_CST_MASK):
+        used to avoid confusion with constant with identical numerical value
+        but different physical values when manipulating binary mask """
+
+class VIRTUAL_CST_MASK_M1_Class(VIRTUAL_CST_MASK):
+    def __eq__(self, rhs):
+        return isinstance(rhs, VIRTUAL_CST_MASK_M1_Class)
     def __str__(self):
         return "VIRTUAL_CST_MASK_M1"
     def __repr__(self):
         return "VIRTUAL_CST_MASK_M1"
 
-class VIRTUAL_CST_MASK_0(VIRTUAL_CST_MASK):
+class VIRTUAL_CST_MASK_0_Class(VIRTUAL_CST_MASK):
+    def __eq__(self, rhs):
+        return isinstance(rhs, VIRTUAL_CST_MASK_0_Class)
     def __str__(self):
         return "VIRTUAL_CST_MASK_0"
     def __repr__(self):
         return "VIRTUAL_CST_MASK_0"
+
+VIRTUAL_CST_MASK_M1 = VIRTUAL_CST_MASK_M1_Class()
+VIRTUAL_CST_MASK_0 = VIRTUAL_CST_MASK_0_Class()
 
 def convert_select_to_logic(optree):
     """ Convert Select(cond, a, b) into
-        LogicalOr(
-            LogicalAnd(Select(cond, -1, 0), a),
-            LogicalAnd(Select(cond, 0, -1, b))
+        BitLogicOr(
+            BitLogicAnd(Select(cond, -1, 0), a),
+            BitLogicAnd(Select(cond, 0, -1, b))
         )
     """
     assert isinstance(optree, Select)
@@ -1948,7 +1989,7 @@ avx_c_code_generation_table = {
                 # binary32<->[u]int32
                 type_strict_match_list(
                     [ML_AVX_m256_v8float32],
-                    [ML_AVX_m256_v8int32, ML_AVX_m256_v8uint32]
+                    [ML_AVX_m256_v8int32, ML_AVX_m256_v8uint32, ML_AVX_m256_v8bool]
                     ): ImmIntrin("_mm256_castsi256_ps", arity = 1,
                                  output_precision = ML_AVX_m256_v8float32),
                 # Signed output
