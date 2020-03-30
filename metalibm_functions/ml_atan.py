@@ -40,7 +40,7 @@ from metalibm_core.core.simple_scalar_function import (
     ScalarBinaryFunction, ScalarUnaryFunction)
 
 from metalibm_core.core.ml_operations import (
-    Abs,
+    Abs, Constant,
     Select, Statement, Return,
     LogicalOr, LogicalAnd, LogicalNot,
 )
@@ -92,6 +92,7 @@ class MetaAtan(ScalarUnaryFunction):
         return self.generic_atan2_generate(vx)
 
     def generic_atan2_generate(self, _vx, vy=None):
+        """ if vy is None, compute atan(_vx), else compute atan2(vy / vx) """
         # computing absolute value of vx
         vx = _vx if vy is None else _vx / vy
 
@@ -108,8 +109,11 @@ class MetaAtan(ScalarUnaryFunction):
 
             # reduced argument
             red_vx = Select(bound_cond, inv_abs_vx, abs_vx, tag="red_vx", debug=debug_multi)
+
+            offset = None
         else:
             bound_cond = Abs(_vx) > Abs(vy)
+            # vx and vy are of opposite sign
             sign_cond = (_vx * vy) < 0
             # atan input is negative
             cond = LogicalOr(
@@ -123,6 +127,19 @@ class MetaAtan(ScalarUnaryFunction):
             # reduced argument
             red_vx = numerator / denominator
             red_vx.set_attributes(tag="red_vx", debug=debug_multi)
+
+            offset = Select(_vx > 0, 
+                Constant(0, precision=self.precision),
+                # vx < 0
+                Select(sign_cond,
+                    # vy > 0
+                    Constant(-sollya.pi, precision=self.precision),
+                    Constant(sollya.pi, precision=self.precision),
+                    precision=self.precision
+                ),
+                precision=self.precision,
+                tag="offset"
+            )
 
 
         approx_fct = sollya.atan(sollya.x)
@@ -193,6 +210,9 @@ class MetaAtan(ScalarUnaryFunction):
         else:
             raise NotImplementedError
 
+        if not offset is None:
+            result = result + offset
+
         std_scheme = Statement(
             Return(result)
         )
@@ -209,6 +229,30 @@ class MetaAtan(ScalarUnaryFunction):
 
 class MetaAtan2(ScalarBinaryFunction, MetaAtan):
     """ Meta-function for 2-argument arc tangent (atan2) """
+    arity = 2
+    function_name = "ml_atan2"
+
+    def __init__(self, args):
+        ScalarBinaryFunction.__init__(self, args)
+        self.method = args.method
+
+    @staticmethod
+    def get_default_args(**kw):
+        """ Return a structure containing the arguments for MetaAtan,
+                builtin from a default argument mapping overloaded with @p kw
+        """
+        default_args_exp = {
+            "output_file": "my_atan2.c",
+            "function_name": "my_atan2",
+            "precision": ML_Binary32,
+            "accuracy": ML_Faithful,
+            "input_intervals": [Interval(-5, 5)] * 2,
+            "method": "piecewise",
+            "target": GenericProcessor.get_target_instance()
+        }
+        default_args_exp.update(kw)
+        return DefaultArgTemplate(**default_args_exp)
+
 
     def generate_scalar_scheme(self, vy, vx):
         # as in standard library atan2(y, x), take y as first
@@ -234,26 +278,15 @@ class MetaAtan2(ScalarBinaryFunction, MetaAtan):
         vx.set_attributes(tag="x")
         return self.generic_atan2_generate(vy, vx)
 
-    @staticmethod
-    def get_default_args(**kw):
-        """ Return a structure containing the arguments for MetaAtan,
-                builtin from a default argument mapping overloaded with @p kw
-        """
-        default_args_exp = {
-            "output_file": "my_atan2.c",
-            "function_name": "my_atan2",
-            "precision": ML_Binary32,
-            "accuracy": ML_Faithful,
-            "input_intervals": [DefaultArgTemplate.input_intervals[0]] * 2,
-            "method": "piecewise",
-            "target": GenericProcessor.get_target_instance()
-        }
-        default_args_exp.update(kw)
-        return DefaultArgTemplate(**default_args_exp)
-
-
     def numeric_emulate(self, vy, vx):
-        return sollya.atan(vy / vx)
+        if vx > 0:
+            return sollya.atan(vy / vx)
+        elif vy < 0:
+            # vy / vx > 0
+            return -sollya.pi + sollya.atan(vy / vx)
+        else:
+            # vy > 0, vy / vx < 0
+            return sollya.pi + sollya.atan(vy / vx)
 
 if __name__ == "__main__":
     # auto-test
