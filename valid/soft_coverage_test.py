@@ -295,20 +295,23 @@ TARGET_OPTIONS_MAP = {
     X86_PROCESSOR: {},
 }
 
-SCALAR_TARGET_LIST = [GENERIC_PROCESSOR, X86_PROCESSOR, X86_AVX2]
+TARGET_BY_NAME_MAP = {target.target_name: target for target in TARGET_OPTIONS_MAP}
+
+#SCALAR_TARGET_LIST = [GENERIC_PROCESSOR, X86_PROCESSOR, X86_AVX2]
 SCALAR_PRECISION_LIST = [ML_Binary32, ML_Binary64]
 
-VECTOR_TARGET_LIST = [VECTOR_BACKEND, X86_AVX2]
+#VECTOR_TARGET_LIST = [VECTOR_BACKEND, X86_AVX2]
 VECTOR_PRECISION_LIST = [ML_Binary32, ML_Binary64]
 
 
-def generate_test_list(NUM_AUTO_TEST, NUM_BENCH_TEST):
+def generate_test_list(NUM_AUTO_TEST, NUM_BENCH_TEST, scalar_target_tag_list, vector_target_tag_list):
     """ generate a list of test """
     # list of all possible test for a single function
     test_list = []
 
     # generating scalar tests and adding them to test_list
-    for scalar_target in SCALAR_TARGET_LIST:
+    for scalar_target_tag in scalar_target_tag_list:
+        scalar_target = TARGET_BY_NAME_MAP[scalar_target_tag]
         for precision in SCALAR_PRECISION_LIST:
             options = {
                 "precision": precision,
@@ -323,7 +326,8 @@ def generate_test_list(NUM_AUTO_TEST, NUM_BENCH_TEST):
             options.update(TARGET_OPTIONS_MAP[scalar_target])
             test_list.append(options)
     # generating vector tests and adding them to test_list
-    for vector_target in VECTOR_TARGET_LIST:
+    for vector_target_tag in vector_target_tag_list:
+        vector_target = TARGET_BY_NAME_MAP[vector_target_tag]
         for precision in VECTOR_PRECISION_LIST:
             for vector_size in [4, 8]:
                 options = {
@@ -418,6 +422,10 @@ class GlobalTestResult:
                 test_map[name] = summary
         return TestSummary(test_map)
 
+def split_str(s):
+    """ split s around ',' and removed empty sub-string """
+    return [sub for sub in s.split(",") if s!= ""]
+
 if __name__ == "__main__":
     arg_parser = argparse.ArgumentParser(" Metalibm non-regression tests")
     # enable debug mode
@@ -439,6 +447,14 @@ if __name__ == "__main__":
     arg_parser.add_argument("--reference", dest="reference", action="store",
                             default=None,
                             help="load a reference result and compare them")
+    arg_parser.add_argument("--scalar-targets", dest="scalar_targets", action="store",
+                            default=["generic", "x86", "x86_avx2"],
+                            type=split_str,
+                            help="list of targets")
+    arg_parser.add_argument("--vector-targets", dest="vector_targets", action="store",
+                            default=["vector", "x86_avx2"],
+                            type=split_str,
+                            help="list of vector_targets")
     arg_parser.add_argument("--gen-reference", dest="gen_reference", action="store",
                             default=None,
                             help="generate a new reference file")
@@ -453,7 +469,10 @@ if __name__ == "__main__":
 
     # number of self-checking test to be generated
     NUM_AUTO_TEST = 1024 # to be divisible by standard vector length
-    test_list = generate_test_list(NUM_AUTO_TEST, args.bench_test_number)
+    test_list = generate_test_list(NUM_AUTO_TEST,
+                                   args.bench_test_number,
+                                   args.scalar_targets,
+                                   args.vector_targets)
 
     # generating global test list
     for function_test in [f for f in FUNCTION_LIST if (not f.tag in args.exclude and (args.select is None or f.tag in args.select))]:
