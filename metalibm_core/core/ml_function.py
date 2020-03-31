@@ -998,7 +998,11 @@ class ML_FunctionBasis(object):
                         cpe_match = re.search("(?P<cpe_measure>\d+\.\d+) CPE", ret_stdout)
                         if cpe_match is None:
                             Log.report(Log.Error, "not able to extract CPE measure from log: {}", ret_stdout)
-                        exec_result["cpe_measure"] = cpe_match.group("cpe_measure")
+                        try:
+                            cpe_measure = float(cpe_match.group("cpe_measure"))
+                            exec_result["cpe_measure"] = cpe_measure
+                        except Exception as e:
+                            Log.report(Log.Error, "unable to extract float cpe measure from {}", cpe_match.group("cpe_measure"), error=e)
                 else:
                     Log.report(Log.Info, "executing : {}", bin_file.path)
                     test_result, ret_stdout = bin_file.execute()
