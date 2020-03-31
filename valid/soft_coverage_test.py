@@ -57,6 +57,7 @@ import metalibm_functions.erf
 import metalibm_functions.ml_acos
 
 from metalibm_core.utility.log_report import Log
+from metalibm_core.utility.ml_template import target_parser
 
 from metalibm_core.core.ml_formats import ML_Binary32, ML_Binary64, ML_Int32
 from metalibm_core.core.ml_function import (
@@ -87,6 +88,7 @@ try:
 except ImportError:
     k1b_defined = False
     k1b = None
+
 
 class VerboseAction(argparse.Action):
     def __init__(self, option_strings, dest, nargs=None, **kwargs):
@@ -125,10 +127,44 @@ GEN_LOG_ARGS = {"basis": sollya.exp(1), "function_name": "ml_genlog", "extra_pas
 GEN_LOG2_ARGS =  {"basis": 2, "function_name": "ml_genlog2", "extra_passes" : ["beforecodegen:fuse_fma"]}
 GEN_LOG10_ARGS =  {"basis": 10, "function_name": "ml_genlog10", "extra_passes" : ["beforecodegen:fuse_fma"]}
 
-FUNCTION_LIST = [
-    FunctionTest(metalibm_functions.external_bench.ML_ExternalBench, [{"bench_function_name": "expf", "emulate": sollya.exp}], title="libm_expf"),
-    FunctionTest(metalibm_functions.external_bench.ML_ExternalBench, [{"bench_function_name": "exp", "emulate": sollya.exp, "input_formats": [ML_Binary64], "precision": ML_Binary64}], title="libm_exp"),
+class LibmFunctionTest(FunctionTest):
+    @property
+    def tag(self):
+        # NOTES/FIXME: 0-th element of self.arg_map_list is chosen
+        # for tag determination without considering the others
+        return self.title + "_" + self.arg_map_list[0]["bench_function_name"]
 
+S2 = sollya.SollyaObject(2)
+S10 = sollya.SollyaObject(10)
+def emulate_exp2(v):
+    return S2**v
+def emulate_exp10(v):
+    return S10**v
+
+# libm functions
+LIBM_FUNCTION_LIST = [
+    # single precision
+    LibmFunctionTest(metalibm_functions.external_bench.ML_ExternalBench, [{"bench_function_name": fname, "emulate": emulate, "auto_test": 0, "headers": ["math.h"]}], title="libm")
+    for fname, emulate in [
+        ("expf", sollya.exp), ("exp2f", emulate_exp2), ("exp10f", emulate_exp10), ("expm1f", sollya.expm1),
+        ("logf", sollya.log), ("log2f", sollya.log2), ("log10f", sollya.log10), ("log1p", sollya.log1p),
+        ("cosf", sollya.cos), ("sinf", sollya.sin), ("tanf", sollya.tan), ("atanf", sollya.atan),
+        ("coshf", sollya.cosh), ("sinhf", sollya.sinh), ("tanhf", sollya.tanh),
+    ]
+] + [
+    LibmFunctionTest(metalibm_functions.external_bench.ML_ExternalBench, [{"bench_function_name": fname, "emulate": emulate, "input_formats": [ML_Binary64], "precision": ML_Binary64, "auto_test": 0, "headers": ["math.h"]}], title="libm")
+    for fname, emulate in [
+        ("exp", sollya.exp), ("exp2", emulate_exp2), ("exp10", emulate_exp10), ("expm1", sollya.expm1),
+        ("log", sollya.log), ("log2", sollya.log2), ("log10", sollya.log10), ("log1p", sollya.log1p),
+        ("cos", sollya.cos), ("sin", sollya.sin), ("tan", sollya.tan), ("atan", sollya.atan),
+        ("cosh", sollya.cosh), ("sinh", sollya.sinh), ("tanh", sollya.tanh),
+    ]
+
+]
+
+FUNCTION_LIST = LIBM_FUNCTION_LIST + [
+
+    # meta-functions
     FunctionTest(metalibm_functions.ml_tanh.ML_HyperbolicTangent, [{}], title="ml_tanh"),
 
     FunctionTest(metalibm_functions.ml_atan.MetaAtan, [{}], title="ml_atan"),
@@ -172,8 +208,10 @@ def get_cmdline_option(option_list, option_value):
         "vector_size": lambda v: "--vector-size {}".format(v),
         "function_name": lambda v: "--fname {}".format(v),
         "output_file": lambda v: "--output {}".format(v),
+        # discarding target_specific_options
+        "target_exec_options": lambda _: "",
     }
-    return " ".join(OPTION_MAP[option](option_value[option]) for option in option_list) 
+    return " ".join(OPTION_MAP[option](option_value[option]) for option in option_list)
 
 
 def generate_pretty_report(filename, test_list, test_summary, evolution_map):
@@ -315,9 +353,27 @@ def generate_test_list(NUM_AUTO_TEST, NUM_BENCH_TEST, scalar_target_tag_list, ve
     # list of all possible test for a single function
     test_list = []
 
+    def get_target_by_tag(target_tag):
+        if target_tag in TARGET_BY_NAME_MAP:
+            target = TARGET_BY_NAME_MAP[target_tag]
+        else:
+            target_specific_options = {}
+            if ":" in target_tag:
+                target_tag, platform = target_tag.split(':')
+                target_specific_options["target_exec_options"]  = {"platform": platform}
+            target = target_parser(target_tag).get_target_instance()
+            TARGET_OPTIONS_MAP[target] = target_specific_options
+        return target
+
+    def get_target_option(target_obj):
+        if target_obj in TARGET_OPTIONS_MAP:
+            return TARGET_OPTIONS_MAP[target_obj]
+        else:
+            return {}
+
     # generating scalar tests and adding them to test_list
     for scalar_target_tag in scalar_target_tag_list:
-        scalar_target = TARGET_BY_NAME_MAP[scalar_target_tag]
+        scalar_target = get_target_by_tag(scalar_target_tag)
         for precision in SCALAR_PRECISION_LIST:
             options = {
                 "precision": precision,
@@ -329,11 +385,11 @@ def generate_test_list(NUM_AUTO_TEST, NUM_BENCH_TEST, scalar_target_tag_list, ve
                 "output_file": "{}_{}.c".format(precision, scalar_target.target_name),
                 "function_name": "{}_{}".format(precision, scalar_target.target_name),
             }
-            options.update(TARGET_OPTIONS_MAP[scalar_target])
+            options.update(get_target_option(scalar_target))
             test_list.append(options)
     # generating vector tests and adding them to test_list
     for vector_target_tag in vector_target_tag_list:
-        vector_target = TARGET_BY_NAME_MAP[vector_target_tag]
+        vector_target = get_target_by_tag(vector_target_tag)
         for precision in VECTOR_PRECISION_LIST:
             for vector_size in [4, 8]:
                 options = {
@@ -347,7 +403,7 @@ def generate_test_list(NUM_AUTO_TEST, NUM_BENCH_TEST, scalar_target_tag_list, ve
                     "output_file": "v{}-{}_{}.c".format(vector_size, precision, vector_target.target_name),
                     "function_name": "v{}_{}_{}".format(vector_size, precision, vector_target.target_name),
                 }
-                options.update(TARGET_OPTIONS_MAP[vector_target])
+                options.update(get_target_option(vector_target))
                 test_list.append(options)
     return test_list
 
@@ -499,14 +555,14 @@ if __name__ == "__main__":
                     extra_passes += [ep for ep in sub_test["extra_passes"] if not ep in extra_passes]
 
                 option.update(sub_test)
-                fname = sub_test["function_name"] if "function_name" in sub_test else function.function_name
+                fname = sub_test["function_name"] if "function_name" in sub_test else function_test.tag # function.function_name
                 option["extra_passes"] = extra_passes
                 option["function_name"] = fname + "_" + function_test.title + "_" + opt_fname
                 option["output_file"] = fname + "_" +function_test.title + "_" + opt_oname
                 print(option)
                 local_test_list.append(option)
         test_case = SubFunctionTest(
-            function_test.title,
+            function_test.tag,
             function, # class / constructor
             local_test_list
         )
