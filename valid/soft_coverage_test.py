@@ -126,6 +126,9 @@ GEN_LOG2_ARGS =  {"basis": 2, "function_name": "ml_genlog2", "extra_passes" : ["
 GEN_LOG10_ARGS =  {"basis": 10, "function_name": "ml_genlog10", "extra_passes" : ["beforecodegen:fuse_fma"]}
 
 FUNCTION_LIST = [
+    FunctionTest(metalibm_functions.external_bench.ML_ExternalBench, [{"bench_function_name": "expf", "emulate": sollya.exp}], title="libm_expf"),
+    FunctionTest(metalibm_functions.external_bench.ML_ExternalBench, [{"bench_function_name": "exp", "emulate": sollya.exp, "input_formats": [ML_Binary64], "precision": ML_Binary64}], title="libm_exp"),
+
     FunctionTest(metalibm_functions.ml_tanh.ML_HyperbolicTangent, [{}], title="ml_tanh"),
 
     FunctionTest(metalibm_functions.ml_atan.MetaAtan, [{}], title="ml_atan"),
@@ -145,7 +148,7 @@ FUNCTION_LIST = [
     FunctionTest(metalibm_functions.ml_cbrt.ML_Cbrt, [{}]),
     FunctionTest(metalibm_functions.ml_sqrt.MetalibmSqrt, [{}]),
     FunctionTest(metalibm_functions.ml_isqrt.ML_Isqrt, [{}]),
-    FunctionTest(metalibm_functions.ml_vectorizable_log.ML_Log, [{}]),
+    FunctionTest(metalibm_functions.ml_vectorizable_log.ML_Log, [{}], title="vectorizable_log"),
 
     FunctionTest(metalibm_functions.ml_sincos.ML_SinCos, [{}]),
 
@@ -168,7 +171,7 @@ def get_cmdline_option(option_list, option_value):
         "precision": lambda v: "--precision {}".format(v),
         "vector_size": lambda v: "--vector-size {}".format(v),
         "function_name": lambda v: "--fname {}".format(v),
-        "output_name": lambda v: "--output {}".format(v),
+        "output_file": lambda v: "--output {}".format(v),
     }
     return " ".join(OPTION_MAP[option](option_value[option]) for option in option_list) 
 
@@ -251,7 +254,10 @@ def generate_pretty_report(filename, test_list, test_summary, evolution_map):
                     color_cell("-%d" % (NUM_TESTS - success_count), color="red", markup="span"),
                     NUM_TESTS)
              )
-        print_report("      Success: {:.1f}%".format(float(success_count) / NUM_TESTS * 100))
+        if NUM_TESTS != 0:
+            print_report("      Success: {:.1f}%".format(float(success_count) / NUM_TESTS * 100))
+        else:
+            print_report("      Success: {:.1f}%".format(0))
 
         print_report("</p>\n<p>\n")
 
@@ -320,7 +326,7 @@ def generate_test_list(NUM_AUTO_TEST, NUM_BENCH_TEST, scalar_target_tag_list, ve
                 "auto_test_std": True,
                 "execute_trigger": True,
                 "bench_test_number": NUM_BENCH_TEST,
-                "output_name": "{}_{}.c".format(precision, scalar_target.target_name),
+                "output_file": "{}_{}.c".format(precision, scalar_target.target_name),
                 "function_name": "{}_{}".format(precision, scalar_target.target_name),
             }
             options.update(TARGET_OPTIONS_MAP[scalar_target])
@@ -338,7 +344,7 @@ def generate_test_list(NUM_AUTO_TEST, NUM_BENCH_TEST, scalar_target_tag_list, ve
                     "bench_test_number": NUM_BENCH_TEST,
                     "auto_test_std": True,
                     "execute_trigger": True,
-                    "output_name": "v{}-{}_{}.c".format(vector_size, precision, vector_target.target_name),
+                    "output_file": "v{}-{}_{}.c".format(vector_size, precision, vector_target.target_name),
                     "function_name": "v{}_{}_{}".format(vector_size, precision, vector_target.target_name),
                 }
                 options.update(TARGET_OPTIONS_MAP[vector_target])
@@ -350,7 +356,7 @@ def generate_test_list(NUM_AUTO_TEST, NUM_BENCH_TEST, scalar_target_tag_list, ve
 class SubFunctionTest(NewSchemeTest):
     def sub_case_title(self, arg_tc):
         """ method to generate sub-case title """
-        return arg_tc["function_name"]
+        return self.title + "_" + arg_tc["function_name"]
 
 def execute_test_list(test_list):
     """ execute all the tests listed in test_list """
@@ -475,7 +481,7 @@ if __name__ == "__main__":
                                    args.vector_targets)
 
     # generating global test list
-    for function_test in [f for f in FUNCTION_LIST if (not f.tag in args.exclude and (args.select is None or f.tag in args.select))]:
+    for function_test in [f for f in FUNCTION_LIST if (not f.tag in args.exclude and (args.select is None or f.tag in args.select or f.title in args.select))]:
         function = function_test.ctor
         local_test_list = []
         # updating copy
@@ -483,7 +489,7 @@ if __name__ == "__main__":
             for sub_test in function_test.arg_map_list:
                 option = test.copy()
                 opt_fname = option["function_name"]
-                opt_oname = option["output_name"]
+                opt_oname = option["output_file"]
                 # extra_passes requrie specific management, as we do not wish to
                 # overwrite one list with the other, but rather to concatenate them
                 extra_passes = []
@@ -495,8 +501,8 @@ if __name__ == "__main__":
                 option.update(sub_test)
                 fname = sub_test["function_name"] if "function_name" in sub_test else function.function_name
                 option["extra_passes"] = extra_passes
-                option["function_name"] = fname + "_" + opt_fname
-                option["output_name"] = fname + "_" + opt_oname
+                option["function_name"] = fname + "_" + function_test.title + "_" + opt_fname
+                option["output_file"] = fname + "_" +function_test.title + "_" + opt_oname
                 print(option)
                 local_test_list.append(option)
         test_case = SubFunctionTest(
