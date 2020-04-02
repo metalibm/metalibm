@@ -890,9 +890,12 @@ class ML_FunctionBasis(object):
             # arguments
             tested_function    = self.implementation.get_function_object()
 
-            max_error_function = CodeFunction("max_error_wrapper", output_format=self.precision) 
-            max_error_main_statement = self.generate_scalar_max_error_wrapper(tested_function, test_total, input_tables, output_table) 
-            max_error_function.set_scheme(max_error_main_statement)
+            max_error_function = self.generate_max_error_wrapper(tested_function,
+                                                                 test_total,
+                                                                 input_tables,
+                                                                 output_table)
+
+
             # adding max_error function without calling it directly from main
             max_error_fct_group = FunctionGroup([max_error_function])
             max_error_fct_group.apply_to_all_functions(add_fct_call_check_in_main(check=None))
@@ -1398,73 +1401,6 @@ class ML_FunctionBasis(object):
       ),
     )
 
-    # computing maximal error
-    if self.compute_max_error:
-      eval_error = Variable("max_error", precision = self.precision, var_type = Variable.Local)
-
-      printf_error_template = "printf(\"%s's max error is %s \\n\", %s)" % (
-        self.function_name,
-        self.precision.get_display_format(self.language).format_string,
-        self.precision.get_display_format(self.language).pre_process_fct("{0}")
-      )
-      # printf_error_op = FunctionOperator("printf", arg_map = {0: "\"max %s error is %s \\n \"" % (self.function_name, self.precision.get_display_format(self.language)), 1: FO_Arg(0)}, void_function = True) 
-      printf_error_op = TemplateOperatorFormat(printf_error_template, arity=1, void_function=True)
-      printf_error_function = FunctionObject("printf", [self.precision], ML_Void, printf_error_op)
-
-      local_inputs = [
-        Variable(
-          "vec_x_{}".format(i) ,
-          precision = vector_format,
-          var_type = Variable.Local
-        ) for i in range(self.arity)
-      ]
-      assignation_statement = Statement()
-      for input_index, local_input in enumerate(local_inputs):
-        assignation_statement.push(local_input)
-        for k in range(self.get_vector_size()):
-          elt_assign = ReferenceAssign(VectorElementSelection(local_input, k), TableLoad(input_tables[input_index], vi + k))
-          assignation_statement.push(elt_assign)
-
-      # computing results
-      local_result = tested_function(*local_inputs)
-
-      comp_statement = Statement()
-      for k in range(self.get_vector_size()):
-        elt_inputs = [VectorElementSelection(local_inputs[input_id], k) for input_id in range(self.arity)]
-        elt_result = VectorElementSelection(local_result, Constant(k, precision = ML_Integer))
-
-        output_values = [TableLoad(output_table, vi + k, i) for i in range(self.accuracy.get_num_output_value())]
-
-        local_error = self.accuracy.compute_error(elt_result, output_values, relative = True)
-
-        comp_statement.push(
-          ReferenceAssign(
-            eval_error,
-            Max(
-              local_error,
-              eval_error,
-              precision = self.precision
-            )
-          )
-        )
-
-      error_loop = Loop(
-        ReferenceAssign(vi, Constant(0, precision = ML_Int32)),
-        vi < test_num_cst,
-        Statement(
-          assignation_statement,
-          comp_statement,
-          ReferenceAssign(vi, vi + loop_increment)
-        ),
-      )
-      test_statement.add(
-        Statement(
-          ReferenceAssign(eval_error, Constant(0, precision = self.precision)),
-          error_loop,
-          printf_error_function(eval_error)
-        )
-      )
-
     # adding functional test_loop to test statement
     test_statement.add(test_loop)
     return test_statement
@@ -1527,14 +1463,106 @@ class ML_FunctionBasis(object):
       ),
     )
 
-    test_statement = Statement() 
+    return Statement(test_loop)
 
+  def generate_max_error_wrapper(self, tested_function, test_total,
+                                 input_tables, output_table):
+      """ Generate max_errror eval function, manages
+          both scalar and vector formats """
+      if self.implementation.get_output_format().is_vector_format():
+          max_error_main_statement = self.generate_vector_max_error_eval(tested_function, test_total, input_tables, output_table) 
+      else:
+          max_error_main_statement = self.generate_scalar_max_error_eval(tested_function, test_total, input_tables, output_table) 
+      max_error_function = CodeFunction("max_error_eval", output_format=self.precision) 
+      max_error_function.set_scheme(max_error_main_statement)
+      return max_error_function
 
-    # adding functional test_loop to test statement
-    test_statement.add(test_loop)
+  def generate_vector_max_error_eval(self, tested_function, test_num,
+                                     input_tables, output_table):
+      """ generate the main Statement to evaluate the maximal error (both
+          relative and absolute) for a vector function """
+      max_error_relative = Variable("max_error_relative", precision=self.precision, var_type=Variable.Local)
+      max_error_absolute = Variable("max_error_absolute", precision=self.precision, var_type=Variable.Local)
 
-    return test_statement
-  def generate_scalar_max_error_wrapper(self, tested_function, test_num, input_tables, output_table):
+      printf_error_template = "printf(\"max %s error is absolute=%s, relative=%s \\n\", %s, %s)" % (
+        self.function_name,
+        self.precision.get_display_format(self.language).format_string,
+        self.precision.get_display_format(self.language).format_string,
+        self.precision.get_display_format(self.language).pre_process_fct("{0}"),
+        self.precision.get_display_format(self.language).pre_process_fct("{0}")
+      )
+      printf_error_op = TemplateOperatorFormat(printf_error_template, arity=2, void_function=True, require_header=["stdio.h"])
+      printf_error_function = FunctionObject("printf", [self.precision, self.precision], ML_Void, printf_error_op)
+      vector_format = self.implementation.get_output_format()
+
+      local_inputs = [
+        Variable(
+          "vec_x_{}".format(i) ,
+          precision = vector_format,
+          var_type = Variable.Local
+        ) for i in range(self.arity)
+      ]
+
+      # loop iterator
+      vi = Variable("i", precision=ML_Int32, var_type=Variable.Local)
+      test_num_cst = Constant(test_num, precision=ML_Int32, tag="test_num")
+      loop_increment = self.get_vector_size()
+
+      assignation_statement = Statement()
+      for input_index, local_input in enumerate(local_inputs):
+        assignation_statement.push(local_input)
+        for k in range(self.get_vector_size()):
+          elt_assign = ReferenceAssign(VectorElementSelection(local_input, k), TableLoad(input_tables[input_index], vi + k))
+          assignation_statement.push(elt_assign)
+
+      # computing results
+      local_result = tested_function(*local_inputs)
+
+      comp_statement = Statement()
+      for k in range(self.get_vector_size()):
+        elt_inputs = [VectorElementSelection(local_inputs[input_id], k) for input_id in range(self.arity)]
+        elt_result = VectorElementSelection(local_result, Constant(k, precision = ML_Integer))
+
+        output_values = [TableLoad(output_table, vi + k, i) for i in range(self.accuracy.get_num_output_value())]
+
+        local_error_relative = self.accuracy.compute_error(elt_result, output_values, relative=True)
+        local_error_absolute = self.accuracy.compute_error(elt_result, output_values, relative=False)
+
+        comp_statement.push(
+          ReferenceAssign(
+            max_error_relative,
+            Max(
+              local_error_relative,
+              max_error_relative,
+              precision=self.precision)))
+        comp_statement.push(
+          ReferenceAssign(
+            max_error_absolute,
+            Max(
+              local_error_absolute,
+              max_error_absolute,
+              precision=self.precision)))
+
+      error_loop = Loop(
+        ReferenceAssign(vi, Constant(0, precision = ML_Int32)),
+        vi < test_num_cst,
+        Statement(
+          assignation_statement,
+          comp_statement,
+          ReferenceAssign(vi, vi + loop_increment)
+        ),
+      )
+      main_statement = Statement(
+          ReferenceAssign(max_error_absolute, Constant(0, precision=self.precision)),
+          ReferenceAssign(max_error_relative, Constant(0, precision=self.precision)),
+          error_loop,
+          printf_error_function(max_error_absolute, max_error_relative))
+      return main_statement
+
+  def generate_scalar_max_error_eval(self, tested_function, test_num,
+                                     input_tables, output_table):
+      """ generate the main Statement to evaluate the maximal error (both
+          relative and absolute) for a scalar function """
       # loop iterator
       vi = Variable("i", precision=ML_Int32, var_type=Variable.Local)
 
