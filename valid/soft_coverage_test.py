@@ -208,6 +208,7 @@ def get_cmdline_option(option_list, option_value):
         "vector_size": lambda v: "--vector-size {}".format(v),
         "function_name": lambda v: "--fname {}".format(v),
         "output_file": lambda v: "--output {}".format(v),
+        "compute_max_error": lambda v: "--max-error",
         # discarding target_specific_options
         "target_exec_options": lambda _: "",
     }
@@ -270,10 +271,20 @@ def generate_pretty_report(filename, test_list, test_summary, evolution_map):
                     evolution_summary = local_evolution.html_msg
                 if result.get_result():
                     cpe_measure = "-"
+                    max_error = "-"
+                    color = "green"
+                    result_sumup = " OK  "
+                    ERROR_ULP_THRESHOLD = 1.0
                     if result.return_value != None:
                         if "cpe_measure" in result.return_value:
                             cpe_measure = "{:.2f}".format(result.return_value["cpe_measure"])
-                    msg += color_cell("  OK     ", submsg="<br />[%s]%s" % (cpe_measure, evolution_summary), color="green")
+                        if "max_error" in result.return_value:
+                            max_error_ulps = float(result.return_value["max_error"])
+                            max_error = "{:.2f} ulp(s)".format(max_error_ulps)
+                            if max_error_ulps > ERROR_ULP_THRESHOLD:
+                                color = "orange"
+                                result_sumup = "KO[V]"
+                    msg += color_cell(" %s   " % result_sumup, submsg="<br />[%s, %s]%s" % (cpe_measure, max_error, evolution_summary), color=color)
                 elif isinstance(result.error, GenerationError):
                     msg += color_cell("  KO[G]  ", submsg=evolution_summary, color="red")
                 elif isinstance(result.error, BuildError):
@@ -348,7 +359,7 @@ SCALAR_PRECISION_LIST = [ML_Binary32, ML_Binary64]
 VECTOR_PRECISION_LIST = [ML_Binary32, ML_Binary64]
 
 
-def generate_test_list(NUM_AUTO_TEST, NUM_BENCH_TEST, scalar_target_tag_list, vector_target_tag_list):
+def generate_test_list(NUM_AUTO_TEST, NUM_BENCH_TEST, scalar_target_tag_list, vector_target_tag_list, ENANBLE_STD_TEST=True, MAX_ERROR_EVAL=False):
     """ generate a list of test """
     # list of all possible test for a single function
     test_list = []
@@ -379,7 +390,8 @@ def generate_test_list(NUM_AUTO_TEST, NUM_BENCH_TEST, scalar_target_tag_list, ve
                 "precision": precision,
                 "target": scalar_target,
                 "auto_test": NUM_AUTO_TEST,
-                "auto_test_std": True,
+                "auto_test_std": ENANBLE_STD_TEST,
+                "compute_max_error": MAX_ERROR_EVAL,
                 "execute_trigger": True,
                 "bench_test_number": NUM_BENCH_TEST,
                 "output_file": "{}_{}.c".format(precision, scalar_target.target_name),
@@ -398,7 +410,8 @@ def generate_test_list(NUM_AUTO_TEST, NUM_BENCH_TEST, scalar_target_tag_list, ve
                     "vector_size": vector_size,
                     "auto_test": NUM_AUTO_TEST,
                     "bench_test_number": NUM_BENCH_TEST,
-                    "auto_test_std": True,
+                    "auto_test_std": ENANBLE_STD_TEST,
+                    "compute_max_error": MAX_ERROR_EVAL,
                     "execute_trigger": True,
                     "output_file": "v{}-{}_{}.c".format(vector_size, precision, vector_target.target_name),
                     "function_name": "v{}_{}_{}".format(vector_size, precision, vector_target.target_name),
@@ -469,10 +482,13 @@ class GlobalTestResult:
                 name = result.title
                 if result.get_result():
                     cpe_measure = "-"
+                    max_error = "-"
                     if result.return_value != None:
                         if "cpe_measure" in result.return_value:
                             cpe_measure = "{:.2f}".format(result.return_value["cpe_measure"])
-                    summary = ["OK", cpe_measure]
+                        if "max_error" in result.return_value:
+                            max_error = "{}".format(result.return_value["max_error"])
+                    summary = ["OK", cpe_measure, max_error]
                 elif isinstance(result.error, GenerationError):
                     summary = ["KO[G]"]
                 elif isinstance(result.error, BuildError):
@@ -523,6 +539,9 @@ if __name__ == "__main__":
     arg_parser.add_argument("--bench-test-number", dest="bench_test_number", action="store",
                             default=None, type=int,
                             help="set the number of loop to run during performance bench (0 disable performance benching alltogether)")
+    arg_parser.add_argument("--error-eval", dest="error_eval", action="store_const",
+                            default=False, const=True,
+                            help="evaluate error without failing on innacurate functions")
     arg_parser.add_argument(
         "--verbose", dest="verbose_enable", action=VerboseAction,
         const=True, default=False,
@@ -530,11 +549,20 @@ if __name__ == "__main__":
     args = arg_parser.parse_args(sys.argv[1:])
 
     # number of self-checking test to be generated
-    NUM_AUTO_TEST = 1024 # to be divisible by standard vector length
+    if args.error_eval:
+        NUM_AUTO_TEST =0
+        ENANBLE_STD_TEST = False
+        MAX_ERROR_EVAL = True
+    else:
+        NUM_AUTO_TEST = 1024 # to be divisible by standard vector length
+        ENANBLE_STD_TEST = True
+        MAX_ERROR_EVAL = False
     test_list = generate_test_list(NUM_AUTO_TEST,
                                    args.bench_test_number,
                                    args.scalar_targets,
-                                   args.vector_targets)
+                                   args.vector_targets,
+                                   ENANBLE_STD_TEST=ENANBLE_STD_TEST,
+                                   MAX_ERROR_EVAL=MAX_ERROR_EVAL)
 
     # generating global test list
     for function_test in [f for f in FUNCTION_LIST if (not f.tag in args.exclude and (args.select is None or f.tag in args.select or f.title in args.select))]:
