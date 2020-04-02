@@ -772,7 +772,6 @@ class ML_FunctionBasis(object):
     # returning execution result, if any
     embedding_binary = self.embedded_binary and self.processor.support_embedded_bin
     execute_result = self.execute_output(embedding_binary, source_file)
-    print("execute_result: {}".format(execute_result))
     return execute_result
 
 
@@ -837,22 +836,34 @@ class ML_FunctionBasis(object):
 
     CstError = Constant(1, precision=ML_Int32)
 
-    def add_fct_call_check_in_main(fct_group, code_function, check=lambda op: op):
-        """ adding call to code_function with return value check
-            in main statement """
+    def standard_fct_flow(code_function):
+        """ Apply standard function optimization flow on code_function """
         scheme = code_function.get_scheme()
         opt_scheme = self.optimise_scheme(
             scheme, enable_subexpr_sharing = enable_subexpr_sharing
         )
         code_function.set_scheme(opt_scheme)
-        fct_call = code_function.build_function_object()()
-        main_pre_statement.add(fct_call)
-        main_statement.add(
-            ConditionBlock(
-                check(fct_call),
-                Return(CstError)
-            )
-        )
+
+    def fct_group_apply_std_fct_flow(fct_group, code_function, check=lambda op: op):
+        """ execute standard_fct_flow as a pass on a FunctionGroup """
+        standard_fct_flow(code_function)
+
+    def add_fct_call_check_in_main(check=lambda op: op):
+        def mapped_function(fct_group, code_function):
+            """ adding call to code_function with return value check
+                in main statement """
+            fct_group_apply_std_fct_flow(fct_group, code_function, check)
+
+            fct_call = code_function.build_function_object()()
+            main_pre_statement.add(fct_call)
+            if not check is None:
+                main_statement.add(
+                    ConditionBlock(
+                        check(fct_call),
+                        Return(CstError)
+                    )
+                )
+        return mapped_function
 
     # generate auto-test wrapper
     if self.auto_test_enable or self.compute_max_error:
@@ -870,7 +881,7 @@ class ML_FunctionBasis(object):
             auto_test_function_group = self.generate_test_wrapper(
                 test_total, input_tables, output_table
             )
-            auto_test_function_group.apply_to_all_functions(add_fct_call_check_in_main)
+            auto_test_function_group.apply_to_all_functions(add_fct_call_check_in_main())
             # appending auto-test wrapper to general code_function_list
             function_group.merge_with_group(auto_test_function_group)
 
@@ -882,8 +893,9 @@ class ML_FunctionBasis(object):
             max_error_function = CodeFunction("max_error_wrapper", output_format=self.precision) 
             max_error_main_statement = self.generate_scalar_max_error_wrapper(tested_function, test_total, input_tables, output_table) 
             max_error_function.set_scheme(max_error_main_statement)
+            # adding max_error function without calling it directly from main
             max_error_fct_group = FunctionGroup([max_error_function])
-            max_error_fct_group.apply_to_all_functions(add_fct_call_check_in_main)
+            max_error_fct_group.apply_to_all_functions(add_fct_call_check_in_main(check=None))
             function_group.merge_with_group(max_error_fct_group)
 
     if self.bench_enabled:
@@ -896,9 +908,7 @@ class ML_FunctionBasis(object):
         def bench_check(bench_call):
             return Comparison(bench_call, Constant(0.0, precision=ML_Binary64), specifier=Comparison.Less, precision=ML_Bool)
 
-        bench_function_group.apply_to_all_functions(
-            lambda fct_group, cf: add_fct_call_check_in_main(fct_group, cf, bench_check)
-        )
+        bench_function_group.apply_to_all_functions(add_fct_call_check_in_main(bench_check))
         # appending bench wrapper to general code_function_list
         function_group.merge_with_group(bench_function_group)
     return main_pre_statement, main_statement, function_group
@@ -1008,7 +1018,7 @@ class ML_FunctionBasis(object):
                         Log.report(Log.Error, "VALIDATION FAILURE", error=ValidError())
 
                 if self.compute_max_error:
-                    max_error_value = loaded_module.get_function_handle("max_error_wrapper")()
+                    max_error_value = loaded_module.get_function_handle("max_error_eval")()
                     exec_result["max_error"] = max_error_value
 
                 # if no specific measure/test is schedule we execute the function itself
@@ -1024,31 +1034,33 @@ class ML_FunctionBasis(object):
                         execute_cmd = self.processor.get_execution_command(bin_file.path, **self.target_exec_options)
                     Log.report(Log.Info, "execute cmd: {}", execute_cmd)
                     test_result, ret_stdout = get_cmd_stdout(execute_cmd)
-                    ret_stdout = str(ret_stdout)
-                    # extracting benchmark result
-                    if self.bench_enabled:
-                        cpe_match = re.search("(?P<cpe_measure>\d+\.\d+) CPE", ret_stdout)
-                        if cpe_match is None:
-                            Log.report(Log.Error, "not able to extract CPE measure from log: {}", ret_stdout)
-                        try:
-                            cpe_measure = float(cpe_match.group("cpe_measure"))
-                            exec_result["cpe_measure"] = cpe_measure
-                        except Exception as e:
-                            Log.report(Log.Error, "unable to extract float cpe measure from {}", cpe_match.group("cpe_measure"), error=e)
-                    # extracting max error result
-                    if self.compute_max_error:
-                        max_error = re.search("max error is (?P<max_error>\d+\.\d+)", ret_stdout)
-                        if max_error is None:
-                            Log.report(Log.Error, "not able to extract max error measure from log: {}", ret_stdout)
-                        try:
-                            max_error = sollya.parse(max_error.group("max_error"))
-                            exec_result["max_error"] = max_error
-                        except Exception as e:
-                            Log.report(Log.Error, "unable to extract sollya.parse max-error measure from {}", max_error.group("max_error"), error=e)
                 else:
                     Log.report(Log.Info, "executing : {}", bin_file.path)
                     test_result, ret_stdout = bin_file.execute()
+                # conversion from bytes to str
+                ret_stdout = str(ret_stdout)
                 Log.report(Log.Info, "log: {}", ret_stdout)
+                # extracting benchmark result
+                if self.bench_enabled:
+                    cpe_match = re.search("(?P<cpe_measure>\d+\.\d+) CPE", ret_stdout)
+                    if cpe_match is None:
+                        Log.report(Log.Error, "not able to extract CPE measure from log: {}", ret_stdout)
+                    try:
+                        cpe_measure = float(cpe_match.group("cpe_measure"))
+                        exec_result["cpe_measure"] = cpe_measure
+                    except Exception as e:
+                        Log.report(Log.Error, "unable to extract float cpe measure from {}", cpe_match.group("cpe_measure"), error=e)
+                # extracting max error result
+                if self.compute_max_error:
+                    max_error = re.search("relative=(?P<max_error>0x[0-9a-fA-F\.]+p[+-]\d+)", ret_stdout)
+                    print("max_error: {}".format(max_error))
+                    if max_error is None:
+                        Log.report(Log.Error, "not able to extract max error measure from log: {}", ret_stdout)
+                    try:
+                        max_error = sollya.parse(max_error.group("max_error"))
+                        exec_result["max_error"] = max_error
+                    except Exception as e:
+                        Log.report(Log.Error, "unable to extract sollya.parse max-error measure from {}", max_error.group("max_error"), error=e)
                 if not test_result:
                     Log.report(Log.Info, "VALIDATION SUCCESS")
                 else:
@@ -1334,8 +1346,8 @@ class ML_FunctionBasis(object):
     # building inputs
     local_inputs = [
       Variable(
-        "vec_x_{}".format(i) , 
-        precision = vector_format, 
+        "vec_x_{}".format(i),
+        precision = vector_format,
         var_type = Variable.Local
       ) for i in range(self.arity)
     ]
@@ -1350,7 +1362,7 @@ class ML_FunctionBasis(object):
     loop_increment = self.get_vector_size()
 
     comp_statement = Statement()
-    
+
     printf_input_function = self.get_printf_input_function()
 
     # comparison with expected
@@ -1497,11 +1509,11 @@ class ML_FunctionBasis(object):
         )
     else:
         return_statement_break = Statement(
-            printf_input_function(*((vi,) + local_inputs + (local_result,))), 
+            printf_input_function(*((vi,) + local_inputs + (local_result,))),
             self.accuracy.get_output_print_call(self.function_name, output_values),
             Return(Constant(1, precision = ML_Int32))
         )
-    
+
     test_loop = Loop(
       ReferenceAssign(vi, Constant(0, precision = ML_Int32)),
       vi < test_num_cst,
