@@ -82,6 +82,7 @@ from metalibm_core.utility.log_report import Log
 from metalibm_core.utility.debug_utils import *
 from metalibm_core.utility.ml_template import DefaultArgTemplate
 from metalibm_core.utility.build_utils import SourceFile, get_cmd_stdout
+from metalibm_core.utility.num_utils import ulp
 
 
 
@@ -1022,6 +1023,11 @@ class ML_FunctionBasis(object):
 
                 if self.compute_max_error:
                     max_error_value = loaded_module.get_function_handle("max_error_eval")()
+                    # convert to ulps
+                    numerical_format = self.precision.get_base_format()
+                    if numerical_format.is_vector_format():
+                        numerical_format = numerical_format.get_scalar_format()
+                    max_error_value = abs(max_error_value) / ulp(1.0, numerical_format)
                     exec_result["max_error"] = max_error_value
 
                 # if no specific measure/test is schedule we execute the function itself
@@ -1060,8 +1066,12 @@ class ML_FunctionBasis(object):
                     if max_error is None:
                         Log.report(Log.Error, "not able to extract max error measure from log: {}", ret_stdout)
                     try:
-                        max_error = sollya.parse(max_error.group("max_error"))
-                        exec_result["max_error"] = max_error
+                        max_error_value = sollya.parse(max_error.group("max_error"))
+                        numerical_format = self.precision.get_base_format()
+                        if numerical_format.is_vector_format():
+                            numerical_format = numerical_format.get_scalar_format()
+                        max_error_value = abs(max_error_value) / ulp(1.0, numerical_format)
+                        exec_result["max_error"] = max_error_value
                     except Exception as e:
                         Log.report(Log.Error, "unable to extract sollya.parse max-error measure from {}", max_error.group("max_error"), error=e)
                 if not test_result:
