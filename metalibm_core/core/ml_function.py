@@ -771,7 +771,9 @@ class ML_FunctionBasis(object):
     source_file = SourceFile(self.output_file, function_group)
     # returning execution result, if any
     embedding_binary = self.embedded_binary and self.processor.support_embedded_bin
-    return self.execute_output(embedding_binary, source_file)
+    execute_result = self.execute_output(embedding_binary, source_file)
+    print("execute_result: {}".format(execute_result))
+    return execute_result
 
 
   def transform_function_group(self, function_group):
@@ -853,14 +855,36 @@ class ML_FunctionBasis(object):
         )
 
     # generate auto-test wrapper
-    if self.auto_test_enable:
-        auto_test_function_group = self.generate_test_wrapper(
-            test_num = self.auto_test_number if self.auto_test_number else 0,
-            test_ranges = self.auto_test_range
-        )
-        auto_test_function_group.apply_to_all_functions(add_fct_call_check_in_main)
-        # appending auto-test wrapper to general code_function_list
-        function_group.merge_with_group(auto_test_function_group)
+    if self.auto_test_enable or self.compute_max_error:
+        # common test tables for auto_test and max_error
+        test_num = self.auto_test_number if self.auto_test_number else 0
+        DEFAULT_MAX_ERROR_TEST_NUMBER = 10000
+
+        if not self.auto_test_enable and self.compute_max_error:
+            test_num = DEFAULT_MAX_ERROR_TEST_NUMBER
+        test_total, input_tables, output_table = self.generate_test_tables(
+                test_num=test_num,
+                test_ranges = self.auto_test_range)
+
+        if self.auto_test_enable:
+            auto_test_function_group = self.generate_test_wrapper(
+                test_total, input_tables, output_table
+            )
+            auto_test_function_group.apply_to_all_functions(add_fct_call_check_in_main)
+            # appending auto-test wrapper to general code_function_list
+            function_group.merge_with_group(auto_test_function_group)
+
+        # generate max-error test wrapper
+        if self.compute_max_error:
+            # arguments
+            tested_function    = self.implementation.get_function_object()
+
+            max_error_function = CodeFunction("max_error_wrapper", output_format=self.precision) 
+            max_error_main_statement = self.generate_scalar_max_error_wrapper(tested_function, test_total, input_tables, output_table) 
+            max_error_function.set_scheme(max_error_main_statement)
+            max_error_fct_group = FunctionGroup([max_error_function])
+            max_error_fct_group.apply_to_all_functions(add_fct_call_check_in_main)
+            function_group.merge_with_group(max_error_fct_group)
 
     if self.bench_enabled:
         bench_function_group = self.generate_bench_wrapper(
@@ -974,7 +998,7 @@ class ML_FunctionBasis(object):
                 if self.bench_enabled:
                     cpe_measure = loaded_module.get_function_handle("bench_wrapper")()
                     exec_result["cpe_measure"] = cpe_measure
-                    print("imported cpe_measure={}".format(cpe_measure))
+
                 if self.auto_test_enable:
                     test_result = loaded_module.get_function_handle("test_wrapper")()
                     exec_result["test_result"] = test_result
@@ -982,9 +1006,16 @@ class ML_FunctionBasis(object):
                         Log.report(Log.Info, "VALIDATION SUCCESS")
                     else:
                         Log.report(Log.Error, "VALIDATION FAILURE", error=ValidError())
-                if not (self.bench_enabled or self.auto_test_enable):
+
+                if self.compute_max_error:
+                    max_error_value = loaded_module.get_function_handle("max_error_wrapper")()
+                    exec_result["max_error"] = max_error_value
+
+                # if no specific measure/test is schedule we execute the function itself
+                if not (self.bench_enabled or self.auto_test_enable or self.compute_max_error):
                     execution_result = loaded_module.get_function_handle(self.get_execute_handle())()
                 return exec_result
+
             elif not embedding_binary:
                 if self.force_cross_platform or self.processor.cross_platform:
                     if self.target_exec_options is None:
@@ -994,6 +1025,7 @@ class ML_FunctionBasis(object):
                     Log.report(Log.Info, "execute cmd: {}", execute_cmd)
                     test_result, ret_stdout = get_cmd_stdout(execute_cmd)
                     ret_stdout = str(ret_stdout)
+                    # extracting benchmark result
                     if self.bench_enabled:
                         cpe_match = re.search("(?P<cpe_measure>\d+\.\d+) CPE", ret_stdout)
                         if cpe_match is None:
@@ -1003,6 +1035,16 @@ class ML_FunctionBasis(object):
                             exec_result["cpe_measure"] = cpe_measure
                         except Exception as e:
                             Log.report(Log.Error, "unable to extract float cpe measure from {}", cpe_match.group("cpe_measure"), error=e)
+                    # extracting max error result
+                    if self.compute_max_error:
+                        max_error = re.search("max error is (?P<max_error>\d+\.\d+)", ret_stdout)
+                        if max_error is None:
+                            Log.report(Log.Error, "not able to extract max error measure from log: {}", ret_stdout)
+                        try:
+                            max_error = sollya.parse(max_error.group("max_error"))
+                            exec_result["max_error"] = max_error
+                        except Exception as e:
+                            Log.report(Log.Error, "unable to extract sollya.parse max-error measure from {}", max_error.group("max_error"), error=e)
                 else:
                     Log.report(Log.Info, "executing : {}", bin_file.path)
                     test_result, ret_stdout = bin_file.execute()
@@ -1142,11 +1184,79 @@ class ML_FunctionBasis(object):
         input_list.append(input_value)
       yield tuple(input_list)
 
+
+  def generate_test_tables(self, test_num, test_ranges=[Interval(-1.0, 1.0)]):
+    """ Generate inputs and output table to be shared between auto test
+        and max_error tests """
+    test_total   = test_num 
+    non_random_test_cases = []
+    # add them to the total if standard test enabled
+    if self.auto_test_std:
+        # compute the number of standard test cases
+        num_std_case = len(self.standard_test_cases)
+        if not num_std_case:
+            Log.report(Log.Warning, "{} standard test case found!", num_std_case)
+        non_random_test_cases += self.standard_test_cases
+        test_total += num_std_case
+
+    # add value specific tests
+    if self.value_test != []:
+        test_total += len(self.value_test)
+        non_random_test_cases += self.value_test
+
+    # round up the number of tests to the implementation vector-size
+    diff = (self.get_vector_size() - (test_total % self.get_vector_size())) % self.get_vector_size()
+    assert diff >= 0
+    test_total += diff
+    test_num   += diff
+
+    Log.report(Log.Info, "test test_total, test_num, diff: {} {} {}".format(test_total, test_num, diff))
+    input_tables = [
+      ML_NewTable(
+        dimensions = [test_total],
+        storage_precision = self.get_input_precision(i),
+        tag = self.uniquify_name("input_table_arg%d" % i)
+      ) for i in range(self.arity)
+    ]
+
+    ## output values required to check results are stored in output table
+    num_output_value = self.accuracy.get_num_output_value()
+    output_table = ML_NewTable(dimensions=[test_total, num_output_value],
+                               storage_precision=self.precision,
+                               tag=self.uniquify_name("output_table"))
+
+    test_case_list = []
+
+    if len(non_random_test_cases):
+      # standard test cases
+      for i, test_case in enumerate(non_random_test_cases):
+        input_list = []
+        for in_id in range(self.arity):
+          input_value = self.get_input_precision(in_id).round_sollya_object(test_case[in_id], sollya.RN)
+          input_list.append(input_value)
+        test_case_list.append(tuple(input_list))
+
+    # adding randomly generated inputs
+    test_case_list += list(self.generate_rand_input_iterator(test_num, test_ranges))
+
+    # generating output from the concatenated list of all inputs
+    for table_index, input_tuple in enumerate(test_case_list):
+      # storing inputs
+      for in_id in range(self.arity):
+        input_tables[in_id][table_index] = input_tuple[in_id]
+      # computing and storing output values
+      output_values = self.accuracy.get_output_check_value(self.numeric_emulate(*input_tuple))
+      for o in range(num_output_value):
+        output_table[table_index][o] = output_values[o]
+
+    return test_total, input_tables, output_table
+  
+
   ## Generate a test wrapper for the @p self function 
   #  @param test_num   number of test to perform
   #  @param test_range numeric range for test's inputs
   #  @param debug enable debug mode
-  def generate_test_wrapper(self, test_num = 10, test_ranges=[Interval(-1.0, 1.0)], debug=False):
+  def generate_test_wrapper(self, test_total, input_tables, output_table):
     auto_test = CodeFunction("test_wrapper", output_format = ML_Int32)
 
     tested_function    = self.implementation.get_function_object()
@@ -1158,68 +1268,8 @@ class ML_FunctionBasis(object):
     printf_success_op = FunctionOperator("printf", arg_map = {0: "\"test successful %s\\n\"" % function_name}, void_function = True) 
     printf_success_function = FunctionObject("printf", [], ML_Void, printf_success_op)
 
-    test_total   = test_num 
-    # compute the number of standard test cases
-    num_std_case = len(self.standard_test_cases)
-    non_random_test_cases = []
-    # add them to the total if standard test enabled
-    if self.auto_test_std:
-        if not num_std_case:
-            Log.report(Log.Warning, "{} standard test case found!", num_std_case)
-        non_random_test_cases += self.standard_test_cases
-        test_total += num_std_case
-    if self.value_test != []:
-        test_total += len(self.value_test)
-        non_random_test_cases += self.value_test
-    # round up the number of tests to the implementation vector-size
-    diff = (self.get_vector_size() - (test_total % self.get_vector_size())) % self.get_vector_size()
-    assert diff >= 0
-    test_total += diff
-    test_num   += diff
-
-    Log.report(Log.Info, "test test_total, test_num, diff: {} {} {}".format(test_total, test_num, diff))
 
 
-    input_tables = [
-      ML_NewTable(
-        dimensions = [test_total],
-        storage_precision = self.get_input_precision(i),
-        tag = self.uniquify_name("input_table_arg%d" % i)
-      ) for i in range(self.arity)
-    ]
-    ## output values required to check results are stored in output table
-    num_output_value = self.accuracy.get_num_output_value()
-    output_table = ML_NewTable(dimensions = [test_total, num_output_value], storage_precision = self.precision, tag = self.uniquify_name("output_table"))
-
-    # general index for input/output tables
-    table_index = 0
-
-    test_case_list = []
-
-
-    if len(non_random_test_cases):
-      # standard test cases
-      for i, test_case in enumerate(non_random_test_cases):# in range(num_std_case):
-        input_list = []
-        for in_id in range(self.arity):
-          input_value = self.get_input_precision(in_id).round_sollya_object(test_case[in_id], sollya.RN)
-          input_list.append(input_value)
-        test_case_list.append(tuple(input_list))
-
-
-    # adding randomly generated inputs
-    test_case_list += list(self.generate_rand_input_iterator(test_num, test_ranges))
-
-    # generating output from the concatenated list
-    # of all inputs
-    for table_index, input_tuple in enumerate(test_case_list):
-      # storing inputs
-      for in_id in range(self.arity):
-        input_tables[in_id][table_index] = input_tuple[in_id]
-      # computing and storing output values
-      output_values = self.accuracy.get_output_check_value(self.numeric_emulate(*input_tuple))
-      for o in range(num_output_value):
-        output_table[table_index][o] = output_values[o]
 
     if self.implementation.get_output_format().is_vector_format():
       # vector implementation test
@@ -1235,6 +1285,7 @@ class ML_FunctionBasis(object):
       Return(Constant(0, precision = ML_Int32))
     )
     auto_test.set_scheme(test_scheme)
+
     return FunctionGroup([auto_test])
 
   ## return a FunctionObject display
@@ -1339,7 +1390,7 @@ class ML_FunctionBasis(object):
     if self.compute_max_error:
       eval_error = Variable("max_error", precision = self.precision, var_type = Variable.Local)
 
-      printf_error_template = "printf(\"max %s error is %s \\n\", %s)" % (
+      printf_error_template = "printf(\"%s's max error is %s \\n\", %s)" % (
         self.function_name,
         self.precision.get_display_format(self.language).format_string,
         self.precision.get_display_format(self.language).pre_process_fct("{0}")
@@ -1414,6 +1465,7 @@ class ML_FunctionBasis(object):
   #  @param printf_function FunctionObject to print error case
   def get_scalar_test_wrapper(self, test_num, tested_function, input_tables, output_table):
     assignation_statement = Statement()
+    # loop iterator
     vi = Variable("i", precision = ML_Int32, var_type = Variable.Local)
     test_num_cst = Constant(test_num, precision = ML_Int32, tag = "test_num")
 
@@ -1435,8 +1487,6 @@ class ML_FunctionBasis(object):
 
     printf_error_function = FunctionObject("printf", [self.precision], ML_Void, printf_error_op)
     
-    printf_max_op = FunctionOperator("printf", arg_map = {0: "\"max %s error is reached at input number %s \\n \"" % (self.function_name, "%d"), 1: FO_Arg(0)}, void_function = True) 
-    printf_max_function = FunctionObject("printf", [ML_Int32], ML_Void, printf_max_op)
 
     loop_increment = self.get_vector_size()
     
@@ -1467,47 +1517,78 @@ class ML_FunctionBasis(object):
 
     test_statement = Statement() 
 
-    if self.compute_max_error:
-      eval_error = Variable("max_error", precision = self.precision, var_type = Variable.Local)
-      max_input = Variable("max_input", precision = ML_Int32, var_type = Variable.Local)
-      max_result = Variable("max_result", precision = self.precision, var_type = Variable.Local)
-      max_vi = Variable("max_vi", precision = ML_Int32, var_type = Variable.Local)
-      local_inputs  = tuple(TableLoad(input_tables[in_id], vi) for in_id in range(self.arity))
-
-      local_result  = tested_function(*local_inputs)
-      stored_values = [TableLoad(output_table, vi, i) for i in range(self.accuracy.get_num_output_value())]
-      local_error = self.accuracy.compute_error(local_result, stored_values, relative = True)
-      error_comp = Comparison(local_error, eval_error, specifier = Comparison.Greater, precision = ML_Bool)
-      error_loop = Loop(
-        ReferenceAssign(vi, Constant(0, precision = ML_Int32)),
-        vi < test_num_cst,
-        Statement(
-          assignation_statement,
-          ConditionBlock(
-            error_comp,
-            Statement(
-              ReferenceAssign(eval_error, local_error),
-              ReferenceAssign(max_input, vi/loop_increment),
-              ReferenceAssign(max_vi, vi),
-              ReferenceAssign(max_result, local_result)
-            ),
-            Statement()),
-          ReferenceAssign(vi, vi + loop_increment)
-        ),
-      )
-      test_statement.add(Statement(
-        ReferenceAssign(eval_error, Constant(0, precision = self.precision)),
-        ReferenceAssign(max_input, Constant(0, precision = ML_Int32)),
-        error_loop,
-        printf_error_function(eval_error),
-        printf_max_function(max_input),
-      ))
 
     # adding functional test_loop to test statement
     test_statement.add(test_loop)
 
     return test_statement
+  def generate_scalar_max_error_wrapper(self, tested_function, test_num, input_tables, output_table):
+      # loop iterator
+      vi = Variable("i", precision=ML_Int32, var_type=Variable.Local)
 
+      max_error_relative = Variable("max_error_relative", precision=self.precision, var_type=Variable.Local)
+      max_error_absolute = Variable("max_error_absolute", precision=self.precision, var_type=Variable.Local)
+
+      max_input = Variable("max_input", precision = ML_Int32, var_type = Variable.Local)
+      max_result = Variable("max_result", precision = self.precision, var_type = Variable.Local)
+      max_vi = Variable("max_vi", precision = ML_Int32, var_type = Variable.Local)
+      local_inputs  = tuple(TableLoad(input_tables[in_id], vi) for in_id in range(self.arity))
+      test_num_cst = Constant(test_num, precision=ML_Int32, tag="test_num")
+
+      local_result  = tested_function(*local_inputs)
+      stored_values = [TableLoad(output_table, vi, i) for i in range(self.accuracy.get_num_output_value())]
+      local_error_relative = self.accuracy.compute_error(local_result, stored_values, relative=True)
+      local_error_absolute = self.accuracy.compute_error(local_result, stored_values, relative=False)
+
+      error_rel_comp = Comparison(local_error_relative, max_error_relative, specifier=Comparison.Greater, precision=ML_Bool)
+      error_abs_comp = Comparison(local_error_absolute, max_error_absolute, specifier=Comparison.Greater, precision=ML_Bool)
+
+      loop_increment = 1
+      printf_error_template = "printf(\"max %s error is absolute=%s, relative=%s \\n\", %s, %s)" % (
+        self.function_name,
+        self.precision.get_display_format(self.language).format_string,
+        self.precision.get_display_format(self.language).format_string,
+        self.precision.get_display_format(self.language).pre_process_fct("{0}"),
+        self.precision.get_display_format(self.language).pre_process_fct("{0}")
+      )
+      printf_error_op = TemplateOperatorFormat(printf_error_template, arity=2, void_function=True, require_header=["stdio.h"])
+
+      printf_error_function = FunctionObject("printf", [self.precision, self.precision], ML_Void, printf_error_op)
+      printf_max_op = FunctionOperator("printf", arg_map = {0: "\"max %s error is reached at input number %s \\n \"" % (self.function_name, "%d"), 1: FO_Arg(0)}, void_function = True, require_header=["stdio.h"])
+      printf_max_function = FunctionObject("printf", [ML_Int32], ML_Void, printf_max_op)
+
+      error_loop = Loop(
+        ReferenceAssign(vi, Constant(0, precision = ML_Int32)),
+        vi < test_num_cst,
+        Statement(
+          ConditionBlock(
+            error_rel_comp,
+            Statement(
+              ReferenceAssign(max_error_relative, local_error_relative),
+              ReferenceAssign(max_input, vi/loop_increment),
+              ReferenceAssign(max_vi, vi),
+              ReferenceAssign(max_result, local_result)
+            ),
+            Statement()),
+          ConditionBlock(
+            error_abs_comp,
+            Statement(
+              ReferenceAssign(max_error_absolute, local_error_absolute),
+            ),
+            Statement()),
+          ReferenceAssign(vi, vi + loop_increment)
+        ),
+      )
+      main_statement = Statement(
+        ReferenceAssign(max_error_absolute, Constant(0, precision=self.precision)),
+        ReferenceAssign(max_error_relative, Constant(0, precision=self.precision)),
+        ReferenceAssign(max_input, Constant(0, precision=ML_Int32)),
+        error_loop,
+        printf_error_function(max_error_absolute, max_error_relative),
+        printf_max_function(max_input),
+        Return(max_error_relative),
+      )
+      return main_statement
 
   ## Generate a test wrapper for the @p self function
   #  @param test_num   number of test to perform
