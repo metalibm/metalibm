@@ -247,7 +247,7 @@ class ML_GenericLog(ScalarUnaryFunction):
             Log.report(Log.Info, "generating polynomial evaluation scheme")
             _poly = PolynomialSchemeEvaluator.generate_horner_scheme(poly_object, _red_vx, unified_precision=self.precision)
             _poly.set_attributes(tag = "poly", debug = debug_multi)
-            Log.report(Log.Info, poly_object.get_sollya_object())
+            Log.report(Log.Info, "{}", poly_object.get_sollya_object())
 
             corr_exp = Conversion(_vx_exp if exp_corr_factor == None else _vx_exp + exp_corr_factor, precision = self.precision) + tho
             corr_exp.set_attributes(tag="corr_exp", debug=debug_multi)
