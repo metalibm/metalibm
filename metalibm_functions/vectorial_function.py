@@ -61,7 +61,8 @@ from metalibm_core.core.ml_call_externalizer import (
     generate_function_from_optree
 )
 from metalibm_core.core.ml_vectorizer import (
-    StaticVectorizer, no_scalar_fallback_required
+    StaticVectorizer, no_scalar_fallback_required,
+    vectorize_format,
 )
 
 from metalibm_functions.function_map import FUNCTION_MAP
@@ -101,7 +102,7 @@ def vectorize_function_scheme(vectorizer, name_factory, scalar_scheme,
         vectorizer.vectorize_scheme(scalar_scheme, scalar_arg_list,
                                     vector_size, sub_vector_size)
 
-    vector_output_format = vectorizer.vectorize_format(scalar_output_format,
+    vector_output_format = vectorize_format(scalar_output_format,
                                                        vector_size)
 
     vec_res = Variable("vec_res", precision=vector_output_format,
