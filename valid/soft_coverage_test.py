@@ -281,7 +281,8 @@ def generate_pretty_report(filename, test_list, test_summary, evolution_map):
                         if "max_error" in result.return_value:
                             max_error_ulps = float(result.return_value["max_error"])
                             max_error = "{:.2f} ulp(s)".format(max_error_ulps)
-                            if max_error_ulps > ERROR_ULP_THRESHOLD:
+                            is_nan = (result.return_value["max_error"] != result.return_value["max_error"])
+                            if max_error_ulps > ERROR_ULP_THRESHOLD or is_nan:
                                 color = "orange"
                                 result_sumup = "KO[V]"
                     msg += color_cell(" %s   " % result_sumup, submsg="<br />[%s, %s]%s" % (cpe_measure, max_error, evolution_summary), color=color)
@@ -565,7 +566,7 @@ if __name__ == "__main__":
                                    MAX_ERROR_EVAL=MAX_ERROR_EVAL)
 
     # generating global test list
-    for function_test in [f for f in FUNCTION_LIST if (not f.tag in args.exclude and (args.select is None or f.tag in args.select or f.title in args.select))]:
+    for function_test in [f for f in FUNCTION_LIST if ((not f.tag in args.exclude) and (not f.title in args.exclude) and (args.select is None or f.tag in args.select or f.title in args.select))]:
         function = function_test.ctor
         local_test_list = []
         # updating copy
