@@ -1541,17 +1541,26 @@ class ML_FunctionBasis(object):
         comp_statement.push(
           ReferenceAssign(
             max_error_relative,
-            Max(
-              local_error_relative,
-              max_error_relative,
-              precision=self.precision)))
+            Select(
+                Test(local_error_relative, specifier=Test.IsNaN),
+                # force local_error_relative if it is equal to NaN
+                local_error_relative,
+                Max(
+                  local_error_relative,
+                  max_error_relative,
+                  precision=self.precision)))
+            )
         comp_statement.push(
           ReferenceAssign(
             max_error_absolute,
-            Max(
-              local_error_absolute,
-              max_error_absolute,
-              precision=self.precision)))
+            Select(
+                Test(local_error_absolute, specifier=Test.IsNaN),
+                local_error_absolute,
+                Max(
+                  local_error_absolute,
+                  max_error_absolute,
+                  precision=self.precision)))
+             )
 
       error_loop = Loop(
         ReferenceAssign(vi, Constant(0, precision = ML_Int32)),
@@ -1590,8 +1599,16 @@ class ML_FunctionBasis(object):
       local_error_relative = self.accuracy.compute_error(local_result, stored_values, relative=True)
       local_error_absolute = self.accuracy.compute_error(local_result, stored_values, relative=False)
 
-      error_rel_comp = Comparison(local_error_relative, max_error_relative, specifier=Comparison.Greater, precision=ML_Bool)
-      error_abs_comp = Comparison(local_error_absolute, max_error_absolute, specifier=Comparison.Greater, precision=ML_Bool)
+      error_rel_comp = LogicalOr(
+        Comparison(local_error_relative, max_error_relative, specifier=Comparison.Greater, precision=ML_Bool),
+        Test(local_error_relative, specifier=Test.IsNaN),
+        precision=ML_Bool
+      )
+      error_abs_comp = LogicalOr(
+        Comparison(local_error_absolute, max_error_absolute, specifier=Comparison.Greater, precision=ML_Bool),
+        Test(local_error_absolute, specifier=Test.IsNaN),
+        precision=ML_Bool
+      )
 
       loop_increment = 1
       printf_error_template = "printf(\"max %s error is absolute=%s, relative=%s \\n\", %s, %s)" % (
