@@ -123,6 +123,23 @@ def no_scalar_fallback_required(mask):
     return isinstance(mask, Constant) and \
             reduce(lambda v, acc: (v and acc), mask.get_value(), True)
 
+def vectorize_format(scalar_format, vector_size, bool_specifier=None):
+    """ Return the vector version of size @p vector_size of the scalar precision
+        @p scalar_format
+        bool_specifier indicates which types of boolean vector format must be chosen:
+            None -> virtual bool
+            int  -> size boolean formats
+
+    """
+    if vector_size == 1:
+        # degenerate case vector-size = 1 => scalar fallback
+        return scalar_format
+    elif scalar_format is ML_Bool:
+        # boolean format must be mapped to virtual boolean format
+        return VECTOR_TYPE_MAP[scalar_format][bool_specifier][vector_size]
+    else:
+        return VECTOR_TYPE_MAP[scalar_format][vector_size]
+
 ##
 class StaticVectorizer(object):
     """ Mapping of size, scalar format to vector format """
@@ -154,7 +171,7 @@ class StaticVectorizer(object):
 
         # dictionnary of arg_node (scalar) -> new variable (vector) mapping
         vec_arg_dict = dict(
-            (arg_node, Variable("vec_%s" % arg_node.get_tag(), precision=self.vectorize_format(arg_node.get_precision(), vector_size))) for arg_node in arg_list)
+            (arg_node, Variable("vec_%s" % arg_node.get_tag(), precision=vectorize_format(arg_node.get_precision(), vector_size))) for arg_node in arg_list)
         constant_dict = {}
 
         for i in range(int(vector_size / sub_vector_size)):
@@ -167,6 +184,20 @@ class StaticVectorizer(object):
                 # vector argument variables are already vectorized and should
                 # be used directly in vectorized scheme
                 vectorization_map = dict((vec_arg_dict[arg_node], vec_arg_dict[arg_node]) for arg_node in arg_list)
+            elif sub_vector_size == 1:
+                # degenerate case of scalar sub-vector
+                arg_list_copy = dict(
+                    (
+                        arg_node,
+                        VectorElementSelection(
+                           vec_arg_dict[arg_node],
+                           i,
+                           precision=arg_node.get_precision()
+                        )
+                    )
+                    for arg_node in arg_list)
+                sub_vec_arg_list = [arg_list_copy[arg_node] for arg_node in arg_list]
+                vectorization_map = dict((arg, arg) for arg in sub_vec_arg_list)
             else :
                 # selection of a subset of the large vector to be the
                 # sub-vector operand of this sub-vector path
@@ -181,7 +212,7 @@ class StaticVectorizer(object):
                                     precision=arg_node.get_precision())
                                 ) for j in range(sub_vector_size)
                             ),
-                            precision=self.vectorize_format(
+                            precision=vectorize_format(
                                 arg_node.get_precision(), sub_vector_size
                             ),
                             tag="%s%d" %(vec_arg_dict[arg_node].get_tag(), i)
@@ -215,20 +246,12 @@ class StaticVectorizer(object):
             if i == 0:
                 constant_dict = extract_const(arg_list_copy)
 
-        vector_path = assembling_vector(tuple(vector_paths), precision = self.vectorize_format(linearized_most_likely_path.get_precision(), vector_size))
+        vector_path = assembling_vector(tuple(vector_paths), precision = vectorize_format(linearized_most_likely_path.get_precision(), vector_size))
         vec_arg_list = [vec_arg_dict[arg_node] for arg_node in arg_list]
-        vector_mask = assembling_vector(tuple(vector_masks), precision = self.vectorize_format(ML_Bool, vector_size))
+        vector_mask = assembling_vector(tuple(vector_masks), precision = vectorize_format(ML_Bool, vector_size))
         return vec_arg_list, vector_path, vector_mask
 
 
-    def vectorize_format(self, scalar_format, vector_size):
-        """ Return the vector version of size @p vectori_size of the scalar precision
-            @p scalar_format """
-        if scalar_format is ML_Bool:
-            # boolean format must be mapped to virtual boolean format
-            return VECTOR_TYPE_MAP[scalar_format][None][vector_size]
-        else:
-            return VECTOR_TYPE_MAP[scalar_format][vector_size]
 
     def is_vectorizable(self, optree):
         """ Predicate to test if @p optree can be vectorized """
@@ -256,10 +279,11 @@ class StaticVectorizer(object):
                 optree_precision = optree.get_precision()
                 if optree_precision is None:
                     Log.report(Log.Error, "operation node precision is None for {}", optree)
-                optree.set_precision(self.vectorize_format(optree.get_precision(), vector_size))
+                optree.set_precision(vectorize_format(optree.get_precision(), vector_size))
                 if isinstance(optree, Constant):
                     # extend consntant value from scalar to replicated constant vector
-                    optree.set_value([optree.get_value() for i in range(vector_size)])
+                    if vector_size > 1:
+                        optree.set_value([optree.get_value() for i in range(vector_size)])
                 elif isinstance(optree, Variable):
                     # TODO: does not take into account intermediary variables
                     Log.report(Log.Warning, "Variable not supported in vector_replicate_scheme_in_place: {}", optree)

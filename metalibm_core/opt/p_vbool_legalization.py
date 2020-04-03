@@ -73,29 +73,36 @@ class VirtualBoolVectorLegalizer(object):
         def wrap_expansion(node, transformed_node):
             return node if transformed_node is None else transformed_node
 
+        def general_get_scalar_format(node_format):
+            """ Overload of get_scalar_format which works
+                for both vector and scalar formats """
+            if node_format.is_vector_format():
+                return node_format.get_scalar_format()
+            return node_format
+
         if node in self.memoization_map:
             return self.memoization_map[node]
         elif not is_virtual_bool_node(node):
             result = None
         elif isinstance(node, Comparison) or isinstance(node, LogicalAnd) or isinstance(node, LogicalOr):
             scalar_bit_size = max(
-                node.get_input(0).get_precision().get_scalar_format().get_bit_size(),
-                node.get_input(1).get_precision().get_scalar_format().get_bit_size()
+                general_get_scalar_format(node.get_input(0).get_precision()).get_bit_size(),
+                general_get_scalar_format(node.get_input(1).get_precision()).get_bit_size()
             )
             legalized_format = VECTOR_TYPE_MAP[ML_Bool][scalar_bit_size][node.get_precision().get_vector_size()]
             Log.report(LOG_VERBOSE_VBOOL_LEGALIZATION, "legalizing format of {} from {} to {}", node, node.get_precision(), legalized_format)
             node.set_attributes(precision=legalized_format)
             result = node
         elif isinstance(node, LogicalNot) or (isinstance(node, Test) and node.specifier in EXPANDABLE_TEST_LIST):
-            scalar_bit_size = node.get_input(0).get_precision().get_scalar_format().get_bit_size()
+            scalar_bit_size = general_get_scalar_format(node.get_input(0).get_precision()).get_bit_size()
             legalized_format = VECTOR_TYPE_MAP[ML_Bool][scalar_bit_size][node.get_precision().get_vector_size()]
             Log.report(LOG_VERBOSE_VBOOL_LEGALIZATION, "legalizing format of {} from {} to {}", node, node.get_precision(), legalized_format)
             node.set_attributes(precision=legalized_format)
             result = node
         elif isinstance(node, VectorAssembling):
             scalar_bit_size = max(
-                node.get_input(0).get_precision().get_scalar_format().get_bit_size(),
-                node.get_input(1).get_precision().get_scalar_format().get_bit_size()
+                general_get_scalar_format(node.get_input(0).get_precision()).get_bit_size(),
+                general_get_scalar_format(node.get_input(1).get_precision()).get_bit_size()
             )
             legalized_format = VECTOR_TYPE_MAP[ML_Bool][scalar_bit_size][node.get_precision().get_vector_size()]
             node.set_attributes(precision=legalized_format)

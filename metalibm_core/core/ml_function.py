@@ -55,7 +55,8 @@ from metalibm_core.core.ml_call_externalizer import (
     CallExternalizer, generate_function_from_optree
 )
 from metalibm_core.core.ml_vectorizer import (
-    StaticVectorizer, no_scalar_fallback_required
+    StaticVectorizer, no_scalar_fallback_required,
+    vectorize_format,
 )
 from metalibm_core.core.precisions import *
 from metalibm_core.core.random_gen import get_precision_rng
@@ -208,7 +209,7 @@ def generate_vector_implementation(scalar_scheme, scalar_arg_list,
         vectorizer.vectorize_scheme(scalar_scheme, scalar_arg_list,
                                     vector_size, sub_vector_size)
 
-    vector_output_format = vectorizer.vectorize_format(output_precision,
+    vector_output_format = vectorize_format(output_precision,
                                                        vector_size)
 
 
@@ -1125,7 +1126,7 @@ class ML_FunctionBasis(object):
         self.vectorizer.vectorize_scheme(scalar_scheme, scalar_arg_list,
                                          vector_size, sub_vector_size)
 
-    vector_output_format = self.vectorizer.vectorize_format(self.precision,
+    vector_output_format = vectorize_format(self.precision,
                                                             vector_size)
 
 
