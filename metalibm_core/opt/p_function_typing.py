@@ -351,7 +351,7 @@ def instantiate_abstract_precision(optree, default_precision=None,
             var = optree.inputs[0]
             value = optree.inputs[1]
             var_type = instantiate_abstract_precision(var, default_precision, memoization_map = memoization_map)
-            value_type = instantiate_abstract_precision(value, var_type, memoization_map = memoization_map)
+            value_type = instantiate_abstract_precision(value, default_precision, memoization_map = memoization_map)
             return None
                     
         else:
@@ -450,9 +450,9 @@ def get_boolean_format(backend, optree):
     return backend.default_boolean_precision
 
 
-def propagate_format_to_cst(optree, new_optree_format, index_list = []):
+def propagate_format_to_cst(optree, new_optree_format, index_list=None):
     """ propagate new_optree_format to Constant operand of <optree> with abstract precision """
-    index_list = range(len(optree.inputs)) if index_list == [] else index_list
+    index_list = range(len(optree.inputs)) if index_list is None else index_list
     for index in index_list:
         inp = optree.inputs[index]
         if isinstance(inp, Constant) and isinstance(inp.get_precision(), ML_AbstractFormat):
