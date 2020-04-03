@@ -111,6 +111,15 @@ class ValidError(Exception):
     pass
 
 
+def convert_error_to_ulp(error_value, error_format):
+    """ convert error_value whose assuming format error_format
+        to a ulp(s) metric """
+    numerical_format = error_format.get_base_format()
+    if numerical_format.is_vector_format():
+        numerical_format = numerical_format.get_scalar_format()
+    error_value = abs(error_value) / ulp(1.0, numerical_format)
+    return error_value
+
 ## standardized function name geneation
 #  @param base_name string name of the mathematical function
 #  @param io_precisions list of output, input formats (outputs followed by inputs)
@@ -1024,10 +1033,7 @@ class ML_FunctionBasis(object):
                 if self.compute_max_error:
                     max_error_value = loaded_module.get_function_handle("max_error_eval")()
                     # convert to ulps
-                    numerical_format = self.precision.get_base_format()
-                    if numerical_format.is_vector_format():
-                        numerical_format = numerical_format.get_scalar_format()
-                    max_error_value = abs(max_error_value) / ulp(1.0, numerical_format)
+                    max_error_value = convert_error_to_ulp(max_error_value, self.precision)
                     exec_result["max_error"] = max_error_value
 
                 # if no specific measure/test is schedule we execute the function itself
@@ -1061,16 +1067,12 @@ class ML_FunctionBasis(object):
                         Log.report(Log.Error, "unable to extract float cpe measure from {}", cpe_match.group("cpe_measure"), error=e)
                 # extracting max error result
                 if self.compute_max_error:
-                    max_error = re.search("relative=(?P<max_error>0x[0-9a-fA-F\.]+p[+-]\d+)", ret_stdout)
-                    print("max_error: {}".format(max_error))
+                    max_error = re.search("relative=(?P<max_error>0x[0-9a-fA-F\.]+p[+-]\d+|nan)", ret_stdout)
                     if max_error is None:
                         Log.report(Log.Error, "not able to extract max error measure from log: {}", ret_stdout)
                     try:
                         max_error_value = sollya.parse(max_error.group("max_error"))
-                        numerical_format = self.precision.get_base_format()
-                        if numerical_format.is_vector_format():
-                            numerical_format = numerical_format.get_scalar_format()
-                        max_error_value = abs(max_error_value) / ulp(1.0, numerical_format)
+                        max_error_value = convert_error_to_ulp(max_error_value, self.precision)
                         exec_result["max_error"] = max_error_value
                     except Exception as e:
                         Log.report(Log.Error, "unable to extract sollya.parse max-error measure from {}", max_error.group("max_error"), error=e)
