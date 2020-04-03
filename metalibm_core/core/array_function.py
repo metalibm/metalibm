@@ -134,21 +134,10 @@ class ML_ArrayFunction(ML_FunctionBasis):
     def element_numeric_emulate(self):
         """ single element emulation of function """
         raise NotImplementedError
-
-    def generate_test_wrapper(self, test_num=10, test_ranges=[Interval(-1.0, 1.0)], debug=False):
+    def generate_test_tables(self, test_num, test_ranges=[Interval(-1.0, 1.0)]):
+        """ Generate inputs and output table to be shared between auto test
+            and max_error tests """
         index_range = self.test_index_range
-
-        auto_test = CodeFunction("test_wrapper", output_format = ML_Int32)
-
-        tested_function    = self.implementation.get_function_object()
-        function_name      = self.implementation.get_name()
-
-        failure_report_op       = FunctionOperator("report_failure")
-        failure_report_function = FunctionObject("report_failure", [], ML_Void, failure_report_op)
-
-        printf_success_op = FunctionOperator("printf", arg_map = {0: "\"test successful %s\\n\"" % function_name}, void_function = True) 
-        printf_success_function = FunctionObject("printf", [], ML_Void, printf_success_op)
-
         test_total   = test_num + len(self.standard_test_cases)
 
         # number of arrays expected as inputs for tested_function
@@ -168,7 +157,6 @@ class ML_ArrayFunction(ML_FunctionBasis):
             self.uniquify_name("table_size_array"),
             value_gen=(lambda row_id: (TABLE_SIZE_VALUES[row_id], OFFSET_VALUES[row_id]))
         )
-
         INPUT_ARRAY_SIZE = sum(TABLE_SIZE_VALUES)
 
         # TODO/FIXME: implement proper input range depending on input index
@@ -193,6 +181,23 @@ class ML_ArrayFunction(ML_FunctionBasis):
             self.uniquify_name("output_array"),
             value_gen=(lambda _: FP_QNaN(self.precision))
         )
+        return test_total, (table_size_offset_array, input_tables), output_array
+
+    def generate_test_wrapper(self, test_total, input_tuple, output_array):
+        table_size_offset_array, input_tables = input_tuple
+
+        auto_test = CodeFunction("test_wrapper", output_format = ML_Int32)
+
+        tested_function    = self.implementation.get_function_object()
+        function_name      = self.implementation.get_name()
+
+        failure_report_op       = FunctionOperator("report_failure")
+        failure_report_function = FunctionObject("report_failure", [], ML_Void, failure_report_op)
+
+        printf_success_op = FunctionOperator("printf", arg_map = {0: "\"test successful %s\\n\"" % function_name}, void_function = True, require_header=["stdio.h"]) 
+        printf_success_function = FunctionObject("printf", [], ML_Void, printf_success_op)
+
+
 
         # accumulate element number
         acc_num = Variable("acc_num", precision=ML_Int64, var_type=Variable.Local)
@@ -243,7 +248,7 @@ class ML_ArrayFunction(ML_FunctionBasis):
                         result_display_vars=result_display_vars,
                         #expected_display_vars=expected_display_vars
                     )
-        printf_op = TemplateOperatorFormat(template, void_function=True, arity=(result_arg_id+1)) 
+        printf_op = TemplateOperatorFormat(template, void_function=True, arity=(result_arg_id+1), require_header=["stdio.h"]) 
         printf_input_function = FunctionObject("printf", [ML_UInt32] + input_precisions + [self.precision], ML_Void, printf_op)
         return printf_input_function
 
@@ -283,11 +288,11 @@ class ML_ArrayFunction(ML_FunctionBasis):
             self.precision.get_display_format().format_string,
             self.precision.get_display_format().pre_process_fct("{0}")
         )
-        printf_error_op = TemplateOperatorFormat(printf_error_template, arity=1, void_function=True)
+        printf_error_op = TemplateOperatorFormat(printf_error_template, arity=1, void_function=True, require_header=["stdio.h"])
 
         printf_error_function = FunctionObject("printf", [self.precision], ML_Void, printf_error_op)
 
-        printf_max_op = FunctionOperator("printf", arg_map = {0: "\"max %s error is reached at input number %s \\n \"" % (self.function_name, "%d"), 1: FO_Arg(0)}, void_function = True) 
+        printf_max_op = FunctionOperator("printf", arg_map = {0: "\"max %s error is reached at input number %s \\n \"" % (self.function_name, "%d"), 1: FO_Arg(0)}, void_function = True, require_header=["stdio.h"]) 
         printf_max_function = FunctionObject("printf", [self.precision], ML_Void, printf_max_op)
 
 
@@ -420,7 +425,6 @@ class ML_ArrayFunction(ML_FunctionBasis):
 
         test_total = test_num
 
-        INPUT_INDEX_OFFSET = 1
         # number of arrays expected as inputs for tested_function
         NUM_INPUT_ARRAY = 1
         # position of the input array in tested_function operands (generally
