@@ -89,6 +89,9 @@ except ImportError:
     k1b_defined = False
     k1b = None
 
+# common value threshold for error
+# FIXME/TODO: should be define on a per-function / per-test basis
+ERROR_ULP_THRESHOLD = 1.0
 
 class VerboseAction(argparse.Action):
     def __init__(self, option_strings, dest, nargs=None, **kwargs):
@@ -274,7 +277,6 @@ def generate_pretty_report(filename, test_list, test_summary, evolution_map):
                     max_error = "-"
                     color = "green"
                     result_sumup = " OK  "
-                    ERROR_ULP_THRESHOLD = 1.0
                     if result.return_value != None:
                         if "cpe_measure" in result.return_value:
                             cpe_measure = "{:.2f}".format(result.return_value["cpe_measure"])
@@ -484,12 +486,16 @@ class GlobalTestResult:
                 if result.get_result():
                     cpe_measure = "-"
                     max_error = "-"
+                    summary_tag = "OK"
                     if result.return_value != None:
                         if "cpe_measure" in result.return_value:
                             cpe_measure = "{:.2f}".format(result.return_value["cpe_measure"])
                         if "max_error" in result.return_value:
-                            max_error = "{}".format(result.return_value["max_error"])
-                    summary = ["OK", cpe_measure, max_error]
+                            max_error_value = result.return_value["max_error"]
+                            max_error = "{}".format(max_error_value)
+                            if abs(max_error_value) > ERROR_ULP_THRESHOLD or max_error_value != max_error_value:
+                                summary_tag = "KO[V]"
+                    summary = [summary_tag, cpe_measure, max_error]
                 elif isinstance(result.error, GenerationError):
                     summary = ["KO[G]"]
                 elif isinstance(result.error, BuildError):
