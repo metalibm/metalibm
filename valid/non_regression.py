@@ -315,6 +315,18 @@ new_scheme_function_list = [
         {"precision": ML_Binary64, "multi_elt_num": 4, "target": VectorBackend.get_target_instance(), "auto_test": 10,  "index_test_range": [16, 32], "execute_trigger": True, "expected_to_fail": True,  "passes": ["beforecodegen:virtual_vector_bool_legalization", "beforecodegen:vector_mask_test_legalization"]},
     ],
   ),
+  NewSchemeTest(
+    "vector exp with sub_vector_size 1",
+    metalibm_functions.ml_exp.ML_Exponential,
+    [{"precision": ML_Binary32, "vector_size": 4, "sub_vector_size": 1, "auto_test": 128,
+      "execute_trigger": True, "target": VectorBackend.get_target_instance() },
+    {"precision": ML_Binary32, "vector_size": 2, "sub_vector_size": 1, "auto_test": 128,
+      "execute_trigger": True, "target": VectorBackend.get_target_instance() },
+    {"precision": ML_Binary64, "vector_size": 4, "sub_vector_size": 1, "auto_test": 128,
+      "execute_trigger": True, "target": VectorBackend.get_target_instance() },
+    {"precision": ML_Binary64, "vector_size": 2, "sub_vector_size": 1, "auto_test": 128,
+      "execute_trigger": True, "target": VectorBackend.get_target_instance() }]
+  )
 ]
 
 test_tag_map = {}
