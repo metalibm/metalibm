@@ -318,14 +318,23 @@ new_scheme_function_list = [
   NewSchemeTest(
     "vector exp with sub_vector_size 1",
     metalibm_functions.ml_exp.ML_Exponential,
-    [{"precision": ML_Binary32, "vector_size": 4, "sub_vector_size": 1, "auto_test": 128,
-      "execute_trigger": True, "target": VectorBackend.get_target_instance() },
+    [
+    # 2-element vectors
     {"precision": ML_Binary32, "vector_size": 2, "sub_vector_size": 1, "auto_test": 128,
+      "execute_trigger": True, "target": VectorBackend.get_target_instance() },
+    {"precision": ML_Binary64, "vector_size": 2, "sub_vector_size": 1, "auto_test": 128,
+      "execute_trigger": True, "target": VectorBackend.get_target_instance() },
+    # 4-element vectors
+    {"precision": ML_Binary32, "vector_size": 4, "sub_vector_size": 1, "auto_test": 128,
       "execute_trigger": True, "target": VectorBackend.get_target_instance() },
     {"precision": ML_Binary64, "vector_size": 4, "sub_vector_size": 1, "auto_test": 128,
       "execute_trigger": True, "target": VectorBackend.get_target_instance() },
-    {"precision": ML_Binary64, "vector_size": 2, "sub_vector_size": 1, "auto_test": 128,
-      "execute_trigger": True, "target": VectorBackend.get_target_instance() }]
+    # 8-element vectors
+    {"precision": ML_Binary32, "vector_size": 8, "sub_vector_size": 1, "auto_test": 128,
+      "execute_trigger": True, "target": VectorBackend.get_target_instance() },
+    {"precision": ML_Binary64, "vector_size": 8, "sub_vector_size": 1, "auto_test": 128,
+      "execute_trigger": True, "target": VectorBackend.get_target_instance() },
+    ]
   )
 ]
 
