@@ -46,6 +46,7 @@ from metalibm_core.core.ml_operations import (
     NoResultOperation, Split, ComponentSelection, FunctionCall,
     Conversion, DivisionSeed,
     ControlFlowOperation,
+    is_leaf_node,
 )
 from metalibm_core.core.ml_hdl_operations import (
     Process, Loop, ComponentInstance, Assert, Wait, PlaceHolder
@@ -253,6 +254,27 @@ def subexpression_sharing(root_node):
                 return b
         return None
 
+    def contains_non_input_variable(node, memoization_map=None):
+        """ Test if the graph whose root is node contains any non-input variable
+            which may indicate that those variables may be modified
+            unexpectedly and makes the node factorizing hazardous """
+        memoization_map = {} if memoization_map is None else memoization_map
+        if node in memoization_map:
+            return memoization_map[node]
+        if isinstance(node, Variable) and node.var_type != Variable.Input:
+            memoization_map[node] = True
+            return True
+        elif is_leaf_node(node):
+            memoization_map[node] = False
+            return False
+        else:
+            result = any(contains_non_input_variable(op, memoization_map) for op in node.inputs)
+            memoization_map[node] = result
+            return result
+
+    non_input_variable_memoization = {}
+
+
     def recursive_ancestor_lookup(optree, sharing_map=None, level_sharing_map=None,
                                   current_parent_list=None, ancestor_map=None):
         if isinstance(optree, ConditionBlock):
@@ -288,11 +310,14 @@ def subexpression_sharing(root_node):
                     ancestor = common_ancestor(sharing_map[optree], current_parent_list)
                     if ancestor != None:
                         ancestor_map[ancestor].append(optree)
-            else:
+            elif not contains_non_input_variable(optree, non_input_variable_memoization):
+                # only considers node which does not depend on non-input variables
                 sharing_map[optree] = current_parent_list
                 level_sharing_map[0][optree] = current_parent_list
                 for op in optree.inputs:
                     recursive_ancestor_lookup(op, sharing_map, level_sharing_map, current_parent_list, ancestor_map=ancestor_map)
+            else:
+                pass
 
     # init
     sharing_map = {} 
