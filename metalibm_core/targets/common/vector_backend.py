@@ -687,6 +687,13 @@ BASIC_FLOAT_VFORMAT_LIST = [
 
 BASIC_VFORMAT_LIST = BASIC_FLOAT_VFORMAT_LIST + BASIC_INTEGER_VFORMAT_LIST
 
+def vector_lib_helper(func_name, arity):
+    """ Helper to describe a vector lib function taking as 1st
+        argument a reference to its results followed by an ordered list
+        of arguments """
+    args_dict = {(i+1): FO_Arg(i) for i in range(arity)}
+    args_dict[0] = FO_ResultRef(0)
+    return ML_VectorLib_Function(func_name, arg_map=args_dict, arity=arity)
 
 vector_c_code_generation_table = {
   ReciprocalSeed: {
@@ -763,9 +770,15 @@ vector_c_code_generation_table = {
         type_strict_match(v8int32, v2int32, v2int32, v2int32, v2int32): ML_VectorLib_Function("ml_vec_assembling_2_8_int", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2), 4: FO_Arg(3)}, arity = 4),
         type_strict_match(v8bool, v2bool, v2bool, v2bool, v2bool): ML_VectorLib_Function("ml_vec_assembling_2_8_bool", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2), 4: FO_Arg(3)}, arity = 4),
 
+        type_strict_match(*((v8float32,) + (ML_Binary32,)*8)):
+            vector_lib_helper("ml_vec_assembling_1_8_float", arity=8),
+        type_strict_match(*((v8bool,) + (ML_Bool,)*8)):
+            vector_lib_helper("ml_vec_assembling_1_8_bool", arity=8),
 
         type_strict_match(v4float64, ML_Binary64, ML_Binary64, ML_Binary64, ML_Binary64):
-            ML_VectorLib_Function("ml_vec_assembling_1_4_double", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1), 3: FO_Arg(2), 4: FO_Arg(3)}, arity = 4),
+            vector_lib_helper("ml_vec_assembling_1_4_double", arity=4),
+        type_strict_match(*((v8float64,) + (ML_Binary64,)*8)):
+            vector_lib_helper("ml_vec_assembling_1_8_double", arity=8),
         type_strict_match(v8float64, v4float64, v4float64):
             ML_VectorLib_Function("ml_vec_assembling_4_8_double", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2),
       },

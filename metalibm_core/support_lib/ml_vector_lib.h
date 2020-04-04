@@ -549,6 +549,16 @@ static inline void FUNC_NAME(RESULT_FORMAT *(r), SCALAR_FORMAT op1, SCALAR_FORMA
     (*(r))[0] = op1; (*(r))[1] = op2; (*(r))[2] = op3; (*(r))[3] = op4;\
 }
 
+#define DEF_ML_VECTOR_ASSEMBLY_FUNC_1_8(FUNC_NAME, RESULT_FORMAT, SCALAR_FORMAT) \
+static inline void FUNC_NAME(RESULT_FORMAT *(r), SCALAR_FORMAT op1,\
+                             SCALAR_FORMAT op2, SCALAR_FORMAT op3, SCALAR_FORMAT op4,\
+                             SCALAR_FORMAT op5, SCALAR_FORMAT op6, SCALAR_FORMAT op7,\
+                             SCALAR_FORMAT op8\
+                             ) {\
+    (*(r))[0] = op1; (*(r))[1] = op2; (*(r))[2] = op3; (*(r))[3] = op4;\
+    (*(r))[4] = op5; (*(r))[5] = op6; (*(r))[6] = op7; (*(r))[7] = op8;\
+}
+
 #define DEF_ML_VECTOR_ASSEMBLY_FUNC_2_4(FUNC_NAME, RESULT_FORMAT, VECTOR_FORMAT) \
 static inline void FUNC_NAME(RESULT_FORMAT *(r), VECTOR_FORMAT vop1, VECTOR_FORMAT vop2) {\
   (*(r))[0] = vop1[0]; (*(r))[1] = vop1[1] ; (*(r))[2] = vop2[0] ; (*(r))[3] = vop2[1] ;\
@@ -575,6 +585,10 @@ DEF_ML_VECTOR_ASSEMBLY_FUNC_1_4(ml_vec_assembling_1_4_float, ml_float4_t, float)
 DEF_ML_VECTOR_ASSEMBLY_FUNC_1_4(ml_vec_assembling_1_4_int, ml_int4_t, int32_t)
 DEF_ML_VECTOR_ASSEMBLY_FUNC_1_4(ml_vec_assembling_1_4_bool, ml_bool4_t, bool)
 DEF_ML_VECTOR_ASSEMBLY_FUNC_1_4(ml_vec_assembling_1_4_double, ml_double4_t, double)
+
+DEF_ML_VECTOR_ASSEMBLY_FUNC_1_8(ml_vec_assembling_1_8_float, ml_float8_t, float)
+DEF_ML_VECTOR_ASSEMBLY_FUNC_1_8(ml_vec_assembling_1_8_double, ml_double8_t, double)
+DEF_ML_VECTOR_ASSEMBLY_FUNC_1_8(ml_vec_assembling_1_8_bool, ml_bool8_t, bool)
 
 DEF_ML_VECTOR_ASSEMBLY_FUNC_2_4(ml_vec_assembling_2_4_float, ml_float4_t, ml_float2_t)
 DEF_ML_VECTOR_ASSEMBLY_FUNC_2_4(ml_vec_assembling_2_4_int, ml_int4_t, ml_int2_t)
