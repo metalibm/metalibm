@@ -762,6 +762,15 @@ class ML_FunctionBasis(object):
     _, source_code_object = self.fill_code_object(enable_subexpr_sharing=enable_subexpr_sharing)
     return source_code_object.get(self.main_code_generator)
 
+  def build_and_execute_source_code(self, function_group, source_code, embedding_binary=True):
+    """ """
+    Log.report(Log.Info, "Generating C code in " + self.output_file)
+    with open(self.output_file, "w") as output_stream:
+        output_stream.write(source_code.get(self.main_code_generator))
+    source_file = SourceFile(self.output_file, function_group)
+    # returning execution result, if any
+    execute_result = self.execute_output(embedding_binary, source_file)
+    return execute_result
 
   def gen_implementation(self, display_after_gen=False,
                          display_after_opt=False,
@@ -775,16 +784,8 @@ class ML_FunctionBasis(object):
     """
 
     function_group, source_code = self.fill_code_object(enable_subexpr_sharing=enable_subexpr_sharing)
-
-    Log.report(Log.Info, "Generating C code in " + self.output_file)
-    with open(self.output_file, "w") as output_stream:
-        output_stream.write(source_code.get(self.main_code_generator))
-    source_file = SourceFile(self.output_file, function_group)
-    # returning execution result, if any
     embedding_binary = self.embedded_binary and self.processor.support_embedded_bin
-    execute_result = self.execute_output(embedding_binary, source_file)
-    return execute_result
-
+    return self.build_and_execute_source_code(function_group, source_code, embedding_binary=embedding_binary)
 
   def transform_function_group(self, function_group):
     """ Apply registered passes to a function_group """
