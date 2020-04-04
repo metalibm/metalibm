@@ -204,9 +204,10 @@ class FunctionExpression(ML_FunctionBasis):
         value_mapping = {
             self.var_mapping[var_tag]: input_values[arg_index] for arg_index, var_tag in enumerate(["x", "y", "z", "t"]) if var_tag in self.var_mapping
         }
+        # TODO function evaluation graph could be pre-compiled during generate scheme
+        # of function_expr_str parsing
         function_mapping = {
-            "exp": (sollya.exp),
-            "sqrt": (sollya.sqrt),
+            tag: FUNCTION_MAP[tag][2] for tag in FUNCTION_MAP
         }
         return evaluate_graph(self.function_expr, value_mapping, function_mapping)
 
