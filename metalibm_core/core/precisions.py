@@ -38,6 +38,7 @@ import sollya
 from .ml_operations import (
     LogicalAnd, LogicalNot,
     LogicalOr, NotEqual,
+    Select, Equal,
     Comparison, FunctionObject, Min, Abs, Subtraction, Division)
 from metalibm_core.code_generation.generator_utility import *
 
@@ -101,7 +102,13 @@ class ML_TwoFactorPrecision(ML_FunctionPrecision):
           precision = precision
         )
         if relative:
-            error = Abs(Division(error, local_result, precision = precision), precision = precision)
+            # to avoid NaN when dividing 0 / 0
+            error = Select(
+                LogicalAnd(Equal(error, 0), Equal(local_result, 0)),
+                local_result,
+                Abs(Division(error, local_result, precision = precision), precision = precision),
+                precision=precision
+            )
         return error
 
     def get_output_check_test(self, test_result, stored_outputs):
@@ -157,7 +164,13 @@ class ML_CorrectlyRounded(ML_FunctionPrecision):
     expected_value,  = output_values
     error = Subtraction(local_result, expected_value, precision = precision)
     if relative:
-      error = Abs(Division(error, local_result, precision = precision), precision = precision)
+      # to avoid NaN when dividing 0 / 0
+      error = Select(
+        LogicalAnd(Equal(error, 0), Equal(local_result, 0)),
+        local_result,
+        Abs(Division(error, local_result, precision = precision), precision = precision),
+        precision=precision
+      )
     else:
       error = Abs(error, precision = precision)
     return error
