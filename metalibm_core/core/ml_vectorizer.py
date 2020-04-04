@@ -119,9 +119,14 @@ def no_scalar_fallback_required(mask):
         return reduce(lambda acc, v: (no_scalar_fallback_required(v) and acc), mask.get_inputs(), True)
     elif isinstance(mask, Conversion):
         return no_scalar_fallback_required(mask.get_input(0))
-
-    return isinstance(mask, Constant) and \
-            reduce(lambda v, acc: (v and acc), mask.get_value(), True)
+    elif isinstance(mask, Constant):
+        if mask.get_precision().is_vector_format():
+            return reduce(lambda v, acc: (v and acc), mask.get_value(), True)
+        else:
+            # required to supported degenerate case (sub_)vector_size=1
+            return mask.get_value() 
+    # fallback
+    return False
 
 def vectorize_format(scalar_format, vector_size, bool_specifier=None):
     """ Return the vector version of size @p vector_size of the scalar precision
