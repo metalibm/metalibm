@@ -179,7 +179,7 @@ class StaticVectorizer(object):
             (arg_node, Variable("vec_%s" % arg_node.get_tag(), precision=vectorize_format(arg_node.get_precision(), vector_size))) for arg_node in arg_list)
         constant_dict = {}
 
-        for i in range(int(vector_size / sub_vector_size)):
+        for i in range(vector_size // sub_vector_size):
             if sub_vector_size == vector_size:
                 # if there is only one sub_vector, we must be carreful not to replicate input variable
                 # in a new Variable node, as it break node unicity required to detect scheme
@@ -310,15 +310,21 @@ class StaticVectorizer(object):
                     self.vector_replicate_scheme_in_place(op, vector_size, memoization_map)
                 assert not optree.get_precision() is None
                 func_obj = optree.get_function_object()
-                new_node = VectorAssembling(
-                    *tuple(
-                        func_obj(
-                            *tuple(VectorElementSelection(op, arg_id) for op in optree.inputs),
-                            precision=optree.precision # scalar precision is unchanged
-                        ) for arg_id in range(vector_size)
-                    ),
-                    precision=vectorize_format(optree.precision, vector_size)
-                )
+                if vector_size > 1:
+                    new_node = VectorAssembling(
+                        *tuple(
+                            func_obj(
+                                *tuple(op if not op.precision.is_vector_format() else VectorElementSelection(op, arg_id) for op in optree.inputs),
+                                precision=optree.precision # scalar precision is unchanged
+                            ) for arg_id in range(vector_size)
+                        ),
+                        precision=vectorize_format(optree.precision, vector_size)
+                    )
+                else:
+                    new_node = func_obj(
+                                *tuple(op for op in optree.inputs),
+                                precision=optree.precision # scalar precision is unchanged
+                    )
                 Log.report(Log.Debug, "vectorizing {} to {}", optree, new_node)
                 return new_node
             else:
