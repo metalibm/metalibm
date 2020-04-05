@@ -294,14 +294,33 @@ class StaticVectorizer(object):
                     Log.report(Log.Warning, "Variable not supported in vector_replicate_scheme_in_place: {}", optree)
                     pass
                 elif not isinstance(optree, ML_LeafNode):
-                    for optree_input in optree.get_inputs():
-                        self.vector_replicate_scheme_in_place(optree_input, vector_size, memoization_map)
+                    for input_id, optree_input in enumerate(optree.get_inputs()):
+                        new_input = self.vector_replicate_scheme_in_place(optree_input, vector_size, memoization_map)
+                        if new_input != optree_input and not new_input is None:
+                            optree.set_input(input_id, new_input)
                 memoization_map[optree] = optree
                 return optree
             elif isinstance(optree, ML_NewTable):
                 # TODO: does not take into account intermediary variables
                 Log.report(Log.Info, "skipping ML_NewTable node in vector_replicate_scheme_in_place: {} ", optree)
                 pass
+            elif isinstance(optree, FunctionCall):
+                # we assume function cannot be overloaded and are scalar
+                for op in optree.inputs:
+                    self.vector_replicate_scheme_in_place(op, vector_size, memoization_map)
+                assert not optree.get_precision() is None
+                func_obj = optree.get_function_object()
+                new_node = VectorAssembling(
+                    *tuple(
+                        func_obj(
+                            *tuple(VectorElementSelection(op, arg_id) for op in optree.inputs),
+                            precision=optree.precision # scalar precision is unchanged
+                        ) for arg_id in range(vector_size)
+                    ),
+                    precision=vectorize_format(optree.precision, vector_size)
+                )
+                Log.report(Log.Debug, "vectorizing {} to {}", optree, new_node)
+                return new_node
             else:
                 Log.report(Log.Error, "optree not vectorizable: {}", optree)
 
