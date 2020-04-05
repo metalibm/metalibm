@@ -76,7 +76,7 @@ class ML_ExternalBench(ML_Function("ml_external_bench")):
         builtin from a default argument mapping overloaded with @p kw """
     default_args_exp = {
         "output_file": "bench.c",
-        "function_name": "bench_wrapper",
+        "function_name": "external_bench_wrapper",
         "precision": ML_Binary32,
         "accuracy": ML_Faithful,
         "target": GenericProcessor.get_target_instance()
