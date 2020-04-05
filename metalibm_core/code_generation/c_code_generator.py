@@ -58,7 +58,7 @@ class CCodeGenerator(object):
 
     """ C language code generator """
     def __init__(self, processor, declare_cst = True, disable_debug = False, libm_compliant = False, default_rounding_mode = ML_GlobalRoundMode, default_silent = None, language = C_Code, decorate_code=False):
-        self.memoization_map = [{}]
+        self.memoization_map = self.get_empty_memoization_map()
         self.processor = processor
         self.declare_cst = declare_cst
         self.disable_debug = disable_debug
@@ -79,6 +79,13 @@ class CCodeGenerator(object):
             if old_fp_context.get_rounding_mode() == ML_GlobalRoundMode:
                 # TODO
                 pass
+
+    def get_empty_memoization_map(self):
+        """ build an initialized structure for the memoization map """
+        return [{}]
+    def clear_memoization_map(self):
+        """ Clear the content of the meoization map """
+        self.memoization_map = self.get_empty_memoization_map()
 
 
     def get_unknown_precision(self):

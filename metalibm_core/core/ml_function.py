@@ -470,29 +470,14 @@ class ML_FunctionBasis(object):
     self.gappa_engine = GappaCodeGenerator(self.processor, declare_cst=True, disable_debug=True)
     # instance of Code Generation to generate source code
     CODE_GENERATOR_CLASS = self.get_codegen_class(self.language)
-    CODE_OBJECT_CLASS = self.get_codeobject_ctor(self.language)
 
     self.main_code_generator = CODE_GENERATOR_CLASS(
         self.processor, declare_cst=False, disable_debug=not self.debug_flag,
         libm_compliant=self.libm_compliant, language=self.language,
         decorate_code=self.decorate_code
     )
-    uniquifier = self.function_name
-    shared_symbol_list = [
-        MultiSymbolTable.ConstantSymbol,
-        MultiSymbolTable.TableSymbol,
-        MultiSymbolTable.FunctionSymbol,
-        MultiSymbolTable.EntitySymbol
-    ] 
-    if self.language is LLVM_IR_Code:
-        shared_symbol_list.append(MultiSymbolTable.VariableSymbol)
-        shared_symbol_list.append(MultiSymbolTable.LabelSymbol)
-    # main code object
-    self.main_code_object = NestedCode(
-        self.main_code_generator, static_cst=True,
-        uniquifier="{0}_".format(self.function_name),
-        code_ctor=CODE_OBJECT_CLASS,
-        shared_symbol_list=shared_symbol_list)
+
+    self.main_code_object = self.get_new_main_code_object()
 
     # pass scheduler
     # pass scheduler instanciation
@@ -511,6 +496,28 @@ class ML_FunctionBasis(object):
                                              language=self.language)
 
     Log.report(Log.LogLevel("DumpPassInfo"), self.pass_scheduler.dump_pass_info())
+
+  def get_new_main_code_object(self):
+      """ build a new CodeObject which can be used as main
+          code object for function generation """
+      CODE_OBJECT_CLASS = self.get_codeobject_ctor(self.language)
+      uniquifier = self.function_name
+      shared_symbol_list = [
+          MultiSymbolTable.ConstantSymbol,
+          MultiSymbolTable.TableSymbol,
+          MultiSymbolTable.FunctionSymbol,
+          MultiSymbolTable.EntitySymbol
+      ] 
+      if self.language is LLVM_IR_Code:
+          shared_symbol_list.append(MultiSymbolTable.VariableSymbol)
+          shared_symbol_list.append(MultiSymbolTable.LabelSymbol)
+      # main code object
+      code_object = NestedCode(
+          self.main_code_generator, static_cst=True,
+          uniquifier="{0}_".format(self.function_name),
+          code_ctor=CODE_OBJECT_CLASS,
+          shared_symbol_list=shared_symbol_list)
+      return code_object
 
   @property
   def input_precisions(self):
@@ -670,52 +677,51 @@ class ML_FunctionBasis(object):
     return self.main_code_object
 
 
-  def generate_code(self, function_group, language):
+  def generate_code(self, code_object, function_group, language):
+    """ language agnostic code generation function """
     if self.language == C_Code:
-        return self.generate_C_code(function_group, language=language)
+        return self.generate_C_code(code_object, function_group, language=language)
     elif self.language == LLVM_IR_Code:
-        return self.generate_LLVM_code(function_group, language=language)
+        return self.generate_LLVM_code(code_object, function_group, language=language)
 
-  def generate_LLVM_code(self, function_group, language = LLVM_IR_Code):
+  def generate_LLVM_code(self, code_object, function_group, language=LLVM_IR_Code):
     """ Final LLVM-IR generation, once the evaluation scheme has been optimized"""
     Log.report(Log.Info, "Generating Source Code ")
-    # main code object
-    code_object = self.get_main_code_object()
-    self.result = code_object
 
     def gen_code_function_code(fct_group, fct):
-        self.result = fct.add_definition(
+        fct.add_definition(
             self.main_code_generator,
             language, code_object, static_cst=True)
 
     function_group.apply_to_all_functions(gen_code_function_code)
 
-    #for code_function in code_function_list:
-    #  self.result = code_function.add_definition(self.main_code_generator,
-    #                                             language, code_object,
-    #                                             static_cst = True)
+    return code_object
 
-    return self.result
+  def generate_C_code(self, code_object, function_group, language=C_Code):
+    """ Final C source code generation, once the evaluation scheme has been optimized
+    
+        generate C code for function implenetation
+        Code is generated within the main code object
 
-  ## generate C code for function implenetation
-  #  Code is generated within the main code object
-  #  and dumped to a file named after implementation's name
-  #  @param code_function_list list of CodeFunction to be generated (as sub-function )
-  #  @return void
-  def generate_C_code(self, function_group, language = C_Code):
-    """ Final C generation, once the evaluation scheme has been optimized"""
+        :param function_group: group of CodeFuction to be generated
+        :type function_group: FunctionGroup
+        :param language: target language
+
+        :return: resulting CodeObject (main_code_object)
+    """
     Log.report(Log.Info, "Generating Source Code ")
-    # main code object
-    code_object = self.get_main_code_object()
-    self.result = code_object
 
     def gen_code_function_decl(fct_group, fct):
-        self.result = fct.add_declaration(
+        # NOTES: code_object returned by add_declaration is discarded
+        # (expected to be same object as input code_object)
+        fct.add_declaration(
             self.main_code_generator, language, code_object
         )
 
     def gen_code_function_code(fct_group, fct):
-        self.result = fct.add_definition(
+        # NOTES: code_object returned by add_declaration is discarded
+        # (expected to be same object as input code_object)
+        fct.add_definition(
             self.main_code_generator,
             language, code_object, static_cst=True)
 
@@ -724,18 +730,13 @@ class ML_FunctionBasis(object):
     # generation function definition
     function_group.apply_to_all_functions(gen_code_function_code)
 
-    #for code_function in code_function_list:
-    #  self.result = code_function.add_definition(self.main_code_generator,
-    #                                             language, code_object,
-    #                                             static_cst = True)
-
     # adding headers
-    self.result.add_header("support_lib/ml_special_values.h")
-    self.result.add_header("math.h")
-    if self.debug_flag: self.result.add_header("stdio.h")
-    self.result.add_header("inttypes.h")
+    code_object.add_header("support_lib/ml_special_values.h")
+    code_object.add_header("math.h")
+    if self.debug_flag: code_object.add_header("stdio.h")
+    code_object.add_header("inttypes.h")
 
-    return self.result
+    return code_object
 
 
   def fill_code_object(self, enable_subexpr_sharing=True):
@@ -940,12 +941,13 @@ class ML_FunctionBasis(object):
         :type main_statement: Statement
         :param function_group: group of function being generated
         :type function_group: FunctionGroup
-        :return: source file result
-        :rtype: SourceFile
+        :return: source code result
+        :rtype: CodeObject
 
     """
     CstSuccess = Constant(0, precision=ML_Int32)
-    # adding main function
+    # adding main function, if the source code final target
+    # is not an binary library to be embedded in python
     if not embedding_binary:
         main_function = CodeFunction("main", output_format=ML_Int32)
         main_function.set_scheme(
@@ -957,9 +959,11 @@ class ML_FunctionBasis(object):
         )
         function_group.add_core_function(main_function)
 
+    # main code object
+    code_object = self.get_main_code_object()
     # generate C code to implement scheme
-    source_file = self.generate_code(function_group, language=self.language)
-    return source_file
+    source_code = self.generate_code(code_object, function_group, language=self.language)
+    return source_code
 
 
   def execute_output(self, embedding_binary, source_file):

@@ -256,7 +256,7 @@ class LLVMIRCodeGenerator(object):
 
     def __init__(self, processor, declare_cst=True, disable_debug=False, libm_compliant=False, language=LLVM_IR_Code, decorate_code=False):
         # on level for each of exact_mode possible values
-        self.generated_map = [{}]
+        self.generated_map = self.get_empty_memoization_map()
         self.processor = processor
         self.declare_cst = declare_cst
         self.disable_debug = disable_debug
@@ -266,6 +266,14 @@ class LLVMIRCodeGenerator(object):
         # map of basic blocks (bb node -> label)
         self.bb_map = {}
         if decorate_code: Log.report(Log.Error, "decorate_code option is not supported in LLVMIRCodeGenerator")
+
+    def get_empty_memoization_map(self):
+        """ build an initialized structure for the memoization map """
+        return [{}]
+    def clear_memoization_map(self):
+        """ Clear the content of the meoization map """
+        self.generated_map = self.get_empty_memoization_map()
+
 
     def open_memoization_level(self):
         """ Create a new memoization level on top of the stack """
