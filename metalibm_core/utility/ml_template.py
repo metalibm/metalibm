@@ -928,15 +928,13 @@ class MultiAryArgTemplate(ML_NewArgTemplate):
             self,
             default_arg=DefaultMultiAryArgTemplate
         ):
+        super().__init__(default_arg)
         self.parser.add_argument(
             "--arity", dest="arity",
             action="store",
             type=int,
             default=default_arg.arity,
             help="function arity (number of inputs)")
-
-
-
 
 
 class ML_ArgTemplate(object):
