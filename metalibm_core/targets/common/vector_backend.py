@@ -922,6 +922,16 @@ vector_c_code_generation_table = {
         )
     },
   },
+  BitLogicXor: {
+    None: {
+       lambda _: True: dict(
+            (
+                type_strict_match(vformat, vformat, vformat),
+                SymbolOperator("^", arity=2),
+            ) for vformat in BASIC_INTEGER_VFORMAT_LIST
+        )
+    },
+  },
   BitLogicNegate: {
     None: {
        lambda _: True: dict(
