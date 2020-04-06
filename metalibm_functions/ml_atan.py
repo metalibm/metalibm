@@ -87,20 +87,27 @@ class MetaAtan(ScalarUnaryFunction):
 
     def generate_scalar_scheme(self, vx):
         """ Evaluation scheme generation """
-        # if abs_vx < 1.0 then atan(abx_vx) is directly approximated
-        # if abs_vx >= 1.0 then atan(abs_vx) = pi/2 - atan(1 / abs_vx)
         return self.generic_atan2_generate(vx)
 
     def generic_atan2_generate(self, _vx, vy=None):
         """ if vy is None, compute atan(_vx), else compute atan2(vy / vx) """
-        # computing absolute value of vx
-        vx = _vx if vy is None else _vx / vy
 
         if vy is None:
+            # approximation
+            # if abs_vx <= 1.0 then atan(abx_vx) is directly approximated
+            # if abs_vx > 1.0 then atan(abs_vx) = pi/2 - atan(1 / abs_vx)
+            #
+            # for vx >= 0, atan(vx) = atan(abs_vx)
+            #
+            # for vx < 0, atan(vx) = -atan(abs_vx) for vx < 0
+            #                      = -pi/2 + atan(1 / abs_vx)
+            vx = _vx
+            sign_cond = vx < 0
             abs_vx = Select(vx < 0, -vx, vx, tag="abs_vx", debug=debug_multi)
             bound_cond = abs_vx > 1
             inv_abs_vx = 1 / abs_vx
 
+            # condition to select subtraction 
             cond = LogicalOr(
                 LogicalAnd(vx < 0, LogicalNot(bound_cond)),
                 vx > 1,
@@ -112,20 +119,24 @@ class MetaAtan(ScalarUnaryFunction):
 
             offset = None
         else:
-            bound_cond = Abs(_vx) > Abs(vy)
-            # vx and vy are of opposite sign
+            # bound_cond is True iff Abs(vy / _vx) > 1.0 
+            bound_cond = Abs(vy) > Abs(_vx)
+            bound_cond.set_attributes(tag="bound_cond", debug=debug_multi)
+            # vx and vy are of opposite signs
             sign_cond = (_vx * vy) < 0
-            # atan input is negative
+            sign_cond.set_attributes(tag="sign_cond", debug=debug_multi)
+
+            # condition to select subtraction
             cond = LogicalOr(
-                LogicalAnd(sign_cond, LogicalNot(bound_cond)),
-                vx > 1,
+                LogicalAnd(sign_cond, LogicalNot(bound_cond)), # 1 < (vy / _vx) < 0
+                LogicalAnd(bound_cond, LogicalNot(sign_cond)), # (vy / _vx) > 1
                 tag="cond", debug=debug_multi
             )
 
-            numerator = Select(cond, _vx, vy, tag="numerator", debug=debug_multi)
-            denominator = Select(cond, vy, _vx, tag="denominator", debug=debug_multi)
+            numerator = Select(bound_cond, _vx, vy, tag="numerator", debug=debug_multi)
+            denominator = Select(bound_cond, vy, _vx, tag="denominator", debug=debug_multi)
             # reduced argument
-            red_vx = numerator / denominator
+            red_vx = Abs(numerator) / Abs(denominator)
             red_vx.set_attributes(tag="red_vx", debug=debug_multi)
 
             offset = Select(_vx > 0, 
@@ -133,8 +144,8 @@ class MetaAtan(ScalarUnaryFunction):
                 # vx < 0
                 Select(sign_cond,
                     # vy > 0
-                    Constant(-sollya.pi, precision=self.precision),
                     Constant(sollya.pi, precision=self.precision),
+                    Constant(-sollya.pi, precision=self.precision),
                     precision=self.precision
                 ),
                 precision=self.precision,
@@ -147,7 +158,7 @@ class MetaAtan(ScalarUnaryFunction):
         if self.method == "piecewise":
             sign_vx = Select(cond, -1, 1, precision=self.precision, tag="sign_vx", debug=debug_multi)
 
-            cst_sign = Select(vx < 0, -1, 1, precision=self.precision)
+            cst_sign = Select(sign_cond, -1, 1, precision=self.precision)
             cst = cst_sign * Select(bound_cond, sollya.pi / 2, 0, precision=self.precision)
 
 
@@ -276,7 +287,7 @@ class MetaAtan2(ScalarBinaryFunction, MetaAtan):
         # returned.
         vy.set_attributes(tag="y")
         vx.set_attributes(tag="x")
-        return self.generic_atan2_generate(vy, vx)
+        return self.generic_atan2_generate(vx, vy)
 
     def numeric_emulate(self, vy, vx):
         if vx > 0:
@@ -287,6 +298,10 @@ class MetaAtan2(ScalarBinaryFunction, MetaAtan):
         else:
             # vy > 0, vy / vx < 0
             return sollya.pi + sollya.atan(vy / vx)
+
+    standard_test_cases = [
+        (sollya.parse("0x1.08495cp+2"), sollya.parse("-0x1.88569ep+1"))
+    ]
 
 if __name__ == "__main__":
     # auto-test
