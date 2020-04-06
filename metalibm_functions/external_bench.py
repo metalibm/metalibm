@@ -107,6 +107,9 @@ class ML_ExternalBench(ML_Function("ml_external_bench")):
 
     return scheme
 
+  def get_extra_build_opts(self):
+    return self.extra_src_files
+
   def numeric_emulate(self, *args):
     return self.emulate(*args)
 
@@ -124,6 +127,10 @@ if __name__ == "__main__":
     "--headers", dest="headers", default=[], action="store",
     type=lambda s: s.split(","),
     help="comma separated list of required headers")
+  arg_template.get_parser().add_argument(
+    "--extra-src-files", dest="extra_src_files", default=[], action="store",
+    type=lambda s: s.split(","),
+    help="comma separated list of required libraries")
   arg_template.get_parser().add_argument(
     "--libraries", dest="libraries", default=[], action="store",
     type=lambda s: s.split(","),

@@ -965,6 +965,9 @@ class ML_FunctionBasis(object):
     source_code = self.generate_code(code_object, function_group, language=self.language)
     return source_code
 
+  def get_extra_build_opts(self):
+    return []
+
 
   def execute_output(self, embedding_binary, source_file):
     """ If any, run executable code from source file and extract results
@@ -990,7 +993,7 @@ class ML_FunctionBasis(object):
             bin_name = "./testbin_%s" % self.function_name
             shared_object = False
             link_trigger = True
-        bin_file = source_file.build(self.processor, bin_name, shared_object=shared_object, link=link_trigger)
+        bin_file = source_file.build(self.processor, bin_name, shared_object=shared_object, link=link_trigger, extra_build_opts=self.get_extra_build_opts())
 
         if bin_file is None:
             Log.report(Log.Error, "build failed: \n", error=BuildError())
@@ -1060,7 +1063,9 @@ class ML_FunctionBasis(object):
                     test_result, ret_stdout = bin_file.execute()
                 # conversion from bytes to str
                 ret_stdout = str(ret_stdout)
-                Log.report(Log.Info, "log: {}", ret_stdout)
+                if Log.is_level_enabled(Log.Info): 
+                    print(str(ret_stdout.replace("\\n", "\n")))
+                #Log.report(Log.Info, "log: {}", ret_stdout)
                 # extracting benchmark result
                 if self.bench_enabled:
                     cpe_match = re.search("(?P<cpe_measure>\d+\.\d+) CPE", ret_stdout)

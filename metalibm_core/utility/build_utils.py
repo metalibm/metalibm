@@ -126,12 +126,12 @@ class SourceFile:
         self.path = path
 
     @staticmethod
-    def get_build_command(path,  target, bin_name=None, shared_object=False, link=False, expand_env_var=True):
+    def get_build_command(path,  target, bin_name=None, shared_object=False, link=False, expand_env_var=True, extra_build_opts=[]):
         ML_SRC_DIR = "$ML_SRC_DIR" if not expand_env_var else os.environ["ML_SRC_DIR"]
         bin_name = bin_name or sha256_file(path)
         compiler = target.get_compiler()
         DEFAULT_OPTIONS = ["-O2", "-DML_DEBUG"]
-        compiler_options = " ".join(DEFAULT_OPTIONS + target.get_compilation_options(ML_SRC_DIR))
+        compiler_options = " ".join(DEFAULT_OPTIONS + extra_build_opts + target.get_compilation_options(ML_SRC_DIR))
         src_list = [path]
 
 
@@ -157,7 +157,7 @@ class SourceFile:
             ML_SRC_DIR=ML_SRC_DIR)
         return build_command
 
-    def build(self, target, bin_name=None, shared_object=False, link=False):
+    def build(self, target, bin_name=None, shared_object=False, link=False, extra_build_opts=[]):
         """ Build @p self source file for @p target processor
             Args:
                 target: target processor
@@ -166,7 +166,7 @@ class SourceFile:
                 link: enable/disable link
             Return:
                 BinaryFile, str (error, stdout) """
-        build_command = SourceFile.get_build_command(self.path, target, bin_name, shared_object, link, expand_env_var=True)
+        build_command = SourceFile.get_build_command(self.path, target, bin_name, shared_object, link, expand_env_var=True, extra_build_opts=extra_build_opts)
 
         Log.report(Log.Info, "Building source with command: {}".format(build_command))
         build_result, build_stdout = get_cmd_stdout(build_command)
