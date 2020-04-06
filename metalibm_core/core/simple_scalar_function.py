@@ -68,6 +68,10 @@ class ScalarBinaryFunction(ML_FunctionBasis):
     def __init__(self, args):
         super().__init__(args)
         self.arity = ScalarBinaryFunction.arity
+        if len(self.auto_test_range) != self.arity:
+            self.auto_test_range = [self.auto_test_range[0]] * self.arity
+        if len(self.bench_test_range) != self.arity:
+            self.bench_test_range = [self.bench_test_range[0]] * self.arity
 
     @staticmethod
     def get_default_args(**kw):

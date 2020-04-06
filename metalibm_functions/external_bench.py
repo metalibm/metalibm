@@ -67,8 +67,14 @@ class ML_ExternalBench(ML_Function("ml_external_bench")):
     # initializing specific properties
     self.headers = args.headers
     self.libraries = args.libraries
+    self.extra_src_files = args.extra_src_files
     self.bench_function_name = args.bench_function_name
     self.emulate = args.emulate
+    self.arity = args.arity
+    if len(self.auto_test_range) != self.arity:
+        self.auto_test_range = [self.auto_test_range[0]] * self.arity
+    if len(self.bench_test_range) != self.arity:
+        self.bench_test_range = [self.bench_test_range[0]] * self.arity
 
   @staticmethod
   def get_default_args(**kw):
