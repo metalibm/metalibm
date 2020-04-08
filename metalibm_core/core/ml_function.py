@@ -948,7 +948,7 @@ class ML_FunctionBasis(object):
     CstSuccess = Constant(0, precision=ML_Int32)
     # adding main function, if the source code final target
     # is not an binary library to be embedded in python
-    if not embedding_binary:
+    if not embedding_binary and self.build_trigger:
         main_function = CodeFunction("main", output_format=ML_Int32)
         main_function.set_scheme(
             Statement(
@@ -968,6 +968,13 @@ class ML_FunctionBasis(object):
   def get_extra_build_opts(self):
     return []
 
+  @property
+  def build_trigger(self):
+    """ shared accessor to determine if build is required """
+    # plotting function requires it to be build and imported
+    build_trigger = self.build_enable or self.execute_trigger or self.plot_enabled
+    return build_trigger
+
 
   def execute_output(self, embedding_binary, source_file):
     """ If any, run executable code from source file and extract results
@@ -978,13 +985,11 @@ class ML_FunctionBasis(object):
         :type source_file: SourceFile
 
     """
-    # plotting function requires it to be build and imported
-    build_trigger = self.build_enable or self.execute_trigger or self.plot_enabled
     link_trigger = self.execute_trigger
 
     exec_result = {}
 
-    if build_trigger:
+    if self.build_trigger:
         if embedding_binary:
             bin_name = "./testlib_%s.so" % self.function_name
             shared_object = True
