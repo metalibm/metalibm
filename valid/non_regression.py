@@ -286,7 +286,7 @@ new_scheme_function_list = [
       "target": target_instanciate("x86"),
       "input_precisions": [ML_Binary32],
       "bench_execute": 1000,
-      "bench_test_range": Interval(-1, 1)
+      "bench_test_range": [Interval(-1, 1)]
     }, ]
   ),
   NewSchemeTest(
