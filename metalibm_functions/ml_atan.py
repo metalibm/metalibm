@@ -43,8 +43,9 @@ from metalibm_core.core.ml_operations import (
     Abs, Constant,
     Select, Statement, Return,
     LogicalOr, LogicalAnd, LogicalNot,
+    BitLogicXor, TypeCast, Equal,
 )
-from metalibm_core.core.ml_formats import ML_Binary32
+from metalibm_core.core.ml_formats import ML_Binary32, ML_Bool
 from metalibm_core.core.precisions import ML_Faithful
 from metalibm_core.code_generation.generic_processor import GenericProcessor
 from metalibm_core.core.polynomials import Polynomial, PolynomialSchemeEvaluator
@@ -107,7 +108,7 @@ class MetaAtan(ScalarUnaryFunction):
             bound_cond = abs_vx > 1
             inv_abs_vx = 1 / abs_vx
 
-            # condition to select subtraction 
+            # condition to select subtraction
             cond = LogicalOr(
                 LogicalAnd(vx < 0, LogicalNot(bound_cond)),
                 vx > 1,
@@ -119,19 +120,30 @@ class MetaAtan(ScalarUnaryFunction):
 
             offset = None
         else:
-            # bound_cond is True iff Abs(vy / _vx) > 1.0 
+            # bound_cond is True iff Abs(vy / _vx) > 1.0
             bound_cond = Abs(vy) > Abs(_vx)
             bound_cond.set_attributes(tag="bound_cond", debug=debug_multi)
             # vx and vy are of opposite signs
-            sign_cond = (_vx * vy) < 0
+            #sign_cond = (_vx * vy) < 0
+            # using cast to int(signed) and bitwise xor
+            # to determine if _vx and vy are of opposite sign rapidly
+            fast_sign_cond = BitLogicXor(
+                TypeCast(_vx, precision=self.precision.get_integer_format()),
+                TypeCast(vy, precision=self.precision.get_integer_format()),
+                precision=self.precision.get_integer_format()
+            ) < 0
+            # sign_cond = (_vx * vy) < 0
+            sign_cond = fast_sign_cond
             sign_cond.set_attributes(tag="sign_cond", debug=debug_multi)
 
             # condition to select subtraction
-            cond = LogicalOr(
+            # TODO: could be accelerated if LogicalXor existed
+            slow_cond = LogicalOr(
                 LogicalAnd(sign_cond, LogicalNot(bound_cond)), # 1 < (vy / _vx) < 0
                 LogicalAnd(bound_cond, LogicalNot(sign_cond)), # (vy / _vx) > 1
                 tag="cond", debug=debug_multi
             )
+            cond = slow_cond
 
             numerator = Select(bound_cond, _vx, vy, tag="numerator", debug=debug_multi)
             denominator = Select(bound_cond, vy, _vx, tag="denominator", debug=debug_multi)
@@ -139,7 +151,7 @@ class MetaAtan(ScalarUnaryFunction):
             red_vx = Abs(numerator) / Abs(denominator)
             red_vx.set_attributes(tag="red_vx", debug=debug_multi)
 
-            offset = Select(_vx > 0, 
+            offset = Select(_vx > 0,
                 Constant(0, precision=self.precision),
                 # vx < 0
                 Select(sign_cond,
