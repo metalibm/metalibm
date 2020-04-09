@@ -82,7 +82,7 @@ pages:
     - cp -r ./doc/sphinx/build/html/* ./public/doc/
     # soft coverage report
     - mkdir -p ./public/perfs/
-    - PYTHONPATH=$PWD:$PYTHONPATH  ML_SRC_DIR=$PWD python3 valid/soft_coverage_test.py --exclude ml_tanh --report-only --output public/perfs/report.${CI_COMMIT_REF_NAME}.html
+    - PYTHONPATH=$PWD:$PYTHONPATH  ML_SRC_DIR=$PWD python3 valid/soft_coverage_test.py --exclude libm,ml_tanh --report-only --output public/perfs/report.${CI_COMMIT_REF_NAME}.html
   artifacts:
     paths:
     - public/
