@@ -82,7 +82,7 @@ from metalibm_core.code_generation.gappa_code_generator import GappaCodeGenerato
 from metalibm_core.utility.log_report import Log
 from metalibm_core.utility.debug_utils import *
 from metalibm_core.utility.ml_template import DefaultArgTemplate
-from metalibm_core.utility.build_utils import SourceFile, get_cmd_stdout
+import metalibm_core.utility.build_utils as build_utils
 from metalibm_core.utility.num_utils import ulp
 
 
@@ -768,7 +768,7 @@ class ML_FunctionBasis(object):
     Log.report(Log.Info, "Generating C code in " + self.output_file)
     with open(self.output_file, "w") as output_stream:
         output_stream.write(source_code.get(self.main_code_generator))
-    source_file = SourceFile(self.output_file, function_group)
+    source_file = build_utils.SourceFile(self.output_file, function_group)
     # returning execution result, if any
     execute_result = self.execute_output(embedding_binary, source_file)
     return execute_result
@@ -991,11 +991,11 @@ class ML_FunctionBasis(object):
 
     if self.build_trigger:
         if embedding_binary:
-            bin_name = "./testlib_%s.so" % self.function_name
+            bin_name = build_utils.generate_tmp_filename("./testlib_{}.so".format(self.function_name))
             shared_object = True
             link_trigger = False
         else:
-            bin_name = "./testbin_%s" % self.function_name
+            bin_name = build_utils.generate_tmp_filename("./testbini_{}".format(self.function_name))
             shared_object = False
             link_trigger = True
         bin_file = source_file.build(self.processor, bin_name, shared_object=shared_object, link=link_trigger, extra_build_opts=self.get_extra_build_opts())
@@ -1062,7 +1062,7 @@ class ML_FunctionBasis(object):
                     else:
                         execute_cmd = self.processor.get_execution_command(bin_file.path, **self.target_exec_options)
                     Log.report(Log.Info, "execute cmd: {}", execute_cmd)
-                    test_result, ret_stdout = get_cmd_stdout(execute_cmd)
+                    test_result, ret_stdout = build_utils.get_cmd_stdout(execute_cmd)
                 else:
                     Log.report(Log.Info, "executing : {}", bin_file.path)
                     test_result, ret_stdout = bin_file.execute()

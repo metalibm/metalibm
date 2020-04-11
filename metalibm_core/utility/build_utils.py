@@ -46,6 +46,17 @@ from metalibm_core.core.ml_formats import (
 from metalibm_core.utility.log_report import Log
 
 
+METALIBM_TMP_DIR = os.path.join(".", ".mltmp")
+
+def generate_tmp_filename(basename):
+    """ generate a temporary file name in metalibm's
+        default temp directory """
+    if not os.path.isdir(METALIBM_TMP_DIR):
+        # create temporary dir if it does not exist
+        os.mkdir(METALIBM_TMP_DIR)
+    filename = os.path.join(METALIBM_TMP_DIR, basename)
+    return filename
+
 def get_cmd_stdout(cmd):
     """ execute cmd on a subprocess and return return-code and stdout
         message """
