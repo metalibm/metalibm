@@ -57,7 +57,6 @@ from metalibm_core.opt.p_expand_multi_precision import (
 from metalibm_core.code_generation.generic_processor import GenericProcessor
 from metalibm_core.targets.common.vector_backend import VectorBackend
 
-from metalibm_core.utility.gappa_utils import execute_gappa_script_extract
 from metalibm_core.utility.ml_template import *
 from metalibm_core.utility.debug_utils import *
 

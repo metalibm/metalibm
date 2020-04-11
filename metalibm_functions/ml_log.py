@@ -49,9 +49,8 @@ from metalibm_core.core.special_values import (
 from metalibm_core.code_generation.generic_processor import GenericProcessor
 from metalibm_core.code_generation.generator_utility import FunctionOperator, FO_Result, FO_Arg
 
-from metalibm_core.utility.gappa_utils import execute_gappa_script_extract
 from metalibm_core.utility.ml_template import *
-from metalibm_core.utility.debug_utils import * 
+from metalibm_core.utility.debug_utils import *
 
 class ML_Log(ML_Function("ml_log")):
   def __init__(self, args):

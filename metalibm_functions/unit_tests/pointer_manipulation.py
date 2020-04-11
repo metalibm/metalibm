@@ -44,7 +44,6 @@ from metalibm_core.core.ml_table import ML_NewTable
 
 from metalibm_core.code_generation.gappa_code_generator import GappaCodeGenerator
 
-from metalibm_core.utility.gappa_utils import execute_gappa_script_extract
 from metalibm_core.utility.ml_template import *
 
 

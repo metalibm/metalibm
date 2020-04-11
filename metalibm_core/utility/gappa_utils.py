@@ -34,6 +34,7 @@
 import re
 import subprocess
 import sys
+import os
 
 import sollya
 
@@ -48,8 +49,20 @@ def parse_gappa_interval(interval_value):
     v0, v1 = tmp_str.split(",")
     return sollya.Interval(sollya.parse(v0), sollya.parse(v1))
 
+GAPPA_TMP_DIR = os.path.join(".", ".mltmp")
 
-def execute_gappa_script_extract(gappa_code, gappa_filename = "gappa_tmp.g"):
+def generate_gappa_filename(basename="gappa_tmp.g"):
+    """ generate a temporary file name to receive gappa code,
+        using GAPPA_TMP_DIR as directory """
+    if not os.path.isdir(GAPPA_TMP_DIR):
+        # create temporary dir if it does not exist
+        os.mkdir(GAPPA_TMP_DIR)
+    filename = os.path.join(GAPPA_TMP_DIR, basename)
+    return filename
+
+def execute_gappa_script_extract(gappa_code, gappa_filename=None):
+    if gappa_filename is None:
+        gappa_filename = generate_gappa_filename()
     result = {}
     gappa_stream = open(gappa_filename, "w")
     gappa_stream.write(gappa_code)

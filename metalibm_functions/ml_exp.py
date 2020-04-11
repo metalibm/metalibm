@@ -74,7 +74,7 @@ from metalibm_core.utility.debug_utils import (
     debug_multi
 )
 from metalibm_core.utility.num_utils   import ulp
-from metalibm_core.utility.gappa_utils import is_gappa_installed
+import metalibm_core.utility.gappa_utils as gappa_utils
 
 
 class ML_Exponential(ScalarUnaryFunction):
@@ -225,10 +225,10 @@ class ML_Exponential(ScalarUnaryFunction):
         }
 
         #try:
-        if is_gappa_installed():
+        if gappa_utils.is_gappa_installed():
             eval_error = self.gappa_engine.get_eval_error_v2(
                 self.opt_engine, opt_r, cg_eval_error_copy_map,
-                gappa_filename="red_arg.g")
+                gappa_filename=gappa_utils.generate_gappa_filename("red_arg.g"))
         else:
             eval_error = 0.0
             Log.report(Log.Warning, "gappa is not installed in this environnement")
@@ -314,9 +314,10 @@ class ML_Exponential(ScalarUnaryFunction):
             }
 
 
-            if is_gappa_installed():
+            if gappa_utils.is_gappa_installed():
                 sub_poly_eval_error = -1.0
-                sub_poly_eval_error = self.gappa_engine.get_eval_error_v2(self.opt_engine, opt_sub_poly, sub_poly_error_copy_map, gappa_filename = "%s_gappa_sub_poly.g" % self.function_name)
+                gappa_sub_poly_filename = gappa_utils.generate_gappa_filename("{}_gappa_sub_poly.g".format(self.function_name))
+                sub_poly_eval_error = self.gappa_engine.get_eval_error_v2(self.opt_engine, opt_sub_poly, sub_poly_error_copy_map, gappa_filename =gappa_sub_poly_filename)
 
                 dichotomy_map = [
                     {
@@ -329,7 +330,8 @@ class ML_Exponential(ScalarUnaryFunction):
                         exact_hi_part.get_handle().get_node(): approx_interval_split[2],
                     },
                 ]
-                poly_eval_error_dico = self.gappa_engine.get_eval_error_v3(self.opt_engine, opt_poly, poly_error_copy_map, gappa_filename = "gappa_poly.g", dichotomy = dichotomy_map)
+                gappa_poly_filename = gappa_utils.generate_gappa_filename("gappa_poly.g")
+                poly_eval_error_dico = self.gappa_engine.get_eval_error_v3(self.opt_engine, opt_poly, poly_error_copy_map, gappa_filename=gappa_poly_filename, dichotomy = dichotomy_map)
 
                 poly_eval_error = max([sup(abs(err)) for err in poly_eval_error_dico])
             else:
