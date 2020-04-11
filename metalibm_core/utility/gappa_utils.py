@@ -38,6 +38,8 @@ import os
 
 import sollya
 
+import metalibm_core.utility.build_utils as build_utils
+
 def parse_gappa_interval(interval_value):
     # search for middle ","
     end_index = len(interval_value)
@@ -49,16 +51,11 @@ def parse_gappa_interval(interval_value):
     v0, v1 = tmp_str.split(",")
     return sollya.Interval(sollya.parse(v0), sollya.parse(v1))
 
-GAPPA_TMP_DIR = os.path.join(".", ".mltmp")
 
 def generate_gappa_filename(basename="gappa_tmp.g"):
     """ generate a temporary file name to receive gappa code,
         using GAPPA_TMP_DIR as directory """
-    if not os.path.isdir(GAPPA_TMP_DIR):
-        # create temporary dir if it does not exist
-        os.mkdir(GAPPA_TMP_DIR)
-    filename = os.path.join(GAPPA_TMP_DIR, basename)
-    return filename
+    return build_utils.generate_tmp_filename(basename)
 
 def execute_gappa_script_extract(gappa_code, gappa_filename=None):
     if gappa_filename is None:
