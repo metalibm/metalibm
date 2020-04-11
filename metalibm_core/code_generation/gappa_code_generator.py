@@ -32,6 +32,7 @@
 ###############################################################################
 
 import sys
+import os
 
 from .code_element import CodeVariable, CodeExpression
 from ..core.ml_operations import (
@@ -45,6 +46,7 @@ from .code_object import Gappa_Unknown, GappaCodeObject
 
 from ..utility.debug_utils import ML_Debug
 from ..utility.gappa_utils import execute_gappa_script_extract
+import metalibm_core.utility.gappa_utils as gappa_utils
 from ..utility.log_report import Log
 
 
@@ -263,10 +265,10 @@ class GappaCodeGenerator(object):
         return self.generate_assignation(result_var, expr_code, final=final)
 
     def generate_assignation(self, result_var, expression_code, final = True):
-        """ generate code for assignation of value <expression_code> to 
+        """ generate code for assignation of value <expression_code> to
             variable <result_var> """
         final_symbol = ";\n" if final else ""
-        return "%s = %s%s" % (result_var, expression_code, final_symbol) 
+        return "%s = %s%s" % (result_var, expression_code, final_symbol)
 
 
     def generate_declaration(self, symbol, symbol_object, initial = True, final = True):
@@ -277,7 +279,7 @@ class GappaCodeGenerator(object):
         elif isinstance(symbol_object, Variable):
             initial_symbol = ""#(symbol_object.get_precision().get_c_name() + " ") if initial else ""
             final_symbol = ";\n" if final else ""
-            return "%s%s%s" % (initial_symbol, symbol, final_symbol) 
+            return "%s%s%s" % (initial_symbol, symbol, final_symbol)
         elif isinstance(symbol_object, ML_Table):
             raise NotImplementedError
         else:
@@ -296,10 +298,19 @@ class GappaCodeGenerator(object):
         debug_msg += "#endif\n"
         return debug_msg
 
+    def generate_gappa_filename(self, basename=None):
+        """ generate a temporary file name to receive gappa code """
+        return gappa_utils.generate_gappa_filename(basename)
 
-    def get_eval_error(self, pre_optree, variable_copy_map = {}, goal_precision = ML_Binary32, gappa_filename = "gappa_tmp.g"):
+
+    def get_eval_error(self, pre_optree, variable_copy_map=None,
+                       goal_precision=ML_Binary32, gappa_filename=None):
         """ helper to compute the evaluation error of <pre_optree> bounded by tagged-node in variable_map, 
             assuming variable_map[v] is the liverange of node v """
+        if gappa_filename is None:
+            gappa_filename = self.generate_gappa_filename()
+        if variable_copy_map is None:
+            variable_copy_map = {}
         # registering initial bounds
         bound_list = [op for op in variable_copy_map]
         # copying pre-operation tree
@@ -317,9 +328,15 @@ class GappaCodeGenerator(object):
         return execute_gappa_script_extract(gappa_code.get(self), gappa_filename = gappa_filename)["goal"]
 
 
-    def get_eval_error_v2(self, opt_engine, pre_optree, variable_copy_map = {}, goal_precision = ML_Exact, gappa_filename = "gappa_tmp.g", relative_error = False):
+    def get_eval_error_v2(self, opt_engine, pre_optree, variable_copy_map=None,
+                          goal_precision=ML_Exact, gappa_filename=None,
+                          relative_error=False):
         """ helper to compute the evaluation error of <pre_optree> bounded by tagged-node in variable_map, 
             assuming variable_map[v] is the liverange of node v """
+        if gappa_filename is None:
+            gappa_filename = self.generate_gappa_filename()
+        if variable_copy_map is None:
+            variable_copy_map = {}
         # registering initial bounds
         bound_list = []
         bound_unique_list = []
@@ -381,9 +398,16 @@ class GappaCodeGenerator(object):
           return eval_error
         except ValueError:
           Log.report(Log.Error, "Unable to compute evaluation error with gappa")
-          
 
-    def get_eval_error_v3(self, opt_engine, pre_optree, variable_copy_map = {}, goal_precision = ML_Exact, gappa_filename = "gappa_tmp.g", dichotomy = [], relative_error = False):
+
+    def get_eval_error_v3(self, opt_engine, pre_optree, variable_copy_map=None,
+                          goal_precision = ML_Exact, gappa_filename=None,
+                          dichotomy=None, relative_error=False):
+
+        if variable_copy_map is None:
+            variable_copy_map = {}
+        if dichotomy is None:
+            dichotomy = []
         # storing initial interval values
         init_interval = {}
         for op in variable_copy_map:
@@ -403,9 +427,16 @@ class GappaCodeGenerator(object):
                 else:
                     # else making sure initial interval is set
                     clean_copy_map[op].set_interval(init_interval[op])
-                    
+
+            # building gappa filename (without full path)
+            # get_eval_error_v2 will make sure a full path is properly pre-pended
+            if gappa_filename is None:
+                sub_gappa_filename = "c{}_gappa_tmp.g".format(case_id)
+            else:
+                head, tail = os.path.split(gappa_filename)
+                sub_gappa_filename = os.path.join(head, "c{}_{}".format(case_id, tail))
             # computing evaluation error in local conditions
-            eval_error = self.get_eval_error_v2(opt_engine, pre_optree, clean_copy_map, goal_precision, ("c%d_" % case_id) + gappa_filename, relative_error = relative_error)
+            eval_error = self.get_eval_error_v2(opt_engine, pre_optree, clean_copy_map, goal_precision, sub_gappa_filename, relative_error = relative_error)
             eval_error_list.append(eval_error)
             case_id += 1
 
@@ -417,7 +448,7 @@ class GappaCodeGenerator(object):
         """ build a gappa proof to determine the liverange for each node in pre_goal_list.
             The gappa proof is built assuming nodes in bound_list are roots of the operation graph.
             variable_copy_map is used to copy the graph.
-        
+
             This method creates a new GappaCodeObject whose goal is a copy of pre_goal assuming
             the mapping described in variable_copy_map and registering hypothesis
             which correspond to variable_copy_map bounds """

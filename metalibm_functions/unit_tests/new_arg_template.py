@@ -51,7 +51,6 @@ from metalibm_core.core.ml_table import ML_Table
 
 from metalibm_core.core.precisions import ML_Faithful
 
-from metalibm_core.utility.gappa_utils import execute_gappa_script_extract
 from metalibm_core.utility.ml_template import (
     ML_NewArgTemplate, DefaultArgTemplate
 )

@@ -54,7 +54,7 @@ from metalibm_core.core.special_values import (
 
 from metalibm_core.code_generation.gappa_code_generator import GappaCodeGenerator
 
-from metalibm_core.utility.gappa_utils import execute_gappa_script_extract, is_gappa_installed
+from metalibm_core.utility.gappa_utils import is_gappa_installed
 from metalibm_core.utility.ml_template import *
 
 from metalibm_core.utility.debug_utils import *
