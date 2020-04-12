@@ -373,6 +373,7 @@ class CCodeGenerator(object):
             return "%s%s%s" % (initial_symbol, symbol, final_symbol) 
 
         elif isinstance(symbol_object, ML_Table):
+            attributes = "const" if symbol_object.const else ""
             # TODO: check @p initial effect
             if symbol_object.is_empty():
               initial_symbol = (symbol_object.get_definition(symbol, final = "", language = self.language)) if initial else ""

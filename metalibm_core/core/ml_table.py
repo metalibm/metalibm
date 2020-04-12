@@ -131,9 +131,9 @@ class ML_Table(ML_LeafNode):
     """ Metalibm Table object """
     ## string used in get_str
     str_name = "Table"
-    ## ML_Table constructor 
+    ## ML_Table constructor
     #  @param empty indicates whether the table should be initialized empty
-    def __init__(self, empty = False, storage_precision = None, **kwords): 
+    def __init__(self, empty=False, storage_precision=None, const=True, **kwords):
         self.attributes = Attributes(**kwords)
         dimensions = attr_init(kwords, "dimensions", [])
         #storage_precision = attr_init(kwords, "storage_precision", None)
@@ -146,6 +146,8 @@ class ML_Table(ML_LeafNode):
         self.empty = empty
 
         self.index = -1
+        # is table const ? (unmutable)
+        self.const = const
 
     def __setitem__(self, key, value):
         self.table[key] = value

@@ -1266,6 +1266,7 @@ class ML_FunctionBasis(object):
     num_output_value = self.accuracy.get_num_output_value()
     output_table = ML_NewTable(dimensions=[test_total, num_output_value],
                                storage_precision=self.precision,
+                               const=False,
                                tag=self.uniquify_name("output_table"))
 
     test_case_list = []
@@ -1714,7 +1715,7 @@ class ML_FunctionBasis(object):
     ]
     output_precision = FormatAttributeWrapper(self.precision, ["volatile"])
     ## (low, high) are store in output table
-    output_table = ML_NewTable(dimensions = [test_total], storage_precision = output_precision, tag = self.uniquify_name("output_table"), empty = True)
+    output_table = ML_NewTable(dimensions = [test_total], storage_precision = output_precision, tag = self.uniquify_name("output_table"), empty=True, const=False)
 
 
     # TODO: factorize with auto-test wrapper generation function
