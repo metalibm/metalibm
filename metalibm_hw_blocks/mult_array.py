@@ -48,8 +48,10 @@ from metalibm_core.core.ml_hdl_format import (
     ML_StdLogicVectorFormat, ML_StdLogic, fixed_point,
 )
 from metalibm_core.code_generation.code_constant import VHDL_Code
+
+from metalibm_core.core.advanced_operations import PlaceHolder
 from metalibm_core.core.ml_hdl_operations import (
-    BitSelection, Signal, PlaceHolder,
+    BitSelection, Signal,
     equal_to, Concatenation, SubSignalSelection
 )
 

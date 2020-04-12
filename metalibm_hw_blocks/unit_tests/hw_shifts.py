@@ -42,9 +42,6 @@ from metalibm_core.core.ml_operations import (
     Statement,
     BitLogicLeftShift, BitLogicRightShift
 )
-from metalibm_core.core.ml_hdl_operations import (
-    Signal, PlaceHolder
-)
 from metalibm_core.core.ml_hdl_format import (
     ML_StdLogicVectorFormat
 )

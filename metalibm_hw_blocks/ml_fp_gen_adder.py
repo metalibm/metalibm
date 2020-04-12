@@ -37,6 +37,7 @@ from sollya import parse as sollya_parse
 
 from metalibm_core.core.attributes import ML_Debug
 from metalibm_core.core.ml_operations import *
+from metalibm_core.core.advanced_operations import PlaceHolder
 from metalibm_core.core.ml_formats import *
 from metalibm_core.core.ml_table import ML_Table
 from metalibm_core.code_generation.vhdl_backend import VHDLBackend
