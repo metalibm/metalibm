@@ -64,43 +64,43 @@ abstract_typing_rule = {
         lambda optree, cond, op0, op1: merge_abstract_format(op0.get_precision(), op1.get_precision()),
     Negation:
         lambda optree, op0: merge_abstract_format(op0.get_precision()),
-    Addition: 
-        lambda optree, op0, op1: merge_abstract_format(op0.get_precision(), op1.get_precision()), 
+    Addition:
+        lambda optree, op0, op1: merge_abstract_format(op0.get_precision(), op1.get_precision()),
     Max:
-        lambda optree, op0, op1: merge_abstract_format(op0.get_precision(), op1.get_precision()), 
+        lambda optree, op0, op1: merge_abstract_format(op0.get_precision(), op1.get_precision()),
     Min:
-        lambda optree, op0, op1: merge_abstract_format(op0.get_precision(), op1.get_precision()), 
-    FusedMultiplyAdd: 
+        lambda optree, op0, op1: merge_abstract_format(op0.get_precision(), op1.get_precision()),
+    FusedMultiplyAdd:
         lambda optree, *ops: merge_abstract_format(*tuple(op.get_precision() for op in ops)),
-    Subtraction: 
-        lambda optree, op0, op1: merge_abstract_format(op0.get_precision(), op1.get_precision()), 
-    Multiplication: 
-        lambda optree, op0, op1: merge_abstract_format(op0.get_precision(), op1.get_precision()), 
-    Division: 
-        lambda optree, op0, op1: merge_abstract_format(op0.get_precision(), op1.get_precision()), 
-    Modulo: 
-        lambda optree, op0, op1: merge_abstract_format(op0.get_precision(), op1.get_precision()), 
+    Subtraction:
+        lambda optree, op0, op1: merge_abstract_format(op0.get_precision(), op1.get_precision()),
+    Multiplication:
+        lambda optree, op0, op1: merge_abstract_format(op0.get_precision(), op1.get_precision()),
+    Division:
+        lambda optree, op0, op1: merge_abstract_format(op0.get_precision(), op1.get_precision()),
+    Modulo:
+        lambda optree, op0, op1: merge_abstract_format(op0.get_precision(), op1.get_precision()),
     NearestInteger:
         lambda optree, op0: ML_Integer,
     ExponentInsertion:
         lambda *ops: ML_Float,
-    ExponentExtraction: 
+    ExponentExtraction:
         lambda *ops: ML_Integer,
-    MantissaExtraction: 
+    MantissaExtraction:
         lambda *ops: ML_Float,
-    RawSignExpExtraction: 
+    RawSignExpExtraction:
         lambda *ops: ML_Integer,
-    CountLeadingZeros: 
+    CountLeadingZeros:
         lambda *ops: ML_Integer,
-    Comparison: 
+    Comparison:
         lambda *ops: ML_AbstractBool,
-    Test: 
+    Test:
         lambda *ops: ML_AbstractBool,
-    LogicalAnd: 
+    LogicalAnd:
         lambda *ops: ML_AbstractBool,
-    LogicalOr: 
+    LogicalOr:
         lambda *ops: ML_AbstractBool,
-    LogicalNot: 
+    LogicalNot:
         lambda *ops: ML_AbstractBool,
     BitLogicAnd:
         lambda *ops: ML_Integer,
@@ -118,7 +118,7 @@ abstract_typing_rule = {
         lambda *ops: ML_Integer,
     Return:
         lambda *ops: ops[0].get_precision(),
-    TableLoad: 
+    TableLoad:
         lambda optree, *ops: ops[0].get_storage_precision(),
     SpecificOperation:
         lambda optree, *ops: optree.specifier.abstract_type_rule(optree, *ops),
@@ -137,7 +137,7 @@ abstract_typing_rule = {
 }
 
 practical_typing_rule = {
-    Select: 
+    Select:
         lambda backend, op, dprec: merge_ops_abstract_format(op, op.inputs[1:]),
     Abs:
         lambda backend, op, dprec: merge_ops_abstract_format(op, op.inputs),
@@ -147,15 +147,15 @@ practical_typing_rule = {
         lambda backend, op, dprec: merge_ops_abstract_format(op, op.inputs),
     Max:
         lambda backend, op, dprec: merge_ops_abstract_format(op, op.inputs),
-    Addition: 
+    Addition:
         lambda backend, op, dprec: merge_ops_abstract_format(op, op.inputs),
-    Subtraction: 
+    Subtraction:
         lambda backend, op, dprec: merge_ops_abstract_format(op, op.inputs),
-    Multiplication: 
+    Multiplication:
         lambda backend, op, dprec: merge_ops_abstract_format(op, op.inputs),
-    FusedMultiplyAdd: 
+    FusedMultiplyAdd:
         lambda backend, op, dprec: merge_ops_abstract_format(op, op.inputs),
-    Division: 
+    Division:
         lambda backend, op, dprec: merge_ops_abstract_format(op, op.inputs),
     DivisionSeed:
         lambda backend, op, dprec: merge_ops_abstract_format(op, op.inputs),
@@ -163,49 +163,49 @@ practical_typing_rule = {
         lambda backend, op, dprec: merge_ops_abstract_format(op, op.inputs),
     ReciprocalSquareRootSeed:
         lambda backend, op, dprec: merge_ops_abstract_format(op, op.inputs),
-    Modulo: 
+    Modulo:
         lambda backend, op, dprec: merge_ops_abstract_format(op, op.inputs),
     ExponentInsertion:
-        lambda backend, op, dprec: dprec,  
+        lambda backend, op, dprec: dprec,
     ExponentExtraction:
-        lambda backend, op, dprec: get_integer_format(backend, op),  
-    MantissaExtraction: 
+        lambda backend, op, dprec: get_integer_format(backend, op),
+    MantissaExtraction:
         lambda backend, op, dprec: merge_ops_abstract_format(op, op.inputs),
     RawSignExpExtraction:
         lambda backend, op, dprec: get_integer_format(backend, op),
     CountLeadingZeros:
         lambda backend, op, dprec: get_integer_format(backend, op),
     Return:
-        lambda backend, op, dprec: dprec,  
-    NearestInteger: 
+        lambda backend, op, dprec: dprec,
+    NearestInteger:
         lambda backend, op, dprec: get_integer_format(backend, op),
-    Comparison: 
+    Comparison:
         lambda backend, op, dprec: get_boolean_format(backend, op),
-    Test: 
+    Test:
         lambda backend, op, dprec: get_boolean_format(backend, op),
-    LogicalAnd: 
+    LogicalAnd:
         lambda backend, op, dprec: get_boolean_format(backend, op),
-    LogicalNot: 
+    LogicalNot:
         lambda backend, op, dprec: get_boolean_format(backend, op),
-    LogicalOr: 
+    LogicalOr:
         lambda backend, op, dprec: get_boolean_format(backend, op),
-    BitLogicRightShift: 
+    BitLogicRightShift:
         lambda backend, op, dprec: merge_ops_abstract_format(op, op.inputs),
     BitArithmeticRightShift:
         lambda backend, op, dprec: merge_ops_abstract_format(op, op.inputs),
-    BitLogicLeftShift: 
+    BitLogicLeftShift:
         lambda backend, op, dprec: merge_ops_abstract_format(op, op.inputs),
-    BitLogicAnd: 
+    BitLogicAnd:
         lambda backend, op, dprec: merge_ops_abstract_format(op, op.inputs),
-    BitLogicOr: 
+    BitLogicOr:
         lambda backend, op, dprec: merge_ops_abstract_format(op, op.inputs),
-    BitLogicXor: 
+    BitLogicXor:
         lambda backend, op, dprec: merge_ops_abstract_format(op, op.inputs),
-    BitLogicNegate: 
+    BitLogicNegate:
         lambda backend, op, dprec: merge_ops_abstract_format(op, op.inputs),
     TableLoad:
         lambda backend, op, dprec: op.inputs[0].get_storage_precision(),
-    Conversion: 
+    Conversion:
         lambda backend, op, dprec: op.get_precision(),
     ExceptionOperation:
         lambda backend, op, dprec: dprec if op.get_specifier() == ExceptionOperation.RaiseReturn else None,
@@ -213,9 +213,9 @@ practical_typing_rule = {
         lambda backend, op, dprec: op.specifier.instantiated_type_rule(backend, op, dprec),
     NoResultOperation:
         lambda backend, op, dprec: None,
-    Split: 
+    Split:
         lambda backend, op, dprec: op.get_precision(),
-    ComponentSelection: 
+    ComponentSelection:
         lambda backend, op, dprec: op.get_precision(),
     FunctionCall:
         lambda backend, op, dprec: op.get_precision(),
@@ -223,43 +223,43 @@ practical_typing_rule = {
 
 post_typing_process_rules = {
     Min:
-        lambda backend, op: propagate_format_to_cst(op, op.get_precision()), 
+        lambda backend, op: propagate_format_to_cst(op, op.get_precision()),
     Max:
-        lambda backend, op: propagate_format_to_cst(op, op.get_precision()), 
-    Addition: 
-        lambda backend, op: propagate_format_to_cst(op, op.get_precision()), 
-    Subtraction: 
-        lambda backend, op: propagate_format_to_cst(op, op.get_precision()), 
-    Multiplication: 
-        lambda backend, op: propagate_format_to_cst(op, op.get_precision()), 
-    FusedMultiplyAdd: 
-        lambda backend, op: propagate_format_to_cst(op, op.get_precision()), 
-    Division: 
-        lambda backend, op: propagate_format_to_cst(op, op.get_precision()), 
-    Modulo: 
-        lambda backend, op: propagate_format_to_cst(op, op.get_precision()), 
-    Comparison: 
-        lambda backend, op: propagate_format_to_cst(op, merge_format(op, [inp.get_precision() for inp in op.inputs])), 
-    TableLoad: 
+        lambda backend, op: propagate_format_to_cst(op, op.get_precision()),
+    Addition:
+        lambda backend, op: propagate_format_to_cst(op, op.get_precision()),
+    Subtraction:
+        lambda backend, op: propagate_format_to_cst(op, op.get_precision()),
+    Multiplication:
+        lambda backend, op: propagate_format_to_cst(op, op.get_precision()),
+    FusedMultiplyAdd:
+        lambda backend, op: propagate_format_to_cst(op, op.get_precision()),
+    Division:
+        lambda backend, op: propagate_format_to_cst(op, op.get_precision()),
+    Modulo:
+        lambda backend, op: propagate_format_to_cst(op, op.get_precision()),
+    Comparison:
+        lambda backend, op: propagate_format_to_cst(op, merge_format(op, [inp.get_precision() for inp in op.inputs])),
+    TableLoad:
         lambda backend, op: propagate_format_to_cst(op, merge_format(op, [get_integer_format(backend, index_op) for index_op in op.inputs[1:]])),
-    ExponentInsertion: 
+    ExponentInsertion:
         lambda backend, op: propagate_format_to_cst(op, backend.default_integer_format),
     Select:
         lambda backend, op: propagate_format_to_cst(op, op.get_precision(), index_list = [1, 2]),
-    BitLogicAnd: 
-        lambda backend, op: propagate_format_to_cst(op, op.get_precision()), 
-    BitLogicOr: 
-        lambda backend, op: propagate_format_to_cst(op, op.get_precision()), 
-    BitLogicXor: 
-        lambda backend, op: propagate_format_to_cst(op, op.get_precision()), 
-    BitLogicNegate: 
-        lambda backend, op: propagate_format_to_cst(op, op.get_precision()), 
-    BitLogicRightShift: 
-        lambda backend, op: propagate_format_to_cst(op, op.get_precision()), 
+    BitLogicAnd:
+        lambda backend, op: propagate_format_to_cst(op, op.get_precision()),
+    BitLogicOr:
+        lambda backend, op: propagate_format_to_cst(op, op.get_precision()),
+    BitLogicXor:
+        lambda backend, op: propagate_format_to_cst(op, op.get_precision()),
+    BitLogicNegate:
+        lambda backend, op: propagate_format_to_cst(op, op.get_precision()),
+    BitLogicRightShift:
+        lambda backend, op: propagate_format_to_cst(op, op.get_precision()),
     BitArithmeticRightShift:
         lambda backend, op: propagate_format_to_cst(op, op.get_precision()),
-    BitLogicLeftShift: 
-        lambda backend, op: propagate_format_to_cst(op, op.get_precision()), 
+    BitLogicLeftShift:
+        lambda backend, op: propagate_format_to_cst(op, op.get_precision()),
     FunctionCall:
         lambda backend, op: FunctionCall.propagate_format_to_cst(op),
 }
@@ -271,7 +271,7 @@ def instantiate_abstract_precision(optree, default_precision=None,
     memoization_map = memoization_map or {}
     if optree in memoization_map:
         return memoization_map[optree]
-    elif optree.get_precision() != None: 
+    elif optree.get_precision() != None:
         memoization_map[optree] = optree.get_precision()
         if not isinstance(optree, ML_LeafNode):
             for inp in optree.inputs:
@@ -353,7 +353,7 @@ def instantiate_abstract_precision(optree, default_precision=None,
             var_type = instantiate_abstract_precision(var, default_precision, memoization_map = memoization_map)
             value_type = instantiate_abstract_precision(value, default_precision, memoization_map = memoization_map)
             return None
-                    
+
         else:
             # all other operations
             for inp in optree.inputs:
@@ -480,7 +480,7 @@ def merge_format(optree, args, default_precision=None):
 
         }
     }
-    
+
     try:
       merged_abstract_format = merge_abstract_format(*args)
       # if we have only unsigned integer, we merge to an unsigned integer also
@@ -539,7 +539,7 @@ class PassInstantiateAbstractPrecision(FunctionPass):
         FunctionPass.__init__(self, "instantiate_abstract_prec")
         self.default_precision = default_precision
 
-    def execute_on_optree(self, optree, fct=None, fct_group=None, memoization_map=None): 
+    def execute_on_optree(self, optree, fct=None, fct_group=None, memoization_map=None):
         memoization_map = memoization_map or {}
         instantiate_abstract_precision(
             optree, self.default_precision, memoization_map
@@ -555,7 +555,7 @@ class PassInstantiatePrecision(FunctionPass):
         self.default_boolean_precision = default_boolean_precision
         self.default_precision = default_precision
 
-    def execute_on_optree(self, optree, fct=None, fct_group=None, memoization_map=None): 
+    def execute_on_optree(self, optree, fct=None, fct_group=None, memoization_map=None):
         memoization_map = memoization_map if not memoization_map is None else {}
         optree_precision = instantiate_precision(
             optree, self.default_precision, memoization_map=memoization_map, backend=self)
