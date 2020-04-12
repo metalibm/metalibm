@@ -45,7 +45,6 @@ from metalibm_core.core.ml_formats import (
     ML_UInt32, ML_Int32, ML_Binary32, ML_Void,
     VECTOR_TYPE_MAP, ML_Integer,
 )
-from metalibm_core.core.ml_table import ML_NewTable
 from metalibm_core.core.ml_complex_formats import ML_Pointer_Format
 from metalibm_core.core.precisions import (
     ML_CorrectlyRounded, ML_Faithful,

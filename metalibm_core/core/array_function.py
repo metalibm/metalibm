@@ -63,24 +63,26 @@ from metalibm_core.core.ml_formats import (
 
 from metalibm_core.utility.ml_template import ML_NewArgTemplate
 
-def generate_1d_table(dim, storage_precision, tag, value_gen=lambda index: None, empty=False):
+def generate_1d_table(dim, storage_precision, tag, value_gen=lambda index: None, empty=False, const=True):
     """ generate a 1D ML_NewTable by using the given value generator @p value_gen """
     gen_table = ML_NewTable(
         dimensions = [dim],
         storage_precision=storage_precision,
         tag=tag,
+        const=const,
         empty=empty
     )
     for i in range(dim):
         gen_table[i] = value_gen(i)
     return gen_table
 
-def generate_2d_table(dim0, dim1, storage_precision, tag, value_gen=lambda index0: None):
+def generate_2d_table(dim0, dim1, storage_precision, tag, value_gen=(lambda index0: None), const=True):
     """ generate a 1D ML_NewTable by using the given value generator @p value_gen,
         values are generated one row at a time (rather than cell by cell) """
     gen_table = ML_NewTable(
         dimensions = [dim0, dim1],
         storage_precision=storage_precision,
+        const=const,
         tag=tag
     )
     for i0 in range(dim0):
@@ -179,6 +181,7 @@ class ML_ArrayFunction(ML_FunctionBasis):
             INPUT_ARRAY_SIZE,
             self.precision,
             self.uniquify_name("output_array"),
+            const=False,
             value_gen=(lambda _: FP_QNaN(self.precision))
         )
         return test_total, (table_size_offset_array, input_tables), output_array
@@ -469,6 +472,7 @@ class ML_ArrayFunction(ML_FunctionBasis):
             self.uniquify_name("output_array"),
             #value_gen=(lambda _: FP_QNaN(self.precision))
             value_gen=(lambda _: None),
+            const=False,
             empty=True
         )
 
