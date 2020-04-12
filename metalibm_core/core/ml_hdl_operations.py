@@ -47,6 +47,8 @@ from .ml_formats import *
 from .ml_hdl_format import *
 from .ml_operations import *
 
+from metalibm_core.core.advanced_operations import PlaceHolder
+
 ## \defgroup ml_hdl_operations ml_hdl_operations
 #  @{
 
@@ -237,20 +239,6 @@ class ComponentObject(object):
 
   def get_declaration(self):
     return self.generator_object.get_component_declaration()
-
-
-class PlaceHolder(AbstractOperationConstructor("PlaceHolder")):
-    """ This operation has an arbitrary arity.
-        For all purpose it is equal to its first input (main_input)
-        but carries on several inputs """
-    def __init__(self, *args, **kw):
-        PlaceHolder.__base__.__init__(self, *args, **kw)
-
-    def get_main_input(self):
-        return self.get_input(0)
-
-    def get_precision(self):
-        return self.get_main_input().get_precision()
 
 
 ## Boolean assertion

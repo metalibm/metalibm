@@ -39,9 +39,7 @@ from metalibm_core.core.ml_operations import (
     LogicalAnd, LogicalOr, Constant,
     BitLogicLeftShift, BitLogicRightShift,
 )
-from metalibm_core.core.ml_hdl_operations import (
-    PlaceHolder
-)
+from metalibm_core.core.advanced_operations import PlaceHolder
 
 from metalibm_core.utility.log_report import Log
 

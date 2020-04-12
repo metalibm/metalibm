@@ -41,9 +41,8 @@ from metalibm_core.core.ml_operations import (
     Min, Max,
     Statement
 )
-from metalibm_core.core.ml_hdl_operations import (
-    Signal, PlaceHolder
-)
+from metalibm_core.core.advanced_operations import PlaceHolder
+from metalibm_core.core.ml_hdl_operations import Signal
 from metalibm_core.core.ml_hdl_format import (
     ML_StdLogicVectorFormat
 )
