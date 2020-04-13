@@ -75,7 +75,12 @@ class ML_Pointer_Format(ML_Format):
 
   def __eq__(self, other):
       """ equality predicate for custom fixed-point format object """
-      return (is_pointer_format(other)) and (self.data_precision == other.data_precision)
+      if (is_pointer_format(other)):
+        return (self.data_precision == other.data_precision)
+      elif isinstance(other, ML_TableFormat):
+        return self.data_precision == other.storage_precision
+      else:
+        return False
 
   def __ne__(self, other):
       """ unequality predicate for custom fixed-point format object """
@@ -85,6 +90,39 @@ def is_pointer_format(_format):
   """ boolean test to check whether _format is a pointer _format """
   return isinstance(_format, ML_Pointer_Format)
 
+## Format for Table object (storage precision)
+class ML_TableFormat(ML_Format):
+  def __init__(self, storage_precision, dimensions):
+    self.storage_precision = storage_precision
+    # uplet of dimensions 
+    self.dimensions = dimensions
+
+  ## Generate code name for the table format
+  def get_code_name(self, language=None):
+    storage_code_name = self.storage_precision.get_code_name(language)
+    return "{}*".format(storage_code_name)
+
+  def get_storage_precision(self):
+    return self.storage_precision
+  def get_dimensions(self):
+    return self.dimensions
+  def get_match_format(self):
+    return self #.storage_precision.get_match_format(), self.get_dimensions()
+
+  # TODO/FIXME: some part of metalibm (such as opt.p_vector_promotion)
+  # rely on type object being hashable, which is no longer the case
+  # if __eq__ is overloaded
+  #def __eq__(self, rhs):
+  #  if isinstance(rhs, ML_TableFormat):
+  #      return self.storage_precision == rhs.storage_precision and self.dimensions == rhs.dimensions
+  #  elif isinstance(rhs, ML_Pointer_Format):
+  #      return self.storage_precision == self.data_precision
+  #  else:
+  #      return False
+
+  #def __ne__(self, other):
+  #    """ unequality predicate for custom fixed-point format object """
+  #    return not (self == other)
 
 # TODO : finish mpfr
 
