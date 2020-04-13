@@ -43,7 +43,7 @@ from .attributes import Attributes, attr_init
 from .ml_formats import (
     ML_Int32, ML_Int64, ML_UInt32, ML_UInt64, ML_Format, ML_FP_Format)
 from .ml_complex_formats import (
-    ML_Pointer_Format,
+    ML_Pointer_Format, ML_TableFormat,
 )
 from ..code_generation.code_constant import *
 from ..code_generation.code_configuration import CodeConfiguration
@@ -107,24 +107,6 @@ def get_table_content(table, dimensions, storage_precision, language=C_Code, max
         code += "\n}"
         return code
 
-## Format for Table object (storage precision)
-class ML_TableFormat(ML_Format):
-  def __init__(self, storage_precision, dimensions):
-    self.storage_precision = storage_precision
-    # uplet of dimensions 
-    self.dimensions = dimensions
-
-  ## Generate code name for the table format
-  def get_code_name(self, language=None):
-    storage_code_name = self.storage_precision.get_code_name(language)
-    return "{}*".format(storage_code_name)
-
-  def get_storage_precision(self):
-    return self.storage_precision
-  def get_dimensions(self):
-    return self.dimensions
-  def get_match_format(self):
-    return self #.storage_precision.get_match_format(), self.get_dimensions()
 
 
 class ML_Table(ML_LeafNode):
