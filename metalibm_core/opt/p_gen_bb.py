@@ -39,6 +39,7 @@ from metalibm_core.core.ml_operations import (
     ControlFlowOperation, EmptyOperand,
     Constant
 )
+from metalibm_core.core.advanced_operations import PlaceHolder
 
 from metalibm_core.core.passes import FunctionPass, Pass, LOG_PASS_INFO
 
@@ -870,6 +871,11 @@ class Pass_GenerateBasicBlock(FunctionPass):
         elif isinstance(optree, Statement):
             for op in optree.get_inputs():
                 self.execute_on_optree(op, fct, fct_group, memoization_map)
+        elif isinstance(optree, PlaceHolder):
+            head = optree.get_input(0)
+            for op in optree.inputs[1:]:
+                self.execute_on_optree(op, fct, fct_group, memoization_map)
+            self.push_to_current_bb(head)
         else:
             self.push_to_current_bb(optree)
         return entry_bb
@@ -918,6 +924,8 @@ class Pass_BBSimplification(FunctionPass):
             current_bb = work_list.pop(0)
 
             processed_list.append(current_bb)
+            if current_bb.empty:
+                continue
             for next_bb in current_bb.successors:
                 if not next_bb in processed_list:
                     work_list.append(next_bb)
