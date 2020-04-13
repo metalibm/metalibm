@@ -201,13 +201,18 @@ class ML_Table(ML_LeafNode):
 
         def get_index(self, range_tuple):
           return get_rec_index(self.table, range_tuple)
-          
+
         return self.get_subset_interval(get_index, build_range_set(self.dimensions))
 
 
     def get_definition(self, table_name, final = ";", language = C_Code):
+        attributes = "const" if self.const else ""
         precision_name = self.get_storage_precision().get_name(language = language)
-        return "%s %s[%s]" % (precision_name, table_name, "][".join([str(dim) for dim in self.dimensions]))
+        return "{attributes} {format_name} {table_name}[{dims}]".format(
+            attributes=attributes,
+            format_name=precision_name,
+            table_name=table_name,
+            dims=("][".join([str(dim) for dim in self.dimensions])))
 
     def get_content_init(self, language = C_Code):
         return get_table_content(self.table, self.dimensions, self.get_storage_precision(), language = language)
