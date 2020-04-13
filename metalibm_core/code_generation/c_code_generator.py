@@ -263,10 +263,15 @@ class CCodeGenerator(object):
             return None
 
         elif isinstance(optree, Return):
-            return_result = optree.inputs[0]
-            return_code = self.generate_expr(code_object, return_result, folded = folded, language = language)
-            code_object << "return %s;\n" % return_code.get()
-            return None #return_code
+            if len(optree.inputs) == 0:
+                # void return
+                code_object << "return;\n"
+
+            else:
+                return_result = optree.inputs[0]
+                return_code = self.generate_expr(code_object, return_result, folded = folded, language = language)
+                code_object << "return %s;\n" % return_code.get()
+                return None #return_code
 
         elif isinstance(optree, ExceptionOperation):
             if optree.get_specifier() in [ExceptionOperation.RaiseException, ExceptionOperation.ClearException, ExceptionOperation.RaiseReturn]:
