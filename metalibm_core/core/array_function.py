@@ -77,7 +77,7 @@ def generate_1d_table(dim, storage_precision, tag, value_gen=lambda index: None,
     return gen_table
 
 def generate_2d_table(dim0, dim1, storage_precision, tag, value_gen=(lambda index0: None), const=True):
-    """ generate a 1D ML_NewTable by using the given value generator @p value_gen,
+    """ generate a 2D ML_NewTable by using the given value generator @p value_gen,
         values are generated one row at a time (rather than cell by cell) """
     gen_table = ML_NewTable(
         dimensions = [dim0, dim1],
