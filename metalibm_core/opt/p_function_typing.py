@@ -304,11 +304,19 @@ def instantiate_abstract_precision(optree, default_precision=None,
             # TableLoad operations
             for inp in optree.inputs[1:]:
                 instantiate_abstract_precision(inp, ML_Integer, memoization_map = memoization_map)
-            format_rule = abstract_typing_rule[optree.__class__]
-            abstract_format = format_rule(optree, *optree.inputs)
-            optree.set_precision(abstract_format)
-            memoization_map[optree] = abstract_format
-            return abstract_format
+            try:
+                format_rule = abstract_typing_rule[optree.__class__]
+            except Exception as e:
+                Log.report(Log.Error, "could not apply abstract typing rule to TableLoad operation:\n {}", optree, error=e)
+            else:
+                try:
+                    abstract_format = format_rule(optree, *optree.inputs)
+                except Exception as e:
+                    Log.report(Log.Error, "could not apply format rule to TableLoad operation:\n {}", optree, error=e)
+                else:
+                    optree.set_precision(abstract_format)
+                    memoization_map[optree] = abstract_format
+                    return abstract_format
 
         elif isinstance(optree, ConditionBlock):
             # pre statement
