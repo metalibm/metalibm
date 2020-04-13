@@ -1041,7 +1041,7 @@ def type_function_match(*arg_tuple, optree=None, **kw):
     match_function = type_strict_match(*expected_arg_tuple)
     match_result = match_function(*arg_tuple)
     if not match_result:
-        Log.report(Log.Info, "could not match FunctionCall {} with arg_tuple {} vs expected {}", optree, arg_tuple, expected_arg_tuple)
+        Log.report(Log.Warning, "could not match FunctionCall {} with arg_tuple {} vs expected {}", optree, arg_tuple, expected_arg_tuple)
     return match_result
 
 
