@@ -42,6 +42,7 @@ from ..core.ml_operations import (
     BooleanOperation,
     FunctionType
 )
+from ..core.advanced_operations import PlaceHolder
 from ..core.ml_table import ML_Table, ML_NewTable
 from ..core.ml_formats import *
 
@@ -301,6 +302,16 @@ class CCodeGenerator(object):
             result_code = self.processor.generate_expr(self, code_object, optree, optree.inputs, folded = False, result_var = result_var, language = language)
             code_object << "%s;\n" % result_code.get() 
             return None
+
+        elif isinstance(optree, PlaceHolder):
+            head = optree.get_input(0)
+            for tail_node in optree.inputs[1:]:
+                if not self.has_memoization(tail_node):
+                    self.generate_expr(code_object, tail_node, folded=folded, initial=True, language=language)
+
+            # generate PlaceHolder's main_value
+            head_code = self.generate_expr(code_object, head, folded=folded, initial=initial, language=language)
+            return head_code
 
         elif isinstance(optree, Statement):
             for op in optree.inputs:
