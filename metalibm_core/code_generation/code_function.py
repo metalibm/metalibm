@@ -35,6 +35,7 @@ from ..core.ml_operations import Variable, FunctionObject, FunctionType
 from .code_object import NestedCode
 from .generator_utility import FunctionOperator, FO_Arg
 from .code_constant import *
+from ..core.ml_formats import ML_Void
 
 
 class CodeFunction(object):
@@ -96,7 +97,7 @@ class CodeFunction(object):
     function_arg_map = {}
     for i in range(len(self.arg_list)):
       function_arg_map[i] = FO_Arg(i)
-    return FunctionOperator(self.name, arg_map = function_arg_map)
+    return FunctionOperator(self.name, arg_map = function_arg_map, void_function=(self.output_format is ML_Void))
 
   ## retrieve format of the result(s) returned by the function
   #  @return ML_Format object
