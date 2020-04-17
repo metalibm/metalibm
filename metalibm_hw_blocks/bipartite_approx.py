@@ -47,6 +47,14 @@ from metalibm_core.code_generation.vhdl_backend import VHDLBackend
 from metalibm_core.core.ml_entity import (
     ML_Entity, ML_EntityBasis, DefaultEntityArgTemplate
 )
+from metalibm_core.core.ml_function import (
+    ML_FunctionBasis
+)
+from metalibm_core.utility.ml_template import (
+    DefaultArgTemplate
+)
+
+from metalibm_core.targets.common.fixed_point_backend import FixedPointBackend
 
 from metalibm_core.core.random_gen import FixedPointRandomGen
 from metalibm_core.core.advanced_operations import (
@@ -98,7 +106,7 @@ def get_virtual_cst(prec, value, language):
     return prec.get_support_format().get_cst(
         prec.get_base_format().get_integer_coding(value, language))
 
-def get_fixed_slice(
+def rtl_get_fixed_slice(
         optree, hi, lo,
         align_hi=FixedPointPosition.FromLSBToLSB,
         align_lo=FixedPointPosition.FromLSBToLSB,
@@ -122,6 +130,28 @@ def get_fixed_slice(
             precision=None,
             **optree_args
         )
+def sw_get_fixed_slice(
+        optree, hi, lo,
+        align_hi=FixedPointPosition.FromLSBToLSB,
+        align_lo=FixedPointPosition.FromLSBToLSB,
+        **optree_args):
+    """ return the slice of the fixed-point argument optree
+        contained between bit-index hi and lo """
+    assert align_lo in [FixedPointPosition.FromLSBToLSB, FixedPointPosition.FromMSBToLSB]
+    assert align_hi in [FixedPointPosition.FromLSBToLSB, FixedPointPosition.FromMSBToLSB]
+    optree_format = optree.get_precision()
+    optree_size = optree_format.get_integer_size() + optree_format.get_frac_size()
+    # FIXME: does not take into accoun fixed-point value alignment
+    #        within support format
+    real_lo = lo if align_lo == FixedPointPosition.FromLSBToLSB else optree_size - 1 - lo  
+    real_hi = hi if align_hi == FixedPointPosition.FromLSBToLSB else optree_size - 1 - hi
+    shift = real_lo
+    mask_size = real_hi-real_lo + 1
+    print("mask_size={}, shift={}".format(mask_size, shift))
+    return BitLogicAnd(
+        BitLogicRightShift(optree, shift), 
+        Constant((2**mask_size - 1) * 2**-optree_format.get_frac_size(), precision=optree_format)
+        , **optree_args)
 
 def get_fixed_type_from_interval(interval, precision):
     """ generate a fixed-point format which can encode
@@ -134,65 +164,21 @@ def get_fixed_type_from_interval(interval, precision):
     extra_digit = 1 if signed else 0
     return fixed_point(msb_index + extra_digit, -(msb_index - precision), signed=signed)
 
-class BipartiteApprox(ML_Entity("bipartite_approx")):
-    def __init__(self,
-             arg_template = DefaultEntityArgTemplate,
-             ):
 
-        # initializing base class
-        ML_EntityBasis.__init__(self,
-            arg_template = arg_template
-        )
-        self.pipelined = arg_template.pipelined
-        # function to be approximated
-        self.function = arg_template.function
-        # interval on which the approximation must be valid
-        self.interval = arg_template.interval
+class GenericBipartiteApprox:
 
-        self.disable_sub_testing = arg_template.disable_sub_testing
-        self.disable_sv_testing = arg_template.disable_sv_testing
+    def get_fixed_slice(
+            self,
+            optree, hi, lo,
+            align_hi=FixedPointPosition.FromLSBToLSB,
+            align_lo=FixedPointPosition.FromLSBToLSB,
+            **optree_args):
+        raise NotImplementedError
 
-        self.alpha = arg_template.alpha
-        self.beta = arg_template.beta
-        self.gamma = arg_template.gamma
-        self.guard_bits = arg_template.guard_bits
-
-    ## default argument template generation
-    @staticmethod
-    def get_default_args(**kw):
-        """ generate default argument structure for BipartiteApprox """
-        default_dict = {
-            "target": VHDLBackend(),
-            "output_file": "my_bipartite_approx.vhd",
-            "entity_name": "my_bipartie_approx",
-            "language": VHDL_Code,
-            "function": lambda x: 1.0 / x,
-            "interval": Interval(1, 2),
-            "pipelined": False,
-            "precision": fixed_point(1, 15, signed=False),
-            "disable_sub_testing": False,
-            "disable_sv_testing": False,
-            "alpha": 6,
-            "beta": 5,
-            "gamma": 5,
-            "guard_bits": 3,
-            "passes": ["beforepipelining:size_datapath", "beforepipelining:rtl_legalize", "beforepipelining:unify_pipeline_stages"],
-        }
-        default_dict.update(kw)
-        return DefaultEntityArgTemplate(
-            **default_dict
-        )
-
-    def generate_scheme(self):
-        ## convert @p value from an input floating-point precision
-        #  @p in_precision to an output support format @p out_precision
-        io_precision = self.precision
-
-        # declaring main input variable
-        vx = self.implementation.add_input_signal("x", io_precision)
-        # rounding mode input
-        rnd_mode = self.implementation.add_input_signal("rnd_mode", rnd_mode_format)
-
+    def generate_bipartite_approx_module(self, vx):
+        """
+            vx input value
+        """
         # size of most significant table index (for linear slope tabulation)
         alpha = self.alpha # 6
         # size of medium significant table index (for initial value table index LSB)
@@ -224,14 +210,14 @@ class BipartiteApprox(ML_Entity("bipartite_approx")):
         )
 
 
-        alpha_index = get_fixed_slice(
+        alpha_index = self.get_fixed_slice(
             reduced_x, 0, alpha-1,
             align_hi=FixedPointPosition.FromMSBToLSB,
             align_lo=FixedPointPosition.FromMSBToLSB,
             tag="alpha_index",
             debug=debug_std
         )
-        gamma_index = get_fixed_slice(
+        gamma_index = self.get_fixed_slice(
             reduced_x, gamma-1, 0,
             align_hi=FixedPointPosition.FromLSBToLSB,
             align_lo=FixedPointPosition.FromLSBToLSB,
@@ -239,7 +225,7 @@ class BipartiteApprox(ML_Entity("bipartite_approx")):
             debug=debug_std
         )
 
-        beta_index = get_fixed_slice(
+        beta_index = self.get_fixed_slice(
             reduced_x, alpha, gamma,
             align_hi=FixedPointPosition.FromMSBToLSB,
             align_lo=FixedPointPosition.FromLSBToLSB,
@@ -253,7 +239,7 @@ class BipartiteApprox(ML_Entity("bipartite_approx")):
 
         f_msb = int(sollya.ceil(sollya.log2(f_absmax))) + 1
         f_lsb = int(sollya.floor(sollya.log2(f_absmin)))
-        storage_lsb = f_lsb - io_precision.get_bit_size() - guard_bits
+        storage_lsb = f_lsb - self.precision.get_bit_size() - guard_bits
 
         f_int_size = f_msb
         f_frac_size = -storage_lsb
@@ -377,15 +363,12 @@ class BipartiteApprox(ML_Entity("bipartite_approx")):
         final_add = initial_value + offset_value
         round_bit = final_add # + FixedPointPosition(final_add, io_precision.get_bit_size(), align=FixedPointPosition.FromMSBToLSB)
 
-        vr_out = Conversion(
+        result = Conversion(
             initial_value + offset_value,
-            precision=io_precision,
+            precision=self.precision,
             tag="vr_out",
             debug=debug_fixed
         )
-
-        self.implementation.add_output_signal("vr_out", vr_out)
-
         # Approximation error evaluation
         approx_error = 0.0
         for i in range(2**alpha):
@@ -407,6 +390,79 @@ class BipartiteApprox(ML_Entity("bipartite_approx")):
         table_iv_size = 2**(alpha+beta)
         table_offset_size = 2**(alpha+gamma)
         Log.report(Log.Verbose, "tables' size are {} entries".format(table_iv_size + table_offset_size)) 
+        return result
+
+class BipartiteApprox(ML_Entity("bipartite_approx"), GenericBipartiteApprox):
+    def __init__(self,
+             arg_template = DefaultEntityArgTemplate,
+             ):
+
+        # initializing base class
+        ML_EntityBasis.__init__(self,
+            arg_template = arg_template
+        )
+        self.pipelined = arg_template.pipelined
+        # function to be approximated
+        self.function = arg_template.function
+        # interval on which the approximation must be valid
+        self.interval = arg_template.interval
+
+        self.disable_sub_testing = arg_template.disable_sub_testing
+        self.disable_sv_testing = arg_template.disable_sv_testing
+
+        self.alpha = arg_template.alpha
+        self.beta = arg_template.beta
+        self.gamma = arg_template.gamma
+        self.guard_bits = arg_template.guard_bits
+
+    ## default argument template generation
+    @staticmethod
+    def get_default_args(**kw):
+        """ generate default argument structure for BipartiteApprox """
+        default_dict = {
+            "target": VHDLBackend(),
+            "output_file": "my_bipartite_approx.vhd",
+            "entity_name": "my_bipartie_approx",
+            "language": VHDL_Code,
+            "function": lambda x: 1.0 / x,
+            "interval": Interval(1, 2),
+            "pipelined": False,
+            "precision": fixed_point(1, 15, signed=False),
+            "disable_sub_testing": False,
+            "disable_sv_testing": False,
+            "alpha": 6,
+            "beta": 5,
+            "gamma": 5,
+            "guard_bits": 3,
+            "passes": ["beforepipelining:size_datapath", "beforepipelining:rtl_legalize", "beforepipelining:unify_pipeline_stages"],
+        }
+        default_dict.update(kw)
+        return DefaultEntityArgTemplate(
+            **default_dict
+        )
+
+    def get_fixed_slice(
+            self,
+            optree, hi, lo,
+            align_hi=FixedPointPosition.FromLSBToLSB,
+            align_lo=FixedPointPosition.FromLSBToLSB,
+            **optree_args):
+        return rtl_get_fixed_slice(optree, hi, lo, align_hi, align_lo, **optree_args)
+
+    def generate_scheme(self):
+        ## convert @p value from an input floating-point precision
+        #  @p in_precision to an output support format @p out_precision
+        io_precision = self.precision
+
+        # declaring main input variable
+        vx = self.implementation.add_input_signal("x", io_precision)
+        # rounding mode input
+        rnd_mode = self.implementation.add_input_signal("rnd_mode", rnd_mode_format)
+
+        vr_out = self.generate_bipartite_approx_module(vx )
+
+        self.implementation.add_output_signal("vr_out", vr_out)
+
 
         return [self.implementation]
 
@@ -457,6 +513,131 @@ class BipartiteApprox(ML_Entity("bipartite_approx")):
         ({"x": 1.0, "rnd_mode": 0}, None),
         ({"x": 1.5, "rnd_mode": 0}, None),
     ]
+
+
+
+class SoftBipartiteApprox(ML_FunctionBasis, GenericBipartiteApprox):
+    function_name = "bipartite_approx"
+    def __init__(self,
+             args = DefaultArgTemplate,
+             ):
+
+        # initializing base class
+        ML_FunctionBasis.__init__(self,
+            args=args
+        )
+        # function to be approximated
+        self.function = args.function
+        # interval on which the approximation must be valid
+        self.interval = args.interval
+
+        self.disable_sub_testing = args.disable_sub_testing
+        self.disable_sv_testing = args.disable_sv_testing
+
+        self.alpha = args.alpha
+        self.beta = args.beta
+        self.gamma = args.gamma
+        self.guard_bits = args.guard_bits
+
+    ## default argument template generation
+    @staticmethod
+    def get_default_args(**kw):
+        """ generate default argument structure for BipartiteApprox """
+        default_dict = {
+            "target": FixedPointBackend(),
+            "output_file": "my_bipartite_approx.c",
+            "entity_name": "my_bipartie_approx",
+            "language": C_Code,
+            "function": lambda x: 1.0 / x,
+            "interval": Interval(1, 2),
+            "pipelined": False,
+            "precision": fixed_point(1, 15, signed=False),
+            "disable_sub_testing": False,
+            "disable_sv_testing": False,
+            "alpha": 6,
+            "beta": 5,
+            "gamma": 5,
+            "guard_bits": 3,
+            "passes": ["start:size_datapath"],
+        }
+        default_dict.update(kw)
+        return DefaultArgTemplate(
+            **default_dict
+        )
+
+    def get_fixed_slice(
+            self,
+            optree, hi, lo,
+            align_hi=FixedPointPosition.FromLSBToLSB,
+            align_lo=FixedPointPosition.FromLSBToLSB,
+            **optree_args):
+        return sw_get_fixed_slice(optree, hi, lo, align_hi, align_lo, **optree_args)
+
+    def generate_scheme(self):
+        ## convert @p value from an input floating-point precision
+        #  @p in_precision to an output support format @p out_precision
+        io_precision = self.precision
+
+        # declaring main input variable
+        vx = self.implementation.add_input_variable("x", io_precision)
+
+        vr_out = self.generate_bipartite_approx_module(vx)
+
+        scheme = Statement(
+            Return(vr_out)
+        )
+
+        return scheme
+
+    def init_test_generator(self):
+        """ Initialize test case generator """
+        self.input_generator = FixedPointRandomGen(
+            int_size=self.precision.get_integer_size(),
+            frac_size=self.precision.get_frac_size(),
+            signed=self.precision.signed
+        )
+
+    def generate_test_case(self, input_signals, io_map, index, test_range = None):
+        """ specific test case generation for K1C TCA BLAU """
+        rnd_mode = 2 # random.randrange(4)
+
+        hi = sup(self.auto_test_range)
+        lo = inf(self.auto_test_range)
+        nb_step = int((hi - lo) * S2**self.precision.get_frac_size())
+        x_value = lo + (hi - lo) * random.randrange(nb_step) / nb_step
+        # self.input_generator.get_new_value()
+
+        input_values = {
+            "rnd_mode": rnd_mode,
+            "x": x_value,
+        }
+        return input_values
+
+    def numeric_emulate(self, io_map):
+        vx = io_map["x"]
+        rnd_mode_i = io_map["rnd_mode"]
+        rnd_mode = {
+            0: sollya.RN,
+            1: sollya.RU,
+            2: sollya.RD,
+            3: sollya.RZ
+        }[rnd_mode_i]
+        result = {}
+        result["vr_out"] = sollya.round(
+            self.function(vx),
+            self.precision.get_frac_size(),
+            rnd_mode
+        )
+        print("numeric_emulate, ", io_map, result)
+        return result
+
+
+    #standard_test_cases = [({"x": 1.0, "y": (S2**-11 + S2**-17)}, None)]
+    standard_test_cases = [
+        ({"x": 1.0, "rnd_mode": 0}, None),
+        ({"x": 1.5, "rnd_mode": 0}, None),
+    ]
+
 
 def global_eval(code):
     # FIXME: expose the full global context
