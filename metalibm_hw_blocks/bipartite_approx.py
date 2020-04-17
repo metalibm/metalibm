@@ -381,8 +381,8 @@ class GenericBipartiteApprox:
                     offset = table_offset[to_i] 
                     approx_value = offset + iv
                     table_x = range_lo + range_size * ((i * 2**beta + j) * 2**gamma + k) / S2**(alpha+beta+gamma)
-                    local_error = abs(1 / (table_x) - approx_value)
-                    approx_error = max(approx_error, local_error) 
+                    local_error = abs(self.function(table_x) - approx_value)
+                    approx_error = max(approx_error, local_error)
         error_log2 = float(sollya.log2(approx_error))
         Log.report(Log.Verbose, "approx_error is {}, error_log2 is {}".format(float(approx_error), error_log2))
 
