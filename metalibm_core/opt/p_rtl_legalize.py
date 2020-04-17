@@ -32,7 +32,10 @@ import sollya
 
 from metalibm_core.utility.log_report import Log
 
-from metalibm_core.core.passes import OptreeOptimization, Pass, LOG_PASS_INFO
+from metalibm_core.core.passes import (
+    OptreeOptimization, Pass, LOG_PASS_INFO,
+    FunctionPass, METALIBM_PASS_REGISTER,
+)
 
 from metalibm_core.core.ml_operations import (
     ML_LeafNode, Select, Conversion, Comparison, Min, Max
@@ -121,9 +124,9 @@ class Pass_RTLLegalize(OptreeOptimization):
     """ Legalization of RTL operations """
     pass_tag = "rtl_legalize"
 
-    def __init__(self, target):
+    def __init__(self, target, tag="rtl legalize"):
         """ pass initialization """
-        OptreeOptimization.__init__(self, "rtl_Legalize", target)
+        OptreeOptimization.__init__(self, tag, target)
         self.memoization_map = {}
         self.format_solver = FormatSolver()
 
@@ -147,13 +150,24 @@ class Pass_RTLLegalize(OptreeOptimization):
 
         local_changed, new_optree = legalize_single_operation(optree, self.format_solver)
 
-        self.memoization_map[optree] = new_optree 
+        self.memoization_map[optree] = new_optree
         return (local_changed or arg_changed), new_optree
 
 
     def execute(self, optree):
         """ pass execution """
         return self.legalize_operation_rec(optree)
+
+
+@METALIBM_PASS_REGISTER
+class Pass_SoftLegalize(Pass_RTLLegalize, FunctionPass):
+    pass_tag = "soft_legalize"
+    def __init__(self, target):
+        Pass_RTLLegalize.__init__(self, target, tag="legalize SW node")
+
+    def execute_on_optree(self, optree, fct, fct_group, memoization_map):
+        _, new_node = self.execute(optree)
+        return new_node
 
 Log.report(LOG_PASS_INFO, "Registering size_datapath pass")
 # register pass
