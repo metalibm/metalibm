@@ -258,15 +258,40 @@ FixedCastOperator = ComplexOperator(optree_modifier = fixed_cast_modifier, backu
 
 
 def is_cast_simplification_valid(dst_type, src_type, **kwords):
-  if not isinstance(dst_type, ML_Fixed_Format) or not isinstance(src_type, ML_Fixed_Format): return False
-  src_support_type = get_std_integer_support_format(src_type)
-  dst_support_type = get_std_integer_support_format(dst_type)
+    """ cast between two fixed-point are considered valid if the
+        size of their support format matches """
+    if not isinstance(dst_type, ML_Fixed_Format) or not isinstance(src_type, ML_Fixed_Format): return False
+    src_support_type = get_std_integer_support_format(src_type)
+    dst_support_type = get_std_integer_support_format(dst_type)
 
-  #return src_support_type.get_bit_size() == dst_support_type.get_bite_size()
-  return dst_type.get_c_bit_size() == src_type.get_c_bit_size()
+    #return src_support_type.get_bit_size() == dst_support_type.get_bite_size()
+    return dst_type.get_c_bit_size() == src_type.get_c_bit_size()
 
 def is_cast_simplification_invalid(dst_type, src_type, **kwords):
   return not is_cast_simplification_valid(dst_type, src_type, **kwords)
+
+def legalize_float2fix_copy_sign(node):
+    """ legalize CopySign node from floating-point to fixed-point """
+    op = node.get_input(0)
+    op_format = op.get_precision()
+    int_format = op_format.get_integer_format()
+    casted_node = TypeCast(op, precision=int_format)
+    shift = op_format.get_field_size() + op_format.get_exponent_size()
+    return Conversion(
+        BitLogicRightShift(
+            casted_node,
+            shift,
+            precision=int_format
+        ),
+        precision=node.get_precision())
+
+
+def legalize_float2fix_cast(node):
+    op = node.get_input(0)
+    return TypeCast(
+        TypeCast(op, precision=op.get_precision().get_base_format().get_integer_format()),
+        precision=node.get_precision()
+    )
 
 # class Match custom fixed point format
 MCFIPF = TCM(ML_Custom_FixedPoint_Format)
@@ -313,8 +338,14 @@ fixed_c_code_generation_table = {
           lambda optree: isinstance(optree.get_precision(), ML_Fixed_Format) and isinstance(optree.get_input(0).get_precision(), ML_Fixed_Format): {
               # type cast between two FixedPoint is the same as TypeCast between the support type
               is_cast_simplification_valid: IdentityOperator(force_folding = False, no_parenthesis = True),
-              #is_cast_simplification_invalid: IdentityOperator(),
+              # FIXME: arbitrary fix
+              is_cast_simplification_invalid: IdentityOperator(),
           },
+          lambda optree: not (isinstance(optree.get_precision(), ML_Fixed_Format) and isinstance(optree.get_input(0).get_precision(), ML_Fixed_Format)): {
+                type_custom_match(MCFIPF, FSM(ML_Binary32)):
+                    ComplexOperator(optree_modifier=legalize_float2fix_cast),
+
+          }
       },
   },
   Comparison: {
@@ -336,7 +367,22 @@ fixed_c_code_generation_table = {
                 ComplexOperator(optree_modifier=legalize_fixed_point_comparison),
         },
     },
+    Comparison.Equal: {
+        lambda optree: True: {
+            type_custom_match(FSM(ML_Bool), MCFIPF, MCFIPF):
+                ComplexOperator(optree_modifier=legalize_fixed_point_comparison),
+        },
+    },
   },
+    SpecificOperation: {
+        SpecificOperation.CopySign: {
+            lambda optree: True: {
+                type_custom_match(MCFIPF, FSM(ML_Binary32)):
+                    ComplexOperator(optree_modifier=legalize_float2fix_copy_sign),
+
+            }
+        }
+    },
 }
 
 fixed_gappa_code_generation_table = {
