@@ -588,7 +588,7 @@ class ML_EntityBasis(object):
     # generate scheme
     code_entity_list = self.generate_entity_list()
 
-    Log.report(Log.Info, "Applying passes just before pipelining")
+    Log.report(Log.Info, "Applying passes at start of generation")
     code_entity_list = self.pass_scheduler.get_full_execute_from_slot(
       code_entity_list,
       PassScheduler.Start,
