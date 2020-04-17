@@ -38,7 +38,8 @@ from metalibm_core.core.passes import (
 )
 
 from metalibm_core.core.ml_operations import (
-    ML_LeafNode, Select, Conversion, Comparison, Min, Max
+    ML_LeafNode, Select, Conversion, Comparison, Min, Max,
+    BitLogicRightShift, BitLogicAnd, Constant,
 )
 from metalibm_core.core.advanced_operations import FixedPointPosition
 from metalibm_core.core.ml_hdl_operations import SubSignalSelection
@@ -116,6 +117,29 @@ def legalize_single_operation(optree, format_solver=None):
         return True, new_optree
     return False, optree
 
+def sw_legalize_single_operation(optree, format_solver=None):
+    if isinstance(optree, SubSignalSelection):
+        pre_optree = subsignalsection_legalizer(optree)
+        new_optree = sw_legalize_subselection(pre_optree)
+        return True, new_optree
+    elif isinstance(optree, FixedPointPosition):
+        new_optree = fixed_point_position_legalizer(optree)
+        return True, new_optree
+    elif isinstance(optree, Select):
+        new_optree = legalize_Select(optree)
+        return True, new_optree
+    elif isinstance(optree, Comparison):
+        new_optree = legalize_Comparison(optree)
+        return True, new_optree
+    elif isinstance(optree, Min):
+        new_optree = minmax_legalizer_wrapper(Comparison.Less)(optree)
+        format_solver(new_optree)
+        return True, new_optree
+    elif isinstance(optree, Max):
+        new_optree = minmax_legalizer_wrapper(Comparison.Greater)(optree)
+        format_solver(new_optree)
+        return True, new_optree
+    return False, optree
 
 
 ## Legalize the precision of a datapath by finely tuning the size
@@ -148,22 +172,40 @@ class Pass_RTLLegalize(OptreeOptimization):
                     optree.set_input(index, new_node)
                     arg_changed = True
 
-        local_changed, new_optree = legalize_single_operation(optree, self.format_solver)
+        local_changed, new_optree = self.legalize_single_operation(optree, self.format_solver)
 
         self.memoization_map[optree] = new_optree
         return (local_changed or arg_changed), new_optree
 
+    def legalize_single_operation(self, node, format_solver):
+        return legalize_single_operation(node, format_solver)
 
     def execute(self, optree):
         """ pass execution """
         return self.legalize_operation_rec(optree)
 
+def sw_legalize_subselection(node):
+    """ legalize a RTL SubSignalSelection into
+        a sub-graph compatible with software implementation """
+    assert isinstance(node, SubSignalSelection)
+    op = node.get_input(0)
+    lo = node.get_input(1)
+    hi = node.get_input(2)
+    shift = lo
+    mask_size = hi-lo + 1
+    return BitLogicAnd(
+        BitLogicRightShift(op, shift),
+        Constant((2**mask_size - 1), precision=node.get_precision())
+        )
 
 @METALIBM_PASS_REGISTER
 class Pass_SoftLegalize(Pass_RTLLegalize, FunctionPass):
     pass_tag = "soft_legalize"
     def __init__(self, target):
         Pass_RTLLegalize.__init__(self, target, tag="legalize SW node")
+
+    def legalize_single_operation(self, node, format_solver):
+        return sw_legalize_single_operation(node, format_solver)
 
     def execute_on_optree(self, optree, fct, fct_group, memoization_map):
         _, new_node = self.execute(optree)
