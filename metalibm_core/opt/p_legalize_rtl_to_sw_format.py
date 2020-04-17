@@ -43,6 +43,8 @@ from metalibm_core.core.passes import FunctionPass, METALIBM_PASS_REGISTER
 from metalibm_core.utility.log_report import Log
 
 
+# high verbosity log-level for expand_multi_precision pass module
+LOG_LEVEL_LEGALIZE_RTL2SW = Log.LogLevel("LegalizeRTL2SWFormat")
 
 
 
@@ -61,7 +63,7 @@ class Pass_ExhaustiveSearch(FunctionPass):
             return self.memoization_map[optree]
         if not is_leaf_node(optree):
             for op in optree.inputs:
-                _ = self.execute_on_node(op)
+                _ = self.execute_on_optree(op, fct, fct_group, memoization_map)
         return self.execute_on_node(optree)
 
 SW_StdLogic = ML_Custom_FixedPoint_Format(1, 0, signed=False)
@@ -90,7 +92,7 @@ class Pass_LegalizeRTLtoSWFortmat(Pass_ExhaustiveSearch):
                 0,
                 signed=False)
         if not new_format is None:
-            Log.report(Log.Info, "translating RTL format {} to {}".format(node_format, new_format))
+            Log.report(LOG_LEVEL_LEGALIZE_RTL2SW, "translating RTL format {} to {}".format(node_format, new_format))
             node.set_precision(new_format)
         return new_format
 
