@@ -33,7 +33,7 @@ import operator
 
 from metalibm_core.utility.log_report import Log
 
-from metalibm_core.core.passes import OptreeOptimization, Pass, LOG_PASS_INFO
+from metalibm_core.core.passes import FunctionPass, Pass, LOG_PASS_INFO
 from metalibm_core.core.ml_operations import (
     Comparison, Addition, Select, Constant, ML_LeafNode, Conversion,
     Statement, ReferenceAssign, BitLogicNegate, Subtraction,
@@ -41,7 +41,9 @@ from metalibm_core.core.ml_operations import (
     BitArithmeticRightShift,
     TypeCast,
     Min, Max, CountLeadingZeros, Multiplication,
-    LogicalOr, LogicalAnd, LogicalNot
+    LogicalOr, LogicalAnd, LogicalNot,
+    Return,
+    BitLogicAnd, BitLogicOr, BitLogicXor,
 )
 from metalibm_core.core.advanced_operations import FixedPointPosition
 from metalibm_core.core.ml_hdl_operations import (
@@ -683,6 +685,11 @@ class FormatSolver:
                         str(optree.get_precision(display_precision=True))
                     )
                 )
+            elif isinstance(optree, Return):
+                # unmodified
+                new_format = optree.get_precision()
+            elif isinstance(optree, (BitLogicAnd, BitLogicOr, BitLogicXor)):
+                new_format = solve_format_bitwise_op(optree)
             else:
                 Log.report(
                     Log.Error,
@@ -707,18 +714,23 @@ class FormatSolver:
 
 ## Legalize the precision of a datapath by finely tuning the size
 #  of each operations (limiting width while preventing overflow)
-class Pass_SizeDatapath(OptreeOptimization):
+class Pass_SizeDatapath(FunctionPass):
     """ implementation of datapath sizing pass """
     pass_tag = "size_datapath"
 
     def __init__(self, target):
         """ pass initialization """
-        OptreeOptimization.__init__(self, "size_datapath", target)
+        FunctionPass.__init__(self, "size_datapath", target)
         self.format_solver = FormatSolver()
 
     def execute(self, optree):
-        """ pass execution """
+        """ pass execution,
+            API required to be executed on an ML_Entity """
         return self.format_solver.solve_format_rec(optree)
+
+    def execute_on_optree(self, optree, fct=None, fct_group=None, memoization_map=None):
+        """ Trampoline required by FunctionPass API """
+        return self.execute(optree)
 
 Log.report(LOG_PASS_INFO, "Registering size_datapath pass")
 # register pass
