@@ -378,7 +378,7 @@ class GenericBipartiteApprox:
                 iv = table_iv[tiv_i]
                 for k in range(2**gamma):
                     to_i = i * 2**gamma + k
-                    offset = table_offset[to_i] 
+                    offset = table_offset[to_i]
                     approx_value = offset + iv
                     table_x = range_lo + range_size * ((i * 2**beta + j) * 2**gamma + k) / S2**(alpha+beta+gamma)
                     local_error = abs(self.function(table_x) - approx_value)
