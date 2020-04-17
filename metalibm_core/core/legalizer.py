@@ -368,7 +368,7 @@ def generate_raw_exp_extraction(optree):
         }[optree.precision]
         #base_precision.get_integer_format()
     else:
-        base_precision = optree.precision
+        base_precision = optree.precision.get_base_format()
         int_precision = base_precision.get_integer_format()
     return generate_field_extraction(
         optree,
@@ -395,7 +395,7 @@ def generate_exp_extraction(optree):
         #base_precision.get_integer_format()
         bias_cst = [base_precision.get_bias()] * vector_size
     else:
-        base_precision = optree.precision
+        base_precision = optree.precision.get_base_format()
         int_precision = base_precision.get_integer_format()
         bias_cst = base_precision.get_bias()
     return Addition(
