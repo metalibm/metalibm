@@ -369,7 +369,7 @@ def solve_format_SignCast(optree):
         return unsigned_precision
     else:
         Log.report(Log.Error, "unknown specifier {} in solve_format_SignCast".format(optree.specifier))
-        
+
 def solve_format_TypeCast(optree, format_solver):
     """ Resolve the format for a TypeCast node """
     assert isinstance(optree, TypeCast)
@@ -405,6 +405,27 @@ def solve_format_shift(optree):
     else:
         return optree.get_precision()
 
+def determine_minimal_fixed_format_cst(value):
+    """ determine the minimal size format which can encode
+        exactly the constant value value """
+    # fixed-point format solving
+    frac_size = -1
+    FRAC_THRESHOLD = 100 # maximum number of frac bit to be tested
+    # TODO: fix
+    for i in range(FRAC_THRESHOLD):
+        if int(value*2**i) == value * 2**i:
+            frac_size = i
+            break
+    if frac_size < 0:
+        Log.report(Log.Error, "value {} is not an integer, from node:\n{}", value, optree)
+    abs_value = abs(value)
+    signed = value < 0
+    # int_size = max(int(sollya.ceil(sollya.log2(abs_value+2**frac_size))), 0) + (1 if signed else 0)
+    int_size = max(int(sollya.ceil(sollya.log2(abs_value + 1))), 0) + (1 if signed else 0)
+    if frac_size == 0 and int_size == 0:
+        int_size = 1
+    return fixed_point(int_size, frac_size, signed=signed)
+
 ## determine Constant node precision
 def solve_format_Constant(optree, input_prec_solver=None):
     """ Legalize Constant node """
@@ -422,23 +443,7 @@ def solve_format_Constant(optree, input_prec_solver=None):
         # if precision is already set (manually forced), returns it
         return optree.get_precision()
     else:
-        # fixed-point format solving
-        frac_size = -1
-        FRAC_THRESHOLD = 100 # maximum number of frac bit to be tested
-        # TODO: fix
-        for i in range(FRAC_THRESHOLD):
-            if int(value*2**i) == value * 2**i:
-                frac_size = i
-                break
-        if frac_size < 0:
-            Log.report(Log.Error, "value {} is not an integer, from node:\n{}", value, optree)
-        abs_value = abs(value)
-        signed = value < 0
-        # int_size = max(int(sollya.ceil(sollya.log2(abs_value+2**frac_size))), 0) + (1 if signed else 0)
-        int_size = max(int(sollya.ceil(sollya.log2(abs_value + 1))), 0) + (1 if signed else 0)
-        if frac_size == 0 and int_size == 0:
-            int_size = 1
-        return fixed_point(int_size, frac_size, signed=signed)
+        return determine_minimal_fixed_format_cst(value)
 
 def solve_format_FixedPointPosition(optree):
     """ resolve the format of a FixedPointPosition Node """
@@ -524,7 +529,9 @@ def format_does_fit(cst_optree, new_format):
     """ Test if @p cst_optree fits into the precision @p new_format """
     assert is_constant(cst_optree)
     assert is_fixed_point(new_format)
-    min_format = solve_format_Constant(cst_optree)
+    # min_format is a dummy format used simply to check
+    # if constant fits in new_format
+    min_format = determine_minimal_fixed_format_cst(cst_optree.get_value())
     sign_bias = 1 if (new_format.get_signed() and not min_format.get_signed()) \
         else 0
     return (new_format.get_integer_size() - sign_bias) >= \
