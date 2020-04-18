@@ -542,7 +542,7 @@ c_code_generation_table = {
                   [(
                     type_strict_match_list([ML_Int32, ML_Bool], [op_type], [op_type]),
                     SymbolOperator(c_comp_symbol[specifier], arity = 2)
-                  ) for op_type in [ML_Int32, ML_Int64, ML_UInt64, ML_UInt32, ML_Binary32, ML_Binary64]
+                  ) for op_type in [ML_UInt8, ML_Int8, ML_Int16, ML_UInt16, ML_Int32, ML_Int64, ML_UInt64, ML_UInt32, ML_Binary32, ML_Binary64]
                   ] + [
                   # mapping towards legalizer for multi-precision formats
                   (
