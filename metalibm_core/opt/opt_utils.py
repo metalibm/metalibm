@@ -54,7 +54,7 @@ LOG_VERBOSE_EVALUATE_RANGE = Log.LogLevel("EvaluateRangeVerbose")
 
 ## Assuming @p optree has no pre-defined range, recursively compute a range
 #  from the node inputs
-def evaluate_range(optree, update_interval=False):
+def evaluate_range(optree, update_interval=False, memoization_map=None):
     """ evaluate the range of an Operation node
 
         Args:
@@ -64,21 +64,25 @@ def evaluate_range(optree, update_interval=False):
             sollya Interval: evaluated range of optree or None if no range
                              could be determined
     """
+    if memoization_map is None:
+        memoization_map = {}
     init_interval = optree.get_interval()
     if not init_interval is None:
         return init_interval
     else:
-        if isinstance(optree, ML_LeafNode):
+        if optree in memoization_map:
+            return memoization_map[optree]
+        elif isinstance(optree, ML_LeafNode):
             op_range = optree.get_interval()
         elif is_comparison(optree):
             op_range = evaluate_comparison_range(optree)
             if update_interval: optree.set_interval(op_range)
         elif isinstance(optree, PlaceHolder):
-            op_range = evaluate_range(optree.get_input(0), update_interval=update_interval)
+            op_range = evaluate_range(optree.get_input(0), update_interval=update_interval, memoization_map=memoization_map)
             if update_interval: optree.set_interval(op_range)
         else:
             args_interval = tuple(
-                evaluate_range(op, update_interval=update_interval) for op in
+                evaluate_range(op, update_interval=update_interval, memoization_map=memoization_map) for op in
                 optree.get_inputs()
             )
             args_interval_map = {op: op_interval for op, op_interval in zip(optree.inputs, args_interval)} 
@@ -88,6 +92,7 @@ def evaluate_range(optree, update_interval=False):
             op_range = optree.range_function(optree.inputs, ops_interval_getter=lambda op: args_interval_map[op])
             if update_interval: optree.set_interval(op_range)
         Log.report(LOG_VERBOSE_EVALUATE_RANGE, "range of {} is {}", optree, op_range)
+        memoization_map[optree] = op_range
         return op_range
 
 
