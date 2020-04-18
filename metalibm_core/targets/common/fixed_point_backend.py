@@ -124,7 +124,7 @@ def conv_modifier(optree):
 
   Log.report(Log.Verbose, "in_format is %s | in_sformat is %s" % (in_format, in_sformat))
   Log.report(Log.Verbose, "out_format is %s | out_sformat is %s" % (out_format, out_sformat))
-  # conversion when the output format is large than the input format
+  # conversion when the output format is larger than the input format
   if in_format == out_format:
     result = optree
   if out_sformat.get_bit_size() >= in_sformat.get_bit_size():
@@ -273,14 +273,17 @@ def is_cast_simplification_invalid(dst_type, src_type, **kwords):
 def legalize_float2fix_copy_sign(node):
     """ legalize CopySign node from floating-point to fixed-point """
     op = node.get_input(0)
-    op_format = op.get_precision()
+    op_format = op.get_precision().get_base_format()
     int_format = op_format.get_integer_format()
     casted_node = TypeCast(op, precision=int_format)
     shift = op_format.get_field_size() + op_format.get_exponent_size()
+    assert shift <= 64
+    # TODO/FIXME: shift should be implemented on top of unsigned format
+    # to ensure logical shift behavior (and not arihmetic shift)
     return Conversion(
         BitLogicRightShift(
             casted_node,
-            shift,
+            Constant(shift, precision=int_format),
             precision=int_format
         ),
         precision=node.get_precision())
@@ -293,8 +296,24 @@ def legalize_float2fix_cast(node):
         precision=node.get_precision()
     )
 
+def legalize_fix2float_cast(node):
+    op = node.get_input(0)
+    return TypeCast(
+        TypeCast(op, precision=node.get_precision().get_base_format().get_integer_format()),
+        precision=node.get_precision()
+    )
+
 # class Match custom fixed point format
 MCFIPF = TCM(ML_Custom_FixedPoint_Format)
+
+def match_specific_fixed_point_format(int_size, frac_size, is_signed):
+    def match_fct(candidate_format):
+        return MCFIPF(candidate_format) and candidate_format.get_integer_size() == int_size and \
+               candidate_format.get_frac_size() == frac_size and candidate_format.get_signed() == is_signed
+    return match_fct
+
+# alis
+MSFPF = match_specific_fixed_point_format
 
 fixed_c_code_generation_table = {
   Addition: {
@@ -329,8 +348,15 @@ fixed_c_code_generation_table = {
             ComplexOperator(optree_modifier=conv_from_fp_modifier),
         type_custom_match(FSM(ML_Binary64), MCFIPF):
             ComplexOperator(optree_modifier=conv_fixed_to_fp_modifier),
-      },
 
+      },
+      lambda optree: True: {
+        # TODO/FIXME: dirty
+        type_custom_match(MCFIPF, FSM(ML_Int32)):
+            IdentityOperator(),
+        type_custom_match(MSFPF(1, 0, False), FSM(ML_Bool)):
+            TemplateOperator(" %s ? 1 : 0 ", arity=1),
+      },
     },
   },
   TypeCast: {
@@ -344,6 +370,8 @@ fixed_c_code_generation_table = {
           lambda optree: not (isinstance(optree.get_precision(), ML_Fixed_Format) and isinstance(optree.get_input(0).get_precision(), ML_Fixed_Format)): {
                 type_custom_match(MCFIPF, FSM(ML_Binary32)):
                     ComplexOperator(optree_modifier=legalize_float2fix_cast),
+                type_custom_match(FSM(ML_Binary32), MCFIPF):
+                    ComplexOperator(optree_modifier=legalize_fix2float_cast),
 
           }
       },
@@ -361,7 +389,19 @@ fixed_c_code_generation_table = {
                 ComplexOperator(optree_modifier=legalize_fixed_point_comparison),
         },
     },
+    Comparison.Greater: {
+        lambda optree: True: {
+            type_custom_match(FSM(ML_Bool), MCFIPF, MCFIPF):
+                ComplexOperator(optree_modifier=legalize_fixed_point_comparison),
+        },
+    },
     Comparison.LessOrEqual: {
+        lambda optree: True: {
+            type_custom_match(FSM(ML_Bool), MCFIPF, MCFIPF):
+                ComplexOperator(optree_modifier=legalize_fixed_point_comparison),
+        },
+    },
+    Comparison.Less: {
         lambda optree: True: {
             type_custom_match(FSM(ML_Bool), MCFIPF, MCFIPF):
                 ComplexOperator(optree_modifier=legalize_fixed_point_comparison),
@@ -382,6 +422,81 @@ fixed_c_code_generation_table = {
 
             }
         }
+    },
+    BitLogicLeftShift: {
+        None: {
+            lambda _: True: {
+            type_custom_match(MCFIPF, MCFIPF, MCFIPF):
+                SymbolOperator("<<", arity=2),
+            },
+        },
+    },
+    # TODO/FIXME: should make sure right logic shifts are implemented
+    # over unsigned support format
+    BitLogicRightShift: {
+        None: {
+            lambda _: True: {
+            type_custom_match(MCFIPF, MCFIPF, MCFIPF):
+                SymbolOperator(">>", arity=2),
+            },
+        },
+    },
+    # TODO/FIXME: should make sure arithmetic shifts are implemented
+    # over signed support format
+    BitArithmeticRightShift: {
+        None: {
+            lambda _: True: {
+            type_custom_match(MCFIPF, MCFIPF, MCFIPF):
+                SymbolOperator(">>", arity=2),
+            },
+        },
+    },
+    BitLogicOr: {
+        None: {
+            lambda _: True: {
+            type_custom_match(MCFIPF, MCFIPF, MCFIPF):
+                SymbolOperator("|", arity=2),
+            },
+        },
+    },
+    BitLogicAnd: {
+        None: {
+            lambda _: True: {
+            type_custom_match(MCFIPF, MCFIPF, MCFIPF):
+                SymbolOperator("&", arity=2),
+            },
+        },
+    },
+    BitLogicXor: {
+        None: {
+            lambda _: True: {
+            type_custom_match(MCFIPF, MCFIPF, MCFIPF):
+                SymbolOperator("^", arity=2),
+            },
+        },
+    },
+    Select: {
+        None: {
+            lambda _: True: {
+            type_custom_match(MCFIPF, FSM(ML_Bool), MCFIPF, MCFIPF):
+                TemplateOperator(" %s ? %s : %s ", arity=3),
+            # TODO/FIXME: could be moved into generic processor target
+            type_strict_match(ML_Bool, ML_Bool, ML_Bool, ML_Bool):
+                TemplateOperator(" %s ? %s : %s ", arity=3),
+            },
+        },
+    },
+    CountLeadingZeros: {
+        None: {
+            lambda optree: (optree.get_precision().get_bit_size() <= 32): {
+                type_custom_match(MCFIPF, MCFIPF):
+                    FunctionOperator("__builtin_clz", arity = 1), 
+            },
+            lambda optree: (32 < optree.get_precision().get_bit_size() <= 64): {
+                type_custom_match(MCFIPF, MCFIPF):
+                    FunctionOperator("__builtin_clzl", arity = 1), 
+            },
+        },
     },
 }
 
