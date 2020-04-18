@@ -40,10 +40,15 @@ from metalibm_core.core.passes import (
 from metalibm_core.core.ml_operations import (
     ML_LeafNode, Select, Conversion, Comparison, Min, Max,
     BitLogicRightShift, BitLogicAnd, Constant,
+    BitLogicOr, BitLogicLeftShift, VectorElementSelection,
+    TypeCast,
 )
 from metalibm_core.core.advanced_operations import FixedPointPosition
-from metalibm_core.core.ml_hdl_operations import SubSignalSelection
+from metalibm_core.core.ml_hdl_operations import (
+    SubSignalSelection, Concatenation
+)
 from metalibm_core.core.ml_hdl_format import is_fixed_point
+from metalibm_core.core.ml_formats import ML_Custom_FixedPoint_Format
 
 from metalibm_core.opt.p_size_datapath import (
     solve_format_Comparison, FormatSolver
@@ -54,12 +59,16 @@ from metalibm_core.core.legalizer import (
     minmax_legalizer_wrapper
 )
 
+from metalibm_core.opt.opt_utils import forward_attributes
+
 ###############################################################################
 # PASS DESCRIPTION:
 # The pass implemented in this file processes an optree and  legalize every
 # supported node
 # the output format
 ###############################################################################
+
+LOG_LEVEL_LEGALIZE = Log.LogLevel("LegalizeVerbose")
 
 def legalize_Select(optree):
     """ legalize Select operation node by converting if and else inputs to
@@ -120,7 +129,10 @@ def legalize_single_operation(optree, format_solver=None):
 def sw_legalize_single_operation(optree, format_solver=None):
     if isinstance(optree, SubSignalSelection):
         pre_optree = subsignalsection_legalizer(optree)
-        new_optree = sw_legalize_subselection(pre_optree)
+        if not pre_optree is optree:
+            _, new_optree = sw_legalize_single_operation(pre_optree)
+        else:
+            new_optree = sw_legalize_subselection(pre_optree)
         return True, new_optree
     elif isinstance(optree, FixedPointPosition):
         new_optree = fixed_point_position_legalizer(optree)
@@ -139,6 +151,13 @@ def sw_legalize_single_operation(optree, format_solver=None):
         new_optree = minmax_legalizer_wrapper(Comparison.Greater)(optree)
         format_solver(new_optree)
         return True, new_optree
+    elif isinstance(optree, Concatenation):
+        new_optree = sw_legalize_concatenation(optree)
+        return True, new_optree
+    elif isinstance(optree, VectorElementSelection):
+        if not optree.get_input(0).get_precision().is_vector_format():
+            new_optree = sw_legalize_vector_element_selection(optree)
+            return True, new_optree
     return False, optree
 
 
@@ -158,7 +177,7 @@ class Pass_RTLLegalize(OptreeOptimization):
         """ """
         # looking into memoization map
         if optree in self.memoization_map:
-            return False, self.memoization_map[optree]
+            return self.memoization_map[optree]
 
         # has the npde been modified ?
         arg_changed = False
@@ -173,8 +192,11 @@ class Pass_RTLLegalize(OptreeOptimization):
                     arg_changed = True
 
         local_changed, new_optree = self.legalize_single_operation(optree, self.format_solver)
+        if local_changed:
+            forward_attributes(optree, new_optree)
+            Log.report(LOG_LEVEL_LEGALIZE, "legalized {} to {}", optree, new_optree)
 
-        self.memoization_map[optree] = new_optree
+        self.memoization_map[optree] = local_changed, new_optree
         return (local_changed or arg_changed), new_optree
 
     def legalize_single_operation(self, node, format_solver):
@@ -184,19 +206,73 @@ class Pass_RTLLegalize(OptreeOptimization):
         """ pass execution """
         return self.legalize_operation_rec(optree)
 
+
+def generate_bitfield_extraction(target_format, input_node, lo_index, hi_index):
+    shift = lo_index
+    mask_size = hi_index - lo_index + 1
+
+    input_format = input_node.get_precision().get_base_format()
+    if is_fixed_point(input_format):
+        frac_size = input_format.get_frac_size()
+        int_size = target_format.get_bit_size() - frac_size
+        conv_format = ML_Custom_FixedPoint_Format(
+            int_size, frac_size, signed=False)
+    else:
+        conv_format = None
+
+    raw_format = ML_Custom_FixedPoint_Format(target_format.get_bit_size(), 0, signed=False)
+
+    casted_node = TypeCast(
+        input_node if conv_format is None else Conversion(
+            input_node, 
+            precision=conv_format
+        ),
+        precision=raw_format
+    )
+    shifted_node = casted_node if shift == 0 else BitLogicRightShift(casted_node, shift, precision=raw_format)
+        
+    return TypeCast(
+        BitLogicAnd(
+            shifted_node,
+            Constant((2**mask_size - 1), precision=raw_format),
+            precision=raw_format
+        ),
+        precision=target_format
+    )
+
 def sw_legalize_subselection(node):
     """ legalize a RTL SubSignalSelection into
         a sub-graph compatible with software implementation """
     assert isinstance(node, SubSignalSelection)
     op = node.get_input(0)
-    lo = node.get_input(1)
-    hi = node.get_input(2)
-    shift = lo
-    mask_size = hi-lo + 1
-    return BitLogicAnd(
-        BitLogicRightShift(op, shift),
-        Constant((2**mask_size - 1), precision=node.get_precision())
-        )
+    lo = node.get_input(1).get_value()
+    hi = node.get_input(2).get_value()
+    return generate_bitfield_extraction(node.get_precision(), op, lo, hi)
+
+def sw_legalize_concatenation(node):
+    """ Legalize a RTL Concatenation node into a sub-graph
+        of operation compatible with software implementation """
+    assert len(node.inputs) == 2
+    lhs = node.get_input(0)
+    rhs = node.get_input(1)
+    return BitLogicOr(
+        BitLogicLeftShift(
+            Conversion(lhs, precision=node.get_precision()),
+            rhs.get_precision().get_bit_size(), precision=node.get_precision()),
+        Conversion(rhs, precision=node.get_precision()),
+        precision=node.get_precision()
+    )
+
+def sw_legalize_vector_element_selection(node):
+    """ Legalize a RTL VectorElementSelection node, if it correspond to a bit selection
+        into a sub-graph of operation compatible with software implementation """
+    assert len(node.inputs) == 2
+    op = node.get_input(0)
+    assert not op.get_precision().is_vector_format() 
+    assert isinstance(node.get_input(1), Constant)
+    index = node.get_input(1).get_value()
+    return generate_bitfield_extraction(node.get_precision(), op, index, index)
+
 
 @METALIBM_PASS_REGISTER
 class Pass_SoftLegalize(Pass_RTLLegalize, FunctionPass):
