@@ -35,6 +35,8 @@ from metalibm_core.core.ml_hdl_format import (
 )
 import metalibm_core.core.ml_hdl_format as ml_hdl_format
 
+from metalibm_core.core.ml_table import ML_TableFormat
+
 from metalibm_core.core.ml_operations import (
     is_leaf_node
 )
@@ -60,13 +62,32 @@ class Pass_ExhaustiveSearch(FunctionPass):
 
     def execute_on_optree(self, optree, fct, fct_group, memoization_map):
         if optree in memoization_map:
-            return self.memoization_map[optree]
+            return memoization_map[optree]
         if not is_leaf_node(optree):
             for op in optree.inputs:
                 _ = self.execute_on_optree(op, fct, fct_group, memoization_map)
-        return self.execute_on_node(optree)
+        result = self.execute_on_node(optree)
+        memoization_map[optree] = result
+        return result
 
 SW_StdLogic = ML_Custom_FixedPoint_Format(1, 0, signed=False)
+
+def legalize_rtl_to_sw_format(node_format):
+    new_format = node_format
+    if node_format is ml_hdl_format.ML_StdLogic:
+        new_format = SW_StdLogic
+    elif isinstance(node_format, RTL_FixedPointFormat):
+        new_format = ML_Custom_FixedPoint_Format(
+            node_format.get_integer_size(),
+            node_format.get_frac_size(),
+            signed=node_format.get_signed()
+        )
+    elif isinstance(node_format, ML_StdLogicVectorFormat):
+        new_format = ML_Custom_FixedPoint_Format(
+            node_format.get_bit_size(),
+            0,
+            signed=False)
+    return new_format
 
 @METALIBM_PASS_REGISTER
 class Pass_LegalizeRTLtoSWFortmat(Pass_ExhaustiveSearch):
@@ -79,18 +100,17 @@ class Pass_LegalizeRTLtoSWFortmat(Pass_ExhaustiveSearch):
         node_format = node.get_precision()
         new_format = None
         if node_format is ml_hdl_format.ML_StdLogic:
-            new_format = SW_StdLogic
+            new_format = legalize_rtl_to_sw_format(node_format)
+        elif isinstance(node_format, ML_TableFormat):
+            storage_format = node_format.get_storage_precision()
+            new_storage_format = legalize_rtl_to_sw_format(storage_format)
+            node_format.set_storage_precision(new_storage_format)
+            Log.report(Log.Info, "translating RTL storage format from {} to {}".format(storage_format, new_storage_format))
+            Log.report(Log.Info, "translating RTL table format to {}, {}".format(node.get_precision(), node.get_precision().get_storage_precision()))
         elif isinstance(node_format, RTL_FixedPointFormat):
-            new_format = ML_Custom_FixedPoint_Format(
-                node_format.get_integer_size(),
-                node_format.get_frac_size(),
-                signed=node_format.get_signed()
-            )
+            new_format = legalize_rtl_to_sw_format(node_format)
         elif isinstance(node_format, ML_StdLogicVectorFormat):
-            new_format = ML_Custom_FixedPoint_Format(
-                node_format.get_bit_size(),
-                0,
-                signed=False)
+            new_format = legalize_rtl_to_sw_format(node_format)
         if not new_format is None:
             Log.report(LOG_LEVEL_LEGALIZE_RTL2SW, "translating RTL format {} to {}".format(node_format, new_format))
             node.set_precision(new_format)
