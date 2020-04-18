@@ -125,6 +125,8 @@ class ML_Table(ML_LeafNode):
         self.dimensions = dimensions
         self.storage_precision = storage_precision
 
+        self._interval = None
+
         self.empty = empty
 
         self.index = -1
@@ -141,6 +143,8 @@ class ML_Table(ML_LeafNode):
         return self.empty
 
     def get_storage_precision(self):
+        # TODO/FIXME: dangerous, no redirection towards precision.storage_precision
+        # which could have been modified (e.g. legalize_rtl_to_sw_format)
         return self.storage_precision
 
     def get_precision(self):
@@ -171,6 +175,14 @@ class ML_Table(ML_LeafNode):
 
     ## return the interval containing each value of the Table
     def get_interval(self):
+        # TODO/FIXME: lazy computation of interval could
+        # skip value update if get_interval is called twice
+        # and table's values are changed in between
+        if self._interval is None:
+            self._interval = self.compute_interval()
+        return self._interval
+
+    def compute_interval(self):
         def build_range_set(dimensions, prefix = []):
           """ construct a range containing each value in dimensions """
           return itertools.product(*[range(d) for d in dimensions])
@@ -266,6 +278,9 @@ class ML_NewTable(ML_Table):
 
   def get_precision(self):
     return self.precision
+
+  def get_storage_precision(self):
+    return self.precision.get_storage_precision()
 
   def get_precision_as_pointer_format(self):
     return ML_Pointer_Format(self.precision.storage_precision)
