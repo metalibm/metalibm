@@ -1145,10 +1145,14 @@ def is_std_unsigned_integer_format(precision):
             (not precision.get_signed()))
   #return precision in [ ML_UInt8, ML_UInt16, ML_UInt32, ML_UInt64, ML_UInt128 ]
 
+def is_fixed_table_index_format(candidate_format):
+    return isinstance(candidate_format, ML_Base_FixedPoint_Format) and candidate_format.get_frac_size() == 0
+
 def is_table_index_format(precision):
     """ Predicate to test if <precision> can be used as table index format """
-    return isinstance(precision, ML_Standard_FixedPoint_Format) or \
-           isinstance(precision.get_match_format(), ML_Standard_FixedPoint_Format) and \
+    return (isinstance(precision, ML_Standard_FixedPoint_Format) or \
+           isinstance(precision.get_match_format(), ML_Standard_FixedPoint_Format) or \
+           is_fixed_table_index_format(precision.get_match_format())) and \
            not precision.is_vector_format()
 
 def get_std_integer_support_format(precision):
