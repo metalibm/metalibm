@@ -48,7 +48,7 @@ from metalibm_core.core.ml_hdl_operations import (
     SubSignalSelection, Concatenation
 )
 from metalibm_core.core.ml_hdl_format import is_fixed_point
-from metalibm_core.core.ml_formats import ML_Custom_FixedPoint_Format
+from metalibm_core.core.ml_formats import ML_Custom_FixedPoint_Format, ML_Int32
 
 from metalibm_core.opt.p_size_datapath import (
     solve_format_Comparison, FormatSolver
@@ -212,33 +212,52 @@ def generate_bitfield_extraction(target_format, input_node, lo_index, hi_index):
     mask_size = hi_index - lo_index + 1
 
     input_format = input_node.get_precision().get_base_format()
-    if is_fixed_point(input_format):
-        frac_size = input_format.get_frac_size()
-        int_size = target_format.get_bit_size() - frac_size
-        conv_format = ML_Custom_FixedPoint_Format(
+    if is_fixed_point(input_format) and is_fixed_point(target_format):
+        frac_size = target_format.get_frac_size()
+        int_size = input_format.get_bit_size() - frac_size
+        cast_format = ML_Custom_FixedPoint_Format(
             int_size, frac_size, signed=False)
     else:
-        conv_format = None
+        cast_format = None
 
-    raw_format = ML_Custom_FixedPoint_Format(target_format.get_bit_size(), 0, signed=False)
-
-    casted_node = TypeCast(
-        input_node if conv_format is None else Conversion(
-            input_node, 
-            precision=conv_format
-        ),
+    # 1st step: shifting the input node the right amount
+    shifted_node = input_node if shift == 0 else BitLogicRightShift(input_node, Constant(shift, precision=ML_Int32), precision=input_format)
+    raw_format = ML_Custom_FixedPoint_Format(input_format.get_bit_size(), 0, signed=False)
+    # 2nd step: masking the input node
+    # TODO/FIXME: check thast mask does not overflow or wrap-around
+    masked_node = BitLogicAnd(
+        TypeCast(shifted_node, precision=raw_format),
+        Constant((2**mask_size - 1), precision=raw_format),
         precision=raw_format
     )
-    shifted_node = casted_node if shift == 0 else BitLogicRightShift(casted_node, shift, precision=raw_format)
-        
-    return TypeCast(
-        BitLogicAnd(
-            shifted_node,
-            Constant((2**mask_size - 1), precision=raw_format),
-            precision=raw_format
-        ),
-        precision=target_format
-    )
+
+    if not cast_format is None:
+        casted_node = TypeCast(masked_node, precision=cast_format)
+    else:
+        casted_node = masked_node
+
+    converted_node = Conversion(casted_node, precision=target_format)
+    return converted_node
+
+    # raw_format = ML_Custom_FixedPoint_Format(target_format.get_bit_size(), 0, signed=False)
+
+    # casted_node = TypeCast(
+    #     input_node if conv_format is None else Conversion(
+    #         input_node,
+    #         precision=conv_format
+    #     ),
+    #     precision=raw_format
+    # )
+    # shifted_node = casted_node if shift == 0 else BitLogicRightShift(casted_node, shift, precision=raw_format)
+    #     
+    # return TypeCast(
+    #     BitLogicAnd(
+    #         shifted_node,
+    #         Constant((2**mask_size - 1), precision=raw_format),
+    #         precision=raw_format
+    #     ),
+    #     precision=target_format
+    # )
 
 def sw_legalize_subselection(node):
     """ legalize a RTL SubSignalSelection into
