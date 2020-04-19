@@ -1276,7 +1276,9 @@ class ML_FunctionBasis(object):
       for i, test_case in enumerate(non_random_test_cases):
         input_list = []
         for in_id in range(self.arity):
-          input_value = self.get_input_precision(in_id).round_sollya_object(test_case[in_id], sollya.RN)
+          input_value = test_case[in_id]
+          if not FP_SpecialValue.is_special_value(input_value):
+            input_value = self.get_input_precision(in_id).round_sollya_object(input_value, sollya.RN)
           input_list.append(input_value)
         test_case_list.append(tuple(input_list))
 
