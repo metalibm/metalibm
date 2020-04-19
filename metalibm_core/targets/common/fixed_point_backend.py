@@ -510,6 +510,8 @@ fixed_c_code_generation_table = {
             lambda _: True: {
             type_custom_match(MCFIPF, MCFIPF, MCFIPF):
                 SymbolOperator(">>", arity=2),
+            type_custom_match(MCFIPF, MCFIPF, FSM(ML_Int32)):
+                SymbolOperator(">>", arity=2),
             },
         },
     },
