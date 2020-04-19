@@ -461,8 +461,22 @@ class FP_PlusZero(FP_SpecialValue):
     return "+0"
   def __neg__(self):
     return FP_MinusZero(self.precision)
+  def get_c_cst(self):
+    if self.precision.get_bit_size() == 32:
+        return "0.f"
+    elif self.precision.get_bit_size() == 64:
+        return "0."
+    else:
+        return super().get_c_cst()
 class FP_MinusZero(FP_SpecialValue):
   ml_support_name = "_sv_MinusZero"
+  def get_c_cst(self):
+    if self.precision.get_bit_size() == 32:
+        return "-0.f"
+    elif self.precision.get_bit_size() == 64:
+        return "-0."
+    else:
+        return super().get_c_cst()
   def get_integer_coding(self):
     sign = 1
     field_size = self.get_base_precision().get_field_size()
