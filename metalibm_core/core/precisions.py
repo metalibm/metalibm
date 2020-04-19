@@ -39,8 +39,11 @@ from .ml_operations import (
     LogicalAnd, LogicalNot,
     LogicalOr, NotEqual,
     Select, Equal,
-    Comparison, FunctionObject, Min, Abs, Subtraction, Division)
+    Comparison, FunctionObject, Min, Abs, Subtraction, Division,
+    TypeCast)
 from metalibm_core.code_generation.generator_utility import *
+
+from metalibm_core.core.special_values import FP_SpecialValue
 
 ml_infty = sollya.parse("infty")
 
@@ -120,8 +123,8 @@ class ML_TwoFactorPrecision(ML_FunctionPrecision):
         # raise unexpected NaNs as failure)
         success_test = LogicalOr(
             LogicalAnd(
-              Comparison(test_result, low_bound, specifier=Comparison.GreaterOrEqual),
-              Comparison(test_result, high_bound, specifier=Comparison.LessOrEqual)
+                Comparison(test_result, low_bound, specifier=Comparison.GreaterOrEqual),
+                Comparison(test_result, high_bound, specifier=Comparison.LessOrEqual)
             ),
             # NaN comparison
             LogicalAnd(
@@ -131,6 +134,7 @@ class ML_TwoFactorPrecision(ML_FunctionPrecision):
                 ),
                 NotEqual(test_result, test_result)
             )
+            # exact zero comparison
         )
         failure_test = LogicalNot(success_test)
         return failure_test
@@ -156,8 +160,11 @@ class ML_CorrectlyRounded(ML_FunctionPrecision):
   def get_num_output_value(self):
     return 1
   def get_output_check_value(self, exact_value):
-    expected_value = self.precision.round_sollya_object(exact_value, sollya.RN)
-    return (expected_value,)
+    if FP_SpecialValue.is_special_value(exact_value):
+        return (exact_value, )
+    else:
+        expected_value = self.precision.round_sollya_object(exact_value, sollya.RN)
+        return (expected_value,)
 
   def compute_error(self, local_result, output_values, relative = False):
     precision = local_result.get_precision()
@@ -179,13 +186,28 @@ class ML_CorrectlyRounded(ML_FunctionPrecision):
     expected_value,  = stored_outputs
     nan_expected = NotEqual(expected_value, expected_value)
     nan_detected = NotEqual(test_result, test_result)
-    failure_test = LogicalAnd(
-        Comparison(
-          test_result,
-          expected_value,
-          specifier = Comparison.NotEqual
+    from metalibm_core.utility.debug_utils import debug_multi
+    # zero expected use cases
+    zero_expected = Equal(expected_value, 0, tag="zero_expected", debug=debug_multi)
+
+    int_format = test_result.get_precision().get_integer_format()
+    bitexact_comparison = Equal(
+        TypeCast(test_result, precision=int_format),
+        TypeCast(expected_value, precision=int_format),
+    )
+    failure_test = LogicalOr(
+        LogicalOr(
+            Comparison(
+              test_result,
+              expected_value,
+              specifier=Comparison.NotEqual,
+              tag="value_failure",
+              debug=debug_multi
+            ),
+            LogicalAnd(nan_expected, LogicalNot(nan_detected), tag="nan_failure", debug=debug_multi)
         ),
-        LogicalAnd(nan_expected, LogicalNot(nan_detected))
+        # bit exact zero comparison
+        LogicalAnd(zero_expected, LogicalNot(bitexact_comparison))
     )
     return failure_test
   def get_output_print_function(self, function_name, footer="\\n"):
