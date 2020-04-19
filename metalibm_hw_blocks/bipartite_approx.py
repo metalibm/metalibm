@@ -149,7 +149,7 @@ def sw_get_fixed_slice(
     mask_size = real_hi-real_lo + 1
     print("mask_size={}, shift={}".format(mask_size, shift))
     return BitLogicAnd(
-        BitLogicRightShift(optree, shift), 
+        BitLogicRightShift(optree, Constant(shift, precision=ML_Int32)),
         Constant((2**mask_size - 1) * 2**-optree_format.get_frac_size(), precision=optree_format)
         , **optree_args)
 
@@ -175,10 +175,15 @@ class GenericBipartiteApprox:
             **optree_args):
         raise NotImplementedError
 
+    def get_debug_utils(self):
+        """ return debug_fixed, debug_std """
+        raise NotImplementedError
+
     def generate_bipartite_approx_module(self, vx):
         """
             vx input value
         """
+        debug_fixed, debug_std = self.get_debug_utils()
         # size of most significant table index (for linear slope tabulation)
         alpha = self.alpha # 6
         # size of medium significant table index (for initial value table index LSB)
@@ -263,8 +268,8 @@ class GenericBipartiteApprox:
             debug=debug_std
         )
 
-        tiv_index_size = alpha + beta
-        to_index_size = alpha + gamma
+        tiv_index_size = int(alpha + beta)
+        to_index_size = int(alpha + gamma)
 
         Log.report(Log.Info, "initial table structures")
         table_iv = ML_NewTable(
@@ -304,11 +309,13 @@ class GenericBipartiteApprox:
             table_iv[i] = initial_value
 
         # determining table of initial value interval
-        tiv_min = table_iv[0]
-        tiv_max = table_iv[0]
-        for i in range(1, 2**tiv_index_size):
-            tiv_min = min(tiv_min, table_iv[i])
-            tiv_max = max(tiv_max, table_iv[i])
+        #tiv_min = table_iv[0]
+        #tiv_max = table_iv[0]
+        #for i in range(1, 2**tiv_index_size):
+        #    tiv_min = min(tiv_min, table_iv[i])
+        #    tiv_max = max(tiv_max, table_iv[i])
+        tiv_min = min(table_iv)
+        tiv_max = max(table_iv)
         table_iv.set_interval(Interval(tiv_min, tiv_max))
 
 
@@ -414,6 +421,10 @@ class BipartiteApprox(ML_Entity("bipartite_approx"), GenericBipartiteApprox):
         self.beta = arg_template.beta
         self.gamma = arg_template.gamma
         self.guard_bits = arg_template.guard_bits
+
+    def get_debug_utils(self):
+        """ return debug_fixed, debug_std """
+        return debug_fixed, debug_std
 
     ## default argument template generation
     @staticmethod
@@ -538,6 +549,10 @@ class SoftBipartiteApprox(ML_FunctionBasis, GenericBipartiteApprox):
         self.beta = args.beta
         self.gamma = args.gamma
         self.guard_bits = args.guard_bits
+
+    def get_debug_utils(self):
+        """ return debug_fixed, debug_std """
+        return debug_multi, debug_multi
 
     ## default argument template generation
     @staticmethod
