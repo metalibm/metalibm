@@ -932,6 +932,8 @@ class ML_Base_SW_FixedPoint_Format(ML_Base_FixedPoint_Format):
             self.name[C_Code] = c_name
             self.display_format[C_Code] = c_display_format
             self.dbg_name = c_name
+            if support_format is None:
+                self.support_format = get_fixed_point_support_format(self.c_bit_size, signed)
 
     def build_display_format_object(self):
         key = (self.integer_size, self.frac_size, self.support_format)
@@ -1073,6 +1075,25 @@ ML_UInt128   = ML_Standard_FixedPoint_Format(128, 0, False)
 
 ML_Int256    = ML_Standard_FixedPoint_Format(256, 0, True)
 
+SUPPORT_FORMAT_MAP = {
+    True: {
+        8: ML_Int8,
+        16: ML_Int16,
+        32: ML_Int32,
+        64: ML_Int64,
+        128: ML_Int128
+    },
+    False: {
+        8: ML_UInt8,
+        16: ML_UInt16,
+        32: ML_UInt32,
+        64: ML_UInt64,
+        128: ML_UInt128
+    },
+}
+
+def get_fixed_point_support_format(c_bit_size, signed):
+    return SUPPORT_FORMAT_MAP[signed][c_bit_size]
 
 
 
@@ -1156,28 +1177,10 @@ def is_table_index_format(precision):
            not precision.is_vector_format()
 
 def get_std_integer_support_format(precision):
-  """ return the ML's integer format to contains
-      the fixed-point format precision """
-  assert(isinstance(precision, ML_Fixed_Format))
-  format_map = {
-    # signed
-    True: {
-      8:  ML_Int8,
-      16: ML_Int16,
-      32: ML_Int32,
-      64: ML_Int64,
-      128: ML_Int128,
-    },
-    # unsigned
-    False: {
-      8: ML_UInt8,
-      16: ML_UInt16,
-      32: ML_UInt32,
-      64: ML_UInt64,
-      128: ML_UInt128,
-    },
-  }
-  return format_map[precision.get_signed()][precision.get_c_bit_size()]
+    """ return the ML's integer format to contains
+        the fixed-point format precision """
+    assert(isinstance(precision, ML_Fixed_Format))
+    return get_fixed_point_support_format(precision.get_c_bit_size(), precision.get_signed())
 
 
 ## functor for abstract format construction
