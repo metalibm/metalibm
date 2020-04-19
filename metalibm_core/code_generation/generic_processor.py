@@ -710,14 +710,6 @@ c_code_generation_table = {
             },
         },
     },
-    RawSignExpExtraction: {
-        None: {
-            lambda optree: True: {
-                type_strict_match(ML_Int32, ML_Binary32): FunctionOperator("ml_raw_sign_exp_extraction_fp32", arity = 1), 
-                type_strict_match(ML_Int32, ML_Binary64): FunctionOperator("ml_raw_sign_exp_extraction_fp64", arity = 1), 
-            },
-        },
-    },
     CountLeadingZeros: {
         None: {
             lambda optree: True: {

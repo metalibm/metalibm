@@ -38,7 +38,7 @@ from metalibm_core.core.ml_operations import (
     Addition, Max, Min, FusedMultiplyAdd, Subtraction,
     Multiplication, Division, Modulo,
     NearestInteger, ExponentInsertion, ExponentExtraction,
-    MantissaExtraction, RawSignExpExtraction, CountLeadingZeros,
+    MantissaExtraction, CountLeadingZeros,
     Comparison, Test, LogicalAnd, LogicalOr, LogicalNot,
     BitLogicAnd, BitLogicOr, BitLogicXor, BitLogicNegate,
     BitLogicLeftShift, BitLogicRightShift, BitArithmeticRightShift,
