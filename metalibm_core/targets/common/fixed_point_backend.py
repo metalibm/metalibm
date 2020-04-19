@@ -110,45 +110,75 @@ def CI(value):
   return Constant(value, precision = ML_UInt32)
 
 def conv_modifier(optree):
-  """ lower the Conversion optree to std integer formats """
-  op0 = optree.get_input(0)
+    """ lower the Conversion optree to std integer formats """
+    op0 = optree.get_input(0)
 
-  in_format = op0.get_precision()
-  out_format = optree.get_precision()
+    in_format = op0.get_precision()
+    out_format = optree.get_precision()
 
-  # support format
-  in_sformat = get_std_integer_support_format(in_format)
-  out_sformat = get_std_integer_support_format(out_format)
+    # support format
+    in_sformat = get_std_integer_support_format(in_format)
+    out_sformat = get_std_integer_support_format(out_format)
 
-  result = None
+    result = None
 
-  Log.report(Log.Verbose, "in_format is %s | in_sformat is %s" % (in_format, in_sformat))
-  Log.report(Log.Verbose, "out_format is %s | out_sformat is %s" % (out_format, out_sformat))
-  # conversion when the output format is larger than the input format
-  if in_format == out_format:
-    result = optree
-  if out_sformat.get_bit_size() >= in_sformat.get_bit_size():
-    in_ext = Conversion(TypeCast(op0, precision = in_sformat), precision = out_sformat)
-    shift = out_format.get_frac_size() - in_format.get_frac_size()
-    if shift > 0:
-      result = TypeCast(BitLogicLeftShift(in_ext, CI(shift), precision = out_sformat), precision = out_format)
-    elif shift < 0:
-      result =  TypeCast(BitLogicRightShift(in_ext, CI(-shift), precision = out_sformat), precision = out_format)
+    Log.report(Log.Verbose, "in_format is %s | in_sformat is %s" % (in_format, in_sformat))
+    Log.report(Log.Verbose, "out_format is %s | out_sformat is %s" % (out_format, out_sformat))
+    if in_format == out_format:
+        # no transformation need when input and output formats are the same
+        result = optree
+    elif out_sformat.get_bit_size() >= in_sformat.get_bit_size():
+        # conversion when the output format is larger than the input format
+        # 1st step: start by the conversion between support format
+        in_ext = Conversion(TypeCast(op0, precision=in_sformat), precision=out_sformat)
+        # 2nd step: fix the alignment
+        shift = out_format.get_frac_size() - in_format.get_frac_size()
+        if shift > 0:
+            result = BitLogicLeftShift(in_ext, CI(shift), precision=out_sformat)
+        elif shift < 0:
+            result =  BitLogicRightShift(in_ext, CI(-shift), precision=out_sformat)
+        else:
+            result = in_ext
+        # 3rd step: mask the bits which are not part of the output format
+        mask_size = out_format.get_integer_size() + out_format.get_frac_size()
+        # TODO/FIXME only support right aligned fixed-point format
+        assert out_format.support_right_align == 0
+        # TODO/FIXME: Interval=None required to bypass default interval building issue
+        # for Constant node (2**mask_size-1) may be too big to be converted
+        # to SollyaObject successfully
+        # TODO/FIXME manage signed cased properly
+        if not out_format.get_signed():
+            result = BitLogicAnd(result, Constant(2**mask_size-1, precision=out_sformat, interval=None), precision=out_sformat)
+        # 4th step: cast towards output format
+        result = TypeCast(result, precision=out_format)
     else:
-      result = TypeCast(in_ext, precision = out_format)
-  else:
-    in_s = TypeCast(op0, precision = in_sformat)
-    shift = out_format.get_frac_size() - in_format.get_frac_size()
-    if shift > 0:
-      result = TypeCast(Conversion(BitLogicLeftShift(in_s, CI(shift), precision = in_sformat), precision = out_sformat), precision = out_format)
-    elif shift < 0:
-      result = TypeCast(Conversion(BitLogicRightShift(in_s, CI(-shift), precision = in_sformat), precision = out_sformat), precision = out_format)
-    else:
-      result = TypeCast(Conversion(in_s, precision = out_sformat), precision = out_format)
+        # conversion when the output format is smaller than the input format
+        # 1st step: cast to input support format
+        in_s = TypeCast(op0, precision = in_sformat)
+        # 2nd step shift
+        shift = out_format.get_frac_size() - in_format.get_frac_size()
+        if shift > 0:
+            result = BitLogicLeftShift(in_s, CI(shift), precision = in_sformat)
+        elif shift < 0:
+            result = BitLogicRightShift(in_s, CI(-shift), precision = in_sformat)
+        else:
+            result = in_s
 
-  result.set_tag(optree.get_tag())
-  Log.report(Log.Verbose, "result of conv_modifier on \n %s IS: \n  %s " % (optree.get_str(display_precision = True, depth = 3, memoization_map = {}), result.get_str(display_precision = True, depth = 4)))
-  return result
+        # 3rd step conversion and masking out excess bits
+        result = Conversion(result, precision=out_sformat)
+        mask_size = out_format.get_integer_size() + out_format.get_frac_size()
+        # TODO/FIXME only support right aligned fixed-point format
+        assert out_format.support_right_align == 0
+        # TODO/FIXME manage signed cased properly
+        if not out_format.get_signed():
+            result = BitLogicAnd(result, Constant(2**mask_size-1, precision=out_sformat), precision=out_sformat)
+        # 4th step
+        result = TypeCast(result, precision=out_format)
+
+    #result.set_tag(optree.get_tag())
+    forward_attributes(optree, result)
+    Log.report(Log.Debug, "result of conv_modifier on \n %s IS: \n  %s " % (optree.get_str(display_precision = True, depth = 3, memoization_map = {}), result.get_str(display_precision = True, depth = 4)))
+    return result
 
 
 ## Lower the conversion from a floating-point input to a fixed-point result
@@ -339,8 +369,15 @@ fixed_c_code_generation_table = {
   },
   Conversion: {
     None: {
+      lambda op: (round_down_check(op) and unary_io_format_mismtach(op)): {
+            type_custom_match(MCFIPF, MCFIPF) : ComplexOperator(optree_modifier=conv_modifier), 
+      },
+      lambda op: (round_down_check(op) and not unary_io_format_mismtach(op)): {
+            # identical input and output format
+            type_custom_match(MCFIPF, MCFIPF):
+                IdentityOperator(),
+      },
       round_down_check: {
-        type_custom_match(MCFIPF, MCFIPF) : ComplexOperator(optree_modifier = conv_modifier), 
         type_custom_match(MCFIPF, FSM(ML_Binary32)) : ComplexOperator(optree_modifier = conv_from_fp_modifier), 
         type_custom_match(FSM(ML_Binary32), MCFIPF) : ComplexOperator(optree_modifier = conv_fixed_to_fp_modifier),
 
