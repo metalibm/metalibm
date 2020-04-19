@@ -109,8 +109,8 @@ class FP_Adder(ML_Entity("fp_adder")):
         mant_vx = MantissaExtraction(vx, precision = mant_precision)
         mant_vy = MantissaExtraction(vy, precision = mant_precision)
 
-        exp_vx = ExponentExtraction(vx, precision = exp_precision)
-        exp_vy = ExponentExtraction(vy, precision = exp_precision)
+        exp_vx = RawExponentExtraction(vx, precision = exp_precision)
+        exp_vy = RawExponentExtraction(vy, precision = exp_precision)
 
         sign_vx = CopySign(vx, precision = ML_StdLogic)
         sign_vy = CopySign(vy, precision = ML_StdLogic)

@@ -91,7 +91,7 @@ class FP_Trunc(ML_Entity("fp_trunc")):
         def fixed_exponent(op):
             e = op.get_precision().get_base_format().get_exponent_size()
             pre_exp_precision = ML_StdLogicVectorFormat(e)
-            pre_exp = ExponentExtraction(op, precision=pre_exp_precision)
+            pre_exp = RawExponentExtraction(op, precision=pre_exp_precision)
             return TypeCast(
                 pre_exp, precision=fixed_point(e, 0, signed=False),
             )

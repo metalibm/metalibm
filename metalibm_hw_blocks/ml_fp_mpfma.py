@@ -160,9 +160,9 @@ class FP_MPFMA(ML_Entity("fp_mpfma")):
     mant_vy = MantissaExtraction(vy, precision = mant_vy_precision)
     mant_vz = MantissaExtraction(vz, precision = mant_vz_precision)
 
-    exp_vx = ExponentExtraction(vx, precision = exp_vx_precision)
-    exp_vy = ExponentExtraction(vy, precision = exp_vy_precision)
-    exp_vz = ExponentExtraction(vz, precision = exp_vz_precision)
+    exp_vx = RawExponentExtraction(vx, precision = exp_vx_precision)
+    exp_vy = RawExponentExtraction(vy, precision = exp_vy_precision)
+    exp_vz = RawExponentExtraction(vz, precision = exp_vz_precision)
 
     # Maximum number of leading zero for normalized <vx> mantissa
     L_x = 0

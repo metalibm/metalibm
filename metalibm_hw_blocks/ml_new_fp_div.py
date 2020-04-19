@@ -222,7 +222,7 @@ class FP_Divider(ML_Entity("fp_div")):
     )
     # exponent extraction
     exp_vx = TypeCast(
-        ExponentExtraction(vx, precision=exp_vx_precision, tag="exp_vx"),
+        RawExponentExtraction(vx, precision=exp_vx_precision, tag="exp_vx"),
         precision=exp_fixed_precision
     )
 

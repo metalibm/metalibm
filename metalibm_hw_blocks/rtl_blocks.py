@@ -89,7 +89,7 @@ def rzext(optree, ext_size, **kw):
 def fp_is_infornan(op):
   op_prec = op.get_precision().get_base_format()
   exp_prec = ML_StdLogicVectorFormat(op_prec.get_exponent_size())
-  exp = ExponentExtraction(op, precision = exp_prec)
+  exp = RawExponentExtraction(op, precision = exp_prec)
   return Equal(
     exp,
     Constant(op_prec.get_special_exponent_value(), precision = exp_prec),
@@ -102,7 +102,7 @@ def fp_is_infornan(op):
 def fp_is_subnormal(op):
   op_prec = op.get_precision().get_base_format()
   exp_prec = ML_StdLogicVectorFormat(op_prec.get_exponent_size())
-  exp = ExponentExtraction(op, precision = exp_prec)
+  exp = RawExponentExtraction(op, precision = exp_prec)
   return Equal(
     exp,
     Constant(0, precision = exp_prec),

@@ -30,7 +30,7 @@
 ###############################################################################
 
 from metalibm_core.core.ml_operations import (
-    Select, Comparison, ExponentExtraction, MantissaExtraction,
+    Select, Comparison, RawExponentExtraction, MantissaExtraction,
     Constant, TypeCast
 )
 from metalibm_core.core.ml_formats import ML_Bool
@@ -93,7 +93,7 @@ def mantissa_extraction_modifier(optree):
     exp_prec = ML_StdLogicVectorFormat(op_precision.get_exponent_size())
     field_prec = ML_StdLogicVectorFormat(op_precision.get_field_size())
 
-    exp_op = ExponentExtraction(
+    exp_op = RawExponentExtraction(
         op, precision=exp_prec, init_stage=init_stage,
         tag=tag + "_exp_extr"
     )
