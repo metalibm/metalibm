@@ -267,7 +267,11 @@ def conv_fixed_to_fp_modifier(optree):
 
 
 def round_down_check(optree):
-  return optree.get_rounding_mode() in [None, ML_RoundTowardMinusInfty] 
+  return optree.get_rounding_mode() in [None, ML_RoundTowardMinusInfty]
+
+def unary_io_format_mismtach(optree):
+    assert len(optree.inputs) == 1
+    return optree.get_precision() != optree.get_input(0).get_precision()
 
 
 def fixed_cast_modifier(optree):
