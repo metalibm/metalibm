@@ -186,7 +186,7 @@ class FP_Divider(ML_Entity("fp_div")):
     # mantissa extraction
     mant_vx = MantissaExtraction(vx, precision = mant_vx_precision, tag = "mant_vx")
     # exponent extraction
-    exp_vx = ExponentExtraction(vx, precision = exp_vx_precision, tag = "exp_vx", debug = debug_dec)
+    exp_vx = RawExponentExtraction(vx, precision = exp_vx_precision, tag = "exp_vx", debug = debug_dec)
 
     approx_index_size = 8
 

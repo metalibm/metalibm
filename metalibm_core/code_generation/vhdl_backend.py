@@ -1126,7 +1126,7 @@ vhdl_code_generation_table = {
                                  Comparison.LessOrEqualSigned]
          ]
     ),
-    ExponentExtraction: {
+    RawExponentExtraction: {
         None: {
             lambda _: True: {
                 type_custom_match(TCM(ML_StdLogicVectorFormat), FSM(ML_Binary64)):

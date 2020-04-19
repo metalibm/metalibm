@@ -1449,6 +1449,25 @@ class ExponentExtraction(GeneralArithmeticOperation):
             hi_bound = floor(sollya.log2(sup(abs(op_interval))))
             return Interval(lo_bound, hi_bound)
 
+class RawExponentExtraction(GeneralArithmeticOperation):
+    """ raw extraction of the exponent field of a floating-point value
+        the result is the biased exponent, that is an
+        integer e such that the input node can be written s.m.2^e+b
+        with m in [1, 2), s in {-1, 1} and b a bias a format-specific
+        paramater (e.g -127 for binary32) """
+    name = "RawExponentExtraction"
+    arity = 1
+
+    def bare_range_function(self, input_intervals):
+        op_interval = input_intervals[0]
+        if op_interval is None:
+            return None
+        else:
+            # TODO/FIXME: manage cases when inf/nan are part of op_interval
+            lo_bound = floor(sollya.log2(inf(abs(op_interval))))
+            hi_bound = floor(sollya.log2(sup(abs(op_interval))))
+            return Interval(lo_bound, hi_bound)
+
 ## Unary operation, count the number of leading zeros in the operand
 #  If the operand equals 0, then the result is the bit size of the
 #  operand
