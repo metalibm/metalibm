@@ -342,6 +342,37 @@ def match_specific_fixed_point_format(int_size, frac_size, is_signed):
                candidate_format.get_frac_size() == frac_size and candidate_format.get_signed() == is_signed
     return match_fct
 
+
+def legalize_fixed_point_clz(node):
+    assert isinstance(node, CountLeadingZeros)
+    op = node.get_input(0)
+    op_format = op.get_precision()
+    support_format = get_fixed_point_support_format(op.get_precision().get_support_format().get_bit_size(), False)
+
+    raw_lzc = CountLeadingZeros(
+        TypeCast(op, precision=support_format),
+        precision=support_format
+    )
+    # TODO/FIXME: does not support non-zero alignment of fixed-point value
+    # within support format
+    assert op_format.support_right_align == 0
+    offset = support_format.get_bit_size() - (op_format.get_integer_size() + op_format.get_frac_size())
+    unbiased_lzc = Subtraction(
+        raw_lzc,
+        Constant(offset, precision=support_format),
+        precision=support_format)
+    # conversion towards output result
+    result = TypeCast(
+        Conversion(
+            unbiased_lzc,
+            precision=node.get_precision().get_support_format()
+        ),
+        precision=node.get_precision()
+    )
+    # TODO/FIXME should be "Legalization" verbose level
+    Log.report(Log.Info, "legalizing {} to {}", node, result)
+    return result
+
 # alis
 MSFPF = match_specific_fixed_point_format
 
@@ -485,6 +516,8 @@ fixed_c_code_generation_table = {
             lambda _: True: {
             type_custom_match(MCFIPF, MCFIPF, MCFIPF):
                 SymbolOperator(">>", arity=2),
+            type_custom_match(MCFIPF, MCFIPF, FSM(ML_Int32)):
+                SymbolOperator(">>", arity=2),
             },
         },
     },
@@ -525,14 +558,26 @@ fixed_c_code_generation_table = {
     },
     CountLeadingZeros: {
         None: {
-            lambda optree: (optree.get_precision().get_bit_size() <= 32): {
+            # All wrong: should be based on optree.get_input(0) precision and also
+            # should take into account non extra leading zeros due to support format
+            #lambda optree: (optree.get_precision().get_bit_size() <= 32): {
+            #    type_custom_match(MCFIPF, MCFIPF):
+            #        FunctionOperator("__builtin_clz", arity = 1),
+            #},
+            #lambda optree: (32 < optree.get_precision().get_bit_size() <= 64): {
+            #    type_custom_match(MCFIPF, MCFIPF):
+            #        FunctionOperator("__builtin_clzl", arity = 1),
+            #},
+            lambda optree: True: {
                 type_custom_match(MCFIPF, MCFIPF):
-                    FunctionOperator("__builtin_clz", arity = 1), 
-            },
-            lambda optree: (32 < optree.get_precision().get_bit_size() <= 64): {
-                type_custom_match(MCFIPF, MCFIPF):
-                    FunctionOperator("__builtin_clzl", arity = 1), 
-            },
+                    ComplexOperator(optree_modifier=legalize_fixed_point_clz),
+                type_strict_match(ML_Int32, ML_UInt32):
+                    FunctionOperator("__builtin_clzl", arity=1),
+                type_strict_match(ML_Int32, ML_UInt64):
+                    FunctionOperator("__builtin_clzl", arity=1),
+                type_strict_match(ML_UInt64, ML_UInt64):
+                    FunctionOperator("__builtin_clzl", arity=1),
+            }
         },
     },
 }
