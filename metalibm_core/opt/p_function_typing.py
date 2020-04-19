@@ -37,7 +37,7 @@ from metalibm_core.core.ml_operations import (
     Addition, Max, Min, FusedMultiplyAdd, Subtraction,
     Multiplication, Division, Modulo,
     NearestInteger, ExponentInsertion, ExponentExtraction,
-    MantissaExtraction, RawSignExpExtraction, CountLeadingZeros,
+    MantissaExtraction, CountLeadingZeros,
     Comparison, Test, LogicalAnd, LogicalOr, LogicalNot,
     BitLogicAnd, BitLogicOr, BitLogicXor, BitLogicNegate,
     BitLogicLeftShift, BitLogicRightShift, BitArithmeticRightShift,
@@ -88,8 +88,6 @@ abstract_typing_rule = {
         lambda *ops: ML_Integer,
     MantissaExtraction:
         lambda *ops: ML_Float,
-    RawSignExpExtraction:
-        lambda *ops: ML_Integer,
     CountLeadingZeros:
         lambda *ops: ML_Integer,
     Comparison:
@@ -171,8 +169,6 @@ practical_typing_rule = {
         lambda backend, op, dprec: get_integer_format(backend, op),
     MantissaExtraction:
         lambda backend, op, dprec: merge_ops_abstract_format(op, op.inputs),
-    RawSignExpExtraction:
-        lambda backend, op, dprec: get_integer_format(backend, op),
     CountLeadingZeros:
         lambda backend, op, dprec: get_integer_format(backend, op),
     Return:

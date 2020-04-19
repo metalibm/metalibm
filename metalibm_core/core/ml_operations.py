@@ -1432,7 +1432,10 @@ class MantissaExtraction(GeneralArithmeticOperation):
         return Interval(1, 2)
 
 class ExponentExtraction(GeneralArithmeticOperation):
-    """ extraction of the exponent field of a floating-point value """
+    """ extraction of the exponent field of a floating-point value
+        the result is the unbiased (real) exponent, that is an
+        integer e such that the input node can be written s.m.2^e
+        with m in [1, 2), s in {-1, 1} """
     name = "ExponentExtraction"
     arity = 1
 
@@ -1445,10 +1448,6 @@ class ExponentExtraction(GeneralArithmeticOperation):
             lo_bound = floor(sollya.log2(inf(abs(op_interval))))
             hi_bound = floor(sollya.log2(sup(abs(op_interval))))
             return Interval(lo_bound, hi_bound)
-
-class RawSignExpExtraction(GeneralArithmeticOperation):
-    name = "RawSignExpExtraction"
-    arity = 1
 
 ## Unary operation, count the number of leading zeros in the operand
 #  If the operand equals 0, then the result is the bit size of the
