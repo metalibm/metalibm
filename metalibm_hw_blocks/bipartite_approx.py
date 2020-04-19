@@ -83,6 +83,7 @@ from metalibm_core.utility.rtl_debug_utils import (
 
 
 from metalibm_core.opt.opt_utils import evaluate_range
+from metalibm_core.opt.p_rtl_legalize import generate_bitfield_extraction
 
 # Rounding mode is one of:
 # 00: Rounding to nearest, ties to Even
@@ -145,13 +146,17 @@ def sw_get_fixed_slice(
     #        within support format
     real_lo = lo if align_lo == FixedPointPosition.FromLSBToLSB else optree_size - 1 - lo  
     real_hi = hi if align_hi == FixedPointPosition.FromLSBToLSB else optree_size - 1 - hi
-    shift = real_lo
-    mask_size = real_hi-real_lo + 1
-    print("mask_size={}, shift={}".format(mask_size, shift))
-    return BitLogicAnd(
-        BitLogicRightShift(optree, Constant(shift, precision=ML_Int32)),
-        Constant((2**mask_size - 1) * 2**-optree_format.get_frac_size(), precision=optree_format)
-        , **optree_args)
+    result = generate_bitfield_extraction(ML_Custom_FixedPoint_Format(real_hi - real_lo + 1, 0, signed=False), optree, real_lo, real_hi)
+    result.set_attributes(**optree_args)
+    return result
+    # shift = real_lo
+    # mask_size = real_hi-real_lo + 1
+    # print("mask_size={}, shift={}".format(mask_size, shift))
+
+    # return BitLogicAnd(
+    #     BitLogicRightShift(optree, Constant(shift, precision=ML_Int32)),
+    #     Constant((2**mask_size - 1) * 2**-optree_format.get_frac_size(), precision=optree_format)
+    #     , **optree_args)
 
 def get_fixed_type_from_interval(interval, precision):
     """ generate a fixed-point format which can encode
