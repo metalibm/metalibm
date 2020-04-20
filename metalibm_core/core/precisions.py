@@ -42,6 +42,7 @@ from .ml_operations import (
     Comparison, FunctionObject, Min, Abs, Subtraction, Division,
     TypeCast)
 from metalibm_core.code_generation.generator_utility import *
+from metalibm_core.core.ml_formats import is_floating_format
 
 from metalibm_core.core.special_values import FP_SpecialValue
 
@@ -184,31 +185,34 @@ class ML_CorrectlyRounded(ML_FunctionPrecision):
 
   def get_output_check_test(self, test_result, stored_outputs):
     expected_value,  = stored_outputs
-    nan_expected = NotEqual(expected_value, expected_value)
-    nan_detected = NotEqual(test_result, test_result)
-    from metalibm_core.utility.debug_utils import debug_multi
-    # zero expected use cases
-    zero_expected = Equal(expected_value, 0, tag="zero_expected", debug=debug_multi)
 
-    int_format = test_result.get_precision().get_integer_format()
-    bitexact_comparison = Equal(
-        TypeCast(test_result, precision=int_format),
-        TypeCast(expected_value, precision=int_format),
-    )
-    failure_test = LogicalOr(
-        LogicalOr(
-            Comparison(
-              test_result,
-              expected_value,
-              specifier=Comparison.NotEqual,
-              tag="value_failure",
-              debug=debug_multi
+    if is_floating_format(expected_value.get_precision()):
+        nan_expected = NotEqual(expected_value, expected_value)
+        nan_detected = NotEqual(test_result, test_result)
+        # zero expected use cases
+        zero_expected = Equal(expected_value, 0, tag="zero_expected")
+
+        int_format = test_result.get_precision().get_integer_format()
+        bitexact_comparison = Equal(
+            TypeCast(test_result, precision=int_format),
+            TypeCast(expected_value, precision=int_format),
+        )
+        failure_test = LogicalOr(
+            LogicalOr(
+                Comparison(
+                  test_result,
+                  expected_value,
+                  specifier=Comparison.NotEqual,
+                  tag="value_failure",
+                ),
+                LogicalAnd(nan_expected, LogicalNot(nan_detected), tag="nan_failure")
             ),
-            LogicalAnd(nan_expected, LogicalNot(nan_detected), tag="nan_failure", debug=debug_multi)
-        ),
-        # bit exact zero comparison
-        LogicalAnd(zero_expected, LogicalNot(bitexact_comparison))
-    )
+            # bit exact zero comparison
+            LogicalAnd(zero_expected, LogicalNot(bitexact_comparison))
+        )
+    else:
+        failure_test = NotEqual(test_result, expected_value)
+        #bitexact_comparison = Equal(test_result, expected_value) 
     return failure_test
   def get_output_print_function(self, function_name, footer="\\n"):
     printf_template = "printf(\"%s%s\", %s)" % (
