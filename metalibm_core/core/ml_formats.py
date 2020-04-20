@@ -964,6 +964,13 @@ class ML_Base_SW_FixedPoint_Format(ML_Base_FixedPoint_Format):
         return self.display_format[language]
 
 
+def is_fixed_format(tested_format):
+    """ predicate testing if a format is a fixed-point format """
+    return isinstance(tested_format, ML_Fixed_Format)
+
+def is_floating_format(tested_format):
+    """ predicate testing if a format is a floating-point format """
+    return isinstance(tested_format, ML_FP_Format)
 
 ## Ancestor to standard (meaning integers)  fixed-point format
 class ML_Standard_FixedPoint_Format(ML_Base_SW_FixedPoint_Format):
