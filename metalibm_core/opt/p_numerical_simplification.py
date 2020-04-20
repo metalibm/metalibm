@@ -40,12 +40,13 @@ from metalibm_core.opt.opt_utils import (
 )
 
 
-from metalibm_core.core.ml_formats import ml_infty
+from metalibm_core.core.ml_formats import (ml_infty, is_fixed_format)
 from metalibm_core.core.ml_operations import (
     is_leaf_node,
     Min, Max, Constant, Test, Comparison, ConditionBlock,
     LogicOperation, LogicalAnd, LogicalOr, LogicalNot,
     Statement,
+    Multiplication, Addition,
 )
 from metalibm_core.core.legalizer import is_constant
 from metalibm_core.core.meta_interval import MetaInterval, MetaIntervalList, inf, sup
@@ -260,6 +261,43 @@ def is_simplifiable_test(node, simp_node_inputs):
         # nothing to say
         return BooleanValue.Indecisive
 
+def is_simplifiable_multiplication(node, lhs, rhs):
+    assert isinstance(node, Multiplication)
+    # NOTES: floating-point multiplication is not easily simplifiable
+    # for example 0 * a = a if a is finite, but 0 * a = NaN if a is infinite
+    # Thus this simplification is limited to operations between fixed-point datum
+    fixed_predicate = is_fixed_format(lhs.get_precision()) and is_fixed_format(rhs.get_precision())
+    return fixed_predicate and ((is_constant(lhs) and lhs.get_value() in [0, 1]) or (is_constant(rhs) and rhs.get_value() in [0, 1]))
+
+def simplify_multiplication(node):
+    """ Simplify a multiplication node between two fixed-point
+        if one of them is a constant in {0, 1} """
+    assert isinstance(node, Multiplication)
+    assert is_fixed_format(node.get_input(0).get_precision())
+    assert is_fixed_format(node.get_input(1).get_precision())
+
+    lhs = node.get_input(0)
+    rhs = node.get_input(1)
+    if is_constant(lhs):
+        if lhs.get_value() == 0:
+            return Constant(0, precision=node.get_precision())
+        elif lhs.get_value() == 1:
+            return rhs
+    elif is_constant(rhs):
+        if rhs.get_value() == 0:
+            return Constant(0, precision=node.get_precision())
+        elif rhs.get_value() == 1:
+            return lhs
+    # no simplification found
+    return None
+
+def is_simplifiable_add(node, node_inputs):
+    if is_instance(node, Addition):
+        lhs = node_inputs[0]
+        rhs = node_inputs[1]
+        return (is_constant(lhs) and lhs.get_value() == 0) or (is_constant(rhs) and rhs.get_value() == 0)
+    else:
+        return False
 
 def is_simplifiable_logical_op(node, node_inputs):
     """ test if the LogicOperation node(node_inputs) is simplifiable """
@@ -293,6 +331,8 @@ class NumericalSimplifier:
         elif isinstance(node, ConditionBlock):
             result = simplify_condition_block(node)
             pass
+        elif isinstance(node, Multiplication) and is_simplifiable_multiplication(node, node.get_input(0), node.get_input(1)):
+            return True
         else:
             return False
 
@@ -320,6 +360,8 @@ class NumericalSimplifier:
                 )
                 forward_attributes(node, new_node)
                 result = new_node
+            elif isinstance(node, Multiplication) and is_simplifiable_multiplication(node, get_node_input(0), get_node_input(1)):
+                result = simplify_multiplication(node)
             elif isinstance(node, Min):
                 simplified_min = is_simplifiable_min(node, get_node_input(0), get_node_input(1))
                 if simplified_min:
