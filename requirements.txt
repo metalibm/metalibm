@@ -1,0 +1,3 @@
+matplotlib
+bigfloat
+git+https://gitlab.com/metalibm-dev/pythonsollya
