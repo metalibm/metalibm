@@ -39,6 +39,8 @@ from ..core.ml_operations import (
     Variable, Constant, ConditionBlock, Return, TableLoad, Statement,
     SpecificOperation, Conversion, FunctionObject,
     ReferenceAssign, Loop,
+    is_leaf_node,
+    ML_ArithmeticOperation,
 )
 from ..core.bb_operations import (
     BasicBlockList,
@@ -73,6 +75,9 @@ class MachineInsnGenerator(object):
         # unique identifier for new virtual registers
         self.register_id = -1
 
+    def has_memoization(self, node):
+        return node in self.memoization_map
+
     def get_memoization(self, node):
         return self.memoization_map[node]
 
@@ -81,7 +86,11 @@ class MachineInsnGenerator(object):
 
     def get_new_register(self, register_format, var_tag=None):
         self.register_id += 1
-        return MachineRegister(register_id, precision=regiser_format, var_tag=var_tag)
+        if var_tag is None:
+            reg_tag = "reg-{}".format(self.register_id)
+        else:
+            reg_tag = "reg-{}".format(var_tag)
+        return MachineRegister(self.register_id, register_format, reg_tag, var_tag=var_tag)
 
     def get_var_register(self, var_node):
         if not var_node in self.var_register_map:
@@ -89,8 +98,12 @@ class MachineInsnGenerator(object):
         return self.var_register_map[var_node]
 
     # force_variable_storing is not supported
-    def linearize_graph(self, current_bb, node):
-        """ linearize operation graph """
+    def linearize_graph(self, node, current_bb=None):
+        """ linearize operation graph node
+
+            :params node: operation node to be linearized
+            :params current_bb: current BasicBlock where node should be inserted (if any)
+        """
 
         # search if <optree> has already been processed
         if self.has_memoization(node):
@@ -112,7 +125,7 @@ class MachineInsnGenerator(object):
         elif isinstance(node, BasicBlock):
             linearized_bb = BasicBlock()
             for op in node.inputs:
-                self.linearize_graph(linearized_bb, op)
+                self.linearize_graph(op, linearized_bb)
             result = linearized_bb
 
         elif isinstance(node, ConditionalBranch):
@@ -120,8 +133,10 @@ class MachineInsnGenerator(object):
             if_bb = node.get_input(1)
             else_bb = node.get_input(2)
 
-            cond_code = self.linearized_bb(current_bb, cond)
-                code_object, cond, folded=folded, language=language)
+            raise NotImplementedError
+
+            #cond_code = self.linearized_bb(current_bb, cond)
+            #    code_object, cond, folded=folded, language=language)
 
             return None
 
@@ -133,7 +148,7 @@ class MachineInsnGenerator(object):
         elif isinstance(node, BasicBlockList):
             new_bb_list = BasicBlockList()
             for bb in node.inputs:
-                linearized_bb = self.linearized_bb(None, bb)
+                linearized_bb = self.linearize_graph(bb)
                 new_bb_list.add(linearized_bb)
             result = new_bb_list
 
@@ -142,7 +157,7 @@ class MachineInsnGenerator(object):
                 "They must be translated to BB (e.g. through gen_basic_block pass)"
                 "faulty node: {}", node.__class__, node)
 
-        elif isinstance(optree, PhiNode):
+        elif isinstance(node, PhiNode):
             output_var = optree.get_input(0)
             output_var_code = self.generate_expr(
                 code_object, output_var, folded=folded, language=language)
@@ -173,27 +188,31 @@ class MachineInsnGenerator(object):
             #             a Variable (e.g. VectorElementSelection)
             var_register = self.get_var_register(output_var)
 
-            result_value_reg = self.linearize_graph(current_bb, result_value)
-            result = RegisterAssign(var_register, result_value_reg)
+            result_value_reg = self.linearize_graph(result_value, current_bb)
+            result_assign = RegisterAssign(var_register, result_value_reg)
+            # expression's result is the output register
+            result = var_register
 
             # adding RegisterAssign to current basic-block
-            current_bb.add(result)
+            current_bb.add(result_assign)
 
         elif is_leaf_node(node):
-            result = self.linearize_graph(current_bb, node)
+            result = self.linearize_graph(node, current_bb)
 
-        elif isinstance(node, GeneralArithmeticOperation):
-            op_regs = [self.linearize_graph(op) for op in node.inputs]
-            result_reg = self.get_new_register()
-            result = RegisterAssign(
+        elif isinstance(node, ML_ArithmeticOperation):
+            op_regs = [self.linearize_graph(op, current_bb) for op in node.inputs]
+            result_reg = self.get_new_register(node.get_precision())
+            result_assign = RegisterAssign(
                 result_reg,
                 node.__class__(*tuple(op_regs))
             )
             # adding RegisterAssign to current basic-block
-            current_bb.add(result)
+            current_bb.add(result_assign)
+            # expression's result is the output register
+            result = result_reg
 
         else:
-            Log.report(Log.report, "node unsupported in linearize_graph: {}", node)
+            Log.report(Log.Error, "node unsupported in linearize_graph: {}", node)
 
 
         # registering result into memoization table
