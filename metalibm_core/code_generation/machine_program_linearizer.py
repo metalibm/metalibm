@@ -54,12 +54,13 @@ from .code_object import MultiSymbolTable
 from ..utility.log_report import Log
 
 from metalibm_core.code_generation.code_function import CodeFunction
-from metalibm_core.code_generation.llvm_utils import llvm_ir_format
 
+from metalibm_core.core.machine_operations import (
+    MachineRegister, RegisterAssign, MaterializeConstant,
+)
 
 class MachineInsnGenerator(object):
-    """ LLVM-IR language code generator """
-    language = LLVM_IR_Code
+    """ Machine Instruction generator """
 
     def __init__(self, processor):
         self.processor = processor
