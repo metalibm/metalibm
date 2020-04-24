@@ -880,6 +880,18 @@ class Pass_GenerateBasicBlock(FunctionPass):
             self.push_to_current_bb(optree)
         return entry_bb
 
+    def execute_on_graph(self, op_graph):
+        """ BB generation on complete operation graph, generating
+            a final BasicBlockList as result """
+        memoization_map = {}
+        new_bb = BasicBlock(tag="main")
+        bb_list = BasicBlockList(tag="main")
+        bb_list.entry_bb = new_bb
+        top_bb_list = self.set_top_bb_list(bb_list)
+        last_bb = self.execute_on_optree(op_graph, memoization_map=memoization_map)
+        # pop last basic-block (to add it to the list)
+        self.flush_bb_stack()
+        return top_bb_list
 
     def execute_on_function(self, fct, fct_group):
         """ execute basic-block generation pass on function @p fct from
