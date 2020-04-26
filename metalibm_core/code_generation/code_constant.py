@@ -54,3 +54,7 @@ class VHDL_Code(CodeType):
 class LLVM_IR_Code(CodeType):
     """ LLVM intermediate representation code type """
     desc = "LLVM_IR_Code"
+
+## Generic ASM class Code
+class ASM_Code(CodeType):
+    desc = "ASM_Code"
