@@ -179,27 +179,27 @@ class AbstractOperation(ML_Operation):
         return func(intervals)
 
 
-    ## Operator for boolean negation of operands 
+    ## Operator for boolean negation of operands
     def __not__(self):
         return LogicalNot(self)
 
-    ## Operator for boolean AND of operands 
+    ## Operator for boolean AND of operands
     def __and__(self, op):
         return LogicalAnd(self, op)
 
-    ## Operator for boolean OR of operands 
+    ## Operator for boolean OR of operands
     def __or__(self, op):
         return LogicalOr(self, op)
 
-    ## Unary operator for arithmetic negation 
+    ## Unary operator for arithmetic negation
     def __neg__(self):
         return Negation(self)
 
-    ## implicit add operation between AbstractOperation 
+    ## implicit add operation between AbstractOperation
     def __add__(self, op):
         return Addition(self, implicit_op(op))
 
-    ## 2-Operand operator for arithmetic power 
+    ## 2-Operand operator for arithmetic power
     def __pow__(self, n):
         if n == 0: return Constant(1, precision = self.get_precision())
         elif n == 1: return self
@@ -242,7 +242,7 @@ class AbstractOperation(ML_Operation):
     def __truediv__(self, op):
         """ implicit division operation between AbstractOperation """
         return Division(self, implicit_op(op))
-        
+
     ## 2-Operand implicit commuted division operator
     def __rdiv__(self, op):
         """ implicit reflexive division operation between AbstractOperation """
@@ -250,12 +250,12 @@ class AbstractOperation(ML_Operation):
     def __rtruediv__(self, op):
         """ implicit reflexive division operation between AbstractOperation """
         return Division(implicit_op(op), self)
-        
+
     ## 2-Operand implicit modulo operator
     def __mod__(self, op):
         """ implicit modulo operation between AbstractOperation """
         return Modulo(self, implicit_op(op))
-        
+
     ## 2-Operand implicit commuted modulo operator
     def __rmod__(self, op):
         """ implicit reflexive modulo operation between AbstractOperation """
@@ -269,7 +269,7 @@ class AbstractOperation(ML_Operation):
     def __le__(self, op):
         return Comparison(self, implicit_op(op), specifier = Comparison.LessOrEqual)
 
-    ## implicit greater or equal operation 
+    ## implicit greater or equal operation
     def __ge__(self, op):
         return Comparison(self, implicit_op(op), specifier = Comparison.GreaterOrEqual)
 
@@ -315,13 +315,13 @@ class AbstractOperation(ML_Operation):
     #  @param index integer id of the input to swap
     #  @param new_input new value of the input to be set
     def set_input(self, index, new_input):
-        # FIXME: discard tuple -> list -> tuple transform 
-        input_list = list(self.inputs) 
+        # FIXME: discard tuple -> list -> tuple transform
+        input_list = list(self.inputs)
         input_list[index] = new_input
         self.inputs = tuple(input_list)
 
     ##
-    #  @return the node evaluated live-range (when available) 
+    #  @return the node evaluated live-range (when available)
     def get_interval(self):
         return self.attributes.get_interval()
     @property
@@ -341,7 +341,7 @@ class AbstractOperation(ML_Operation):
         self.attributes.set_exact(new_exact_value)
 
     ## wrapper for getting the tag value within node's attributes
-    #  @return the node's tag 
+    #  @return the node's tag
     def get_tag(self, default = None):
         """ tag getter (transmit to self.attributes field) """
         op_tag = self.attributes.get_tag()
@@ -400,16 +400,16 @@ class AbstractOperation(ML_Operation):
         self.attributes.set_attr(**kwords)
         return self
 
-    ## 
+    ##
     #  @return the node index
     def get_index(self):
         """ index getter function """
         return self.index
     ## set the node's index value
-    #  
+    #
     def set_index(self, new_index):
         """ index setter function """
-        self.index = new_index 
+        self.index = new_index
 
     ## wrapper for getting the rounding_mode field from node's attributes
     #  @return the node rounding mode field
@@ -517,7 +517,7 @@ class AbstractOperation(ML_Operation):
         memoization_map[self] = str_tag
 
         return tab_str + "{name}{desc} -------> {tag}\n{args}".format(
-            name=self.get_name(), 
+            name=self.get_name(),
             desc=desc_str,
             tag=str_tag,
             args="".join(
@@ -554,7 +554,7 @@ class AbstractOperation(ML_Operation):
       self.set_precision(precision)
       if not isinstance(self, ML_LeafNode):
         for op in self.inputs:
-          if op.get_precision() is None and not op in boundary_list: 
+          if op.get_precision() is None and not op in boundary_list:
             op.propagate_precision(precision, boundary_list)
 
 
@@ -567,8 +567,8 @@ class ML_LeafNode(AbstractOperation):
 class EmptyOperand(ML_LeafNode):
     name = "EmptyOperand"
     def get_str(
-            self, depth = None, display_precision = False, 
-            tab_level = 0, memoization_map = None, 
+            self, depth = None, display_precision = False,
+            tab_level = 0, memoization_map = None,
             display_attribute = False, display_id = False,
             custom_callback = lambda op: "",
             display_interval=False,
@@ -676,14 +676,14 @@ class AbstractVariable(ML_LeafNode):
 
     ## constructor
     #  @param tag string name of the Variable object
-    #  @param init_map standard ML_Operation attribute dictionnary initialization 
+    #  @param init_map standard ML_Operation attribute dictionnary initialization
     def __init__(self, tag, **init_map):
         AbstractOperation.__init__(self, **init_map)
         assert not tag is None
         self.attributes.set_tag(tag)
-        # used to distinguish between input variables (without self.inputs) 
-        # and intermediary variables 
-        self.var_type = attr_init(init_map, "var_type", default_value = Variable.Input)  
+        # used to distinguish between input variables (without self.inputs)
+        # and intermediary variables
+        self.var_type = attr_init(init_map, "var_type", default_value = Variable.Input)
 
     ## @return the type (Input or Intermediary0 of the Variable node
     def get_var_type(self):
@@ -717,9 +717,9 @@ class AbstractVariable(ML_LeafNode):
         # test for previous definition in memoization map
         if self in copy_map: return copy_map[self]
         # by default input variable are not copied
-        # this behavior can be bypassed by manually 
+        # this behavior can be bypassed by manually
         # defining a copy into copy_map
-        if self.get_var_type() == Variable.Input: 
+        if self.get_var_type() == Variable.Input:
             copy_map[self] = self
             return self
         # else define a new and free copy
@@ -741,7 +741,7 @@ class InvalidInterval(Exception):
 #  is a valid interval
 def interval_check(lrange):
     """ check if the argument <lrange> is a valid interval,
-        if it is, returns it, else raises an InvalidInterval 
+        if it is, returns it, else raises an InvalidInterval
         exception """
     if isinstance(lrange, SollyaObject) and lrange.is_range():
         return lrange
@@ -753,7 +753,7 @@ def default_op_interval_getter(node):
 
 ## Extend interval verification to a list of operands
 #  an interval is extract from each operand and checked for validity
-#  if all intervals are valid, @p interval_op is applied and a 
+#  if all intervals are valid, @p interval_op is applied and a
 #  resulting interval is returned
 def interval_wrapper(self, interval_op, ops, ops_interval_getter=default_op_interval_getter):
     try:
@@ -770,7 +770,7 @@ def interval_func(interval_op):
     def range_function_None(node, ops, ops_interval_getter=default_op_interval_getter):
         return None
 
-    def range_function_wrapper(node, ops, ops_interval_getter=default_op_interval_getter): 
+    def range_function_wrapper(node, ops, ops_interval_getter=default_op_interval_getter):
         return interval_wrapper(node, interval_op, ops, ops_interval_getter)
 
     if interval_op == None:
@@ -1279,7 +1279,7 @@ class ConditionBlock(ControlFlowOperation):
         """ condition block initialization """
         super().__init__(*args, **kwords)
         self.parent_list = []
-        # statement being executed before the condition or either of the branch is executed 
+        # statement being executed before the condition or either of the branch is executed
         self.pre_statement = Statement()
         self.extra_inputs = [self.pre_statement]
 
@@ -1304,7 +1304,7 @@ class ConditionBlock(ControlFlowOperation):
         copy_map = {} if copy_map is None else copy_map
         new_copy.pre_statement = self.pre_statement.copy(copy_map)
         new_copy.extra_inputs = [op.copy(copy_map) for op in self.extra_inputs]
-        new_copy.parent_list  = [op.copy(copy_map) for op in self.parent_list] 
+        new_copy.parent_list  = [op.copy(copy_map) for op in self.parent_list]
 
 
 class Conversion(ML_ArithmeticOperation):
@@ -1666,13 +1666,13 @@ class Statement(ControlFlowOperation):
         ControlFlowOperation.__init__(self, *args, **kwords)
         self.arity = len(args)
 
-    # add a new statement at the end of the inputs list 
+    # add a new statement at the end of the inputs list
     # @param optree ML_Operation object added at the end of inputs list
     def add(self, optree):
         self.inputs = self.inputs + (optree,)
         self.arity += 1
 
-    # push a new statement at the beginning of the inputs list 
+    # push a new statement at the beginning of the inputs list
     # @param optree ML_Operation object added at the end of inputs list
     def push(self, optree):
         """ add a new unary statement at the beginning of the input list """
@@ -1832,9 +1832,9 @@ class SpecificOperation(SpecifierOperation, GeneralOperation):
 
 class ExceptionOperation(SpecificOperation, ML_LeafNode):
     # specifier init
-    ClearException = SO_Specifier_Builder("ClearException", lambda *ops: None, lambda backend, op, dprec: None)  
-    RaiseException = SO_Specifier_Builder("RaiseException", lambda *ops: None, lambda backend, op, dprec: None)  
-    RaiseReturn    = SO_Specifier_Builder("RaiseReturn", lambda *ops: None, lambda backend, op, dprec: dprec)  
+    ClearException = SO_Specifier_Builder("ClearException", lambda *ops: None, lambda backend, op, dprec: None)
+    RaiseException = SO_Specifier_Builder("RaiseException", lambda *ops: None, lambda backend, op, dprec: None)
+    RaiseReturn    = SO_Specifier_Builder("RaiseReturn", lambda *ops: None, lambda backend, op, dprec: dprec)
 
 
 class NoResultOperation(SpecificOperation, ML_LeafNode):
@@ -1993,7 +1993,7 @@ class FunctionCall(GeneralOperation):
     @staticmethod
     def propagate_format_to_cst(optree):
         """ propagate new_optree_format to Constant operand of <optree> with abstract precision """
-        index_list = range(len(optree.inputs)) 
+        index_list = range(len(optree.inputs))
         for index in index_list:
             inp = optree.inputs[index]
             new_optree_format = optree.get_function_object().get_arg_precision(index)
@@ -2061,12 +2061,12 @@ class SwitchBlock(ControlFlowOperation):
             display_precision:      enable/display format display
         """
         memoization_map = {} if memoization_map is None else memoization_map
-        new_depth = None 
+        new_depth = None
         if depth != None:
-            if  depth < 0: 
-                return "" 
+            if  depth < 0:
+                return ""
         new_depth = (depth - 1) if depth != None else None
-            
+
         tab_str = AbstractOperation.str_del * tab_level + custom_callback(self)
         silent_str = "[S]" if self.get_silent() else ""
         id_str     = ("[id=%x]" % id(self)) if display_id else ""
