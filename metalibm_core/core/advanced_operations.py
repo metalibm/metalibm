@@ -39,7 +39,7 @@
 
 from metalibm_core.core.ml_operations import (
     SpecifierOperation, empty_range,
-    AbstractOperationConstructor,
+    GeneralOperation,
     ML_ArithmeticOperation,
 )
 
@@ -86,10 +86,12 @@ class FixedPointPosition(ML_ArithmeticOperation):
         new_copy.align = self.align
 
 
-class PlaceHolder(AbstractOperationConstructor("PlaceHolder")):
+class PlaceHolder(GeneralOperation):
     """ This operation has an arbitrary arity.
         For all purpose it is equal to its first input (main_input)
         but carries on several inputs """
+    name = "PlaceHolder"
+
     def __init__(self, *args, **kw):
         PlaceHolder.__base__.__init__(self, *args, **kw)
 

@@ -53,9 +53,10 @@ from metalibm_core.core.advanced_operations import PlaceHolder
 #  @{
 
 ## Process object (sequential imperative module)
-class Process(AbstractOperationConstructor("Process")):
+class Process(GeneralOperation):
+  name = "Process"
   def __init__(self, *args, **kwords):
-    self.__class__.__base__.__init__(self, *args, **kwords)
+    GeneralOperation.__init__(self, *args, **kwords)
     self.arity = len(args)
     # list of variables which trigger the process
     self.sensibility_list = attr_init(kwords, "sensibility_list", [])
@@ -80,20 +81,26 @@ class Process(AbstractOperationConstructor("Process")):
   def push_to_pre_statement(self, optree):
     self.pre_statement.push(optree)
 
-class Event(AbstractOperationConstructor("Event", arity = 1)):
+class Event(GeneralOperation):#AbstractOperationConstructor("Event", arity = 1)):
+  name = "Event"
+  arity = 1
   def __init__(self, *args, **kwords):
-    self.__class__.__base__.__init__(self, *args, **kwords)
+    GeneralOperation.__init__(self, *args, **kwords)
     arg_precision = None if not "precision" in kwords else kwords["precision"]
     self.precision = ML_Bool if arg_precision is None else arg_precision
   def get_likely(self):
     return False
 
-class ZeroExt(AbstractOperationConstructor("ZeroExt", arity = 1)):
+class ZeroExt(ML_ArithmeticOperation):#AbstractOperationConstructor("ZeroExt", arity = 1)):
+  name = "ZeroExt"
+  arity = 1
   def __init__(self, op, ext_size, **kwords):
     self.__class__.__base__.__init__(self, op, **kwords)
     self.ext_size = ext_size
 
-class SignExt(AbstractOperationConstructor("SignExt", arity = 1)):
+class SignExt(ML_ArithmeticOperation):#AbstractOperationConstructor("SignExt", arity = 1)):
+  name =" SignExt"
+  arity = 1
   def __init__(self, op, ext_size, **kwords):
     self.__class__.__base__.__init__(self, op, **kwords)
     self.ext_size = ext_size
@@ -101,17 +108,23 @@ class SignExt(AbstractOperationConstructor("SignExt", arity = 1)):
 ## Build a larger value by concatenating two smaller values
 # The first operand (Left hand side) is positioned as the new Value most significant bits
 # and the second operand (Right hand side) is positionned
-class Concatenation(AbstractOperationConstructor("Concatenation", arity = 2)): pass
+class Concatenation(GeneralOperation): #AbstractOperationConstructor("Concatenation", arity = 2)): pass
+    name = "Concatenation"
+    arity = 2
 
 ## This operation replicates its operand as to completely 
 #  populate its output format
-class Replication(AbstractOperationConstructor("Replication", arity = 1)): pass
+class Replication(GeneralOperation): #AbstractOperationConstructor("Replication", arity = 1)): pass
+    name = "Replication"
+    arity = 1
 
 class Signal(AbstractVariable): pass 
 
 ## Truncate the operand to a smaller format
 #  truncate parameters are derived from input and output format
-class Truncate(AbstractOperationConstructor("Truncate", arity = 1)): pass
+class Truncate(ML_ArithmeticOperation):#AbstractOperationConstructor("Truncate", arity = 1)): pass
+    name = "Truncate"
+    arity = 1
 
 def force_size(optree, size):
   op_size = optree.get_precision().get_bit_size()
@@ -173,8 +186,10 @@ class RangeLoop(Loop):
   def get_loop_range(self):
     return self.loop_range
 
-class ComponentInstance(AbstractOperationConstructor("ComponentInstance")):
+class ComponentInstance(GeneralOperation):#AbstractOperationConstructor("ComponentInstance")):
   """ Instance of a sub-component """
+  name = "ComponentInstance"
+
   def __init__(self, component_object, *args, **kwords):
     ComponentInstance.__base__.__init__(self, *args, **kwords)
     self.component_object = component_object
@@ -242,7 +257,8 @@ class ComponentObject(object):
 
 
 ## Boolean assertion
-class Assert(AbstractOperationConstructor("Assert")):
+class Assert(GeneralOperation):#AbstractOperationConstructor("Assert")):
+  name = "Assert"
   class Failure: 
     descriptor = "failure"
   class Warning: 
@@ -262,15 +278,17 @@ class Assert(AbstractOperationConstructor("Assert")):
     new_copy.severity = severity
 
 ## Message reporting operation
-class Report(AbstractOperationConstructor("Report")):
+class Report(GeneralOperation):#AbstractOperationConstructor("Report")):
     """ Message reporting operation """
+    name = "Report"
     def __init__(self, *ops, **kw):
         Report.__base__.__init__(self, *ops, **kw)
         self.arity = len(ops)
         self.set_precision(ML_Void)
 
 ## Timed wait routine
-class Wait(AbstractOperationConstructor("Wait")):
+class Wait(GeneralOperation):#AbstractOperationConstructor("Wait")):
+  name = "Wait"
   def __init__(self, time_ns, **kw):
     Wait.__base__.__init__(self, **kw)
     self.time_ns = time_ns
@@ -331,7 +349,9 @@ class StaticDelay(PlaceHolder):
 #  @param inf_index least significant index to start from in @p arg
 #  @param sup_index most significant index to stop at in @p arg
 #  @return sub-signal arg(inf_index to sup_index)
-class SubSignalSelection(AbstractOperationConstructor("SubSignalSelection", arity = 3)):
+class SubSignalSelection(ML_ArithmeticOperation):#AbstractOperationConstructor("SubSignalSelection", arity = 3)):
+  name = "SubSignalSelection"
+  arity = 3
   def __init__(self, arg, inf_index, sup_index, **kw):
     if not "precision" in kw:
       kw["precision"] = ML_StdLogicVectorFormat(sup_index - inf_index + 1)
