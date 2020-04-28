@@ -39,7 +39,7 @@
 
 import operator
 
-from sollya import Interval, SollyaObject, nearestint, floor, ceil, inf, sup
+from sollya import Interval, SollyaObject, inf, sup
 import sollya
 
 S2 = sollya.SollyaObject(2)
@@ -57,9 +57,6 @@ from .ml_formats import (
     ML_AbstractFormat, ML_FloatingPoint_RoundingMode, ML_String,
     ML_Bool,
     ML_FPRM_Type,
-)
-from metalibm_core.code_generation.code_constant import (
-    C_Code, LLVM_IR_Code
 )
 
 from metalibm_core.utility.decorator import safe
@@ -1114,7 +1111,7 @@ class NearestInteger(ML_ArithmeticOperation):
     name = "NearestInteger"
     arity = 1
     def bare_range_function(self, ops):
-        return safe(nearestint)(ops[0], ops[1])
+        return safe(sollya.nearestint)(ops[0], ops[1])
 
 class Permute(ML_ArithmeticOperation):
     """ (UNSUED) abstract word-permutations inside a vector operation """
@@ -1384,8 +1381,8 @@ class ExponentExtraction(ML_ArithmeticOperation):
             return None
         else:
             # TODO/FIXME: manage cases when inf/nan are part of op_interval
-            lo_bound = floor(sollya.log2(inf(abs(op_interval))))
-            hi_bound = floor(sollya.log2(sup(abs(op_interval))))
+            lo_bound = sollya.floor(sollya.log2(inf(abs(op_interval))))
+            hi_bound = sollya.floor(sollya.log2(sup(abs(op_interval))))
             return Interval(lo_bound, hi_bound)
 
 class RawExponentExtraction(ML_ArithmeticOperation):
@@ -1403,8 +1400,8 @@ class RawExponentExtraction(ML_ArithmeticOperation):
             return None
         else:
             # TODO/FIXME: manage cases when inf/nan are part of op_interval
-            lo_bound = floor(sollya.log2(inf(abs(op_interval))))
-            hi_bound = floor(sollya.log2(sup(abs(op_interval))))
+            lo_bound = sollya.floor(sollya.log2(inf(abs(op_interval))))
+            hi_bound = sollya.floor(sollya.log2(sup(abs(op_interval))))
             return Interval(lo_bound, hi_bound)
 
 ## Unary operation, count the number of leading zeros in the operand
@@ -1892,7 +1889,7 @@ class FunctionType(object):
         self.output_format = output_format
         self.attributes = [] if attributes is None else attributes
 
-    def get_name(self, language=C_Code):
+    def get_name(self, language=None):
         return self.name
     @property
     def arity(self):
@@ -1900,20 +1897,6 @@ class FunctionType(object):
         # silently, arity is updated dynamically upon read
         return len(self.arg_list_precision)
 
-    # def get_declaration(self, language=C_Code):
-    #     out_prec = self.output_format.get_name(language=language)
-    #     arg_prec_list = ", ".join(
-    #         arg.get_name(language=language) for arg in self.arg_list_precision
-    #     )
-    #     # TODO: duplicate code with LLVM/C CodeGenerator ...
-    #     prefix = "@" if language is LLVM_IR_Code else ""
-    #     return "{attributes}{out_prec} {prefix}{fname}({arg_prec_list});".format(
-    #         attributes=" ".join(self.attributes),
-    #         prefix=prefix,
-    #         out_prec=out_prec,
-    #         fname=self.name,
-    #         arg_prec_list=arg_prec_list
-    #     )
 
 class FunctionObject(object):
     """ Object to wrap a function """
@@ -1937,7 +1920,7 @@ class FunctionObject(object):
         call_kwords.update(kwords)
         return FunctionCall(self, *args, **call_kwords)
 
-    def get_declaration(self, code_generator, language=C_Code):
+    def get_declaration(self, code_generator, language=None):
         """ Generate code declaration for FunctionObject """
         return code_generator.get_function_declaration(self.function_type, language=language)
 
