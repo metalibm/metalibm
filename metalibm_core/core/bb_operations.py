@@ -36,7 +36,7 @@ from metalibm_core.utility.log_report import Log
 from metalibm_core.core.ml_operations import (
     AbstractOperation,
     Statement, ControlFlowOperation,
-    GeneralArithmeticOperation,
+    ML_ArithmeticOperation,
 )
 
 
@@ -208,14 +208,14 @@ class BasicBlockList(Statement):
         self.push(value)
 
 
-class PhiNode(GeneralArithmeticOperation):
+class PhiNode(ML_ArithmeticOperation):
     name = "PhiNode"
     """ Implement Phi-Node required in SSA form
         PhiNode([v<i>, bb<i>) returns v<i> if predecessor of current basic-block
         in execution flow was bb<i>. Each predecessor must appear in the list
         """
     def __init__(self, *args, **kw):
-        GeneralArithmeticOperation.__init__(self, *args, **kw)
+        ML_ArithmeticOperation.__init__(self, *args, **kw)
         self.arity = len(args) / 2
 
     def get_value(self, index):

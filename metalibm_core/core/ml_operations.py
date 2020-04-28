@@ -37,7 +37,6 @@
 ###############################################################################
 
 
-import sys, inspect
 import operator
 
 from sollya import Interval, SollyaObject, nearestint, floor, ceil, inf, sup
@@ -559,19 +558,6 @@ class AbstractOperation(ML_Operation):
             op.propagate_precision(precision, boundary_list)
 
 
-## base class for all arithmetic operation that may depend
-#  on floating-point context (rounding mode for example)
-class ML_ArithmeticOperation(AbstractOperation):
-  error_function = None
-  def copy(self, copy_map = None):
-    return AbstractOperation_copy(self, copy_map)
-
-  def get_codegen_key(self):
-    return None
-  def __init__(self, *ops, **init_map):
-    """ init function for abstract operation """
-    AbstractOperation.__init__(self, **init_map)
-    self.inputs = tuple(implicit_op(op) for op in ops)
 
 ## Parent for AbstractOperation with no expected input
 class ML_LeafNode(AbstractOperation):
@@ -746,27 +732,6 @@ class Variable(AbstractVariable):
     """ Base class for non-abstract variable """
     name = "Variable"
 
-class InstanciatedOperation(ML_Operation):
-  """ parent to Metalibm's type-instanciated operation """
-  pass
-
-
-
-def AbstractOperation_copy(self, copy_map = None):
-  """ base function to copy an abstract operation object,
-      copy_map is a memoization hashtable which can be use to factorize
-      copies """
-  copy_map = {} if copy_map is None else copy_map
-  # test for previous definition in memoization map
-  if self in copy_map:
-    return copy_map[self]
-  # else define a new and free copy
-  new_copy = self.__class__(*tuple(op.copy(copy_map) for op in self.inputs), __copy = True)
-  new_copy.attributes = self.attributes.get_copy()
-  copy_map[self] = new_copy
-  self.finish_copy(new_copy, copy_map)
-  return new_copy
-
 
 class InvalidInterval(Exception):
   """ Invalid interval exception """
@@ -813,15 +778,9 @@ def interval_func(interval_op):
     else:
         return range_function_wrapper
 
-def AbstractOperation_get_codegen_key(self):
-    return None
-
-def AbstractOperation_init(self, *ops, **init_map):
-  """ init function for abstract operation """
-  AbstractOperation.__init__(self, **init_map)
-  self.inputs = tuple(implicit_op(op) for op in ops)
 
 class GeneralOperation(AbstractOperation):
+    """ parent class for generic operations """
     arity = 2
     bare_range_function = empty_range
     error_function = None
@@ -859,71 +818,46 @@ class GeneralOperation(AbstractOperation):
 class ControlFlowOperation(GeneralOperation):
     """ Parent for all control-flow operation """
 
+class ML_ArithmeticOperation(GeneralOperation):
+    """ base class for all arithmetic operation that may depend
+        on floating-point context (rounding mode for example) """
+    error_function = None
 
-class GeneralArithmeticOperation(ML_ArithmeticOperation, GeneralOperation):
-    pass
-
-
-def GeneralOperationConstructor(name, arity = 2, range_function = empty_range, error_function = None, inheritance = [], base_class = AbstractOperation):
-    """ meta-class constructor for abstract operation """
-    field_map = {
-        # operation initialization function assignation
-        "__init__": AbstractOperation_init,
-        # operation copy
-        "copy": AbstractOperation_copy,
-        # operation name
-        "name": name,
-        # operation arity
-        "arity": arity, 
-        # interval function building
-        "range_function": interval_func(range_function), 
-        # bare range function
-        "bare_range_function": range_function,
-        # error function building
-        "error_function": error_function,
-        # generation key building
-        "get_codegen_key": AbstractOperation_get_codegen_key,
-    }
-    return type(name, (base_class,) + tuple(inheritance), field_map)
-
-
-def AbstractOperationConstructor(name, arity = 2, range_function = empty_range, error_function = None, inheritance = []):
-    return GeneralOperationConstructor(name, arity = arity, range_function = range_function, error_function = error_function, inheritance = inheritance, base_class = AbstractOperation)
-
-
+    def get_codegen_key(self):
+        return None
 
 ## Bitwise bit AND operation
-class BitLogicAnd(GeneralArithmeticOperation):
+class BitLogicAnd(ML_ArithmeticOperation):
     name = "BitLogicAnd"
     arity = 2
 ## Bitwise bit OR operation
-class BitLogicOr(GeneralArithmeticOperation):
+class BitLogicOr(ML_ArithmeticOperation):
     name = "BitLogicOr"
     arity = 2
 ## Bitwise bit exclusive-OR operation
-class BitLogicXor(GeneralArithmeticOperation):
+class BitLogicXor(ML_ArithmeticOperation):
     name = "BitLogicXor"
     arity = 2
 ## Bitwise negate operation
-class BitLogicNegate(GeneralArithmeticOperation):
+class BitLogicNegate(ML_ArithmeticOperation):
     name = "BitLogicNegate"
     arity = 1
 ## Bit Logic Right Shift
 #   2-operand operation, first argument is the value to be shifted
 #   the second is the shift amount
-class BitLogicRightShift(GeneralArithmeticOperation):
+class BitLogicRightShift(ML_ArithmeticOperation):
     name = "BitLogicRightShift"
     arity = 2
 ## Bit Arithmetic Right Shift
 #   2-operand operation, first argument is the value to be shifted
 #   the second is the shift amount
-class BitArithmeticRightShift(GeneralArithmeticOperation):
+class BitArithmeticRightShift(ML_ArithmeticOperation):
     name = "BitArithmeticRightShift"
     arity = 2
 ## Bit Left Shift
 #   2-operand operation, first argument is the value to be shifted
 #   the second is the shift amount
-class BitLogicLeftShift(GeneralArithmeticOperation):
+class BitLogicLeftShift(ML_ArithmeticOperation):
     name = "BitLogicLeftShift"
     arity = 2
 
@@ -931,7 +865,7 @@ class BitLogicLeftShift(GeneralArithmeticOperation):
 ## Absolute value operation
 #  Expects a single argument and returns
 #  its absolute value
-class Abs(GeneralArithmeticOperation):
+class Abs(ML_ArithmeticOperation):
     """ abstract absolute value operation """
     name = "Abs"
     arity = 1
@@ -941,7 +875,7 @@ class Abs(GeneralArithmeticOperation):
 ## Unary negation value operation
 #  Expects a single argument and returns
 #  its opposite value
-class Negation(GeneralArithmeticOperation):
+class Negation(ML_ArithmeticOperation):
     """ abstract negation """
     name = "Negation"
     arity = 1
@@ -965,12 +899,12 @@ class ComponentSelectionSpecifier(object):
     """ Parent class for all component selection specifier """
     pass
 
-class Split(GeneralArithmeticOperation):
+class Split(ML_ArithmeticOperation):
     """ Splitting Vector in two halves sub-vectors """
     name = "Split"
     arity = 1
 
-class ComponentSelection(SpecifierOperation, GeneralArithmeticOperation):
+class ComponentSelection(SpecifierOperation, ML_ArithmeticOperation):
     arity = 1
     name = "ComponentSelection"
     class Hi(ComponentSelectionSpecifier): pass
@@ -995,7 +929,7 @@ class ComponentSelection(SpecifierOperation, GeneralArithmeticOperation):
 
     def __init__(self, *args, **kwords):
         self.specifier = attr_init(kwords, "specifier", ComponentSelection.Hi)
-        GeneralArithmeticOperation.__init__(self, *args, **kwords)
+        ML_ArithmeticOperation.__init__(self, *args, **kwords)
 
         # setting implicit precision
         if self.get_precision() == None and len(args) > 0 and args[0].get_precision() != None:
@@ -1004,10 +938,10 @@ class ComponentSelection(SpecifierOperation, GeneralArithmeticOperation):
                 self.set_precision(ComponentSelection.implicit_arg_precision[arg_precision])
 
 
-class BuildFromComponent(GeneralArithmeticOperation):
+class BuildFromComponent(ML_ArithmeticOperation):
     name = "BuildFromComponent"
     def __init__(self, *args, **kwords):
-        GeneralArithmeticOperation.__init__(self, *args, **kwords)
+        ML_ArithmeticOperation.__init__(self, *args, **kwords)
         self.arity = len(args)
 
 
@@ -1026,7 +960,7 @@ class FMASpecifier(object):
 # - FusedMultiplyAdd.SubtractNegate FMA - op0 * op1 + op2
 # - FusedMultiplyAdd.DotProduct         op0 * op1 + op2 * op3
 # - FusedMultiplyAdd.DotProductNegate   op0 * op1 + op2 * op3
-class FusedMultiplyAdd(SpecifierOperation, GeneralArithmeticOperation):
+class FusedMultiplyAdd(SpecifierOperation, ML_ArithmeticOperation):
     """ abstract fused multiply and add operation op0 * op1 + op2 """
     name = "FusedMultiplyAdd"
     ## standard FMA op0 * op1 + op2
@@ -1088,7 +1022,7 @@ class FusedMultiplyAdd(SpecifierOperation, GeneralArithmeticOperation):
         # used in proof generation to make sure generated code
         # is closest as possible to evaluation scheme
         self.commutated = attr_init(kwords, "commutated", False)
-        GeneralArithmeticOperation.__init__(self, *args, **kwords)
+        ML_ArithmeticOperation.__init__(self, *args, **kwords)
         self.arity = self.specifier.arity
 
     def set_commutated(self, new_commutated_value):
@@ -1125,14 +1059,14 @@ def FMSN(op0, op1, op2, **kwords):
     kwords["specifier"] = FusedMultiplyAdd.SubtractNegate
     return FusedMultiplyAdd(op0, op1, op2, **kwords)
 
-class Addition(GeneralArithmeticOperation):
+class Addition(ML_ArithmeticOperation):
     """ 2-operand Addition node class """
     name = "Addition"
     arity = 2
     def bare_range_function(self, ops):
         return safe(operator.__add__)(ops[0], ops[1])
 
-class Subtraction(GeneralArithmeticOperation):
+class Subtraction(ML_ArithmeticOperation):
     """ Subtraction operation class node """
     name = "Subtraction"
     arity = 2
@@ -1140,7 +1074,7 @@ class Subtraction(GeneralArithmeticOperation):
         return safe(operator.__sub__)(ops[0], ops[1])
 
 
-class Multiplication(GeneralArithmeticOperation):
+class Multiplication(ML_ArithmeticOperation):
     """  Multiplication operation node class"""
     name = "Multiplication"
     arity = 2
@@ -1148,7 +1082,7 @@ class Multiplication(GeneralArithmeticOperation):
         return safe(operator.__mul__)(ops[0], ops[1])
 
 
-class Division(GeneralArithmeticOperation):
+class Division(ML_ArithmeticOperation):
     """ abstract addition """
     arity = 2
     def bare_range_function(self, ops):
@@ -1233,7 +1167,7 @@ class Return(GeneralOperation):
 ## Memory Load from a Multi-Dimensional
 #  The first argument is the table, following arguments
 #  are the table index in each dimension (from 1 to ...)
-class TableLoad(GeneralArithmeticOperation):
+class TableLoad(ML_ArithmeticOperation):
     """ abstract load from a table operation """
     name = "TableLoad"
     arity = 2
@@ -1248,12 +1182,12 @@ class TableLoad(GeneralArithmeticOperation):
 #  the following arguments are the table index
 #  in each dimension (from 1 to ...)
 #   By default the precision of this operation is ML_Void
-class TableStore(GeneralArithmeticOperation):
+class TableStore(ML_ArithmeticOperation):
     """ abstract store to a table operation """
     name = "TableStore"
     arity = 3
 
-class VectorUnpack(SpecifierOperation, GeneralArithmeticOperation):
+class VectorUnpack(SpecifierOperation, ML_ArithmeticOperation):
     """ abstract vector unpacking operation """
     name = "VectorUnpack"
     # High and Low specifiers for Unpack operation
@@ -1262,7 +1196,7 @@ class VectorUnpack(SpecifierOperation, GeneralArithmeticOperation):
 
     def __init__(self, *args, **kwords):
         self.specifier = attr_init(kwords, "specifier", VectorUnpack.Lo)
-        GeneralArithmeticOperation.__init__(*args, **kwords)
+        ML_ArithmeticOperation.__init__(*args, **kwords)
 
     def get_name(self):
         return  "VectorUnpack.{}".format(self.specifier.name)
@@ -1278,7 +1212,7 @@ def interval_union(int0, int1):
 ## Ternary selection operator: the first operand is a condition
 #  when True the node returns the 2nd operand else its returns the
 #  3rd operand
-class Select(GeneralArithmeticOperation):
+class Select(ML_ArithmeticOperation):
     """ Ternary operator """
     name = "Select"
     arity = 3
@@ -1297,13 +1231,13 @@ def min_interval(a, b):
 def max_interval(a, b):
     return Interval(max(inf(a), inf(b)), max(sup(a), sup(b)))
 
-class Min(GeneralArithmeticOperation):
+class Min(ML_ArithmeticOperation):
     """ Minimum of 2 inputs """
     name = "Min"
     arity = 2
     def bare_range_function(self, ops):
         return min_interval(ops[0], ops[1])
-class Max(GeneralArithmeticOperation):
+class Max(ML_ArithmeticOperation):
     """ Maximum of 2 inputs """
     name = "Max"
     arity = 2
@@ -1373,7 +1307,7 @@ class ConditionBlock(ControlFlowOperation):
         new_copy.parent_list  = [op.copy(copy_map) for op in self.parent_list] 
 
 
-class Conversion(GeneralArithmeticOperation):
+class Conversion(ML_ArithmeticOperation):
     """ abstract conversion operation """
     name = "Conversion"
     arity = 1
@@ -1382,7 +1316,7 @@ def is_conversion(optree):
     """ Predicate to test Conversion class operations """
     return isinstance(optree, Conversion)
 
-class TypeCast(GeneralArithmeticOperation):
+class TypeCast(ML_ArithmeticOperation):
     """ abstract conversion operation """
     name = "TypeCast"
     arity = 1
@@ -1392,7 +1326,7 @@ class TypeCast(GeneralArithmeticOperation):
 def is_typecast(optree):
     return isinstance(optree, TypeCast)
 
-class Dereference(GeneralArithmeticOperation):
+class Dereference(ML_ArithmeticOperation):
     """ abstract pointer derefence operation """
     name = "Dereference"
     arity = 1
@@ -1402,7 +1336,7 @@ class ReferenceAssign(GeneralOperation):
     name = "ReferenceAssign"
     arity = 2
 
-class ExponentInsertion(SpecifierOperation, GeneralArithmeticOperation):
+class ExponentInsertion(SpecifierOperation, ML_ArithmeticOperation):
     """ insertion of a number in the exponent field of a floating-point value """
     name = "ExponentInsertion"
     arity = 1
@@ -1410,7 +1344,7 @@ class ExponentInsertion(SpecifierOperation, GeneralArithmeticOperation):
     class NoOffset: pass
 
     def __init__(self, *args, **kwords):
-        GeneralArithmeticOperation.__init__(self, *args, **kwords)
+        ML_ArithmeticOperation.__init__(self, *args, **kwords)
         self.specifier = attr_init(kwords, "specifier", default_value = ExponentInsertion.Default)
 
     def get_codegen_key(self):
@@ -1426,7 +1360,7 @@ class ExponentInsertion(SpecifierOperation, GeneralArithmeticOperation):
             hi_bound = S2**sup(op_interval[0])
             return Interval(lo_bound, hi_bound)
 
-class MantissaExtraction(GeneralArithmeticOperation):
+class MantissaExtraction(ML_ArithmeticOperation):
     """ return the input's mantissa as a floating-point value, whose absolute value lies between 1 (included) and 2 (excluded), input sign is kept unmodified  """
     name = "MantissaExtraction"
     airty = 1
@@ -1436,7 +1370,7 @@ class MantissaExtraction(GeneralArithmeticOperation):
         # if mantissa size if known
         return Interval(1, 2)
 
-class ExponentExtraction(GeneralArithmeticOperation):
+class ExponentExtraction(ML_ArithmeticOperation):
     """ extraction of the exponent field of a floating-point value
         the result is the unbiased (real) exponent, that is an
         integer e such that the input node can be written s.m.2^e
@@ -1454,7 +1388,7 @@ class ExponentExtraction(GeneralArithmeticOperation):
             hi_bound = floor(sollya.log2(sup(abs(op_interval))))
             return Interval(lo_bound, hi_bound)
 
-class RawExponentExtraction(GeneralArithmeticOperation):
+class RawExponentExtraction(ML_ArithmeticOperation):
     """ raw extraction of the exponent field of a floating-point value
         the result is the biased exponent, that is an
         integer e such that the input node can be written s.m.2^e+b
@@ -1476,7 +1410,7 @@ class RawExponentExtraction(GeneralArithmeticOperation):
 ## Unary operation, count the number of leading zeros in the operand
 #  If the operand equals 0, then the result is the bit size of the
 #  operand
-class CountLeadingZeros(GeneralArithmeticOperation):
+class CountLeadingZeros(ML_ArithmeticOperation):
     name = "CountLeadingZeros"
     arity = 1
 
@@ -1534,10 +1468,10 @@ def logic_operation_init(self, *args, **kwords):
         self.likely = self.likely_function(*tuple(get_arg_likely(arg) for arg in args))
 
 
-class LogicOperation(BooleanOperation, GeneralArithmeticOperation):
+class LogicOperation(BooleanOperation, ML_ArithmeticOperation):
     """ base class for Logical Operation """
     def __init__(self, *args, **kw):
-        GeneralArithmeticOperation.__init__(self, *args, **kw)
+        ML_ArithmeticOperation.__init__(self, *args, **kw)
         BooleanOperation.__init__(self, attr_init(kw, "likely"))
         # if likely has not been overloaded
         # trying to determine it with respect to input likeliness
@@ -1566,7 +1500,7 @@ class LogicalNot(LogicOperation):
         return not op
 
 
-class Test(SpecifierOperation, BooleanOperation, GeneralArithmeticOperation):
+class Test(SpecifierOperation, BooleanOperation, ML_ArithmeticOperation):
     name = "Test"
     """ Abstract Test operation class """
     class IsNaN(TestSpecifier):
@@ -1636,7 +1570,7 @@ class Test(SpecifierOperation, BooleanOperation, GeneralArithmeticOperation):
 
     def __init__(self, *args, **kwords):
         SpecifierOperation.__init__(self)
-        GeneralArithmeticOperation.__init__(self, *args, **kwords)
+        ML_ArithmeticOperation.__init__(self, *args, **kwords)
         BooleanOperation.__init__(self, attr_init(kwords, "likely"))
         self.specifier = attr_init(kwords, "specifier", required = True)
         self.arity = self.specifier.arity if not self.specifier is None else 1
@@ -1662,7 +1596,7 @@ class ComparisonSpecifier(object):
 
 
 ## Comparison operator
-class Comparison(BooleanOperation, SpecifierOperation, GeneralArithmeticOperation):
+class Comparison(BooleanOperation, SpecifierOperation, ML_ArithmeticOperation):
     """ Abstract Comparison operation """
     name = "Comparison"
     arity = 2
@@ -1690,7 +1624,7 @@ class Comparison(BooleanOperation, SpecifierOperation, GeneralArithmeticOperatio
 
 
     def __init__(self, *args, **kwords):
-        GeneralArithmeticOperation.__init__(self, *args, **kwords)
+        ML_ArithmeticOperation.__init__(self, *args, **kwords)
         BooleanOperation.__init__(self, attr_init(kwords, "likely"))
         self.specifier = attr_init(kwords, "specifier", required = True)
 
@@ -1749,7 +1683,7 @@ class Statement(ControlFlowOperation):
         new_copy.arity = self.arity
 
 
-class FieldExtraction(GeneralArithmeticOperation):
+class FieldExtraction(ML_ArithmeticOperation):
     name = "FieldExtraction"
     def __init__(self, *args, **kwords):
         self.__class__.__base__.__init__(self, *args, **kwords)
@@ -1785,10 +1719,10 @@ class SeedOperation(SO_Specifier_Type):
     def instantiated_type_rule(backend, op, dprec):
         return backend.merge_abstract_format(op, op.inputs)
 
-class DivisionSeed(GeneralArithmeticOperation):
+class DivisionSeed(ML_ArithmeticOperation):
     arity = 2
     name = "DivisionSeed"
-class ReciprocalSeed(GeneralArithmeticOperation):
+class ReciprocalSeed(ML_ArithmeticOperation):
     arity = 1
     name = "ReciprocalSeed"
 
@@ -1797,7 +1731,7 @@ class ReciprocalSeed(GeneralArithmeticOperation):
         # TODO/FIXME: not taking into account op accuracy
         return  1 / op_range
 
-class ReciprocalSquareRootSeed(GeneralArithmeticOperation):
+class ReciprocalSquareRootSeed(ML_ArithmeticOperation):
     arity = 1
     name = "ReciprocalSquareRootSeed"
 
@@ -2154,10 +2088,10 @@ class SwitchBlock(ControlFlowOperation):
                 pre_str += "%s" %  self.case_map[case].get_str(new_depth, display_precision, tab_level = tab_level + 2, memoization_map = memoization_map, display_attribute = display_attribute, display_id = display_id, custom_callback = custom_callback)
             return pre_str
 
-class VectorAssembling(GeneralArithmeticOperation):
+class VectorAssembling(ML_ArithmeticOperation):
     name = "VectorAssembling"
 
-class SubVectorExtract(GeneralArithmeticOperation):
+class SubVectorExtract(ML_ArithmeticOperation):
     """ extraction of a sub-vector from a larger vector """
     name = "SubVectorExtract"
     arity = None
@@ -2178,7 +2112,7 @@ class SubVectorExtract(GeneralArithmeticOperation):
         new_copy.elt_index_list = self.elt_index_list
 
 
-class VectorElementSelection(GeneralArithmeticOperation):
+class VectorElementSelection(ML_ArithmeticOperation):
     name = "VectorElementSelection"
     arity = 2
     implicit_arg_precision = {
@@ -2244,9 +2178,3 @@ def Likely(optree, likely_value):
 
 
 
-if __name__ == "__main__":
-  # auto doc
-  # TODO: to be fixed
-  for name, obj in inspect.getmembers(sys.modules[__name__]):
-    if inspect.isclass(obj) and isinstance(obj, ML_Operation):
-      print("operation class: ", obj)
