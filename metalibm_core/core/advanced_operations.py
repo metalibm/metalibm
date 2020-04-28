@@ -38,18 +38,21 @@
 ###############################################################################
 
 from metalibm_core.core.ml_operations import (
-    ArithmeticOperationConstructor, SpecifierOperation, empty_range,
+    SpecifierOperation, empty_range,
     AbstractOperationConstructor,
+    ML_ArithmeticOperation,
 )
 
 
-class FixedPointPosition(
-    ArithmeticOperationConstructor("FixedPointPosition",
-    range_function = empty_range)
-    ):
+class FixedPointPosition(ML_ArithmeticOperation):
     """ Dynamic FixedPointPosition  evaluator node
         convert to a constant during code generation, once input
         format has been determined """
+    name = "FixedPointPosition"
+
+    def range_function(self, ops, ops_interval_getter=lambda op: op.get_interval()):
+        return None
+
     class FromMSBToLSB:
         """ offset is given from MSB downward.
             The node returns the index of position (MSB - offset) from LSB

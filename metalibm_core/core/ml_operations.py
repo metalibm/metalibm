@@ -592,7 +592,7 @@ class EmptyOperand(ML_LeafNode):
         attribute_str = "" if not display_attribute else self.attributes.get_str(tab_level = tab_level)
         id_str        = ("[id=%x]" % id(self)) if display_id else ""
         return AbstractOperation.str_del * tab_level + custom_callback(self) + "EmptyOperand()%s%s%s\n" % (attribute_str, precision_str, id_str)
-    
+
 
 def is_interval_compatible_object(value):
     """ predicate testing if value is an object from
@@ -892,10 +892,6 @@ def AbstractOperationConstructor(name, arity = 2, range_function = empty_range, 
 
 
 
-def ArithmeticOperationConstructor(name, arity = 2, range_function = empty_range, error_function = None, inheritance = []):
-    return GeneralOperationConstructor(name, arity = arity, range_function = range_function, error_function = error_function, inheritance = inheritance, base_class = ML_ArithmeticOperation)
-
-
 ## Bitwise bit AND operation
 class BitLogicAnd(GeneralArithmeticOperation):
     name = "BitLogicAnd"
@@ -953,13 +949,6 @@ class Negation(GeneralArithmeticOperation):
         return safe(operator.__neg__)(ops[0])
 
 
-## 2-Operand arithmetic addition
-class Addition(ArithmeticOperationConstructor("Addition", range_function = lambda self, ops: safe(operator.__add__)(ops[0], ops[1]))): 
-    """ abstract addition """
-    name = "Addition"
-    arity = 2
-    def bare_range_function(self, ops):
-        return safe(operator.__add__)(ops[0], ops[1])
 
 
 class SpecifierOperation(object):
@@ -1136,26 +1125,41 @@ def FMSN(op0, op1, op2, **kwords):
     kwords["specifier"] = FusedMultiplyAdd.SubtractNegate
     return FusedMultiplyAdd(op0, op1, op2, **kwords)
 
+class Addition(GeneralArithmeticOperation):
+    """ 2-operand Addition node class """
+    name = "Addition"
+    arity = 2
+    def bare_range_function(self, ops):
+        return safe(operator.__add__)(ops[0], ops[1])
 
-class Subtraction(ArithmeticOperationConstructor("Subtraction", range_function = lambda self, ops: safe(operator.__sub__)(ops[0], ops[1]))): 
+class Subtraction(GeneralArithmeticOperation):
+    """ Subtraction operation class node """
+    name = "Subtraction"
+    arity = 2
+    def bare_range_function(self, ops):
+        return safe(operator.__sub__)(ops[0], ops[1])
+
+
+class Multiplication(GeneralArithmeticOperation):
+    """  Multiplication operation node class"""
+    name = "Multiplication"
+    arity = 2
+    def bare_range_function(self, ops):
+        return safe(operator.__mul__)(ops[0], ops[1])
+
+
+class Division(GeneralArithmeticOperation):
     """ abstract addition """
-    pass
+    arity = 2
+    def bare_range_function(self, ops):
+        return safe(operator.__truediv__)(ops[0], ops[1])
 
-
-class Multiplication(ArithmeticOperationConstructor("Multiplication", range_function = lambda self, ops: safe(operator.__mul__)(ops[0], ops[1]))): 
-    """ abstract addition """
-    pass
-
-
-class Division(ArithmeticOperationConstructor("Division", range_function = lambda self, ops: safe(operator.__truediv__)(ops[0], ops[1]))): 
-    """ abstract addition """
-    pass
-
-class Extract(ArithmeticOperationConstructor("Extract")):
-    """ abstract word or vector extract-from-vector operation """
-    pass
+class Extract(ML_ArithmeticOperation):
+    """ (UNUSED) abstract word or vector extract-from-vector operation """
+    name = "Extract"
 
 def numerical_modulo(lhs, rhs):
+    """ compute lhs % rhs """
     if (isinstance(rhs, SollyaObject) and rhs.is_range()) or isinstance(rhs, (MetaInterval, MetaIntervalList)):
         # TODO: manage properly range for euclidian modulo operation
         return rhs
@@ -1163,25 +1167,24 @@ def numerical_modulo(lhs, rhs):
         raise NotImplementedError("support for {} object not implemented in numerical_modulo".format(rhs))
 
 
-class Modulo(ArithmeticOperationConstructor("Modulo", range_function = lambda self, ops: safe(numerical_modulo)(ops[0], ops[1]))):
-    """ abstract modulo operation """
-    pass
+class Modulo(ML_ArithmeticOperation):
+    """ modulo operation node class """
+    name = "Modulo"
+    arity = 2
+    def bare_range_function(self, ops):
+        return safe(numerical_modulo)(ops[0], ops[1])
 
 
-class NearestInteger(ArithmeticOperationConstructor("NearestInteger", arity = 1, range_function = lambda self, ops: safe(nearestint)(ops[0]))): 
-    """ abstract addition """
-    pass
+class NearestInteger(ML_ArithmeticOperation):
+    """ nearest integer operation node class"""
+    name = "NearestInteger"
+    arity = 1
+    def bare_range_function(self, ops):
+        return safe(nearestint)(ops[0], ops[1])
 
-class Permute(ArithmeticOperationConstructor("Permute")):
-    """ abstract word-permutations inside a vector operation """
-    pass
-
-# Duplicate with DivisionSeed
-#class FastReciprocal(ArithmeticOperationConstructor(
-#        "FastReciprocal", arity = 1,
-#        range_function = lambda self, ops: 1 / ops[0])):
-#    """ abstract fast reciprocal """
-#    pass
+class Permute(ML_ArithmeticOperation):
+    """ (UNSUED) abstract word-permutations inside a vector operation """
+    name = "Permute"
 
 ## Round to an integer value, rounding towards zero
 #  returns the minimal integer greater than or equal to the node's input
@@ -1210,10 +1213,12 @@ class Floor(ML_ArithmeticOperation):
   bare_range_function = lambda self, ops: safe(sollya.floor)(ops[0])
 
 
-## Compute the power of 2 of its unique operand
-class PowerOf2(ArithmeticOperationConstructor("PowerOf2", arity = 1, range_function = lambda self, ops: safe(operator.__pow__)(S2, ops[0]))):
-    """ abstract power of 2 operation """
-    pass
+class PowerOf2(ML_ArithmeticOperation):
+    """ abstract power of 2 operation node class, computes 2^inputs[0] """
+    name = "PowerOf2"
+    arity = 1
+    def bare_range_function(self, ops):
+        return safe(operator.__pow__)(S2, ops[0])
 
 
 ## Side effect operator which stops the function and
