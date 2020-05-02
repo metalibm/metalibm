@@ -580,25 +580,6 @@ class ML_FunctionBasis(object):
     """ return a unique identifier, combining base_name + function_name """
     return "%s_%s" % (self.function_name, base_name)
 
-  ## emulation code generation
-  def generate_emulate(self):
-    raise Exception("generate emulate is deprecated")
-
-  ## generation the wrapper to the emulation code
-  #  @param test_input Variable where the test input is read from
-  #  @param mpfr_rnd Variable object used as precision paramater for mpfr calls
-  #  @param test_output Variable where emulation result is copied to
-  #  @param test_ternary Variable where mpfr ternary status is copied to
-  #  @return tuple code_object, code_generator 
-  def generate_emulate_wrapper(self, test_input   = Variable("vx", precision = ML_Mpfr_t), mpfr_rnd = Variable("rnd", precision = ML_Int32), test_output = Variable("result", precision = ML_Mpfr_t, var_type = Variable.Local), test_ternary = Variable("ternary", precision = ML_Int32, var_type = Variable.Local)):
-    scheme = self.generate_emulate(test_ternary, test_output, test_input, mpfr_rnd)
-
-    wrapper_processor = MPFRProcessor()
-
-    code_generator = CCodeGenerator(wrapper_processor, declare_cst = False, disable_debug = True, libm_compliant = self.libm_compliant)
-    code_object = NestedCode(code_generator, static_cst = True)
-    code_generator.generate_expr(code_object, scheme, folded = False, initial = False)
-    return code_object, code_generator
 
   def get_output_precision(self):
     return self.precision
