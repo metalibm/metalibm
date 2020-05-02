@@ -48,13 +48,15 @@ from ..core.ml_formats import *
 
 from ..utility.debug_utils import ML_Debug
 
-from .code_constant import C_Code
+from .code_constant import C_Code, OpenCL_Code
 from .code_element import CodeVariable, CodeExpression
 from .code_function import CodeFunction
 from .generator_utility import DummyTree
+from .code_generator import RegisterCodeGenerator, CodeGenerator
 
 
-class CCodeGenerator(object):
+@RegisterCodeGenerator([C_Code, OpenCL_Code])
+class CCodeGenerator(CodeGenerator):
     language = C_Code
 
     """ C language code generator """

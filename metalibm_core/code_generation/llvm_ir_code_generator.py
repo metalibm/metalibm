@@ -55,6 +55,7 @@ from ..utility.log_report import Log
 
 from metalibm_core.code_generation.code_function import CodeFunction
 from metalibm_core.code_generation.llvm_utils import llvm_ir_format
+from .code_generator import RegisterCodeGenerator, CodeGenerator
 
 # TODO factorize outside this file
 class Label(object):
@@ -250,7 +251,10 @@ def generate_Constant_expr(optree):
             optree.precision
         )
 
-class LLVMIRCodeGenerator(object):
+
+
+@RegisterCodeGenerator([LLVM_IR_Code])
+class LLVMIRCodeGenerator(CodeGenerator):
     """ LLVM-IR language code generator """
     language = LLVM_IR_Code
 
