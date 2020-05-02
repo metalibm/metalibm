@@ -41,7 +41,7 @@ import sollya
 from ..core.ml_operations import Variable
 from ..core.ml_hdl_operations import Signal
 from .code_constant import (
-    C_Code, Gappa_Code, LLVM_IR_Code
+    C_Code, Gappa_Code, LLVM_IR_Code, OpenCL_Code,
 )
 from ..core.ml_formats import ML_GlobalRoundMode, ML_Fixed_Format, ML_FP_Format, FunctionFormat
 
@@ -289,6 +289,24 @@ def get_git_tag():
     git_tag = subprocess.call("git log -n 1")
     return git_tag
 
+class CodeObjectRegistry:
+    code_object_class_map = {}
+
+def RegisterDefaultCodeObject(language_list):
+    """ generate a class decorator to register
+        default code object for a given language list """
+    def __register(CodeObjectClass):
+        for language in language_list:
+            if language in CodeObjectRegistry.code_object_class_map:
+                if CodeObjectRegistry.code_object_class_map[language] == CodeObjectClass:
+                    Log.report(Log.Warning, "multiple registration of codegenerator {} for {}",
+                               CodeObjectClass, language)
+                else:
+                    Log.report(Log.Warning, "language {} has an already registered code generator class {} (when trying to register {})", 
+                               language, CodeObjectClass.code_object_class_map[language], CodeObjectClass)
+            CodeObjectRegistry.code_object_class_map[language] = CodeObjectClass
+        return CodeObjectClass
+    return __register
 
 
 
@@ -493,6 +511,9 @@ class CodeObject(CodeConfiguration):
     def add_multiline_comment(self, comment):
         self.add_comment(comment)
 
+@RegisterDefaultCodeObject([C_Code, OpenCL_Code])
+class CstyleCodeObject(CodeObject):
+    pass
 
 class Gappa_Unknown(object):
     def __str__(self):
@@ -593,6 +614,7 @@ class GappaCodeObject(CodeObject):
         parent_code << self.gen_complete_goal()
         parent_code << self.gen_hint()
 
+@RegisterDefaultCodeObject([LLVM_IR_Code])
 class LLVMCodeObject(CodeObject):
     GENERAL_PREFIX = "%"
 
