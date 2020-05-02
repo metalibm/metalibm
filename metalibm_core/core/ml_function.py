@@ -62,14 +62,11 @@ from metalibm_core.core.precisions import *
 from metalibm_core.core.random_gen import get_precision_rng
 
 from metalibm_core.code_generation.code_object import (
-    NestedCode, CodeObject, LLVMCodeObject, MultiSymbolTable
+    NestedCode, MultiSymbolTable
 )
 from metalibm_core.code_generation.code_function import (
     CodeFunction, FunctionGroup
 )
-from metalibm_core.code_generation.generic_processor import GenericProcessor
-from metalibm_core.code_generation.mpfr_backend import MPFRProcessor
-from metalibm_core.code_generation.c_code_generator import CCodeGenerator
 from metalibm_core.code_generation.code_constant import C_Code
 from metalibm_core.core.passes import (
     Pass, PassScheduler, PassDependency, AfterPassById,
