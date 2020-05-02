@@ -83,6 +83,9 @@ from metalibm_core.utility.num_utils import ulp
 
 
 from metalibm_core.code_generation.code_object import CodeObjectRegistry
+# explicit import of generators submodule to ensure proper
+# registration of all CodeGenerator-s
+import metalibm_core.code_generation.generators
 from metalibm_core.code_generation.code_generator import CodeGenerator
 
 

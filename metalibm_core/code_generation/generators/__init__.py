@@ -5,7 +5,7 @@
 ###############################################################################
 # MIT License
 #
-# Copyright (c) 2018 Kalray
+# Copyright (c) 2020 Kalray
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -26,3 +26,6 @@
 # SOFTWARE.
 ###############################################################################
 
+# explicit imports are required to register code generators
+import metalibm_core.code_generation.generators.llvm_ir_code_generator
+import metalibm_core.code_generation.generators.c_code_generator

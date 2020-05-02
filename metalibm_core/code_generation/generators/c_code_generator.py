@@ -32,27 +32,27 @@
 ###############################################################################
 
 
-from ..utility.log_report import Log
+from metalibm_core.utility.log_report import Log
 
 # TODO clean long import list
-from ..core.ml_operations import (
+from metalibm_core.core.ml_operations import (
     Variable, Constant, ConditionBlock, Return, TableLoad, Statement,\
     Loop, SpecificOperation, ExceptionOperation, ClearException, \
     NoResultOperation, SwitchBlock, FunctionObject, ReferenceAssign, \
     BooleanOperation,
     FunctionType
 )
-from ..core.advanced_operations import PlaceHolder
-from ..core.ml_table import ML_Table, ML_NewTable
-from ..core.ml_formats import *
+from metalibm_core.core.advanced_operations import PlaceHolder
+from metalibm_core.core.ml_table import ML_Table, ML_NewTable
+from metalibm_core.core.ml_formats import *
 
-from ..utility.debug_utils import ML_Debug
+from metalibm_core.utility.debug_utils import ML_Debug
 
-from .code_constant import C_Code, OpenCL_Code
-from .code_element import CodeVariable, CodeExpression
-from .code_function import CodeFunction
-from .generator_utility import DummyTree
-from .code_generator import RegisterCodeGenerator, CodeGenerator
+from metalibm_core.code_generation.code_constant import C_Code, OpenCL_Code
+from metalibm_core.code_generation.code_element import CodeVariable, CodeExpression
+from metalibm_core.code_generation.code_function import CodeFunction
+from metalibm_core.code_generation.generator_utility import DummyTree
+from metalibm_core.code_generation.code_generator import RegisterCodeGenerator, CodeGenerator
 
 
 @RegisterCodeGenerator([C_Code, OpenCL_Code])

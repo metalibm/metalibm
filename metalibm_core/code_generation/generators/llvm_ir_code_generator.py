@@ -31,31 +31,29 @@
 # author(s): Nicolas Brunie (nicolas.brunie@kalray.eu)
 ###############################################################################
 
-import sys
 import copy
 
-from ..core.ml_operations import (
+from metalibm_core.core.ml_operations import (
     Addition,
     Variable, Constant, ConditionBlock, Return, TableLoad, Statement,
     SpecificOperation, Conversion, FunctionObject,
     ReferenceAssign, Loop,
 )
-from ..core.bb_operations import (
+from metalibm_core.core.bb_operations import (
     BasicBlockList,
     BasicBlock, ConditionalBranch, UnconditionalBranch,
     PhiNode,
 )
-from ..core.ml_table import ML_Table
-from ..core.ml_formats import *
-from .generator_utility import C_Code, Gappa_Code, RoundOperator
-from .code_element import CodeVariable, CodeExpression
-from .code_object import MultiSymbolTable
+from metalibm_core.core.ml_table import ML_Table
+from metalibm_core.core.ml_formats import *
+from metalibm_core.code_generation.code_element import CodeVariable, CodeExpression
+from metalibm_core.code_generation.code_object import MultiSymbolTable
 
-from ..utility.log_report import Log
+from metalibm_core.utility.log_report import Log
 
 from metalibm_core.code_generation.code_function import CodeFunction
 from metalibm_core.code_generation.llvm_utils import llvm_ir_format
-from .code_generator import RegisterCodeGenerator, CodeGenerator
+from metalibm_core.code_generation.code_generator import RegisterCodeGenerator, CodeGenerator
 
 # TODO factorize outside this file
 class Label(object):
