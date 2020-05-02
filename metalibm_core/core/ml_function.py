@@ -70,7 +70,6 @@ from metalibm_core.code_generation.code_function import (
 from metalibm_core.code_generation.generic_processor import GenericProcessor
 from metalibm_core.code_generation.mpfr_backend import MPFRProcessor
 from metalibm_core.code_generation.c_code_generator import CCodeGenerator
-from metalibm_core.code_generation.llvm_ir_code_generator import LLVMIRCodeGenerator
 from metalibm_core.code_generation.code_constant import C_Code
 from metalibm_core.core.passes import (
     Pass, PassScheduler, PassDependency, AfterPassById,
@@ -86,6 +85,8 @@ import metalibm_core.utility.build_utils as build_utils
 from metalibm_core.utility.num_utils import ulp
 
 
+from metalibm_core.code_generation.code_object import CodeObjectRegistry
+from metalibm_core.code_generation.code_generator import CodeGenerator
 
 
 ## \defgroup ml_function ml_function
@@ -527,19 +528,12 @@ class ML_FunctionBasis(object):
 
   def get_codegen_class(self, language):
     """ return the code generator class associated with a given language """
-    return {
-        C_Code: CCodeGenerator,
-        OpenCL_Code: CCodeGenerator,
-        LLVM_IR_Code: LLVMIRCodeGenerator
-    }[language]
+    return CodeGenerator.code_gen_classes[language]
+    
 
   def get_codeobject_ctor(self, language):
     """ return the basic code object class associated with a given language """
-    return {
-        C_Code: CodeObject,
-        OpenCL_Code: CodeObject,
-        LLVM_IR_Code: LLVMCodeObject,
-    }[language]
+    return CodeObjectRegistry.code_object_class_map[language]
 
   def get_vector_size(self):
     return self.vector_size

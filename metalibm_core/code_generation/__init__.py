@@ -25,3 +25,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 ###############################################################################
+
+# explicit imports are required to register code generators
+import metalibm_core.code_generation.llvm_ir_code_generator
+import metalibm_core.code_generation.c_code_generator
