@@ -67,6 +67,6 @@ if __name__ == "__main__":
     # auto-test
     arg_template = ML_NewArgTemplate(default_arg=ML_UT_MachineInsnGeneration.get_default_args())
     args = arg_template.arg_extraction()
- 
+
     ut_machine_insn_generation = ML_UT_MachineInsnGeneration(args)
     ut_machine_insn_generation.generate_scheme()
