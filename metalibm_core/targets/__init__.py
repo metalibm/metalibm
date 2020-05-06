@@ -27,6 +27,8 @@
 import os
 import re
 
+# import asm backend target (not linked elsewhere)
+import metalibm_core.targets.common.dummy_asm_target
 
 def target_validity_test(target_full_path):
     return os.path.isdir(target_full_path) and re.search("__pycache__", target_full_path) is None
