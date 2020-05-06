@@ -795,7 +795,7 @@ class Pass_GenerateBasicBlock(FunctionPass):
         """ add a new node at the end of the current basic block
             which is the topmost on the BB stack """
         assert self.current_bb_stack
-        self.current_bb_stack[-1].push(node)
+        self.current_bb_stack[-1].add(node)
 
     def get_new_bb_tag(self, tag):
         if tag is None:
