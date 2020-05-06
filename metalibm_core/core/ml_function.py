@@ -654,13 +654,13 @@ class ML_FunctionBasis(object):
 
   def generate_code(self, code_object, function_group, language):
     """ language agnostic code generation function """
-    if self.language == C_Code:
+    if language == C_Code:
         return self.generate_C_code(code_object, function_group, language=language)
-    elif self.language == LLVM_IR_Code:
-        return self.generate_LLVM_code(code_object, function_group, language=language)
+    else:
+        return self.generate_default_code(code_object, function_group, language=language)
 
-  def generate_LLVM_code(self, code_object, function_group, language=LLVM_IR_Code):
-    """ Final LLVM-IR generation, once the evaluation scheme has been optimized"""
+  def generate_default_code(self, code_object, function_group, language=LLVM_IR_Code):
+    """ Final source code generation, once the evaluation scheme has been optimized"""
     Log.report(Log.Info, "Generating Source Code ")
 
     def gen_code_function_code(fct_group, fct):
