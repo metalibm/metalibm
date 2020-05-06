@@ -47,7 +47,6 @@ from metalibm_core.core.bb_operations import (
 from metalibm_core.core.ml_table import ML_Table
 from metalibm_core.core.ml_formats import *
 from metalibm_core.code_generation.code_element import CodeVariable, CodeExpression
-from metalibm_core.code_generation.code_object import MultiSymbolTable
 
 from metalibm_core.utility.log_report import Log
 
@@ -55,24 +54,8 @@ from metalibm_core.code_generation.code_function import CodeFunction
 from metalibm_core.code_generation.llvm_utils import llvm_ir_format
 from metalibm_core.code_generation.code_generator import RegisterCodeGenerator, CodeGenerator
 
-# TODO factorize outside this file
-class Label(object):
-    """ Label (tag for code position) object """
-    def __init__(self, name):
-        self.name = name
-
-def get_free_label_name(code_object, prefix):
-    """ generate a new label name (previously unused) """
-    return code_object.get_free_symbol_name(
-        MultiSymbolTable.LabelSymbol, None, Label,
-        prefix=prefix,
-        declare=True)
-
-def append_label(code_object, label):
-    """ append a new label location at the end of code_object """
-    code_object.close_level(footer="", cr="")
-    code_object << label << ":"
-    code_object.open_level(header="") #, extra_shared_tables=[MultiSymbolTable.VariableSymbol])
+from metalibm_core.code_generation.asm_utility import (
+    Label, get_free_label_name, append_label)
 
 def llvm_ir_generate_condition_block(generator, optree, code_object, language, folded=False, next_block=None, initial=False):
     condition = optree.inputs[0]
