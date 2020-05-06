@@ -1050,6 +1050,22 @@ gappa_code_generation_table = {
     },
 }
 
+def instanciate_extra_passes(pass_scheduler, processor, extra_passes, language, pass_slot_deps):
+    # adding user-defined passes before check processor support
+    # empty pass dependency
+    for pass_uplet in extra_passes:
+        pass_slot_tag, pass_tag = pass_uplet.split(":")
+        pass_slot = PassScheduler.get_tag_class(pass_slot_tag)
+        pass_class  = Pass.get_pass_by_tag(pass_tag)
+        pass_object = pass_class(processor)
+        if not pass_slot in pass_slot_deps:
+          pass_slot_deps[pass_slot] = PassDependency()
+        pass_dep = pass_slot_deps[pass_slot]
+        custom_pass_id = pass_scheduler.register_pass(pass_object, pass_dep=pass_dep, pass_slot=pass_slot)
+        # linearly linking pass in the order they appear
+        pass_slot_deps[pass_slot] = AfterPassById(custom_pass_id)
+    return pass_scheduler
+
 
 def instanciate_default_pass_pipeline(pass_scheduler, processor, extra_passes, language):
     """ Instanciate a generic optimization pass pipeline 
@@ -1086,19 +1102,9 @@ def instanciate_default_pass_pipeline(pass_scheduler, processor, extra_passes, l
         PassScheduler.Typing: AfterPassById(pass_IP_id),
         PassScheduler.JustBeforeCodeGen: PassDependency(),
     }
-    # adding user-defined passes before check processor support
-    # empty pass dependency
-    for pass_uplet in extra_passes:
-      pass_slot_tag, pass_tag = pass_uplet.split(":")
-      pass_slot = PassScheduler.get_tag_class(pass_slot_tag)
-      pass_class  = Pass.get_pass_by_tag(pass_tag)
-      pass_object = pass_class(processor)
-      if not pass_slot in pass_slot_deps:
-        pass_slot_deps[pass_slot] = PassDependency()
-      pass_dep = pass_slot_deps[pass_slot]
-      custom_pass_id = pass_scheduler.register_pass(pass_object, pass_dep=pass_dep, pass_slot=pass_slot)
-      # linearly linking pass in the order they appear
-      pass_slot_deps[pass_slot] = AfterPassById(custom_pass_id)
+    # adding user-defined passes
+    instanciate_extra_passes(pass_scheduler, processor, extra_passes,
+                             language, pass_slot_deps)
 
     # appending check_processor_support pass after custom passes
     Log.report(Log.Info, "inserting target support check pass\n")
@@ -1107,6 +1113,7 @@ def instanciate_default_pass_pipeline(pass_scheduler, processor, extra_passes, l
         pass_slot=PassScheduler.JustBeforeCodeGen,
         pass_dep=pass_slot_deps[PassScheduler.JustBeforeCodeGen],
     )
+    return pass_scheduler
 
 
 
