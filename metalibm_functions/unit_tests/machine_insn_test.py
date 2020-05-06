@@ -1,5 +1,6 @@
 from metalibm_core.core.ml_operations import (
-    Variable, Statement,
+    Variable, Statement, Multiplication, Addition,
+    Return,
 )
 from metalibm_core.core.ml_formats import ML_Binary32
 
@@ -15,6 +16,8 @@ from metalibm_core.opt.p_gen_bb import (
     Pass_GenerateBasicBlock, Pass_BBSimplification,
     Pass_SSATranslate
 )
+
+
 class ML_UT_MachineInsnGeneration(ML_FunctionBasis):
     function_basis = "mt_ut_machine_insn_generation"
 
@@ -27,7 +30,7 @@ class ML_UT_MachineInsnGeneration(ML_FunctionBasis):
         """ Return a structure containing the arguments for current class,
             builtin from a default argument mapping overloaded with @p kw """
         default_args = {
-            "output_file": "ut_machine_insn_generation.c",
+            "output_file": "ut_machine_insn_generation.S",
             "function_name": "ut_machine_insn_generation",
         }
         default_args.update(kw)
@@ -35,9 +38,12 @@ class ML_UT_MachineInsnGeneration(ML_FunctionBasis):
 
     def generate_scheme(self):
         var = Variable("x", precision=ML_Binary32)
+        mult = Multiplication(var, var, precision=ML_Binary32)
+        add = Addition(var, mult, precision=ML_Binary32)
 
         test_program = Statement(
-            var + var * var
+            add,
+            Return()
         )
 
         TARGET = None
@@ -60,8 +66,12 @@ class ML_UT_MachineInsnGeneration(ML_FunctionBasis):
         machine_insn_linearizer = MachineInsnGenerator(TARGET)
 
         linearized_program = machine_insn_linearizer.linearize_graph(bb_list)
+
+        # register allocation (using ASMDE ?)
+
         print("linearized_program:")
         print(linearized_program.get_str(depth=None, display_precision=True))
+        return linearized_program
 
 if __name__ == "__main__":
     # auto-test
@@ -69,4 +79,5 @@ if __name__ == "__main__":
     args = arg_template.arg_extraction()
 
     ut_machine_insn_generation = ML_UT_MachineInsnGeneration(args)
-    ut_machine_insn_generation.generate_scheme()
+    #ut_machine_insn_generation.generate_scheme()
+    ut_machine_insn_generation.gen_implementation()
