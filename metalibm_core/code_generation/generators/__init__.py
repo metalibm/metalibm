@@ -29,3 +29,4 @@
 # explicit imports are required to register code generators
 import metalibm_core.code_generation.generators.llvm_ir_code_generator
 import metalibm_core.code_generation.generators.c_code_generator
+import metalibm_core.code_generation.generators.asm_code_generator
