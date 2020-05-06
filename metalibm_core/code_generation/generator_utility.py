@@ -47,6 +47,23 @@ from .code_constant import C_Code, Gappa_Code
 from ..utility.source_info import SourceInfo
 
 
+# Metalibm Code Generation Operator (base class: ML_CG_Operator)
+#
+# The main entry point is the method generate_expr
+#    generate_expr(<code generator>, <code object>, <optree>, <args>)
+#    which will generate the source code for <optree> and append it to <code object>.
+#    generate_expr return a CodeExpression implementing optree or a CodeVariable 
+#    containing optree's result (the expression to compute optree would have been inserted
+#    into code_object in the latter case)
+#
+# generate_expr relies on the method assemble_code:
+#    assemble_code(<code generator>, <code object>, <optree>, <var arg list>, ...)
+#
+# generate_expr generates the code for all the arguments, and forward those argument codes
+# to assemble_code (through the var_arg_list paramater)
+#
+
+
 class DummyTree(object):
     def __init__(self, tag = "tmp", precision = None):
         self.tag = tag
