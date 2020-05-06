@@ -32,7 +32,7 @@
 ###############################################################################
 
 
-from ..core.target import UniqueTargetDecorator
+from metalibm_core.core.target import UniqueTargetDecorator
 
 from metalibm_core.core.ml_formats import (
     ML_Bool,
@@ -43,6 +43,7 @@ from metalibm_core.core.ml_formats import (
     v4int32, v4int64, v4float32, v4float64,
     v8int32, v8int64, v8float32, v8float64,
     ML_FP_Format,
+    ML_Void,
 )
 from metalibm_core.core.target import TargetRegister
 from metalibm_core.core.ml_operations import (
@@ -65,6 +66,7 @@ from metalibm_core.core.ml_operations import (
 
 from metalibm_core.code_generation.generator_utility import (
     TemplateOperatorFormat,
+    FO_Result, FO_Arg,
     ConstantOperator, FunctionOperator,
     type_strict_match, type_strict_match_list
 )
@@ -75,36 +77,49 @@ from metalibm_core.code_generation.code_constant import ASM_Code
 from metalibm_core.code_generation.abstract_backend import (
     LOG_BACKEND_INIT
 )
+from metalibm_core.code_generation.abstract_backend import (
+    AbstractBackend)
 from metalibm_core.code_generation.generic_processor import (
-    GenericProcessor
-)
+    instanciate_extra_passes)
 
 from metalibm_core.utility.log_report import Log
 
 
+def DummyAsmOperator(pattern, arity=1, **kw):
+    return TemplateOperatorFormat(
+        pattern, arg_map=({index: arg_obj for (index, arg_obj) in [(0, FO_Result())] + [(i+1, FO_Arg(i)) for i in range(arity)]}),
+        **kw)
 
 asm_code_generation_table = {
     Conversion: {
         None: {
             lambda _: True: {
                 type_strict_match(ML_Int32, ML_Binary32):
-                    TemplateOperatorFormat("fixedw.rn {} = {}, 0", arity=2),
+                    DummyAsmOperator("fixedw.rn {} = {}, 0", arity=1),
             },
         },
     },
     Addition: {
         None: {
             lambda _: True: {
-                type_strict_match(ML_Int32, ML_Binary32):
-                    TemplateOperatorFormat("faddww {} = {}, {}", arity=2),
+                type_strict_match(ML_Binary32, ML_Binary32, ML_Binary32):
+                    DummyAsmOperator("faddww {} = {}, {}", arity=2),
             },
         },
     },
     Multiplication: {
         None: {
             lambda _: True: {
-                type_strict_match(ML_Int32, ML_Binary32):
-                    TemplateOperatorFormat("fmulw {} = {}, {}", arity=2),
+                type_strict_match(ML_Binary32, ML_Binary32, ML_Binary32):
+                    DummyAsmOperator("fmulw {} = {}, {}", arity=2),
+            },
+        },
+    },
+    Return: {
+        None: {
+            lambda _: True: {
+                type_strict_match(ML_Void):
+                    TemplateOperatorFormat("ret", arity=0, void_function=True),
             },
         },
     },
@@ -127,6 +142,8 @@ class DummyAsmBackend(AbstractBackend):
         super().__init__(*args)
         self.simplified_rec_op_map[ASM_Code] = self.generate_supported_op_map(language=ASM_Code)
 
+    def generate_register(self, machine_register):
+        return "$r{}".format(machine_register.get_tag())
 
     ## return the compiler command line program to use to build
     #  test programs
@@ -138,16 +155,17 @@ class DummyAsmBackend(AbstractBackend):
         """ return list of compiler options """
         return [" "]
 
-    def instanciate_pass_pipeline(self, pass_scheduler, processor, extra_passes, language=LLVM_IR_Code):
+    def instanciate_pass_pipeline(self, pass_scheduler, processor, extra_passes, language=ASM_Code):
         """ instanciate an optimization pass pipeline for VectorBackend targets """
-        EXTRA_VECTOR_PASSES = [
-            "beforecodegen:gen_basic_block",
-            "beforecodegen:basic_block_simplification",
-            "beforecodegen:ssa_translation",
+        EXTRA_PASSES = [
+            # "beforecodegen:gen_basic_block",
+            # "beforecodegen:basic_block_simplification",
+            # "beforecodegen:ssa_translation",
         ]
-        return GenericProcessor.instanciate_pass_pipeline(self, pass_scheduler, processor,
-                                                          EXTRA_VECTOR_PASSES + extra_passes,
-                                                          language=language)
+        return instanciate_extra_passes(pass_scheduler, processor,
+                                        EXTRA_PASSES + extra_passes,
+                                        language=language,
+                                        pass_slot_deps={})
 
 
 # debug message
