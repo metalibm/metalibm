@@ -196,6 +196,12 @@ class MachineInsnGenerator(object):
             # adding RegisterAssign to current basic-block
             current_bb.add(result_assign)
 
+        elif isinstance(node, Return):
+            # TODO/FIXME: must implement processor ABI
+            assert node.get_precision() == None
+            result = Return(precision=ML_Void)
+            current_bb.add(result)
+
         elif is_leaf_node(node):
             result = self.linearize_graph(node, current_bb)
 
@@ -204,7 +210,8 @@ class MachineInsnGenerator(object):
             result_reg = self.get_new_register(node.get_precision())
             result_assign = RegisterAssign(
                 result_reg,
-                node.__class__(*tuple(op_regs))
+                node.__class__(*tuple(op_regs), precision=node.get_precision()),
+                precision=ML_Void
             )
             # adding RegisterAssign to current basic-block
             current_bb.add(result_assign)
