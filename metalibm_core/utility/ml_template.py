@@ -130,6 +130,8 @@ language_map = {
     "vhdl": VHDL_Code,
 
     "ll": LLVM_IR_Code,
+
+    "asm": ASM_Code,
 }
 
 
