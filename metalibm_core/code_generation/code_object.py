@@ -41,7 +41,7 @@ import sollya
 from ..core.ml_operations import Variable
 from ..core.ml_hdl_operations import Signal
 from .code_constant import (
-    C_Code, Gappa_Code, LLVM_IR_Code, OpenCL_Code,
+    C_Code, Gappa_Code, LLVM_IR_Code, OpenCL_Code, ASM_Code,
 )
 from ..core.ml_formats import ML_GlobalRoundMode, ML_Fixed_Format, ML_FP_Format, FunctionFormat
 
@@ -519,6 +519,19 @@ class CodeObject(CodeConfiguration):
 @RegisterDefaultCodeObject([C_Code, OpenCL_Code])
 class CstyleCodeObject(CodeObject):
     pass
+
+@RegisterDefaultCodeObject([ASM_Code])
+class AsmCodeObject(CodeObject):
+    # function/level opening does not have a specific symbol
+    level_header = ""
+    # function/level closing does not have a specific symbol
+    level_footer = ""
+
+    # always exclude the following from asm code generation
+    DEFAULT_EXCLUSION_LIST = [
+        MultiSymbolTable.VariableSymbol,
+        MultiSymbolTable.LabelSymbol
+    ]
 
 class Gappa_Unknown(object):
     def __str__(self):
