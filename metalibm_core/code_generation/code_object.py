@@ -313,6 +313,9 @@ def RegisterDefaultCodeObject(language_list):
 class CodeObject(CodeConfiguration):
     level_header = "{\n"
     level_footer = "}"
+    # list of symbol type to be excluded from declaration during
+    # get / push_into_parent_code
+    DEFAULT_EXCLUSION_LIST = []
     # Prefix added to every free variable name
     GENERAL_PREFIX = ""
     def __init__(self, language, shared_tables = None, parent_tables = None, rounding_mode = ML_GlobalRoundMode, uniquifier = "", main_code_level = None, var_ctor = None):
@@ -486,6 +489,7 @@ class CodeObject(CodeConfiguration):
         declaration_exclusion_list = [MultiSymbolTable.ConstantSymbol] if static_cst else []
         declaration_exclusion_list += [MultiSymbolTable.TableSymbol] if static_table else []
         declaration_exclusion_list += [MultiSymbolTable.FunctionSymbol] if skip_function else []
+        declaration_exclusion_list += self.DEFAULT_EXCLUSION_LIST
         result += self.symbol_table.generate_declarations(code_generator, exclusion_list = declaration_exclusion_list)
         result += self.symbol_table.generate_initializations(code_generator, init_required_list = [MultiSymbolTable.ConstantSymbol, MultiSymbolTable.VariableSymbol])
         result += "\n" if result != "" else ""
@@ -500,6 +504,7 @@ class CodeObject(CodeConfiguration):
         declaration_exclusion_list = [MultiSymbolTable.ConstantSymbol] if static_cst else []
         declaration_exclusion_list += [MultiSymbolTable.TableSymbol] if static_table else []
         declaration_exclusion_list += [MultiSymbolTable.FunctionSymbol] if skip_function else []
+        declaration_exclusion_list += self.DEFAULT_EXCLUSION_LIST
         parent_code << self.symbol_table.generate_declarations(code_generator, exclusion_list = declaration_exclusion_list)
         parent_code << self.symbol_table.generate_initializations(code_generator, init_required_list = [MultiSymbolTable.ConstantSymbol, MultiSymbolTable.VariableSymbol])
         parent_code << "\n"
@@ -521,6 +526,7 @@ class Gappa_Unknown(object):
 
 
 class GappaCodeObject(CodeObject):
+    DEFAULT_EXCLUSION_LIST = [MultiSymbolTable.VariableSymbol]
     def __init__(self):
         CodeObject.__init__(self, Gappa_Code)
         self.hint_table = []
@@ -585,8 +591,8 @@ class GappaCodeObject(CodeObject):
         # symbol exclusion list
         declaration_exclusion_list = [MultiSymbolTable.ConstantSymbol] if static_cst else []
         declaration_exclusion_list += [MultiSymbolTable.TableSymbol] if static_table else []
-        declaration_exclusion_list += [MultiSymbolTable.VariableSymbol]
         declaration_exclusion_list += [MultiSymbolTable.FunctionSymbol] if skip_function else []
+        declaration_exclusion_list += self.DEFAULT_EXCLUSION_LIST
 
         # declaration generation
         result += self.symbol_table.generate_declarations(code_generator, exclusion_list = declaration_exclusion_list)
@@ -602,8 +608,8 @@ class GappaCodeObject(CodeObject):
         # symbol exclusion list
         declaration_exclusion_list = [MultiSymbolTable.ConstantSymbol] if static_cst else []
         declaration_exclusion_list += [MultiSymbolTable.TableSymbol] if static_table else []
-        declaration_exclusion_list += [MultiSymbolTable.VariableSymbol]
         declaration_exclusion_list += [MultiSymbolTable.FunctionSymbol] if skip_function else []
+        declaration_exclusion_list += self.DEFAULT_EXCLUSION_LIST
 
         # declaration generation
         parent_code << self.symbol_table.generate_declarations(code_generator, exclusion_list = declaration_exclusion_list)
@@ -617,6 +623,11 @@ class GappaCodeObject(CodeObject):
 @RegisterDefaultCodeObject([LLVM_IR_Code])
 class LLVMCodeObject(CodeObject):
     GENERAL_PREFIX = "%"
+    # always exclude the following from llvm-ir code generation
+    DEFAULT_EXCLUSION_LIST = [
+        MultiSymbolTable.VariableSymbol,
+        MultiSymbolTable.LabelSymbol
+    ]
 
     def __init__(self, language, shared_tables=None, parent_tables=None,
                  rounding_mode=ML_GlobalRoundMode, uniquifier="",
@@ -644,11 +655,8 @@ class LLVMCodeObject(CodeObject):
         declaration_exclusion_list = [MultiSymbolTable.ConstantSymbol] if static_cst else []
         declaration_exclusion_list += [MultiSymbolTable.TableSymbol] if static_table else []
         declaration_exclusion_list += [MultiSymbolTable.FunctionSymbol] if skip_function else []
-        # always exclude the following from llvm-ir code generation
-        declaration_exclusion_list += [
-            MultiSymbolTable.VariableSymbol,
-            MultiSymbolTable.LabelSymbol
-        ]
+        declaration_exclusion_list += [MultiSymbolTable.VariableSymbol]
+        declaration_exclusion_list += self.DEFAULT_EXCLUSION_LIST
 
         # declaration generation
         result += self.symbol_table.generate_declarations(code_generator, exclusion_list=declaration_exclusion_list)
@@ -667,9 +675,8 @@ class LLVMCodeObject(CodeObject):
         # symbol exclusion list
         declaration_exclusion_list = [MultiSymbolTable.ConstantSymbol] if static_cst else []
         declaration_exclusion_list += [MultiSymbolTable.TableSymbol] if static_table else []
-        declaration_exclusion_list += [MultiSymbolTable.VariableSymbol]
-        declaration_exclusion_list += [MultiSymbolTable.LabelSymbol]
         declaration_exclusion_list += [MultiSymbolTable.FunctionSymbol] if skip_function else []
+        declaration_exclusion_list += self.DEFAULT_EXCLUSION_LIST
 
         # declaration generation
         parent_code << self.symbol_table.generate_declarations(code_generator, exclusion_list = declaration_exclusion_list)
