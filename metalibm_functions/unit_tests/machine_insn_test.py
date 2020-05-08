@@ -17,6 +17,8 @@ from metalibm_core.opt.p_gen_bb import (
     Pass_SSATranslate
 )
 
+from metalibm_core.code_generation.asmde_translator import AssemblySynthesizer
+
 
 class ML_UT_MachineInsnGeneration(ML_FunctionBasis):
     function_basis = "mt_ut_machine_insn_generation"
@@ -66,11 +68,24 @@ class ML_UT_MachineInsnGeneration(ML_FunctionBasis):
         machine_insn_linearizer = MachineInsnGenerator(TARGET)
 
         linearized_program = machine_insn_linearizer.linearize_graph(bb_list)
-
-        # register allocation (using ASMDE ?)
-
         print("linearized_program:")
         print(linearized_program.get_str(depth=None, display_precision=True))
+
+        # extracting ordered input list
+        input_reg_list = [machine_insn_linearizer.get_reg_from_node(var)]
+        output_reg_list = [machine_insn_linearizer.get_reg_from_node(add)]
+
+        # register allocation (using ASMDE ?)
+        asm_synthesizer = AssemblySynthesizer(self.processor.architecture)
+        asmde_program = asm_synthesizer.translate_to_asmde_program(
+            linearized_program, input_reg_list, output_reg_list)
+        color_map = asm_synthesizer.perform_register_allocation(asmde_program)
+
+        # instanciating physical register
+        asm_synthesizer.transform_to_physical_reg(color_map, linearized_program)
+        print("physical linearized_program:")
+        print(linearized_program.get_str(depth=None, display_precision=True))
+
         return linearized_program
 
 if __name__ == "__main__":
