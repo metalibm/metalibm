@@ -84,6 +84,19 @@ from metalibm_core.code_generation.generic_processor import (
 
 from metalibm_core.utility.log_report import Log
 
+import asmde.allocator as asmde
+
+class DummyArchitecture(asmde.Architecture):
+    def __init__(self, std_reg_num=16):
+        asmde.Architecture.__init__(self,
+            set([
+                asmde.RegFileDescription(
+                    asmde.Register.Std, std_reg_num,
+                    asmde.PhysicalRegister,
+                    asmde.VirtualRegister),
+            ]),
+            None)
+
 
 def DummyAsmOperator(pattern, arity=1, **kw):
     return TemplateOperatorFormat(
@@ -126,8 +139,6 @@ asm_code_generation_table = {
 }
 
 
-
-
 @UniqueTargetDecorator
 class DummyAsmBackend(AbstractBackend):
     """ Dummy class to generate an abstract low-level assembly program stream """
@@ -141,9 +152,11 @@ class DummyAsmBackend(AbstractBackend):
     def __init__(self, *args):
         super().__init__(*args)
         self.simplified_rec_op_map[ASM_Code] = self.generate_supported_op_map(language=ASM_Code)
+        # asmde.Architecture object
+        self.architecture = DummyArchitecture()
 
     def generate_register(self, machine_register):
-        return "$r{}".format(machine_register.get_tag())
+        return "$r{}".format(machine_register.register_id)
 
     ## return the compiler command line program to use to build
     #  test programs
