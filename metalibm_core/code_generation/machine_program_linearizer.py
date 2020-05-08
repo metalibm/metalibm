@@ -72,6 +72,9 @@ class MachineInsnGenerator(object):
 
         # mapping Variable -> MachineRegister
         self.var_register_map = {}
+        # mapping Node -> MachineRegister (superset of self.var_register_map and subset
+        # of memoization_map)
+        self.node_to_register_map = {}
         # unique identifier for new virtual registers
         self.register_id = -1
 
@@ -82,6 +85,8 @@ class MachineInsnGenerator(object):
         return self.memoization_map[node]
 
     def add_memoization(self, node, node_reg):
+        if isinstance(node_reg, MachineRegister):
+            self.node_to_register_map[node] = node_reg
         self.memoization_map[node] = node_reg
 
     def get_new_register(self, register_format, var_tag=None):
@@ -96,6 +101,10 @@ class MachineInsnGenerator(object):
         if not var_node in self.var_register_map:
             self.var_register_map[var_node] = self.get_new_register(var_node.get_precision(), var_tag=var_node.get_tag())
         return self.var_register_map[var_node]
+
+    def get_reg_from_node(self, node):
+        # TODO/FIXME: support case where node is expanded into multiple registers
+        return self.node_to_register_map[node]
 
     # force_variable_storing is not supported
     def linearize_graph(self, node, current_bb=None):
