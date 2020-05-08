@@ -1,3 +1,4 @@
 matplotlib
 bigfloat
 git+https://gitlab.com/metalibm-dev/pythonsollya
+git+https://github.com/nibrunie/asmde
