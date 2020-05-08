@@ -316,12 +316,12 @@ class LLVMIRCodeGenerator(CodeGenerator):
 
         elif isinstance(optree, BasicBlock):
             bb_label = self.get_bb_label(code_object, optree)
-            code_object.close_level(footer="", cr="")
-            code_object << bb_label << ":"
+            code_object << (bb_label + ":")
             code_object.open_level(header="")
             for op in optree.inputs:
                 self.generate_expr(code_object, op, folded=folded,
                     initial=True, language=language)
+            code_object.close_level(footer="", cr="")
             return None
 
         elif isinstance(optree, ConditionalBranch):
