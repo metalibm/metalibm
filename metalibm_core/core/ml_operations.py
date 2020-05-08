@@ -706,7 +706,7 @@ class AbstractVariable(ML_LeafNode):
         id_str        = ("[id=%x]" % id(self)) if display_id else ""
         interval_str = "" if not display_interval else "[I={}]".format(self.get_interval())
         descriptor_str = precision_str + interval_str + attribute_str + id_str
-        return AbstractOperation.str_del * tab_level + custom_callback(self) + "Var(%s)%s\n" % (self.get_tag(), descriptor_str)
+        return AbstractOperation.str_del * tab_level + custom_callback(self) + "%s(%s)%s\n" % (self.name, self.get_tag(), descriptor_str)
 
 
     def copy(self, copy_map=None):
