@@ -776,7 +776,7 @@ class ML_FunctionBasis(object):
     if self.get_vector_size() != 1:
         scalar_scheme = self.implementation.get_scheme()
         # extract implementation's argument list
-        scalar_arg_list = self.implementation.get_arg_list()
+        scalar_arg_list = self.implementation.arg_list
         # clear argument list (will be replaced by vectorized counterpart)
         self.implementation.clear_arg_list()
 

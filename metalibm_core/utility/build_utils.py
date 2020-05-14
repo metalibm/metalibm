@@ -81,7 +81,7 @@ def get_ctype_translate(precision):
 def adapt_ctypes_wrapper_to_code_function(wrapper, code_function):
     """ Adapt a ctypes' function wrapper to match code_function prototype """
     wrapper.restype = get_ctype_translate(code_function.get_output_format())
-    wrapper.argtypes = tuple(get_ctype_translate(arg.get_precision()) for arg in code_function.get_arg_list())
+    wrapper.argtypes = tuple(get_ctype_translate(arg.get_precision()) for arg in code_function.arg_list)
 
 
 class BinaryFile:
