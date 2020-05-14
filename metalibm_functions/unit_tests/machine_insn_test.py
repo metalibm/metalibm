@@ -34,6 +34,15 @@ class ML_UT_MachineInsnGeneration(ML_FunctionBasis):
         default_args = {
             "output_file": "ut_machine_insn_generation.S",
             "function_name": "ut_machine_insn_generation",
+            "passes": [
+                "start:gen_basic_block",
+                "start:basic_block_simplification",
+                "start:dump",
+                "start:linearize_op_graph",
+                "start:dump",
+                "start:register_allocation",
+                "start:dump",
+            ],
         }
         default_args.update(kw)
         return DefaultArgTemplate(**default_args)
@@ -45,48 +54,9 @@ class ML_UT_MachineInsnGeneration(ML_FunctionBasis):
 
         test_program = Statement(
             add,
-            Return()
+            Return(add)
         )
-
-        TARGET = None
-
-        # generate basic-block
-        pass_bb_gen = Pass_GenerateBasicBlock(TARGET)
-
-        # execute_on_graph must be called to get a result BasicBlockList
-        bb_list = pass_bb_gen.execute_on_graph(test_program)
-        print("pre-simplify bb_list:")
-
-        print(bb_list.get_str(depth=None, display_precision=True))
-
-        # pass_bb_simplify = Pass_BBSimplification(TARGET)
-        # bb_list =  pass_bb_simplify.execute_on_optree(bb_list)
-        # print("post-simplify bb_list:")
-        # print(bb_list.get_str(depth=None, display_precision=True))
-
-        # linearizer
-        machine_insn_linearizer = MachineInsnGenerator(TARGET)
-
-        linearized_program = machine_insn_linearizer.linearize_graph(bb_list)
-        print("linearized_program:")
-        print(linearized_program.get_str(depth=None, display_precision=True))
-
-        # extracting ordered input list
-        input_reg_list = [machine_insn_linearizer.get_reg_from_node(var)]
-        output_reg_list = [machine_insn_linearizer.get_reg_from_node(add)]
-
-        # register allocation (using ASMDE ?)
-        asm_synthesizer = AssemblySynthesizer(self.processor.architecture)
-        asmde_program = asm_synthesizer.translate_to_asmde_program(
-            linearized_program, input_reg_list, output_reg_list)
-        color_map = asm_synthesizer.perform_register_allocation(asmde_program)
-
-        # instanciating physical register
-        asm_synthesizer.transform_to_physical_reg(color_map, linearized_program)
-        print("physical linearized_program:")
-        print(linearized_program.get_str(depth=None, display_precision=True))
-
-        return linearized_program
+        return test_program
 
 if __name__ == "__main__":
     # auto-test
