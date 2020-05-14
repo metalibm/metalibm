@@ -75,9 +75,8 @@ class CodeFunction(object):
     self.arg_list.append(new_input)
     # WARNING: self.function_type.arg_list_precision is not updated
 
-  def get_arg_list(self):
-    return self.arg_list
   def clear_arg_list(self):
+    """ remove all registered arguments """
     self.arg_list = []
 
   def get_function_object(self):
