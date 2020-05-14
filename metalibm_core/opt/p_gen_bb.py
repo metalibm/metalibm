@@ -898,15 +898,8 @@ class Pass_GenerateBasicBlock(FunctionPass):
             function-group @p fct_group """
         Log.report(LOG_LEVEL_GEN_BB_INFO, "executing pass {} on fct {}".format(
             self.pass_tag, fct.get_name()))
-        optree = fct.get_scheme()
-        memoization_map = {}
-        new_bb = BasicBlock(tag="main")
-        bb_list = BasicBlockList(tag="main")
-        bb_list.entry_bb = new_bb
-        top_bb_list = self.set_top_bb_list(bb_list)
-        last_bb = self.execute_on_optree(optree, fct, fct_group, memoization_map)
-        # pop last basic-block (to add it to the list)
-        self.flush_bb_stack()
+        op_graph = fct.get_scheme()
+        top_bb_list = self.execute_on_graph(op_graph)
         fct.set_scheme(top_bb_list)
 
 
