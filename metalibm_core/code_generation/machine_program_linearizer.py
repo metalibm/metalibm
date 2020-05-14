@@ -59,6 +59,7 @@ from metalibm_core.code_generation.code_function import CodeFunction
 
 from metalibm_core.core.machine_operations import (
     MachineRegister, RegisterAssign, MaterializeConstant,
+    MachineProgram
 )
 
 class MachineInsnGenerator(object):
@@ -155,7 +156,7 @@ class MachineInsnGenerator(object):
             return None
 
         elif isinstance(node, BasicBlockList):
-            new_bb_list = BasicBlockList()
+            new_bb_list = MachineProgram()
             for bb in node.inputs:
                 linearized_bb = self.linearize_graph(bb)
                 new_bb_list.add(linearized_bb)

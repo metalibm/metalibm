@@ -2,20 +2,35 @@ from metalibm_core.core.ml_operations import (
     Variable, ReferenceAssign
 )
 
+from metalibm_core.core.bb_operations import BasicBlockList
+
 
 """
 
 specification for machine-instruction program
 
-The program is a BasicBlockList
+The program is a MachineProgram inhereting from BasicBlockList
 
-each BasicBlockList must be a list of RegisterAssign or PhiNode
+each BasicBlock must be a list of RegisterAssign or PhiNode
 
 each RegisterAssign must assign the results of an operation between MachineRegister-s to
 a MachineRegister. the operation depth must be less than or equals to 1 (copy are allowed).
 That means each operand of an operation must be either a MachineRegister of a leaf node (Constant).
 
 """
+
+class MachineProgram(BasicBlockList):
+    """ Machine program """
+    @property
+    def ordered_input_regs(self):
+        return self._ordered_input_regs
+    @ordered_input_regs.setter
+    def ordered_input_regs(self, ordered_input_regs):
+        self._ordered_input_regs = ordered_input_regs
+
+    def finish_copy(self, new_copy, copy_map=None):
+        """ Propagating final attribute during copy """
+        new_copy.ordered_input_regs = self.ordered_input_regs
 
 class MachineRegister(Variable):
     """ Machine register """
