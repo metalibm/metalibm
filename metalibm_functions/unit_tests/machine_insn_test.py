@@ -34,6 +34,7 @@ class ML_UT_MachineInsnGeneration(ML_FunctionBasis):
         default_args = {
             "output_file": "ut_machine_insn_generation.S",
             "function_name": "ut_machine_insn_generation",
+            "precision": ML_Binary32,
             "passes": [
                 "start:gen_basic_block",
                 "start:basic_block_simplification",
@@ -48,9 +49,11 @@ class ML_UT_MachineInsnGeneration(ML_FunctionBasis):
         return DefaultArgTemplate(**default_args)
 
     def generate_scheme(self):
-        var = Variable("x", precision=ML_Binary32)
-        mult = Multiplication(var, var, precision=ML_Binary32)
-        add = Addition(var, mult, precision=ML_Binary32)
+        var = self.implementation.add_input_variable("x", self.precision)
+        var_y = self.implementation.add_input_variable("y", self.precision)
+        var_z = self.implementation.add_input_variable("z", self.precision)
+        mult = Multiplication(var, var_z, precision=self.precision)
+        add = Addition(var_y, mult, precision=self.precision)
 
         test_program = Statement(
             add,
