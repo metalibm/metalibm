@@ -124,6 +124,11 @@ class Pass_RegisterAllocation(FunctionPass):
         """ BB generation on complete operation graph, generating
             a final BasicBlockList as result """
         # translating to asmde program and performing register allocation
+        Log.report(LOG_MACHINE_CODE_VERBOSE, "performing register allocation\n"
+            "  input reg list is {}\n"
+            "  output_reg_list is {}",
+            linearized_program.ordered_input_regs,
+            linearized_program.output_regs)
         asmde_program = self.asm_synthesizer.translate_to_asmde_program(
             linearized_program, linearized_program.ordered_input_regs, linearized_program.output_regs)
         color_map = self.asm_synthesizer.perform_register_allocation(asmde_program)

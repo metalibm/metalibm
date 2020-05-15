@@ -24,7 +24,8 @@ def extract_src_regs_from_node(node):
 
 class AssemblySynthesizer:
     def __init__(self, arch):
-        # map of metalibm register to their asmde counterpart
+        # map of metalibm register to their asmde counterparts
+        # each metalibm register is associated to a tuple of asmde registers
         self.ml_to_asmde_reg_map = {}
         self.ml_to_physical_reg_map = {}
         self.architecture = arch
@@ -37,13 +38,15 @@ class AssemblySynthesizer:
         else:
             # TODO/FIXME: manage multiple register class
             # TODO/FIXME: manage physical register
-            virt_reg = self.architecture.get_unique_virt_reg_object(ml_reg.get_tag(), asmde.Register.Std)
+            #virt_reg = self.architecture.get_unique_virt_reg_object(ml_reg.get_tag(), asmde.Register.Std)
+            virt_reg = self.architecture.generate_virtual_reg(ml_reg)
             self.ml_to_asmde_reg_map[ml_reg] = virt_reg
             return virt_reg
 
     def get_physical_reg(self, color_map, ml_reg, reg_class=asmde.Register.Std):
         if not ml_reg in self.ml_to_physical_reg_map:
-            asmde_reg = self.ml_to_asmde_reg_map[ml_reg]
+            # TODO/FIXME: currently only support a single-reg tuple  
+            asmde_reg, = self.ml_to_asmde_reg_map[ml_reg]
             reg_id = color_map[reg_class][asmde_reg]
             physical_reg = PhysicalRegister(reg_id, ml_reg.precision, ml_reg.get_tag(),
                                             var_tag=ml_reg.var_tag)
@@ -73,9 +76,9 @@ class AssemblySynthesizer:
         """ generate a asmde.Instruction which corresponds to node """
         if isinstance(node, RegisterAssign):
             dst_reg = node.get_input(0)
-            dst_reg_list = [self.generate_allocatable_register(reg) for reg in [dst_reg]]
+            dst_reg_list = [sub_reg for reg in [dst_reg] for sub_reg in self.generate_allocatable_register(reg)]
             value_node = node.get_input(1)
-            src_reg_list = [self.generate_allocatable_register(reg) for reg in extract_src_regs_from_node(value_node)]
+            src_reg_list = [sub_reg for reg in extract_src_regs_from_node(value_node) for sub_reg in self.generate_allocatable_register(reg) ]
             insn = asmde.Instruction(node,
                                def_list=dst_reg_list,
                                use_list=src_reg_list)
@@ -85,12 +88,34 @@ class AssemblySynthesizer:
             Log.report(Log.Error, "node unsupported in AssemblySynthesizer.generate_insn_from_node: {}", node)
             raise NotImplementedError
 
+    def generate_ABI_phys_input_regs(self, ordered_input_regs):
+        """ generate a list of physical register to store Program inputs
+            matching ABI constraints """
+        phys_tuple_list = self.architecture.generate_ABI_physical_input_reg_tuples(ordered_input_regs)
+        for ml_reg, asmde_reg_tuple in zip(ordered_input_regs, phys_tuple_list):
+            self.ml_to_asmde_reg_map[ml_reg] = asmde_reg_tuple
+        phys_reg_list = [reg for reg_tuple in phys_tuple_list for reg in reg_tuple]
+        return phys_reg_list
+            
+    def generate_ABI_phys_output_regs(self, ordered_output_regs):
+        """ generate a list of physical register to store Program outputs
+            matching ABI constraints """
+        phys_tuple_list = self.architecture.generate_ABI_physical_output_reg_tuples(ordered_output_regs)
+        for ml_reg, asmde_reg_tuple in zip(ordered_output_regs, phys_tuple_list):
+            self.ml_to_asmde_reg_map[ml_reg] = asmde_reg_tuple
+        return [reg for reg_tuple in phys_tuple_list for reg in reg_tuple]
+
     def translate_to_asmde_program(self, linearized_program, input_reg_list, output_reg_list):
         """ Translate a linearized program (BasicBlockList)
             into a asmde.Program object """
 
-        pre_defined_list = [self.generate_allocatable_register(reg) for reg in input_reg_list]
-        post_used_list = [self.generate_allocatable_register(reg) for reg in output_reg_list]
+
+        #pre_defined_list = [self.generate_allocatable_register(reg) for reg in input_reg_list]
+        #post_used_list = [self.generate_allocatable_register(reg) for reg in output_reg_list]
+
+        # implement ABI
+        pre_defined_list = self.generate_ABI_phys_input_regs(input_reg_list)
+        post_used_list = self.generate_ABI_phys_output_regs(output_reg_list)
         program = asmde.Program(pre_defined_list=pre_defined_list,
                                 post_used_list=post_used_list)
 

@@ -87,6 +87,7 @@ from metalibm_core.utility.log_report import Log
 import asmde.allocator as asmde
 
 class DummyArchitecture(asmde.Architecture):
+    REG_SIZE = 64
     def __init__(self, std_reg_num=16):
         asmde.Architecture.__init__(self,
             set([
@@ -96,6 +97,55 @@ class DummyArchitecture(asmde.Architecture):
                     asmde.VirtualRegister),
             ]),
             None)
+
+    def generate_ABI_physical_input_reg_tuples(self, ordered_input_regs):
+        """ generate a list of physical registers for each
+            virtual input register, enforcing architecture ABI """
+        # argument allocation starts at register 0
+        current_reg_index = 0
+
+        phys_reg_list = []
+
+        for reg in ordered_input_regs:
+            ml_format = reg.precision
+            if ml_format.get_bit_size() <= self.REG_SIZE:
+                reg_index = current_reg_index
+                current_reg_index += 1
+                phys_reg_list.append((self.get_unique_phys_reg_object(reg_index, asmde.Register.Std),))
+            else:
+                raise NotImplementedError
+
+        return phys_reg_list
+
+    def generate_ABI_physical_output_reg_tuples(self, ordered_input_regs):
+        """ generate a list of physical registers for each
+            virtual input register, enforcing architecture ABI """
+        # return value (retval) allocation starts at register 0
+        current_reg_index = 0
+
+        phys_reg_list = []
+
+        for reg in ordered_input_regs:
+            ml_format = reg.precision
+            if ml_format.get_bit_size() <= self.REG_SIZE:
+                reg_index = current_reg_index
+                current_reg_index += 1
+                phys_reg_list.append((self.get_unique_phys_reg_object(reg_index, asmde.Register.Std),))
+            else:
+                raise NotImplementedError
+
+        return phys_reg_list
+
+    def generate_virtual_reg(self, ml_reg):
+        """ generate a tuple of asm virtual regs suitable to store
+            ml_reg value """
+        ml_format = ml_reg.precision
+        if ml_format.get_bit_size() <= self.REG_SIZE:
+            virt_reg = self.get_unique_virt_reg_object(ml_reg.get_tag(), asmde.Register.Std)
+            return (virt_reg,)
+        else:
+            raise NotImplementedError
+
 
 
 def DummyAsmOperator(pattern, arity=1, **kw):
@@ -116,7 +166,9 @@ asm_code_generation_table = {
         None: {
             lambda _: True: {
                 type_strict_match(ML_Binary32, ML_Binary32, ML_Binary32):
-                    DummyAsmOperator("faddww {} = {}, {}", arity=2),
+                    DummyAsmOperator("faddw {} = {}, {}", arity=2),
+                type_strict_match(ML_Binary64, ML_Binary64, ML_Binary64):
+                    DummyAsmOperator("faddd {} = {}, {}", arity=2),
             },
         },
     },
@@ -125,6 +177,8 @@ asm_code_generation_table = {
             lambda _: True: {
                 type_strict_match(ML_Binary32, ML_Binary32, ML_Binary32):
                     DummyAsmOperator("fmulw {} = {}, {}", arity=2),
+                type_strict_match(ML_Binary64, ML_Binary64, ML_Binary64):
+                    DummyAsmOperator("fmuld {} = {}, {}", arity=2),
             },
         },
     },
