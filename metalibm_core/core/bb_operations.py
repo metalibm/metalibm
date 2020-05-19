@@ -41,13 +41,20 @@ from metalibm_core.core.ml_operations import (
 
 
 class ConditionalBranch(ControlFlowOperation):
-    """ branch <cond> <true_dest> <false_dest> """
-    arity = 3
+    """ branch <cond> <true_dest> [<false_dest>] 
+        ConditionalBranch supports 1 or 2 destination
+        2: explicit fallback (for LLVM-IR)
+        1: implicit fallback (for ASM) """
     name = "ConditionalBranch"
     @property
     def destination_list(self):
         """ return the list of BB targeted by the instruction """
-        return [self.get_input(1), self.get_input(2)]
+        return self.inputs[1:]
+    @property
+    def arity(self):
+        arity = len(self.inputs)
+        assert 2 <= arity <= 3
+        return arity
     def get_str(
             self, depth=2, display_precision=False,
             tab_level=0, memoization_map=None,
