@@ -33,6 +33,7 @@
 
 from metalibm_core.core.passes import FunctionPass, METALIBM_PASS_REGISTER
 from metalibm_core.core.ml_operations import Return, is_leaf_node
+from metalibm_core.core.bb_operations import UnconditionalBranch
 from metalibm_core.core.machine_operations import MachineProgram
 
 from metalibm_core.code_generation.machine_program_linearizer import MachineInsnGenerator
@@ -134,6 +135,47 @@ class Pass_RegisterAllocation(FunctionPass):
         color_map = self.asm_synthesizer.perform_register_allocation(asmde_program)
         # instanciating physical register
         self.asm_synthesizer.transform_to_physical_reg(color_map, linearized_program)
+        return linearized_program
+
+    def execute_on_function(self, fct, fct_group):
+        """ execute basic-block generation pass on function @p fct from
+            function-group @p fct_group """
+        Log.report(LOG_MACHINE_CODE_INFO, "executing pass {} on fct {}".format(
+            self.pass_tag, fct.get_name()))
+        linearized_program = fct.get_scheme()
+        assert isinstance(linearized_program, MachineProgram)
+        allocated_program = self.execute_on_graph(linearized_program)
+        fct.set_scheme(allocated_program)
+
+LOG_SIMPLIFY_BB_FALLBACK_INFO = Log.LogLevel("SimplifyBBFallbackInfo")
+
+@METALIBM_PASS_REGISTER
+class Pass_SimplifyBBFallback(FunctionPass):
+    """ remove unecessary goto """
+    pass_tag = "simplify_bb_fallback"
+    def __init__(self, target, description="bb fallback simplification pass"):
+        FunctionPass.__init__(self, description, target)
+
+    def execute_on_optree(self, optree, fct=None, fct_group=None, memoization_map=None):
+        """ return the head basic-block, i.e. the entry bb for the current node
+            implementation """
+        raise NotImplementedError
+
+    def execute_on_graph(self, linearized_program):
+        """ BB generation on complete operation graph, generating
+            a final BasicBlockList as result """
+        # translating to asmde program and performing register allocation
+        assert isinstance(linearized_program, MachineProgram)
+        for index, bb in enumerate(linearized_program.inputs):
+            if len(bb.inputs) <= 0:
+                continue
+            last_insn = bb.inputs[-1]
+            if isinstance(last_insn, UnconditionalBranch) and index + 1 < len(linearized_program.inputs):
+                dest_bb = last_insn.get_input(0)
+                if dest_bb == linearized_program.inputs[index + 1]:
+                    Log.report(LOG_SIMPLIFY_BB_FALLBACK_INFO, "removing last UnconditionalBranch from BB: {}", bb)
+                    # removing last UnconditionalBranch has the fallback is enough
+                    bb.inputs = bb.inputs[:-1]
         return linearized_program
 
     def execute_on_function(self, fct, fct_group):
