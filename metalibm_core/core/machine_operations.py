@@ -1,5 +1,5 @@
 from metalibm_core.core.ml_operations import (
-    Variable, ReferenceAssign
+    Variable, ReferenceAssign, ML_ArithmeticOperation,
 )
 
 from metalibm_core.core.bb_operations import BasicBlockList
@@ -49,6 +49,17 @@ class PhysicalRegister(MachineRegister):
 
 class RegisterAssign(ReferenceAssign):
     name = "RegisterAssign"
+
+class RegisterCopy(ML_ArithmeticOperation):
+    """ Copy a register into a virtual register value
+        (to be used in a RegisterAssign for a physical copy) """
+    name = "RegisterCopy"
+    arity = 1
+
+class MaterializeConstant(ML_ArithmeticOperation):
+    """ Explicitly materialize a constant value into a register """
+    name = "MaterializeConstant"
+    arity = 1
 
 class MaterializeConstant(ReferenceAssign):
     name = "MaterializeConstant"
