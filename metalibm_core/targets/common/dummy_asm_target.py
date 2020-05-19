@@ -38,12 +38,13 @@ from metalibm_core.core.ml_formats import (
     ML_Bool,
     v2bool, v4bool, v8bool,
     ML_Int32, ML_Int64, ML_Binary32, ML_Binary64,
+    ML_UInt32,
     ML_Int128, ML_Int256,
     v2int32, v2int64, v2float32, v2float64,
     v4int32, v4int64, v4float32, v4float64,
-    v8int32, v8int64, v8float32, v8float64,
     ML_FP_Format,
     ML_Void,
+    ML_Integer,
 )
 from metalibm_core.core.target import TargetRegister
 from metalibm_core.core.ml_operations import (
@@ -60,15 +61,18 @@ from metalibm_core.core.ml_operations import (
     Conversion, TypeCast,
     VectorElementSelection,
     Constant,
-    FusedMultiplyAdd,
-    ReciprocalSeed,
+)
+
+from metalibm_core.core.machine_operations import (
+    MaterializeConstant, RegisterCopy,
 )
 
 from metalibm_core.code_generation.generator_utility import (
     TemplateOperatorFormat,
     FO_Result, FO_Arg,
     ConstantOperator, FunctionOperator,
-    type_strict_match, type_strict_match_list
+    type_strict_match, type_strict_match_list,
+    type_all_match,
 )
 from metalibm_core.code_generation.complex_generator import (
     ComplexOperator
@@ -165,6 +169,9 @@ asm_code_generation_table = {
     Addition: {
         None: {
             lambda _: True: {
+                type_strict_match_list([ML_Int32, ML_UInt32], [ML_UInt32, ML_Int32], [ML_Int32, ML_UInt32]):
+                    DummyAsmOperator("addw {} = {}, {}", arity=2),
+
                 type_strict_match(ML_Binary32, ML_Binary32, ML_Binary32):
                     DummyAsmOperator("faddw {} = {}, {}", arity=2),
                 type_strict_match(ML_Binary64, ML_Binary64, ML_Binary64):
@@ -172,9 +179,28 @@ asm_code_generation_table = {
             },
         },
     },
+    Subtraction: {
+        None: {
+            lambda _: True: {
+                type_strict_match_list([ML_Int32, ML_UInt32], [ML_UInt32, ML_Int32], [ML_Int32, ML_UInt32]):
+                    # subtract from: op1 - op0 (reverse)
+                    TemplateOperatorFormat("sbfw {} = {}, {}", arg_map={0: FO_Result(), 1: FO_Arg(1), 2: FO_Arg(0)}, arity=2),
+
+                type_strict_match(ML_Binary32, ML_Binary32, ML_Binary32):
+                    # subtract from: op1 - op0 (reverse)
+                    TemplateOperatorFormat("fsbfw {} = {}, {}", arg_map={0: FO_Result(), 1: FO_Arg(1), 2: FO_Arg(0)}, arity=2),
+                type_strict_match(ML_Binary64, ML_Binary64, ML_Binary64):
+                    # subtract from: op1 - op0 (reverse)
+                    TemplateOperatorFormat("fsbfd {} = {}, {}", arg_map={0: FO_Result(), 1: FO_Arg(1), 2: FO_Arg(0)}, arity=2),
+            },
+        },
+    },
     Multiplication: {
         None: {
             lambda _: True: {
+                type_strict_match_list([ML_Int32, ML_UInt32], [ML_UInt32, ML_Int32], [ML_Int32, ML_UInt32]):
+                    DummyAsmOperator("mulw {} = {}, {}", arity=2),
+
                 type_strict_match(ML_Binary32, ML_Binary32, ML_Binary32):
                     DummyAsmOperator("fmulw {} = {}, {}", arity=2),
                 type_strict_match(ML_Binary64, ML_Binary64, ML_Binary64):
@@ -187,6 +213,31 @@ asm_code_generation_table = {
             lambda _: True: {
                 type_strict_match(ML_Void):
                     TemplateOperatorFormat("ret", arity=0, void_function=True),
+            },
+        },
+    },
+    Comparison: {
+        Comparison.Less: {
+            lambda _: True: {
+                type_strict_match(ML_Bool, ML_Int32, ML_Int32):
+                    DummyAsmOperator("compw.lt {} = {}, {}", arity=2),
+            },
+        },
+    },
+    MaterializeConstant: {
+        None: {
+            lambda _: True: {
+                type_strict_match_list([ML_Integer, ML_Int32, ML_Int64]):
+                    DummyAsmOperator("maked {} = {}", arity=1),
+            },
+        },
+    },
+    RegisterCopy: {
+        None: {
+            lambda _: True: {
+                # TODO/FIXME: should be distinguished based on format size
+                type_all_match:
+                    DummyAsmOperator("copyd {} = {}", arity=1),
             },
         },
     },
@@ -212,6 +263,35 @@ class DummyAsmBackend(AbstractBackend):
     def generate_register(self, machine_register):
         return "$r{}".format(machine_register.register_id)
 
+    def generate_constant_expr(self, constant_node):
+        """ generate the assembly value of a give Constant node """
+        cst_format = constant_node.get_precision()
+        if cst_format is ML_Integer:
+            return "%d" % constant_node.get_value()
+        else:
+            return cst_format.get_cst(
+                    constant_node.get_value(), language=ASM_Code)
+
+    def generate_conditional_branch(self, asm_generator, code_object, cb_node):
+        cond = cb_node.get_input(0)
+        if_bb = cb_node.get_input(1)
+        if_label = asm_generator.get_bb_label(code_object, if_bb)
+
+        cond_code = asm_generator.generate_expr(
+            code_object, cond, language=ASM_Code)
+
+        code_object << "cb.nez {cond}, {if_label}\n".format(
+            cond=cond_code, # cond register
+            if_label=if_label,
+        )
+    def generate_unconditional_branch(self, asm_generator, code_object, node):
+        dest_bb = node.get_input(0)
+        dest_label = asm_generator.get_bb_label(code_object, dest_bb)
+
+        code_object << "goto {dest_label}\n".format(
+            dest_label=dest_label,
+        )
+
     ## return the compiler command line program to use to build
     #  test programs
     def get_compiler(self):
@@ -225,6 +305,10 @@ class DummyAsmBackend(AbstractBackend):
     def instanciate_pass_pipeline(self, pass_scheduler, processor, extra_passes, language=ASM_Code):
         """ instanciate an optimization pass pipeline for VectorBackend targets """
         EXTRA_PASSES = [
+            "beforecodegen:gen_basic_block",
+            "beforecodegen:basic_block_simplification",
+            "beforecodegen:linearize_op_graph",
+            "beforecodegen:register_allocation",
             # "beforecodegen:gen_basic_block",
             # "beforecodegen:basic_block_simplification",
             # "beforecodegen:ssa_translation",
