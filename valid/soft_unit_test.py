@@ -52,6 +52,7 @@ from metalibm_core.core.ml_formats import (
 from metalibm_core.core.precisions import (
     ML_CorrectlyRounded, ML_Faithful, dar, daa
 )
+from metalibm_core.code_generation.code_constant import ASM_Code
 
 from valid.unit_test import (
     UnitTestScheme
@@ -90,6 +91,7 @@ import metalibm_functions.unit_tests.bfloat16 as ut_bfloat16
 import metalibm_functions.unit_tests.ut_eval_error as ut_eval_error
 import metalibm_functions.unit_tests.special_values as ut_special_values
 import metalibm_functions.unit_tests.numerical_simplification as ut_numerical_simplification
+import metalibm_functions.unit_tests.machine_insn_test as ut_machine_insn_test
 
 unit_test_list = [
   UnitTestScheme(
@@ -292,6 +294,26 @@ unit_test_list = [
     "numerical simplification",
     ut_numerical_simplification,
     [{}]
+  ),
+  UnitTestScheme(
+    "basic machine code generation",
+    ut_machine_insn_test,
+    [{
+        "language": ASM_Code, "target": target_instanciate("dummy_asm_backend"),
+        "precision": ML_Binary64,
+        #"extra_passes": ["start:instantiate_abstract_prec", "start:instantiate_prec", "beforecodegen:simplify_bb_fallback"],
+        #"output_file": "ut_loop_operation.S",
+     }]
+  ),
+  UnitTestScheme(
+    "asm loop generation",
+    ut_loop_operation,
+    [{
+        "language": ASM_Code, "target": target_instanciate("dummy_asm_backend"),
+        "extra_passes": ["start:instantiate_abstract_prec", "start:instantiate_prec", "beforecodegen:simplify_bb_fallback"],
+        "output_file": "ut_loop_operation.S",
+        "precision": ML_Int32,
+     }]
   ),
 ]
 

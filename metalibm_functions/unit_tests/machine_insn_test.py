@@ -12,15 +12,11 @@ from metalibm_core.utility.ml_template import (
 )
 
 
-from metalibm_core.opt.p_gen_bb import (
-    Pass_GenerateBasicBlock, Pass_BBSimplification,
-    Pass_SSATranslate
-)
 
-from metalibm_core.code_generation.asmde_translator import AssemblySynthesizer
+from metalibm_functions.unit_tests.utils import TestRunner
 
 
-class ML_UT_MachineInsnGeneration(ML_FunctionBasis):
+class UT_MachineInsnGeneration(ML_FunctionBasis, TestRunner):
     function_basis = "mt_ut_machine_insn_generation"
 
     def __init__(self, args=DefaultArgTemplate):
@@ -36,13 +32,7 @@ class ML_UT_MachineInsnGeneration(ML_FunctionBasis):
             "function_name": "ut_machine_insn_generation",
             "precision": ML_Binary32,
             "passes": [
-                "start:gen_basic_block",
-                "start:basic_block_simplification",
-                "start:dump",
-                "start:linearize_op_graph",
-                "start:dump",
-                "start:register_allocation",
-                "start:dump",
+                # default pass for dummy asm target are enough
             ],
         }
         default_args.update(kw)
@@ -61,11 +51,24 @@ class ML_UT_MachineInsnGeneration(ML_FunctionBasis):
         )
         return test_program
 
+    @staticmethod
+    def __call__(args):
+        # just ignore args here and trust default constructor?
+        # seems like a bad idea.
+        ut_machine_insn_gen = UT_MachineInsnGeneration(args)
+        ut_machine_insn_gen.gen_implementation()
+        return True
+
+# main runner for unit tests (called by valid.soft_unit_test)
+run_test = UT_MachineInsnGeneration.__call__
+
 if __name__ == "__main__":
     # auto-test
-    arg_template = ML_NewArgTemplate(default_arg=ML_UT_MachineInsnGeneration.get_default_args())
+    arg_template = ML_NewArgTemplate(default_arg=UT_MachineInsnGeneration.get_default_args())
     args = arg_template.arg_extraction()
 
-    ut_machine_insn_generation = ML_UT_MachineInsnGeneration(args)
-    #ut_machine_insn_generation.generate_scheme()
-    ut_machine_insn_generation.gen_implementation()
+    ut_machine_insn_generation = UT_MachineInsnGeneration(args)
+    if run_test(args):
+        exit(0)
+    else:
+        exit(1)
