@@ -49,6 +49,8 @@ from ..core.bb_operations import (
 )
 from ..core.ml_table import ML_Table
 from ..core.ml_formats import *
+from ..core.legalizer import is_constant
+
 from .generator_utility import C_Code, Gappa_Code, RoundOperator
 from .code_element import CodeVariable, CodeExpression
 from .code_object import MultiSymbolTable
@@ -59,6 +61,7 @@ from metalibm_core.code_generation.code_function import CodeFunction
 
 from metalibm_core.core.machine_operations import (
     MachineRegister, RegisterAssign, MaterializeConstant,
+    RegisterCopy, MaterializeConstant,
     MachineProgram
 )
 
@@ -78,6 +81,9 @@ class MachineInsnGenerator(object):
         self.node_to_register_map = {}
         # unique identifier for new virtual registers
         self.register_id = -1
+
+        # mapping of pre-linearization to linearized BasicBlock-s
+        self.prepost_bb_mapping = {}
 
     def has_memoization(self, node):
         return node in self.memoization_map
@@ -107,6 +113,17 @@ class MachineInsnGenerator(object):
         # TODO/FIXME: support case where node is expanded into multiple registers
         return self.node_to_register_map[node]
 
+    def get_post_linearization_bb(self, pre_linearization_bb):
+        """ Return the post-linerazation basick-block which corresponds
+            to the linearization of <pre_linearization_bb>, creates it
+            if it does not exist yet """
+        if not pre_linearization_bb in self.prepost_bb_mapping:
+            self.set_post_linearization_bb(pre_linearization_bb, BasicBlock(tag=pre_linearization_bb.get_tag() + "_lin"))
+        return self.prepost_bb_mapping[pre_linearization_bb]
+
+    def set_post_linearization_bb(self, pre_linearization_bb, post_linearization_bb):
+        self.prepost_bb_mapping[pre_linearization_bb] = post_linearization_bb
+
     # force_variable_storing is not supported
     def linearize_graph(self, node, current_bb=None):
         """ linearize operation graph node
@@ -133,27 +150,29 @@ class MachineInsnGenerator(object):
             result = node
 
         elif isinstance(node, BasicBlock):
-            linearized_bb = BasicBlock()
+            # if BasicBlock node has not been encountered yet, this will create it
+            linearized_bb = self.get_post_linearization_bb(node)
             for op in node.inputs:
                 self.linearize_graph(op, linearized_bb)
             result = linearized_bb
 
         elif isinstance(node, ConditionalBranch):
             cond = node.get_input(0)
-            if_bb = node.get_input(1)
-            else_bb = node.get_input(2)
+            if_bb = self.get_post_linearization_bb(node.get_input(1))
+            else_bb = self.get_post_linearization_bb(node.get_input(2))
 
-            raise NotImplementedError
+            cond_value = self.linearize_graph(cond, current_bb)
+            new_node = ConditionalBranch(cond_value, if_bb)
+            current_bb.add(new_node)
+            current_bb.add(UnconditionalBranch(else_bb))
 
-            #cond_code = self.linearized_bb(current_bb, cond)
-            #    code_object, cond, folded=folded, language=language)
-
-            return None
+            result = new_node
 
         elif isinstance(node, UnconditionalBranch):
-            dest_bb = node.get_input(0)
-            code_object << "br label %{}\n".format(self.get_bb_label(code_object, dest_bb))
-            return None
+            # unconditionnal branch are not modified
+            new_node = UnconditionalBranch(self.get_post_linearization_bb(node.get_input(0)))
+            result = new_node
+            current_bb.add(new_node)
 
         elif isinstance(node, BasicBlockList):
             new_bb_list = MachineProgram()
@@ -198,8 +217,11 @@ class MachineInsnGenerator(object):
             #             a Variable (e.g. VectorElementSelection)
             var_register = self.get_var_register(output_var)
 
-            result_value_reg = self.linearize_graph(result_value, current_bb)
-            result_assign = RegisterAssign(var_register, result_value_reg)
+            result_value = self.linearize_graph(result_value, current_bb)
+            if is_constant(result_value):
+                result_assign = RegisterAssign(var_register, MaterializeConstant(result_value, precision=result_value.get_precision()))
+            else:
+                result_assign = RegisterAssign(var_register, RegisterCopy(result_value, precision=result_value.get_precision()))
             # expression's result is the output register
             result = var_register
 
@@ -208,7 +230,14 @@ class MachineInsnGenerator(object):
 
         elif isinstance(node, Return):
             # TODO/FIXME: must implement processor ABI
-            assert node.get_precision() == None
+            if len(node.inputs) == 1:
+                self.linearize_graph(node.get_input(0), current_bb)
+            elif len(node.inputs) == 0:
+                assert node.get_precision() == None
+                pass
+            else:
+                # only supports Return with 0 or one argument
+                Log.report(Log.Error, "linearize_graph only supports Return with 0 or 1 args, not {}", node, error=NotImplementedError)
             result = Return(precision=ML_Void)
             current_bb.add(result)
 
@@ -216,11 +245,16 @@ class MachineInsnGenerator(object):
             result = self.linearize_graph(node, current_bb)
 
         elif isinstance(node, ML_ArithmeticOperation):
-            op_regs = [self.linearize_graph(op, current_bb) for op in node.inputs]
+            op_regs = {op: self.linearize_graph(op, current_bb) for op in node.inputs}
             result_reg = self.get_new_register(node.get_precision())
+
+            linearized_node = node.copy(copy_map=op_regs)
+            #__class__(*tuple(op_regs), precision=node.get_precision())
+            node.finish_copy(linearized_node)
+
             result_assign = RegisterAssign(
                 result_reg,
-                node.__class__(*tuple(op_regs), precision=node.get_precision()),
+                linearized_node,
                 precision=ML_Void
             )
             # adding RegisterAssign to current basic-block
