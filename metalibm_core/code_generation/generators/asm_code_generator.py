@@ -37,6 +37,7 @@ from metalibm_core.core.ml_operations import (
     Variable, Constant, ConditionBlock, Return, TableLoad, Statement,
     SpecificOperation, Conversion, FunctionObject,
     ReferenceAssign, Loop,
+    is_leaf_node,
 )
 from metalibm_core.core.bb_operations import (
     BasicBlockList,
@@ -141,7 +142,7 @@ class AsmCodeGenerator(CodeGenerator):
 
         elif isinstance(node, Constant):
             precision = node.get_precision()
-            result = generate_Constant_expr(node)
+            result = CodeExpression(self.processor.generate_constant_expr(node), precision)
 
         elif isinstance(node, BasicBlock):
             bb_label = self.get_bb_label(code_object, node)
@@ -154,25 +155,13 @@ class AsmCodeGenerator(CodeGenerator):
             return None
 
         elif isinstance(node, ConditionalBranch):
-            cond = node.get_input(0)
-            if_bb = node.get_input(1)
-            else_bb = node.get_input(2)
-            if_label = self.get_bb_label(code_object, if_bb)
-            else_label = self.get_bb_label(code_object, else_bb)
-
-            cond_code = self.generate_expr(
-                code_object, cond, folded=folded, language=language)
-
-            code_object << "br i1 {cond} , label %{if_label}, label %{else_label}\n".format(
-                cond=cond_code.get(),
-                if_label=if_label,
-                else_label=else_label
-            )
+            assert len(node.inputs) == 2
+            self.processor.generate_conditional_branch(self, code_object, node)
             return None
 
         elif isinstance(node, UnconditionalBranch):
-            dest_bb = node.get_input(0)
-            code_object << "br label %{}\n".format(self.get_bb_label(code_object, dest_bb))
+            assert len(node.inputs) == 1
+            self.processor.generate_unconditional_branch(self, code_object, node)
             return None
 
         elif isinstance(node, BasicBlockList):
@@ -195,8 +184,12 @@ class AsmCodeGenerator(CodeGenerator):
             #result_value_code = self.generate_expr(
             #    code_object, result_value, folded=folded, result_var=output_reg,
             #    language=language)
+            if is_leaf_node(result_value):
+                value_inputs = None
+            else:
+                value_inputs = result_value.inputs
             result_value_code = self.processor.generate_expr(self, code_object, result_value,
-                                                  result_value.inputs, folded=folded,
+                                                  value_inputs, folded=folded,
                                                   result_var=output_reg,
                                                   language=self.language)
 
