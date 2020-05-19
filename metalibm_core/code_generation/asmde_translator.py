@@ -1,9 +1,11 @@
 
 import asmde.allocator as asmde
 
-from metalibm_core.core.ml_operations import Return, is_leaf_node
+from metalibm_core.core.ml_operations import Return, is_leaf_node, Constant
+from metalibm_core.core.legalizer import is_constant
 from metalibm_core.core.bb_operations import (
-    BasicBlockList, BasicBlock)
+    BasicBlockList, BasicBlock,
+    UnconditionalBranch, ConditionalBranch)
 from metalibm_core.core.machine_operations import (
     MachineRegister, RegisterAssign, PhysicalRegister)
 
@@ -17,8 +19,8 @@ class BackendAsmArchitecture(asmde.Architecture):
 
 def extract_src_regs_from_node(node):
     """ extract the list of MachineRegister objects used by node """
-    reg_list = [reg for reg in node.inputs]
-    assert all(map(lambda r: isinstance(r, MachineRegister), reg_list))
+    reg_list = [reg for reg in node.inputs if isinstance(reg, MachineRegister)]
+    assert all(map(lambda r: isinstance(r, (MachineRegister, Constant)), reg_list))
     return reg_list
 
 
@@ -65,9 +67,16 @@ class AssemblySynthesizer:
                     value_node = node.get_input(1)
                     if not is_leaf_node(value_node):
                         for index, op in enumerate(value_node.inputs):
-                            value_node.set_input(index, self.get_physical_reg(color_map, op))
+                            if isinstance(op, MachineRegister):
+                                value_node.set_input(index, self.get_physical_reg(color_map, op))
+                            elif is_constant(op):
+                                value_node.set_input(index, op)
+                            else:
+                                raise NotImplementedError
                     elif isinstance(value_node, MachineRegister):
                         node.set_input(1, self.get_physical_reg(color_map, value_node))
+                    elif is_constant(value_node):
+                        node.set_input(1, value_node)
                     else:
                         raise NotImplementedError
 
@@ -78,7 +87,10 @@ class AssemblySynthesizer:
             dst_reg = node.get_input(0)
             dst_reg_list = [sub_reg for reg in [dst_reg] for sub_reg in self.generate_allocatable_register(reg)]
             value_node = node.get_input(1)
-            src_reg_list = [sub_reg for reg in extract_src_regs_from_node(value_node) for sub_reg in self.generate_allocatable_register(reg) ]
+            if is_constant(value_node):
+                src_reg_list = []
+            else:
+                src_reg_list = [sub_reg for reg in extract_src_regs_from_node(value_node) for sub_reg in self.generate_allocatable_register(reg) ]
             insn = asmde.Instruction(node,
                                def_list=dst_reg_list,
                                use_list=src_reg_list)
@@ -96,7 +108,7 @@ class AssemblySynthesizer:
             self.ml_to_asmde_reg_map[ml_reg] = asmde_reg_tuple
         phys_reg_list = [reg for reg_tuple in phys_tuple_list for reg in reg_tuple]
         return phys_reg_list
-            
+
     def generate_ABI_phys_output_regs(self, ordered_output_regs):
         """ generate a list of physical register to store Program outputs
             matching ABI constraints """
@@ -119,9 +131,27 @@ class AssemblySynthesizer:
         program = asmde.Program(pre_defined_list=pre_defined_list,
                                 post_used_list=post_used_list)
 
+        # mapping of Metalibm's BasicBlock to asmde's ones
+        ml_bb_to_asmde_bb = {}
+        class UnresolvedLink:
+            """ structure to store a Metalibm's BasicBlock which has not yet
+                an ASMDE counterpart. The structure also store ASMDE the
+                predecessors of this block. Link between the ASDME counterpart
+                and predecessors must be created once the ASMDE counterpart
+                can be resolved """
+            def __init__(self, ml_bb, predecessors=None):
+                self.ml_bb = ml_bb
+                self.predecessors = predecessors
+
+        # register unresolved-links (Metalibm's BasicBlock which
+        # could not be resolved to asmde BasicBlock, because of forward
+        # declaration)
+        list_unresolved_links = []
+
         assert isinstance(linearized_program, BasicBlockList)
         for bb in linearized_program.inputs:
             asmde_bb = program.add_bb()
+            ml_bb_to_asmde_bb[bb] = asmde_bb
             for node in bb.inputs:
                 # TODO/FIXME: for now one bundle per instruction
                 bundle = asmde.Bundle()
@@ -134,10 +164,42 @@ class AssemblySynthesizer:
                     program.current_bb.add_successor(program.sink_bb)
                     program.sink_bb.add_predecessor(program.current_bb)
 
+                elif isinstance(node, (UnconditionalBranch, ConditionalBranch)):
+                    for ml_bb_succ in node.destination_list:
+                        if not ml_bb_succ in ml_bb_to_asmde_bb:
+                            list_unresolved_links.append(
+                                UnresolvedLink(ml_bb_succ, [program.current_bb])
+                            )
+
+                        else:
+                            bb_succ = ml_bb_to_asmde_bb[ml_bb_succ]
+                            program.current_bb.add_successor(bb_succ)
+                            bb_succ.add_predecessor(program.current_bb)
+                    use_list = []
+                    if isinstance(node, ConditionalBranch):
+                        # ConditionalBranch use a register
+                        cond = node.get_input(0)
+                        # NOTES: transform tuple into list 
+                        use_list = list(self.generate_allocatable_register(cond))
+
+                    insn = asmde.Instruction(node, use_list=use_list, is_jump=True)
+
                 else:
                     insn = self.generate_insn_from_node(node)
                 bundle.add_insn(insn)
                 program.add_bundle(bundle)
+
+        # resolving links
+        for unresolved_link in list_unresolved_links:
+            ml_bb = unresolved_link.ml_bb
+            try:
+                asmde_bb = ml_bb_to_asmde_bb[ml_bb]
+            except KeyError:
+                print(ml_bb_to_asmde_bb)
+                Log.report(Log.Error, "could not find asmde counterpart for Metalibm's BB {}", ml_bb)
+            for predecessor in unresolved_link.predecessors:
+                predecessor.add_successor(asmde_bb)
+                asmde_bb.add_predecessor(predecessor)
 
         program.end_program()
         return program
