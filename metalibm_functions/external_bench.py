@@ -57,6 +57,15 @@ from metalibm_core.utility.debug_utils import *
 from metalibm_core.utility.num_utils   import ulp
 from metalibm_core.utility.gappa_utils import is_gappa_installed
 
+def atan2_emulate(vy, vx):
+    if vx > 0:
+        return sollya.atan(vy / vx)
+    elif vy < 0:
+        # vy / vx > 0
+        return -sollya.pi + sollya.atan(vy / vx)
+    else:
+        # vy > 0, vy / vx < 0
+        return sollya.pi + sollya.atan(vy / vx)
 
 
 class ML_ExternalBench(ML_Function("ml_external_bench")):
