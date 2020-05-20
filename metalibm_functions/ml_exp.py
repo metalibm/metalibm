@@ -40,7 +40,8 @@ S2 = SollyaObject(2)
 from metalibm_core.core.ml_operations import (
     Test, RaiseReturn, Comparison, Statement, NearestInteger,
     ConditionBlock, Return, ClearException, ExponentInsertion,
-    Constant, Variable, Addition, Subtraction
+    Constant, Variable, Addition, Subtraction,
+    LogicalNot, LogicalOr,
 )
 from metalibm_core.core.ml_formats import (
     ML_Binary32, ML_Int32,
@@ -399,7 +400,17 @@ class ML_Exponential(ScalarUnaryFunction):
         #std_result = twok * ((1 + exact_hi_part * pre_poly) + exact_lo_part * pre_poly) 
         std_result = twok * poly
         std_result.set_attributes(tag = "std_result", debug = debug_multi)
-        result_scheme = ConditionBlock(late_overflow_test, late_overflow_return, ConditionBlock(late_underflow_test, late_underflow_return, Return(std_result, precision=self.precision)))
+        std_cond = LogicalNot(LogicalOr(late_overflow_test, late_underflow_test), likely=True)
+
+        result_scheme = ConditionBlock(
+            std_cond,
+            Return(std_result, precision=self.precision),
+            ConditionBlock(
+                late_overflow_test,
+                late_overflow_return,
+                late_underflow_return,
+            )
+        )
         std_return = ConditionBlock(early_overflow_test, early_overflow_return, ConditionBlock(early_underflow_test, early_underflow_return, result_scheme))
 
         # main scheme
