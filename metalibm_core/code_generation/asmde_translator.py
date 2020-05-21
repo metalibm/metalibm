@@ -1,7 +1,7 @@
 
 import asmde.allocator as asmde
 
-from metalibm_core.core.ml_operations import Return, is_leaf_node, Constant
+from metalibm_core.core.ml_operations import Return, is_leaf_node, Constant, TableStore
 from metalibm_core.core.legalizer import is_constant
 from metalibm_core.core.bb_operations import (
     BasicBlockList, BasicBlock,
@@ -92,7 +92,17 @@ class AssemblySynthesizer:
             else:
                 src_reg_list = [sub_reg for reg in extract_src_regs_from_node(value_node) for sub_reg in self.generate_allocatable_register(reg) ]
             insn = asmde.Instruction(node,
+                               dbg_object=node,
                                def_list=dst_reg_list,
+                               use_list=src_reg_list)
+            return insn
+
+        elif isinstance(node, TableStore):
+            # TODO/FIXME: may need the generation of a shaddow dependency chain
+            # to maintain TableStore/TableLoad relative order when required
+            src_reg_list = [sub_reg for reg in extract_src_regs_from_node(node) for sub_reg in self.generate_allocatable_register(reg) ]
+            insn = asmde.Instruction(node,
+                                dbg_object=node,
                                use_list=src_reg_list)
             return insn
 
@@ -129,7 +139,7 @@ class AssemblySynthesizer:
         pre_defined_list = self.generate_ABI_phys_input_regs(input_reg_list)
         post_used_list = self.generate_ABI_phys_output_regs(output_reg_list)
         program = asmde.Program(pre_defined_list=pre_defined_list,
-                                post_used_list=post_used_list)
+                                post_used_list=post_used_list, empty=True)
 
         # mapping of Metalibm's BasicBlock to asmde's ones
         ml_bb_to_asmde_bb = {}
@@ -150,7 +160,7 @@ class AssemblySynthesizer:
 
         assert isinstance(linearized_program, BasicBlockList)
         for bb in linearized_program.inputs:
-            asmde_bb = program.add_bb()
+            asmde_bb = program.add_new_current_bb(bb.get_tag())
             ml_bb_to_asmde_bb[bb] = asmde_bb
             for node in bb.inputs:
                 # TODO/FIXME: for now one bundle per instruction
@@ -158,7 +168,7 @@ class AssemblySynthesizer:
                 if isinstance(node, Return):
                     assert len(node.inputs) == 0
                     # return does not use any register
-                    insn = asmde.Instruction(node)
+                    insn = asmde.Instruction(node, dbg_object=node)
                     # return means the current basic block is a parent of
                     # the sink (exit)
                     program.current_bb.add_successor(program.sink_bb)
@@ -173,8 +183,9 @@ class AssemblySynthesizer:
 
                         else:
                             bb_succ = ml_bb_to_asmde_bb[ml_bb_succ]
-                            program.current_bb.add_successor(bb_succ)
-                            bb_succ.add_predecessor(program.current_bb)
+                            #program.current_bb.add_successor(bb_succ)
+                            #bb_succ.add_predecessor(program.current_bb)
+                            program.current_bb.connect_to(bb_succ)
                     use_list = []
                     if isinstance(node, ConditionalBranch):
                         # ConditionalBranch use a register
@@ -182,7 +193,7 @@ class AssemblySynthesizer:
                         # NOTES: transform tuple into list 
                         use_list = list(self.generate_allocatable_register(cond))
 
-                    insn = asmde.Instruction(node, use_list=use_list, is_jump=True)
+                    insn = asmde.Instruction(node, use_list=use_list, is_jump=True, dbg_object=node)
 
                 else:
                     insn = self.generate_insn_from_node(node)
@@ -198,8 +209,12 @@ class AssemblySynthesizer:
                 print(ml_bb_to_asmde_bb)
                 Log.report(Log.Error, "could not find asmde counterpart for Metalibm's BB {}", ml_bb)
             for predecessor in unresolved_link.predecessors:
-                predecessor.add_successor(asmde_bb)
-                asmde_bb.add_predecessor(predecessor)
+                #predecessor.add_successor(asmde_bb)
+                #asmde_bb.add_predecessor(predecessor)
+                predecessor.connect_to(asmde_bb)
+
+        # connecting first BasicBlock to source BasicBlock
+        program.source_bb.connect_to(ml_bb_to_asmde_bb[linearized_program.inputs[0]])
 
         program.end_program()
         return program
