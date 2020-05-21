@@ -55,7 +55,10 @@ def locate_return_values(op_graph):
         node = to_be_processed.pop(0)
         processed.add(node)
         if isinstance(node, Return):
-            return_values.add(node.get_input(0))
+            if len(node.inputs) == 1:
+                # only consider Return with a value,
+                # Return without value are discarded
+                return_values.add(node.get_input(0))
         if is_leaf_node(node):
             pass
         else:
@@ -64,7 +67,7 @@ def locate_return_values(op_graph):
                     to_be_processed.append(op)
     # TODO/FIXME: explicit conversion to list may not be required here
     return list(return_values)
-            
+
 
 @METALIBM_PASS_REGISTER
 class Pass_LinearizeOperationGraph(FunctionPass):
