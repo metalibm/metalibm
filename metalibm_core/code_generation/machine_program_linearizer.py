@@ -40,6 +40,7 @@ from ..core.ml_operations import (
     SpecificOperation, Conversion, FunctionObject,
     ReferenceAssign, Loop,
     is_leaf_node,
+    TableStore,
     ML_ArithmeticOperation,
 )
 from ..core.bb_operations import (
@@ -243,6 +244,17 @@ class MachineInsnGenerator(object):
 
         elif is_leaf_node(node):
             result = self.linearize_graph(node, current_bb)
+
+        elif isinstance(node, TableStore):
+            # TODO/FIXME: may need the generation of a shaddow dependency chain
+            # to maintain TableStore/TableLoad relative order when required
+            # TableStore are void operation (result is not stored into a machine register)
+            op_regs = {op: self.linearize_graph(op, current_bb) for op in node.inputs}
+            linearized_node = node.copy(copy_map=op_regs)
+            node.finish_copy(linearized_node)
+            current_bb.add(linearized_node)
+            # TableStore does not have a result
+            result = None
 
         elif isinstance(node, ML_ArithmeticOperation):
             op_regs = {op: self.linearize_graph(op, current_bb) for op in node.inputs}
