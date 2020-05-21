@@ -40,6 +40,7 @@ from metalibm_core.core.ml_operations import (
     Constant
 )
 from metalibm_core.core.advanced_operations import PlaceHolder
+from metalibm_core.core.legalizer import extract_placeholder
 
 from metalibm_core.core.passes import FunctionPass, Pass, LOG_PASS_INFO
 
@@ -877,7 +878,10 @@ class Pass_GenerateBasicBlock(FunctionPass):
                 self.execute_on_optree(op, fct, fct_group, memoization_map)
             self.push_to_current_bb(head)
         else:
-            self.push_to_current_bb(optree)
+            placeholder_free_node, statement_list = extract_placeholder(optree) 
+            for pre_statement in statement_list:
+                self.execute_on_optree(pre_statement, fct, fct_group, memoization_map)
+            self.push_to_current_bb(placeholder_free_node)
         return entry_bb
 
     def execute_on_graph(self, op_graph):
