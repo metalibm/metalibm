@@ -133,7 +133,7 @@ def transform_cb_to_bb(bb_translator, optree, fct=None, fct_group=None, memoizat
 
 
 def transform_loop_to_bb(
-        bb_translator, optree, fct=None, fct_group=None, memoization_map=None):
+        bb_translator, optree, fct=None, fct_group=None, memoization_map=None, loop_id=None):
     """ Transform a Loop node to a list of BasicBlock
         returning the entry block as result.
 
@@ -146,24 +146,33 @@ def transform_loop_to_bb(
     loop_cond = optree.get_input(1)
     loop_body = optree.get_input(2)
 
+    if loop_id is None:
+        loop_prefix = "loop_"
+    else:
+        loop_prefix = "loop_{}_".format(loop_id)
+
     # loop pre-header
     init_block = bb_translator.execute_on_optree(
         init_statement, fct, fct_group, memoization_map)
 
     # building loop header
-    bb_translator.push_new_bb("loop_header")
+    bb_translator.push_new_bb(loop_prefix + "header")
     loop_header_entry = bb_translator.get_current_bb()
     bb_translator.execute_on_optree(loop_cond, fct, fct_group, memoization_map)
     bb_translator.pop_current_bb()
 
     # building loop body
-    bb_translator.push_new_bb("loop_body")
+    bb_translator.push_new_bb(loop_prefix + "body")
     body_bb = bb_translator.execute_on_optree(
         loop_body, fct, fct_group, memoization_map)
 
-    add_to_bb(body_bb, UnconditionalBranch(loop_header_entry))
+    # retrieve the final BasicBlock of loop_body (which may be distinct
+    # from body_bb)
+    end_body_bb = bb_translator.get_current_bb()
+
+    add_to_bb(end_body_bb, UnconditionalBranch(loop_header_entry))
     bb_translator.pop_current_bb()
-    bb_translator.push_new_bb("loop_exit")
+    bb_translator.push_new_bb(loop_prefix + "exit")
     next_bb = bb_translator.get_current_bb()
 
     # loop header branch generation
@@ -771,6 +780,8 @@ def add_to_bb(bb, node):
     """ add operation node @p node to the end of the basic-block @p bb """
     if not bb.final and (bb.empty or not isinstance(bb.get_input(-1), ControlFlowOperation)):
         bb.add(node)
+    else:
+        raise NotImplementedError
 
 class Pass_GenerateBasicBlock(FunctionPass):
     """ pre-Linearize operation tree to basic blocks
@@ -784,6 +795,12 @@ class Pass_GenerateBasicBlock(FunctionPass):
         self.top_bb_list = None
         self.current_bb_stack = []
         self.bb_tag_index = 0
+        # unique loop identifier
+        self.loop_id = -1
+
+    def get_new_loop_id(self):
+        self.loop_id += 1
+        return self.loop_id
 
     def set_top_bb_list(self, bb_list):
         """ define the top basic block and reset the basic block stack so it
@@ -863,7 +880,8 @@ class Pass_GenerateBasicBlock(FunctionPass):
         if isinstance(optree, ConditionBlock):
             entry_bb = transform_cb_to_bb(self, optree)
         elif isinstance(optree, Loop):
-            entry_bb = transform_loop_to_bb(self, optree)
+            loop_id = self.get_new_loop_id()
+            entry_bb = transform_loop_to_bb(self, optree, loop_id=loop_id)
         elif isinstance(optree, Return):
             # return must be processed separately as it finishes a basic block
             self.push_to_current_bb(optree)
