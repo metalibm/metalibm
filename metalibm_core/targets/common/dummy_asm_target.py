@@ -64,8 +64,8 @@ from metalibm_core.core.ml_operations import (
 )
 
 from metalibm_core.core.machine_operations import (
-    MaterializeConstant, RegisterCopy,
-)
+    MaterializeConstant, RegisterCopy)
+from metalibm_core.core.ml_complex_formats import is_pointer_format
 
 from metalibm_core.code_generation.generator_utility import (
     TemplateOperatorFormat,
@@ -92,6 +92,8 @@ import asmde.allocator as asmde
 
 class DummyArchitecture(asmde.Architecture):
     REG_SIZE = 64
+    # 64-bit addresses
+    ADDR_SIZE = 64
     def __init__(self, std_reg_num=16):
         asmde.Architecture.__init__(self,
             set([
@@ -112,7 +114,11 @@ class DummyArchitecture(asmde.Architecture):
 
         for reg in ordered_input_regs:
             ml_format = reg.precision
-            if ml_format.get_bit_size() <= self.REG_SIZE:
+            if is_pointer_format(ml_format):
+                reg_index = current_reg_index
+                current_reg_index += 1
+                phys_reg_list.append((self.get_unique_phys_reg_object(reg_index, asmde.Register.Std),))
+            elif ml_format.get_bit_size() <= self.REG_SIZE:
                 reg_index = current_reg_index
                 current_reg_index += 1
                 phys_reg_list.append((self.get_unique_phys_reg_object(reg_index, asmde.Register.Std),))
