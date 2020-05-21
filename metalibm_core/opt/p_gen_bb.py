@@ -128,7 +128,9 @@ def transform_cb_to_bb(bb_translator, optree, fct=None, fct_group=None, memoizat
     cb = ConditionalBranch(cond, if_entry, else_entry)
     add_to_bb(entry_bb, cb)
     # adding end of if block
-    add_to_bb(if_end, UnconditionalBranch(next_bb))
+    if not if_end.final:
+        # only if <if_end> BasicBlock is not final (terminated by a Return)
+        add_to_bb(if_end, UnconditionalBranch(next_bb))
     return entry_bb
 
 
