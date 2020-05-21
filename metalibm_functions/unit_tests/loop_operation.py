@@ -81,12 +81,24 @@ class ML_UT_LoopOperation(ML_Function("ml_ut_loop_operation")):
     #func_implementation = CodeFunction(self.function_name, output_format = self.precision)
     vx = self.implementation.add_input_variable("x", self.precision)
     vi = Variable("i", precision = ML_Int32, var_type = Variable.Local)
+    vj = Variable("j", precision = ML_Int32, var_type = Variable.Local)
+    acc = Variable("acc", precision = ML_Int32, var_type = Variable.Local)
 
-    loop = Loop(ReferenceAssign(vi, 0), vi < 10, ReferenceAssign(vi, vi +1))
+    loop = Loop(Statement(
+                    ReferenceAssign(vi, 0),
+                    ReferenceAssign(acc, 0),
+                ),
+                vi < 10,
+                Statement(
+                    Loop(ReferenceAssign(vj, 0),
+                         vj < 17,
+                         ReferenceAssign(acc, acc+1)),
+                    ReferenceAssign(vi, vi +1))
+                )
 
     CONVERT = Conversion if self.precision != ML_Int32 else (lambda x, **kw: x)
 
-    scheme = Statement(loop, Return(vx + CONVERT(vi, precision=self.precision), precision=self.precision))
+    scheme = Statement(loop, Return(vx + CONVERT(acc, precision=self.precision), precision=self.precision))
 
     return scheme
 def run_test(args):
