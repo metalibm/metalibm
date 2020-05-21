@@ -53,11 +53,14 @@ from metalibm_core.core.ml_operations import (
     TableLoad, Division, Modulo, Equal,
     ExponentExtraction, ExponentInsertion,
     FunctionCall,
+    Statement, Loop, ControlFlowOperation,
+    is_leaf_node,
 )
 from metalibm_core.core.ml_hdl_operations import (
     SubSignalSelection
 )
-from metalibm_core.core.advanced_operations import FixedPointPosition
+from metalibm_core.core.advanced_operations import (
+    FixedPointPosition, PlaceHolder)
 from metalibm_core.core.ml_formats import (
     ML_Int32, ML_Int64,
     ML_Bool, ML_Integer, v2bool, v3bool, v4bool, v8bool,
@@ -761,6 +764,60 @@ def legalize_invsqrt_seed(optree):
         return approx
 
 
+def extract_placeholder(node, memoization_map=None):
+    """ Assunming node is an operation expression (not a Statement)
+        containing PlaceHolder nodes, this function extract the PlaceHolder
+        nodes, remove them for the expression and return them in a list by order
+        of appearance, alongside the placeholder-free expression
+
+        The resulting statement list must be excuted in order, before
+        the placeholder-free expression can be evaluated
+
+        :arg node: root of the operation graph to process
+        :type node: ML_Operation
+        :return: pair(node, statement_list), placeholder-free node and
+                 extracted statement
+    """
+    if memoization_map is None:
+        memoization_map = {}
+
+    if node in memoization_map:
+        return memoization_map[node]
+    else:
+        result = None
+        if isinstance(node, PlaceHolder):
+            head = node.get_input(0)
+            statement_list = []
+            for op in node.inputs[1:]:
+                _, local_list = extract_placeholder(op, memoization_map)
+                statement_list = statement_list + local_list
+            # process head after internal PlaceHolder statement
+            head, head_list = extract_placeholder(head, memoization_map)
+            statement_list = statement_list + head_list
+            # returning head for node value (de-capsulating PlaceHolder)
+            result = head, statement_list
+        elif isinstance(node, (Loop, ControlFlowOperation)):
+            return None, [node]
+        elif isinstance(node, (Statement)):
+            statement_list = []
+            for op in node.inputs:
+                new_op, local_list = extract_placeholder(op, memoization_map)
+                if not new_op is None:
+                    statement_list = statement_list + [new_op]
+                statement_list = statement_list + local_list
+            result = None, statement_list
+        elif is_leaf_node(node):
+            result = node, []
+        else:
+            statement_list = []
+            for index, op in enumerate(node.inputs):
+                new_node, local_list = extract_placeholder(op, memoization_map)
+                statement_list = statement_list + local_list
+                node.set_input(index, new_node)
+            result = node, statement_list
+        # memoizing result
+        memoization_map[node] = result
+        return result
 
 class Legalizer:
     """ """
