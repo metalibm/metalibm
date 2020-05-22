@@ -79,6 +79,20 @@ class AssemblySynthesizer:
                         node.set_input(1, value_node)
                     else:
                         raise NotImplementedError
+                elif isinstance(node, ConditionalBranch):
+                    op = node.get_input(0)
+                    if isinstance(op, MachineRegister):
+                        node.set_input(0, self.get_physical_reg(color_map, op))
+                    else:
+                        raise NotImplementedError
+                elif isinstance(node, TableStore):
+                    for index, op in enumerate(node.inputs):
+                        if isinstance(op, MachineRegister):
+                            node.set_input(index, self.get_physical_reg(color_map, op))
+                        elif is_constant(op):
+                            node.set_input(index, op)
+                        else:
+                            raise NotImplementedError
 
 
     def generate_insn_from_node(self, node):
