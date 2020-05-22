@@ -61,18 +61,20 @@ from metalibm_core.core.ml_operations import (
     Conversion, TypeCast,
     VectorElementSelection,
     Constant,
+    TableStore, TableLoad,
 )
 
 from metalibm_core.core.machine_operations import (
     MaterializeConstant, RegisterCopy)
-from metalibm_core.core.ml_complex_formats import is_pointer_format
+from metalibm_core.core.ml_complex_formats import is_pointer_format, ML_Pointer_Format
 
 from metalibm_core.code_generation.generator_utility import (
     TemplateOperatorFormat,
     FO_Result, FO_Arg,
     ConstantOperator, FunctionOperator,
     type_strict_match, type_strict_match_list,
-    type_all_match,
+    type_all_match, type_custom_match, FSM, TCM,
+    type_table_index_match,
 )
 from metalibm_core.code_generation.complex_generator import (
     ComplexOperator
@@ -229,11 +231,17 @@ asm_code_generation_table = {
                     DummyAsmOperator("compw.lt {} = {}, {}", arity=2),
             },
         },
+        Comparison.LessOrEqual: {
+            lambda _: True: {
+                type_strict_match(ML_Bool, ML_Int32, ML_Int32):
+                    DummyAsmOperator("compw.le {} = {}, {}", arity=2),
+            },
+        },
     },
     MaterializeConstant: {
         None: {
             lambda _: True: {
-                type_strict_match_list([ML_Integer, ML_Int32, ML_Int64]):
+                type_strict_match_list([ML_Integer, ML_Int32, ML_Int64, ML_Binary32, ML_Binary64]):
                     DummyAsmOperator("maked {} = {}", arity=1),
             },
         },
@@ -244,6 +252,34 @@ asm_code_generation_table = {
                 # TODO/FIXME: should be distinguished based on format size
                 type_all_match:
                     DummyAsmOperator("copyd {} = {}", arity=1),
+            },
+        },
+    },
+    TableStore: {
+        None: {
+            # 32-bit data store
+            (lambda optree: optree.get_input(0).get_precision().get_bit_size() == 32): {
+                type_custom_match(FSM(ML_Void), type_all_match, is_pointer_format, type_table_index_match):
+                    TemplateOperatorFormat("sw {1}[{2}] = {0}", arity=3, void_function=True), 
+            },
+            # 64-bit data store
+            (lambda optree: optree.get_input(0).get_precision().get_bit_size() == 64): {
+                type_custom_match(FSM(ML_Void), type_all_match, is_pointer_format, type_table_index_match):
+                    TemplateOperatorFormat("sd {1}[{2}] = {0}", arity=3, void_function=True), 
+            },
+        },
+    },
+    TableLoad: {
+        None: {
+            # 32-bit data store
+            (lambda optree: optree.get_precision().get_bit_size() == 32): {
+                type_custom_match(FSM(ML_Binary32), is_pointer_format, type_table_index_match):
+                    DummyAsmOperator("lw {} = {}[{}]", arity=2), 
+            },
+            # 64-bit data store
+            (lambda optree: optree.get_precision().get_bit_size() == 64): {
+                type_custom_match(FSM(ML_Binary64), is_pointer_format, type_table_index_match):
+                    DummyAsmOperator("ld {} = {}[{}]", arity=2), 
             },
         },
     },
@@ -313,8 +349,11 @@ class DummyAsmBackend(AbstractBackend):
         EXTRA_PASSES = [
             "beforecodegen:gen_basic_block",
             "beforecodegen:basic_block_simplification",
+            "beforecodegen:dump",
             "beforecodegen:linearize_op_graph",
+            "beforecodegen:dump",
             "beforecodegen:register_allocation",
+            "beforecodegen:dump",
             # "beforecodegen:gen_basic_block",
             # "beforecodegen:basic_block_simplification",
             # "beforecodegen:ssa_translation",
