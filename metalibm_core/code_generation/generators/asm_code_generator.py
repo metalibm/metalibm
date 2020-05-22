@@ -38,6 +38,7 @@ from metalibm_core.core.ml_operations import (
     SpecificOperation, Conversion, FunctionObject,
     ReferenceAssign, Loop,
     is_leaf_node,
+    TableStore,
 )
 from metalibm_core.core.bb_operations import (
     BasicBlockList,
@@ -194,7 +195,7 @@ class AsmCodeGenerator(CodeGenerator):
                                                   language=self.language)
 
             return None
-        elif isinstance(node, Return):
+        elif isinstance(node, (Return, TableStore)):
             result = self.processor.generate_expr(self, code_object, node,
                                                   node.inputs, folded=folded,
                                                   result_var=None,
