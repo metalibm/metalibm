@@ -740,7 +740,7 @@ class ML_FunctionBasis(object):
 
   def build_and_execute_source_code(self, function_group, source_code, embedding_binary=True):
     """ """
-    Log.report(Log.Info, "Generating C code in " + self.output_file)
+    Log.report(Log.Info, "Generating {} code in {}".format(self.language.desc, self.output_file))
     with open(self.output_file, "w") as output_stream:
         output_stream.write(source_code.get(self.main_code_generator))
     source_file = build_utils.SourceFile(self.output_file, function_group)
