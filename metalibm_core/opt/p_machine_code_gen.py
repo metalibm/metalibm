@@ -30,11 +30,14 @@
 # author(s): Nicolas Brunie (nbrunie@kalray.eu)
 ###############################################################################
 
+import collections
 
 from metalibm_core.core.passes import FunctionPass, METALIBM_PASS_REGISTER
 from metalibm_core.core.ml_operations import Return, is_leaf_node
 from metalibm_core.core.bb_operations import UnconditionalBranch
-from metalibm_core.core.machine_operations import MachineProgram
+from metalibm_core.core.machine_operations import (
+    MachineRegister,
+    MachineProgram, RegisterAssign, RegisterCopy)
 
 from metalibm_core.code_generation.machine_program_linearizer import MachineInsnGenerator
 from metalibm_core.code_generation.asmde_translator import AssemblySynthesizer
@@ -179,6 +182,80 @@ class Pass_SimplifyBBFallback(FunctionPass):
                     Log.report(LOG_SIMPLIFY_BB_FALLBACK_INFO, "removing last UnconditionalBranch from BB: {}", bb)
                     # removing last UnconditionalBranch has the fallback is enough
                     bb.inputs = bb.inputs[:-1]
+        return linearized_program
+
+    def execute_on_function(self, fct, fct_group):
+        """ execute basic-block generation pass on function @p fct from
+            function-group @p fct_group """
+        Log.report(LOG_MACHINE_CODE_INFO, "executing pass {} on fct {}".format(
+            self.pass_tag, fct.get_name()))
+        linearized_program = fct.get_scheme()
+        assert isinstance(linearized_program, MachineProgram)
+        allocated_program = self.execute_on_graph(linearized_program)
+        fct.set_scheme(allocated_program)
+
+# specific Info verbosity level for Pass_CollapseRegisterCopy
+LOG_COLLAPSE_REG_COPY_INFO = Log.LogLevel("CollapseRegCopyInfo")
+
+@METALIBM_PASS_REGISTER
+class Pass_CollapseRegisterCopy(FunctionPass):
+    """ remove unecessary register copy within a BasickBlock """
+    pass_tag = "collapse_reg_copy"
+    def __init__(self, target, description="register copy collapse pass"):
+        FunctionPass.__init__(self, description, target)
+
+    def execute_on_optree(self, optree, fct=None, fct_group=None, memoization_map=None):
+        """ return the head basic-block, i.e. the entry bb for the current node
+            implementation """
+        raise NotImplementedError
+
+    def execute_on_graph(self, linearized_program):
+        """ BB generation on complete operation graph, generating
+            a final BasicBlockList as result """
+        # translating to asmde program and performing register allocation
+        def extract_use_list(insn):
+            # Notes: use list is in fact a set
+            use_list = set()
+            if not is_leaf_node(insn):
+                for op in insn.inputs:
+                    if isinstance(op, MachineRegister):
+                        use_list.add(op)
+            return use_list
+
+        assert isinstance(linearized_program, MachineProgram)
+        reg_defs = collections.defaultdict(set)
+        reg_uses = collections.defaultdict(set)
+        reg_copy_list = []
+        for bb in linearized_program.inputs:
+            for index, insn in enumerate(bb.inputs):
+                if isinstance(insn, RegisterAssign):
+                    if isinstance(insn.get_input(1), RegisterCopy):
+                        reg_copy_list.append((bb, index, insn))
+                    reg_defs[insn.get_input(0)].add((bb, index, insn))
+                    for reg in extract_use_list(insn.get_input(1)):
+                        reg_uses[reg].add((bb, insn))
+                else:
+                    for reg in extract_use_list(insn):
+                        reg_uses[reg].add((bb, insn))
+
+        insn_to_delete = collections.defaultdict(set)
+        for bb, index, reg_copy in reg_copy_list:
+            # check if source was only used once
+            dst = reg_copy.get_input(0)
+            src = reg_copy.get_input(1).get_input(0)
+            if len(reg_defs[src]) == 1 and len(reg_uses[src]) == 1:
+                def_bb, def_index, def_insn = reg_defs[src].pop()
+                if def_bb == bb and def_index < index:
+                    # if the def is local to the basic block
+                    # and prior to the copy, we can simplify it
+                    Log.report(LOG_COLLAPSE_REG_COPY_INFO, "removing alias of {} to {}", src, dst)
+                    def_insn.set_input(0, dst)
+                    # mark copy for deletion
+                    insn_to_delete[bb].add(reg_copy)
+        # perform actual deletion of no longer needed RegisterCopy
+        for modified_bb in insn_to_delete:
+            modified_bb.inputs = [insn for insn in modified_bb.inputs if not insn in insn_to_delete[modified_bb]]
+
         return linearized_program
 
     def execute_on_function(self, fct, fct_group):
