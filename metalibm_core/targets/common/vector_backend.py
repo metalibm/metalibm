@@ -687,6 +687,17 @@ BASIC_FLOAT_VFORMAT_LIST = [
 
 BASIC_VFORMAT_LIST = BASIC_FLOAT_VFORMAT_LIST + BASIC_INTEGER_VFORMAT_LIST
 
+def predicate_vector_broadcast(result_format, input_format, **kw):
+    """ Predicate to match valid VectorBackend """
+    return result_format.get_scalar_format() == input_format 
+
+def expand_vector_broadcast(node):
+    """ Expand a VectorBroadcast note into the valid VectorAssembling """
+    assert isinstance(node, VectorBroadcast)
+    scalar_input = node.get_input(0)
+    output_vsize = node.get_precision().get_vector_size()
+    return VectorAssembling(*tuple(scalar_input for _ in range(output_vsize)), precision=node.get_precision())
+
 def vector_lib_helper(func_name, arity):
     """ Helper to describe a vector lib function taking as 1st
         argument a reference to its results followed by an ordered list
@@ -782,6 +793,14 @@ vector_c_code_generation_table = {
         type_strict_match(v8float64, v4float64, v4float64):
             ML_VectorLib_Function("ml_vec_assembling_4_8_double", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2),
       },
+    },
+  },
+  VectorBroadcast: {
+    None: {
+        lambda _: True: {
+            predicate_vector_broadcast:
+                ComplexOperator(optree_modifier=expand_vector_broadcast),
+        },
     },
   },
   TableLoad: {
