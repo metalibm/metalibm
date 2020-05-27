@@ -796,7 +796,7 @@ class GeneralOperation(AbstractOperation):
         if self in copy_map:
             return copy_map[self]
         # else define a new and free copy
-        new_copy = self.__class__(*tuple(op.copy(copy_map) for op in self.inputs), __copy = True)
+        new_copy = self.__class__(*tuple(copy_map[op] if op in copy_map else op.copy(copy_map) for op in self.inputs), __copy = True)
         new_copy.attributes = self.attributes.get_copy()
         copy_map[self] = new_copy
         self.finish_copy(new_copy, copy_map)
@@ -2137,6 +2137,13 @@ class VectorElementSelection(ML_ArithmeticOperation):
         # TODO/FIXME: extend to manage non-static elt_index
         # For example if elt_index is a copiable node
         new_copy.elt_index = self.elt_index
+
+
+class VectorBroadcast(VectorAssembling):
+    """ Specialization of VectorAssembling operator which broadcast a single
+        element to all the vector lanes """
+    arity = 1
+    name = "VectorBroadcast"
 
 
 ## N-operand addition
