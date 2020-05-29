@@ -1126,7 +1126,6 @@ class GenericProcessor(AbstractBackend):
   support_embedded_bin = True
   cross_platform = False
 
-
   # code generation table map
   code_generation_table = {
       C_Code: c_code_generation_table,

@@ -43,15 +43,10 @@ LOG_BACKEND_INIT = Log.Info.gen_sub_level("backend_init")
 TARGET_INSTANCE_MAP = {}
 
 ## abstract backend class
-class AbstractBackend(object):
-    """ base abstract processor """
-    target_name = "abstract"
+class GenericBackend:
+    """ base class for generic backend implementation (for codegen and more) """
+    target_name = "generic_backend"
 
-    # does the platform support binary embedding in python module
-    support_embedded_bin = False
-    # is the platform native (same platform as the one used to execute
-    # metalibm or is it a remote platform)
-    cross_platform = True
 
     def __init__(self, *args):
         # create ordered list of parent architecture instances
@@ -78,16 +73,6 @@ class AbstractBackend(object):
     def __repr__(self):
         return self.target_name
 
-    ## return the backend target name
-    def get_target_name(sef):
-        return self.target_name
-
-    def generate_expr(self, code_generator, code_object, optree, arg_tuple, **kwords):
-        """ processor generate expression """
-        language = kwords["language"] if "language" in kwords else C_Code
-        implementation = self.get_recursive_implementation(optree, language)
-        return implementation.generate_expr(code_generator, code_object, optree, arg_tuple, **kwords)
-
     def generate_supported_op_map(self, language = C_Code, table_getter = lambda self: self.code_generation_table):
         """ generate a map of every operations supported by the processor hierarchy,
             to be used in OptimizationEngine step """
@@ -99,7 +84,7 @@ class AbstractBackend(object):
         self.generate_local_op_map(language, op_map)
         return op_map
 
-    def generate_local_op_map(self, language = C_Code, op_map = None, table_getter = lambda self: self.code_generation_table):
+    def generate_local_op_map(self, language=C_Code, op_map=None, table_getter=lambda self: self.code_generation_table):
         """ generate simplified map of locally supported operations """
         op_map = {} if op_map is None else op_map
         table = table_getter(self)
@@ -108,10 +93,10 @@ class AbstractBackend(object):
         else:
           local_map = table[language]
           for operation in local_map:
-              if not operation in op_map: 
+              if not operation in op_map:
                   op_map[operation] = {}
               for specifier in local_map[operation]:
-                  if not specifier in op_map[operation]: 
+                  if not specifier in op_map[operation]:
                       op_map[operation][specifier] = {}
                   for condition in local_map[operation][specifier]:
                       if not condition in op_map[operation][specifier]:
@@ -172,7 +157,7 @@ class AbstractBackend(object):
                     impl_list += parent_implementation
                 else:
                     return parent_implementation
-        if len(impl_list) > 0:
+        if len(impl_list):
             # select the first weak implementation match
             match, implementation = impl_list[0]
             return implementation
@@ -188,7 +173,9 @@ class AbstractBackend(object):
             optree
         )
 
-    def is_map_supported_operation(self, op_map, optree, language = C_Code, debug = False,  key_getter = lambda self, optree: self.get_operation_keys(optree)):
+    def is_map_supported_operation(self, op_map, optree, language=C_Code,
+                                   debug=False,
+                                   key_getter=lambda self, optree: self.get_operation_keys(optree)):
         """ return wheter or not the operation performed by optree has a local implementation """
         op_class, interface, codegen_key = key_getter(self, optree)
 
@@ -215,7 +202,7 @@ class AbstractBackend(object):
                                 except TypeError as e:
                                     Log.report(Log.Error, "Type Error for interface_condition on {}, {}",  op_class, (str(ifce) for ifce in interface), error=e)
                     # unsupported condition or interface type
-                    if debug: 
+                    if debug:
                       Log.report(Log.Info, "unsupported condition key for {}", optree)
                       for condition in op_map[language][op_class][codegen_key]:
                           if condition(optree):
@@ -230,22 +217,33 @@ class AbstractBackend(object):
                       Log.report(Log.Info, "unsupported condition key for {}", optree)
                     return False
 
-    def is_local_supported_operation(self, optree, language = C_Code, table_getter = lambda self: self.code_generation_table, debug = False,  key_getter = lambda self, optree: self.get_operation_keys(optree)):
-        """ return whether or not the operation performed by optree has a local implementation """
+    def is_local_supported_operation(self, optree, language=C_Code,
+                                     table_getter=lambda self: self.code_generation_table,
+                                     debug=False,
+                                     key_getter=lambda self, optree: self.get_operation_keys(optree)):
+        """ return whether or not the operation performed by optree
+            has a local implementation, that is an implementation
+            by self class directly and not its ancestors """
         table = table_getter(self)
-        return self.is_map_supported_operation(table, optree, language, debug = debug, key_getter = key_getter)
+        return self.is_map_supported_operation(table, optree, language,
+                                               debug=debug,
+                                               key_getter=key_getter)
 
-    def is_supported_operation(self, optree, language = C_Code, debug = False,  key_getter = lambda self, optree: self.get_operation_keys(optree)):
-        """ return whether or not the operation performed by optree is supported by any level of the processor hierarchy """
-        return self.is_map_supported_operation(self.simplified_rec_op_map, optree, language, debug = debug, key_getter = key_getter)
+    def is_supported_operation(self, optree, language=C_Code, debug=False,
+                               key_getter = lambda self, optree: self.get_operation_keys(optree)):
+        """ return whether or not the operation performed by optree is
+            supported by any level of the processor hierarchy """
+        return self.is_map_supported_operation(self.simplified_rec_op_map,
+                                               optree, language, debug=debug,
+                                               key_getter=key_getter)
 
-    def test_operation_support(self, op_class, out_format, in_formats, specifier=None):
+    def test_operation_support(self, OpClass, out_format, in_formats, specifier=None):
         """ Test if an operation class whose prototype is out_format <- in_formats
-            is supported by self target """
+            is supported by the target <target> """
         # building a dummy list of inputs
         dummy_inputs = [Variable("dummy_%d" % i, precision=input_format) for i, input_format in enumerate(in_formats)]
         # build a dummy operation node
-        dummy_op = op_class(*dummy_inputs, precision=out_format, specifier=specifier)
+        dummy_op = OpClass(*dummy_inputs, precision=out_format, specifier=specifier)
         return self.is_supported_operation(dummy_op)
 
     @staticmethod
@@ -255,7 +253,7 @@ class AbstractBackend(object):
         op_class = optree.__class__
         if optree.get_precision() is None:
             Log.report(
-                Log.Error, "Following node has undefined({}) precision: \n{}",
+                Log.Error, "[get_operation_keys] Following node has undefined({}) precision: \n{}",
                 optree.get_precision(),
                 optree
             )
@@ -270,6 +268,24 @@ class AbstractBackend(object):
         """ Returns the target preferred sub-vector size for a vector of size
             @p vector_size and of scalar precision @p scalar_precision """
         return vector_size
+
+
+class AbstractBackend(GenericBackend):
+    """ Abstract processor class implementation code generation method
+        on top of GenericBackend hierarchy structure """
+    target_name = "abstract"
+
+    # does the platform support binary embedding in python module
+    support_embedded_bin = False
+    # is the platform native (same platform as the one used to execute
+    # metalibm or is it a remote platform)
+    cross_platform = True
+
+    def generate_expr(self, code_generator, code_object, optree, arg_tuple, language=C_Code, **kwords):
+        """ processor generate expression """
+        implementation = self.get_recursive_implementation(optree, language)
+        return implementation.generate_expr(code_generator, code_object, optree, arg_tuple, **kwords)
+
 
 ## Determine whether an object is a true processor
 #  class with real backend capabilities or not
