@@ -46,10 +46,10 @@ class AssemblySynthesizer:
 
     def get_physical_reg(self, color_map, ml_reg, reg_class=asmde.Register.Std):
         if not ml_reg in self.ml_to_physical_reg_map:
-            asmde_reg, = self.ml_to_asmde_reg_map[ml_reg]
-            reg_id = color_map[reg_class][asmde_reg]
-            physical_reg = PhysicalRegister(reg_id, ml_reg.precision, ml_reg.get_tag(),
             # TODO/FIXME: currently only support a single-reg tuple
+            asmde_regs = self.ml_to_asmde_reg_map[ml_reg]
+            reg_ids = [color_map[reg_class][asmde_reg] for asmde_reg in asmde_regs]
+            physical_reg = PhysicalRegister(reg_ids, ml_reg.precision, ml_reg.get_tag(),
                                             var_tag=ml_reg.var_tag)
             self.ml_to_physical_reg_map[ml_reg] = physical_reg
         return self.ml_to_physical_reg_map[ml_reg]

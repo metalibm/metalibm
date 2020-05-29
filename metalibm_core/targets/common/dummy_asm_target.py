@@ -96,7 +96,7 @@ class DummyArchitecture(asmde.Architecture):
     REG_SIZE = 64
     # 64-bit addresses
     ADDR_SIZE = 64
-    def __init__(self, std_reg_num=16):
+    def __init__(self, std_reg_num=64):
         asmde.Architecture.__init__(self,
             set([
                 asmde.RegFileDescription(
@@ -155,8 +155,19 @@ class DummyArchitecture(asmde.Architecture):
         if ml_format.get_bit_size() <= self.REG_SIZE:
             virt_reg = self.get_unique_virt_reg_object(ml_reg.get_tag(), asmde.Register.Std)
             return (virt_reg,)
+        elif ml_format.get_bit_size() == 2 * self.REG_SIZE:
+            return self.generate_virtual_pair_reg(ml_reg.get_tag())
         else:
-            raise NotImplementedError
+            Log.report(Log.Error, "no virtual register suitable for format {}", ml_format)
+
+
+    def generate_virtual_pair_reg(self, tag):
+        """ Generate a linked pair (even, odd) of two registers """
+        lo_reg = self.get_unique_virt_reg_object(tag + "_lo", reg_class=asmde.Register.Std, reg_constraint=asmde.even_indexed_register)
+        hi_reg = self.get_unique_virt_reg_object(tag + "_hi", reg_class=asmde.Register.Std, reg_constraint=asmde.odd_indexed_register)
+        lo_reg.add_linked_register(hi_reg, lambda color_map: [color_map[hi_reg] - 1])
+        hi_reg.add_linked_register(lo_reg, lambda color_map: [color_map[lo_reg] + 1])
+        return (lo_reg, hi_reg)
 
 
 
@@ -303,7 +314,7 @@ class DummyAsmBackend(AbstractBackend):
         self.architecture = DummyArchitecture()
 
     def generate_register(self, machine_register):
-        return "$r{}".format(machine_register.register_id)
+        return "${}".format("".join("r%d" for sub_id in machine_register.register_id))
 
     def generate_constant_expr(self, constant_node):
         """ generate the assembly value of a give Constant node """
