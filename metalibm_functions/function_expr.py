@@ -139,7 +139,7 @@ class FunctionExpression(ML_FunctionBasis):
         memoization_map = memoization_map or {}
         statement = Statement()
         def rec_instanciate(node):
-            """ recursive internal function for function graph instaciation """
+            """ recursive internal function for function graph instanciation """
             new_node = None
             if node in memoization_map:
                 return memoization_map[node]

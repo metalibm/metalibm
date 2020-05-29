@@ -40,20 +40,19 @@ class AssemblySynthesizer:
         else:
             # TODO/FIXME: manage multiple register class
             # TODO/FIXME: manage physical register
-            #virt_reg = self.architecture.get_unique_virt_reg_object(ml_reg.get_tag(), asmde.Register.Std)
             virt_reg = self.architecture.generate_virtual_reg(ml_reg)
             self.ml_to_asmde_reg_map[ml_reg] = virt_reg
             return virt_reg
 
     def get_physical_reg(self, color_map, ml_reg, reg_class=asmde.Register.Std):
         if not ml_reg in self.ml_to_physical_reg_map:
-            # TODO/FIXME: currently only support a single-reg tuple  
             asmde_reg, = self.ml_to_asmde_reg_map[ml_reg]
             reg_id = color_map[reg_class][asmde_reg]
             physical_reg = PhysicalRegister(reg_id, ml_reg.precision, ml_reg.get_tag(),
+            # TODO/FIXME: currently only support a single-reg tuple
                                             var_tag=ml_reg.var_tag)
             self.ml_to_physical_reg_map[ml_reg] = physical_reg
-        return self.ml_to_physical_reg_map[ml_reg] 
+        return self.ml_to_physical_reg_map[ml_reg]
 
     def transform_to_physical_reg(self, color_map, linearized_program):
         """ transform each MachineRegister in linearized_program into
