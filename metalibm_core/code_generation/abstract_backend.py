@@ -255,7 +255,7 @@ class AbstractBackend(object):
         op_class = optree.__class__
         if optree.get_precision() is None:
             Log.report(
-                Log.Error, "Following optree has undefined({} precision: \n{}",
+                Log.Error, "Following node has undefined({}) precision: \n{}",
                 optree.get_precision(),
                 optree
             )

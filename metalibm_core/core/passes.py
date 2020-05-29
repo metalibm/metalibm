@@ -218,7 +218,7 @@ class PassScheduler:
       for pass_wrapper in self.pass_map[pass_slot]:
         pass_tag_list.append(pass_wrapper.pass_object.pass_tag)
 
-    max_tag_len = max(map(len, pass_tag_list))
+    max_tag_len = max(map(len, pass_tag_list), default=20)
     max_tag_len += (max_tag_len % 2)
     result = ""
     inter_line = ("||".center(max_tag_len)) + "\n" + ("\/".center(max_tag_len)) + "\n"

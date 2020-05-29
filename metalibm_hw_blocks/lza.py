@@ -249,7 +249,7 @@ class ML_LeadingZeroAnticipator(ML_Entity("ml_lza")):
           input_msg += get_input_msg(input_tag, input_signal, input_value)
         test_statement.add(Wait(time_step * self.stage_num))
 
-        final_lzc_value = output_values["final_lzc"] 
+        final_lzc_value = output_values["final_lzc"]
         vx = input_values["x"]
         vy = input_values["y"]
 
