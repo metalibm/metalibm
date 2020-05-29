@@ -93,31 +93,21 @@ class ML_SinCos(ScalarUnaryFunction):
 
 
     def generate_scalar_scheme(self, vx):
+        vx.set_attributes(tag="vx", debug=debug_multi)
+
         Log.report(Log.Info, "generating implementation scheme")
         if self.debug_flag:
             Log.report(Log.Info, "debug has been enabled")
-
-        # local overloading of RaiseReturn operation
-        def SincosRaiseReturn(*args, **kwords):
-            kwords["arg_value"] = vx
-            kwords["function_name"] = self.function_name
-            return RaiseReturn(*args, **kwords)
 
         sollya_precision = self.precision.get_sollya_object()
         hi_precision = self.precision.get_field_size() - 8
         cw_hi_precision = self.precision.get_field_size() - 4
 
-        ext_precision = {
-          ML_Binary32: ML_Binary64,
-          ML_Binary64: ML_Binary64
-        }[self.precision]
+        # retrieve an integer format corresponding (in size)
+        # to self.precision floating-point precisions
+        int_precision = self.precision.get_integer_format()
 
-        int_precision = {
-          ML_Binary32 : ML_Int32,
-          ML_Binary64 : ML_Int64
-        }[self.precision]
-
-        # determining bound to use payne and hanek method
+        # determining bound to use Payne and Hanek method
         if self.precision is ML_Binary32:
             ph_bound = S2**10
         else:
@@ -134,20 +124,19 @@ class ML_SinCos(ScalarUnaryFunction):
         C_offset = Constant(3 * S2**(frac_pi_index - 1), precision = int_precision)
 
         # 2^m / pi
-        frac_pi     = round(S2**frac_pi_index / pi, cw_hi_precision, sollya.RN)
-        frac_pi_lo = round(S2**frac_pi_index / pi - frac_pi, sollya_precision, sollya.RN)
+        frac_pi_hi = round(S2**frac_pi_index / pi, cw_hi_precision, sollya.RN)
+        frac_pi_lo = round(S2**frac_pi_index / pi - frac_pi_hi, sollya_precision, sollya.RN)
         # pi / 2^m, high part
-        inv_frac_pi = round(pi / S2**frac_pi_index, cw_hi_precision, sollya.RN)
+        inv_frac_pi_hi = round(pi / S2**frac_pi_index, cw_hi_precision, sollya.RN)
         # pi / 2^m, low part
-        inv_frac_pi_lo = round(pi / S2**frac_pi_index - inv_frac_pi, sollya_precision, sollya.RN)
+        inv_frac_pi_lo = round(pi / S2**frac_pi_index - inv_frac_pi_hi, sollya_precision, sollya.RN)
 
-        # computing k
-        vx.set_attributes(tag = "vx", debug=debug_multi)
+        # computing k as nearestint(vx * 2^m / pi)
 
         vx_pi = Addition(
           Multiplication(
             vx,
-            Constant(frac_pi, precision = self.precision),
+            Constant(frac_pi_hi, precision = self.precision),
             precision = self.precision),
           Multiplication(
             vx,
@@ -158,14 +147,14 @@ class ML_SinCos(ScalarUnaryFunction):
           debug = debug_multi)
 
         k = NearestInteger(vx_pi, precision = int_precision, tag = "k", debug = debug_multi)
-        # k in floating-point precision
+        # k in floating-point format
         fk = Conversion(k, precision = self.precision, tag = "fk", debug = debug_multi)
 
-        inv_frac_pi_cst    = Constant(inv_frac_pi, tag = "inv_frac_pi", precision = self.precision, debug = debug_multi)
+        inv_frac_pi_hi_cst = Constant(inv_frac_pi_hi, tag = "inv_frac_pi_hi", precision = self.precision, debug = debug_multi)
         inv_frac_pi_lo_cst = Constant(inv_frac_pi_lo, tag = "inv_frac_pi_lo", precision = self.precision, debug = debug_multi)
 
         # Cody-Waite reduction
-        red_coeff1 = Multiplication(fk, inv_frac_pi_cst, precision = self.precision, exact = True)
+        red_coeff1 = Multiplication(fk, inv_frac_pi_hi_cst, precision = self.precision, exact = True)
         red_coeff2 = Multiplication(Negation(fk, precision = self.precision), inv_frac_pi_lo_cst, precision = self.precision, exact = True)
 
         # Should be exact / Sterbenz' Lemma
@@ -222,7 +211,7 @@ class ML_SinCos(ScalarUnaryFunction):
           cos_table[i][0] = cos_local
 
 
-        sin_index = Modulo(modk + 2**(frac_pi_index-1), 2**(frac_pi_index+1), precision = int_precision, tag = "sin_index")#, debug = debug_multi)
+        sin_index = Modulo(modk + 2**(frac_pi_index-1), 2**(frac_pi_index+1), precision = int_precision, tag = "sin_index", debug=debug_multi)
         tabulated_cos = TableLoad(cos_table, modk, C0, precision = self.precision, tag = "tab_cos", debug = debug_multi)
         tabulated_sin = -TableLoad(cos_table, sin_index , C0, precision = self.precision, tag = "tab_sin", debug = debug_multi)
 
@@ -301,7 +290,7 @@ class ML_SinCos(ScalarUnaryFunction):
         lar_red_vx = Addition(
           Multiplication(
             lar_vx,
-            inv_frac_pi,
+            inv_frac_pi_hi,
             precision = self.precision),
           Multiplication(
             lar_vx,
@@ -355,6 +344,10 @@ class ML_SinCos(ScalarUnaryFunction):
             )
 
         return scheme
+
+    standard_test_cases = [
+        (sollya.parse(v),) for v in ["0x1.e540d2p-1", "0x1.4b7b42p-1"]
+    ]
 
     def numeric_emulate(self, input_value):
         if self.sin_output:
