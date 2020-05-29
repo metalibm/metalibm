@@ -402,7 +402,7 @@ class ML_Division(ML_FunctionBasis):
         # We need a first approximation to 1 / scaled_vy
         dummy_seed = ReciprocalSeed(EmptyOperand(precision=self.precision), precision=self.precision)
 
-        if self.processor.is_supported_operation(dummy_seed):
+        if self.processor.is_supported_operation(dummy_seed, self.language):
             init_approx = ReciprocalSeed(scaled_vy, precision=self.precision, tag="init_approx", debug=debug_multi)
 
         else:
