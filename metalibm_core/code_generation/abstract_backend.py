@@ -47,6 +47,9 @@ class GenericBackend:
     """ base class for generic backend implementation (for codegen and more) """
     target_name = "generic_backend"
 
+    # target default_language
+    DEFAULT_LANGUAGE = None
+
 
     def __init__(self, *args):
         # create ordered list of parent architecture instances
@@ -55,7 +58,7 @@ class GenericBackend:
 
         # create simplified of operation supported by the processor hierarchy
         self.simplified_rec_op_map = {}
-        self.simplified_rec_op_map[C_Code] = self.generate_supported_op_map(language = C_Code)
+        self.simplified_rec_op_map[self.DEFAULT_LANGUAGE] = self.generate_supported_op_map(language=self.DEFAULT_LANGUAGE)
 
     @classmethod
     def get_target_instance(TargetClass, *args, **kw):
@@ -73,7 +76,7 @@ class GenericBackend:
     def __repr__(self):
         return self.target_name
 
-    def generate_supported_op_map(self, language = C_Code, table_getter = lambda self: self.code_generation_table):
+    def generate_supported_op_map(self, language, table_getter = lambda self: self.code_generation_table):
         """ generate a map of every operations supported by the processor hierarchy,
             to be used in OptimizationEngine step """
         op_map = {}
@@ -84,7 +87,7 @@ class GenericBackend:
         self.generate_local_op_map(language, op_map)
         return op_map
 
-    def generate_local_op_map(self, language=C_Code, op_map=None, table_getter=lambda self: self.code_generation_table):
+    def generate_local_op_map(self, language, op_map=None, table_getter=lambda self: self.code_generation_table):
         """ generate simplified map of locally supported operations """
         op_map = {} if op_map is None else op_map
         table = table_getter(self)
@@ -105,7 +108,7 @@ class GenericBackend:
                           op_map[operation][specifier][condition][interface_format] = ML_FullySupported
           return op_map
 
-    def get_implementation(self, optree, language = C_Code, table_getter = lambda self: self.code_generation_table, key_getter = lambda self, optree: self.get_operation_keys(optree)):
+    def get_implementation(self, optree, language, table_getter = lambda self: self.code_generation_table, key_getter = lambda self, optree: self.get_operation_keys(optree)):
         """ return <self> implementation of operation performed by <optree> """
         #key_getter = AbstractBackend.get_operation_keys if key_getter is None else key_getter
         table = table_getter(self)
@@ -142,7 +145,7 @@ class GenericBackend:
         """ recursively search for an implementation of optree in the processor
             class hierarchy """
         impl_list = ImplemList()
-        if self.is_local_supported_operation(optree, language = language, table_getter = table_getter, key_getter = key_getter):
+        if self.is_local_supported_operation(optree, language, table_getter = table_getter, key_getter = key_getter):
             local_implementation = self.get_implementation(optree, language, table_getter = table_getter, key_getter = key_getter)
             # check if local_implementation is a list of weak implementation
             # or a single "string implementation
@@ -151,7 +154,7 @@ class GenericBackend:
             else:
                 return local_implementation
         for parent_proc in self.parent_architecture:
-            if parent_proc.is_local_supported_operation(optree, language = language, table_getter = table_getter, key_getter = key_getter):
+            if parent_proc.is_local_supported_operation(optree, language, table_getter = table_getter, key_getter = key_getter):
                 parent_implementation = parent_proc.get_implementation(optree, language, table_getter = table_getter, key_getter = key_getter)
                 if is_impl_list(parent_implementation):
                     impl_list += parent_implementation
@@ -173,7 +176,7 @@ class GenericBackend:
             optree
         )
 
-    def is_map_supported_operation(self, op_map, optree, language=C_Code,
+    def is_map_supported_operation(self, op_map, optree, language,
                                    debug=False,
                                    key_getter=lambda self, optree: self.get_operation_keys(optree)):
         """ return wheter or not the operation performed by optree has a local implementation """
@@ -217,7 +220,7 @@ class GenericBackend:
                       Log.report(Log.Info, "unsupported condition key for {}", optree)
                     return False
 
-    def is_local_supported_operation(self, optree, language=C_Code,
+    def is_local_supported_operation(self, optree, language,
                                      table_getter=lambda self: self.code_generation_table,
                                      debug=False,
                                      key_getter=lambda self, optree: self.get_operation_keys(optree)):
@@ -229,7 +232,7 @@ class GenericBackend:
                                                debug=debug,
                                                key_getter=key_getter)
 
-    def is_supported_operation(self, optree, language=C_Code, debug=False,
+    def is_supported_operation(self, optree, language, debug=False,
                                key_getter = lambda self, optree: self.get_operation_keys(optree)):
         """ return whether or not the operation performed by optree is
             supported by any level of the processor hierarchy """
@@ -237,14 +240,14 @@ class GenericBackend:
                                                optree, language, debug=debug,
                                                key_getter=key_getter)
 
-    def test_operation_support(self, OpClass, out_format, in_formats, specifier=None):
+    def test_operation_support(self, OpClass, out_format, in_formats, language, specifier=None):
         """ Test if an operation class whose prototype is out_format <- in_formats
             is supported by the target <target> """
         # building a dummy list of inputs
         dummy_inputs = [Variable("dummy_%d" % i, precision=input_format) for i, input_format in enumerate(in_formats)]
         # build a dummy operation node
         dummy_op = OpClass(*dummy_inputs, precision=out_format, specifier=specifier)
-        return self.is_supported_operation(dummy_op)
+        return self.is_supported_operation(dummy_op, language)
 
     @staticmethod
     def get_operation_keys(optree):
@@ -275,28 +278,31 @@ class AbstractBackend(GenericBackend):
         on top of GenericBackend hierarchy structure """
     target_name = "abstract"
 
+    # target default_language
+    DEFAULT_LANGUAGE = C_Code
+
     # does the platform support binary embedding in python module
     support_embedded_bin = False
     # is the platform native (same platform as the one used to execute
     # metalibm or is it a remote platform)
     cross_platform = True
 
-    def generate_expr(self, code_generator, code_object, optree, arg_tuple, language=C_Code, **kwords):
+    def generate_expr(self, code_generator, code_object, optree, arg_tuple, language, **kwords):
         """ processor generate expression """
         implementation = self.get_recursive_implementation(optree, language)
         return implementation.generate_expr(code_generator, code_object, optree, arg_tuple, **kwords)
 
 
-## Determine whether an object is a true processor
-#  class with real backend capabilities or not
 def test_is_processor(proc_class):
     """ return whether or not proc_class is a valid and non virtual processor class """
     return issubclass(proc_class, AbstractBackend) and not proc_class is AbstractBackend
 
 
 def get_parent_proc_class_list(proc_class):
+    """ return the list of parent classes for a processor class which are
+        also processors (here processors means child AbstractBackend)"""
     return [parent for parent in proc_class.__bases__ if test_is_processor(parent)]
-    
+
 
 def create_proc_hierarchy(process_list, proc_class_list = []):
     """ create an ordered list of processor hierarchy """
@@ -304,12 +310,14 @@ def create_proc_hierarchy(process_list, proc_class_list = []):
         return proc_class_list
     new_process_list = []
     for proc_class in process_list:
-        if proc_class in proc_class_list: 
+        if proc_class in proc_class_list:
             continue
         else:
             proc_class_list.append(proc_class)
             new_process_list += get_parent_proc_class_list(proc_class)
     result = create_proc_hierarchy(new_process_list, proc_class_list)
     return result
-    
-class ML_FullySupported: pass
+
+class ML_FullySupported:
+    """ enum descriptor for fully supported implementation """
+    pass
