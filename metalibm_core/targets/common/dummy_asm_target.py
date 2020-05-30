@@ -360,22 +360,49 @@ class DummyAsmBackend(AbstractBackend):
         EXTRA_PASSES = [
             "beforecodegen:gen_basic_block",
             "beforecodegen:basic_block_simplification",
-            "beforecodegen:dump",
             "beforecodegen:linearize_op_graph",
-            "beforecodegen:dump",
+            # NEXT
+            # "beforecodegen:dummy_asm_lowering",
             "beforecodegen:collapse_reg_copy",
             "beforecodegen:register_allocation",
             "beforecodegen:simplify_bb_fallback",
-            "beforecodegen:dump",
-            # "beforecodegen:gen_basic_block",
-            # "beforecodegen:basic_block_simplification",
-            # "beforecodegen:ssa_translation",
         ]
         return instanciate_extra_passes(pass_scheduler, processor,
                                         EXTRA_PASSES + extra_passes,
                                         language=language,
                                         pass_slot_deps={})
 
+
+DUMMY_ASM_TARGET_LOWERING_TABLE = {
+    MaterializeConstant: {
+        None: {
+            lambda _: True: {
+                #type_strict_match_list([v4float32, v4float32]):
+            },
+        },
+    },
+}
+
+from metalibm_core.opt.generic_lowering import GenericLoweringBackend, Pass_GenericLowering
+from metalibm_core.core.passes import METALIBM_PASS_REGISTER
+
+def lowering_target_register(cls):
+    """ Decorator for a Lowering target which generate the associated lowering
+        optimization pass and registers it automatically """
+    @METALIBM_PASS_REGISTER
+    class TargetLowering(Pass_GenericLowering):
+        """ Target specific lowering """
+        pass_tag = "{}_lowering".format(cls.target_name)
+        def __init__(self, _target):
+            Pass_GenericLowering.__init__(self, cls(), description="lowering for specific target")
+
+@lowering_target_register
+class DummyAsmTargetLowering(GenericLoweringBackend):
+    # adding first default level of indirection
+    target_name = "dummy_asm"
+    lowering_table = {
+        None: DUMMY_ASM_TARGET_LOWERING_TABLE
+    }
 
 # debug message
 Log.report(LOG_BACKEND_INIT, "Initializing llvm backend target")
