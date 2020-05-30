@@ -42,7 +42,6 @@ LOG_BACKEND_INIT = Log.Info.gen_sub_level("backend_init")
 
 TARGET_INSTANCE_MAP = {}
 
-## abstract backend class
 class GenericBackend:
     """ base class for generic backend implementation (for codegen and more) """
     target_name = "generic_backend"
@@ -76,7 +75,7 @@ class GenericBackend:
     def __repr__(self):
         return self.target_name
 
-    def generate_supported_op_map(self, language, table_getter = lambda self: self.code_generation_table):
+    def generate_supported_op_map(self, language, table_getter = lambda self: self.action_selection_table):
         """ generate a map of every operations supported by the processor hierarchy,
             to be used in OptimizationEngine step """
         op_map = {}
@@ -87,7 +86,7 @@ class GenericBackend:
         self.generate_local_op_map(language, op_map)
         return op_map
 
-    def generate_local_op_map(self, language, op_map=None, table_getter=lambda self: self.code_generation_table):
+    def generate_local_op_map(self, language, op_map=None, table_getter=lambda self: self.action_selection_table):
         """ generate simplified map of locally supported operations """
         op_map = {} if op_map is None else op_map
         table = table_getter(self)
@@ -108,7 +107,7 @@ class GenericBackend:
                           op_map[operation][specifier][condition][interface_format] = ML_FullySupported
           return op_map
 
-    def get_implementation(self, optree, language, table_getter = lambda self: self.code_generation_table, key_getter = lambda self, optree: self.get_operation_keys(optree)):
+    def get_implementation(self, optree, language, table_getter = lambda self: self.action_selection_table, key_getter = lambda self, optree: self.get_operation_keys(optree)):
         """ return <self> implementation of operation performed by <optree> """
         #key_getter = AbstractBackend.get_operation_keys if key_getter is None else key_getter
         table = table_getter(self)
@@ -140,8 +139,9 @@ class GenericBackend:
         return possible_impl
 
     def get_recursive_implementation(self, optree, language=None,
-                                     table_getter=lambda self: self.code_generation_table,
-                                     key_getter=lambda self, optree: self.get_operation_keys(optree)):
+                                     table_getter=lambda self: self.action_selection_table,
+                                     key_getter=lambda self, optree: self.get_operation_keys(optree),
+                                     allowed_to_fail=False):
         """ recursively search for an implementation of optree in the processor
             class hierarchy """
         impl_list = ImplemList()
@@ -166,6 +166,8 @@ class GenericBackend:
             return implementation
 
         # no implementation were found
+        if allowed_to_fail:
+            return None
         Log.report(Log.Verbose, "Tested architecture(s) for language %s:" % language)
         for parent_proc in self.parent_architecture:
           Log.report(Log.Verbose, "  %s " % parent_proc)
@@ -221,7 +223,7 @@ class GenericBackend:
                     return False
 
     def is_local_supported_operation(self, optree, language,
-                                     table_getter=lambda self: self.code_generation_table,
+                                     table_getter=lambda self: self.action_selection_table,
                                      debug=False,
                                      key_getter=lambda self, optree: self.get_operation_keys(optree)):
         """ return whether or not the operation performed by optree
@@ -251,7 +253,7 @@ class GenericBackend:
 
     @staticmethod
     def get_operation_keys(optree):
-        """ return code_generation_table key corresponding to the operation
+        """ return action_selection_table key corresponding to the operation
             performed by <optree> """
         op_class = optree.__class__
         if optree.get_precision() is None:
@@ -286,6 +288,12 @@ class AbstractBackend(GenericBackend):
     # is the platform native (same platform as the one used to execute
     # metalibm or is it a remote platform)
     cross_platform = True
+
+    @property
+    def action_selection_table(self):
+        """ semantic indirection between action_selection_table and
+            code_generation_table """
+        return self.code_generation_table
 
     def generate_expr(self, code_generator, code_object, optree, arg_tuple, language, **kwords):
         """ processor generate expression """
