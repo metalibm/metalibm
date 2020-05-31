@@ -60,11 +60,16 @@ typedef int64_t ml_lbool4_t __attribute__ ((vector_size (32)));
 typedef int64_t ml_lbool8_t __attribute__ ((vector_size (64)));
 
 
-/** Union type for 4x 32-b element vectors */
+/** Union type for 4x 32-b element vectors
+ * TODO/FIXME: hazardous use of union to cast: accessing a same union with 2
+ *             distinct accessors is an undefined-behavior (at least in c++)
+ */
 typedef union {
     ml_uint4_t u;
     ml_int4_t i;
     ml_float4_t f;
+    ml_float2_t v2f[2];
+    ml_int2_t v2i[2];
 } ml_vec4_32b_uif;
 
 /** Multi-precision vector format */
