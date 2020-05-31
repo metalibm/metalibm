@@ -145,6 +145,49 @@ def vectorize_format(scalar_format, vector_size, bool_specifier=None):
     else:
         return VECTOR_TYPE_MAP[scalar_format][vector_size]
 
+
+def split_vectorial_op(node, output_vsize=2):
+    """ Split a vectorial node <node> into a list of
+        sub-vectors, each of size output_vsize
+
+        input <node> vector-size must be a multiple of <output_vsize> """
+    input_vsize = node.get_precision().get_vector_size()
+    scalar_format = node.get_precision().get_scalar_format()
+    if is_constant(node):
+        sub_ops = [Constant(
+            [node.get_value()[sub_id * output_vsize + j] for j in range(output_vsize)],
+            precision=vectorize_format(scalar_format, output_vsize)
+        ) for sub_id in range(input_vsize // output_vsize)]
+    else:
+        CI = lambda v: Constant(v, precision=ML_Integer)
+        sub_vector_fmt = vectorize_format(scalar_format, output_vsize)
+        sub_ops = [SubVectorExtract(node, *tuple(CI(sub_id * output_vsize +j) for j in range(output_vsize)), precision=sub_vector_fmt) for sub_id in range(input_vsize // output_vsize)]
+        #split_ops = [VectorElementSelection(node, Constant(i, precision=ML_Integer), precision=scalar_format) for i in range(input_vsize)]
+
+        #sub_ops = [VectorAssembling(
+        #    *tuple(split_ops[sub_id * output_vsize + j] for j in range(output_vsize)),
+        #    precision=vectorize_format(scalar_format, output_vsize)
+        #) for sub_id in range(input_vsize // output_vsize)]
+    return sub_ops
+
+def v4_to_v2_split(node):
+    """ split node from v4 format to 2x v2 format """
+    # TODO/FIXME: bool_specifier
+
+    split_inputs = [split_vectorial_op(op, output_vsize=2) for op in node.inputs]
+    #split_inputs = [[VectorAssembling(
+    #    VectorElementSelection(op, Constant(2*i, precision=ML_Integer), precision=op.get_precision().get_scalar_format()),
+    #    VectorElementSelection(op, Constant(2*i+1, precision=ML_Integer), precision=op.get_precision().get_scalar_format()),
+    #    precision=vectorize_format(op.get_precision().get_scalar_format(), 2, bool_specifier=32)) for i in range(2)] for op in node.inputs]
+    half_node_format = vectorize_format(node.get_precision().get_scalar_format(), 2, bool_specifier=32)
+    low = node.copy(copy_map={op: sub_op[0] for op, sub_op in zip(node.inputs, split_inputs)})
+    low.set_precision(half_node_format)
+    high = node.copy(copy_map={op: sub_op[1] for op, sub_op in zip(node.inputs, split_inputs)})
+    high.set_precision(half_node_format)
+    result = VectorAssembling(low, high, precision=node.get_precision())
+    print("splitting {} into {}".format(node.get_str(), result.get_str(display_precision=True, depth=3)))
+    return result
+
 ##
 class StaticVectorizer(object):
     """ Mapping of size, scalar format to vector format """
