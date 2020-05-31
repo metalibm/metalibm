@@ -42,6 +42,9 @@ if __name__ == "__main__":
     arg_template.get_parser().add_argument(
         "--method", dest="method", default="piecewise", choices=["piecewise", "single"],
         action="store", help="select approximation method")
+    arg_template.get_parser().add_argument(
+        "--num-sub-intervals", default=8, type=int,
+        action="store", help="set the number of sub-intervals in piecewise method")
 
     args = arg_template.arg_extraction()
     ml_atan2 = MetaAtan2(args)

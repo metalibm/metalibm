@@ -69,6 +69,7 @@ class MetaAtan(ScalarUnaryFunction):
     def __init__(self, args):
         super().__init__(args)
         self.method = args.method
+        self.num_sub_intervals = args.num_sub_intervals
 
     @staticmethod
     def get_default_args(**kw):
@@ -80,6 +81,7 @@ class MetaAtan(ScalarUnaryFunction):
             "function_name": "my_atan",
             "precision": ML_Binary32,
             "accuracy": ML_Faithful,
+            "num_sub_intervals": 8,
             "method": "piecewise",
             "target": GenericProcessor.get_target_instance()
         }
@@ -176,10 +178,8 @@ class MetaAtan(ScalarUnaryFunction):
 
             bound_low = 0.0
             bound_high = 1.0
-            num_intervals = 8
+            num_intervals = self.num_sub_intervals
             error_threshold = S2**-(self.precision.get_mantissa_size() + 8)
-
-
 
             approx, eval_error = piecewise_approximation(approx_fct,
                                     red_vx,
@@ -322,6 +322,9 @@ if __name__ == "__main__":
     arg_template.get_parser().add_argument(
         "--method", dest="method", default="piecewise", choices=["piecewise", "single"],
         action="store", help="select approximation method")
+    arg_template.get_parser().add_argument(
+        "--num-sub-intervals", default=8, type=int,
+        action="store", help="set the number of sub-intervals in piecewise method")
 
     args = arg_template.arg_extraction()
     ml_atan = MetaAtan(args)
