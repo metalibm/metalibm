@@ -154,8 +154,8 @@ class SourceFile:
                 compiler_options += " -c  "
         else:
             src_list += [
-                "%s/metalibm_core/support_lib/ml_libm_compatibility.c" % (ML_SRC_DIR),
-                "%s/metalibm_core/support_lib/ml_multi_prec_lib.c" % (ML_SRC_DIR),
+                #"%s/metalibm_core/support_lib/ml_libm_compatibility.c" % (ML_SRC_DIR),
+                #"%s/metalibm_core/support_lib/ml_multi_prec_lib.c" % (ML_SRC_DIR),
             ]
         Log.report(Log.Info, "Compiler options: \"{}\"".format(compiler_options))
 

@@ -167,18 +167,18 @@ ML_SSE_m128_v2uint64  = vector_format_builder("__m128i", None, 2, ML_UInt64,
 # debug-format for SSE format
 debug_sse_vfloat32  = ML_Debug(
     display_format="{%a, %a, %a, %a}",
-    require_header=["ml_utils.h", "smmintrin.h"],
+    require_header=["ml_support_lib.h", "smmintrin.h"],
     pre_process=lambda v: ", ".join("float_from_32b_encoding(_mm_extract_ps({v}, {i}))".format(v=v,i=i) for i in range(4))
 )
 debug_sse_vint32  = ML_Debug(
     display_format="{%d, %d, %d, %d}",
-    require_header=["ml_utils.h", "smmintrin.h"],
+    require_header=["ml_support_lib.h", "smmintrin.h"],
     pre_process=lambda v: ", ".join("_mm_extract_epi32({v}, {i})".format(v=v,i=i) for i in range(4))
 )
 # unsigned version
 debug_sse_vuint32  = ML_Debug(
     display_format="{%u, %u, %u, %u}",
-    require_header=["ml_utils.h", "smmintrin.h"],
+    require_header=["ml_support_lib.h", "smmintrin.h"],
     pre_process=lambda v: ", ".join("_mm_extract_epi32({v}, {i})".format(v=v,i=i) for i in range(4))
 )
 # virtual vector boolean format
@@ -240,18 +240,18 @@ ML_AVX_m256_v4uint64  = vector_format_builder("__m256i", None, 4, ML_UInt64,
 # debug-format for SSE format
 debug_avx_vfloat32  = ML_Debug(
     display_format="{%a, %a, %a, %a, %a, %an %a, %a}",
-    require_header=["ml_utils.h", "smmintrin.h"],
+    require_header=["ml_support_lib.h", "smmintrin.h"],
     pre_process=lambda v: ", ".join("float_from_32b_encoding(_mm256_extract_epi32(_mm256_castps_si256({v}), {i}))".format(v=v,i=i) for i in range(8))
 )
 debug_avx_vint32  = ML_Debug(
     display_format="{%d, %d, %d, %d, %d, %d, %d, %d}",
-    require_header=["ml_utils.h", "smmintrin.h"],
+    require_header=["ml_support_lib.h", "smmintrin.h"],
     pre_process=lambda v: ", ".join("_mm256_extract_epi32({v}, {i})".format(v=v,i=i) for i in range(8))
 )
 # unsigned version
 debug_avx_vuint32  = ML_Debug(
     display_format="{%u, %u, %u, %u, %u, %u, %u, %u}",
-    require_header=["ml_utils.h", "smmintrin.h"],
+    require_header=["ml_support_lib.h", "smmintrin.h"],
     pre_process=lambda v: ", ".join("_mm256_extract_epi32({v}, {i})".format(v=v,i=i) for i in range(8))
 )
 

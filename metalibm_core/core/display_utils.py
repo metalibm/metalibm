@@ -86,17 +86,15 @@ DISPLAY_int32_hex = DisplayFormat("%x")
 DISPLAY_int64_hex = DisplayFormat("%\"PRIx64\"", required_header=["inttypes.h"])
 
 
-DISPLAY_ftox  = DisplayFormat(format_string = "%e, %\"PRIx32\"", pre_process_fct = lambda v: "%s, float_to_32b_encoding(%s)" % (v, v), required_header = ["support_lib/ml_utils.h"])
-DISPLAY_ftox_k1  = DisplayFormat(format_string = "%\"PRIx32\" ev=%x", pre_process_fct = lambda v: "float_to_32b_encoding(%s), __k1_fpu_get_exceptions()" % v, required_header = ["support_lib/ml_utils.h"])
+DISPLAY_ftox  = DisplayFormat(format_string = "%e, %\"PRIx32\"", pre_process_fct = lambda v: "%s, float_to_32b_encoding(%s)" % (v, v), required_header = ["ml_support_lib.h"])
 
 # display hexadecimal encoding of double precision fp number
-DISPLAY_lftolx  = DisplayFormat(format_string = "%.20e, %\"PRIx64\"", pre_process_fct = lambda v: "%s, double_to_64b_encoding(%s)" % (v, v), required_header = ["support_lib/ml_utils.h"])
-DISPLAY_lftolx_k1  = DisplayFormat(format_string = "%\"PRIx64\" ev=%x", pre_process_fct = lambda v: "double_to_64b_encoding(%s), __k1_fpu_get_exceptions()" % v, required_header = ["support_lib/ml_utils.h"])
+DISPLAY_lftolx  = DisplayFormat(format_string = "%.20e, %\"PRIx64\"", pre_process_fct = lambda v: "%s, double_to_64b_encoding(%s)" % (v, v), required_header = ["ml_support_lib.h"])
 
 # display hexadecimal encoding of double double fp number
-DISPLAY_ddtolx    = DisplayFormat(format_string = "%\"PRIx64\" %\"PRIx64\"", pre_process_fct = lambda v: "double_to_64b_encoding(%s.hi), double_to_64b_encoding(%s.lo)" % (v, v), required_header = ["support_lib/ml_utils.h"])
+DISPLAY_ddtolx    = DisplayFormat(format_string = "%\"PRIx64\" %\"PRIx64\"", pre_process_fct = lambda v: "double_to_64b_encoding(%s.hi), double_to_64b_encoding(%s.lo)" % (v, v), required_header = ["ml_support_lib.h"])
 
-# display multi-precision floating-point value 
+# display multi-precision floating-point value
 DISPLAY_DD      = DisplayFormat(format_string="{{.hi=%a, .lo=%a}}", pre_process_fct= lambda v: "%s.hi, %s.lo" % (v, v))
 DISPLAY_DS      = DisplayFormat(format_string="{{.hi=%a, .lo=%a}}", pre_process_fct= lambda v : "%s.hi, %s.lo" % (v, v))
 DISPLAY_TD      = DisplayFormat(format_string="{{.hi=%a, .me=%a, .lo=%a}}", pre_process_fct= lambda v: "%s.hi, %s.me, %s.lo" % (v, v, v))
