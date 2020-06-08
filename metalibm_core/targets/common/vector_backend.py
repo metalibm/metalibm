@@ -55,7 +55,7 @@ from metalibm_core.code_generation.generic_processor import GenericProcessor, Li
 
 
 
-ML_VectorLib_Function = LibFunctionConstructor(["support_lib/ml_vector_lib.h"])
+ML_VectorLib_Function = LibFunctionConstructor(["ml_support_lib.h"])
 
 # OpenCL vector support library
 ML_OCL_VectorLib_Function = LibFunctionConstructor(["support_lib/ml_ocl_vector_lib.h"])
@@ -1444,7 +1444,7 @@ vector_c_code_generation_table = {
   {
     None: {
       legal_vector_element_selection: {
-        lambda rformat, opformat, indexformat, optree: True: TemplateOperator("%s[%s]", arity = 2, require_header = ["support_lib/ml_vector_format.h"]),
+        lambda rformat, opformat, indexformat, optree: True: TemplateOperator("%s[%s]", arity = 2, require_header = ["ml_support_lib.h"]),
       },
       lambda optree: not(legal_vector_element_selection(optree)): {
           type_strict_match_list([ML_SingleSingle], LIST_SINGLE_MULTI_PRECISION_VECTOR_FORMATS, [ML_Integer]):

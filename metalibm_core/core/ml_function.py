@@ -224,7 +224,7 @@ def generate_vector_implementation(scalar_scheme, scalar_arg_list,
 
 
     if self.language in [C_Code, OpenCL_Code]:
-        self.get_main_code_object().add_header("support_lib/ml_vector_format.h")
+        self.get_main_code_object().add_header("ml_support_lib.h")
 
     Log.report(Log.Info, "[SV] building vectorized main statement")
     if no_scalar_fallback_required(vector_mask):
@@ -674,7 +674,7 @@ class ML_FunctionBasis(object):
 
   def generate_C_code(self, code_object, function_group, language=C_Code):
     """ Final C source code generation, once the evaluation scheme has been optimized
-    
+
         generate C code for function implenetation
         Code is generated within the main code object
 
@@ -706,10 +706,10 @@ class ML_FunctionBasis(object):
     function_group.apply_to_all_functions(gen_code_function_code)
 
     # adding headers
-    code_object.add_header("support_lib/ml_special_values.h")
-    code_object.add_header("math.h")
+    # code_object.add_header("support_lib/ml_special_values.h")
+    # code_object.add_header("math.h")
+    # code_object.add_header("inttypes.h")
     if self.debug_flag: code_object.add_header("stdio.h")
-    code_object.add_header("inttypes.h")
 
     return code_object
 
@@ -730,6 +730,9 @@ class ML_FunctionBasis(object):
     main_pre_statement, main_statement, function_group = self.instrument_function_group(function_group, enable_subexpr_sharing=enable_subexpr_sharing)
 
     embedding_binary = self.embedded_binary and self.processor.support_embedded_bin
+
+    # required for basic metalibm's integer types
+    self.get_main_code_object().add_header("stdint.h")
 
     source_code = self.generate_output(embedding_binary, main_pre_statement, main_statement, function_group)
     return function_group, source_code
@@ -1128,7 +1131,7 @@ class ML_FunctionBasis(object):
     vector_mask.set_attributes(tag = "vector_mask", debug = debug_multi)
 
     if self.language in [C_Code, OpenCL_Code]:
-        self.get_main_code_object().add_header("support_lib/ml_vector_format.h")
+        self.get_main_code_object().add_header("ml_support_lib.h")
 
     Log.report(Log.Info, "[SV] building vectorized main statement")
     if no_scalar_fallback_required(vector_mask):
@@ -1289,13 +1292,10 @@ class ML_FunctionBasis(object):
     printf_success_op = FunctionOperator("printf", arg_map = {0: "\"test successful %s\\n\"" % function_name}, void_function = True) 
     printf_success_function = FunctionObject("printf", [], ML_Void, printf_success_op)
 
-
-
-
     if self.implementation.get_output_format().is_vector_format():
       # vector implementation test
       test_loop = self.get_vector_test_wrapper(test_total, tested_function, input_tables, output_table)
-    else: 
+    else:
       # scalar implemetation test
       test_loop = self.get_scalar_test_wrapper(test_total, tested_function, input_tables, output_table)
 
@@ -1716,7 +1716,7 @@ class ML_FunctionBasis(object):
             1: FO_Arg(0), 2: FO_Arg(1),
             3: FO_Arg(2)
         }, void_function = True,
-        require_header=["stdio.h"]
+        require_header=["stdio.h", "inttypes.h"]
     )
     printf_timing_function = FunctionObject("printf", [ML_Int64, ML_Int64, ML_Binary64], ML_Void, printf_timing_op)
 

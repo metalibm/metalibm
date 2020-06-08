@@ -118,15 +118,13 @@ debug_fixed32 = ML_AdvancedDebug(display_format = "%e(%d)", pre_process=fixed_po
 debug_fixed64 = ML_AdvancedDebug(display_format = "%e(%lld)", pre_process=fixed_point_pre_process)
 
 # display hexadecimal of single precision fp number
-debug_ftox  = ML_Debug(display_format = "%e, %\"PRIx32\"", pre_process = lambda v: "%s, float_to_32b_encoding(%s)" % (v, v), require_header = ["support_lib/ml_utils.h"])
-debug_ftox_k1  = ML_Debug(display_format = "%\"PRIx32\" ev=%x", pre_process = lambda v: "float_to_32b_encoding(%s), __k1_fpu_get_exceptions()" % v, require_header = ["support_lib/ml_utils.h"])
+debug_ftox  = ML_Debug(display_format = "%e, %\"PRIx32\"", pre_process = lambda v: "%s, float_to_32b_encoding(%s)" % (v, v), require_header = ["ml_support_lib.h"])
 
 # display hexadecimal encoding of double precision fp number
-debug_lftolx  = ML_Debug(display_format = "%.20e, %\"PRIx64\"", pre_process = lambda v: "%s, double_to_64b_encoding(%s)" % (v, v), require_header = ["support_lib/ml_utils.h"])
-debug_lftolx_k1  = ML_Debug(display_format = "%\"PRIx64\" ev=%x", pre_process = lambda v: "double_to_64b_encoding(%s), __k1_fpu_get_exceptions()" % v, require_header = ["support_lib/ml_utils.h"])
+debug_lftolx  = ML_Debug(display_format = "%.20e, %\"PRIx64\"", pre_process = lambda v: "%s, double_to_64b_encoding(%s)" % (v, v), require_header = ["ml_support_lib.h"])
 
 # display hexadecimal encoding of double double fp number
-debug_ddtolx    = ML_Debug(display_format = "%\"PRIx64\" %\"PRIx64\"", pre_process = lambda v: "double_to_64b_encoding(%s.hi), double_to_64b_encoding(%s.lo)" % (v, v), require_header = ["support_lib/ml_utils.h"])
+debug_ddtolx    = ML_Debug(display_format = "%\"PRIx64\" %\"PRIx64\"", pre_process = lambda v: "double_to_64b_encoding(%s.hi), double_to_64b_encoding(%s.lo)" % (v, v), require_header = ["ml_support_lib.h"])
 
 # display multi-precision floating-point value 
 debug_dd      = ML_Debug(display_format="{.hi=%lf, .lo=%lf}", pre_process= lambda v: "%s.hi, %s.lo" % (v, v))
