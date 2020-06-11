@@ -145,22 +145,15 @@ class SourceFile:
         compiler_options = " ".join(DEFAULT_OPTIONS + extra_build_opts + target.get_compilation_options(ML_SRC_DIR))
         src_list = [path]
 
-
         if not(link):
             # build only, disable link
             if shared_object:
                 compiler_options += " -fPIC -shared "
             else:
-                compiler_options += " -c  "
-        else:
-            src_list += [
-                #"%s/metalibm_core/support_lib/ml_libm_compatibility.c" % (ML_SRC_DIR),
-                #"%s/metalibm_core/support_lib/ml_multi_prec_lib.c" % (ML_SRC_DIR),
-            ]
+                compiler_options += " -c "
         Log.report(Log.Info, "Compiler options: \"{}\"".format(compiler_options))
 
-        build_command = "{compiler} {options} -I{ML_SRC_DIR}/metalibm_core \
-        {src_file} -o {bin_name} -lm ".format(
+        build_command = "{compiler} {options} {src_file} -o {bin_name} -lm ".format(
             compiler=compiler,
             src_file=(" ".join(src_list)),
             bin_name=bin_name,
