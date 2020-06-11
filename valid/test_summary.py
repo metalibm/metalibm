@@ -140,10 +140,10 @@ class TestSummary:
             return TestSummary(test_map)
 
     def compare(ref, res):
-        """ compare to test summaries and record differences """
+        """ compare two test summaries and report the differences """
         # number of tests found in ref but not in res
         not_found = 0
-        # number of tests successful in ref but fail in res
+        # number of tests successful in ref but failed in res
         downgraded = 0
         upgraded = 0
         perf_downgraded = 0
@@ -178,6 +178,7 @@ class TestSummary:
                         elif ref_cpe < res_cpe:
                             perf_upgraded += 1
         return compare_result
+
     @staticmethod
     def dump_compare_result(compare_result, improved_threshold=0.0, decreased_threshold=0.0):
         TEST_CATEGORY = [
@@ -227,7 +228,6 @@ class TestSummary:
 
 if __name__ == "__main__":
     arg_parser = argparse.ArgumentParser("test summary utilities")
-    # enable debug mode
     arg_parser.add_argument("action",choices=["compare"],
                             help="select action")
     arg_parser.add_argument('input_files', metavar='N', type=str, nargs=2,
