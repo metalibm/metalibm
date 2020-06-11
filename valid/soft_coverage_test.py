@@ -29,6 +29,7 @@ import argparse
 import sys
 import re
 import functools
+import os
 
 import sollya
 from sollya import Interval
@@ -549,6 +550,9 @@ if __name__ == "__main__":
     arg_parser.add_argument("--error-eval", dest="error_eval", action="store_const",
                             default=False, const=True,
                             help="evaluate error without failing on innacurate functions")
+    arg_parser.add_argument("--timestamp", dest="timestamp", action="store_const",
+                            default=False, const=True,
+                            help="enable filename timestamping")
     arg_parser.add_argument(
         "--verbose", dest="verbose_enable", action=VerboseAction,
         const=True, default=False,
@@ -612,14 +616,29 @@ if __name__ == "__main__":
 
     test_summary = test_result.summarize()
 
+
     evolution = {}
     if args.reference:
         reference_summary = TestSummary.import_from_file(args.reference)
         #reference_summary.dump(lambda s: print("REF " + s, end=""))
         evolution = reference_summary.compare(test_summary)
-    generate_pretty_report(args.output, test_list, test_result, evolution)
+
+    # generate output filename (possibly with timestamp)
+    output_filename = args.output
+    if args.timestamp:
+        # this value may also be used in gen_reference
+        current_date = datetime.datetime.now().strftime("%d%m%y_%H%M%S")
+        out_prefix, out_suffix = os.path.splitext(output_filename)
+        output_filename = "{}.{}{}".format(out_prefix, current_date, out_suffix)
+
+    generate_pretty_report(output_filename, test_list, test_result, evolution)
     if args.gen_reference:
-        with open(args.gen_reference, "w") as new_ref:
+        # generate reference data filename (possibly with timestamp)
+        reference_filename = args.gen_reference
+        if args.timestamp:
+            ref_prefix, ref_suffix = os.path.splitext(reference_filename)
+            reference_filename = "{}.{}{}".format(ref_prefix, current_date, ref_suffix)
+        with open(reference_filename, "w") as new_ref:
             test_summary.dump(lambda s: new_ref.write(s))
 
     exit(0)
