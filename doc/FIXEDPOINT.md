@@ -1,22 +1,27 @@
-MDL contains a certain number of utility to describe fixed-point operation.
+MDL provides a certain number of utilities to describe fixed-point operation.
 
-### The fixed-point formats 
+### The fixed-point formats
 
 The HDL fixed-point format is accessible throught the `fixed_point` helper function implemented in the `core.ml_hdl_formats` module.
 
 ### The FixedPointPosition node
-The `FixedPointPosition` is a class of nodes available when describing a meta-entity. This node does not correspond to an operation of the implementation graph but is an index (computed during the code generation) within a fixed-point format.
+The `FixedPointPosition` is a class of nodes available when describing a meta-entity. This node does not correspond to an operation of the implementation graph but is an index (whose actual value is resolved during the code generation) within a fixed-point format.
 This constructor can be used to determine the position of the 'point' in a datum of unknown width (unknown at the time of the meta entity description).
 
-The FixedPoint operation is part of the `core.advanced_operations` module. It is specialized by a value and an `align` parameter which must be chosen from:
-- **FixedPointPosition.FromMSBToLSB**: the result is the index of the digit "value" digit lower than the MSB and computed from the LSB position.
-- **FixedPointPosition.FromLSBToLSB**: The result is the index of the digit "value" digit greater than LSB and computed from the LSB position which values the result is equals to value.
-- **FixedPointPosition.FromPointToLSB**: The result is computed as the index of the digit "value" digit greater than the point (digit with weight 0) and computed from the LSB position.
-- **FixedPointPosition.FromPointToMSB**: The result is computed as the index of the digit "value" digit greater than the point (digit with weight 0) and computed from the MBS position.
+The FixedPoint operation is part of the `core.advanced_operations` module. It should be instanciated as follows.
+```
+FixedPoint(node, value, align)
+```
+Where `node` is an operation node, value is an `offset` (positive or negative integer) and `align` is an alignment specificer.
+The node value is resolved with respect to `node`, `value` and `align` as follows:
+- `align=`**FixedPointPosition.FromMSBToLSB**: the result is the index of the digit at lower position `value` with respect to `node`'s MSB  and computed from the LSB position.
+- `align=`**FixedPointPosition.FromLSBToLSB**: The result is the index of the digit at position `value` with respect to `node`'s  LSB and computed from the LSB position which means the result is equals to value.
+- `align=`**FixedPointPosition.FromPointToLSB**: The result is computed as the index of the digit at higher position `value` with respect to `node`'s zero point (digit with weight 0) and computed from the LSB position.
+- `align=`**FixedPointPosition.FromPointToMSB**: The result is computed as the index of the digit at position `value` with respect to `node`'s zero point (digit with weight 0) and computed from the MBS position.
 
 ### FixedPointPosiition evaluation
 
-Beware that FixedPointPosition's value is only evaluated during code generation, this during meta-entity entity description it will not be evaluated as a constant.
+Beware that FixedPointPosition's value is only evaluated during code generation, thus during meta-entity entity description it will not be evaluated as a constant.
 The evaluation is performed by the **rtl_legalize** optimization pass; together with the **size_datapath** optimization pass they can be used to legalize fixed-point operation graphs.
 
 ### Example 
