@@ -47,6 +47,10 @@ point_index = FixedPointPosition(A, 0, align=FixedPointPosition.FromMSBToLSB)
 # we compute the position of the most significant digit with respect to the datum LSB position
 >>> 15
 
+point_index = FixedPointPosition(A, -2, align=FixedPointPosition.FromMSBToLSB)
+# we compute the position of the digit located -2 position higher than the most significant digit with respect to the datum LSB position
+>>> 13
+
 point_index = FixedPointPosition(A, 17, align=FixedPointPosition.FromLSBToLSB)
 # we compute the position of the digit of weight = 2^17*(weight(LSB)) with respect to the datum LSB position
 >>> 17

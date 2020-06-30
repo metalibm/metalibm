@@ -62,15 +62,17 @@ def fixed_exponent(op):
     return TypeCast(
         pre_exp, precision=fixed_point(e, 0, signed=False),
     )
-def fixed_mantissa(op):
+def fixed_normalized_mantissa(op):
     """ Extract the mantissa of op and returns it as an exact fixed-point
         integer (no fractionnal part) """
     m = op.get_precision().get_base_format().get_mantissa_size()
     pre_mant_precision = ML_StdLogicVectorFormat(m)
     pre_mant = MantissaExtraction(op, precision=pre_mant_precision)
     return TypeCast(
-        pre_mant, precision=fixed_point(m, 0, signed=False)
+        pre_mant, precision=fixed_point(1, m-1, signed=False)
     )
+
+FIX32 = fixed_point(32, 0, signed=True)
 
 class Dequantizer(ML_Entity("dequantizer")):
     """ Implement the post-processing operator for
@@ -94,9 +96,9 @@ class Dequantizer(ML_Entity("dequantizer")):
         default_arg_map = {
             "io_formats": {
                 "scale": HdlVirtualFormat(ML_Binary32),
-                "quantized_input": ML_Int32,
-                "offset_input": ML_Int32,
-                "result": ML_Int32
+                "quantized_input": FIX32,
+                "offset_input": FIX32,
+                "result": FIX32
             },
             "pipelined": False,
             "output_file": "dequantizer.vhd",
@@ -125,16 +127,18 @@ class Dequantizer(ML_Entity("dequantizer")):
         n = support_format.get_bit_size()
 
         scale_exp = fixed_exponent(scale).modify_attributes(tag="scale_exp", debug=debug_fixed)
-        scale_mant = fixed_mantissa(scale)
+        scale_mant = fixed_normalized_mantissa(scale)
 
+        # unscaled field is in fixed-point normalized format
         unscaled_field = scale_mant * quantized_input
+        unscaled_field.set_attributes(tag="unscaled_field", debug=debug_fixed)
         # p - 1 (precision without implicit one, or length of mantissa fractionnal part)
         pm1 = scale.get_precision().get_base_format().get_mantissa_size() - 1
         # MAX_SHIFT computed such that no bit is lost (and kept for proper rounding)
         #           an extra +1 is added to ensure correct bit is used as round bit
         PRODUCT_SIZE = scale_mant.get_precision().get_bit_size() + quantized_input.get_precision().get_bit_size()
         MAX_SHIFT = PRODUCT_SIZE + 1
-        shift_amount = Min(scale_exp - pm1, MAX_SHIFT)
+        shift_amount = Min(scale_exp - pm1, MAX_SHIFT, tag="shift_amount", debug=debug_fixed)
         pre_shift_field = Conversion(unscaled_field, precision=fixed_point(PRODUCT_SIZE, MAX_SHIFT))
         scaled_field = BitLogicRightShift(pre_shift_field, shift_amount)
 
@@ -162,6 +166,25 @@ class Dequantizer(ML_Entity("dequantizer")):
         return result
 
     standard_test_cases = [
+        # dummy tests
+        ({"quantized_input": 0, "scale": 0, "offset": 0}, None),
+        ({"quantized_input": 0, "scale": 0, "offset": 1}, None),
+        ({"quantized_input": 0, "scale": 0, "offset": 17}, None),
+        ({"quantized_input": 0, "scale": 0, "offset": -17}, None),
+
+        ({"quantized_input": 17, "scale": 1.0, "offset": 0}, None),
+        ({"quantized_input": 17, "scale": -1.0, "offset": 0}, None),
+        ({"quantized_input": -17, "scale": 1.0, "offset": 0}, None),
+        ({"quantized_input": -17, "scale": -1.0, "offset": 0}, None),
+
+        ({"quantized_input": 17, "scale": 1.0, "offset": 42}, None),
+        ({"quantized_input": 17, "scale": -1.0, "offset": 42}, None),
+        ({"quantized_input": -17, "scale": 1.0, "offset": 42}, None),
+        ({"quantized_input": -17, "scale": -1.0, "offset": 42}, None),
+
+        # TODO: cancellation tests
+        # TODO: overflow tests
+        # TODO: other tests
     ]
 
 
