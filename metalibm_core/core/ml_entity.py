@@ -733,9 +733,13 @@ class ML_EntityBasis(object):
     """ Generic initialization of test case generator """
     return
 
-  def implement_test_case(self, io_map, input_values, output_signals, output_values, time_step, index=None):
+  def implement_test_case(self, io_map, input_values, output_signals,
+                          output_values, time_step, index=None):
       """ Implement the test case check and assertion whose I/Os values
-          are described in input_values and output_values dict """
+          are described in input_values and output_values dict
+
+          :param index: index of the corresponding test case (to be displayed as info) 
+      """
       test_statement = Statement()
       input_msg = ""
       # Adding input setting
