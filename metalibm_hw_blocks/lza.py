@@ -232,7 +232,7 @@ class ML_LeadingZeroAnticipator(ML_Entity("ml_lza")):
         result["final_lzc"] = count_leading_zero(pre_op, self.width+1)
         return result
 
-    def implement_test_case(self, io_map, input_values, output_signals, output_values, time_step):
+    def implement_test_case(self, io_map, input_values, output_signals, output_values, time_step, index=None):
         """ Implement the test case check and assertion whose I/Os values
             are described in input_values and output_values dict """
         test_statement = Statement()
