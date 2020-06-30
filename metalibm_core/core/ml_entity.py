@@ -733,7 +733,7 @@ class ML_EntityBasis(object):
     """ Generic initialization of test case generator """
     return
 
-  def implement_test_case(self, io_map, input_values, output_signals, output_values, time_step):
+  def implement_test_case(self, io_map, input_values, output_signals, output_values, time_step, index=None):
       """ Implement the test case check and assertion whose I/Os values
           are described in input_values and output_values dict """
       test_statement = Statement()
@@ -760,7 +760,7 @@ class ML_EntityBasis(object):
         test_statement.add(check_statement)
         assert_statement = Assert(
           test_pass_cond,
-          "\"unexpected value for inputs {input_msg}, output {output_tag}, expecting {value_msg}, got: \"".format(input_msg = input_msg, output_tag = output_tag, value_msg = value_msg),
+          "\"unexpected value for {test_id}, inputs {input_msg}, output {output_tag}, expecting {value_msg}, got: \"".format(input_msg = input_msg, output_tag = output_tag, value_msg = value_msg, test_id=("" if index is None else "test #{}".format(index))),
           severity = Assert.Failure
         )
         test_statement.add(assert_statement)
@@ -1035,9 +1035,9 @@ class ML_EntityBasis(object):
     self_instance = self_component(io_map = io_map, tag = "tested_entity")
     test_statement = Statement()
 
-    for input_values, output_values in tc_list:
+    for index, (input_values, output_values) in enumerate(tc_list):
       test_statement.add(
-          self.implement_test_case(io_map, input_values, output_signals, output_values, time_step)
+          self.implement_test_case(io_map, input_values, output_signals, output_values, time_step, index=index)
       )
 
     reset_statement = self.get_reset_statement(io_map, time_step)

@@ -1164,11 +1164,15 @@ vhdl_code_generation_table = {
     Concatenation: {
         None: {
             lambda _: True: {
-                type_custom_match(TCM(ML_StdLogicVectorFormat), TCM(ML_StdLogicVectorFormat), TCM(ML_StdLogicVectorFormat)): SymbolOperator("&", arity=2, force_folding=True),
-                type_custom_match(TCM(ML_StdLogicVectorFormat), FSM(ML_StdLogic), TCM(ML_StdLogicVectorFormat)): SymbolOperator("&", arity=2, force_folding=True),
-                type_custom_match(TCM(ML_StdLogicVectorFormat), TCM(ML_StdLogicVectorFormat), FSM(ML_StdLogic)): SymbolOperator("&", arity=2, force_folding=True),
+                type_custom_match(TCM(ML_StdLogicVectorFormat), TCM(ML_StdLogicVectorFormat), TCM(ML_StdLogicVectorFormat)):
+                    SymbolOperator("&", arity=2, force_folding=True),
+                type_custom_match(TCM(ML_StdLogicVectorFormat), FSM(ML_StdLogic), TCM(ML_StdLogicVectorFormat)):
+                    SymbolOperator("&", arity=2, force_folding=True),
+                type_custom_match(TCM(ML_StdLogicVectorFormat), TCM(ML_StdLogicVectorFormat), FSM(ML_StdLogic)):
+                    SymbolOperator("&", arity=2, force_folding=True),
                 # only valid for 2-bit vectors
-                type_custom_match(TCM(ML_StdLogicVectorFormat), FSM(ML_StdLogic), FSM(ML_StdLogic)): SymbolOperator("&", arity=2, force_folding=True),
+                type_custom_match(TCM(ML_StdLogicVectorFormat), FSM(ML_StdLogic), FSM(ML_StdLogic)):
+                    SymbolOperator("&", arity=2, force_folding=True),
                 type_custom_match(MCFixedPoint, MCFixedPoint, MCFixedPoint):
                     SymbolOperator("&", arity=2, force_folding=True),
                 type_custom_match(MCFixedPoint, MCSTDLOGICV, MCSTDLOGICV):
