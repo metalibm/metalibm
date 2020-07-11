@@ -175,10 +175,6 @@ def v4_to_v2_split(node):
     # TODO/FIXME: bool_specifier
 
     split_inputs = [split_vectorial_op(op, output_vsize=2) for op in node.inputs]
-    #split_inputs = [[VectorAssembling(
-    #    VectorElementSelection(op, Constant(2*i, precision=ML_Integer), precision=op.get_precision().get_scalar_format()),
-    #    VectorElementSelection(op, Constant(2*i+1, precision=ML_Integer), precision=op.get_precision().get_scalar_format()),
-    #    precision=vectorize_format(op.get_precision().get_scalar_format(), 2, bool_specifier=32)) for i in range(2)] for op in node.inputs]
     half_node_format = vectorize_format(node.get_precision().get_scalar_format(), 2, bool_specifier=32)
     low = node.copy(copy_map={op: sub_op[0] for op, sub_op in zip(node.inputs, split_inputs)})
     low.set_precision(half_node_format)
