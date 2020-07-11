@@ -246,9 +246,10 @@ def generic_poly_split(offset_fct, indexing, target_eps, coeff_precision, vx):
     return poly
 
 def search_bound_threshold(fct, limit, start_point, end_point, precision):
-    """ search by dichotomy the minimal x, floating-point number in
+    """ This function assume that <fct> is monotonic and increasing
+        search by dichotomy the minimal x, floating-point number in
         @p precision, such that x >= start_point and x <= end_point
-        and round(fct(x)) = limit """
+        and round(fct(x)) = limit.  """
     assert precision.round_sollya_object(fct(start_point)) < limit
     assert precision.round_sollya_object(fct(end_point)) >= limit
     assert start_point < end_point
@@ -261,6 +262,28 @@ def search_bound_threshold(fct, limit, start_point, end_point, precision):
             right_bound = mid_point
         elif mid_point_img < limit:
             left_bound = mid_point
+        else:
+            Log.report(Log.Error, "function must be increasing in search_bound_threshold")
+    return left_bound
+
+
+def search_bound_threshold_mirror(fct, limit, start_point, end_point, precision):
+    """ This function assume that <fct> is monotonic and decreasing
+        search by dichotomy the maximal x, floating-point number in
+        @p precision, such that x >= start_point and x <= end_point
+        and round(fct(x)) >= limit.  """
+    assert precision.round_sollya_object(fct(start_point)) >= limit
+    assert precision.round_sollya_object(fct(end_point)) < limit
+    assert start_point < end_point
+    left_bound = start_point
+    right_bound = end_point
+    while left_bound != right_bound and fp_next(left_bound, precision) != right_bound:
+        mid_point = precision.round_sollya_object((left_bound + right_bound) / S2, round_mode=sollya.RU)
+        mid_point_img = precision.round_sollya_object(fct(mid_point), round_mode=sollya.RU)
+        if mid_point_img >= limit:
+            left_bound = mid_point
+        elif mid_point_img < limit:
+            right_bound = mid_point
         else:
             Log.report(Log.Error, "function must be increasing in search_bound_threshold")
     return left_bound
