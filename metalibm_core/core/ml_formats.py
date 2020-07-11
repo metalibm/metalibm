@@ -425,8 +425,12 @@ class ML_Std_FP_Format(ML_FP_Format):
         return S2**self.get_emin_normal()
 
     def get_max_subnormal_value(self):
-        """ return the minimal normal number in @p self format """
+        """ return the maximal subnormal number in @p self format """
         return S2**self.get_emin_normal() * (1 + 2**-self.get_field_size())
+
+    def get_min_subnormal_value(self):
+        """ return the maximal subnormal number in @p self format """
+        return S2**self.get_emin_subnormal()
 
     ## return the exponent field corresponding to
     #  a special value (inf or NaN)
