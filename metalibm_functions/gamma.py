@@ -29,8 +29,7 @@
 # created:            Mar   11th, 2016
 # last-modified:      Mar    3rd, 2019
 #
-# description: meta-implementation of error-function erf
-#              erf(x) = 2 / pi * integral(0, x, e^(-t^2), dt)
+# description: meta-implementation of gamma function
 ###############################################################################
 
 import sollya
@@ -100,36 +99,83 @@ class ML_Gamma(ScalarUnaryFunction):
 
         omega_value = self.precision.get_omega()
 
-        def sollya_gamma(x):
-            return sollya.SollyaObject(bigfloat.gamma(SollyaObject(x).bigfloat()))
+        def sollya_wrap_bigfloat_fct(bfct):
+            """ wrap bigfloat's function <bfct> such that is can be used
+                on SollyaObject inputs and returns SollyaObject results """
+            def fct(x):
+                return sollya.SollyaObject(bfct(SollyaObject(x).bigfloat()))
+            return fct
+        sollya_gamma = sollya_wrap_bigfloat_fct(bigfloat.gamma)
+        sollya_digamma = sollya_wrap_bigfloat_fct(bigfloat.digamma)
+        # first derivative of gamma is digamma * gamma
+        bigfloat_gamma_d0 = lambda x: bigfloat.gamma(x) * bigfloat.digamma(x)
+        sollya_gamma_d0 = sollya_wrap_bigfloat_fct(bigfloat_gamma_d0)
 
+        # approximating trigamma with straightforward derivatives formulae of digamma
+        U = 2**-64
+        bigfloat_trigamma = lambda x: ((bigfloat.digamma(x * (1 + U)) - bigfloat.digamma(x)) / (x*U))
+        sollya_trigamma = sollya_wrap_bigfloat_fct(bigfloat_trigamma)
+
+        bigfloat_gamma_d1 = lambda x: (bigfloat_trigamma(x) * bigfloat.gamma(x) + bigfloat_gamma_d0(x) * bigfloat.digamma(x))
+        sollya_gamma_d1 = sollya_wrap_bigfloat_fct(bigfloat_gamma_d1)
+
+        def sollya_gamma_fct(x, diff_order, prec):
+            """ wrapper to use bigfloat implementation of exponential
+                rather than sollya's implementation directly.
+                This wrapper implements sollya's function API.
+
+                :param x: numerical input value (may be an Interval)
+                :param diff_order: differential order
+                :param prec: numerical precision expected (min)
+            """
+            fct = None
+            if diff_order == 0:
+                fct = sollya_gamma
+            elif diff_order == 1:
+                fct = sollya_gamma_d0
+            elif diff_order == 2:
+                fct = sollya_gamma_d1
+            else:
+                raise NotImplementedError
+            with bigfloat.precision(prec):
+                if x.is_range():
+                    lo = sollya.inf(x)
+                    hi = sollya.sup(x)
+                    return sollya.Interval(
+                        fct(lo),
+                        fct(hi)
+                    )
+                else:
+                    return fct(x)
+
+
+        # search the lower x such that gamma(x) >= omega
         omega_upper_limit = search_bound_threshold(sollya_gamma, omega_value, 2, 1000.0, self.precision)
         Log.report(Log.Debug, "gamma(x) = {} limit is {}", omega_value, omega_upper_limit)
 
+        # evaluate gamma(<min-normal-value>)
         lower_x_bound = self.precision.get_min_normal_value()
-
         value_min = sollya_gamma(lower_x_bound)
         Log.report(Log.Debug, "gamma({}) = {}(log2={})", lower_x_bound, value_min, int(sollya.log2(value_min))) 
 
+        # evaluate gamma(<min-subnormal-value>)
         lower_x_bound = self.precision.get_min_subnormal_value()
-
         value_min = sollya_gamma(lower_x_bound)
         Log.report(Log.Debug, "gamma({}) = {}(log2={})", lower_x_bound, value_min, int(sollya.log2(value_min))) 
+
+        # Gamma is defined such that gamma(x+1) = x * gamma(x)
+        #
+        # we approximate gamma over [1, 2]
+        # y in [1, 2]
+        # gamma(y) = (y-1) * gamma(y-1)
+        # gamma(y-1) = gamma(y) / (y-1)
+        Log.report(Log.Info, "building mathematical polynomial")
+        approx_interval = Interval(1, 2)
+        approx_fct = sollya.function(sollya_gamma_fct)
+        poly_degree = int(sup(guessdegree(approx_fct, approx_interval, S2**-(self.precision.get_field_size()+5)))) + 1
+        Log.report(Log.Debug, "approximation's poly degree over [1, 2] is {}", poly_degree)
 
         sys.exit(1)
-
-        upper_approx_bound = 10
-
-        # empiral numbers
-        eps_exp = {ML_Binary32: -3, ML_Binary64: -5}[self.precision]
-        eps = S2**eps_exp
-
-        Log.report(Log.Info, "building mathematical polynomial")
-        approx_interval = Interval(0, eps)
-        # fonction to approximate is erf(x) / x
-        # it is an even function erf(x) / x = erf(-x) / (-x)
-        approx_fct = sollya.erf(sollya.x) - (sollya.x)
-        poly_degree = int(sup(guessdegree(approx_fct, approx_interval, S2**-(self.precision.get_field_size()+5)))) + 1
 
         poly_degree_list = list(range(1, poly_degree, 2))
         Log.report(Log.Debug, "poly_degree is {} and list {}", poly_degree, poly_degree_list)
