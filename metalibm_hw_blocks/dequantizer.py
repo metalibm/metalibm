@@ -110,9 +110,13 @@ class Dequantizer(ML_Entity("dequantizer")):
         return DefaultEntityArgTemplate(**default_arg_map)
 
     def generate_scheme(self):
+        # quantized_input * scale + offset_input
         scale_format = self.get_io_format("scale")
         quantized_input_format = self.get_io_format("quantized_input")
         offset_input_format = self.get_io_format("offset_input")
+        result_format = self.get_io_format("result")
+
+        RESULT_SIZE = result_format.get_bit_size()
 
         scale = self.implementation.add_input_variable("scale", scale_format)
         quantized_input = self.implementation.add_input_variable("quantized_input", quantized_input_format)
@@ -126,7 +130,10 @@ class Dequantizer(ML_Entity("dequantizer")):
         p = base_format.get_field_size()
         n = support_format.get_bit_size()
 
-        scale_exp = fixed_exponent(scale).modify_attributes(tag="scale_exp", debug=debug_fixed)
+        biased_scale_exp = fixed_exponent(scale)#.modify_attributes(tag="scale_exp", debug=debug_fixed)
+        scale_exp = biased_scale_exp + scale_format.get_base_format().get_bias()
+        scale_exp.set_attributes(tag="scale_exp", debug=debug_fixed)
+        scale_sign = CopySign(scale, precision=ML_StdLogic, tag="scale_sign")
         scale_mant = fixed_normalized_mantissa(scale)
 
         # unscaled field is in fixed-point normalized format
@@ -134,17 +141,25 @@ class Dequantizer(ML_Entity("dequantizer")):
         unscaled_field.set_attributes(tag="unscaled_field", debug=debug_fixed)
         # p - 1 (precision without implicit one, or length of mantissa fractionnal part)
         pm1 = scale.get_precision().get_base_format().get_mantissa_size() - 1
+        # PRODUCT_SIZE is the width of the unscaled scale * input "mantissa" product
+        PRODUCT_SIZE = scale_mant.get_precision().get_bit_size() + quantized_input.get_precision().get_bit_size()
         # MAX_SHIFT computed such that no bit is lost (and kept for proper rounding)
         #           an extra +1 is added to ensure correct bit is used as round bit
-        PRODUCT_SIZE = scale_mant.get_precision().get_bit_size() + quantized_input.get_precision().get_bit_size()
-        MAX_SHIFT = PRODUCT_SIZE + 1
-        shift_amount = Min(scale_exp - pm1, MAX_SHIFT, tag="shift_amount", debug=debug_fixed)
-        pre_shift_field = Conversion(unscaled_field, precision=fixed_point(PRODUCT_SIZE, MAX_SHIFT))
-        scaled_field = BitLogicRightShift(pre_shift_field, shift_amount)
+        MAX_SHIFT = RESULT_SIZE + 1 + PRODUCT_SIZE + 1
+        # TODO/FIXME: manage case where shift_amount < 0 (should be forced to 0)
+        shift_amount = Min(-scale_exp + RESULT_SIZE + 1, MAX_SHIFT, tag="shift_amount", debug=debug_fixed)
+        # unscaled_field is widended (padded with "0" right")
+        # TODO/FIXME manage fixed-point format signedness
+        extended_unscaled_field = Conversion(unscaled_field, precision=fixed_point(PRODUCT_SIZE, MAX_SHIFT))
+        # widened unscaled_field is casted to set 0-padding as fractionnary part
+        # TODO/FIXME manage fixed-point format signedness
+        pre_shift_field = TypeCast(extended_unscaled_field, precision=fixed_point(MAX_SHIFT - 1, PRODUCT_SIZE + 1), tag="pre_shift_field", debug=debug_std)
+        scaled_field = BitArithmeticRightShift(pre_shift_field, shift_amount, tag="scaled_field", debug=debug_std)
 
         #truncated_field = Conversion(scaled_field, precision=offset_input_format)
         #offseted_field = truncated_field + offset_input
-        offseted_field = scaled_field + Conversion(offset_input, precision=fixed_point(offset_input_format.get_bit_size(), 0))
+        offseted_field = scaled_field + Conversion(offset_input, precision=fixed_point(offset_input_format.get_bit_size(), 0), tag="extended_offset", debug=debug_std)
+        offseted_field.set_attributes(tag="offseted_field", debug=debug_std)
 
         round_bit = BitSelection(offseted_field, FixedPointPosition(offseted_field, -1, align=FixedPointPosition.FromPointToLSB))
         sticky_bit = NotEqual(SubSignalSelection(offseted_field, 0, FixedPointPosition(offseted_field, -2, align=FixedPointPosition.FromPointToLSB)), 0)
@@ -173,14 +188,19 @@ class Dequantizer(ML_Entity("dequantizer")):
         ({"quantized_input": 0, "scale": 0, "offset": -17}, None),
 
         ({"quantized_input": 17, "scale": 1.0, "offset": 0}, None),
-        ({"quantized_input": 17, "scale": -1.0, "offset": 0}, None),
+        #({"quantized_input": 17, "scale": -1.0, "offset": 0}, None),
         ({"quantized_input": -17, "scale": 1.0, "offset": 0}, None),
-        ({"quantized_input": -17, "scale": -1.0, "offset": 0}, None),
+        #({"quantized_input": -17, "scale": -1.0, "offset": 0}, None),
 
         ({"quantized_input": 17, "scale": 1.0, "offset": 42}, None),
-        ({"quantized_input": 17, "scale": -1.0, "offset": 42}, None),
+        #({"quantized_input": 17, "scale": -1.0, "offset": 42}, None),
         ({"quantized_input": -17, "scale": 1.0, "offset": 42}, None),
-        ({"quantized_input": -17, "scale": -1.0, "offset": 42}, None),
+        #({"quantized_input": -17, "scale": -1.0, "offset": 42}, None),
+
+        ({"quantized_input": 17, "scale": 1.125, "offset": 42}, None),
+        #({"quantized_input": 17, "scale": -1.0, "offset": 42}, None),
+        ({"quantized_input": -17, "scale": 17.0, "offset": 42}, None),
+        #({"quantized_input": -17, "scale": -1.0, "offset": 42}, None),
 
         # TODO: cancellation tests
         # TODO: overflow tests
