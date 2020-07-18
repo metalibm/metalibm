@@ -278,9 +278,9 @@ def conversion_generator(optree):
 
 # dynamic dyn_operator helper for Shift operations
 #  @param dyn_operator string name of the operation
-def shift_generator(dyn_operator, optree):
+def shift_generator(dyn_operator, optree, lhs_modifier="unsigned", rhs_modifier="unsigned"):
     width = optree.get_precision().get_bit_size()
-    return TemplateOperator("conv_std_logic_vector({}(unsigned(%s), unsigned(%s)), {})".format(dyn_operator, width), arity=2, force_folding=True, force_input_variable=True)
+    return TemplateOperator("conv_std_logic_vector({}({}(%s), {}(%s)), {})".format(dyn_operator, lhs_modifier, rhs_modifier, width), arity=2, force_folding=True, force_input_variable=True)
 
 
 # @p optree 0-th input has ML_Bool precision and must be converted
@@ -1361,6 +1361,11 @@ vhdl_code_generation_table = {
             lambda optree: True: {
                 type_custom_match(MCFixedPoint, MCFixedPoint, FSM(ML_Integer)):
                     ComplexOperator(optree_modifier=shift_by_cst_legalizer),
+                type_custom_match(MCFixedPoint, MCFixedPoint, MCFixedPoint):
+                    ComplexOperator(
+                        optree_modifier=fixed_shift_modifier(BitArithmeticRightShift)),
+                type_custom_match(MCSTDLOGICV, MCSTDLOGICV, MCSTDLOGICV):
+                    DynamicOperator(lambda optree: shift_generator("shr", optree, lhs_modifier="signed")),
             },
         },
     },
