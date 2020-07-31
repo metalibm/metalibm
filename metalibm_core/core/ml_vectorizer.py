@@ -37,6 +37,7 @@ from functools import reduce
 from metalibm_core.core.ml_formats import VECTOR_TYPE_MAP, ML_Bool
 from metalibm_core.core.ml_operations import *
 from metalibm_core.core.ml_table import ML_NewTable
+from metalibm_core.opt.opt_utils import extract_tables
 
 
 # high verbosity log-level for optimization engine
@@ -124,7 +125,7 @@ def no_scalar_fallback_required(mask):
             return reduce(lambda v, acc: (v and acc), mask.get_value(), True)
         else:
             # required to supported degenerate case (sub_)vector_size=1
-            return mask.get_value() 
+            return mask.get_value()
     # fallback
     return False
 
@@ -197,9 +198,13 @@ class StaticVectorizer(object):
             @return pair ML_Operation, CodeFunction of vectorized scheme and
                     scalar callback
         """
+        # TODO/FIXME: const table should not be copied
+        table_set = extract_tables(optree)
+        init_local_mapping = {table:table for table in table_set if table.const}
+
         # defaulting sub_vector_size to vector_size    when undefined
         sub_vector_size = vector_size if sub_vector_size is None else sub_vector_size
-        vectorized_path = self.extract_vectorizable_path(optree, fallback_policy)
+        vectorized_path = self.extract_vectorizable_path(optree, fallback_policy, local_mapping=init_local_mapping)
         linearized_most_likely_path = vectorized_path.linearized_optree
         validity_list = vectorized_path.validity_mask_list
 
@@ -272,6 +277,9 @@ class StaticVectorizer(object):
 
             vector_arg_list.append(sub_vec_arg_list)
             arg_list_copy.update(constant_dict)
+
+            # adding const table in pre-copied map toi avoid replication
+            arg_list_copy.update({table:table for table in table_set if table.const})
             sub_vector_path = linearized_most_likely_path.copy(arg_list_copy)
 
             sub_vector_path = self.vector_replicate_scheme_in_place(sub_vector_path, sub_vector_size, vectorization_map)
@@ -287,6 +295,7 @@ class StaticVectorizer(object):
             sub_vector_mask = self.vector_replicate_scheme_in_place(sub_vector_mask, sub_vector_size, vectorization_map)
             vector_masks.append(sub_vector_mask)
 
+            # for the first iteration (first sub-vector), we extract
             if i == 0:
                 constant_dict = extract_const(arg_list_copy)
 
@@ -373,11 +382,11 @@ class StaticVectorizer(object):
         """ extract a linear execution path from optree by chosing
             most likely side on each conditional branch
             @param optree operation tree to extract fast path from
-            @param fallback_policy lambda function 
-                  (cond, cond_block, if_branch, else_branch): 
+            @param fallback_policy lambda function
+                  (cond, cond_block, if_branch, else_branch):
                          branch_to_consider, validity_mask_list
                  if else_branch == None, fallback_policy MUST return if_branch
-            @return VectorizedPath object containing linearized optree, 
+            @return VectorizedPath object containing linearized optree,
                 validity mask list and variable_mapping """
         # NOTES/ fallback_policy must return the if_branch in the case
         # the else_branch is undefined (None)
@@ -422,7 +431,7 @@ class StaticVectorizer(object):
                     extra_cond = [LogicalNot(cond, precision = bool_precision) ]
                     # return  linearized_optree, (validity_mask_list + [LogicalNot(cond, precision = bool_precision)])
                     return  VectorizedPath(
-                              vectorized_path.linearized_optree, 
+                              vectorized_path.linearized_optree,
                               vectorized_path.validity_mask_list + extra_cond,
                               vectorized_path.variable_mapping
                             )

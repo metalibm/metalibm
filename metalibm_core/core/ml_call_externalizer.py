@@ -40,8 +40,9 @@ from metalibm_core.code_generation.code_function import CodeFunction
 from metalibm_core.code_generation.code_constant import C_Code
 from metalibm_core.code_generation.generator_utility import FunctionOperator
 
-
 from metalibm_core.utility.log_report import Log
+
+from metalibm_core.opt.opt_utils import extract_tables
 
 
 
@@ -75,8 +76,12 @@ def generate_function_from_optree(name_factory, optree, arg_list, tag="foo", res
       arg_index += 1
       arg_map[arg] = ext_function.add_input_variable(arg_tag, arg.get_precision())
 
+    # extracting const table to make sure then are not duplicated
+    table_set = extract_tables(optree)
+    arg_map.update({table:table for table in table_set if table.const})
+
     # copying optree while swapping argument for variables
-    optree_copy = optree.copy(copy_map = arg_map)
+    optree_copy = optree.copy(copy_map=arg_map)
     # instanciating external function scheme
     if isinstance(optree, ML_ArithmeticOperation):
         function_optree = Statement(Return(optree_copy))

@@ -40,6 +40,7 @@ from metalibm_core.core.ml_operations import (
     BitLogicLeftShift, BitLogicRightShift,
 )
 from metalibm_core.core.advanced_operations import PlaceHolder
+from metalibm_core.core.ml_table import ML_NewTable
 
 from metalibm_core.utility.log_report import Log
 
@@ -195,3 +196,21 @@ def is_scalar_cst(node, value):
     return isinstance(node, Constant) and not node.get_precision().is_vector_format() and node.get_value() == value
 def is_vector_uniform_cst(node, scalar_value):
     return isinstance(node, Constant) and node.get_precision().is_vector_format() and node.get_value() == [scalar_value] * node.get_precision().get_vector_size()
+
+
+def extract_tables(node):
+    """ extract the set of all ML_Table node in the graph starting
+        at node """
+    processed_set = set([node])
+    table_set = set()
+    working_set = [node]
+    while len(working_set):
+        elt = working_set.pop(0)
+        if isinstance(elt, ML_NewTable):
+            table_set.add(elt)
+        elif not isinstance(elt, ML_LeafNode):
+            for op in elt.inputs:
+                if not op in processed_set:
+                    processed_set.add(op)
+                    working_set.append(op)
+    return table_set
