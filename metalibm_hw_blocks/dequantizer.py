@@ -168,7 +168,13 @@ class Dequantizer(ML_Entity("dequantizer")):
         # TODO: implement rounding
 
         result_format = self.get_io_format("result")
-        result = Conversion(offseted_field, precision=result_format)
+
+        # detecting overflow / underflow
+        MAX_BOUND = self.get_io_format("result").get_max_value()
+        MIN_BOUND = self.get_io_format("result").get_min_value()
+        bounded_result = Max(MIN_BOUND, Min(offseted_field, MAX_BOUND))
+
+        result = Conversion(bounded_result, precision=result_format)
 
         self.implementation.add_output_signal("result", result)
         return [self.implementation]
@@ -178,7 +184,11 @@ class Dequantizer(ML_Entity("dequantizer")):
         scale = io_map["scale"]
         offset = io_map["offset"]
         result = {}
-        result["result"] = int(scale * qinput + offset)
+        unbounded_result = int(scale * qinput + offset)
+        # threshold clamp
+        MAX_BOUND = self.get_io_format("result").get_max_value()
+        MIN_BOUND = self.get_io_format("result").get_min_value()
+        result["result"] = max(min(MAX_BOUND, unbounded_result), MIN_BOUND)
         return result
 
     standard_test_cases = [
@@ -203,8 +213,12 @@ class Dequantizer(ML_Entity("dequantizer")):
         ({"quantized_input": -17, "scale": 17.0, "offset": 42}, None),
         #({"quantized_input": -17, "scale": -1.0, "offset": 42}, None),
 
+        # rounding
+        ({"quantized_input": 17, "scale": 0.625, "offset": 1337}, None),
+
         # TODO: cancellation tests
         # TODO: overflow tests
+        ({"quantized_input": 2**31-1, "scale": 4.0, "offset": 42}, None),
         # TODO: other tests
     ]
 
