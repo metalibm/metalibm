@@ -314,7 +314,7 @@ class DummyAsmBackend(AbstractBackend):
         self.architecture = DummyArchitecture()
 
     def generate_register(self, machine_register):
-        return "${}".format("".join("r%d" for sub_id in machine_register.register_id))
+        return "${}".format("".join("r%d" % sub_id for sub_id in machine_register.register_id))
 
     def generate_constant_expr(self, constant_node):
         """ generate the assembly value of a give Constant node """
