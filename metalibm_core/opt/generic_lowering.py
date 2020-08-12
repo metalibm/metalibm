@@ -75,9 +75,9 @@ class LoweringEngine:
             if lowering_action is None:
                 self.lowered_nodes[node] = node
                 if not is_leaf_node(node):
-                    for op in node.inputs:
+                    for index, op in enumerate(node.inputs):
                         node.set_input(index, self.lower_node(op))
-                    return node
+                return node
             else:
                 new_node = lowering_action(node)
                 self.lowered_nodes[node] = new_node
@@ -89,8 +89,24 @@ class LoweringEngine:
 class GenericLoweringBackend(GenericBackend):
     def get_lowering_action(self, node, lowered_tuple_inputs, first_level_descriptor=None):
         """ processor generate expression """
-        lowering_action = self.get_recursive_implementation(node, first_level_descriptor)
+        lowering_action = self.get_recursive_implementation(node, first_level_descriptor, allowed_to_fail=True)
         return lowering_action
+
+    @staticmethod
+    def get_operation_keys(node):
+        """ return action_selection_table key corresponding to the operation
+            performed by <node> """
+        # do not raise an error if node's format is None
+        op_class = node.__class__
+        node_format = node.get_precision()
+        result_type = (None if node_format is None else node_format.get_match_format() ,)
+        if not is_leaf_node(node):
+            arg_type = tuple((arg.get_precision().get_match_format() if not arg.get_precision() is None else None) for arg in node.get_inputs())
+            interface = result_type + arg_type
+        else:
+            interface = (result_type,)
+        codegen_key = node.get_codegen_key()
+        return op_class, interface, codegen_key
 
     @property
     def action_selection_table(self):
