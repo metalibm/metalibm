@@ -45,6 +45,7 @@ from metalibm_core.core.ml_formats import (
     ML_FP_Format,
     ML_Void,
     ML_Integer,
+    ML_Standard_FixedPoint_Format,
 )
 from metalibm_core.core.target import TargetRegister
 from metalibm_core.core.ml_operations import (
@@ -62,11 +63,14 @@ from metalibm_core.core.ml_operations import (
     VectorElementSelection,
     Constant,
     TableStore, TableLoad,
+    VectorBroadcast,
 )
 
 from metalibm_core.core.machine_operations import (
-    MaterializeConstant, RegisterCopy)
+    MaterializeConstant, RegisterCopy, RegisterAssign, SubRegister,
+    SequentialBlock)
 from metalibm_core.core.ml_complex_formats import is_pointer_format, ML_Pointer_Format
+from metalibm_core.core.ml_vectorizer import vectorize_format
 
 from metalibm_core.code_generation.generator_utility import (
     TemplateOperatorFormat,
@@ -87,6 +91,11 @@ from metalibm_core.code_generation.abstract_backend import (
     AbstractBackend)
 from metalibm_core.code_generation.generic_processor import (
     instanciate_extra_passes)
+
+
+from metalibm_core.opt.generic_lowering import (
+    GenericLoweringBackend, Pass_GenericLowering, LoweringAction)
+from metalibm_core.core.passes import METALIBM_PASS_REGISTER
 
 from metalibm_core.utility.log_report import Log
 
@@ -195,6 +204,9 @@ asm_code_generation_table = {
                     DummyAsmOperator("faddw {} = {}, {}", arity=2),
                 type_strict_match(ML_Binary64, ML_Binary64, ML_Binary64):
                     DummyAsmOperator("faddd {} = {}, {}", arity=2),
+
+                type_strict_match(v4float32, v4float32, v4float32):
+                    DummyAsmOperator("faddwq {} = {}, {}", arity=2),
             },
         },
     },
@@ -224,6 +236,9 @@ asm_code_generation_table = {
                     DummyAsmOperator("fmulw {} = {}, {}", arity=2),
                 type_strict_match(ML_Binary64, ML_Binary64, ML_Binary64):
                     DummyAsmOperator("fmuld {} = {}, {}", arity=2),
+
+                type_strict_match(v4float32, v4float32, v4float32):
+                    DummyAsmOperator("fmulwq {} = {}, {}", arity=2),
             },
         },
     },
@@ -252,7 +267,7 @@ asm_code_generation_table = {
     MaterializeConstant: {
         None: {
             lambda _: True: {
-                type_strict_match_list([ML_Integer, ML_Int32, ML_Int64, ML_Binary32, ML_Binary64]):
+                type_strict_match_list([ML_Integer, ML_Int32, ML_Int64, ML_Binary32, ML_Binary64, v2float32]):
                     DummyAsmOperator("maked {} = {}", arity=1),
             },
         },
@@ -263,6 +278,15 @@ asm_code_generation_table = {
                 # TODO/FIXME: should be distinguished based on format size
                 type_all_match:
                     DummyAsmOperator("copyd {} = {}", arity=1),
+            },
+        },
+    },
+    VectorBroadcast: {
+        None: {
+            lambda _: True: {
+                # TODO/FIXME: should be distinguished based on format size
+                type_strict_match(v2float32, ML_Binary32):
+                    DummyAsmOperator("vbcast {} = {}", arity=1),
             },
         },
     },
@@ -278,19 +302,29 @@ asm_code_generation_table = {
                 type_custom_match(FSM(ML_Void), type_all_match, is_pointer_format, type_table_index_match):
                     TemplateOperatorFormat("sd {1}[{2}] = {0}", arity=3, void_function=True), 
             },
+            # 128-bit data store
+            (lambda optree: optree.get_input(0).get_precision().get_bit_size() == 128): {
+                type_custom_match(FSM(ML_Void), type_all_match, is_pointer_format, type_table_index_match):
+                    TemplateOperatorFormat("sq {1}[{2}] = {0}", arity=3, void_function=True), 
+            },
         },
     },
     TableLoad: {
         None: {
-            # 32-bit data store
+            # 32-bit data load
             (lambda optree: optree.get_precision().get_bit_size() == 32): {
                 type_custom_match(FSM(ML_Binary32), is_pointer_format, type_table_index_match):
-                    DummyAsmOperator("lw {} = {}[{}]", arity=2), 
+                    DummyAsmOperator("lw {} = {}[{}]", arity=2),
             },
-            # 64-bit data store
+            # 64-bit data load
             (lambda optree: optree.get_precision().get_bit_size() == 64): {
                 type_custom_match(FSM(ML_Binary64), is_pointer_format, type_table_index_match):
-                    DummyAsmOperator("ld {} = {}[{}]", arity=2), 
+                    DummyAsmOperator("ld {} = {}[{}]", arity=2),
+            },
+            # 128-bit data load
+            (lambda optree: optree.get_precision().get_bit_size() == 128): {
+                type_custom_match(FSM(v4float32), is_pointer_format, type_table_index_match):
+                    DummyAsmOperator("lq {} = {}[{}]", arity=2),
             },
         },
     },
@@ -319,11 +353,28 @@ class DummyAsmBackend(AbstractBackend):
     def generate_constant_expr(self, constant_node):
         """ generate the assembly value of a give Constant node """
         cst_format = constant_node.get_precision()
-        if cst_format is ML_Integer:
+        if cst_format.is_vector_format():
+            return self.generate_vector_constant_expr(constant_node)
+        elif cst_format is ML_Integer:
             return "%d" % constant_node.get_value()
+        elif isinstance(cst_format, ML_Standard_FixedPoint_Format):
+            return "%d" % constant_node.get_value()
+        elif isinstance(cst_format, ML_FP_Format):
+            return "0x%x" % constant_node.get_precision().get_integer_coding(constant_node.get_value())
         else:
             return cst_format.get_cst(
                     constant_node.get_value(), language=ASM_Code)
+
+    def generate_vector_constant_expr(self, constant_node):
+        """ generate the assembly value of a give Constant node """
+        cst_format = constant_node.get_precision()
+        assert cst_format.is_vector_format()
+        if isinstance(cst_format, ML_FP_Format):
+            scalar_format = cst_format.get_scalar_format()
+            hex_size = scalar_format.get_bit_size() / 8
+            return "0x" + "".join(("{:0%dx}" % hex_size).format(scalar_format.get_integer_coding(value)) for value in constant_node.get_value())
+        else:
+            raise NotImplementedError
 
     def generate_conditional_branch(self, asm_generator, code_object, cb_node):
         cond = cb_node.get_input(0)
@@ -365,6 +416,7 @@ class DummyAsmBackend(AbstractBackend):
             # "beforecodegen:dummy_asm_lowering",
             "beforecodegen:collapse_reg_copy",
             "beforecodegen:register_allocation",
+            "beforecodegen:dump",
             "beforecodegen:simplify_bb_fallback",
         ]
         return instanciate_extra_passes(pass_scheduler, processor,
@@ -372,19 +424,91 @@ class DummyAsmBackend(AbstractBackend):
                                         language=language,
                                         pass_slot_deps={})
 
+def split_format(vector_format, num_chunk):
+    """ split vector format into sub-format """
+    return vectorize_format(vector_format.get_scalar_format(), num_chunk)
+
+def split_register(register, num_chunk):
+    """ split MachineRegister <register> into <num_chunk>
+        sub-registers """
+    reg_id = register.register_id
+    sub_format = split_format(register.get_precision(), num_chunk)
+    return [SubRegister(register, sub_id, reg_id, sub_format, register.var_tag) for sub_id in range(num_chunk)]
+
+class SplitConstantAssign(LoweringAction):
+    def __init__(self, num_chunk):
+        self.num_chunk = num_chunk
+    def lower_node(self, node):
+        dst_reg = node.get_input(0)
+        materialze_op = node.get_input(1)
+        assert isinstance(materialze_op, MaterializeConstant)
+        src_value = materialze_op.get_input(0)
+
+        sub_regs = split_register(dst_reg, self.num_chunk)
+        out_vsize = src_value.get_precision().get_vector_size() // self.num_chunk
+        out_vformat = vectorize_format(src_value.get_precision().get_scalar_format(), out_vsize)
+        sub_values = [MaterializeConstant(Constant([src_value.get_value()[chunk_id * out_vsize + sub_id] for sub_id in range(out_vsize)], precision=out_vformat), precision=out_vformat) for chunk_id in range(self.num_chunk)]
+
+        # single RegisterAssign is lowered into a sequence
+        # of sub-register assign
+        lowered_sequence = SequentialBlock(
+            *tuple(RegisterAssign(sub_reg, sub_value) for sub_reg, sub_value in zip(sub_regs, sub_values))
+        )
+        return lowered_sequence
+
+    def __call__(self, node):
+        return self.lower_node(node)
+
+    def get_source_info(self):
+        """ required as implementation origin indicator by AbstractBackend """
+        return None
+
+class SplitVectorBroadCast(LoweringAction):
+    def __init__(self, num_chunk):
+        self.num_chunk = num_chunk
+    def lower_node(self, node):
+        dst_reg = node.get_input(0)
+        src_value = node.get_input(1).get_input(0)
+
+        sub_regs = split_register(dst_reg, self.num_chunk)
+        out_vsize = dst_reg.get_precision().get_vector_size() // self.num_chunk
+        out_vformat = vectorize_format(src_value.get_precision(), out_vsize)
+        sub_values = [VectorBroadcast(src_value, precision=out_vformat) for chunk_id in range(self.num_chunk)]
+
+        # single RegisterAssign is lowered into a sequence
+        # of sub-register assign
+        lowered_sequence = SequentialBlock(
+            *tuple(RegisterAssign(sub_reg, sub_value) for sub_reg, sub_value in zip(sub_regs, sub_values))
+        )
+        return lowered_sequence
+
+    def __call__(self, node):
+        return self.lower_node(node)
+
+    def get_source_info(self):
+        """ required as implementation origin indicator by AbstractBackend """
+        return None
+
 
 DUMMY_ASM_TARGET_LOWERING_TABLE = {
     MaterializeConstant: {
         None: {
             lambda _: True: {
-                #type_strict_match_list([v4float32, v4float32]):
+                type_strict_match_list([v4float32, v4float32]):
+                    SplitConstantAssign(2),
+            },
+        },
+    },
+    VectorBroadcast: {
+        None: {
+            lambda _: True: {
+                type_strict_match_list([v4float32, ML_Binary32]):
+                    SplitVectorBroadCast(2),
             },
         },
     },
 }
 
-from metalibm_core.opt.generic_lowering import GenericLoweringBackend, Pass_GenericLowering
-from metalibm_core.core.passes import METALIBM_PASS_REGISTER
 
 def lowering_target_register(cls):
     """ Decorator for a Lowering target which generate the associated lowering
@@ -403,6 +527,19 @@ class DummyAsmTargetLowering(GenericLoweringBackend):
     lowering_table = {
         None: DUMMY_ASM_TARGET_LOWERING_TABLE
     }
+
+    @staticmethod
+    def get_operation_keys(node):
+        """ unwrap RegisterAssign to generate operation key from
+            node's operation """
+        if isinstance(node, RegisterAssign):
+            # if node is a RegisterAssign, we look for an implementation
+            # for the wrapped operation
+            dst = node.get_input(0)
+            operation = node.get_input(1)
+            return GenericLoweringBackend.get_operation_keys(operation)
+        else:
+            return GenericLoweringBackend.get_operation_keys(node)
 
 # debug message
 Log.report(LOG_BACKEND_INIT, "Initializing llvm backend target")
