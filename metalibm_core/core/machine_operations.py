@@ -2,7 +2,7 @@ from metalibm_core.core.ml_operations import (
     Variable, ReferenceAssign, ML_ArithmeticOperation,
 )
 
-from metalibm_core.core.bb_operations import BasicBlockList
+from metalibm_core.core.bb_operations import BasicBlockList, BasicBlock
 
 
 """
@@ -43,12 +43,20 @@ class MachineRegister(Variable):
         self.var_tag = var_tag
         self.register_id = register_id
 
+class SubRegister(MachineRegister):
+    """ sub-chunk of a machine register """
+    def __init__(self, super_register, sub_id, register_id, register_format, reg_tag, **kw):
+        MachineRegister.__init__(self, register_id, register_format, reg_tag, super_register.var_tag, **kw)
+        self.super_register = super_register
+        self.sub_id = sub_id
+
 class PhysicalRegister(MachineRegister):
     name = "PhysicalRegister"
     physical = True
 
 class RegisterAssign(ReferenceAssign):
     name = "RegisterAssign"
+    arity = 2
 
 class RegisterCopy(ML_ArithmeticOperation):
     """ Copy a register into a virtual register value
@@ -63,3 +71,8 @@ class MaterializeConstant(ML_ArithmeticOperation):
 
 class MaterializeConstant(ReferenceAssign):
     name = "MaterializeConstant"
+
+class SequentialBlock(BasicBlock):
+    """ Block of instructions which are transparently part of a
+        larger BasicBlock """
+    name = "SequentialBlock"
