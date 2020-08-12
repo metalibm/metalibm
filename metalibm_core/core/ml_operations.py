@@ -725,6 +725,9 @@ class AbstractVariable(ML_LeafNode):
         copy_map[self] = new_copy
         return new_copy
 
+    def get_codegen_key(self):
+        return None
+
 class Variable(AbstractVariable):
     """ Base class for non-abstract variable """
     name = "Variable"
