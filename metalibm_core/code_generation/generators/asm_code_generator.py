@@ -220,7 +220,7 @@ class AsmCodeGenerator(CodeGenerator):
     def generate_assignation(self, result_var, expression_code, final=True, precision=None):
         """ generate code for assignation of value <expression_code> to 
             variable <result_var> """
-        final_symbol = ";\n" if final else ""
+        final_symbol = "\n" if final else ""
         format_symbol = llvm_ir_format(precision) if precision else ""
         return "{result} = {format_str} {expr}{final}".format(
             result=result_var,
@@ -256,17 +256,17 @@ class AsmCodeGenerator(CodeGenerator):
 
     def generate_untied_statement(self, expression_code, final=True):
         """ generate code for a statement which is not tied (void) """
-        final_symbol = ";\n" if final else ""
+        final_symbol = "\n" if final else ""
         return "%s%s" % (expression_code, final_symbol) 
 
     def generate_declaration(self, symbol, symbol_object, initial = True, final = True):
         if isinstance(symbol_object, Constant):
             initial_symbol = ""#(symbol_object.get_precision().get_c_name() + " ") if initial else ""
-            final_symbol = ";\n" if final else ""
+            final_symbol = "\n" if final else ""
             return "%s%s = %s%s" % (initial_symbol, symbol, symbol_object.get_precision().get_gappa_cst(symbol_object.get_value()), final_symbol) 
         elif isinstance(symbol_object, Variable):
             initial_symbol = ""#(symbol_object.get_precision().get_c_name() + " ") if initial else ""
-            final_symbol = ";\n" if final else ""
+            final_symbol = "\n" if final else ""
             return "%s%s%s" % (initial_symbol, symbol, final_symbol) 
         elif isinstance(symbol_object, ML_Table):
             raise NotImplementedError
@@ -276,7 +276,7 @@ class AsmCodeGenerator(CodeGenerator):
 
         elif isinstance(symbol_object, FunctionObject):
             # declare an external function object
-            return "{};\n".format(symbol_object.get_declaration(self, language=LLVM_IR_Code))
+            return "{}\n".format(symbol_object.get_declaration(self, language=LLVM_IR_Code))
         elif isinstance(symbol_object, Label):
             return "ERROR<%s:>\n" % symbol_object.name
         else:
