@@ -179,11 +179,21 @@ class DummyArchitecture(asmde.Architecture):
         return (lo_reg, hi_reg)
 
 
+class MachineInstruction(TemplateOperatorFormat):
+    """ hybrid between TemplateOperatorFormat and instruction
+        with scheduling and bundling information """
+    def __init__(self, pattern, arity=1, latency=1, **kw):
+        TemplateOperatorFormat.__init__(self, pattern, arg_map=({index: arg_obj for (index, arg_obj) in [(0, FO_Result())] + [(i+1, FO_Arg(i)) for i in range(arity)]}), *kw)
+        self.latency = 1
 
-def DummyAsmOperator(pattern, arity=1, **kw):
-    return TemplateOperatorFormat(
-        pattern, arg_map=({index: arg_obj for (index, arg_obj) in [(0, FO_Result())] + [(i+1, FO_Arg(i)) for i in range(arity)]}),
-        **kw)
+
+class DummyAsmOperator(MachineInstruction):
+    pass
+
+#def DummyAsmOperator(pattern, arity=1, **kw):
+#    return TemplateOperatorFormat(
+#        pattern, arg_map=({index: arg_obj for (index, arg_obj) in [(0, FO_Result())] + [(i+1, FO_Arg(i)) for i in range(arity)]}),
+#        **kw)
 
 asm_code_generation_table = {
     Conversion: {
