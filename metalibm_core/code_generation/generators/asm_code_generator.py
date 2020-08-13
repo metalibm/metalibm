@@ -61,7 +61,7 @@ from metalibm_core.code_generation.code_generator import (
     CodeGenerator, RegisterCodeGenerator)
 
 from metalibm_core.core.machine_operations import (
-    MachineRegister, RegisterAssign)
+    MachineRegister, RegisterAssign, SequentialBlock)
 from metalibm_core.code_generation.asm_utility import (
     Label, get_free_label_name)
 
@@ -146,10 +146,14 @@ class AsmCodeGenerator(CodeGenerator):
             result = CodeExpression(self.processor.generate_constant_expr(node), precision)
 
         elif isinstance(node, BasicBlock):
-            bb_label = self.get_bb_label(code_object, node)
-            code_object.close_level(footer="", cr="")
-            code_object << bb_label << ":"
-            code_object.open_level(header="")
+            if isinstance(node, SequentialBlock):
+                # not really a BasicBlock, just a sequence of instruction
+                pass
+            else:
+                bb_label = self.get_bb_label(code_object, node)
+                code_object.close_level(footer="", cr="")
+                code_object << bb_label << ":"
+                code_object.open_level(header="")
             for op in node.inputs:
                 self.generate_expr(code_object, op, folded=folded,
                     initial=True, language=language)
