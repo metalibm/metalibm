@@ -746,7 +746,7 @@ class ML_FunctionBasis(object):
     Log.report(Log.Info, "Generating {} code in {}".format(self.language.desc, self.output_file))
     with open(self.output_file, "w") as output_stream:
         output_stream.write(source_code.get(self.main_code_generator))
-    source_file = build_utils.SourceFile(self.output_file, function_group)
+    source_file = build_utils.SourceFile(self.output_file, function_group, source_code.main_code.library_list)
     # returning execution result, if any
     execute_result = self.execute_output(embedding_binary, source_file)
     return execute_result
