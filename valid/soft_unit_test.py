@@ -43,7 +43,7 @@ S2 = SollyaObject(2)
 from metalibm_core.targets import *
 import metalibm_core.code_generation.mpfr_backend
 
-from metalibm_core.utility.ml_template import target_instanciate
+from metalibm_core.utility.ml_template import target_instanciate, VerboseAction
 from metalibm_core.core.ml_formats import (
     ML_Int32, ML_Int16, ML_Int64,
     ML_Binary32, ML_Binary64,
@@ -347,6 +347,10 @@ arg_parser.add_argument("--list", action = ListUnitTestAction, help = "list avai
 # select list of tests to be executed
 arg_parser.add_argument("--execute", dest = "test_list", type = parse_unit_test_list, default = unit_test_list, help = "list of comma separated test to be executed") 
 
+arg_parser.add_argument(
+    "--verbose", dest="verbose_enable", action=VerboseAction,
+    const=True, default=False,
+    help="enable Verbose log level")
 
 args = arg_parser.parse_args(sys.argv[1:])
 
