@@ -232,6 +232,7 @@ generic_approx_table_map = {
         },
     },
 }
+
 clock_gettime_operator = AsmInlineOperator(
 """{
         struct timespec current_clock;
@@ -816,7 +817,8 @@ c_code_generation_table = {
         SpecificOperation.ReadTimeStamp: {
             lambda _: True: {
                 type_strict_match(ML_Int64):
-                    clock_gettime_operator,
+                    FunctionOperator("PAPI_get_real_cyc", require_deps=[LibraryDependency("papi.h", "papi")]),
+                    #clock_gettime_operator,
             }
         }
     },
