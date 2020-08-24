@@ -323,7 +323,9 @@ class CodeObject(CodeConfiguration):
         self.expanded_code = ""
         self.uniquifier = uniquifier
         self.tablevel = 0
+        # list of header files which must be included before source code
         self.header_list = []
+        # list of libraries required to link a binary built from this source code
         self.library_list = []
         self.symbol_table = MultiSymbolTable(shared_tables if shared_tables else {}, parent_tables = (parent_tables if parent_tables else []), uniquifier = self.uniquifier)
         self.language = language

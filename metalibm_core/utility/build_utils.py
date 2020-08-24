@@ -85,11 +85,12 @@ def adapt_ctypes_wrapper_to_code_function(wrapper, code_function):
 
 
 class BinaryFile:
-    def __init__(self, path, source_object, shared_object=False, main=False):
+    def __init__(self, path, source_object, shared_object=False, main=False, library_deps=None):
         self.path = path
         self.source_object = source_object
         self.shared_object = shared_object
         self.main = main
+        self.library_deps = [] if library_deps is None else library_deps
         # DLL handle
         self._loaded_binary = None
 
@@ -132,12 +133,13 @@ def sha256_file(filename):
     return hasher.hexdigest()
 
 class SourceFile:
-    def __init__(self, path, function_list):
+    def __init__(self, path, function_list, library_list=None):
         self.function_list = function_list
         self.path = path
+        self.library_list = library_list if not library_list is None else []
 
     @staticmethod
-    def get_build_command(path,  target, bin_name=None, shared_object=False, link=False, expand_env_var=True, extra_build_opts=[]):
+    def get_build_command(path,  target, bin_name=None, shared_object=False, link=False, expand_env_var=True, extra_build_opts=[], library_list=[]):
         ML_SRC_DIR = "$ML_SRC_DIR" if not expand_env_var else os.environ["ML_SRC_DIR"]
         bin_name = bin_name or sha256_file(path)
         compiler = target.get_compiler()
@@ -145,19 +147,26 @@ class SourceFile:
         compiler_options = " ".join(DEFAULT_OPTIONS + extra_build_opts + target.get_compilation_options(ML_SRC_DIR))
         src_list = [path]
 
+        LIBS_OPTIONS = " ".join("-l{}".format(lib) for lib in library_list)
+        lib_opts = ""
+
         if not(link):
             # build only, disable link
             if shared_object:
                 compiler_options += " -fPIC -shared "
+                lib_opts += " {} ".format(LIBS_OPTIONS)
             else:
                 compiler_options += " -c "
+        else:
+            lib_opts += " {} ".format(LIBS_OPTIONS)
         Log.report(Log.Info, "Compiler options: \"{}\"".format(compiler_options))
 
-        build_command = "{compiler} {options} {src_file} -o {bin_name} -lm ".format(
+        build_command = "{compiler} {options} {src_file} -o {bin_name} {lib_opts} -lm ".format(
             compiler=compiler,
             src_file=(" ".join(src_list)),
             bin_name=bin_name,
             options=compiler_options,
+            lib_opts=lib_opts,
             ML_SRC_DIR=ML_SRC_DIR)
         return build_command
 
@@ -170,7 +179,7 @@ class SourceFile:
                 link: enable/disable link
             Return:
                 BinaryFile, str (error, stdout) """
-        build_command = SourceFile.get_build_command(self.path, target, bin_name, shared_object, link, expand_env_var=True, extra_build_opts=extra_build_opts)
+        build_command = SourceFile.get_build_command(self.path, target, bin_name, shared_object, link, expand_env_var=True, extra_build_opts=extra_build_opts, library_list=self.library_list)
 
         Log.report(Log.Info, "Building source with command: {}".format(build_command))
         build_result, build_stdout = get_cmd_stdout(build_command)
@@ -178,7 +187,7 @@ class SourceFile:
         if build_result:
             return None
         else:
-            return BinaryFile(bin_name, self, shared_object=shared_object)
+            return BinaryFile(bin_name, self, shared_object=shared_object, library_deps=self.library_list)
 
 
 class BuildProject:
