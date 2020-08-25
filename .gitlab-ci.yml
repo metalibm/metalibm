@@ -3,6 +3,7 @@ image: registry.gitlab.com/nibrunie/metalibm:metalibm_ci_ghdl
 before_script:
   - python3 --version
   - pip3 install git+https://github.com/nibrunie/asmde
+  - apt install -y libpapi-dev
 
 core_unit_test_py3:
   script:
