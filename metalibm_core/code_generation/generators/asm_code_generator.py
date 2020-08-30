@@ -60,8 +60,9 @@ from metalibm_core.code_generation.code_constant import ASM_Code
 from metalibm_core.code_generation.code_generator import (
     CodeGenerator, RegisterCodeGenerator)
 
+from metalibm_core.core.bb_operations import SequentialBlock
 from metalibm_core.core.machine_operations import (
-    MachineRegister, RegisterAssign, SequentialBlock)
+    MachineRegister, RegisterAssign)
 from metalibm_core.code_generation.asm_utility import (
     Label, get_free_label_name)
 

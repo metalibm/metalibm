@@ -66,9 +66,9 @@ from metalibm_core.core.ml_operations import (
     VectorBroadcast,
 )
 
+from metalibm_core.core.bb_operations import SequentialBlock
 from metalibm_core.core.machine_operations import (
-    MaterializeConstant, RegisterCopy, RegisterAssign, SubRegister,
-    SequentialBlock)
+    MaterializeConstant, RegisterCopy, RegisterAssign, SubRegister, VirtualRegister)
 from metalibm_core.core.ml_complex_formats import is_pointer_format, ML_Pointer_Format
 from metalibm_core.core.ml_vectorizer import vectorize_format
 
