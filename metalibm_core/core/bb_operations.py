@@ -39,8 +39,10 @@ from metalibm_core.core.ml_operations import (
     ML_ArithmeticOperation,
 )
 
+class Branch(ControlFlowOperation):
+    pass
 
-class ConditionalBranch(ControlFlowOperation):
+class ConditionalBranch(Branch):
     """ branch <cond> <true_dest> [<false_dest>] 
         ConditionalBranch supports 1 or 2 destination
         2: explicit fallback (for LLVM-IR)
@@ -92,7 +94,7 @@ class ConditionalBranch(ControlFlowOperation):
                 ) for inp, op_depth in zip(self.inputs, [new_depth, 0, 0]))
         )
         return node_str
-class UnconditionalBranch(ControlFlowOperation):
+class UnconditionalBranch(Branch):
     """ goto <dest> """
     arity = 1
     name = "UnconditionalBranch"
