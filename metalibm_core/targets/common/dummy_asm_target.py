@@ -101,6 +101,22 @@ from metalibm_core.utility.log_report import Log
 
 import asmde.allocator as asmde
 
+class MachineEXU:
+    def __init__(self, latency, pipeline=True, repeat_latency=1):
+        self.latency = latency
+        # is the unit pipelined ? (can it have multiple operations executing
+        # at the same time ?)
+        self.pipeline = pipeline
+        # how many cycles must be waited before a new operation
+        # can start executing ?
+        self.repeat_latency = repeat_latency
+
+DA_FPU = MachineEXU(4)
+DA_BCU = MachineEXU(2)
+DA_ALU = MachineEXU(1)
+DA_LSU = MachineEXU(15)
+DA_MAU = MachineEXU(2)
+
 class DummyArchitecture(asmde.Architecture):
     REG_SIZE = 64
     # 64-bit addresses
@@ -179,18 +195,23 @@ class DummyArchitecture(asmde.Architecture):
         return (lo_reg, hi_reg)
 
 
-class MachineInstruction(TemplateOperatorFormat):
+class MachineInstruction:
     """ hybrid between TemplateOperatorFormat and instruction
         with scheduling and bundling information """
-    def __init__(self, pattern, arity=1, latency=1, **kw):
+    def __init__(self, exu=None):
+        self.exu = exu
+
+
+class StandardAsmOperator(MachineInstruction, TemplateOperatorFormat):
+    def __init__(self, pattern, arity=1, exu=None, **kw):
         TemplateOperatorFormat.__init__(self, pattern, arg_map=({index: arg_obj for (index, arg_obj) in [(0, FO_Result())] + [(i+1, FO_Arg(i)) for i in range(arity)]}), *kw)
-        self.latency = 1
+        MachineInstruction.__init__(self, exu)
+class AdvancedAsmOperator(MachineInstruction, TemplateOperatorFormat):
+    def __init__(self, pattern, exu=None, **kw):
+        TemplateOperatorFormat.__init__(self, pattern, **kw)
+        MachineInstruction.__init__(self, exu)
 
-
-class DummyAsmOperator(MachineInstruction):
-    pass
-
-#def DummyAsmOperator(pattern, arity=1, **kw):
+#def StandardAsmOperator(pattern, arity=1, **kw):
 #    return TemplateOperatorFormat(
 #        pattern, arg_map=({index: arg_obj for (index, arg_obj) in [(0, FO_Result())] + [(i+1, FO_Arg(i)) for i in range(arity)]}),
 #        **kw)
@@ -200,7 +221,7 @@ asm_code_generation_table = {
         None: {
             lambda _: True: {
                 type_strict_match(ML_Int32, ML_Binary32):
-                    DummyAsmOperator("fixedw.rn {} = {}, 0", arity=1),
+                    StandardAsmOperator("fixedw.rn {} = {}, 0", arity=1, exu=DA_FPU),
             },
         },
     },
@@ -208,15 +229,15 @@ asm_code_generation_table = {
         None: {
             lambda _: True: {
                 type_strict_match_list([ML_Int32, ML_UInt32], [ML_UInt32, ML_Int32], [ML_Int32, ML_UInt32]):
-                    DummyAsmOperator("addw {} = {}, {}", arity=2),
+                    StandardAsmOperator("addw {} = {}, {}", arity=2, exu=DA_ALU),
 
                 type_strict_match(ML_Binary32, ML_Binary32, ML_Binary32):
-                    DummyAsmOperator("faddw {} = {}, {}", arity=2),
+                    StandardAsmOperator("faddw {} = {}, {}", arity=2, exu=DA_FPU),
                 type_strict_match(ML_Binary64, ML_Binary64, ML_Binary64):
-                    DummyAsmOperator("faddd {} = {}, {}", arity=2),
+                    StandardAsmOperator("faddd {} = {}, {}", arity=2, exu=DA_FPU),
 
                 type_strict_match(v4float32, v4float32, v4float32):
-                    DummyAsmOperator("faddwq {} = {}, {}", arity=2),
+                    StandardAsmOperator("faddwq {} = {}, {}", arity=2, exu=DA_FPU),
             },
         },
     },
@@ -225,14 +246,14 @@ asm_code_generation_table = {
             lambda _: True: {
                 type_strict_match_list([ML_Int32, ML_UInt32], [ML_UInt32, ML_Int32], [ML_Int32, ML_UInt32]):
                     # subtract from: op1 - op0 (reverse)
-                    TemplateOperatorFormat("sbfw {} = {}, {}", arg_map={0: FO_Result(), 1: FO_Arg(1), 2: FO_Arg(0)}, arity=2),
+                    AdvancedAsmOperator("sbfw {} = {}, {}", arg_map={0: FO_Result(), 1: FO_Arg(1), 2: FO_Arg(0)}, arity=2, exu=DA_ALU),
 
                 type_strict_match(ML_Binary32, ML_Binary32, ML_Binary32):
                     # subtract from: op1 - op0 (reverse)
-                    TemplateOperatorFormat("fsbfw {} = {}, {}", arg_map={0: FO_Result(), 1: FO_Arg(1), 2: FO_Arg(0)}, arity=2),
+                    AdvancedAsmOperator("fsbfw {} = {}, {}", arg_map={0: FO_Result(), 1: FO_Arg(1), 2: FO_Arg(0)}, arity=2, exu=DA_FPU),
                 type_strict_match(ML_Binary64, ML_Binary64, ML_Binary64):
                     # subtract from: op1 - op0 (reverse)
-                    TemplateOperatorFormat("fsbfd {} = {}, {}", arg_map={0: FO_Result(), 1: FO_Arg(1), 2: FO_Arg(0)}, arity=2),
+                    AdvancedAsmOperator("fsbfd {} = {}, {}", arg_map={0: FO_Result(), 1: FO_Arg(1), 2: FO_Arg(0)}, arity=2, exu=DA_FPU),
             },
         },
     },
@@ -240,15 +261,15 @@ asm_code_generation_table = {
         None: {
             lambda _: True: {
                 type_strict_match_list([ML_Int32, ML_UInt32], [ML_UInt32, ML_Int32], [ML_Int32, ML_UInt32]):
-                    DummyAsmOperator("mulw {} = {}, {}", arity=2),
+                    StandardAsmOperator("mulw {} = {}, {}", arity=2, exu=DA_MAU),
 
                 type_strict_match(ML_Binary32, ML_Binary32, ML_Binary32):
-                    DummyAsmOperator("fmulw {} = {}, {}", arity=2),
+                    StandardAsmOperator("fmulw {} = {}, {}", arity=2, exu=DA_FPU),
                 type_strict_match(ML_Binary64, ML_Binary64, ML_Binary64):
-                    DummyAsmOperator("fmuld {} = {}, {}", arity=2),
+                    StandardAsmOperator("fmuld {} = {}, {}", arity=2, exu=DA_FPU),
 
                 type_strict_match(v4float32, v4float32, v4float32):
-                    DummyAsmOperator("fmulwq {} = {}, {}", arity=2),
+                    StandardAsmOperator("fmulwq {} = {}, {}", arity=2, exu=DA_FPU),
             },
         },
     },
@@ -256,7 +277,7 @@ asm_code_generation_table = {
         None: {
             lambda _: True: {
                 type_strict_match(ML_Void):
-                    TemplateOperatorFormat("ret", arity=0, void_function=True),
+                    AdvancedAsmOperator("ret", arity=0, void_function=True, exu=DA_BCU),
             },
         },
     },
@@ -264,13 +285,13 @@ asm_code_generation_table = {
         Comparison.Less: {
             lambda _: True: {
                 type_strict_match(ML_Bool, ML_Int32, ML_Int32):
-                    DummyAsmOperator("compw.lt {} = {}, {}", arity=2),
-            },
+                    StandardAsmOperator("compw.lt {} = {}, {}", arity=2, exu=DA_ALU),
+            }
         },
         Comparison.LessOrEqual: {
             lambda _: True: {
                 type_strict_match(ML_Bool, ML_Int32, ML_Int32):
-                    DummyAsmOperator("compw.le {} = {}, {}", arity=2),
+                    StandardAsmOperator("compw.le {} = {}, {}", arity=2, exu=DA_ALU),
             },
         },
     },
@@ -278,7 +299,7 @@ asm_code_generation_table = {
         None: {
             lambda _: True: {
                 type_strict_match_list([ML_Integer, ML_Int32, ML_Int64, ML_Binary32, ML_Binary64, v2float32]):
-                    DummyAsmOperator("maked {} = {}", arity=1),
+                    StandardAsmOperator("maked {} = {}", arity=1, exu=DA_ALU),
             },
         },
     },
@@ -287,7 +308,7 @@ asm_code_generation_table = {
             lambda _: True: {
                 # TODO/FIXME: should be distinguished based on format size
                 type_all_match:
-                    DummyAsmOperator("copyd {} = {}", arity=1),
+                    StandardAsmOperator("copyd {} = {}", arity=1, exu=DA_ALU),
             },
         },
     },
@@ -296,7 +317,7 @@ asm_code_generation_table = {
             lambda _: True: {
                 # TODO/FIXME: should be distinguished based on format size
                 type_strict_match(v2float32, ML_Binary32):
-                    DummyAsmOperator("vbcast {} = {}", arity=1),
+                    StandardAsmOperator("vbcast {} = {}", arity=1, exu=DA_MAU),
             },
         },
     },
@@ -305,17 +326,17 @@ asm_code_generation_table = {
             # 32-bit data store
             (lambda optree: optree.get_input(0).get_precision().get_bit_size() == 32): {
                 type_custom_match(FSM(ML_Void), type_all_match, is_pointer_format, type_table_index_match):
-                    TemplateOperatorFormat("sw {1}[{2}] = {0}", arity=3, void_function=True), 
+                    AdvancedAsmOperator("sw {1}[{2}] = {0}", arity=3, void_function=True, exu=DA_LSU), 
             },
             # 64-bit data store
             (lambda optree: optree.get_input(0).get_precision().get_bit_size() == 64): {
                 type_custom_match(FSM(ML_Void), type_all_match, is_pointer_format, type_table_index_match):
-                    TemplateOperatorFormat("sd {1}[{2}] = {0}", arity=3, void_function=True), 
+                    AdvancedAsmOperator("sd {1}[{2}] = {0}", arity=3, void_function=True, exu=DA_LSU), 
             },
             # 128-bit data store
             (lambda optree: optree.get_input(0).get_precision().get_bit_size() == 128): {
                 type_custom_match(FSM(ML_Void), type_all_match, is_pointer_format, type_table_index_match):
-                    TemplateOperatorFormat("sq {1}[{2}] = {0}", arity=3, void_function=True), 
+                    AdvancedAsmOperator("sq {1}[{2}] = {0}", arity=3, void_function=True, exu=DA_LSU), 
             },
         },
     },
@@ -324,17 +345,17 @@ asm_code_generation_table = {
             # 32-bit data load
             (lambda optree: optree.get_precision().get_bit_size() == 32): {
                 type_custom_match(FSM(ML_Binary32), is_pointer_format, type_table_index_match):
-                    DummyAsmOperator("lw {} = {}[{}]", arity=2),
+                    StandardAsmOperator("lw {} = {}[{}]", arity=2, exu=DA_LSU),
             },
             # 64-bit data load
             (lambda optree: optree.get_precision().get_bit_size() == 64): {
                 type_custom_match(FSM(ML_Binary64), is_pointer_format, type_table_index_match):
-                    DummyAsmOperator("ld {} = {}[{}]", arity=2),
+                    StandardAsmOperator("ld {} = {}[{}]", arity=2, exu=DA_LSU),
             },
             # 128-bit data load
             (lambda optree: optree.get_precision().get_bit_size() == 128): {
                 type_custom_match(FSM(v4float32), is_pointer_format, type_table_index_match):
-                    DummyAsmOperator("lq {} = {}[{}]", arity=2),
+                    StandardAsmOperator("lq {} = {}[{}]", arity=2, exu=DA_LSU),
             },
         },
     },
@@ -372,6 +393,11 @@ class DummyAsmBackend(AbstractBackend):
         else:
             return "${}".format("".join("r%d" % sub_id for sub_id in machine_register.register_id))
 
+    def get_operation_resource(self, node):
+        """ return the resources used to implement an operation """
+        implementation = self.get_recursive_implementation(node, language=ASM_Code)
+        return implementation.exu
+
     def generate_constant_expr(self, constant_node):
         """ generate the assembly value of a given Constant node """
         cst_format = constant_node.get_precision()
@@ -388,7 +414,8 @@ class DummyAsmBackend(AbstractBackend):
                     constant_node.get_value(), language=ASM_Code)
 
     def generate_vector_constant_expr(self, constant_node):
-        """ generate the assembly value of a give Constant node """
+        """ generate the assembly value of a given Constant node
+            with vector values """
         cst_format = constant_node.get_precision()
         assert cst_format.is_vector_format()
         if isinstance(cst_format, ML_FP_Format):
