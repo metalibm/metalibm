@@ -231,3 +231,7 @@ class PhiNode(ML_ArithmeticOperation):
         return self.get_input(2 * index +1)
 
 
+class SequentialBlock(BasicBlock):
+    """ Block of instructions which are transparently part of a
+        larger BasicBlock """
+    name = "SequentialBlock"

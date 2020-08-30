@@ -73,7 +73,3 @@ class MaterializeConstant(ML_ArithmeticOperation):
 class MaterializeConstant(ReferenceAssign):
     name = "MaterializeConstant"
 
-class SequentialBlock(BasicBlock):
-    """ Block of instructions which are transparently part of a
-        larger BasicBlock """
-    name = "SequentialBlock"

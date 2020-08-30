@@ -47,6 +47,7 @@ from metalibm_core.core.passes import FunctionPass, Pass, LOG_PASS_INFO
 from metalibm_core.core.bb_operations import (
     BasicBlockList,
     ConditionalBranch, UnconditionalBranch, BasicBlock,
+    SequentialBlock,
     PhiNode
 )
 
@@ -955,6 +956,9 @@ class Pass_BBSimplification(FunctionPass):
             processed_list.append(current_bb)
             if current_bb.empty:
                 continue
+            # linearize SequentialBlock
+            current_bb.inputs = sum([list(op.inputs) if isinstance(op, SequentialBlock) else [op] for op in current_bb.inputs], [])
+                
             for next_bb in current_bb.successors:
                 if not next_bb in processed_list:
                     work_list.append(next_bb)
