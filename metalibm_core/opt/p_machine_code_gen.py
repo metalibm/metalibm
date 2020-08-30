@@ -179,6 +179,9 @@ class Pass_SimplifyBBFallback(FunctionPass):
             if isinstance(last_insn, UnconditionalBranch) and index + 1 < len(linearized_program.inputs):
                 dest_bb = last_insn.get_input(0)
                 if dest_bb == linearized_program.inputs[index + 1]:
+                    # if the last instruction of the Basic Block is an uncondition branch (goto)
+                    # which jump to the next block in sequential order then the branch can be 
+                    # simplified away
                     Log.report(LOG_SIMPLIFY_BB_FALLBACK_INFO, "removing last UnconditionalBranch from BB: {}", bb)
                     # removing last UnconditionalBranch has the fallback is enough
                     bb.inputs = bb.inputs[:-1]
