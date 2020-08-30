@@ -20,8 +20,16 @@ MDL expressions are a composition of leaf nodes (**Constant**, **Variable**) and
     z = x + 3
 
 
-### Statement
-Control flow can be described in MDL using Statement constructs such as **ConditionBlock**, **Statement**, **Return**.
+### Control Flow
+
+Control flow can be described in MDL using constructs such as **ConditionBlock**, **Statement**, **Return**.
+
+#### Statement
+
+
+
+#### ConditionBlock
+if-then-else block can be described with **ConditionBlock(<condition>, <if-branch>, <else-branch>)**. The **<else-branch>** is optional.
 
     # if (cond) then return a else return b
     scheme = ConditionBlock(

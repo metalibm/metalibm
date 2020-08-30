@@ -220,7 +220,12 @@ def interval_list_parser(list_str):
 #  the string @p target_name
 def target_parser(target_name):
     """ string -> target conversion """
-    return target_map[target_name]
+    try:
+        return target_map[target_name]
+    except KeyError:
+        print("available target(s):\n  -")
+        print("\n  -".join(target_map.keys()))
+        raise
 # Instanciate a target object from its string description
 
 
