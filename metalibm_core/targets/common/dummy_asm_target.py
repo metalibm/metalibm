@@ -358,8 +358,17 @@ class DummyAsmBackend(AbstractBackend):
         self.architecture = DummyArchitecture()
 
     def generate_register(self, machine_register):
-        if isinstance(machine_register, SubRegister):
-            return "$r{}".format(machine_register.super_register.register_id[machine_register.sub_id])
+        if isinstance(machine_register, VirtualRegister):
+            if machine_register.is_named_register:
+                return "$v-{}".format(machine_register.var_tag)
+            else:
+                return "$v{}".format(machine_register.register_id)
+        elif isinstance(machine_register, SubRegister):
+            super_reg = machine_register.super_register
+            if isinstance(super_reg, VirtualRegister):
+                return "$v{}[{}]".format(machine_register.super_register.register_id, machine_register.sub_id)
+            else:
+                return "$r{}".format(machine_register.super_register.register_id[machine_register.sub_id])
         else:
             return "${}".format("".join("r%d" % sub_id for sub_id in machine_register.register_id))
 
