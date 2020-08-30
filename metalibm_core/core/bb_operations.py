@@ -157,12 +157,13 @@ class BasicBlock(Statement):
 
     @property
     def successors(self):
-        last_op = self.get_input(-1)
-        if not isinstance(last_op, ControlFlowOperation):
-            Log.report(Log.Info, "last operation of BB is not a ControlFlowOperation: BB is {}", self)
-            return []
-        else:
-            return last_op.destination_list
+        return [dst for op in self.inputs if isinstance(op, Branch) for dst in op.destination_list]
+        #last_op = self.get_input(-1)
+        #if not isinstance(last_op, ControlFlowOperation):
+        #    Log.report(Log.Info, "last operation of BB is not a ControlFlowOperation: BB is {}", self)
+        #    return []
+        #else:
+        #    return last_op.destination_list
 
     def get_str(
             self, depth=2, display_precision=False,
