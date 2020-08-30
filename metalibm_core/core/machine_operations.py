@@ -35,14 +35,25 @@ class MachineProgram(BasicBlockList):
 class MachineRegister(Variable):
     """ Machine register """
     name = "MachineRegister"
-    physical = False
+    physical = None
     def __init__(self, register_id, register_format, reg_tag, var_tag=None, **kw):
         """ register tag is stored as inner Variable's name
             and original variable's name is stored in self.var_tag """
-        reg_tag = "unamed-reg" if reg_tag is None else reg_tag
-        Variable.__init__(self, reg_tag, precision=register_format, **kw)
+        #reg_tag = "unamed-reg" if reg_tag is None else reg_tag
+        # indirection toward register's tag (if _reg_tag's value is None, then
+        # register tag is undefined)
+        self._reg_tag = reg_tag
+        Variable.__init__(self, self.reg_tag, precision=register_format, **kw)
         self.var_tag = var_tag
         self.register_id = register_id
+
+    @property
+    def reg_tag(self):
+        return "unamed-reg" if self._reg_tag is None else self._reg_tag
+
+    @property
+    def is_named_register(self):
+        return not self.var_tag is None
 
 class SubRegister(MachineRegister):
     """ sub-chunk of a machine register """
@@ -51,7 +62,13 @@ class SubRegister(MachineRegister):
         self.super_register = super_register
         self.sub_id = sub_id
 
+class VirtualRegister(MachineRegister):
+    """ Virtual architectural register """
+    name = "VirtualRegister"
+    physical = False
+
 class PhysicalRegister(MachineRegister):
+    """ Phyiscal architectural register """
     name = "PhysicalRegister"
     physical = True
 

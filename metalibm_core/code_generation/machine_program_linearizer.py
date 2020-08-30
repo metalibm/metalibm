@@ -62,6 +62,7 @@ from metalibm_core.code_generation.code_function import CodeFunction
 
 from metalibm_core.core.machine_operations import (
     MachineRegister, RegisterAssign, MaterializeConstant,
+    VirtualRegister,
     RegisterCopy, MaterializeConstant,
     MachineProgram
 )
@@ -103,7 +104,8 @@ class MachineInsnGenerator(object):
             reg_tag = "reg-{}".format(self.register_id)
         else:
             reg_tag = "reg-{}".format(var_tag)
-        return MachineRegister(self.register_id, register_format, reg_tag, var_tag=var_tag)
+        # generate a virtual instance of a MachineRegister -> VirtualRegister
+        return VirtualRegister(self.register_id, register_format, reg_tag, var_tag=var_tag)
 
     def get_var_register(self, var_node):
         if not var_node in self.var_register_map:
