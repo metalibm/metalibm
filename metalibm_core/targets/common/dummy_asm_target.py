@@ -373,7 +373,7 @@ class DummyAsmBackend(AbstractBackend):
             return "${}".format("".join("r%d" % sub_id for sub_id in machine_register.register_id))
 
     def generate_constant_expr(self, constant_node):
-        """ generate the assembly value of a give Constant node """
+        """ generate the assembly value of a given Constant node """
         cst_format = constant_node.get_precision()
         if cst_format.is_vector_format():
             return self.generate_vector_constant_expr(constant_node)
