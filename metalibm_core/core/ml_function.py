@@ -1571,7 +1571,8 @@ class ML_FunctionBasis(object):
           ReferenceAssign(max_error_absolute, Constant(0, precision=self.precision)),
           ReferenceAssign(max_error_relative, Constant(0, precision=self.precision)),
           error_loop,
-          printf_error_function(max_error_absolute, max_error_relative))
+          printf_error_function(max_error_absolute, max_error_relative),
+          Return(max_error_relative))
       return main_statement
 
   def generate_scalar_max_error_eval(self, tested_function, test_num,
