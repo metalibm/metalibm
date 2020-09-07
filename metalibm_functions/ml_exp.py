@@ -426,20 +426,8 @@ class ML_Exponential(ScalarUnaryFunction):
 
         return scheme
 
-    def generate_emulate(self, result_ternary, result, mpfr_x, mpfr_rnd):
-        """ generate the emulation code for ML_Log2 functions
-            mpfr_x is a mpfr_t variable which should have the right precision
-            mpfr_rnd is the rounding mode
-        """
-        emulate_func_name = "mpfr_exp"
-        emulate_func_op = FunctionOperator(emulate_func_name, arg_map = {0: FO_Arg(0), 1: FO_Arg(1), 2: FO_Arg(2)}, require_header = ["mpfr.h"]) 
-        emulate_func   = FunctionObject(emulate_func_name, [ML_Mpfr_t, ML_Mpfr_t, ML_Int32], ML_Int32, emulate_func_op)
-        mpfr_call = Statement(ReferenceAssign(result_ternary, emulate_func(result, mpfr_x, mpfr_rnd)))
-
-        return mpfr_call
-
     def numeric_emulate(self, input_value):
-        """ Numeric emaluation of exponential """
+        """ Numeric emulation of exponential """
         return sollya.exp(input_value)
 
     standard_test_cases = [
