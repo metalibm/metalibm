@@ -96,9 +96,9 @@ class ScalarBinaryFunction(ML_FunctionBasis):
         return result_var, result_scheme
 
     def generate_scheme(self):
-        vx = self.implementation.add_input_variable("x", self.get_input_precision(),
+        vx = self.implementation.add_input_variable("x", self.get_input_precision(0),
                                                     interval=self.input_intervals[0])
-        vy = self.implementation.add_input_variable("y", self.get_input_precision(),
+        vy = self.implementation.add_input_variable("y", self.get_input_precision(1),
                                                     interval=self.input_intervals[1])
 
         scalar_scheme = self.generate_scalar_scheme(vx, vy)
