@@ -494,14 +494,14 @@ class PassCheckProcessorSupport(FunctionPass):
                         if not match_found:
                             break
                     # checking final processor support
-                    if not processor.is_supported_operation(optree):
+                    if not processor.is_supported_operation(optree, language=language):
                         # look for possible simplification
                         if has_support_simplification(optree):
                             simplified_tree = get_support_simplification(optree, processor)
                             Log.report(Log.Verbose, "simplifying %s" % optree.get_str(depth = 2, display_precision = True))
                             Log.report(Log.Verbose, "into %s" % simplified_tree.get_str(depth = 2, display_precision = True))
                             optree.change_to(simplified_tree)
-                            if processor.is_supported_operation(optree):
+                            if processor.is_supported_operation(optree, language=language):
                                 memoization_map[optree] = True
                                 return True
                         print("pre escalation node is: ", old_list) # Error print
