@@ -120,7 +120,10 @@ def transform_cb_to_bb(bb_translator, optree, fct=None, fct_group=None, memoizat
         else_end = bb_translator.pop_current_bb(force_add=True)
         # new bb for next block (only if else block not empty)
         next_bb = bb_translator.push_new_bb()
-        add_to_bb(else_end, UnconditionalBranch(next_bb))
+        if not else_end.final:
+            # add "br next" in else_block only if the BB is not final
+            # (e.g. no Return)
+            add_to_bb(else_end, UnconditionalBranch(next_bb))
     else:
         else_entry = bb_translator.push_new_bb()
 
