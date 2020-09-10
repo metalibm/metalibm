@@ -378,6 +378,7 @@ class FPRandomGen(RandomGenWeightCat):
         """
         self.precision = precision
 
+        # default category mapping
         weight_map = normalize_map({
             FPRandomGen.Category.SpecialValues: 0.1,
             FPRandomGen.Category.Subnormal: 0.2,
@@ -460,8 +461,24 @@ class MPFPRandomGen:
             acc += new_limb
         return acc
 
+def get_precision_rng(precision, value_range=None):
+    if value_range is None:
+        # default full-range value generation
+        base_format = precision.get_base_format()
+        if isinstance(base_format, ML_FP_MultiElementFormat):
+            return MPFPRandomGen(precision)
+        elif isinstance(base_format, ML_FP_Format):
+            return FPRandomGen(precision)
+        elif isinstance(base_format, ML_Fixed_Format):
+            return FixedPointRandomGen(precision)
+        else:
+            Log.report(Log.Error, "unsupported format {}/{} in get_precision_rng", precision, base_format)
+    else:
+        low_bound = sollya.inf(value_range)
+        high_bound = sollya.sup(value_range)
+        return get_precision_rng_with_defined_range(precision, low_bound, high_bound)
 
-def get_precision_rng(precision, inf_bound, sup_bound):
+def get_precision_rng_with_defined_range(precision, inf_bound, sup_bound):
     """ build a random number generator for format @p precision
         which generates values within the range [inf_bound, sup_bound] """
     base_format = precision.get_base_format()

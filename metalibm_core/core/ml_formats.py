@@ -512,6 +512,7 @@ class ML_Std_FP_Format(ML_FP_Format):
             elif isinstance(cst_value, int):
                 conv_result = str(float(cst_value)) + self.c_suffix
             else:
+              assert not cst_value is sollya.error
               if isinstance(cst_value, sollya.SollyaObject) and not no_round:
                 conv_result  = str(self.round_sollya_object(cst_value)) + self.c_suffix
               else:
