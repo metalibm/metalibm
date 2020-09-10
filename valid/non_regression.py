@@ -59,7 +59,11 @@ import metalibm_functions.vectorial_function
 from metalibm_core.core.ml_formats import ML_Binary32, ML_Binary64, ML_Int32
 from metalibm_core.core.precisions import dar
 
+from metalibm_core.code_generation.code_constant import LLVM_IR_Code
+
 from metalibm_core.targets.common.vector_backend import VectorBackend
+from metalibm_core.targets.common.llvm_ir import LLVMBackend
+
 from metalibm_core.targets.intel.x86_processor import (
         X86_Processor, X86_SSE_Processor, X86_SSE2_Processor,
         X86_SSE3_Processor, X86_SSSE3_Processor, X86_SSE41_Processor,
@@ -174,6 +178,13 @@ new_scheme_function_list = [
     "basic exp test",
     metalibm_functions.ml_exp.ML_Exponential,
     [{"precision": ML_Binary32}, {"precision": ML_Binary64}]
+  ),
+  NewSchemeTest(
+    "llvm-ir exp test",
+    metalibm_functions.ml_exp.ML_Exponential,
+    [
+        {"precision": ML_Binary32, "target": LLVMBackend.get_target_instance(), "language": LLVM_IR_Code, "extra_passes": ["start:instantiate_abstract_prec", "start:instantiate_prec", "start:basic_legalization"]} ,
+    {"precision": ML_Binary64, "target": LLVMBackend.get_target_instance(), "language": LLVM_IR_Code, "extra_passes": ["start:instantiate_abstract_prec", "start:instantiate_prec", "start:basic_legalization"]}]
   ),
   NewSchemeTest(
     "exp value test",
