@@ -275,6 +275,9 @@ llvm_ir_code_generation_table = {
     Conversion: {
         None: {
             lambda _: True: {
+                type_strict_match(ML_Int64, ML_Int32):
+                    LLVMIrTemplateOperator("sext i32 {} to i64", arity=1),
+
                 type_strict_match(v2int32, v2bool):
                     LLVMIrTemplateOperator("sext <2 x i1> {} to <2 x i32>", arity=1),
                 type_strict_match(v4int32, v4bool):
@@ -291,6 +294,12 @@ llvm_ir_code_generation_table = {
                     LLVMIrTemplateOperator("fptosi float {} to i32", arity=1),
                 type_strict_match(ML_Binary32, ML_Binary32):
                     LLVMIrIntrinsicOperator("llvm.nearbyint.f32", arity=1, output_precision=ML_Binary32, input_formats=[ML_Binary32]),
+
+                type_strict_match(ML_Int64, ML_Binary64):
+                    LLVMIrTemplateOperator("fptosi float {} to i64", arity=1),
+                type_strict_match(ML_Binary64, ML_Binary64):
+                    LLVMIrIntrinsicOperator("llvm.nearbyint.f64", arity=1, output_precision=ML_Binary64, input_formats=[ML_Binary64]),
+
                 # vector version
                 type_strict_match(v4float32, v4float32):
                     LLVMIrIntrinsicOperator("llvm.nearbyint.f32", arity=1, output_precision=v4float32, input_formats=[v4float32]),
@@ -489,6 +498,12 @@ llvm_ir_code_generation_table = {
                     llvm_bitcast_function(ML_Int32, ML_Binary32),
                 type_strict_match(ML_Binary32, ML_Int32):
                     llvm_bitcast_function(ML_Binary32, ML_Int32),
+
+                type_strict_match(ML_Int64, ML_Binary64):
+                    llvm_bitcast_function(ML_Int64, ML_Binary64),
+                type_strict_match(ML_Binary64, ML_Int64):
+                    llvm_bitcast_function(ML_Binary64, ML_Int64),
+
                 type_strict_match(ML_Int128, v4int32):
                     llvm_bitcast_function(ML_Int128, v4int32),
                 type_strict_match(ML_Int256, v8int32):
