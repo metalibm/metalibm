@@ -139,6 +139,7 @@ def is_multiplication(optree):
 def is_division(optree):
     return isinstance(optree, Division)
 def is_constant(optree):
+    """ test if node optree is a Constat node """
     return isinstance(optree, Constant)
 
 def is_max(optree):
