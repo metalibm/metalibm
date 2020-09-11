@@ -1360,7 +1360,7 @@ class ML_FunctionBasis(object):
     for input_index, local_input in enumerate(local_inputs):
       assignation_statement.push(local_input)
       for k in range(self.get_vector_size()):
-        for ref_assign in vector_elt_assign(local_input, k, TableLoad(input_tables[input_index], vi + k, precision=input_tables[input_idex].get_storage_precision())):
+        for ref_assign in vector_elt_assign(local_input, k, TableLoad(input_tables[input_index], vi + k, precision=input_tables[input_index].get_storage_precision())):
             assignation_statement.push(ref_assign)
 
     # computing results
