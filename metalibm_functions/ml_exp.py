@@ -430,10 +430,19 @@ class ML_Exponential(ScalarUnaryFunction):
         """ Numeric emulation of exponential """
         return sollya.exp(input_value)
 
-    standard_test_cases = [
-        (sollya.parse("0xbf50bc3a"),),
-        #(sollya.parse("-0.815372109413"),),
-    ]
+    @property
+    def standard_test_cases(self):
+        return [
+            (sollya.parse("0xbf50bc3a"),),
+            (sollya.parse("0x1.0p-126"),),
+            (sollya.parse("0x1.0p-127"),),
+            (sollya.parse("-0x1.fffffep126"),),
+            (sollya.parse("-infty"),),
+            (sollya.parse("infty"),),
+            (FP_QNaN(self.precision),),
+            # issue in generic newlib implementation
+            (sollya.parse("0x1.62e302p+6"),),
+        ]
 
 
 if __name__ == "__main__":
