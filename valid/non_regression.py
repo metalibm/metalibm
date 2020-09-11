@@ -57,7 +57,7 @@ import metalibm_functions.softmax
 import metalibm_functions.vectorial_function
 
 from metalibm_core.core.ml_formats import ML_Binary32, ML_Binary64, ML_Int32
-from metalibm_core.core.precisions import dar
+from metalibm_core.core.precisions import dar, ML_CorrectlyRounded
 
 from metalibm_core.code_generation.code_constant import LLVM_IR_Code
 
@@ -304,8 +304,8 @@ new_scheme_function_list = [
     "basic division test",
     metalibm_functions.ml_div.ML_Division,
     [
-        {"precision": ML_Binary32, "auto_test": 1000, "execute_trigger": True},
-        {"precision": ML_Binary64, "auto_test": 1000, "execute_trigger": True},
+        {"precision": ML_Binary32, "auto_test": 1000, "execute_trigger": True, "accuracy": ML_CorrectlyRounded},
+        {"precision": ML_Binary64, "auto_test": 1000, "execute_trigger": True, "accuracy": ML_CorrectlyRounded},
     ],
   ),
   NewSchemeTest(
