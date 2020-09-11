@@ -1372,6 +1372,11 @@ class ML_CompoundVectorFormat(ML_VectorFormat, ML_Compound_Format):
 class ML_IntegerVectorFormat(ML_CompoundVectorFormat, ML_Fixed_Format):
   pass
 
+class ML_Bool32VectorFormat(ML_IntegerVectorFormat):
+    boolean_bitwidth = 32
+class ML_Bool64VectorFormat(ML_IntegerVectorFormat):
+    boolean_bitwidth = 64
+
 class ML_FloatingPointVectorFormat(ML_CompoundVectorFormat, ML_FP_Format):
   pass
 
@@ -1424,22 +1429,25 @@ v3float64 = vector_format_builder("ml_double3_t", "double3", 3, ML_Binary64)
 v4float64 = vector_format_builder("ml_double4_t", "double4", 4, ML_Binary64)
 v8float64 = vector_format_builder("ml_double8_t", "double8", 8, ML_Binary64)
 
+# TODO/FIXME: Notes on boolean width 
+
 # virtual boolean format
 v2vbool  = vector_format_builder("<virtual bool2>", "<virtual int2>", 2, ML_Bool, compound_constructor = ML_IntegerVectorFormat)
 v3vbool  = vector_format_builder("<virtual bool3>", "<virtual int3>", 3, ML_Bool, compound_constructor = ML_IntegerVectorFormat)
 v4vbool  = vector_format_builder("<virtual bool4>", "<virtual int4>", 4, ML_Bool, compound_constructor = ML_IntegerVectorFormat)
 v8vbool  = vector_format_builder("<virtual bool8>", "<virtual int8>", 8, ML_Bool, compound_constructor = ML_IntegerVectorFormat)
 
-v2bool  = vector_format_builder("ml_bool2_t", "int2", 2, ML_Bool, compound_constructor = ML_IntegerVectorFormat)
-v3bool  = vector_format_builder("ml_bool3_t", "int3", 3, ML_Bool, compound_constructor = ML_IntegerVectorFormat)
-v4bool  = vector_format_builder("ml_bool4_t", "int4", 4, ML_Bool, compound_constructor = ML_IntegerVectorFormat)
-v8bool  = vector_format_builder("ml_bool8_t", "int8", 8, ML_Bool, compound_constructor = ML_IntegerVectorFormat)
+# vector of 32-bit wide boolean
+v2bool  = vector_format_builder("ml_bool2_t", "int2", 2, ML_Bool, compound_constructor = ML_Bool32VectorFormat)
+v3bool  = vector_format_builder("ml_bool3_t", "int3", 3, ML_Bool, compound_constructor = ML_Bool32VectorFormat)
+v4bool  = vector_format_builder("ml_bool4_t", "int4", 4, ML_Bool, compound_constructor = ML_Bool32VectorFormat)
+v8bool  = vector_format_builder("ml_bool8_t", "int8", 8, ML_Bool, compound_constructor = ML_Bool32VectorFormat)
 
-# 64-bit wide boolean vector
-v2lbool  = vector_format_builder("ml_lbool2_t", "long2", 2, ML_Int64, compound_constructor = ML_IntegerVectorFormat)
-v3lbool  = vector_format_builder("ml_lbool3_t", "long3", 3, ML_Int64, compound_constructor = ML_IntegerVectorFormat)
-v4lbool  = vector_format_builder("ml_lbool4_t", "long4", 4, ML_Int64, compound_constructor = ML_IntegerVectorFormat)
-v8lbool  = vector_format_builder("ml_lbool8_t", "long8", 8, ML_Int64, compound_constructor = ML_IntegerVectorFormat)
+# vector of 64-bit wide boolean
+v2lbool  = vector_format_builder("ml_lbool2_t", "long2", 2, ML_Int64, compound_constructor = ML_Bool64VectorFormat)
+v3lbool  = vector_format_builder("ml_lbool3_t", "long3", 3, ML_Int64, compound_constructor = ML_Bool64VectorFormat)
+v4lbool  = vector_format_builder("ml_lbool4_t", "long4", 4, ML_Int64, compound_constructor = ML_Bool64VectorFormat)
+v8lbool  = vector_format_builder("ml_lbool8_t", "long8", 8, ML_Int64, compound_constructor = ML_Bool64VectorFormat)
 
 
 v2int32  = vector_format_builder("ml_int2_t", "int2", 2, ML_Int32, compound_constructor = ML_IntegerVectorFormat)
