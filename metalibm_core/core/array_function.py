@@ -164,7 +164,7 @@ class ML_ArrayFunction(ML_FunctionBasis):
         # TODO/FIXME: implement proper input range depending on input index
         # assuming a single input array
         input_precisions = [self.get_input_precision(1).get_data_precision()]
-        rng_map = [get_precision_rng(precision, inf(test_range), sup(test_range)) for precision, test_range in zip(input_precisions, test_ranges)]
+        rng_map = [get_precision_rng(precision, test_range) for precision, test_range in zip(input_precisions, test_ranges)]
 
         # generated table of inputs
         input_tables = [
