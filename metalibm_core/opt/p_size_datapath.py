@@ -63,7 +63,7 @@ from metalibm_core.core.ml_hdl_format import (
 )
 from metalibm_core.core.legalizer import (
     legalize_fixed_point_subselection, fixed_point_position_legalizer,
-    evaluate_cst_graph
+    evaluate_cst_graph, is_constant
 )
 from metalibm_core.core.special_values import FP_SpecialValue
 
@@ -518,11 +518,6 @@ def does_node_propagate_format(optree):
     if isinstance(optree, Select):
         return [1, 2]
     return []
-
-
-def is_constant(optree):
-    """ Test if optree is a Constant node  """
-    return isinstance(optree, Constant)
 
 
 def format_does_fit(cst_optree, new_format):
