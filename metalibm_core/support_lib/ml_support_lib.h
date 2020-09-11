@@ -288,6 +288,7 @@ typedef int64_t ml_lbool8_t __attribute__ ((vector_size (64)));
  *             distinct accessors is an undefined-behavior (at least in c++)
  */
 typedef union {
+    __int128_t i128;
     ml_uint4_t u;
     ml_int4_t i;
     ml_float4_t f;
