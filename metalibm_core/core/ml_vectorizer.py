@@ -34,10 +34,11 @@
 
 from functools import reduce
 
-from metalibm_core.core.ml_formats import VECTOR_TYPE_MAP, ML_Bool
+from metalibm_core.core.ml_formats import VECTOR_TYPE_MAP, ML_Bool, ML_Integer
 from metalibm_core.core.ml_operations import *
 from metalibm_core.core.ml_table import ML_NewTable
 from metalibm_core.opt.opt_utils import extract_tables
+from metalibm_core.core.legalizer import is_constant
 
 
 # high verbosity log-level for optimization engine
@@ -161,7 +162,10 @@ def split_vectorial_op(node, output_vsize=2):
         ) for sub_id in range(input_vsize // output_vsize)]
     else:
         CI = lambda v: Constant(v, precision=ML_Integer)
-        sub_vector_fmt = vectorize_format(scalar_format, output_vsize)
+        bool_specifier = None
+        if scalar_format is ML_Bool:
+            bool_specifier = node.get_precision().boolean_bitwidth
+        sub_vector_fmt = vectorize_format(scalar_format, output_vsize, bool_specifier=bool_specifier)
         sub_ops = [SubVectorExtract(node, *tuple(CI(sub_id * output_vsize +j) for j in range(output_vsize)), precision=sub_vector_fmt) for sub_id in range(input_vsize // output_vsize)]
         #split_ops = [VectorElementSelection(node, Constant(i, precision=ML_Integer), precision=scalar_format) for i in range(input_vsize)]
 
