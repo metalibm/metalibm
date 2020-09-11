@@ -1360,7 +1360,7 @@ class ML_FunctionBasis(object):
     for input_index, local_input in enumerate(local_inputs):
       assignation_statement.push(local_input)
       for k in range(self.get_vector_size()):
-        for ref_assign in vector_elt_assign(local_input, k, TableLoad(input_tables[input_index], vi + k)):
+        for ref_assign in vector_elt_assign(local_input, k, TableLoad(input_tables[input_index], vi + k, precision=input_tables[input_idex].get_storage_precision())):
             assignation_statement.push(ref_assign)
 
     # computing results
@@ -1376,7 +1376,7 @@ class ML_FunctionBasis(object):
       elt_inputs  = [VectorElementSelection(local_inputs[input_id], k) for input_id in range(self.arity)]
       elt_result = VectorElementSelection(local_result, k)
 
-      output_values = [TableLoad(output_table, vi + k, i) for i in range(self.accuracy.get_num_output_value())]
+      output_values = [TableLoad(output_table, vi + k, i, precision=output_table.get_storage_precision()) for i in range(self.accuracy.get_num_output_value())]
 
       failure_test = self.accuracy.get_output_check_test(elt_result, output_values)
 
@@ -1421,9 +1421,9 @@ class ML_FunctionBasis(object):
     test_num_cst = Constant(test_num, precision = ML_Int32, tag = "test_num")
 
 
-    local_inputs  = tuple(TableLoad(input_tables[in_id], vi) for in_id in range(self.arity))
+    local_inputs  = tuple(TableLoad(input_tables[in_id], vi, precision=input_tables[in_id].get_storage_precision()) for in_id in range(self.arity))
     local_result = tested_function(*local_inputs)
-    output_values = [TableLoad(output_table, vi, i) for i in range(self.accuracy.get_num_output_value())]
+    output_values = [TableLoad(output_table, vi, i, precision=output_table.get_storage_precision()) for i in range(self.accuracy.get_num_output_value())]
 
     failure_test = self.accuracy.get_output_check_test(local_result, output_values)
 
