@@ -185,10 +185,11 @@ class ML_CorrectlyRounded(ML_FunctionPrecision):
 
   def get_output_check_test(self, test_result, stored_outputs):
     expected_value,  = stored_outputs
-
-    if is_floating_format(expected_value.get_precision()):
-        nan_expected = NotEqual(expected_value, expected_value)
-        nan_detected = NotEqual(test_result, test_result)
+    expected_format = expected_value.get_precision()
+    assert not expected_format is None
+    if is_floating_format(expected_format):
+        nan_expected = NotEqual(expected_value, expected_value, tag="nan_expected")
+        nan_detected = NotEqual(test_result, test_result, tag="nan_detected")
         # zero expected use cases
         zero_expected = Equal(expected_value, 0, tag="zero_expected")
 
@@ -199,11 +200,14 @@ class ML_CorrectlyRounded(ML_FunctionPrecision):
         )
         failure_test = LogicalOr(
             LogicalOr(
-                Comparison(
-                  test_result,
-                  expected_value,
-                  specifier=Comparison.NotEqual,
-                  tag="value_failure",
+                LogicalAnd(
+                    LogicalNot(nan_expected),
+                    Comparison(
+                      test_result,
+                      expected_value,
+                      specifier=Comparison.NotEqual,
+                    ),
+                   tag="value_failure",
                 ),
                 LogicalAnd(nan_expected, LogicalNot(nan_detected), tag="nan_failure")
             ),
