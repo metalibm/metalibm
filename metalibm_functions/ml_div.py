@@ -281,9 +281,12 @@ def scaling_div_result(div_approx, scaling_ex, scaling_factor_y, precision):
     # the scaling could be performed in 2 steps
     #      1. multiplying by 2**-ey
     #      2. multiplying by 2**ex
-    unscaling_ex = ExponentInsertion(scaling_ex, precision=precision)
+    unscaling_ex = ExponentInsertion(scaling_ex, precision=precision, tag="unscaling_ex", debug=debug_multi)
 
-    unscaled_result = div_approx * unscaling_ex * scaling_factor_y
+    # NOTES: (unscaling_ex * scaling_factor_y) multiplication
+    # must be computed first to avoid double rounding in case
+    # div_approx * <one of scaling factor> falls into subnormal range (or overflow)
+    unscaled_result = div_approx * (unscaling_ex * scaling_factor_y)
     unscaled_result.set_attributes(debug=debug_multi, tag="unscaled_result")
     return unscaled_result
 
@@ -352,7 +355,7 @@ class ML_Division(ML_FunctionBasis):
         # maximum exponent magnitude (to avoid overflow/ underflow during
         # intermediary computations
         int_prec = self.precision.get_integer_format()
-        max_exp_mag = Constant(self.precision.get_emax() - 3, precision=int_prec)
+        max_exp_mag = Constant(self.precision.get_emax(), precision=int_prec)
 
         exact_ex = ExponentExtraction(vx, tag = "exact_ex", precision=int_prec, debug=debug_multi)
         exact_ey = ExponentExtraction(vy, tag = "exact_ey", precision=int_prec, debug=debug_multi)
@@ -378,7 +381,7 @@ class ML_Division(ML_FunctionBasis):
             overflow_risk = sollya.sup(div_range) > S2**(self.precision.get_emax() - 2)
             return underflow_risk or overflow_risk
 
-        out_of_bound_risk = (self.input_intervals[0] is None or self.input_intervals[0] is None) or test_interval_out_of_bound_risk(self.input_intervals[0], self.input_intervals[1])
+        out_of_bound_risk = (self.input_intervals[0] is None or self.input_intervals[1] is None) or test_interval_out_of_bound_risk(self.input_intervals[0], self.input_intervals[1])
         Log.report(Log.Debug, "out_of_bound_risk: {}".format(out_of_bound_risk))
 
         # scaled version of vx and vy, to avoid overflow and underflow
@@ -567,7 +570,7 @@ class ML_Division(ML_FunctionBasis):
     def numeric_emulate(self, x, y):
         if x != 0 and y == 0:
             # multiplication to correct the sign
-            return x * sollya.parse("infty") 
+            return x * sollya.parse("infty")
         return x / y
 
     def solve_eval_error(self, gappa_init_approx, gappa_current_approx,
@@ -651,6 +654,9 @@ class ML_Division(ML_FunctionBasis):
 
     standard_test_cases = [
         (sollya.parse("-0x1.34a246p-2"), sollya.parse("-0x1.26e2e2p-1")),
+        (sollya.parse("0x1.p0"), sollya.parse("0x1.e0ef5ep-49")),
+        (sollya.parse("0x1.7fddbp0"), sollya.parse("0x1.e0ef5ep-49")),
+        (sollya.parse("0x1.7fddbp-126"), sollya.parse("0x1.e0ef5ep-49")),
     ]
 
 
