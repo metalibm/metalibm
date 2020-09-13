@@ -28,16 +28,14 @@ import argparse
 import sys
 import re
 
+import sollya
 from sollya import Interval, SollyaObject
 
 # numeric value 2 as a sollya object
 S2 = SollyaObject(2)
 
 # import meta-function script from metalibm_functions directory
-import metalibm_functions.ml_log10
 import metalibm_functions.ml_log1p
-import metalibm_functions.ml_log2
-import metalibm_functions.ml_log
 import metalibm_functions.ml_exp
 import metalibm_functions.ml_expm1
 import metalibm_functions.ml_exp2
@@ -139,11 +137,11 @@ new_scheme_function_list = [
   ),
   NewSchemeTest(
     "basic log test",
-    metalibm_functions.ml_log.ML_Log,
+    metalibm_functions.generic_log.ML_GenericLog,
     [
-        {"precision": ML_Binary32, "function_name": "my_logf",
+        {"precision": ML_Binary32, "function_name": "my_logf", "basis": sollya.exp(1),
          "auto_test": 1000, "execute_trigger": True, "expected_to_fail": True},
-        {"precision": ML_Binary64, "function_name": "my_log",
+        {"precision": ML_Binary64, "function_name": "my_log", "basis": sollya.exp(1),
          "auto_test": 1000, "execute_trigger": True, "expected_to_fail": True}
     ]
   ),
@@ -154,25 +152,26 @@ new_scheme_function_list = [
   ),
   NewSchemeTest(
     "generic log2 test",
-    metalibm_functions.ml_log2.ML_Log2,
+    metalibm_functions.generic_log.ML_GenericLog,
     [
-        {"precision": ML_Binary32},
-        {"precision": ML_Binary64, "auto_test": 10000, "execute_trigger": True,
+        {"precision": ML_Binary32, "basis": 2},
+        {"precision": ML_Binary64, "basis": 2, "auto_test": 10000, "execute_trigger": True,
          "expected_to_fail": True}
     ]
   ),
   NewSchemeTest(
     "x86 log2 test",
-    metalibm_functions.ml_log2.ML_Log2,
+    metalibm_functions.generic_log.ML_GenericLog,
     [
-        {"precision": ML_Binary32, "target": x86_processor},
-        {"precision": ML_Binary64, "target": x86_processor},
+        {"precision": ML_Binary32, "basis": 2, "target": x86_processor},
+        {"precision": ML_Binary64, "basis": 2, "target": x86_processor},
     ]
   ),
   NewSchemeTest(
     "basic log10 test",
-    metalibm_functions.ml_log10.ML_Log10,
-    [{"precision": ML_Binary32}, {"precision": ML_Binary64}]
+    metalibm_functions.generic_log.ML_GenericLog,
+    [{"precision": ML_Binary32, "basis": 10},
+     {"precision": ML_Binary64, "basis": 10}]
   ),
   NewSchemeTest(
     "basic exp test",
