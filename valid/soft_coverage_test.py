@@ -35,10 +35,7 @@ import sollya
 from sollya import Interval
 
 # import meta-function script from metalibm_functions directory
-import metalibm_functions.ml_log10
 import metalibm_functions.ml_log1p
-import metalibm_functions.ml_log2
-import metalibm_functions.ml_log
 import metalibm_functions.ml_exp
 import metalibm_functions.ml_expm1
 import metalibm_functions.ml_exp2
