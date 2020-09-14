@@ -86,11 +86,171 @@ class ML_GenericLog(ScalarUnaryFunction):
         default_args_log.update(kw)
         return DefaultArgTemplate(**default_args_log)
 
+    
+    def generate_reduced_log(self, _vx, log_f, inv_approx_table, log_table, log_table_tho, exp_corr_factor=None):
+        """ Generate log on <_vx> """
+        int_precision = self.precision.get_integer_format()
 
-    def generate_scalar_scheme(self, vx):
+        log2_hi_value = round(log_f(2), self.precision.get_field_size() - (self.precision.get_exponent_size() + 1), RN)
+        log2_lo_value = round(log_f(2) - log2_hi_value, self.precision.sollya_object, RN)
+
+        log2_hi = Constant(log2_hi_value, precision = self.precision)
+        log2_lo = Constant(log2_lo_value, precision = self.precision)
+
+        _vx_mant = MantissaExtraction(_vx, tag="_vx_mant", precision=self.precision, debug = debug_multi)
+        _vx_exp  = ExponentExtraction(_vx, tag="_vx_exp", precision=int_precision, debug=debug_multi)
+
+        table_index = inv_approx_table.index_function(_vx_mant)
+
+        table_index.set_attributes(tag="table_index", debug=debug_multi)
+
+        tho_cond = _vx_mant > Constant(sollya.sqrt(2), precision=self.precision)
+        tho = Select(
+            tho_cond,
+            Constant(1.0, precision=self.precision),
+            Constant(0.0, precision=self.precision),
+            precision=self.precision,
+            tag="tho",
+            debug=debug_multi
+        )
+
+        rcp = ReciprocalSeed(_vx_mant, precision=self.precision, tag="rcp")
+        r = Multiplication(
+            rcp,
+            _vx_mant,
+            precision=self.precision,
+            tag="r"
+        )
+
+        int_format = self.precision.get_integer_format()
+
+        # argument reduction
+        # TODO: detect if single operand inverse seed is supported by the targeted architecture
+        pre_arg_red_index = TypeCast(
+            BitLogicAnd(
+                TypeCast(
+                    ReciprocalSeed(
+                        _vx_mant, precision = self.precision,
+                        tag = "seed", debug = debug_multi, silent = True
+                    ), precision=int_format
+                ),
+                Constant(-2, precision=int_format),
+                precision=int_format
+            ),
+            precision=self.precision,
+            tag="pre_arg_red_index", debug = debug_multi)
+
+        C0 = Constant(0, precision=table_index.get_precision())
+        index_comp_0 = Equal(table_index, C0, tag="index_comp_0", debug=debug_multi)
+
+        arg_red_index = Select(index_comp_0, 1.0, pre_arg_red_index, tag = "arg_red_index", debug = debug_multi)
+        _red_vx        = arg_red_index * _vx_mant - 1.0
+        inv_err = S2**-6
+        red_interval = Interval(1 - inv_err, 1 + inv_err)
+        _red_vx.set_attributes(tag = "_red_vx", debug = debug_multi, interval = red_interval)
+
+        # return in case of standard (non-special) input
+        _log_inv_lo = Select(
+            tho_cond,
+            TableLoad(log_table_tho, table_index, 1),
+            TableLoad(log_table, table_index, 1),
+            tag = "log_inv_lo",
+            debug=debug_multi
+        )
+
+        _log_inv_hi = Select(
+            tho_cond,
+            TableLoad(log_table_tho, table_index, 0),
+            TableLoad(log_table, table_index, 0),
+            tag="log_inv_hi",
+            debug=debug_multi
+        )
+
+        Log.report(Log.Info, "building mathematical polynomial")
+        approx_interval = Interval(-inv_err, inv_err)
+        poly_degree = sup(guessdegree(log(1+sollya.x)/sollya.x, approx_interval, S2**-(self.precision.get_field_size()+1))) + 1
+        global_poly_object = Polynomial.build_from_approximation(log(1+x)/x, poly_degree, [self.precision]*(poly_degree+1), approx_interval, sollya.absolute)
+        poly_object = global_poly_object.sub_poly(start_index=1)
+
+        Log.report(Log.Info, "generating polynomial evaluation scheme")
+        _poly = PolynomialSchemeEvaluator.generate_horner_scheme(poly_object, _red_vx, unified_precision=self.precision)
+        _poly.set_attributes(tag = "poly", debug = debug_multi)
+        Log.report(Log.Info, "{}", poly_object.get_sollya_object())
+
+        corr_exp = Conversion(_vx_exp if exp_corr_factor == None else _vx_exp + exp_corr_factor, precision = self.precision) + tho
+        corr_exp.set_attributes(tag="corr_exp", debug=debug_multi)
+
+        # _poly approximates log10(1+r)/r
+        # _poly * red_vx approximates log10(x)
+
+        m0h, m0l = Mul211(
+            _red_vx,
+            _poly
+        )
+        m0h, m0l = Add212(
+            _red_vx,
+            m0h,
+            m0l
+        )
+        m0h.set_attributes(tag="m0h", debug=debug_multi)
+        m0l.set_attributes(tag="m0l")
+        l0_h = corr_exp * log2_hi
+        l0_l = corr_exp * log2_lo
+        l0_h.set_attributes(tag="l0_h")
+        l0_l.set_attributes(tag="l0_l")
+        rh, rl = Add222(l0_h,l0_l, m0h, m0l)
+        rh.set_attributes(tag="rh0", debug=debug_multi)
+        rl.set_attributes(tag="rl0", debug=debug_multi)
+        rh, rl = Add222(-_log_inv_hi, -_log_inv_lo, rh, rl)
+        rh.set_attributes(tag="rh", debug=debug_multi)
+        rl.set_attributes(tag="rl", debug=debug_multi)
+
+        # FIXME: log<self.basis>(vx) is computed as log(vx) / log(self.basis)
+        # which could be optimized for some value of self.basis (e.g. 2)
+        if sollya.log(self.basis) != 1.0:
+            lbh = self.precision.round_sollya_object(1/sollya.log(self.basis))
+            lbl = self.precision.round_sollya_object(1/sollya.log(self.basis) - lbh)
+            rh, rl = Mul222(rh, rl, lbh, lbl)
+            return rh
+        else:
+            return rh
+
+
+    def generate_log_table(self, log_f, inv_approx_table):
+        """ generate 2 tables:
+            log_table[i] = 2-word unevaluated sum approximation of log_f(inv_approx_table[i])
+            log_table_tho[i] = 2-word unevaluated sum approximation of log_f(2*inv_approx_table[i])
+        """
+
         sollya_precision = self.get_input_precision().get_sollya_object()
 
-        log_f = sollya.log(sollya.x) # /sollya.log(self.basis)
+        # table creation
+        table_index_size = inv_approx_table.index_size
+        table_index_range = range(1, 2**table_index_size)
+        log_table = ML_NewTable(dimensions = [2**table_index_size, 2], storage_precision = self.precision)
+        log_table_tho = ML_NewTable(dimensions = [2**table_index_size, 2], storage_precision = self.precision)
+        log_table[0][0] = 0.0
+        log_table[0][1] = 0.0
+        log_table_tho[0][0] = 0.0
+        log_table_tho[0][1] = 0.0
+        hi_size = self.precision.get_field_size() - (self.precision.get_exponent_size() + 1)
+        for i in table_index_range:
+            inv_value = inv_approx_table[i]
+            value_high = round(log_f(inv_value), hi_size, sollya.RN)
+            value_low = round(log_f(inv_value) - value_high, sollya_precision, sollya.RN)
+            log_table[i][0] = value_high
+            log_table[i][1] = value_low
+
+            inv_value_tho = S2 * inv_approx_table[i]
+            value_high_tho = round(log_f(inv_value_tho), hi_size, sollya.RN)
+            value_low_tho = round(log_f(inv_value_tho) - value_high_tho, sollya_precision, sollya.RN)
+            log_table_tho[i][0] = value_high_tho
+            log_table_tho[i][1] = value_low_tho
+
+        return log_table, log_table_tho, table_index_range
+
+    def generate_scalar_scheme(self, vx):
+
 
         # local overloading of RaiseReturn operation
         def ExpRaiseReturn(*args, **kwords):
@@ -105,62 +265,36 @@ class ML_GenericLog(ScalarUnaryFunction):
         test_signaling_nan = Test(vx, specifier = Test.IsSignalingNaN, debug = True, tag = "is_signaling_nan")
         return_snan = Statement(ExpRaiseReturn(ML_FPE_Invalid, return_value = FP_QNaN(self.precision)))
 
-        log2_hi_value = round(log_f(2), self.precision.get_field_size() - (self.precision.get_exponent_size() + 1), RN)
-        log2_lo_value = round(log_f(2) - log2_hi_value, self.precision.sollya_object, RN)
-
-        log2_hi = Constant(log2_hi_value, precision = self.precision)
-        log2_lo = Constant(log2_lo_value, precision = self.precision)
 
         int_precision = self.precision.get_integer_format()
 
         vx_exp  = ExponentExtraction(vx, tag="vx_exp", precision=int_precision, debug=debug_multi)
 
-
-
         #---------------------
         # Approximation scheme
         #---------------------
-        # log10(x) = log10(m.2^e) = log10(m.2^(e-t+t))
-        #           = log10(m.2^-t) + (e+t) log10(2)
-        #  t = (m > sqrt(2)) ? 1 : 0  is used to avoid catastrophic cancellation
+        # log(x) = log(m.2^e) = log(m.2^(e-tho+tho))
+        #        = log(m.2^-tho) + (e+tho) log(2)
+        #  tho = (m > sqrt(2)) ? 1 : 0  is used to avoid catastrophic cancellation
         #  when e = -1 and m ~ 2
         #
         #
-        # log10(m.2^-t) = log10(m.r/r.2^-t) = log10(m.r) + log10(2^-t/r)
-        #               = log10(m.r) - log10(r.2^t)
+        # log(m.2^-tho) = log(m.r/r.2^-tho) = log(m.r) + log(2^-tho/r)
+        #             = log(m.r) - log(r.2^tho)
         #     where r = rcp(m) an approximation of 1/m such that r.m ~ 1
 
         # retrieving processor inverse approximation table
         dummy_var = Variable("dummy", precision = self.precision)
         dummy_div_seed = ReciprocalSeed(dummy_var, precision = self.precision)
+
+        # table of the reciprocal approximation of the targeted processor
         inv_approx_table = self.processor.get_recursive_implementation(
             dummy_div_seed, language=None,
             table_getter= lambda self: self.approx_table_map)
 
-        # table creation
-        table_index_size = inv_approx_table.index_size
-        table_index_range = range(1, 2**table_index_size)
-        log_table = ML_NewTable(dimensions = [2**table_index_size, 2], storage_precision = self.precision)
-        log_table_tho = ML_NewTable(dimensions = [2**table_index_size, 2], storage_precision = self.precision)
-        log_table[0][0] = 0.0
-        log_table[0][1] = 0.0
-        log_table_tho[0][0] = 0.0
-        log_table_tho[0][1] = 0.0
-        hi_size = self.precision.get_field_size() - (self.precision.get_exponent_size() + 1)
-        for i in table_index_range:
-            #inv_value = (1.0 + (self.processor.inv_approx_table[i] / S2**9) + S2**-52) * S2**-1
-            #inv_value = (1.0 + (inv_approx_table[i][0] / S2**9) ) * S2**-1
-            inv_value = inv_approx_table[i]
-            value_high = round(log_f(inv_value), hi_size, sollya.RN)
-            value_low = round(log_f(inv_value) - value_high, sollya_precision, sollya.RN)
-            log_table[i][0] = value_high
-            log_table[i][1] = value_low
+        log_f = sollya.log(sollya.x) # /sollya.log(self.basis)
 
-            inv_value_tho = S2 * inv_approx_table[i]
-            value_high_tho = round(log_f(inv_value_tho), hi_size, sollya.RN)
-            value_low_tho = round(log_f(inv_value_tho) - value_high_tho, sollya_precision, sollya.RN)
-            log_table_tho[i][0] = value_high_tho
-            log_table_tho[i][1] = value_low_tho
+        log_table, log_table_tho, table_index_range = self.generate_log_table(log_f, inv_approx_table)
 
         # determining log_table range
         high_index_function = lambda table, i: table[i][0]
@@ -168,124 +302,8 @@ class ML_GenericLog(ScalarUnaryFunction):
         table_high_interval = log_table.get_subset_interval(high_index_function, table_index_range)
         table_low_interval  = log_table.get_subset_interval(low_index_function,  table_index_range)
 
-        def compute_log(_vx, exp_corr_factor = None):
-            _vx_mant = MantissaExtraction(_vx, tag="_vx_mant", precision=self.precision, debug = debug_multi)
-            _vx_exp  = ExponentExtraction(_vx, tag="_vx_exp", precision=int_precision, debug=debug_multi)
 
-            table_index = inv_approx_table.index_function(_vx_mant)
-
-            table_index.set_attributes(tag="table_index", debug=debug_multi)
-
-            tho_cond = _vx_mant > Constant(sollya.sqrt(2), precision=self.precision)
-            tho = Select(
-                tho_cond,
-                Constant(1.0, precision=self.precision),
-                Constant(0.0, precision=self.precision),
-                precision=self.precision,
-                tag="tho",
-                debug=debug_multi
-            )
-
-            rcp = ReciprocalSeed(_vx_mant, precision=self.precision, tag="rcp")
-            r = Multiplication(
-                rcp,
-                _vx_mant,
-                precision=self.precision,
-                tag="r"
-            )
-
-            int_format = self.precision.get_integer_format()
-
-            # argument reduction
-            # TODO: detect if single operand inverse seed is supported by the targeted architecture
-            pre_arg_red_index = TypeCast(
-                BitLogicAnd(
-                    TypeCast(
-                        ReciprocalSeed(
-                            _vx_mant, precision = self.precision,
-                            tag = "seed", debug = debug_multi, silent = True
-                        ), precision=int_format
-                    ),
-                    Constant(-2, precision=int_format),
-                    precision=int_format
-                ),
-                precision=self.precision,
-                tag="pre_arg_red_index", debug = debug_multi)
-
-            C0 = Constant(0, precision=table_index.get_precision())
-            index_comp_0 = Equal(table_index, C0, tag="index_comp_0", debug=debug_multi)
-
-            arg_red_index = Select(index_comp_0, 1.0, pre_arg_red_index, tag = "arg_red_index", debug = debug_multi)
-            _red_vx        = arg_red_index * _vx_mant - 1.0
-            inv_err = S2**-6
-            red_interval = Interval(1 - inv_err, 1 + inv_err)
-            _red_vx.set_attributes(tag = "_red_vx", debug = debug_multi, interval = red_interval)
-
-            # return in case of standard (non-special) input
-            _log_inv_lo = Select(
-                tho_cond,
-                TableLoad(log_table_tho, table_index, 1),
-                TableLoad(log_table, table_index, 1),
-                tag = "log_inv_lo",
-                debug=debug_multi
-            )
-
-            _log_inv_hi = Select(
-                tho_cond,
-                TableLoad(log_table_tho, table_index, 0),
-                TableLoad(log_table, table_index, 0),
-                tag="log_inv_hi",
-                debug=debug_multi
-            )
-
-            Log.report(Log.Info, "building mathematical polynomial")
-            approx_interval = Interval(-inv_err, inv_err)
-            poly_degree = sup(guessdegree(log(1+sollya.x)/sollya.x, approx_interval, S2**-(self.precision.get_field_size()+1))) + 1
-            global_poly_object = Polynomial.build_from_approximation(log(1+x)/x, poly_degree, [self.precision]*(poly_degree+1), approx_interval, sollya.absolute)
-            poly_object = global_poly_object.sub_poly(start_index=1)
-
-            Log.report(Log.Info, "generating polynomial evaluation scheme")
-            _poly = PolynomialSchemeEvaluator.generate_horner_scheme(poly_object, _red_vx, unified_precision=self.precision)
-            _poly.set_attributes(tag = "poly", debug = debug_multi)
-            Log.report(Log.Info, "{}", poly_object.get_sollya_object())
-
-            corr_exp = Conversion(_vx_exp if exp_corr_factor == None else _vx_exp + exp_corr_factor, precision = self.precision) + tho
-            corr_exp.set_attributes(tag="corr_exp", debug=debug_multi)
-
-            # _poly approximates log10(1+r)/r
-            # _poly * red_vx approximates log10(x)
-
-            m0h, m0l = Mul211(
-                _red_vx,
-                _poly
-            )
-            m0h, m0l = Add212(
-                _red_vx,
-                m0h,
-                m0l
-            )
-            m0h.set_attributes(tag="m0h", debug=debug_multi)
-            m0l.set_attributes(tag="m0l")
-            l0_h = corr_exp * log2_hi
-            l0_l = corr_exp * log2_lo
-            l0_h.set_attributes(tag="l0_h")
-            l0_l.set_attributes(tag="l0_l")
-            rh, rl = Add222(l0_h,l0_l, m0h, m0l)
-            rh.set_attributes(tag="rh0", debug=debug_multi)
-            rl.set_attributes(tag="rl0", debug=debug_multi)
-            rh, rl = Add222(-_log_inv_hi, -_log_inv_lo, rh, rl)
-            rh.set_attributes(tag="rh", debug=debug_multi)
-            rl.set_attributes(tag="rl", debug=debug_multi)
-
-            if sollya.log(self.basis) != 1.0:
-                lbh = self.precision.round_sollya_object(1/sollya.log(self.basis))
-                lbl = self.precision.round_sollya_object(1/sollya.log(self.basis) - lbh)
-                rh, rl = Mul222(rh, rl, lbh, lbl)
-                return rh
-            else:
-                return rh
-
-        result = compute_log(vx)
+        result = self.generate_reduced_log(vx, log_f, inv_approx_table, log_table, log_table_tho)
         result.set_attributes(tag = "result", debug=debug_multi)
 
         if False:
@@ -324,7 +342,7 @@ class ML_GenericLog(ScalarUnaryFunction):
 
         m100 = Constant(-100, precision=int_precision)
         S2100 = Constant(S2**100, precision = self.precision)
-        result_subnormal = compute_log(vx * S2100, exp_corr_factor=m100)
+        result_subnormal = self.generate_reduced_log(vx * S2100, log_f, inv_approx_table, log_table, log_table_tho, exp_corr_factor=m100)
 
 
         # main scheme
