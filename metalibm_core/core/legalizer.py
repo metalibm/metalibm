@@ -236,8 +236,8 @@ def evaluate_graph(optree, value_mapping, fct_mapping):
     def eval_func_call(node):
         # FIXME: need cleaner way of linking numeric_emulate
         func_tag = node.get_function_object().name
-        op = node.get_input(0)
-        return safe(fct_mapping[func_tag])(recursive_eval(op))
+        ops = [node.get_input(i) for i in range(node.get_function_object().arity)]
+        return safe(fct_mapping[func_tag])(*tuple(recursive_eval(op) for op in ops))
 
     evaluation_map = {
         is_max:
