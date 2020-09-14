@@ -172,8 +172,9 @@ class MetaAtan(ScalarUnaryFunction):
         if self.method == "piecewise":
             sign_vx = Select(cond, -1, 1, precision=self.precision, tag="sign_vx", debug=debug_multi)
 
-            cst_sign = Select(sign_cond, -1, 1, precision=self.precision)
+            cst_sign = Select(sign_cond, -1, 1, precision=self.precision, tag="cst_sign", debug=debug_multi)
             cst = cst_sign * Select(bound_cond, sollya.pi / 2, 0, precision=self.precision)
+            cst.set_attributes(tag="cst", debug=debug_multi)
 
 
             bound_low = 0.0
@@ -192,6 +193,7 @@ class MetaAtan(ScalarUnaryFunction):
                                     odd=True)
 
             result = cst + sign_vx * approx
+            result.set_attributes(tag="result", precision=self.precision, debug=debug_multi)
 
         elif self.method == "single":
             approx_interval = Interval(0, 1.0)
@@ -225,10 +227,11 @@ class MetaAtan(ScalarUnaryFunction):
             poly_even = PolynomialSchemeEvaluator.generate_horner_scheme(poly_even_object, abs_vx)
             poly_even.set_attributes(tag="poly_even", debug=debug_multi)
             exact_sum = poly_odd + poly_even
+            exact_sum.set_attributes(tag="exact_sum", debug=debug_multi)
 
             # poly_even should be (1 + poly_even)
             result = vx + vx * exact_sum
-            result.set_attributes(tag="result", precision=self.precision)
+            result.set_attributes(tag="result", precision=self.precision, debug=debug_multi)
 
         else:
             raise NotImplementedError
@@ -312,7 +315,10 @@ class MetaAtan2(ScalarBinaryFunction, MetaAtan):
             return sollya.pi + sollya.atan(vy / vx)
 
     standard_test_cases = [
-        (sollya.parse("0x1.08495cp+2"), sollya.parse("-0x1.88569ep+1"))
+        (sollya.parse("0x1.08495cp+2"), sollya.parse("-0x1.88569ep+1")),
+        (sollya.parse("0x1.08495cp+2"), sollya.parse("-0x1.88569ep+1")),
+        (sollya.parse("0x1.08495cp+2"), sollya.parse("-0x1.88569ep+1")),
+        (sollya.parse("0x1.08495cp+2"), sollya.parse("-0x1.88569ep+1")),
     ]
 
 if __name__ == "__main__":
