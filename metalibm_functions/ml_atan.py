@@ -66,27 +66,29 @@ sollya.showmessagenumbers = sollya.on
 class MetaAtan(ScalarUnaryFunction):
     """ Meta implementation of arctangent function """
     function_name = "ml_atan"
+    default_args_atan = {
+        "output_file": "my_atan.c",
+        "function_name": "my_atan",
+        "precision": ML_Binary32,
+        "accuracy": ML_Faithful,
+        "num_sub_intervals": 8,
+        "method": "piecewise",
+        "target": GenericProcessor.get_target_instance()
+    }
+
     def __init__(self, args):
         super().__init__(args)
         self.method = args.method
         self.num_sub_intervals = args.num_sub_intervals
 
-    @staticmethod
-    def get_default_args(**kw):
+    @classmethod
+    def get_default_args(cls, **kw):
         """ Return a structure containing the arguments for MetaAtan,
                 builtin from a default argument mapping overloaded with @p kw
         """
-        default_args_exp = {
-            "output_file": "my_atan.c",
-            "function_name": "my_atan",
-            "precision": ML_Binary32,
-            "accuracy": ML_Faithful,
-            "num_sub_intervals": 8,
-            "method": "piecewise",
-            "target": GenericProcessor.get_target_instance()
-        }
-        default_args_exp.update(kw)
-        return DefaultArgTemplate(**default_args_exp)
+        arg_dict = cls.default_args_atan.copy()
+        arg_dict.update(kw)
+        return DefaultArgTemplate(**arg_dict)
 
     def generate_scalar_scheme(self, vx):
         """ Evaluation scheme generation """
@@ -262,22 +264,19 @@ class MetaAtan2(ScalarBinaryFunction, MetaAtan):
         ScalarBinaryFunction.__init__(self, args)
         self.method = args.method
 
-    @staticmethod
-    def get_default_args(**kw):
+    @classmethod
+    def get_default_args(cls, **kw):
         """ Return a structure containing the arguments for MetaAtan,
                 builtin from a default argument mapping overloaded with @p kw
         """
-        default_args_exp = {
+        arg_dict = cls.default_args_atan.copy()
+        arg_dict.update({
             "output_file": "my_atan2.c",
             "function_name": "my_atan2",
-            "precision": ML_Binary32,
-            "accuracy": ML_Faithful,
             "input_intervals": [Interval(-5, 5)] * 2,
-            "method": "piecewise",
-            "target": GenericProcessor.get_target_instance()
-        }
-        default_args_exp.update(kw)
-        return DefaultArgTemplate(**default_args_exp)
+        })
+        arg_dict.update(kw)
+        return DefaultArgTemplate(**arg_dict)
 
 
     def generate_scalar_scheme(self, vy, vx):
