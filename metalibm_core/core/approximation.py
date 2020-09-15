@@ -194,8 +194,8 @@ def generic_poly_split(offset_fct, indexing, target_eps, coeff_precision, vx):
     poly_max_degree = max(poly_degree_list)
 
     # tabulating polynomial coefficients on split_num sub-interval of interval
-    poly_table = ML_NewTable(dimensions=[indexing.split_num, poly_max_degree+1], storage_precision=coeff_precision)
-    offset_table = ML_NewTable(dimensions=[indexing.split_num], storage_precision=coeff_precision)
+    poly_table = ML_NewTable(dimensions=[indexing.split_num, poly_max_degree+1], storage_precision=coeff_precision, const=True)
+    offset_table = ML_NewTable(dimensions=[indexing.split_num], storage_precision=coeff_precision, const=True)
     max_error = 0.0
 
     for sub_index in range(indexing.split_num):
@@ -352,7 +352,8 @@ def piecewise_approximation(
     coeff_table = ML_NewTable(
         dimensions=[num_intervals,max_degree+1],
         storage_precision=precision,
-        tag="coeff_table"
+        tag="coeff_table",
+        const=True # by default all approximation coeff table are const
     )
 
     error_function = lambda p, f, ai, mod, t: sollya.dirtyinfnorm(p - f, ai)
