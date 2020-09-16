@@ -107,7 +107,14 @@ class ML_Exp2(ScalarUnaryFunction):
     vx_intf = vx_floor # Conversion(vx_int, precision = self.precision)
     vx_r = vx - vx_intf
     r_hi = NearestInteger(vx_r * 2**index_size, precision=self.precision, tag="r_hi", debug=debug_multi)
-    r_hi_int = Conversion(r_hi, precision=int_precision, tag="r_hi_int", debug=debug_multi)
+    # clamping r_hi_int within table-size to make sure
+    # it does not exceeds hi_part_table when used to index it
+    r_hi_int = Max(
+        Min(
+            Conversion(r_hi, precision=int_precision, tag="r_hi_int", debug=debug_multi),
+            2**index_size+1
+        ),
+        0)
     r_lo = vx_r - r_hi * 2**-index_size
     r_lo.set_attributes(tag="r_lo", debug=debug_multi)
     vx_r.set_attributes(tag = "vx_r", debug = debug_multi)
@@ -209,7 +216,7 @@ class ML_Exp2(ScalarUnaryFunction):
 
   standard_test_cases =[[sollya.parse(x)] for x in  [
     "0x1.ffead1bac7ad2p+9", "-0x1.ee9cb4p+1", "-0x1.db0928p+3", "0x1.c3a07c4c711cfp-1",
-    "0x1.e79d45fd647f3p-1"]]
+    "0x1.e79d45fd647f3p-1", "-infty"]]
 
 if __name__ == "__main__":
     # auto-test
