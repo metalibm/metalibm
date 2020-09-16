@@ -91,18 +91,8 @@ class ML_GenericLog(ScalarUnaryFunction):
         """ Generate log on <_vx> """
         int_precision = self.precision.get_integer_format()
 
-        log2_hi_value = round(log_f(2), self.precision.get_field_size() - (self.precision.get_exponent_size() + 1), RN)
-        log2_lo_value = round(log_f(2) - log2_hi_value, self.precision.sollya_object, RN)
-
-        log2_hi = Constant(log2_hi_value, precision = self.precision)
-        log2_lo = Constant(log2_lo_value, precision = self.precision)
-
         _vx_mant = MantissaExtraction(_vx, tag="_vx_mant", precision=self.precision, debug = debug_multi)
         _vx_exp  = ExponentExtraction(_vx, tag="_vx_exp", precision=int_precision, debug=debug_multi)
-
-        table_index = inv_approx_table.index_function(_vx_mant)
-
-        table_index.set_attributes(tag="table_index", debug=debug_multi)
 
         tho_cond = _vx_mant > Constant(sollya.sqrt(2), precision=self.precision)
         tho = Select(
@@ -113,6 +103,29 @@ class ML_GenericLog(ScalarUnaryFunction):
             tag="tho",
             debug=debug_multi
         )
+
+        corr_exp = Conversion(_vx_exp if exp_corr_factor == None else _vx_exp + exp_corr_factor, precision = self.precision) + tho
+        corr_exp.set_attributes(tag="corr_exp", debug=debug_multi)
+
+        return self.generate_reduced_log_split(_vx_mant, log_f, inv_approx_table, log_table, log_table_tho, corr_exp, tho_cond)
+
+    def generate_reduced_log_split(self, _vx_mant, log_f, inv_approx_table, log_table, log_table_tho=None, corr_exp=None, tho_cond=None):
+        """ Generate a logarithm approximation (log_f(_vx_mant) + corr_exp) for a reduced argument
+            _vx_mant which is assumed to be within [1, 2[ (i.e. an extracted mantissa)
+
+            Addiing exponent correction (optionnal) """ 
+
+        log2_hi_value = round(log_f(2), self.precision.get_field_size() - (self.precision.get_exponent_size() + 1), RN)
+        log2_lo_value = round(log_f(2) - log2_hi_value, self.precision.sollya_object, RN)
+
+        log2_hi = Constant(log2_hi_value, precision = self.precision)
+        log2_lo = Constant(log2_lo_value, precision = self.precision)
+
+
+        table_index = inv_approx_table.index_function(_vx_mant)
+
+        table_index.set_attributes(tag="table_index", debug=debug_multi)
+
 
         rcp = ReciprocalSeed(_vx_mant, precision=self.precision, tag="rcp")
         r = Multiplication(
@@ -150,21 +163,27 @@ class ML_GenericLog(ScalarUnaryFunction):
         _red_vx.set_attributes(tag = "_red_vx", debug = debug_multi, interval = red_interval)
 
         # return in case of standard (non-special) input
-        _log_inv_lo = Select(
-            tho_cond,
-            TableLoad(log_table_tho, table_index, 1),
-            TableLoad(log_table, table_index, 1),
-            tag = "log_inv_lo",
-            debug=debug_multi
-        )
+        if not tho_cond is None:
+            assert not log_table_tho is None
+            _log_inv_lo = Select(
+                tho_cond,
+                TableLoad(log_table_tho, table_index, 1),
+                TableLoad(log_table, table_index, 1),
+                tag = "log_inv_lo",
+                debug=debug_multi
+            )
 
-        _log_inv_hi = Select(
-            tho_cond,
-            TableLoad(log_table_tho, table_index, 0),
-            TableLoad(log_table, table_index, 0),
-            tag="log_inv_hi",
-            debug=debug_multi
-        )
+            _log_inv_hi = Select(
+                tho_cond,
+                TableLoad(log_table_tho, table_index, 0),
+                TableLoad(log_table, table_index, 0),
+                tag="log_inv_hi",
+                debug=debug_multi
+            )
+        else:
+            assert not log_table_tho is None
+            _log_inv_lo = TableLoad(log_table, table_index, 1)
+            _log_inv_hi = TableLoad(log_table, table_index, 0)
 
         Log.report(Log.Info, "building mathematical polynomial")
         approx_interval = Interval(-inv_err, inv_err)
@@ -176,9 +195,6 @@ class ML_GenericLog(ScalarUnaryFunction):
         _poly = PolynomialSchemeEvaluator.generate_horner_scheme(poly_object, _red_vx, unified_precision=self.precision)
         _poly.set_attributes(tag = "poly", debug = debug_multi)
         Log.report(Log.Info, "{}", poly_object.get_sollya_object())
-
-        corr_exp = Conversion(_vx_exp if exp_corr_factor == None else _vx_exp + exp_corr_factor, precision = self.precision) + tho
-        corr_exp.set_attributes(tag="corr_exp", debug=debug_multi)
 
         # _poly approximates log10(1+r)/r
         # _poly * red_vx approximates log10(x)
@@ -194,11 +210,15 @@ class ML_GenericLog(ScalarUnaryFunction):
         )
         m0h.set_attributes(tag="m0h", debug=debug_multi)
         m0l.set_attributes(tag="m0l")
-        l0_h = corr_exp * log2_hi
-        l0_l = corr_exp * log2_lo
-        l0_h.set_attributes(tag="l0_h")
-        l0_l.set_attributes(tag="l0_l")
-        rh, rl = Add222(l0_h,l0_l, m0h, m0l)
+        if not corr_exp is None:
+            l0_h = corr_exp * log2_hi
+            l0_l = corr_exp * log2_lo
+            l0_h.set_attributes(tag="l0_h")
+            l0_l.set_attributes(tag="l0_l")
+            rh, rl = Add222(l0_h,l0_l, m0h, m0l)
+        else:
+            # bypass exponent addition if no exponent correction is disabled
+            rh, rl = moh, m0l
         rh.set_attributes(tag="rh0", debug=debug_multi)
         rl.set_attributes(tag="rl0", debug=debug_multi)
         rh, rl = Add222(-_log_inv_hi, -_log_inv_lo, rh, rl)
