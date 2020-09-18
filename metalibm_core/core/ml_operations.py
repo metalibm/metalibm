@@ -57,6 +57,10 @@ from .ml_formats import (
     ML_AbstractFormat, ML_FloatingPoint_RoundingMode, ML_String,
     ML_Bool,
     ML_FPRM_Type,
+    ML_FP_Format,
+    ML_Fixed_Format,
+    ML_Float,
+    ML_Bool_Format
 )
 
 from metalibm_core.utility.decorator import safe
@@ -83,7 +87,7 @@ def std_merge_abstract_format(*args):
     has_integer = False
     has_bool = False
     for arg_type in args:
-        if isinstance(arg_type, ML_FP_Format): has_float = True
+        if ML_FP_Format.is_fp_format(arg_type): has_float = True
         if isinstance(arg_type, ML_Fixed_Format): has_integer = True
         if isinstance(arg_type, ML_Bool_Format): has_bool = True
 
@@ -1769,7 +1773,7 @@ class SpecificOperation(SpecifierOperation, GeneralOperation):
             return std_merge_abstract_format(ops[0].get_precision(), ops[1].get_precision())
         @staticmethod
         def instantiated_type_rule(backend, op, dprec):
-            return backend.merge_abstract_format(op, op.inputs)
+            return backend.merge_ops_abstract_format(op, op.inputs)
 
     class RoundedSignedOverflow(SO_Specifier_Type):
         name = "RoundedSignedOverflow"
