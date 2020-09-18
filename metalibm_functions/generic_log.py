@@ -181,7 +181,7 @@ class ML_GenericLog(ScalarUnaryFunction):
                 debug=debug_multi
             )
         else:
-            assert not log_table_tho is None
+            assert log_table_tho is None
             _log_inv_lo = TableLoad(log_table, table_index, 1)
             _log_inv_hi = TableLoad(log_table, table_index, 0)
 
@@ -218,7 +218,7 @@ class ML_GenericLog(ScalarUnaryFunction):
             rh, rl = Add222(l0_h,l0_l, m0h, m0l)
         else:
             # bypass exponent addition if no exponent correction is disabled
-            rh, rl = moh, m0l
+            rh, rl = m0h, m0l
         rh.set_attributes(tag="rh0", debug=debug_multi)
         rl.set_attributes(tag="rl0", debug=debug_multi)
         rh, rl = Add222(-_log_inv_hi, -_log_inv_lo, rh, rl)
