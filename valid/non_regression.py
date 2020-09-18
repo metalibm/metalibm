@@ -50,11 +50,12 @@ import metalibm_functions.ml_atan
 import metalibm_functions.external_bench
 import metalibm_functions.ml_tanh
 import metalibm_functions.ml_div
+import metalibm_functions.rootn
 
 import metalibm_functions.softmax
 import metalibm_functions.vectorial_function
 
-from metalibm_core.core.ml_formats import ML_Binary32, ML_Binary64, ML_Int32
+from metalibm_core.core.ml_formats import ML_Binary32, ML_Binary64, ML_Int32, ML_Int64
 from metalibm_core.core.precisions import dar, ML_CorrectlyRounded
 
 from metalibm_core.code_generation.code_constant import LLVM_IR_Code
@@ -305,6 +306,14 @@ new_scheme_function_list = [
     [
         {"precision": ML_Binary32, "auto_test": 1000, "execute_trigger": True, "accuracy": ML_CorrectlyRounded},
         {"precision": ML_Binary64, "auto_test": 1000, "execute_trigger": True, "accuracy": ML_CorrectlyRounded},
+    ],
+  ),
+  NewSchemeTest(
+    "basic rootn test",
+    metalibm_functions.rootn.MetaRootN,
+    [
+        {"precision": ML_Binary32, "input_precisions": [ML_Binary32, ML_Int32], "auto_test_range": [Interval(-S2**127, S2**127), Interval(0, 255)], "auto_test": 1000, "execute_trigger": True, "accuracy": dar(S2**-22)},
+        {"precision": ML_Binary64, "input_precisions": [ML_Binary64, ML_Int64], "auto_test_range": [Interval(-S2**1023, S2**1023), Interval(0, 255)], "auto_test": 1000, "execute_trigger": True, "accuracy": dar(S2**-50)},
     ],
   ),
   NewSchemeTest(
