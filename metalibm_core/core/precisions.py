@@ -91,9 +91,12 @@ class ML_TwoFactorPrecision(ML_FunctionPrecision):
         raise NotImplementedError
     def get_output_check_value(self, exact_value):
         """ return the reference values required to check result """
-        low_bound = self.get_check_value_low_bound(exact_value)
-        high_bound = self.get_check_value_high_bound(exact_value)
-        return low_bound, high_bound
+        if FP_SpecialValue.is_special_value(exact_value):
+            return (exact_value, exact_value)
+        else:
+            low_bound = self.get_check_value_low_bound(exact_value)
+            high_bound = self.get_check_value_high_bound(exact_value)
+            return low_bound, high_bound
 
     def compute_error(self, local_result, stored_outputs, relative = False):
         """ return MDL expression to compute error between local_result and 
