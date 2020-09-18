@@ -53,11 +53,12 @@ import metalibm_functions.ml_div
 import metalibm_functions.generic_log
 import metalibm_functions.erf
 import metalibm_functions.ml_acos
+import metalibm_functions.rootn
 
 from metalibm_core.utility.log_report import Log
 from metalibm_core.utility.ml_template import target_parser
 
-from metalibm_core.core.ml_formats import ML_Binary32, ML_Binary64, ML_Int32
+from metalibm_core.core.ml_formats import ML_Binary32, ML_Binary64, ML_Int32, ML_Int64
 from metalibm_core.core.ml_function import (
     BuildError, ValidError
 )
@@ -108,7 +109,7 @@ class VerboseAction(argparse.Action):
 
 
 class FunctionTest:
-    def __init__(self, ctor, arg_map_list, title=None):
+    def __init__(self, ctor, arg_map_list, title=None, specific_opts_builder=lambda v: v):
         """ FunctionTest constructor:
 
             Args:
@@ -119,6 +120,9 @@ class FunctionTest:
         self.ctor = ctor
         self.arg_map_list = arg_map_list
         self.title = title if not title is None else ctor.function_name
+        # callback(<option dict>) -> specialized <option dict>
+        self.specific_opts_builder = specific_opts_builder
+
 
     @property
     def tag(self):
@@ -163,6 +167,23 @@ LIBM_FUNCTION_LIST = [
 
 ]
 
+
+def rootn_option_specialization(opt_dict):
+    """ Option specilization callback for FunctionTest
+        dedicated to rootn meta-function """
+    precision = opt_dict["precision"]
+    input_precisions = {
+        ML_Binary32: [ML_Binary32, ML_Int32],
+        ML_Binary64: [ML_Binary64, ML_Int64],
+    }[precision]
+    auto_test_range = {
+        ML_Binary32: [Interval(-2.0**126, 2.0**126), Interval(0, 255)], 
+        ML_Binary64:  [Interval(-2.0**1022, 2.0**1022), Interval(0, 255)], 
+    }[precision]
+    opt_dict["auto_test_range"] = auto_test_range
+    opt_dict["input_precisions"] = input_precisions
+    return opt_dict
+
 FUNCTION_LIST = LIBM_FUNCTION_LIST + [
 
     # meta-functions
@@ -192,7 +213,10 @@ FUNCTION_LIST = LIBM_FUNCTION_LIST + [
     FunctionTest(metalibm_functions.erf.ML_Erf, [{}]),
 
     FunctionTest(metalibm_functions.ml_acos.ML_Acos, [{}]),
+
+    FunctionTest(metalibm_functions.rootn.MetaRootN, [{}], specific_opts_builder=rootn_option_specialization),
 ]
+
 
 def get_cmdline_option(option_list, option_value):
     """ generate the command line equivalent to the list of options and their
@@ -595,6 +619,8 @@ if __name__ == "__main__":
                 option["extra_passes"] = extra_passes
                 option["function_name"] = fname + "_" + function_test.title + "_" + opt_fname
                 option["output_file"] = fname + "_" +function_test.title + "_" + opt_oname
+                # specialization
+                function_test.specific_opts_builder(option)
                 print(option)
                 local_test_list.append(option)
         test_case = SubFunctionTest(
