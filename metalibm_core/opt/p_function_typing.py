@@ -565,6 +565,9 @@ class PassInstantiatePrecision(FunctionPass):
             optree, self.default_precision, memoization_map=memoization_map, backend=self)
         return optree
 
+    def merge_ops_abstract_format(self, node, args):
+        return merge_ops_abstract_format(node, args, self.default_precision)
+
 # register pass
 Log.report(LOG_PASS_INFO, "Registering instantiate_abstract_prec pass")
 Pass.register(PassInstantiateAbstractPrecision)
