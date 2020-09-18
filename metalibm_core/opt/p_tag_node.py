@@ -26,19 +26,19 @@
 ###############################################################################
 import collections
 
-from metalibm_core.core.passes import FunctionPass, Pass, LOG_PASS_INFO
-from metalibm_core.core.ml_operations import *
-from metalibm_core.core.bb_operations import (
-        UnconditionalBranch, ConditionalBranch, BasicBlock
-)
+from metalibm_core.core.passes import FunctionPass, METALIBM_PASS_REGISTER
+from metalibm_core.utility.debug_utils import debug_multi
+from metalibm_core.core.ml_operations import ML_LeafNode
 
 from metalibm_core.code_generation.code_constant import C_Code
 
 from metalibm_core.utility.log_report import Log
 
 
+@METALIBM_PASS_REGISTER
 class Pass_TagNode(FunctionPass):
-    """ Verify that each node has a precision assigned to it """
+    """ Verify that each node has a tag assigned to it, if not
+        generates one """
     pass_tag = "tag_node"
 
     def __init__(self, target, language=C_Code):
@@ -72,7 +72,36 @@ class Pass_TagNode(FunctionPass):
         return self.tag_node(optree, memoization_map, language=self.language)
 
 
+@METALIBM_PASS_REGISTER
+class Pass_DebugTaggedNode(FunctionPass):
+    """ Verify that each node has a precision assigned to it """
+    pass_tag = "debug_tag_node"
 
-Log.report(LOG_PASS_INFO, "Registering tag_node pass")
-# register pass
-Pass.register(Pass_TagNode)
+    def __init__(self, target, debug_tags, language=C_Code):
+        FunctionPass.__init__(self, "debug_tagged_node", target)
+        self.language = language
+        self.tag_list = [] if debug_tags in [True, False, None] else debug_tags
+        # if debug_tags==True then debug's attributes must not be modified
+        self.default_tags = (debug_tags is True)
+
+
+    def enable_debug(self, node, memoization_map=None, debug=False, language=C_Code):
+        """ enable debug on node if its tag is part of the white list """
+        memoization_map = {} if memoization_map is None else memoization_map
+        if node in memoization_map:
+            return None
+        # memoization
+        memoization_map[node] = True
+        if not isinstance(node, ML_LeafNode):
+            for inp in node.inputs:
+                self.enable_debug(inp, memoization_map, debug=debug)
+
+        if node.get_tag() in self.tag_list:
+            node.set_debug(debug_multi)
+        elif not self.default_tags:
+            node.set_debug(False)
+
+        return None
+
+    def execute_on_optree(self, optree, fct, fct_group, memoization_map):
+        return self.enable_debug(optree, memoization_map, language=self.language)

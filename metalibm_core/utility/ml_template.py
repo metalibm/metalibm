@@ -547,10 +547,9 @@ class ML_CommonArgTemplate(object):
     def __init__(self, parser, default_arg=DefaultArgTemplate):
         self.parser = parser
         self.parser.add_argument(
-            "--debug", dest="debug",
-            action="store_const", const=True,
-            default=default_arg.debug,
-            help="enable debug display in generated code")
+            "--debug", metavar="debug", nargs="?", const=True, default=default_arg.debug, type=(lambda v: v.split(",")),
+            # default=default_arg.debug,
+            help="enable debug display of variable values in generated code, value can be indicated by a ','-separated list of tags or all default list of variable will be displayed")
         self.parser.add_argument(
             "--fuse-fma", dest="fuse_fma", action="store_const",
             const=True, default=default_arg.fuse_fma,

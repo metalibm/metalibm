@@ -71,6 +71,7 @@ from metalibm_core.code_generation.code_constant import C_Code
 from metalibm_core.core.passes import (
     Pass, PassScheduler, PassDependency, AfterPassById,
 )
+from metalibm_core.opt.p_tag_node import Pass_DebugTaggedNode
 
 
 from metalibm_core.code_generation.gappa_code_generator import GappaCodeGenerator
@@ -810,6 +811,12 @@ class ML_FunctionBasis(object):
         PassScheduler.JustBeforeCodeGen,
         execute_pass_on_fct_group
     )
+    #
+    debug_pass = Pass_DebugTaggedNode(self.processor, self.debug_flag)
+    _ = self.pass_scheduler.execute_pass_list(
+       [debug_pass],
+       function_group,
+       execute_pass_on_fct_group)
     return function_group
 
 
