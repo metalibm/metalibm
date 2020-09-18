@@ -1026,6 +1026,7 @@ class ML_FunctionBasis(object):
                     max_error_value = loaded_module.get_function_handle("max_error_eval")()
                     # convert to ulps
                     max_error_value = convert_error_to_ulp(max_error_value, self.precision)
+                    print("max_error_value={}".format(max_error_value))
                     exec_result["max_error"] = max_error_value
 
                 # if no specific measure/test is schedule we execute the function itself
@@ -1593,14 +1594,15 @@ class ML_FunctionBasis(object):
       local_error_relative = self.accuracy.compute_error(local_result, stored_values, relative=True)
       local_error_absolute = self.accuracy.compute_error(local_result, stored_values, relative=False)
 
-      error_rel_comp = LogicalOr(
+      # exclude error update when error is NaN
+      error_rel_comp = LogicalAnd(
         Comparison(local_error_relative, max_error_relative, specifier=Comparison.Greater, precision=ML_Bool),
-        Test(local_error_relative, specifier=Test.IsNaN),
+        LogicalNot(Test(local_error_relative, specifier=Test.IsNaN)),
         precision=ML_Bool
       )
-      error_abs_comp = LogicalOr(
+      error_abs_comp = LogicalAnd(
         Comparison(local_error_absolute, max_error_absolute, specifier=Comparison.Greater, precision=ML_Bool),
-        Test(local_error_absolute, specifier=Test.IsNaN),
+        LogicalNot(Test(local_error_absolute, specifier=Test.IsNaN)),
         precision=ML_Bool
       )
 
@@ -1610,7 +1612,7 @@ class ML_FunctionBasis(object):
         self.precision.get_display_format(self.language).format_string,
         self.precision.get_display_format(self.language).format_string,
         self.precision.get_display_format(self.language).pre_process_fct("{0}"),
-        self.precision.get_display_format(self.language).pre_process_fct("{0}")
+        self.precision.get_display_format(self.language).pre_process_fct("{1}")
       )
       printf_error_op = TemplateOperatorFormat(printf_error_template, arity=2, void_function=True, require_header=["stdio.h"])
 
