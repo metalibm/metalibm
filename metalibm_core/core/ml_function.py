@@ -1014,6 +1014,15 @@ class ML_FunctionBasis(object):
                     cpe_measure = loaded_module.get_function_handle("bench_wrapper")()
                     exec_result["cpe_measure"] = cpe_measure
 
+                # max-error must be evaluated before auto-test
+                # in case auto-test fails and raises a ValidError exception
+                if self.compute_max_error:
+                    max_error_value = loaded_module.get_function_handle("max_error_eval")()
+                    # convert to ulps
+                    max_error_value = convert_error_to_ulp(max_error_value, self.precision)
+                    print("max_error_value={}".format(max_error_value))
+                    exec_result["max_error"] = max_error_value
+
                 if self.auto_test_enable:
                     test_result = loaded_module.get_function_handle("test_wrapper")()
                     exec_result["test_result"] = test_result
@@ -1022,12 +1031,6 @@ class ML_FunctionBasis(object):
                     else:
                         Log.report(Log.Error, "VALIDATION FAILURE", error=ValidError())
 
-                if self.compute_max_error:
-                    max_error_value = loaded_module.get_function_handle("max_error_eval")()
-                    # convert to ulps
-                    max_error_value = convert_error_to_ulp(max_error_value, self.precision)
-                    print("max_error_value={}".format(max_error_value))
-                    exec_result["max_error"] = max_error_value
 
                 # if no specific measure/test is schedule we execute the function itself
                 if not (self.bench_enabled or self.auto_test_enable or self.compute_max_error):
