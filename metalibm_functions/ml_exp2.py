@@ -74,7 +74,7 @@ class ML_Exp2(ScalarUnaryFunction):
     default_args_exp2.update(kw)
     return DefaultArgTemplate(**default_args_exp2)
 
-  def generate_scalar_scheme(self, vx):
+  def generate_scalar_scheme(self, vx, inline_select=False):
     Log.set_dump_stdout(True)
 
     Log.report(Log.Info, "\033[33;1m generating implementation scheme \033[0m")
@@ -164,7 +164,7 @@ class ML_Exp2(ScalarUnaryFunction):
     exp_min = ExponentInsertion(uflow_bound, precision = self.precision, debug = debug_multi, tag = "exp_min")
     subnormal_result = hi_part_value * exp_offset*exp_min*poly + hi_part_value * exp_offset*exp_min
     
-    test_std = LogicalOr(test_overflow, test_underflow, precision = ML_Bool, tag = "std_test", likely = False)
+    test_std = LogicalOr(test_overflow, test_underflow, precision = ML_Bool, tag = "std_test", likely = False, debug=debug_multi)
     
     #Reconstruction
     result = hi_part_value * exp_X * poly + hi_part_value * exp_X
@@ -172,32 +172,49 @@ class ML_Exp2(ScalarUnaryFunction):
     
     C0 = Constant(0, precision = self.precision)
     
-    return_inf = Return(FP_PlusInfty(self.precision))
-    return_C0 = Return(C0)
-    return_sub = Return(subnormal_result)
-    return_std = Return(result)
+    if inline_select:
+        scheme = Select(
+            test_std,
+            Select(
+                test_overflow,
+                FP_PlusInfty(self.precision),
+                Select(
+                    test_subnormal,
+                    subnormal_result,
+                    C0,
+                )
+            ),
+            result,
+        )
+        return scheme
 
-    non_std_statement = Statement(
-      ConditionBlock(
-        test_overflow,
-        return_inf,
-        ConditionBlock(
-          test_subnormal,
-          return_sub,
-          return_C0
+    else:
+        return_inf = Return(FP_PlusInfty(self.precision))
+        return_C0 = Return(C0)
+        return_sub = Return(subnormal_result)
+        return_std = Return(result)
+
+        non_std_statement = Statement(
+          ConditionBlock(
+            test_overflow,
+            return_inf,
+            ConditionBlock(
+              test_subnormal,
+              return_sub,
+              return_C0
+              )
+            )
+          )
+
+        scheme = Statement(
+          ConditionBlock(
+            test_std,
+            non_std_statement,
+            return_std
           )
         )
-      )
 
-    scheme = Statement(
-      ConditionBlock(
-        test_std,
-        non_std_statement,
-        return_std
-      )
-    )
-
-    return scheme
+        return scheme
 
   def generate_emulate(self, result_ternary, result, mpfr_x, mpfr_rnd):
     """ generate the emulation code for ML_Log2 functions
