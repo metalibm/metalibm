@@ -55,6 +55,8 @@ class MetaRootN(ScalarBinaryFunction):
         vx.set_attributes(tag="x")
         n.set_attributes(tag="n")
 
+        int_precision = self.precision.get_integer_format()
+
         # assuming x = m.2^e (m in [1, 2[)
         #          n, positive or null integers
         #
@@ -63,8 +65,8 @@ class MetaRootN(ScalarBinaryFunction):
         #             = 2^(1/n * log2(x))
         #             = 2^(1/n * (log2(m) + e))
         #
-        e = ExponentExtraction(vx, tag="e")
-        m = MantissaExtraction(vx, tag="m")
+        e = ExponentExtraction(vx, tag="e", precision=int_precision)
+        m = MantissaExtraction(vx, tag="m", precision=self.precision)
 
         # approximation log2(m)
 
@@ -81,18 +83,29 @@ class MetaRootN(ScalarBinaryFunction):
         ml_log_args = ML_GenericLog.get_default_args(precision=self.precision, basis=2)
         ml_log = ML_GenericLog(ml_log_args)
         log_table, log_table_tho, table_index_range = ml_log.generate_log_table(log_f, inv_approx_table)
-        log_approx = ml_log.generate_reduced_log(Abs(vx), log_f, inv_approx_table,
-                                                 log_table, log_table_tho)
+        log_approx = ml_log.generate_reduced_log_split(m, log_f, inv_approx_table, log_table)
+        # floating-point version of n
+        n_f = Conversion(n, precision=self.precision)
 
         log_approx = Select(Equal(vx, 0), FP_MinusInfty(self.precision), log_approx)
         log_approx.set_attributes(tag="log_approx", debug=debug_multi)
-        r = Division(log_approx, Conversion(n, precision=self.precision))
+        r = Division(log_approx, n_f)
         r.set_attributes(tag="r", debug=debug_multi)
+
+        e_n = Division(Conversion(e, precision=self.precision), n_f, tag="e_n")
+        e_n_int = NearestInteger(e_n, precision=self.precision, tag="e_n_int")
+        e_n_frac = e_n - e_n_int
+        e_n_frac.set_attributes(tag="e_n_frac")
 
         ml_exp2_args = ML_Exp2.get_default_args(precision=self.precision)
         ml_exp2 = ML_Exp2(ml_exp2_args)
-        ml_exp2_scheme = ml_exp2.generate_scalar_scheme(r, inline_select=True)
-        ml_exp2_scheme.set_attributes(tag="exp2_r", debug=debug_multi)
+        exp2_r = ml_exp2.generate_scalar_scheme(r, inline_select=True)
+        exp2_r.set_attributes(tag="exp2_r", debug=debug_multi)
+
+        exp2_e_n_frac = ml_exp2.generate_scalar_scheme(e_n_frac, inline_select=True)
+        exp2_e_n_frac.set_attributes(tag="exp2_e_n_frac", debug=debug_multi)
+
+        exp2_e_n_int = ExponentInsertion(Conversion(e_n_int, precision=int_precision), precision=self.precision, tag="exp2_e_n_int")
 
         n_is_odd = Equal(Modulo(n, 2), 1, tag="n_is_odd", debug=debug_multi)
         result_sign = Select(n_is_odd, CopySign(vx, Constant(1.0, precision=self.precision)), 1)
@@ -106,7 +119,7 @@ class MetaRootN(ScalarBinaryFunction):
             ConditionBlock(
                 Equal(n, 1),
                 Return(vx),
-                Return(result_sign * ml_exp2_scheme)))
+                Return(result_sign * exp2_r * exp2_e_n_int * exp2_e_n_frac)))
         return result
 
 
@@ -130,6 +143,8 @@ class MetaRootN(ScalarBinaryFunction):
         return sollya.SollyaObject(v)
 
     standard_test_cases = [
+        # test-case #6
+        (sollya.parse("-0x1.0105bp+67"), 23),
         # test-case #5
         (sollya.parse("0x1.c1f72p+51"), 6),
         # special cases
