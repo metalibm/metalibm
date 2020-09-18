@@ -4,11 +4,12 @@ from metalibm_core.core.precisions import ML_Faithful
 from metalibm_core.core.ml_operations import (
     Statement, Return,
     ExponentExtraction, ExponentInsertion, MantissaExtraction,
-    Conversion, Division,
+    Conversion, Division, Multiplication,
     Variable, ReciprocalSeed, NearestInteger,
     Select, Equal, Modulo,
     LogicalNot, LogicalAnd, LogicalOr,
-    ConditionBlock, Abs, CopySign, Constant)
+    ConditionBlock, Abs, CopySign, Constant,
+    FMA)
 
 from metalibm_core.core.special_values import (
     FP_MinusInfty, FP_QNaN, FP_SpecialValue,
@@ -44,7 +45,7 @@ class MetaRootN(ScalarBinaryFunction):
             "input_precisions": [ML_Binary32, ML_Int32],
             "accuracy": ML_Faithful,
             "input_intervals": [sollya.Interval(-2.0**126, 2.0**126), sollya.Interval(0, 2**31-1)],
-            "auto_test_range": [sollya.Interval(-2.0**126, 2.0**126), sollya.Interval(0, 2**31-1)],
+            "auto_test_range": [sollya.Interval(-2.0**126, 2.0**126), sollya.Interval(0, 47)],
             "target": GenericProcessor.get_target_instance()
         }
         default_args_rootn.update(kw)
@@ -79,22 +80,35 @@ class MetaRootN(ScalarBinaryFunction):
 
         log_f = sollya.log(sollya.x) # /sollya.log(self.basis)
 
+        use_reciprocal = False
+
 
         ml_log_args = ML_GenericLog.get_default_args(precision=self.precision, basis=2)
         ml_log = ML_GenericLog(ml_log_args)
         log_table, log_table_tho, table_index_range = ml_log.generate_log_table(log_f, inv_approx_table)
-        log_approx = ml_log.generate_reduced_log_split(m, log_f, inv_approx_table, log_table)
+        log_approx = ml_log.generate_reduced_log_split(Abs(m, precision=self.precision), log_f, inv_approx_table, log_table)
         # floating-point version of n
         n_f = Conversion(n, precision=self.precision)
+        inv_n = Division(Constant(1, precision=self.precision), n_f)
 
         log_approx = Select(Equal(vx, 0), FP_MinusInfty(self.precision), log_approx)
         log_approx.set_attributes(tag="log_approx", debug=debug_multi)
-        r = Division(log_approx, n_f)
-        r.set_attributes(tag="r", debug=debug_multi)
+        if use_reciprocal:
+            r = Multiplication(log_approx, inv_n, tag="r", debug=debug_multi)
+        else:
+            r = Division(log_approx, n_f, tag="r", debug=debug_multi)
 
-        e_n = Division(Conversion(e, precision=self.precision), n_f, tag="e_n")
+        # e_n ~ e / n
+        e_f = Conversion(e, precision=self.precision)
+        if use_reciprocal:
+            e_n = Multiplication(e_f, inv_n, tag="e_n")
+        else:
+            e_n = Division(e_f, n_f, tag="e_n")
+        error_e_n = FMA(e_n, -n_f, e_f, tag="error_e_n")
         e_n_int = NearestInteger(e_n, precision=self.precision, tag="e_n_int")
-        e_n_frac = e_n - e_n_int
+        pre_e_n_frac = e_n - e_n_int
+        pre_e_n_frac.set_attributes(tag="pre_e_n_frac")
+        e_n_frac = pre_e_n_frac + error_e_n * inv_n
         e_n_frac.set_attributes(tag="e_n_frac")
 
         ml_exp2_args = ML_Exp2.get_default_args(precision=self.precision)
@@ -143,6 +157,14 @@ class MetaRootN(ScalarBinaryFunction):
         return sollya.SollyaObject(v)
 
     standard_test_cases = [
+        # test-case #10, fails test with dar(2**-23)
+        (sollya.parse("-0x1.20aadp-114"), 17),
+        # test-case #9
+        (sollya.parse("0x1.a44d8ep+121"), 7),
+        # test-case #8
+        (sollya.parse("-0x1.3ef124p+103"), 3),
+        # test-case #7
+        (sollya.parse("-0x1.01047ep-2"), 39),
         # test-case #6
         (sollya.parse("-0x1.0105bp+67"), 23),
         # test-case #5
