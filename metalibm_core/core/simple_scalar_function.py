@@ -85,13 +85,13 @@ class ScalarBinaryFunction(ML_FunctionBasis):
         """ generate scheme assuming two inputs vx and vy """
         raise NotImplementedError
 
-    def generate_inline_scheme(self, vx):
+    def generate_inline_scheme(self, vx, vy):
         """ generate a pair <variable, scheme>
             scheme is the operation graph to compute self function on vx
             and variable is the result variable """
         result_var = Variable("r", precision=self.get_precision(), var_type=Variable.Local)
-        scalar_scheme = self.generate_scalar_scheme(vx)
-        result_scheme = inline_function(scalar_scheme, result_var, {vx: vx})
+        scalar_scheme = self.generate_scalar_scheme(vx, vy)
+        result_scheme = inline_function(scalar_scheme, result_var, {vx: vx, vy:vy})
 
         return result_var, result_scheme
 
