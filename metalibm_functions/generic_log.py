@@ -95,6 +95,7 @@ class ML_GenericLog(ScalarUnaryFunction):
         _vx_exp  = ExponentExtraction(_vx, tag="_vx_exp", precision=int_precision, debug=debug_multi)
 
         tho_cond = _vx_mant > Constant(sollya.sqrt(2), precision=self.precision)
+        tho_cond.set_attributes(tag="tho_cond")
         tho = Select(
             tho_cond,
             Constant(1.0, precision=self.precision),
@@ -157,7 +158,8 @@ class ML_GenericLog(ScalarUnaryFunction):
         index_comp_0 = Equal(table_index, C0, tag="index_comp_0", debug=debug_multi)
 
         arg_red_index = Select(index_comp_0, 1.0, pre_arg_red_index, tag = "arg_red_index", debug = debug_multi)
-        _red_vx        = arg_red_index * _vx_mant - 1.0
+        #_red_vx        = arg_red_index * _vx_mant - 1.0
+        _red_vx        = FMA(arg_red_index, _vx_mant, -1.0)
         inv_err = S2**-6
         red_interval = Interval(1 - inv_err, 1 + inv_err)
         _red_vx.set_attributes(tag = "_red_vx", debug = debug_multi, interval = red_interval)
@@ -406,7 +408,13 @@ class ML_GenericLog(ScalarUnaryFunction):
     def numeric_emulate(self, input_value):
         return sollya.log(input_value)/sollya.log(self.basis)
 
-    standard_test_cases = [(sollya.parse("0x1.42af3ap-1"), None)]
+    standard_test_cases = [
+        # test-case #0, was due to rounding error when computing _red_vx
+        # without using an FMA
+        (sollya.parse("0x1.d16388p-1"), None),
+        #
+        (sollya.parse("0x1.42af3ap-1"), None),
+    ]
 
 
 if __name__ == "__main__":
