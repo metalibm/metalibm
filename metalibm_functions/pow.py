@@ -12,8 +12,11 @@ from metalibm_core.core.ml_operations import (
     FMA)
 
 from metalibm_core.core.special_values import (
-    FP_MinusInfty, FP_QNaN, FP_SpecialValue,
+    FP_PlusInfty, FP_MinusInfty,
+	FP_QNaN, FP_SpecialValue,
+    FP_PlusZero, FP_MinusZero,
     is_nan, is_plus_infty, is_minus_infty, is_zero,
+	is_plus_zero, is_minus_zero, is_infty,
     SOLLYA_NAN, SOLLYA_INFTY)
 
 from metalibm_core.code_generation.generic_processor import GenericProcessor
@@ -123,20 +126,70 @@ class MetaPow(ScalarBinaryFunction):
 
     def numeric_emulate(self, vx, vy):
         """ Numeric emulation of pow """
-        if FP_SpecialValue.is_special_value(vx):
-            if is_nan(vx):
-                return FP_QNaN(self.precision)
-            elif is_plus_infty(vx):
-                return SOLLYA_INFTY
-            elif is_minus_infty(vx):
-                if int(n) % 2 == 1:
-                    return vx
-                else:
-                    return FP_QNaN(self.precision)
-            elif is_zero(vx):
-                return FP_QNaN(self.precision)
-            else:
-                raise NotImplementedError
+
+		if is_snan(vx) or is_snan(vy):
+			return FP_SNaN(self.precision)
+        # pow(x, ±0) is 1 if x is not a signaling NaN
+		if is_zero(vy):
+			return 1.0
+        # pow(±0, y) is ±∞ and signals the divideByZero exception for y an odd integer <0
+		if is_plus_zero(vx) and (int(vy) == vy) and (int(vy) % 2 == 1) and vy < 0:
+			return FP_PlusInfty(self.precision)
+		if is_minus_zero(vx) and (int(vy) == vy) and (int(vy) % 2 == 1) and vy < 0:
+			return FP_MinusInfty(self.precision)
+        # pow(±0, −∞) is +∞ with no exception
+		if is_zero(vx) and is_minus_zero(vy):
+			return FP_MinusInfty(self.precision)
+        # pow(±0, +∞) is +0 with no exception
+		if is_zero(vx) and is_plus_zero(vy):
+			return FP_PlusZero(self.precision)
+        # pow(±0, y) is ±0 for finite y>0 an odd integer
+		if is_zero(vx) and (int(vy) == vy) and (int(vy) % 2 == 1) and vy > 0:
+			return vx
+        # pow(−1, ±∞) is 1 with no exception
+		if vx == -1.0 and is_infty(vy):
+			return 1
+        # pow(+1, y) is 1 for any y (even a quiet NaN)
+		if vx == 1.0:
+			return 1.0
+        # pow(x, +∞) is +0 for −1<x<1
+		if -1 < vx < 1 and is_plus_infty(vy):
+			return FP_PlusZero(self.precision)
+        # pow(x, +∞) is +∞ for x<−1 or for 1<x (including ±∞)
+		if (vx < -1 or vx > 1) and is_plus_infty(vy):
+			return FP_PlusInfty(self.precision)
+        # pow(x, −∞) is +∞ for −1<x<1
+		if -1 < vx < 1 and is_minus_infty(vy):
+			return FP_PlusInfty(self.precision)
+        # pow(x, −∞) is +0 for x<−1 or for 1<x (including ±∞)
+		if is_minus_infty(vy) and (vx < -1 or vx > 1):
+			return FP_PlusZero(self.precision)
+        # pow(+∞, y) is +0 for a number y < 0
+		if is_plus_infty(vx) and vy < 0:
+			return FP_PlusZero(self.precision)
+        # pow(+∞, y) is +∞ for a number y > 0
+		if is_minus_infty(vx) and vy > 0:
+			return FP_PlusInfty(self.precision)
+        # pow(−∞, y) is −0 for finite y < 0 an odd integer
+		if is_minus_infty(vx) and vy < 0 and int(vy) == vy and vy % 2 == 1:
+			return FP_MinusZero(self.precision)
+        # pow(−∞, y) is −∞ for finite y > 0 an odd integer
+		if is_minus_infty(vx) and vy > 0 and int(vy) == vy and vy % 2 == 1:
+			return FP_MinusInfty(self.precision)
+        # pow(−∞, y) is +0 for finite y < 0 and not an odd integer
+		if is_minus_infty(vx) and vy < 0 and not(int(vy) == vy and vy % 2 == 1):
+			return FP_PlusZero(self.precision)
+        # pow(−∞, y) is +∞ for finite y > 0 and not an odd integer
+		if is_minus_infty(vx) and vy > 0 and not(int(vy) == vy and vy % 2 == 1):
+			return FP_PlusInfty(self.precision)
+        # pow(±0, y) is +∞ and signals the divideByZero exception for finite y<0 and not an odd integer
+		if is_zero(vx) and vy < 0 and not(int(vy) == vy and vy % 2 == 1):
+			return FP_PlusInfty(self.precision)
+        # pow(±0, y) is +0 for finite y>0 and not an odd integer
+		if is_zero(vx) and vy > 0 and not(int(vy) == vy and vy % 2 == 1):
+			return FP_PlusZero(self.precision)
+		# TODO
+        # pow(x, y) signals the invalid operation exception for finite x<0 and finite non-integer y.
         return sollya.SollyaObject(vx)**sollya.SollyaObject(vy)
 
     standard_test_cases = [
