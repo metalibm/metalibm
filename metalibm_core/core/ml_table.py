@@ -200,7 +200,7 @@ class ML_Table(ML_LeafNode):
 
 
     def get_definition(self, table_name, final = ";", language = C_Code):
-        attributes = "const" if self.const else ""
+        attributes = "static const" if self.const else ""
         precision_name = self.get_storage_precision().get_name(language = language)
         return "{attributes} {format_name} {table_name}[{dims}]".format(
             attributes=attributes,
