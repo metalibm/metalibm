@@ -133,7 +133,7 @@ class ML_Exp2(ScalarUnaryFunction):
     poly = polynomial_scheme_builder(poly_object.sub_poly(start_index=1), r_lo, unified_precision=self.precision)
     poly.set_attributes(tag = "poly", debug = debug_multi)
 
-    hi_part_table = ML_NewTable(dimensions=[2**index_size + 1], storage_precision=self.precision, tag=self.uniquify_name("exp2_table"))
+    hi_part_table = ML_NewTable(dimensions=[2**index_size + 1], storage_precision=self.precision, tag=self.uniquify_name("exp2_table"), const=True)
     for i in range(2**index_size + 1):
       input_value = i * 2**-index_size
       tab_value = self.precision.round_sollya_object(sollya.SollyaObject(2)**(input_value))
