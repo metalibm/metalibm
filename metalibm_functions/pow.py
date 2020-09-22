@@ -193,6 +193,8 @@ class MetaPow(ScalarBinaryFunction):
         return sollya.SollyaObject(vx)**sollya.SollyaObject(vy)
 
     standard_test_cases = [
+        # test-case #1
+        (sollya.parse("0x1.bbe2f2p-1"), sollya.parse("0x1.2d34ep+9")),
         # test-case #0
         (sollya.parse("0x1.5d20b8p-115"), sollya.parse("0x1.c20048p+0")),
         # special cases
