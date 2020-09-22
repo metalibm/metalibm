@@ -1,3 +1,5 @@
+import random
+
 from metalibm_core.core.simple_scalar_function import ScalarBinaryFunction
 from metalibm_core.core.ml_formats import ML_Binary32, ML_Int32
 from metalibm_core.core.precisions import ML_Faithful
@@ -6,14 +8,17 @@ from metalibm_core.core.ml_operations import (
     ExponentExtraction, ExponentInsertion, MantissaExtraction,
     Conversion, Division, Multiplication,
     Variable, ReciprocalSeed, NearestInteger,
-    Select, Equal, Modulo,
+    Select, NotEqual, Equal, Modulo,
     LogicalNot, LogicalAnd, LogicalOr,
     ConditionBlock, Abs, CopySign, Constant,
+    Test,
     FMA)
 
 from metalibm_core.core.special_values import (
+    FP_PlusInfty, FP_PlusZero, FP_MinusZero,
     FP_MinusInfty, FP_QNaN, FP_SpecialValue,
     is_nan, is_plus_infty, is_minus_infty, is_zero,
+    is_plus_zero, is_minus_zero,
     SOLLYA_NAN, SOLLYA_INFTY)
 
 from metalibm_core.code_generation.generic_processor import GenericProcessor
@@ -66,8 +71,6 @@ class MetaRootN(ScalarBinaryFunction):
         #             = 2^(1/n * log2(x))
         #             = 2^(1/n * (log2(m) + e))
         #
-        e = ExponentExtraction(vx, tag="e", precision=int_precision)
-        m = MantissaExtraction(vx, tag="m", precision=self.precision)
 
         # approximation log2(m)
 
@@ -82,13 +85,21 @@ class MetaRootN(ScalarBinaryFunction):
 
         use_reciprocal = False
 
+        is_subnormal = Test(vx, specifier=Test.IsSubnormal, tag="is_subnormal")
+        exp_correction_factor = self.precision.get_mantissa_size()
+        mantissa_factor = Constant(2**exp_correction_factor, tag="mantissa_factor")
+        vx = Select(is_subnormal, vx * mantissa_factor, vx, tag="corrected_vx")
+
+        m = MantissaExtraction(vx, tag="m", precision=self.precision)
+        e = ExponentExtraction(vx, tag="e", precision=int_precision)
+        e = Select(is_subnormal, e -exp_correction_factor, e, tag="corrected_e")
 
         ml_log_args = ML_GenericLog.get_default_args(precision=self.precision, basis=2)
         ml_log = ML_GenericLog(ml_log_args)
         log_table, log_table_tho, table_index_range = ml_log.generate_log_table(log_f, inv_approx_table)
         log_approx = ml_log.generate_reduced_log_split(Abs(m, precision=self.precision), log_f, inv_approx_table, log_table)
         # floating-point version of n
-        n_f = Conversion(n, precision=self.precision)
+        n_f = Conversion(n, precision=self.precision, tag="n_f")
         inv_n = Division(Constant(1, precision=self.precision), n_f)
 
         log_approx = Select(Equal(vx, 0), FP_MinusInfty(self.precision), log_approx)
@@ -99,7 +110,7 @@ class MetaRootN(ScalarBinaryFunction):
             r = Division(log_approx, n_f, tag="r", debug=debug_multi)
 
         # e_n ~ e / n
-        e_f = Conversion(e, precision=self.precision)
+        e_f = Conversion(e, precision=self.precision, tag="e_f")
         if use_reciprocal:
             e_n = Multiplication(e_f, inv_n, tag="e_n")
         else:
@@ -121,19 +132,37 @@ class MetaRootN(ScalarBinaryFunction):
 
         exp2_e_n_int = ExponentInsertion(Conversion(e_n_int, precision=int_precision), precision=self.precision, tag="exp2_e_n_int")
 
-        n_is_odd = Equal(Modulo(n, 2), 1, tag="n_is_odd", debug=debug_multi)
+        n_is_even = Equal(Modulo(n, 2), 0, tag="n_is_even", debug=debug_multi)
+        n_is_odd = LogicalNot(n_is_even, tag="n_is_odd")
         result_sign = Select(n_is_odd, CopySign(vx, Constant(1.0, precision=self.precision)), 1)
 
         # manage n=1 separately to avoid catastrophic propagation of errors
         # between log2 and exp2 to eventually compute the identity function
         # test-case #3
         result = ConditionBlock(
-            LogicalOr(Equal(n, 0), LogicalAnd(LogicalNot(n_is_odd), vx < 0)),
+            LogicalOr(
+                LogicalOr(
+                    Test(vx, specifier=Test.IsNaN),
+                    Equal(n, 0)
+                ),
+                LogicalAnd(n_is_even, vx < 0)
+            ),
             Return(FP_QNaN(self.precision)),
-            ConditionBlock(
-                Equal(n, 1),
-                Return(vx),
-                Return(result_sign * exp2_r * exp2_e_n_int * exp2_e_n_frac)))
+            Statement(
+                ConditionBlock(
+                    # rootn( ±0, n) is +∞ for even n< 0.
+                    LogicalAnd(LogicalAnd(n_is_even, n < 0), Equal(vx, 0)),
+                    Return(FP_PlusInfty(self.precision))
+                ),
+                ConditionBlock(
+                    LogicalAnd(LogicalNot(n_is_odd), Equal(vx, 0)),
+                    Return(vx)
+                ),
+                ConditionBlock(
+                    Equal(n, 1),
+                    Return(vx),
+                    Return(result_sign * exp2_r * exp2_e_n_int * exp2_e_n_frac)))
+            )
         return result
 
 
@@ -150,34 +179,123 @@ class MetaRootN(ScalarBinaryFunction):
                 else:
                     return FP_QNaN(self.precision)
             elif is_zero(vx):
+                if int(n) % 2 != 0 and n < 0:
+                    if is_plus_zero(vx):
+                        return FP_PlusInfty(self.precision)
+                    else:
+                        return FP_MinusInfty(self.precision)
+                elif int(n) % 2 == 0:
+                    if n < 0:
+                        return FP_PlusInfty(self.precision)
+                    elif n > 0:
+                        return FP_PlusZero(self.precision)
                 return FP_QNaN(self.precision)
             else:
                 raise NotImplementedError
-        v = bigfloat.root(sollya.SollyaObject(vx).bigfloat(), int(n))
+        # OpenCL-C rootn, x < 0 and y odd: -exp2(log2(-x) / y)
+        if vx < 0:
+            if int(n) % 2 != 0:
+                v = -bigfloat.root(sollya.SollyaObject(-vx).bigfloat(), int(n))
+            else:
+                return FP_QNaN(self.precision)
+        elif n < 0:
+            # OpenCL-C definition
+            S2 = sollya.SollyaObject(2)
+            v = S2**(sollya.log2(vx) / n)
+        else:
+            v = bigfloat.root(sollya.SollyaObject(vx).bigfloat(), int(n))
         return sollya.SollyaObject(v)
 
-    standard_test_cases = [
-        # test-case #10, fails test with dar(2**-23)
-        (sollya.parse("-0x1.20aadp-114"), 17),
-        # test-case #9
-        (sollya.parse("0x1.a44d8ep+121"), 7),
-        # test-case #8
-        (sollya.parse("-0x1.3ef124p+103"), 3),
-        # test-case #7
-        (sollya.parse("-0x1.01047ep-2"), 39),
-        # test-case #6
-        (sollya.parse("-0x1.0105bp+67"), 23),
-        # test-case #5
-        (sollya.parse("0x1.c1f72p+51"), 6),
-        # special cases
-        (sollya.parse("0x0p+0"), 1),
-        (sollya.parse("0x0p+0"), 0),
-        # test-case #3, catastrophic error for n=1
-        (sollya.parse("0x1.fc61a2p-121"), 1.0),
-        # test-case #4 , k=14 < 0 not supported by bigfloat
-        # (sollya.parse("0x1.ad067ap-66"), -14),
+    @property
+    def standard_test_cases(self):
+        general_list= [
+            # rootn( ±0, n) is ±∞ for odd n< 0.
+            (FP_PlusZero(self.precision), -1337, FP_PlusInfty(self.precision)),
+            (FP_MinusZero(self.precision), -1337, FP_MinusInfty(self.precision)),
+            # rootn( ±0, n) is +∞ for even n< 0.
+            (FP_PlusZero(self.precision), -1330, FP_PlusInfty(self.precision)),
+            # rootn( ±0, n) is +0 for even n> 0.
+            (FP_PlusZero(self.precision), random.randrange(0, 2**31, 2), FP_PlusZero(self.precision)),
+            (FP_MinusZero(self.precision), random.randrange(0, 2**31, 2), FP_PlusZero(self.precision)),
+            # rootn( ±0, n) is ±0 for odd n> 0.
+            (FP_PlusZero(self.precision), random.randrange(1, 2**31, 2), FP_PlusZero(self.precision)),
+            (FP_MinusZero(self.precision), random.randrange(1, 2**31, 2), FP_MinusZero(self.precision)),
+            # rootn( x, n) returns a NaN for x< 0 and n is even.
+            (-random.random(), 2 * random.randrange(1, 2**32), FP_QNaN(self.precision)),
+            # rootn( x, 0 ) returns a NaN
+            (random.random(), 0, FP_QNaN(self.precision)),
+            # vx=nan
+            (sollya.parse("-nan"), -1811577079, sollya.parse("nan")),
+            (sollya.parse("-nan"), 832501219, sollya.parse("nan")),
+            (sollya.parse("-nan"), -857435762, sollya.parse("nan")),
+            (sollya.parse("-nan"), -1503049611, sollya.parse("nan")),
+            (sollya.parse("-nan"), 2105620996, sollya.parse("nan")),
+            #ERROR: rootn: inf ulp error at {-nan, 832501219}: *-nan vs. -0x1.00000df2bed98p+1
+            #ERROR: rootn: inf ulp error at {-nan, -857435762}: *-nan vs. 0x1.0000000000000p+1
+            #ERROR: rootn: inf ulp error at {-nan, -1503049611}: *-nan vs. -0x1.0000000000000p+1
+            #ERROR: rootn: inf ulp error at {-nan, 2105620996}: *-nan vs. 0x1.00000583c4b7ap+1
+            (sollya.parse("-0x1.cd150ap-105"), 105297051),
+            (sollya.parse("0x1.ec3bf8p+71"), -1650769017),
+            # test-case #12
+            (0.1, 17),
+            # test-case #11, fails in OpenCL CTS
+            (sollya.parse("0x0.000000001d600p-1022"), 14),
+            # test-case #10, fails test with dar(2**-23)
+            (sollya.parse("-0x1.20aadp-114"), 17),
+            # test-case #9
+            (sollya.parse("0x1.a44d8ep+121"), 7),
+            # test-case #8
+            (sollya.parse("-0x1.3ef124p+103"), 3),
+            # test-case #7
+            (sollya.parse("-0x1.01047ep-2"), 39),
+            # test-case #6
+            (sollya.parse("-0x1.0105bp+67"), 23),
+            # test-case #5
+            (sollya.parse("0x1.c1f72p+51"), 6),
+            # special cases
+            (sollya.parse("0x0p+0"), 1),
+            (sollya.parse("0x0p+0"), 0),
+            # test-case #3, catastrophic error for n=1
+            (sollya.parse("0x1.fc61a2p-121"), 1.0),
+            # test-case #4 , k=14 < 0 not supported by bigfloat
+            # (sollya.parse("0x1.ad067ap-66"), -14),
+        ]
+        # NOTE: expected value assumed 32-bit precision output
+        fp_32_only = [
+            #
+            (sollya.parse("0x1.80bb0ep+70"), 377778829, sollya.parse("0x1.000002p+0")),
+        ]
+        # NOTE: the following test-case are only valid if meta-function supports 64-bit integer
+        #       2nd_input
+        fp_64_only = [
+            #
+            (sollya.parse("0x0.0568000000012p-1022"), -447352599, sollya.parse("0x1.00001ab640c38p+0")),
+            #
+            (sollya.parse("0x1.ffffffffd0a00p-260"), 1108043946, sollya.parse("0x1.fffffa9042997p-1")),
+            (FP_MinusZero(self.precision), -21015979, FP_MinusInfty(self.precision)),
+            (FP_MinusZero(self.precision), -85403731, FP_MinusInfty(self.precision)),
+            (FP_MinusZero(self.precision), -180488973, FP_MinusInfty(self.precision)),
+            (FP_MinusZero(self.precision), -1365227287, FP_MinusInfty(self.precision)),
+            (FP_MinusZero(self.precision), -1802885579, FP_MinusInfty(self.precision)),
+            (FP_MinusZero(self.precision), -1681209663, FP_MinusInfty(self.precision)),
+            (FP_MinusZero(self.precision), -1152797721, FP_MinusInfty(self.precision)),
+            (FP_MinusZero(self.precision), -1614890585, FP_MinusInfty(self.precision)),
+            (FP_MinusZero(self.precision), -812655517, FP_MinusInfty(self.precision)),
+            (FP_MinusZero(self.precision), -628647891, FP_MinusInfty(self.precision)),
+            (sollya.parse("0x1.ffffffffdae80p-858"), -888750231, sollya.parse("0x1.00000b36b1173p+0")),
+            (sollya.parse("0x0.0568000000012p-1022"), -447352599, sollya.parse("0x1.00001ab640c38p+0")),
+            (sollya.parse("0x0.00000006abfffp-1022"), -1221802473, sollya.parse("0x1.00000a01818a4p+0")),
+            (sollya.parse("0x0.0000000000022p-1022"), -1538297900, sollya.parse("0x1.00000814a68ffp+0")),
+            #ERROR: rootn: inf ulp error at {-0x0.0000000000000p+0, -1889147085}: *-inf vs. inf
+            #ERROR: rootn: inf ulp error at {-0x0.0000000000000p+0, -373548013}: *-inf vs. inf
+            (FP_MinusZero(self.precision), -1889147085, FP_MinusInfty(self.precision)),
+            (FP_MinusZero(self.precision), -373548013, FP_MinusInfty(self.precision)),
+            #ERROR: rootn: inf ulp error at {-0x0.0000000000000p+0, -1889147085}: *-inf vs. inf
+            #ERROR: rootn: inf ulp error at {-0x0.0000000000000p+0, -373548013}: *-inf vs. inf
+        ]
 
-    ]
+        return general_list + (fp_64_only if self.precision.get_bit_size() >= 64 else []) \
+                            + (fp_32_only if self.precision.get_bit_size() == 32 else [])
 
 
 if __name__ == "__main__":
