@@ -249,8 +249,8 @@ class ML_GenericLog(ScalarUnaryFunction):
         # table creation
         table_index_size = inv_approx_table.index_size
         table_index_range = range(1, 2**table_index_size)
-        log_table = ML_NewTable(dimensions = [2**table_index_size, 2], storage_precision = self.precision)
-        log_table_tho = ML_NewTable(dimensions = [2**table_index_size, 2], storage_precision = self.precision)
+        log_table = ML_NewTable(dimensions = [2**table_index_size, 2], storage_precision = self.precision, const=True)
+        log_table_tho = ML_NewTable(dimensions = [2**table_index_size, 2], storage_precision = self.precision, const=True)
         log_table[0][0] = 0.0
         log_table[0][1] = 0.0
         log_table_tho[0][0] = 0.0
