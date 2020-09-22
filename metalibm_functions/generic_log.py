@@ -409,6 +409,8 @@ class ML_GenericLog(ScalarUnaryFunction):
         return sollya.log(input_value)/sollya.log(self.basis)
 
     standard_test_cases = [
+        # test-case #1
+        (sollya.parse("0x0.000000001d600p-1022"), None),
         # test-case #0, was due to rounding error when computing _red_vx
         # without using an FMA
         (sollya.parse("0x1.d16388p-1"), None),
