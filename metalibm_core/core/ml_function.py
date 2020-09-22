@@ -1261,12 +1261,15 @@ class ML_FunctionBasis(object):
       # standard test cases
       for i, test_case in enumerate(non_random_test_cases):
         input_list = []
+        # rounding numerical value to input format
         for in_id in range(self.arity):
           input_value = test_case[in_id]
           if not FP_SpecialValue.is_special_value(input_value):
             input_value = self.get_input_precision(in_id).round_sollya_object(input_value, sollya.RN)
           input_list.append(input_value)
-        test_case_list.append(tuple(input_list))
+        # concatenating expected outputs (if any) and adding test-case
+        # to the list
+        test_case_list.append(tuple(input_list) + tuple(test_case[self.arity:]))
 
     # adding randomly generated inputs
     test_case_list += list(self.generate_rand_input_iterator(test_num, test_ranges))
@@ -1276,8 +1279,14 @@ class ML_FunctionBasis(object):
       # storing inputs
       for in_id in range(self.arity):
         input_tables[in_id][table_index] = input_tuple[in_id]
+      # NOTE/DOC: if input_tuple has an extra valid (not None) value
+      #           it is forced as the expected output
+      if len(input_tuple) > self.arity and not input_tuple[self.arity] is None:
+        expected_output = input_tuple[self.arity]
+      else:
+        expected_output = self.numeric_emulate(*input_tuple)
       # computing and storing output values
-      output_values = self.accuracy.get_output_check_value(self.numeric_emulate(*input_tuple))
+      output_values = self.accuracy.get_output_check_value(expected_output)
       for o in range(num_output_value):
         output_table[table_index][o] = output_values[o]
 
