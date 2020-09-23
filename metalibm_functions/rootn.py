@@ -193,14 +193,17 @@ class MetaRootN(ScalarBinaryFunction):
             else:
                 raise NotImplementedError
         # OpenCL-C rootn, x < 0 and y odd: -exp2(log2(-x) / y)
+        S2 = sollya.SollyaObject(2)
         if vx < 0:
             if int(n) % 2 != 0:
-                v = -bigfloat.root(sollya.SollyaObject(-vx).bigfloat(), int(n))
+                if n > 0:
+                    v = -bigfloat.root(sollya.SollyaObject(-vx).bigfloat(), int(n))
+                else:
+                    v = -S2**(sollya.log2(-vx) / n)
             else:
                 return FP_QNaN(self.precision)
         elif n < 0:
             # OpenCL-C definition
-            S2 = sollya.SollyaObject(2)
             v = S2**(sollya.log2(vx) / n)
         else:
             v = bigfloat.root(sollya.SollyaObject(vx).bigfloat(), int(n))
