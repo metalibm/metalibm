@@ -49,8 +49,8 @@ class MetaRootN(ScalarBinaryFunction):
             "function_name": "rootn",
             "input_precisions": [ML_Binary32, ML_Int32],
             "accuracy": ML_Faithful,
-            "input_intervals": [sollya.Interval(-2.0**126, 2.0**126), sollya.Interval(0, 2**31-1)],
-            "auto_test_range": [sollya.Interval(-2.0**126, 2.0**126), sollya.Interval(0, 47)],
+            "input_intervals": [sollya.Interval(-2.0**126, 2.0**126), sollya.Interval(-2**24, 2**24)],
+            "auto_test_range": [sollya.Interval(-2.0**126, 2.0**126), sollya.Interval(-2**24, 2**24)],
             "target": GenericProcessor.get_target_instance()
         }
         default_args_rootn.update(kw)
@@ -224,7 +224,7 @@ class MetaRootN(ScalarBinaryFunction):
             (FP_PlusZero(self.precision), random.randrange(1, 2**31, 2), FP_PlusZero(self.precision)),
             (FP_MinusZero(self.precision), random.randrange(1, 2**31, 2), FP_MinusZero(self.precision)),
             # rootn( x, n) returns a NaN for x< 0 and n is even.
-            (-random.random(), 2 * random.randrange(1, 2**32), FP_QNaN(self.precision)),
+            (-random.random(), 2 * random.randrange(1, 2**30), FP_QNaN(self.precision)),
             # rootn( x, 0 ) returns a NaN
             (random.random(), 0, FP_QNaN(self.precision)),
             # vx=nan
@@ -271,6 +271,25 @@ class MetaRootN(ScalarBinaryFunction):
         # NOTE: the following test-case are only valid if meta-function supports 64-bit integer
         #       2nd_input
         fp_64_only = [
+            # ERROR: rootn: -430452000.000000 ulp error at {0x1.ffffffff38c00p-306, 384017876}: *0x1.ffffed870ff01p-1 vs. 0x1.ffffebec8d1d2p-1
+            (sollya.parse("0x1.ffffffff38c00p-306"), 384017876, sollya.parse("0x1.ffffed870ff01p-1")), # vs. 0x1.ffffebec8d1d2p-1
+            # ERROR: rootn: 92996584.000000 ulp error at {0x1.ffffffffdae80p-858, -888750231}: *0x1.00000b36b1173p+0 vs. 0x1.00000b8f6155ep+0
+            (sollya.parse("0x1.ffffffffdae80p-858"), -888750231, sollya.parse("0x1.00000b36b1173p+0")),
+            # ERROR: rootn: 379474.906250 ulp error at {0x0.0000000000022p-1022, -1538297900}: *0x1.00000814a68ffp+0 vs. 0x1.0000081503352p+0
+            (sollya.parse("0x0.00000006abfffp-1022"), -1221802473, sollya.parse("0x1.00000a01818a4p+0")),
+            (sollya.parse("0x1.ffffffffd0a00p-260"), 1108043946, sollya.parse("0x1.fffffa9042997p-1")),
+            (sollya.parse("0x1.3fffffffff1c0p-927"), -1997086266, sollya.parse("0x1.0000056564c5ep+0")),
+            (sollya.parse("0x1.ffffffff38c00p-306"), 384017876, sollya.parse("0x1.ffffed870ff01p-1")),
+            (sollya.parse("0x0.15c000000002ap-1022"), 740015941, sollya.parse("0x1.ffffdfc47b57ep-1")),
+            (sollya.parse("0x0.00000000227ffp-1022"), -1859058847, sollya.parse("0x1.0000069c7a01bp+0")),
+            (sollya.parse("0x0.0568000000012p-1022"), -447352599, sollya.parse("0x1.00001ab640c38p+0")),
+            (sollya.parse("0x0.000000000000dp-1022"), 132283432, sollya.parse("0x1.ffff43d1db82ap-1")),
+            (sollya.parse("-0x1.c80000000026ap+1023"), 275148531, sollya.parse("-0x1.00002b45a7314p+0")),
+            (sollya.parse("0x0.022200000000ep-1022"), -1969769414, sollya.parse("0x1.000006130e858p+0")),
+            (sollya.parse("0x0.0000000000011p-1022"), 851990770, sollya.parse("0x1.ffffe2cafaff6p-1")),
+            (sollya.parse("0x1.8fffffffff348p-1010"), 526938360, sollya.parse("0x1.ffffd372e2b81p-1")),
+            (sollya.parse("0x0.0000000000317p-1022"), -1315106194, sollya.parse("0x1.0000096973ac9p+0")),
+            (sollya.parse("0x1.1ffffffff2d20p-971"), 378658008, sollya.parse("0x1.ffffc45e803b2p-1")),
             #
             (sollya.parse("0x0.0568000000012p-1022"), -447352599, sollya.parse("0x1.00001ab640c38p+0")),
             #
@@ -295,6 +314,9 @@ class MetaRootN(ScalarBinaryFunction):
             (FP_MinusZero(self.precision), -373548013, FP_MinusInfty(self.precision)),
             #ERROR: rootn: inf ulp error at {-0x0.0000000000000p+0, -1889147085}: *-inf vs. inf
             #ERROR: rootn: inf ulp error at {-0x0.0000000000000p+0, -373548013}: *-inf vs. inf
+            # Cluster0@0.0: PE 0: error[84]: ml_rootn(-0x1.b1a6765727e72p-902, -7.734955e+08/-773495525), result is -0x1.00000d8cb5b3cp+0 vs expected [nan;nan]
+            (sollya.parse("-0x1.b1a6765727e72p-902"), -773495525),
+
         ]
 
         return general_list + (fp_64_only if self.precision.get_bit_size() >= 64 else []) \
