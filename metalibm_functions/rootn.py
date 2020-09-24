@@ -85,6 +85,9 @@ class MetaRootN(ScalarBinaryFunction):
 
         use_reciprocal = False
 
+        # non-scaled vx used to compute vx^1
+        unmodified_vx = vx
+
         is_subnormal = Test(vx, specifier=Test.IsSubnormal, tag="is_subnormal")
         exp_correction_factor = self.precision.get_mantissa_size()
         mantissa_factor = Constant(2**exp_correction_factor, tag="mantissa_factor")
@@ -150,17 +153,45 @@ class MetaRootN(ScalarBinaryFunction):
             Return(FP_QNaN(self.precision)),
             Statement(
                 ConditionBlock(
+                    Equal(n,-1, tag="n_is_mone"),
+                    Return(Division(Constant(1, precision=self.precision), unmodified_vx, tag="div_res", precision=self.precision)),
+                ),
+                ConditionBlock(
+                    # rootn( ±inf, n) is +∞ for even n< 0.
+                    Test(vx, specifier=Test.IsInfty),
+                    Statement(
+                        ConditionBlock(
+                            n < 0,
+                            #LogicalAnd(n_is_odd, n < 0),
+                            Return(Select(Test(vx, specifier=Test.IsPositiveInfty),
+                                          Constant(FP_PlusZero(self.precision), precision=self.precision),
+                                          Constant(FP_MinusZero(self.precision), precision=self.precision),
+                                          precision=self.precision)),
+                            Return(vx),
+                        ),
+                    ),
+                ),
+                ConditionBlock(
+                    # rootn(±0, n) is ±∞ for odd n < 0.
+                    LogicalAnd(LogicalAnd(n_is_odd, n < 0), Equal(vx, 0), tag="n_is_odd_and_neg"),
+                    Return(Select(Test(vx, specifier=Test.IsPositiveZero),
+                                  Constant(FP_PlusInfty(self.precision), precision=self.precision),
+                                  Constant(FP_MinusInfty(self.precision), precision=self.precision),
+                                  precision=self.precision)),
+                ),
+                ConditionBlock(
                     # rootn( ±0, n) is +∞ for even n< 0.
                     LogicalAnd(LogicalAnd(n_is_even, n < 0), Equal(vx, 0)),
                     Return(FP_PlusInfty(self.precision))
                 ),
                 ConditionBlock(
-                    LogicalAnd(LogicalNot(n_is_odd), Equal(vx, 0)),
+                    # rootn(±0, n) is +0 for even n > 0.
+                    LogicalAnd(n_is_even, Equal(vx, 0)),
                     Return(vx)
                 ),
                 ConditionBlock(
                     Equal(n, 1),
-                    Return(vx),
+                    Return(unmodified_vx),
                     Return(result_sign * exp2_r * exp2_e_n_int * exp2_e_n_frac)))
             )
         return result
