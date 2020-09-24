@@ -340,7 +340,7 @@ class ML_Std_FP_Format(ML_FP_Format):
 
     def saturate(self, value):
         if abs(value) > self.get_max_value():
-            return FP_PlusInfty(self) if value > 0 else FP_MinusInfty(sel)
+            return FP_PlusInfty(self) if value > 0 else FP_MinusInfty(self)
         return value
 
     ## return the integer coding of @p value
