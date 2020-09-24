@@ -212,6 +212,19 @@ class MetaRootN(ScalarBinaryFunction):
     @property
     def standard_test_cases(self):
         general_list= [
+            # ERROR: rootn: inf ulp error at {inf, -2}: *0x0p+0 vs. inf (0x7f800000) at index: 1226
+            (FP_PlusInfty(self.precision), -2, FP_PlusZero(self.precision)),
+            # ERROR: rootn: inf ulp error at {inf, -2147483648}: *0x0.0000000000000p+0 vs. inf
+            (FP_PlusInfty(self.precision), -2147483648, FP_PlusZero(self.precision)),
+            #
+            (FP_PlusZero(self.precision), -1, FP_PlusInfty(self.precision)),
+            (FP_MinusInfty(self.precision), 1, FP_MinusInfty(self.precision)),
+            (FP_MinusInfty(self.precision), -1, FP_MinusZero(self.precision)),
+            # ERROR coucou7: rootn: -inf ulp error at {inf 7f800000, 479638026}: *inf vs. 0x1.000018p+0 (0x3f80000c) at index: 2367
+            (FP_PlusInfty(self.precision), 479638026, FP_PlusInfty(self.precision)),
+            (FP_MinusInfty(self.precision), 479638026),
+            #(FP_MinusInfty(self.precision), -479638026),
+            #(FP_PlusInfty(self.precision), -479638026),
             # rootn( ±0, n) is ±∞ for odd n< 0.
             (FP_PlusZero(self.precision), -1337, FP_PlusInfty(self.precision)),
             (FP_MinusZero(self.precision), -1337, FP_MinusInfty(self.precision)),
@@ -271,6 +284,13 @@ class MetaRootN(ScalarBinaryFunction):
         # NOTE: the following test-case are only valid if meta-function supports 64-bit integer
         #       2nd_input
         fp_64_only = [
+            (sollya.parse("-0x1.fffffffffffffp1023"), -1, sollya.parse("-0x0.4000000000000p-1022")),
+            #(sollya.parse("-0x1.fffffffffffffp+1023"), 1),
+            #(sollya.parse("0x1.fffffffffffffp+1023"), -1),
+            # ERROR coucou8: rootn: inf ulp error at {-inf, 1854324695}: *-inf vs. -0x1.0000066bfdd60p+0
+            (FP_MinusInfty(self.precision), 1854324695, FP_MinusInfty(self.precision)),
+            # ERROR: rootn: -60.962402 ulp error at {0x0.000000001d600p-1022, 14}: *0x1.67d4ff97d1fd9p-76 vs. 0x1.67d4ff97d1f9cp-76
+            (sollya.parse("0x0.000000001d600p-1022"), 14, sollya.parse("0x1.67d4ff97d1fd9p-76")),
             # ERROR: rootn: -430452000.000000 ulp error at {0x1.ffffffff38c00p-306, 384017876}: *0x1.ffffed870ff01p-1 vs. 0x1.ffffebec8d1d2p-1
             (sollya.parse("0x1.ffffffff38c00p-306"), 384017876, sollya.parse("0x1.ffffed870ff01p-1")), # vs. 0x1.ffffebec8d1d2p-1
             # ERROR: rootn: 92996584.000000 ulp error at {0x1.ffffffffdae80p-858, -888750231}: *0x1.00000b36b1173p+0 vs. 0x1.00000b8f6155ep+0
@@ -316,11 +336,15 @@ class MetaRootN(ScalarBinaryFunction):
             #ERROR: rootn: inf ulp error at {-0x0.0000000000000p+0, -373548013}: *-inf vs. inf
             # Cluster0@0.0: PE 0: error[84]: ml_rootn(-0x1.b1a6765727e72p-902, -7.734955e+08/-773495525), result is -0x1.00000d8cb5b3cp+0 vs expected [nan;nan]
             (sollya.parse("-0x1.b1a6765727e72p-902"), -773495525),
+            # ERROR: rootn: -40564819207303340847894502572032.000000 ulp error at {-0x0.fffffffffffffp-1022, 1}: *-0x0.fffffffffffffp-1022 vs. -0x1.ffffffffffffep-970
+            (sollya.parse("-0x0.fffffffffffffp-1022 "), 1, sollya.parse("-0x0.fffffffffffffp-1022 ")),
+            # ERROR: rootn: 1125899906842624.000000 ulp error at {-0x1.fffffffffffffp+1023, -1}: *-0x0.4000000000000p-1022 vs. -0x0.0000000000000p+0
 
         ]
 
-        return general_list + (fp_64_only if self.precision.get_bit_size() >= 64 else []) \
-                            + (fp_32_only if self.precision.get_bit_size() == 32 else [])
+        return (fp_64_only if self.precision.get_bit_size() >= 64 else []) \
+               + (fp_32_only if self.precision.get_bit_size() == 32 else []) \
+               + general_list
 
 
 if __name__ == "__main__":
