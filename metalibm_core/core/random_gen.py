@@ -369,7 +369,7 @@ class FPRandomGen(RandomGenWeightCat):
         FP_PlusOmega, FP_MinusOmega,
         FP_QNaN, FP_SNaN
     ]
-    def __init__(self, precision, weight_map=None, seed=None):
+    def __init__(self, precision, weight_map=None, seed=None, include_snan=True):
         """
             Args:
                 precision (ML_Format): floating-point format
@@ -393,7 +393,7 @@ class FPRandomGen(RandomGenWeightCat):
         )
 
         self.random = random.Random(seed)
-        self.sp_list = self.get_special_value_list()
+        self.sp_list = self.get_special_value_list(include_snan=False)
 
     @staticmethod
     def from_interval(precision, low_bound, high_bound):
@@ -402,11 +402,11 @@ class FPRandomGen(RandomGenWeightCat):
         }
         return FPRandomGen(precision, weight_map)
 
-    def get_special_value_list(self):
+    def get_special_value_list(self, include_snan=True):
         """ Returns a list a special values in the generator precision """
         return  [
             sp_class(self.precision) for sp_class in
-            FPRandomGen.special_value_ctor
+            FPRandomGen.special_value_ctor if (not sp_class is FP_SNaN or include_snan)
         ]
 
 
@@ -468,7 +468,7 @@ def get_precision_rng(precision, value_range=None):
         if isinstance(base_format, ML_FP_MultiElementFormat):
             return MPFPRandomGen(precision)
         elif isinstance(base_format, ML_FP_Format):
-            return FPRandomGen(precision)
+            return FPRandomGen(precision, include_snan=False)
         elif isinstance(base_format, ML_Fixed_Format):
             return FixedPointRandomGen(precision)
         else:
