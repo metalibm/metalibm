@@ -478,13 +478,17 @@ class ML_Division(ML_FunctionBasis):
         x_inf_or_nan = Test(vx, specifier = Test.IsInfOrNaN, likely=False)
         y_inf_or_nan = Test(vy, specifier = Test.IsInfOrNaN, likely=False, tag="y_inf_or_nan", debug = debug_multi)
 
+        # generate IEEE exception raising only of libm-compliant
+        # mode is enabled
+        enable_raise = self.libm_compliant
+
         # managing special cases
         # x inf and y inf
         pre_scheme = ConditionBlock(x_inf_or_nan,
             ConditionBlock(x_inf,
                 ConditionBlock(y_inf_or_nan,
                     Statement(
-                        ConditionBlock(y_snan, Raise(ML_FPE_Invalid)),
+                        ConditionBlock(y_snan, Raise(ML_FPE_Invalid)) if enable_raise else Statement(),
                         Return(FP_QNaN(self.precision)),
                     ),
                     ConditionBlock(
@@ -493,14 +497,14 @@ class ML_Division(ML_FunctionBasis):
                         Return(FP_PlusInfty(self.precision)))
                 ),
                 Statement(
-                    ConditionBlock(x_snan, Raise(ML_FPE_Invalid)),
+                    ConditionBlock(x_snan, Raise(ML_FPE_Invalid)) if enable_raise else Statement(),
                     Return(FP_QNaN(self.precision))
                 )
             ),
             ConditionBlock(x_zero,
                 ConditionBlock(LogicalOr(y_zero, y_nan, precision=ML_Bool),
                     Statement(
-                        ConditionBlock(y_snan, Raise(ML_FPE_Invalid)),
+                        ConditionBlock(y_snan, Raise(ML_FPE_Invalid)) if enable_raise else Statement(),
                         Return(FP_QNaN(self.precision))
                     ),
                     Return(vx)
@@ -513,13 +517,13 @@ class ML_Division(ML_FunctionBasis):
                                 FP_MinusZero(self.precision),
                                 FP_PlusZero(self.precision))),
                         Statement(
-                            ConditionBlock(y_snan, Raise(ML_FPE_Invalid)),
+                            ConditionBlock(y_snan, Raise(ML_FPE_Invalid)) if enable_raise else Statement(),
                             Return(FP_QNaN(self.precision))
                         )
                     ),
                     ConditionBlock(y_zero,
                         Statement(
-                            Raise(ML_FPE_DivideByZero),
+                            Raise(ML_FPE_DivideByZero) if enable_raise else Statement(),
                             ConditionBlock(comp_sign,
                                 Return(FP_MinusInfty(self.precision)),
                                 Return(FP_PlusInfty(self.precision))
