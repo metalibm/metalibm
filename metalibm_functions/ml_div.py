@@ -668,6 +668,7 @@ class ML_Division(ML_FunctionBasis):
         (sollya.parse("0x1.p0"), sollya.parse("0x1.e0ef5ep-49")),
         (sollya.parse("0x1.7fddbp0"), sollya.parse("0x1.e0ef5ep-49")),
         (sollya.parse("0x1.7fddbp-126"), sollya.parse("0x1.e0ef5ep-49")),
+        (1.0, sollya.parse("-0x1.fffffffffffffp+1023"), sollya.parse("-0x1p-1024")),
     ]
 
 
