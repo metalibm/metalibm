@@ -313,7 +313,13 @@ def subnormalize_result(recp_approx, div_approx, ex, ey, yerr_last, precision):
         debug=debug_multi)
     subnormal_pre_result = subnormal_pre_result_ext.hi
     sub_scale_factor = ex - ey
-    subnormal_result = subnormal_pre_result * ExponentInsertion(sub_scale_factor, precision=precision)
+    sub_scale_factor.set_attributes(tag="sub_scale_factor")
+    sub_scale_factor_half = sub_scale_factor / 2
+    sub_scale_factor_half.set_attributes(tag="sub_scale_factor_half")
+    sub_scale_factor_half2 = sub_scale_factor - sub_scale_factor_half
+    sub_scale_factor_half2.set_attributes(tag="sub_scale_factor_half2")
+    subnormal_result = (subnormal_pre_result * ExponentInsertion(sub_scale_factor_half, precision=precision, tag="sub_scale_factor_half_ei")) \
+                       * ExponentInsertion(sub_scale_factor_half2, precision=precision, tag="sub_scale_factor_half2_ei")
 
     return subnormal_result
 
@@ -355,7 +361,7 @@ class ML_Division(ML_FunctionBasis):
         # maximum exponent magnitude (to avoid overflow/ underflow during
         # intermediary computations
         int_prec = self.precision.get_integer_format()
-        max_exp_mag = Constant(self.precision.get_emax(), precision=int_prec)
+        max_exp_mag = Constant(self.precision.get_emax() - 1, precision=int_prec)
 
         exact_ex = ExponentExtraction(vx, tag = "exact_ex", precision=int_prec, debug=debug_multi)
         exact_ey = ExponentExtraction(vy, tag = "exact_ey", precision=int_prec, debug=debug_multi)
@@ -459,11 +465,12 @@ class ML_Division(ML_FunctionBasis):
 
         div_interval = scaled_vx.get_interval() / scaled_vy.get_interval() + div_eval_error_range
         reduced_div_approx.set_interval(div_interval)
+        reduced_div_approx.set_tag("reduced_div_approx")
 
         if out_of_bound_risk:
             unscaled_result = scaling_div_result(reduced_div_approx, ex, scaling_factor_y, self.precision)
 
-            subnormal_result = subnormalize_result(recp_approx, reduced_div_approx, exact_ex, exact_ey, yerr_last, self.precision)
+            subnormal_result = subnormalize_result(recp_approx, reduced_div_approx, ex, ey, yerr_last, self.precision)
         else:
             unscaled_result = reduced_div_approx
             subnormal_result = reduced_div_approx
