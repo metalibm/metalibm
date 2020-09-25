@@ -363,8 +363,8 @@ class ML_Division(ML_FunctionBasis):
         int_prec = self.precision.get_integer_format()
         max_exp_mag = Constant(self.precision.get_emax() - 1, precision=int_prec)
 
-        exact_ex = ExponentExtraction(vx, tag = "exact_ex", precision=int_prec, debug=debug_multi)
-        exact_ey = ExponentExtraction(vy, tag = "exact_ey", precision=int_prec, debug=debug_multi)
+        exact_ex = ExponentExtraction(vx, tag="exact_ex", precision=int_prec, debug=debug_multi)
+        exact_ey = ExponentExtraction(vy, tag="exact_ey", precision=int_prec, debug=debug_multi)
 
         ex = Max(Min(exact_ex, max_exp_mag, precision=int_prec), -max_exp_mag, tag="ex", precision=int_prec)
         ey = Max(Min(exact_ey, max_exp_mag, precision=int_prec), -max_exp_mag, tag="ey", precision=int_prec)
@@ -376,8 +376,8 @@ class ML_Division(ML_FunctionBasis):
         # computing the inverse square root
         init_approx = None
 
-        scaling_factor_x = ExponentInsertion(-ex, tag="sfx_ei", precision=self.precision, debug=debug_multi) 
-        scaling_factor_y = ExponentInsertion(-ey, tag="sfy_ei", precision=self.precision, debug=debug_multi) 
+        scaling_factor_x = ExponentInsertion(-ex, tag="sfx_ei", precision=self.precision, debug=debug_multi)
+        scaling_factor_y = ExponentInsertion(-ey, tag="sfy_ei", precision=self.precision, debug=debug_multi)
 
         def test_interval_out_of_bound_risk(x_range, y_range):
             """ Try to determine from x and y's interval if there is a risk
@@ -475,8 +475,8 @@ class ML_Division(ML_FunctionBasis):
             unscaled_result = reduced_div_approx
             subnormal_result = reduced_div_approx
 
-        x_inf_or_nan = Test(vx, specifier = Test.IsInfOrNaN, likely=False)
-        y_inf_or_nan = Test(vy, specifier = Test.IsInfOrNaN, likely=False, tag="y_inf_or_nan", debug = debug_multi)
+        x_inf_or_nan = Test(vx, specifier=Test.IsInfOrNaN, likely=False)
+        y_inf_or_nan = Test(vy, specifier=Test.IsInfOrNaN, likely=False, tag="y_inf_or_nan", debug=debug_multi)
 
         # generate IEEE exception raising only of libm-compliant
         # mode is enabled
@@ -488,6 +488,7 @@ class ML_Division(ML_FunctionBasis):
             ConditionBlock(x_inf,
                 ConditionBlock(y_inf_or_nan,
                     Statement(
+                        # signaling NaNs raise invalid operation flags
                         ConditionBlock(y_snan, Raise(ML_FPE_Invalid)) if enable_raise else Statement(),
                         Return(FP_QNaN(self.precision)),
                     ),
@@ -530,30 +531,34 @@ class ML_Division(ML_FunctionBasis):
                             )
                         ),
                         # managing numerical value result cases
-                        ConditionBlock(
-                            Test(unscaled_result, specifier=Test.IsSubnormal, likely=False),
-                            # result is subnormal
-                            Statement(
-                                # inexact flag should have been raised when computing yerr_last
-                                # ConditionBlock(
-                                #    Comparison(
-                                #        yerr_last, 0,
-                                #        specifier=Comparison.NotEqual, likely=True),
-                                #    Statement(Raise(ML_FPE_Inexact, ML_FPE_Underflow))
-                                #),
-                                Return(subnormal_result),
+                        Statement(
+                            recp_approx,
+                            reduced_div_approx,
+                            ConditionBlock(
+                                Test(unscaled_result, specifier=Test.IsSubnormal, likely=False),
+                                # result is subnormal
+                                Statement(
+                                    # inexact flag should have been raised when computing yerr_last
+                                    # ConditionBlock(
+                                    #    Comparison(
+                                    #        yerr_last, 0,
+                                    #        specifier=Comparison.NotEqual, likely=True),
+                                    #    Statement(Raise(ML_FPE_Inexact, ML_FPE_Underflow))
+                                    #),
+                                    Return(subnormal_result),
+                                ),
+                                # result is normal
+                                Statement(
+                                    # inexact flag should have been raised when computing yerr_last
+                                    #ConditionBlock(
+                                    #    Comparison(
+                                    #        yerr_last, 0,
+                                    #        specifier=Comparison.NotEqual, likely=True),
+                                    #    Raise(ML_FPE_Inexact)
+                                    #),
+                                    Return(unscaled_result)
+                                )
                             ),
-                            # result is normal
-                            Statement(
-                                # inexact flag should have been raised when computing yerr_last
-                                #ConditionBlock(
-                                #    Comparison(
-                                #        yerr_last, 0,
-                                #        specifier=Comparison.NotEqual, likely=True),
-                                #    Raise(ML_FPE_Inexact)
-                                #),
-                                Return(unscaled_result)
-                            )
                         )
                     )
                 )
