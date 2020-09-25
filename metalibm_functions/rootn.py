@@ -28,6 +28,8 @@ from metalibm_core.utility.debug_utils import debug_multi
 
 from metalibm_functions.ml_exp2 import ML_Exp2
 from metalibm_functions.generic_log import ML_GenericLog
+from metalibm_functions.ml_div import ML_Division
+from metalibm_core.code_generation.code_function import FunctionGroup
 
 import sollya
 import bigfloat
@@ -38,6 +40,9 @@ class MetaRootN(ScalarBinaryFunction):
 
     def __init__(self, args):
         ScalarBinaryFunction.__init__(self, args)
+        # expand floating-point division
+        self.division_implementation = None
+        self.expand_div = args.expand_div
 
     @staticmethod
     def get_default_args(**kw):
@@ -51,10 +56,18 @@ class MetaRootN(ScalarBinaryFunction):
             "accuracy": ML_Faithful,
             "input_intervals": [sollya.Interval(-2.0**126, 2.0**126), sollya.Interval(-2**24, 2**24)],
             "auto_test_range": [sollya.Interval(-2.0**126, 2.0**126), sollya.Interval(-2**24, 2**24)],
-            "target": GenericProcessor.get_target_instance()
+            "target": GenericProcessor.get_target_instance(),
+            "expand_div": False,
         }
         default_args_rootn.update(kw)
         return DefaultArgTemplate(**default_args_rootn)
+
+    def generate_function_list(self):
+        self.implementation.set_scheme(self.generate_scheme())
+        if self.division_implementation is None:
+            return FunctionGroup([self.implementation])
+        else:
+            return FunctionGroup([self.implementation, self.division_implementation])
 
     def generate_scalar_scheme(self, vx, n):
         # fixing inputs' node tag
@@ -139,6 +152,17 @@ class MetaRootN(ScalarBinaryFunction):
         n_is_odd = LogicalNot(n_is_even, tag="n_is_odd")
         result_sign = Select(n_is_odd, CopySign(vx, Constant(1.0, precision=self.precision)), 1)
 
+
+        # managing n == -1
+        if self.expand_div:
+            ml_division_args = ML_Division.get_default_args(precision=self.precision, input_formats=[self.precision]*2)
+            ml_division = ML_Division(ml_division_args)
+            self.division_implementation = ml_division.implementation
+            self.division_implementation.set_scheme(ml_division.generate_scheme())
+            ml_division_fct = self.division_implementation.get_function_object()
+        else:
+            ml_division_fct = Division
+
         # manage n=1 separately to avoid catastrophic propagation of errors
         # between log2 and exp2 to eventually compute the identity function
         # test-case #3
@@ -154,7 +178,8 @@ class MetaRootN(ScalarBinaryFunction):
             Statement(
                 ConditionBlock(
                     Equal(n,-1, tag="n_is_mone"),
-                    Return(Division(Constant(1, precision=self.precision), unmodified_vx, tag="div_res", precision=self.precision)),
+                    #Return(Division(Constant(1, precision=self.precision), unmodified_vx, tag="div_res", precision=self.precision)),
+                    Return(ml_division_fct(Constant(1, precision=self.precision), unmodified_vx, tag="div_res", precision=self.precision)),
                 ),
                 ConditionBlock(
                     # rootn( ±inf, n) is +∞ for even n< 0.
@@ -381,6 +406,10 @@ class MetaRootN(ScalarBinaryFunction):
 if __name__ == "__main__":
     # declaring standard argument structure
     arg_template = ML_NewArgTemplate(default_arg=MetaRootN.get_default_args())
+
+    arg_template.get_parser().add_argument(
+         "--expand-div", dest="expand_div", default=False, const=int,
+        action="store_const", help="expand division to meta-division")
 
     # filling arg_template structure with command line options
     args = arg_template.arg_extraction()
