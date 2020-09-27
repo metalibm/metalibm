@@ -9,6 +9,7 @@ from metalibm_core.core.ml_operations import (
     Select, Equal, Modulo,
     LogicalNot, LogicalAnd, LogicalOr,
     ConditionBlock, Abs, CopySign, Constant,
+    Test,
     FMA)
 
 from metalibm_core.core.special_values import (
@@ -31,6 +32,7 @@ from metalibm_functions.ml_exp2 import ML_Exp2
 from metalibm_functions.generic_log import ML_GenericLog
 
 import sollya
+from sollya import Interval
 import bigfloat
 
 class MetaPow(ScalarBinaryFunction):
@@ -50,8 +52,8 @@ class MetaPow(ScalarBinaryFunction):
             "function_name": "ml_pow",
             "input_precisions": [ML_Binary32, ML_Binary32],
             "accuracy": ML_Faithful,
-            "input_intervals": [None, None], # sollya.Interval(-2.0**126, 2.0**126), sollya.Interval(0, 2**31-1)],
-            "auto_test_range": [None, None], # sollya.Interval(-2.0**126, 2.0**126), sollya.Interval(0, 47)],
+            "input_intervals": [None, Interval(-2**24, 2**24)], # sollya.Interval(-2.0**126, 2.0**126), sollya.Interval(0, 2**31-1)],
+            "auto_test_range": [None, Interval(-2**24, 2**24)], # sollya.Interval(-2.0**126, 2.0**126), sollya.Interval(0, 47)],
             "target": GenericProcessor.get_target_instance()
         }
         default_args_pow.update(kw)
@@ -97,33 +99,186 @@ class MetaPow(ScalarBinaryFunction):
         log_approx.set_attributes(tag="log_approx", debug=debug_multi)
         r = Multiplication(log_approx, vy, tag="r", debug=debug_multi)
 
+
+        # 2^(y * (log2(m) + e)) = 2^(y * log2(m)) * 2^(y * e)
+        #
+        # log_approx = log2(Abs(m))
+        # r = y * log_approx ~ y * log2(m)
+        #
+        # NOTES: manage cases where e is negative and
+        # (y * log2(m)) AND (y * e) could cancel out
+        # if e positive, whichever the sign of y (y * log2(m)) and (y * e) CANNOT
+        # be of opposite signs
+
+        # log2(m) in [0, 1[ so cancellation can occur only if e == -1
+        # we split 2^x in 2^x = 2^t0 * 2^t1
+        # if e < 0: t0 = y * (log2(m) + e), t1=0
+        # else:     t0 = y * log2(m), t1 = y * e
+
+        t_cond = e < 0
+
         # e_y ~ e * y
         e_f = Conversion(e, precision=self.precision)
-        e_y = Multiplication(e_f, vy, tag="e_y")
-        e_y_int = NearestInteger(e_y, precision=self.precision, tag="e_y_int")
-        e_y_frac = e_y - e_y_int
-        e_y_frac.set_attributes(tag="pre_e_y_frac")
+        #t0 = Select(t_cond, (e_f + log_approx) * vy, Multiplication(e_f, vy), tag="t0")
+        #NearestInteger(t0, precision=self.precision, tag="t0_int")
+
+        EY = NearestInteger(e_f * vy, tag="EY", precision=self.precision)
+        LY = NearestInteger(log_approx * vy, tag="LY", precision=self.precision)
+        t0_int = Select(t_cond, EY + LY, EY, tag="t0_int")
+        t0_frac = Select(t_cond, FMA(e_f, vy, -EY) + FMA(log_approx, vy, -LY) ,EY - t0_int, tag="t0_frac")
+        #t0_frac.set_attributes(tag="t0_frac")
 
         ml_exp2_args = ML_Exp2.get_default_args(precision=self.precision)
         ml_exp2 = ML_Exp2(ml_exp2_args)
-        exp2_r = ml_exp2.generate_scalar_scheme(r, inline_select=True)
-        exp2_r.set_attributes(tag="exp2_r", debug=debug_multi)
 
-        exp2_e_y_frac = ml_exp2.generate_scalar_scheme(e_y_frac, inline_select=True)
-        exp2_e_y_frac.set_attributes(tag="exp2_e_y_frac", debug=debug_multi)
+        exp2_t0_frac = ml_exp2.generate_scalar_scheme(t0_frac, inline_select=True)
+        exp2_t0_frac.set_attributes(tag="exp2_t0_frac", debug=debug_multi)
 
-        exp2_e_y_int = ExponentInsertion(Conversion(e_y_int, precision=int_precision), precision=self.precision, tag="exp2_e_y_int")
+        exp2_t0_int = ExponentInsertion(Conversion(t0_int, precision=int_precision), precision=self.precision, tag="exp2_t0_int")
+
+        t1 = Select(t_cond, Constant(0, precision=self.precision), r)
+        exp2_t1 = ml_exp2.generate_scalar_scheme(t1, inline_select=True)
+        exp2_t1.set_attributes(tag="exp2_t1", debug=debug_multi)
 
         result_sign = Constant(1.0, precision=self.precision) # Select(n_is_odd, CopySign(vx, Constant(1.0, precision=self.precision)), 1)
+
+        y_int = NearestInteger(vy, precision=self.precision)
+        y_is_integer = Equal(y_int, vy)
+        y_is_even = LogicalOr(
+            # if y is a number (exc. inf) greater than 2**mantissa_size * 2,
+            # then it is an integer multiple of 2 => even
+            Abs(vy) >= 2**(self.precision.get_mantissa_size()+1),
+            LogicalAnd(
+                y_is_integer and Abs(vy) < 2**(self.precision.get_mantissa_size()+1),
+                # we want to limit the modulo computation to an integer input
+                Equal(Modulo(Conversion(y_int, precision=int_precision), 2), 0)
+            )
+        )
+        y_is_odd = LogicalAnd(
+            LogicalAnd(
+                Abs(vy) < 2**(self.precision.get_mantissa_size()+1),
+                y_is_integer
+            ),
+            Equal(Modulo(Conversion(y_int, precision=int_precision), 2), 1)
+        )
+
+
+        # special cases management
+        special_case_results = Statement(
+            # x is sNaN OR y is sNaN
+            ConditionBlock(
+                LogicalOr(Test(vx, specifier=Test.IsSignalingNaN), Test(vy, specifier=Test.IsSignalingNaN)),
+                Return(FP_QNaN(self.precision))
+            ),
+            # pow(x, ±0) is 1 if x is not a signaling NaN
+            ConditionBlock(
+                Test(vy, specifier=Test.IsZero),
+                Return(Constant(1.0, precision=self.precision))
+            ),
+            # pow(±0, y) is ±∞ and signals the divideByZero exception for y an odd integer <0
+            ConditionBlock(
+                LogicalAnd(Test(vx, specifier=Test.IsZero), LogicalAnd(y_is_odd, vy < 0)),
+                Return(Select(Test(vx, specifier=Test.IsPositiveZero), FP_PlusInfty(self.precision), FP_MinusInfty(self.precision))),
+            ),
+            # pow(±0, −∞) is +∞ with no exception
+            ConditionBlock(
+                LogicalAnd(Test(vx, specifier=Test.IsZero), Test(vy, specifier=Test.IsNegativeInfty)),
+                Return(FP_MinusInfty(self.precision)),
+            ),
+            # pow(±0, +∞) is +0 with no exception
+            ConditionBlock(
+                LogicalAnd(Test(vx, specifier=Test.IsZero), Test(vy, specifier=Test.IsPositiveInfty)),
+                Return(FP_PlusInfty(self.precision)),
+            ),
+            # pow(±0, y) is ±0 for finite y>0 an odd integer
+            ConditionBlock(
+                LogicalAnd(Test(vx, specifier=Test.IsZero), LogicalAnd(y_is_odd, vy > 0)),
+                Return(vx),
+            ),
+            # pow(−1, ±∞) is 1 with no exception
+            ConditionBlock(
+                LogicalAnd(Equal(vx, -1), Test(vy, specifier=Test.IsInfty)),
+                Return(Constant(1.0, precision=self.precision)),
+            ),
+            # pow(+1, y) is 1 for any y (even a quiet NaN)
+            ConditionBlock(
+                vx == 1,
+                Return(Constant(1.0, precision=self.precision)),
+            ),
+            # pow(x, +∞) is +0 for −1<x<1
+            ConditionBlock(
+                LogicalAnd(Abs(vx) < 1, Test(vy, specifier=Test.IsPositiveInfty)),
+                Return(FP_PlusZero(self.precision))
+            ),
+            # pow(x, +∞) is +∞ for x<−1 or for 1<x (including ±∞)
+            ConditionBlock(
+                LogicalAnd(Abs(vx) > 1, Test(vy, specifier=Test.IsPositiveInfty)),
+                Return(FP_PlusInfty(self.precision))
+            ),
+            # pow(x, −∞) is +∞ for −1<x<1
+            ConditionBlock(
+                LogicalAnd(Abs(vx) < 1, Test(vy, specifier=Test.IsNegativeInfty)),
+                Return(FP_PlusInfty(self.precision))
+            ),
+            # pow(x, −∞) is +0 for x<−1 or for 1<x (including ±∞)
+            ConditionBlock(
+                LogicalAnd(Abs(vx) > 1, Test(vy, specifier=Test.IsNegativeInfty)),
+                Return(FP_PlusZero(self.precision))
+            ),
+            # pow(+∞, y) is +0 for a number y < 0
+            ConditionBlock(
+                LogicalAnd(Test(vx, specifier=Test.IsPositiveInfty), vy < 0),
+                Return(FP_PlusZero(self.precision))
+            ),
+            # pow(+∞, y) is +∞ for a number y > 0
+            ConditionBlock(
+                LogicalAnd(Test(vx, specifier=Test.IsPositiveInfty), vy > 0),
+                Return(FP_PlusInfty(self.precision))
+            ),
+            # pow(−∞, y) is −0 for finite y < 0 an odd integer
+            # TODO: check y is finite
+            ConditionBlock(
+                LogicalAnd(Test(vx, specifier=Test.IsNegativeInfty), LogicalAnd(y_is_odd, vy < 0)),
+                Return(FP_MinusZero(self.precision)),
+            ),
+            # pow(−∞, y) is −∞ for finite y > 0 an odd integer
+            # TODO: check y is finite
+            ConditionBlock(
+                LogicalAnd(Test(vx, specifier=Test.IsNegativeInfty), LogicalAnd(y_is_odd, vy > 0)),
+                Return(FP_MinusInfty(self.precision)),
+            ),
+            # pow(−∞, y) is +0 for finite y < 0 and not an odd integer
+            # TODO: check y is finite
+            ConditionBlock(
+                LogicalAnd(Test(vx, specifier=Test.IsNegativeInfty), LogicalAnd(LogicalNot(y_is_odd), vy < 0)),
+                Return(FP_PlusZero(self.precision)),
+            ),
+            # pow(−∞, y) is +∞ for finite y > 0 and not an odd integer
+            # TODO: check y is finite
+            ConditionBlock(
+                LogicalAnd(Test(vx, specifier=Test.IsNegativeInfty), LogicalAnd(LogicalNot(y_is_odd), vy > 0)),
+                Return(FP_PlusInfty(self.precision)),
+            ),
+            # pow(±0, y) is +∞ and signals the divideByZero exception for finite y<0 and not an odd integer
+            # TODO: signal divideByZero exception
+            ConditionBlock(
+                LogicalAnd(Test(vx, specifier=Test.IsZero), LogicalAnd(LogicalNot(y_is_odd), vy < 0)),
+                Return(FP_PlusInfty(self.precision)),
+            ),
+            # pow(±0, y) is +0 for finite y>0 and not an odd integer
+            ConditionBlock(
+                LogicalAnd(Test(vx, specifier=Test.IsZero), LogicalAnd(LogicalNot(y_is_odd), vy > 0)),
+                Return(FP_PlusZero(self.precision)),
+            ),
+        )
 
         # manage n=1 separately to avoid catastrophic propagation of errors
         # between log2 and exp2 to eventually compute the identity function
         # test-case #3
         result = Statement(
-            ConditionBlock(
-                LogicalAnd(Equal(vx, 0), Equal(vy, 0)),
-                Return(Constant(1.0, precision=self.precision)),
-                Return(result_sign * exp2_r * exp2_e_y_int * exp2_e_y_frac)))
+            special_case_results,
+            # fallback default cases
+            Return(result_sign * exp2_t1 * exp2_t0_int * exp2_t0_frac))
         return result
 
 
@@ -195,15 +350,24 @@ class MetaPow(ScalarBinaryFunction):
         # pow(x, y) signals the invalid operation exception for finite x<0 and finite non-integer y.
         return sollya.SollyaObject(vx)**sollya.SollyaObject(vy)
 
-    standard_test_cases = [
-        # test-case #1
-        (sollya.parse("0x1.bbe2f2p-1"), sollya.parse("0x1.2d34ep+9")),
-        # test-case #0
-        (sollya.parse("0x1.5d20b8p-115"), sollya.parse("0x1.c20048p+0")),
-        # special cases
-        (sollya.parse("0x0p+0"), 1),
-        (sollya.parse("0x0p+0"), 0),
-    ]
+    @property
+    def standard_test_cases(self):
+        generic_list = [
+            # test-case #1
+            (sollya.parse("0x1.bbe2f2p-1"), sollya.parse("0x1.2d34ep+9")),
+            # test-case #2
+            (sollya.parse("0x0p+0"), sollya.parse("0x1.a45a2ep-56"), FP_PlusZero(self.precision)),
+            # test-case #0
+            (sollya.parse("0x1.5d20b8p-115"), sollya.parse("0x1.c20048p+0")),
+            # special cases
+            (sollya.parse("0x0p+0"), 1),
+            (sollya.parse("0x0p+0"), 0),
+        ]
+        fp64_list = [
+            # subnormal output
+            (sollya.parse("0x1.21998d0c5039bp-976"), sollya.parse("0x1.bc68e3d0ffd24p+3")),
+        ]
+        return generic_list + (fp64_list if self.precision.get_bit_size() >= 64 else [])
 
 
 if __name__ == "__main__":
