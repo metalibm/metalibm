@@ -340,6 +340,7 @@ class MetaRootN(ScalarBinaryFunction):
         # NOTE: the following test-case are only valid if meta-function supports 64-bit integer
         #       2nd_input
         fp_64_only = [
+            (sollya.parse("0x1.fffffffffffffp+1023"), -1, sollya.parse("0x0.4000000000000p-1022")),
             (sollya.parse("-0x1.fffffffffffffp1023"), -1, sollya.parse("-0x0.4000000000000p-1022")),
             #(sollya.parse("-0x1.fffffffffffffp+1023"), 1),
             #(sollya.parse("0x1.fffffffffffffp+1023"), -1),
@@ -395,7 +396,8 @@ class MetaRootN(ScalarBinaryFunction):
             # ERROR: rootn: -40564819207303340847894502572032.000000 ulp error at {-0x0.fffffffffffffp-1022, 1}: *-0x0.fffffffffffffp-1022 vs. -0x1.ffffffffffffep-970
             (sollya.parse("-0x0.fffffffffffffp-1022 "), 1, sollya.parse("-0x0.fffffffffffffp-1022 ")),
             # ERROR: rootn: 1125899906842624.000000 ulp error at {-0x1.fffffffffffffp+1023, -1}: *-0x0.4000000000000p-1022 vs. -0x0.0000000000000p+0
-
+            (sollya.parse("-0x1.fffffffffffffp+1023"), -1, sollya.parse("-0x0.4000000000000p-1022")),
+            (sollya.parse("0x1.fffffffffffffp+1023"), -1, sollya.parse("0x0.4000000000000p-1022")),
         ]
 
         return (fp_64_only if self.precision.get_bit_size() >= 64 else []) \

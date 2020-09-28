@@ -669,6 +669,7 @@ class ML_Division(ML_FunctionBasis):
         return recp_eval_error, div_eval_error
 
     standard_test_cases = [
+        (1.0, sollya.parse("0x1.fffffffffffffp+1023"), sollya.parse("0x1p-1024")),
         (sollya.parse("-0x1.34a246p-2"), sollya.parse("-0x1.26e2e2p-1")),
         (sollya.parse("0x1.p0"), sollya.parse("0x1.e0ef5ep-49")),
         (sollya.parse("0x1.7fddbp0"), sollya.parse("0x1.e0ef5ep-49")),
