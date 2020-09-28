@@ -1637,36 +1637,40 @@ def subnormalize_multi(x_list, factor, precision=None, fma=True):
 
     # difference betwen x's real exponent and the minimal exponent
     # for a floating of format precision
-    delta = Max(
-        Min(
+    delta = Min(
+        Max(
             Subtraction(
                 Constant(precision.get_emin_normal(), precision=int_precision),
                 scaled_ex,
+                tag="raw_delta",
                 precision=int_precision
             ),
             CI0,
             precision=int_precision
         ),
         Constant(precision.get_mantissa_size(), precision=int_precision),
+        tag="sm_delta",
         precision=int_precision
     )
 
-    round_factor_exp = Addition(delta, ex, precision=int_precision)
-    round_factor = ExponentInsertion(round_factor_exp, precision=precision)
+    round_factor_exp = Addition(delta, ex, precision=int_precision, tag="round_factor_exp")
+    round_factor = ExponentInsertion(round_factor_exp, precision=precision, tag="round_factor")
 
     # to force a rounding as if x_hi was of precision p - delta
     # we use round_factor as follows:
     # o(o(round_factor + x_hi) - round_factor)
     if len(x_list) == 2:
         rounded_x_hi = Subtraction(
-            Add112(round_factor, x_list[0], x_list[1], precision=precision)[0],
+            Add112(round_factor, x_list[0], x_list[1], precision=precision)[0].modify_attributes(tag="sm_hi_part"),
             round_factor,
+            tag="rounded_x_hi",
             precision=precision
         )
     elif len(x_list) == 3:
         rounded_x_hi = Subtraction(
             Add113(round_factor, x_list[0], x_list[1], x_list[2], precision=precision)[0],
             round_factor,
+            tag="rounded_x_hi",
             precision=precision
         )
     else:
