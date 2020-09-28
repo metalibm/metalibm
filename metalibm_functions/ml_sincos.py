@@ -316,6 +316,7 @@ class ML_SinCos(ScalarUnaryFunction):
         lar_modk = BitLogicAnd(lar_offset_k, 2**(frac_pi_index+1) - 1, precision = int_precision, tag = "lar_modk", debug = debug_multi )
 
         lar_statement = Statement(
+            ph_acc_int,
             ph_statement,
             ReferenceAssign(lar_vx, ph_acc, debug = debug_multi),
             ReferenceAssign(red_vx, lar_red_vx, debug = debug_multi),
@@ -346,7 +347,7 @@ class ML_SinCos(ScalarUnaryFunction):
         return scheme
 
     standard_test_cases = [
-        (sollya.parse(v),) for v in ["0x1.e540d2p-1", "0x1.4b7b42p-1"]
+        (sollya.parse(v),) for v in ["-0x1.ab3c84717c7c7p+62", "0x1.e540d2p-1", "0x1.4b7b42p-1"]
     ]
 
     def numeric_emulate(self, input_value):
