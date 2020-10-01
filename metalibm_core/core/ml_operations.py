@@ -200,6 +200,9 @@ class AbstractOperation(ML_Operation):
     def __add__(self, op):
         return Addition(self, implicit_op(op))
 
+    def __lshift__(self, op):
+        return BitLogicLeftShift(self, implicit_op(op))
+
     ## 2-Operand operator for arithmetic power
     def __pow__(self, n):
         if n == 0: return Constant(1, precision = self.get_precision())
