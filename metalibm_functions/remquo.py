@@ -80,6 +80,9 @@ from metalibm_core.utility.log_report import Log
 
 S2 = sollya.SollyaObject(2)
 
+class QUOTIENT_MODE: pass
+class REMAINDER_MODE: pass
+class FULL_MODE: pass
 
 
 class ML_RemQuo(ML_FunctionBasis):
@@ -88,7 +91,11 @@ class ML_RemQuo(ML_FunctionBasis):
 
     def __init__(self, args=DefaultArgTemplate):
         # initializing class specific arguments (required by ML_FunctionBasis init)
-        self.quotient_mode = args.quotient_mode
+        self.mode = {
+            "quotient": QUOTIENT_MODE,
+            "full": FULL_MODE,
+            "remainder": REMAINDER_MODE
+        }[args.mode]
         self.quotient_size = args.quotient_size
         # initializing base class
         ML_FunctionBasis.__init__(self, args=args)
@@ -107,13 +114,14 @@ class ML_RemQuo(ML_FunctionBasis):
             "auto_test_range": DefaultArgTemplate.auto_test_range * 2,
             "bench_test_range": DefaultArgTemplate.bench_test_range * 2,
             "language": C_Code,
+            "mode": "remainder",
             "passes": ["typing:basic_legalization", "beforecodegen:expand_multi_precision"],
         }
         default_div_args.update(args)
         return DefaultArgTemplate(**default_div_args)
 
     def get_output_precision(self):
-        if self.quotient_mode:
+        if self.mode is QUOTIENT_MODE:
             return self.precision.get_integer_format()
         else:
             return self.precision
@@ -123,7 +131,8 @@ class ML_RemQuo(ML_FunctionBasis):
         # We wish to compute vx / vy
         vx = self.implementation.add_input_variable("x", self.precision, interval=self.input_intervals[0])
         vy = self.implementation.add_input_variable("y", self.precision, interval=self.input_intervals[1])
-        #quo = self.implementation.add_input_variable("quo", ML_Pointer_Format(int_precision))
+        if self.mode is FULL_MODE:
+            quo = self.implementation.add_input_variable("quo", ML_Pointer_Format(int_precision))
 
         i = Variable("i", precision=int_precision, var_type=Variable.Local)
         q = Variable("q", precision=int_precision, var_type=Variable.Local)
@@ -238,50 +247,89 @@ class ML_RemQuo(ML_FunctionBasis):
                 Modulo(TypeCast(q, precision=ML_UInt64), Constant(2**self.quotient_size, precision=ML_UInt64), tag="mod_q")
             ),
         )
+
+        # NOTES: Warning QuotientReturn must always preceeds RemainderReturn
+        if self.mode is QUOTIENT_MODE:
+            #
+            QuotientReturn = Return
+            RemainderReturn = lambda _: Statement()
+        elif self.mode is REMAINDER_MODE:
+            QuotientReturn = lambda _: Statement()
+            RemainderReturn = Return
+        elif self.mode is FULL_MODE:
+            QuotientReturn = lambda v: ReferenceAssign(Dereference(quo, precision=int_precision), v) 
+            RemainderReturn = Return
+        else:
+            raise NotImplemented
+
+        # quotient invalid value
+        QUO_INVALID_VALUE = 0
+
         mod_scheme = Statement(
             # x or y is NaN, a NaN is returned
             ConditionBlock(
                 LogicalOr(Test(vx, specifier=Test.IsNaN), Test(vy, specifier=Test.IsNaN)),
-                Return(FP_QNaN(self.precision))
+                Statement(
+                    QuotientReturn(QUO_INVALID_VALUE),
+                    RemainderReturn(FP_QNaN(self.precision))
+                ),
             ),
             #
             ConditionBlock(
                 Test(vy, specifier=Test.IsZero),
-                Return(FP_QNaN(self.precision))
+                Statement(
+                    QuotientReturn(QUO_INVALID_VALUE),
+                    RemainderReturn(FP_QNaN(self.precision))
+                ),
             ),
             ConditionBlock(
                 Test(vx, specifier=Test.IsZero),
-                Return(vx)
+                Statement(
+                    QuotientReturn(0),
+                    RemainderReturn(vx)
+                ),
             ),
             ConditionBlock(
                 Test(vx, specifier=Test.IsInfty),
-                Return(FP_QNaN(self.precision))
+                Statement(
+                    QuotientReturn(QUO_INVALID_VALUE),
+                    RemainderReturn(FP_QNaN(self.precision))
+                )
             ),
             ConditionBlock(
                 Test(vy, specifier=Test.IsInfty),
-                Return(FP_QNaN(self.precision))
+                Statement(
+                    QuotientReturn(QUO_INVALID_VALUE),
+                    RemainderReturn(FP_QNaN(self.precision))
+                )
             ),
             ConditionBlock(
                 Abs(vx) < Abs(vy * 0.5),
-                Return(vx),
+                Statement(
+                    QuotientReturn(0),
+                    RemainderReturn(vx),
+                )
             ),
             ConditionBlock(
                 Equal(vx, vy),
-                # 0 with the same sign as x
-                Return(vx - vx),
+                Statement(
+                    QuotientReturn(1),
+                    # 0 with the same sign as x
+                    RemainderReturn(vx - vx),
+                ),
             ),
             ConditionBlock(
                 Equal(vx, -vy),
-                # 0 with the same sign as x
-                Return(vx - vx),
+                Statement(
+                    QuotientReturn(1),
+                    # 0 with the same sign as x
+                    RemainderReturn(vx - vx),
+                ),
             ),
             loop,
-            # ReferenceAssign(Dereference(quo, precision=int_precision), Constant(0, precision=int_precision)),
-            Return(mx),
+            QuotientReturn(q),
+            RemainderReturn(mx),
         )
-
-        # quotient invalid value
-        QUO_INVALID_VALUE = 0
 
         quo_scheme = Statement(
             # x or y is NaN, a NaN is returned
@@ -319,19 +367,16 @@ class ML_RemQuo(ML_FunctionBasis):
                 Return(-1),
             ),
             loop,
-            # ReferenceAssign(Dereference(quo, precision=int_precision), Constant(0, precision=int_precision)),
             Return(q),
 
         )
 
-        if self.quotient_mode:
-            return quo_scheme
-        else:
-            return mod_scheme
+        return mod_scheme
+
 
     def numeric_emulate(self, vx, vy):
         """ Numeric emulation of exponential """
-        if self.quotient_mode:
+        if self.mode is QUOTIENT_MODE:
             if is_nan(vx) or is_nan(vy) or is_zero(vy) or is_infty(vx) or is_infty(vy):
                 # invalid value specified by OpenCL-C
                 return 0
@@ -354,7 +399,7 @@ class ML_RemQuo(ML_FunctionBasis):
         if abs(pre_mod) > abs(vy / 2):
             pre_mod -= vy
             pre_quo += 1
-        if self.quotient_mode:
+        if self.mode is QUOTIENT_MODE:
             return sollya.euclidian_mod(pre_quo, 2**self.quotient_size)
         else:
             return pre_mod
@@ -363,6 +408,7 @@ class ML_RemQuo(ML_FunctionBasis):
     @property
     def standard_test_cases(self):
         return [
+            (sollya.parse("0x0.ac0f94b9da13p-1022"), sollya.parse("-0x1.1e4580d7eb2e7p-1022")),
             (sollya.parse("0x1.fffffffffffffp+1023"), sollya.parse("-0x1.fffffffffffffp+1023")),
             (sollya.parse("0x0.a9f466178b1fcp-1022"), sollya.parse("0x0.b22f552dc829ap-1022")),
             (sollya.parse("0x1.4af8b07942537p-430"), sollya.parse("-0x0.f72be041645b7p-1022")),
@@ -399,8 +445,8 @@ if __name__ == "__main__":
          "--quotient-size", dest="quotient_size", default=3, type=int,
         action="store", help="number of bit to return for the quotient")
     arg_template.get_parser().add_argument(
-         "--quotient-mode", dest="quotient_mode", const=True, default=False,
-        action="store_const", help="number of bit to return for the quotient")
+         "--mode", dest="mode", default="quotient", choices=['quotient', 'remainder', 'full'],
+        action="store", help="number of bit to return for the quotient")
 
     ARGS = arg_template.arg_extraction()
 
