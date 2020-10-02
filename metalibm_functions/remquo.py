@@ -37,14 +37,16 @@ from metalibm_core.core.ml_operations import (
     Variable,
     Abs, Equal,
     Min, Max, Comparison,
-    ReciprocalSeed, Constant,
-    SpecificOperation, Test,
+    Constant,
+    Test,
+    NotEqual,
     ConditionBlock, Statement, Return,
     ExponentInsertion, ExponentExtraction,
-    EmptyOperand, Raise,
     LogicalOr, Select,
+    LogicalAnd, LogicalNot,
     MantissaExtraction, ExponentExtraction,
     Loop,
+    Modulo, TypeCast,
     ReferenceAssign, Dereference,
 )
 from metalibm_core.core.attributes import Attributes
@@ -52,14 +54,13 @@ from metalibm_core.core.ml_complex_formats import ML_Pointer_Format
 from metalibm_core.core.ml_formats import (
     ML_Binary32, ML_Binary64, ML_SingleSingle, ML_DoubleDouble,
     ML_Int32,
-    ML_RoundToNearest, ML_GlobalRoundMode,
-    ML_FPE_Invalid, ML_FPE_DivideByZero, ML_FPE_Inexact, ML_FPE_Underflow,
+    ML_UInt64, ML_Int64,
     ML_Bool, ML_Exact,
 )
 from metalibm_core.core.special_values import (
     FP_QNaN, FP_MinusInfty, FP_PlusInfty,
     FP_MinusZero, FP_PlusZero,
-    is_nan,
+    is_nan, is_zero, is_infty,
 )
 from metalibm_core.core.precisions import ML_CorrectlyRounded
 from metalibm_core.core.ml_function import ML_FunctionBasis
@@ -86,6 +87,9 @@ class ML_RemQuo(ML_FunctionBasis):
     arity = 2
 
     def __init__(self, args=DefaultArgTemplate):
+        # initializing class specific arguments (required by ML_FunctionBasis init)
+        self.quotient_mode = args.quotient_mode
+        self.quotient_size = args.quotient_size
         # initializing base class
         ML_FunctionBasis.__init__(self, args=args)
 
@@ -108,15 +112,18 @@ class ML_RemQuo(ML_FunctionBasis):
         default_div_args.update(args)
         return DefaultArgTemplate(**default_div_args)
 
+    def get_output_precision(self):
+        if self.quotient_mode:
+            return self.precision.get_integer_format()
+        else:
+            return self.precision
+
     def generate_scheme(self):
         int_precision = self.precision.get_integer_format()
         # We wish to compute vx / vy
         vx = self.implementation.add_input_variable("x", self.precision, interval=self.input_intervals[0])
         vy = self.implementation.add_input_variable("y", self.precision, interval=self.input_intervals[1])
         #quo = self.implementation.add_input_variable("quo", ML_Pointer_Format(int_precision))
-
-
-
 
         i = Variable("i", precision=int_precision, var_type=Variable.Local)
         q = Variable("q", precision=int_precision, var_type=Variable.Local)
@@ -131,19 +138,25 @@ class ML_RemQuo(ML_FunctionBasis):
         scale_factor = Constant(2.0**DELTA_EXP, precision=self.precision)
         inv_scale_factor = Constant(2.0**-DELTA_EXP, precision=self.precision)
 
-        scaled_vx = Select(vx_subnormal, vx * scale_factor, vx, tag="scaled_vx")
-        scaled_vy = Select(vy_subnormal, vy * scale_factor, vy, tag="scaled_vy")
+        normalized_vx = Select(vx_subnormal, vx * scale_factor, vx, tag="scaled_vx")
+        normalized_vy = Select(vy_subnormal, vy * scale_factor, vy, tag="scaled_vy")
 
         real_ex = ExponentExtraction(vx, tag="real_ex", precision=int_precision)
         real_ey = ExponentExtraction(vy, tag="real_ey", precision=int_precision)
-        scaled_ex = ExponentExtraction(scaled_vx, tag="scaled_ex", precision=int_precision)
-        scaled_ey = ExponentExtraction(scaled_vy, tag="scaled_ey", precision=int_precision)
 
-        ex = scaled_ex - Select(vx_subnormal, Constant(DELTA_EXP, precision=int_precision), 0)
-        ex.set_tag("ex")
-        ey = scaled_ey - Select(vy_subnormal, Constant(DELTA_EXP, precision=int_precision), 0)
-        ey.set_tag("ey")
+        # if real_e<x/y> is +1023 then it may Overflow in -real_ex for ExponentInsertion
+        # which only supports downto -1022 before falling into subnormal numbers (which are
+        # not supported by ExponentInsertion)
+        real_ex_h0 = real_ex / 2
+        real_ex_h1 = real_ex - real_ex_h0
 
+        real_ey_h0 = real_ey / 2
+        real_ey_h1 = real_ey - real_ey_h0
+
+        EI = lambda v: ExponentInsertion(v, precision=self.precision)
+
+        mx = Abs((vx * EI(-real_ex_h0)) * EI(-real_ex_h1), tag="mx")
+        my = Abs((vy * EI(-real_ey_h0)) * EI(-real_ey_h1), tag="pre_my")
 
         ey_half0 = (real_ey) / 2
         ey_half1 = (real_ey) - ey_half0
@@ -151,46 +164,53 @@ class ML_RemQuo(ML_FunctionBasis):
         scale_ey_half0 = ExponentInsertion(ey_half0, precision=self.precision, tag="scale_ey_half0")
         scale_ey_half1 = ExponentInsertion(ey_half1, precision=self.precision, tag="scale_ey_half1")
 
-        mx = MantissaExtraction(Abs(scaled_vx), tag="mx")
-        my = MantissaExtraction(Abs(scaled_vy), tag="my")
+        # if only vy is subnormal we want to normalize it
+        normal_cond = LogicalAnd(vy_subnormal, LogicalNot(vx_subnormal))
+        my = Select(normal_cond, Abs(MantissaExtraction(vy * scale_factor)), my, tag="my")
+
 
         # vx / vy = vx * 2^-ex * 2^(ex-ey) / (vy * 2^-ey)
         # vx % vy
 
         post_mx = Variable("post_mx", precision=self.precision, var_type=Variable.Local)
 
+        rem_sign = Select(LogicalOr(vx < 0, vy < 0), CF(-1), CF(1), precision=self.precision, tag="rem_sign")
+
 
         loop = Statement(
-            ex, ey, mx, my,
+            real_ex, real_ey, mx, my,
             ReferenceAssign(q, CI(0)),
             Loop(
                 ReferenceAssign(i, CI(0)), i < (real_ex - real_ey),
                 Statement(
                     ReferenceAssign(i, i+CI(1)),
-                    ReferenceAssign(q, q << 1 + Select(mx >= my, CI(1), CI(0))),
-                    ReferenceAssign(mx, CF(2) * (mx - Select(mx >= my, my, CF(0))))
+                    ReferenceAssign(q, ((q << 1) + Select(mx >= my, CI(1), CI(0))).modify_attributes(tag="step1_q")),
+                    ReferenceAssign(mx, (CF(2) * (mx - Select(mx >= my, my, CF(0)))).modify_attributes(tag="step1_mx"))
                 )
             ),
             # unscaling remainder
             ReferenceAssign(mx, ((mx * scale_ey_half0) * scale_ey_half1).modify_attributes(tag="scaled_rem")),
             ReferenceAssign(my, ((my * scale_ey_half0) * scale_ey_half1).modify_attributes(tag="scaled_rem_my")),
             Loop(
-                Statement(), my > Abs(vy),
+                Statement(), LogicalAnd(my > Abs(vy), NotEqual(mx, 0)),
                 Statement(
-                    ReferenceAssign(q, q << 1 + Select(mx >= Abs(my), CI(1), CI(0))),
-                    ReferenceAssign(mx, (mx - Select(mx >= Abs(my), Abs(my), CF(0)))),
+                    ReferenceAssign(q, ((q << 1) + Select(mx >= Abs(my), CI(1), CI(0))).modify_attributes(tag="step2_q")),
+                    ReferenceAssign(mx, (mx - Select(mx >= Abs(my), Abs(my), CF(0))).modify_attributes(tag="step2_mx")),
                     ReferenceAssign(my, my * 0.5),
                 )
             ),
+            ReferenceAssign(q, q << 1),
             Loop(
-                ReferenceAssign(i, CI(0)), mx >= Abs(vy),
+                ReferenceAssign(i, CI(0)), mx > Abs(vy),
                 Statement(
-                    ReferenceAssign(q, q + Select(mx >= Abs(vy), CI(1), CI(0))),
-                    ReferenceAssign(mx, (mx - Select(mx >= Abs(vy), Abs(vy), CF(0))))
+                    ReferenceAssign(q, q + Select(mx > Abs(vy), CI(1), CI(0))),
+                    ReferenceAssign(mx, (mx - Select(mx > Abs(vy), Abs(vy), CF(0))).modify_attributes(tag="step3_mx"))
                 ),
-            )
+            ),
+            ReferenceAssign(q, q + Select(mx >= Abs(vy), CI(1), CI(0))),
+            ReferenceAssign(mx, (mx - Select(mx >= Abs(vy), Abs(vy), CF(0))))
         )
-        scheme = Statement(
+        mod_scheme = Statement(
             # x or y is NaN, a NaN is returned
             ConditionBlock(
                 LogicalOr(Test(vx, specifier=Test.IsNaN), Test(vy, specifier=Test.IsNaN)),
@@ -210,7 +230,7 @@ class ML_RemQuo(ML_FunctionBasis):
                 Return(FP_PlusZero(self.precision))
             ),
             ConditionBlock(
-                Abs(vx) < Abs(vy),
+                Abs(vx) < Abs(vy * 0.5),
                 Return(vx),
             ),
             ConditionBlock(
@@ -223,21 +243,98 @@ class ML_RemQuo(ML_FunctionBasis):
             ),
             loop,
             # ReferenceAssign(Dereference(quo, precision=int_precision), Constant(0, precision=int_precision)),
+            ReferenceAssign(mx, rem_sign * mx),
+            ConditionBlock(
+                Abs(mx) > Abs(vy) * 0.5,
+                Statement(
+                    ReferenceAssign(mx, mx - vy),
+                    ReferenceAssign(q, q - 1),
+                )
+            ),
+            ConditionBlock(
+                # if the remainder is exactly half the dividend
+                # we need to make sure the quotient is even
+                Equal(Abs(mx), Abs(vy) * 0.5),
+                Statement()
+            ),
             Return(mx),
         )
 
-        return scheme
+        # quotient invalid value
+        QUO_INVALID_VALUE = -1
+
+        quo_scheme = Statement(
+            # x or y is NaN, a NaN is returned
+            ConditionBlock(
+                LogicalOr(Test(vx, specifier=Test.IsNaN), Test(vy, specifier=Test.IsNaN)),
+                Return(QUO_INVALID_VALUE),
+            ),
+            #
+            ConditionBlock(
+                Test(vx, specifier=Test.IsInfty),
+                Return(QUO_INVALID_VALUE),
+            ),
+            ConditionBlock(
+                Test(vy, specifier=Test.IsZero),
+                Return(QUO_INVALID_VALUE),
+            ),
+            ConditionBlock(
+                Test(vx, specifier=Test.IsZero),
+                Return(0),
+            ),
+            ConditionBlock(
+                Abs(vx) < Abs(vy),
+                Return(0),
+            ),
+            ConditionBlock(
+                Equal(vx, vy),
+                Return(1),
+            ),
+            ConditionBlock(
+                Equal(vx, -vy),
+                Return(-1),
+            ),
+            loop,
+            # ReferenceAssign(Dereference(quo, precision=int_precision), Constant(0, precision=int_precision)),
+            Return(Modulo(TypeCast(q, precision=ML_UInt64), Constant(2**self.quotient_size, precision=ML_UInt64))),
+
+        )
+
+        if self.quotient_mode:
+            return quo_scheme
+        else:
+            return mod_scheme
 
     def numeric_emulate(self, vx, vy):
         """ Numeric emulation of exponential """
-        if is_nan(vx) or is_nan(vy) or vy == 0:
-            return FP_QNaN(self.precision)
-        return sollya.euclidian_mod(vx, vy)
+        if self.quotient_mode:
+            if is_nan(vx) or is_nan(vy) or is_zero(vy) or is_infty(vx):
+                # invalid value
+                return -1
+            return sollya.euclidian_mod(sollya.euclidian_div(vx, vy), 2**self.quotient_size)
+        else:
+            if is_nan(vx) or is_nan(vy) or is_zero(vy):
+                return FP_QNaN(self.precision)
+            elif is_zero(vx):
+                return vx
+            elif is_infty(vx):
+                return FP_QNaN(self.precision)
+            elif is_infty(vy):
+                return FP_QNaN(self.precision)
+            pre_mod = sollya.euclidian_mod(vx, vy)
+            if abs(pre_mod) > abs(vy / 2):
+                pre_mod -= vy
+            return pre_mod
 
 
     standard_test_cases = [
+        # bad remainder
+        (sollya.parse("0x1.fffffffffffffp+1023"), sollya.parse("0x1.1f31bcd002a7ap-803")),
+        # bad sign
+        (sollya.parse("-0x1.4607d0c9fc1a7p-878"), sollya.parse("-0x1.9b666b840b1bp-1023")),
         #result is 0x0.0000000000505p-1022 vs expected0x0.0000000000a3cp-1022
-        # (sollya.parse("0x1.9f9f4e9a29fcfp-421"), sollya.parse("0x0.0000000001b59p-1022"), sollya.parse("0x0.0000000000a3cp-1022")),
+        #(sollya.parse("0x1.9f9f4e9a29fcfp-421"), sollya.parse("0x0.0000000001b59p-1022"), sollya.parse("0x0.0000000000a3cp-1022")),
+        (sollya.parse("0x1.9906165fb3e61p+62"), sollya.parse("0x1.9906165fb3e61p+60")),
         (sollya.parse("0x1.9906165fb3e61p+62"), sollya.parse("0x0.0000000005e7dp-1022")),
         (sollya.parse("0x1.77f00143ba3f4p+943"), sollya.parse("0x0.000000000001p-1022")),
         (sollya.parse("0x0.000000000001p-1022"), sollya.parse("0x0.000000000001p-1022")),
@@ -255,6 +352,12 @@ if __name__ == "__main__":
     arg_template = ML_NewArgTemplate(
         default_arg=ML_RemQuo.get_default_args()
     )
+    arg_template.get_parser().add_argument(
+         "--quotient-size", dest="quotient_size", default=3, type=int,
+        action="store", help="number of bit to return for the quotient")
+    arg_template.get_parser().add_argument(
+         "--quotient-mode", dest="quotient_mode", const=True, default=False,
+        action="store_const", help="number of bit to return for the quotient")
 
     ARGS = arg_template.arg_extraction()
 
