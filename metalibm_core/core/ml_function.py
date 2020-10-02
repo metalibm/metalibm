@@ -1251,7 +1251,7 @@ class ML_FunctionBasis(object):
     ## output values required to check results are stored in output table
     num_output_value = self.accuracy.get_num_output_value()
     output_table = ML_NewTable(dimensions=[test_total, num_output_value],
-                               storage_precision=self.precision,
+                               storage_precision=self.get_output_precision(),
                                const=False,
                                tag=self.uniquify_name("output_table"))
 
@@ -1335,11 +1335,12 @@ class ML_FunctionBasis(object):
     input_display_vars = ", ".join(prec.get_display_format(self.language).pre_process_fct("{%d}" % index) for index, prec in enumerate(self.get_input_precisions(), 1))
 
     result_arg_id = 1 + len(self.get_input_precisions())
+    output_format = self.get_output_precision()
     # expected_arg_id = 1 + result_arg_id
     # build the format string for result/expected display
-    result_display_format = self.precision.get_display_format(self.language).format_string
-    result_display_vars = self.precision.get_display_format(self.language).pre_process_fct("{%d}" % result_arg_id)
-    # expected_display_vars = self.precision.get_display_format(self.language).pre_process_fct("{%d}" % expected_arg_id)
+    result_display_format = output_format.get_display_format(self.language).format_string
+    result_display_vars = output_format.get_display_format(self.language).pre_process_fct("{%d}" % result_arg_id)
+    # expected_display_vars = output_format.get_display_format(self.language).pre_process_fct("{%d}" % expected_arg_id)
 
     template = ("printf(\"error[%d]: {fct_name}({arg_display_format}),"
                 " result is {result_display_format} "
@@ -1355,7 +1356,7 @@ class ML_FunctionBasis(object):
                     #expected_display_vars=expected_display_vars
                 )
     printf_op = TemplateOperatorFormat(template, void_function=True, arity=(result_arg_id+1), require_header=["stdio.h"]) 
-    printf_input_function = FunctionObject("printf", [ML_Int32] + self.get_input_precisions() + [self.precision], ML_Void, printf_op)
+    printf_input_function = FunctionObject("printf", [ML_Int32] + self.get_input_precisions() + [output_format], ML_Void, printf_op)
     return printf_input_function
 
   ## generate a test loop for vector tests
