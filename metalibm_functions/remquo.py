@@ -174,7 +174,11 @@ class ML_RemQuo(ML_FunctionBasis):
 
         post_mx = Variable("post_mx", precision=self.precision, var_type=Variable.Local)
 
-        rem_sign = Select(LogicalOr(vx < 0, vy < 0), CF(-1), CF(1), precision=self.precision, tag="rem_sign")
+        def LogicalXor(a, b):
+            return LogicalOr(LogicalAnd(a, LogicalNot(b)), LogicalAnd(LogicalNot(a), b))
+
+        rem_sign = Select(vx < 0, CF(-1), CF(1), precision=self.precision, tag="rem_sign")
+        quo_sign = Select(LogicalXor(vx <0, vy < 0), CI(-1), CI(1), precision=int_precision, tag="quo_sign")
 
 
         loop = Statement(
@@ -203,12 +207,36 @@ class ML_RemQuo(ML_FunctionBasis):
             Loop(
                 ReferenceAssign(i, CI(0)), mx > Abs(vy),
                 Statement(
-                    ReferenceAssign(q, q + Select(mx > Abs(vy), CI(1), CI(0))),
+                    ReferenceAssign(q, (q + Select(mx > Abs(vy), CI(1), CI(0))).modify_attributes(tag="step3_q")),
                     ReferenceAssign(mx, (mx - Select(mx > Abs(vy), Abs(vy), CF(0))).modify_attributes(tag="step3_mx"))
                 ),
             ),
             ReferenceAssign(q, q + Select(mx >= Abs(vy), CI(1), CI(0))),
-            ReferenceAssign(mx, (mx - Select(mx >= Abs(vy), Abs(vy), CF(0))))
+            ReferenceAssign(mx, (mx - Select(mx >= Abs(vy), Abs(vy), CF(0)))),
+            ConditionBlock(
+                mx > Abs(vy * 0.5),
+                Statement(
+                    ReferenceAssign(q, q + CI(1)),
+                    ReferenceAssign(mx, (mx - Abs(vy)))
+                )
+            ),
+            ConditionBlock(
+                # if the remainder is exactly half the dividend
+                # we need to make sure the quotient is even
+                LogicalAnd(
+                    Equal(mx, Abs(vy * 0.5)),
+                    Equal(Modulo(q, CI(2)), CI(1)),
+                ),
+                Statement(
+                    ReferenceAssign(q, q + CI(1)),
+                    ReferenceAssign(mx, (mx - Abs(vy)))
+                )
+            ),
+            ReferenceAssign(mx, rem_sign * mx),
+            ReferenceAssign(q, quo_sign * q),
+            ReferenceAssign(q,
+                Modulo(TypeCast(q, precision=ML_UInt64), Constant(2**self.quotient_size, precision=ML_UInt64), tag="mod_q")
+            ),
         )
         mod_scheme = Statement(
             # x or y is NaN, a NaN is returned
@@ -218,16 +246,20 @@ class ML_RemQuo(ML_FunctionBasis):
             ),
             #
             ConditionBlock(
-                Test(vx, specifier=Test.IsInfty),
-                Return(FP_QNaN(self.precision))
-            ),
-            ConditionBlock(
                 Test(vy, specifier=Test.IsZero),
                 Return(FP_QNaN(self.precision))
             ),
             ConditionBlock(
                 Test(vx, specifier=Test.IsZero),
-                Return(FP_PlusZero(self.precision))
+                Return(vx)
+            ),
+            ConditionBlock(
+                Test(vx, specifier=Test.IsInfty),
+                Return(FP_QNaN(self.precision))
+            ),
+            ConditionBlock(
+                Test(vy, specifier=Test.IsInfty),
+                Return(FP_QNaN(self.precision))
             ),
             ConditionBlock(
                 Abs(vx) < Abs(vy * 0.5),
@@ -235,33 +267,21 @@ class ML_RemQuo(ML_FunctionBasis):
             ),
             ConditionBlock(
                 Equal(vx, vy),
-                Return(FP_PlusZero(self.precision)),
+                # 0 with the same sign as x
+                Return(vx - vx),
             ),
             ConditionBlock(
                 Equal(vx, -vy),
-                Return(FP_MinusZero(self.precision)),
+                # 0 with the same sign as x
+                Return(vx - vx),
             ),
             loop,
             # ReferenceAssign(Dereference(quo, precision=int_precision), Constant(0, precision=int_precision)),
-            ReferenceAssign(mx, rem_sign * mx),
-            ConditionBlock(
-                Abs(mx) > Abs(vy) * 0.5,
-                Statement(
-                    ReferenceAssign(mx, mx - vy),
-                    ReferenceAssign(q, q - 1),
-                )
-            ),
-            ConditionBlock(
-                # if the remainder is exactly half the dividend
-                # we need to make sure the quotient is even
-                Equal(Abs(mx), Abs(vy) * 0.5),
-                Statement()
-            ),
             Return(mx),
         )
 
         # quotient invalid value
-        QUO_INVALID_VALUE = -1
+        QUO_INVALID_VALUE = 0
 
         quo_scheme = Statement(
             # x or y is NaN, a NaN is returned
@@ -271,10 +291,6 @@ class ML_RemQuo(ML_FunctionBasis):
             ),
             #
             ConditionBlock(
-                Test(vx, specifier=Test.IsInfty),
-                Return(QUO_INVALID_VALUE),
-            ),
-            ConditionBlock(
                 Test(vy, specifier=Test.IsZero),
                 Return(QUO_INVALID_VALUE),
             ),
@@ -283,7 +299,15 @@ class ML_RemQuo(ML_FunctionBasis):
                 Return(0),
             ),
             ConditionBlock(
-                Abs(vx) < Abs(vy),
+                Test(vx, specifier=Test.IsInfty),
+                Return(QUO_INVALID_VALUE),
+            ),
+            ConditionBlock(
+                Test(vy, specifier=Test.IsInfty),
+                Return(QUO_INVALID_VALUE),
+            ),
+            ConditionBlock(
+                Abs(vx) < Abs(vy * 0.5),
                 Return(0),
             ),
             ConditionBlock(
@@ -296,7 +320,7 @@ class ML_RemQuo(ML_FunctionBasis):
             ),
             loop,
             # ReferenceAssign(Dereference(quo, precision=int_precision), Constant(0, precision=int_precision)),
-            Return(Modulo(TypeCast(q, precision=ML_UInt64), Constant(2**self.quotient_size, precision=ML_UInt64))),
+            Return(q),
 
         )
 
@@ -308,10 +332,12 @@ class ML_RemQuo(ML_FunctionBasis):
     def numeric_emulate(self, vx, vy):
         """ Numeric emulation of exponential """
         if self.quotient_mode:
-            if is_nan(vx) or is_nan(vy) or is_zero(vy) or is_infty(vx):
-                # invalid value
-                return -1
-            return sollya.euclidian_mod(sollya.euclidian_div(vx, vy), 2**self.quotient_size)
+            if is_nan(vx) or is_nan(vy) or is_zero(vy) or is_infty(vx) or is_infty(vy):
+                # invalid value specified by OpenCL-C
+                return 0
+            if is_zero(vx):
+                # valid value
+                return 0
         else:
             if is_nan(vx) or is_nan(vy) or is_zero(vy):
                 return FP_QNaN(self.precision)
@@ -321,29 +347,46 @@ class ML_RemQuo(ML_FunctionBasis):
                 return FP_QNaN(self.precision)
             elif is_infty(vy):
                 return FP_QNaN(self.precision)
-            pre_mod = sollya.euclidian_mod(vx, vy)
-            if abs(pre_mod) > abs(vy / 2):
-                pre_mod -= vy
+        # factorizing canonical cases (including correctionà
+        # between qutoient_mode and remainder mode
+        pre_mod = sollya.euclidian_mod(vx, vy)
+        pre_quo = sollya.euclidian_div(vx, vy)
+        if abs(pre_mod) > abs(vy / 2):
+            pre_mod -= vy
+            pre_quo += 1
+        if self.quotient_mode:
+            return sollya.euclidian_mod(pre_quo, 2**self.quotient_size)
+        else:
             return pre_mod
 
 
-    standard_test_cases = [
-        # bad remainder
-        (sollya.parse("0x1.fffffffffffffp+1023"), sollya.parse("0x1.1f31bcd002a7ap-803")),
-        # bad sign
-        (sollya.parse("-0x1.4607d0c9fc1a7p-878"), sollya.parse("-0x1.9b666b840b1bp-1023")),
-        #result is 0x0.0000000000505p-1022 vs expected0x0.0000000000a3cp-1022
-        #(sollya.parse("0x1.9f9f4e9a29fcfp-421"), sollya.parse("0x0.0000000001b59p-1022"), sollya.parse("0x0.0000000000a3cp-1022")),
-        (sollya.parse("0x1.9906165fb3e61p+62"), sollya.parse("0x1.9906165fb3e61p+60")),
-        (sollya.parse("0x1.9906165fb3e61p+62"), sollya.parse("0x0.0000000005e7dp-1022")),
-        (sollya.parse("0x1.77f00143ba3f4p+943"), sollya.parse("0x0.000000000001p-1022")),
-        (sollya.parse("0x0.000000000001p-1022"), sollya.parse("0x0.000000000001p-1022")),
-        (sollya.parse("0x0.000000000348bp-1022"), sollya.parse("0x0.000000000001p-1022")),
-        (sollya.parse("0x1.bcf3955c3b244p-130"), sollya.parse("0x1.77aef33890951p-1003")),
-        (sollya.parse("0x1.8de59bd84c51ep-866"), sollya.parse("0x1.045aa9bf14fb1p-774")),
-        (sollya.parse("0x1.9f9f4e9a29fcfp-421"), sollya.parse("0x0.0000000001b59p-1022")),
-        (sollya.parse("0x1.2e1c59b43a459p+953"), sollya.parse("0x0.0000001cf5319p-1022")),
-    ]
+    @property
+    def standard_test_cases(self):
+        return [
+            (sollya.parse("0x1.fffffffffffffp+1023"), sollya.parse("-0x1.fffffffffffffp+1023")),
+            (sollya.parse("0x0.a9f466178b1fcp-1022"), sollya.parse("0x0.b22f552dc829ap-1022")),
+            (sollya.parse("0x1.4af8b07942537p-430"), sollya.parse("-0x0.f72be041645b7p-1022")),
+            #result is 0x0.0000000000505p-1022 vs expected0x0.0000000000a3cp-1022
+            #(sollya.parse("0x1.9f9f4e9a29fcfp-421"), sollya.parse("0x0.0000000001b59p-1022"), sollya.parse("0x0.0000000000a3cp-1022")),
+            (sollya.parse("0x1.9906165fb3e61p+62"), sollya.parse("0x1.9906165fb3e61p+60")),
+            (sollya.parse("0x1.9906165fb3e61p+62"), sollya.parse("0x0.0000000005e7dp-1022")),
+            (sollya.parse("0x1.77f00143ba3f4p+943"), sollya.parse("0x0.000000000001p-1022")),
+            (sollya.parse("0x0.000000000001p-1022"), sollya.parse("0x0.000000000001p-1022")),
+            (sollya.parse("0x0.000000000348bp-1022"), sollya.parse("0x0.000000000001p-1022")),
+            (sollya.parse("0x1.bcf3955c3b244p-130"), sollya.parse("0x1.77aef33890951p-1003")),
+            (sollya.parse("0x1.8de59bd84c51ep-866"), sollya.parse("0x1.045aa9bf14fb1p-774")),
+            (sollya.parse("0x1.9f9f4e9a29fcfp-421"), sollya.parse("0x0.0000000001b59p-1022")),
+            (sollya.parse("0x1.2e1c59b43a459p+953"), sollya.parse("0x0.0000001cf5319p-1022")),
+            (sollya.parse("-0x1.86c83abe0854ep+268"), FP_MinusInfty(self.precision)),
+            # bad sign of remainder
+            (sollya.parse("0x1.d3fb9968850a5p-960"), sollya.parse("-0x0.23c1ed19c45fp-1022")),
+            # bad sign of zero
+            (FP_MinusZero(self.precision), sollya.parse("0x1.85200a9235193p-450")),
+            # bad remainder
+            (sollya.parse("0x1.fffffffffffffp+1023"), sollya.parse("0x1.1f31bcd002a7ap-803")),
+            # bad sign
+            (sollya.parse("-0x1.4607d0c9fc1a7p-878"), sollya.parse("-0x1.9b666b840b1bp-1023")),
+        ]
 
 
 
