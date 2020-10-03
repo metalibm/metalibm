@@ -167,8 +167,12 @@ class ML_RemQuo(ML_FunctionBasis):
         mx = Abs((vx * EI(-real_ex_h0)) * EI(-real_ex_h1), tag="mx")
         my = Abs((vy * EI(-real_ey_h0)) * EI(-real_ey_h1), tag="pre_my")
 
-        ey_half0 = (real_ey) / 2
-        ey_half1 = (real_ey) - ey_half0
+        # scale_ey is used to regain the unscaling of mx in the first loop
+        # if real_ey >= real_ex, the first loop is never executed
+        # so a different scaling is required
+        mx_unscaling = Select(real_ey < real_ex, real_ey, real_ex)
+        ey_half0 = (mx_unscaling) / 2
+        ey_half1 = (mx_unscaling) - ey_half0
 
         scale_ey_half0 = ExponentInsertion(ey_half0, precision=self.precision, tag="scale_ey_half0")
         scale_ey_half1 = ExponentInsertion(ey_half1, precision=self.precision, tag="scale_ey_half1")
@@ -242,10 +246,10 @@ class ML_RemQuo(ML_FunctionBasis):
                 )
             ),
             ReferenceAssign(mx, rem_sign * mx),
-            ReferenceAssign(q, quo_sign * q),
             ReferenceAssign(q,
                 Modulo(TypeCast(q, precision=ML_UInt64), Constant(2**self.quotient_size, precision=ML_UInt64), tag="mod_q")
             ),
+            ReferenceAssign(q, quo_sign * q),
         )
 
         # NOTES: Warning QuotientReturn must always preceeds RemainderReturn
@@ -299,8 +303,8 @@ class ML_RemQuo(ML_FunctionBasis):
             ConditionBlock(
                 Test(vy, specifier=Test.IsInfty),
                 Statement(
-                    QuotientReturn(QUO_INVALID_VALUE),
-                    RemainderReturn(FP_QNaN(self.precision))
+                    QuotientReturn(0),
+                    RemainderReturn(vx),
                 )
             ),
             ConditionBlock(
@@ -321,7 +325,8 @@ class ML_RemQuo(ML_FunctionBasis):
             ConditionBlock(
                 Equal(vx, -vy),
                 Statement(
-                    QuotientReturn(1),
+                    # quotient is -1
+                    QuotientReturn(-1),
                     # 0 with the same sign as x
                     RemainderReturn(vx - vx),
                 ),
@@ -377,10 +382,10 @@ class ML_RemQuo(ML_FunctionBasis):
     def numeric_emulate(self, vx, vy):
         """ Numeric emulation of exponential """
         if self.mode is QUOTIENT_MODE:
-            if is_nan(vx) or is_nan(vy) or is_zero(vy) or is_infty(vx) or is_infty(vy):
+            if is_nan(vx) or is_nan(vy) or is_zero(vy) or is_infty(vx):
                 # invalid value specified by OpenCL-C
                 return 0
-            if is_zero(vx):
+            if is_infty(vy) or is_zero(vx):
                 # valid value
                 return 0
         else:
@@ -391,16 +396,21 @@ class ML_RemQuo(ML_FunctionBasis):
             elif is_infty(vx):
                 return FP_QNaN(self.precision)
             elif is_infty(vy):
-                return FP_QNaN(self.precision)
+                return vx
         # factorizing canonical cases (including correctionà
         # between qutoient_mode and remainder mode
         pre_mod = sollya.euclidian_mod(vx, vy)
-        pre_quo = sollya.euclidian_div(vx, vy)
-        if abs(pre_mod) > abs(vy / 2):
+        pre_quo = sollya.euclidian_div(abs(vx), abs(vy))
+        if abs(pre_mod) > abs(vy * 0.5):
             pre_mod -= vy
             pre_quo += 1
         if self.mode is QUOTIENT_MODE:
-            return sollya.euclidian_mod(pre_quo, 2**self.quotient_size)
+            quo_mod = sollya.euclidian_mod(pre_quo, 2**self.quotient_size)
+            if vx / vy < 0:
+                return -quo_mod
+            else:
+                return quo_mod
+
         else:
             return pre_mod
 
@@ -408,6 +418,19 @@ class ML_RemQuo(ML_FunctionBasis):
     @property
     def standard_test_cases(self):
         return [
+            # OpenCL CTS error
+            # ERROR: remquoD: {-171.000000, -1} ulp error at {-0x1.02ffffffffc2bp+489, -0x0.00000000000abp-1022} ({ 0xde802ffffffffc2b, 0x80000000000000ab}): *{0x0.0000000000055p-1022, 127} ({ 0x0000000000000055, 0x0000007f}) vs. {-0x0.0000000000056p-1022, 254} ({ 0x8000000000000056, 0x000000fe})
+            (sollya.parse("0x1.02ffffffffc2bp+489"), sollya.parse("0x0.00000000000abp-1022")),
+            (sollya.parse("-0x1.02ffffffffc2bp+489"), sollya.parse("-0x0.00000000000abp-1022"), sollya.parse("0x0.0000000000055p-1022") if self.mode is REMAINDER_MODE else 127),
+            # ERROR: remquoD: {nan, 0} ulp error at {-0x1.69000000001e1p+749, -inf} ({ 0xeec69000000001e1, 0xfff0000000000000}): *{-0x1.69000000001e1p+749, 0} ({ 0xeec69000000001e1, 0x00000000}) vs. {nan, 0} ({ 0x7ff8000000000000, 0x00000000})
+            (sollya.parse("-0x1.69000000001e1p+749"), FP_MinusInfty(self.precision), sollya.parse("-0x1.69000000001e1p+749") if self.mode is REMAINDER_MODE else 0),
+
+            # ERROR: remquo: {0.000000, -126} ulp error at {0x1.921456p+70, -0x1.921456p+70} ({0x62c90a2b, 0xe2c90a2b}): *{0x0p+0, -1} ({0x00000000, 0xffffffff}) vs. {0x0p+0, 1} ({0x00000000, 0x00000001})
+            (sollya.parse("0x1.921456p+70"), sollya.parse("-0x1.921456p+70"), 0 if self.mode is REMAINDER_MODE else -1),
+            # ERROR: remquoD: {10731233487093760.000000, 0} ulp error at {0x1.30fffffffff7ep-597, -0x1.13ffffffffed0p-596} ({ 0x1aa30fffffffff7e, 0x9ab13ffffffffed0}): *{-0x1.edffffffffc44p-598, -1} ({ 0x9a9edffffffffc44, 0xffffffff}) vs. {0x1.d000000000ae0p-600, -1} ({ 0x1a7d000000000ae0, 0xffffffff})
+            (sollya.parse("0x1.30fffffffff7ep-597"), sollya.parse("-0x1.13ffffffffed0p-596"), -1 if self.mode is QUOTIENT_MODE else sollya.parse("-0x1.edffffffffc44p-598")),
+            #  {-0x1.9bffffffffd38p+361, 0x0.00000000000a5p-1022} ({ 0xd689bffffffffd38, 0x00000000000000a5}): *{-0x0.000000000000fp-1022, -93} ({ 0x800000000000000f, 0xffffffa3}) vs. {0x0.000000000000fp-1022, -1171354717} ({ 0x000000000000000f, 0xba2e8ba3})
+            (sollya.parse("-0x1.9bffffffffd38p+361"), sollya.parse("0x0.00000000000a5p-1022")),
             (sollya.parse("0x0.ac0f94b9da13p-1022"), sollya.parse("-0x1.1e4580d7eb2e7p-1022")),
             (sollya.parse("0x1.fffffffffffffp+1023"), sollya.parse("-0x1.fffffffffffffp+1023")),
             (sollya.parse("0x0.a9f466178b1fcp-1022"), sollya.parse("0x0.b22f552dc829ap-1022")),
