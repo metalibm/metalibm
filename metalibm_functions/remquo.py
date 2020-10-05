@@ -437,6 +437,14 @@ class ML_RemQuo(ML_FunctionBasis):
     def standard_test_cases(self):
         return [
             # OpenCL CTS error
+            # infinite loop
+            # ERROR: remquoD: {-inf, 77} ulp error at {0x0.eaffffffffb86p-1022, -0x0.0000000000202p-1022} ({ 0x000eaffffffffb86, 0x8000000000000202}): *{0x0.00000000000eap-1022, -78} ({ 0x00000000000000ea, 0xffffffb2}) vs. {-0x1.0000000000000p+0, -1} ({ 0xbff0000000000000, 0xffffffff})
+            (sollya.parse("0x0.eaffffffffb86p-1022"), sollya.parse("-0x0.0000000000202p-1022"), sollya.parse("0x0.00000000000eap-1022") if self.mode is REMAINDER_MODE else -78),
+            # ERROR: remquoD: {0.000000, 92} ulp error at {-0x1.b9000000003e0p-982, -0x0.0000000000232p-1022} ({ 0x829b9000000003e0, 0x8000000000000232}): *{-0x0.0000000000000p+0, 0} ({ 0x8000000000000000, 0x00000000}) vs. {-0x0.0000000000000p+0, 92} ({ 0x8000000000000000, 0x0000005c})
+            (sollya.parse("-0x1.b9000000003e0p-982"), sollya.parse("-0x0.0000000000232p-1022"), FP_MinusZero(self.precision) if self.mode is REMAINDER_MODE else 0),
+
+            # ERROR: remquoD: {-26458647810801664.000000, 1} ulp error at {-0x1.be000000005dfp+977, 0x1.78000000006f1p+975} ({ 0xfd0be000000005df, 0x7ce78000000006f1}): *{0x1.8000000002ce4p+973, -5} ({ 0x7cc8000000002ce4, 0xfffffffb}) vs. {-0x1.17ffffffffbb8p+975, -4} ({ 0xfce17ffffffffbb8, 0xfffffffc})
+            (sollya.parse("-0x1.be000000005dfp+977"), sollya.parse("0x1.78000000006f1p+975"), sollya.parse("0x1.8000000002ce4p+973") if self.mode is REMAINDER_MODE else -5),
             # ERROR: remquoD: {-171.000000, -1} ulp error at {-0x1.02ffffffffc2bp+489, -0x0.00000000000abp-1022} ({ 0xde802ffffffffc2b, 0x80000000000000ab}): *{0x0.0000000000055p-1022, 127} ({ 0x0000000000000055, 0x0000007f}) vs. {-0x0.0000000000056p-1022, 254} ({ 0x8000000000000056, 0x000000fe})
             (sollya.parse("0x1.02ffffffffc2bp+489"), sollya.parse("0x0.00000000000abp-1022")),
             (sollya.parse("-0x1.02ffffffffc2bp+489"), sollya.parse("-0x0.00000000000abp-1022"), sollya.parse("0x0.0000000000055p-1022") if self.mode is REMAINDER_MODE else 127),
