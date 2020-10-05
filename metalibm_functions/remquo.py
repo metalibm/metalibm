@@ -178,7 +178,8 @@ class ML_RemQuo(ML_FunctionBasis):
         scale_ey_half1 = ExponentInsertion(ey_half1, precision=self.precision, tag="scale_ey_half1")
 
         # if only vy is subnormal we want to normalize it
-        normal_cond = LogicalAnd(vy_subnormal, LogicalNot(vx_subnormal))
+        #normal_cond = LogicalAnd(vy_subnormal, LogicalNot(vx_subnormal))
+        normal_cond = vy_subnormal #LogicalAnd(vy_subnormal, LogicalNot(vx_subnormal))
         my = Select(normal_cond, Abs(MantissaExtraction(vy * scale_factor)), my, tag="my")
 
 
@@ -187,47 +188,64 @@ class ML_RemQuo(ML_FunctionBasis):
 
         post_mx = Variable("post_mx", precision=self.precision, var_type=Variable.Local)
 
+        # scaling for half comparison
+        VY_SCALING = Select(vy_subnormal, 1.0, 0.5, precision=self.precision)
+        VX_SCALING = Select(vy_subnormal, 2.0, 1.0, precision=self.precision)
+
         def LogicalXor(a, b):
             return LogicalOr(LogicalAnd(a, LogicalNot(b)), LogicalAnd(LogicalNot(a), b))
 
         rem_sign = Select(vx < 0, CF(-1), CF(1), precision=self.precision, tag="rem_sign")
         quo_sign = Select(LogicalXor(vx <0, vy < 0), CI(-1), CI(1), precision=int_precision, tag="quo_sign")
 
+        loop_watchdog = Variable("loop_watchdog", precision=ML_Int32, var_type=Variable.Local)
 
         loop = Statement(
-            real_ex, real_ey, mx, my,
+            real_ex, real_ey, mx, my, loop_watchdog,
+            ReferenceAssign(loop_watchdog, 5000),
             ReferenceAssign(q, CI(0)),
             Loop(
                 ReferenceAssign(i, CI(0)), i < (real_ex - real_ey),
                 Statement(
                     ReferenceAssign(i, i+CI(1)),
                     ReferenceAssign(q, ((q << 1) + Select(mx >= my, CI(1), CI(0))).modify_attributes(tag="step1_q")),
-                    ReferenceAssign(mx, (CF(2) * (mx - Select(mx >= my, my, CF(0)))).modify_attributes(tag="step1_mx"))
-                )
+                    ReferenceAssign(mx, (CF(2) * (mx - Select(mx >= my, my, CF(0)))).modify_attributes(tag="step1_mx")),
+                    # loop watchdog
+                    ReferenceAssign(loop_watchdog, loop_watchdog - 1),
+                    ConditionBlock(loop_watchdog < 0, Return(-1)),
+                ),
             ),
             # unscaling remainder
             ReferenceAssign(mx, ((mx * scale_ey_half0) * scale_ey_half1).modify_attributes(tag="scaled_rem")),
             ReferenceAssign(my, ((my * scale_ey_half0) * scale_ey_half1).modify_attributes(tag="scaled_rem_my")),
             Loop(
-                Statement(), LogicalAnd(my > Abs(vy), NotEqual(mx, 0)),
+                Statement(), (my > Abs(vy)),
                 Statement(
                     ReferenceAssign(q, ((q << 1) + Select(mx >= Abs(my), CI(1), CI(0))).modify_attributes(tag="step2_q")),
                     ReferenceAssign(mx, (mx - Select(mx >= Abs(my), Abs(my), CF(0))).modify_attributes(tag="step2_mx")),
-                    ReferenceAssign(my, my * 0.5),
-                )
+                    ReferenceAssign(my, (my * 0.5).modify_attributes(tag="step2_my")),
+                    # loop watchdog
+                    ReferenceAssign(loop_watchdog, loop_watchdog - 1),
+                    ConditionBlock(loop_watchdog < 0, Return(-1)),
+                ),
             ),
             ReferenceAssign(q, q << 1),
             Loop(
                 ReferenceAssign(i, CI(0)), mx > Abs(vy),
                 Statement(
                     ReferenceAssign(q, (q + Select(mx > Abs(vy), CI(1), CI(0))).modify_attributes(tag="step3_q")),
-                    ReferenceAssign(mx, (mx - Select(mx > Abs(vy), Abs(vy), CF(0))).modify_attributes(tag="step3_mx"))
+                    ReferenceAssign(mx, (mx - Select(mx > Abs(vy), Abs(vy), CF(0))).modify_attributes(tag="step3_mx")),
+                    # loop watchdog
+                    ReferenceAssign(loop_watchdog, loop_watchdog - 1),
+                    ConditionBlock(loop_watchdog < 0, Return(-1)),
                 ),
             ),
             ReferenceAssign(q, q + Select(mx >= Abs(vy), CI(1), CI(0))),
-            ReferenceAssign(mx, (mx - Select(mx >= Abs(vy), Abs(vy), CF(0)))),
+            ReferenceAssign(mx, (mx - Select(mx >= Abs(vy), Abs(vy), CF(0))).modify_attributes(tag="pre_half_mx")),
             ConditionBlock(
-                mx > Abs(vy * 0.5),
+                # actual comparison is mx > | abs(vy * 0.5) | to avoid rounding effect when
+                # vy is subnormal we mulitply both side by 2.0**60
+                ((mx * VX_SCALING) > Abs(vy * VY_SCALING)).modify_attributes(tag="half_test"),
                 Statement(
                     ReferenceAssign(q, q + CI(1)),
                     ReferenceAssign(mx, (mx - Abs(vy)))
@@ -237,7 +255,7 @@ class ML_RemQuo(ML_FunctionBasis):
                 # if the remainder is exactly half the dividend
                 # we need to make sure the quotient is even
                 LogicalAnd(
-                    Equal(mx, Abs(vy * 0.5)),
+                    Equal(mx * VX_SCALING, Abs(vy * VY_SCALING)),
                     Equal(Modulo(q, CI(2)), CI(1)),
                 ),
                 Statement(
