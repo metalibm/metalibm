@@ -531,7 +531,7 @@ c_code_generation_table = {
         None: build_simplified_operator_generation([ML_Int64, ML_Int32, ML_UInt32, ML_Binary32, ML_Binary64], 2, SymbolOperator("/", arity = 2)),
     },
     Modulo: {
-        None: build_simplified_operator_generation([ML_Int32, ML_UInt32, ML_Int64], 2, SymbolOperator("%", arity = 2)),
+        None: build_simplified_operator_generation([ML_Int32, ML_UInt32, ML_Int64, ML_UInt64], 2, SymbolOperator("%", arity = 2)),
     },
     Comparison: 
         dict (
