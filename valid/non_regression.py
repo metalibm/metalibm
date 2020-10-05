@@ -51,6 +51,7 @@ import metalibm_functions.external_bench
 import metalibm_functions.ml_tanh
 import metalibm_functions.ml_div
 import metalibm_functions.rootn
+import metalibm_functions.remquo
 
 import metalibm_functions.softmax
 import metalibm_functions.vectorial_function
@@ -314,6 +315,24 @@ new_scheme_function_list = [
     [
         {"precision": ML_Binary32, "input_precisions": [ML_Binary32, ML_Int32], "auto_test_range": [Interval(-S2**127, S2**127), Interval(0, 255)], "auto_test": 1000, "execute_trigger": True, "accuracy": dar(S2**-22)},
         {"precision": ML_Binary64, "input_precisions": [ML_Binary64, ML_Int64], "auto_test_range": [Interval(-S2**1023, S2**1023), Interval(0, 255)], "auto_test": 1000, "execute_trigger": True, "accuracy": dar(S2**-50)},
+    ],
+  ),
+  NewSchemeTest(
+    "basic remquo test",
+    metalibm_functions.remquo.MetaRemQuo,
+    [
+        # 64-bit
+        # remainder mode
+        {"precision": ML_Binary64, "input_precisions": [ML_Binary64, ML_Binary64], "auto_test_std": True, "execute_trigger": True, "accuracy": ML_CorrectlyRounded, "mode": "remainder"},
+        # quotient mode
+        {"precision": ML_Binary64, "input_precisions": [ML_Binary64, ML_Binary64], "auto_test_std": True, "execute_trigger": True, "accuracy": ML_CorrectlyRounded, "mode": "quotient"},
+        # full mode: codegen only
+        {"precision": ML_Binary64, "input_precisions": [ML_Binary64, ML_Binary64], "accuracy": ML_CorrectlyRounded, "mode": "full"},
+
+        # 32-bit
+        {"precision": ML_Binary32, "input_precisions": [ML_Binary32, ML_Binary32], "accuracy": ML_CorrectlyRounded, "mode": "full"},
+        {"precision": ML_Binary32, "input_precisions": [ML_Binary32, ML_Binary32], "auto_test": 100, "execute_trigger": True, "accuracy": ML_CorrectlyRounded, "mode": "quotient"},
+        {"precision": ML_Binary32, "input_precisions": [ML_Binary32, ML_Binary32], "auto_test": 100, "execute_trigger": True, "accuracy": ML_CorrectlyRounded, "mode": "remainder"},
     ],
   ),
   NewSchemeTest(
