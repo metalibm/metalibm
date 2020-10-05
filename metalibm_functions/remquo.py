@@ -80,22 +80,32 @@ from metalibm_core.utility.log_report import Log
 
 S2 = sollya.SollyaObject(2)
 
-class QUOTIENT_MODE: pass
-class REMAINDER_MODE: pass
-class FULL_MODE: pass
 
+class RemquoMode: pass
+class QUOTIENT_MODE(RemquoMode): pass
+class REMAINDER_MODE(RemquoMode): pass
+class FULL_MODE(RemquoMode): pass
 
-class ML_RemQuo(ML_FunctionBasis):
+def remquo_mode_parser(s):
+    """ converts a mode string into a Remquo mode enum.
+    
+        :arg s: remquo mode str descriptor
+        :type s: str 
+        :return Remquo class enum
+    """
+    return {
+        "quotient": QUOTIENT_MODE,
+        "full": FULL_MODE,
+        "remainder": REMAINDER_MODE
+    }[s]
+
+class MetaRemQuo(ML_FunctionBasis):
     function_name = "ml_remquo"
     arity = 2
 
     def __init__(self, args=DefaultArgTemplate):
         # initializing class specific arguments (required by ML_FunctionBasis init)
-        self.mode = {
-            "quotient": QUOTIENT_MODE,
-            "full": FULL_MODE,
-            "remainder": REMAINDER_MODE
-        }[args.mode]
+        self.mode = remquo_mode_parser(args.mode)
         self.quotient_size = args.quotient_size
         # initializing base class
         ML_FunctionBasis.__init__(self, args=args)
@@ -115,6 +125,7 @@ class ML_RemQuo(ML_FunctionBasis):
             "bench_test_range": DefaultArgTemplate.bench_test_range * 2,
             "language": C_Code,
             "mode": "remainder",
+            "quotient_size": 7,
             "passes": ["typing:basic_legalization", "beforecodegen:expand_multi_precision"],
         }
         default_div_args.update(args)
@@ -265,7 +276,7 @@ class ML_RemQuo(ML_FunctionBasis):
             ),
             ReferenceAssign(mx, rem_sign * mx),
             ReferenceAssign(q,
-                Modulo(TypeCast(q, precision=ML_UInt64), Constant(2**self.quotient_size, precision=ML_UInt64), tag="mod_q")
+                Modulo(TypeCast(q, precision=self.precision.get_unsigned_integer_format()), Constant(2**self.quotient_size, precision=self.precision.get_unsigned_integer_format()), tag="mod_q")
             ),
             ReferenceAssign(q, quo_sign * q),
         )
@@ -416,14 +427,20 @@ class ML_RemQuo(ML_FunctionBasis):
             elif is_infty(vy):
                 return vx
         # factorizing canonical cases (including correctionà
-        # between qutoient_mode and remainder mode
+        # between quotient_mode and remainder mode
         pre_mod = sollya.euclidian_mod(vx, vy)
-        pre_quo = sollya.euclidian_div(abs(vx), abs(vy))
+        pre_quo = int(sollya.euclidian_div(vx, vy))
         if abs(pre_mod) > abs(vy * 0.5):
-            pre_mod -= vy
-            pre_quo += 1
+            if (pre_mod < 0 and vy < 0) or (pre_mod > 0 and vy > 0):
+                # same sign
+                pre_mod -= vy
+                pre_quo += 1
+            else:
+                # opposite sign
+                pre_mod += vy
+                pre_quo -= 1
         if self.mode is QUOTIENT_MODE:
-            quo_mod = sollya.euclidian_mod(pre_quo, 2**self.quotient_size)
+            quo_mod = abs(pre_quo) % 2**self.quotient_size
             if vx / vy < 0:
                 return -quo_mod
             else:
@@ -435,7 +452,10 @@ class ML_RemQuo(ML_FunctionBasis):
 
     @property
     def standard_test_cases(self):
-        return [
+        fp64_list = [
+            # random test
+            (sollya.parse("0x1.e906cc97d7cc1p+743"), sollya.parse("0x0.000001b84ba98p-1022")),
+            (sollya.parse("0x1.9c4110b0dea4fp+279"), sollya.parse("0x0.000ccf2945bd8p-1022")),
             # OpenCL CTS error
             # infinite loop
             # ERROR: remquoD: {-inf, 77} ulp error at {0x0.eaffffffffb86p-1022, -0x0.0000000000202p-1022} ({ 0x000eaffffffffb86, 0x8000000000000202}): *{0x0.00000000000eap-1022, -78} ({ 0x00000000000000ea, 0xffffffb2}) vs. {-0x1.0000000000000p+0, -1} ({ 0xbff0000000000000, 0xffffffff})
@@ -482,13 +502,14 @@ class ML_RemQuo(ML_FunctionBasis):
             # bad sign
             (sollya.parse("-0x1.4607d0c9fc1a7p-878"), sollya.parse("-0x1.9b666b840b1bp-1023")),
         ]
+        return fp64_list if self.precision.get_bit_size() >= 64 else []
 
 
 
 if __name__ == "__main__":
     # auto-test
     arg_template = ML_NewArgTemplate(
-        default_arg=ML_RemQuo.get_default_args()
+        default_arg=MetaRemQuo.get_default_args()
     )
     arg_template.get_parser().add_argument(
          "--quotient-size", dest="quotient_size", default=3, type=int,
@@ -499,5 +520,5 @@ if __name__ == "__main__":
 
     ARGS = arg_template.arg_extraction()
 
-    ml_remquo = ML_RemQuo(ARGS)
+    ml_remquo = MetaRemQuo(ARGS)
     ml_remquo.gen_implementation()
