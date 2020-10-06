@@ -14,11 +14,12 @@ import os
 import sys
 sys.path.insert(0, os.path.abspath('../../../'))
 
+master_doc = 'index'
 
 # -- Project information -----------------------------------------------------
 
 project = 'Metalibm'
-copyright = '2019, Nicolas Brunie'
+copyright = '2020, Nicolas Brunie'
 author = 'Nicolas Brunie'
 
 # The full version, including alpha/beta/rc tags
