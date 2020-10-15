@@ -199,8 +199,9 @@ class Pass_Vector_Promotion(FunctionPass):
             else:
                 new_optree = optree
                 if isinstance(optree, ML_NewTable):
-                    # Table are not promoted (we assume vector access are gather
-                    # which are compatible between vector format): TO BE IMPROVED
+                    # TODO/FIXME: Table are not promoted (we assume vector access
+                    # are gather which are compatible between vector format):
+                    # TO BE IMPROVED
                     return self.memoize(expected_format, optree, optree)
                 elif is_leaf_no_Constant(optree):
                     if expected_format is optree.precision:

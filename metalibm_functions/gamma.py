@@ -148,7 +148,6 @@ class ML_Gamma(ScalarUnaryFunction):
                 else:
                     return fct(x)
 
-
         # search the lower x such that gamma(x) >= omega
         omega_upper_limit = search_bound_threshold(sollya_gamma, omega_value, 2, 1000.0, self.precision)
         Log.report(Log.Debug, "gamma(x) = {} limit is {}", omega_value, omega_upper_limit)

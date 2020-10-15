@@ -118,7 +118,8 @@ debug_fixed32 = ML_AdvancedDebug(display_format = "%e(%d)", pre_process=fixed_po
 debug_fixed64 = ML_AdvancedDebug(display_format = "%e(%lld)", pre_process=fixed_point_pre_process)
 
 # display hexadecimal of single precision fp number
-debug_ftox  = ML_Debug(display_format = "%e, %\"PRIx32\"", pre_process = lambda v: "%s, float_to_32b_encoding(%s)" % (v, v), require_header = ["ml_support_lib.h"])
+debug_ftox  = ML_Debug(display_format = "%a, %\"PRIx32\"", pre_process = lambda v: "%s, float_to_32b_encoding(%s)" % (v, v), require_header = ["ml_support_lib.h"])
+debug_float  = ML_Debug(display_format = "%e, %\"PRIx32\"", pre_process = lambda v: "%s, float_to_32b_encoding(%s)" % (v, v), require_header = ["ml_support_lib.h"])
 
 # display hexadecimal encoding of double precision fp number
 debug_lftolx  = ML_Debug(display_format = "%.20e, %\"PRIx64\"", pre_process = lambda v: "%s, double_to_64b_encoding(%s)" % (v, v), require_header = ["ml_support_lib.h"])

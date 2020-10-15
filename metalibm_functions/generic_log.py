@@ -114,7 +114,7 @@ class ML_GenericLog(ScalarUnaryFunction):
         """ Generate a logarithm approximation (log_f(_vx_mant) + corr_exp) for a reduced argument
             _vx_mant which is assumed to be within [1, 2[ (i.e. an extracted mantissa)
 
-            Addiing exponent correction (optionnal) """ 
+            Adding exponent correction (optionnal) """
 
         log2_hi_value = round(log_f(2), self.precision.get_field_size() - (self.precision.get_exponent_size() + 1), RN)
         log2_lo_value = round(log_f(2) - log2_hi_value, self.precision.sollya_object, RN)
