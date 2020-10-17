@@ -1284,7 +1284,7 @@ class ML_FunctionBasis(object):
       if len(input_tuple) > self.arity and not input_tuple[self.arity] is None:
         expected_output = input_tuple[self.arity]
       else:
-        expected_output = self.numeric_emulate(*input_tuple)
+        expected_output = self.numeric_emulate(*input_tuple[:self.arity])
       # computing and storing output values
       output_values = self.accuracy.get_output_check_value(expected_output)
       for o in range(num_output_value):
