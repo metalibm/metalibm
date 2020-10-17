@@ -117,9 +117,9 @@ def get_sse_vector_int_cst(format_object, value, language=C_Code):
 ML_SSE_m128  = ML_FormatConstructor(128, "__m128", None, lambda v: None)
 ML_SSE_m128i = ML_FormatConstructor(128, "__m128i", None, lambda v: None)
 ML_SSE_m128d = ML_FormatConstructor(128, "__m128d", None, lambda v: None)
-ML_AVX_m256  = ML_FormatConstructor(256, "__m256", None, lambda v: None)
-ML_AVX_m256i = ML_FormatConstructor(256, "__m256i", None, lambda v: None)
-ML_AVX_m256d = ML_FormatConstructor(256, "__m256d", None, lambda v: None)
+ML_AVX_m256  = ML_FormatConstructor(256, "__m256", None, lambda v: None, header="immintrin.h")
+ML_AVX_m256i = ML_FormatConstructor(256, "__m256i", None, lambda v: None, header="immintrin.")
+ML_AVX_m256d = ML_FormatConstructor(256, "__m256d", None, lambda v: None, header="immintrin.h")
 
 ## format for a single fp32 stored in a XMM 128-bit register
 ML_SSE_m128_v1float32 = VirtualFormatNoForward(ML_Binary32, ML_SSE_m128, get_sse_scalar_cst, True)
@@ -208,33 +208,33 @@ debug_multi.add_mapping(ML_SSE_m128_v1uint32, debug_sse_vuint32)
 debug_multi.add_mapping(ML_SSE_m128_v4bool, debug_sse_vint32)
 
 ## format for packed 8 fp32 in a YMM 256-bit register
-ML_AVX_m256_v8float32 = vector_format_builder("__m256", None, 8, ML_Binary32)
+ML_AVX_m256_v8float32 = vector_format_builder("__m256", None, 8, ML_Binary32, header="immintrin.h")
 ## format for packed 4 fp64 in a YMM 256-bit register
-ML_AVX_m256_v4float64 = vector_format_builder("__m256d", None, 4, ML_Binary64)
+ML_AVX_m256_v4float64 = vector_format_builder("__m256d", None, 4, ML_Binary64, header="immintrin.h")
 ## format for packed 4 int32 in a YMM 256-bit register
 ML_AVX_m256_v4int32  = vector_format_builder("__m256i", None, 4, ML_Int32,
         cst_callback = get_sse_vector_int_cst,
-        compound_constructor = ML_IntegerVectorFormat)
+        compound_constructor = ML_IntegerVectorFormat, header="immintrin.h")
 ## format for packed 8 int32 in a YMM 256-bit register
 ML_AVX_m256_v8int32   = vector_format_builder("__m256i", None, 8, ML_Int32,
         cst_callback = get_sse_vector_int_cst,
-        compound_constructor = ML_IntegerVectorFormat)
+        compound_constructor = ML_IntegerVectorFormat, header="immintrin.h")
 ## format for packed 4 int64 in a YMM 256-bit register
 ML_AVX_m256_v4int64   = vector_format_builder("__m256i", None, 4, ML_Int64,
         cst_callback = get_sse_vector_int_cst,
-        compound_constructor = ML_IntegerVectorFormat)
+        compound_constructor = ML_IntegerVectorFormat, header="immintrin.h")
 ## format for packed 4 uint32 in a YMM 256-bit register
 ML_AVX_m256_v4uint32 = vector_format_builder("__m256i", None, 4, ML_UInt32,
         cst_callback = get_sse_vector_int_cst,
-        compound_constructor = ML_IntegerVectorFormat)
+        compound_constructor = ML_IntegerVectorFormat, header="immintrin.h")
 ## format for packed 8 uint32 in a YMM 256-bit register
 ML_AVX_m256_v8uint32  = vector_format_builder("__m256i", None, 8, ML_UInt32,
         cst_callback = get_sse_vector_int_cst,
-        compound_constructor = ML_IntegerVectorFormat)
+        compound_constructor = ML_IntegerVectorFormat, header="immintrin.h")
 ## format for packed 4 uint64 in a YMM 256-bit register
 ML_AVX_m256_v4uint64  = vector_format_builder("__m256i", None, 4, ML_UInt64,
         cst_callback = get_sse_vector_int_cst,
-        compound_constructor = ML_IntegerVectorFormat)
+        compound_constructor = ML_IntegerVectorFormat, header="immintrin.h")
 
 # debug utilities for AVX format
 # debug-format for SSE format
