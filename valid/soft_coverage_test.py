@@ -304,7 +304,10 @@ def generate_pretty_report(filename, test_list, test_summary, evolution_map):
                             cpe_measure = "{:.2f}".format(result.return_value["cpe_measure"])
                         if "max_error" in result.return_value:
                             max_error_ulps = float(result.return_value["max_error"])
-                            max_error = "{:.2f} ulp(s)".format(max_error_ulps)
+                            if max_error_ulps > 1000.0:
+                                max_error = "{:.2e} ulp(s)".format(max_error_ulps)
+                            else:
+                                max_error = "{:.2f} ulp(s)".format(max_error_ulps)
                             is_nan = (result.return_value["max_error"] != result.return_value["max_error"])
                             if max_error_ulps > ERROR_ULP_THRESHOLD or is_nan:
                                 color = "orange"
