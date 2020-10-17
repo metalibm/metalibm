@@ -79,9 +79,14 @@ def get_sollya_from_long(v):
 ## Ancestor class for Metalibm's format classes
 class ML_Format(object):
     """ parent to every Metalibm's format class """
-    def __init__(self, name = None, display_format = None):
+    def __init__(self, name = None, display_format = None, header=None):
       self.name = {} if name is None else name
       self.display_format = {} if display_format is None else display_format
+      self.header = header
+
+    @property
+    def builtin_type(self):
+        return self.header is None
 
     ## return format name
     def get_name(self, language = C_Code):
@@ -576,9 +581,10 @@ class ML_FormatConstructor(ML_Format):
     #  @param c_name name of the format in the C language
     #  @param c_display_format string format to display @p self format value
     #  @param get_c_cst function self, value -> Node to generate
+    #  @param header header file which define the format (and which must be included in source file)
     #         constant value associated with @p self format
-    def __init__(self, bit_size, c_name, c_display_format, get_c_cst):
-        ML_Format.__init__(self)
+    def __init__(self, bit_size, c_name, c_display_format, get_c_cst, header=None):
+        ML_Format.__init__(self, header=header)
         self.bit_size = bit_size
         self.name[C_Code] = c_name
         self.display_format[C_Code] = c_display_format
@@ -1219,8 +1225,8 @@ ML_AbstractBool     = ML_AbstractBoolClass("ML_AbstractBool")#AbstractFormat_Bui
 ###############################################################################
 
 class ML_Compound_Format(ML_Format):
-    def __init__(self, c_name, c_field_list, field_format_list, ml_support_prefix, c_display_format, sollya_object):
-        ML_Format.__init__(self)
+    def __init__(self, c_name, c_field_list, field_format_list, ml_support_prefix, c_display_format, sollya_object, header=None):
+        ML_Format.__init__(self, header=header)
         self.name[C_Code] = c_name
         self.display_format[C_Code] = c_display_format
 
@@ -1314,8 +1320,8 @@ ML_TripleSingle = ML_FP_MultiElementFormat("ml_ts_t", ["hi", "me", "lo"],
 
 ## common ancestor to every vector format
 class ML_VectorFormat(ML_Format):
-  def __init__(self, scalar_format, vector_size, c_name):
-    ML_Format.__init__(self, name = {C_Code: c_name})
+  def __init__(self, scalar_format, vector_size, c_name, header=None):
+    ML_Format.__init__(self, name = {C_Code: c_name}, header=header)
     self.scalar_format = scalar_format
     self.vector_size   = vector_size
 
@@ -1346,9 +1352,11 @@ class ML_VectorFormat(ML_Format):
 
 ## Generic class for Metalibm support library vector format
 class ML_CompoundVectorFormat(ML_VectorFormat, ML_Compound_Format):
-  def __init__(self, c_format_name, opencl_format_name, vector_size, scalar_format, sollya_precision = None, cst_callback = None):
-    ML_VectorFormat.__init__(self, scalar_format, vector_size, c_format_name)
-    ML_Compound_Format.__init__(self, c_format_name, ["[%d]" % i for i in range(vector_size)], [scalar_format for i in range(vector_size)], "", "", sollya_precision)
+  def __init__(self, c_format_name, opencl_format_name, vector_size, scalar_format, sollya_precision = None, cst_callback = None, header=None):
+    ML_VectorFormat.__init__(self, scalar_format, vector_size, c_format_name, header=header)
+    # header must be re-submitted as argument to avoid being
+    # over written by this new constructor call
+    ML_Compound_Format.__init__(self, c_format_name, ["[%d]" % i for i in range(vector_size)], [scalar_format for i in range(vector_size)], "", "", sollya_precision, header=header)
     # registering OpenCL-C format name
     self.name[OpenCL_Code] = opencl_format_name
     self.cst_callback = cst_callback
@@ -1413,11 +1421,12 @@ class ML_MultiPrecision_VectorFormat(ML_CompoundVectorFormat):
 #  @param sollya_precision pythonsollya object, sollya precision to be used for computation
 #  @param compound_constructor ML_Compound_Format child class used to build the result format
 #  @param cst_callback function (self, value, language) -> str, used to generate constant value code
+#  @param header optional header file content where the type is defined
 def vector_format_builder(c_format_name, opencl_format_name, vector_size,
                           scalar_format, sollya_precision=None,
-                          compound_constructor=ML_FloatingPointVectorFormat, cst_callback=None):
+                          compound_constructor=ML_FloatingPointVectorFormat, cst_callback=None, header=None):
   return compound_constructor(c_format_name, opencl_format_name, vector_size,
-                              scalar_format, sollya_precision, cst_callback)
+                              scalar_format, sollya_precision, cst_callback, header=header)
 
 v2float32 = vector_format_builder("ml_float2_t", "float2", 2, ML_Binary32)
 v3float32 = vector_format_builder("ml_float3_t", "float3", 3, ML_Binary32)

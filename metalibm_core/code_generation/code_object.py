@@ -436,6 +436,11 @@ class CodeObject(CodeConfiguration):
             self.symbol_table.declare_var_name(free_var_name, var_ctor(free_var_name, precision = var_type))
         return free_var_name
 
+    def register_object_type_header(self, symbol_object):
+        symbol_type = symbol_object.get_precision()
+        if not symbol_type.builtin_type:
+            self.add_header(symbol_type.header)
+
     def declare_var_name(self, var_name, var_object):
         self.symbol_table.declare_var_name(var_name, var_object)
         return var_name
@@ -1060,14 +1065,17 @@ class NestedCode(object):
         return self.code_list[0].declare_signal(signal_object, signal_type, prefix)
 
     def declare_var_name(self, var_name, var_object):
+        self.main_code.register_object_type_header(var_object)
         return self.code_list[0].declare_var_name(var_name, var_object)
     def declare_protected_symbol(self, name, node):
         return self.code_list[0].declare_protected_symbol(name, node)
 
     def declare_cst(self, cst_object, prefix = "cst"):
+        self.main_code.register_object_type_header(cst_object)
         return self.code_list[0].declare_cst(cst_object, prefix)
 
     def declare_table(self, table_object, prefix = "table"):
+        self.main_code.register_object_type_header(table_object)
         return self.code_list[0].declare_table(table_object, prefix)
 
     def declare_function(self, function_name, function_object):

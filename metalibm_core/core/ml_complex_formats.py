@@ -93,6 +93,7 @@ def is_pointer_format(_format):
 ## Format for Table object (storage precision)
 class ML_TableFormat(ML_Format):
   def __init__(self, storage_precision, dimensions):
+    ML_Format.__init__(self)
     self.storage_precision = storage_precision
     # uplet of dimensions
     self.dimensions = dimensions
