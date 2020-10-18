@@ -308,9 +308,39 @@ def RegisterDefaultCodeObject(language_list):
         return CodeObjectClass
     return __register
 
+class CommonCodeObject:
+    """ common methods for RTL and C-like code object classes """
+    def add_header_comment(self, comment):
+        self.header_comment.append(comment)
+
+    def is_empty(self):
+        return len(self.header_list) == 0 and len(self.library_list) == 0 and self.symbol_table.is_empty() and len(self.header_comment) == 0 and len(self.expanded_code) == 0
+
+    def get_symbol_table(self):
+        return self.symbol_table
+
+    def add_header(self, header_file):
+        """ add a new header file """
+        if not header_file in self.header_list:
+            self.header_list.append(header_file)
+
+    def add_library(self, library_file):
+        """ add a new library file """
+        if not library_file in self.library_list:
+            self.library_list.append(library_file)
+
+    def register_object_type_header(self, symbol_object):
+        symbol_type = symbol_object.get_precision()
+        if not symbol_type.builtin_type:
+            self.add_header(symbol_type.header)
+
+    def table_has_definition(self, table_object):
+        return self.symbol_table.table_has_definition(table_object)
 
 
-class CodeObject(CodeConfiguration):
+
+
+class CodeObject(CodeConfiguration, CommonCodeObject):
     level_header = "{\n"
     level_footer = "}"
     # list of symbol type to be excluded from declaration during
@@ -331,15 +361,6 @@ class CodeObject(CodeConfiguration):
         self.language = language
         self.header_comment = []
         self.default_var_ctor = var_ctor
-
-    def add_header_comment(self, comment):
-        self.header_comment.append(comment)
-
-    def is_empty(self):
-        return len(self.header_list) == 0 and len(self.library_list) == 0 and self.symbol_table.is_empty() and len(self.header_comment) == 0 and len(self.expanded_code) == 0
-
-    def get_symbol_table(self):
-        return self.symbol_table
 
     def reindent(self, line):
         """ re indent code line <line> with proper current indentation level """
@@ -388,24 +409,12 @@ class CodeObject(CodeConfiguration):
         self << "} %s {" % transition
         self.inc_level()
 
-
-    def add_header(self, header_file):
-        """ add a new header file """
-        if not header_file in self.header_list:
-            self.header_list.append(header_file)
-
     def get_multiline_comment(self, comment_list):
         result = "/**\n"
         for comment in comment_list:
             result += " * " + comment.replace("\n", "\n * ") + "\n"
         result += "**/\n"
         return result
-
-
-    def add_library(self, library_file):
-        """ add a new library file """
-        if not library_file in self.library_list:
-            self.library_list.append(library_file)
 
     def generate_header_code(self, git_tag = True):
         """ generate code for header file inclusion """
@@ -436,11 +445,6 @@ class CodeObject(CodeConfiguration):
             self.symbol_table.declare_var_name(free_var_name, var_ctor(free_var_name, precision = var_type))
         return free_var_name
 
-    def register_object_type_header(self, symbol_object):
-        symbol_type = symbol_object.get_precision()
-        if not symbol_type.builtin_type:
-            self.add_header(symbol_type.header)
-
     def declare_var_name(self, var_name, var_object):
         self.symbol_table.declare_var_name(var_name, var_object)
         return var_name
@@ -452,10 +456,6 @@ class CodeObject(CodeConfiguration):
     def get_free_name(self, var_type, prefix = "cotmp"):
         assert not var_type is None
         return self.symbol_table.get_free_name(var_type, prefix)
-
-    def table_has_definition(self, table_object):
-        return self.symbol_table.table_has_definition(table_object)
-
 
     ## Declare a new constant object whose name is build
     #  from @p prefix
@@ -706,7 +706,7 @@ class LLVMCodeObject(CodeObject):
         parent_code << "\n"
 
 
-class VHDLCodeObject(CodeConfiguration):
+class VHDLCodeObject(CodeConfiguration, CommonCodeObject):
     def __init__(self, language, shared_tables = None, parent_tables = None, rounding_mode = ML_GlobalRoundMode, uniquifier = "", main_code_level = False, var_ctor = None):
         """ code object initialization """
         self.expanded_code = ""
@@ -720,15 +720,6 @@ class VHDLCodeObject(CodeConfiguration):
         self.shared_symbol_table_f = MultiSymbolTable.SignalSymbol in shared_tables
         self.main_code_level = main_code_level
         self.default_var_ctor = var_ctor
-
-    def add_header_comment(self, comment):
-        self.header_comment.append(comment)
-
-    def is_empty(self):
-        return len(self.header_list) == 0 and len(self.library_list) == 0 and self.symbol_table.is_empty() and len(self.header_comment) == 0 and len(self.expanded_code) == 0
-
-    def get_symbol_table(self):
-        return self.symbol_table
 
     def __lshift__(self, added_code):
         """ implicit code insertion through << operator """
@@ -757,16 +748,6 @@ class VHDLCodeObject(CodeConfiguration):
     def link_level(self, transition = ""):
         """ close nested block """
         raise NotImplementedError
-
-    def add_header(self, header_file):
-        """ add a new header file """
-        if not header_file in self.header_list:
-            self.header_list.append(header_file)
-
-    def add_library(self, library_file):
-        """ add a new library file """
-        if not library_file in self.library_list:
-            self.library_list.append(library_file)
 
     def generate_header_code(self, git_tag = True):
         """ generate code for header file inclusion """
@@ -832,10 +813,6 @@ class VHDLCodeObject(CodeConfiguration):
 
     def get_free_name(self, var_type, prefix = "svtmp"):
         return self.symbol_table.get_free_name(var_type, prefix)
-
-    def table_has_definition(self, table_object):
-        return self.symbol_table.table_has_definition(table_object)
-
 
     ## Declare a new constant object whose name is build
     #  from @p prefix
