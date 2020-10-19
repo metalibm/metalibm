@@ -126,7 +126,7 @@ class FunctionTest:
 
     @property
     def tag(self):
-        return self.ctor.function_name
+        return self.title
 
 GEN_LOG_ARGS = {"basis": sollya.exp(1), "function_name": "ml_genlog", "extra_passes" : ["beforecodegen:fuse_fma"]}
 GEN_LOG2_ARGS =  {"basis": 2, "function_name": "ml_genlog2", "extra_passes" : ["beforecodegen:fuse_fma"]}
