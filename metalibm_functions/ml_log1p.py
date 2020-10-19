@@ -106,6 +106,9 @@ class ML_Log1p(ML_FunctionBasis):
         dummy_rcp_seed = ReciprocalSeed(dummy_var, precision = self.precision)
         inv_approx_table = self.processor.get_recursive_implementation(dummy_rcp_seed, language = None, table_getter = lambda self: self.approx_table_map)
 
+        # if the table entry for 0.0 is not 1.0 we must patch id
+        non_zero_first_entry = inv_approx_table[0] != 1.0
+
         # table creation
         table_index_size = inv_approx_table.index_size
         log_table = ML_NewTable(dimensions = [2**table_index_size, 2], storage_precision = self.precision)
@@ -117,6 +120,10 @@ class ML_Log1p(ML_FunctionBasis):
             value_low = round(log(inv_value) - value_high, sollya_precision, sollya.RN)
             log_table[i][0] = value_high
             log_table[i][1] = value_low
+
+        if non_zero_first_entry:
+            log_table[0][0] = 0
+            log_table[0][1] = 0
 
 
         neg_input = Comparison(vx, -1, likely=False, precision=ML_Bool, specifier=Comparison.Less, debug=debug_multi, tag="neg_input")
@@ -135,7 +142,7 @@ class ML_Log1p(ML_FunctionBasis):
         #
         # t = (2^-e + m)
         # t = m_t . 2^e_t
-        # r ~ 1 / m_t   => r.m_t ~ 1 ~ 0
+        # r ~ 1 / m_t   => r.m_t - 1 ~ 0
         #
         # t' = t . 2^-e_t
         #    = 2^-e-e_t + m . 2^-e_t
@@ -168,9 +175,13 @@ class ML_Log1p(ML_FunctionBasis):
 
         rcp_mt = ReciprocalSeed(m_t, tag="rcp_mt", precision=self.precision, debug=debug_multi)
 
+
         INDEX_SIZE = table_index_size
         table_index = generic_mantissa_msb_index_fct(INDEX_SIZE, m_t)
         table_index.set_attributes(tag="table_index", debug=debug_multi)
+
+        if non_zero_first_entry:
+            rcp_mt = Select(Equal(table_index, Constant(0, precision=ML_Int32), likely=False), Constant(1.0, precision=self.precision), rcp_mt, precision=self.precision)
 
         log_inv_lo = TableLoad(log_table, table_index, 1, tag="log_inv_lo", debug=debug_multi) 
         log_inv_hi = TableLoad(log_table, table_index, 0, tag="log_inv_hi", debug=debug_multi)
@@ -289,6 +300,7 @@ class ML_Log1p(ML_FunctionBasis):
         return log1p(input_value)
 
     standard_test_cases = [
+        (0.0, None),
         (1.0, None),
         (1.0, None),
         (1.0, None),
