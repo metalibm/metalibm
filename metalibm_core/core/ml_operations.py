@@ -1289,6 +1289,14 @@ class ConditionBlock(ControlFlowOperation):
         # statement being executed before the condition or either of the branch is executed
         self.pre_statement = Statement()
         self.extra_inputs = [self.pre_statement]
+        if len(args) > self.arity:
+            #python3
+            import inspect
+            from inspect import currentframe, getframeinfo
+
+            #frameinfo = inspect.getframeinfo(inspect.currentframe())
+            frameinfo = inspect.getouterframes(inspect.currentframe())[1]
+            Log.report(Log.Error, "node defined {}:{}\n{} has too many arguments", frameinfo.filename, frameinfo.lineno, self)
 
     def set_extra_inputs(self, new_extra_inputs):
         self.extra_inputs = new_extra_inputs
