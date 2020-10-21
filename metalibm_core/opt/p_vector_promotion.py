@@ -34,7 +34,8 @@ from metalibm_core.core.passes import (
 from metalibm_core.core.ml_table import ML_NewTable, ML_TableFormat
 from metalibm_core.core.ml_operations import (
         ML_LeafNode, VectorElementSelection, FunctionCall, Conversion, Constant,
-        ControlFlowOperation, ReferenceAssign,
+        ConditionBlock, ControlFlowOperation,
+        ControlFlowOperation, ReferenceAssign, Loop,
 )
 
 from metalibm_core.opt.p_check_support import Pass_CheckSupport
@@ -67,6 +68,24 @@ def insert_conversion_when_required(op_input, final_precision):
         return op_input
 
 
+class MapStack:
+    def __init__(self, init_level_num=0):
+        self.stack = [dict() for i in range(init_level_num)]
+
+    def open_level(self):
+        self.stack.append({})
+    def close_level(self):
+        self.stack.pop(-1)
+    def __contains__(self, key):
+        return any(key in level for level in self.stack)
+    def __getitem__(self, key):
+        for level in self.stack:
+            if key in level:
+                return level[key]
+        raise KeyError
+    def __setitem__(self, key, value):
+        self.stack[-1][key] = value
+
 ## Generic vector promotion pass
 @METALIBM_PASS_REGISTER
 class Pass_Vector_Promotion(FunctionPass):
@@ -90,13 +109,21 @@ class Pass_Vector_Promotion(FunctionPass):
     def __init__(self, target):
         FunctionPass.__init__(self, "vector promotion pass", target)
         ## memoization map for promoted optree
-        self.memoization_map = {}
+        self.memoization_map = MapStack(init_level_num=1)
         ## memoization map for converted promoted optree
-        self.conversion_map = {}
+        self.conversion_map = MapStack(init_level_num=1)
         # memoization map for copy
         self.copy_map = {}
 
         self.support_checker = Pass_CheckSupport(target)
+
+    def open_level(self):
+        self.memoization_map.open_level()
+        self.conversion_map.open_level()
+
+    def close_level(self):
+        self.memoization_map.close_level()
+        self.conversion_map.close_level()
 
     ## Evaluate the latency of a converted operation
     #    graph to determine whether the conversion
@@ -215,7 +242,23 @@ class Pass_Vector_Promotion(FunctionPass):
                 else:
                     # new_optree = optree.copy(copy_map = self.copy_map)
                     # promote node operands
-                    new_inputs = [self.promote_node(op, op.precision) for op in optree.get_inputs()]
+                    if isinstance(optree, ConditionBlock):
+                        # promote condition at same level as previous nodes
+                        new_inputs = [self.promote_node(optree.get_input(0), optree.get_input(0).precision)]
+                        # create one level for each branch
+                        for branch in optree.get_inputs()[1:]:
+                            self.open_level()
+                            new_inputs.append(self.promote_node(branch, branch.precision))
+                            self.close_level()
+                    elif isinstance(optree, Loop):
+                        # promote initialization and exit condition at same level as previous nodes
+                        new_inputs = [self.promote_node(op, op.precision) for op in optree.get_inputs()[:2]]
+                        # create one level for the loop body
+                        self.open_level()
+                        new_inputs.append(self.promote_node(optree.get_input(2), None))
+                        self.close_level()
+                    else:
+                        new_inputs = [self.promote_node(op, op.precision) for op in optree.get_inputs()]
                     # register modified inputs
                     new_optree.inputs = new_inputs
 
