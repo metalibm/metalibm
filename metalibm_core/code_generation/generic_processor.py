@@ -797,21 +797,23 @@ c_code_generation_table = {
             },
         },
     },
+    CopySign: {
+        SpecificOperation.CopySign: {
+            lambda optree: True: {
+                type_strict_match(ML_Binary32, ML_Binary32, ML_Binary32):
+                    Libm_Function("copysignf", arity=2), #, arity=2, arg_map={0: "1.f", 1: FO_Arg(0)}), 
+                    #ML_Utils_Function("ml_copy_signf", arity = 2),
+                type_strict_match(ML_Binary64, ML_Binary64, ML_Binary64):
+                    Libm_Function("copysign", arity=2),# arg_map={0: "1.", 1: FO_Arg(0)}), 
+                    #ML_Utils_Function("ml_copy_sign", arity = 2),
+            },
+        },
+    },
     SpecificOperation: {
         SpecificOperation.Subnormalize: {
             lambda optree: True: {
                 type_strict_match(ML_Binary64, ML_DoubleDouble, ML_Int32):
                     FunctionOperator("ml_subnormalize_d_dd_i", arity = 2),
-            },
-        },
-        SpecificOperation.CopySign: {
-            lambda optree: True: {
-                type_strict_match(ML_Binary32, ML_Binary32, ML_Binary32):
-                    Libm_Function("copysignf", arity=2, arg_map={0: "1.f", 1: FO_Arg(0)}), 
-                    #ML_Utils_Function("ml_copy_signf", arity = 2),
-                type_strict_match(ML_Binary64, ML_Binary64, ML_Binary64):
-                    Libm_Function("copysign", arity=2, arg_map={0: "1.", 1: FO_Arg(0)}), 
-                    #ML_Utils_Function("ml_copy_sign", arity = 2),
             },
         },
         SpecificOperation.ReadTimeStamp: {

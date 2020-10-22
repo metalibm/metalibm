@@ -676,7 +676,7 @@ def legalize_reciprocal_seed(optree):
     #       as we are in a late code generation stage, every node's precision
     #       must be set
     int_prec = op_prec.get_integer_format()
-    op_sign = CopySign(op_input, Constant(1.0, precision=op_prec), precision=op_prec)
+    op_sign = CopySign(Constant(1.0, precision=op_prec), op_input, precision=op_prec)
     op_exp = ExponentExtraction(op_input, tag="op_exp", debug=debug_multi, precision=int_prec)
     neg_exp = Negation(op_exp, precision=int_prec)
     approx_exp = ExponentInsertion(neg_exp, tag="approx_exp", debug=debug_multi, precision=op_prec)

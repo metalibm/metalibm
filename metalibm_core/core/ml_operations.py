@@ -1890,9 +1890,11 @@ def GetRndMode(**kwords):
     kwords["specifier"] = SpecificOperation.GetRndMode
     return SpecificOperation(**kwords)
 
-def CopySign(*args, **kwords):
-    kwords["specifier"] = SpecificOperation.CopySign
-    return SpecificOperation(*args, **kwords)
+class CopySign(SpecificOperation):
+    name = "CopySign"
+    def __init__(self, op0, op1, **kw):
+        assert not "specifier" in kw
+        super().__init__(op0, op1, specifier=SpecificOperation.CopySign, **kw)
 
 def RoundedSignedOverflow(*args, **kwords):
     kwords["specifier"] = SpecificOperation.RoundedSignedOverflow
