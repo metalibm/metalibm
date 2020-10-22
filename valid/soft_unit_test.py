@@ -92,6 +92,7 @@ import metalibm_functions.unit_tests.ut_eval_error as ut_eval_error
 import metalibm_functions.unit_tests.special_values as ut_special_values
 import metalibm_functions.unit_tests.numerical_simplification as ut_numerical_simplification
 import metalibm_functions.unit_tests.machine_insn_test as ut_machine_insn_test
+import metalibm_functions.unit_tests.copysign as ut_copysign
 
 unit_test_list = [
   UnitTestScheme(
@@ -314,6 +315,11 @@ unit_test_list = [
         "output_file": "ut_loop_operation.S",
         "precision": ML_Int32,
      }]
+  ),
+  UnitTestScheme(
+    "copysign",
+    ut_copysign,
+    [{"auto_test": 1024, "execute_trigger": True, "accuracy": ML_CorrectlyRounded, "auto_test_range": [Interval(S2**-8, S2**8)]*2, }]
   ),
 ]
 
