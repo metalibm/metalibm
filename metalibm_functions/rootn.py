@@ -150,7 +150,7 @@ class MetaRootN(ScalarBinaryFunction):
 
         n_is_even = Equal(Modulo(n, 2), 0, tag="n_is_even", debug=debug_multi)
         n_is_odd = LogicalNot(n_is_even, tag="n_is_odd")
-        result_sign = Select(n_is_odd, CopySign(vx, Constant(1.0, precision=self.precision)), 1)
+        result_sign = Select(n_is_odd, CopySign(Constant(1.0, precision=self.precision), vx), 1)
 
 
         # managing n == -1
