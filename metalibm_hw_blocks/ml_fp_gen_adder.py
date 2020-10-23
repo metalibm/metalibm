@@ -169,8 +169,8 @@ class FP_FMA(ML_Entity("fp_fma")):
     # Maximum number of leading zero for normalized <vy>
     L_y = 0
 
-    sign_vx = CopySign(vx, precision = ML_StdLogic)
-    sign_vy = CopySign(vy, precision = ML_StdLogic)
+    sign_vx = ExtractSign(vx, precision = ML_StdLogic)
+    sign_vy = ExtractSign(vy, precision = ML_StdLogic)
 
     # determining if the operation is an addition (effective_op = '0')
     # or a subtraction (effective_op = '1')
@@ -271,7 +271,7 @@ class FP_FMA(ML_Entity("fp_fma")):
     # the addition result is positive, and the result is of the sign of Y
     # else the result is of opposite sign to Y
     add_is_negative = BitLogicAnd(
-        CopySign(mant_add, precision = ML_StdLogic),
+        ExtractSign(mant_add, precision = ML_StdLogic),
         effective_op,
         precision = ML_StdLogic,
         tag = "add_is_negative",

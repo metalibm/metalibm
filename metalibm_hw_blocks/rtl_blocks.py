@@ -126,7 +126,7 @@ def fp_is_pos_inf(op):
   return LogicalAnd(
     fp_is_inf(op),
     Equal(
-      CopySign(op, precision = ML_StdLogic), 
+      ExtractSign(op, precision = ML_StdLogic), 
       Constant(0, precision = ML_StdLogic),
       precision = ML_Bool
     ),
@@ -140,7 +140,7 @@ def fp_is_neg_inf(op):
   return LogicalAnd(
     fp_is_inf(op),
     Equal(
-      CopySign(op, precision = ML_StdLogic), 
+      ExtractSign(op, precision = ML_StdLogic), 
       Constant(1, precision = ML_StdLogic),
       precision = ML_Bool
     ),

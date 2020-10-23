@@ -179,7 +179,7 @@ class FP_FIXED_MPFMA(ML_Entity("fp_fixed_mpfma")):
       # the accumulator is in sign-magnitude representation
       sign_acc = self.implementation.add_input_signal("sign_acc", ML_StdLogic)
     else:
-      sign_acc = CopySign(acc, precision = ML_StdLogic, tag = "sign_acc", debug = debug_std)
+      sign_acc = ExtractSign(acc, precision = ML_StdLogic, tag = "sign_acc", debug = debug_std)
 
     vx_precision     = self.precision
     vy_precision     = self.precision
@@ -214,8 +214,8 @@ class FP_FIXED_MPFMA(ML_Entity("fp_fixed_mpfma")):
     # mantissa. 
     L_xy = L_x + L_y + 1
 
-    sign_vx = CopySign(vx, precision = ML_StdLogic)
-    sign_vy = CopySign(vy, precision = ML_StdLogic)
+    sign_vx = ExtractSign(vx, precision = ML_StdLogic)
+    sign_vy = ExtractSign(vy, precision = ML_StdLogic)
 
     # determining if the operation is an addition (effective_op = '0')
     # or a subtraction (effective_op = '1')
@@ -366,7 +366,7 @@ class FP_FIXED_MPFMA(ML_Entity("fp_fixed_mpfma")):
       mant_add_p0 = SubSignalSelection(mant_add_p0_ext, 0, acc_width - 1, precision = acc_prec)
       mant_add_p1 = SubSignalSelection(mant_add_p1_ext, 0, acc_width - 1, precision = acc_prec)
 
-      mant_add_pre_sign = CopySign(mant_add_p1_ext, precision = ML_StdLogic, tag = "mant_add_pre_sign", debug = debug_std)
+      mant_add_pre_sign = ExtractSign(mant_add_p1_ext, precision = ML_StdLogic, tag = "mant_add_pre_sign", debug = debug_std)
       mant_add = Select(
         Comparison(
           sign_xy,

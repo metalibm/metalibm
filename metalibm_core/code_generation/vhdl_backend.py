@@ -1430,8 +1430,8 @@ vhdl_code_generation_table = {
     #        },
     #    },
     #},
-    SpecificOperation: {
-        SpecificOperation.CopySign: {
+    ExtractSign: {
+        None: {
             lambda optree: True: {
                 type_custom_match(FSM(ML_StdLogic), FSM(BFloat16_Base)):
                     TemplateOperator("%s(15)", arity=1),

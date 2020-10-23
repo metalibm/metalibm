@@ -134,7 +134,7 @@ class Dequantizer(ML_Entity("dequantizer")):
         biased_scale_exp = fixed_exponent(scale)#.modify_attributes(tag="scale_exp", debug=debug_fixed)
         scale_exp = biased_scale_exp + scale_format.get_base_format().get_bias()
         scale_exp.set_attributes(tag="scale_exp", debug=debug_fixed)
-        scale_sign = CopySign(scale, precision=ML_StdLogic, tag="scale_sign")
+        scale_sign = ExtractSign(scale, precision=ML_StdLogic, tag="scale_sign")
         scale_mant = fixed_normalized_mantissa(scale)
 
         # unscaled field is in fixed-point normalized format

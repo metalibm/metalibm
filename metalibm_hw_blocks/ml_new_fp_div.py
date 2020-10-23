@@ -492,7 +492,7 @@ class FP_Divider(ML_Entity("fp_div")):
         # debug=debug_fixed
     )
 
-    result_sign = CopySign(vx, precision=ML_StdLogic)
+    result_sign = ExtractSign(vx, precision=ML_StdLogic)
 
     exp_mant_precision = ML_StdLogicVectorFormat(io_precision.get_bit_size() - 1)
 

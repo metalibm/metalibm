@@ -174,9 +174,9 @@ class FP_MPFMA(ML_Entity("fp_mpfma")):
     # mantissa.
     L_xy = L_x + L_y + 1
 
-    sign_vx = CopySign(vx, precision = ML_StdLogic)
-    sign_vy = CopySign(vy, precision = ML_StdLogic)
-    sign_vz = CopySign(vz, precision = ML_StdLogic)
+    sign_vx = ExtractSign(vx, precision = ML_StdLogic)
+    sign_vy = ExtractSign(vy, precision = ML_StdLogic)
+    sign_vz = ExtractSign(vz, precision = ML_StdLogic)
 
     # determining if the operation is an addition (effective_op = '0')
     # or a subtraction (effective_op = '1')
@@ -346,7 +346,7 @@ class FP_MPFMA(ML_Entity("fp_mpfma")):
     # the addition result is positive, and the result is of the sign of Y
     # else the result is of opposite sign to Y
     add_is_negative = BitLogicAnd(
-        CopySign(mant_add_p1, precision = ML_StdLogic),
+        ExtractSign(mant_add_p1, precision = ML_StdLogic),
         effective_op,
         precision = ML_StdLogic,
         tag = "add_is_negative",

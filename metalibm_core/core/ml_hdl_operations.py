@@ -136,6 +136,10 @@ def force_size(optree, size):
   else:
     return Truncate(optree, precision = out_precision)
 
+class ExtractSign(ML_ArithmeticOperation):
+    name = "ExtractSign"
+    arity = 1
+
 ## Operation to assemble a float point value from
 #  a sign, exponent, mantissa
 #  the result = sign * 2^(exponent - bias) * (1.0 + mantissae * 2^(-precision))
@@ -379,6 +383,7 @@ def BitSelection(optree, index, **kw):
     precision = ML_StdLogic,
     **kw
   )
+
 
 ## Wrapper for single bit node equality
 def equal_to(optree, cst_value):
