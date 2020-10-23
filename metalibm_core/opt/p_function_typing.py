@@ -45,6 +45,7 @@ from metalibm_core.core.ml_operations import (
     NoResultOperation, Split, ComponentSelection, FunctionCall,
     Conversion, DivisionSeed, ReciprocalSquareRootSeed, ReciprocalSeed,
     VectorElementSelection,
+    CopySign,
 )
 from metalibm_core.core.ml_hdl_operations import (
     Process, Loop, ComponentInstance, Assert, Wait, PlaceHolder
@@ -119,6 +120,8 @@ abstract_typing_rule = {
     TableLoad:
         lambda optree, *ops: ops[0].get_storage_precision(),
     SpecificOperation:
+        lambda optree, *ops: optree.specifier.abstract_type_rule(optree, *ops),
+    CopySign:
         lambda optree, *ops: optree.specifier.abstract_type_rule(optree, *ops),
     ExceptionOperation:
         lambda optree, *ops: optree.specifier.abstract_type_rule(optree, *ops),
@@ -215,6 +218,8 @@ practical_typing_rule = {
         lambda backend, op, dprec: op.get_precision(),
     FunctionCall:
         lambda backend, op, dprec: op.get_precision(),
+    CopySign:
+        lambda backend, op, dprec: op.specifier.instantiated_type_rule(backend, op, dprec),
 }
 
 post_typing_process_rules = {
