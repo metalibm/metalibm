@@ -109,12 +109,13 @@ class VerboseAction(argparse.Action):
 
 
 class FunctionTest:
-    def __init__(self, ctor, arg_map_list, title=None, specific_opts_builder=lambda v: v):
+    def __init__(self, ctor, arg_map_list, title=None, specific_opts_builder=lambda v: v, predicate=lambda _: True):
         """ FunctionTest constructor:
 
             Args:
                 ctor(class): constructor of the meta-function
                 arg_map_list: list of dictionnaries
+                predicate: constraint of validity for the test
 
         """
         self.ctor = ctor
@@ -122,6 +123,7 @@ class FunctionTest:
         self.title = title if not title is None else ctor.function_name
         # callback(<option dict>) -> specialized <option dict>
         self.specific_opts_builder = specific_opts_builder
+        self.predicate = predicate
 
 
     @property
@@ -146,23 +148,44 @@ def emulate_exp2(v):
 def emulate_exp10(v):
     return S10**v
 
+# predicate to limit libm test validity
+BINARY32_FCT = lambda opts: (opts["precision"] == ML_Binary32)
+BINARY64_FCT = lambda opts: (opts["precision"] == ML_Binary64)
+
 # libm functions
 LIBM_FUNCTION_LIST = [
     # single precision
-    LibmFunctionTest(metalibm_functions.external_bench.ML_ExternalBench, [{"bench_function_name": fname, "emulate": emulate, "auto_test": 0, "headers": ["math.h"]}], title="libm")
-    for fname, emulate in [
-        ("expf", sollya.exp), ("exp2f", emulate_exp2), ("exp10f", emulate_exp10), ("expm1f", sollya.expm1),
-        ("logf", sollya.log), ("log2f", sollya.log2), ("log10f", sollya.log10), ("log1p", sollya.log1p),
-        ("cosf", sollya.cos), ("sinf", sollya.sin), ("tanf", sollya.tan), ("atanf", sollya.atan),
-        ("coshf", sollya.cosh), ("sinhf", sollya.sinh), ("tanhf", sollya.tanh),
+    LibmFunctionTest(metalibm_functions.external_bench.ML_ExternalBench, [{"bench_function_name": fname, "emulate": emulate, "precision": ML_Binary32, "auto_test": 0, "bench_test_range": bench_range, "headers": ["math.h"]}], title="libm", predicate=BINARY32_FCT)
+    for fname, emulate, bench_range in [
+        ("expf", sollya.exp, [Interval(1, 80)]),
+        ("exp2f", emulate_exp2, [Interval(1, 80)]),
+        ("exp10f", emulate_exp10, [Interval(1, 50)]),
+        ("expm1f", sollya.expm1, [Interval(-1, 1)]),
+        ("logf", sollya.log, [Interval(0, 100)]),
+        ("log2f", sollya.log2, [Interval(0, 100)]),
+        ("log10f", sollya.log10, [Interval(0, 100)]),
+        ("log1p", sollya.log1p, [Interval(-1, 1)]),
+        ("cosf", sollya.cos, [Interval(-1e30, 1e30)]), ("sinf", sollya.sin, [Interval(-1e30, 1e30)]), ("tanf", sollya.tan, [Interval(-1e30, 1e30)]), ("atanf", sollya.atan, [None, None]),
+        ("coshf", sollya.cosh, [None]), ("sinhf", sollya.sinh, [None]), ("tanhf", sollya.tanh, [None]),
     ]
 ] + [
-    LibmFunctionTest(metalibm_functions.external_bench.ML_ExternalBench, [{"bench_function_name": fname, "emulate": emulate, "input_formats": [ML_Binary64], "precision": ML_Binary64, "auto_test": 0, "headers": ["math.h"]}], title="libm")
-    for fname, emulate in [
-        ("exp", sollya.exp), ("exp2", emulate_exp2), ("exp10", emulate_exp10), ("expm1", sollya.expm1),
-        ("log", sollya.log), ("log2", sollya.log2), ("log10", sollya.log10), ("log1p", sollya.log1p),
-        ("cos", sollya.cos), ("sin", sollya.sin), ("tan", sollya.tan), ("atan", sollya.atan),
-        ("cosh", sollya.cosh), ("sinh", sollya.sinh), ("tanh", sollya.tanh),
+    LibmFunctionTest(metalibm_functions.external_bench.ML_ExternalBench, [{"bench_function_name": fname, "emulate": emulate, "input_formats": [ML_Binary64], "bench_test_range": bench_range, "precision": ML_Binary64, "auto_test": 0, "headers": ["math.h"]}], title="libm", predicate=BINARY64_FCT)
+    for fname, emulate, bench_range in [
+        ("exp", sollya.exp, [Interval(1, 80)]),
+        ("exp2", emulate_exp2, [Interval(1, 80)]),
+        ("exp10", emulate_exp10, [Interval(1, 80)]),
+        ("expm1", sollya.expm1, [Interval(-1, 1)]),
+        ("log", sollya.log, [Interval(0, 100)]),
+        ("log2", sollya.log2, [Interval(0, 100)]),
+        ("log10", sollya.log10, [Interval(0, 100)]),
+        ("log1p", sollya.log1p, [Interval(-1, 1)]),
+        ("cos", sollya.cos, [Interval(-1e30, 1e30)]),
+        ("sin", sollya.sin, [Interval(-1e30, 1e30)]),
+        ("tan", sollya.tan, [Interval(-1e30, 1e30)]),
+        ("atan", sollya.atan, [None, None]),
+        ("cosh", sollya.cosh, [None]),
+        ("sinh", sollya.sinh, [None]),
+        ("tanh", sollya.tanh, [None]),
     ]
 
 ]
@@ -319,6 +342,8 @@ def generate_pretty_report(filename, test_list, test_summary, evolution_map):
                     msg += color_cell(" KO[B] ", submsg=evolution_summary, color="red")
                 elif isinstance(result.error, ValidError):
                     msg += color_cell(" KO[V] ", submsg=evolution_summary, color="orange")
+                elif isinstance(result.error, DisabledTest):
+                    msg += color_cell(" N/A ", submsg=evolution_summary, color="grey")
                 else:
                     msg += color_cell(" KO[{}] ".format(result.error), submsg=evolution_summary, color="red")
             msg += "</tr>"
@@ -527,6 +552,8 @@ class GlobalTestResult:
                     summary = ["KO[B]"]
                 elif isinstance(result.error, ValidError):
                     summary = ["KO[V]"]
+                elif isinstance(result.error, DisabledTest):
+                    summary = ["N/A"]
                 else:
                     summary = ["KO[{}]".format(result.error)]
                 test_map[name] = summary
@@ -607,6 +634,8 @@ if __name__ == "__main__":
         for test in test_list:
             for sub_test in function_test.arg_map_list:
                 option = test.copy()
+                if not function_test.predicate(test):
+                    option["disabled"] = True
                 opt_fname = option["function_name"]
                 opt_oname = option["output_file"]
                 # extra_passes requrie specific management, as we do not wish to
@@ -624,7 +653,6 @@ if __name__ == "__main__":
                 option["output_file"] = fname + "_" +function_test.title + "_" + opt_oname
                 # specialization
                 function_test.specific_opts_builder(option)
-                print(option)
                 local_test_list.append(option)
         test_case = SubFunctionTest(
             function_test.tag,
