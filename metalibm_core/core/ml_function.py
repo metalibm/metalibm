@@ -900,6 +900,8 @@ class ML_FunctionBasis(object):
             function_group.merge_with_group(max_error_fct_group)
 
     if self.bench_enabled:
+        # TODO/FIXME: the number of bench inputs default to 1000 (not documented)
+        # when bench is enabled but bench_test_number is not set
         bench_function_group = self.generate_bench_wrapper(
             test_num=self.bench_test_number if self.bench_test_number else 1000,
             loop_num=self.bench_loop_num,
@@ -1687,7 +1689,7 @@ class ML_FunctionBasis(object):
     failure_report_function = FunctionObject("report_failure", [], ML_Void, failure_report_op)
 
 
-    printf_success_op = FunctionOperator("printf", arg_map = {0: "\"test successful %s\\n\"" % function_name}, void_function = True) 
+    printf_success_op = FunctionOperator("printf", arg_map = {0: "\"test successful %s\\n\"" % function_name}, void_function = True)
     printf_success_function = FunctionObject("printf", [], ML_Void, printf_success_op)
 
     test_total   = test_num
@@ -1723,10 +1725,10 @@ class ML_FunctionBasis(object):
 
     if self.implementation.get_output_format().is_vector_format():
       # vector implementation bench
-      test_loop = self.get_vector_bench_wrapper(test_num, tested_function, input_tables, output_table)
-    else: 
-      # scalar implemetation bench
-      test_loop = self.get_scalar_bench_wrapper(test_num, tested_function, input_tables, output_table)
+      test_loop, test_acc = self.get_vector_bench_wrapper(test_num, tested_function, input_tables, output_table)
+    else:
+      # scalar implementation bench
+      test_loop, test_acc = self.get_scalar_bench_wrapper(test_num, tested_function, input_tables, output_table)
 
     timer = Variable("timer", precision = ML_Int64, var_type = Variable.Local)
     printf_timing_op = FunctionOperator(
@@ -1740,9 +1742,18 @@ class ML_FunctionBasis(object):
     )
     printf_timing_function = FunctionObject("printf", [ML_Int64, ML_Int64, ML_Binary64], ML_Void, printf_timing_op)
 
+
     vj = Variable("j", precision=ML_Int32, var_type=Variable.Local)
     loop_num_cst = Constant(loop_num, precision=ML_Int32, tag="loop_num")
     loop_increment = 1
+
+    result_precision = self.implementation.get_output_format()
+    # global accumulation variable to avoid being optimized-out by the compiler
+    global_acc = Variable("global_bench_acc", precision=result_precision, var_type=Variable.Local)
+
+    printf_acc_template = "printf(\"%s bench acc %s\\n\", %s)" % (function_name, result_precision.get_display_format(self.language).format_string, result_precision.get_display_format(self.language).pre_process_fct("{0}"))
+    printf_acc_op = TemplateOperatorFormat(printf_acc_template, arity=1, void_function=True, require_header=["stdio.h"])
+    printf_acc_function = FunctionObject("printf", [result_precision], ML_Void, printf_acc_op)
 
     # bench measure of clock per element
     cpe_measure = Division(
@@ -1752,15 +1763,20 @@ class ML_FunctionBasis(object):
         tag="cpe_measure",
     )
 
+    GLOBAL_ACC_INIT_VALUE = 0 if not result_precision.is_vector_format() else [0]*self.get_vector_size()
+
     # common test scheme between scalar and vector functions
     test_scheme = Statement(
       self.processor.get_init_timestamp(),
+      ReferenceAssign(global_acc, Constant(GLOBAL_ACC_INIT_VALUE, precision=result_precision)),
       ReferenceAssign(timer, self.processor.get_current_timestamp()),
       Loop(
           ReferenceAssign(vj, Constant(0, precision=ML_Int32)),
           vj < loop_num_cst,
           Statement(
+              test_acc,
               test_loop,
+              ReferenceAssign(global_acc, Addition(global_acc, test_acc, precision=result_precision)),
               ReferenceAssign(vj, vj + loop_increment)
           )
       ),
@@ -1776,6 +1792,7 @@ class ML_FunctionBasis(object):
         timer,
         cpe_measure,
       ),
+      printf_acc_function(global_acc),
       Return(cpe_measure),
       # Return(Constant(0, precision = ML_Int32))
     )
@@ -1812,6 +1829,8 @@ class ML_FunctionBasis(object):
     local_result = tested_function(*local_inputs)
     loop_increment = self.get_vector_size()
 
+    local_acc = Variable("local_acc", precision=local_result.get_precision(), var_type=Variable.Local)
+
     store_statement = Statement()
 
     # comparison with expected
@@ -1824,15 +1843,19 @@ class ML_FunctionBasis(object):
       )
 
     test_loop = Loop(
-      ReferenceAssign(vi, Constant(0, precision = ML_Int32)),
+      Statement(
+        ReferenceAssign(local_acc, Constant([0]*self.get_vector_size(), precision=local_result.get_precision())),
+        ReferenceAssign(vi, Constant(0, precision = ML_Int32)),
+      ),
       vi < test_num_cst,
       Statement(
         assignation_statement,
         store_statement,
+        ReferenceAssign(local_acc, Addition(local_acc, local_result, precision=local_result.get_precision())),
         ReferenceAssign(vi, vi + loop_increment)
       ),
     )
-    return test_loop
+    return test_loop, local_acc
 
   ## generate a bench loop for scalar tests
   #  @param test_num number of elementary tests to be executed
@@ -1849,15 +1872,22 @@ class ML_FunctionBasis(object):
 
     loop_increment = 1
 
+    result_precision = local_result.get_precision()
+    acc = Variable("bench_acc", precision=result_precision, var_type=Variable.Local)
+
     test_loop = Loop(
-      ReferenceAssign(vi, Constant(0, precision = ML_Int32)),
+      Statement(
+          ReferenceAssign(vi, Constant(0, precision = ML_Int32)),
+          ReferenceAssign(acc, Constant(0, precision=result_precision)),
+      ),
       vi < test_num_cst,
       Statement(
         TableStore(local_result, output_table, vi, precision = ML_Void),
+        ReferenceAssign(acc, Addition(acc, local_result, precision=result_precision)),
         ReferenceAssign(vi, vi + loop_increment)
       ),
     )
-    return test_loop
+    return test_loop, acc
 
   #@staticmethod
   def get_name(self):
