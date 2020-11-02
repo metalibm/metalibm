@@ -50,7 +50,8 @@ from metalibm_core.core.special_values import (
 from metalibm_core.core.display_utils import (
     DisplayFormat,
     fixed_point_beautify, multi_word_fixed_point_beautify,
-    DISPLAY_DD, DISPLAY_TD, DISPLAY_DS, DISPLAY_TS
+    DISPLAY_DD, DISPLAY_TD, DISPLAY_DS, DISPLAY_TS,
+    DISPLAY_float2, DISPLAY_float4, DISPLAY_float8,
 )
 
 
@@ -1352,11 +1353,11 @@ class ML_VectorFormat(ML_Format):
 
 ## Generic class for Metalibm support library vector format
 class ML_CompoundVectorFormat(ML_VectorFormat, ML_Compound_Format):
-  def __init__(self, c_format_name, opencl_format_name, vector_size, scalar_format, sollya_precision = None, cst_callback = None, header=None):
+  def __init__(self, c_format_name, opencl_format_name, vector_size, scalar_format, sollya_precision = None, cst_callback = None, header=None, display_format=""):
     ML_VectorFormat.__init__(self, scalar_format, vector_size, c_format_name, header=header)
     # header must be re-submitted as argument to avoid being
     # over written by this new constructor call
-    ML_Compound_Format.__init__(self, c_format_name, ["[%d]" % i for i in range(vector_size)], [scalar_format for i in range(vector_size)], "", "", sollya_precision, header=header)
+    ML_Compound_Format.__init__(self, c_format_name, ["[%d]" % i for i in range(vector_size)], [scalar_format for i in range(vector_size)], "", display_format, sollya_precision, header=header)
     # registering OpenCL-C format name
     self.name[OpenCL_Code] = opencl_format_name
     self.cst_callback = cst_callback
@@ -1426,17 +1427,17 @@ def vector_format_builder(c_format_name, opencl_format_name, vector_size,
                           scalar_format, sollya_precision=None,
                           compound_constructor=ML_FloatingPointVectorFormat, cst_callback=None, header=None):
   return compound_constructor(c_format_name, opencl_format_name, vector_size,
-                              scalar_format, sollya_precision, cst_callback, header=header)
+                              scalar_format, sollya_precision, cst_callback, display_format, header=header)
 
-v2float32 = vector_format_builder("ml_float2_t", "float2", 2, ML_Binary32)
+v2float32 = vector_format_builder("ml_float2_t", "float2", 2, ML_Binary32, display_format=DISPLAY_float2)
 v3float32 = vector_format_builder("ml_float3_t", "float3", 3, ML_Binary32)
-v4float32 = vector_format_builder("ml_float4_t", "float4", 4, ML_Binary32)
-v8float32 = vector_format_builder("ml_float8_t", "float8", 8, ML_Binary32)
+v4float32 = vector_format_builder("ml_float4_t", "float4", 4, ML_Binary32, display_format=DISPLAY_float4)
+v8float32 = vector_format_builder("ml_float8_t", "float8", 8, ML_Binary32, display_format=DISPLAY_float8)
 
-v2float64 = vector_format_builder("ml_double2_t", "double2", 2, ML_Binary64)
+v2float64 = vector_format_builder("ml_double2_t", "double2", 2, ML_Binary64, display_format=DISPLAY_float2)
 v3float64 = vector_format_builder("ml_double3_t", "double3", 3, ML_Binary64)
-v4float64 = vector_format_builder("ml_double4_t", "double4", 4, ML_Binary64)
-v8float64 = vector_format_builder("ml_double8_t", "double8", 8, ML_Binary64)
+v4float64 = vector_format_builder("ml_double4_t", "double4", 4, ML_Binary64, display_format=DISPLAY_float4)
+v8float64 = vector_format_builder("ml_double8_t", "double8", 8, ML_Binary64, display_format=DISPLAY_float8)
 
 # TODO/FIXME: Notes on boolean width 
 
