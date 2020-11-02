@@ -38,6 +38,11 @@ from metalibm_core.core.ml_function import (
     DefaultArgTemplate, BuildError, ValidError
 )
 
+class DisabledTest(Exception):
+    """ Exception indicating that a test was disabled when its execution was
+        triggered """
+    pass
+
 class GenerationError(Exception):
     """ Exception indicating that an error occured during code generation """
     pass
@@ -145,6 +150,9 @@ class NewSchemeTest(CommonTestScheme):
         expected_to_fail = arg_tc["expected_to_fail"] if "expected_to_fail" in arg_tc else False
         return_value = None
         title = self.sub_case_title(arg_tc)
+
+        if "disabled" in arg_tc and arg_tc["disabled"] == True:
+            return TestResult(False, "{} test disabled".format(test_desc), error=DisabledTest, title=title, expected_to_fail=True)
 
         if debug:
             fct = self.ctor(arg_template)
