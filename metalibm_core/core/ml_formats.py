@@ -1353,7 +1353,7 @@ class ML_VectorFormat(ML_Format):
 
 ## Generic class for Metalibm support library vector format
 class ML_CompoundVectorFormat(ML_VectorFormat, ML_Compound_Format):
-  def __init__(self, c_format_name, opencl_format_name, vector_size, scalar_format, sollya_precision = None, cst_callback = None, header=None, display_format=""):
+  def __init__(self, c_format_name, opencl_format_name, vector_size, scalar_format, sollya_precision = None, cst_callback = None, display_format="", header=None):
     ML_VectorFormat.__init__(self, scalar_format, vector_size, c_format_name, header=header)
     # header must be re-submitted as argument to avoid being
     # over written by this new constructor call
@@ -1425,7 +1425,7 @@ class ML_MultiPrecision_VectorFormat(ML_CompoundVectorFormat):
 #  @param header optional header file content where the type is defined
 def vector_format_builder(c_format_name, opencl_format_name, vector_size,
                           scalar_format, sollya_precision=None,
-                          compound_constructor=ML_FloatingPointVectorFormat, cst_callback=None, header=None):
+                          compound_constructor=ML_FloatingPointVectorFormat, display_format=None, cst_callback=None, header=None):
   return compound_constructor(c_format_name, opencl_format_name, vector_size,
                               scalar_format, sollya_precision, cst_callback, display_format, header=header)
 
