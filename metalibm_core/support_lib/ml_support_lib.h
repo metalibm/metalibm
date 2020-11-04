@@ -733,12 +733,12 @@ DEF_ML_VECTOR_COMPARATOR_OP2(ml_comp_eq_ul8, ml_bool8_t, ml_ulong8_t, 8, ==)
 DEF_ML_VECTOR_COMPARATOR_OP2(ml_comp_ne_ul8, ml_bool8_t, ml_ulong8_t, 8, !=)
 
 
-/** Specific tests */
+/** Specific tests, new to convert boolean value to 0/-1 */
 #define DEF_ML_VECTOR_TEST_FUNC_OP1(FUNC_NAME, RESULT_FORMAT, VECTOR_FORMAT, VECTOR_SIZE, SCALAR_TEST_FUNC) \
 static inline void FUNC_NAME(RESULT_FORMAT *r, VECTOR_FORMAT vop) {\
   unsigned i;\
   for (i = 0; i < VECTOR_SIZE; ++i) {\
-    (*(r))[i] = SCALAR_TEST_FUNC(vop[i]);\
+    (*(r))[i] = SCALAR_TEST_FUNC(vop[i]) ? -1 : 0;\
   };\
 }
 
