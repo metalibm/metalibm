@@ -330,8 +330,8 @@ def generate_pretty_report(filename, test_list, test_summary, evolution_map):
             msg = "<tr>\n\t\t<td>{:15}</td>\n".format(name)
             for result in result_map[test_scheme]:
                 evolution_summary = ""
-                if result.title in evolution:
-                    local_evolution = evolution[result.title]
+                if result.title in evolution_map:
+                    local_evolution = evolution_map[result.title]
                     evolution_summary = local_evolution.html_msg
                 if result.get_result():
                     cpe_measure = "-"
