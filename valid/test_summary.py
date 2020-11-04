@@ -91,7 +91,7 @@ class CompResult:
 
 class PerfCompResult(CompResult):
     def __init__(self, abs_delta, rel_delta):
-        if abs_delta > 0:
+        if abs_delta < 0:
             comp_result = Decreased
         else:
             comp_result = Improved
@@ -173,9 +173,9 @@ class TestSummary:
                         abs_delta = ref_cpe - res_cpe
                         rel_delta = ((1 - res_cpe / ref_cpe) * 100)
                         compare_result[label] = PerfCompResult(abs_delta, rel_delta)
-                        if ref_cpe > res_cpe:
+                        if ref_cpe < res_cpe:
                             perf_downgraded += 1
-                        elif ref_cpe < res_cpe:
+                        elif ref_cpe > res_cpe:
                             perf_upgraded += 1
         return compare_result
 
