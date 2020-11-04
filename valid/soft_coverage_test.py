@@ -130,9 +130,18 @@ class FunctionTest:
     def tag(self):
         return self.title
 
-GEN_LOG_ARGS = {"basis": sollya.exp(1), "function_name": "ml_genlog", "extra_passes" : ["beforecodegen:fuse_fma"]}
-GEN_LOG2_ARGS =  {"basis": 2, "function_name": "ml_genlog2", "extra_passes" : ["beforecodegen:fuse_fma"]}
-GEN_LOG10_ARGS =  {"basis": 10, "function_name": "ml_genlog10", "extra_passes" : ["beforecodegen:fuse_fma"]}
+# global bench test range
+BENCH_TEST_RANGE = {
+    "exp": [Interval(1, 80)],
+    "expm1": [Interval(-1, 1)],
+    "log": [Interval(0.5, 100)],
+    "log1p": [Interval(-1, 1)],
+    "trigo": [Interval(-1e30, 1e30)],
+}
+
+GEN_LOG_ARGS = {"basis": sollya.exp(1), "function_name": "ml_genlog", "extra_passes" : ["beforecodegen:fuse_fma"], "bench_test_range": BENCH_TEST_RANGE["log"]}
+GEN_LOG2_ARGS =  {"basis": 2, "function_name": "ml_genlog2", "extra_passes" : ["beforecodegen:fuse_fma"], "bench_test_range": BENCH_TEST_RANGE["log"]}
+GEN_LOG10_ARGS =  {"basis": 10, "function_name": "ml_genlog10", "extra_passes" : ["beforecodegen:fuse_fma"], "bench_test_range": BENCH_TEST_RANGE["log"]}
 
 class LibmFunctionTest(FunctionTest):
     @property
@@ -152,36 +161,43 @@ def emulate_exp10(v):
 BINARY32_FCT = lambda opts: (opts["precision"] == ML_Binary32)
 BINARY64_FCT = lambda opts: (opts["precision"] == ML_Binary64)
 
+
+
 # libm functions
 LIBM_FUNCTION_LIST = [
     # single precision
     LibmFunctionTest(metalibm_functions.external_bench.ML_ExternalBench, [{"bench_function_name": fname, "emulate": emulate, "precision": ML_Binary32, "auto_test": 0, "bench_test_range": bench_range, "headers": ["math.h"]}], title="libm", predicate=BINARY32_FCT)
     for fname, emulate, bench_range in [
-        ("expf", sollya.exp, [Interval(1, 80)]),
-        ("exp2f", emulate_exp2, [Interval(1, 80)]),
-        ("exp10f", emulate_exp10, [Interval(1, 50)]),
-        ("expm1f", sollya.expm1, [Interval(-1, 1)]),
-        ("logf", sollya.log, [Interval(0, 100)]),
-        ("log2f", sollya.log2, [Interval(0, 100)]),
-        ("log10f", sollya.log10, [Interval(0, 100)]),
-        ("log1p", sollya.log1p, [Interval(-1, 1)]),
-        ("cosf", sollya.cos, [Interval(-1e30, 1e30)]), ("sinf", sollya.sin, [Interval(-1e30, 1e30)]), ("tanf", sollya.tan, [Interval(-1e30, 1e30)]), ("atanf", sollya.atan, [None, None]),
-        ("coshf", sollya.cosh, [None]), ("sinhf", sollya.sinh, [None]), ("tanhf", sollya.tanh, [None]),
+        ("expf", sollya.exp, BENCH_TEST_RANGE["exp"]),
+        ("exp2f", emulate_exp2,   BENCH_TEST_RANGE["exp"]),
+        ("exp10f", emulate_exp10, BENCH_TEST_RANGE["exp"]),
+        ("expm1f", sollya.expm1, BENCH_TEST_RANGE["expm1"]),
+        ("logf", sollya.log, BENCH_TEST_RANGE["log"]),
+        ("log2f", sollya.log2, BENCH_TEST_RANGE["log"]),
+        ("log10f", sollya.log10, BENCH_TEST_RANGE["log"]),
+        ("log1p", sollya.log1p, BENCH_TEST_RANGE["log1p"]),
+        ("cosf", sollya.cos, BENCH_TEST_RANGE["trigo"]),
+        ("sinf", sollya.sin, BENCH_TEST_RANGE["trigo"]),
+        ("tanf", sollya.tan, BENCH_TEST_RANGE["trigo"]),
+        ("atanf", sollya.atan, [None, None]),
+        ("coshf", sollya.cosh, [None]),
+        ("sinhf", sollya.sinh, [None]),
+        ("tanhf", sollya.tanh, [None]),
     ]
 ] + [
     LibmFunctionTest(metalibm_functions.external_bench.ML_ExternalBench, [{"bench_function_name": fname, "emulate": emulate, "input_formats": [ML_Binary64], "bench_test_range": bench_range, "precision": ML_Binary64, "auto_test": 0, "headers": ["math.h"]}], title="libm", predicate=BINARY64_FCT)
     for fname, emulate, bench_range in [
-        ("exp", sollya.exp, [Interval(1, 80)]),
-        ("exp2", emulate_exp2, [Interval(1, 80)]),
-        ("exp10", emulate_exp10, [Interval(1, 80)]),
-        ("expm1", sollya.expm1, [Interval(-1, 1)]),
-        ("log", sollya.log, [Interval(0, 100)]),
-        ("log2", sollya.log2, [Interval(0, 100)]),
-        ("log10", sollya.log10, [Interval(0, 100)]),
-        ("log1p", sollya.log1p, [Interval(-1, 1)]),
-        ("cos", sollya.cos, [Interval(-1e30, 1e30)]),
-        ("sin", sollya.sin, [Interval(-1e30, 1e30)]),
-        ("tan", sollya.tan, [Interval(-1e30, 1e30)]),
+        ("exp", sollya.exp,      BENCH_TEST_RANGE["exp"]),
+        ("exp2", emulate_exp2,   BENCH_TEST_RANGE["exp"]),
+        ("exp10", emulate_exp10, BENCH_TEST_RANGE["exp"]),
+        ("expm1", sollya.expm1, BENCH_TEST_RANGE["expm1"]),
+        ("log", sollya.log,     BENCH_TEST_RANGE["log"]),
+        ("log2", sollya.log2,   BENCH_TEST_RANGE["log"]),
+        ("log10", sollya.log10, BENCH_TEST_RANGE["log"]),
+        ("log1p", sollya.log1p, BENCH_TEST_RANGE["log1p"]),
+        ("cos", sollya.cos, BENCH_TEST_RANGE["trigo"]),
+        ("sin", sollya.sin, BENCH_TEST_RANGE["trigo"]),
+        ("tan", sollya.tan, BENCH_TEST_RANGE["trigo"]),
         ("atan", sollya.atan, [None, None]),
         ("cosh", sollya.cosh, [None]),
         ("sinh", sollya.sinh, [None]),
@@ -220,18 +236,18 @@ FUNCTION_LIST = LIBM_FUNCTION_LIST + [
 
     FunctionTest(metalibm_functions.ml_cosh.ML_HyperbolicCosine, [{}]),
     FunctionTest(metalibm_functions.ml_sinh.ML_HyperbolicSine, [{}]),
-    FunctionTest(metalibm_functions.ml_exp.ML_Exponential, [{}]),
-    FunctionTest(metalibm_functions.ml_log1p.ML_Log1p, [{}]),
+    FunctionTest(metalibm_functions.ml_exp.ML_Exponential, [{"bench_test_range": BENCH_TEST_RANGE["exp"]}]),
+    FunctionTest(metalibm_functions.ml_log1p.ML_Log1p, [{"bench_test_range": BENCH_TEST_RANGE["log1p"]}]),
 
     FunctionTest(metalibm_functions.ml_div.ML_Division, [{}]),
 
-    FunctionTest(metalibm_functions.ml_exp2.ML_Exp2, [{}]),
+    FunctionTest(metalibm_functions.ml_exp2.ML_Exp2, [{"bench_test_range": BENCH_TEST_RANGE["exp"]}]),
     FunctionTest(metalibm_functions.ml_cbrt.ML_Cbrt, [{}]),
     FunctionTest(metalibm_functions.ml_sqrt.MetalibmSqrt, [{}]),
     FunctionTest(metalibm_functions.ml_isqrt.ML_Isqrt, [{}]),
     FunctionTest(metalibm_functions.ml_vectorizable_log.ML_Log, [{}], title="vectorizable_log"),
 
-    FunctionTest(metalibm_functions.ml_sincos.ML_SinCos, [{}]),
+    FunctionTest(metalibm_functions.ml_sincos.ML_SinCos, [{"bench_test_range": BENCH_TEST_RANGE["trigo"]}]),
 
     FunctionTest(metalibm_functions.erf.ML_Erf, [{}]),
 
@@ -411,6 +427,9 @@ SCALAR_PRECISION_LIST = [ML_Binary32, ML_Binary64]
 #VECTOR_TARGET_LIST = [VECTOR_BACKEND, X86_AVX2]
 VECTOR_PRECISION_LIST = [ML_Binary32, ML_Binary64]
 
+def cleanify_name(name):
+    return name.replace("-", "_")
+
 
 def generate_test_list(NUM_AUTO_TEST, NUM_BENCH_TEST, scalar_target_tag_list, vector_target_tag_list, ENANBLE_STD_TEST=True, MAX_ERROR_EVAL=False):
     """ generate a list of test """
@@ -447,8 +466,8 @@ def generate_test_list(NUM_AUTO_TEST, NUM_BENCH_TEST, scalar_target_tag_list, ve
                 "compute_max_error": MAX_ERROR_EVAL,
                 "execute_trigger": True,
                 "bench_test_number": NUM_BENCH_TEST,
-                "output_file": "{}_{}.c".format(precision, scalar_target.target_name),
-                "function_name": "{}_{}".format(precision, scalar_target.target_name),
+                "output_file": "{}_{}.c".format(precision, cleanify_name(scalar_target.target_name)),
+                "function_name": "{}_{}".format(precision, cleanify_name(scalar_target.target_name)),
             }
             options.update(get_target_option(scalar_target))
             test_list.append(options)
@@ -466,8 +485,8 @@ def generate_test_list(NUM_AUTO_TEST, NUM_BENCH_TEST, scalar_target_tag_list, ve
                     "auto_test_std": ENANBLE_STD_TEST,
                     "compute_max_error": MAX_ERROR_EVAL,
                     "execute_trigger": True,
-                    "output_file": "v{}-{}_{}.c".format(vector_size, precision, vector_target.target_name),
-                    "function_name": "v{}_{}_{}".format(vector_size, precision, vector_target.target_name),
+                    "output_file": "v{}-{}_{}.c".format(vector_size, precision, cleanify_name(vector_target.target_name)),
+                    "function_name": "v{}_{}_{}".format(vector_size, precision, cleanify_name(vector_target.target_name)),
                 }
                 options.update(get_target_option(vector_target))
                 test_list.append(options)
