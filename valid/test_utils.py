@@ -152,7 +152,7 @@ class NewSchemeTest(CommonTestScheme):
         title = self.sub_case_title(arg_tc)
 
         if "disabled" in arg_tc and arg_tc["disabled"] == True:
-            return TestResult(False, "{} test disabled".format(test_desc), error=DisabledTest, title=title, expected_to_fail=True)
+            return TestResult(False, "{} test disabled".format(test_desc), error=DisabledTest(), title=title, expected_to_fail=True)
 
         if debug:
             fct = self.ctor(arg_template)
