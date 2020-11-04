@@ -55,7 +55,8 @@ from metalibm_core.core.special_values import (
     FP_QNaN, FP_MinusInfty, FP_PlusInfty,
     FP_MinusZero, FP_PlusZero,
 )
-from metalibm_core.core.precisions import ML_CorrectlyRounded
+from metalibm_core.core.precisions import (
+    ML_CorrectlyRounded, ML_Faithful, ML_DegradedAccuracyRelative)
 from metalibm_core.core.ml_function import ML_FunctionBasis
 
 from metalibm_core.core.meta_interval import MetaInterval, MetaIntervalList
@@ -346,7 +347,7 @@ class ML_Division(ML_FunctionBasis):
             "auto_test_range": DefaultArgTemplate.auto_test_range * 2,
             "bench_test_range": DefaultArgTemplate.bench_test_range * 2,
             "language": C_Code,
-            "num_iter": 3,
+            "num_iter": None,
             "passes": ["typing:basic_legalization", "beforecodegen:expand_multi_precision"],
             "vector_size": 1,
         }
@@ -421,7 +422,30 @@ class ML_Division(ML_FunctionBasis):
 
         current_approx_std = init_approx
         # correctly-rounded inverse computation
-        num_iteration = self.num_iter
+        if self.num_iter is None:
+            if isinstance(self.accuracy, ML_CorrectlyRounded):
+                bit_accuracy = self.precision.get_mantissa_size()
+            elif isinstance(self.accuracy, ML_Faithful):
+                bit_accuracy = self.precision.get_mantissa_size() - 1
+            elif isinstance(self.accuracy, ML_DegradedAccuracyRelative):
+                bit_accuracy = -sollya.floor(sollya.log2(self.accuracy.goal))
+            else:
+                raise NotImplementedError
+            # TODO/FIXME, we assume the accuracy of the seed approximation is at least
+            #             equal to its approximation table's index size
+            # retrieving processor inverse approximation table
+            dummy_var = Variable("dummy", precision = self.precision)
+            dummy_div_seed = ReciprocalSeed(dummy_var, precision = self.precision)
+            inv_approx_table = self.processor.get_recursive_implementation(
+                dummy_div_seed, language=None,
+                table_getter= lambda self: self.approx_table_map)
+            init_accuracy = inv_approx_table.index_size
+
+            # the Newton-Raphson iteration double the number of correct digits
+            num_iteration = int(sollya.ceil(sollya.log2(bit_accuracy / init_accuracy)))
+        else:
+            num_iteration = self.num_iter
+        Log.report(Log.Debug, "{} iteration(s) will be generated to compute division", num_iteration)
 
         Attributes.unset_default_rounding_mode()
         Attributes.unset_default_silent()
@@ -448,7 +472,7 @@ class ML_Division(ML_FunctionBasis):
         gappa_vx, gappa_vy = None, None
 
         # initial reciprocal approximation of 1.0 / scaled_vy
-        inv_iteration_list, recp_approx = compute_reduced_reciprocal(init_approx, scaled_vy, self.num_iter)
+        inv_iteration_list, recp_approx = compute_reduced_reciprocal(init_approx, scaled_vy, num_iteration)
 
         recp_approx.set_attributes(tag="recp_approx", debug=debug_multi)
 
@@ -685,7 +709,7 @@ if __name__ == "__main__":
         default_arg=ML_Division.get_default_args()
     )
     arg_template.get_parser().add_argument(
-         "--num-iter", dest="num_iter", default=3, type=int,
+         "--num-iter", dest="num_iter", default=None, type=int,
         action="store", help="number of newton-raphson iterations")
 
     ARGS = arg_template.arg_extraction()
