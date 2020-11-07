@@ -54,6 +54,15 @@ from metalibm_core.core.ml_formats import (
 
 from metalibm_core.utility.log_report import Log
 
+class RandomDescriptor:
+    """ descriptor for a random generator descriptor """
+    pass
+
+class UniformInterval(RandomDescriptor):
+    """ descriptor for uniform random generation """
+    def __init__(self, lo, hi):
+        self.interval = sollya.Interval(lo, hi)
+
 def random_bool():
     """ random boolean generation """
     return bool(random.getrandbits(1))
@@ -336,7 +345,7 @@ class FPRandomGen(RandomGenWeightCat):
                 field = generator.random.randrange(2**field_size)
                 mantissa = 1.0 + field * S2**-generator.precision.get_field_size()
                 return NumericValue(mantissa)
-        class Interval:
+        class FPLogInterval:
             """ interval number category """
             def __init__(self, inf_bound, sup_bound):
                 self.inf_bound = inf_bound
@@ -360,7 +369,7 @@ class FPRandomGen(RandomGenWeightCat):
                 random_value = mantissa * sign * S2**exp
                 return NumericValue(min(max(self.inf_bound, random_value), self.sup_bound))
 
-        class UniformInterval(Interval):
+        class FPUniformInterval(FPLogInterval):
             """ interval number category with uniform generation """
 
             def generate_value(self, generator):
@@ -408,7 +417,7 @@ class FPRandomGen(RandomGenWeightCat):
     @staticmethod
     def from_interval(precision, low_bound, high_bound, uniform=False):
         weight_map = {
-            (FPRandomGen.Category.Interval if not uniform else FPRandomGen.Category.UniformInterval)(low_bound, high_bound): 1.0,
+            (FPRandomGen.Category.FPLogInterval if not uniform else FPRandomGen.Category.FPUniformInterval)(low_bound, high_bound): 1.0,
         }
         return FPRandomGen(precision, weight_map)
 
@@ -457,7 +466,7 @@ class MPFPRandomGen:
     @staticmethod
     def from_interval(precision, low_bound, high_bound, uniform=False):
         weight_map = {
-            (FPRandomGen.Category.Interval if not uniform else FPRandomGen.Category.UniformInterval)(low_bound, high_bound): 1.0,
+            (FPRandomGen.Category.FPLogInterval if not uniform else FPRandomGen.Category.UniformInterval)(low_bound, high_bound): 1.0,
         }
         return MPFPRandomGen(precision, weight_map)
 
@@ -471,7 +480,7 @@ class MPFPRandomGen:
             acc += new_limb
         return acc
 
-def get_precision_rng(precision, value_range=None, uniform=True):
+def get_precision_rng(precision, value_range=None, uniform=False):
     if value_range is None:
         # default full-range value generation
         base_format = precision.get_base_format()
@@ -484,11 +493,17 @@ def get_precision_rng(precision, value_range=None, uniform=True):
         else:
             Log.report(Log.Error, "unsupported format {}/{} in get_precision_rng", precision, base_format)
     else:
-        low_bound = sollya.inf(value_range)
-        high_bound = sollya.sup(value_range)
+        if isinstance(value_range, UniformInterval):
+            low_bound = sollya.inf(value_range.interval)
+            high_bound = sollya.sup(value_range.interval)
+            uniform = True
+        else:
+            low_bound = sollya.inf(value_range)
+            high_bound = sollya.sup(value_range)
+            uniform = uniform
         return get_precision_rng_with_defined_range(precision, low_bound, high_bound, uniform)
 
-def get_precision_rng_with_defined_range(precision, inf_bound, sup_bound, uniform=True):
+def get_precision_rng_with_defined_range(precision, inf_bound, sup_bound, uniform=False):
     """ build a random number generator for format @p precision
         which generates values within the range [inf_bound, sup_bound] """
     base_format = precision.get_base_format()
