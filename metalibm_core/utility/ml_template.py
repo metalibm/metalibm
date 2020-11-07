@@ -54,6 +54,8 @@ from ..targets import *
 from ..code_generation.code_constant import *
 from ..core.passes import Pass
 
+from ..core.random_gen import UniformInterval
+
 from ..core.ml_hdl_format import (
     fixed_point, ML_StdLogicVectorFormat, RTL_FixedPointFormat,
     HdlVirtualFormat
@@ -210,8 +212,21 @@ def accuracy_parser(accuracy_str):
 
 
 def interval_parser(interval_str):
-    """ string -> Interval conversion """
+    """ string -> Interval / RandomDescriptor conversion """
+    # eval must at least support Interval and RandomDescriptor children
+    # parsing
     return eval(interval_str)
+
+def rng_mode_parser(rnd_mode_str):
+    """ parse a string describing a random generator mode
+        string -> Interval / RandomDescriptor conversion """
+    # eval must at least support Interval and RandomDescriptor children
+    # parsing
+    return eval(rnd_mode_str)
+
+def rng_mode_list_parser(list_str):
+    """ parse a ':'-separated list of random generators ctor """
+    return list(map(rng_mode_parser, list_str.split(":")))
 
 def interval_list_parser(list_str):
     return list(map(interval_parser, list_str.split(":")))
@@ -612,7 +627,7 @@ class ML_CommonArgTemplate(object):
 
         self.parser.add_argument(
             "--auto-test-range", dest="auto_test_range", action="store",
-            type=interval_list_parser, default=default_arg.auto_test_range,
+            type=rng_mode_list_parser, default=default_arg.auto_test_range,
             help="define the range of input values to be used during "
                  "functional testing")
 
@@ -656,7 +671,7 @@ class ML_CommonArgTemplate(object):
             help="define the number of bench loop to run")
         self.parser.add_argument(
             "--bench-range", dest="bench_test_range", action="store",
-            type=interval_list_parser, default=default_arg.bench_test_range,
+            type=rng_mode_list_parser, default=default_arg.bench_test_range,
             help="define the interval of input values to use during "
                   "performance bench")
 
