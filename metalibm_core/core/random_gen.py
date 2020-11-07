@@ -360,6 +360,16 @@ class FPRandomGen(RandomGenWeightCat):
                 random_value = mantissa * sign * S2**exp
                 return NumericValue(min(max(self.inf_bound, random_value), self.sup_bound))
 
+        class UniformInterval(Interval):
+            """ interval number category with uniform generation """
+
+            def generate_value(self, generator):
+                # TODO/FIXME random.uniform only generate a machine precision
+                # number (generally a double) which may not be suitable
+                # for larger format
+                return NumericValue(random.uniform(self.inf_bound, self.sup_bound))
+
+
                 # value = generator.precision.round_sollya_object(random.uniform(self.inf_bound, self.sup_bound))
                 # return NumericValue(value)
 
@@ -396,9 +406,9 @@ class FPRandomGen(RandomGenWeightCat):
         self.sp_list = self.get_special_value_list(include_snan=False)
 
     @staticmethod
-    def from_interval(precision, low_bound, high_bound):
+    def from_interval(precision, low_bound, high_bound, uniform=False):
         weight_map = {
-            FPRandomGen.Category.Interval(low_bound, high_bound): 1.0,
+            (FPRandomGen.Category.Interval if not uniform else FPRandomGen.Category.UniformInterval)(low_bound, high_bound): 1.0,
         }
         return FPRandomGen(precision, weight_map)
 
@@ -445,9 +455,9 @@ class MPFPRandomGen:
         ]
 
     @staticmethod
-    def from_interval(precision, low_bound, high_bound):
+    def from_interval(precision, low_bound, high_bound, uniform=False):
         weight_map = {
-            FPRandomGen.Category.Interval(low_bound, high_bound): 1.0,
+            (FPRandomGen.Category.Interval if not uniform else FPRandomGen.Category.UniformInterval)(low_bound, high_bound): 1.0,
         }
         return MPFPRandomGen(precision, weight_map)
 
@@ -461,7 +471,7 @@ class MPFPRandomGen:
             acc += new_limb
         return acc
 
-def get_precision_rng(precision, value_range=None):
+def get_precision_rng(precision, value_range=None, uniform=True):
     if value_range is None:
         # default full-range value generation
         base_format = precision.get_base_format()
@@ -476,16 +486,16 @@ def get_precision_rng(precision, value_range=None):
     else:
         low_bound = sollya.inf(value_range)
         high_bound = sollya.sup(value_range)
-        return get_precision_rng_with_defined_range(precision, low_bound, high_bound)
+        return get_precision_rng_with_defined_range(precision, low_bound, high_bound, uniform)
 
-def get_precision_rng_with_defined_range(precision, inf_bound, sup_bound):
+def get_precision_rng_with_defined_range(precision, inf_bound, sup_bound, uniform=True):
     """ build a random number generator for format @p precision
         which generates values within the range [inf_bound, sup_bound] """
     base_format = precision.get_base_format()
     if isinstance(base_format, ML_FP_MultiElementFormat):
         return MPFPRandomGen.from_interval(precision, inf_bound, sup_bound)
     elif isinstance(base_format, ML_FP_Format):
-        return FPRandomGen.from_interval(precision, inf_bound, sup_bound)
+        return FPRandomGen.from_interval(precision, inf_bound, sup_bound, uniform)
     elif isinstance(base_format, ML_Fixed_Format):
         return FixedPointRandomGen.from_interval(precision, inf_bound, sup_bound)
     else:
