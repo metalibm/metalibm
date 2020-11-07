@@ -352,7 +352,7 @@ class FPRandomGen(RandomGenWeightCat):
                 field_size = generator.precision.get_field_size()
                 exp = generator.random.randrange(
                     generator.precision.get_emin_normal() if self.min_exp is None else self.min_exp,
-                    (generator.precision.get_emax() + 1) if self.max_exp is None else self.max_exp
+                    (generator.precision.get_emax() + 1) if self.max_exp is None else (self.max_exp + 1)
                 )
                 sign = generator.generate_sign()
                 field = generator.random.randrange(2**field_size)
