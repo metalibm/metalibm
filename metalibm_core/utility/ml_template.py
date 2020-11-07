@@ -631,6 +631,11 @@ class ML_CommonArgTemplate(object):
             help="enable the generation of a self-testing numerical/functionnal\
       bench")
 
+        self.parser.add_argument(
+            "--auto-test-range", dest="auto_test_range", action="store",
+            type=rng_mode_list_parser, default=default_arg.auto_test_range,
+            help="define the range of input values to be used during "
+                 "functional testing")
 
         self.parser.add_argument(
             "--auto-test-std", dest="auto_test_std", action="store_const",
