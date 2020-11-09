@@ -62,6 +62,8 @@ from metalibm_core.core.ml_formats import ML_Binary32, ML_Binary64, ML_Int32, ML
 from metalibm_core.core.ml_function import (
     BuildError, ValidError
 )
+from metalibm_core.core.random_gen import UniformInterval
+
 from metalibm_core.targets.common.vector_backend import VectorBackend
 
 from metalibm_core.targets.intel.x86_processor import (
@@ -132,11 +134,11 @@ class FunctionTest:
 
 # global bench test range
 BENCH_TEST_RANGE = {
-    "exp": [Interval(1, 80)],
+    "exp": [UniformInterval(0, 80)],
     "expm1": [Interval(-1, 1)],
-    "log": [Interval(0.5, 100)],
+    "log": [UniformInterval(0, 100)],
     "log1p": [Interval(-1, 1)],
-    "trigo": [Interval(-1e30, 1e30)],
+    "trigo": [UniformInterval(-1e7, 1e7)],
 }
 
 GEN_LOG_ARGS = {"basis": sollya.exp(1), "function_name": "ml_genlog", "extra_passes" : ["beforecodegen:fuse_fma"], "bench_test_range": BENCH_TEST_RANGE["log"]}
