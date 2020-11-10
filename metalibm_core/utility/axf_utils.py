@@ -38,7 +38,7 @@ class AXF_SimplePolyApprox(yaml.YAMLObject):
     """ AXF object for basic polynomial approximation """
     yaml_tag = u'!SimplePolyApprox'
     def __init__(self, poly, fct, degree_list, format_list, interval, absolute=True, approx_error=None):
-        self.fct = str(fct)
+        self.function = str(fct)
         self.degree_list = [int(d) for d in degree_list]
         self.format_list = [str(f) for f in format_list]
         self.interval = str(interval)
@@ -66,7 +66,7 @@ class AXF_Polynomial(yaml.YAMLObject):
 class AXF_PiecewiseApprox(yaml.YAMLObject):
     """ AXF object for piecewise approximation encoding """
     yaml_tag = u'!PieceWiseApprox'
-    def __init__(self, function, bound_low, bound_high, num_intervals, max_degree, error_threshold, odd=False, even=False):
+    def __init__(self, function, precision, bound_low, bound_high, num_intervals, max_degree, error_threshold, odd=False, even=False):
         self.function = str(function)
         self.bound_low = str(bound_low)
         self.bound_high = str(bound_high)
@@ -76,6 +76,7 @@ class AXF_PiecewiseApprox(yaml.YAMLObject):
         self.odd = bool(odd)
         self.even = bool(even)
         self.approx_list = []
+        self.precision = str(precision)
 
     def export(self):
         sollya.settings.display = sollya.hexadecimal
@@ -105,6 +106,15 @@ class AXF_Exporter:
 class AXF_Importer:
     def __init__(self, stream):
         self.content = yaml.load(stream, Loader=yaml.Loader)
+
+    @staticmethod
+    def from_file(filename):
+        with open(filename, 'r') as stream:
+            return AXF_Importer.from_str(stream.read())
+
+    @staticmethod
+    def from_str(s):
+        return yaml.load(s)
 
 if __name__ == "__main__":
     from metalibm_core.core.polynomials import Polynomial

@@ -59,6 +59,8 @@ from metalibm_core.utility.log_report import Log
 from metalibm_core.utility.axf_utils import (
     AXF_SimplePolyApprox, AXF_PiecewiseApprox)
 
+from metalibm_core.utility.ml_template import precision_parser
+
 def get_extended_fp_precision(precision):
     """ return the extended counterart of @p precision """
     ext_precision = {
@@ -312,7 +314,7 @@ def piecewise_approximation_degree_generator(
 
 
 
-def piece_approximation_paramgen(
+def piecewise_approximation_paramgen(
         function,
         variable,
         precision,
@@ -349,7 +351,7 @@ def piece_approximation_paramgen(
     degree_list = list(degree_generator)
 
     axf_approx = AXF_PiecewiseApprox(
-        function(sollya.x), bound_low, bound_high, num_intervals, max_degree, error_threshold, odd, even)
+        function(sollya.x), precision, bound_low, bound_high, num_intervals, max_degree, error_threshold, odd, even)
 
     # if max_degree is None then we determine it locally
     if max_degree is None:
@@ -438,6 +440,57 @@ def piece_approximation_paramgen(
 
     return interval_size, coeff_table, max_approx_error
 
+def piecewise_param_from_axf(axf_approx):
+    """ load a piecewise approximation parameter from an
+        Approximation eXchange Format (AXF) storage """
+
+    max_degree = axf_approx.max_degree
+    num_intervals = axf_approx.num_intervals
+    precision = precision_parser(axf_approx.precision) 
+    bound_high = sollya.parse(axf_approx.bound_high)
+    bound_low = sollya.parse(axf_approx.bound_low)
+    error_threshold = sollya.parse(axf_approx.error_threshold)
+
+    # table to store coefficients of the approximation on each segment
+    coeff_table = ML_NewTable(
+        dimensions=[num_intervals, max_degree+1],
+        storage_precision=precision,
+        tag="coeff_table",
+        const=True # by default all approximation coeff table are const
+    )
+
+    error_function = lambda p, f, ai, mod, t: sollya.dirtyinfnorm(p - f, ai)
+    max_approx_error = 0.0
+    interval_size = (bound_high - bound_low) / num_intervals
+
+    for i in range(num_intervals):
+        subint_low = bound_low + i * interval_size
+        subint_high = bound_low + (i+1) * interval_size
+
+        local_interval = Interval(-interval_size, interval_size)
+
+        local_approx = axf_approx.approx_list[i]
+        approx_error = sollya.parse(local_approx.approx_error)
+
+        poly_object = local_approx.poly
+        axf_interval = sollya.parse(local_approx.interval)
+
+        # enforcing validity checks on local approximation
+        assert subint_low == sollya.inf(axf_interval)
+        assert subint_high == sollya.sup(axf_interval)
+
+        for ci in range(max_degree+1):
+            if ci in poly_object.coeff_map:
+                coeff_table[i][ci] = poly_object.coeff_map[ci]
+            else:
+                coeff_table[i][ci] = 0.0
+
+        if approx_error > error_threshold:
+            Log.report(Log.Warning, "piecewise_approximation on index {} exceeds error threshold: {} > {}", i, approx_error, error_threshold)
+        max_approx_error = max(max_approx_error,abs(approx_error))
+
+    return interval_size, coeff_table, max_approx_error, max_degree
+
 def piecewise_approximation(
         function,
         variable,
@@ -469,7 +522,7 @@ def piecewise_approximation(
         :rtype tuple(ML_Operation, SollyaObject): """
 
 
-    interval_size, coeff_table, max_approx_error = piece_approximation_paramgen(
+    interval_size, coeff_table, max_approx_error = piecewise_approximation_paramgen(
         function,
         variable,
         precision,
@@ -481,6 +534,25 @@ def piecewise_approximation(
         odd=odd,
         even=even)
 
+    return piecewise_evaluation_from_param(variable, precision, bound_low, bound_high, max_degree, num_intervals, interval_size, coeff_table), max_approx_error
+
+def piecewise_evaluation_from_param(variable, precision, bound_low, bound_high, max_degree, num_intervals, interval_size, coeff_table):
+    """ Generate a piecewise evaluation scheme from a pre-determined coefficient table 
+
+        :param variable: input variable
+        :type variable: Variable
+        :param precision: variable's format
+        :type precision: ML_Format
+        :param bound_low: lower bound for the approximation interval
+        :param bound_high: upper bound for the approximation interval
+        :param num_intervals: number of sub-interval / sub-division of the main interval
+        :type num_intervals: int
+        :param interval_size: size of the full approximation interval
+        :param coeff_table: pre-computed table of polynomial coefficients
+        :type coeff_table: ML_NewTable
+
+        :return: a graph node for an approximation scheme of function evaluated at variable
+        :rtype ML_Operation: """
     # computing offset
     diff = Subtraction(
         variable,
@@ -528,5 +600,5 @@ def piecewise_approximation(
         poly_var,
         precision, {}, precision
     )
-    return poly_scheme, max_approx_error
+    return poly_scheme
 
