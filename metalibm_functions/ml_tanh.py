@@ -53,7 +53,9 @@ from metalibm_core.core.ml_operations import (
 )
 from metalibm_core.core.ml_table import ML_NewTable
 
-from metalibm_core.core.approximation import piecewise_approximation
+from metalibm_core.core.approximation import (
+    piecewise_approximation, piecewise_evaluation_from_param,
+    piecewise_param_from_axf)
 
 from metalibm_core.code_generation.generic_processor import GenericProcessor
 
@@ -68,6 +70,8 @@ sollya.roundingwarnings = sollya.off
 sollya.verbosity = 0
 sollya.showmessagenumbers = sollya.on
 
+from metalibm_core.utility.axf_utils import AXF_Importer, AXF_SimplePolyApprox
+
 
 class ML_HyperbolicTangent(ScalarUnaryFunction):
     """ Implementation of hyperbolic tangent function """
@@ -75,6 +79,7 @@ class ML_HyperbolicTangent(ScalarUnaryFunction):
     def __init__(self, args=DefaultArgTemplate):
         # initializing base class
         super().__init__(args)
+        self.load_approx = args.load_approx
 
     @staticmethod
     def get_default_args(**kw):
@@ -85,6 +90,7 @@ class ML_HyperbolicTangent(ScalarUnaryFunction):
             "function_name": "my_tanh",
             "precision": ML_Binary32,
             "accuracy": ML_Faithful,
+            "load_approx": None,
             "target": GenericProcessor.get_target_instance()
         }
         default_args_tanh.update(kw)
@@ -109,6 +115,15 @@ class ML_HyperbolicTangent(ScalarUnaryFunction):
             approx_interval, sollya.absolute,
             error_function = error_function
         )
+
+        axf_approx = AXF_SimplePolyApprox(
+            poly_object,
+            function / sollya.x, degree_list,
+            [1] + [self.precision] * (len(degree_list) - 1),
+            approx_interval, absolute=True
+        )
+        print(axf_approx.export())
+
         Log.report(Log.Info, "approximation poly: {}\n  with error {}".format(
                 poly_object, approx_error
             )
@@ -183,16 +198,23 @@ class ML_HyperbolicTangent(ScalarUnaryFunction):
 
         sollya.settings.points = 117
 
-        approx_scheme, approx_error = piecewise_approximation(
-            sollya.tanh,
-            abs_vx,
-            self.precision,
-            bound_low=near_zero_bound,
-            bound_high=high_bound,
-            num_intervals=interval_num,
-            max_degree=poly_degree,
-            error_threshold=ERROR_THRESHOLD
-        )
+        if self.load_approx:
+            Log.report(Log.Debug, "loading approximation from file")
+            axf_approx = AXF_Importer.from_file(self.load_approx)
+            interval_size, coeff_table, approx_error, max_degree = piecewise_param_from_axf(axf_approx)
+            approx_scheme = piecewise_evaluation_from_param(abs_vx, self.precision, near_zero_bound, high_bound, max_degree, interval_num, interval_size, coeff_table)
+
+        else:
+            approx_scheme, approx_error = piecewise_approximation(
+                sollya.tanh,
+                abs_vx,
+                self.precision,
+                bound_low=near_zero_bound,
+                bound_high=high_bound,
+                num_intervals=interval_num,
+                max_degree=poly_degree,
+                error_threshold=ERROR_THRESHOLD
+            )
         Log.report(Log.Warning, "approx_error={}".format(approx_error))
 
         comp_near_zero_bound = abs_vx < near_zero_bound
@@ -234,8 +256,10 @@ class ML_HyperbolicTangent(ScalarUnaryFunction):
 if __name__ == "__main__":
     # building argument template for main generation
     arg_template = ML_NewArgTemplate(
-        default_arg=ML_HyperbolicTangent.get_default_args()
-    )
+        default_arg=ML_HyperbolicTangent.get_default_args())
+    arg_template.get_parser().add_argument(
+         "--load-approx", default=None,
+        action="store", help="load tanh approx from an axf file rathen than computing it")
 
     # argument extraction
     args = arg_template.arg_extraction()
