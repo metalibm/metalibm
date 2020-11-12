@@ -192,11 +192,11 @@ class SubFPIndexing:
         hi_bound = self.get_sub_hi_bound(index)
         return Interval(lo_bound, hi_bound)
 
-def generic_poly_split_param_from_axf(axf_approx):
+def generic_poly_split_param_from_axf(axf_approx, indexing):
     """ load paramater for a generic polynomial split from an AXF structure """
-    indexing = eval(axf_approx.indexing) 
+    # indexing = eval(axf_approx.indexing) 
     poly_max_degree = axf_approx.poly_max_degree
-    coeff_precision = precision_parser(axf_approx.coeff_precision) 
+    coeff_precision = axf_approx.coeff_precision 
 
     poly_table = ML_NewTable(dimensions=[indexing.split_num, poly_max_degree+1], storage_precision=coeff_precision, const=True)
     offset_table = ML_NewTable(dimensions=[indexing.split_num], storage_precision=coeff_precision, const=True)
@@ -219,7 +219,7 @@ def generic_poly_split_param_from_axf(axf_approx):
 
                 max_error = max(approx_error, max_error)
 
-    return offset_table, poly_max_degree, poly_table, max_error, axf_approx
+    return offset_table, poly_max_degree, poly_table, max_error
 
 
 def generic_poly_split_paramgen(offset_fct, indexing, target_eps, coeff_precision, axf_export=False):
