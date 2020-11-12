@@ -54,7 +54,7 @@ from metalibm_core.core.ml_operations import (
 from metalibm_core.core.ml_table import ML_NewTable
 
 from metalibm_core.core.approximation import (
-    piecewise_approximation, piecewise_evaluation_from_param,
+    piecewise_approximation_paramgen, piecewise_evaluation_from_param,
     piecewise_param_from_axf)
 
 from metalibm_core.code_generation.generic_processor import GenericProcessor
@@ -70,7 +70,7 @@ sollya.roundingwarnings = sollya.off
 sollya.verbosity = 0
 sollya.showmessagenumbers = sollya.on
 
-from metalibm_core.utility.axf_utils import AXF_Importer, AXF_SimplePolyApprox
+from metalibm_core.utility.axf_utils import AXF_JSON_Importer, AXF_SimplePolyApprox
 
 
 class ML_HyperbolicTangent(ScalarUnaryFunction):
@@ -80,6 +80,7 @@ class ML_HyperbolicTangent(ScalarUnaryFunction):
         # initializing base class
         super().__init__(args)
         self.load_approx = args.load_approx
+        self.axf_export = args.axf_export
 
     @staticmethod
     def get_default_args(**kw):
@@ -91,6 +92,7 @@ class ML_HyperbolicTangent(ScalarUnaryFunction):
             "precision": ML_Binary32,
             "accuracy": ML_Faithful,
             "load_approx": None,
+            "axf_export": False,
             "target": GenericProcessor.get_target_instance()
         }
         default_args_tanh.update(kw)
@@ -175,7 +177,7 @@ class ML_HyperbolicTangent(ScalarUnaryFunction):
         interval_num = 1024
         Log.report(Log.Verbose, "high_bound={}, near_zero_bound={}, interval_num={}", float(high_bound), near_zero_bound, interval_num)
 
-        interval_size = (high_bound - near_zero_bound) / (1024)
+        interval_size = (high_bound - near_zero_bound) / (interval_num)
         new_interval_size = S2**int(sollya.log2(interval_size))
         interval_num *= 2
         high_bound = new_interval_size * interval_num + near_zero_bound
@@ -200,12 +202,12 @@ class ML_HyperbolicTangent(ScalarUnaryFunction):
 
         if self.load_approx:
             Log.report(Log.Debug, "loading approximation from file")
-            axf_approx = AXF_Importer.from_file(self.load_approx)
+            axf_approx = AXF_JSON_Importer.from_file(self.load_approx)
             interval_size, coeff_table, approx_error, max_degree = piecewise_param_from_axf(axf_approx)
             approx_scheme = piecewise_evaluation_from_param(abs_vx, self.precision, near_zero_bound, high_bound, max_degree, interval_num, interval_size, coeff_table)
 
         else:
-            approx_scheme, approx_error = piecewise_approximation(
+            interval_size, coeff_table, approx_error, axf_export = piecewise_approximation_paramgen(
                 sollya.tanh,
                 abs_vx,
                 self.precision,
@@ -213,8 +215,20 @@ class ML_HyperbolicTangent(ScalarUnaryFunction):
                 bound_high=high_bound,
                 num_intervals=interval_num,
                 max_degree=poly_degree,
-                error_threshold=ERROR_THRESHOLD
-            )
+                error_threshold=ERROR_THRESHOLD,
+                axf_export=not self.axf_export is False)
+
+            if self.axf_export:
+                with open(self.axf_export, "w") as axf_stream:
+                    import json
+                    json_str = json.dumps(axf_export.serialize_to_dict(), sort_keys=True, indent=4)
+                    deserialized_json = axf_export.__class__.deserialize_from_dict(json.loads(json_str))
+                    print(deserialized_json)
+                    axf_stream.write(json_str)
+                    # import yaml
+                    # print(yaml.dump(axf_export))
+
+            approx_scheme = piecewise_evaluation_from_param(abs_vx, self.precision, near_zero_bound, high_bound, poly_degree, interval_num, interval_size, coeff_table)
         Log.report(Log.Warning, "approx_error={}".format(approx_error))
 
         comp_near_zero_bound = abs_vx < near_zero_bound
@@ -260,6 +274,9 @@ if __name__ == "__main__":
     arg_template.get_parser().add_argument(
          "--load-approx", default=None,
         action="store", help="load tanh approx from an axf file rathen than computing it")
+    arg_template.get_parser().add_argument(
+         "--axf-export", default=False,
+        action="store", help="export approximation used in AXF format")
 
     # argument extraction
     args = arg_template.arg_extraction()
