@@ -90,6 +90,10 @@ except ImportError:
     k1b_defined = False
     k1b = None
 
+
+# default directory to load AXF file from
+AXF_DIR = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "metalibm_functions", "axf")
+
 # common value threshold for error
 # FIXME/TODO: should be define on a per-function / per-test basis
 ERROR_ULP_THRESHOLD = 1.0
@@ -225,10 +229,21 @@ def rootn_option_specialization(opt_dict):
     opt_dict["input_precisions"] = input_precisions
     return opt_dict
 
+
+def tanh_option_specialization(opt_dict):
+    """ Option specilization callback for FunctionTest
+        dedicated to tanh meta-function """
+    precision = opt_dict["precision"]
+    opt_dict["load_approx"] = {
+        ML_Binary32: os.path.join(AXF_DIR, "tanh-fp32.axf"),
+        ML_Binary64: os.path.join(AXF_DIR, "tanh-fp64.axf"),
+    }[precision]
+    return opt_dict
+
 FUNCTION_LIST = LIBM_FUNCTION_LIST + [
 
     # meta-functions
-    FunctionTest(metalibm_functions.ml_tanh.ML_HyperbolicTangent, [{}], title="ml_tanh"),
+    FunctionTest(metalibm_functions.ml_tanh.ML_HyperbolicTangent, [{}], specific_opts_builder=tanh_option_specialization, title="ml_tanh"),
 
     FunctionTest(metalibm_functions.ml_atan.MetaAtan, [{}], title="ml_atan"),
 
