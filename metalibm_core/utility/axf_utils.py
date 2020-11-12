@@ -51,7 +51,7 @@ class AXF_SimplePolyApprox(yaml.YAMLObject):
 
 
 class AXF_Polynomial(yaml.YAMLObject):
-    """ AXF object for polynomial encoding """
+    """ AXF object for polynomial object encoding """
     yaml_tag = u'!Polynomial'
     def __init__(self, coeff_map):
         self.coeff_map = {int(k): str(v) for k,v in coeff_map.items()}
@@ -63,10 +63,12 @@ class AXF_Polynomial(yaml.YAMLObject):
     def convert_coeff_map(self):
         return {k: sollya.parse(v) for k,v in self.coeff_map.items()}
 
-class AXF_PiecewiseApprox(yaml.YAMLObject):
+class AXF_UniformPiecewiseApprox(yaml.YAMLObject):
     """ AXF object for piecewise approximation encoding """
     yaml_tag = u'!PieceWiseApprox'
-    def __init__(self, function, precision, bound_low, bound_high, num_intervals, max_degree, error_threshold, odd=False, even=False):
+    def __init__(self, function, precision, bound_low, bound_high,
+                 num_intervals, max_degree, error_threshold,
+                 odd=False, even=False, tag=""):
         self.function = str(function)
         self.bound_low = str(bound_low)
         self.bound_high = str(bound_high)
@@ -77,21 +79,41 @@ class AXF_PiecewiseApprox(yaml.YAMLObject):
         self.even = bool(even)
         self.approx_list = []
         self.precision = str(precision)
+        self.tag = tag
 
     def export(self):
         sollya.settings.display = sollya.hexadecimal
         return yaml.dump(self)
-        
+
+
+class AXF_GenericPolynomialSplit(yaml.YAMLObject):
+    """ AXF object for a piecewise generic polynomial approximation encoding """
+    yaml_tag = u'!GenericPolynomialSplit'
+    def __init__(self, offset_fct, indexing, poly_max_degree, target_eps, coeff_precision, tag=""):
+        self.offset_fct = str(offset_fct)
+        self.indexing = str(indexing)
+        self.target_eps = str(target_eps)
+        self.coeff_precision = str(coeff_precision)
+        self.approx_list = []
+        self.tag = tag
+        self.poly_max_degree = int(poly_max_degree)
+
+    def export(self):
+        sollya.settings.display = sollya.hexadecimal
+        return yaml.dump(self)
+
 # add specific YAML representation for metalibm's Polynomial
-yaml.add_representer(Polynomial, lambda dumper, data: AXF_Polynomial.to_yaml(dumper, AXF_Polynomial(data.coeff_map)))
+def poly_representer(dumper, data):
+    return AXF_Polynomial.to_yaml(dumper, AXF_Polynomial(data.coeff_map))
 
 def poly_constructor(loader, node):
+    """ yaml loader for !Polynomial to Polynomial class  """
     instance = Polynomial.__new__(Polynomial)
     yield instance
     state = loader.construct_mapping(node, deep=True)
     instance.__init__({k: sollya.parse(str(v)) for k,v in state["coeff_map"].items()})
 
-# yaml.add_constructor(u'!Polynomial', lambda loader, node: AXF_Polynomial.from_yaml(loader, node).to_ml_poly())
+yaml.add_representer(Polynomial, poly_representer)
 yaml.add_constructor(u'!Polynomial', poly_constructor)
 
 class AXF_Exporter:
@@ -104,16 +126,21 @@ class AXF_Exporter:
 
 
 class AXF_Importer:
+    """ Import for AXF storage to Metalibm's classes """
     def __init__(self, stream):
         self.content = yaml.load(stream, Loader=yaml.Loader)
 
     @staticmethod
     def from_file(filename):
+        """ import an approximation description from a source file in .axf
+            format """
         with open(filename, 'r') as stream:
             return AXF_Importer.from_str(stream.read())
 
     @staticmethod
     def from_str(s):
+        """ import an approximation description from a string description
+            in AXF format """
         return yaml.load(s)
 
 if __name__ == "__main__":
