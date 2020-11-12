@@ -52,7 +52,9 @@ from metalibm_core.core.special_values import (
         FP_QNaN, FP_MinusInfty, FP_PlusInfty, FP_PlusZero
 )
 from metalibm_core.core.approximation import (
-    search_bound_threshold, generic_poly_split, SubFPIndexing
+    search_bound_threshold, generic_poly_split, SubFPIndexing,
+    generic_poly_split_param_from_axf,
+    generic_poly_split_from_params
 )
 from metalibm_core.core.simple_scalar_function import ScalarUnaryFunction
 
@@ -60,6 +62,7 @@ from metalibm_core.code_generation.generic_processor import GenericProcessor
 
 from metalibm_core.utility.ml_template import ML_NewArgTemplate
 from metalibm_core.utility.debug_utils import debug_multi
+from metalibm_core.utility.axf_utils import AXF_JSON_Exporter, AXF_JSON_Importer
 
 
 # static constant for numerical value 2
@@ -72,6 +75,7 @@ class ML_Erf(ScalarUnaryFunction):
     def __init__(self, args):
         super().__init__(args)
         self.dump_axf_approx = args.dump_axf_approx
+        self.load_axf_approx = args.load_axf_approx
 
     @staticmethod
     def get_default_args(**kw):
@@ -82,6 +86,8 @@ class ML_Erf(ScalarUnaryFunction):
                 "function_name": "my_erf",
                 "precision": ML_Binary32,
                 "accuracy": ML_Faithful,
+                "load_axf_approx": False,
+                "dump_axf_approx": False,
                 "target": GenericProcessor.get_target_instance(),
                 "passes": [
                     ("start:instantiate_abstract_prec"),
@@ -143,20 +149,51 @@ class ML_Erf(ScalarUnaryFunction):
         }[self.precision]
 
         near_indexing = SubFPIndexing(eps_exp, 0, 6, self.precision)
-        near_approx, axf_near_approx = generic_poly_split(offset_div_function(sollya.erf), near_indexing, eps_target, self.precision, abs_vx, axf_export=self.dump_axf_approx)
-        near_approx.set_attributes(tag="near_approx", debug=debug_multi)
-
-        def offset_function(fct):
-            return lambda offset: fct(sollya.x + offset)
         medium_indexing = SubFPIndexing(1, one_limit_exp, 7, self.precision)
 
-        medium_approx, axf_medium_approx= generic_poly_split(offset_function(sollya.erf), medium_indexing, eps_target, self.precision, abs_vx, axf_export=self.dump_axf_approx)
-        medium_approx.set_attributes(tag="medium_approx", debug=debug_multi)
+        if self.load_axf_approx:
+            assert not self.dump_axf_approx
 
-        if self.dump_axf_approx:
-            axf_near_approx.tag = "erf-near"
-            axf_medium_approx.tag = "erf-medium"
-            print(yaml.dump([axf_near_approx, axf_medium_approx]))
+            # TODO: implement import of approximations from AXF files
+            [near_axf_approx, medium_axf_approx] = AXF_JSON_Importer.from_file(self.load_axf_approx)
+
+            near_approx_offset_table, near_approx_poly_max_degree, near_approx_poly_table, near_approx_max_error = generic_poly_split_param_from_axf(near_axf_approx, near_indexing)
+
+            near_approx = generic_poly_split_from_params(near_approx_offset_table,
+                                                         near_approx_poly_max_degree,
+                                                         near_approx_poly_table,
+                                                         near_indexing,
+                                                         self.precision,
+                                                         abs_vx)
+
+
+            medium_approx_offset_table, medium_approx_poly_max_degree, medium_approx_poly_table, medium_approx_max_error = generic_poly_split_param_from_axf(medium_axf_approx, medium_indexing)
+
+            medium_approx = generic_poly_split_from_params(medium_approx_offset_table,
+                                                         medium_approx_poly_max_degree,
+                                                         medium_approx_poly_table,
+                                                         medium_indexing,
+                                                         self.precision,
+                                                         abs_vx)
+        else:
+            near_approx, axf_near_approx = generic_poly_split(offset_div_function(sollya.erf), near_indexing, eps_target, self.precision, abs_vx, axf_export=not self.dump_axf_approx is False)
+
+            def offset_function(fct):
+                return lambda offset: fct(sollya.x + offset)
+
+            medium_approx, axf_medium_approx = generic_poly_split(offset_function(sollya.erf), medium_indexing, eps_target, self.precision, abs_vx, axf_export=not self.dump_axf_approx is False)
+
+            if self.dump_axf_approx:
+                axf_near_approx.tag = "erf-near"
+                axf_medium_approx.tag = "erf-medium"
+                #print(yaml.dump([axf_near_approx, axf_medium_approx]))
+                AXF_JSON_Exporter.to_file(self.dump_axf_approx,
+                                   [
+                                    axf_near_approx.serialize_to_dict(),
+                                    axf_medium_approx.serialize_to_dict()])
+
+        near_approx.set_attributes(tag="near_approx", debug=debug_multi)
+        medium_approx.set_attributes(tag="medium_approx", debug=debug_multi)
 
         # approximation for positive values
         scheme = ConditionBlock(
@@ -197,8 +234,11 @@ if __name__ == "__main__":
         arg_template = ML_NewArgTemplate(default_arg=ML_Erf.get_default_args())
 
         arg_template.get_parser().add_argument(
-             "--dump-axf-approx", default=False, const=True,
-            action="store_const", help="dump approximations in AXF format")
+             "--dump-axf-approx", default=False,
+            action="store", help="dump approximations in AXF format")
+        arg_template.get_parser().add_argument(
+             "--load-axf-approx", default=False,
+            action="store", help="load approximations from file in AXF format")
 
         args = arg_template.arg_extraction()
         ml_erf = ML_Erf(args)
