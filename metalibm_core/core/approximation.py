@@ -57,7 +57,8 @@ from metalibm_core.core.ml_formats import (
 from metalibm_core.utility.debug_utils import debug_multi
 from metalibm_core.utility.log_report import Log
 from metalibm_core.utility.axf_utils import (
-    AXF_SimplePolyApprox, AXF_PiecewiseApprox)
+    AXF_SimplePolyApprox, AXF_UniformPiecewiseApprox,
+    AXF_GenericPolynomialSplit)
 
 from metalibm_core.utility.ml_template import precision_parser
 
@@ -117,6 +118,13 @@ class SubFPIndexing:
         self.split_num = (self.max_exp_value - self.low_exp_value + 1) * 2**(self.field_bits)
         Log.report(Log.Debug, "split_num={}", self.split_num)
         self.precision = precision
+
+    def __repr__(self):
+        precision_to_str = {
+            ML_Binary32: "ML_Binary32",
+            ML_Binary64: "ML_Binary64"
+        }
+        return "SubFPIndexing(%s, %s, %s, %s)" % (self.low_exp_value, self.max_exp_value, self.field_bits, precision_to_str[self.precision])
 
     def get_index_node(self, vx):
         assert vx.precision is self.precision
@@ -184,14 +192,37 @@ class SubFPIndexing:
         hi_bound = self.get_sub_hi_bound(index)
         return Interval(lo_bound, hi_bound)
 
+def generic_poly_split_param_from_axf(axf_approx):
+    """ load paramater for a generic polynomial split from an AXF structure """
+    indexing = eval(axf_approx.indexing) 
+    poly_max_degree = axf_approx.poly_max_degree
+    coeff_precision = precision_parser(axf_approx.coeff_precision) 
 
-def generic_poly_split(offset_fct, indexing, target_eps, coeff_precision, vx):
-    """ generate the meta approximation for @p offset_fct over several
-        intervals defined by @p indexing object
-        For each sub-interval, a polynomial approximation with
-        maximal_error @p target_eps is tabulated, and evaluated using format
-        @p coeff_precision.
-        The input variable is @p vx """
+    poly_table = ML_NewTable(dimensions=[indexing.split_num, poly_max_degree+1], storage_precision=coeff_precision, const=True)
+    offset_table = ML_NewTable(dimensions=[indexing.split_num], storage_precision=coeff_precision, const=True)
+    max_error = 0.0
+
+    for sub_index in range(indexing.split_num):
+        offset, approx_interval = indexing.get_offseted_sub_interval(sub_index)
+        offset_table[sub_index] = offset
+
+        local_approx = axf_approx.approx_list[sub_index]
+
+        poly_object = local_approx.poly
+        approx_error = local_approx.approx_error
+
+        for monomial_index in range(poly_max_degree+1):
+            if monomial_index in poly_object.coeff_map:
+                poly_table[sub_index][monomial_index] = poly_object.coeff_map[monomial_index] 
+            else:
+                poly_table[sub_index][monomial_index] = 0
+
+                max_error = max(approx_error, max_error)
+
+    return offset_table, poly_max_degree, poly_table, max_error, axf_approx
+
+
+def generic_poly_split_paramgen(offset_fct, indexing, target_eps, coeff_precision, axf_export=False):
     # computing degree for a different polynomial approximation on each
     # sub-interval
     poly_degree_list = [int(sup(guessdegree(offset_fct(offset), sub_interval, target_eps))) for offset, sub_interval in indexing.get_offseted_sub_list()]
@@ -201,6 +232,15 @@ def generic_poly_split(offset_fct, indexing, target_eps, coeff_precision, vx):
     poly_table = ML_NewTable(dimensions=[indexing.split_num, poly_max_degree+1], storage_precision=coeff_precision, const=True)
     offset_table = ML_NewTable(dimensions=[indexing.split_num], storage_precision=coeff_precision, const=True)
     max_error = 0.0
+
+    # object for AXF export
+    if axf_export:
+        # TODO/FIXME/ using offset_fct evaluation at 0 to provide a dumpable
+        #             function. We may prefer an non-evaluated offset_fct
+        #             transcription
+        axf_approx = AXF_GenericPolynomialSplit(offset_fct(0), indexing, poly_max_degree, target_eps, coeff_precision)
+    else:
+        axf_approx = None
 
     for sub_index in range(indexing.split_num):
         poly_degree = poly_degree_list[sub_index]
@@ -215,6 +255,13 @@ def generic_poly_split(offset_fct, indexing, target_eps, coeff_precision, vx):
                 poly_table[sub_index][monomial_index] = 0
             approx_error = sollya.infnorm(offset_fct(offset) - local_approx, approx_interval) 
 
+            if axf_export:
+                axf_approx.approx_list.append(
+                    AXF_SimplePolyApprox(Polynomial({0: local_approx}),
+                                         offset_fct(offset), [0], [coeff_precision],
+                                         approx_interval, absolute=True,
+                                         approx_error=approx_error)) 
+
         else:
             poly_object, approx_error = Polynomial.build_from_approximation_with_error(
                 offset_fct(offset), poly_degree, [coeff_precision]*(poly_degree+1),
@@ -225,10 +272,20 @@ def generic_poly_split(offset_fct, indexing, target_eps, coeff_precision, vx):
                     poly_table[sub_index][monomial_index] = poly_object.coeff_map[monomial_index] 
                 else:
                     poly_table[sub_index][monomial_index] = 0
+
+            if axf_export:
+                axf_approx.approx_list.append(
+                    AXF_SimplePolyApprox(poly_object,
+                                         offset_fct(offset), list(range(poly_degree+1)),
+                                         [coeff_precision]*(poly_degree+1),
+                                         approx_interval, absolute=False,
+                                         approx_error=approx_error)) 
         max_error = max(approx_error, max_error)
 
-    Log.report(Log.Debug, "max approx error is {}", max_error)
+    return offset_table, poly_max_degree, poly_table, max_error, axf_approx
 
+
+def generic_poly_split_from_params(offset_table, poly_max_degree, poly_table, indexing, coeff_precision, vx):
     # indexing function: derive index from input @p vx value
     poly_index = indexing.get_index_node(vx)
     poly_index.set_attributes(tag="poly_index", debug=debug_multi)
@@ -243,11 +300,29 @@ def generic_poly_split(offset_fct, indexing, target_eps, coeff_precision, vx):
         coeff = TableLoad(poly_table, poly_index, monomial_index, precision=coeff_precision, tag="poly_%d" % monomial_index, debug=debug_multi)
         #fma_precision = coeff_precision if monomial_index > 1 else ext_precision
         fma_precision = coeff_precision
+        # TODO/FIXME: only using Horner evaluation scheme
         poly = FMA(red_vx, poly, coeff, precision=fma_precision)
 
     #return Conversion(poly, precision=coeff_precision)
     #return poly.hi
     return poly
+
+def generic_poly_split(offset_fct, indexing, target_eps, coeff_precision, vx, axf_export=False):
+    """ generate the meta approximation for @p offset_fct over several
+        intervals defined by @p indexing object
+        For each sub-interval, a polynomial approximation with
+        maximal_error @p target_eps is tabulated, and evaluated using format
+        @p coeff_precision.
+        The input variable is @p vx """
+
+    offset_table, poly_max_degree, poly_table, max_error, axf_approx = generic_poly_split_paramgen(offset_fct, indexing,
+                                                                    target_eps, coeff_precision,
+                                                                    axf_export=axf_export)
+    Log.report(Log.Debug, "max approx error is {}", max_error)
+
+    poly = generic_poly_split_from_params(offset_table, poly_max_degree, poly_table, indexing, coeff_precision, vx)
+
+    return poly, axf_approx
 
 def search_bound_threshold(fct, limit, start_point, end_point, precision):
     """ This function assume that <fct> is monotonic and increasing
@@ -324,7 +399,8 @@ def piecewise_approximation_paramgen(
         max_degree=2,
         error_threshold=S2**-24,
         odd=False,
-        even=False):
+        even=False,
+        axf_export=False):
     """ Generate the parameters of a piecewise approximation
 
         :param function: function to be approximated
@@ -350,8 +426,11 @@ def piecewise_approximation_paramgen(
     )
     degree_list = list(degree_generator)
 
-    axf_approx = AXF_PiecewiseApprox(
-        function(sollya.x), precision, bound_low, bound_high, num_intervals, max_degree, error_threshold, odd, even)
+    if axf_export:
+        axf_approx = AXF_UniformPiecewiseApprox(
+            function(sollya.x), precision, bound_low, bound_high, num_intervals, max_degree, error_threshold, odd, even)
+    else:
+        axf_approx = None
 
     # if max_degree is None then we determine it locally
     if max_degree is None:
@@ -399,8 +478,9 @@ def piecewise_approximation_paramgen(
             )
             # multiply by sollya.x
             poly_object = poly_object.sub_poly(offset=-1)
-            axf_approx.approx_list.append(
-                AXF_SimplePolyApprox(poly_object, function(sollya.x), [d+1 for d in local_poly_degree_list], format_list, Interval(subint_low, subint_high), absolute=True, approx_error=approx_error)) 
+            if axf_export:
+                axf_approx.approx_list.append(
+                    AXF_SimplePolyApprox(poly_object, function(sollya.x), [d+1 for d in local_poly_degree_list], format_list, Interval(subint_low, subint_high), absolute=True, approx_error=approx_error)) 
         else:
             try:
                 poly_object, approx_error = Polynomial.build_from_approximation_with_error(
@@ -424,8 +504,9 @@ def piecewise_approximation_paramgen(
                     approx_error = diff_with_cst
                 else:
                     Log.report(Log.error, "degree: {} for index {}, diff_with_cst={} (vs error_threshold={}) ", degree, i, diff_with_cst, error_threshold, error=err)
-            axf_approx.approx_list.append(
-                AXF_SimplePolyApprox(poly_object, local_function, range(degree+1), [precision] * (degree+1), Interval(subint_low, subint_high), absolute=True, approx_error=approx_error)) 
+            if axf_export:
+                axf_approx.approx_list.append(
+                    AXF_SimplePolyApprox(poly_object, local_function, range(degree+1), [precision] * (degree+1), Interval(subint_low, subint_high), absolute=True, approx_error=approx_error)) 
         for ci in range(max_degree+1):
             if ci in poly_object.coeff_map:
                 coeff_table[i][ci] = poly_object.coeff_map[ci]
@@ -436,9 +517,8 @@ def piecewise_approximation_paramgen(
             Log.report(Log.Warning, "piecewise_approximation on index {} exceeds error threshold: {} > {}", i, approx_error, error_threshold)
         max_approx_error = max(max_approx_error,abs(approx_error))
 
-    print(axf_approx.export())
 
-    return interval_size, coeff_table, max_approx_error
+    return interval_size, coeff_table, max_approx_error, axf_approx
 
 def piecewise_param_from_axf(axf_approx):
     """ load a piecewise approximation parameter from an
@@ -522,7 +602,7 @@ def piecewise_approximation(
         :rtype tuple(ML_Operation, SollyaObject): """
 
 
-    interval_size, coeff_table, max_approx_error = piecewise_approximation_paramgen(
+    interval_size, coeff_table, max_approx_error, axf_export = piecewise_approximation_paramgen(
         function,
         variable,
         precision,
