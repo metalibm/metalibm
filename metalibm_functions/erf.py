@@ -34,6 +34,7 @@
 ###############################################################################
 
 import sollya
+import yaml
 
 from sollya import (
     Interval, ceil, floor, round, inf, sup, log, exp, log1p,
@@ -70,6 +71,7 @@ class ML_Erf(ScalarUnaryFunction):
     function_name = "ml_erf"
     def __init__(self, args):
         super().__init__(args)
+        self.dump_axf_approx = args.dump_axf_approx
 
     @staticmethod
     def get_default_args(**kw):
@@ -141,15 +143,20 @@ class ML_Erf(ScalarUnaryFunction):
         }[self.precision]
 
         near_indexing = SubFPIndexing(eps_exp, 0, 6, self.precision)
-        near_approx = generic_poly_split(offset_div_function(sollya.erf), near_indexing, eps_target, self.precision, abs_vx)
+        near_approx, axf_near_approx = generic_poly_split(offset_div_function(sollya.erf), near_indexing, eps_target, self.precision, abs_vx, axf_export=self.dump_axf_approx)
         near_approx.set_attributes(tag="near_approx", debug=debug_multi)
 
         def offset_function(fct):
             return lambda offset: fct(sollya.x + offset)
         medium_indexing = SubFPIndexing(1, one_limit_exp, 7, self.precision)
 
-        medium_approx = generic_poly_split(offset_function(sollya.erf), medium_indexing, eps_target, self.precision, abs_vx)
+        medium_approx, axf_medium_approx= generic_poly_split(offset_function(sollya.erf), medium_indexing, eps_target, self.precision, abs_vx, axf_export=self.dump_axf_approx)
         medium_approx.set_attributes(tag="medium_approx", debug=debug_multi)
+
+        if self.dump_axf_approx:
+            axf_near_approx.tag = "erf-near"
+            axf_medium_approx.tag = "erf-medium"
+            print(yaml.dump([axf_near_approx, axf_medium_approx]))
 
         # approximation for positive values
         scheme = ConditionBlock(
@@ -188,7 +195,11 @@ class ML_Erf(ScalarUnaryFunction):
 if __name__ == "__main__":
         # auto-test
         arg_template = ML_NewArgTemplate(default_arg=ML_Erf.get_default_args())
-        args = arg_template.arg_extraction()
 
+        arg_template.get_parser().add_argument(
+             "--dump-axf-approx", default=False, const=True,
+            action="store_const", help="dump approximations in AXF format")
+
+        args = arg_template.arg_extraction()
         ml_erf = ML_Erf(args)
         ml_erf.gen_implementation()
