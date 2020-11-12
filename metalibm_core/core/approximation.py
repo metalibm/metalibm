@@ -526,10 +526,10 @@ def piecewise_param_from_axf(axf_approx):
 
     max_degree = axf_approx.max_degree
     num_intervals = axf_approx.num_intervals
-    precision = precision_parser(axf_approx.precision) 
-    bound_high = sollya.parse(axf_approx.bound_high)
-    bound_low = sollya.parse(axf_approx.bound_low)
-    error_threshold = sollya.parse(axf_approx.error_threshold)
+    precision = axf_approx.precision
+    bound_high = axf_approx.bound_high
+    bound_low = axf_approx.bound_low
+    error_threshold = axf_approx.error_threshold
 
     # table to store coefficients of the approximation on each segment
     coeff_table = ML_NewTable(
@@ -550,10 +550,10 @@ def piecewise_param_from_axf(axf_approx):
         local_interval = Interval(-interval_size, interval_size)
 
         local_approx = axf_approx.approx_list[i]
-        approx_error = sollya.parse(local_approx.approx_error)
+        approx_error = local_approx.approx_error
 
         poly_object = local_approx.poly
-        axf_interval = sollya.parse(local_approx.interval)
+        axf_interval = local_approx.interval
 
         # enforcing validity checks on local approximation
         assert subint_low == sollya.inf(axf_interval)
