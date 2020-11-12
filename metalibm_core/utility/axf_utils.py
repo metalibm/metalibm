@@ -30,24 +30,89 @@
 ###############################################################################
 
 import yaml
+import json
 import sollya
 
 from metalibm_core.core.polynomials import Polynomial
+from metalibm_core.utility.ml_template import precision_parser
+
+class SimplePolyApprox:
+    def __init__(self, poly, fct, degree_list, format_list, interval,
+                 absolute=True, approx_error=None):
+        self.function = fct
+        self.degree_list = [int(d) for d in degree_list]
+        self.format_list = [f for f in format_list]
+        self.interval = interval
+        self.absolute = absolute
+        self.poly = poly
+        self.approx_error = approx_error
 
 class AXF_SimplePolyApprox(yaml.YAMLObject):
     """ AXF object for basic polynomial approximation """
     yaml_tag = u'!SimplePolyApprox'
-    def __init__(self, poly, fct, degree_list, format_list, interval, absolute=True, approx_error=None):
+    def __init__(self, poly, fct, degree_list, format_list, interval,
+                 absolute=True, approx_error=None):
+        self.poly = poly
         self.function = str(fct)
         self.degree_list = [int(d) for d in degree_list]
         self.format_list = [str(f) for f in format_list]
         self.interval = str(interval)
         self.absolute = absolute
-        self.poly = poly
         self.approx_error = str(approx_error)
 
     def export(self):
         return yaml.dump(self)
+
+    def serialize_to_dict(self):
+        return {
+            "class": self.yaml_tag,
+            "function": self.function,
+            "degree_list": self.degree_list,
+            "format_list": self.format_list,
+            "interval": self.interval,
+            "absolute": self.absolute,
+            "poly": self.poly.serialize_to_dict(),
+            "approx_error": self.approx_error
+        }
+    @staticmethod
+    def from_SPA(simple_poly_approx):
+        return AXF_SimplePolyApprox(
+            AXF_Polynomial(simple_poly_approx.poly.coeff_map),
+            str(simple_poly_approx.fct),
+            simple_poly_approx.degree_list,
+            [str(f) for f in simple_poly_approx.format_list],
+            str(simple_poly_approx.interval),
+            simple_poly_approx.absolute,
+            str(simple_poly_approx.approx_error),
+        )
+
+    @staticmethod
+    def deserialize_from_dict(d):
+        return AXF_SimplePolyApprox(
+            AXF_Polynomial.deserialize_from_dict(d["poly"]),
+            d["function"],
+            d["degree_list"],
+            d["format_list"],
+            d["interval"],
+            absolute=d["absolute"],
+            approx_error=d["approx_error"],
+        )
+
+    def export_to_SPA(self):
+        """ convert object to SimplePolyApprox """
+        return SimplePolyApprox(
+            self.poly.export_to_poly(), # poly
+            self.function,
+            self.degree_list,
+            [precision_parser(f) for f in self.format_list],
+            sollya.parse(self.interval),
+            absolute=self.absolute,
+            approx_error=sollya.parse(self.approx_error)
+        )
+
+    def to_ml_object(self):
+        return self.export_to_SPA()
+
 
 
 class AXF_Polynomial(yaml.YAMLObject):
@@ -58,17 +123,40 @@ class AXF_Polynomial(yaml.YAMLObject):
     def __repr__(self):
         return "%s(coeff_map=%r)" % (
             self.__class__.__name__, self.coeff_map)
-    def to_ml_poly(self):
+    def export_to_poly(self):
         return Polynomial({k: sollya.parse(v) for k,v in self.coeff_map.items()})
     def convert_coeff_map(self):
         return {k: sollya.parse(v) for k,v in self.coeff_map.items()}
+    @staticmethod
+    def deserialize_from_dict(d):
+        return AXF_Polynomial({int(k): v for k, v in d.items()})
+    def serialize_to_dict(self):
+        return self.coeff_map
+    def to_ml_object(self):
+        return self.export_to_poly()
+
+class UniformPieceWiseApprox:
+    def __init__(self, function, precision, bound_low, bound_high,
+                 num_intervals, max_degree, error_threshold,
+                 odd=False, even=False, tag="", approx_list=None):
+        self.function = function
+        self.bound_low = bound_low
+        self.bound_high = bound_high
+        self.num_intervals = int(num_intervals)
+        self.max_degree = int(max_degree)
+        self.error_threshold = error_threshold
+        self.odd = bool(odd)
+        self.even = bool(even)
+        self.approx_list = [] if approx_list is None else approx_list
+        self.precision = precision
+        self.tag = tag
 
 class AXF_UniformPiecewiseApprox(yaml.YAMLObject):
     """ AXF object for piecewise approximation encoding """
     yaml_tag = u'!PieceWiseApprox'
     def __init__(self, function, precision, bound_low, bound_high,
                  num_intervals, max_degree, error_threshold,
-                 odd=False, even=False, tag=""):
+                 odd=False, even=False, tag="", approx_list=None):
         self.function = str(function)
         self.bound_low = str(bound_low)
         self.bound_high = str(bound_high)
@@ -77,13 +165,84 @@ class AXF_UniformPiecewiseApprox(yaml.YAMLObject):
         self.error_threshold = str(error_threshold)
         self.odd = bool(odd)
         self.even = bool(even)
-        self.approx_list = []
+        self.approx_list = [] if approx_list is None else approx_list
         self.precision = str(precision)
         self.tag = tag
 
     def export(self):
         sollya.settings.display = sollya.hexadecimal
         return yaml.dump(self)
+
+    def serialize_to_dict(self):
+        """ re-implementation of __dict__ compatible with JSON-based AXF
+            emission """
+        return {
+            "class": self.yaml_tag,
+            "function": self.function,
+            "precision": self.precision,
+            "bound_low": self.bound_low,
+            "bound_high": self.bound_high,
+            "num_intervals": self.num_intervals,
+            "max_degree": self.max_degree,
+            "error_threshold": self.error_threshold,
+            "odd": self.odd, "even": self.even,
+            "tag": self.tag,
+            "approx_list": [approx.serialize_to_dict() for approx in self.approx_list],
+        }
+
+    @staticmethod
+    def from_UPWA(upwa):
+        """ build and AXF_UniformPiecewiseApprox from a
+            UniformPieceWiseApprox object """
+        return AXF_UniformPiecewiseApprox(
+            upwa.function,
+            upwa.precision,
+            upwa.bound_low,
+            upwa.bound_high,
+            upwa.num_intervals,
+            upwa.max_degree,
+            upwa.error_threshold,
+            upwa.odd,
+            upwa.even,
+            upwa.tag,
+            approx_list=[AXF_SimplePolyApprox.from_SPA(spa) for spa in upwa.approx_list]
+        )
+
+    @staticmethod
+    def deserialize_from_dict(d):
+        return AXF_UniformPiecewiseApprox(
+            d["function"],
+            d["precision"],
+            d["bound_low"],
+            d["bound_high"],
+            d["num_intervals"],
+            d["max_degree"],
+            d["error_threshold"],
+            odd=d["odd"], even=d["even"],
+            tag=d["tag"],
+            approx_list=[AXF_SimplePolyApprox.deserialize_from_dict(v) for v in d["approx_list"]]
+        )
+
+    def export_to_UPWA(self):
+        """ convert self AXF_UniformPiecewiseApprox object
+            to a UniformPieceWiseApprox object """
+        return UniformPieceWiseApprox(
+            self.function,
+            precision_parser(self.precision),
+            sollya.parse(self.bound_low),
+            sollya.parse(self.bound_high),
+            self.num_intervals,
+            self.max_degree,
+            sollya.parse(self.error_threshold),
+            self.odd,
+            self.even,
+            self.tag,
+            approx_list=[(axf_spa.export_to_SPA()) for axf_spa in self.approx_list]
+        )
+
+    def to_ml_object(self):
+        return self.export_to_UPWA()
+            
 
 
 class AXF_GenericPolynomialSplit(yaml.YAMLObject):
@@ -102,6 +261,7 @@ class AXF_GenericPolynomialSplit(yaml.YAMLObject):
         sollya.settings.display = sollya.hexadecimal
         return yaml.dump(self)
 
+
 # add specific YAML representation for metalibm's Polynomial
 def poly_representer(dumper, data):
     return AXF_Polynomial.to_yaml(dumper, AXF_Polynomial(data.coeff_map))
@@ -114,7 +274,7 @@ def poly_constructor(loader, node):
     instance.__init__({k: sollya.parse(str(v)) for k,v in state["coeff_map"].items()})
 
 yaml.add_representer(Polynomial, poly_representer)
-yaml.add_constructor(u'!Polynomial', poly_constructor)
+# yaml.add_constructor(u'!Polynomial', poly_constructor)
 
 class AXF_Exporter:
     def __init__(self, fct, approx_list):
@@ -141,7 +301,26 @@ class AXF_Importer:
     def from_str(s):
         """ import an approximation description from a string description
             in AXF format """
-        return yaml.load(s)
+        return yaml.load(s).to_ml_object()
+
+class AXF_JSON_Importer:
+    """ Import for AXF storage to Metalibm's classes """
+    @staticmethod
+    def from_file(filename):
+        """ import an approximation description from a source file in .axf
+            format """
+        with open(filename, 'r') as stream:
+            return AXF_JSON_Importer.from_str(stream.read())
+
+    @staticmethod
+    def from_str(s):
+        """ import an approximation description from a string description
+            in AXF format """
+        serialized_dict = json.loads(s)
+        for ctor_class in [AXF_UniformPiecewiseApprox]:
+            if ctor_class.yaml_tag == serialized_dict["class"]:
+                return ctor_class.deserialize_from_dict(serialized_dict).to_ml_object()
+        raise Exception("unable to find deserializer for json class %s" % serialized_dict["class"])
 
 if __name__ == "__main__":
     from metalibm_core.core.polynomials import Polynomial
