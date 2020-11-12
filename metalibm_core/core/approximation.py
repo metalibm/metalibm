@@ -518,7 +518,7 @@ def piecewise_approximation_paramgen(
         max_approx_error = max(max_approx_error,abs(approx_error))
 
 
-    return interval_size, coeff_table, max_approx_error, axf_approx
+    return interval_size, coeff_table, max_approx_error, max_degree, axf_approx
 
 def piecewise_param_from_axf(axf_approx):
     """ load a piecewise approximation parameter from an
@@ -602,7 +602,9 @@ def piecewise_approximation(
         :rtype tuple(ML_Operation, SollyaObject): """
 
 
-    interval_size, coeff_table, max_approx_error, axf_export = piecewise_approximation_paramgen(
+    # NOTES: max_degree may-be updated (if pre-defined as None) when
+    #        returning from piecewise_approximation_paramgen
+    interval_size, coeff_table, max_approx_error, max_degree, axf_export = piecewise_approximation_paramgen(
         function,
         variable,
         precision,

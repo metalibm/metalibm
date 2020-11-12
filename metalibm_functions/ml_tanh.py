@@ -207,7 +207,7 @@ class ML_HyperbolicTangent(ScalarUnaryFunction):
             approx_scheme = piecewise_evaluation_from_param(abs_vx, self.precision, near_zero_bound, high_bound, max_degree, interval_num, interval_size, coeff_table)
 
         else:
-            interval_size, coeff_table, approx_error, axf_export = piecewise_approximation_paramgen(
+            interval_size, coeff_table, approx_error, max_degree, axf_export = piecewise_approximation_paramgen(
                 sollya.tanh,
                 abs_vx,
                 self.precision,
