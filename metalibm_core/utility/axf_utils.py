@@ -52,7 +52,7 @@ class AXF_SimplePolyApprox(yaml.YAMLObject):
     yaml_tag = u'!SimplePolyApprox'
     def __init__(self, poly, fct, degree_list, format_list, interval,
                  absolute=True, approx_error=None):
-        self.poly = poly
+        self.poly = AXF_Polynomial(poly.coeff_map)
         self.function = str(fct)
         self.degree_list = [int(d) for d in degree_list]
         self.format_list = [str(f) for f in format_list]
@@ -242,18 +242,27 @@ class AXF_UniformPiecewiseApprox(yaml.YAMLObject):
 
     def to_ml_object(self):
         return self.export_to_UPWA()
-            
 
+class GenericPolynomialSplit:
+    def __init__(self, offset_fct, indexing, poly_max_degree, target_eps, coeff_precision, tag="", approx_list=None):
+        self.offset_fct = str(offset_fct)
+        self.indexing = indexing
+        self.target_eps = target_eps
+        self.coeff_precision = coeff_precision
+        self.approx_list = [] if approx_list is None else approx_list
+        self.tag = tag
+        self.poly_max_degree = int(poly_max_degree)
+            
 
 class AXF_GenericPolynomialSplit(yaml.YAMLObject):
     """ AXF object for a piecewise generic polynomial approximation encoding """
     yaml_tag = u'!GenericPolynomialSplit'
-    def __init__(self, offset_fct, indexing, poly_max_degree, target_eps, coeff_precision, tag=""):
+    def __init__(self, offset_fct, indexing, poly_max_degree, target_eps, coeff_precision, tag="", approx_list=None):
         self.offset_fct = str(offset_fct)
         self.indexing = str(indexing)
         self.target_eps = str(target_eps)
         self.coeff_precision = str(coeff_precision)
-        self.approx_list = []
+        self.approx_list = [] if approx_list is None else approx_list
         self.tag = tag
         self.poly_max_degree = int(poly_max_degree)
 
@@ -261,6 +270,62 @@ class AXF_GenericPolynomialSplit(yaml.YAMLObject):
         sollya.settings.display = sollya.hexadecimal
         return yaml.dump(self)
 
+    def serialize_to_dict(self):
+        """ re-implementation of __dict__ compatible with JSON-based AXF emission """
+        return {
+            "class": self.yaml_tag,
+            "offset_fct": self.offset_fct,
+            "indexing": self.indexing,
+            "target_eps": self.target_eps,
+            "coeff_precision": self.coeff_precision,
+            "approx_list": [approx.serialize_to_dict() for approx in self.approx_list],
+            "tag": self.tag,
+            "poly_max_degree": self.poly_max_degree,
+        }
+
+    @staticmethod
+    def from_GenericPolynomialSplit(gps):
+        """ build and AXF_GenericPolynomialSplit from a
+            GenericPolynomialSplit object """
+        return AXF_GenericPolynomialSplit(
+            gps.offset_fct,
+            gps.indexing,
+            gps.poly_max_degree,
+            gps.target_eps,
+            gps.coeff_precision,
+            gps.tag,
+            approx_list=[AXF_SimplePolyApprox.from_SPA(spa) for spa in upwa.approx_list]
+        )
+
+    @staticmethod
+    def deserialize_from_dict(d):
+        return AXF_GenericPolynomialSplit(
+            d["offset_fct"],
+            d["indexing"],
+            d["poly_max_degree"],
+            d["target_eps"],
+            d["coeff_precision"],
+            d["tag"],
+            approx_list=[AXF_SimplePolyApprox.deserialize_from_dict(v) for v in d["approx_list"]]
+        )
+
+    def export_to_GPS(self):
+        """ convert self AXF_GenericPolynomialSplit object
+            to a GenericPolynomialSplit object """
+        return GenericPolynomialSplit(
+            self.offset_fct,
+            self.indexing, # TODO/FIXME eval(self.indexing), # SubFPIndexing
+            self.poly_max_degree,
+            sollya.parse(self.target_eps),
+            precision_parser(self.coeff_precision),
+            self.tag,
+            approx_list=[(axf_spa.export_to_SPA()) for axf_spa in self.approx_list]
+        )
+
+    def to_ml_object(self):
+        """ generic AXF class to Metalibm Object transform API """
+        return self.export_to_GPS()
+            
 
 # add specific YAML representation for metalibm's Polynomial
 def poly_representer(dumper, data):
@@ -303,8 +368,14 @@ class AXF_Importer:
             in AXF format """
         return yaml.load(s).to_ml_object()
 
+class AXF_JSON_Exporter:
+    @staticmethod
+    def to_file(filename, serialized_approx):
+        with open(filename, "w") as out_stream:
+            out_stream.write(json.dumps(serialized_approx, sort_keys=True, indent=4))
+
 class AXF_JSON_Importer:
-    """ Import for AXF storage to Metalibm's classes """
+    """ Import for json-based AXF storage to Metalibm's classes """
     @staticmethod
     def from_file(filename):
         """ import an approximation description from a source file in .axf
@@ -316,8 +387,17 @@ class AXF_JSON_Importer:
     def from_str(s):
         """ import an approximation description from a string description
             in AXF format """
-        serialized_dict = json.loads(s)
-        for ctor_class in [AXF_UniformPiecewiseApprox]:
+        axf_dict = json.loads(s)
+        # json AXF string contains ether an approximation as a dict
+        # or a list of approximations as a list of dict
+        if isinstance(axf_dict, list):
+            return [AXF_JSON_Importer.serialized_dict_to_ml_object(sub_dict) for sub_dict in axf_dict]
+        else:
+            return AXF_JSON_Importer.serialized_dict_to_ml_object(axf_dict)
+
+    @staticmethod
+    def serialized_dict_to_ml_object(serialized_dict):
+        for ctor_class in [AXF_UniformPiecewiseApprox, AXF_GenericPolynomialSplit]:
             if ctor_class.yaml_tag == serialized_dict["class"]:
                 return ctor_class.deserialize_from_dict(serialized_dict).to_ml_object()
         raise Exception("unable to find deserializer for json class %s" % serialized_dict["class"])
