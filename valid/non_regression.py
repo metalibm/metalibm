@@ -55,6 +55,7 @@ import metalibm_functions.remquo
 
 import metalibm_functions.softmax
 import metalibm_functions.vectorial_function
+import metalibm_functions.erf
 
 from metalibm_core.core.ml_formats import ML_Binary32, ML_Binary64, ML_Int32, ML_Int64
 from metalibm_core.core.precisions import dar, ML_CorrectlyRounded
@@ -127,6 +128,13 @@ new_scheme_function_list = [
     [{"precision": ML_Binary32, "auto_test": 1000, "execute_trigger": True},
     {"precision": ML_Binary64}]
   ),
+  NewSchemeTest(
+    "basic error function test",
+    metalibm_functions.erf.ML_Erf,
+    [{"precision": ML_Binary32, "auto_test": 1000, "execute_trigger": True},
+     {"precision": ML_Binary64, "auto_test": 1000, "execute_trigger": True }]
+  ),
+
   NewSchemeTest(
     "auto test hyperbolic cosine",
     metalibm_functions.ml_cosh.ML_HyperbolicCosine,
