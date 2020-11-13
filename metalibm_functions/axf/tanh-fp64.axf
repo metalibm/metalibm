@@ -22443,8 +22443,7 @@ approx_list:
   poly: !Polynomial
     coeff_map: {0: tanh(0x1.00ep5), 1: '0', 2: '0', 3: '0', 4: '0', 5: '0', 6: '0',
       7: '0'}
-bound_high: '32.125'
-bound_low: '0.125'
+interval: '[0.125; 32.125]'
 error_threshold: '1.1102230246251565404236316680908203125e-16'
 even: false
 function: tanh(_x_)

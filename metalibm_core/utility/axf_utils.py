@@ -137,12 +137,11 @@ class AXF_Polynomial(yaml.YAMLObject):
         return self.export_to_poly()
 
 class UniformPieceWiseApprox:
-    def __init__(self, function, precision, bound_low, bound_high,
+    def __init__(self, function, precision, interval,
                  num_intervals, max_degree, error_threshold,
                  odd=False, even=False, tag="", approx_list=None):
         self.function = function
-        self.bound_low = bound_low
-        self.bound_high = bound_high
+        self.interval = interval
         self.num_intervals = int(num_intervals)
         self.max_degree = int(max_degree)
         self.error_threshold = error_threshold
@@ -155,12 +154,11 @@ class UniformPieceWiseApprox:
 class AXF_UniformPiecewiseApprox(yaml.YAMLObject):
     """ AXF object for piecewise approximation encoding """
     yaml_tag = u'!PieceWiseApprox'
-    def __init__(self, function, precision, bound_low, bound_high,
+    def __init__(self, function, precision, interval,
                  num_intervals, max_degree, error_threshold,
                  odd=False, even=False, tag="", approx_list=None):
         self.function = str(function)
-        self.bound_low = str(bound_low)
-        self.bound_high = str(bound_high)
+        self.interval = str(interval)
         self.num_intervals = int(num_intervals)
         self.max_degree = int(max_degree)
         self.error_threshold = str(error_threshold)
@@ -181,8 +179,7 @@ class AXF_UniformPiecewiseApprox(yaml.YAMLObject):
             "class": self.yaml_tag,
             "function": self.function,
             "precision": self.precision,
-            "bound_low": self.bound_low,
-            "bound_high": self.bound_high,
+            "interval": self.interval,
             "num_intervals": self.num_intervals,
             "max_degree": self.max_degree,
             "error_threshold": self.error_threshold,
@@ -198,8 +195,7 @@ class AXF_UniformPiecewiseApprox(yaml.YAMLObject):
         return AXF_UniformPiecewiseApprox(
             upwa.function,
             upwa.precision,
-            upwa.bound_low,
-            upwa.bound_high,
+            upwa.interval,
             upwa.num_intervals,
             upwa.max_degree,
             upwa.error_threshold,
@@ -214,8 +210,7 @@ class AXF_UniformPiecewiseApprox(yaml.YAMLObject):
         return AXF_UniformPiecewiseApprox(
             d["function"],
             d["precision"],
-            d["bound_low"],
-            d["bound_high"],
+            d["interval"],
             d["num_intervals"],
             d["max_degree"],
             d["error_threshold"],
@@ -230,8 +225,7 @@ class AXF_UniformPiecewiseApprox(yaml.YAMLObject):
         return UniformPieceWiseApprox(
             self.function,
             precision_parser(self.precision),
-            sollya.parse(self.bound_low),
-            sollya.parse(self.bound_high),
+            sollya.parse(self.interval),
             self.num_intervals,
             self.max_degree,
             sollya.parse(self.error_threshold),
