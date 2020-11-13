@@ -51,8 +51,9 @@ from metalibm_core.core.precisions import ML_Faithful
 from metalibm_core.core.special_values import (
         FP_QNaN, FP_MinusInfty, FP_PlusInfty, FP_PlusZero
 )
+from metalibm_core.core.indexing import SubFPIndexing
 from metalibm_core.core.approximation import (
-    search_bound_threshold, generic_poly_split, SubFPIndexing,
+    search_bound_threshold, generic_poly_split,
     generic_poly_split_param_from_axf,
     generic_poly_split_from_params
 )
