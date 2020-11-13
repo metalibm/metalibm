@@ -79,7 +79,7 @@ class ML_HyperbolicTangent(ScalarUnaryFunction):
     def __init__(self, args=DefaultArgTemplate):
         # initializing base class
         super().__init__(args)
-        self.load_approx = args.load_approx
+        self.load_axf_approx = args.load_axf_approx
         self.axf_export = args.axf_export
 
     @staticmethod
@@ -91,7 +91,7 @@ class ML_HyperbolicTangent(ScalarUnaryFunction):
             "function_name": "my_tanh",
             "precision": ML_Binary32,
             "accuracy": ML_Faithful,
-            "load_approx": None,
+            "load_axf_approx": None,
             "axf_export": False,
             "target": GenericProcessor.get_target_instance()
         }
@@ -200,9 +200,9 @@ class ML_HyperbolicTangent(ScalarUnaryFunction):
 
         sollya.settings.points = 117
 
-        if self.load_approx:
+        if self.load_axf_approx:
             Log.report(Log.Debug, "loading approximation from file")
-            axf_approx = AXF_JSON_Importer.from_file(self.load_approx)
+            axf_approx = AXF_JSON_Importer.from_file(self.load_axf_approx)
             interval_size, coeff_table, approx_error, max_degree = piecewise_param_from_axf(axf_approx)
             approx_scheme = piecewise_evaluation_from_param(abs_vx, self.precision, near_zero_bound, high_bound, max_degree, interval_num, interval_size, coeff_table)
 
@@ -272,7 +272,7 @@ if __name__ == "__main__":
     arg_template = ML_NewArgTemplate(
         default_arg=ML_HyperbolicTangent.get_default_args())
     arg_template.get_parser().add_argument(
-         "--load-approx", default=None,
+         "--load-axf-approx", default=None,
         action="store", help="load tanh approx from an axf file rathen than computing it")
     arg_template.get_parser().add_argument(
          "--axf-export", default=False,

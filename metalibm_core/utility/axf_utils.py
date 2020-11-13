@@ -244,27 +244,27 @@ class AXF_UniformPiecewiseApprox(yaml.YAMLObject):
         return self.export_to_UPWA()
 
 class GenericPolynomialSplit:
-    def __init__(self, offset_fct, indexing, poly_max_degree, target_eps, coeff_precision, tag="", approx_list=None):
+    def __init__(self, offset_fct, indexing, max_degree, target_eps, coeff_precision, tag="", approx_list=None):
         self.offset_fct = str(offset_fct)
         self.indexing = indexing
         self.target_eps = target_eps
         self.coeff_precision = coeff_precision
         self.approx_list = [] if approx_list is None else approx_list
         self.tag = tag
-        self.poly_max_degree = int(poly_max_degree)
-            
+        self.max_degree = int(max_degree)
+
 
 class AXF_GenericPolynomialSplit(yaml.YAMLObject):
     """ AXF object for a piecewise generic polynomial approximation encoding """
     yaml_tag = u'!GenericPolynomialSplit'
-    def __init__(self, offset_fct, indexing, poly_max_degree, target_eps, coeff_precision, tag="", approx_list=None):
+    def __init__(self, offset_fct, indexing, max_degree, target_eps, coeff_precision, tag="", approx_list=None):
         self.offset_fct = str(offset_fct)
         self.indexing = str(indexing)
         self.target_eps = str(target_eps)
         self.coeff_precision = str(coeff_precision)
         self.approx_list = [] if approx_list is None else approx_list
         self.tag = tag
-        self.poly_max_degree = int(poly_max_degree)
+        self.max_degree = int(max_degree)
 
     def export(self):
         sollya.settings.display = sollya.hexadecimal
@@ -280,7 +280,7 @@ class AXF_GenericPolynomialSplit(yaml.YAMLObject):
             "coeff_precision": self.coeff_precision,
             "approx_list": [approx.serialize_to_dict() for approx in self.approx_list],
             "tag": self.tag,
-            "poly_max_degree": self.poly_max_degree,
+            "max_degree": self.max_degree,
         }
 
     @staticmethod
@@ -290,7 +290,7 @@ class AXF_GenericPolynomialSplit(yaml.YAMLObject):
         return AXF_GenericPolynomialSplit(
             gps.offset_fct,
             gps.indexing,
-            gps.poly_max_degree,
+            gps.max_degree,
             gps.target_eps,
             gps.coeff_precision,
             gps.tag,
@@ -302,7 +302,7 @@ class AXF_GenericPolynomialSplit(yaml.YAMLObject):
         return AXF_GenericPolynomialSplit(
             d["offset_fct"],
             d["indexing"],
-            d["poly_max_degree"],
+            d["max_degree"],
             d["target_eps"],
             d["coeff_precision"],
             d["tag"],
@@ -315,7 +315,7 @@ class AXF_GenericPolynomialSplit(yaml.YAMLObject):
         return GenericPolynomialSplit(
             self.offset_fct,
             self.indexing, # TODO/FIXME eval(self.indexing), # SubFPIndexing
-            self.poly_max_degree,
+            self.max_degree,
             sollya.parse(self.target_eps),
             precision_parser(self.coeff_precision),
             self.tag,
@@ -325,7 +325,7 @@ class AXF_GenericPolynomialSplit(yaml.YAMLObject):
     def to_ml_object(self):
         """ generic AXF class to Metalibm Object transform API """
         return self.export_to_GPS()
-            
+
 
 # add specific YAML representation for metalibm's Polynomial
 def poly_representer(dumper, data):
