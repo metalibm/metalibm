@@ -80,7 +80,7 @@ class ML_HyperbolicTangent(ScalarUnaryFunction):
         # initializing base class
         super().__init__(args)
         self.load_axf_approx = args.load_axf_approx
-        self.axf_export = args.axf_export
+        self.dump_axf_approx = args.dump_axf_approx
 
     @staticmethod
     def get_default_args(**kw):
@@ -92,7 +92,7 @@ class ML_HyperbolicTangent(ScalarUnaryFunction):
             "precision": ML_Binary32,
             "accuracy": ML_Faithful,
             "load_axf_approx": None,
-            "axf_export": False,
+            "dump_axf_approx": False,
             "target": GenericProcessor.get_target_instance()
         }
         default_args_tanh.update(kw)
@@ -207,7 +207,7 @@ class ML_HyperbolicTangent(ScalarUnaryFunction):
             approx_scheme = piecewise_evaluation_from_param(abs_vx, self.precision, near_zero_bound, high_bound, max_degree, interval_num, interval_size, coeff_table)
 
         else:
-            interval_size, coeff_table, approx_error, max_degree, axf_export = piecewise_approximation_paramgen(
+            interval_size, coeff_table, approx_error, max_degree, dump_axf_approx = piecewise_approximation_paramgen(
                 sollya.tanh,
                 abs_vx,
                 self.precision,
@@ -216,17 +216,17 @@ class ML_HyperbolicTangent(ScalarUnaryFunction):
                 num_intervals=interval_num,
                 max_degree=poly_degree,
                 error_threshold=ERROR_THRESHOLD,
-                axf_export=not self.axf_export is False)
+                axf_export=not self.dump_axf_approx is False)
 
-            if self.axf_export:
-                with open(self.axf_export, "w") as axf_stream:
+            if self.dump_axf_approx:
+                with open(self.dump_axf_approx, "w") as axf_stream:
                     import json
-                    json_str = json.dumps(axf_export.serialize_to_dict(), sort_keys=True, indent=4)
-                    deserialized_json = axf_export.__class__.deserialize_from_dict(json.loads(json_str))
+                    json_str = json.dumps(dump_axf_approx.serialize_to_dict(), sort_keys=True, indent=4)
+                    deserialized_json = dump_axf_approx.__class__.deserialize_from_dict(json.loads(json_str))
                     print(deserialized_json)
                     axf_stream.write(json_str)
                     # import yaml
-                    # print(yaml.dump(axf_export))
+                    # print(yaml.dump(dump_axf_approx))
 
             approx_scheme = piecewise_evaluation_from_param(abs_vx, self.precision, near_zero_bound, high_bound, poly_degree, interval_num, interval_size, coeff_table)
         Log.report(Log.Warning, "approx_error={}".format(approx_error))
@@ -275,7 +275,7 @@ if __name__ == "__main__":
          "--load-axf-approx", default=None,
         action="store", help="load tanh approx from an axf file rathen than computing it")
     arg_template.get_parser().add_argument(
-         "--axf-export", default=False,
+         "--dump-axf-approx", default=False,
         action="store", help="export approximation used in AXF format")
 
     # argument extraction
