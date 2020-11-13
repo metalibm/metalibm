@@ -195,10 +195,10 @@ class SubFPIndexing:
 def generic_poly_split_param_from_axf(axf_approx, indexing):
     """ load paramater for a generic polynomial split from an AXF structure """
     # indexing = eval(axf_approx.indexing) 
-    poly_max_degree = axf_approx.poly_max_degree
+    max_degree = axf_approx.max_degree
     coeff_precision = axf_approx.coeff_precision 
 
-    poly_table = ML_NewTable(dimensions=[indexing.split_num, poly_max_degree+1], storage_precision=coeff_precision, const=True)
+    poly_table = ML_NewTable(dimensions=[indexing.split_num, max_degree+1], storage_precision=coeff_precision, const=True)
     offset_table = ML_NewTable(dimensions=[indexing.split_num], storage_precision=coeff_precision, const=True)
     max_error = 0.0
 
@@ -211,7 +211,7 @@ def generic_poly_split_param_from_axf(axf_approx, indexing):
         poly_object = local_approx.poly
         approx_error = local_approx.approx_error
 
-        for monomial_index in range(poly_max_degree+1):
+        for monomial_index in range(max_degree+1):
             if monomial_index in poly_object.coeff_map:
                 poly_table[sub_index][monomial_index] = poly_object.coeff_map[monomial_index] 
             else:
@@ -219,17 +219,17 @@ def generic_poly_split_param_from_axf(axf_approx, indexing):
 
                 max_error = max(approx_error, max_error)
 
-    return offset_table, poly_max_degree, poly_table, max_error
+    return offset_table, max_degree, poly_table, max_error
 
 
 def generic_poly_split_paramgen(offset_fct, indexing, target_eps, coeff_precision, axf_export=False):
     # computing degree for a different polynomial approximation on each
     # sub-interval
     poly_degree_list = [int(sup(guessdegree(offset_fct(offset), sub_interval, target_eps))) for offset, sub_interval in indexing.get_offseted_sub_list()]
-    poly_max_degree = max(poly_degree_list)
+    max_degree = max(poly_degree_list)
 
     # tabulating polynomial coefficients on split_num sub-interval of interval
-    poly_table = ML_NewTable(dimensions=[indexing.split_num, poly_max_degree+1], storage_precision=coeff_precision, const=True)
+    poly_table = ML_NewTable(dimensions=[indexing.split_num, max_degree+1], storage_precision=coeff_precision, const=True)
     offset_table = ML_NewTable(dimensions=[indexing.split_num], storage_precision=coeff_precision, const=True)
     max_error = 0.0
 
@@ -238,7 +238,7 @@ def generic_poly_split_paramgen(offset_fct, indexing, target_eps, coeff_precisio
         # TODO/FIXME/ using offset_fct evaluation at 0 to provide a dumpable
         #             function. We may prefer an non-evaluated offset_fct
         #             transcription
-        axf_approx = AXF_GenericPolynomialSplit(offset_fct(0), indexing, poly_max_degree, target_eps, coeff_precision)
+        axf_approx = AXF_GenericPolynomialSplit(offset_fct(0), indexing, max_degree, target_eps, coeff_precision)
     else:
         axf_approx = None
 
@@ -251,7 +251,7 @@ def generic_poly_split_paramgen(offset_fct, indexing, target_eps, coeff_precisio
             # to break sollya
             local_approx = coeff_precision.round_sollya_object(offset_fct(offset)(inf(approx_interval)))
             poly_table[sub_index][0] = local_approx
-            for monomial_index in range(1, poly_max_degree+1):
+            for monomial_index in range(1, max_degree+1):
                 poly_table[sub_index][monomial_index] = 0
             approx_error = sollya.infnorm(offset_fct(offset) - local_approx, approx_interval) 
 
@@ -267,7 +267,7 @@ def generic_poly_split_paramgen(offset_fct, indexing, target_eps, coeff_precisio
                 offset_fct(offset), poly_degree, [coeff_precision]*(poly_degree+1),
                 approx_interval, sollya.relative)
 
-            for monomial_index in range(poly_max_degree+1):
+            for monomial_index in range(max_degree+1):
                 if monomial_index <= poly_degree:
                     poly_table[sub_index][monomial_index] = poly_object.coeff_map[monomial_index] 
                 else:
@@ -282,10 +282,10 @@ def generic_poly_split_paramgen(offset_fct, indexing, target_eps, coeff_precisio
                                          approx_error=approx_error)) 
         max_error = max(approx_error, max_error)
 
-    return offset_table, poly_max_degree, poly_table, max_error, axf_approx
+    return offset_table, max_degree, poly_table, max_error, axf_approx
 
 
-def generic_poly_split_from_params(offset_table, poly_max_degree, poly_table, indexing, coeff_precision, vx):
+def generic_poly_split_from_params(offset_table, max_degree, poly_table, indexing, coeff_precision, vx):
     # indexing function: derive index from input @p vx value
     poly_index = indexing.get_index_node(vx)
     poly_index.set_attributes(tag="poly_index", debug=debug_multi)
@@ -294,9 +294,9 @@ def generic_poly_split_from_params(offset_table, poly_max_degree, poly_table, in
 
     # building polynomial evaluation scheme
     offset = TableLoad(offset_table, poly_index, precision=coeff_precision, tag="offset", debug=debug_multi) 
-    poly = TableLoad(poly_table, poly_index, poly_max_degree, precision=coeff_precision, tag="poly_init", debug=debug_multi)
+    poly = TableLoad(poly_table, poly_index, max_degree, precision=coeff_precision, tag="poly_init", debug=debug_multi)
     red_vx = Subtraction(vx, offset, precision=vx.precision, tag="red_vx", debug=debug_multi)
-    for monomial_index in range(poly_max_degree, -1, -1):
+    for monomial_index in range(max_degree, -1, -1):
         coeff = TableLoad(poly_table, poly_index, monomial_index, precision=coeff_precision, tag="poly_%d" % monomial_index, debug=debug_multi)
         #fma_precision = coeff_precision if monomial_index > 1 else ext_precision
         fma_precision = coeff_precision
@@ -315,12 +315,12 @@ def generic_poly_split(offset_fct, indexing, target_eps, coeff_precision, vx, ax
         @p coeff_precision.
         The input variable is @p vx """
 
-    offset_table, poly_max_degree, poly_table, max_error, axf_approx = generic_poly_split_paramgen(offset_fct, indexing,
+    offset_table, max_degree, poly_table, max_error, axf_approx = generic_poly_split_paramgen(offset_fct, indexing,
                                                                     target_eps, coeff_precision,
                                                                     axf_export=axf_export)
     Log.report(Log.Debug, "max approx error is {}", max_error)
 
-    poly = generic_poly_split_from_params(offset_table, poly_max_degree, poly_table, indexing, coeff_precision, vx)
+    poly = generic_poly_split_from_params(offset_table, max_degree, poly_table, indexing, coeff_precision, vx)
 
     return poly, axf_approx
 
