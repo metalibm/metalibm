@@ -33,6 +33,7 @@ import yaml
 import json
 import sollya
 
+from metalibm_core.core.indexing import Indexing
 from metalibm_core.core.polynomials import Polynomial
 from metalibm_core.utility.ml_template import precision_parser
 
@@ -314,7 +315,7 @@ class AXF_GenericPolynomialSplit(yaml.YAMLObject):
             to a GenericPolynomialSplit object """
         return GenericPolynomialSplit(
             self.offset_fct,
-            self.indexing, # TODO/FIXME eval(self.indexing), # SubFPIndexing
+            Indexing.parse(self.indexing),
             self.max_degree,
             sollya.parse(self.target_eps),
             precision_parser(self.coeff_precision),
