@@ -27,6 +27,7 @@
 import argparse
 import sys
 import re
+import os
 
 import sollya
 from sollya import Interval, SollyaObject
@@ -87,6 +88,10 @@ except ImportError:
     k1b_defined = False
     k1b = None
 
+
+# default directory to load AXF file from
+AXF_DIR = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "metalibm_functions", "axf")
+
 # target instanciation
 x86_processor = X86_Processor.get_target_instance()
 x86_avx2_processor = X86_AVX2_Processor.get_target_instance()
@@ -133,6 +138,22 @@ new_scheme_function_list = [
     metalibm_functions.erf.ML_Erf,
     [{"precision": ML_Binary32, "auto_test": 1000, "execute_trigger": True},
      {"precision": ML_Binary64, "auto_test": 1000, "execute_trigger": True }]
+  ),
+  NewSchemeTest(
+    "tanh axf load test",
+    metalibm_functions.ml_tanh.ML_HyperbolicTangent,
+    [{"precision": ML_Binary32, "auto_test": 1000, "execute_trigger": True,
+      "load_axf_approx": os.path.join(AXF_DIR, "tanh-fp32.json.axf")},
+    {"precision": ML_Binary64, "auto_test": 1000, "execute_trigger": True,
+     "load_axf_approx": os.path.join(AXF_DIR, "tanh-fp64.json.axf")}]
+  ),
+  NewSchemeTest(
+    "erf axf load test",
+    metalibm_functions.erf.ML_Erf,
+    [{"precision": ML_Binary32, "auto_test": 1000, "execute_trigger": True,
+      "load_axf_approx": os.path.join(AXF_DIR, "erf-fp32.json.axf")},
+     {"precision": ML_Binary64, "auto_test": 1000, "execute_trigger": True,
+      "load_axf_approx": os.path.join(AXF_DIR, "erf-fp64.json.axf") }]
   ),
 
   NewSchemeTest(
