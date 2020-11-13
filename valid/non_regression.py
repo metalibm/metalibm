@@ -128,16 +128,21 @@ new_scheme_function_list = [
     ]
   ),
   NewSchemeTest(
+    # test also AXF export
     "basic hyperbolic tangent gen test",
     metalibm_functions.ml_tanh.ML_HyperbolicTangent,
-    [{"precision": ML_Binary32, "auto_test": 1000, "execute_trigger": True},
-    {"precision": ML_Binary64}]
+    [{"precision": ML_Binary32, "auto_test": 1000, "execute_trigger": True,
+      "dump_axf_approx": "./dump-tanh-fp32.axf"},
+    {"precision": ML_Binary64, "dump_axf_approx": "./dump-tanh-fp64.axf"}]
   ),
   NewSchemeTest(
+    # test also AXF export
     "basic error function test",
     metalibm_functions.erf.ML_Erf,
-    [{"precision": ML_Binary32, "auto_test": 1000, "execute_trigger": True},
-     {"precision": ML_Binary64, "auto_test": 1000, "execute_trigger": True }]
+    [{"precision": ML_Binary32, "auto_test": 1000, "execute_trigger": True,
+      "dump_axf_approx": "./dump-erf-fp32.axf"},
+     {"precision": ML_Binary64, "auto_test": 1000, "execute_trigger": True,
+      "dump_axf_approx": "./dump-erf-fp64.axf"}]
   ),
   NewSchemeTest(
     "tanh axf load test",
