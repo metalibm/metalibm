@@ -51,8 +51,7 @@ from metalibm_core.core.ml_operations import (
     NearestInteger,
 )
 from metalibm_core.core.ml_formats import (
-    ML_Binary32, ML_Binary64, ML_SingleSingle, ML_DoubleDouble
-)
+    ML_Binary32, ML_Binary64, ML_SingleSingle, ML_DoubleDouble)
 
 from metalibm_core.utility.debug_utils import debug_multi
 from metalibm_core.utility.log_report import Log
@@ -307,7 +306,7 @@ def piecewise_approximation_paramgen(
 
     if axf_export:
         axf_approx = AXF_UniformPiecewiseApprox(
-            function(sollya.x), precision, bound_low, bound_high, num_intervals, max_degree, error_threshold, odd, even)
+            function(sollya.x), precision, Interval(bound_low, bound_high), num_intervals, max_degree, error_threshold)
     else:
         axf_approx = None
 
@@ -406,8 +405,8 @@ def piecewise_param_from_axf(axf_approx):
     max_degree = axf_approx.max_degree
     num_intervals = axf_approx.num_intervals
     precision = axf_approx.precision
-    bound_high = axf_approx.bound_high
-    bound_low = axf_approx.bound_low
+    bound_high = sup(axf_approx.interval)
+    bound_low = inf(axf_approx.interval)
     error_threshold = axf_approx.error_threshold
 
     # table to store coefficients of the approximation on each segment
