@@ -72,9 +72,9 @@ def get_extended_fp_precision(precision):
 
 def generic_poly_split_param_from_axf(axf_approx, indexing):
     """ load paramater for a generic polynomial split from an AXF structure """
-    # indexing = eval(axf_approx.indexing) 
+    # indexing = eval(axf_approx.indexing)
     max_degree = axf_approx.max_degree
-    coeff_precision = axf_approx.coeff_precision 
+    coeff_precision = axf_approx.precision
 
     poly_table = ML_NewTable(dimensions=[indexing.split_num, max_degree+1], storage_precision=coeff_precision, const=True)
     offset_table = ML_NewTable(dimensions=[indexing.split_num], storage_precision=coeff_precision, const=True)
@@ -270,7 +270,7 @@ def piecewise_approximation_degree_generator(
 def piecewise_approximation_paramgen(
         function,
         variable,
-        precision,
+        coeff_precision,
         bound_low=-1.0,
         bound_high=1.0,
         num_intervals=16,
@@ -285,8 +285,8 @@ def piecewise_approximation_paramgen(
         :type function: SollyaObject
         :param variable: input variable
         :type variable: Variable
-        :param precision: variable's format
-        :type precision: ML_Format
+        :param coeff_precision: format used to store polynomial coefficients
+        :type coeff_precision: ML_Format
         :param bound_low: lower bound for the approximation interval
         :param bound_high: upper bound for the approximation interval
         :param num_intervals: number of sub-interval / sub-division of the main interval
@@ -306,7 +306,7 @@ def piecewise_approximation_paramgen(
 
     if axf_export:
         axf_approx = AXF_UniformPiecewiseApprox(
-            function(sollya.x), precision, Interval(bound_low, bound_high), num_intervals, max_degree, error_threshold)
+            function(sollya.x), coeff_precision, Interval(bound_low, bound_high), num_intervals, max_degree, error_threshold)
     else:
         axf_approx = None
 
@@ -316,7 +316,7 @@ def piecewise_approximation_paramgen(
     # table to store coefficients of the approximation on each segment
     coeff_table = ML_NewTable(
         dimensions=[num_intervals,max_degree+1],
-        storage_precision=precision,
+        storage_precision=coeff_precision,
         tag="coeff_table",
         const=True # by default all approximation coeff table are const
     )
@@ -345,7 +345,7 @@ def piecewise_approximation_paramgen(
             # need to force value=0 for the constant coefficient
             # and extend the approximation interval
             local_poly_degree_list = list(range(1 if even else 0, degree+1, 2 if odd or even else 1))
-            format_list = [precision] * len(local_poly_degree_list)
+            format_list = [coeff_precision] * len(local_poly_degree_list)
             poly_object, approx_error = Polynomial.build_from_approximation_with_error(
                 function(sollya.x) / sollya.x,
                 local_poly_degree_list,
@@ -364,7 +364,7 @@ def piecewise_approximation_paramgen(
                 poly_object, approx_error = Polynomial.build_from_approximation_with_error(
                     local_function,
                     degree,
-                    [precision] * (degree + 1),
+                    [coeff_precision] * (degree + 1),
                     local_interval,
                     sollya.absolute,
                     error_function=error_function
@@ -372,7 +372,7 @@ def piecewise_approximation_paramgen(
             except SollyaError as err:
                 # try to see if function is constant on the interval (possible
                 # failure cause for fpminmax)
-                cst_value = precision.round_sollya_object(function(subint_low), sollya.RN)
+                cst_value = coeff_precision.round_sollya_object(function(subint_low), sollya.RN)
                 accuracy = error_threshold
                 diff_with_cst_range = sollya.supnorm(cst_value, local_function, local_interval, sollya.absolute, accuracy)
                 diff_with_cst = sup(abs(diff_with_cst_range))
@@ -384,7 +384,7 @@ def piecewise_approximation_paramgen(
                     Log.report(Log.error, "degree: {} for index {}, diff_with_cst={} (vs error_threshold={}) ", degree, i, diff_with_cst, error_threshold, error=err)
             if axf_export:
                 axf_approx.approx_list.append(
-                    AXF_SimplePolyApprox(poly_object, local_function, range(degree+1), [precision] * (degree+1), Interval(subint_low, subint_high), absolute=True, approx_error=approx_error)) 
+                    AXF_SimplePolyApprox(poly_object, local_function, range(degree+1), [coeff_precision] * (degree+1), Interval(subint_low, subint_high), absolute=True, approx_error=approx_error)) 
         for ci in range(max_degree+1):
             if ci in poly_object.coeff_map:
                 coeff_table[i][ci] = poly_object.coeff_map[ci]
@@ -404,15 +404,15 @@ def piecewise_param_from_axf(axf_approx):
 
     max_degree = axf_approx.max_degree
     num_intervals = axf_approx.num_intervals
-    precision = axf_approx.precision
+    coeff_precision = axf_approx.precision
     bound_high = sup(axf_approx.interval)
     bound_low = inf(axf_approx.interval)
-    error_threshold = axf_approx.error_threshold
+    error_threshold = axf_approx.error_bound
 
     # table to store coefficients of the approximation on each segment
     coeff_table = ML_NewTable(
         dimensions=[num_intervals, max_degree+1],
-        storage_precision=precision,
+        storage_precision=coeff_precision,
         tag="coeff_table",
         const=True # by default all approximation coeff table are const
     )
@@ -452,7 +452,7 @@ def piecewise_param_from_axf(axf_approx):
 def piecewise_approximation(
         function,
         variable,
-        precision,
+        coeff_precision,
         bound_low=-1.0,
         bound_high=1.0,
         num_intervals=16,
@@ -466,8 +466,8 @@ def piecewise_approximation(
         :type function: SollyaObject
         :param variable: input variable
         :type variable: Variable
-        :param precision: variable's format
-        :type precision: ML_Format
+        :param coeff_precision: format used to store polynomial approximation coefficient
+        :type coeff_precision: ML_Format
         :param bound_low: lower bound for the approximation interval
         :param bound_high: upper bound for the approximation interval
         :param num_intervals: number of sub-interval / sub-division of the main interval
@@ -485,7 +485,7 @@ def piecewise_approximation(
     interval_size, coeff_table, max_approx_error, max_degree, axf_export = piecewise_approximation_paramgen(
         function,
         variable,
-        precision,
+        coeff_precision,
         bound_low=bound_low,
         bound_high=bound_high,
         num_intervals=num_intervals,
@@ -494,14 +494,15 @@ def piecewise_approximation(
         odd=odd,
         even=even)
 
-    return piecewise_evaluation_from_param(variable, precision, bound_low, bound_high, max_degree, num_intervals, interval_size, coeff_table), max_approx_error
+    return piecewise_evaluation_from_param(variable, coeff_precision, bound_low, bound_high, max_degree, num_intervals, interval_size, coeff_table), max_approx_error
 
 def piecewise_evaluation_from_param(variable, precision, bound_low, bound_high, max_degree, num_intervals, interval_size, coeff_table):
     """ Generate a piecewise evaluation scheme from a pre-determined coefficient table 
 
         :param variable: input variable
         :type variable: Variable
-        :param precision: variable's format
+        :param precision: format used to store polynomial approximation coefficient and to perform
+                          intermediary computation
         :type precision: ML_Format
         :param bound_low: lower bound for the approximation interval
         :param bound_high: upper bound for the approximation interval
@@ -514,6 +515,10 @@ def piecewise_evaluation_from_param(variable, precision, bound_low, bound_high, 
         :return: a graph node for an approximation scheme of function evaluated at variable
         :rtype ML_Operation: """
     # computing offset
+    # TODO/FIXME variable's precision could be used when evaluating
+    #            expression depending on variable node,
+    #            or a specific precision could be specified
+    #            as an extra function parameter
     diff = Subtraction(
         variable,
         Constant(bound_low, precision=precision),

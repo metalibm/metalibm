@@ -75779,7 +75779,7 @@
     ],
     "interval": "[0.125;32.125]",
     "class": "!PieceWiseApprox",
-    "error_threshold": "1.1102230246251565404236316680908203125e-16",
+    "error_bound": "1.1102230246251565404236316680908203125e-16",
     "even": false,
     "function": "tanh(_x_)",
     "max_degree": 7,
