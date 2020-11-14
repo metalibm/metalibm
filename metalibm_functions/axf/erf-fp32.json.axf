@@ -5827,12 +5827,12 @@
             }
         ],
         "class": "!GenericPolynomialSplit",
-        "coeff_precision": "float",
+        "precision": "float",
         "indexing": "SubFPIndexing(-3, 0, 6, ML_Binary32)",
         "offset_fct": "erf(_x_)",
         "max_degree": 3,
         "tag": "erf-near",
-        "target_eps": "3.7252902984619140625e-9"
+        "error_bound": "3.7252902984619140625e-9"
     },
     {
         "approx_list": [
@@ -8498,11 +8498,11 @@
             }
         ],
         "class": "!GenericPolynomialSplit",
-        "coeff_precision": "float",
+        "precision": "float",
         "indexing": "SubFPIndexing(1, 1, 7, ML_Binary32)",
         "offset_fct": "erf(_x_)",
         "max_degree": 3,
         "tag": "erf-medium",
-        "target_eps": "3.7252902984619140625e-9"
+        "error_bound": "3.7252902984619140625e-9"
     }
 ]
