@@ -54,6 +54,10 @@ class Indexing:
     def get_sub_list(self):
         """ return the list of sub-intervals ordered by index """
         raise NotImplementedError
+    @property
+    def interval(self):
+        """ return the whole interval covered by the indexing function """
+        raise NotImplementedError
     @staticmethod
     def parse(s):
         return eval(s) #, globals + {"SubFPIndexing": SubFPIndexing})
@@ -157,9 +161,11 @@ class SubFPIndexing(Indexing):
     def get_offseted_sub_list(self):
         return [self.get_offseted_sub_interval(index) for index in range(self.split_num)]
 
-    def get_min_bound(self):
+    @property
+    def min_bound(self):
         return self.get_sub_lo_bound(0)
-    def get_max_bound(self):
+    @property
+    def max_bound(self):
         return self.get_sub_hi_bound(self.split_num - 1)
 
     def get_offseted_sub_interval(self, index):
@@ -174,3 +180,67 @@ class SubFPIndexing(Indexing):
         lo_bound = self.get_sub_lo_bound(index)
         hi_bound = self.get_sub_hi_bound(index)
         return Interval(lo_bound, hi_bound)
+    @property
+    def interval(self):
+        return Interval(self.min_bound, self.max_bound)
+
+
+class SubIntervalIndexing(Indexing):
+    def __init__(self, interval, split_num):
+        # overall interval
+        self.interval = interval
+        # number of sub-intervals
+        self.split_num = split_num
+
+    @property
+    def bound_low(self):
+        return inf(self.interval)
+    @property
+    def bound_high(self):
+        return sup(self.interval)
+        
+    def get_index_node(self, vx):
+        """ return the meta graph to implement index calculation
+            from input @p vx """
+        precision = vx.get_precision()
+        bound_low = inf(self.interval)
+        bound_high = sup(self.interval)
+        num_intervals = self.split_num 
+
+        int_prec = precision.get_integer_format()
+
+        diff = Subtraction(
+            vx,
+            Constant(bound_low, precision=precision),
+            tag="diff",
+            precision=precision
+        )
+
+        # delta = bound_high - bound_low
+        delta_ratio = Constant(num_intervals / (bound_high - bound_low), precision=precision)
+        # computing table index
+        # index = nearestint(diff / delta * <num_intervals>)
+        index = Max(0,
+            Min(
+                NearestInteger(
+                    Multiplication(
+                        diff,
+                        delta_ratio,
+                        precision=precision
+                    ),
+                    precision=int_prec,
+                ),
+                num_intervals - 1
+            ),
+            tag="index",
+            precision=int_prec
+        )
+        return index
+    def get_sub_interval(self, index):
+        """ return the sub-interval numbered @p index """
+        subint_low = self.bound_low + i * interval_size
+        subint_high = self.bound_low + (i+1) * interval_size
+        return Interval(subint_low, subint_high)
+
+    def get_sub_list(self):
+        return [self.get_sub_interval(index) for index in range(self.split_num)]

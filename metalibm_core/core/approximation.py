@@ -116,7 +116,7 @@ def generic_poly_split_paramgen(offset_fct, indexing, target_eps, coeff_precisio
         # TODO/FIXME/ using offset_fct evaluation at 0 to provide a dumpable
         #             function. We may prefer an non-evaluated offset_fct
         #             transcription
-        axf_approx = AXF_GenericPolynomialSplit(offset_fct(0), indexing, max_degree, target_eps, coeff_precision)
+        axf_approx = AXF_GenericPolynomialSplit(offset_fct(0), coeff_precision, indexing.interval, indexing, max_degree, target_eps)
     else:
         axf_approx = None
 

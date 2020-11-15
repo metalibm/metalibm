@@ -75777,11 +75777,12 @@
             }
         }
     ],
-    "interval": "[0.125;16.125]",
     "class": "!PieceWiseApprox",
     "error_bound": "5.9604644775390625e-8",
     "even": false,
     "function": "tanh(_x_)",
+    "indexing": "None",
+    "interval": "[0.125;16.125]",
     "max_degree": 7,
     "num_intervals": 2048,
     "odd": false,
