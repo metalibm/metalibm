@@ -52,7 +52,7 @@ class SimplePolyApprox:
 class UniformPieceWiseApprox:
     def __init__(self, function, precision, interval,
                  num_intervals, max_degree, error_bound,
-                 odd=False, even=False, tag="", approx_list=None):
+                 odd=False, even=False, tag="", approx_list=None, indexing=None):
         self.function = function
         self.interval = interval
         self.num_intervals = int(num_intervals)
@@ -63,10 +63,12 @@ class UniformPieceWiseApprox:
         self.approx_list = [] if approx_list is None else approx_list
         self.precision = precision
         self.tag = tag
+        self.indexing = indexing if not indexing is None else SubIntervalIndexing(self.interval, self.num_intervals)
 
 
 class GenericPolynomialSplit:
-    def __init__(self, offset_fct, indexing, max_degree, error_bound, precision, tag="", approx_list=None):
+    def __init__(self, offset_fct, indexing, max_degree, error_bound,
+                 precision, tag="", approx_list=None, odd=False, even=False):
         self.offset_fct = str(offset_fct)
         self.indexing = indexing
         self.error_bound = error_bound
@@ -74,6 +76,8 @@ class GenericPolynomialSplit:
         self.approx_list = [] if approx_list is None else approx_list
         self.tag = tag
         self.max_degree = int(max_degree)
+        self.odd = odd
+        self.even = even
 
 
 class AXF_SimplePolyApprox(yaml.YAMLObject):
@@ -169,9 +173,11 @@ class AXF_UniformPiecewiseApprox(yaml.YAMLObject):
     yaml_tag = u'!PieceWiseApprox'
     def __init__(self, function, precision, interval,
                  num_intervals, max_degree, error_bound,
-                 odd=False, even=False, tag="", approx_list=None):
+                 odd=False, even=False, tag="",
+                 approx_list=None, indexing=None):
         self.function = str(function)
         self.interval = str(interval)
+        self.indexing = str(indexing)
         self.num_intervals = int(num_intervals)
         self.max_degree = int(max_degree)
         self.error_bound = str(error_bound)
@@ -193,6 +199,7 @@ class AXF_UniformPiecewiseApprox(yaml.YAMLObject):
             "function": self.function,
             "precision": self.precision,
             "interval": self.interval,
+            "indexing": self.indexing,
             "num_intervals": self.num_intervals,
             "max_degree": self.max_degree,
             "error_bound": self.error_bound,
@@ -215,7 +222,8 @@ class AXF_UniformPiecewiseApprox(yaml.YAMLObject):
             upwa.odd,
             upwa.even,
             upwa.tag,
-            approx_list=[AXF_SimplePolyApprox.from_SPA(spa) for spa in upwa.approx_list]
+            approx_list=[AXF_SimplePolyApprox.from_SPA(spa) for spa in upwa.approx_list],
+            indexing=upwa.indexing
         )
 
     @staticmethod
@@ -229,7 +237,8 @@ class AXF_UniformPiecewiseApprox(yaml.YAMLObject):
             d["error_bound"],
             odd=d["odd"], even=d["even"],
             tag=d["tag"],
-            approx_list=[AXF_SimplePolyApprox.deserialize_from_dict(v) for v in d["approx_list"]]
+            approx_list=[AXF_SimplePolyApprox.deserialize_from_dict(v) for v in d["approx_list"]],
+            indexing=d["indexing"]
         )
 
     def export_to_UPWA(self):
@@ -245,7 +254,8 @@ class AXF_UniformPiecewiseApprox(yaml.YAMLObject):
             self.odd,
             self.even,
             self.tag,
-            approx_list=[(axf_spa.export_to_SPA()) for axf_spa in self.approx_list]
+            approx_list=[(axf_spa.export_to_SPA()) for axf_spa in self.approx_list],
+            indexing=Indexing.eval(self.indexing)
         )
 
     def to_ml_object(self):
@@ -255,14 +265,17 @@ class AXF_UniformPiecewiseApprox(yaml.YAMLObject):
 class AXF_GenericPolynomialSplit(yaml.YAMLObject):
     """ AXF object for a piecewise generic polynomial approximation encoding """
     yaml_tag = u'!GenericPolynomialSplit'
-    def __init__(self, offset_fct, indexing, max_degree, error_bound, precision, tag="", approx_list=None):
+    def __init__(self, offset_fct, precision, interval, indexing, max_degree, error_bound, tag="", approx_list=None, odd=False, even=False):
         self.offset_fct = str(offset_fct)
         self.indexing = str(indexing)
+        self.interval = str(interval)
         self.error_bound = str(error_bound)
         self.precision = str(precision)
         self.approx_list = [] if approx_list is None else approx_list
         self.tag = tag
         self.max_degree = int(max_degree)
+        self.odd = odd
+        self.even = even
 
     def export(self):
         sollya.settings.display = sollya.hexadecimal
@@ -274,11 +287,14 @@ class AXF_GenericPolynomialSplit(yaml.YAMLObject):
             "class": self.yaml_tag,
             "offset_fct": self.offset_fct,
             "indexing": self.indexing,
+            "interval": self.interval,
             "error_bound": self.error_bound,
             "precision": self.precision,
             "approx_list": [approx.serialize_to_dict() for approx in self.approx_list],
             "tag": self.tag,
             "max_degree": self.max_degree,
+            "odd": self.odd,
+            "even": self.even,
         }
 
     @staticmethod
@@ -287,24 +303,30 @@ class AXF_GenericPolynomialSplit(yaml.YAMLObject):
             GenericPolynomialSplit object """
         return AXF_GenericPolynomialSplit(
             gps.offset_fct,
+            gps.precision,
+            gps.interval,
             gps.indexing,
             gps.max_degree,
             gps.error_bound,
-            gps.precision,
             gps.tag,
-            approx_list=[AXF_SimplePolyApprox.from_SPA(spa) for spa in upwa.approx_list]
+            approx_list=[AXF_SimplePolyApprox.from_SPA(spa) for spa in upwa.approx_list],
+            odd=gps.odd,
+            even=gps.even
         )
 
     @staticmethod
     def deserialize_from_dict(d):
         return AXF_GenericPolynomialSplit(
             d["offset_fct"],
+            d["precision"],
+            d["interval"],
             d["indexing"],
             d["max_degree"],
             d["error_bound"],
-            d["precision"],
             d["tag"],
-            approx_list=[AXF_SimplePolyApprox.deserialize_from_dict(v) for v in d["approx_list"]]
+            approx_list=[AXF_SimplePolyApprox.deserialize_from_dict(v) for v in d["approx_list"]],
+            odd=d["odd"],
+            even=d["even"]
         )
 
     def export_to_GPS(self):
@@ -317,7 +339,9 @@ class AXF_GenericPolynomialSplit(yaml.YAMLObject):
             sollya.parse(self.error_bound),
             precision_parser(self.precision),
             self.tag,
-            approx_list=[(axf_spa.export_to_SPA()) for axf_spa in self.approx_list]
+            approx_list=[(axf_spa.export_to_SPA()) for axf_spa in self.approx_list],
+            odd=self.odd,
+            even=self.even
         )
 
     def to_ml_object(self):
