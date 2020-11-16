@@ -54,10 +54,6 @@ class Indexing:
     def get_sub_list(self):
         """ return the list of sub-intervals ordered by index """
         raise NotImplementedError
-    @property
-    def interval(self):
-        """ return the whole interval covered by the indexing function """
-        raise NotImplementedError
     @staticmethod
     def parse(s):
         return eval(s) #, globals + {"SubFPIndexing": SubFPIndexing})
@@ -186,6 +182,8 @@ class SubFPIndexing(Indexing):
 
 
 class SubIntervalIndexing(Indexing):
+    """ indexing which uniformly divides an overall interval
+        into <split_num> sub-interval of equal size """
     def __init__(self, interval, split_num):
         # overall interval
         self.interval = interval
@@ -198,14 +196,14 @@ class SubIntervalIndexing(Indexing):
     @property
     def bound_high(self):
         return sup(self.interval)
-        
+
     def get_index_node(self, vx):
         """ return the meta graph to implement index calculation
             from input @p vx """
         precision = vx.get_precision()
         bound_low = inf(self.interval)
         bound_high = sup(self.interval)
-        num_intervals = self.split_num 
+        num_intervals = self.split_num
 
         int_prec = precision.get_integer_format()
 
