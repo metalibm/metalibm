@@ -33,7 +33,7 @@ import yaml
 import json
 import sollya
 
-from metalibm_core.core.indexing import Indexing
+from metalibm_core.core.indexing import Indexing, SubIntervalIndexing
 from metalibm_core.core.polynomials import Polynomial
 from metalibm_core.utility.ml_template import precision_parser
 
@@ -255,7 +255,7 @@ class AXF_UniformPiecewiseApprox(yaml.YAMLObject):
             self.even,
             self.tag,
             approx_list=[(axf_spa.export_to_SPA()) for axf_spa in self.approx_list],
-            indexing=Indexing.eval(self.indexing)
+            indexing=Indexing.parse(self.indexing)
         )
 
     def to_ml_object(self):
