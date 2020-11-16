@@ -201,10 +201,10 @@ class ML_Erf(ScalarUnaryFunction):
             abs_vx < eps,
             Return(result),
             ConditionBlock(
-                abs_vx < near_indexing.get_max_bound(),
+                abs_vx < near_indexing.max_bound,
                 Return(near_approx),
                 ConditionBlock(
-                    abs_vx < medium_indexing.get_max_bound(),
+                    abs_vx < medium_indexing.max_bound,
                     Return(medium_approx),
                     Return(Constant(1.0, precision=self.precision))
                 )
