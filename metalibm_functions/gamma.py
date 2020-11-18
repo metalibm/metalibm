@@ -36,10 +36,8 @@ import sollya
 import bigfloat
 
 from sollya import (
-    Interval, ceil, floor, round, inf, sup, log, exp, log1p,
-    dirtyinfnorm,
-    guessdegree
-)
+    Interval, ceil, floor, round, inf, sup,
+    dirtyinfnorm, guessdegree)
 
 from metalibm_core.core.ml_function import DefaultArgTemplate
 from metalibm_core.core.ml_operations import *
@@ -50,8 +48,9 @@ from metalibm_core.core.precisions import ML_Faithful
 from metalibm_core.core.special_values import (
         FP_QNaN, FP_MinusInfty, FP_PlusInfty, FP_PlusZero
 )
+from metalibm_core.core.indexing import SubFPIndexing
 from metalibm_core.core.approximation import (
-    search_bound_threshold, generic_poly_split, SubFPIndexing,
+    search_bound_threshold, generic_poly_split,
     search_bound_threshold_mirror,
 )
 from metalibm_core.core.simple_scalar_function import ScalarUnaryFunction
@@ -169,17 +168,14 @@ class ML_Gamma(ScalarUnaryFunction):
         # gamma(y) = (y-1) * gamma(y-1)
         # gamma(y-1) = gamma(y) / (y-1)
         Log.report(Log.Info, "building mathematical polynomial")
-        approx_interval = Interval(1, 2)
+        approx_interval = Interval(1, 1.01)
         approx_fct = sollya.function(sollya_gamma_fct)
         poly_degree = int(sup(guessdegree(approx_fct, approx_interval, S2**-(self.precision.get_field_size()+5)))) + 1
         Log.report(Log.Debug, "approximation's poly degree over [1, 2] is {}", poly_degree)
 
-        sys.exit(1)
-
-        poly_degree_list = list(range(1, poly_degree, 2))
-        Log.report(Log.Debug, "poly_degree is {} and list {}", poly_degree, poly_degree_list)
-        global_poly_object = Polynomial.build_from_approximation(approx_fct, poly_degree_list, [self.precision]*len(poly_degree_list), approx_interval, sollya.relative)
+        global_poly_object = Polynomial.build_from_approximation(approx_fct, poly_degree, [self.precision]*(poly_degree+1), approx_interval, sollya.relative)
         Log.report(Log.Debug, "inform is {}", dirtyinfnorm(approx_fct - global_poly_object.get_sollya_object(), approx_interval))
+
         poly_object = global_poly_object.sub_poly(start_index=1, offset=1)
 
         ext_precision = {
