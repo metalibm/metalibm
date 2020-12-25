@@ -7,6 +7,7 @@ To use pre-defined passes, please refer to metalibm's USERGUIDE.md
 
 ### Displaying pass graph
 
+`--verbose DumpPassInfo` will display the optimization pass pipeline used during the generation process.
 
 ### Function Pass
 

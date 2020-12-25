@@ -406,6 +406,8 @@ class ML_EntityBasis(object):
       # linearly linking pass in the order they appear
       pass_dep = AfterPassById(pass_object.get_pass_id())
 
+    Log.report(Log.LogLevel("DumpPassInfo"), self.pass_scheduler.dump_pass_info())
+
     # TODO/FIXME: can be overloaded
     if  self.reset_pipeline:
         self.reset_signal = self.implementation.add_input_signal(self.reset_name, ML_StdLogic)
