@@ -44,6 +44,7 @@ from .ml_formats import (
     ML_StringClass, DisplayFormat,
 )
 from ..code_generation.code_constant import VHDL_Code, C_Code
+from .ml_operations import ML_Operation
 
 from ..utility.log_report import Log
 
@@ -54,11 +55,11 @@ class StdLogicDirection:
   class Downwards:
     @staticmethod
     def get_descriptor(low, high):
-      return "%d downto %d" % (high, low)
+      return "%s downto %s" % (high, low)
   class Upwards:
     @staticmethod
     def get_descriptor(low, high):
-      return "%d to %d" % (low, high)
+      return "%s to %s" % (low, high)
 
 ## Computes the negation of the positive @p value on
 #  @p size bits
@@ -175,29 +176,23 @@ def HdlVirtualFormat(base_precision):
         get_cst=get_virtual_cst
     )
 
+def RawLogicVectorFormat(bit_size, offset=0, direction=StdLogicDirection.Downwards):
+    """ build a low-level digital vector format """
+    if isinstance(bit_size, ML_Operation) or isinstance(offset, ML_Operation):
+        return UnevaluatedStdLogicVectorFormat(bit_size, offset, direction)
+    else:
+        return ML_StdLogicVectorFormat(bit_size, offset=offset, direction=direction)
+        
+
 class HDL_LowLevelFormat(ML_Format):
   format_prefix = "undefined_prefix"
   """ Format class for multiple bit signals """
-  def __init__(self, bit_size, offset = 0, direction = StdLogicDirection.Downwards):
+  def __init__(self, bit_size, offset=0, direction=StdLogicDirection.Downwards):
     ML_Format.__init__(self)
-    try:
-        assert bit_size > 0
-        bit_size = int(bit_size)
-        offset   = int(offset)
-    except TypeError:
-        # bit_size, offset are in incompatible format, we switch to lazy
-        # resolution
-        bit_size = None
-        offset = None
-        self.name[VHDL_Code] = "UNSOLVED_FORMAT"
-        self.bit_size = None
-        self.resolved = False
-    else:
-        self.bit_size = bit_size
-        self.name[VHDL_Code] = "{format_prefix}({direction_descriptor})".format(
-            format_prefix=self.format_prefix,
-            direction_descriptor = direction.get_descriptor(offset, offset + self.bit_size - 1))
-        self.resolved = True
+    self.bit_size = bit_size
+    self.name[VHDL_Code] = "{format_prefix}({direction_descriptor})".format(
+        format_prefix=self.format_prefix,
+        direction_descriptor = direction.get_descriptor(offset, offset + self.bit_size - 1))
     self.direction = direction
     self.offset = offset
     self.display_format[VHDL_Code] = "%s"
@@ -240,7 +235,20 @@ class HDL_LowLevelFormat(ML_Format):
 class ML_StdLogicVectorFormat(HDL_LowLevelFormat):
     """ classic std_logic_vector format """
     format_prefix = "std_logic_vector"
-    pass
+    resolved = True
+    def __init__(self, bit_size, offset=0, direction=StdLogicDirection.Downwards):
+        assert bit_size > 0
+        HDL_LowLevelFormat.__init__(self, int(bit_size), int(offset), direction)
+
+class UnevaluatedStdLogicVectorFormat(HDL_LowLevelFormat, ML_UnevaluatedFormat):
+    """ classic std_logic_vector format """
+    format_prefix = "unevaluated_std_logic_vector"
+    resolved = False
+
+    def evaluate(self, node_value_solver):
+        bit_size = node_value_solver(self.bit_size)
+        offset = node_value_solver(self.offset)
+        return ML_StdLogicVectorFormat(bit_size, offset, direction=self.direction)
 
 class HDL_NumericVectorFormat(HDL_LowLevelFormat):
     pass

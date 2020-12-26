@@ -358,12 +358,10 @@ class SubSignalSelection(ML_ArithmeticOperation):#AbstractOperationConstructor("
   arity = 3
   def __init__(self, arg, inf_index, sup_index, **kw):
     if not "precision" in kw:
-      kw["precision"] = ML_StdLogicVectorFormat(sup_index - inf_index + 1)
+      kw["precision"] = RawLogicVectorFormat(sup_index - inf_index + 1)
     inf_index = cst_promotion(inf_index, precision = ML_Integer)
     sup_index = cst_promotion(sup_index, precision = ML_Integer)
     SubSignalSelection.__base__.__init__(self, arg, inf_index, sup_index, **kw)
-    #self.inf_index = inf_index
-    #self.sup_index = sup_index
 
   def get_inf_index(self):
     return self.get_input(1) #self.inf_index

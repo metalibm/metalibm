@@ -264,6 +264,8 @@ def evaluate_graph(optree, value_mapping, fct_mapping):
 def evaluate_cst_graph(optree, input_prec_solver=default_prec_solver):
     """ evaluate a Operation Graph if its leaves are Constant """
     def recursive_eval(node):
+        if isinstance(node, (int, float, bool)):
+            return node
         for predicate in evaluation_map:
             if predicate(node):
                 result = evaluation_map[predicate](node)
