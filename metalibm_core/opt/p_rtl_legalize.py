@@ -99,9 +99,9 @@ def legalize_Select(optree):
         )
     return optree
 
-def legalize_Comparison(optree):
+def legalize_Comparison(optree, format_solver):
     assert isinstance(optree, Comparison)
-    new_format = solve_format_Comparison(optree)
+    new_format = solve_format_Comparison(optree, format_solver)
     return optree
 
 
@@ -116,7 +116,7 @@ def legalize_single_operation(optree, format_solver=None):
         new_optree = legalize_Select(optree)
         return True, new_optree
     elif isinstance(optree, Comparison):
-        new_optree = legalize_Comparison(optree)
+        new_optree = legalize_Comparison(optree, format_solver)
         return True, new_optree
     elif isinstance(optree, Min):
         new_optree = minmax_legalizer_wrapper(Comparison.Less)(optree)

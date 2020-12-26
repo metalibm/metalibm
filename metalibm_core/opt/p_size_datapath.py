@@ -126,6 +126,8 @@ def solve_format_Comparison(optree, format_solver=None):
     format_set_if_undef(rhs, rhs_format)
 
     merge_format = solve_equal_formats([lhs, rhs])
+    if merge_format is None:
+        Log.report(Log.Error, "could not unify format of operands in {}.\n", optree)
     propagate_format_to_input(merge_format, optree, [0, 1])
     return solve_format_BooleanOp(optree)
 
@@ -508,6 +510,8 @@ def solve_format_Select(optree):
     true_value = optree.get_input(1)
     false_value = optree.get_input(2)
     unified_format = solve_equal_formats([optree, true_value, false_value])
+    if unified_format is None:
+        Log.report(Log.Error, "could not unify format of operands in {}.\n", optree)
     format_set_if_undef(true_value, unified_format)
     format_set_if_undef(false_value, unified_format)
     return format_set_if_undef(optree, unified_format)
@@ -517,6 +521,8 @@ def solve_format_MinMax(optree):
     lhs_value = optree.get_input(0)
     rhs_value = optree.get_input(1)
     unified_format = solve_equal_formats([optree, lhs_value, rhs_value])
+    if unified_format is None:
+        Log.report(Log.Error, "could not unify format of operands in {}.\n", optree)
     format_set_if_undef(lhs_value, unified_format)
     format_set_if_undef(rhs_value, unified_format)
     return format_set_if_undef(optree, unified_format)
