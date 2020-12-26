@@ -82,6 +82,12 @@ ROUND_RD = Constant(2, precision=ROUNDING_MODE_FORMAT)
 ROUND_RZ = Constant(3, precision=ROUNDING_MODE_FORMAT)
 ROUND_RAZ = Constant(4, precision=ROUNDING_MODE_FORMAT)
 
+ROUND_RNE = 0
+ROUND_RU = 1
+ROUND_RD = 2
+ROUND_RZ = 3
+ROUND_RAZ = 4
+
 class Dequantizer(ML_Entity("dequantizer")):
     """ Implement the post-processing operator for
         a quantized neural network layer:
@@ -129,7 +135,7 @@ class Dequantizer(ML_Entity("dequantizer")):
         scale = self.implementation.add_input_variable("scale", scale_format)
         quantized_input = self.implementation.add_input_variable("quantized_input", quantized_input_format)
         offset_input = self.implementation.add_input_variable("offset", offset_input_format)
-        rounding_mode = self.implementation.add_input_variable("round_mode", ROUNDING_MODE_FORMAT)
+        rounding_mode = self.implementation.add_input_variable("round_mode", ML_StdLogicVectorFormat(3))
 
         support_format = self.precision.get_support_format()
         base_format = self.precision.get_base_format()
@@ -170,13 +176,32 @@ class Dequantizer(ML_Entity("dequantizer")):
         offseted_field = scaled_field + Conversion(offset_input, precision=fixed_point(offset_input_format.get_bit_size(), 0), tag="extended_offset", debug=debug_std)
         offseted_field.set_attributes(tag="offseted_field", debug=debug_std)
 
-        round_bit = Equal(
-            BitSelection(offseted_field, FixedPointPosition(offseted_field, -1, align=FixedPointPosition.FromPointToLSB), tag="round_bit"),
-            Constant(0, precision=ML_StdLogic))
-        sticky_bit = NotEqual(SubSignalSelection(offseted_field, 0, FixedPointPosition(offseted_field, -2, align=FixedPointPosition.FromPointToLSB), tag="sticky_bitfield", precision=None), 0, tag="sticky_bit")
+        round_bit = BitSelection(offseted_field, FixedPointPosition(offseted_field, -1, align=FixedPointPosition.FromPointToLSB))
+        parity_bit = BitSelection(offseted_field, FixedPointPosition(offseted_field, 0, align=FixedPointPosition.FromPointToLSB))
+        sticky_bit = NotEqual(SubSignalSelection(offseted_field, 0, FixedPointPosition(offseted_field, -2, align=FixedPointPosition.FromPointToLSB)), 0)
 
-        offseted_field_negative = offseted_field < 0
-        offseted_field_parity_bit = BitSelection(offseted_field, FixedPointPosition(offseted_field, 0, align=FixedPointPosition.FromPointToLSB), tag="parity_bit")
+        # TODO: implement rounding
+        # increment if round-up and (round_bit or sticky_bit)
+        #           if round-rz and (result negative) and (round_bit or sticky_bit)
+        #           if round-rne and (round_bit and (sticky_bit or (not result even)))
+        #           if round-raz and ((round_bit or sticky_bit) and (result positive))
+        C3 = lambda value: Constant(value, precision=rounding_mode.get_precision())
+        round_is_up = Equal(rounding_mode, C3(ROUND_RU))
+        round_is_rz = Equal(rounding_mode, C3(ROUND_RZ))
+        round_is_rne = Equal(rounding_mode, C3(ROUND_RNE))
+        round_is_raz = Equal(rounding_mode, C3(ROUND_RAZ))
+
+        round_bit_or_sticy_bit = LogicalOr(round_bit, sticky_bit)
+        result_even = Equal(parity_bit, 0)
+        result_positive = offseted_field >= 0
+
+        round_increment = logical_or_reduce([
+            LogicalAnd(round_is_up, round_bit_or_sticy_bit),
+            LogicalAnd(round_is_rz, LogicalAnd(LogicalNot(result_positive), round_bit_or_sticy_bit)),
+            LogicalAnd(round_is_rne, LogicalAnd(round_bit, LogicalOr(sticky_bit, LogicalNot(result_even)))),
+            LogicalAnd(round_is_raz, LogicalAnd(round_bit_or_sticy_bit, result_positive))], tag="round_increment")
+
+        rounded_result = offseted_field + round_increment
 
         offseted_field_even = Equal(offseted_field_parity_bit, Constant(0, precision=ML_StdLogic), tag="offseted_field_even")
 
@@ -208,7 +233,7 @@ class Dequantizer(ML_Entity("dequantizer")):
         # detecting overflow / underflow
         MAX_BOUND = self.get_io_format("result").get_max_value()
         MIN_BOUND = self.get_io_format("result").get_min_value()
-        bounded_result = Max(MIN_BOUND, Min(rounded_field, MAX_BOUND))
+        bounded_result = Max(MIN_BOUND, Min(rounded_result, MAX_BOUND))
 
         result = Conversion(bounded_result, precision=result_format)
 
