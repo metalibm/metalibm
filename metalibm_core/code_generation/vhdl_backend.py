@@ -290,6 +290,9 @@ def conversion_from_bool_generator(optree):
     op_precision = optree.get_precision()
     return Select(op_input, Constant(1, precision=op_precision), Constant(0, precision=op_precision), precision=op_precision)
 
+def conversion_to_bool_generator(node):
+    op_input = node.get_input(0)
+    return NotEqual(op_input, Constant(0, precision=op_input.get_precision()))
 
 def copy_sign_generator(optree):
     sign_input = optree.get_input(0)
@@ -1225,6 +1228,9 @@ vhdl_code_generation_table = {
                 type_strict_match(ML_StdLogic, ML_Bool):
                     ComplexOperator(
                         optree_modifier=conversion_from_bool_generator),
+                type_strict_match(ML_Bool, ML_StdLogic):
+                    ComplexOperator(
+                        optree_modifier=conversion_to_bool_generator),
                 type_custom_match(FSM(ML_String), TCM(ML_StdLogicVectorFormat)):
                     FunctionOperator("to_hstring", arity=1, force_folding=False),
                 type_custom_match(FSM(ML_String), FSM(ML_StdLogic)):
