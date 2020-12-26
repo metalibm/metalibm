@@ -305,6 +305,53 @@ class OptreeOptimization(OptimizationPass):
   def execute(self, optree):
     raise NotImplemented
 
+class LinearizedGraphOptimization(OptreeOptimization):
+    """ Virtual wrapper around OptreeOptimization to perform
+        node processing through a work list rather than a recursive
+        in depth processing """
+
+    def __init__(self, target, tag="unamed linearized-opt pass"):
+        OptreeOptimization.__init__(self, tag, target)
+        self.memoization_map = {}
+
+    def apply_on_node(self, input_node):
+        """ This function applies the optimization on a single node
+            assuming that if the node has operands, they already
+            have been submitted to the optimization """
+        raise NotImplementedError
+
+    def is_leaf_node(self, node):
+        """ predicate indicate whether a node's operands
+            must be pre-processed or not. This virtual methods
+            is used to avoid importing ML_Operation.is_leaf_node
+            into generic core.passes module """
+        raise NotImplementedError
+
+    def execute(self, input_node):
+        worklist = [input_node]
+
+        while worklist:
+            node = worklist.pop(0)
+            if not self.is_leaf_node(node):
+                op_ready = True
+                for op in node.inputs:
+                    if not op in self.memoization_map:
+                        op_ready = False
+                        if not op in worklist:
+                            worklist.append(op)
+                if not op_ready and not node in worklist:
+                    worklist.append(node)
+                elif op_ready:
+                    self.apply_on_node(node)
+            else:
+                self.apply_on_node(node)
+        return self.extract_result(input_node)
+
+    def extract_result(self, top_input_node):
+        """ generate the top-level result when execute is called with
+            <input_node> as input """
+        result_node = self.memoization_map[input_node]
+        return input_node if result_node is None else result_node
 
 class FunctionPass(OptreeOptimization):
     """ pass which execute on functions node:
