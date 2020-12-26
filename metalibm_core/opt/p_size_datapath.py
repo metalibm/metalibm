@@ -98,7 +98,7 @@ def solve_format_BooleanOp(optree):
     return optree.get_precision()
 
 ## Determine comparison node precision
-def solve_format_Comparison(optree):
+def solve_format_Comparison(optree, format_solver=None):
     """ Legalize Comparison precision
 
         Args:
@@ -112,6 +112,19 @@ def solve_format_Comparison(optree):
         optree.set_precision(ML_Bool)
     lhs = optree.get_input(0)
     rhs = optree.get_input(1)
+
+    lhs_format = lhs.get_precision()
+    rhs_format = rhs.get_precision()
+    if is_unevaluated_format(lhs_format):
+        lhs_format = solve_unevaluated_format(lhs_format, format_solver)
+
+    format_set_if_undef(lhs, lhs_format)
+
+    if is_unevaluated_format(rhs_format):
+        rhs_format = solve_unevaluated_format(rhs_format, format_solver)
+
+    format_set_if_undef(rhs, rhs_format)
+
     merge_format = solve_equal_formats([lhs, rhs])
     propagate_format_to_input(merge_format, optree, [0, 1])
     return solve_format_BooleanOp(optree)
@@ -185,7 +198,7 @@ def solve_format_ArithOperation(optree,
     if is_unevaluated_format(lhs_precision):
         lhs_precision = solve_unevaluated_format(lhs_precision, format_solver)
 
-    if is_unevaluated_format(lhs_precision):
+    if is_unevaluated_format(rhs_precision):
         rhs_precision = solve_unevaluated_format(rhs_precision, format_solver)
 
     if is_fixed_point(lhs_precision) and is_fixed_point(rhs_precision):
@@ -648,7 +661,7 @@ class FormatSolver:
             elif isinstance(optree, LogicalOr) or isinstance(optree, LogicalAnd) or isinstance(optree, LogicalNot):
                 new_format = solve_format_BooleanOp(optree)
             elif isinstance(optree, Comparison):
-                new_format = solve_format_Comparison(optree)
+                new_format = solve_format_Comparison(optree,format_solver=self)
             elif isinstance(optree, CountLeadingZeros):
                 new_format = solve_format_CLZ(optree)
             elif isinstance(optree, Multiplication):
