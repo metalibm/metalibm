@@ -183,9 +183,11 @@ class Dequantizer(ML_Entity("dequantizer")):
         offseted_field = scaled_field + Conversion(offset_input, precision=fixed_point(offset_input_format.get_bit_size(), 0), tag="extended_offset", debug=debug_std)
         offseted_field.set_attributes(tag="offseted_field", debug=debug_std)
 
-        round_bit = BitSelection(offseted_field, FixedPointPosition(offseted_field, -1, align=FixedPointPosition.FromPointToLSB))
-        parity_bit = BitSelection(offseted_field, FixedPointPosition(offseted_field, 0, align=FixedPointPosition.FromPointToLSB))
-        sticky_bit = NotEqual(SubSignalSelection(offseted_field, 0, FixedPointPosition(offseted_field, -2, align=FixedPointPosition.FromPointToLSB)), 0)
+        round_bit = BitSelection(offseted_field, FixedPointPosition(offseted_field, -1, align=FixedPointPosition.FromPointToLSB), tag="round_bit")
+        parity_bit = BitSelection(offseted_field, FixedPointPosition(offseted_field, 0, align=FixedPointPosition.FromPointToLSB), tag="parity_bit")
+        sticky_bit = NotEqual(SubSignalSelection(offseted_field, 0, FixedPointPosition(offseted_field, -2, align=FixedPointPosition.FromPointToLSB)), Constant(0, precision=ML_Integer))
+
+        round_bit = Conversion(round_bit, precision=ML_Bool)
 
         # TODO: implement rounding
         # increment if round-up and (round_bit or sticky_bit)
@@ -198,8 +200,8 @@ class Dequantizer(ML_Entity("dequantizer")):
         round_is_rne = Equal(rounding_mode, C3(ROUND_RNE))
         round_is_raz = Equal(rounding_mode, C3(ROUND_RAZ))
 
-        round_bit_or_sticy_bit = LogicalOr(round_bit, sticky_bit)
-        result_even = Equal(parity_bit, 0)
+        round_bit_or_sticy_bit = LogicalOr(round_bit, sticky_bit, tag="round_bit_or_sticy_bit")
+        result_even = Equal(parity_bit, Constant(0, precision=ML_StdLogic), tag="result_even")
         result_positive = offseted_field >= 0
 
         round_increment = logical_or_reduce([
@@ -208,7 +210,7 @@ class Dequantizer(ML_Entity("dequantizer")):
             LogicalAnd(round_is_rne, LogicalAnd(round_bit, LogicalOr(sticky_bit, LogicalNot(result_even)))),
             LogicalAnd(round_is_raz, LogicalAnd(round_bit_or_sticy_bit, result_positive))], tag="round_increment")
 
-        rounded_result = offseted_field + round_increment
+        rounded_result = offseted_field + Conversion(round_increment, precision=fixed_point(1, 0, signed=False))
 
         offseted_field_even = Equal(offseted_field_parity_bit, Constant(0, precision=ML_StdLogic), tag="offseted_field_even")
 
