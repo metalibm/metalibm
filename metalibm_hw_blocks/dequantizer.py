@@ -75,6 +75,12 @@ def fixed_normalized_mantissa(op):
 
 FIX32 = fixed_point(32, 0, signed=True)
 
+ROUND_RNE = 0
+ROUND_RU = 1
+ROUND_RD = 2
+ROUND_RZ = 3
+ROUND_RAZ = 4
+
 class Dequantizer(ML_Entity("dequantizer")):
     """ Implement the post-processing operator for
         a quantized neural network layer:
@@ -122,6 +128,7 @@ class Dequantizer(ML_Entity("dequantizer")):
         scale = self.implementation.add_input_variable("scale", scale_format)
         quantized_input = self.implementation.add_input_variable("quantized_input", quantized_input_format)
         offset_input = self.implementation.add_input_variable("offset", offset_input_format)
+        rounding_mode = self.implementation.add_input_variable("round_mode", ML_StdLogicVectorFormat(3))
 
         support_format = self.precision.get_support_format()
         base_format = self.precision.get_base_format()
@@ -163,16 +170,38 @@ class Dequantizer(ML_Entity("dequantizer")):
         offseted_field.set_attributes(tag="offseted_field", debug=debug_std)
 
         round_bit = BitSelection(offseted_field, FixedPointPosition(offseted_field, -1, align=FixedPointPosition.FromPointToLSB))
+        parity_bit = BitSelection(offseted_field, FixedPointPosition(offseted_field, 0, align=FixedPointPosition.FromPointToLSB))
         sticky_bit = NotEqual(SubSignalSelection(offseted_field, 0, FixedPointPosition(offseted_field, -2, align=FixedPointPosition.FromPointToLSB)), 0)
 
         # TODO: implement rounding
+        # increment if round-up and (round_bit or sticky_bit)
+        #           if round-rz and (result negative) and (round_bit or sticky_bit)
+        #           if round-rne and (round_bit and (sticky_bit or (not result even)))
+        #           if round-raz and ((round_bit or sticky_bit) and (result positive))
+        C3 = lambda value: Constant(value, precision=rounding_mode.get_precision())
+        round_is_up = Equal(rounding_mode, C3(ROUND_RU))
+        round_is_rz = Equal(rounding_mode, C3(ROUND_RZ))
+        round_is_rne = Equal(rounding_mode, C3(ROUND_RNE))
+        round_is_raz = Equal(rounding_mode, C3(ROUND_RAZ))
+
+        round_bit_or_sticy_bit = LogicalOr(round_bit, sticky_bit)
+        result_even = Equal(parity_bit, 0)
+        result_positive = offseted_field >= 0
+
+        round_increment = logical_or_reduce([
+            LogicalAnd(round_is_up, round_bit_or_sticy_bit),
+            LogicalAnd(round_is_rz, LogicalAnd(LogicalNot(result_positive), round_bit_or_sticy_bit)),
+            LogicalAnd(round_is_rne, LogicalAnd(round_bit, LogicalOr(sticky_bit, LogicalNot(result_even)))),
+            LogicalAnd(round_is_raz, LogicalAnd(round_bit_or_sticy_bit, result_positive))], tag="round_increment")
+
+        rounded_result = offseted_field + round_increment
 
         result_format = self.get_io_format("result")
 
         # detecting overflow / underflow
         MAX_BOUND = self.get_io_format("result").get_max_value()
         MIN_BOUND = self.get_io_format("result").get_min_value()
-        bounded_result = Max(MIN_BOUND, Min(offseted_field, MAX_BOUND))
+        bounded_result = Max(MIN_BOUND, Min(rounded_result, MAX_BOUND))
 
         result = Conversion(bounded_result, precision=result_format)
 
