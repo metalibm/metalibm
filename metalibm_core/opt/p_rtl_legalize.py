@@ -33,15 +33,17 @@ import sollya
 from metalibm_core.utility.log_report import Log
 
 from metalibm_core.core.passes import (
-    OptreeOptimization, Pass, LOG_PASS_INFO,
+    Pass, LOG_PASS_INFO,
     FunctionPass, METALIBM_PASS_REGISTER,
+    LinearizedGraphOptimization,
 )
 
 from metalibm_core.core.ml_operations import (
-    ML_LeafNode, Select, Conversion, Comparison, Min, Max,
+    Select, Conversion, Comparison, Min, Max,
     BitLogicRightShift, BitLogicAnd, Constant,
     BitLogicOr, BitLogicLeftShift, VectorElementSelection,
     TypeCast,
+    is_leaf_node,
 )
 from metalibm_core.core.advanced_operations import FixedPointPosition
 from metalibm_core.core.ml_hdl_operations import (
@@ -161,19 +163,19 @@ def sw_legalize_single_operation(optree, format_solver=None):
     return False, optree
 
 
+
 ## Legalize the precision of a datapath by finely tuning the size
 #  of each operations (limiting width while preventing overflow)
-class Pass_RTLLegalize(OptreeOptimization):
+class Pass_RTLLegalize(LinearizedGraphOptimization):
     """ Legalization of RTL operations """
     pass_tag = "rtl_legalize"
 
     def __init__(self, target, tag="rtl legalize"):
         """ pass initialization """
-        OptreeOptimization.__init__(self, tag, target)
-        self.memoization_map = {}
+        LinearizedGraphOptimization.__init__(self, tag, target)
         self.format_solver = FormatSolver()
 
-    def legalize_operation_rec(self, optree):
+    def legalize_operation(self, optree):
         """ """
         # looking into memoization map
         if optree in self.memoization_map:
@@ -182,11 +184,11 @@ class Pass_RTLLegalize(OptreeOptimization):
         # has the npde been modified ?
         arg_changed = False
 
-        if isinstance(optree, ML_LeafNode):
+        if is_leaf_node(optree):
             pass
         else:
             for index, op_input in enumerate(optree.get_inputs()):
-                is_modified, new_node = self.legalize_operation_rec(op_input)
+                is_modified, new_node = self.memoization_map[op_input]
                 if is_modified:
                     optree.set_input(index, new_node)
                     arg_changed = True
@@ -202,9 +204,15 @@ class Pass_RTLLegalize(OptreeOptimization):
     def legalize_single_operation(self, node, format_solver):
         return legalize_single_operation(node, format_solver)
 
-    def execute(self, optree):
-        """ pass execution """
-        return self.legalize_operation_rec(optree)
+    def apply_on_node(self, node):
+        return self.legalize_operation(node)
+
+    def is_leaf_node(self, node):
+        return is_leaf_node(node)
+
+    def extract_result(self, input_node):
+        _, result_node = self.memoization_map[input_node]
+        return result_node
 
 
 def generate_bitfield_extraction(target_format, input_node, lo_index, hi_index):
