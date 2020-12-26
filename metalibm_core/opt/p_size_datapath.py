@@ -118,17 +118,23 @@ def solve_format_Comparison(optree, format_solver=None):
     if is_unevaluated_format(lhs_format):
         lhs_format = solve_unevaluated_format(lhs_format, format_solver)
 
-    format_set_if_undef(lhs, lhs_format)
-
-    if is_unevaluated_format(rhs_format):
+    if is_constant(rhs) and (rhs_format is None or rhs_format is ML_Integer):
+        # we propagate evaluate LHS format to both inputs
+        format_set_if_undef(lhs, lhs_format)
+        rhs.set_precision(lhs_format)
+    elif is_unevaluated_format(rhs_format):
         rhs_format = solve_unevaluated_format(rhs_format, format_solver)
 
-    format_set_if_undef(rhs, rhs_format)
+    if is_constant(lhs) and (lhs_format is None or lhs_format is ML_Integer):
+        # we propagate evaluate RHS format to both inputs
+        lhs.set_precision(rhs_format)
+        format_set_if_undef(rhs, rhs_format)
 
     merge_format = solve_equal_formats([lhs, rhs])
     if merge_format is None:
         Log.report(Log.Error, "could not unify format of operands in {}.\n", optree)
-    propagate_format_to_input(merge_format, optree, [0, 1])
+    elif is_fixed_point(merge_format):
+        propagate_format_to_input(merge_format, optree, [0, 1])
     return solve_format_BooleanOp(optree)
 
 def solve_format_CLZ(optree):
