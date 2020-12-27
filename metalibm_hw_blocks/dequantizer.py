@@ -38,7 +38,9 @@ S2 = sollya.SollyaObject(2)
 
 from metalibm_core.core.ml_operations import *
 from metalibm_core.core.ml_formats import *
-from metalibm_core.core.ml_entity import ML_Entity, ML_EntityBasis, DefaultEntityArgTemplate
+from metalibm_core.core.ml_entity import (
+    ML_Entity, ML_EntityBasis, DefaultEntityArgTemplate,
+    RawLogicVectorRandomGen)
 
 
 from metalibm_core.utility.ml_template import *
@@ -48,6 +50,7 @@ from metalibm_core.utility.log_report    import Log
 from metalibm_core.core.ml_hdl_format import *
 from metalibm_core.core.ml_hdl_operations import *
 from metalibm_core.core.advanced_operations import FixedPointPosition
+from metalibm_core.core.random_gen import FPRandomGen
 
 from metalibm_core.opt.opt_utils import logical_or_reduce
 
@@ -128,7 +131,7 @@ class Dequantizer(ML_Entity("dequantizer")):
         scale = self.implementation.add_input_variable("scale", scale_format)
         quantized_input = self.implementation.add_input_variable("quantized_input", quantized_input_format)
         offset_input = self.implementation.add_input_variable("offset", offset_input_format)
-        rounding_mode = self.implementation.add_input_variable("round_mode", ML_StdLogicVectorFormat(3))
+        rounding_mode = self.implementation.add_input_variable("rounding_mode", ML_StdLogicVectorFormat(3))
 
         support_format = self.precision.get_support_format()
         base_format = self.precision.get_base_format()
@@ -210,11 +213,18 @@ class Dequantizer(ML_Entity("dequantizer")):
         self.implementation.add_output_signal("result", result)
         return [self.implementation]
 
+    def init_test_generator(self, io_map):
+        """ specialization of random input generators """
+        ML_EntityBasis.init_test_generator(self, io_map)
+        # patching generator for rounding_mode to limit value
+        self.input_generators["scale"] = FPRandomGen(self.get_io_format("scale").get_base_format(), weight_map={FPRandomGen.Category.Normal: 1.0})
+        self.input_generators["rounding_mode"] = RawLogicVectorRandomGen(3, 0, max([ROUND_RNE, ROUND_RU, ROUND_RD, ROUND_RZ, ROUND_RAZ]))
+
     def numeric_emulate(self, io_map):
         qinput = io_map["quantized_input"]
         scale = io_map["scale"]
         offset = io_map["offset"]
-        round_mode = io_map["round_mode"]
+        rounding_mode = io_map["rounding_mode"]
 
         def round_nearest_tie_away_from_zero(value):
             rounded_value = int(sollya.nearestint(value))
@@ -239,7 +249,7 @@ class Dequantizer(ML_Entity("dequantizer")):
         }
         result = {}
         # TODO/FIXME: support rounding mode
-        unbounded_result = ROUND_FUNCTION[round_mode](scale * qinput + offset)
+        unbounded_result = ROUND_FUNCTION[rounding_mode](scale * qinput + offset)
         # threshold clamp
         MAX_BOUND = self.get_io_format("result").get_max_value()
         MIN_BOUND = self.get_io_format("result").get_min_value()
@@ -248,32 +258,32 @@ class Dequantizer(ML_Entity("dequantizer")):
 
     standard_test_cases = [
         # dummy tests
-        ({"quantized_input": 0, "scale": 0, "offset": 0}, None),
-        ({"quantized_input": 0, "scale": 0, "offset": 1}, None),
-        ({"quantized_input": 0, "scale": 0, "offset": 17}, None),
-        ({"quantized_input": 0, "scale": 0, "offset": -17}, None),
+        ({"quantized_input": 0, "scale": 0, "offset": 0, "rounding_mode": 0}, None),
+        ({"quantized_input": 0, "scale": 0, "offset": 1, "rounding_mode": 0}, None),
+        ({"quantized_input": 0, "scale": 0, "offset": 17, "rounding_mode": 0}, None),
+        ({"quantized_input": 0, "scale": 0, "offset": -17, "rounding_mode": 0}, None),
 
-        ({"quantized_input": 17, "scale": 1.0, "offset": 0}, None),
-        #({"quantized_input": 17, "scale": -1.0, "offset": 0}, None),
-        ({"quantized_input": -17, "scale": 1.0, "offset": 0}, None),
-        #({"quantized_input": -17, "scale": -1.0, "offset": 0}, None),
+        ({"quantized_input": 17, "scale": 1.0, "offset": 0, "rounding_mode": 0}, None),
+        #({"quantized_input": 17, "scale": -1.0, "offset": 0, "rounding_mode": 0}, None),
+        ({"quantized_input": -17, "scale": 1.0, "offset": 0, "rounding_mode": 0}, None),
+        #({"quantized_input": -17, "scale": -1.0, "offset": 0, "rounding_mode": 0}, None),
 
-        ({"quantized_input": 17, "scale": 1.0, "offset": 42}, None),
-        #({"quantized_input": 17, "scale": -1.0, "offset": 42}, None),
-        ({"quantized_input": -17, "scale": 1.0, "offset": 42}, None),
-        #({"quantized_input": -17, "scale": -1.0, "offset": 42}, None),
+        ({"quantized_input": 17, "scale": 1.0, "offset": 42, "rounding_mode": 0}, None),
+        #({"quantized_input": 17, "scale": -1.0, "offset": 42, "rounding_mode": 0}, None),
+        ({"quantized_input": -17, "scale": 1.0, "offset": 42, "rounding_mode": 0}, None),
+        #({"quantized_input": -17, "scale": -1.0, "offset": 42, "rounding_mode": 0}, None),
 
-        ({"quantized_input": 17, "scale": 1.125, "offset": 42}, None),
-        #({"quantized_input": 17, "scale": -1.0, "offset": 42}, None),
-        ({"quantized_input": -17, "scale": 17.0, "offset": 42}, None),
-        #({"quantized_input": -17, "scale": -1.0, "offset": 42}, None),
+        ({"quantized_input": 17, "scale": 1.125, "offset": 42, "rounding_mode": 0}, None),
+        #({"quantized_input": 17, "scale": -1.0, "offset": 42, "rounding_mode": 0}, None),
+        ({"quantized_input": -17, "scale": 17.0, "offset": 42, "rounding_mode": 0}, None),
+        #({"quantized_input": -17, "scale": -1.0, "offset": 42, "rounding_mode": 0}, None),
 
         # rounding
-        ({"quantized_input": 17, "scale": 0.625, "offset": 1337}, None),
+        ({"quantized_input": 17, "scale": 0.625, "offset": 1337, "rounding_mode": 0}, None),
 
         # TODO: cancellation tests
         # TODO: overflow tests
-        ({"quantized_input": 2**31-1, "scale": 4.0, "offset": 42}, None),
+        ({"quantized_input": 2**31-1, "scale": 4.0, "offset": 42, "rounding_mode": 0}, None),
         # TODO: other tests
     ]
 
