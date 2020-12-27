@@ -246,9 +246,32 @@ class Dequantizer(ML_Entity("dequantizer")):
         qinput = io_map["quantized_input"]
         scale = io_map["scale"]
         offset = io_map["offset"]
+        round_mode = io_map["round_mode"]
+
+        def round_nearest_tie_away_from_zero(value):
+            rounded_value = int(sollya.nearestint(value))
+            # detect ties
+            tie = (value == rounded_value + 0.5 or value == rounded_value - 0.5)
+            away_offset = 1 if value > 0 else -1 # in tie cases value != 0
+            if tie:
+                assert value != 0
+                if value > 0:
+                    return int(sollya.floor(value)) + 1
+                else:
+                    return int(sollya.ceil(value)) - 1
+            else:
+                return rounded_value
+
+        ROUND_FUNCTION = {
+            ROUND_RNE: lambda value: int(sollya.nearestint(value)),
+            ROUND_RU: lambda value: int(sollya.ceil(value)),
+            ROUND_RD: lambda value: int(sollya.floor(value)),
+            ROUND_RZ: lambda value: int(sollya.floor(value)),
+            ROUND_RAZ: round_nearest_tie_away_from_zero,
+        }
         result = {}
         # TODO/FIXME: support rounding mode
-        unbounded_result = int(scale * qinput + offset)
+        unbounded_result = ROUND_FUNCTION[round_mode](scale * qinput + offset)
         # threshold clamp
         MAX_BOUND = self.get_io_format("result").get_max_value()
         MIN_BOUND = self.get_io_format("result").get_min_value()
