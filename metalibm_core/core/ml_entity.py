@@ -95,6 +95,8 @@ from metalibm_core.opt.p_tag_node import Pass_DebugTaggedNode
 import random
 import subprocess
 
+from metalibm_core.core.random_gen import FixedPointRandomGen, FPRandomGen
+
 def generate_random_fp_value(precision, inf, sup):
     """ Generate a random floating-point value of format precision """
     assert isinstance(precision, ML_FP_Format)
@@ -112,6 +114,18 @@ def generate_random_fixed_value(precision):
     value = random.uniform( lo_value, hi_value)
     rounded_value = precision.round_sollya_object(value)
     return rounded_value
+
+class RawLogicVectorRandomGen:
+    """ Random number generator for raw logic/logic_vector
+        datum """
+    def __init__(self, size, min_value=0, max_value=None):
+        self.size = size
+        self.min_value = min_value
+        self.max_value = 2**size-1 if max_value is None else max_value
+    def get_new_value(self):
+        # use size to generate a logarithmic distribution
+        sub_size = random.randrange(0, self.size+1)
+        return max(min(random.randrange(2**sub_size), self.max_value), self.min_value)
 
 ## \defgroup ml_entity ml_entity
 ## @{
@@ -726,23 +740,36 @@ class ML_EntityBasis(object):
     high_input = sollya.sup(test_range)
     input_values = {}
     for input_tag in input_signals:
-        input_signal = io_map[input_tag]
-        # FIXME: correct value generation depending on signal precision
-        input_precision = input_signal.get_precision().get_base_format()
-        if isinstance(input_precision, ML_FP_Format):
-            input_value = generate_random_fp_value(input_precision, low_input, high_input)
-        elif isinstance(input_precision, ML_Fixed_Format):
-            # TODO: does not depend on low and high range bounds
-            input_value = generate_random_fixed_value(input_precision)
-        else: 
-            input_value = random.randrange(2**input_precision.get_bit_size())
+        input_value = self.input_generators[input_tag].get_new_value()
         # registering input value
         input_values[input_tag] = input_value
     return input_values
 
-  def init_test_generator(self):
+  def init_test_generator(self, io_map):
     """ Generic initialization of test case generator """
-    return
+    # reset input generators map
+    self.input_generators = {}
+    input_signals = self.get_input_signal_map(io_map)
+    for input_tag in input_signals:
+        input_signal = io_map[input_tag]
+        input_precision = input_signal.get_precision().get_base_format()
+        if isinstance(input_precision, ML_FP_Format):
+            # TODO/FIXME: does not depend on reduced input range (if any)
+            input_generator = FPRandomGen(input_precision) 
+        elif isinstance(input_precision, ML_Fixed_Format):
+            # TODO: does not depend on low and high range bounds
+            input_generator = FixedPointRandomGen(
+                int_size=input_precision.get_integer_size(),
+                frac_size=input_precision.get_frac_size(),
+                signed=input_precision.signed)
+        elif isinstance(input_precision, ML_StdLogicVectorFormat):
+            input_generator = RawLogicVectorRandomGen(input_precision.get_bit_size()) 
+        elif isinstance(input_precision, ML_StdLogic):
+            input_generator = RawLogicVectorRandomGen(1) 
+        else: 
+            Log.report(Log.Error, "unsupported input_precision {} in ML_Entity.init_test_generator", input_precision)
+        self.input_generators[input_tag] = input_generator
+        
 
   def implement_test_case(self, io_map, input_values, output_signals,
                           output_values, time_step, index=None):
@@ -1003,7 +1030,7 @@ class ML_EntityBasis(object):
 
 
     # initializing random test case generator
-    self.init_test_generator()
+    self.init_test_generator(io_map)
 
     # Appending standard test cases if required
     if self.auto_test_std:
