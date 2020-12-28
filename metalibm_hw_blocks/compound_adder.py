@@ -137,7 +137,6 @@ class CompoundAdder(ML_EntityBasis):
 
         # carry-select
         def rec_add(op_x, op_y, level=0, lower_limit=1):
-            print("calling rec_add")
             n_x = op_x.get_precision().get_bit_size()
             n_y = op_y.get_precision().get_bit_size()
             n = max(n_x, n_y)
