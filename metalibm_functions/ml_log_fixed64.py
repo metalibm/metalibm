@@ -35,70 +35,43 @@ from sollya import (
         S2, Interval, ceil, floor, round, inf, sup, log, exp, guessdegree,
         nearestint
 )
-from metalibm_core.core.ml_function import ML_Function, ML_FunctionBasis
+from metalibm_core.core.ml_function import DefaultArgTemplate
 
 from metalibm_core.core.ml_operations import *
 from metalibm_core.core.ml_formats import *
 from metalibm_core.core.polynomials import *
 from metalibm_core.core.ml_table import ML_NewTable
-from metalibm_core.core.ml_complex_formats import ML_Mpfr_t
+from metalibm_core.core.precisions import ML_Faithful
+
+from metalibm_core.core.simple_scalar_function import ScalarUnaryFunction
 
 from metalibm_core.code_generation.gappa_code_generator import GappaCodeGenerator
 from metalibm_core.code_generation.generic_processor import GenericProcessor
 from metalibm_core.code_generation.generator_utility import FunctionOperator, FO_Result, FO_Arg
-from metalibm_core.code_generation.fixed_point_backend import FixedPointBackend
 
 from metalibm_core.utility.gappa_utils import execute_gappa_script_extract
-from metalibm_core.utility.ml_template import ML_ArgTemplate
+from metalibm_core.utility.ml_template import MetaFunctionArgTemplate
 from metalibm_core.utility.debug_utils import * 
 
 from numpy import ndindex as ndrange # multidimentional range to iterate over
 import resource
 
-class ML_Log(ML_Function("ml_log")):
-  def __init__(self, 
-               precision = ML_Binary64, 
-               abs_accuracy = S2**-24, 
-               libm_compliant = True, 
-               debug_flag = False, 
-               fuse_fma = True, 
-               fast_path_extract = True,
-               target = GenericProcessor.get_target_instance(), 
-               output_file = "log_fixed.c", 
-               function_name = "log_fixed"):
-    # initializing I/O precision
-    io_precisions = [precision] * 2
-
-    # initializing base class
-    ML_FunctionBasis.__init__(self, 
-      base_name = "log",
-      function_name = function_name,
-      output_file = output_file,
-
-      io_precisions = io_precisions,
-      abs_accuracy = None,
-      libm_compliant = libm_compliant,
-
-      processor = target,
-      fuse_fma = fuse_fma,
-      fast_path_extract = fast_path_extract,
-
-      debug_flag = debug_flag
-    )
-
-    self.precision = precision
-
-  def generate_emulate(self, result, mpfr_x, mpfr_rnd):
-    """ generate the emulation code for ML_Log2 functions
-        mpfr_x is a mpfr_t variable which should have the right precision
-        mpfr_rnd is the rounding mode
-    """
-    emulate_func_name = "mpfr_log"
-    emulate_func_op = FunctionOperator(emulate_func_name, arg_map = {0: FO_Result(0), 1: FO_Arg(0), 2: FO_Arg(1)}, require_header = ["mpfr.h"]) 
-    emulate_func   = FunctionObject(emulate_func_name, [ML_Mpfr_t, ML_Int32], ML_Mpfr_t, emulate_func_op)
-    mpfr_call = Statement(ReferenceAssign(result, emulate_func(mpfr_x, mpfr_rnd)))
-
-    return mpfr_call
+class MetaFixedLog(ScalarUnaryFunction):
+  def __init__(self, args=DefaultArgTemplate):
+    super().__init__(args)
+  @staticmethod
+  def get_default_args(**kw):
+      """ Return a structure containing the arguments for ML_Exponential,
+          builtin from a default argument mapping overloaded with @p kw """
+      default_args_log = {
+          "output_file": "log_fixed.c",
+          "function_name": "log_fixed",
+          "precision": ML_Binary64,
+          "accuracy": ML_Faithful,
+          "target": GenericProcessor.get_target_instance()
+      }
+      default_args_log.update(kw)
+      return DefaultArgTemplate(**default_args_log)
 
 
   """ evaluate one argument reduction (Tang):
@@ -244,13 +217,13 @@ class ML_Log(ML_Function("ml_log")):
     # execute and parse the result
     result = execute_gappa_script_extract(gappa_code.get(self.gappa_engine))
     self.gappa_engine.clear_memoization_map() # avoid memory leak
-    #print result['indexTableX'], result['indexTableY']
+    #print(result['indexTableX'], result['indexTableY'])
     length_table1 = 1 + floor(sup(result['indexTableX'])).getConstantAsInt()
     length_table2 = 1 + floor(sup(result['indexTableY'])).getConstantAsInt()
     if False and (length_table2 != 1 + floor(sup(result['dy']) * S2**size2).getConstantAsInt()):
-      print "(dy*2**size2:", 1 + floor(sup(result['dy']*S2**size2)).getConstantAsInt(), ")"
-      print "(indexTableY:", 1 + floor(sup(result['indexTableY'])).getConstantAsInt(), ")"
-      print result['indexTableY'], result['dy']
+      print("(dy*2**size2:", 1 + floor(sup(result['dy']*S2**size2)).getConstantAsInt(), ")")
+      print("(indexTableY:", 1 + floor(sup(result['indexTableY'])).getConstantAsInt(), ")")
+      print(result['indexTableY'], result['dy'])
       sys.exit(1)
     return {
       # arguments
@@ -325,8 +298,8 @@ class ML_Log(ML_Function("ml_log")):
           max_prec2 = min(max_prec2, 12 + size2 - prec1)
           for prec2 in range(max_prec2,min_prec2-1,-1):
             
-            #print '=====\t\033[1m{}\033[0m({}/{}),\t\033[1m{}\033[0m({}/{}),\t\033[1m{}\033[0m({}/{}),\t\033[1m{}\033[0m({}/{})\t====='.format(size1,min_size1,max_size1,prec1,min_prec1,max_prec1,size2,min_size2,max_size2,prec2,min_prec2,max_prec2)
-            #print resource.getrusage(resource.RUSAGE_SELF).ru_maxrss #memory used by the programm
+            #print('=====\t\033[1m{}\033[0m({}/{}),\t\033[1m{}\033[0m({}/{}),\t\033[1m{}\033[0m({}/{}),\t\033[1m{}\033[0m({}/{})\t====='.format(size1,min_size1,max_size1,prec1,min_prec1,max_prec1,size2,min_size2,max_size2,prec2,min_prec2,max_prec2))
+            #print(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss #memory used by the programm)
 
             arg_reduc = self.eval_argument_reduction(size1, prec1, size2, prec2)
             mid_interval = arg_reduc['mid_interval']
@@ -345,10 +318,10 @@ class ML_Log(ML_Function("ml_log")):
             guess_degree_poly1 = guessdegree(log(1+sollya.x)/sollya.x, sollya_out_interval, S2**-52)
             guess_degree_poly2 = guessdegree(log(1+sollya.x), sollya_out_interval, S2**-120)
             # TODO: detect when guessdegree return multiple possible degree, and find the right one
-            if False and inf(guess_degree_poly1) <> sup(guess_degree_poly1):
-              print "improvable guess_degree_poly1:", guess_degree_poly1
-            if False and inf(guess_degree_poly2) <> sup(guess_degree_poly2):
-              print "improvable guess_degree_poly2:", guess_degree_poly2
+            if False and inf(guess_degree_poly1) != sup(guess_degree_poly1):
+              print("improvable guess_degree_poly1:", guess_degree_poly1)
+            if False and inf(guess_degree_poly2) != sup(guess_degree_poly2):
+              print("improvable guess_degree_poly2:", guess_degree_poly2)
             degree_poly1 = sup(guess_degree_poly1).getConstantAsInt() + 1
             degree_poly2 = sup(guess_degree_poly2).getConstantAsInt()
             
@@ -365,8 +338,8 @@ class ML_Log(ML_Function("ml_log")):
               arg_reduc['degree_poly2'] = degree_poly2
               arg_reduc['sizeof_tables'] = sizeof_tables
               best_arg_reduc = arg_reduc
-              #print "\n   --new best--  \n", arg_reduc, "\n"
-    #print "\nBest arg reduc: \n", best_arg_reduc, "\n"
+              #print("\n   --new best--  \n", arg_reduc, "\n")
+    #print("\nBest arg reduc: \n", best_arg_reduc, "\n")
     return best_arg_reduc
     
 
@@ -386,12 +359,12 @@ class ML_Log(ML_Function("ml_log")):
     log2_hi = Constant(v_log2_hi, precision = self.precision, tag = "log2_hi")
     log2_lo = Constant(v_log2_lo, precision = self.precision, tag = "log2_lo")
    
-    print "\n\033[1mSearch parameters for the argument reduction:\033[0m (this can take a while)"
+    print("\n\033[1mSearch parameters for the argument reduction:\033[0m (this can take a while)")
     arg_reduc = self.generate_argument_reduction(memory_limit)
 
-    print "\n\033[1mArgument reduction found:\033[0m [({},{}),({},{})] -> polynomials of degree {},{}, using {} bytes of memory".format(arg_reduc['size1'],arg_reduc['prec1'],arg_reduc['size2'],arg_reduc['prec2'],arg_reduc['degree_poly1'],arg_reduc['degree_poly2'],arg_reduc['sizeof_tables']) 
+    print("\n\033[1mArgument reduction found:\033[0m [({},{}),({},{})] -> polynomials of degree {},{}, using {} bytes of memory".format(arg_reduc['size1'],arg_reduc['prec1'],arg_reduc['size2'],arg_reduc['prec2'],arg_reduc['degree_poly1'],arg_reduc['degree_poly2'],arg_reduc['sizeof_tables'])) 
     
-    print "\n\033[1mGenerate the first logarithm table:\033[0m containing {} elements, using {} bytes of memory".format(arg_reduc['length_table1'], arg_reduc['sizeof_table1'])
+    print("\n\033[1mGenerate the first logarithm table:\033[0m containing {} elements, using {} bytes of memory".format(arg_reduc['length_table1'], arg_reduc['sizeof_table1']))
     inv_table_1 = ML_NewTable(dimensions = [arg_reduc['length_table1']],
                            storage_precision = ML_Custom_FixedPoint_Format(1, arg_reduc['prec1'], False),
                            tag = self.uniquify_name("inv_table_1"))
@@ -405,7 +378,7 @@ class ML_Log(ML_Function("ml_log")):
       inv_table_1[i] = inv_x1 #Constant(inv_x1, precision = ML_Custom_FixedPoint_Format(1, arg_reduc['prec1'], False))
       log_table_1[i] = log_x1 #Constant(log_x1, precision = ML_Custom_FixedPoint_Format(11, 128-11, False))
 
-    print "\n\033[1mGenerate the second logarithm table:\033[0m containing {} elements, using {} bytes of memory".format(arg_reduc['length_table2'], arg_reduc['sizeof_table2'])
+    print("\n\033[1mGenerate the second logarithm table:\033[0m containing {} elements, using {} bytes of memory".format(arg_reduc['length_table2'], arg_reduc['sizeof_table2']))
     inv_table_2 = ML_NewTable(dimensions = [arg_reduc['length_table2']],
                            storage_precision = ML_Custom_FixedPoint_Format(1, arg_reduc['prec2'], False),
                            tag = self.uniquify_name("inv_table_2"))
@@ -421,13 +394,13 @@ class ML_Log(ML_Function("ml_log")):
     
     ### Evaluation Scheme ###
     
-    print "\n\033[1mGenerate the evaluation scheme:\033[0m"
+    print("\n\033[1mGenerate the evaluation scheme:\033[0m")
     input_var = self.implementation.add_input_variable("input_var", self.precision) 
     ve = ExponentExtraction(input_var, tag = "x_exponent", debug = debugd)
     vx = MantissaExtraction(input_var, tag = "x_mantissa", precision = ML_Custom_FixedPoint_Format(0,52,False), debug = debug_lftolx)
     #vx = MantissaExtraction(input_var, tag = "x_mantissa", precision = self.precision, debug = debug_lftolx)
 
-    print "filtering and handling special cases"
+    print("filtering and handling special cases")
     test_is_special_cases = LogicalNot(Test(input_var, specifier = Test.IsIEEENormalPositive, likely = True, debug = debugd, tag = "is_special_cases"))
     handling_special_cases = Statement(
       ConditionBlock(
@@ -446,7 +419,7 @@ class ML_Log(ML_Function("ml_log")):
       #)
     )
     
-    print "doing the argument reduction"
+    print("doing the argument reduction")
     v_dx = vx
     v_x1 = Conversion(v_dx, tag = 'x1',
                       precision = ML_Custom_FixedPoint_Format(0,arg_reduc['size1'],False),
@@ -472,11 +445,11 @@ class ML_Log(ML_Function("ml_log")):
                           precision = ML_Custom_FixedPoint_Format(64-52-arg_reduc['prec1']-arg_reduc['prec2'],52+arg_reduc['prec1']+arg_reduc['prec2'],False))
     # reduce the number of bits used to represent dz. we can do that
     
-    print "doing the first polynomial evaluation"
+    print("doing the first polynomial evaluation")
     global_poly1_object = Polynomial.build_from_approximation(log(1+sollya.x)/sollya.x, arg_reduc['degree_poly1']-1, [64] * (arg_reduc['degree_poly1']), arg_reduc['out_interval'], fixed, sollya.absolute)
     poly1_object = global_poly1_object.sub_poly(start_index = 1)
-    print global_poly1_object
-    print poly1_object
+    print(global_poly1_object)
+    print(poly1_object)
     poly1 = PolynomialSchemeEvaluator.generate_horner_scheme(poly1_object, v_dz, unified_precision = v_dz.get_precision())
     return ConditionBlock(test_is_special_cases, handling_special_cases, Return(poly1))
 
@@ -511,12 +484,12 @@ class ML_Log(ML_Function("ml_log")):
     vx_one = Equal(vx, 1.0, tag = "vx_one", likely = False, debug = debugd)
 
     # exp=-1 case
-    print "managing exp=-1 case"
+    print("managing exp=-1 case")
     #red_vx_2 = arg_red_index * vx_mant * 0.5
     #approx_interval2 = Interval(0.5 - inv_err, 0.5 + inv_err)
     #poly_degree2 = sup(guessdegree(log(x), approx_interval2, S2**-(self.precision.get_field_size()+1))) + 1
     #poly_object2 = Polynomial.build_from_approximation(log(sollya.x), poly_degree, [self.precision]*(poly_degree+1), approx_interval2, sollya.absolute)
-    #print "poly_object2: ", poly_object2.get_sollya_object()
+    #print("poly_object2: ", poly_object2.get_sollya_object())
     #poly2 = PolynomialSchemeEvaluator.generate_horner_scheme(poly_object2, red_vx_2, unified_precision = self.precision)
     #poly2.set_attributes(tag = "poly2", debug = debug_lftolx)
     #result2 = (poly2 - log_inv_hi - log_inv_lo)
@@ -528,11 +501,11 @@ class ML_Log(ML_Function("ml_log")):
     S2100 = Constant(S2**100, precision = self.precision)
     result_subnormal, _, _, _, _, _ = compute_log(vx * S2100, exp_corr_factor = m100)
 
-    print "managing close to 1.0 cases"
+    print("managing close to 1.0 cases")
     one_err = S2**-7
 
     # main scheme
-    print "MDL scheme"
+    print("MDL scheme")
     pre_scheme = ConditionBlock(neg_input,
         Statement(
             ClearException(),
@@ -588,18 +561,10 @@ class ML_Log(ML_Function("ml_log")):
     """
 
 if __name__ == "__main__":
-  # auto-test
-  arg_template = ML_ArgTemplate(default_function_name = "new_log", default_output_file = "new_log.c" )
-  arg_template.sys_arg_extraction()
+    # auto-test
+    arg_template = MetaFunctionArgTemplate(default_arg=MetaFixedLog.get_default_args())
+    # argument extraction
+    args = arg_template.arg_extraction()
 
-
-  ml_log          = ML_Log(arg_template.precision, 
-                                libm_compliant            = arg_template.libm_compliant, 
-                                debug_flag                = arg_template.debug_flag, 
-                                target                    = arg_template.target, 
-                                fuse_fma                  = arg_template.fuse_fma, 
-                                fast_path_extract         = arg_template.fast_path,
-                                function_name             = arg_template.function_name,
-                                output_file               = arg_template.output_file)
-
-  ml_log.gen_implementation()
+    ml_log          = MetaFixedLog(args)
+    ml_log.gen_implementation()
