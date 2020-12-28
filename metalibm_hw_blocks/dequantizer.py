@@ -145,7 +145,11 @@ class Dequantizer(ML_Entity("dequantizer")):
         scale_exp = biased_scale_exp + scale_format.get_base_format().get_bias()
         scale_exp.set_attributes(tag="scale_exp", debug=debug_fixed)
         scale_sign = ExtractSign(scale, precision=ML_StdLogic, tag="scale_sign")
-        scale_mant = fixed_normalized_mantissa(scale)
+        unsigned_scale_mant = fixed_normalized_mantissa(scale)
+
+        signed_mant_format = fixed_point(2, scale.get_precision().get_base_format().get_mantissa_size()-1, signed=True)
+        scale_mant = Select(scale_sign, -unsigned_scale_mant, unsigned_scale_mant, tag="scale_mant", precision=signed_mant_format, debug=debug_fixed)
+
 
         # unscaled field is in fixed-point normalized format
         unscaled_field = scale_mant * quantized_input
@@ -158,7 +162,7 @@ class Dequantizer(ML_Entity("dequantizer")):
         #           an extra +1 is added to ensure correct bit is used as round bit
         MAX_SHIFT = RESULT_SIZE + 1 + PRODUCT_SIZE + 1
         # TODO/FIXME: manage case where shift_amount < 0 (should be forced to 0)
-        shift_amount = Min(-scale_exp + RESULT_SIZE + 1, MAX_SHIFT, tag="shift_amount", debug=debug_fixed)
+        shift_amount = Max(Min(-scale_exp + RESULT_SIZE + 1, MAX_SHIFT, tag="shift_amount", debug=debug_fixed), 0)
         # unscaled_field is widended (padded with "0" right")
         # TODO/FIXME manage fixed-point format signedness
         extended_unscaled_field = Conversion(unscaled_field, precision=fixed_point(PRODUCT_SIZE, MAX_SHIFT))
@@ -191,7 +195,8 @@ class Dequantizer(ML_Entity("dequantizer")):
 
         round_bit_or_sticy_bit = LogicalOr(round_bit, sticky_bit, tag="round_bit_or_sticy_bit")
         result_even = Equal(parity_bit, Constant(0, precision=ML_StdLogic), tag="result_even")
-        result_positive = offseted_field >= 0
+        result_positive = (offseted_field >= 0)
+        result_positive.set_attributes(tag="result_positive", debug=True)
 
         round_increment = logical_or_reduce([
             LogicalAnd(round_is_up, round_bit_or_sticy_bit),
@@ -200,6 +205,7 @@ class Dequantizer(ML_Entity("dequantizer")):
             LogicalAnd(round_is_raz, LogicalAnd(round_bit_or_sticy_bit, result_positive))], tag="round_increment")
 
         rounded_result = offseted_field + Conversion(round_increment, precision=fixed_point(1, 0, signed=False))
+        rounded_result.set_attributes(tag="rounded_result")
 
         result_format = self.get_io_format("result")
 
