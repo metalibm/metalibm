@@ -769,10 +769,10 @@ class ML_EntityBasis(object):
     for input_tag in input_signals:
         input_signal = io_map[input_tag]
         input_precision = input_signal.get_precision().get_base_format()
-        input_test_range = test_range[input_tag] if input_tag in test_range else None
+        input_test_range = None if (test_range is None or not input_tag in test_range) else test_range[input_tag]
         input_generator = get_hdl_precision_rng(input_precision, input_test_range)
         self.input_generators[input_tag] = input_generator
-        
+
 
   def implement_test_case(self, io_map, input_values, output_signals,
                           output_values, time_step, index=None):
