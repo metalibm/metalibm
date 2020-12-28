@@ -799,6 +799,8 @@ class ML_EntityBasis(object):
           "\"unexpected value for {test_id}, inputs {input_msg}, output {output_tag}, expecting {value_msg}, got: \"".format(input_msg = input_msg, output_tag = output_tag, value_msg = value_msg, test_id=("" if index is None else "test #{}".format(index))),
           severity = Assert.Failure
         )
+        # pretty print: generate a message that can be used as a debug use-case
+        test_statement.add(Report("standard test-case: ({}, None)".format(input_values)))
         test_statement.add(assert_statement)
       return test_statement
 
