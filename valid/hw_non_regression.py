@@ -44,6 +44,7 @@ import metalibm_hw_blocks.fp_int_conv as fp_int_conv
 
 from metalibm_core.core.ml_formats import  \
   ML_Binary16, ML_Binary32, ML_Binary64, ML_Int32
+from metalibm_core.core.random_gen import UniformInterval
 
 from metalibm_core.utility.ml_template import (
     target_instanciate, DefaultEntityArgTemplate
@@ -146,7 +147,8 @@ new_scheme_function_list = [
     fp_int_conv.FP_Trunc,
     [
         {"auto_test": 100, "precision": HdlVirtualFormat(ML_Binary32),
-         "execute_trigger": True, "simulator": "ghdl"},
+         "execute_trigger": True, "simulator": "ghdl",
+         "auto_test_range": {"vx": UniformInterval(0, 2**25)}},
     ]
   ),
 ]
