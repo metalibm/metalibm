@@ -266,6 +266,13 @@ class Dequantizer(ML_Entity("dequantizer")):
         return result
 
     standard_test_cases = [
+        # debug
+        ({'scale': -9.3562177440117458422781203005040841215683797976732e-28, 'quantized_input': -59, 'offset': 1476644306, 'rounding_mode': 4}, None),
+        ({'scale': -3.2018401007923587122374383797585380222573657934822e-30, 'quantized_input': 1382946913, 'offset': -49, 'rounding_mode': 3}, None),
+        ({'scale': 49366.34765625, 'quantized_input': -889172583, 'offset': 63342963, 'rounding_mode': 0}, None),
+        ({"quantized_input": -17, "scale": sollya.parse("0xe174fea2"), "offset": 0x6c732c7a, "rounding_mode": 3}, None),
+        # scale overflow
+        ({"quantized_input": 17, "scale": 2**100, "offset": 12, "rounding_mode": 0}, None),
         # dummy tests
         ({"quantized_input": 0, "scale": 0, "offset": 0, "rounding_mode": 0}, None),
         ({"quantized_input": 0, "scale": 0, "offset": 1, "rounding_mode": 0}, None),
