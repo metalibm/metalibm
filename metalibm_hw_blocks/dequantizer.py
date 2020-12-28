@@ -202,7 +202,8 @@ class Dequantizer(ML_Entity("dequantizer")):
 
         round_bit_or_sticy_bit = LogicalOr(round_bit, sticky_bit, tag="round_bit_or_sticy_bit")
         result_even = Equal(parity_bit, Constant(0, precision=ML_StdLogic), tag="result_even")
-        result_positive = offseted_field >= 0
+        result_positive = (offseted_field >= 0)
+        result_positive.set_attributes(tag="result_positive", debug=True)
 
         round_increment = logical_or_reduce([
             LogicalAnd(round_is_up, round_bit_or_sticy_bit),
@@ -211,6 +212,7 @@ class Dequantizer(ML_Entity("dequantizer")):
             LogicalAnd(round_is_raz, LogicalAnd(round_bit_or_sticy_bit, result_positive))], tag="round_increment")
 
         rounded_result = offseted_field + Conversion(round_increment, precision=fixed_point(1, 0, signed=False))
+        rounded_result.set_attributes(tag="rounded_result")
 
         offseted_field_even = Equal(offseted_field_parity_bit, Constant(0, precision=ML_StdLogic), tag="offseted_field_even")
 
