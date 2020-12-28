@@ -76,6 +76,7 @@ class FP_Trunc(ML_Entity("fp_trunc")):
             "output_file": "fp_trunc.vhd",
             "entity_name": "fp_trunc",
             "language": VHDL_Code,
+            "auto_test_range": {"vx": Interval(-2**20, 2**20)},
             "passes": [("beforecodegen:size_datapath")],
         }
         default_arg_map.update(**kw)
@@ -148,6 +149,7 @@ class FP_Trunc(ML_Entity("fp_trunc")):
 
     def numeric_emulate(self, io_map):
         vx = io_map["vx"]
+        # TODO/FIXME: support special values
         result = {}
         base_format = self.precision.get_base_format()
         result["vr_out"] = (sollya.floor if vx > 0 else sollya.ceil)(vx)
@@ -156,6 +158,9 @@ class FP_Trunc(ML_Entity("fp_trunc")):
     standard_test_cases = [
         ({"vx": ML_Binary32.get_value_from_integer_coding("0x48bef48d", base=16)}, None),
         ({"vx": 1.0}, None),
+        ({"vx": ML_Binary32.get_value_from_integer_coding("0x4ad66fa2", base=16)}, None),
+        ({"vx": ML_Binary32.get_value_from_integer_coding("0x4ad66fa0", base=16)}, None),
+        ({"vx": ML_Binary32.get_value_from_integer_coding("0x4ad66fa3", base=16)}, None),
     ]
 
 
