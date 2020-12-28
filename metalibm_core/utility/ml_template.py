@@ -201,6 +201,12 @@ def hdl_format_map_parser(format_str):
     tag_prec_split = [tuple(tag_prec.split(":")) for tag_prec in tag_prec_list]
     return dict((tag, hdl_precision_parser(prec)) for tag, prec in tag_prec_split)
 
+def rng_map_parser(format_str):
+    """ convert a ';' separated list of tag:rng_mode into
+        a dict of tag -> rng_mode object """
+    tag_prec_list = format_str.split(";")
+    tag_prec_split = [tuple(tag_prec.split(":")) for tag_prec in tag_prec_list]
+    return dict((tag, rng_mode_parser(prec)) for tag, prec in tag_prec_split)
 
 def accuracy_parser(accuracy_str):
     """ string -> Accuracry, convert an accuracy description string
@@ -625,11 +631,6 @@ class ML_CommonArgTemplate(object):
             help="enable the generation of a self-testing numerical/functionnal\
       bench")
 
-        self.parser.add_argument(
-            "--auto-test-range", dest="auto_test_range", action="store",
-            type=rng_mode_list_parser, default=default_arg.auto_test_range,
-            help="define the range of input values to be used during "
-                 "functional testing")
 
         self.parser.add_argument(
             "--auto-test-std", dest="auto_test_std", action="store_const",
@@ -848,11 +849,6 @@ class ML_EntityArgTemplate(ML_CommonArgTemplate):
             default=default_arg.precision,
             help="select main precision")
         self.parser.add_argument(
-            "--input-formats", dest="input_precisions",
-            type=hdl_format_list_parser,
-            default=default_arg.input_precisions,
-            help="comma separated list of input formats")
-        self.parser.add_argument(
             "--io-formats", dest="io_formats",
             type=hdl_format_map_parser,
             default=default_arg.io_formats,
@@ -865,19 +861,30 @@ class ML_EntityArgTemplate(ML_CommonArgTemplate):
             choices = ["vsim", "ghdl"],
             default=default_arg.simulator,
             help="select RTL elaboration and simulation tool")
+        self.parser.add_argument(
+            "--auto-test-range", dest="auto_test_range", action="store",
+            type=rng_map_parser, default=default_arg.auto_test_range,
+            help="define the range of input values to be used during "
+                 "functional testing")
 
 
 # new argument template based on argparse module
-class ML_NewArgTemplate(ML_CommonArgTemplate):
+class MetaFunctionArgTemplate(ML_CommonArgTemplate):
     def __init__(
             self,
             default_arg=DefaultArgTemplate
         ):
-
         parser = argparse.ArgumentParser(
             " Metalibm {} function generation script".format(
             default_arg.function_name))
         ML_CommonArgTemplate.__init__(self, parser, default_arg=default_arg)
+
+        self.parser.add_argument(
+            "--auto-test-range", dest="auto_test_range", action="store",
+            type=rng_mode_list_parser, default=default_arg.auto_test_range,
+            help="define the range of input values to be used during "
+                 "functional testing")
+
         self.parser.add_argument(
             "--libm", dest="libm_compliant", action="store_const",
             const=True, default=False,
@@ -938,11 +945,15 @@ class ML_NewArgTemplate(ML_CommonArgTemplate):
             help="plot function range")
 
 
+# legacy alias
+ML_NewArgTemplate = MetaFunctionArgTemplate
+
+
 class DefaultMultiAryArgTemplate(DefaultArgTemplate):
     arity = 1
 
 
-class MultiAryArgTemplate(ML_NewArgTemplate):
+class MultiAryArgTemplate(MetaFunctionArgTemplate):
     """ template argument class for meta-function with an arbitrary arity
         which must be knwon at generation-time """
     def __init__(
