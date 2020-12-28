@@ -36,13 +36,17 @@ from metalibm_core.core.ml_operations import (
 
     MantissaExtraction, CountLeadingZeros,
     BitLogicRightShift, BitLogicLeftShift,
+    BitArithmeticRightShift,
 
     LogicalOr, LogicalAnd, LogicalNot,
     BitLogicXor, BitLogicAnd, BitLogicOr, BitLogicNegate,
     Select, Test,
 
+
     ExponentExtraction,
     VectorElementSelection, Conversion,
+
+    RawExponentExtraction,
 
     Min, Max,
 
@@ -51,7 +55,8 @@ from metalibm_core.core.ml_operations import (
     SpecificOperation, ReferenceAssign,
 )
 from metalibm_core.core.ml_hdl_operations import (
-    Signal, SubSignalSelection, Concatenation, ZeroExt
+    Signal, SubSignalSelection, Concatenation, ZeroExt,
+    ExtractSign,
 )
 from metalibm_core.core.advanced_operations import (
     FixedPointPosition
@@ -263,17 +268,21 @@ def complex_timing(local_eval_fct, arity=None):
         return local_eval_fct(optree, combinatorial) + op_cp
     return cp_evaluator
 
-def level_timing(level_timing, arity=2):
+def level_timing(level_timing, arity=None):
     """ build a CriticalPath evaluator which adds @p level_timing
         as local added latency to the maximum of inputs critical path
         latencies """
+    # NOTE: arity can be used to reduced the number of operand
+    #       of an operation which are submitted to latency eval
+    # TODO/FIXME: arity should be a predicate allowing a finer
+    #             selection of which inputs is used as latency offset
     def cp_evaluator(evaluator, optree, combinatorial=False):
         """ local critical-path evaluation for level_timing constructor """
         input_cp = [
             evaluator.evaluate_critical_path(
                 optree.get_input(index),
                 combinatorial=combinatorial
-            ) for index in range(arity)]
+            ) for index in range(optree.arity if arity is None else arity)]
         return CriticalPath(optree, level_timing,
                             combinatorial=combinatorial) + max(input_cp)
     return cp_evaluator
@@ -341,8 +350,12 @@ OPERATION_CLASS_TIMING_MODEL = {
 
     CountLeadingZeros: complex_timing(lzc_cp_eval_optree, arity=1),
 
+    # ExtractSign is considered a free operation
+    ExtractSign: level_timing(0.0),
+
     BitLogicRightShift: complex_timing(shift_cp_eval_optree),
     BitLogicLeftShift: complex_timing(shift_cp_eval_optree),
+    BitArithmeticRightShift: complex_timing(shift_cp_eval_optree),
 
     LogicalOr: level_timing(TimingModel.OR_LEVEL),
     LogicalAnd: level_timing(TimingModel.AND_LEVEL),
@@ -357,6 +370,7 @@ OPERATION_CLASS_TIMING_MODEL = {
 
     # transparent operators (no delay)
     ExponentExtraction: level_timing(0.0, arity=1),
+    RawExponentExtraction: level_timing(0.0),
     SubSignalSelection: level_timing(0.0, arity=1),
     VectorElementSelection: level_timing(0.0, arity=1),
     Concatenation: level_timing(0.0),
@@ -449,7 +463,7 @@ class Pass_CriticalPathEval(OptreeOptimization):
                 OPERATION_CLASS_TIMING_MODEL[optree.__class__](self, optree, combinatorial=combinatorial)
             )
         else:
-            Log.report(Log.Error, "unkwown node in evaluate_critical_path: {}", optree)
+            Log.report(Log.Error, "unknown node in evaluate_critical_path: {}", optree)
 
 
     def execute(self, optree):
