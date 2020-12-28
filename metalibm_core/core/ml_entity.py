@@ -94,7 +94,7 @@ from metalibm_core.opt.p_pipelining import generate_pipeline_stage
 import random
 import subprocess
 
-from metalibm_core.core.random_gen import FixedPointRandomGen, FPRandomGen
+from metalibm_core.core.random_gen import get_precision_rng
 
 def generate_random_fp_value(precision, inf, sup):
     """ Generate a random floating-point value of format precision """
@@ -125,6 +125,24 @@ class RawLogicVectorRandomGen:
         # use size to generate a logarithmic distribution
         sub_size = random.randrange(0, self.size+1)
         return max(min(random.randrange(2**sub_size), self.max_value), self.min_value)
+
+
+def get_hdl_precision_rng(input_precision, input_range=None):
+    """ build a random number generator object for format <input_precision>
+        with values within interval <input_range> """
+    if isinstance(input_precision, ML_StdLogicVectorFormat):
+        # default min_value for RawLogicVectorRandomGen
+        # must be zero
+        min_value = 0
+        max_value = None
+        if not input_range is None:
+            min_value = int(inf(input_range))
+            max_value = int(sup(input_range))
+        return RawLogicVectorRandomGen(input_precision.get_bit_size(), min_value=min_value, max_value=max_value) 
+    else:
+        # after processing hdl-specific format we can fallback
+        # on the generic get_precision_rng method 
+        return get_precision_rng(input_precision, input_range)
 
 ## \defgroup ml_entity ml_entity
 ## @{
@@ -716,7 +734,7 @@ class ML_EntityBasis(object):
   def numeric_emulate(self, input_value):
     raise NotImplementedError
 
-  def generate_test_case(self, input_signals, io_map, index, test_range = Interval(-1.0, 1.0)):
+  def generate_test_case(self, input_signals, io_map, index, test_range=None):
     """ generic test case generation: generate a random input
         with index @p index
 
@@ -727,8 +745,6 @@ class ML_EntityBasis(object):
             dict: mapping (input tag -> numeric value)
     """
     # extracting test interval boundaries
-    low_input = sollya.inf(test_range)
-    high_input = sollya.sup(test_range)
     input_values = {}
     for input_tag in input_signals:
         input_value = self.input_generators[input_tag].get_new_value()
@@ -736,7 +752,7 @@ class ML_EntityBasis(object):
         input_values[input_tag] = input_value
     return input_values
 
-  def init_test_generator(self, io_map):
+  def init_test_generator(self, io_map, test_range=None):
     """ Generic initialization of test case generator """
     # reset input generators map
     self.input_generators = {}
@@ -744,21 +760,8 @@ class ML_EntityBasis(object):
     for input_tag in input_signals:
         input_signal = io_map[input_tag]
         input_precision = input_signal.get_precision().get_base_format()
-        if isinstance(input_precision, ML_FP_Format):
-            # TODO/FIXME: does not depend on reduced input range (if any)
-            input_generator = FPRandomGen(input_precision) 
-        elif isinstance(input_precision, ML_Fixed_Format):
-            # TODO: does not depend on low and high range bounds
-            input_generator = FixedPointRandomGen(
-                int_size=input_precision.get_integer_size(),
-                frac_size=input_precision.get_frac_size(),
-                signed=input_precision.signed)
-        elif isinstance(input_precision, ML_StdLogicVectorFormat):
-            input_generator = RawLogicVectorRandomGen(input_precision.get_bit_size()) 
-        elif isinstance(input_precision, ML_StdLogic):
-            input_generator = RawLogicVectorRandomGen(1) 
-        else: 
-            Log.report(Log.Error, "unsupported input_precision {} in ML_Entity.init_test_generator", input_precision)
+        input_test_range = test_range[input_tag] if input_tag in test_range else None
+        input_generator = get_hdl_precision_rng(input_precision, input_test_range)
         self.input_generators[input_tag] = input_generator
         
 
@@ -1004,7 +1007,7 @@ class ML_EntityBasis(object):
 
     return [testbench]
 
-  def generate_auto_test(self, test_num = 10, test_range = Interval(-1.0, 1.0), debug = False, time_step = 10):
+  def generate_auto_test(self, test_num=10, test_range=None, debug=False, time_step=10):
     """ time_step: duration of a stage (in ns) """
     # instanciating tested component
     # map of input_tag -> input_signal and output_tag -> output_signal
@@ -1021,14 +1024,14 @@ class ML_EntityBasis(object):
 
 
     # initializing random test case generator
-    self.init_test_generator(io_map)
+    self.init_test_generator(io_map, test_range)
 
     # Appending standard test cases if required
     if self.auto_test_std:
       tc_list += self.standard_test_cases
 
     for i in range(test_num):
-      input_values = self.generate_test_case(input_signals, io_map, i, test_range)
+      input_values = self.generate_test_case(input_signals, io_map, i)
       tc_list.append((input_values,None))
 
     def compute_results(tc):
