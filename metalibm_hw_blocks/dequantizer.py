@@ -251,11 +251,12 @@ class Dequantizer(ML_Entity("dequantizer")):
         self.implementation.add_output_signal("result", result)
         return [self.implementation]
 
-    def init_test_generator(self, io_map):
+    def init_test_generator(self, io_map, test_range):
         """ specialization of random input generators """
         ML_EntityBasis.init_test_generator(self, io_map)
         # patching generator for rounding_mode to limit value
-        self.input_generators["scale"] = FPRandomGen(self.get_io_format("scale").get_base_format(), weight_map={FPRandomGen.Category.Normal: 1.0})
+        if not "scale" in test_range:
+            self.input_generators["scale"] = FPRandomGen(self.get_io_format("scale").get_base_format(), weight_map={FPRandomGen.Category.Normal: 1.0})
         self.input_generators["rounding_mode"] = RawLogicVectorRandomGen(3, 0, max([ROUND_RNE, ROUND_RU, ROUND_RD, ROUND_RZ, ROUND_RAZ]))
 
     def numeric_emulate(self, io_map):
@@ -264,6 +265,8 @@ class Dequantizer(ML_Entity("dequantizer")):
         offset = io_map["offset"]
         rounding_mode = io_map["rounding_mode"]
 
+        def round_away_from_zero(value):
+            return int((sollya.ceil if value > 0 else sollya.floor)(value))
         def round_nearest_tie_away_from_zero(value):
             rounded_value = int(sollya.nearestint(value))
             # detect ties
@@ -282,12 +285,12 @@ class Dequantizer(ML_Entity("dequantizer")):
             ROUND_RNE: lambda value: int(sollya.nearestint(value)),
             ROUND_RU: lambda value: int(sollya.ceil(value)),
             ROUND_RD: lambda value: int(sollya.floor(value)),
-            ROUND_RZ: lambda value: int(sollya.floor(value)),
-            ROUND_RAZ: round_nearest_tie_away_from_zero,
+            ROUND_RZ: lambda value: int((sollya.floor if value > 0 else sollya.ceil)(value)),
+            ROUND_RAZ: round_away_from_zero,
         }
         result = {}
         # TODO/FIXME: support rounding mode
-        unbounded_result = ROUND_FUNCTION[rounding_mode](scale * qinput + offset)
+        unbounded_result = ROUND_FUNCTION[rounding_mode](sollya.SollyaObject(scale) * qinput + offset)
         # threshold clamp
         MAX_BOUND = self.get_io_format("result").get_max_value()
         MIN_BOUND = self.get_io_format("result").get_min_value()
