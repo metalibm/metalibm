@@ -376,7 +376,9 @@ class FPRandomGen(RandomGenWeightCat):
                 # TODO/FIXME random.uniform only generate a machine precision
                 # number (generally a double) which may not be suitable
                 # for larger format
-                return NumericValue(random.uniform(self.inf_bound, self.sup_bound))
+                # Nonetheless this number must be rounded(-down) to the generator
+                # precision to avoid double-rounding issue down the line
+                return NumericValue(generator.precision.round_sollya_object(random.uniform(self.inf_bound, self.sup_bound)))
 
 
                 # value = generator.precision.round_sollya_object(random.uniform(self.inf_bound, self.sup_bound))
@@ -489,7 +491,7 @@ def get_precision_rng(precision, value_range=None, uniform=False):
         elif isinstance(base_format, ML_FP_Format):
             return FPRandomGen(precision, include_snan=False)
         elif isinstance(base_format, ML_Fixed_Format):
-            return FixedPointRandomGen(precision)
+            return FixedPointRandomGen(precision.integer_size, precision.frac_size, precision.signed)
         else:
             Log.report(Log.Error, "unsupported format {}/{} in get_precision_rng", precision, base_format)
     else:
