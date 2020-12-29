@@ -41,6 +41,7 @@ import metalibm_hw_blocks.mult_array as mult_array
 import metalibm_hw_blocks.compound_adder as compound_adder
 from metalibm_hw_blocks.mult_array import multiplication_descriptor_parser as mult_array_parser
 import metalibm_hw_blocks.fp_int_conv as fp_int_conv
+import metalibm_hw_blocks.dequantizer as dequantizer
 
 from metalibm_core.core.ml_formats import  \
   ML_Binary16, ML_Binary32, ML_Binary64, ML_Int32
@@ -149,6 +150,15 @@ new_scheme_function_list = [
         {"auto_test": 100, "precision": HdlVirtualFormat(ML_Binary32),
          "execute_trigger": True, "simulator": "ghdl",
          "auto_test_range": {"vx": UniformInterval(0, 2**25)}},
+    ]
+  ),
+  EntitySchemeTest(
+    "hybrid fma",
+    dequantizer.Dequantizer,
+    [
+        {"auto_test": 100, "auto_test_std": True,
+        "precision": HdlVirtualFormat(ML_Binary32),
+         "execute_trigger": True, "simulator": "ghdl"},
     ]
   ),
 ]
