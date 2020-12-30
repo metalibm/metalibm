@@ -393,6 +393,7 @@ def fixed_conversion_modifier(optree):
         tag="final_fixed_conv_result"
     )
     forward_attributes(optree, result)
+    forward_attributes(optree, result_raw)
     return result
 
 def legalizing_fixed_shift_amount(shift_amount):
