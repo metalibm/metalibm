@@ -401,7 +401,7 @@ def legalizing_fixed_shift_amount(shift_amount):
         sa_range = evaluate_range(shift_amount)
         if inf(sa_range) < 0:
             Log.report(
-                Log.Error,
+                Log.Warning,
                 "shift amount {} whose range has been evaluated to {} may take negative values",
                 shift_amount,
                 sa_range
