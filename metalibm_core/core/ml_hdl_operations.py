@@ -118,7 +118,8 @@ class Replication(GeneralOperation): #AbstractOperationConstructor("Replication"
     name = "Replication"
     arity = 1
 
-class Signal(AbstractVariable): pass 
+class Signal(AbstractVariable):
+    name = "Signal"
 
 ## Truncate the operand to a smaller format
 #  truncate parameters are derived from input and output format
