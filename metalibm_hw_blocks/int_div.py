@@ -80,6 +80,7 @@ class MetaIntDiv(ML_EntityBasis):
         )
 
         self.precision = arg_template.precision
+        self.div_by_zero_result = arg_template.div_by_zero_result
 
     ## Generate default arguments structure (before any user / test overload)
     @staticmethod
@@ -93,6 +94,7 @@ class MetaIntDiv(ML_EntityBasis):
             "pipelined": False,
             "output_file": "int_div.vhd",
             "entity_name": "int_div",
+            "div_by_zero_result": FIX32.get_max_value(),
             "auto_test_range": {"dividend": Interval(0, 2**32-1), "divisor": Interval(0, 2**32-1)},
             "language": VHDL_Code,
             "passes": ["beforecodegen:size_datapath", "beforecodegen:rtl_legalize"],
@@ -128,7 +130,7 @@ class MetaIntDiv(ML_EntityBasis):
             q.set_attributes(tag="q_step_{}".format(i))
             r.set_attributes(tag="r_step_{}".format(i))
 
-        result = q
+        result = Select(Equal(divisor, 0), Constant(self.div_by_zero_result, precision=result_format), q, precision=result_format)
 
         self.implementation.add_output_signal("result", result)
         return [self.implementation]
@@ -140,12 +142,13 @@ class MetaIntDiv(ML_EntityBasis):
 
         result = {}
         if divisor == 0:
-            result["result"] = 0
+            result["result"] = self.div_by_zero_result
         else:
             result["result"] = int(sollya.floor(dividend / divisor))
         return result
 
     standard_test_cases = [
+        ({'dividend': 0xd1558b05, "divisor": 0}, None),
         ({'dividend': 0xd1558b05, "divisor": 0xb3c32dbc}, None),
         ({'dividend': 4294967281, 'divisor': 2578561850}, None),
         ({'dividend': 3146334737, 'divisor': 45}, None),
@@ -159,8 +162,9 @@ if __name__ == "__main__":
     # auto-test
     arg_template = ML_EntityArgTemplate(
         default_entity_name="dequantizer", default_output_file="dequantizer.vhd",
-        default_arg=MetaIntDiv.get_default_args()
-    )
+        default_arg=MetaIntDiv.get_default_args())
+    arg_template.parser.add_argument("--div-by-zero-result", dest="div_by_zero_result",
+        type=int, default=0, help="define result returned for division by zero")
     # argument extraction
     args = arg_template.arg_extraction()
 
