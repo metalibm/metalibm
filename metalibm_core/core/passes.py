@@ -269,6 +269,8 @@ class Pass:
   #  @return[Pass] pass object 
   @staticmethod
   def get_pass_by_tag(tag):
+    if not tag in Pass.pass_map:
+        Log.report(Log.Error, "unknown pass tag: {}\nknown tags:{}", tag, "\n".join(Pass.pass_map.keys()))
     return Pass.pass_map[tag]
 
   ## return the list of tags of registered passes
