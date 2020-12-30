@@ -130,11 +130,12 @@ def solve_format_Comparison(optree, format_solver=None):
         lhs.set_precision(rhs_format)
         format_set_if_undef(rhs, rhs_format)
 
-    merge_format = solve_equal_formats([lhs, rhs])
-    if merge_format is None:
-        Log.report(Log.Error, "could not unify format of operands in {}.\n", optree)
-    elif is_fixed_point(merge_format):
-        propagate_format_to_input(merge_format, optree, [0, 1])
+    if rhs_format != lhs_format or rhs_format is None or lhs_format is None:
+        merge_format = solve_equal_formats([lhs, rhs])
+        if merge_format is None:
+            Log.report(Log.Error, "could not unify format of operands in {}.\n", optree)
+        elif is_fixed_point(merge_format):
+            propagate_format_to_input(merge_format, optree, [0, 1])
     return solve_format_BooleanOp(optree)
 
 def solve_format_CLZ(optree):
