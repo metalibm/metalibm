@@ -53,6 +53,8 @@ from metalibm_core.core.ml_operations import (
     Statement, Variable,
     TypeCast, Constant,
     SpecificOperation, ReferenceAssign,
+
+    is_leaf_node,
 )
 from metalibm_core.core.ml_hdl_operations import (
     Signal, SubSignalSelection, Concatenation, ZeroExt,
@@ -260,7 +262,7 @@ def mant_extraction_cp_eval_optree(optree, combinatorial):
 def complex_timing(local_eval_fct, arity=None):
     def cp_evaluator(evaluator, optree, combinatorial=False):
         op_cp = max(
-            evaluator.evaluate_critical_path(
+            evaluator.evaluate_critical_path_node(
                 optree.get_input(index),
                 combinatorial=combinatorial
             ) for index in range(optree.arity if arity is None else arity)
@@ -279,7 +281,7 @@ def level_timing(level_timing, arity=None):
     def cp_evaluator(evaluator, optree, combinatorial=False):
         """ local critical-path evaluation for level_timing constructor """
         input_cp = [
-            evaluator.evaluate_critical_path(
+            evaluator.evaluate_critical_path_node(
                 optree.get_input(index),
                 combinatorial=combinatorial
             ) for index in range(optree.arity if arity is None else arity)]
@@ -380,6 +382,24 @@ OPERATION_CLASS_TIMING_MODEL = {
 }
 
 
+def linearize_graph(node):
+    """ generate a list of all node encountered starting from <node>,
+        the graph is processed breadh-first so that leafs appeared after their
+        parent in the resulting list """
+    processed = set()
+    processing_list = [node]
+    result_list = []
+    while processing_list:
+        current = processing_list.pop(0)
+        if current in processed:
+            continue
+        processed.add(current)
+        result_list.append(current)
+        if not is_leaf_node(current):
+            for op in current.inputs:
+                processing_list.append(op)
+    return result_list
+
 
 class Pass_CriticalPathEval(OptreeOptimization):
     """ Evaluate the critical path length (timing) for each node of
@@ -398,19 +418,14 @@ class Pass_CriticalPathEval(OptreeOptimization):
         self.memoization_map[(optree, combinatorial)] = value
         return value
 
-    ## Test if @p optree is supported by self.target
-    #  @param optree operation tree to be tested
-    #  @param memoization_map memoization map of parallel executions
-    #  @param debug enable debug messages
-    #  @return boolean support
-    def evaluate_critical_path(self, optree, combinatorial=False):
+    def evaluate_critical_path_node(self, optree, combinatorial=False):
         """  evalute the critical path of optree towards any input
             in mode @p combinatorial """
-        if optree in self.memoization_map:
+        if (optree, combinatorial) in self.memoization_map:
             return self.memoization_map[(optree, combinatorial)]
         elif isinstance(optree, Statement):
             for op in optree.get_inputs():
-                self.evaluate_critical_path(op, combinatorial=combinatorial)
+                self.evaluate_critical_path_node(op, combinatorial=combinatorial)
             return self.memoize_result(optree, None, combinatorial=combinatorial)
         elif isinstance(optree, Variable) or isinstance(optree, Signal):
             return CriticalPath(optree, 0.0, combinatorial=combinatorial)
@@ -420,21 +435,21 @@ class Pass_CriticalPathEval(OptreeOptimization):
             op = optree.get_input(0)
             return self.memoize_result(
                 optree,
-                CriticalPath(optree, 0.0, combinatorial=combinatorial) + self.evaluate_critical_path(op, combinatorial=combinatorial)
+                CriticalPath(optree, 0.0, combinatorial=combinatorial) + self.evaluate_critical_path_node(op, combinatorial=combinatorial)
             )
         elif isinstance(optree, SpecificOperation):
             if optree.specifier is SpecificOperation.CopySign:
                 op = optree.get_input(0)
                 return self.memoize_result(
                     optree,
-                    CriticalPath(optree, 0.0, combinatorial=combinatorial) + self.evaluate_critical_path(op, combinatorial=combinatorial)
+                    CriticalPath(optree, 0.0, combinatorial=combinatorial) + self.evaluate_critical_path_node(op, combinatorial=combinatorial)
                 )
             else:
-                Log.report(Log.Error, "unknown specifier in evaluate_critical_path", optree)
+                Log.report(Log.Error, "unknown specifier in evaluate_critical_path_node", optree)
         elif isinstance(optree, ReferenceAssign):
             assign_value = optree.get_input(1)
             assign_var = optree.get_input(0)
-            assign_cp = self.evaluate_critical_path(assign_value, combinatorial=combinatorial)
+            assign_cp = self.evaluate_critical_path_node(assign_value, combinatorial=combinatorial)
             self.memoize_result(optree, assign_cp)
             return self.memoize_result(assign_var, assign_cp)
         elif isinstance(optree, FixedPointPosition):
@@ -442,8 +457,8 @@ class Pass_CriticalPathEval(OptreeOptimization):
         elif isinstance(optree, Min) or isinstance(optree, Max):
             lhs = optree.get_input(0)
             rhs = optree.get_input(1)
-            lhs_cp = self.evaluate_critical_path(lhs, combinatorial=combinatorial)
-            rhs_cp = self.evaluate_critical_path(rhs, combinatorial=combinatorial)
+            lhs_cp = self.evaluate_critical_path_node(lhs, combinatorial=combinatorial)
+            rhs_cp = self.evaluate_critical_path_node(rhs, combinatorial=combinatorial)
             # evalute opree as an Addition, to get Comparison (Subtraction) timing
             comp_cp_value = add_cp_eval_value(optree.get_precision().get_bit_size())
             minmax_cp = CriticalPath(optree, TimingModel.MUX_LEVEL + comp_cp_value, combinatorial=combinatorial) + max(lhs_cp, rhs_cp)
@@ -452,9 +467,9 @@ class Pass_CriticalPathEval(OptreeOptimization):
             cond = optree.get_input(0)
             if_value = optree.get_input(1)
             else_value = optree.get_input(2)
-            cond_cp = self.evaluate_critical_path(cond, combinatorial=combinatorial)
-            if_value_cp = self.evaluate_critical_path(if_value, combinatorial=combinatorial)
-            else_value_cp = self.evaluate_critical_path(else_value, combinatorial=combinatorial)
+            cond_cp = self.evaluate_critical_path_node(cond, combinatorial=combinatorial)
+            if_value_cp = self.evaluate_critical_path_node(if_value, combinatorial=combinatorial)
+            else_value_cp = self.evaluate_critical_path_node(else_value, combinatorial=combinatorial)
             select_cp = CriticalPath(optree, TimingModel.MUX_LEVEL, combinatorial=combinatorial) + max(cond_cp, if_value_cp, else_value_cp)
             return self.memoize_result(optree, select_cp)
         elif optree.__class__ in OPERATION_CLASS_TIMING_MODEL:
@@ -463,8 +478,13 @@ class Pass_CriticalPathEval(OptreeOptimization):
                 OPERATION_CLASS_TIMING_MODEL[optree.__class__](self, optree, combinatorial=combinatorial)
             )
         else:
-            Log.report(Log.Error, "unknown node in evaluate_critical_path: {}", optree)
+            Log.report(Log.Error, "unknown node in evaluate_critical_path_node: {}", optree)
 
+    def evaluate_critical_path_graph(self, node, combinatorial=False):
+        linearized_graph = linearize_graph(node)
+        # reverse order processing (starting from leaf)
+        for op in linearized_graph[::-1]:
+            _ = self.evaluate_critical_path_node(op, combinatorial=combinatorial)
 
     def execute(self, optree):
         """ Execute Pass_CriticalPathEval on node @p optree """
@@ -475,7 +495,7 @@ class Pass_CriticalPathEval(OptreeOptimization):
     def evaluate_critical_path_by_stage(self, optree):
         """ Evaluate critical-path starting with node @p optree
             in stage-by-stage mode """
-        self.evaluate_critical_path(optree, combinatorial=False)
+        self.evaluate_critical_path_graph(optree, combinatorial=False)
 
         valid_entry_list = [op for (op, combinatorial) in self.memoization_map.keys() if not combinatorial and not self.memoization_map[(op, combinatorial)] is None]
 
@@ -501,7 +521,7 @@ class Pass_CriticalPathEval(OptreeOptimization):
         """ Evaluate critical-path starting with node @p optree
             in combinatorial mode """
         combinatorial_flag = True
-        self.evaluate_critical_path(optree, combinatorial=combinatorial_flag)
+        self.evaluate_critical_path_graph(optree, combinatorial=combinatorial_flag)
 
         valid_entry_list = [op for (op, combinatorial) in self.memoization_map.keys() if combinatorial and not self.memoization_map[(op, combinatorial)] is None]
 
