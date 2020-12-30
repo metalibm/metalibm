@@ -29,6 +29,7 @@
 # Author(s): Nicolas Brunie <nbrunie@kalray.eu>
 ###############################################################################
 import sys
+import collections
 
 import sollya
 
@@ -179,7 +180,7 @@ class ML_LeadingZeroCounter(ML_Entity("ml_lzc")):
   standard_test_cases =[sollya_parse(x) for x in  ["1.1", "1.5"]]
 
 # memoization map for ML_LeadingZeroCounter component objects
-LZC_COMPONENT_MAP = {}
+LZC_COMPONENT_MAP = collections.defaultdict(list)
 
 def vhdl_legalize_count_leading_zeros(optree):
     """ Legalize a CountLeadingZeros node into a valid vhdl 
@@ -194,10 +195,18 @@ def vhdl_legalize_count_leading_zeros(optree):
     lzc_format = optree.get_precision()
     lzc_input = optree.get_input(0)
     lzc_width = lzc_input.get_precision().get_bit_size()
-    lzc_component_key = lzc_format, lzc_width
+    # NOTE: as lzc_format can be identical without being the same
+    #       format object, we must perform the equality check on lzc_format
+    #       manually
+    lzc_component_key = lzc_width
+    lzc_component = None
     if lzc_component_key in LZC_COMPONENT_MAP:
-        lzc_component = LZC_COMPONENT_MAP[lzc_component_key]
-    else:
+        for other_lzc_format, other_lzc_component in LZC_COMPONENT_MAP[lzc_component_key]:
+            print(other_lzc_format, lzc_format, other_lzc_format == lzc_format)
+            if other_lzc_format == lzc_format:
+                lzc_component = other_lzc_component
+                break
+    if lzc_component is None:
         lzc_args = ML_LeadingZeroCounter.get_default_args(width=lzc_width, entity_name="ml_lzc_%d" % lzc_width)
         LZC_entity = ML_LeadingZeroCounter(lzc_args)
         lzc_entity_list = LZC_entity.generate_scheme()
@@ -205,7 +214,7 @@ def vhdl_legalize_count_leading_zeros(optree):
 
         lzc_component = lzc_implementation.get_component_object()
 
-        LZC_COMPONENT_MAP[lzc_component_key] = lzc_component
+        LZC_COMPONENT_MAP[lzc_component_key].append((lzc_format, lzc_component))
 
     lzc_tag = optree.get_tag() if not optree.get_tag() is None else "lzc_signal"
 
