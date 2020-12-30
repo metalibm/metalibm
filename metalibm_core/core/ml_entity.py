@@ -756,7 +756,9 @@ class ML_EntityBasis(object):
     """ Generic initialization of test case generator """
     # reset input generators map
     self.input_generators = {}
-    input_signals = self.get_input_signal_map(io_map)
+    # the following map is a copy of the input subset of io_map
+    # with direct input Signal (no copies)
+    input_signals = self.extract_input_signal_map(io_map)
     for input_tag in input_signals:
         input_signal = io_map[input_tag]
         input_precision = input_signal.get_precision().get_base_format()
@@ -804,7 +806,7 @@ class ML_EntityBasis(object):
         test_statement.add(assert_statement)
       return test_statement
 
-  def get_input_signal_map(self, io_map):
+  def generate_input_signal_map(self, io_map):
     # map of input_tag -> input_signal, excludind commodity signals
     # (e.g. clock and reset)
     input_signals = {}
@@ -818,7 +820,18 @@ class ML_EntityBasis(object):
         input_signals[input_tag] = input_signal
     return input_signals
 
-  def get_output_signal_map(self, io_map):
+  def extract_input_signal_map(self, io_map):
+    """ extract input map from I/O map """
+    input_signals = {}
+    reduced_arg_list = self.implementation.get_arg_list()
+    for input_port in reduced_arg_list:
+      input_tag = input_port.get_tag()
+      # excluding clk, reset and recirculate signals
+      if not input_tag in ["clk", self.reset_name] + [sig.get_tag() for sig in self.recirculate_signal_map.values()]:
+        input_signals[input_tag] = io_map[input_tag]
+    return input_signals
+
+  def generate_output_signal_map(self, io_map):
     """ generate map of output signals """
     # map of output_tag -> output_signal
     output_signals = {}
@@ -1017,9 +1030,9 @@ class ML_EntityBasis(object):
 
     # map of input_tag -> input_signal, excludind commodity signals
     # (e.g. clock and reset)
-    input_signals = self.get_input_signal_map(io_map)
+    input_signals = self.generate_input_signal_map(io_map)
     # map of output_tag -> output_signal
-    output_signals = self.get_output_signal_map(io_map)
+    output_signals = self.generate_output_signal_map(io_map)
 
     # building list of test cases
     tc_list = []
