@@ -416,7 +416,7 @@ def solve_format_shift(optree):
     if is_fixed_point(shift_amount_prec):
         sa_range = evaluate_range(shift_amount)
         if sollya.inf(sa_range) < 0:
-            Log.report(Log.Error, "shift amount of {} may be negative {}\n".format(
+            Log.report(Log.Warning, "shift amount of {} may be negative {}\n".format(
                 optree,
                 sa_range
                 )
