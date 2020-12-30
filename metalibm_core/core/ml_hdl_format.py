@@ -156,6 +156,16 @@ class RTL_FixedPointFormat(ML_Base_FixedPoint_Format):
         else:
             raise NotImplementedError
 
+    def __eq__(self, other_format):
+        if not isinstance(other_format, self.__class__):
+            return False
+        else:
+            return self.integer_size == other_format.integer_size and \
+                   self.frac_size == other_format.frac_size and \
+                   self.support_format == other_format.support_format and \
+                   self.signed == other_format.signed
+        
+
     @staticmethod
     def parse_from_match(format_match):
         """ Parse the description of a class format and generates
