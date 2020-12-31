@@ -103,6 +103,10 @@ class MetaIntDiv(ML_EntityBasis):
         return DefaultEntityArgTemplate(**default_arg_map)
 
     def generate_scheme(self):
+        return self.generate_scheme_basic()
+
+    def generate_scheme_basic(self):
+        """ Simple single-digit iteration algorithm """
         # quantized_input * scale + offset_input
         divisor_format = self.get_io_format("divisor")
         dividend_format = self.get_io_format("dividend")
@@ -135,6 +139,76 @@ class MetaIntDiv(ML_EntityBasis):
         self.implementation.add_output_signal("result", result)
         return [self.implementation]
 
+    def generate_scheme_multi_digit(self):
+        """ More advanced (though pretty basic) multi-digit iteration
+            algorithm """
+        # quantized_input * scale + offset_input
+        divisor_format = self.get_io_format("divisor")
+        dividend_format = self.get_io_format("dividend")
+        result_format = self.get_io_format("result")
+
+        RESULT_SIZE = result_format.get_bit_size()
+
+        dividend = self.implementation.add_input_variable("dividend", dividend_format)
+        divisor = self.implementation.add_input_variable("divisor", divisor_format)
+
+        # we use N most significant bits from dividend and
+        #        M most siginificant bits from divisor to address
+        #        the quotient candidate table
+        N = 4
+        M = 4
+
+        lzc_dividend = CountLeadingZeros(dividend)
+        lzc_divisor = CountLeadingZeros(divisor)
+        lzc_delta = lzc_divisor - lzc_dividend
+        normalized_divisor = BitLogicLeftShift(divisor, lzc_divisor - (N - 1), tag="normalized_divisor")
+        dividend_width = dividend_format.get_bit_size() 
+        divisor_width = divisor_format.get_bit_size()
+
+        index_size = N + M
+        # TODO/FIXME: check integer-size part
+        storage_format = fixed_point(N, 0, signed=False)
+
+        table_candidate_quotient = ML_NewTable(
+            dimensions=[2**index_size],
+            storage_precision=storage_format,
+            tag="table_candidate_quotient")
+        for i in range(2**N):
+            # specific value for j == 0
+            table_candidate_quotient[i * 2**M] = 0
+            for j in range(1, 2**M):
+                index = i * 2**M + j
+                # TODO/FIXME: math.ceil we use conversion to native float format
+                #             (should be double-precision / binary64) on most platform
+                #             which would entail a conversion error if N and M are too large
+                quotient = int(math.ceil((i * 2**(M-1)) / j))
+                table_candidate_quotient[index] = quotient
+
+        normalized_dividend = BitLogicLeftShift(dividend, lzc_dividend, tag="normalized_dividend")
+        remainder = dividend
+        q = Constant(0, precision=result_format)
+        HighPart_divisor = SubSignalSelection(divisor, divisor_width - 1 - (N - 1) - (M - 1), divisor_width - 1 - (N - 1))  
+        for i in range(dividend_format.get_bit_size() // N): # TODO/FIXME width
+            end_of_loop = lzc_delta < N
+            HighPart_dividend = SubSignalSelection(remainder, dividend_width - 1 - N + 1, dividend_width - 1)
+
+            table_index = Concatenation(HighPart_dividend, HighPart_divisor)
+            candidate_quotient = TableLoad(table_candidate_quotient, table_index, precision=storage_format, tag="candidate_quotient")
+            pre_remainder = remainder - candidate_quotient * divisor
+            # correction
+            # NOTES: correction could be replaced by redundant representation
+            # for quotient, associated with final transformation into
+            # canonical representation
+            candidate_quotient = Select(pre_remainder < 0, candidate_quotient - 1, candidate_quotient)
+            quotient = Concatenate(quotient, Conversion(candidate_quotient, precision=fixed_point(N, 0, signed=False)))
+            pre_remainder = Select(pre_remainder < 0, pre_remainder + divisor, pre_remainder)
+
+            remainder = TypeCast(BitLogicLeftShift(pre_remainder, N), precision=dividend_format) 
+
+        # baby step
+        raise NotImplementedError
+        self.implementation.add_output_signal("result", result)
+        return [self.implementation]
 
     def numeric_emulate(self, io_map):
         divisor = io_map["divisor"]
