@@ -70,7 +70,10 @@ sollya.roundingwarnings = sollya.off
 sollya.verbosity = 0
 sollya.showmessagenumbers = sollya.on
 
-from metalibm_core.utility.axf_utils import AXF_JSON_Importer, AXF_SimplePolyApprox
+from metalibm_core.utility.axf_utils import (
+    AXF_JSON_Importer, AXF_SimplePolyApprox, AbsoluteApproxError,
+    AXF_ApproxError, AXF_Polynomial,
+)
 
 
 class ML_HyperbolicTangent(ScalarUnaryFunction):
@@ -119,12 +122,12 @@ class ML_HyperbolicTangent(ScalarUnaryFunction):
         )
 
         axf_approx = AXF_SimplePolyApprox(
-            poly_object,
+            AXF_Polynomial.from_poly(poly_object),
             function / sollya.x, degree_list,
             [1] + [self.precision] * (len(degree_list) - 1),
-            approx_interval, absolute=True
+            approx_interval, approx_error=AXF_ApproxError.from_AE(AbsoluteApproxError(approx_error))
         )
-        print(axf_approx.export())
+        #print(axf_approx.export())
 
         Log.report(Log.Info, "approximation poly: {}\n  with error {}".format(
                 poly_object, approx_error
