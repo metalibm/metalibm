@@ -13067,6 +13067,7 @@
             "offset_fct": "erf(_x_)"
         },
         "class": "!GenericPolynomialSplit",
+        "function": "erf(_x_)",
         "interval": "[3.125e-2;2]",
         "precision": "double",
         "tag": "erf-near"
@@ -20912,6 +20913,7 @@
             "offset_fct": "erf(_x_)"
         },
         "class": "!GenericPolynomialSplit",
+        "function": "erf(_x_)",
         "interval": "[2;8]",
         "precision": "double",
         "tag": "erf-medium"
