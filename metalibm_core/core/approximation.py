@@ -109,11 +109,17 @@ def generic_poly_split_param_from_axf(axf_approx, indexing):
     return offset_table, max_degree, poly_table, max_error
 
 
-def generic_poly_split_paramgen(offset_fct, indexing, target_eps, coeff_precision, axf_export=False):
+def generic_poly_split_paramgen(offset_fct, indexing, target_eps, coeff_precision, max_degree=None, axf_export=False, error_target_type=sollya.relative):
+    """ generate the parameters (table) for a generic piecewise polynomial
+        approximation """
     # computing degree for a different polynomial approximation on each
     # sub-interval
-    poly_degree_list = [int(sup(guessdegree(offset_fct(offset), sub_interval, target_eps))) for offset, sub_interval in indexing.get_offseted_sub_list()]
-    max_degree = max(poly_degree_list)
+    if max_degree is None:
+        poly_degree_list = [int(sup(guessdegree(offset_fct(offset), sub_interval, target_eps))) for offset, sub_interval in indexing.get_offseted_sub_list()]
+        max_degree = max(poly_degree_list)
+    else:
+        poly_degree_list = [max_degree for index in range(indexing.split_num)]
+    Log.report(Log.Debug, "generic_poly_split_paramgen max_degree={}", max_degree)
 
     # tabulating polynomial coefficients on split_num sub-interval of interval
     poly_table = ML_NewTable(dimensions=[indexing.split_num, max_degree+1], storage_precision=coeff_precision, const=True)
@@ -125,7 +131,7 @@ def generic_poly_split_paramgen(offset_fct, indexing, target_eps, coeff_precisio
         # TODO/FIXME/ using offset_fct evaluation at 0 to provide a dumpable
         #             function. We may prefer an non-evaluated offset_fct
         #             transcription
-        axf_error = AXF_ApproxError.from_AE(AbsoluteApproxError(target_eps))
+        axf_error = AXF_ApproxError.from_AE((AbsoluteApproxError if error_target_type is sollya.absolute else RelativeApproxError)(target_eps))
         axf_approx = AXF_GenericPolynomialSplit(offset_fct(0), coeff_precision, indexing.interval, indexing, max_degree, axf_error)
     else:
         axf_approx = None
@@ -145,7 +151,8 @@ def generic_poly_split_paramgen(offset_fct, indexing, target_eps, coeff_precisio
 
             if axf_export:
                 axf_poly = AXF_Polynomial.from_poly(Polynomial({0: local_approx}))
-                axf_error = AXF_ApproxError.from_AE(AbsoluteApproxError(approx_error))
+                # axf_error = AXF_ApproxError.from_AE(AbsoluteApproxError(approx_error))
+                axf_error = AXF_ApproxError.from_AE((AbsoluteApproxError if error_target_type is sollya.absolute else RelativeApproxError)(approx_error))
                 axf_approx.approx_list.append(
                     AXF_SimplePolyApprox(axf_poly,
                                          offset_fct(offset), [0], [coeff_precision],
@@ -155,7 +162,7 @@ def generic_poly_split_paramgen(offset_fct, indexing, target_eps, coeff_precisio
         else:
             poly_object, approx_error = Polynomial.build_from_approximation_with_error(
                 offset_fct(offset), poly_degree, [coeff_precision]*(poly_degree+1),
-                approx_interval, sollya.relative)
+                approx_interval, error_target_type)
 
             for monomial_index in range(max_degree+1):
                 if monomial_index <= poly_degree:
@@ -165,7 +172,8 @@ def generic_poly_split_paramgen(offset_fct, indexing, target_eps, coeff_precisio
 
             if axf_export:
                 axf_poly = AXF_Polynomial.from_poly(poly_object)
-                axf_error = AXF_ApproxError.from_AE(RelativeApproxError(approx_error))
+                # axf_error = AXF_ApproxError.from_AE(RelativeApproxError(approx_error))
+                axf_error = AXF_ApproxError.from_AE((AbsoluteApproxError if error_target_type is sollya.absolute else RelativeApproxError)(approx_error))
                 axf_approx.approx_list.append(
                     AXF_SimplePolyApprox(axf_poly,
                                          offset_fct(offset), list(range(poly_degree+1)),
@@ -178,6 +186,8 @@ def generic_poly_split_paramgen(offset_fct, indexing, target_eps, coeff_precisio
 
 
 def generic_poly_split_from_params(offset_table, max_degree, poly_table, indexing, coeff_precision, vx):
+    """ generate the ML node graph of approximation of a function
+        from the parameter of a generic piecewise polynomial approximation """
     # indexing function: derive index from input @p vx value
     poly_index = indexing.get_index_node(vx)
     poly_index.set_attributes(tag="poly_index", debug=debug_multi)
@@ -199,7 +209,7 @@ def generic_poly_split_from_params(offset_table, max_degree, poly_table, indexin
     #return poly.hi
     return poly
 
-def generic_poly_split(offset_fct, indexing, target_eps, coeff_precision, vx, axf_export=False):
+def generic_poly_split(offset_fct, indexing, target_eps, coeff_precision, vx, max_degree=None, error_target_type=sollya.relative, axf_export=False):
     """ generate the meta approximation for @p offset_fct over several
         intervals defined by @p indexing object
         For each sub-interval, a polynomial approximation with
@@ -209,6 +219,8 @@ def generic_poly_split(offset_fct, indexing, target_eps, coeff_precision, vx, ax
 
     offset_table, max_degree, poly_table, max_error, axf_approx = generic_poly_split_paramgen(offset_fct, indexing,
                                                                     target_eps, coeff_precision,
+                                                                    max_degree=max_degree,
+                                                                    error_target_type=error_target_type,
                                                                     axf_export=axf_export)
     Log.report(Log.Debug, "max approx error is {}", max_error)
 
@@ -402,7 +414,7 @@ def piecewise_approximation_paramgen(
                 axf_poly = AXF_Polynomial.from_poly(poly_object)
                 axf_approx.approx_list.append(
                     
-                    AXF_SimplePolyApprox(axf_poly, local_function, range(degree+1), [coeff_precision] * (degree+1), Interval(subint_low, subint_high), approx_error=axf_error)) 
+                    AXF_SimplePolyApprox(axf_poly, local_function, range(degree+1), [coeff_precision] * (degree+1), local_interval, approx_error=axf_error)) 
         for ci in range(max_degree+1):
             if ci in poly_object.coeff_map:
                 coeff_table[i][ci] = poly_object.coeff_map[ci]
