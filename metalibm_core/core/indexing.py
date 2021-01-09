@@ -33,17 +33,19 @@
 #
 ###############################################################################
 import sollya
-from sollya import Interval
+from sollya import Interval, inf, sup
 S2 = sollya.SollyaObject(2)
 
 from metalibm_core.core.ml_formats import ML_Binary32, ML_Binary64
 from metalibm_core.core.ml_operations import (
-    Constant, BitLogicRightShift, BitLogicAnd, Subtraction, TypeCast)
+    Constant, BitLogicRightShift, BitLogicAnd, Subtraction, TypeCast,
+    Max, Min, NearestInteger, Multiplication)
 
 from metalibm_core.utility.log_report import Log
 
 class Indexing:
-    """ generic class for expressing value indexing (in a table) """
+    """ generic class for expressing value indexing (in a table) from
+        a variable input node"""
     def get_index_node(self, vx):
         """ return the meta graph to implement index calculation
             from input @p vx """
@@ -58,7 +60,44 @@ class Indexing:
     def parse(s):
         return eval(s) #, globals + {"SubFPIndexing": SubFPIndexing})
 
-class SubMantissaIndexing(Indexing):
+class SubIntervalIndexing(Indexing):
+    def get_sub_list(self):
+        return [self.get_sub_interval(index) for index in range(self.split_num)]
+    def get_offseted_sub_list(self):
+        return [self.get_offseted_sub_interval(index) for index in range(self.split_num)]
+
+    @property
+    def min_bound(self):
+        return self.get_sub_lo_bound(0)
+    @property
+    def max_bound(self):
+        return self.get_sub_hi_bound(self.split_num - 1)
+
+    def get_offseted_sub_interval(self, index):
+        """ return a pair (offset, [0; size]) """
+        assert index >= 0 and index < self.split_num
+        lo_bound = self.get_sub_lo_bound(index)
+        hi_bound = self.get_sub_hi_bound(index)
+        return lo_bound, Interval(0, hi_bound - lo_bound)
+
+    def get_sub_interval(self, index):
+        assert index >= 0 and index < self.split_num
+        lo_bound = self.get_sub_lo_bound(index)
+        hi_bound = self.get_sub_hi_bound(index)
+        return Interval(lo_bound, hi_bound)
+    @property
+    def interval(self):
+        return Interval(self.min_bound, self.max_bound)
+
+    def get_sub_lo_bound(self, index):
+        """ return the lower bound of the index-th sub-interval """
+        raise NotImplementedError
+
+    def get_sub_hi_bound(self, index):
+        """ return the upper bound of the index-th sub-interval """
+        raise NotImplementedError
+
+class SubMantissaIndexing(SubIntervalIndexing):
     """ Indexing class using upper bits of the floating-point mantissa
         to build an index """
     def __init__(self, field_bit_num):
@@ -68,18 +107,17 @@ class SubMantissaIndexing(Indexing):
     def get_index_node(self, vx):
         return generic_mantissa_msb_index_fct(self.field_bit_num, vx)
 
-    def get_sub_list(self):
-        return [self.get_sub_interval(index) for index in range(self.split_num)]
-
-    def get_sub_interval(self, index):
-        assert index >= 0 and index < self.split_num
+    def get_sub_lo_bound(self, index):
         lo_bound = 1.0 + index * 2**(-self.field_bit_num)
+        return lo_bound
+    def get_sub_hi_bound(self, index):
         hi_bound = 1.0 + (index+1) * 2**(-self.field_bit_num)
-        return Interval(lo_bound, hi_bound)
+        return hi_bound
 
-class SubFPIndexing(Indexing):
+
+class SubFPIndexing(SubIntervalIndexing):
     """ Indexation based on a sub-field of a fp-number
-        SubFPIndexing(l, h, f) 
+        SubFPIndexing(l, h, f)
         e bits are extracted from the LSB of exponent
         f bits are extracted from the MSB of mantissa
         exponent is offset by l """
@@ -152,50 +190,30 @@ class SubFPIndexing(Indexing):
         hi_bound = (1.0 + (field_index+1) * 2**(-self.field_bits)) * S2**exp_value
         return hi_bound
 
-    def get_sub_list(self):
-        return [self.get_sub_interval(index) for index in range(self.split_num)]
-    def get_offseted_sub_list(self):
-        return [self.get_offseted_sub_interval(index) for index in range(self.split_num)]
-
-    @property
-    def min_bound(self):
-        return self.get_sub_lo_bound(0)
-    @property
-    def max_bound(self):
-        return self.get_sub_hi_bound(self.split_num - 1)
-
-    def get_offseted_sub_interval(self, index):
-        """ return a pair (offset, [0; size]) """
-        assert index >= 0 and index < self.split_num
-        lo_bound = self.get_sub_lo_bound(index)
-        hi_bound = self.get_sub_hi_bound(index)
-        return lo_bound, Interval(0, hi_bound - lo_bound)
-
-    def get_sub_interval(self, index):
-        assert index >= 0 and index < self.split_num
-        lo_bound = self.get_sub_lo_bound(index)
-        hi_bound = self.get_sub_hi_bound(index)
-        return Interval(lo_bound, hi_bound)
-    @property
-    def interval(self):
-        return Interval(self.min_bound, self.max_bound)
 
 
-class SubIntervalIndexing(Indexing):
+class SubUniformIntervalIndexing(SubIntervalIndexing):
     """ indexing which uniformly divides an overall interval
         into <split_num> sub-interval of equal size """
     def __init__(self, interval, split_num):
+        if isinstance(interval, str):
+            # parsing interval to SollyaObject if it is a string description
+            # (used when reading an AXF file)
+            interval = sollya.parse(interval)
         # overall interval
-        self.interval = interval
+        self._interval = interval
         # number of sub-intervals
         self.split_num = split_num
+        self.interval_size = (self.max_bound - self.min_bound) / split_num
+    def __repr__(self):
+        return "SubUniformIntervalIndexing(\"%s\", %s)" % (self.interval, self.split_num)
 
     @property
-    def bound_low(self):
-        return inf(self.interval)
+    def min_bound(self):
+        return inf(self._interval)
     @property
-    def bound_high(self):
-        return sup(self.interval)
+    def max_bound(self):
+        return sup(self._interval)
 
     def get_index_node(self, vx):
         """ return the meta graph to implement index calculation
@@ -234,11 +252,20 @@ class SubIntervalIndexing(Indexing):
             precision=int_prec
         )
         return index
-    def get_sub_interval(self, index):
-        """ return the sub-interval numbered @p index """
-        subint_low = self.bound_low + i * interval_size
-        subint_high = self.bound_low + (i+1) * interval_size
-        return Interval(subint_low, subint_high)
 
-    def get_sub_list(self):
-        return [self.get_sub_interval(index) for index in range(self.split_num)]
+    def get_sub_lo_bound(self, index):
+        subint_low = self.min_bound + index * self.interval_size
+        return subint_low
+    def get_sub_hi_bound(self, index):
+        subint_high = self.min_bound + (index+1) * self.interval_size
+        return subint_high
+
+    def get_offseted_sub_interval(self, index):
+        """ return a pair (offset, approx_interval) """
+        assert index >= 0 and index < self.split_num
+        lo_bound = self.get_sub_lo_bound(index)
+        hi_bound = self.get_sub_hi_bound(index)
+        # patching approx_interval to be symmetric around 0
+        sub_interval_size = hi_bound - lo_bound
+        return lo_bound, Interval(-sub_interval_size, sub_interval_size)
+

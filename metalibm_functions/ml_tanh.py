@@ -53,9 +53,15 @@ from metalibm_core.core.ml_operations import (
 )
 from metalibm_core.core.ml_table import ML_NewTable
 
+from metalibm_core.core.indexing import SubUniformIntervalIndexing
+#from metalibm_core.core.approximation import (
+#    piecewise_approximation_paramgen, piecewise_evaluation_from_param,
+#    piecewise_param_from_axf)
 from metalibm_core.core.approximation import (
-    piecewise_approximation_paramgen, piecewise_evaluation_from_param,
-    piecewise_param_from_axf)
+    search_bound_threshold, generic_poly_split,
+    generic_poly_split_param_from_axf,
+    generic_poly_split_from_params
+)
 
 from metalibm_core.code_generation.generic_processor import GenericProcessor
 
@@ -200,26 +206,42 @@ class ML_HyperbolicTangent(ScalarUnaryFunction):
         # approximation parameters
         poly_degree = 7
         approx_interval = Interval(near_zero_bound, high_bound)
+        uniform_indexing = SubUniformIntervalIndexing(approx_interval, interval_num)  
 
         sollya.settings.points = 117
 
         if self.load_axf_approx:
             Log.report(Log.Debug, "loading approximation from file")
             axf_approx = AXF_JSON_Importer.from_file(self.load_axf_approx)
-            interval_size, coeff_table, approx_error, max_degree = piecewise_param_from_axf(axf_approx)
-            approx_scheme = piecewise_evaluation_from_param(abs_vx, self.precision, near_zero_bound, high_bound, max_degree, interval_num, interval_size, coeff_table)
+#interval_size, coeff_table, approx_error, max_degree = ram_from_axf(axf_approx)
+            #approx_scheme = piecewise_evaluation_from_param(abs_vx, self.precision, near_zero_bound, high_bound, max_degree, interval_num, interval_size, coeff_table)
+            offset_table, max_degree, coeff_table, approx_error = generic_poly_split_param_from_axf(axf_approx, uniform_indexing)
+            approx_scheme = generic_poly_split_from_params(offset_table, max_degree, coeff_table, uniform_indexing, self.precision, abs_vx)
 
         else:
-            interval_size, coeff_table, approx_error, max_degree, dump_axf_approx = piecewise_approximation_paramgen(
-                sollya.tanh,
-                abs_vx,
-                self.precision,
-                bound_low=near_zero_bound,
-                bound_high=high_bound,
-                num_intervals=interval_num,
-                max_degree=poly_degree,
-                error_threshold=ERROR_THRESHOLD,
-                axf_export=not self.dump_axf_approx is False)
+            #interval_size, coeff_table, approx_error, max_degree, dump_axf_approx = piecewise_approximation_paramgen(
+            #    sollya.tanh,
+            #    abs_vx,
+            #    self.precision,
+            #    bound_low=near_zero_bound,
+            #    bound_high=high_bound,
+            #    num_intervals=interval_num,
+            #    max_degree=poly_degree,
+            #    error_threshold=ERROR_THRESHOLD,
+            #    axf_export=not self.dump_axf_approx is False)
+            def offset_function(fct):
+                return lambda offset: fct(sollya.x + offset)
+
+            approx_scheme, dump_axf_approx = generic_poly_split(offset_function(sollya.tanh),
+                                                                uniform_indexing,
+                                                                ERROR_THRESHOLD * 2**-3,
+                                                                self.precision,
+                                                                abs_vx,
+                                                                max_degree=poly_degree, # forcing max_degree
+                                                                error_target_type=sollya.absolute,
+                                                                axf_export=not self.dump_axf_approx is False)
+            approx_error = dump_axf_approx.approx_error.export_to_ml_error()
+            
 
             if self.dump_axf_approx:
                 with open(self.dump_axf_approx, "w") as axf_stream:
@@ -231,7 +253,7 @@ class ML_HyperbolicTangent(ScalarUnaryFunction):
                     # import yaml
                     # print(yaml.dump(dump_axf_approx))
 
-            approx_scheme = piecewise_evaluation_from_param(abs_vx, self.precision, near_zero_bound, high_bound, poly_degree, interval_num, interval_size, coeff_table)
+            #approx_scheme = piecewise_evaluation_from_param(abs_vx, self.precision, near_zero_bound, high_bound, poly_degree, interval_num, interval_size, coeff_table)
         Log.report(Log.Warning, "approx_error={}".format(approx_error))
 
         comp_near_zero_bound = abs_vx < near_zero_bound

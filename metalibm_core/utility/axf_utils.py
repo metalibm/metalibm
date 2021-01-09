@@ -33,7 +33,7 @@ import yaml
 import json
 import sollya
 
-from metalibm_core.core.indexing import Indexing, SubIntervalIndexing
+from metalibm_core.core.indexing import Indexing, SubUniformIntervalIndexing
 from metalibm_core.core.polynomials import Polynomial
 from metalibm_core.utility.ml_template import precision_parser
 
@@ -127,7 +127,7 @@ class GenericPolynomialSplit(PieceWiseApprox):
         with arbitrary input interval """
     def __init__(self, offset_fct, indexing, max_degree, approx_error,
                  precision, tag="", approx_list=None, odd=False, even=False):
-        PieceWiseApprox.__init__(self, function, precision, interval, error_bound, tag=tag)
+        PieceWiseApprox.__init__(self, offset_fct, precision, indexing.interval, approx_error, tag=tag)
         self.offset_fct = str(offset_fct)
         self.indexing = indexing
         self.approx_list = [] if approx_list is None else approx_list
@@ -147,7 +147,7 @@ class UniformPieceWiseApprox(PieceWiseApprox):
         self.odd = bool(odd)
         self.even = bool(even)
         self.approx_list = [] if approx_list is None else approx_list
-        self.indexing = indexing if not indexing is None else SubIntervalIndexing(self.interval, self.num_intervals)
+        self.indexing = indexing if not indexing is None else SubUniformIntervalIndexing(self.interval, self.num_intervals)
 
 class AXF_SimplePolyApprox(yaml.YAMLObject):
     """ AXF object for basic polynomial approximation """
