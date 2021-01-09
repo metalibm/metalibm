@@ -160,9 +160,27 @@ def generic_poly_split_paramgen(offset_fct, indexing, target_eps, coeff_precisio
                                          approx_error=axf_error)) 
 
         else:
-            poly_object, approx_error = Polynomial.build_from_approximation_with_error(
-                offset_fct(offset), poly_degree, [coeff_precision]*(poly_degree+1),
-                approx_interval, error_target_type)
+            try:
+                poly_object, approx_error = Polynomial.build_from_approximation_with_error(
+                    offset_fct(offset), poly_degree, [coeff_precision]*(poly_degree+1),
+                    approx_interval, error_target_type)
+            except SollyaError as err:
+                # try to see if function is constant on the interval (possible
+                # failure cause for fpminmax)
+                subint_low = inf(approx_interval)
+                local_function = offset_fct(offset)
+                local_interval = approx_interval
+                #import pdb; pdb.set_trace()
+                cst_value = coeff_precision.round_sollya_object(local_function(subint_low), sollya.RN)
+                accuracy = target_eps
+                diff_with_cst_range = sollya.supnorm(cst_value, local_function, local_interval, sollya.absolute, accuracy)
+                diff_with_cst = sup(abs(diff_with_cst_range))
+                if diff_with_cst < target_eps:
+                    Log.report(Log.Info, "constant polynomial detected")
+                    poly_object = Polynomial([cst_value] + [0] * poly_degree)
+                    approx_error = diff_with_cst
+                else:
+                    Log.report(Log.Error, "degree: {} for index {}, diff_with_cst={} (vs error_threshold={}) ", poly_degree, sub_index, diff_with_cst, target_eps, error=err)
 
             for monomial_index in range(max_degree+1):
                 if monomial_index <= poly_degree:
