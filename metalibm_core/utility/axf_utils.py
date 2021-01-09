@@ -110,41 +110,44 @@ class AXF_ApproxError:
         """ import from ApproxError object """
         return AXF_ApproxError(approx_error.error_type, approx_error.value)
 
-class UniformPieceWiseApprox:
+class PieceWiseApprox:
+    """ generic class for piecewise approximation """
+    def __init__(self, function, precision, interval, approx_error, tag=""):
+        self.function = function
+        self.precision = precision
+        self.interval = interval
+        assert isinstance(approx_error, ApproxError)
+        self.approx_error = approx_error
+        self.tag = tag
+
+
+
+class GenericPolynomialSplit(PieceWiseApprox):
+    """ generic piece-wise polynomial approximation
+        with arbitrary input interval """
+    def __init__(self, offset_fct, indexing, max_degree, approx_error,
+                 precision, tag="", approx_list=None, odd=False, even=False):
+        PieceWiseApprox.__init__(self, function, precision, interval, error_bound, tag=tag)
+        self.offset_fct = str(offset_fct)
+        self.indexing = indexing
+        self.approx_list = [] if approx_list is None else approx_list
+        self.max_degree = int(max_degree)
+        self.odd = bool(odd)
+        self.even = bool(even)
+
+class UniformPieceWiseApprox(PieceWiseApprox):
     """ piece-wise polynomial approximation with
         uniformly divided input interval """
     def __init__(self, function, precision, interval,
                  num_intervals, max_degree, error_bound,
                  odd=False, even=False, tag="", approx_list=None, indexing=None):
-        self.function = function
-        self.interval = interval
+        PieceWiseApprox.__init__(self, function, precision, interval, error_bound, tag=tag)
         self.num_intervals = int(num_intervals)
         self.max_degree = int(max_degree)
-        self.error_bound = error_bound
         self.odd = bool(odd)
         self.even = bool(even)
         self.approx_list = [] if approx_list is None else approx_list
-        self.precision = precision
-        self.tag = tag
         self.indexing = indexing if not indexing is None else SubIntervalIndexing(self.interval, self.num_intervals)
-
-
-class GenericPolynomialSplit:
-    """ generic piece-wise polynomial approximation
-        with arbitrary input interval """
-    def __init__(self, offset_fct, indexing, max_degree, approx_error,
-                 precision, tag="", approx_list=None, odd=False, even=False):
-        self.offset_fct = str(offset_fct)
-        self.indexing = indexing
-        assert isinstance(approx_error, ApproxError)
-        self.approx_error = approx_error
-        self.precision = precision
-        self.approx_list = [] if approx_list is None else approx_list
-        self.tag = tag
-        self.max_degree = int(max_degree)
-        self.odd = odd
-        self.even = even
-
 
 class AXF_SimplePolyApprox(yaml.YAMLObject):
     """ AXF object for basic polynomial approximation """
@@ -372,6 +375,7 @@ class AXF_GenericPolynomialSplit(yaml.YAMLObject):
                 "even": self.even,
             },
             "interval": self.interval,
+            "function": self.offset_fct,
             "approx_error": self.approx_error.serialize_to_dict(),
             "approx_data": [approx.serialize_to_dict() for approx in self.approx_list],
             "tag": self.tag,
