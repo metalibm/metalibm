@@ -53,9 +53,9 @@ from metalibm_core.core.special_values import (
 )
 from metalibm_core.core.indexing import SubFPIndexing
 from metalibm_core.core.approximation import (
-    search_bound_threshold, generic_poly_split,
-    generic_poly_split_param_from_axf,
-    generic_poly_split_from_params
+    search_bound_threshold, generate_piecewise_poly_approx,
+    load_piecewese_poly_params_from_axf,
+    generate_piecewise_poly_approx_from_params
 )
 from metalibm_core.core.simple_scalar_function import ScalarUnaryFunction
 
@@ -158,9 +158,9 @@ class ML_Erf(ScalarUnaryFunction):
             # TODO: implement import of approximations from AXF files
             [near_axf_approx, medium_axf_approx] = AXF_JSON_Importer.from_file(self.load_axf_approx)
 
-            near_approx_offset_table, near_approx_poly_max_degree, near_approx_poly_table, near_approx_max_error = generic_poly_split_param_from_axf(near_axf_approx, near_indexing)
+            near_approx_offset_table, near_approx_poly_max_degree, near_approx_poly_table, near_approx_max_error = load_piecewese_poly_params_from_axf(near_axf_approx, near_indexing)
 
-            near_approx = generic_poly_split_from_params(near_approx_offset_table,
+            near_approx = generate_piecewise_poly_approx_from_params(near_approx_offset_table,
                                                          near_approx_poly_max_degree,
                                                          near_approx_poly_table,
                                                          near_indexing,
@@ -168,21 +168,21 @@ class ML_Erf(ScalarUnaryFunction):
                                                          abs_vx)
 
 
-            medium_approx_offset_table, medium_approx_poly_max_degree, medium_approx_poly_table, medium_approx_max_error = generic_poly_split_param_from_axf(medium_axf_approx, medium_indexing)
+            medium_approx_offset_table, medium_approx_poly_max_degree, medium_approx_poly_table, medium_approx_max_error = load_piecewese_poly_params_from_axf(medium_axf_approx, medium_indexing)
 
-            medium_approx = generic_poly_split_from_params(medium_approx_offset_table,
+            medium_approx = generate_piecewise_poly_approx_from_params(medium_approx_offset_table,
                                                          medium_approx_poly_max_degree,
                                                          medium_approx_poly_table,
                                                          medium_indexing,
                                                          self.precision,
                                                          abs_vx)
         else:
-            near_approx, axf_near_approx = generic_poly_split(offset_div_function(sollya.erf), near_indexing, eps_target, self.precision, abs_vx, axf_export=not self.dump_axf_approx is False)
+            near_approx, axf_near_approx = generate_piecewise_poly_approx(offset_div_function(sollya.erf), near_indexing, eps_target, self.precision, abs_vx, axf_export=not self.dump_axf_approx is False)
 
             def offset_function(fct):
                 return lambda offset: fct(sollya.x + offset)
 
-            medium_approx, axf_medium_approx = generic_poly_split(offset_function(sollya.erf), medium_indexing, eps_target, self.precision, abs_vx, axf_export=not self.dump_axf_approx is False)
+            medium_approx, axf_medium_approx = generate_piecewise_poly_approx(offset_function(sollya.erf), medium_indexing, eps_target, self.precision, abs_vx, axf_export=not self.dump_axf_approx is False)
 
             if self.dump_axf_approx:
                 axf_near_approx.tag = "erf-near"
