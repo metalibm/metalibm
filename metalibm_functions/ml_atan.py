@@ -49,7 +49,9 @@ from metalibm_core.core.ml_formats import ML_Binary32, ML_Bool
 from metalibm_core.core.precisions import ML_Faithful
 from metalibm_core.code_generation.generic_processor import GenericProcessor
 from metalibm_core.core.polynomials import Polynomial, PolynomialSchemeEvaluator
-from metalibm_core.core.approximation import piecewise_approximation
+
+from metalibm_core.core.approximation import generate_piecewise_poly_approx
+from metalibm_core.core.indexing import SubUniformIntervalIndexing
 
 from metalibm_core.utility.ml_template import ML_NewArgTemplate
 from metalibm_core.utility.log_report  import Log
@@ -120,7 +122,7 @@ class MetaAtan(ScalarUnaryFunction):
             )
 
             # reduced argument
-            red_vx = Select(bound_cond, inv_abs_vx, abs_vx, tag="red_vx", debug=debug_multi)
+            red_vx = Select(bound_cond, inv_abs_vx, abs_vx, tag="red_vx", debug=debug_multi, precision=self.precision)
 
             offset = None
         else:
@@ -153,7 +155,7 @@ class MetaAtan(ScalarUnaryFunction):
             denominator = Select(bound_cond, vy, _vx, tag="denominator", debug=debug_multi)
             # reduced argument
             red_vx = Abs(numerator) / Abs(denominator)
-            red_vx.set_attributes(tag="red_vx", debug=debug_multi)
+            red_vx.set_attributes(tag="red_vx", debug=debug_multi, precision=self.precision)
 
             offset = Select(_vx > 0,
                 Constant(0, precision=self.precision),
@@ -184,15 +186,25 @@ class MetaAtan(ScalarUnaryFunction):
             num_intervals = self.num_sub_intervals
             error_threshold = S2**-(self.precision.get_mantissa_size() + 8)
 
-            approx, eval_error = piecewise_approximation(approx_fct,
-                                    red_vx,
-                                    self.precision,
-                                    bound_low=bound_low,
-                                    bound_high=bound_high,
-                                    max_degree=None,
-                                    num_intervals=num_intervals,
-                                    error_threshold=error_threshold,
-                                    odd=True)
+            uniform_indexing = SubUniformIntervalIndexing(Interval(bound_low, bound_high), num_intervals)  
+
+            approx, _ = generate_piecewise_poly_approx(
+                lambda offset: sollya.atan(sollya.x + offset),
+                uniform_indexing,
+                error_threshold,
+                self.precision,
+                red_vx,
+                error_target_type=sollya.absolute,
+                axf_export=False)
+            # approx, eval_error = piecewise_approximation(approx_fct,
+            #                         red_vx,
+            #                         self.precision,
+            #                         bound_low=bound_low,
+            #                         bound_high=bound_high,
+            #                         max_degree=None,
+            #                         num_intervals=num_intervals,
+            #                         error_threshold=error_threshold,
+            #                         odd=True)
 
             result = cst + sign_vx * approx
             result.set_attributes(tag="result", precision=self.precision, debug=debug_multi)
