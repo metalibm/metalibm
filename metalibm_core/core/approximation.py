@@ -161,9 +161,16 @@ def generate_parameters_piecewise_poly_approx(offset_fct, indexing, target_eps, 
 
         else:
             try:
-                poly_object, approx_error = Polynomial.build_from_approximation_with_error(
-                    offset_fct(offset), poly_degree, [coeff_precision]*(poly_degree+1),
-                    approx_interval, error_target_type)
+                if 0 in approx_interval and offset_fct(offset)(0) == 0.0:
+                    # if 0 is within the local interval and that the function has a zero at zero,
+                    # we force the first coefficient to be 0
+                    poly_object, approx_error = Polynomial.build_from_approximation_with_error(
+                        offset_fct(offset), list(range(1,poly_degree+1)), [coeff_precision]*(poly_degree),
+                        approx_interval, error_target_type)
+                else:
+                    poly_object, approx_error = Polynomial.build_from_approximation_with_error(
+                        offset_fct(offset), poly_degree, [coeff_precision]*(poly_degree+1),
+                        approx_interval, error_target_type)
             except SollyaError as err:
                 # try to see if function is constant on the interval (possible
                 # failure cause for fpminmax)
@@ -184,7 +191,11 @@ def generate_parameters_piecewise_poly_approx(offset_fct, indexing, target_eps, 
 
             for monomial_index in range(max_degree+1):
                 if monomial_index <= poly_degree:
-                    poly_table[sub_index][monomial_index] = poly_object.coeff_map[monomial_index] 
+                    if monomial_index in poly_object.coeff_map:
+                        coeff_value = poly_object.coeff_map[monomial_index] 
+                    else:
+                        coeff_value = 0
+                    poly_table[sub_index][monomial_index] = coeff_value
                 else:
                     poly_table[sub_index][monomial_index] = 0
 
