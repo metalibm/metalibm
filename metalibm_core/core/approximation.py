@@ -73,7 +73,7 @@ def get_extended_fp_precision(precision):
     return ext_precision
 
 
-def generic_poly_split_param_from_axf(axf_approx, indexing):
+def load_piecewese_poly_params_from_axf(axf_approx, indexing):
     """ load paramater for a generic polynomial split from an AXF structure """
     # indexing = eval(axf_approx.indexing)
     max_degree = axf_approx.max_degree
@@ -109,7 +109,7 @@ def generic_poly_split_param_from_axf(axf_approx, indexing):
     return offset_table, max_degree, poly_table, max_error
 
 
-def generic_poly_split_paramgen(offset_fct, indexing, target_eps, coeff_precision, max_degree=None, axf_export=False, error_target_type=sollya.relative):
+def generate_parameters_piecewise_poly_approx(offset_fct, indexing, target_eps, coeff_precision, max_degree=None, axf_export=False, error_target_type=sollya.relative):
     """ generate the parameters (table) for a generic piecewise polynomial
         approximation """
     # computing degree for a different polynomial approximation on each
@@ -119,7 +119,7 @@ def generic_poly_split_paramgen(offset_fct, indexing, target_eps, coeff_precisio
         max_degree = max(poly_degree_list)
     else:
         poly_degree_list = [max_degree for index in range(indexing.split_num)]
-    Log.report(Log.Debug, "generic_poly_split_paramgen max_degree={}", max_degree)
+    Log.report(Log.Debug, "generate_parameters_piecewise_poly_approx max_degree={}", max_degree)
 
     # tabulating polynomial coefficients on split_num sub-interval of interval
     poly_table = ML_NewTable(dimensions=[indexing.split_num, max_degree+1], storage_precision=coeff_precision, const=True)
@@ -203,7 +203,7 @@ def generic_poly_split_paramgen(offset_fct, indexing, target_eps, coeff_precisio
     return offset_table, max_degree, poly_table, max_error, axf_approx
 
 
-def generic_poly_split_from_params(offset_table, max_degree, poly_table, indexing, coeff_precision, vx):
+def generate_piecewise_poly_approx_from_params(offset_table, max_degree, poly_table, indexing, coeff_precision, vx):
     """ generate the ML node graph of approximation of a function
         from the parameter of a generic piecewise polynomial approximation """
     # indexing function: derive index from input @p vx value
@@ -227,7 +227,7 @@ def generic_poly_split_from_params(offset_table, max_degree, poly_table, indexin
     #return poly.hi
     return poly
 
-def generic_poly_split(offset_fct, indexing, target_eps, coeff_precision, vx, max_degree=None, error_target_type=sollya.relative, axf_export=False):
+def generate_piecewise_poly_approx(offset_fct, indexing, target_eps, coeff_precision, vx, max_degree=None, error_target_type=sollya.relative, axf_export=False):
     """ generate the meta approximation for @p offset_fct over several
         intervals defined by @p indexing object
         For each sub-interval, a polynomial approximation with
@@ -235,14 +235,14 @@ def generic_poly_split(offset_fct, indexing, target_eps, coeff_precision, vx, ma
         @p coeff_precision.
         The input variable is @p vx """
 
-    offset_table, max_degree, poly_table, max_error, axf_approx = generic_poly_split_paramgen(offset_fct, indexing,
+    offset_table, max_degree, poly_table, max_error, axf_approx = generate_parameters_piecewise_poly_approx(offset_fct, indexing,
                                                                     target_eps, coeff_precision,
                                                                     max_degree=max_degree,
                                                                     error_target_type=error_target_type,
                                                                     axf_export=axf_export)
     Log.report(Log.Debug, "max approx error is {}", max_error)
 
-    poly = generic_poly_split_from_params(offset_table, max_degree, poly_table, indexing, coeff_precision, vx)
+    poly = generate_piecewise_poly_approx_from_params(offset_table, max_degree, poly_table, indexing, coeff_precision, vx)
 
     return poly, axf_approx
 

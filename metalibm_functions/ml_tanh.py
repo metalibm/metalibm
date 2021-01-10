@@ -58,9 +58,9 @@ from metalibm_core.core.indexing import SubUniformIntervalIndexing
 #    piecewise_approximation_paramgen, piecewise_evaluation_from_param,
 #    piecewise_param_from_axf)
 from metalibm_core.core.approximation import (
-    search_bound_threshold, generic_poly_split,
-    generic_poly_split_param_from_axf,
-    generic_poly_split_from_params
+    search_bound_threshold, generate_piecewise_poly_approx,
+    load_piecewese_poly_params_from_axf,
+    generate_piecewise_poly_approx_from_params
 )
 
 from metalibm_core.code_generation.generic_processor import GenericProcessor
@@ -215,8 +215,8 @@ class ML_HyperbolicTangent(ScalarUnaryFunction):
             axf_approx = AXF_JSON_Importer.from_file(self.load_axf_approx)
 #interval_size, coeff_table, approx_error, max_degree = ram_from_axf(axf_approx)
             #approx_scheme = piecewise_evaluation_from_param(abs_vx, self.precision, near_zero_bound, high_bound, max_degree, interval_num, interval_size, coeff_table)
-            offset_table, max_degree, coeff_table, approx_error = generic_poly_split_param_from_axf(axf_approx, uniform_indexing)
-            approx_scheme = generic_poly_split_from_params(offset_table, max_degree, coeff_table, uniform_indexing, self.precision, abs_vx)
+            offset_table, max_degree, coeff_table, approx_error = load_piecewese_poly_params_from_axf(axf_approx, uniform_indexing)
+            approx_scheme = generate_piecewise_poly_approx_from_params(offset_table, max_degree, coeff_table, uniform_indexing, self.precision, abs_vx)
 
         else:
             #interval_size, coeff_table, approx_error, max_degree, dump_axf_approx = piecewise_approximation_paramgen(
@@ -232,7 +232,7 @@ class ML_HyperbolicTangent(ScalarUnaryFunction):
             def offset_function(fct):
                 return lambda offset: fct(sollya.x + offset)
 
-            approx_scheme, dump_axf_approx = generic_poly_split(offset_function(sollya.tanh),
+            approx_scheme, dump_axf_approx = generate_piecewise_poly_approx(offset_function(sollya.tanh),
                                                                 uniform_indexing,
                                                                 ERROR_THRESHOLD * 2**-3,
                                                                 self.precision,
