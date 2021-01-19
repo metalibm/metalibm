@@ -78,7 +78,7 @@ sollya.showmessagenumbers = sollya.on
 
 from metalibm_core.utility.axf_utils import (
     AXF_JSON_Importer, AXF_SimplePolyApprox, AbsoluteApproxError,
-    AXF_ApproxError, AXF_Polynomial,
+    AXF_JSON_Exporter, AXF_ApproxError, AXF_Polynomial,
 )
 
 
@@ -212,27 +212,15 @@ class ML_HyperbolicTangent(ScalarUnaryFunction):
 
         if self.load_axf_approx:
             Log.report(Log.Debug, "loading approximation from file")
-            axf_approx = AXF_JSON_Importer.from_file(self.load_axf_approx)
-#interval_size, coeff_table, approx_error, max_degree = ram_from_axf(axf_approx)
-            #approx_scheme = piecewise_evaluation_from_param(abs_vx, self.precision, near_zero_bound, high_bound, max_degree, interval_num, interval_size, coeff_table)
+            [axf_approx] = AXF_JSON_Importer.from_file(self.load_axf_approx)
             offset_table, max_degree, coeff_table, approx_error = load_piecewese_poly_params_from_axf(axf_approx, uniform_indexing)
             approx_scheme = generate_piecewise_poly_approx_from_params(offset_table, max_degree, coeff_table, uniform_indexing, self.precision, abs_vx)
 
         else:
-            #interval_size, coeff_table, approx_error, max_degree, dump_axf_approx = piecewise_approximation_paramgen(
-            #    sollya.tanh,
-            #    abs_vx,
-            #    self.precision,
-            #    bound_low=near_zero_bound,
-            #    bound_high=high_bound,
-            #    num_intervals=interval_num,
-            #    max_degree=poly_degree,
-            #    error_threshold=ERROR_THRESHOLD,
-            #    axf_export=not self.dump_axf_approx is False)
             def offset_function(fct):
                 return lambda offset: fct(sollya.x + offset)
 
-            approx_scheme, dump_axf_approx = generate_piecewise_poly_approx(offset_function(sollya.tanh),
+            approx_scheme, axf_approx = generate_piecewise_poly_approx(offset_function(sollya.tanh),
                                                                 uniform_indexing,
                                                                 ERROR_THRESHOLD * 2**-3,
                                                                 self.precision,
@@ -240,20 +228,13 @@ class ML_HyperbolicTangent(ScalarUnaryFunction):
                                                                 max_degree=poly_degree, # forcing max_degree
                                                                 error_target_type=sollya.absolute,
                                                                 axf_export=not self.dump_axf_approx is False)
-            approx_error = dump_axf_approx.approx_error.export_to_ml_error()
+            approx_error = axf_approx.approx_error.export_to_ml_error()
             
 
             if self.dump_axf_approx:
-                with open(self.dump_axf_approx, "w") as axf_stream:
-                    import json
-                    json_str = json.dumps(dump_axf_approx.serialize_to_dict(), sort_keys=True, indent=4)
-                    deserialized_json = dump_axf_approx.__class__.deserialize_from_dict(json.loads(json_str))
-                    print(deserialized_json)
-                    axf_stream.write(json_str)
-                    # import yaml
-                    # print(yaml.dump(dump_axf_approx))
+                axf_approx.tag = "tanh"
+                AXF_JSON_Exporter.to_file(self.dump_axf_approx, [axf_approx.serialize_to_dict()])
 
-            #approx_scheme = piecewise_evaluation_from_param(abs_vx, self.precision, near_zero_bound, high_bound, poly_degree, interval_num, interval_size, coeff_table)
         Log.report(Log.Warning, "approx_error={}".format(approx_error))
 
         comp_near_zero_bound = abs_vx < near_zero_bound
