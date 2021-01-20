@@ -68,6 +68,14 @@ class UT_ApproxError(unittest.TestCase):
 class UT_RelativeApproxError(UT_ApproxError):
     ErrorClass = RelativeApproxError
 
+    def test_compound(self):
+        """ test min/max on self.ErrorClass objects """
+        a0 = AbsoluteApproxError(0.0)
+        a1 = RelativeApproxError(0.0)
+
+        self.assertRaises(AssertionError, min, [a0, a1])
+        self.assertRaises(AssertionError, max, [a0, a1])
+
 
 if __name__ == '__main__':
     unittest.main()
