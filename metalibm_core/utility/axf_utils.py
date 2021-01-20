@@ -104,6 +104,27 @@ class RelativeApproxError(ApproxError):
         assert isinstance(error2, RelativeApproxError)
         return error1.value > error2.value
 
+    def __lt__(error1, error2):
+        assert isinstance(error2, RelativeApproxError)
+        return error1.value < error2.value
+
+    def __ge__(error1, error2):
+        assert isinstance(error2, RelativeApproxError)
+        return error1.value >= error2.value
+
+    def __le__(error1, error2):
+        assert isinstance(error2, RelativeApproxError)
+        return error1.value <= error2.value
+
+    def __eq__(error1, error2):
+        assert isinstance(error2, RelativeApproxError)
+        return error1.value == error2.value
+
+    def __ne__(error1, error2):
+        assert isinstance(error2, RelativeApproxError)
+        return error1.value != error2.value
+
+
 class AXF_ApproxError:
     """ AXF approximation error """
     def __init__(self, error_type, error_value):
