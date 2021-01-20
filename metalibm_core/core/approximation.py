@@ -124,14 +124,17 @@ def generate_parameters_piecewise_poly_approx(offset_fct, indexing, target_eps, 
     # tabulating polynomial coefficients on split_num sub-interval of interval
     poly_table = ML_NewTable(dimensions=[indexing.split_num, max_degree+1], storage_precision=coeff_precision, const=True)
     offset_table = ML_NewTable(dimensions=[indexing.split_num], storage_precision=coeff_precision, const=True)
-    max_error = 0.0
+
+    ErrorCtor = AbsoluteApproxError if error_target_type is sollya.absolute else RelativeApproxError
+    max_error = ErrorCtor(0.0)
+
 
     # object for AXF export
     if axf_export:
         # TODO/FIXME/ using offset_fct evaluation at 0 to provide a dumpable
         #             function. We may prefer an non-evaluated offset_fct
         #             transcription
-        axf_error = AXF_ApproxError.from_AE((AbsoluteApproxError if error_target_type is sollya.absolute else RelativeApproxError)(target_eps))
+        axf_error = AXF_ApproxError.from_AE(ErrorCtor(target_eps))
         axf_approx = AXF_GenericPolynomialSplit(offset_fct(0), coeff_precision, indexing.interval, indexing, max_degree, axf_error)
     else:
         axf_approx = None
@@ -147,30 +150,43 @@ def generate_parameters_piecewise_poly_approx(offset_fct, indexing, target_eps, 
             poly_table[sub_index][0] = local_approx
             for monomial_index in range(1, max_degree+1):
                 poly_table[sub_index][monomial_index] = 0
-            approx_error = sollya.infnorm(offset_fct(offset) - local_approx, approx_interval) 
+            if error_target_type is sollya.absolute:
+                approx_error_value = sup(abs(sollya.infnorm(offset_fct(offset) - local_approx, approx_interval)))
+            elif error_target_type is sollya.relative:
+                approx_error_value = sup(abs(sollya.infnorm((offset_fct(offset) - local_approx) / offset_fct(offset_fct), approx_interval)))
+            else:
+                raise NotImplementedError
+            approx_error = ErrorCtor(approx_error_value)
 
             if axf_export:
                 axf_poly = AXF_Polynomial.from_poly(Polynomial({0: local_approx}))
                 # axf_error = AXF_ApproxError.from_AE(AbsoluteApproxError(approx_error))
-                axf_error = AXF_ApproxError.from_AE((AbsoluteApproxError if error_target_type is sollya.absolute else RelativeApproxError)(approx_error))
+                axf_error = AXF_ApproxError.from_AE(approx_error)
                 axf_approx.approx_list.append(
                     AXF_SimplePolyApprox(axf_poly,
                                          offset_fct(offset), [0], [coeff_precision],
                                          approx_interval,
-                                         approx_error=axf_error)) 
+                                         approx_error=axf_error))
 
         else:
             try:
                 if 0 in approx_interval and offset_fct(offset)(0) == 0.0:
                     # if 0 is within the local interval and that the function has a zero at zero,
                     # we force the first coefficient to be 0
-                    poly_object, approx_error = Polynomial.build_from_approximation_with_error(
+                    # NOTES: having a zero makes it difficult to target relative error
+                    assert error_target_type is sollya.absolute
+                    poly_object, approx_error_value = Polynomial.build_from_approximation_with_error(
                         offset_fct(offset), list(range(1,poly_degree+1)), [coeff_precision]*(poly_degree),
                         approx_interval, error_target_type)
+                    approx_error = AbsoluteApproxError(approx_error_value)
                 else:
-                    poly_object, approx_error = Polynomial.build_from_approximation_with_error(
+                    poly_object, approx_error_value = Polynomial.build_from_approximation_with_error(
                         offset_fct(offset), poly_degree, [coeff_precision]*(poly_degree+1),
                         approx_interval, error_target_type)
+                    # TODO/FIXME: not sure build_from_approximation_with_error
+                    #             is returning an error of the proper
+                    #             <error_target_type> type
+                    approx_error = ErrorCtor(approx_error_value)
             except SollyaError as err:
                 # try to see if function is constant on the interval (possible
                 # failure cause for fpminmax)
@@ -185,7 +201,14 @@ def generate_parameters_piecewise_poly_approx(offset_fct, indexing, target_eps, 
                 if diff_with_cst < target_eps:
                     Log.report(Log.Info, "constant polynomial detected")
                     poly_object = Polynomial([cst_value] + [0] * poly_degree)
-                    approx_error = diff_with_cst
+                    if error_target_type is sollya.absolute:
+                        approx_error_value = diff_with_cst
+                    elif error_target_type is sollya.relative:
+                        approx_error_value = diff_with_cst / sollya.infnorm(local_function, local_interval)
+
+                    else:
+                        raise NotImplementedError
+                    approx_error = ErrorCtor(approx_error_value)
                 else:
                     Log.report(Log.Error, "degree: {} for index {}, diff_with_cst={} (vs error_threshold={}) ", poly_degree, sub_index, diff_with_cst, target_eps, error=err)
 
@@ -202,7 +225,7 @@ def generate_parameters_piecewise_poly_approx(offset_fct, indexing, target_eps, 
             if axf_export:
                 axf_poly = AXF_Polynomial.from_poly(poly_object)
                 # axf_error = AXF_ApproxError.from_AE(RelativeApproxError(approx_error))
-                axf_error = AXF_ApproxError.from_AE((AbsoluteApproxError if error_target_type is sollya.absolute else RelativeApproxError)(approx_error))
+                axf_error = AXF_ApproxError.from_AE(approx_error)
                 axf_approx.approx_list.append(
                     AXF_SimplePolyApprox(axf_poly,
                                          offset_fct(offset), list(range(poly_degree+1)),
@@ -210,6 +233,9 @@ def generate_parameters_piecewise_poly_approx(offset_fct, indexing, target_eps, 
                                          approx_interval,
                                          approx_error=axf_error)) 
         max_error = max(approx_error, max_error)
+
+    # updating stored approximation error
+    axf_approx.approx_error = AXF_ApproxError.from_AE(max_error)
 
     return offset_table, max_degree, poly_table, max_error, axf_approx
 
