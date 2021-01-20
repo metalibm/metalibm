@@ -70,13 +70,33 @@ class SimplePolyApprox:
 class ApproxError:
     error_type = None
     def __init__(self, value):
-        self.value = value
+        self.value = sollya.sup(abs(value))
 
 class AbsoluteApproxError(ApproxError):
     error_type = "absolute"
     def __gt__(error1, error2):
         assert isinstance(error2, AbsoluteApproxError)
         return error1.value > error2.value
+
+    def __lt__(error1, error2):
+        assert isinstance(error2, AbsoluteApproxError)
+        return error1.value < error2.value
+
+    def __ge__(error1, error2):
+        assert isinstance(error2, AbsoluteApproxError)
+        return error1.value >= error2.value
+
+    def __le__(error1, error2):
+        assert isinstance(error2, AbsoluteApproxError)
+        return error1.value <= error2.value
+
+    def __eq__(error1, error2):
+        assert isinstance(error2, AbsoluteApproxError)
+        return error1.value == error2.value
+
+    def __ne__(error1, error2):
+        assert isinstance(error2, AbsoluteApproxError)
+        return error1.value != error2.value
 
 class RelativeApproxError(ApproxError):
     error_type = "relative"
