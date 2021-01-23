@@ -234,8 +234,10 @@ def generate_parameters_piecewise_poly_approx(offset_fct, indexing, target_eps, 
                                          approx_error=axf_error)) 
         max_error = max(approx_error, max_error)
 
-    # updating stored approximation error
-    axf_approx.approx_error = AXF_ApproxError.from_AE(max_error)
+    # if an axf approx is being exported, we need to update the stored
+    # approximation error
+    if not axf_approx is None:
+        axf_approx.approx_error = AXF_ApproxError.from_AE(max_error)
 
     return offset_table, max_degree, poly_table, max_error, axf_approx
 
