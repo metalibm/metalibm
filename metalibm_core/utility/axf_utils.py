@@ -74,6 +74,7 @@ class ApproxError:
 
 class AbsoluteApproxError(ApproxError):
     error_type = "absolute"
+    sollya_error_type = sollya.absolute
     def __gt__(error1, error2):
         assert isinstance(error2, AbsoluteApproxError)
         return error1.value > error2.value
@@ -100,6 +101,7 @@ class AbsoluteApproxError(ApproxError):
 
 class RelativeApproxError(ApproxError):
     error_type = "relative"
+    sollya_error_type = sollya.relative
     def __gt__(error1, error2):
         assert isinstance(error2, RelativeApproxError)
         return error1.value > error2.value
@@ -248,7 +250,7 @@ class AXF_SimplePolyApprox(yaml.YAMLObject):
         """ convert object to SimplePolyApprox """
         return SimplePolyApprox(
             self.poly.export_to_poly(), # poly
-            self.function,
+            sollya.parse(self.function),
             self.degree_list,
             [precision_parser(f) for f in self.format_list],
             sollya.parse(self.interval),
