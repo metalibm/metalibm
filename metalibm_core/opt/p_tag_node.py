@@ -98,10 +98,17 @@ class Pass_DebugTaggedNode(FunctionPass):
 
         if node.get_tag() in self.tag_list:
             node.set_debug(debug_multi)
+            Log.report(Log.Debug, "enabling debug for node {}", node.get_tag())
         elif not self.default_tags:
+            if node.get_debug():
+                Log.report(Log.Debug, "disabling debug for node {}", node.get_tag())
             node.set_debug(False)
 
         return None
 
     def execute_on_optree(self, optree, fct, fct_group, memoization_map):
         return self.enable_debug(optree, memoization_map, language=self.language)
+
+    def execute(self, optree):
+        """ pass execution """
+        return self.enable_debug(optree)
