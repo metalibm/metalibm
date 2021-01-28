@@ -90,6 +90,7 @@ from metalibm_core.utility.ml_template import (
 )
 
 from metalibm_core.opt.p_pipelining import generate_pipeline_stage
+from metalibm_core.opt.p_tag_node import Pass_DebugTaggedNode
 
 import random
 import subprocess
@@ -406,6 +407,7 @@ class ML_EntityBasis(object):
       # linearly linking pass in the order they appear
       pass_dep = AfterPassById(pass_object.get_pass_id())
 
+
     # TODO/FIXME: can be overloaded
     if  self.reset_pipeline:
         self.reset_signal = self.implementation.add_input_signal(self.reset_name, ML_StdLogic)
@@ -621,6 +623,14 @@ class ML_EntityBasis(object):
       PassScheduler.AfterPipelining,
       entity_execute_pass
     )
+
+    # debug instrumentation pass: enable debug for all nodes whose tag is listed
+    # in self.debug_flag
+    debug_pass = Pass_DebugTaggedNode(self.backend, self.debug_flag)
+    _ = self.pass_scheduler.execute_pass_list(
+       [debug_pass],
+       code_entity_list,
+       entity_execute_pass)
 
     # stage duration (in ns)
     time_step = 10
