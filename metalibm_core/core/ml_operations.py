@@ -1121,7 +1121,7 @@ class NearestInteger(ML_ArithmeticOperation):
     name = "NearestInteger"
     arity = 1
     def bare_range_function(self, ops):
-        return safe(sollya.nearestint)(ops[0], ops[1])
+        return safe(sollya.nearestint)(ops[0])
 
 class Permute(ML_ArithmeticOperation):
     """ (UNSUED) abstract word-permutations inside a vector operation """
