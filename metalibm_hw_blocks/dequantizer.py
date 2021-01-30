@@ -77,13 +77,6 @@ def fixed_normalized_mantissa(op):
     )
 
 FIX32 = fixed_point(32, 0, signed=True)
-ROUNDING_MODE_FORMAT = ML_StdLogicVectorFormat(3)
-
-ROUND_RNE = Constant(0, precision=ROUNDING_MODE_FORMAT)
-ROUND_RU = Constant(1, precision=ROUNDING_MODE_FORMAT)
-ROUND_RD = Constant(2, precision=ROUNDING_MODE_FORMAT)
-ROUND_RZ = Constant(3, precision=ROUNDING_MODE_FORMAT)
-ROUND_RAZ = Constant(4, precision=ROUNDING_MODE_FORMAT)
 
 ROUND_RNE = 0
 ROUND_RU = 1
@@ -214,31 +207,6 @@ class Dequantizer(ML_Entity("dequantizer")):
         rounded_result = offseted_field + Conversion(round_increment, precision=fixed_point(1, 0, signed=False))
         rounded_result.set_attributes(tag="rounded_result")
 
-        offseted_field_even = Equal(offseted_field_parity_bit, Constant(0, precision=ML_StdLogic), tag="offseted_field_even")
-
-        # TODO: implement rounding
-        # increment if round-up and (round_bit or sticky_bit)
-        #           if round-rz and (result negative) and (round_bit or sticky_bit)
-        #           if round-rne and (round_bit and (sticky_bit or (not result even)))
-        #           if round-raz and (round_bit or sticky_bit and (result positive))
-        round_up = Equal(rounding_mode, ROUND_RU)
-        round_rz = Equal(rounding_mode, ROUND_RZ)
-        round_rne = Equal(rounding_mode, ROUND_RNE)
-        round_down = Equal(rounding_mode, ROUND_RD)
-        round_raz = Equal(rounding_mode, ROUND_RAZ)
-        round_increment = Select(
-            logical_or_reduce([
-                LogicalAnd(round_up, LogicalOr(round_bit, sticky_bit)),
-                LogicalAnd(round_rz, LogicalAnd(offseted_field_negative, LogicalOr(round_bit, sticky_bit))),
-                LogicalAnd(round_rne, LogicalAnd(round_bit, LogicalOr(sticky_bit, offseted_field_even))),
-                LogicalAnd(round_raz, LogicalAnd(LogicalOr(round_bit, sticky_bit), LogicalNot(offseted_field_negative)))
-            ]),
-            1,
-            0,
-            precision=fixed_point(1, 0, signed=False),
-            tag="round_increment")
-
-        rounded_field = offseted_field + round_increment
         result_format = self.get_io_format("result")
 
         # detecting overflow / underflow
