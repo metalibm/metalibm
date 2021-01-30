@@ -260,47 +260,47 @@ class Dequantizer(ML_Entity("dequantizer")):
         # TODO/FIXME: support rounding mode
         unbounded_result = ROUND_FUNCTION[rounding_mode](sollya.SollyaObject(scale) * qinput + offset)
         # threshold clamp
-        MAX_BOUND = self.get_io_format("result").get_max_value()
-        MIN_BOUND = self.get_io_format("result").get_min_value()
+        MAX_BOUND = int(self.get_io_format("result").get_max_value())
+        MIN_BOUND = int(self.get_io_format("result").get_min_value())
         result["result"] = max(min(MAX_BOUND, unbounded_result), MIN_BOUND)
         return result
 
     standard_test_cases = [
-        # debug
-        ({'scale': -9.3562177440117458422781203005040841215683797976732e-28, 'quantized_input': -59, 'offset': 1476644306, 'rounding_mode': 4}, None),
-        ({'scale': -3.2018401007923587122374383797585380222573657934822e-30, 'quantized_input': 1382946913, 'offset': -49, 'rounding_mode': 3}, None),
-        ({'scale': 49366.34765625, 'quantized_input': -889172583, 'offset': 63342963, 'rounding_mode': 0}, None),
-        ({"quantized_input": -17, "scale": sollya.parse("0xe174fea2"), "offset": 0x6c732c7a, "rounding_mode": 3}, None),
-        # scale overflow
-        ({"quantized_input": 17, "scale": 2**100, "offset": 12, "rounding_mode": 0}, None),
-        # dummy tests
-        ({"quantized_input": 0, "scale": 0, "offset": 0, "rounding_mode": 0}, None),
-        ({"quantized_input": 0, "scale": 0, "offset": 1, "rounding_mode": 0}, None),
-        ({"quantized_input": 0, "scale": 0, "offset": 17, "rounding_mode": 0}, None),
-        ({"quantized_input": 0, "scale": 0, "offset": -17, "rounding_mode": 0}, None),
+       # debug
+       ({'scale': -9.3562177440117458422781203005040841215683797976732e-28, 'quantized_input': -59, 'offset': 1476644306, 'rounding_mode': 4}, None),
+       ({'scale': -3.2018401007923587122374383797585380222573657934822e-30, 'quantized_input': 1382946913, 'offset': -49, 'rounding_mode': 3}, None),
+       ({'scale': 49366.34765625, 'quantized_input': -889172583, 'offset': 63342963, 'rounding_mode': 0}, None),
+       ({"quantized_input": -17, "scale": sollya.parse("0xe174fea2"), "offset": 0x6c732c7a, "rounding_mode": 3}, None),
+       # scale overflow
+       ({"quantized_input": 17, "scale": sollya.SollyaObject(2)**100, "offset": 12, "rounding_mode": 0}, None),
+       # dummy tests
+       ({"quantized_input": 0, "scale": 0, "offset": 0, "rounding_mode": 0}, None),
+       ({"quantized_input": 0, "scale": 0, "offset": 1, "rounding_mode": 0}, None),
+       ({"quantized_input": 0, "scale": 0, "offset": 17, "rounding_mode": 0}, None),
+       ({"quantized_input": 0, "scale": 0, "offset": -17, "rounding_mode": 0}, None),
 
-        ({"quantized_input": 17, "scale": 1.0, "offset": 0, "rounding_mode": 0}, None),
-        #({"quantized_input": 17, "scale": -1.0, "offset": 0, "rounding_mode": 0}, None),
-        ({"quantized_input": -17, "scale": 1.0, "offset": 0, "rounding_mode": 0}, None),
-        #({"quantized_input": -17, "scale": -1.0, "offset": 0, "rounding_mode": 0}, None),
+       ({"quantized_input": 17, "scale": 1.0, "offset": 0, "rounding_mode": 0}, None),
+       #({"quantized_input": 17, "scale": -1.0, "offset": 0, "rounding_mode": 0}, None),
+       ({"quantized_input": -17, "scale": 1.0, "offset": 0, "rounding_mode": 0}, None),
+       #({"quantized_input": -17, "scale": -1.0, "offset": 0, "rounding_mode": 0}, None),
 
-        ({"quantized_input": 17, "scale": 1.0, "offset": 42, "rounding_mode": 0}, None),
-        #({"quantized_input": 17, "scale": -1.0, "offset": 42, "rounding_mode": 0}, None),
-        ({"quantized_input": -17, "scale": 1.0, "offset": 42, "rounding_mode": 0}, None),
-        #({"quantized_input": -17, "scale": -1.0, "offset": 42, "rounding_mode": 0}, None),
+       ({"quantized_input": 17, "scale": 1.0, "offset": 42, "rounding_mode": 0}, None),
+       #({"quantized_input": 17, "scale": -1.0, "offset": 42, "rounding_mode": 0}, None),
+       ({"quantized_input": -17, "scale": 1.0, "offset": 42, "rounding_mode": 0}, None),
+       #({"quantized_input": -17, "scale": -1.0, "offset": 42, "rounding_mode": 0}, None),
 
-        ({"quantized_input": 17, "scale": 1.125, "offset": 42, "rounding_mode": 0}, None),
-        #({"quantized_input": 17, "scale": -1.0, "offset": 42, "rounding_mode": 0}, None),
-        ({"quantized_input": -17, "scale": 17.0, "offset": 42, "rounding_mode": 0}, None),
-        #({"quantized_input": -17, "scale": -1.0, "offset": 42, "rounding_mode": 0}, None),
+       ({"quantized_input": 17, "scale": 1.125, "offset": 42, "rounding_mode": 0}, None),
+       #({"quantized_input": 17, "scale": -1.0, "offset": 42, "rounding_mode": 0}, None),
+       ({"quantized_input": -17, "scale": 17.0, "offset": 42, "rounding_mode": 0}, None),
+       #({"quantized_input": -17, "scale": -1.0, "offset": 42, "rounding_mode": 0}, None),
 
-        # rounding
-        ({"quantized_input": 17, "scale": 0.625, "offset": 1337, "rounding_mode": 0}, None),
+       # rounding
+       ({"quantized_input": 17, "scale": 0.625, "offset": 1337, "rounding_mode": 0}, None),
 
-        # TODO: cancellation tests
-        # TODO: overflow tests
-        ({"quantized_input": 2**31-1, "scale": 4.0, "offset": 42, "rounding_mode": 0}, None),
-        # TODO: other tests
+       # TODO: cancellation tests
+       # TODO: overflow tests
+       ({"quantized_input": 2**31-1, "scale": 4.0, "offset": 42, "rounding_mode": 0}, None),
+       # TODO: other tests
     ]
 
 
