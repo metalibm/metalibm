@@ -118,13 +118,16 @@ class SubMantissaIndexing(SubIntervalIndexing):
 class SubFPIndexing(SubIntervalIndexing):
     """ Indexation based on a sub-field of a fp-number
         SubFPIndexing(l, h, f)
-        e bits are extracted from the LSB of exponent
-        f bits are extracted from the MSB of mantissa
-        exponent is offset by l """
+        e bits are extracted from the LSB of exponent after it has been offseted by <l>
+        e = ceil(log2(h - l + 1))
+        <f> bits are extracted from the MSB of mantissa
+        exponent is offset by <l>  """
     def __init__(self, low_exp_value, max_exp_value, field_bits, precision):
         self.field_bits = field_bits
         self.low_exp_value = low_exp_value
         self.max_exp_value = max_exp_value
+        # compute the number of "moving" bits from exponent field in
+        # [low_exp_value; max_exp_value]
         exp_bits = int(sollya.ceil(sollya.log2(max_exp_value - low_exp_value + 1)))
         assert exp_bits >= 0 and field_bits >= 0 and (exp_bits + field_bits) > 0
         self.exp_bits = exp_bits
@@ -155,10 +158,16 @@ class SubFPIndexing(SubIntervalIndexing):
         shift_amount = Constant(
             vx.get_precision().get_field_size() - self.field_bits, precision=int_precision
         )
+        # exp_offset is computed as a floating-point value whose
+        # exponent is self.low_exp_value
         exp_offset = Constant(
             self.precision.get_integer_coding(S2**self.low_exp_value),
             precision=int_precision
         )
+        # exp_offset is subtracted to the casted input before shift
+        # and before applying the mask, to force shifted exponent dynamic
+        # to be within [0; h - l + 1 [
+        # (in fact h -l rounded to the upper power of 2)
         return BitLogicAnd(
             BitLogicRightShift(
                 Subtraction(
