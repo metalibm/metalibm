@@ -160,6 +160,14 @@ new_scheme_function_list = [
      {"precision": ML_Binary64, "auto_test": 1000, "execute_trigger": True,
       "load_axf_approx": os.path.join(AXF_DIR, "erf-fp64.json.axf") }]
   ),
+  NewSchemeTest(
+    "atan axf load test",
+    metalibm_functions.ml_atan.MetaAtan,
+    [{"precision": ML_Binary32, "auto_test": 1000, "execute_trigger": True,
+      "load_axf_approx": os.path.join(AXF_DIR, "atan-fp32.json.axf")},
+    {"precision": ML_Binary64, "auto_test": 1000, "execute_trigger": True,
+     "load_axf_approx": os.path.join(AXF_DIR, "atan-fp64.json.axf")}]
+  ),
 
   NewSchemeTest(
     "auto test hyperbolic cosine",
