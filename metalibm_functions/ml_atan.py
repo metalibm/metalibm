@@ -50,12 +50,16 @@ from metalibm_core.core.precisions import ML_Faithful
 from metalibm_core.code_generation.generic_processor import GenericProcessor
 from metalibm_core.core.polynomials import Polynomial, PolynomialSchemeEvaluator
 
-from metalibm_core.core.approximation import generate_piecewise_poly_approx
+from metalibm_core.core.approximation import (
+    generate_piecewise_poly_approx,
+    load_piecewese_poly_params_from_axf,
+    generate_piecewise_poly_approx_from_params)
 from metalibm_core.core.indexing import SubUniformIntervalIndexing
 
 from metalibm_core.utility.ml_template import ML_NewArgTemplate
 from metalibm_core.utility.log_report  import Log
 from metalibm_core.utility.debug_utils import debug_multi
+from metalibm_core.utility.axf_utils import AXF_JSON_Exporter, AXF_JSON_Importer
 
 S2 = sollya.SollyaObject(2)
 
@@ -75,6 +79,8 @@ class MetaAtan(ScalarUnaryFunction):
         "accuracy": ML_Faithful,
         "num_sub_intervals": 8,
         "method": "piecewise",
+        "dump_axf_approx": False,
+        "load_axf_approx": False,
         "target": GenericProcessor.get_target_instance()
     }
 
@@ -82,6 +88,8 @@ class MetaAtan(ScalarUnaryFunction):
         super().__init__(args)
         self.method = args.method
         self.num_sub_intervals = args.num_sub_intervals
+        self.dump_axf_approx = args.dump_axf_approx
+        self.load_axf_approx = args.load_axf_approx
 
     @classmethod
     def get_default_args(cls, **kw):
@@ -186,25 +194,44 @@ class MetaAtan(ScalarUnaryFunction):
             num_intervals = self.num_sub_intervals
             error_threshold = S2**-(self.precision.get_mantissa_size() + 8)
 
-            uniform_indexing = SubUniformIntervalIndexing(Interval(bound_low, bound_high), num_intervals)  
+            uniform_indexing = SubUniformIntervalIndexing(Interval(bound_low, bound_high), num_intervals)
 
-            approx, _ = generate_piecewise_poly_approx(
-                lambda offset: sollya.atan(sollya.x + offset),
-                uniform_indexing,
-                error_threshold,
-                self.precision,
-                red_vx,
-                error_target_type=sollya.absolute,
-                axf_export=False)
-            # approx, eval_error = piecewise_approximation(approx_fct,
-            #                         red_vx,
-            #                         self.precision,
-            #                         bound_low=bound_low,
-            #                         bound_high=bound_high,
-            #                         max_degree=None,
-            #                         num_intervals=num_intervals,
-            #                         error_threshold=error_threshold,
-            #                         odd=True)
+            if self.load_axf_approx:
+                assert not self.dump_axf_approx
+
+                [axf_approx] = AXF_JSON_Importer.from_file(self.load_axf_approx)
+
+                approx_offset_table, approx_poly_max_degree, approx_poly_table, approx_max_error = load_piecewese_poly_params_from_axf(axf_approx, uniform_indexing)
+
+                approx = generate_piecewise_poly_approx_from_params(approx_offset_table,
+                                                                    approx_poly_max_degree,
+                                                                    approx_poly_table,
+                                                                    uniform_indexing,
+                                                                    self.precision,
+                                                                    red_vx)
+
+            else:
+                approx, axf_approx = generate_piecewise_poly_approx(
+                    lambda offset: sollya.atan(sollya.x + offset),
+                    uniform_indexing,
+                    error_threshold,
+                    self.precision,
+                    red_vx,
+                    error_target_type=sollya.absolute,
+                    axf_export=not self.dump_axf_approx is False)
+                if self.dump_axf_approx:
+                    axf_approx.tag = "atan"
+                    AXF_JSON_Exporter.to_file(self.dump_axf_approx,
+                                       [axf_approx.serialize_to_dict()])
+                # approx, eval_error = piecewise_approximation(approx_fct,
+                #                         red_vx,
+                #                         self.precision,
+                #                         bound_low=bound_low,
+                #                         bound_high=bound_high,
+                #                         max_degree=None,
+                #                         num_intervals=num_intervals,
+                #                         error_threshold=error_threshold,
+                #                         odd=True)
 
             result = cst + sign_vx * approx
             result.set_attributes(tag="result", precision=self.precision, debug=debug_multi)
@@ -342,6 +369,12 @@ if __name__ == "__main__":
     arg_template.get_parser().add_argument(
         "--num-sub-intervals", default=8, type=int,
         action="store", help="set the number of sub-intervals in piecewise method")
+    arg_template.get_parser().add_argument(
+         "--dump-axf-approx", default=False,
+        action="store", help="dump approximations in AXF format")
+    arg_template.get_parser().add_argument(
+         "--load-axf-approx", default=False,
+        action="store", help="load approximations from file in AXF format")
 
     args = arg_template.arg_extraction()
     ml_atan = MetaAtan(args)
