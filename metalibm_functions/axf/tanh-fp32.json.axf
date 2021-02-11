@@ -1,5 +1,35 @@
 [
     {
+        "approx_data": {
+            "0": "1",
+            "2": "-0.333333313465118408203125",
+            "4": "0.133326590061187744140625",
+            "6": "-5.32806627452373504638671875e-2"
+        },
+        "approx_error": {
+            "type": "absolute",
+            "value": "1.7930538168234254530111126763739376151940752549082e-11"
+        },
+        "approx_params": {
+            "degree_list": [
+                0,
+                2,
+                4,
+                6
+            ],
+            "format_list": [
+                "1",
+                "float",
+                "float",
+                "float"
+            ]
+        },
+        "class": "!SimplePolyApprox",
+        "function": "tanh(_x_) / _x_",
+        "interval": "[7.8886090522101180541172856528278622967320643510902e-31;0.125]",
+        "tag": "tanh_near_zero"
+    },
+    {
         "approx_data": [
             {
                 "approx_data": {
