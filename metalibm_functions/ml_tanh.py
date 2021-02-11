@@ -54,9 +54,6 @@ from metalibm_core.core.ml_operations import (
 from metalibm_core.core.ml_table import ML_NewTable
 
 from metalibm_core.core.indexing import SubUniformIntervalIndexing
-#from metalibm_core.core.approximation import (
-#    piecewise_approximation_paramgen, piecewise_evaluation_from_param,
-#    piecewise_param_from_axf)
 from metalibm_core.core.approximation import (
     search_bound_threshold, generate_piecewise_poly_approx,
     load_piecewese_poly_params_from_axf,
@@ -65,7 +62,7 @@ from metalibm_core.core.approximation import (
 
 from metalibm_core.code_generation.generic_processor import GenericProcessor
 
-from metalibm_core.utility.ml_template import ML_NewArgTemplate, ArgDefault
+from metalibm_core.utility.ml_template import ML_NewArgTemplate
 from metalibm_core.utility.log_report  import Log
 from metalibm_core.utility.debug_utils import debug_multi
 
@@ -107,8 +104,9 @@ class ML_HyperbolicTangent(ScalarUnaryFunction):
         default_args_tanh.update(kw)
         return DefaultArgTemplate(**default_args_tanh)
 
-    def generate_approx_poly_near_zero(self, function, high_bound, error_bound, variable):
-        """ Generate polynomial approximation scheme """
+    def generate_approx_poly_near_zero(self, function, high_bound, error_bound):
+        """ Generate polynomial approximation scheme for <function>
+            in [0;<high_bound>] """
         error_function = lambda p, f, ai, mod, t: sollya.dirtyinfnorm(p - f, ai)
         # Some issues encountered when 0 is one of the interval bound
         # so we use a symetric interval around it
@@ -133,22 +131,11 @@ class ML_HyperbolicTangent(ScalarUnaryFunction):
             [1] + [self.precision] * (len(degree_list) - 1),
             approx_interval, approx_error=AXF_ApproxError.from_AE(AbsoluteApproxError(approx_error))
         )
-        #print(axf_approx.export())
 
         Log.report(Log.Info, "approximation poly: {}\n  with error {}".format(
-                poly_object, approx_error
-            )
-        )
+                poly_object, approx_error))
 
-        poly_scheme = Multiplication(
-            variable,
-            PolynomialSchemeEvaluator.generate_horner_scheme(
-                poly_object,
-                variable,
-                self.precision
-            )
-        )
-        return poly_scheme, approx_error
+        return poly_object, approx_error, axf_approx
 
     def generate_scalar_scheme(self, vx):
         """ Generating implementation script for hyperic tangent
@@ -195,13 +182,6 @@ class ML_HyperbolicTangent(ScalarUnaryFunction):
         ERROR_THRESHOLD = S2**-p
         Log.report(Log.Info, "ERROR_THRESHOLD={}", ERROR_THRESHOLD)
 
-        # Near 0 approximation
-        near_zero_scheme, near_zero_error = self.generate_approx_poly_near_zero(
-            sollya.tanh(sollya.x),
-            near_zero_bound,
-            S2**-p,
-            abs_vx
-        )
 
         # approximation parameters
         poly_degree = 7
@@ -210,13 +190,29 @@ class ML_HyperbolicTangent(ScalarUnaryFunction):
 
         sollya.settings.points = 117
 
+        # loading/generating approximation
         if self.load_axf_approx:
             Log.report(Log.Debug, "loading approximation from file")
-            [axf_approx] = AXF_JSON_Importer.from_file(self.load_axf_approx)
+            [near_zero_axf_approx, axf_approx] = AXF_JSON_Importer.from_file(self.load_axf_approx)
+
+            # near 0 approximation
+            near_zero_poly = near_zero_axf_approx.poly
+            near_zero_error = near_zero_axf_approx.approx_error.value
+
+            # far from 0 approximation
             offset_table, max_degree, coeff_table, approx_error = load_piecewese_poly_params_from_axf(axf_approx, uniform_indexing)
             approx_scheme = generate_piecewise_poly_approx_from_params(offset_table, max_degree, coeff_table, uniform_indexing, self.precision, abs_vx)
 
         else:
+            # Near 0 approximation
+            near_zero_poly, near_zero_error, axf_approx_near_zero = self.generate_approx_poly_near_zero(
+                sollya.tanh(sollya.x),
+                near_zero_bound,
+                S2**-p
+            )
+            axf_approx_near_zero.tag = "tanh_near_zero"
+
+            # far from 0 approximation
             def offset_function(fct):
                 return lambda offset: fct(sollya.x + offset)
 
@@ -229,11 +225,21 @@ class ML_HyperbolicTangent(ScalarUnaryFunction):
                                                                 error_target_type=sollya.absolute,
                                                                 axf_export=not self.dump_axf_approx is False)
             approx_error = axf_approx.approx_error.export_to_ml_error()
-            
+
 
             if self.dump_axf_approx:
                 axf_approx.tag = "tanh"
-                AXF_JSON_Exporter.to_file(self.dump_axf_approx, [axf_approx.serialize_to_dict()])
+                AXF_JSON_Exporter.to_file(self.dump_axf_approx, [axf_approx_near_zero.serialize_to_dict(), axf_approx.serialize_to_dict()])
+
+        # generate poly evaluation scheme for near 0 approximation
+        near_zero_scheme = Multiplication(
+            abs_vx,
+            PolynomialSchemeEvaluator.generate_horner_scheme(
+                near_zero_poly,
+                abs_vx,
+                self.precision
+            )
+        )
 
         Log.report(Log.Warning, "approx_error={}".format(approx_error))
 
