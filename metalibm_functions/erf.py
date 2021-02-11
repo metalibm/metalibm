@@ -34,7 +34,6 @@
 ###############################################################################
 
 import sollya
-import yaml
 
 from sollya import (
     Interval, ceil, floor, round, inf, sup, log, exp, log1p,
@@ -187,7 +186,6 @@ class ML_Erf(ScalarUnaryFunction):
             if self.dump_axf_approx:
                 axf_near_approx.tag = "erf-near"
                 axf_medium_approx.tag = "erf-medium"
-                #print(yaml.dump([axf_near_approx, axf_medium_approx]))
                 AXF_JSON_Exporter.to_file(self.dump_axf_approx,
                                    [
                                     axf_near_approx.serialize_to_dict(),
