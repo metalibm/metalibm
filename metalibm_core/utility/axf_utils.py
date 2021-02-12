@@ -196,7 +196,7 @@ class AXF_SimplePolyApprox(yaml.YAMLObject):
     """ AXF object for basic polynomial approximation """
     yaml_tag = u'!SimplePolyApprox'
     def __init__(self, poly, fct, degree_list, format_list, interval,
-                 approx_error=None):
+                 approx_error=None, tag=""):
         assert isinstance(poly, AXF_Polynomial)
         self.poly = poly
         self.function = str(fct)
@@ -207,12 +207,13 @@ class AXF_SimplePolyApprox(yaml.YAMLObject):
         #             API of AXF_SimplePolyApprox should should between them
         assert isinstance(approx_error, AXF_ApproxError)
         self.approx_error = approx_error
+        self.tag = tag
 
     def export(self):
         return yaml.dump(self)
 
     def serialize_to_dict(self):
-        return {
+        base_dict = {
             "class": self.yaml_tag,
             "function": self.function,
             "approx_params": {
@@ -223,6 +224,9 @@ class AXF_SimplePolyApprox(yaml.YAMLObject):
             "approx_data": self.poly.serialize_to_dict(),
             "approx_error": self.approx_error.serialize_to_dict()
         }
+        # only add tag if the field is not empty
+        if self.tag != "": base_dict["tag"] = self.tag
+        return base_dict
     @staticmethod
     def from_SPA(simple_poly_approx):
         return AXF_SimplePolyApprox(
@@ -244,6 +248,7 @@ class AXF_SimplePolyApprox(yaml.YAMLObject):
             d["approx_params"]["format_list"],
             d["interval"],
             approx_error=AXF_ApproxError.deserialize_from_dict(d["approx_error"]),
+            tag=d["tag"] if "tag" in d else ""
         )
 
     def export_to_SPA(self):
@@ -546,7 +551,7 @@ class AXF_JSON_Importer:
 
     @staticmethod
     def serialized_dict_to_ml_object(serialized_dict):
-        for ctor_class in [AXF_UniformPiecewiseApprox, AXF_GenericPolynomialSplit]:
+        for ctor_class in [AXF_UniformPiecewiseApprox, AXF_GenericPolynomialSplit, AXF_SimplePolyApprox]:
             if ctor_class.yaml_tag == serialized_dict["class"]:
                 return ctor_class.deserialize_from_dict(serialized_dict).to_ml_object()
         raise Exception("unable to find deserializer for json class %s" % serialized_dict["class"])
