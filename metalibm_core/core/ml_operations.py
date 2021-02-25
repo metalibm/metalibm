@@ -1891,6 +1891,7 @@ def GetRndMode(**kwords):
     return SpecificOperation(**kwords)
 
 class CopySign(SpecificOperation):
+    """ CopySign(x, y) = abs(x) . sign(y) """
     name = "CopySign"
     def __init__(self, op0, op1, **kw):
         assert not "specifier" in kw
