@@ -251,6 +251,9 @@ class ComponentObject(object):
   def get_name(self):
     return self.name
 
+  def finish_copy(self):
+    raise NotImplementedError
+
   def __call__(self, *args, **kw):
     return ComponentInstance(self, *args, **kw)
 
