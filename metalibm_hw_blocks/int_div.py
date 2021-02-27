@@ -30,6 +30,7 @@
 # Author(s): Nicolas Brunie <nbrunie@kalray.eu>
 ###############################################################################
 import sys
+import math
 
 import sollya
 
@@ -42,6 +43,7 @@ from metalibm_core.core.ml_entity import (
     ML_Entity, ML_EntityBasis, DefaultEntityArgTemplate,
     RawLogicVectorRandomGen)
 
+from metalibm_core.core.ml_table import ML_NewTable
 
 from metalibm_core.utility.ml_template import *
 from metalibm_core.utility.log_report    import Log
@@ -81,6 +83,7 @@ class MetaIntDiv(ML_EntityBasis):
 
         self.precision = arg_template.precision
         self.div_by_zero_result = arg_template.div_by_zero_result
+        self.method = args.method
 
     ## Generate default arguments structure (before any user / test overload)
     @staticmethod
@@ -92,6 +95,7 @@ class MetaIntDiv(ML_EntityBasis):
                 "result": FIX32
             },
             "pipelined": False,
+            "method": "basic",
             "output_file": "int_div.vhd",
             "entity_name": "int_div",
             "div_by_zero_result": FIX32.get_max_value(),
@@ -103,7 +107,12 @@ class MetaIntDiv(ML_EntityBasis):
         return DefaultEntityArgTemplate(**default_arg_map)
 
     def generate_scheme(self):
-        return self.generate_scheme_basic()
+        if self.method == "basic":
+            return self.generate_scheme_basic()
+        elif self.method == "multi_digit":
+            return self.generate_scheme_multi_digit()
+        else:
+            raise NotImplementedError
 
     def generate_scheme_basic(self):
         """ Simple single-digit iteration algorithm """
@@ -162,7 +171,7 @@ class MetaIntDiv(ML_EntityBasis):
         lzc_divisor = CountLeadingZeros(divisor)
         lzc_delta = lzc_divisor - lzc_dividend
         normalized_divisor = BitLogicLeftShift(divisor, lzc_divisor - (N - 1), tag="normalized_divisor")
-        dividend_width = dividend_format.get_bit_size() 
+        dividend_width = dividend_format.get_bit_size()
         divisor_width = divisor_format.get_bit_size()
 
         index_size = N + M
@@ -187,7 +196,7 @@ class MetaIntDiv(ML_EntityBasis):
         normalized_dividend = BitLogicLeftShift(dividend, lzc_dividend, tag="normalized_dividend")
         remainder = dividend
         q = Constant(0, precision=result_format)
-        HighPart_divisor = SubSignalSelection(divisor, divisor_width - 1 - (N - 1) - (M - 1), divisor_width - 1 - (N - 1))  
+        HighPart_divisor = SubSignalSelection(divisor, divisor_width - 1 - (N - 1) - (M - 1), divisor_width - 1 - (N - 1))
         for i in range(dividend_format.get_bit_size() // N): # TODO/FIXME width
             end_of_loop = lzc_delta < N
             HighPart_dividend = SubSignalSelection(remainder, dividend_width - 1 - N + 1, dividend_width - 1)
@@ -200,13 +209,12 @@ class MetaIntDiv(ML_EntityBasis):
             # for quotient, associated with final transformation into
             # canonical representation
             candidate_quotient = Select(pre_remainder < 0, candidate_quotient - 1, candidate_quotient)
-            quotient = Concatenate(quotient, Conversion(candidate_quotient, precision=fixed_point(N, 0, signed=False)))
+            quotient = Concatenation(quotient, Conversion(candidate_quotient, precision=fixed_point(N, 0, signed=False)))
             pre_remainder = Select(pre_remainder < 0, pre_remainder + divisor, pre_remainder)
 
             remainder = TypeCast(BitLogicLeftShift(pre_remainder, N), precision=dividend_format) 
 
         # baby step
-        raise NotImplementedError
         self.implementation.add_output_signal("result", result)
         return [self.implementation]
 
@@ -239,6 +247,8 @@ if __name__ == "__main__":
         default_arg=MetaIntDiv.get_default_args())
     arg_template.parser.add_argument("--div-by-zero-result", dest="div_by_zero_result",
         type=int, default=0, help="define result returned for division by zero")
+    arg_template.parser.add_argument("--method", dest="method", choices=["basic", "multi_digit"],
+        default="basic", help="chose division implementation method")
     # argument extraction
     args = arg_template.arg_extraction()
 
