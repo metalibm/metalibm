@@ -119,6 +119,45 @@ class VHDLCodeGenerator(object):
         """ code generation function """
         language = self.language if language is None else language
 
+
+        # helper function
+        def linearized_processing_from(node):
+            """ process linearly (not recursively) the node graph upward
+                starting at <node> """
+                
+            # building ordered list of required node by depth
+            working_list = [op for op in node.get_inputs()]
+            processing_list = [op for op in working_list]
+            resolved = {}
+            while working_list != []:
+                op = working_list.pop(0)
+                # node has already been processed: SKIP
+                if op in resolved:
+                    continue
+                if isinstance(op, ML_Table):
+                    # ML_Table instances are skipped (should be generated directly by TableLoad)
+                    continue
+                elif isinstance(op, ML_LeafNode):
+                    processing_list.append(op)
+                else:
+                    memo = self.get_memoization(op)
+                    if not memo is None:
+                        # node has already been generated: STOP HERE
+                        resolved[op] = memo
+                    else:
+                        # enqueue node to be processed
+                        processing_list.append(op)
+                        # enqueue node inputs
+                        working_list += [op for op in op.get_inputs()]
+                        resolved[op] = memo
+
+            # processing list in reverse order (starting with deeper node to avoid too much recursion)
+            if not folded:
+                # if generation is folded, no pre generation can occur
+                # as a complete CodeExpression needs to be generated
+                for op in processing_list[::-1]:
+                    _ = self.generate_expr(code_object, op, folded=folded, initial=initial, language=language)
+
         # search if <optree> has already been processed
         if self.has_memoization(optree):
             result = self.get_memoization(optree)
@@ -226,7 +265,7 @@ class VHDLCodeGenerator(object):
               )
             else:
               #result_value_code = self.generate_expr(code_object, result_value, folded = True, force_variable_storing = True, language = language)
-              result_value_code = self.generate_expr(code_object, result_value, folded = True, language = language)
+              result_value_code = self.generate_expr(code_object, result_value, folded = False, language = language)
               code_object << self.generate_assignation(
                 output_var_code.get(), result_value_code.get(),
                 assign_sign = assign_sign
@@ -446,38 +485,7 @@ class VHDLCodeGenerator(object):
             return None
 
         else:
-            # building ordered list of required node by depth
-            working_list = [op for op in optree.get_inputs()]
-            processing_list = [op for op in working_list]
-            resolved = {}
-            while working_list != []:
-                op = working_list.pop(0)
-                # node has already been processed: SKIP
-                if op in resolved:
-                    continue
-                if isinstance(op, ML_Table):
-                    # ML_Table instances are skipped (should be generated directly by TableLoad)
-                    continue
-                elif isinstance(op, ML_LeafNode):
-                    processing_list.append(op)
-                else:
-                    memo = self.get_memoization(op)
-                    if not memo is None:
-                        # node has already been generated: STOP HERE
-                        resolved[op] = memo
-                    else:
-                        # enqueue node to be processed
-                        processing_list.append(op)
-                        # enqueue node inputs
-                        working_list += [op for op in op.get_inputs()]
-                        resolved[op] = memo
-
-            # processing list in reverse order (starting with deeper node to avoid too much recursion)
-            if not folded:
-                # if generation is folded, no pre generation can occur
-                # as a complete CodeExpression needs to be generated
-                for op in processing_list[::-1]:
-                    _ = self.generate_expr(code_object, op, folded=folded, initial=initial, language=language)
+            linearized_processing_from(optree)
 
             # processing main node
             generate_pre_process = self.generate_clear_exception if optree.get_clearprevious() else None
