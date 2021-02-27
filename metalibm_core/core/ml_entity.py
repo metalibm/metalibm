@@ -969,7 +969,7 @@ class ML_EntityBasis(object):
         reset_statement,
         FCT_OpenFile(file_status, input_stream, DATA_FILE_NAME),
         ConditionBlock(
-            Comparison(file_status, OPEN_OK, specifier=Comparison.NotEqual),
+            Comparison(file_status, OPEN_OK, specifier=Comparison.NotEqual, precision=ML_Bool),
           Assert(
             Constant(0, precision=ML_Bool),
             " \"failed to open file {}\"".format(DATA_FILE_NAME),
