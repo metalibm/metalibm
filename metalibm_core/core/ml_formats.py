@@ -113,7 +113,7 @@ class ML_Format(object):
     def get_support_format(self):
         return self
 
-    def get_display_format(self, language):
+    def get_display_format(self, language=C_Code):
         if language in self.display_format:
             return self.display_format[language]
         elif C_Code in self.display_format:
@@ -210,7 +210,7 @@ class FormatAttributeWrapper(ML_Format):
         return self.base_format.is_vector_format()
     def get_bit_size(self):
         return self.base_format.get_bit_size()
-    def get_display_format(self, language = C_Code):
+    def get_display_format(self, language=C_Code):
         return self.base_format.get_display_format(language)
     def get_name(self, language = C_Code):
         str_list = self.attribute_list + [self.base_format.get_name(language = language)]
@@ -453,7 +453,7 @@ class ML_Std_FP_Format(ML_FP_Format):
 
     ## Return the display (for debug message) associated
     #  to format @p self
-    def get_display_format(self, language = C_Code):
+    def get_display_format(self, language=C_Code):
         return self.display_format[language]
 
     def get_bit_size(self):
@@ -662,7 +662,7 @@ class VirtualFormat(ML_Format):
   def round_sollya_object(self, value, round_mode=sollya.RN):
     return self.get_base_format().round_sollya_object(value, round_mode)
 
-  def get_display_format(self, language):
+  def get_display_format(self, language=C_Code):
     if self is self.get_base_format():
         print(self)
         raise Exception()
