@@ -62,7 +62,15 @@ from ..utility.source_info import SourceInfo
 # generate_expr generates the code for all the arguments, and forward those argument codes
 # to assemble_code (through the var_arg_list paramater)
 #
-
+# Various classes of code generator are available.
+#
+# Their behavior can be specialized
+#    force_input_variable: can force any number of inputs to be passed explicitly as CodeVariable
+#                          (i.e. a CodeExpression will be hoisted in a CodeVariable before being
+#                          used as an argument to the generator). If this field is False, no change
+#                          is performed, if True all inputs are transmitted as CodeVariable, if
+#                          this field is a list of indexes, only the arguments indexed in that list 
+#                          are forced to be passed as CodeVariable
 
 class DummyTree(object):
     def __init__(self, tag = "tmp", precision = None):

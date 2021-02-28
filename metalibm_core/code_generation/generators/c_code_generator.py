@@ -120,7 +120,20 @@ class CCodeGenerator(CodeGenerator):
 
     # force_variable_storing is not supported yet
     def generate_expr(self, code_object, optree, folded = True, result_var = None, initial = False, language = None, force_variable_storing = False):
-        """ code generation function """
+        """ code generation function 
+        
+            Args:
+                :param optree: Operation node to generate code for
+                :type optree: ML_Operation
+                :param folded: TBD
+                :type folded: bool
+                :param result_var: destination variable (if specified)
+                :type result_var: CodeVariable
+                :param initial: TBD
+                :type initial: bool
+                :param language: source code language 
+                :param force_variable_storing: TBD
+        """
         language = self.language if language is None else language
 
         # search if <optree> has already been processed
