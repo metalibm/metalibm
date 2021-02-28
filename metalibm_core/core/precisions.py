@@ -40,11 +40,13 @@ from .ml_operations import (
     LogicalOr, NotEqual,
     Select, Equal,
     Comparison, FunctionObject, Min, Abs, Subtraction, Division,
-    TypeCast)
+    TypeCast, ComponentSelection)
 from metalibm_core.code_generation.generator_utility import *
-from metalibm_core.core.ml_formats import is_floating_format
+from metalibm_core.core.ml_formats import (
+    is_floating_format, ML_FP_MultiElementFormat)
 
 from metalibm_core.core.special_values import FP_SpecialValue
+from metalibm_core.opt.opt_utils import (logical_or_reduce, logical_and_reduce)
 
 ml_infty = sollya.parse("infty")
 
@@ -187,20 +189,40 @@ class ML_CorrectlyRounded(ML_FunctionPrecision):
     return error
 
   def get_output_check_test(self, test_result, stored_outputs):
+    """ generate operation graph to implement correctly rounded equality test
+        of <test_result> vs <stored_outputs> """
     expected_value,  = stored_outputs
     expected_format = expected_value.get_precision()
     assert not expected_format is None
     if is_floating_format(expected_format):
-        nan_expected = NotEqual(expected_value, expected_value, tag="nan_expected")
-        nan_detected = NotEqual(test_result, test_result, tag="nan_detected")
-        # zero expected use cases
-        zero_expected = Equal(expected_value, 0, tag="zero_expected")
+        if ML_FP_MultiElementFormat.is_fp_multi_elt_format(expected_format):
+            # specific processing for multi-precision floating-point values
+            limb_num = expected_format.limb_num
+            expected_limbs = [ComponentSelection(expected_value, ComponentSelection.Field(limb_index)) for limb_index in range(limb_num)]
+            result_limbs = [ComponentSelection(test_result, ComponentSelection.Field(limb_index)) for limb_index in range(limb_num)]
 
-        int_format = test_result.get_precision().get_integer_format()
-        bitexact_comparison = Equal(
-            TypeCast(test_result, precision=int_format),
-            TypeCast(expected_value, precision=int_format),
-        )
+            zero_expected = logical_and_reduce(Equal(expected_limbs[limb_index], 0) for limb_index in range(limb_num)) 
+            nan_expected = logical_or_reduce(NotEqual(expected_limbs[limb_index], expected_limbs[limb_index]) for limb_index in range(limb_num)) 
+            nan_detected = logical_or_reduce(NotEqual(result_limbs[limb_index], result_limbs[limb_index]) for limb_index in range(limb_num)) 
+
+            # TODO/FIXME only extracting first limb precision
+            int_format = test_result.get_precision().get_limb_precision(0).get_integer_format()
+            casted_expected = [TypeCast(expected_limbs[limb_index], precision=int_format) for limb_index in range(limb_num)]
+            casted_result = [TypeCast(result_limbs[limb_index], precision=int_format) for limb_index in range(limb_num)]
+            bitexact_comparison = logical_and_reduce(Equal(casted_expected[limb_index], casted_result[limb_index]) for limb_index in range(limb_num))
+        else:
+            nan_expected = NotEqual(expected_value, expected_value, tag="nan_expected")
+            nan_detected = NotEqual(test_result, test_result, tag="nan_detected")
+            # zero expected use cases
+            zero_expected = Equal(expected_value, 0, tag="zero_expected")
+
+            # implementing bit-exact test through bitcast from floating-point
+            # to integer and integer equality checking
+            int_format = test_result.get_precision().get_integer_format()
+            bitexact_comparison = Equal(
+                TypeCast(test_result, precision=int_format),
+                TypeCast(expected_value, precision=int_format),
+            )
         failure_test = LogicalOr(
             LogicalOr(
                 LogicalAnd(
@@ -219,7 +241,6 @@ class ML_CorrectlyRounded(ML_FunctionPrecision):
         )
     else:
         failure_test = NotEqual(test_result, expected_value)
-        #bitexact_comparison = Equal(test_result, expected_value) 
     return failure_test
   def get_output_print_function(self, function_name, footer="\\n"):
     printf_template = "printf(\"%s%s\", %s)" % (
