@@ -49,7 +49,7 @@ from metalibm_core.core.ml_formats import  \
 from metalibm_core.core.random_gen import UniformInterval
 
 from metalibm_core.utility.ml_template import (
-    target_instanciate, DefaultEntityArgTemplate
+    target_instanciate, DefaultEntityArgTemplate, VerboseAction,
 )
 from metalibm_core.core.ml_hdl_format import HdlVirtualFormat
 
@@ -202,7 +202,10 @@ arg_parser.add_argument("--execute", dest = "test_list", type = parse_test_list,
 
 arg_parser.add_argument("--match", dest = "match_regex", type = str, default = ".*", help = "list of comma separated match regexp to be used for test selection") 
 
-
+arg_parser.add_argument(
+    "--verbose", dest="verbose_enable", action=VerboseAction,
+    const=True, default=False,
+    help="enable Verbose log level")
 
 
 args = arg_parser.parse_args(sys.argv[1:])
