@@ -40,14 +40,16 @@ from ..core.ml_formats import ML_Void
 
 class CodeFunction(object):
   """ function code object """
-  def __init__(self, name, arg_list=None, output_format=None, code_object=None, language=C_Code, attributes=None, external=False, vector_size=1):
+  def __init__(self, name, arg_list=None, output_format=None, code_object=None, language=C_Code, attributes=None, external=False, vector_size=1, function_object=None, function_operator=None):
     """ code function initialization """
     self.arg_list = arg_list if arg_list else []
     arg_list_precision = [arg.get_precision() for arg in self.arg_list]
     self.function_type = FunctionType(name, arg_list_precision, output_format, attributes)
     self.code_object = code_object
-    self.function_object   = None
-    self.function_operator = None
+    # FunctionObject and FunctionOperator (can be left by default to be built
+    # automatically by build_function_object and build_function_operator)
+    self.function_object   = function_object
+    self.function_operator = function_operator
     self.language = language
     # is the function externally defined (does not contain any implementation)
     self.external = external
