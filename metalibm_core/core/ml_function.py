@@ -1376,18 +1376,19 @@ class ML_FunctionBasis(object):
     test_num_cst = Constant(test_num, precision = ML_Int32, tag = "test_num")
 
     # building inputs
-    local_inputs = [
-      Variable(
-        "vec_x_{}".format(i),
-        precision = vector_format,
-        var_type = Variable.Local
-      ) for i in range(self.arity)
-    ]
-    for input_index, local_input in enumerate(local_inputs):
-      assignation_statement.push(local_input)
-      for k in range(self.get_vector_size()):
-        for ref_assign in vector_elt_assign(local_input, k, TableLoad(input_tables[input_index], vi + k, precision=input_tables[input_index].get_storage_precision())):
-            assignation_statement.push(ref_assign)
+    # local_inputs = [
+    #   Variable(
+    #     "vec_x_{}".format(i),
+    #     precision = vector_format,
+    #     var_type = Variable.Local
+    #   ) for i in range(self.arity)
+    # ]
+    # for input_index, local_input in enumerate(local_inputs):
+    #   assignation_statement.push(local_input)
+    #   for k in range(self.get_vector_size()):
+    #     for ref_assign in vector_elt_assign(local_input, k, TableLoad(input_tables[input_index], vi + k, precision=input_tables[input_index].get_storage_precision())):
+    #         assignation_statement.push(ref_assign)
+    local_inputs = [TableLoad(input_tables[input_index], vi, precision=vector_format) for input_index in range(self.arity)]
 
     # computing results
     local_result = tested_function(*local_inputs)
@@ -1815,18 +1816,19 @@ class ML_FunctionBasis(object):
     test_num_cst = Constant(test_num, precision = ML_Int32, tag = "test_num")
 
     # building inputs
-    local_inputs = [
-      Variable(
-        "vec_x_{}".format(i) , 
-        precision = vector_format, 
-        var_type = Variable.Local
-      ) for i in range(self.arity)
-    ]
-    for input_index, local_input in enumerate(local_inputs):
-      assignation_statement.push(local_input)
-      for k in range(self.get_vector_size()):
-        elt_assign = ReferenceAssign(VectorElementSelection(local_input, k), TableLoad(input_tables[input_index], vi + k))
-        assignation_statement.push(elt_assign)
+    # local_inputs = [
+    #   Variable(
+    #     "vec_x_{}".format(i) , 
+    #     precision = vector_format, 
+    #     var_type = Variable.Local
+    #   ) for i in range(self.arity)
+    # ]
+    # for input_index, local_input in enumerate(local_inputs):
+    #   assignation_statement.push(local_input)
+    #   for k in range(self.get_vector_size()):
+    #     elt_assign = ReferenceAssign(VectorElementSelection(local_input, k), TableLoad(input_tables[input_index], vi + k))
+    #     assignation_statement.push(elt_assign)
+    local_inputs = [TableLoad(input_tables[input_index], vi, precision=vector_format) for input_index in range(self.arity)]
 
     # computing results
     local_result = tested_function(*local_inputs)
@@ -1837,13 +1839,14 @@ class ML_FunctionBasis(object):
     store_statement = Statement()
 
     # comparison with expected
-    for k in range(self.get_vector_size()):
-      elt_result = VectorElementSelection(local_result, k)
+    # for k in range(self.get_vector_size()):
+    #   elt_result = VectorElementSelection(local_result, k)
 
-      # TODO: change to use aligned linear vector store
-      store_statement.push(
-        TableStore(elt_result, output_table, vi + k, precision = ML_Void) 
-      )
+    #   # TODO: change to use aligned linear vector store
+    #   store_statement.push(
+    #     TableStore(elt_result, output_table, vi + k, precision = ML_Void) 
+    #   )
+    store_statement.push(TableStore(local_result, output_table, vi, precision=ML_Void))
 
     test_loop = Loop(
       Statement(
