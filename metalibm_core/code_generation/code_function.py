@@ -40,7 +40,7 @@ from ..core.ml_formats import ML_Void
 
 class CodeFunction(object):
   """ function code object """
-  def __init__(self, name, arg_list=None, output_format=None, code_object=None, language=C_Code, attributes=None):
+  def __init__(self, name, arg_list=None, output_format=None, code_object=None, language=C_Code, attributes=None, external=False, vector_size=1):
     """ code function initialization """
     self.arg_list = arg_list if arg_list else []
     arg_list_precision = [arg.get_precision() for arg in self.arg_list]
@@ -49,6 +49,11 @@ class CodeFunction(object):
     self.function_object   = None
     self.function_operator = None
     self.language = language
+    # is the function externally defined (does not contain any implementation)
+    self.external = external
+    self.scheme = None
+    # is the function scalar of SIMD-vector
+    self.vector_size = vector_size
 
   @property
   def name(self):
@@ -181,17 +186,19 @@ class FunctionGroup(object):
     def add_core_function(self, sub_function):
         self.core_function_list.append(sub_function)
 
-    def apply_to_core_functions(self, routine):
+    def apply_to_core_functions(self, routine, inc_external=False):
         for fct in self.core_function_list:
-            routine(self, fct)
+            if inc_external or not fct.external:
+                routine(self, fct)
 
-    def apply_to_sub_functions(self, routine):
+    def apply_to_sub_functions(self, routine, inc_external=False):
         for fct in self.sub_function_list:
-            routine(self, fct)
+            if inc_external or not fct.external:
+                routine(self, fct)
 
-    def apply_to_all_functions(self, routine):
-        self.apply_to_sub_functions(routine)
-        self.apply_to_core_functions(routine)
+    def apply_to_all_functions(self, routine, inc_external=False):
+        self.apply_to_sub_functions(routine, inc_external=inc_external)
+        self.apply_to_core_functions(routine, inc_external=inc_external)
         return self
 
 
