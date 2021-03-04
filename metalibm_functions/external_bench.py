@@ -92,8 +92,11 @@ class ML_ExternalBench(ML_Function("ml_external_bench")):
         "output_file": "bench.c",
         "function_name": "external_bench_wrapper",
         "extra_src_files": [],
+        "headers": [],
+        "libraries": [],
         "precision": ML_Binary32,
         "accuracy": ML_Faithful,
+        "function_input_vector_size": 1,
         "target": GenericProcessor.get_target_instance()
     }
     default_args_exp.update(kw)
@@ -104,14 +107,22 @@ class ML_ExternalBench(ML_Function("ml_external_bench")):
     Log.report(Log.Verbose, "generating external bench for function {} with vector-size {}/{}".format(self.bench_function_name, self.vector_size, self.function_input_vector_size))
     if self.function_input_vector_size > 1:
         output_format = vectorize_format(self.precision, self.function_input_vector_size)
+        arg_format_list = [vectorize_format(arg_format, self.function_input_vector_size) for arg_format in self.get_input_precisions()]
     else:
         output_format = self.precision
-    benched_function = CodeFunction(self.bench_function_name, output_format=output_format, external=True, vector_size=self.function_input_vector_size)
+        arg_format_list = list(self.get_input_precisions())
+
+    # explicitly building FunctionOperator and FunctionObject to add
+    # requested header list
+    external_function_op = FunctionOperator(self.bench_function_name, arity=self.arity, output_precision=output_format, require_header=self.headers)
+    external_function = FunctionObject(self.bench_function_name, arg_format_list, output_format, external_function_op)
+
+    benched_function = CodeFunction(self.bench_function_name, output_format=output_format, external=True, vector_size=self.function_input_vector_size, function_object=external_function, function_operator=external_function_op)
+
     # need to overwrite self.implementation as it is used to determine
     # if vectorization is required in ml_function
     self.implementation = benched_function
-    for arg_format in self.get_input_precisions():
-        arg_format = vectorize_format(arg_format, self.function_input_vector_size)
+    for arg_format in arg_format_list:
         benched_function.register_new_input_variable(Variable("", precision=arg_format))
     return FunctionGroup([benched_function])
 
