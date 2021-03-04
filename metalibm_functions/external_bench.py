@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 ###############################################################################
 # This file is part of metalibm (https://github.com/kalray/metalibm)
 ###############################################################################
@@ -44,11 +42,11 @@ from metalibm_core.core.ml_operations import *
 from metalibm_core.core.ml_formats import *
 from metalibm_core.core.precisions import ML_Faithful
 from metalibm_core.code_generation.generic_processor import GenericProcessor
-from metalibm_core.core.polynomials import *
-from metalibm_core.core.ml_table import ML_NewTable
-from metalibm_core.core.ml_complex_formats import ML_Mpfr_t
 from metalibm_core.code_generation.generator_utility import FunctionOperator, FO_Result, FO_Arg
-from metalibm_core.core.payne_hanek import generate_payne_hanek
+
+from metalibm_core.code_generation.code_function import CodeFunction, FunctionGroup
+
+from metalibm_core.core.ml_vectorizer import vectorize_format
 
 from metalibm_core.utility.ml_template import (
     MultiAryArgTemplate, DefaultMultiAryArgTemplate, precision_parser)
@@ -80,6 +78,7 @@ class ML_ExternalBench(ML_Function("ml_external_bench")):
     self.bench_function_name = args.bench_function_name
     self.emulate = args.emulate
     self.arity = args.arity
+    self.function_input_vector_size = args.function_input_vector_size
     if len(self.auto_test_range) != self.arity:
         self.auto_test_range = [self.auto_test_range[0]] * self.arity
     if len(self.bench_test_range) != self.arity:
@@ -101,21 +100,20 @@ class ML_ExternalBench(ML_Function("ml_external_bench")):
     return DefaultMultiAryArgTemplate(**default_args_exp)
 
 
-  def generate_scheme(self):
-    # declaring CodeFunction and retrieving input variable
-    inputs = [self.implementation.add_input_variable("x%d" % i, precision) for i,precision in enumerate(self.get_input_precisions())]
-
-    external_function_op = FunctionOperator(self.bench_function_name, arity = self.arity, output_precision = self.precision, require_header = self.headers)
-    external_function = FunctionObject(self.bench_function_name, self.get_input_precisions(), self.precision, external_function_op)
-
-    scheme = Statement(
-      Return(
-        external_function(*tuple(inputs)),
-        precision = self.precision,
-      )
-    )
-
-    return scheme
+  def generate_function_list(self):
+    Log.report(Log.Verbose, "generating external bench for function {} with vector-size {}/{}".format(self.bench_function_name, self.vector_size, self.function_input_vector_size))
+    if self.function_input_vector_size > 1:
+        output_format = vectorize_format(self.precision, self.function_input_vector_size)
+    else:
+        output_format = self.precision
+    benched_function = CodeFunction(self.bench_function_name, output_format=output_format, external=True, vector_size=self.function_input_vector_size)
+    # need to overwrite self.implementation as it is used to determine
+    # if vectorization is required in ml_function
+    self.implementation = benched_function
+    for arg_format in self.get_input_precisions():
+        arg_format = vectorize_format(arg_format, self.function_input_vector_size)
+        benched_function.register_new_input_variable(Variable("", precision=arg_format))
+    return FunctionGroup([benched_function])
 
   def get_extra_build_opts(self):
     return self.extra_src_files
@@ -141,6 +139,10 @@ if __name__ == "__main__":
     "--extra-src-files", dest="extra_src_files", default=[], action="store",
     type=lambda s: s.split(","),
     help="comma separated list of required libraries")
+  arg_template.get_parser().add_argument(
+    "--function-input-vector-size", default=1, action="store",
+    type=int,
+    help="number of elements in function input vector (1 for scalar)")
   arg_template.get_parser().add_argument(
     "--libraries", dest="libraries", default=[], action="store",
     type=lambda s: s.split(","),
