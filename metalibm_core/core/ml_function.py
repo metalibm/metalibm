@@ -777,13 +777,16 @@ class ML_FunctionBasis(object):
     )
 
     # generate vector size
-    if self.get_vector_size() != 1:
+    if self.get_vector_size() != self.implementation.vector_size and not self.implementation is None:
+        assert self.implementation.vector_size == 1
         scalar_scheme = self.implementation.get_scheme()
         # extract implementation's argument list
         scalar_arg_list = self.implementation.arg_list
         # clear argument list (will be replaced by vectorized counterpart)
         self.implementation.clear_arg_list()
 
+        # the default behavior is to generate a vectorized implementation
+        # from the scalar implementation provided by generate_scheme/generate_function_list
         function_group = self.generate_vector_implementation(
             scalar_scheme, scalar_arg_list, self.get_vector_size()
         )
