@@ -938,7 +938,7 @@ class ML_FunctionBasis(object):
     CstSuccess = Constant(0, precision=ML_Int32)
     # adding main function, if the source code final target
     # is not a library (to be embedded in python in case of test)
-    if not embedding_binary:
+    if not embedding_binary and self.bench_enabled or self.auto_test_enable:
         main_function = CodeFunction("main", output_format=ML_Int32)
         main_function.set_scheme(
             Statement(
