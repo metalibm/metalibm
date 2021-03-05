@@ -484,6 +484,7 @@ result_details = []
 
 for test_scheme in args.test_list:
   if re.search(args.match_regex, test_scheme.get_tag_title()) != None:
+    print("executing test {}".format(test_scheme.title))
     test_result = test_scheme.perform_all_test(debug = args.debug)
     result_details.append(test_result)
     if not test_result.get_result():
