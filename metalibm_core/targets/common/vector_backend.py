@@ -877,12 +877,16 @@ vector_c_code_generation_table = {
         type_custom_match(FSM(v2float64), TCM(ML_TableFormat), type_table_index_match):
             TemplateOperatorFormat("memcpy({0}, ((ml_double2_t*)({1}+ {2})), 16)", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity=3, require_header=["string.h"]),
         type_custom_match(FSM(v4float64), TCM(ML_TableFormat), type_table_index_match):
-            TemplateOperatorFormat("memcpy({0}, ((ml_double_t*)({1}+ {2})), 32)", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity=3, require_header=["string.h"]),
+            TemplateOperatorFormat("memcpy({0}, ((ml_double4_t*)({1}+ {2})), 32)", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity=3, require_header=["string.h"]),
+        type_custom_match(FSM(v8float64), TCM(ML_TableFormat), type_table_index_match):
+            TemplateOperatorFormat("memcpy({0}, ((ml_double4_t*)({1}+ {2})), 64)", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity=3, require_header=["string.h"]),
 
         type_custom_match(FSM(v2float64), TCM(ML_Pointer_Format), type_table_index_match):
             TemplateOperatorFormat("memcpy({0}, ((ml_double2_t*)({1}+ {2})), 16)", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity=3, require_header=["string.h"]),
         type_custom_match(FSM(v4float64), TCM(ML_Pointer_Format), type_table_index_match):
             TemplateOperatorFormat("memcpy({0}, ((ml_double4_t*)({1}+ {2})), 32)", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity=3, require_header=["string.h"]),
+        type_custom_match(FSM(v8float64), TCM(ML_Pointer_Format), type_table_index_match):
+            TemplateOperatorFormat("memcpy({0}, ((ml_double8_t*)({1}+ {2})), 64)", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity=3, require_header=["string.h"]),
       },
     },
   },
