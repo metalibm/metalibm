@@ -178,7 +178,7 @@ class AsmCodeGenerator(CodeGenerator):
         elif isinstance(node, (Statement, ConditionBlock, Loop)):
             Log.report(Log.Error, "{} class nodes are not supported in LLVM-IR codegen"
                 "They must be translated to BB (e.g. through gen_basic_block pass)"
-                "faulty node: {}", optree.__class__, optree)
+                "faulty node: {}", node.__class__, node)
 
         elif isinstance(node, PhiNode):
             raise NotImplementedError
