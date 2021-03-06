@@ -291,7 +291,7 @@ class LLVMIRCodeGenerator(CodeGenerator):
             return new_label
 
     # force_variable_storing is not supported
-    def generate_expr(self, code_object, optree, folded=True, result_var=None, initial=False, __exact=None, language=None, strip_outer_parenthesis=False, force_variable_storing=False, next_block=None):
+    def generate_expr(self, code_object, optree, folded=True, result_var=None, __exact=None, language=None, strip_outer_parenthesis=False, force_variable_storing=False, next_block=None):
         """ code generation function """
 
         # search if <optree> has already been processed
@@ -319,8 +319,7 @@ class LLVMIRCodeGenerator(CodeGenerator):
             code_object << (bb_label + ":")
             code_object.open_level(header="")
             for op in optree.inputs:
-                self.generate_expr(code_object, op, folded=folded,
-                    initial=True, language=language)
+                self.generate_expr(code_object, op, folded=folded, language=language)
             code_object.close_level(footer="", cr="")
             return None
 
