@@ -104,20 +104,20 @@ class GappaCodeGenerator(object):
 
 
     def add_hypothesis(self, code_object, hypoth_optree, hypoth_value):
-        hypothesis_code = self.generate_expr(code_object, hypoth_optree, initial = True, language = Gappa_Code)
+        hypothesis_code = self.generate_expr(code_object, hypoth_optree, language = Gappa_Code)
         code_object.add_hypothesis(hypothesis_code, hypoth_value)
 
     def add_goal(self, code_object, goal_optree, goal_value = Gappa_Unknown):
-        goal_code = self.generate_expr(code_object, goal_optree, initial = True, language = Gappa_Code)
+        goal_code = self.generate_expr(code_object, goal_optree, language = Gappa_Code)
         code_object.add_goal(goal_code, goal_value)
 
     def add_hint(self, code_object, hint_hypoth, hint_goal, hint_annotation = None, isApprox = False):
-        hypoth_code = self.generate_expr(code_object, hint_hypoth, initial = False, folded = False, language = Gappa_Code)
-        goal_code = self.generate_expr(code_object, hint_goal, initial = False, folded = False, language = Gappa_Code)
+        hypoth_code = self.generate_expr(code_object, hint_hypoth, folded = False, language = Gappa_Code)
+        goal_code = self.generate_expr(code_object, hint_goal, folded = False, language = Gappa_Code)
         if hint_annotation is not None:
           declare_cst = self.declare_cst
           self.declare_cst = False
-          annotation_code = self.generate_expr(code_object, hint_annotation, initial = False, folded = False, language = Gappa_Code, strip_outer_parenthesis = True)
+          annotation_code = self.generate_expr(code_object, hint_annotation, folded = False, language = Gappa_Code, strip_outer_parenthesis = True)
           self.declare_cst = declare_cst
         else:
           annotation_code = None
@@ -125,7 +125,7 @@ class GappaCodeGenerator(object):
 
 
     # force_variable_storing is not supported
-    def generate_expr(self, code_object, optree, folded = True, result_var = None, initial = False, __exact = None, language = None, strip_outer_parenthesis = False, force_variable_storing = False):
+    def generate_expr(self, code_object, optree, folded = True, result_var = None, __exact = None, language = None, strip_outer_parenthesis = False, force_variable_storing = False):
         """ code generation function """
         #exact_value = exact or self.get_exact_mode()
 
@@ -224,7 +224,7 @@ class GappaCodeGenerator(object):
         elif isinstance(optree, Statement):
             for op in optree.inputs:
                 if not self.has_memoization(op):
-                    self.generate_expr(code_object, op, folded = folded, initial = True)
+                    self.generate_expr(code_object, op, folded = folded)
 
             return None
 
@@ -252,10 +252,10 @@ class GappaCodeGenerator(object):
             code_object << self.generate_debug_msg(optree, result)
             
 
-        if initial and not isinstance(result, CodeVariable):
-            final_var = result_var if result_var else code_object.get_free_var_name(optree.get_precision(), prefix = "result", declare = True)
-            code_object << self.generate_assignation(final_var, result.get())
-            return CodeVariable(final_var, optree.get_precision())
+        #if initial and not isinstance(result, CodeVariable):
+        #    final_var = result_var if result_var else code_object.get_free_var_name(optree.get_precision(), prefix = "result", declare = True)
+        #    code_object << self.generate_assignation(final_var, result.get())
+        #    return CodeVariable(final_var, optree.get_precision())
 
         if strip_outer_parenthesis and isinstance(result, CodeExpression):
           result.strip_outer_parenthesis()
@@ -317,8 +317,8 @@ class GappaCodeGenerator(object):
         optree = pre_optree.copy(variable_copy_map)
         gappa_code = GappaCodeObject()
 
-        gappa_result_approx = self.generate_expr(gappa_code, optree, initial = False)
-        gappa_result_exact  = self.generate_expr(gappa_code, optree, initial = False)
+        gappa_result_approx = self.generate_expr(gappa_code, optree)
+        gappa_result_exact  = self.generate_expr(gappa_code, optree)
         goal = gappa_result_approx.get_variable(gappa_code) - gappa_result_exact.get_variable(gappa_code)
         goal.set_attributes(precision = goal_precision, tag = "goal")
         self.add_goal(gappa_code, goal)
@@ -375,9 +375,9 @@ class GappaCodeGenerator(object):
         pre_exact_optree = pre_optree.copy(var_error_copy_map)
         exact_optree = opt_engine.exactify(pre_exact_optree.copy())
 
-        gappa_result_exact  = self.generate_expr(gappa_code, exact_optree, initial = True)
+        gappa_result_exact  = self.generate_expr(gappa_code, exact_optree)
         #print "gappa_code: ", gappa_code.get(self)
-        gappa_result_approx = self.generate_expr(gappa_code, optree, initial = False)
+        gappa_result_approx = self.generate_expr(gappa_code, optree)
         #print "gappa_code: ", gappa_code.get(self)
         # Gappa Result Approx variable
         gra_var = gappa_result_approx.get_variable(gappa_code)
