@@ -71,6 +71,7 @@ from ..utility.source_info import SourceInfo
 #                          is performed, if True all inputs are transmitted as CodeVariable, if
 #                          this field is a list of indexes, only the arguments indexed in that list 
 #                          are forced to be passed as CodeVariable
+#   force_variable_storing
 
 class DummyTree(object):
     def __init__(self, tag = "tmp", precision = None):
@@ -97,7 +98,7 @@ def ordered_generation(gen_function, gen_list):
     ordered_arg_list.sort(key=local_key)
     result_list = [None] * len(gen_list)
     for index, arg in ordered_arg_list:
-        result_list[index] = gen_function(arg)
+        result_list[index] = gen_function(arg, index)
     return result_list
 
 def default_process_arg_list(code_object, code_generator, arg_list):
@@ -166,7 +167,8 @@ class ML_CG_Operator(object):
         return self.sourceinfo
 
     def get_force_input_variable(self):
-        return self.force_input_variable
+        # deprecated (use self.force_input_variable)
+        raise NotImplementedError
 
     def register_deps(self, code_object):
         """ register generator's dependencies to the relevant code object """
@@ -185,7 +187,7 @@ class ML_CG_Operator(object):
         self.speed_measure(new_speed_measure)
 
     def get_force_folding(self):
-        return self.force_folding
+        raise NotImplementedError
 
     def get_arity(self):
         return self.arity
@@ -230,8 +232,8 @@ class CompoundOperator(ML_CG_Operator):
         self.register_deps(code_object)
         # generating list of arguments
         compound_arg = []
-        force_input_variable = self.get_force_input_variable()
-        pre_arg_value = ordered_generation(lambda arg: code_generator.generate_expr(code_object, arg, force_variable_storing = force_input_variable, **kwords), arg_tuple)
+        force_input_variable = listify_force_input_variable(self.force_input_variable, len(arg_tuple))
+        pre_arg_value = ordered_generation(lambda arg, index: code_generator.generate_expr(code_object, arg, force_variable_storing=force_input_variable[index], **kwords), arg_tuple)
         # does a result appears as an argument (passed by reference)
         result_in_args = False
         for arg_function in self.args:
@@ -266,7 +268,7 @@ class CompoundOperator(ML_CG_Operator):
                     if dummy_precision == None:
                         print(optree) # Error display
                         Log.report(Log.Error, "unknown output precision in compound operator")
-            
+
                 dummy_optree = DummyTree("carg", dummy_precision)
 
                 if isinstance(arg_function, CompoundOperator):
@@ -296,18 +298,29 @@ class CompoundOperator(ML_CG_Operator):
                         )
         # assembling parent operator code
         folded = kwords["folded"]
-        folded_arg = folded if self.get_force_folding() == None else \
-                     self.get_force_folding()
+        folded_arg = folded if self.force_folding == None else \
+                     self.force_folding
         kwords["folded"] = folded_arg
         return self.parent.assemble_code(
             code_generator, code_object, optree,
             compound_arg,
             generate_pre_process = generate_pre_process,
-            result_in_args = result_in_args, 
+            result_in_args = result_in_args,
             force_variable_storing = force_input_variable,
             **kwords
         )
 
+def listify_force_input_variable(force_input_variable, size):
+    """ True -> [True] * size
+        False -> [False] * size
+        list -> [True if index in list else False for index in range(size)
+    """
+    if force_input_variable is True:
+        return [True] * size
+    elif force_input_variable is False:
+        return [False] * size
+    else:
+        return [True if index in force_input_variable else False for index in range(size)]
 
 class IdentityOperator(ML_CG_Operator):
     """ symbol operator generator """
@@ -316,7 +329,7 @@ class IdentityOperator(ML_CG_Operator):
         kwords["arity"] = 1
         ML_CG_Operator.__init__(self, **kwords)
 
-    def generate_expr(self, 
+    def generate_expr(self,
             code_generator, code_object, optree, arg_tuple,
             generate_pre_process = None, force_variable_storing = False,
             **kwords
@@ -324,14 +337,14 @@ class IdentityOperator(ML_CG_Operator):
         """ generate expression function """
         # registering headers
         self.register_deps(code_object)
-        force_input_variable = self.get_force_input_variable()
+        force_input_variable = listify_force_input_variable(self.force_input_variable, 1)
 
         if self.custom_generate_expr:
             return self.custom_generate_expr(code_generator, code_object, optree, arg_tuple, generate_pre_process = generate_pre_process, force_variable_storing = force_variable_storing, **kwords)
         else:
             # generating list of arguments
             #arg_result = [code_generator.generate_expr(code_object, arg, **kwords) for arg in arg_tuple]
-            arg_result = ordered_generation(lambda arg: code_generator.generate_expr(code_object, arg, force_variable_storing = force_input_variable, **kwords), arg_tuple)
+            arg_result = ordered_generation(lambda arg, index: code_generator.generate_expr(code_object, arg, force_variable_storing=force_input_variable[index], **kwords), arg_tuple)
             # assembling parent operator code
             return self.assemble_code(code_generator, code_object, optree, arg_result, generate_pre_process = generate_pre_process, force_variable_storing = force_input_variable, **kwords)
 
@@ -345,7 +358,7 @@ class IdentityOperator(ML_CG_Operator):
 
         # generating assignation if required
         folded = kwords["folded"]
-        if force_variable_storing or self.get_force_folding() or (folded and self.get_force_folding() != False) or generate_pre_process != None: 
+        if force_variable_storing or self.force_folding or (folded and self.force_folding != False) or generate_pre_process != None: 
             prefix = optree.get_tag(default = "id_tmp")
             result_var = kwords["result_var"]
             result_varname = result_var if result_var != None else code_object.get_free_var_name(optree.get_precision(), prefix = prefix)
@@ -403,7 +416,7 @@ class SymbolOperator(ML_CG_Operator):
         """ generate expression function """
         # registering headers
         self.register_deps(code_object)
-        force_input_variable = self.get_force_input_variable()
+        force_input_variable = listify_force_input_variable(self.force_input_variable, self.arity)
 
         if self.custom_generate_expr:
             return self.custom_generate_expr(
@@ -413,7 +426,7 @@ class SymbolOperator(ML_CG_Operator):
         else:
             # generating list of arguments
             #arg_result = [code_generator.generate_expr(code_object, arg, **kwords) for arg in arg_tuple]
-            arg_result = ordered_generation(lambda arg: code_generator.generate_expr(code_object, arg, force_variable_storing = force_input_variable, **kwords), arg_tuple)
+            arg_result = ordered_generation(lambda arg, index: code_generator.generate_expr(code_object, arg, force_variable_storing=force_input_variable[index], **kwords), arg_tuple)
             # assembling parent operator code
             return self.assemble_code(code_generator, code_object, optree, arg_result, generate_pre_process = generate_pre_process, force_variable_storing = force_variable_storing, **kwords)
 
@@ -438,7 +451,7 @@ class SymbolOperator(ML_CG_Operator):
             result_code = self.symbol.join([var_arg.get() for var_arg in var_arg_list])
 
         # generating assignation if required
-        if force_variable_storing or self.get_force_folding() or (kwords["folded"] and self.get_force_folding() != False) or generate_pre_process != None: 
+        if force_variable_storing or self.force_folding or (kwords["folded"] and self.force_folding != False) or generate_pre_process != None: 
             prefix = optree.get_tag(default = "tmp")
             result_var = kwords["result_var"]
             result_varname = result_var if result_var != None else code_object.get_free_var_name(optree.get_precision(), prefix = prefix)
@@ -661,8 +674,8 @@ class FunctionOperator(ML_CG_Operator):
         else:
             # generating list of arguments
             arg_result = ordered_generation(
-                lambda arg: code_generator.generate_expr(
-                    code_object, arg, force_variable_storing=self.get_force_input_variable(),
+                lambda arg, index: code_generator.generate_expr(
+                    code_object, arg, force_variable_storing=listify_force_input_variable(self.force_input_variable, self.arity),
                     **kwords
                 ), arg_tuple
             )
@@ -763,7 +776,7 @@ class FunctionOperator(ML_CG_Operator):
 
         else:
           # generating assignation if required
-          if force_variable_storing or self.get_force_folding() or (folded and self.get_force_folding() != False) or generate_pre_process != None:
+          if force_variable_storing or self.force_folding or (folded and self.force_folding != False) or generate_pre_process != None:
               prefix = optree.get_tag(default=self.default_prefix)
               result_varname = result_var if result_var != None else code_object.get_free_var_name(optree.get_precision(), prefix = prefix)
               if generate_pre_process != None:
@@ -835,14 +848,14 @@ class AsmInlineOperator(ML_CG_Operator):
         # registering headers
         self.register_deps(code_object)
 
-        force_input_variable = self.get_force_input_variable()
+        force_input_variable = listify_force_input_variable(self.force_input_variable, self.arity)
 
         if self.custom_generate_expr:
             return self.custom_generate_expr(code_generator, code_object, optree, arg_tuple, generate_pre_process = generate_pre_process, **kwords)
         else:
             # generating list of arguments
             #arg_result = [code_generator.generate_expr(code_object, arg, **kwords) for arg in arg_tuple]
-            arg_result = ordered_generation(lambda arg: code_generator.generate_expr(code_object, arg, force_variable_storing = force_input_variable, **kwords), arg_tuple)
+            arg_result = ordered_generation(lambda arg, index: code_generator.generate_expr(code_object, arg, force_variable_storing=force_input_variable[index], **kwords), arg_tuple)
             # assembling parent operator code
             return self.assemble_code(code_generator, code_object, optree, arg_result, generate_pre_process = generate_pre_process, **kwords)
             #[self.get_arg_from_index(index, arg_result) for index in range(self.arity)], 
@@ -913,7 +926,7 @@ class RoundOperator(FunctionOperator):
             # generating assignation if required
             folded = kwords["folded"]
             result_var = kwords["result_var"]
-            if force_variable_storing or self.get_force_folding() or (folded and self.get_force_folding() != False) or generate_pre_process != None: 
+            if force_variable_storing or self.force_folding or (folded and self.force_folding != False) or generate_pre_process != None: 
                 prefix = optree.get_tag(default = "tmp")
                 result_varname = result_var if result_var != None else code_object.get_free_var_name(optree.get_precision(), prefix = prefix)
                 if generate_pre_process != None:

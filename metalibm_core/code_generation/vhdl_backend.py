@@ -312,7 +312,8 @@ def sub_signal_generator(optree):
         code_value = (value >> inf_index) & (2**(sup_index-inf_index+1) - 1)
         return TemplateOperator(
             ("\"{:0%db}\"" % (sup_index - inf_index + 1)).format(code_value),
-            arity=0, force_folding=True
+            arity=0, force_folding=True,
+            force_input_variable=[0],
         )
 
     else:
@@ -322,6 +323,7 @@ def sub_signal_generator(optree):
                 inf_index=inf_index, direction=range_direction,
                 sup_index=sup_index
             ), arity=1, force_folding=True,
+            force_input_variable=[0],
             no_parenthesis=True
         )
 
