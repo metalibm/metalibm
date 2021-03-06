@@ -136,7 +136,6 @@ class CCodeGenerator(CodeGenerator):
                             optree,
                             folded=True,
                             result_var=None,
-                            initial=False,
                             language=None,
                             force_variable_storing=False):
         """ code generation function
@@ -147,8 +146,6 @@ class CCodeGenerator(CodeGenerator):
                 :type folded: bool
                 :param result_var: destination variable (if specified)
                 :type result_var: CodeVariable
-                :param initial: TBD
-                :type initial: bool
                 :param language: source code language
                 :param force_variable_storing: TBD
         """
@@ -345,16 +342,16 @@ class CCodeGenerator(CodeGenerator):
             head = optree.get_input(0)
             for tail_node in optree.inputs[1:]:
                 if not self.has_memoization(tail_node):
-                    self.generate_expr(code_object, tail_node, folded=folded, initial=True, language=language)
+                    self.generate_expr(code_object, tail_node, folded=folded, language=language)
 
             # generate PlaceHolder's main_value
-            head_code = self.generate_expr(code_object, head, folded=folded, initial=initial, language=language)
+            head_code = self.generate_expr(code_object, head, folded=folded, language=language)
             return head_code
 
         elif isinstance(optree, Statement):
             for op in optree.inputs:
                 if not self.has_memoization(op):
-                    self.generate_expr(code_object, op, folded = folded, initial = True, language = language)
+                    self.generate_expr(code_object, op, folded = folded, language = language)
 
             return None
         elif isinstance(optree, Constant):
@@ -373,10 +370,10 @@ class CCodeGenerator(CodeGenerator):
             code_object << self.generate_debug_msg(optree, result, code_object)
 
 
-        if initial and not isinstance(result, CodeVariable) and not result is None:
-            final_var = result_var if result_var else code_object.get_free_var_name(optree.get_precision(), prefix = "result", declare = True)
-            code_object << self.generate_assignation(final_var, result.get())
-            return CodeVariable(final_var, optree.get_precision())
+        #if initial and not isinstance(result, CodeVariable) and not result is None:
+        #    final_var = result_var if result_var else code_object.get_free_var_name(optree.get_precision(), prefix = "result", declare = True)
+        #    code_object << self.generate_assignation(final_var, result.get())
+        #    return CodeVariable(final_var, optree.get_precision())
 
         return result
 
