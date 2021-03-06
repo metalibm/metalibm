@@ -55,6 +55,19 @@ from metalibm_core.code_generation.generator_utility import DummyTree
 from metalibm_core.code_generation.code_generator import RegisterCodeGenerator, CodeGenerator
 
 
+#  generate_expr's argument
+#       code_object: destination code_object to receive resulting source code
+#       optree/node: operation graph node to generate
+#       folded:
+#       force_variable_storing: force the expression result to be assigned to a
+#                               CodeVariable, the CodeVariable is returned as
+#                               generated_expr results
+#       result_var: if force_variable_storing is set, may indicate which
+#                   variable must be used to store the expression result
+#       lvalue: indicates that the expression is used a lvalue (left-value)
+
+
+
 @RegisterCodeGenerator([C_Code, OpenCL_Code])
 class CCodeGenerator(CodeGenerator):
     language = C_Code
@@ -119,9 +132,14 @@ class CCodeGenerator(CodeGenerator):
         self.memoization_map[0][optree] = code_value
 
     # force_variable_storing is not supported yet
-    def generate_expr(self, code_object, optree, folded = True, result_var = None, initial = False, language = None, force_variable_storing = False):
-        """ code generation function 
-        
+    def generate_expr(self, code_object,
+                            optree,
+                            folded=True,
+                            result_var=None,
+                            initial=False,
+                            language=None,
+                            force_variable_storing=False):
+        """ code generation function
             Args:
                 :param optree: Operation node to generate code for
                 :type optree: ML_Operation
@@ -131,7 +149,7 @@ class CCodeGenerator(CodeGenerator):
                 :type result_var: CodeVariable
                 :param initial: TBD
                 :type initial: bool
-                :param language: source code language 
+                :param language: source code language
                 :param force_variable_storing: TBD
         """
         language = self.language if language is None else language
@@ -320,7 +338,7 @@ class CCodeGenerator(CodeGenerator):
 
         elif isinstance(optree, NoResultOperation):
             result_code = self.processor.generate_expr(self, code_object, optree, optree.inputs, folded = False, result_var = result_var, language = language)
-            code_object << "%s;\n" % result_code.get() 
+            code_object << "%s;\n" % result_code.get()
             return None
 
         elif isinstance(optree, PlaceHolder):
@@ -353,7 +371,7 @@ class CCodeGenerator(CodeGenerator):
         # debug management
         if optree.get_debug() and not self.disable_debug:
             code_object << self.generate_debug_msg(optree, result, code_object)
-            
+
 
         if initial and not isinstance(result, CodeVariable) and not result is None:
             final_var = result_var if result_var else code_object.get_free_var_name(optree.get_precision(), prefix = "result", declare = True)
@@ -401,7 +419,7 @@ class CCodeGenerator(CodeGenerator):
         elif isinstance(symbol_object, Variable):
             initial_symbol = (symbol_object.get_precision().get_code_name(language = self.language) + " ") if initial else ""
             final_symbol = ";\n" if final else ""
-            return "%s%s%s" % (initial_symbol, symbol, final_symbol) 
+            return "%s%s%s" % (initial_symbol, symbol, final_symbol)
 
         elif isinstance(symbol_object, ML_Table):
             # TODO: check @p initial effect
