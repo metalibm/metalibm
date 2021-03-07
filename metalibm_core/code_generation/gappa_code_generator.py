@@ -112,12 +112,12 @@ class GappaCodeGenerator(object):
         code_object.add_goal(goal_code, goal_value)
 
     def add_hint(self, code_object, hint_hypoth, hint_goal, hint_annotation = None, isApprox = False):
-        hypoth_code = self.generate_expr(code_object, hint_hypoth, folded = False, language = Gappa_Code)
-        goal_code = self.generate_expr(code_object, hint_goal, folded = False, language = Gappa_Code)
+        hypoth_code = self.generate_expr(code_object, hint_hypoth, inlined=True, language = Gappa_Code)
+        goal_code = self.generate_expr(code_object, hint_goal, inlined=True, language = Gappa_Code)
         if hint_annotation is not None:
           declare_cst = self.declare_cst
           self.declare_cst = False
-          annotation_code = self.generate_expr(code_object, hint_annotation, folded = False, language = Gappa_Code, strip_outer_parenthesis = True)
+          annotation_code = self.generate_expr(code_object, hint_annotation, inlined = True, language = Gappa_Code, strip_outer_parenthesis = True)
           self.declare_cst = declare_cst
         else:
           annotation_code = None
@@ -125,7 +125,7 @@ class GappaCodeGenerator(object):
 
 
     # force_variable_storing is not supported
-    def generate_expr(self, code_object, optree, folded = True, result_var = None, __exact = None, language = None, strip_outer_parenthesis = False, force_variable_storing = False):
+    def generate_expr(self, code_object, optree, result_var = None, __exact = None, language = None, strip_outer_parenthesis = False, force_variable_storing = False, inlined=False, lvalue=False):
         """ code generation function """
         #exact_value = exact or self.get_exact_mode()
 
@@ -169,7 +169,7 @@ class GappaCodeGenerator(object):
               local_implementation = RoundOperator(optree.get_precision(), direction = optree.get_rounding_mode())
             else:
               local_implementation = RoundOperator(optree.get_precision())
-            return local_implementation.generate_expr(self, code_object, optree, optree.inputs, folded = folded, result_var = result_var)
+            return local_implementation.generate_expr(self, code_object, optree, optree.inputs, inlined=inlined, lvalue=lvalue, result_var = result_var)
             
 
         elif isinstance(optree, TableLoad):
@@ -178,7 +178,7 @@ class GappaCodeGenerator(object):
             tag = table.get_tag()
             table_name = code_object.declare_table(table, prefix = tag if tag != None else "table") 
 
-            index_code = [self.generate_expr(code_object, index_op, folded = folded).get() for index_op in optree.inputs[1:]]
+            index_code = [self.generate_expr(code_object, index_op, inlined=inlined).get() for index_op in optree.inputs[1:]]
 
             result = CodeExpression("%s[%s]" % (table_name, "][".join(index_code)), optree.inputs[0].get_storage_precision())
 
@@ -188,9 +188,9 @@ class GappaCodeGenerator(object):
             else_branch = optree.inputs[2] if len(optree.inputs) > 2 else None
 
             # generating pre_statement
-            self.generate_expr(code_object, optree.get_pre_statement(), folded = folded)
+            self.generate_expr(code_object, optree.get_pre_statement(), inlined=inlined)
 
-            cond_code = self.generate_expr(code_object, condition, folded = folded)
+            cond_code = self.generate_expr(code_object, condition, inlined=inlined)
             if condition.get_likely() in [True, False]:
                 code_object << "\nif (__builtin_expect(%s, %d)) " % (cond_code.get(), {True: 1, False: 0}[condition.get_likely()])
             else:
@@ -198,14 +198,14 @@ class GappaCodeGenerator(object):
             self.open_memoization_level()
             code_object.open_level()
             #if_branch_code = self.processor.generate_expr(self, code_object, if_branch, if_branch.inputs, folded)
-            if_branch_code = self.generate_expr(code_object, if_branch, folded = folded)
+            if_branch_code = self.generate_expr(code_object, if_branch, inlined=inlined)
             code_object.close_level(cr = "")
             self.close_memoization_level()
             if else_branch:
                 code_object << " else "
                 code_object.open_level()
                 self.open_memoization_level()
-                else_branch_code = self.generate_expr(code_object, else_branch, folded = folded)
+                else_branch_code = self.generate_expr(code_object, else_branch, inlined=inlined)
                 code_object.close_level()
                 self.close_memoization_level()
             else:
@@ -217,19 +217,19 @@ class GappaCodeGenerator(object):
             return None
 
         elif isinstance(optree, SpecificOperation):
-            result_code = self.processor.generate_expr(self, code_object, optree, optree.inputs, folded = False, result_var = result_var, language = self.language)
+            result_code = self.processor.generate_expr(self, code_object, optree, optree.inputs, inlined = False, result_var = result_var, language = self.language)
             code_object << "%s;\n" % result_code.get()
             return None
 
         elif isinstance(optree, Statement):
             for op in optree.inputs:
                 if not self.has_memoization(op):
-                    self.generate_expr(code_object, op, folded = folded)
+                    self.generate_expr(code_object, op, inlined = inlined)
 
             return None
 
         else:
-            result = self.processor.generate_expr(self, code_object, optree, optree.inputs, folded = folded, result_var = result_var, language = self.language)
+            result = self.processor.generate_expr(self, code_object, optree, optree.inputs, inlined = inlined, result_var = result_var, language = self.language)
 
             if optree.get_exact():
                 key = optree.get_handle()

@@ -64,10 +64,10 @@ def llvm_ir_generate_condition_block(generator, optree, code_object, language, f
     # generating pre_statement
     generator.generate_expr(
         code_object, optree.get_pre_statement(),
-        folded=folded, language=language)
+        inlined=inlined, language=language)
     # generate code to evaluate if-then-else condition
     cond_code = generator.generate_expr(
-        code_object, condition, folded=folded, language=language)
+        code_object, condition, inlined=inlined, language=language)
 
     def get_end_label():
         if next_block is None:
@@ -105,7 +105,7 @@ def llvm_ir_generate_condition_block(generator, optree, code_object, language, f
 
     # generating code for if-branch
     if_branch_code = generator.generate_expr(
-        code_object, if_branch, folded=folded,
+        code_object, if_branch, inlined=inlined,
         language=language, next_block=end_label)
 
     if is_fallback_if:
@@ -114,7 +114,7 @@ def llvm_ir_generate_condition_block(generator, optree, code_object, language, f
     if else_branch:
         append_label(code_object, else_label)
         else_branch_code = generator.generate_expr(
-            code_object, else_branch, folded=folded,
+            code_object, else_branch, inlined=inlined,
             language=language, next_block=end_label)
 
     if is_fallback and next_block is None:
@@ -141,16 +141,16 @@ def llvm_ir_generate_loop(generator, optree, code_object, language, folded=False
 
     # generate loop initialization block 
     append_label(code_object, header_label)
-    generator.generate_expr(code_object, init_block, folded=folded, language=language)
+    generator.generate_expr(code_object, init_block, inlined=inlined, language=language)
     append_label(code_object, loop_test_label)
-    cond_code = generator.generate_expr(code_object, loop_test, folded=folded, language=language)
+    cond_code = generator.generate_expr(code_object, loop_test, inlined=inlined, language=language)
     code_object << "br i1 {cond} , label %{loop_body}, label %{loop_end}".format(
         cond=cond_code.get(),
         loop_body=loop_body_label,
         loop_end=loop_end_label,
     )
     append_label(code_object, loop_body_label)
-    generator.generate_expr(code_object, loop_body, next_block=loop_body_label, folded=folded, language=language)
+    generator.generate_expr(code_object, loop_body, next_block=loop_body_label, inlined=inlined, language=language)
     code_object << "br label %" << loop_test_label << "\n"
 
     if next_block is None:
@@ -291,7 +291,7 @@ class LLVMIRCodeGenerator(CodeGenerator):
             return new_label
 
     # force_variable_storing is not supported
-    def generate_expr(self, code_object, optree, folded=True, result_var=None, __exact=None, language=None, strip_outer_parenthesis=False, force_variable_storing=False, next_block=None):
+    def generate_expr(self, code_object, optree, inlined=True, result_var=None, __exact=None, language=None, strip_outer_parenthesis=False, force_variable_storing=False, next_block=None, **kw):
         """ code generation function """
 
         # search if <optree> has already been processed
@@ -319,7 +319,7 @@ class LLVMIRCodeGenerator(CodeGenerator):
             code_object << (bb_label + ":")
             code_object.open_level(header="")
             for op in optree.inputs:
-                self.generate_expr(code_object, op, folded=folded, language=language)
+                self.generate_expr(code_object, op, inlined=inlined, language=language)
             code_object.close_level(footer="", cr="")
             return None
 
@@ -331,7 +331,7 @@ class LLVMIRCodeGenerator(CodeGenerator):
             else_label = self.get_bb_label(code_object, else_bb)
 
             cond_code = self.generate_expr(
-                code_object, cond, folded=folded, language=language)
+                code_object, cond, inlined=inlined, language=language)
 
             code_object << "br i1 {cond} , label %{if_label}, label %{else_label}\n".format(
                 cond=cond_code.get(),
@@ -339,20 +339,20 @@ class LLVMIRCodeGenerator(CodeGenerator):
                 else_label=else_label
             )
             # generating destination bb
-            # self.generate_expr(code_object, if_bb, folded=folded, language=language)
-            # self.generate_expr(code_object, else_bb, folded=folded, language=language)
+            # self.generate_expr(code_object, if_bb, inlined=inlined, language=language)
+            # self.generate_expr(code_object, else_bb, inlined=inlined, language=language)
             return None
 
         elif isinstance(optree, UnconditionalBranch):
             dest_bb = optree.get_input(0)
             code_object << "br label %{}\n".format(self.get_bb_label(code_object, dest_bb))
             # generating destination bb
-            # self.generate_expr(code_object, dest_bb, folded=folded, language=language)
+            # self.generate_expr(code_object, dest_bb, inlined=inlined, language=language)
             return None
 
         elif isinstance(optree, BasicBlockList):
             for bb in optree.inputs:
-                self.generate_expr(code_object, bb, folded=folded, language=language)
+                self.generate_expr(code_object, bb, inlined=inlined, language=language)
             return None
 
         elif isinstance(optree, Statement):
@@ -373,14 +373,14 @@ class LLVMIRCodeGenerator(CodeGenerator):
         elif isinstance(optree, PhiNode):
             output_var = optree.get_input(0)
             output_var_code = self.generate_expr(
-                code_object, output_var, folded=folded, language=language)
+                code_object, output_var, inlined=inlined, language=language)
 
             value_list = []
             for input_var, bb_var in zip(optree.get_inputs()[1::2], optree.get_inputs()[2::2]):
                 assert isinstance(input_var, Variable)
                 assert isinstance(bb_var, BasicBlock)
                 input_var = self.generate_expr(
-                    code_object, input_var, folded=folded, language=language
+                    code_object, input_var, inlined=inlined, language=language
                 )
                 bb_label = self.get_bb_label(code_object, bb_var)
                 value_list.append("[{var}, %{bb}]".format(var=input_var.get(), bb=bb_label))
@@ -408,11 +408,11 @@ class LLVMIRCodeGenerator(CodeGenerator):
 
             # TODO/FIXME: fix single static assignation enforcement
             #output_var_code = self.generate_expr(
-            #    code_object, output_var, folded=False, language=language
+            #    code_object, output_var, inlined=False, language=language
             #)
 
             result_value_code = self.generate_expr(
-                code_object, result_value, folded=folded, result_var="%"+output_var.get_tag(), language=language
+                code_object, result_value, inlined=inlined, result_var="%"+output_var.get_tag(), language=language
             )
             assert isinstance(result_value_code, CodeVariable)
             # code_object << self.generate_assignation(output_var_code.get(), result_value_code.get(), precision=output_var_code.precision)
@@ -421,7 +421,7 @@ class LLVMIRCodeGenerator(CodeGenerator):
             return None
 
         else:
-            result = self.processor.generate_expr(self, code_object, optree, optree.inputs, folded = folded, result_var = result_var, language = self.language)
+            result = self.processor.generate_expr(self, code_object, optree, optree.inputs, inlined = inlined, result_var = result_var, language = self.language)
             # each operation is generated on a separate line
 
         # registering result into memoization table

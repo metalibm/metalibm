@@ -109,9 +109,10 @@ class VHDLCodeGenerator(object):
 
 
     def generate_expr(
-            self, code_object, optree, folded = False,
+            self, code_object, optree, inlined = False,
             result_var = None, initial = False,
             language = None,
+            lvalue=False,
             ## force to store result in a variable, wrapping CodeExpression
             #  in CodeVariable
             force_variable_storing = False
@@ -152,11 +153,11 @@ class VHDLCodeGenerator(object):
                         resolved[op] = memo
 
             # processing list in reverse order (starting with deeper node to avoid too much recursion)
-            if not folded:
-                # if generation is folded, no pre generation can occur
+            if not inlined:
+                # if generation is inlined, no pre generation can occur
                 # as a complete CodeExpression needs to be generated
                 for op in processing_list[::-1]:
-                    _ = self.generate_expr(code_object, op, folded=folded, initial=initial, language=language)
+                    _ = self.generate_expr(code_object, op, inlined=inlined, initial=initial, language=language)
 
         # search if <optree> has already been processed
         if self.has_memoization(optree):
@@ -215,11 +216,11 @@ class VHDLCodeGenerator(object):
             error_msg = optree.get_error_msg()
             severity = optree.get_severity()
 
-            cond_code = self.generate_expr(code_object, cond, folded=False, language=language)
+            cond_code = self.generate_expr(code_object, cond, inlined=False, language=language)
             if isinstance(error_msg, str):
                 error_msg_code = error_msg
             else:
-                error_msg_code = self.generate_expr(code_object, error_msg, folded=True, language=language).get()
+                error_msg_code = self.generate_expr(code_object, error_msg, inlined=True, language=language).get()
 
             code_object << " assert {cond} report {error_msg} severity {severity};\n".format(cond=cond_code.get(), error_msg=error_msg_code, severity = severity.descriptor)
 
@@ -237,7 +238,7 @@ class VHDLCodeGenerator(object):
             output_var = optree.inputs[0]
             result_value = optree.inputs[1]
 
-            output_var_code   = self.generate_expr(code_object, output_var, folded = False, language = language)
+            output_var_code   = self.generate_expr(code_object, output_var, inlined = False, language = language)
 
             def get_assign_symbol(node):
                 if isinstance(node, Signal):
@@ -258,14 +259,14 @@ class VHDLCodeGenerator(object):
 
             if isinstance(result_value, Constant):
               # generate assignation
-              result_value_code = self.generate_expr(code_object, result_value, folded = folded, language = language)
+              result_value_code = self.generate_expr(code_object, result_value, inlined = inlined, language = language)
               code_object << self.generate_assignation(
                 output_var_code.get(), result_value_code.get(),
                 assign_sign = assign_sign
               )
             else:
-              #result_value_code = self.generate_expr(code_object, result_value, folded = True, force_variable_storing = True, language = language)
-              result_value_code = self.generate_expr(code_object, result_value, folded = False, language = language)
+              #result_value_code = self.generate_expr(code_object, result_value, inlined = True, force_variable_storing = True, language = language)
+              result_value_code = self.generate_expr(code_object, result_value, inlined = False, language = language)
               code_object << self.generate_assignation(
                 output_var_code.get(), result_value_code.get(),
                 assign_sign = assign_sign
@@ -289,11 +290,11 @@ class VHDLCodeGenerator(object):
             range_pattern = "{lower} to {upper}" if specifier is RangeLoop.Increasing else "{upper} dowto {lower}"
             range_code = range_pattern.format(lower = sollya.inf(loop_range), upper = sollya.sup(loop_range))
 
-            iterator_code = self.generate_expr(code_object, iterator, folded = folded, language = language)
+            iterator_code = self.generate_expr(code_object, iterator, inlined = inlined, language = language)
 
             code_object << "\n for {iterator} in {loop_range} loop\n".format(iterator = iterator_code.get(), loop_range = range_code)
             code_object.inc_level()
-            body_code = self.generate_expr(code_object, loop_body, folded = folded, language = language)
+            body_code = self.generate_expr(code_object, loop_body, inlined = inlined, language = language)
             assert body_code is None
             code_object.dec_level()
             code_object<< "end loop;\n"
@@ -307,9 +308,9 @@ class VHDLCodeGenerator(object):
             exit_condition = optree.inputs[0]
             loop_body      = optree.inputs[1]
 
-            code_object << "\nwhile (%s) loop\n" % self.generate_expr(code_object, exit_condition, folded=False, language=language).get()
+            code_object << "\nwhile (%s) loop\n" % self.generate_expr(code_object, exit_condition, inlined=False, language=language).get()
             code_object.inc_level()
-            self.generate_expr(code_object, loop_body, folded=folded, language=language)
+            self.generate_expr(code_object, loop_body, inlined=inlined, language=language)
             code_object.dec_level()
             code_object << "end loop;\n"
 
@@ -321,12 +322,12 @@ class VHDLCodeGenerator(object):
             pre_statement = optree.get_pre_statement()
             self.generate_expr(
                 code_object, optree.get_pre_statement(),
-                folded=folded, language=language
+                inlined=inlined, language=language
             )
 
             sensibility_list = [
                 self.generate_expr(
-                    code_object, op, folded=True, language=language
+                    code_object, op, inlined=True, language=language
                 ).get() for op in optree.get_sensibility_list()
             ]
             sensibility_list = "({})".format(", ".join(sensibility_list)) if len(sensibility_list) != 0 else ""
@@ -337,7 +338,7 @@ class VHDLCodeGenerator(object):
                 var_ctor = Variable
             )
             for process_stat in optree.inputs:
-              self.generate_expr(code_object, process_stat, folded = folded, initial = False, language = language)
+              self.generate_expr(code_object, process_stat, inlined = inlined, initial = False, language = language)
 
             code_object.close_level()
             self.close_memoization_level()
@@ -346,9 +347,9 @@ class VHDLCodeGenerator(object):
 
         elif isinstance(optree, PlaceHolder):
             first_input = optree.get_input(0)
-            first_input_code = self.generate_expr(code_object, first_input, folded = folded, language = language)
+            first_input_code = self.generate_expr(code_object, first_input, inlined = inlined, language = language)
             for op in optree.get_inputs()[1:]:
-              _ = self.generate_expr(code_object, op, folded = folded, language = language)
+              _ = self.generate_expr(code_object, op, inlined = inlined, language = language)
 
             result = first_input_code
 
@@ -364,7 +365,7 @@ class VHDLCodeGenerator(object):
             component_tag = code_object.get_free_name(component_object, prefix=component_tag)
             mapped_io = {}
             for io_tag in io_map:
-              mapped_io[io_tag] = self.generate_expr(code_object, io_map[io_tag], folded = True, language = language)
+              mapped_io[io_tag] = self.generate_expr(code_object, io_map[io_tag], inlined = True, language = language)
 
             code_object << "\n{component_tag} : {component_name}\n".format(component_name = component_name, component_tag = component_tag)
             code_object << "  port map (\n"
@@ -379,9 +380,9 @@ class VHDLCodeGenerator(object):
             else_branch = optree.inputs[2] if len(optree.inputs) > 2 else None
 
             # generating pre_statement
-            self.generate_expr(code_object, optree.get_pre_statement(), folded = folded, language = language)
+            self.generate_expr(code_object, optree.get_pre_statement(), inlined = inlined, language = language)
 
-            cond_code = self.generate_expr(code_object, condition, folded = False, language = language)
+            cond_code = self.generate_expr(code_object, condition, inlined = False, language = language)
             try:
               cond_likely = condition.get_likely()
             except AttributeError:
@@ -392,12 +393,12 @@ class VHDLCodeGenerator(object):
               )
             code_object << "if %s then\n " % cond_code.get()
             code_object.inc_level()
-            if_branch_code = self.generate_expr(code_object, if_branch, folded = False, language = language)
+            if_branch_code = self.generate_expr(code_object, if_branch, inlined = False, language = language)
             code_object.dec_level()
             if else_branch:
                 code_object << " else\n "
                 code_object.inc_level()
-                else_branch_code = self.generate_expr(code_object, else_branch, folded = True, language = language)
+                else_branch_code = self.generate_expr(code_object, else_branch, inlined = True, language = language)
                 code_object.dec_level()
             else:
                #  code_object << "\n"
@@ -435,9 +436,9 @@ class VHDLCodeGenerator(object):
              gen_list = []
              for op, cond in select_opcond_list:
                op = legalize_select_input(op)
-               op_code = self.generate_expr(code_object, op, folded = folded, language = language)
+               op_code = self.generate_expr(code_object, op, inlined = inlined, language = language)
                if not cond is None:
-                 cond_code = self.generate_expr(code_object, cond, folded = True, force_variable_storing = True, language = language)
+                 cond_code = self.generate_expr(code_object, cond, inlined = True, force_variable_storing = True, language = language)
                  gen_list.append((op_code, cond_code))
                else:
                  gen_list.append((op_code, None))
@@ -454,7 +455,7 @@ class VHDLCodeGenerator(object):
         elif isinstance(optree, TableLoad):
             table = optree.get_input(0)
             index = optree.get_input(1)
-            index_code = self.generate_expr(code_object, index, folded = folded, language = language)
+            index_code = self.generate_expr(code_object, index, inlined = inlined, language = language)
             prefix = optree.get_tag(default = "table_value")
             result_varname = result_var if result_var != None else code_object.get_free_var_name(optree.get_precision(), prefix = prefix)
             result = CodeVariable(result_varname, optree.get_precision())
@@ -473,14 +474,14 @@ class VHDLCodeGenerator(object):
             code_object << "\t{} when others;\n".format(table.get_precision().get_storage_precision().get_cst(default_value))
 
         elif isinstance(optree, NoResultOperation):
-            result_code = self.processor.generate_expr(self, code_object, optree, optree.inputs, folded = False, result_var = result_var, language = language)
+            result_code = self.processor.generate_expr(self, code_object, optree, optree.inputs, inlined = False, result_var = result_var, language = language)
             code_object << "%s;\n" % result_code.get()
             return None
 
         elif isinstance(optree, Statement):
             for op in optree.inputs:
                 if not self.has_memoization(op):
-                    self.generate_expr(code_object, op, folded = folded, initial = True, language = language)
+                    self.generate_expr(code_object, op, inlined = inlined, initial = True, language = language)
 
             return None
 
@@ -492,7 +493,7 @@ class VHDLCodeGenerator(object):
             result = self.processor.generate_expr(
                 self, code_object, optree,
                 optree.inputs, generate_pre_process=generate_pre_process,
-                folded=folded, result_var=result_var, language=language)
+                inlined=inlined, result_var=result_var, language=language)
 
         # registering result into memoization table
         self.add_memoization(optree, result)

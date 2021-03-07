@@ -239,7 +239,7 @@ class CodeEntity(object):
     self.reserve_io_names(code_object)
 
     code_object.open_level(inc = False)
-    code_generator.generate_expr(code_object, self.get_scheme(), folded = folded, initial = False, language = language)
+    code_generator.generate_expr(code_object, self.get_scheme(), inlined = folded, initial = False, language = language)
     code_object.close_level(inc = False)
     return code_object
 
@@ -251,7 +251,7 @@ class CodeEntity(object):
     self.reserve_io_names(code_object)
 
     code_object.open_level()
-    code_generator.generate_expr(code_object, self.get_scheme(), folded = folded, initial = False, language = language)
+    code_generator.generate_expr(code_object, self.get_scheme(), inlined = folded, initial = False, language = language)
     code_object.close_level()
     code_object << "end architecture;\n"
     #code_object.close_level(inc = False)

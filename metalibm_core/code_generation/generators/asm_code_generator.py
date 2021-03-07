@@ -125,12 +125,15 @@ class AsmCodeGenerator(CodeGenerator):
             self.bb_map[bb] = new_label
             return new_label
 
-    def generate_expr(self, code_object, node, folded=True, result_var=None,
+    def generate_expr(self, code_object, node, inlined=True, result_var=None,
                       initial=False, __exact=None, language=None,
                       strip_outer_parenthesis=False,
-                      force_variable_storing=False, next_block=None):
+                      force_variable_storing=False, next_block=None, **kw):
         """ code generation function,
-            Notes: force variable storing is not supported """
+            Notes: force variable storing is not supported
+
+            **kw hides unsupported extra args (e.g. lvalue flag)
+            """
         assert not force_variable_storing
 
         # search if <optree> has already been processed
@@ -156,7 +159,7 @@ class AsmCodeGenerator(CodeGenerator):
                 code_object << bb_label << ":"
                 code_object.open_level(header="")
             for op in node.inputs:
-                self.generate_expr(code_object, op, folded=folded,
+                self.generate_expr(code_object, op, inlined=inlined,
                     initial=True, language=language)
             return None
 
@@ -172,7 +175,7 @@ class AsmCodeGenerator(CodeGenerator):
 
         elif isinstance(node, BasicBlockList):
             for bb in node.inputs:
-                self.generate_expr(code_object, bb, folded=folded, language=language)
+                self.generate_expr(code_object, bb, inlined=inlined, language=language)
             return None
 
         elif isinstance(node, (Statement, ConditionBlock, Loop)):
@@ -188,21 +191,21 @@ class AsmCodeGenerator(CodeGenerator):
             result_value = node.get_input(1)
 
             #result_value_code = self.generate_expr(
-            #    code_object, result_value, folded=folded, result_var=output_reg,
+            #    code_object, result_value, inlined=inlined, result_var=output_reg,
             #    language=language)
             if is_leaf_node(result_value):
                 value_inputs = None
             else:
                 value_inputs = result_value.inputs
             result_value_code = self.processor.generate_expr(self, code_object, result_value,
-                                                  value_inputs, folded=folded,
+                                                  value_inputs, inlined=inlined,
                                                   result_var=output_reg,
                                                   language=self.language)
 
             return None
         elif isinstance(node, (Return, TableStore)):
             result = self.processor.generate_expr(self, code_object, node,
-                                                  node.inputs, folded=folded,
+                                                  node.inputs, inlined=inlined,
                                                   result_var=None,
                                                   language=self.language)
 
