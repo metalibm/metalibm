@@ -58,7 +58,8 @@ from metalibm_core.code_generation.code_generator import RegisterCodeGenerator, 
 #  generate_expr's argument
 #       code_object: destination code_object to receive resulting source code
 #       optree/node: operation graph node to generate
-#       folded:
+#       inlined: if True <optree/node> expression must be generated as inlined CodeExpression
+#                not stored in a CodeVariable
 #       force_variable_storing: force the expression result to be assigned to a
 #                               CodeVariable, the CodeVariable is returned as
 #                               generated_expr results
@@ -134,20 +135,23 @@ class CCodeGenerator(CodeGenerator):
     # force_variable_storing is not supported yet
     def generate_expr(self, code_object,
                             optree,
-                            folded=True,
                             result_var=None,
                             language=None,
-                            force_variable_storing=False):
+                            force_variable_storing=False,
+                            lvalue=False,
+                            inlined=None):
         """ code generation function
             Args:
                 :param optree: Operation node to generate code for
                 :type optree: ML_Operation
-                :param folded: TBD
-                :type folded: bool
                 :param result_var: destination variable (if specified)
                 :type result_var: CodeVariable
                 :param language: source code language
                 :param force_variable_storing: TBD
+                :param lvalue: indicate expression is a lvalue
+                :type lvalue: bool
+                :param inlined: indicate that the result must be an inlined CodeExpression
+                :type inlined: bool
         """
         language = self.language if language is None else language
 
@@ -181,11 +185,11 @@ class CCodeGenerator(CodeGenerator):
             # generating pre_statement
             self.generate_expr(
                 code_object, optree.get_pre_statement(),
-                folded = folded, language = language
+                language=language,
             )
 
             switch_value_code = self.generate_expr(
-                code_object, switch_value, folded = folded, language = language
+                code_object, switch_value, language=language
             )
             case_map = optree.get_case_map()
 
@@ -201,7 +205,7 @@ class CCodeGenerator(CodeGenerator):
               code_object.open_level()
               self.generate_expr(
                 code_object, case_statement,
-                folded = folded, language = language
+                language=language
               )
               code_object.close_level()
             code_object << "}\n"
@@ -213,20 +217,20 @@ class CCodeGenerator(CodeGenerator):
             result_value = optree.inputs[1]
 
             output_var_code   = self.generate_expr(
-                code_object, output_var, folded = False, language = language
+                code_object, output_var, lvalue=True, language=language
             )
 
             if isinstance(result_value, Constant):
               # generate assignation
               result_value_code = self.generate_expr(
-                code_object, result_value, folded = folded, language = language
+                code_object, result_value, inlined=True, language = language
               )
               code_object << self.generate_assignation(
                 output_var_code.get(), result_value_code.get()
               )
             else:
               result_value_code = self.generate_expr(
-                code_object, result_value, folded = folded, language = language
+                code_object, result_value, language=language
               )
               code_object << self.generate_assignation(output_var_code.get(), result_value_code.get())
               if optree.get_debug() and not self.disable_debug:
@@ -242,10 +246,10 @@ class CCodeGenerator(CodeGenerator):
             exit_condition = optree.inputs[1]
             loop_body      = optree.inputs[2]
 
-            self.generate_expr(code_object, init_statement, folded = folded, language = language)
-            code_object << "\nfor (;%s;)" % self.generate_expr(code_object, exit_condition, folded = False, language = language).get()
+            self.generate_expr(code_object, init_statement, language = language)
+            code_object << "\nfor (;%s;)" % self.generate_expr(code_object, exit_condition, inlined=True, language=language).get()
             code_object.open_level()
-            self.generate_expr(code_object, loop_body, folded = folded, language = language)
+            self.generate_expr(code_object, loop_body, language=language)
             code_object.close_level()
 
             return None
@@ -256,9 +260,9 @@ class CCodeGenerator(CodeGenerator):
             else_branch = optree.inputs[2] if len(optree.inputs) > 2 else None
 
             # generating pre_statement
-            self.generate_expr(code_object, optree.get_pre_statement(), folded = folded, language = language)
+            self.generate_expr(code_object, optree.get_pre_statement(), language=language)
 
-            cond_code = self.generate_expr(code_object, condition, folded = folded, language = language)
+            cond_code = self.generate_expr(code_object, condition, language=language)
             if isinstance(condition, BooleanOperation):
               cond_likely = condition.get_likely()
             else:
@@ -277,14 +281,14 @@ class CCodeGenerator(CodeGenerator):
             self.open_memoization_level()
             code_object.open_level()
             #if_branch_code = self.processor.generate_expr(self, code_object, if_branch, if_branch.inputs, folded)
-            if_branch_code = self.generate_expr(code_object, if_branch, folded = folded, language = language)
+            if_branch_code = self.generate_expr(code_object, if_branch, language=language)
             code_object.close_level(cr = "")
             self.close_memoization_level()
             if else_branch:
                 code_object << " else "
                 code_object.open_level()
                 self.open_memoization_level()
-                else_branch_code = self.generate_expr(code_object, else_branch, folded = folded, language = language)
+                else_branch_code = self.generate_expr(code_object, else_branch, language=language)
                 code_object.close_level()
                 self.close_memoization_level()
             else:
@@ -299,20 +303,20 @@ class CCodeGenerator(CodeGenerator):
 
             else:
                 return_result = optree.inputs[0]
-                return_code = self.generate_expr(code_object, return_result, folded = folded, language = language)
+                return_code = self.generate_expr(code_object, return_result, language=language)
                 code_object << "return %s;\n" % return_code.get()
                 return None #return_code
 
         elif isinstance(optree, ExceptionOperation):
             if optree.get_specifier() in [ExceptionOperation.RaiseException, ExceptionOperation.ClearException, ExceptionOperation.RaiseReturn]:
-                result_code = self.processor.generate_expr(self, code_object, optree, optree.inputs, folded = False, result_var = result_var, language = language)
+                result_code = self.processor.generate_expr(self, code_object, optree, optree.inputs, result_var=result_var, language=language)
                 code_object << "%s;\n" % result_code.get()
                 if optree.get_specifier() == ExceptionOperation.RaiseReturn:
                     if self.libm_compliant:
                         # libm compliant exception management
                         code_object.add_header("support_lib/ml_libm_compatibility.h")
-                        return_value = self.generate_expr(code_object, optree.get_return_value(), folded = folded, language = language)
-                        arg_value = self.generate_expr(code_object, optree.get_arg_value(), folded = folded, language = language)
+                        return_value = self.generate_expr(code_object, optree.get_return_value(), language=language)
+                        arg_value = self.generate_expr(code_object, optree.get_arg_value(), language=language)
                         function_name = optree.function_name
                         exception_list = [op.get_value() for op in optree.inputs]
                         if ML_FPE_Inexact in exception_list:
@@ -328,13 +332,13 @@ class CCodeGenerator(CodeGenerator):
                             code_object << "return %s;\n" % return_value.get() 
                     else:
                         return_precision = optree.get_return_value().get_precision()
-                        self.generate_expr(code_object, Return(optree.get_return_value(), precision = return_precision), folded = folded, language = language)
+                        self.generate_expr(code_object, Return(optree.get_return_value(), precision=return_precision), language=language)
                 return None
             else:
-                result = self.processor.generate_expr(self, code_object, optree, optree.inputs, folded = folded, result_var = result_var, language = language)
+                result = self.processor.generate_expr(self, code_object, optree, optree.inputs, result_var=result_var, language=language)
 
         elif isinstance(optree, NoResultOperation):
-            result_code = self.processor.generate_expr(self, code_object, optree, optree.inputs, folded = False, result_var = result_var, language = language)
+            result_code = self.processor.generate_expr(self, code_object, optree, optree.inputs, result_var=result_var, language = language)
             code_object << "%s;\n" % result_code.get()
             return None
 
@@ -342,25 +346,25 @@ class CCodeGenerator(CodeGenerator):
             head = optree.get_input(0)
             for tail_node in optree.inputs[1:]:
                 if not self.has_memoization(tail_node):
-                    self.generate_expr(code_object, tail_node, folded=folded, language=language)
+                    self.generate_expr(code_object, tail_node, language=language)
 
             # generate PlaceHolder's main_value
-            head_code = self.generate_expr(code_object, head, folded=folded, language=language)
+            head_code = self.generate_expr(code_object, head, language=language)
             return head_code
 
         elif isinstance(optree, Statement):
             for op in optree.inputs:
                 if not self.has_memoization(op):
-                    self.generate_expr(code_object, op, folded = folded, language = language)
+                    self.generate_expr(code_object, op, language = language)
 
             return None
         elif isinstance(optree, Constant):
             generate_pre_process = self.generate_clear_exception if optree.get_clearprevious() else None
-            result = self.processor.generate_expr(self, code_object, optree, [], generate_pre_process = generate_pre_process, folded = folded, result_var = result_var, language = language)
+            result = self.processor.generate_expr(self, code_object, optree, [], generate_pre_process = generate_pre_process, result_var=result_var, language=language)
 
         else:
             generate_pre_process = self.generate_clear_exception if optree.get_clearprevious() else None
-            result = self.processor.generate_expr(self, code_object, optree, optree.inputs, generate_pre_process = generate_pre_process, folded = folded, result_var = result_var, language = language)
+            result = self.processor.generate_expr(self, code_object, optree, optree.inputs, generate_pre_process = generate_pre_process, result_var=result_var, language=language, inlined=inlined, lvalue=lvalue)
 
         # registering result into memoization table
         self.add_memoization(optree, result)

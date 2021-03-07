@@ -295,10 +295,10 @@ class AbstractBackend(GenericBackend):
             code_generation_table """
         return self.code_generation_table
 
-    def generate_expr(self, code_generator, code_object, optree, arg_tuple, language, **kwords):
+    def generate_expr(self, code_generator, code_object, optree, arg_tuple, language, inlined=False, lvalue=False, result_var=None, generate_pre_process=None):
         """ processor generate expression """
         implementation = self.get_recursive_implementation(optree, language)
-        return implementation.generate_expr(code_generator, code_object, optree, arg_tuple, **kwords)
+        return implementation.generate_expr(code_generator, code_object, optree, arg_tuple, inlined=inlined, lvalue=lvalue, result_var=result_var)
 
 
 def test_is_processor(proc_class):
