@@ -128,7 +128,11 @@ class ML_CG_Operator(object):
             context_dependant = None, speed_measure = 0,
             force_input_variable = None,
             ## process argument list before assembling code
-            process_arg_list = default_process_arg_list
+            process_arg_list = default_process_arg_list,
+            # trigger debug on generate_expr
+            dbg_generate_expr=False,
+            # trigger debug on assemble_code
+            dbg_assemble_code=False
         ):
         # number of inputs expected for the operator
         self.arity = arity
@@ -158,6 +162,9 @@ class ML_CG_Operator(object):
         # 
         self.context_dependant = context_dependant
         self.speed_measure = speed_measure
+
+        self.dbg_generate_expr = dbg_generate_expr
+        self.dbg_assemble_code = dbg_assemble_code
 
         ## source file information about opertor instantitation
         self.sourceinfo = SourceInfo.retrieve_source_info(1)
@@ -416,6 +423,8 @@ class SymbolOperator(ML_CG_Operator):
             inlined=False, lvalue=False, result_var=None
         ):
         """ generate expression function """
+        if self.dbg_generate_expr:
+            import pdb; pdb.set_trace()
         # registering headers
         self.register_deps(code_object)
         force_input_variable = listify_force_input_variable(self.force_input_variable, self.arity)
@@ -438,6 +447,8 @@ class SymbolOperator(ML_CG_Operator):
             generate_pre_process = None, force_variable_storing = False,
             inlined=False, lvalue=False, result_var=None, result_in_args=False
         ):
+        if self.dbg_assemble_code:
+            import pdb; pdb.set_trace()
         """ base code assembly function """
         # registering headers
         self.register_deps(code_object)
@@ -665,6 +676,8 @@ class FunctionOperator(ML_CG_Operator):
             inlined=False, lvalue=False, result_var=None
         ):
         """ generate expression function """
+        if self.dbg_generate_expr:
+            import pdb; pdb.set_trace()
         # registering headers
         self.register_deps(code_object)
         self.register_prototype(optree, code_object)
@@ -721,6 +734,8 @@ class FunctionOperator(ML_CG_Operator):
             inlined=False, lvalue=False, result_var=None
         ):
         """ base code assembly function """
+        if self.dbg_assemble_code:
+            import pdb; pdb.set_trace()
         # registering headers
         self.register_deps(code_object)
 
