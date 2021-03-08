@@ -779,14 +779,14 @@ c_code_generation_table = {
     ExceptionOperation: {
         ExceptionOperation.ClearException: {
             lambda optree: True: {
-                type_strict_match(ML_Void): Fenv_Function("feclearexcept", arg_map = {0: "FE_ALL_EXCEPT"}, arity = 0),
+                type_strict_match(ML_Void): Fenv_Function("feclearexcept", arg_map = {0: "FE_ALL_EXCEPT"}, arity=0, void_function=True),
             },
         },
         ExceptionOperation.RaiseException: {
             lambda optree: True: {
-                type_strict_match(ML_Void): Fenv_Function("feraiseexcept", arity = 1)(SymbolOperator("|", output_precision = ML_UInt32, custom_generate_expr = gen_raise_custom_gen_expr)),
-                type_strict_match(ML_Void,ML_FPE_Type): Fenv_Function("feraiseexcept", arity = 1, custom_generate_expr = gen_raise_custom_gen_expr),
-                type_strict_match(ML_Void,ML_FPE_Type, ML_FPE_Type): Fenv_Function("feraiseexcept", arity = 1)(SymbolOperator("|", output_precision = ML_UInt32, custom_generate_expr = gen_raise_custom_gen_expr)),
+                type_strict_match(ML_Void): Fenv_Function("feraiseexcept", arity=1, void_function=True)(SymbolOperator("|", output_precision = ML_UInt32, custom_generate_expr = gen_raise_custom_gen_expr)),
+                type_strict_match(ML_Void,ML_FPE_Type): Fenv_Function("feraiseexcept", arity = 1, custom_generate_expr = gen_raise_custom_gen_expr, void_function = True),
+                type_strict_match(ML_Void,ML_FPE_Type, ML_FPE_Type): Fenv_Function("feraiseexcept", arity=1, void_function=True)(SymbolOperator("|", output_precision = ML_UInt32, custom_generate_expr = gen_raise_custom_gen_expr)),
             },
         },
         ExceptionOperation.RaiseReturn: {

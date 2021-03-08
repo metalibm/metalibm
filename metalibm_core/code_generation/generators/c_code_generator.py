@@ -310,7 +310,9 @@ class CCodeGenerator(CodeGenerator):
         elif isinstance(optree, ExceptionOperation):
             if optree.get_specifier() in [ExceptionOperation.RaiseException, ExceptionOperation.ClearException, ExceptionOperation.RaiseReturn]:
                 result_code = self.processor.generate_expr(self, code_object, optree, optree.inputs, result_var=result_var, language=language)
-                code_object << "%s;\n" % result_code.get()
+                # TODO/FIXME: need cleanup
+                if result_code != None:
+                    code_object << "%s;\n" % result_code.get()
                 if optree.get_specifier() == ExceptionOperation.RaiseReturn:
                     if self.libm_compliant:
                         # libm compliant exception management
