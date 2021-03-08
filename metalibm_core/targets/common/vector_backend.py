@@ -897,11 +897,15 @@ vector_c_code_generation_table = {
                 TemplateOperatorFormat("memcpy(((ml_float2_t*)({1}+ {2})), &({0}),  8)", arg_map = {0: FO_Arg(0), 1: FO_Arg(1), 2: FO_Arg(2)}, arity=3, void_function=True, require_header=["string.h"]),
             type_custom_match(FSM(ML_Void), FSM(v4float32), TCM(ML_TableFormat), type_table_index_match):
                 TemplateOperatorFormat("memcpy(((ml_float4_t*)({1}+ {2})), &({0}), 16)", arg_map = {0: FO_Arg(0), 1: FO_Arg(1), 2: FO_Arg(2)}, arity=3,void_function=True,  require_header=["string.h"]),
+            type_custom_match(FSM(ML_Void), FSM(v8float32), TCM(ML_TableFormat), type_table_index_match):
+                TemplateOperatorFormat("memcpy(((ml_float8_t*)({1}+ {2})), &({0}), 32)", arg_map = {0: FO_Arg(0), 1: FO_Arg(1), 2: FO_Arg(2)}, arity=3,void_function=True,  require_header=["string.h"]),
 
             type_custom_match(FSM(ML_Void), FSM(v2float32), TCM(ML_Pointer_Format), type_table_index_match):
                 TemplateOperatorFormat("memcpy(((ml_float2_t*)({1}+ {2})), &({0}),  8)", arg_map = {0: FO_Arg(0), 1: FO_Arg(1), 2: FO_Arg(2)}, arity=3, void_function=True, require_header=["string.h"]),
             type_custom_match(FSM(ML_Void), FSM(v4float32), TCM(ML_Pointer_Format), type_table_index_match):
                 TemplateOperatorFormat("memcpy(((ml_float4_t*)({1}+ {2})), &({0}), 16)", arg_map = {0: FO_Arg(0), 1: FO_Arg(1), 2: FO_Arg(2)}, arity=3, void_function=True, require_header=["string.h"]),
+            type_custom_match(FSM(ML_Void), FSM(v8float32), TCM(ML_Pointer_Format), type_table_index_match):
+                TemplateOperatorFormat("memcpy(((ml_float8_t*)({1}+ {2})), &({0}), 32)", arg_map = {0: FO_Arg(0), 1: FO_Arg(1), 2: FO_Arg(2)}, arity=3, void_function=True, require_header=["string.h"]),
 
             type_custom_match(FSM(ML_Void), FSM(v2float64), TCM(ML_TableFormat), type_table_index_match):
                 TemplateOperatorFormat("memcpy(((ml_double2_t*)({1}+ {2})), &({0}),  16)", arg_map = {0: FO_Arg(0), 1: FO_Arg(1), 2: FO_Arg(2)}, arity=3, void_function=True, require_header=["string.h"]),
