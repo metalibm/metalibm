@@ -238,7 +238,7 @@ class VHDLCodeGenerator(object):
             output_var = optree.inputs[0]
             result_value = optree.inputs[1]
 
-            output_var_code   = self.generate_expr(code_object, output_var, inlined = False, language = language)
+            output_var_code   = self.generate_expr(code_object, output_var, lvalue=True, inlined=True, language = language)
 
             def get_assign_symbol(node):
                 if isinstance(node, Signal):
@@ -259,7 +259,7 @@ class VHDLCodeGenerator(object):
 
             if isinstance(result_value, Constant):
               # generate assignation
-              result_value_code = self.generate_expr(code_object, result_value, inlined = inlined, language = language)
+              result_value_code = self.generate_expr(code_object, result_value, inlined=inlined, language = language)
               code_object << self.generate_assignation(
                 output_var_code.get(), result_value_code.get(),
                 assign_sign = assign_sign
@@ -349,7 +349,7 @@ class VHDLCodeGenerator(object):
             first_input = optree.get_input(0)
             first_input_code = self.generate_expr(code_object, first_input, inlined = inlined, language = language)
             for op in optree.get_inputs()[1:]:
-              _ = self.generate_expr(code_object, op, inlined = inlined, language = language)
+              _ = self.generate_expr(code_object, op, inlined=inlined, language = language)
 
             result = first_input_code
 
