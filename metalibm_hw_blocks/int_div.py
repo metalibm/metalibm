@@ -83,7 +83,7 @@ class MetaIntDiv(ML_EntityBasis):
 
         self.precision = arg_template.precision
         self.div_by_zero_result = arg_template.div_by_zero_result
-        self.method = args.method
+        self.method = arg_template.method
 
     ## Generate default arguments structure (before any user / test overload)
     @staticmethod
