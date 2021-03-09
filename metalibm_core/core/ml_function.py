@@ -1388,7 +1388,7 @@ class ML_FunctionBasis(object):
     #   for k in range(self.get_vector_size()):
     #     for ref_assign in vector_elt_assign(local_input, k, TableLoad(input_tables[input_index], vi + k, precision=input_tables[input_index].get_storage_precision())):
     #         assignation_statement.push(ref_assign)
-    local_inputs = [TableLoad(input_tables[input_index], vi, precision=vector_format) for input_index in range(self.arity)]
+    local_inputs = [TableLoad(input_tables[input_index], vi, precision=self.implementation.arg_list[input_index].get_precision()) for input_index in range(self.arity)]
 
     # computing results
     local_result = tested_function(*local_inputs)
@@ -1828,7 +1828,7 @@ class ML_FunctionBasis(object):
     #   for k in range(self.get_vector_size()):
     #     elt_assign = ReferenceAssign(VectorElementSelection(local_input, k), TableLoad(input_tables[input_index], vi + k))
     #     assignation_statement.push(elt_assign)
-    local_inputs = [TableLoad(input_tables[input_index], vi, precision=vector_format) for input_index in range(self.arity)]
+    local_inputs = [TableLoad(input_tables[input_index], vi, precision=self.implementation.arg_list[input_index].get_precision()) for input_index in range(self.arity)]
 
     # computing results
     local_result = tested_function(*local_inputs)

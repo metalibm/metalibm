@@ -186,9 +186,11 @@ class OptimizationEngine(object):
         """ instantiate final precisions and insert required conversions
             if the operation is not supported """
         memoization_map = memoization_map or {}
-        return p_function_typing.instantiate_precision(
-            optree, default_precision, memoization_map, backend=self
-        )
+        typing_pass = p_function_typing.PassInstantiatePrecision(None, default_precision=default_precision)
+        return typing_pass.execute_on_optree(optree, memoization_map=memoization_map)
+        #return p_function_typing.instantiate_precision(
+        #    optree, default_precision, memoization_map, backend=self
+        #)
 
 
     def cb_parent_tagging(self, optree, parent_block = None):
