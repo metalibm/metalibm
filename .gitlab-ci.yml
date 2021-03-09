@@ -4,6 +4,7 @@ before_script:
   - python3 --version
   - pip3 install git+https://github.com/nibrunie/asmde
   - pip3 install pyyaml
+  - pip3 install pylint
   # papi is now installed within CI docker image
   # - apt install -y libpapi-dev
 
