@@ -398,6 +398,7 @@ class MetaRootN(ScalarBinaryFunction):
             # ERROR: rootn: 1125899906842624.000000 ulp error at {-0x1.fffffffffffffp+1023, -1}: *-0x0.4000000000000p-1022 vs. -0x0.0000000000000p+0
             (sollya.parse("-0x1.fffffffffffffp+1023"), -1, sollya.parse("-0x0.4000000000000p-1022")),
             (sollya.parse("0x1.fffffffffffffp+1023"), -1, sollya.parse("0x0.4000000000000p-1022")),
+            (sollya.parse("0x1.8d8f7b2e21fdbp+70"), 5.227689e+06, None),
         ]
 
         return (fp_64_only if self.precision.get_bit_size() >= 64 else []) \
