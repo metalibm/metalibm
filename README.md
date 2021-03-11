@@ -1,6 +1,6 @@
 # Metalibm
 
-Metalibm is available under MIT Licence (see LICENSE file) from https://github.com/kalray/metalibm/
+Metalibm is available under MIT Licence (see LICENSE file) from https://github.com/metalibm/metalibm/
 
 ## INTEGRATION STATUS
 master branch: [![pipeline status](https://gitlab.com/nibrunie/metalibm_github/badges/master/pipeline.svg)](https://gitlab.com/nibrunie/metalibm_github/commits/master)
@@ -25,7 +25,7 @@ Documentation (for master branch) is available on gitlab's pages: https://nibrun
 
 Quick install from git sources
 ```
-pip install git+https://github.com/kalray/metalibm
+pip install git+https://github.com/metalibm/metalibm
 ```
 
 ## USAGE
@@ -37,7 +37,7 @@ Example of metafunctions can be found under the **metalibm_functions/** director
 * Explore the other functions of this directory, e.g. :
 ``` python3 metalibm_functions/ml_log.py --help  ```
 
-A more comprehensive user documentation can be found in [doc/USERGUIDE.md](https://github.com/kalray/metalibm/blob/master/doc/USERGUIDE.md)
+A more comprehensive user documentation can be found in [doc/USERGUIDE.md](https://github.com/metalibm/metalibm/blob/master/doc/USERGUIDE.md)
 
 
 ## TEST
@@ -56,11 +56,11 @@ A more comprehensive user documentation can be found in [doc/USERGUIDE.md](https
 
 ## DOCUMENTATION
 
-* Metalibm Description Language documentation:  [doc/MDL.md](https://github.com/kalray/metalibm/blob/master/doc/MDL.md)
-* User interface documentation: [doc/USERGUIDE.md](https://github.com/kalray/metalibm/blob/master/doc/USERGUIDE.md)
-* Custom Meta-function documentation: [doc/METAFUNCTION.md](https://github.com/kalray/metalibm/blob/master/doc/METAFUNCTION.md)
-* Metalibm engine optimization pass documentation: [doc/PASSES.md](https://github.com/kalray/metalibm/blob/master/doc/PASSES.md)
-* Metalibm unit testing framework: [doc/UNITTESTS.md](https://github.com/kalray/metalibm/blob/master/doc/UNITTESTS.md)
+* Metalibm Description Language documentation:  [doc/MDL.md](https://github.com/metalibm/metalibm/blob/master/doc/MDL.md)
+* User interface documentation: [doc/USERGUIDE.md](https://github.com/metalibm/metalibm/blob/master/doc/USERGUIDE.md)
+* Custom Meta-function documentation: [doc/METAFUNCTION.md](https://github.com/metalibm/metalibm/blob/master/doc/METAFUNCTION.md)
+* Metalibm engine optimization pass documentation: [doc/PASSES.md](https://github.com/metalibm/metalibm/blob/master/doc/PASSES.md)
+* Metalibm unit testing framework: [doc/UNITTESTS.md](https://github.com/metalibm/metalibm/blob/master/doc/UNITTESTS.md)
 
 ## Version History
 
@@ -71,7 +71,7 @@ A more comprehensive user documentation can be found in [doc/USERGUIDE.md](https
 
 ## AUTHOR(S)
 
-    Nicolas Brunie (nbrunie (AT) kalray.eu), Hugues de Lassus Saint-Geniès,
+    Nicolas Brunie, Hugues de Lassus Saint-Geniès,
     Marc Mezzarobba, Guillaume Gonnachon, Florent de Dinechin, Julien Le Maire,
     Julien Villette, Guillaume Revy
 
