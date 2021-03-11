@@ -1528,8 +1528,8 @@ class ML_FunctionBasis(object):
       local_inputs = [
         Variable(
           "vec_x_{}".format(i) ,
-          precision = vector_format,
-          var_type = Variable.Local
+          precision=self.implementation.get_input_format(i),
+          var_type=Variable.Local
         ) for i in range(self.arity)
       ]
 
