@@ -105,6 +105,10 @@ class CodeFunction(object):
       function_arg_map[i] = FO_Arg(i)
     return FunctionOperator(self.name, arg_map = function_arg_map, void_function=(self.output_format is ML_Void))
 
+  def get_input_format(self, index):
+    """ return the format of the index-th argument """
+    return self.arg_list[index].get_precision()
+
   ## retrieve format of the result(s) returned by the function
   #  @return ML_Format object
   def get_output_format(self):
