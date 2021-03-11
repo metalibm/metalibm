@@ -1091,6 +1091,7 @@ class Multiplication(ML_ArithmeticOperation):
 
 class Division(ML_ArithmeticOperation):
     """ abstract addition """
+    name = "Division"
     arity = 2
     def bare_range_function(self, ops):
         return safe(operator.__truediv__)(ops[0], ops[1])
