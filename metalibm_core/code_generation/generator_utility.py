@@ -302,7 +302,7 @@ class CompoundOperator(ML_CG_Operator):
                             arg_function.assemble_code(
                                 code_generator, code_object, dummy_optree,
                                 pre_arg_value, force_variable_storing = force_input_variable,
-                                inlined=inlined
+                                inlined=inlined, lvalue=lvalue
                             )
                         )
         # assembling parent operator code
@@ -369,7 +369,7 @@ class IdentityOperator(ML_CG_Operator):
         result_code = "".join([var_arg.get() for var_arg in var_arg_list])
 
         # generating assignation if required
-        if force_variable_storing or self.force_folding or (not inlined and self.force_folding != False) or generate_pre_process != None: 
+        if not lvalue and (force_variable_storing or self.force_folding or (not inlined and self.force_folding != False) or generate_pre_process != None): 
             prefix = optree.get_tag(default = "id_tmp")
             result_varname = result_var if result_var != None else code_object.get_free_var_name(optree.get_precision(), prefix = prefix)
             if generate_pre_process != None:
@@ -464,7 +464,7 @@ class SymbolOperator(ML_CG_Operator):
             result_code = self.symbol.join([var_arg.get() for var_arg in var_arg_list])
 
         # generating assignation if required
-        if self.force_folding != False and (force_variable_storing or self.force_folding or (not(inlined)) or generate_pre_process != None): 
+        if not lvalue and (self.force_folding != False and (force_variable_storing or self.force_folding or (not(inlined)) or generate_pre_process != None)): 
             prefix = optree.get_tag(default = "tmp")
             result_varname = result_var if result_var != None else code_object.get_free_var_name(optree.get_precision(), prefix = prefix)
             if generate_pre_process != None:
@@ -795,7 +795,7 @@ class FunctionOperator(ML_CG_Operator):
 
         else:
           # generating assignation if required
-          if force_variable_storing or self.force_folding or (not(inlined) and self.force_folding != False) or generate_pre_process != None:
+          if not lvalue and (force_variable_storing or self.force_folding or (not(inlined) and self.force_folding != False) or generate_pre_process != None):
               prefix = optree.get_tag(default=self.default_prefix)
               result_varname = result_var if result_var != None else code_object.get_free_var_name(optree.get_precision(), prefix = prefix)
               if generate_pre_process != None:
@@ -947,7 +947,7 @@ class RoundOperator(FunctionOperator):
             result_code = "".join([var_arg.get() for var_arg in var_arg_list])
 
             # generating assignation if required
-            if force_variable_storing or self.force_folding or (not(inlined) and self.force_folding != False) or generate_pre_process != None: 
+            if not lvalue and (force_variable_storing or self.force_folding or (not(inlined) and self.force_folding != False) or generate_pre_process != None): 
                 prefix = optree.get_tag(default = "tmp")
                 result_varname = result_var if result_var != None else code_object.get_free_var_name(optree.get_precision(), prefix = prefix)
                 if generate_pre_process != None:
