@@ -211,6 +211,10 @@ debug_multi = ML_MultiDebug({
         v8bool: debug_int8,
         ML_Bool:  debugd,
 
+        v2lbool: debug_long2,
+        v4lbool: debug_long4,
+        v8lbool: debug_long8,
+
         ML_DoubleDouble: debug_dd,
         ML_SingleSingle: debug_ds,
 
