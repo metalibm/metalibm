@@ -881,6 +881,13 @@ vector_c_code_generation_table = {
         type_custom_match(FSM(v8float32), TCM(ML_TableFormat), type_table_index_match):
             TemplateOperatorFormat("memcpy({0}, ((ml_float8_t*)({1}+ {2})), 32)", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity=3, require_header=["string.h"]),
 
+        type_custom_match(FSM(v2int64), TCM(ML_TableFormat), type_table_index_match):
+            TemplateOperatorFormat("memcpy({0}, ((ml_long2_t*)({1}+ {2})), 16)", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity=3, require_header=["string.h"]),
+        type_custom_match(FSM(v4int64), TCM(ML_TableFormat), type_table_index_match):
+            TemplateOperatorFormat("memcpy({0}, ((ml_long4_t*)({1}+ {2})), 32)", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity=3, require_header=["string.h"]),
+        type_custom_match(FSM(v8int64), TCM(ML_TableFormat), type_table_index_match):
+            TemplateOperatorFormat("memcpy({0}, ((ml_long8_t*)({1}+ {2})), 64)", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity=3, require_header=["string.h"]),
+
         type_custom_match(FSM(v2float64), TCM(ML_TableFormat), type_table_index_match):
             TemplateOperatorFormat("memcpy({0}, ((ml_double2_t*)({1}+ {2})), 16)", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity=3, require_header=["string.h"]),
         type_custom_match(FSM(v4float64), TCM(ML_TableFormat), type_table_index_match):
@@ -1632,6 +1639,11 @@ vector_c_code_generation_table = {
         type_strict_match(v3bool, v3float32): ML_VectorLib_Function("ml_vtestf3_is_nan", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)}, arity = 1, output_precision = v3int32),
         type_strict_match(v4bool, v4float32): ML_VectorLib_Function("ml_vtestf4_is_nan", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)}, arity = 1, output_precision = v4int32),
         type_strict_match(v8bool, v8float32): ML_VectorLib_Function("ml_vtestf8_is_nan", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)}, arity = 1, output_precision = v8int32),
+
+        type_strict_match(v4lbool, v4float64):
+            ML_VectorLib_Function("ml_vtestd4_is_nan", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)}, arity = 1, output_precision=v4lbool),
+        type_strict_match(v8lbool, v8float64):
+            ML_VectorLib_Function("ml_vtestd8_is_nan", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0)}, arity = 1, output_precision=v8lbool),
       },
     },
     Test.IsZero: {
