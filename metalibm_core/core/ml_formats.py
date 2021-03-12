@@ -47,6 +47,7 @@ from metalibm_core.core.special_values import (
     FP_PlusZero, FP_MinusZero, NumericValue
 )
 
+import metalibm_core.core.display_utils as display_utils
 from metalibm_core.core.display_utils import (
     DisplayFormat,
     fixed_point_beautify, multi_word_fixed_point_beautify,
@@ -1491,7 +1492,7 @@ v8dualfloat32 = vector_format_builder("ml_dualfloat8_t", "unsupported", 8, ML_Si
 
 v2dualfloat64 = vector_format_builder("ml_dualdouble2_t", "unsupported", 2, ML_DoubleDouble, compound_constructor=ML_MultiPrecision_VectorFormat)
 v3dualfloat64 = vector_format_builder("ml_dualdouble3_t", "unsupported", 3, ML_DoubleDouble, compound_constructor=ML_MultiPrecision_VectorFormat)
-v4dualfloat64 = vector_format_builder("ml_dualdouble4_t", "unsupported", 4, ML_DoubleDouble, compound_constructor=ML_MultiPrecision_VectorFormat)
+v4dualfloat64 = vector_format_builder("ml_dualdouble4_t", "unsupported", 4, ML_DoubleDouble, compound_constructor=ML_MultiPrecision_VectorFormat, display_format=display_utils.DISPLAY_DD_v4)
 v8dualfloat64 = vector_format_builder("ml_dualdouble8_t", "unsupported", 8, ML_DoubleDouble, compound_constructor=ML_MultiPrecision_VectorFormat)
 
 v2trifloat32 = vector_format_builder("ml_trifloat2_t", "unsupported", 2, ML_TripleSingle, compound_constructor=ML_MultiPrecision_VectorFormat)
