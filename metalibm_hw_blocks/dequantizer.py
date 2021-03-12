@@ -131,7 +131,7 @@ class Dequantizer(ML_Entity("dequantizer")):
         scale = self.implementation.add_input_variable("scale", scale_format)
         quantized_input = self.implementation.add_input_variable("quantized_input", quantized_input_format)
         offset_input = self.implementation.add_input_variable("offset", offset_input_format)
-        rounding_mode = self.implementation.add_input_variable("round_mode", ML_StdLogicVectorFormat(3))
+        rounding_mode = self.implementation.add_input_variable("rounding_mode", ML_StdLogicVectorFormat(3))
 
         support_format = self.precision.get_support_format()
         base_format = self.precision.get_base_format()
