@@ -100,6 +100,8 @@ DISPLAY_DS      = DisplayFormat(format_string="{{.hi=%a, .lo=%a}}", pre_process_
 DISPLAY_TD      = DisplayFormat(format_string="{{.hi=%a, .me=%a, .lo=%a}}", pre_process_fct= lambda v: "%s.hi, %s.me, %s.lo" % (v, v, v))
 DISPLAY_TS      = DisplayFormat(format_string="{{.hi=%a, .me=%a, .lo=%a}}", pre_process_fct= lambda v : "%s.hi, %s.me, %s.lo" % (v, v, v))
 
+DISPLAY_DD_v4      = DisplayFormat(format_string="{{.hi=[%a, %a, %a, %a], .lo=[%a, %a, %a, %a]}}", pre_process_fct= lambda v: ", ".join(["%s.hi[%d]" % (v, i) for i in range(4)] + ["%s.lo[%d]" % (v, i) for i in range(4)]))
+
 DISPLAY_float2  = DisplayFormat(format_string="[%a, %a]", pre_process_fct = lambda v: "%s[0], %s[1]" % (v, v))
 DISPLAY_float4  = DisplayFormat(format_string="[%a, %a, %a, %a]", pre_process_fct = lambda v: "%s[0], %s[1], %s[2], %s[3]" % (v, v, v, v))
 DISPLAY_float8  = DisplayFormat(format_string="[%a, %a, %a, %a, %a, %a, %a, %a]", pre_process_fct = lambda v: "%s[0], %s[1], %s[2], %s[3], %s[4], %s[5], %s[6], %s[7]" % (v, v, v, v, v, v, v, v))
