@@ -367,6 +367,20 @@ def generate_opencl_vector_wrapper(main_precision, vector_size, vec_arg_list,
     )
     return function_scheme
 
+def generate_chain_dep_op(result_format):
+    """ generate a chain-dependency operator class
+        compatible with result_format """
+    if isinstance(result_format, (ML_MultiPrecision_VectorFormat, ML_FP_MultiElementFormat)):
+        # if the result format is a multi-precision vector, as Addition between
+        # multi-precision will be too expansive (latency-wise) and would impact
+        # benchmark results, we transform into element-wise addition
+        # TODO/FIXME: will not work if number of component is not 2
+        assert result_format.limb_num == 2
+        dep_chain_op = lambda local_acc, local_result: BuildFromComponent(Addition(local_acc.hi, local_result.hi, precision=result_format.get_limb_precision(0)), Addition(local_acc.lo, local_result.lo, precision=result_format.get_limb_precision(-1)), precision=result_format)
+
+    else:
+        dep_chain_op = lambda local_acc, local_result: Addition(local_acc, local_result, precision=result_format)
+    return dep_chain_op
 
 ## Base class for all metalibm function (metafunction)
 class ML_FunctionBasis(object):
@@ -1769,6 +1783,8 @@ class ML_FunctionBasis(object):
 
     GLOBAL_ACC_INIT_VALUE = 0 if not result_precision.is_vector_format() else [0]*self.get_vector_size()
 
+    dep_chain_op = generate_chain_dep_op(result_precision)
+
     # common test scheme between scalar and vector functions
     test_scheme = Statement(
       self.processor.get_init_timestamp(),
@@ -1780,7 +1796,7 @@ class ML_FunctionBasis(object):
           Statement(
               test_acc,
               test_loop,
-              ReferenceAssign(global_acc, Addition(global_acc, test_acc, precision=result_precision)),
+              ReferenceAssign(global_acc, dep_chain_op(global_acc, test_acc)),
               ReferenceAssign(vj, vj + loop_increment)
           )
       ),
@@ -1834,6 +1850,9 @@ class ML_FunctionBasis(object):
     local_result = tested_function(*local_inputs)
     loop_increment = self.get_vector_size()
 
+    # local_acc is used to create a chain of dependencies between
+    # all the iterations of the benchmark loop to avoid oversimplification
+    # by the compiler
     local_acc = Variable("local_acc", precision=local_result.get_precision(), var_type=Variable.Local)
 
     store_statement = Statement()
@@ -1844,9 +1863,13 @@ class ML_FunctionBasis(object):
 
     #   # TODO: change to use aligned linear vector store
     #   store_statement.push(
-    #     TableStore(elt_result, output_table, vi + k, precision = ML_Void) 
+    #     TableStore(elt_result, output_table, vi + k, precision = ML_Void)
     #   )
     store_statement.push(TableStore(local_result, output_table, vi, precision=ML_Void))
+
+    result_format = local_result.get_precision()
+
+    dep_chain_op = generate_chain_dep_op(result_format)
 
     test_loop = Loop(
       Statement(
@@ -1857,7 +1880,7 @@ class ML_FunctionBasis(object):
       Statement(
         assignation_statement,
         store_statement,
-        ReferenceAssign(local_acc, Addition(local_acc, local_result, precision=local_result.get_precision())),
+        ReferenceAssign(local_acc, dep_chain_op(local_acc, local_result)),
         ReferenceAssign(vi, vi + loop_increment)
       ),
     )
