@@ -792,6 +792,9 @@ vector_c_code_generation_table = {
             vector_lib_helper("ml_vec_assembling_1_8_double", arity=8),
         type_strict_match(v8float64, v4float64, v4float64):
             ML_VectorLib_Function("ml_vec_assembling_4_8_double", arg_map = {0: FO_ResultRef(0), 1: FO_Arg(0), 2: FO_Arg(1)}, arity = 2),
+
+        type_strict_match(v4int64, ML_Int64, ML_Int64, ML_Int64, ML_Int64):
+            vector_lib_helper("ml_vec_assembling_1_4_long", arity=4),
       },
     },
   },
