@@ -409,12 +409,11 @@ class CCodeGenerator(CodeGenerator):
         # TODO extract attributes from symbol_object
         if isinstance(symbol_object, Constant):
             format_str = symbol_object.get_precision().get_code_name(language=self.language)
-            attributes = "static const" if static_const else ""
-            prefix = ("{} {} ".format(attributes, format_str)) if initial else ""
+            attributes = ["static const"] if static_const else []
+            prefix = (attributes + [format_str]) if initial else []
             final_symbol = ";\n" if final else ""
-            return "{prefix}{cst_tag} = {value}{final}".format(
-                prefix=prefix,
-                cst_tag=symbol,
+            return "{prefix} = {value}{final}".format(
+                prefix=" ".join(prefix + [symbol]),
                 value=symbol_object.get_precision().get_cst(symbol_object.get_value(), language=self.language),
                 final=final_symbol,
             )
