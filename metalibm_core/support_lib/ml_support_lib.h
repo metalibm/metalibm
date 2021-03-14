@@ -904,11 +904,13 @@ DEF_ML_VECTOR_ASSEMBLY_FUNC_1_2(ml_vec_assembling_1_2_float, ml_float2_t, float)
 DEF_ML_VECTOR_ASSEMBLY_FUNC_1_2(ml_vec_assembling_1_2_int, ml_int2_t, int32_t)
 DEF_ML_VECTOR_ASSEMBLY_FUNC_1_2(ml_vec_assembling_1_2_bool, ml_bool2_t, bool)
 DEF_ML_VECTOR_ASSEMBLY_FUNC_1_2(ml_vec_assembling_1_2_double, ml_double2_t, double)
+DEF_ML_VECTOR_ASSEMBLY_FUNC_1_4(ml_vec_assembling_1_2_long, ml_long2_t, int64_t)
 
 DEF_ML_VECTOR_ASSEMBLY_FUNC_1_4(ml_vec_assembling_1_4_float, ml_float4_t, float)
 DEF_ML_VECTOR_ASSEMBLY_FUNC_1_4(ml_vec_assembling_1_4_int, ml_int4_t, int32_t)
 DEF_ML_VECTOR_ASSEMBLY_FUNC_1_4(ml_vec_assembling_1_4_bool, ml_bool4_t, bool)
 DEF_ML_VECTOR_ASSEMBLY_FUNC_1_4(ml_vec_assembling_1_4_double, ml_double4_t, double)
+DEF_ML_VECTOR_ASSEMBLY_FUNC_1_4(ml_vec_assembling_1_4_long, ml_long4_t, int64_t)
 
 DEF_ML_VECTOR_ASSEMBLY_FUNC_1_8(ml_vec_assembling_1_8_float, ml_float8_t, float)
 DEF_ML_VECTOR_ASSEMBLY_FUNC_1_8(ml_vec_assembling_1_8_double, ml_double8_t, double)
