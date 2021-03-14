@@ -211,8 +211,8 @@ def generate_vector_implementation(scalar_scheme, scalar_arg_list,
         vectorizer.vectorize_scheme(scalar_scheme, scalar_arg_list,
                                     vector_size, sub_vector_size)
 
-    vector_output_format = vectorize_format(output_precision,
-                                                       vector_size)
+    vector_output_format = vectorize_format(self.get_output_precision(),
+                                            vector_size)
 
 
     Log.report(Log.Info, "vector_output_format is {}".format(vector_output_format))
@@ -1730,7 +1730,7 @@ class ML_FunctionBasis(object):
       )
       for i in range(self.arity)
     ]
-    output_precision = FormatAttributeWrapper(self.precision, ["volatile"])
+    output_precision = FormatAttributeWrapper(self.get_output_precision(), ["volatile"])
     ## (low, high) are store in output table
     output_table = ML_NewTable(dimensions = [test_total], storage_precision = output_precision, tag = self.uniquify_name("output_table"), empty=True, const=False)
 
