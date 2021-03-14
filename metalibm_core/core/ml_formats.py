@@ -215,7 +215,8 @@ class FormatAttributeWrapper(ML_Format):
         return self.base_format.get_display_format(language)
     def get_name(self, language = C_Code):
         str_list = self.attribute_list + [self.base_format.get_name(language = language)]
-        return " ".join(str_list)
+        str_type = " ".join(str_list)
+        return str_type
     def __str__(self):
         return self.get_name()
 
@@ -1265,7 +1266,7 @@ class ML_Compound_Format(ML_Format):
             # FIXME, round is only valid for double_double or triple_double stype format
             field_value = sollya.round(tmp_cst, field_format.sollya_object, sollya.RN)
             tmp_cst = tmp_cst - field_value
-            field_str_list.append(".%s = %s" % (field_name, field_format.get_c_cst(field_value)))
+            field_str_list.append(".%s = %s" % (field_name, field_format.get_cst(field_value, language=language)))
         return "{%s}" % (", ".join(field_str_list))
 
     def get_gappa_cst(self, cst_value):
