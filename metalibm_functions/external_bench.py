@@ -97,10 +97,10 @@ class ML_ExternalBench(ML_FunctionBasis):
         Log.report(Log.Verbose,
                    "generating external bench for function {} with vector-size {}/{}".format(self.bench_function_name, self.vector_size, self.function_input_vector_size))
         if self.function_input_vector_size > 1:
-            output_format = vectorize_format(self.precision, self.function_input_vector_size)
+            output_format = vectorize_format(self.get_output_precision(), self.function_input_vector_size)
             arg_format_list = [vectorize_format(arg_format, self.function_input_vector_size) for arg_format in self.get_input_precisions()]
         else:
-            output_format = self.precision
+            output_format = self.get_output_precision()
             arg_format_list = list(self.get_input_precisions())
 
         # explicitly building FunctionOperator and FunctionObject to add
