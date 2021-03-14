@@ -71,7 +71,7 @@ pages:
   stage: deploy
   only:
     refs:
-        - master
+        - main
   script:
     # setting environment so sollya import succeed
     - export PATH=/home/ghdl/bin:$PATH
