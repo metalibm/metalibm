@@ -920,6 +920,9 @@ class ComponentSelection(SpecifierOperation, ML_ArithmeticOperation):
     class Field(ComponentSelectionSpecifier):
         def __init__(self, field_index):
             self.field_index = field_index
+    class NamedField(ComponentSelectionSpecifier):
+        def __init__(self, field_name):
+            self.field_name = field_name
 
     implicit_arg_precision = {
         ML_SingleSingle: ML_Binary32,
