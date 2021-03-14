@@ -2344,9 +2344,9 @@ avx2_c_code_generation_table = {
                     ComplexOperator(expand_avx2_comparison),
                 # 3 Dummy operators used to allow m256_promotion to promote squashable comparison
                 type_strict_match(ML_AVX_m256_v8bool, ML_AVX_m256_v8int32, ML_AVX_m256_v8int32):
-                    ERROR_OPERATOR,
+                    ComplexOperator(expand_sse_avx_bool_comparison),
                 type_strict_match(ML_AVX_m256_v8bool, ML_AVX_m256_v8uint32, ML_AVX_m256_v8uint32):
-                    ERROR_OPERATOR,
+                    ComplexOperator(expand_sse_avx_bool_comparison),
             },
         },
         Comparison.Equal: {
