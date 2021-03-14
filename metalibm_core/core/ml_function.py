@@ -367,7 +367,7 @@ def generate_opencl_vector_wrapper(main_precision, vector_size, vec_arg_list,
     )
     return function_scheme
 
-def generate_chain_dep_op(result_format):
+def generate_chain_dep_op_generic(result_format):
     """ generate a chain-dependency operator class
         compatible with result_format """
     if isinstance(result_format, (ML_MultiPrecision_VectorFormat, ML_FP_MultiElementFormat)):
@@ -1783,7 +1783,7 @@ class ML_FunctionBasis(object):
 
     GLOBAL_ACC_INIT_VALUE = 0 if not result_precision.is_vector_format() else [0]*self.get_vector_size()
 
-    dep_chain_op = generate_chain_dep_op(result_precision)
+    dep_chain_op = self.generate_chain_dep_op(result_precision)
 
     # common test scheme between scalar and vector functions
     test_scheme = Statement(
@@ -1869,7 +1869,7 @@ class ML_FunctionBasis(object):
 
     result_format = local_result.get_precision()
 
-    dep_chain_op = generate_chain_dep_op(result_format)
+    dep_chain_op = self.generate_chain_dep_op(result_format)
 
     test_loop = Loop(
       Statement(
@@ -1904,6 +1904,8 @@ class ML_FunctionBasis(object):
     result_precision = local_result.get_precision()
     acc = Variable("bench_acc", precision=result_precision, var_type=Variable.Local)
 
+    ChainDepOp = self.generate_chain_dep_op(result_precision)
+
     test_loop = Loop(
       Statement(
           ReferenceAssign(vi, Constant(0, precision = ML_Int32)),
@@ -1912,11 +1914,17 @@ class ML_FunctionBasis(object):
       vi < test_num_cst,
       Statement(
         TableStore(local_result, output_table, vi, precision = ML_Void),
-        ReferenceAssign(acc, Addition(acc, local_result, precision=result_precision)),
+        ReferenceAssign(acc, ChainDepOp(acc, local_result)),
         ReferenceAssign(vi, vi + loop_increment)
       ),
     )
     return test_loop, acc
+
+  def generate_chain_dep_op(self, result_format):
+    """ generate an Operation class compatible with the generation
+        of a phantom dependency chain between node's of format
+        <result_format>, can be overloaded to support custom types  """
+    return generate_chain_dep_op_generic(result_format)
 
   #@staticmethod
   def get_name(self):
