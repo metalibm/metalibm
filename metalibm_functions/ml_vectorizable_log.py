@@ -539,7 +539,7 @@ class ML_Log(ML_Function("ml_log")):
     else:
       boundrcp = 1.5 * 2**(-12)           # ... see Intel intrinsics guide
       if self.precision in [ML_Binary64]:
-        if not self.processor.is_supported_operation(rcp_m):
+        if not self.processor.is_supported_operation(rcp_m, self.language):
           boundrcp = (1+boundrcp)*(1+2**(-24)) - 1
         else:
           boundrcp = 2**(-14)             # ... see Intel intrinsics guide
