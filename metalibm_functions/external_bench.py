@@ -26,34 +26,22 @@
 # last-modified:    Mar  7th, 2018
 # Author(s): Nicolas Brunie <nbrunie@kalray.eu>
 ###############################################################################
-import sys
-
 import sollya
 
-from sollya import (
-        Interval, ceil, floor, round, inf, sup, pi, log, exp, cos, sin,
-        guessdegree, dirtyinfnorm
-)
-S2 = sollya.SollyaObject(2)
+from metalibm_core.core.ml_function import ML_FunctionBasis, DefaultArgTemplate
 
-from metalibm_core.core.ml_function import ML_Function, ML_FunctionBasis, DefaultArgTemplate
-
-from metalibm_core.core.ml_operations import *
-from metalibm_core.core.ml_formats import *
+from metalibm_core.core.ml_operations import (Variable, FunctionObject)
+from metalibm_core.core.ml_formats import ML_Binary32
 from metalibm_core.core.precisions import ML_Faithful
-from metalibm_core.code_generation.generic_processor import GenericProcessor
-from metalibm_core.code_generation.generator_utility import FunctionOperator, FO_Result, FO_Arg
-
-from metalibm_core.code_generation.code_function import CodeFunction, FunctionGroup
-
 from metalibm_core.core.ml_vectorizer import vectorize_format
+
+from metalibm_core.code_generation.generic_processor import GenericProcessor
+from metalibm_core.code_generation.generator_utility import FunctionOperator
+from metalibm_core.code_generation.code_function import CodeFunction, FunctionGroup
 
 from metalibm_core.utility.ml_template import (
     MultiAryArgTemplate, DefaultMultiAryArgTemplate, precision_parser)
 from metalibm_core.utility.log_report  import Log
-from metalibm_core.utility.debug_utils import *
-from metalibm_core.utility.num_utils   import ulp
-from metalibm_core.utility.gappa_utils import is_gappa_installed
 
 def atan2_emulate(vy, vx):
     if vx > 0:
@@ -66,8 +54,9 @@ def atan2_emulate(vy, vx):
         return sollya.pi + sollya.atan(vy / vx)
 
 
-class ML_ExternalBench(ML_Function("ml_external_bench")):
+class ML_ExternalBench(ML_FunctionBasis):
   """ Implementation of external bench function wrapper """
+  function_name = "ml_external_bench"
   def __init__(self, args=DefaultMultiAryArgTemplate):
     # initializing base class
     ML_FunctionBasis.__init__(self, args)
@@ -132,13 +121,12 @@ class ML_ExternalBench(ML_Function("ml_external_bench")):
   def numeric_emulate(self, *args):
     return self.emulate(*args)
 
-if __name__ == "__main__":
-  # auto-test
-  arg_template = MultiAryArgTemplate(default_arg=ML_ExternalBench.get_default_args())
+def add_generic_cmd_args(arg_template):
+  """ register the default list of command line arguments for
+      ML_ExternalBench """
   def precision_list_parser(s):
     return [precision_parser(p) for p in s.split(",")]
 
-  # argument extraction
   arg_template.get_parser().add_argument(
     "--function", dest="bench_function_name", default="expf",
     action="store", type=str, help="name of the function to be benched")
@@ -165,6 +153,13 @@ if __name__ == "__main__":
     "--emulate", dest="emulate", default=lambda x: x, action="store",
     type=local_eval, help="function numeric emulation")
 
+if __name__ == "__main__":
+  # auto-test
+  arg_template = MultiAryArgTemplate(default_arg=ML_ExternalBench.get_default_args())
+
+  add_generic_cmd_args(arg_template)
+
+  # argument extraction
   args = arg_template.arg_extraction()
   ml_sincos = ML_ExternalBench(args)
   ml_sincos.gen_implementation()
