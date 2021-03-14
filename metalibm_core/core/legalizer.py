@@ -412,12 +412,30 @@ def generate_exp_extraction(optree):
 
 
 def generate_raw_mantissa_extraction(optree):
-    int_precision = optree.precision.get_integer_format()
+    """ generate an operation graph to extraction the significand field
+        of floating-point node <optree> (may be scalar or vector).
+        The implicit bit is not injected in this raw version """
+    if optree.precision.is_vector_format():
+        base_precision = optree.precision.get_scalar_format()
+        vector_size = optree.precision.get_vector_size()
+        int_precision = {
+            v2float32: v2int32,
+            v2float64: v2int64,
+
+            v4float32: v4int32,
+            v4float64: v4int64,
+
+            v8float32: v8int32,
+            v8float64: v8int64,
+        }[optree.precision]
+    else:
+        int_precision = optree.precision.get_integer_format()
+        base_precision = optree.precision
     return generate_field_extraction(
         optree,
         int_precision,
         0,
-        optree.precision.get_field_size() - 1,
+        base_precision.get_field_size() - 1,
     )
 
 def generate_exp_insertion(optree, result_precision):
