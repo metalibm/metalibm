@@ -78,9 +78,11 @@ from metalibm_core.code_generation.code_configuration import CodeConfiguration
 from metalibm_core.targets.intel.m128_promotion import Pass_M128_Promotion
 from metalibm_core.targets.intel.m256_promotion import Pass_M256_Promotion
 from metalibm_core.utility.ml_template import target_instanciate
+from metalibm_core.utility.build_utils import SourceFile
 
 from valid.test_utils import *
 from valid.test_summary import TestSummary
+
 
 try:
     from metalibm_core.targets.kalray.k1b_processor import K1B_Processor
@@ -640,11 +642,18 @@ if __name__ == "__main__":
     arg_parser.add_argument("--timestamp", dest="timestamp", action="store_const",
                             default=False, const=True,
                             help="enable filename timestamping")
+    arg_parser.add_argument("--libm", dest="custom_libm", action="store",
+                            default=None,
+                            help="select custom libm")
     arg_parser.add_argument(
         "--verbose", dest="verbose_enable", action=VerboseAction,
         const=True, default=False,
         help="enable Verbose log level")
     args = arg_parser.parse_args(sys.argv[1:])
+
+    # settings custom libm
+    if not args.custom_libm is None:
+        SourceFile.libm = args.custom_libm
 
     # number of self-checking test to be generated
     if args.error_eval:
