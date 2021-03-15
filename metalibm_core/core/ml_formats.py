@@ -1407,8 +1407,8 @@ class ML_MultiPrecision_VectorFormat(ML_CompoundVectorFormat):
             field_str_list.append(".%s" % field_name)
         # FIXME, round is only valid for double_double or triple_double stype format
         for lane_id in range(self.vector_size):
+            tmp_cst = cst_value[lane_id]
             for limb_id in range(self.limb_num):
-                tmp_cst = cst_value[lane_id]
                 field_value = sollya.round(tmp_cst, field_format.sollya_object, sollya.RN)
                 tmp_cst = tmp_cst - field_value
                 cst_value_array[limb_id][lane_id] = field_value
