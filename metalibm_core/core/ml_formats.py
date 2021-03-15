@@ -1488,8 +1488,8 @@ v8uint64 = vector_format_builder("ml_ulong8_t", "ulong8", 8, ML_UInt64, compound
 ###############################################################################
 v2dualfloat32 = vector_format_builder("ml_dualfloat2_t", "unsupported", 2, ML_SingleSingle, compound_constructor=ML_MultiPrecision_VectorFormat)
 v3dualfloat32 = vector_format_builder("ml_dualfloat3_t", "unsupported", 3, ML_SingleSingle, compound_constructor=ML_MultiPrecision_VectorFormat)
-v4dualfloat32 = vector_format_builder("ml_dualfloat4_t", "unsupported", 4, ML_SingleSingle, compound_constructor=ML_MultiPrecision_VectorFormat)
-v8dualfloat32 = vector_format_builder("ml_dualfloat8_t", "unsupported", 8, ML_SingleSingle, compound_constructor=ML_MultiPrecision_VectorFormat)
+v4dualfloat32 = vector_format_builder("ml_dualfloat4_t", "unsupported", 4, ML_SingleSingle, compound_constructor=ML_MultiPrecision_VectorFormat, display_format=display_utils.DISPLAY_DS_v4)
+v8dualfloat32 = vector_format_builder("ml_dualfloat8_t", "unsupported", 8, ML_SingleSingle, compound_constructor=ML_MultiPrecision_VectorFormat, display_format=display_utils.DISPLAY_DS_v8)
 
 v2dualfloat64 = vector_format_builder("ml_dualdouble2_t", "unsupported", 2, ML_DoubleDouble, compound_constructor=ML_MultiPrecision_VectorFormat)
 v3dualfloat64 = vector_format_builder("ml_dualdouble3_t", "unsupported", 3, ML_DoubleDouble, compound_constructor=ML_MultiPrecision_VectorFormat)
