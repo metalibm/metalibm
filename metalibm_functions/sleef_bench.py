@@ -43,6 +43,7 @@ from metalibm_core.core.ml_operations import (
 from metalibm_core.core.ml_formats import (
     v8float32, ML_Binary32,
     v4float64, ML_Binary64)
+from metalibm_core.core.ml_vectorizer import vectorize_format
 
 from metalibm_core.utility.ml_template import (
     MultiAryArgTemplate, DefaultMultiAryArgTemplate,
@@ -63,6 +64,9 @@ class SleefBench(ML_ExternalBench):
 
     def get_output_precision(self):
         return self.output_format
+
+    def get_bench_storage_format(self):
+        return vectorize_format(self.get_output_precision(), self.vector_size)
 
     def generate_chain_dep_op(self, result_format):
         """ extend generate_chain_dep_op to support sleef's types """

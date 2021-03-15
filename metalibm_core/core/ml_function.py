@@ -1693,6 +1693,17 @@ class ML_FunctionBasis(object):
       )
       return main_statement
 
+  def get_bench_storage_format(self):
+    """ Indicate which precision must be used to store
+        bench output table """
+    # TODO/FIXME: this callback is used to implement
+    # storage format specification for metalibm_functions.sleef_bench
+    # as some sleef vector format not have real scalar counterpart
+    # This should be better added as a property/callback to the type itself.
+    # The new issue in this case would be that vector sleef bench receive
+    # virtual scalar sleef bench as output precision
+    return self.get_output_precision()
+
   ## Generate a test wrapper for the @p self function
   #  @param test_num   number of test to perform
   #  @param test_range numeric range for test's inputs
@@ -1730,9 +1741,13 @@ class ML_FunctionBasis(object):
       )
       for i in range(self.arity)
     ]
-    output_precision = FormatAttributeWrapper(self.get_output_precision(), ["volatile"])
-    ## (low, high) are store in output table
-    output_table = ML_NewTable(dimensions = [test_total], storage_precision = output_precision, tag = self.uniquify_name("output_table"), empty=True, const=False)
+
+    pre_output_precision = self.get_bench_storage_format()
+    output_precision = FormatAttributeWrapper(pre_output_precision, ["volatile"])
+    output_table = ML_NewTable(dimensions=[test_total],
+                               storage_precision=output_precision,
+                               tag=self.uniquify_name("output_table"),
+                               empty=True, const=False)
 
 
     # TODO: factorize with auto-test wrapper generation function
