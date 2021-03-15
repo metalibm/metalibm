@@ -1236,7 +1236,7 @@ class ML_FunctionBasis(object):
   def generate_test_tables(self, test_num, test_ranges=[Interval(-1.0, 1.0)]):
     """ Generate inputs and output table to be shared between auto test
         and max_error tests """
-    test_total   = test_num 
+    test_total = test_num
     non_random_test_cases = []
     # add them to the total if standard test enabled
     if self.auto_test_std:
