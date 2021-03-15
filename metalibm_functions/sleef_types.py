@@ -81,7 +81,7 @@ class SleefCompoundVectorFormat(ML_CompoundVectorFormat):
 
     def get_cst_default(self, cst_value, language = C_Code):
         elt_value_list = [self.scalar_format.get_cst(cst_value[i], language = language) for i in range(self.vector_size)]
-        field_str_list = [".%s" for field_name in self.scalar_format.c_field_list]
+        field_str_list = [".%s" % field_name for field_name in self.scalar_format.c_field_list]
         cst_value_array = [[None for i in range(self.vector_size)] for j in range(self.limb_num)]
         for lane_id in range(self.vector_size):
             tmp_cst = cst_value[lane_id]
@@ -89,7 +89,7 @@ class SleefCompoundVectorFormat(ML_CompoundVectorFormat):
                 Log.report(Log.Error, "only zero cst_value is supported in SleefCompoundVectorFormat.get_cst_default, not {}", tmp_cst)
             assert tmp_cst == 0
             for limb_id in range(self.limb_num):
-                field_format = self.field_format_list[limb_id]
+                field_format = self.field_format_list[limb_id].get_scalar_format()
                 field_value = sollya.round(tmp_cst, field_format.sollya_object, sollya.RN)
                 cst_value_array[limb_id][lane_id] = field_value
         if language is C_Code:
@@ -104,14 +104,14 @@ Sleef_SLEEF_DOUBLE_2 = SleefCompoundFormat("Sleef_SLEEF_DOUBLE_2",
                   [ML_Binary64, ML_Binary64],
                   None,
                   DISPLAY_SLEEF_DOUBLE_2,
-				  sollya.error,
+				  sollya.binary64,
 				  header="sleef.h")
 Sleef_SLEEF_FLOAT_2 = SleefCompoundFormat("Sleef_SLEEF_FLOAT_2",
                   ["x", "y"],
                   [ML_Binary32, ML_Binary32],
                   None,
                   DISPLAY_SLEEF_FLOAT_2,
-				  sollya.error,
+				  sollya.binary32,
 				  header="sleef.h")
 
 
@@ -120,7 +120,7 @@ Sleef_SLEEF_VECTOR_DOUBLE_2 = SleefCompoundVectorFormat("Sleef_SLEEF_VECTOR_DOUB
                                                          ["x", "y"],
                                                          [v4float64, v4float64],
                                                          Sleef_SLEEF_DOUBLE_2,
-                                                         sollya_precision=sollya.error,
+                                                         sollya_precision=sollya.binary64,
                                                          cst_callback=None,
                                                          display_format=DISPLAY_SLEEF_VDOUBLE_2,
                                                          header="sleef.h")
@@ -130,7 +130,7 @@ Sleef_SLEEF_VECTOR_FLOAT_2 = SleefCompoundVectorFormat("Sleef_SLEEF_VECTOR_FLOAT
                                                          ["x", "y"],
                                                          [v8float32, v8float32],
                                                          Sleef_SLEEF_FLOAT_2,
-                                                         sollya_precision=sollya.error,
+                                                         sollya_precision=sollya.binary32,
                                                          cst_callback=None,
                                                          display_format=DISPLAY_SLEEF_VFLOAT_2,
                                                          header="sleef.h")
