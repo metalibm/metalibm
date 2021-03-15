@@ -97,7 +97,9 @@ class SleefCompoundVectorFormat(ML_CompoundVectorFormat):
         else:
             Log.report(Log.Error, "unsupported language in ML_MultiPrecision_VectorFormat.get_cst: %s" % (language))
 
-class SleefCompoundFormat(ML_Compound_Format): pass
+class SleefCompoundFormat(ML_Compound_Format):
+    """ Parent class for all Sleef struct format """
+    pass
 # defining custom types
 Sleef_SLEEF_DOUBLE_2 = SleefCompoundFormat("Sleef_SLEEF_DOUBLE_2",
                   ["x", "y"],
