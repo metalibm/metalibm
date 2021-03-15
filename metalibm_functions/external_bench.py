@@ -40,6 +40,7 @@ from metalibm_core.core.ml_vectorizer import vectorize_format
 from metalibm_core.code_generation.generic_processor import GenericProcessor
 from metalibm_core.code_generation.generator_utility import FunctionOperator
 from metalibm_core.code_generation.code_function import CodeFunction, FunctionGroup
+from metalibm_core.code_generation.generator_utility import LibraryDependency
 
 from metalibm_core.utility.ml_template import (
     MultiAryArgTemplate, DefaultMultiAryArgTemplate)
@@ -108,7 +109,8 @@ class ML_ExternalBench(ML_FunctionBasis):
         external_function_op = FunctionOperator(self.bench_function_name,
                                                 arity=self.arity,
                                                 output_precision=output_format,
-                                                require_header=self.headers)
+                                                require_header=self.headers,
+                                                require_deps=self.libraries)
         external_function = FunctionObject(self.bench_function_name,
                                            arg_format_list,
                                            output_format,
@@ -154,7 +156,7 @@ def add_generic_cmd_args(arg_template):
         help="number of elements in function input vector (1 for scalar)")
     arg_template.get_parser().add_argument(
         "--libraries", dest="libraries", default=[], action="store",
-        type=lambda s: s.split(","),
+        type=lambda s: [LibraryDependency(h,l) for h,l in [v.split(':') for v in s.split(",")]],
         help="comma separated list of required libraries")
 
     def local_eval(s):
