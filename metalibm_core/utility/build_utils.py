@@ -133,6 +133,7 @@ def sha256_file(filename):
     return hasher.hexdigest()
 
 class SourceFile:
+    libm = "-lm"
     def __init__(self, path, function_list, library_list=None):
         self.function_list = function_list
         self.path = path
@@ -147,7 +148,7 @@ class SourceFile:
         compiler_options = " ".join(DEFAULT_OPTIONS + extra_build_opts + target.get_compilation_options(ML_SRC_DIR))
         src_list = [path]
 
-        LIBS_OPTIONS = " ".join("-l{}".format(lib) for lib in library_list)
+        LIBS_OPTIONS = " ".join("{}".format(lib) for lib in library_list)
         lib_opts = ""
 
         if not(link):
@@ -161,13 +162,14 @@ class SourceFile:
             lib_opts += " {} ".format(LIBS_OPTIONS)
         Log.report(Log.Info, "Compiler options: \"{}\"".format(compiler_options))
 
-        build_command = "{compiler} {options} {src_file} -o {bin_name} {lib_opts} -lm ".format(
+        build_command = "{compiler} {options} {src_file} -o {bin_name} {lib_opts} {libm} ".format(
             compiler=compiler,
             src_file=(" ".join(src_list)),
             bin_name=bin_name,
             options=compiler_options,
             lib_opts=lib_opts,
-            ML_SRC_DIR=ML_SRC_DIR)
+            ML_SRC_DIR=ML_SRC_DIR,
+            libm=SourceFile.libm)
         return build_command
 
     def build(self, target, bin_name=None, shared_object=False, link=False, extra_build_opts=[]):
