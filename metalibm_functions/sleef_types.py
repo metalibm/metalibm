@@ -105,14 +105,14 @@ Sleef_SLEEF_DOUBLE_2 = SleefCompoundFormat("Sleef_SLEEF_DOUBLE_2",
                   None,
                   DISPLAY_SLEEF_DOUBLE_2,
 				  sollya.error,
-				  header=["sleef.h"])
+				  header="sleef.h")
 Sleef_SLEEF_FLOAT_2 = SleefCompoundFormat("Sleef_SLEEF_FLOAT_2",
                   ["x", "y"],
                   [ML_Binary32, ML_Binary32],
                   None,
                   DISPLAY_SLEEF_FLOAT_2,
 				  sollya.error,
-				  header=["sleef.h"])
+				  header="sleef.h")
 
 
 Sleef_SLEEF_VECTOR_DOUBLE_2 = SleefCompoundVectorFormat("Sleef_SLEEF_VECTOR_DOUBLE_2",
@@ -123,7 +123,7 @@ Sleef_SLEEF_VECTOR_DOUBLE_2 = SleefCompoundVectorFormat("Sleef_SLEEF_VECTOR_DOUB
                                                          sollya_precision=sollya.error,
                                                          cst_callback=None,
                                                          display_format=DISPLAY_SLEEF_VDOUBLE_2,
-                                                         header=["sleef.h"])
+                                                         header="sleef.h")
 
 Sleef_SLEEF_VECTOR_FLOAT_2 = SleefCompoundVectorFormat("Sleef_SLEEF_VECTOR_FLOAT_2",
                                                          8,
@@ -133,7 +133,7 @@ Sleef_SLEEF_VECTOR_FLOAT_2 = SleefCompoundVectorFormat("Sleef_SLEEF_VECTOR_FLOAT
                                                          sollya_precision=sollya.error,
                                                          cst_callback=None,
                                                          display_format=DISPLAY_SLEEF_VFLOAT_2,
-                                                         header=["sleef.h"])
+                                                         header="sleef.h")
 
 
 # registering sleef type for vectorisation
