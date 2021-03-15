@@ -40,7 +40,9 @@ from metalibm_functions.external_bench import (
 
 from metalibm_core.core.ml_operations import (
     BuildFromComponent, ComponentSelection, Addition)
-from metalibm_core.core.ml_formats import v4float64, ML_Binary64
+from metalibm_core.core.ml_formats import (
+    v8float32, ML_Binary32,
+    v4float64, ML_Binary64)
 
 from metalibm_core.utility.ml_template import (
     MultiAryArgTemplate, DefaultMultiAryArgTemplate,
@@ -64,37 +66,41 @@ class SleefBench(ML_ExternalBench):
 
     def generate_chain_dep_op(self, result_format):
         """ extend generate_chain_dep_op to support sleef's types """
-        print(result_format, sleef_types.Sleef_SLEEF_VECTOR_DOUBLE_2)
-        if result_format == sleef_types.Sleef_SLEEF_VECTOR_DOUBLE_2:
+        if isinstance(result_format, sleef_types.SleefCompoundVectorFormat):
+            field_format = {
+                sleef_types.Sleef_SLEEF_VECTOR_FLOAT_2: v8float32,
+                sleef_types.Sleef_SLEEF_VECTOR_DOUBLE_2: v4float64
+            }[result_format]
             def sleef_chain_op(local_acc, local_result):
                 return BuildFromComponent(
                     Addition(
-                        ComponentSelection(local_acc, "x", specifier=ComponentSelection.NamedField, precision=v4float64),
-                        ComponentSelection(local_result, "x", specifier=ComponentSelection.NamedField, precision=v4float64),
-                        precision=v4float64
+                        ComponentSelection(local_acc, "x", specifier=ComponentSelection.NamedField, precision=field_format),
+                        ComponentSelection(local_result, "x", specifier=ComponentSelection.NamedField, precision=field_format),
+                        precision=field_format
                     ),
                     Addition(
-                        ComponentSelection(local_acc, "y", specifier=ComponentSelection.NamedField, precision=v4float64),
-                        ComponentSelection(local_result, "y", specifier=ComponentSelection.NamedField, precision=v4float64),
-                        precision=v4float64
+                        ComponentSelection(local_acc, "y", specifier=ComponentSelection.NamedField, precision=field_format),
+                        ComponentSelection(local_result, "y", specifier=ComponentSelection.NamedField, precision=field_format),
+                        precision=field_format
                     ),
-                    precision=sleef_types.Sleef_SLEEF_VECTOR_DOUBLE_2
+                    precision=result_format
                 )
             return sleef_chain_op
-        elif result_format == sleef_types.Sleef_SLEEF_DOUBLE_2:
+        elif isinstance(result_format, sleef_types.SleefCompoundFormat):
             def sleef_chain_op(local_acc, local_result):
+                field_format = result_format.field_format_list[0]
                 return BuildFromComponent(
                     Addition(
-                        ComponentSelection(local_acc, "x", specifier=ComponentSelection.NamedField, precision=ML_Binary64),
-                        ComponentSelection(local_result, "x", specifier=ComponentSelection.NamedField, precision=ML_Binary64),
-                        precision=ML_Binary64
+                        ComponentSelection(local_acc, "x", specifier=ComponentSelection.NamedField, precision=field_format),
+                        ComponentSelection(local_result, "x", specifier=ComponentSelection.NamedField, precision=field_format),
+                        precision=field_format
                     ),
                     Addition(
-                        ComponentSelection(local_acc, "y", specifier=ComponentSelection.NamedField, precision=ML_Binary64),
-                        ComponentSelection(local_result, "y", specifier=ComponentSelection.NamedField, precision=ML_Binary64),
-                        precision=ML_Binary64
+                        ComponentSelection(local_acc, "y", specifier=ComponentSelection.NamedField, precision=field_format),
+                        ComponentSelection(local_result, "y", specifier=ComponentSelection.NamedField, precision=field_format),
+                        precision=field_format
                     ),
-                    precision=sleef_types.Sleef_SLEEF_DOUBLE_2
+                    precision=result_format
                 )
             return sleef_chain_op
         return ML_ExternalBench.generate_chain_dep_op(self, result_format)
