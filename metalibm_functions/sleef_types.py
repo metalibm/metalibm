@@ -101,14 +101,14 @@ class SleefCompoundFormat(ML_Compound_Format):
     """ Parent class for all Sleef struct format """
     pass
 # defining custom types
-Sleef_SLEEF_DOUBLE_2 = SleefCompoundFormat("Sleef_SLEEF_DOUBLE_2",
+Sleef_SLEEF_DOUBLE_2 = SleefCompoundFormat("Sleef_double_2",
                   ["x", "y"],
                   [ML_Binary64, ML_Binary64],
                   None,
                   DISPLAY_SLEEF_DOUBLE_2,
 				  sollya.binary64,
 				  header="sleef.h")
-Sleef_SLEEF_FLOAT_2 = SleefCompoundFormat("Sleef_SLEEF_FLOAT_2",
+Sleef_SLEEF_FLOAT_2 = SleefCompoundFormat("Sleef_float_2",
                   ["x", "y"],
                   [ML_Binary32, ML_Binary32],
                   None,
