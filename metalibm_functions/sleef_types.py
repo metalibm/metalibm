@@ -154,11 +154,11 @@ vector_backend.VectorBackend.code_generation_table[C_Code][BuildFromComponent][N
     type_strict_match(Sleef_SLEEF_VECTOR_FLOAT_2, v8float32, v8float32):
         TemplateOperatorFormat("((Sleef_SLEEF_VECTOR_FLOAT_2) {{.x={0}, .y={1}}})", arity=2),
     type_strict_match(Sleef_SLEEF_FLOAT_2, ML_Binary32, ML_Binary32):
-        TemplateOperatorFormat("((Sleef_SLEEF_FLOAT_2) {{.x={0}, .y={1}}})", arity=2),
+        TemplateOperatorFormat("((Sleef_float_2) {{.x={0}, .y={1}}})", arity=2),
     type_strict_match(Sleef_SLEEF_VECTOR_DOUBLE_2, v4float64, v4float64):
         TemplateOperatorFormat("((Sleef_SLEEF_VECTOR_DOUBLE_2) {{.x={0}, .y={1}}})", arity=2),
     type_strict_match(Sleef_SLEEF_DOUBLE_2, ML_Binary64, ML_Binary64):
-        TemplateOperatorFormat("((Sleef_SLEEF_DOUBLE_2) {{.x={0}, .y={1}}})", arity=2),
+        TemplateOperatorFormat("((Sleef_double_2) {{.x={0}, .y={1}}})", arity=2),
 }
 vector_backend.VectorBackend.code_generation_table[C_Code][ComponentSelection][ComponentSelection.NamedField] = {
     lambda optree: True:  {
