@@ -316,7 +316,7 @@ def generate_pretty_report(filename, test_list, test_summary, evolution_map):
     result_map = test_summary.result_map
     NUM_TESTS = test_summary.NUM_TESTS
 
-    with open(args.output, "w") as OUTPUT_FILE:
+    with open(filename, "w") as OUTPUT_FILE:
         def print_report(msg):
             OUTPUT_FILE.write(msg)
 
