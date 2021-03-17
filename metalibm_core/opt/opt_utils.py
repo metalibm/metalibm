@@ -212,8 +212,7 @@ def is_vector_uniform_cst(node, scalar_value):
 
 
 def extract_tables(node):
-    """ extract the set of all ML_Table node in the graph starting
-        at node """
+    """ extract the set of all ML_Table nodes in the graph rooted at node """
     processed_set = set([node])
     table_set = set()
     working_set = [node]

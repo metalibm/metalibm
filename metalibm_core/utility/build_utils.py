@@ -119,7 +119,7 @@ class LoadedBinary:
         code_function = self.binary_file.source_object.function_list.get_code_function_by_name(function_name)
         fct_handle = self.loaded_module[function_name]
         adapt_ctypes_wrapper_to_code_function(fct_handle, code_function)
-        return fct_handle 
+        return fct_handle
 
 def sha256_file(filename):
     """ return the sha256 checksum of @p filename """
