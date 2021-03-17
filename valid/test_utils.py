@@ -156,7 +156,7 @@ class NewSchemeTest(CommonTestScheme):
 
         if debug:
             fct = self.ctor(arg_template)
-            fct.gen_implementation()
+            return_value = fct.gen_implementation()
         else:
             try:
                 fct = self.ctor(arg_template)
