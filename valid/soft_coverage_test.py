@@ -671,8 +671,10 @@ if __name__ == "__main__":
                                    ENANBLE_STD_TEST=ENANBLE_STD_TEST,
                                    MAX_ERROR_EVAL=MAX_ERROR_EVAL)
 
+    def match_select(tag):
+        return any(list(map(lambda e: re.match(e, tag), args.select)))
     # generating global test list
-    for function_test in [f for f in FUNCTION_LIST if ((not f.tag in args.exclude) and (not f.title in args.exclude) and (args.select is None or f.tag in args.select or f.title in args.select))]:
+    for function_test in [f for f in FUNCTION_LIST if ((not f.tag in args.exclude) and (not f.title in args.exclude) and (args.select is None or match_select(f.tag) or match_select(f.title)))]:
         function = function_test.ctor
         local_test_list = []
         # updating copy
