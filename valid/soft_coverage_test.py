@@ -285,6 +285,7 @@ def get_cmdline_option(option_list, option_value):
         "execute_trigger": lambda v: "--execute",
         "auto_test": lambda v: "--auto-test {}".format(v),
         "bench_test_number": lambda v: "--bench {}".format(v),
+        "bench_loop_num": lambda v: "--bench-loop-num {}".format(v),
         "auto_test_std": lambda _: "--auto-test-std ",
         "target": lambda v: "--target {}".format(v),
         "precision": lambda v: "--precision {}".format(v),
@@ -450,7 +451,7 @@ def cleanify_name(name):
     return name.replace("-", "_")
 
 
-def generate_test_list(NUM_AUTO_TEST, NUM_BENCH_TEST, scalar_target_tag_list, vector_target_tag_list, ENANBLE_STD_TEST=True, MAX_ERROR_EVAL=False):
+def generate_test_list(NUM_AUTO_TEST, NUM_BENCH_TEST, scalar_target_tag_list, vector_target_tag_list, ENANBLE_STD_TEST=True, MAX_ERROR_EVAL=False, NUM_BENCH_LOOP=1000):
     """ generate a list of test """
     # list of all possible test for a single function
     test_list = []
@@ -485,6 +486,7 @@ def generate_test_list(NUM_AUTO_TEST, NUM_BENCH_TEST, scalar_target_tag_list, ve
                 "compute_max_error": MAX_ERROR_EVAL,
                 "execute_trigger": True,
                 "bench_test_number": NUM_BENCH_TEST,
+                "bench_loop_num": NUM_BENCH_LOOP,
                 "output_file": "{}_{}.c".format(precision, cleanify_name(scalar_target.target_name)),
                 "function_name": "{}_{}".format(precision, cleanify_name(scalar_target.target_name)),
             }
@@ -501,6 +503,7 @@ def generate_test_list(NUM_AUTO_TEST, NUM_BENCH_TEST, scalar_target_tag_list, ve
                     "vector_size": vector_size,
                     "auto_test": NUM_AUTO_TEST,
                     "bench_test_number": NUM_BENCH_TEST,
+                    "bench_loop_num": NUM_BENCH_LOOP,
                     "auto_test_std": ENANBLE_STD_TEST,
                     "compute_max_error": MAX_ERROR_EVAL,
                     "execute_trigger": True,
@@ -642,6 +645,9 @@ if __name__ == "__main__":
     arg_parser.add_argument("--timestamp", dest="timestamp", action="store_const",
                             default=False, const=True,
                             help="enable filename timestamping")
+    arg_parser.add_argument("--bench-loop-num", dest="bench_loop_num", action="store",
+                            default=100,
+                            help="set the number of bench's loops")
     arg_parser.add_argument("--libm", dest="custom_libm", action="store",
                             default=None,
                             help="select custom libm")
@@ -669,7 +675,8 @@ if __name__ == "__main__":
                                    args.scalar_targets,
                                    args.vector_targets,
                                    ENANBLE_STD_TEST=ENANBLE_STD_TEST,
-                                   MAX_ERROR_EVAL=MAX_ERROR_EVAL)
+                                   MAX_ERROR_EVAL=MAX_ERROR_EVAL,
+                                   NUM_BENCH_LOOP=args.bench_loop_num)
 
     def match_select(tag):
         return any(list(map(lambda e: re.match(e, tag), args.select)))
