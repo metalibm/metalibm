@@ -794,6 +794,7 @@ class ML_FunctionBasis(object):
     if self.get_vector_size() != self.implementation.vector_size and not self.implementation is None:
         assert self.implementation.vector_size == 1
         scalar_scheme = self.implementation.get_scheme()
+        assert not scalar_scheme is None
         # extract implementation's argument list
         scalar_arg_list = self.implementation.arg_list
         # clear argument list (will be replaced by vectorized counterpart)
@@ -1076,7 +1077,7 @@ class ML_FunctionBasis(object):
                     test_result, ret_stdout = bin_file.execute()
                 # conversion from bytes to str
                 ret_stdout = str(ret_stdout)
-                if Log.is_level_enabled(Log.Info): 
+                if Log.is_level_enabled(Log.Info):
                     print(str(ret_stdout.replace("\\n", "\n")))
                 #Log.report(Log.Info, "log: {}", ret_stdout)
                 # extracting benchmark result
