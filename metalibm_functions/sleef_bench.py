@@ -41,8 +41,8 @@ from metalibm_functions.external_bench import (
 from metalibm_core.core.ml_operations import (
     BuildFromComponent, ComponentSelection, Addition)
 from metalibm_core.core.ml_formats import (
-    v8float32, ML_Binary32,
-    v4float64, ML_Binary64)
+    v4float32, ML_Binary32,
+    v2float64, ML_Binary64)
 from metalibm_core.core.ml_vectorizer import vectorize_format
 
 from metalibm_core.utility.ml_template import (
@@ -72,8 +72,8 @@ class SleefBench(ML_ExternalBench):
         """ extend generate_chain_dep_op to support sleef's types """
         if isinstance(result_format, sleef_types.SleefCompoundVectorFormat):
             field_format = {
-                sleef_types.Sleef_SLEEF_VECTOR_FLOAT_2: v8float32,
-                sleef_types.Sleef_SLEEF_VECTOR_DOUBLE_2: v4float64
+                sleef_types.Sleef_SLEEF_VECTOR_FLOAT_2: v4float32,
+                sleef_types.Sleef_SLEEF_VECTOR_DOUBLE_2: v2float64
             }[result_format]
             def sleef_chain_op(local_acc, local_result):
                 return BuildFromComponent(
