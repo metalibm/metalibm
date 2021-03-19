@@ -39,7 +39,6 @@ import sollya
 
 from metalibm_core.core.ml_formats import (
     ML_Compound_Format, ML_CompoundVectorFormat, ML_VectorFormat,
-    v2float64, v4float32,
     ML_String, ML_Binary64, ML_Binary32, VECTOR_TYPE_MAP)
 from metalibm_core.core.display_utils import DisplayFormat
 from metalibm_core.core.target import TargetRegister
@@ -54,11 +53,19 @@ from metalibm_core.code_generation.generator_utility import (
     TemplateOperatorFormat, type_strict_match)
 from metalibm_core.code_generation.complex_generator import DynamicOperator
 
-DISPLAY_SLEEF_VFLOAT_2 = DisplayFormat(format_string="{{.x=[%a, %a, %a, %a], .y=[%a, %a, %a, %a]}}", pre_process_fct= lambda v: ", ".join(["%s.x[%d]" % (v, i) for i in range(4)] + ["%s.y[%d]" % (v, i) for i in range(4)]))
-DISPLAY_SLEEF_FLOAT_2  = DisplayFormat(format_string="{{.x=%a, .y=%a}}", pre_process_fct= lambda v: "%s.x, %s.y " % (v, v))
 
-DISPLAY_SLEEF_VDOUBLE_2 = DisplayFormat(format_string="{{.x=[%a, %a], .y=[%a, %a]}}", pre_process_fct= lambda v: ", ".join(["%s.x[%d]" % (v, i) for i in range(2)] + ["%s.y[%d]" % (v, i) for i in range(2)]))
+# define the size (number of element) for Sleef struct vector formats
+SLEEF_VFLOAT_2_SIZE = 4
+SLEEF_VDOUBLE_2_SIZE = 2
+
+
+DISPLAY_SLEEF_FLOAT_2  = DisplayFormat(format_string="{{.x=%a, .y=%a}}", pre_process_fct= lambda v: "%s.x, %s.y " % (v, v))
+DISPLAY_SLEEF_VFLOAT_2 = DisplayFormat(format_string="{{{{.x=[{0}], .y=[{0}]}}}}".format(", ".join("%a" for i in range(SLEEF_VFLOAT_2_SIZE))),
+                                       pre_process_fct= lambda v: ", ".join(["%s.x[%d]" % (v, i) for i in range(SLEEF_VFLOAT_2_SIZE)] + ["%s.y[%d]" % (v, i) for i in range(SLEEF_VFLOAT_2_SIZE)]))
+
 DISPLAY_SLEEF_DOUBLE_2  = DisplayFormat(format_string="{{.x=%a, .y=%a}}", pre_process_fct= lambda v: "%s.x, %s.y " % (v, v))
+DISPLAY_SLEEF_VDOUBLE_2 = DisplayFormat(format_string="{{{{.x=[{0}], .y=[{0}]}}}}".format(", ".join("%a" for i in range(SLEEF_VDOUBLE_2_SIZE))),
+                                        pre_process_fct= lambda v: ", ".join(["%s.x[%d]" % (v, i) for i in range(SLEEF_VDOUBLE_2_SIZE)] + ["%s.y[%d]" % (v, i) for i in range(SLEEF_VDOUBLE_2_SIZE)]))
 
 class SleefCompoundVectorFormat(ML_CompoundVectorFormat):
     """ specific Compound(struct) format class for Sleef vector compounded
@@ -116,11 +123,13 @@ Sleef_SLEEF_FLOAT_2 = SleefCompoundFormat("Sleef_float_2",
 				  sollya.binary32,
 				  header="sleef.h")
 
+SLEEF_VECTOR_DOUBLE_field_format = VECTOR_TYPE_MAP[ML_Binary64][SLEEF_VDOUBLE_2_SIZE]
+SLEEF_VECTOR_FLOAT_field_format = VECTOR_TYPE_MAP[ML_Binary32][SLEEF_VFLOAT_2_SIZE]
 
 Sleef_SLEEF_VECTOR_DOUBLE_2 = SleefCompoundVectorFormat("Sleef_SLEEF_VECTOR_DOUBLE_2",
-                                                         2,
+                                                         SLEEF_VDOUBLE_2_SIZE,
                                                          ["x", "y"],
-                                                         [v2float64, v2float64],
+                                                         [SLEEF_VECTOR_DOUBLE_field_format]*2, # field format
                                                          Sleef_SLEEF_DOUBLE_2,
                                                          sollya_precision=sollya.binary64,
                                                          cst_callback=None,
@@ -128,9 +137,9 @@ Sleef_SLEEF_VECTOR_DOUBLE_2 = SleefCompoundVectorFormat("Sleef_SLEEF_VECTOR_DOUB
                                                          header="sleef.h")
 
 Sleef_SLEEF_VECTOR_FLOAT_2 = SleefCompoundVectorFormat("Sleef_SLEEF_VECTOR_FLOAT_2",
-                                                         4,
+                                                         SLEEF_VFLOAT_2_SIZE,
                                                          ["x", "y"],
-                                                         [v4float32, v4float32],
+                                                         [SLEEF_VECTOR_FLOAT_field_format]*2, # field format
                                                          Sleef_SLEEF_FLOAT_2,
                                                          sollya_precision=sollya.binary32,
                                                          cst_callback=None,
@@ -139,8 +148,8 @@ Sleef_SLEEF_VECTOR_FLOAT_2 = SleefCompoundVectorFormat("Sleef_SLEEF_VECTOR_FLOAT
 
 
 # registering sleef type for vectorisation
-VECTOR_TYPE_MAP[Sleef_SLEEF_DOUBLE_2] = {2: Sleef_SLEEF_VECTOR_DOUBLE_2}
-VECTOR_TYPE_MAP[Sleef_SLEEF_FLOAT_2] = {4: Sleef_SLEEF_VECTOR_FLOAT_2}
+VECTOR_TYPE_MAP[Sleef_SLEEF_DOUBLE_2] = {SLEEF_VDOUBLE_2_SIZE: Sleef_SLEEF_VECTOR_DOUBLE_2}
+VECTOR_TYPE_MAP[Sleef_SLEEF_FLOAT_2] = {SLEEF_VFLOAT_2_SIZE: Sleef_SLEEF_VECTOR_FLOAT_2}
 
 # registering it as a parsable type
 template_module.precision_map["sleef_svf2"] = Sleef_SLEEF_VECTOR_FLOAT_2
@@ -151,22 +160,22 @@ template_module.precision_map["sleef_sd2"] = Sleef_SLEEF_DOUBLE_2
 
 # extending vector target
 vector_backend.VectorBackend.code_generation_table[C_Code][BuildFromComponent][None][lambda optree: True] = {
-    type_strict_match(Sleef_SLEEF_VECTOR_FLOAT_2, v4float32, v4float32):
+    type_strict_match(Sleef_SLEEF_VECTOR_FLOAT_2, SLEEF_VECTOR_FLOAT_field_format, SLEEF_VECTOR_FLOAT_field_format):
         TemplateOperatorFormat("((Sleef_SLEEF_VECTOR_FLOAT_2) {{.x={0}, .y={1}}})", arity=2),
     type_strict_match(Sleef_SLEEF_FLOAT_2, ML_Binary32, ML_Binary32):
         TemplateOperatorFormat("((Sleef_float_2) {{.x={0}, .y={1}}})", arity=2),
-    type_strict_match(Sleef_SLEEF_VECTOR_DOUBLE_2, v2float64, v2float64):
+    type_strict_match(Sleef_SLEEF_VECTOR_DOUBLE_2, SLEEF_VECTOR_DOUBLE_field_format, SLEEF_VECTOR_DOUBLE_field_format):
         TemplateOperatorFormat("((Sleef_SLEEF_VECTOR_DOUBLE_2) {{.x={0}, .y={1}}})", arity=2),
     type_strict_match(Sleef_SLEEF_DOUBLE_2, ML_Binary64, ML_Binary64):
         TemplateOperatorFormat("((Sleef_double_2) {{.x={0}, .y={1}}})", arity=2),
 }
 vector_backend.VectorBackend.code_generation_table[C_Code][ComponentSelection][ComponentSelection.NamedField] = {
     lambda optree: True:  {
-        type_strict_match(v4float32, Sleef_SLEEF_VECTOR_FLOAT_2, ML_String):
+        type_strict_match(SLEEF_VECTOR_FLOAT_field_format, Sleef_SLEEF_VECTOR_FLOAT_2, ML_String):
             DynamicOperator(lambda op: TemplateOperatorFormat("{0}.%s" % op.get_input(1).value, arity=2)),
         type_strict_match(ML_Binary32, Sleef_SLEEF_FLOAT_2, ML_String):
             DynamicOperator(lambda op: TemplateOperatorFormat("{0}.%s" % op.get_input(1).value, arity=2)),
-        type_strict_match(v2float64, Sleef_SLEEF_VECTOR_DOUBLE_2, ML_String):
+        type_strict_match(SLEEF_VECTOR_DOUBLE_field_format, Sleef_SLEEF_VECTOR_DOUBLE_2, ML_String):
             DynamicOperator(lambda op: TemplateOperatorFormat("{0}.%s" % op.get_input(1).value, arity=2)),
         type_strict_match(ML_Binary64, Sleef_SLEEF_DOUBLE_2, ML_String):
             DynamicOperator(lambda op: TemplateOperatorFormat("{0}.%s" % op.get_input(1).value, arity=2)),
