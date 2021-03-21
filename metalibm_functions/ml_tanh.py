@@ -87,6 +87,9 @@ class ML_HyperbolicTangent(ScalarUnaryFunction):
         super().__init__(args)
         self.load_axf_approx = args.load_axf_approx
         self.dump_axf_approx = args.dump_axf_approx
+        self.interval_num = args.interval_num
+        self.near_zero_bound = args.near_zero_bound
+        self.max_poly_degree = args.max_poly_degree
 
     @staticmethod
     def get_default_args(**kw):
@@ -99,6 +102,9 @@ class ML_HyperbolicTangent(ScalarUnaryFunction):
             "accuracy": ML_Faithful,
             "load_axf_approx": None,
             "dump_axf_approx": False,
+            "interval_num": 1024,
+            "near_zero_bound": 0.125,
+            "max_poly_degree": 7,
             "target": GenericProcessor.get_target_instance()
         }
         default_args_tanh.update(kw)
@@ -169,8 +175,8 @@ class ML_HyperbolicTangent(ScalarUnaryFunction):
         #   where eps < 1/2 * 2^-p
         p = self.precision.get_mantissa_size()
         high_bound = (p+2) * sollya.log(2) / 2
-        near_zero_bound = 0.125
-        interval_num = 1024
+        near_zero_bound = self.near_zero_bound
+        interval_num = self.interval_num
         Log.report(Log.Verbose, "high_bound={}, near_zero_bound={}, interval_num={}", float(high_bound), near_zero_bound, interval_num)
 
         interval_size = (high_bound - near_zero_bound) / (interval_num)
@@ -184,7 +190,7 @@ class ML_HyperbolicTangent(ScalarUnaryFunction):
 
 
         # approximation parameters
-        poly_degree = 7
+        max_poly_degree = self.max_poly_degree
         approx_interval = Interval(near_zero_bound, high_bound)
         uniform_indexing = SubUniformIntervalIndexing(approx_interval, interval_num)  
 
@@ -221,7 +227,7 @@ class ML_HyperbolicTangent(ScalarUnaryFunction):
                                                                 ERROR_THRESHOLD * 2**-3,
                                                                 self.precision,
                                                                 abs_vx,
-                                                                max_degree=poly_degree, # forcing max_degree
+                                                                max_degree=max_poly_degree, # forcing max_degree
                                                                 error_target_type=sollya.absolute,
                                                                 axf_export=not self.dump_axf_approx is False)
             approx_error = axf_approx.approx_error.export_to_ml_error()
@@ -289,6 +295,16 @@ if __name__ == "__main__":
     arg_template.get_parser().add_argument(
          "--dump-axf-approx", default=False,
         action="store", help="export approximation used in AXF format")
+    arg_template.get_parser().add_argument(
+         "--interval-num", default=1024, type=int,
+        action="store", help="number of approximation sub-divisions")
+    arg_template.get_parser().add_argument(
+         "--near-zero-bound", default=0.125, type=sollya.parse,
+        action="store", help="bound to switch from near-zero to generic approximation")
+    arg_template.get_parser().add_argument(
+         "--max-poly-degree", default=7, type=int,
+        action="store", help="maximal polynomial degree in table approximation")
+
 
     # argument extraction
     args = arg_template.arg_extraction()
