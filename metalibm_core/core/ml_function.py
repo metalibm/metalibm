@@ -1768,7 +1768,7 @@ class ML_FunctionBasis(object):
     printf_timing_op = FunctionOperator(
         "printf",
         arg_map = {
-            0: "\"%s %%\"PRIi64\" elts computed in %%\"PRIi64\" cycles => %%.3f CPE \\n\"" % function_name,
+            0: "\"%s %%\"PRIi64\" elts over %s computed in %%\"PRIi64\" cycles => %%.3f CPE \\n\"" % (function_name, test_ranges),
             1: FO_Arg(0), 2: FO_Arg(1),
             3: FO_Arg(2)
         }, void_function = True,
