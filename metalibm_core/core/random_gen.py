@@ -63,6 +63,9 @@ class UniformInterval(RandomDescriptor):
     def __init__(self, lo, hi):
         self.interval = sollya.Interval(lo, hi)
 
+    def __repr__(self):
+        return "U[{};{}]".format(sollya.inf(self.interval), sollya.sup(self.interval))
+
 def random_bool():
     """ random boolean generation """
     return bool(random.getrandbits(1))
