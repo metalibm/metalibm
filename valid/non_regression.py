@@ -62,6 +62,7 @@ from metalibm_core.core.ml_formats import ML_Binary32, ML_Binary64, ML_Int32, ML
 from metalibm_core.core.precisions import dar, ML_CorrectlyRounded
 
 from metalibm_core.code_generation.code_constant import LLVM_IR_Code
+from metalibm_core.code_generation.generator_utility import LibraryDependency
 
 from metalibm_core.targets.common.vector_backend import VectorBackend
 from metalibm_core.targets.common.llvm_ir import LLVMBackend
@@ -341,8 +342,8 @@ new_scheme_function_list = [
       "input_precisions": [ML_Binary32],
       "bench_test_number": 1000,
       "execute_trigger": True,
-      "headers": ["math.h"],
-      "libraries": ["-lm"],
+      "headers": [],
+      "libraries": [LibraryDependency("math.h","-lm")],
       "bench_test_range": [Interval(-1, 1)]
     },
     # testing vector function codegen
