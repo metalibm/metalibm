@@ -346,13 +346,23 @@ new_scheme_function_list = [
       "libraries": [LibraryDependency("math.h","-lm")],
       "bench_test_range": [Interval(-1, 1)]
     },
-    # testing vector function codegen
+    # testing vector function codegen (vectorized function)
    {"precision": ML_Binary32,
      "bench_function_name": "dummy_v4",
      "target": target_instanciate("x86"),
      "input_precisions": [ML_Binary32],
      "vector_size": 4,
      "function_input_vector_size": 4,
+     "bench_test_number": 1000,
+     "bench_test_range": [Interval(-1, 1)]
+   },
+    # testing vector function codegen (auto-vectorization)
+   {"precision": ML_Binary32,
+     "bench_function_name": "tanf",
+     "target": target_instanciate("x86"),
+     "input_precisions": [ML_Binary32],
+     "vector_size": 4,
+     "function_input_vector_size": 1,
      "bench_test_number": 1000,
      "bench_test_range": [Interval(-1, 1)]
    },
