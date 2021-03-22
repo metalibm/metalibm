@@ -145,6 +145,9 @@ BENCH_TEST_RANGE = {
     "log": [UniformInterval(0, 100)],
     "log1p": [Interval(-1, 1)],
     "trigo": [UniformInterval(-1e7, 1e7)],
+    "tanh": [UniformInterval(-5,5)],
+    "sinh": [UniformInterval(-5,5)],
+    "cosh": [UniformInterval(-5,5)],
 }
 
 GEN_LOG_ARGS = {"basis": sollya.exp(1), "function_name": "ml_genlog", "extra_passes" : ["beforecodegen:fuse_fma"], "bench_test_range": BENCH_TEST_RANGE["log"]}
@@ -152,6 +155,15 @@ GEN_LOG2_ARGS =  {"basis": 2, "function_name": "ml_genlog2", "extra_passes" : ["
 GEN_LOG10_ARGS =  {"basis": 10, "function_name": "ml_genlog10", "extra_passes" : ["beforecodegen:fuse_fma"], "bench_test_range": BENCH_TEST_RANGE["log"]}
 
 class LibmFunctionTest(FunctionTest):
+    def __init__(self, fname, emulate, precision, bench_range, predicate):
+        FunctionTest.__init__(self, metalibm_functions.external_bench.ML_ExternalBench,
+                              [{
+                                "bench_function_name": fname,
+                                "emulate": emulate, "precision": precision,
+                                "auto_test": 0,
+                                "bench_test_range": bench_range,
+                                "headers": ["math.h"]}],
+                                title="libm", predicate=predicate)
     @property
     def tag(self):
         # NOTES/FIXME: 0-th element of self.arg_map_list is chosen
@@ -161,8 +173,10 @@ class LibmFunctionTest(FunctionTest):
 S2 = sollya.SollyaObject(2)
 S10 = sollya.SollyaObject(10)
 def emulate_exp2(v):
+    """ sollya emulation for exp2 a.k.a 2^x """
     return S2**v
 def emulate_exp10(v):
+    """ sollya emulation for exp10 a.k.a 10^x """
     return S10**v
 
 # predicate to limit libm test validity
@@ -174,7 +188,8 @@ BINARY64_FCT = lambda opts: (opts["precision"] == ML_Binary64)
 # libm functions
 LIBM_FUNCTION_LIST = [
     # single precision
-    LibmFunctionTest(metalibm_functions.external_bench.ML_ExternalBench, [{"bench_function_name": fname, "emulate": emulate, "precision": ML_Binary32, "auto_test": 0, "bench_test_range": bench_range, "headers": ["math.h"]}], title="libm", predicate=BINARY32_FCT)
+    #LibmFunctionTest(metalibm_functions.external_bench.ML_ExternalBench, [{"bench_function_name": fname, "emulate": emulate, "precision": ML_Binary32, "auto_test": 0, "bench_test_range": bench_range, "headers": ["math.h"]}], title="libm", predicate=BINARY32_FCT)
+    LibmFunctionTest(fname, emulate, ML_Binary32, bench_range, BINARY32_FCT)
     for fname, emulate, bench_range in [
         ("expf", sollya.exp, BENCH_TEST_RANGE["exp"]),
         ("exp2f", emulate_exp2,   BENCH_TEST_RANGE["exp"]),
@@ -188,12 +203,13 @@ LIBM_FUNCTION_LIST = [
         ("sinf", sollya.sin, BENCH_TEST_RANGE["trigo"]),
         ("tanf", sollya.tan, BENCH_TEST_RANGE["trigo"]),
         ("atanf", sollya.atan, [None, None]),
-        ("coshf", sollya.cosh, [None]),
-        ("sinhf", sollya.sinh, [None]),
-        ("tanhf", sollya.tanh, [None]),
+        ("coshf", sollya.cosh, BENCH_TEST_RANGE["cosh"]),
+        ("sinhf", sollya.sinh, BENCH_TEST_RANGE["sinh"]),
+        ("tanhf", sollya.tanh, BENCH_TEST_RANGE["tanh"]),
     ]
 ] + [
-    LibmFunctionTest(metalibm_functions.external_bench.ML_ExternalBench, [{"bench_function_name": fname, "emulate": emulate, "input_formats": [ML_Binary64], "bench_test_range": bench_range, "precision": ML_Binary64, "auto_test": 0, "headers": ["math.h"]}], title="libm", predicate=BINARY64_FCT)
+    #LibmFunctionTest(metalibm_functions.external_bench.ML_ExternalBench, [{"bench_function_name": fname, "emulate": emulate, "input_formats": [ML_Binary64], "bench_test_range": bench_range, "precision": ML_Binary64, "auto_test": 0, "headers": ["math.h"]}], title="libm", predicate=BINARY64_FCT)
+    LibmFunctionTest(fname, emulate, ML_Binary64, bench_range, BINARY64_FCT)
     for fname, emulate, bench_range in [
         ("exp", sollya.exp,      BENCH_TEST_RANGE["exp"]),
         ("exp2", emulate_exp2,   BENCH_TEST_RANGE["exp"]),
@@ -207,9 +223,9 @@ LIBM_FUNCTION_LIST = [
         ("sin", sollya.sin, BENCH_TEST_RANGE["trigo"]),
         ("tan", sollya.tan, BENCH_TEST_RANGE["trigo"]),
         ("atan", sollya.atan, [None, None]),
-        ("cosh", sollya.cosh, [None]),
-        ("sinh", sollya.sinh, [None]),
-        ("tanh", sollya.tanh, [None]),
+        ("cosh", sollya.cosh, BENCH_TEST_RANGE["cosh"]),
+        ("sinh", sollya.sinh, BENCH_TEST_RANGE["sinh"]),
+        ("tanh", sollya.tanh, BENCH_TEST_RANGE["tanh"]),
     ]
 
 ]
@@ -224,8 +240,8 @@ def rootn_option_specialization(opt_dict):
         ML_Binary64: [ML_Binary64, ML_Int64],
     }[precision]
     auto_test_range = {
-        ML_Binary32: [Interval(-2.0**126, 2.0**126), Interval(0, 255)], 
-        ML_Binary64:  [Interval(-2.0**1022, 2.0**1022), Interval(0, 255)], 
+        ML_Binary32: [Interval(-2.0**126, 2.0**126), Interval(0, 255)],
+        ML_Binary64:  [Interval(-2.0**1022, 2.0**1022), Interval(0, 255)],
     }[precision]
     opt_dict["auto_test_range"] = auto_test_range
     opt_dict["input_precisions"] = input_precisions
@@ -646,7 +662,7 @@ if __name__ == "__main__":
                             default=False, const=True,
                             help="enable filename timestamping")
     arg_parser.add_argument("--bench-loop-num", dest="bench_loop_num", action="store",
-                            default=100,
+                            default=100, type=int,
                             help="set the number of bench's loops")
     arg_parser.add_argument("--libm", dest="custom_libm", action="store",
                             default=None,
