@@ -32,7 +32,8 @@ import sollya
 
 from metalibm_core.core.ml_function import ML_FunctionBasis
 
-from metalibm_core.core.ml_operations import (Variable, FunctionObject)
+from metalibm_core.core.ml_operations import (
+    Variable, FunctionObject, Statement, Return)
 from metalibm_core.core.ml_formats import ML_Binary32
 from metalibm_core.core.precisions import ML_Faithful
 from metalibm_core.core.ml_vectorizer import vectorize_format
@@ -93,17 +94,7 @@ class ML_ExternalBench(ML_FunctionBasis):
         default_args_exp.update(kw)
         return DefaultMultiAryArgTemplate(**default_args_exp)
 
-
-    def generate_function_list(self):
-        Log.report(Log.Verbose,
-                   "generating external bench for function {} with vector-size {}/{}".format(self.bench_function_name, self.vector_size, self.function_input_vector_size))
-        if self.function_input_vector_size > 1:
-            output_format = vectorize_format(self.get_output_precision(), self.function_input_vector_size)
-            arg_format_list = [vectorize_format(arg_format, self.function_input_vector_size) for arg_format in self.get_input_precisions()]
-        else:
-            output_format = self.get_output_precision()
-            arg_format_list = list(self.get_input_precisions())
-
+    def generate_function_object(self, output_format, arg_format_list):
         # explicitly building FunctionOperator and FunctionObject to add
         # requested header list
         external_function_op = FunctionOperator(self.bench_function_name,
@@ -115,6 +106,35 @@ class ML_ExternalBench(ML_FunctionBasis):
                                            arg_format_list,
                                            output_format,
                                            external_function_op)
+
+        return external_function, external_function_op
+
+    def generate_scheme(self):
+        assert self.get_vector_size() > 1
+        output_format = self.get_output_precision()
+
+        arg_list = tuple(self.implementation.add_input_variable("x_%d" % index, input_format) for index, input_format in enumerate(self.get_input_precisions()))
+
+        external_function, external_function_op = self.generate_function_object(output_format, list(self.get_input_precisions()))
+
+        scheme = Statement(Return(external_function(*arg_list)))
+        return scheme
+
+
+    def generate_function_list(self):
+        Log.report(Log.Verbose,
+                   "generating external bench for function {} with vector-size {}/{}".format(self.bench_function_name, self.vector_size, self.function_input_vector_size))
+        if self.function_input_vector_size == 1 and self.get_vector_size() > 1:
+            # relying on auto vectorization
+            return ML_FunctionBasis.generate_function_list(self)
+        if self.function_input_vector_size > 1:
+            output_format = vectorize_format(self.get_output_precision(), self.function_input_vector_size)
+            arg_format_list = [vectorize_format(arg_format, self.function_input_vector_size) for arg_format in self.get_input_precisions()]
+        else:
+            output_format = self.get_output_precision()
+            arg_format_list = list(self.get_input_precisions())
+
+        external_function, external_function_op = self.generate_function_object(output_format, arg_format_list)
 
         benched_function = CodeFunction(self.bench_function_name,
                                         output_format=output_format,
