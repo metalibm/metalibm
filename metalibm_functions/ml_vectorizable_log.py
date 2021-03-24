@@ -127,9 +127,6 @@ class ML_Log(ML_Function("ml_log")):
     else:
         Log.report(Log.Info, "radix {} is not part of standard radices {{2, e, 10}}", self.log_radix)
         self.log_emulation_function = lambda v: sollya.log(v) / sollya.log(self.log_radix)
-    # .. update output and function name
-    self.function_name = "LOG{}".format(args.log_radix)
-    self.output_file = "{}.c".format(self.function_name)
 
   @staticmethod
   def get_default_args(**kw):
@@ -161,7 +158,6 @@ class ML_Log(ML_Function("ml_log")):
         Log.report(Log.Error, "The demanded precision is not supported")
 
     vx = self.implementation.add_input_variable("x", self.precision)
-
 
     def default_bool_convert(optree, precision=None, **kw):
         return bool_convert(optree, precision, -1, 0, **kw) \
