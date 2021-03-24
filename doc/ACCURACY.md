@@ -22,6 +22,9 @@ Less than half a "ulp"
 On metalibm command line, such accuracy can be indicated by:
     --accuracy cr
 
+WARNING: Currently no meta-function supports the generation of a correctly rounded version.
+The `cr` option can still be used to test any implementation (or even an external function) against a correctlt-rounded version and highlight differences.
+
 ### Faithfully rounded
 
 Less than an ulp
