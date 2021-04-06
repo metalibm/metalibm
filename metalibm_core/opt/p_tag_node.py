@@ -77,12 +77,13 @@ class Pass_DebugTaggedNode(FunctionPass):
     """ Verify that each node has a precision assigned to it """
     pass_tag = "debug_tag_node"
 
-    def __init__(self, target, debug_tags, language=C_Code):
+    def __init__(self, target, debug_tags, language=C_Code, debug_mapping=None):
         FunctionPass.__init__(self, "debug_tagged_node", target)
         self.language = language
         self.tag_list = [] if debug_tags in [True, False, None] else debug_tags
         # if debug_tags==True then debug's attributes must not be modified
         self.default_tags = (debug_tags is True)
+        self.debug_mapping = debug_multi if debug_mapping is None else debug_mapping
 
 
     def enable_debug(self, node, memoization_map=None, debug=False, language=C_Code):
@@ -97,7 +98,7 @@ class Pass_DebugTaggedNode(FunctionPass):
                 self.enable_debug(inp, memoization_map, debug=debug)
 
         if node.get_tag() in self.tag_list:
-            node.set_debug(debug_multi)
+            node.set_debug(self.debug_mapping)
             Log.report(Log.Debug, "enabling debug for node {}", node.get_tag())
         elif not self.default_tags:
             if node.get_debug():
