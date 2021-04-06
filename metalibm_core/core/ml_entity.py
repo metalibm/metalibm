@@ -85,6 +85,7 @@ from metalibm_core.code_generation.gappa_code_generator import (
 )
 
 from metalibm_core.utility.log_report import Log
+from metalibm_core.utility.rtl_debug_utils import rtl_debug_multi
 from metalibm_core.utility.ml_template import (
     ArgDefault, DefaultEntityArgTemplate
 )
@@ -659,7 +660,7 @@ class ML_EntityBasis(object):
 
     # debug instrumentation pass: enable debug for all nodes whose tag is listed
     # in self.debug_flag
-    debug_pass = Pass_DebugTaggedNode(self.backend, self.debug_flag)
+    debug_pass = Pass_DebugTaggedNode(self.backend, self.debug_flag, debug_mapping=rtl_debug_multi)
     _ = self.pass_scheduler.execute_pass_list(
        [debug_pass],
        code_entity_list,

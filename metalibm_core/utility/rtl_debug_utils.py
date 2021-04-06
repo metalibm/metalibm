@@ -30,9 +30,10 @@
 # Author(s): Nicolas Brunie <nbrunie@kalray.eu>
 ###############################################################################
 from metalibm_core.utility.debug_utils import ML_Debug, ML_AdvancedDebug, ML_MultiDebug
-from metalibm_core.core.ml_formats import *
 
-from metalibm_core.utility.log_report import Log
+from metalibm_core.core.ml_formats import ML_Bool
+from metalibm_core.core.ml_hdl_format import RTL_FixedPointFormat, ML_StdLogic, ML_StdLogicVectorFormat
+
 
 ## Helper for debug enabling with binary value display
 debug_std          = ML_Debug(display_format = " -radix 2 ")
@@ -53,6 +54,28 @@ def fixed_debug_pre_process(value_name, optree):
   # return "echo [get_fixed_value [examine -value {signed_attr} {value}] {weight}]".format(signed_attr = signed_attr, value = value_name, weight = -fixed_prec.get_frac_size())
   return "echo [get_fixed_value [examine -radix 10 {signed_attr} {value}] {weight}]".format(signed_attr = signed_attr, value = value_name, weight = -fixed_prec.get_frac_size())
 
-
 ## Debug attributes specific for Fixed-Point values
 debug_fixed = ML_AdvancedDebug(pre_process = fixed_debug_pre_process)
+
+class RTLMultiDebugKey: pass
+class RTLDebugStdLogicVector: pass
+class RTLDebugFixedPoint: pass
+
+def rtl_debug_multi_key(optree):
+    """ key mapper for RTL multi-debug """
+    node_format = optree.get_precision()
+    if isinstance(node_format, RTL_FixedPointFormat):
+        return RTLDebugFixedPoint
+    elif isinstance(node_format, ML_StdLogicVectorFormat):
+        return RTLDebugStdLogicVector
+    else:
+        return node_format
+
+
+rtl_debug_multi = ML_MultiDebug({
+        RTLDebugFixedPoint: debug_fixed,
+        RTLDebugStdLogicVector: debug_std,
+        ML_Bool: debug_std,
+        ML_StdLogic: debug_std
+    },
+    key_function=rtl_debug_multi_key)
