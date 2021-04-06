@@ -77,7 +77,7 @@ class ML_MultiDebug(ML_Debug):
         except KeyError:
             Log.report(
                 Log.Error,
-                "unable to found key({}) in debug_object_map".format(dbg_key)
+                "unable to find key({}) in debug_object_map".format(dbg_key)
             )
 
     def add_mapping(self, debug_key, debug_object):
