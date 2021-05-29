@@ -410,10 +410,13 @@ class CodeObject(CodeConfiguration, CommonCodeObject):
         self.inc_level()
 
     def get_multiline_comment(self, comment_list):
-        result = "/**\n"
+        result = "/**"
+        def empty_line(s):
+            return not len(s.replace(" ", "").replace("\t", ""))
         for comment in comment_list:
-            result += " * " + comment.replace("\n", "\n * ") + "\n"
-        result += "**/\n"
+            # result += " * " + comment.replace("\n", "\n * ") + "\n"
+            result += "\n" + "\n".join(map(lambda s: (" *" if empty_line(s) else " * " + s), comment.split("\n")))
+        result += "\n */\n"
         return result
 
     def generate_header_code(self, git_tag = True):
