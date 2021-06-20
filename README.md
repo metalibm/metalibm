@@ -20,6 +20,7 @@ Documentation (for master branch) is available on gitlab's pages: https://nibrun
         install (if sollya is already installed): `pip install git+https://gitlab.com/metalibm-dev/pythonsollya`
         beware that sollya master branch is required for pythonsollya master
     - Some features of Metalibm require Gappa (http://gappa.gforge.inria.fr/)
+    - Others dependencies are listed in the `requirements.txt` if you install metalibm from source, run `pip install -r requirements.txt`
 
 * Python version compatibility: as of version 1.0, metalibm works with python3 (tested with 3.4).
 
