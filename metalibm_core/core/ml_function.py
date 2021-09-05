@@ -37,6 +37,7 @@ import os
 import random
 import subprocess
 import re
+import statistics
 
 try:
     # matplotlib import is optionnal (using for plotting only)
@@ -1038,8 +1039,13 @@ class ML_FunctionBasis(object):
                 loaded_module = bin_file.loaded_binary
 
                 if self.bench_enabled:
-                    cpe_measure = loaded_module.get_function_handle("bench_wrapper")()
-                    exec_result["cpe_measure"] = cpe_measure
+                    SAMPLE_NUM = 10
+                    cpe_measures = [loaded_module.get_function_handle("bench_wrapper")() for _ in range(SAMPLE_NUM)]
+                    mean = statistics.mean(cpe_measures)
+                    geomean = statistics.geometric_mean(cpe_measures)
+                    stdev = statistics.stdev(cpe_measures)
+                    print("speed stats: mean={}, geomean={}, stdev={}".format(mean, geomean, stdev))
+                    exec_result["cpe_measure"] = mean
 
                 # max-error must be evaluated before auto-test
                 # in case auto-test fails and raises a ValidError exception
