@@ -1156,7 +1156,7 @@ class GenericProcessor(AbstractBackend):
   ## return the compiler command line program to use to build
   #  test programs
   def get_compiler(self):
-    return GenericProcessor.default_compiler
+    return self.default_compiler
 
   def get_execution_command(self, test_file):
     return "./%s" % test_file
