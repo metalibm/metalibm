@@ -874,7 +874,7 @@ class AsmInlineOperator(ML_CG_Operator):
         else:
             # generating list of arguments
             #arg_result = [code_generator.generate_expr(code_object, arg, **kwords) for arg in arg_tuple]
-            arg_result = ordered_generation(lambda arg, index: code_generator.generate_expr(code_object, arg, force_variable_storing=force_input_variable[index], inlined=inlined, lvalue=value), arg_tuple)
+            arg_result = ordered_generation(lambda arg, index: code_generator.generate_expr(code_object, arg, force_variable_storing=force_input_variable[index], inlined=inlined, lvalue=lvalue), arg_tuple)
             # assembling parent operator code
             return self.assemble_code(code_generator, code_object, optree, arg_result, generate_pre_process = generate_pre_process, inlined=inlined, lvalue=lvalue, result_var=result_var)
             #[self.get_arg_from_index(index, arg_result) for index in range(self.arity)], 
