@@ -1003,7 +1003,6 @@ class ML_FunctionBasis(object):
         else:
             bin_name = build_utils.generate_tmp_filename("./testbin_{}".format(self.function_name))
             shared_object = False
-            link_trigger = True
         bin_file = source_file.build(self.processor, bin_name, shared_object=shared_object, link=link_trigger, extra_build_opts=self.get_extra_build_opts())
 
         if bin_file is None:
