@@ -34,13 +34,17 @@
 import os
 
 from metalibm_core.core.target import UniqueTargetDecorator
-from metalibm_core.core.ml_operations import SpecificOperation
-from metalibm_core.core.ml_formats import ML_Int64
+from metalibm_core.core.ml_operations import (
+    SpecificOperation, NearestInteger, Conversion)
+from metalibm_core.core.ml_formats import (
+    ML_Int64, ML_Int32,
+    ML_Binary64, ML_Binary32)
 
 from metalibm_core.code_generation.abstract_backend import LOG_BACKEND_INIT
 from metalibm_core.code_generation.code_constant import C_Code
 from metalibm_core.code_generation.generator_utility import (
-    AsmInlineOperator, FO_Result, type_strict_match)
+    AsmInlineOperator, FO_Result, FO_Arg, type_strict_match)
+from metalibm_core.code_generation.complex_generator import ComplexOperator
 
 from metalibm_core.utility.log_report import Log
 
@@ -57,6 +61,22 @@ rdcycleOperator = AsmInlineOperator(
     arity = 0
 )
 
+def RV_singleOpAsmTemplate(insn, regDst="r", regSrc="f"):
+    singleOpOperator = AsmInlineOperator(
+   """asm volatile ("{insn} %%0, %%1 " : "={regDst}" (%s) : "{regSrc}"(%s));\n""".format(insn=insn, regDst=regDst, regSrc=regSrc),
+        arg_map = {0: FO_Result(0), 1: FO_Arg(0)},
+        arity=1
+    )
+    return singleOpOperator
+
+def lowerConversion(intFormat, targetFormat):
+    """ expand conversion into a conversion from
+        conv's input to <intFormat> and then to <targetFormat> """
+    def modifier(conv):
+        op = conv.get_input(0)
+        return Conversion(Conversion(op, precision=intFormat), precision=targetFormat)
+    return modifier
+
 rv64CCodeGenTable = {
     SpecificOperation: {
         SpecificOperation.ReadTimeStamp: {
@@ -65,13 +85,40 @@ rv64CCodeGenTable = {
             }
         }
     },
+    # Conversion are mapped to function by default
+    # so we lower them explicity to less-contrained
+    # implementation
+    NearestInteger: {
+        None: {
+            lambda optree: True: {
+                type_strict_match(ML_Int32, ML_Binary32):
+                    RV_singleOpAsmTemplate("fcvt.w.s"),
+                type_strict_match(ML_Binary32, ML_Binary32):
+                    ComplexOperator(optree_modifier=lowerConversion(ML_Int32, ML_Binary32)),
+                type_strict_match(ML_Int64, ML_Binary64):
+                    RV_singleOpAsmTemplate("fcvt.l.d"),
+                type_strict_match(ML_Int32, ML_Binary64):
+                    ComplexOperator(optree_modifier=lowerConversion(ML_Int64, ML_Int32)),
+                type_strict_match(ML_Binary64, ML_Binary64):
+                    ComplexOperator(optree_modifier=lowerConversion(ML_Int64, ML_Binary64)),
+            },
+        },
+    },
 }
+
+def buildRVCompilerPath():
+    try:
+        RISCV = os.environ["RISCV"]
+    except KeyError:
+        Log.report(Log.Error, "RISCV env variable must be set such than $RISCV/bin/riscv64-unknown-elf-gcc is accessible")
+    compiler = "{}/bin/riscv64-unknown-elf-gcc".format(RISCV)
+    return compiler
 
 
 @UniqueTargetDecorator
 class RISCV_RV64(VectorBackend):
     target_name = "rv64g"
-    default_compiler = "{}/bin/riscv64-unknown-elf-gcc".format(os.environ["RISCV"])
+    default_compiler = buildRVCompilerPath()
     # only cross-compilation (not binary embedding in python) is currently supported
     support_embedded_bin = False
     cross_platform = True
