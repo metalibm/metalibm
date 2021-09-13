@@ -63,6 +63,11 @@ class NumericValue(sollya.SollyaObject):
             return rhs.__rsub__(lhs)
         else:
             return NumericValue(sollya.SollyaObject.__sub__(lhs, rhs))
+    def __truediv__(lhs, rhs):
+        if FP_SpecialValue.is_special_value(rhs):
+            return special_value_div(lhs, rhs)
+        else:
+            return NumericValue(sollya.SollyaObject.__truediv__(lhs, rhs))
 
     def __lt__(lhs, rhs):
         # TODO/FIXME: could be optimized as we know lhs to be a numerical value
@@ -153,6 +158,10 @@ class FP_SpecialValue(object):
     return special_value_mul(lhs, rhs)
   def __rmul__(rhs, lhs):
     return special_value_mul(lhs, rhs)
+  def __truediv__(lhs, rhs):
+    return special_value_div(lhs, rhs)
+  def __rtruediv__(rhs, lhs):
+    return special_value_div(lhs, rhs)
 
 
   def __lt__(lhs, rhs):
@@ -395,6 +404,55 @@ def special_value_mul(lhs, rhs):
     else:
         raise NotImplementedError
 
+def special_value_div(lhs, rhs, default_precision=None):
+    """ Division between special values or between special values and
+        numbers """
+    if is_nan(lhs) or is_nan(rhs):
+        return FP_QNaN(lhs.precision)
+    elif is_infty(lhs) and is_infty(rhs):
+        return FP_QNaN(lhs.precision)
+    elif (is_plus_infty(lhs) and is_plus_zero(rhs, extended=True)) or (is_minus_infty(lhs) and is_minus_zero(rhs)):
+        return FP_PlusInfty(lhs.precision)
+    elif (is_plus_infty(lhs) and is_minus_zero(rhs)) or (is_minus_infty(lhs) and is_plus_zero(rhs, extended=True)):
+        return FP_MinusInfty(lhs.precision)
+    elif is_number(rhs) and is_plus_infty(lhs):
+        return FP_PlusInfty(lhs.precision) if rhs > 0 else FP_MinusInfty(lhs.precision)
+    elif is_number(rhs) and is_minus_infty(lhs):
+        return FP_PlusInfty(lhs.precision) if rhs < 0 else FP_MinusInfty(lhs.precision)
+    elif is_number(lhs) and is_plus_infty(rhs):
+        return FP_PlusZero(rhs.precision) if lhs > 0 else FP_MinusZero(rhs.precision)
+    elif is_number(lhs) and is_minus_infty(rhs):
+        return FP_PlusZero(rhs.precision) if lhs < 0 else FP_MinusZero(rhs.precision)
+    elif is_number(lhs) and is_number(rhs) and not is_zero(rhs):
+        return lhs / rhs
+    elif is_zero(lhs) and is_zero(rhs):
+        if FP_SpecialValue.is_special_value(lhs):
+            return FP_QNaN(lhs.precision)
+        elif FP_SpecialValue.is_special_value(rhs):
+            return FP_QNaN(rhs.precision)
+        else:
+            return FP_QNaN(default_precision)
+    elif (is_zero(lhs) and is_positive(rhs)):
+        return lhs
+    elif is_zero(lhs) and is_negative(rhs):
+        return -lhs
+    elif (is_positive(lhs) and is_plus_zero(rhs, extended=True)) or (is_negative(lhs)  and is_minus_zero(rhs)):
+        if FP_SpecialValue.is_special_value(lhs):
+            return FP_PlusInfty(lhs.precision)
+        elif FP_SpecialValue.is_special_value(rhs):
+            return FP_PlusInfty(rhs.precision)
+        else:
+            return FP_PlusInfty(default_precision)
+    elif (is_positive(lhs) and is_minus_zero(rhs)) or (is_negative(lhs)  and is_plus_zero(rhs, extended=True)):
+        if FP_SpecialValue.is_special_value(lhs):
+            return FP_MinusInfty(lhs.precision)
+        elif FP_SpecialValue.is_special_value(rhs):
+            return FP_MinusInfty(rhs.precision)
+        else:
+            return FP_MinusInfty(default_precision)
+    else:
+        raise NotImplementedError
+
 def is_positive(value):
     return is_plus_zero(value) or is_plus_infty(value) or \
         (is_number(value) and value >= 0)
@@ -539,8 +597,8 @@ def is_nan(value):
     """ testing if a value is an instance of a NaN """
     return is_qnan(value) or is_snan(value)
 
-def is_plus_zero(value):
-    return isinstance(value, FP_PlusZero)
+def is_plus_zero(value, extended=False):
+    return isinstance(value, FP_PlusZero) or (extended and is_numeric_value(value) and value == 0)
 def is_minus_zero(value):
     return isinstance(value, FP_MinusZero)
 def is_zero(value):
