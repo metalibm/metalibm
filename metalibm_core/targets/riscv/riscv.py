@@ -63,18 +63,18 @@ rdcycleOperator = AsmInlineOperator(
 
 def RV_singleOpAsmTemplate(insn, regDst="r", regSrc="f"):
     singleOpOperator = AsmInlineOperator(
-   """asm volatile ("{insn} %%0, %%1 " : "={regDst}" (%s) : "{regSrc}"(%s));\n""".format(insn=insn, regDst=regDst, regSrc=regSrc),
+   """asm volatile ("{insn}" : "={regDst}" (%s) : "{regSrc}"(%s));\n""".format(insn=insn, regDst=regDst, regSrc=regSrc),
         arg_map = {0: FO_Result(0), 1: FO_Arg(0)},
         arity=1
     )
     return singleOpOperator
 
-def lowerConversion(intFormat, targetFormat):
+def lowerNearestInteger(intFormat, targetFormat):
     """ expand conversion into a conversion from
         conv's input to <intFormat> and then to <targetFormat> """
     def modifier(conv):
         op = conv.get_input(0)
-        return Conversion(Conversion(op, precision=intFormat), precision=targetFormat)
+        return Conversion(NearestInteger(op, precision=intFormat), precision=targetFormat)
     return modifier
 
 rv64CCodeGenTable = {
@@ -92,15 +92,15 @@ rv64CCodeGenTable = {
         None: {
             lambda optree: True: {
                 type_strict_match(ML_Int32, ML_Binary32):
-                    RV_singleOpAsmTemplate("fcvt.w.s"),
+                    RV_singleOpAsmTemplate("fcvt.w.s %%0, %%1, rne"),
                 type_strict_match(ML_Binary32, ML_Binary32):
-                    ComplexOperator(optree_modifier=lowerConversion(ML_Int32, ML_Binary32)),
+                    ComplexOperator(optree_modifier=lowerNearestInteger(ML_Int32, ML_Binary32)),
                 type_strict_match(ML_Int64, ML_Binary64):
-                    RV_singleOpAsmTemplate("fcvt.l.d"),
+                    RV_singleOpAsmTemplate("fcvt.l.d %%0, %%1, rne"),
                 type_strict_match(ML_Int32, ML_Binary64):
-                    ComplexOperator(optree_modifier=lowerConversion(ML_Int64, ML_Int32)),
+                    ComplexOperator(optree_modifier=lowerNearestInteger(ML_Int64, ML_Int32)),
                 type_strict_match(ML_Binary64, ML_Binary64):
-                    ComplexOperator(optree_modifier=lowerConversion(ML_Int64, ML_Binary64)),
+                    ComplexOperator(optree_modifier=lowerNearestInteger(ML_Int64, ML_Binary64)),
             },
         },
     },
