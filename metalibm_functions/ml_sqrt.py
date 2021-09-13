@@ -201,16 +201,18 @@ class MetalibmSqrt(ScalarUnaryFunction):
             tag="is_Negative", precision=ML_Bool, likely=False)
         test_NaN_or_Neg = LogicalOr(test_NaN, test_negative, precision=ML_Bool)
 
+        test_zero = Comparison(
+            vx, C0, specifier=Comparison.Equal, likely=False, debug=debug_multi,
+            tag="Is_Zero", precision=ML_Bool)
+
         test_std = LogicalNot(
             LogicalOr(
-                test_NaN_or_Inf, test_negative, precision=ML_Bool, likely=False
+                test_NaN_or_Inf, LogicalOr(test_negative, test_zero, precision=ML_Bool, likely=False),
+                precision=ML_Bool, likely=False
             ),
             precision=ML_Bool, likely=True
         )
 
-        test_zero = Comparison(
-            vx, C0, specifier=Comparison.Equal, likely=False, debug=debug_multi,
-            tag="Is_Zero", precision=ML_Bool)
 
         return_NaN_or_neg = Statement(Return(FP_QNaN(self.precision)))
         return_inf = Statement(Return(FP_PlusInfty(self.precision)))
