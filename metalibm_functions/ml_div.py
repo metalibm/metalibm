@@ -52,6 +52,7 @@ from metalibm_core.core.ml_formats import (
     ML_Bool, ML_Exact,
 )
 from metalibm_core.core.special_values import (
+    NumericValue, special_value_div,
     FP_QNaN, FP_MinusInfty, FP_PlusInfty,
     FP_MinusZero, FP_PlusZero,
 )
@@ -608,6 +609,7 @@ class ML_Division(ML_FunctionBasis):
         return scheme
 
     def numeric_emulate(self, x, y):
+        return special_value_div(x, y, self.precision)
         if x != 0 and y == 0:
             # multiplication to correct the sign
             return x * sollya.parse("infty")
@@ -692,14 +694,19 @@ class ML_Division(ML_FunctionBasis):
             div_eval_error = None
         return recp_eval_error, div_eval_error
 
-    standard_test_cases = [
-        (1.0, sollya.parse("0x1.fffffffffffffp+1023"), sollya.parse("0x1p-1024")),
-        (sollya.parse("-0x1.34a246p-2"), sollya.parse("-0x1.26e2e2p-1")),
-        (sollya.parse("0x1.p0"), sollya.parse("0x1.e0ef5ep-49")),
-        (sollya.parse("0x1.7fddbp0"), sollya.parse("0x1.e0ef5ep-49")),
-        (sollya.parse("0x1.7fddbp-126"), sollya.parse("0x1.e0ef5ep-49")),
-        (1.0, sollya.parse("-0x1.fffffffffffffp+1023"), sollya.parse("-0x1p-1024")),
-    ]
+    @property
+    def standard_test_cases(self):
+        return [
+            (1.0, sollya.parse("0x1.fffffffffffffp+1023"), sollya.parse("0x1p-1024")),
+            (sollya.parse("-0x1.34a246p-2"), sollya.parse("-0x1.26e2e2p-1")),
+            (sollya.parse("0x1.p0"), sollya.parse("0x1.e0ef5ep-49")),
+            (sollya.parse("0x1.7fddbp0"), sollya.parse("0x1.e0ef5ep-49")),
+            (sollya.parse("0x1.7fddbp-126"), sollya.parse("0x1.e0ef5ep-49")),
+            (1.0, sollya.parse("-0x1.fffffffffffffp+1023"), sollya.parse("-0x1p-1024")),
+        ] if self.precision is ML_Binary64 else [] + [
+            (NumericValue.parse("0x1.67d07ep-48"), 0.0),
+            (NumericValue.parse("1.0"), FP_MinusInfty(self.precision)),
+        ]
 
 
 
