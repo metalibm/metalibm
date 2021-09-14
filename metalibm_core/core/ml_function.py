@@ -954,7 +954,7 @@ class ML_FunctionBasis(object):
     CstSuccess = Constant(0, precision=ML_Int32)
     # adding main function, if the source code final target
     # is not a library (to be embedded in python in case of test)
-    if not embedding_binary and self.bench_enabled or self.auto_test_enable:
+    if not embedding_binary and (self.bench_enabled or self.auto_test_enable or self.compute_max_error):
         main_function = CodeFunction("main", output_format=ML_Int32)
         main_function.set_scheme(
             Statement(
@@ -1097,7 +1097,7 @@ class ML_FunctionBasis(object):
                         Log.report(Log.Error, "unable to extract float cpe measure from {}", cpe_match.group("cpe_measure"), error=e)
                 # extracting max error result
                 if self.compute_max_error:
-                    max_error = re.search("relative=(?P<max_error>0x[0-9a-fA-F\.]+p[+-]\d+|nan)", ret_stdout)
+                    max_error = re.search("relative=(?P<max_error>0x[0-9a-fA-F\.]+p[+-]\d+|nan|inf)", ret_stdout)
                     if max_error is None:
                         Log.report(Log.Error, "not able to extract max error measure from log: {}", ret_stdout)
                     try:
