@@ -263,7 +263,7 @@ FUNCTION_LIST = LIBM_FUNCTION_LIST + [
     # meta-functions
     FunctionTest(metalibm_functions.ml_tanh.ML_HyperbolicTangent, [{}], specific_opts_builder=tanh_option_specialization, title="ml_tanh"),
 
-    FunctionTest(metalibm_functions.ml_atan.MetaAtan, [{}], title="ml_atan"),
+    FunctionTest(metalibm_functions.ml_atan.MetaAtan, [{"auto_test_range": [Interval(-10, 10)]}], title="ml_atan"),
 
     FunctionTest(metalibm_functions.generic_log.ML_GenericLog,[GEN_LOG_ARGS], title="ml_genlog"),
     FunctionTest(metalibm_functions.generic_log.ML_GenericLog,[GEN_LOG2_ARGS], title="ml_genlog2"),
@@ -300,7 +300,7 @@ def get_cmdline_option(option_list, option_value):
         "extra_passes": lambda vlist: ("--extra-passes " + ",".join(vlist)),
         "execute_trigger": lambda v: "--execute",
         "auto_test": lambda v: "--auto-test {}".format(v),
-        "bench_test_number": lambda v: "--bench {}".format(v),
+        "bench_test_number": lambda v: "" if v is None else "--bench {}".format(v),
         "bench_loop_num": lambda v: "--bench-loop-num {}".format(v),
         "auto_test_std": lambda _: "--auto-test-std ",
         "target": lambda v: "--target {}".format(v),
@@ -467,7 +467,12 @@ def cleanify_name(name):
     return name.replace("-", "_")
 
 
-def generate_test_list(NUM_AUTO_TEST, NUM_BENCH_TEST, scalar_target_tag_list, vector_target_tag_list, ENANBLE_STD_TEST=True, MAX_ERROR_EVAL=False, NUM_BENCH_LOOP=1000):
+def generate_test_list(NUM_AUTO_TEST, NUM_BENCH_TEST,
+                       scalar_target_tag_list,
+                       vector_target_tag_list,
+                       ENANBLE_STD_TEST=True,
+                       MAX_ERROR_EVAL=False,
+                       NUM_BENCH_LOOP=1000):
     """ generate a list of test """
     # list of all possible test for a single function
     test_list = []
@@ -679,7 +684,7 @@ if __name__ == "__main__":
 
     # number of self-checking test to be generated
     if args.error_eval:
-        NUM_AUTO_TEST =0
+        NUM_AUTO_TEST = 0
         ENANBLE_STD_TEST = False
         MAX_ERROR_EVAL = True
     else:
