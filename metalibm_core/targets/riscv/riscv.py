@@ -108,10 +108,11 @@ rv64CCodeGenTable = {
 
 def buildRVCompilerPath():
     try:
-        RISCV = os.environ["RISCV"]
+        RISCV_CC = os.environ["RISCV_CC"]
     except KeyError:
-        Log.report(Log.Error, "RISCV env variable must be set such than $RISCV/bin/riscv64-unknown-elf-gcc is accessible")
-    compiler = "{}/bin/riscv64-unknown-elf-gcc".format(RISCV)
+        Log.report(Log.Warning, "RISCV_CC env variable must be set such than $RISCV/bin/riscv64-unknown-elf-gcc is accessible")
+        RISCV_CC = "<RISCV_CC undef>"
+    compiler = RISCV_CC #"{}/bin/riscv64-unknown-elf-gcc".format(RISCV)
     return compiler
 
 
@@ -136,13 +137,15 @@ class RISCV_RV64(VectorBackend):
     def get_execution_command(self, test_file):
         try:
             pk_bin = os.environ["PK_BIN"]
-        except:
-            Log.report(Log.Error, "PK_BIN env var must point to proxy-kernel image")
+        except KeyError:
+            Log.report(Log.Warning, "PK_BIN env var must point to proxy-kernel image")
+            pk_bin = "<PK_BIN undef>"
 
         try:
             spike_bin = os.environ["SPIKE_BIN"]
-        except:
-            Log.report(Log.Error, "SPIKE_BIN env var must point to spike simulator binary")
+        except KeyError:
+            Log.report(Log.Warning, "SPIKE_BIN env var must point to spike simulator binary")
+            spike = "<SPIKE_BIN undef>"
         cmd = "{} --isa=RV64gc {}  {}".format(spike_bin, pk_bin, test_file)
         return cmd
 
