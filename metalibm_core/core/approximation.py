@@ -266,7 +266,9 @@ def generate_piecewise_poly_approx_from_params(offset_table, max_degree, poly_ta
     #return poly.hi
     return poly
 
-def generate_piecewise_poly_approx(offset_fct, indexing, target_eps, coeff_precision, vx, max_degree=None, error_target_type=sollya.relative, axf_export=False):
+def generate_piecewise_poly_approx(offset_fct, indexing, target_eps, coeff_precision,
+                                   vx, max_degree=None, error_target_type=sollya.relative,
+                                   axf_export=False):
     """ generate the meta approximation for @p offset_fct over several
         intervals defined by @p indexing object
         For each sub-interval, a polynomial approximation with
