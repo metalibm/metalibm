@@ -227,6 +227,7 @@ generic_approx_table_map = {
             None: {
                 lambda optree: True: {
                     type_strict_match(ML_Binary32, ML_Binary32): invsqrt_approx_table,
+                    type_strict_match(ML_Binary64, ML_Binary64): invsqrt_approx_table,
                 },
             },
         },
