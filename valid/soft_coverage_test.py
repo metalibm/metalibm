@@ -263,7 +263,7 @@ FUNCTION_LIST = LIBM_FUNCTION_LIST + [
     # meta-functions
     FunctionTest(metalibm_functions.ml_tanh.ML_HyperbolicTangent, [{}], specific_opts_builder=tanh_option_specialization, title="ml_tanh"),
 
-    FunctionTest(metalibm_functions.ml_atan.MetaAtan, [{"auto_test_range": [Interval(-10, 10)]}], title="ml_atan"),
+    FunctionTest(metalibm_functions.ml_atan.MetaAtan, [{"auto_test_range": [UniformInterval(-10, 10)]}], title="ml_atan"),
 
     FunctionTest(metalibm_functions.generic_log.ML_GenericLog,[GEN_LOG_ARGS], title="ml_genlog"),
     FunctionTest(metalibm_functions.generic_log.ML_GenericLog,[GEN_LOG2_ARGS], title="ml_genlog2"),
@@ -277,7 +277,7 @@ FUNCTION_LIST = LIBM_FUNCTION_LIST + [
     FunctionTest(metalibm_functions.ml_div.ML_Division, [{}]),
 
     FunctionTest(metalibm_functions.ml_exp2.ML_Exp2, [{"bench_test_range": BENCH_TEST_RANGE["exp"]}]),
-    FunctionTest(metalibm_functions.ml_cbrt.ML_Cbrt, [{}]),
+    FunctionTest(metalibm_functions.ml_cbrt.ML_Cbrt, [{"auto_test_range": [UniformInterval(-100, 100)]}]),
     FunctionTest(metalibm_functions.ml_sqrt.MetalibmSqrt, [{}]),
     FunctionTest(metalibm_functions.ml_isqrt.ML_Isqrt, [{}]),
     FunctionTest(metalibm_functions.ml_vectorizable_log.ML_Log, [{}], title="vectorizable_log"),
@@ -286,7 +286,7 @@ FUNCTION_LIST = LIBM_FUNCTION_LIST + [
 
     FunctionTest(metalibm_functions.erf.ML_Erf, [{}]),
 
-    FunctionTest(metalibm_functions.ml_acos.ML_Acos, [{}]),
+    FunctionTest(metalibm_functions.ml_acos.ML_Acos, [{"auto_test_range": [UniformInterval(-1, 1)]}]),
 
     FunctionTest(metalibm_functions.rootn.MetaRootN, [{}], specific_opts_builder=rootn_option_specialization),
 ]
