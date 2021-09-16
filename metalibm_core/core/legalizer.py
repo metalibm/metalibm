@@ -730,30 +730,26 @@ def legalize_invsqrt_seed(optree):
     # approx = 2^(-int(e/2)) * approx_insqrt(1.m_hi) * (e % 2 ? 1.0 : ~2**-0.5)
     op_input = optree.get_input(0)
     convert_back = False
-    approx_prec = ML_Binary32
-
-    if op_prec != approx_prec:
-        op_input = Conversion(op_input, precision=ML_Binary32)
-        convert_back = True
-
+    approx_prec = op_prec # ML_Binary32
 
     # TODO: fix integer precision selection
     #       as we are in a late code generation stage, every node's precision
     #       must be set
-    op_exp = ExponentExtraction(op_input, tag="op_exp", debug=debug_multi, precision=ML_Int32)
+    int_format = op_prec.get_integer_format()
+    op_exp = ExponentExtraction(op_input, tag="op_exp", debug=debug_multi, precision=int_format)
     neg_half_exp = Division(
-        Negation(op_exp, precision=ML_Int32),
-        Constant(2, precision=ML_Int32),
-        precision=ML_Int32
+        Negation(op_exp, precision=int_format),
+        Constant(2, precision=int_format),
+        precision=int_format
     )
     approx_exp = ExponentInsertion(neg_half_exp, tag="approx_exp", debug=debug_multi, precision=approx_prec)
     op_exp_parity = Modulo(
-        op_exp, Constant(2, precision=ML_Int32), precision=ML_Int32)
+        op_exp, Constant(2, precision=int_format), precision=int_format)
     approx_exp_correction = Select(
-        Equal(op_exp_parity, Constant(0, precision=ML_Int32)),
+        Equal(op_exp_parity, Constant(0, precision=int_format)),
         Constant(1.0, precision=approx_prec),
         Select(
-            Equal(op_exp_parity, Constant(-1, precision=ML_Int32)),
+            Equal(op_exp_parity, Constant(-1, precision=int_format)),
             Constant(S2**0.5, precision=approx_prec),
             Constant(S2**-0.5, precision=approx_prec),
             precision=approx_prec
