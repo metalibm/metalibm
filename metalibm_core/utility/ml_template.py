@@ -448,36 +448,17 @@ class DefaultCommonArgTemplate:
     precision = ML_Binary32
     input_precisions = None
     # list of input precisions
-    # None <=> [self.precision] * self.get_arity()
-    abs_accuracy = None
-    accuracy = ML_Faithful
-    libm_compliant = False
     input_intervals = [Interval(-ml_infty, ml_infty)]
     # Optimization parameters
     target = GenericProcessor.get_target_instance()
-    target_exec_options = None
-    fuse_fma = False
-    fast_path_extract = True
-    dot_product_enabled = False
     # Debug verbosity
     debug = False
-    # Vector related parameters
-    vector_size = 1
-    sub_vector_size = None
     language = C_Code
     # auto-test properties
     auto_test = False
     auto_test_range = [Interval(0, 1)]
     auto_test_std = False
     value_test = []
-    # enable max error computation
-    compute_max_error = False
-    break_error = False
-    # bench properties
-    bench_test_number = 0
-    bench_loop_num = 10000
-    bench_test_range = [Interval(0, 1)]
-    bench_function_name = "undefined"
     headers = []
     libraries = []
     # emulation numeric function
@@ -488,12 +469,6 @@ class DefaultCommonArgTemplate:
     check_processor_support = True
     # source elaboration
     build_enable = False
-    # when execution is required, export binary into python runtime
-    # rather than executing it into a sub-process
-    embedded_binary = True
-    # cross-platform: build is done for and execution will be done on a remote machine (thus
-    # using Target object's execute method is required)
-    cross_platform = False
     # list of default optimization passes
     passes = []
     # list of extra optimization passes (to be added to default list)
@@ -504,25 +479,51 @@ class DefaultCommonArgTemplate:
     # enable code decoration with internal operation graph IR
     decorate_code = False
 
-    # plotting options
-    plot_function = False
-    plot_error = False
-    plot_range = Interval(-1, 1)
-    plot_steps = 100
 
     def __init__(self, **kw):
         for key in kw:
             setattr(self, key, kw[key])
 
 
-class DefaultArgTemplate(DefaultCommonArgTemplate):
-    pass
+class DefaultFunctionArgTemplate(DefaultCommonArgTemplate):
+    """ default argument template to be used for meta-functions 
+        when no specific value are given for a specific parameter """
+    # None <=> [self.precision] * self.get_arity()
+    abs_accuracy = None
+    accuracy = ML_Faithful
+    libm_compliant = False
+    target_exec_options = None
+    fuse_fma = False
+    fast_path_extract = True
+    dot_product_enabled = False
+    # Vector related parameters
+    vector_size = 1
+    sub_vector_size = None
+    # enable max error computation
+    compute_max_error = False
+    break_error = False
+    # bench properties
+    bench_test_number = 0
+    bench_loop_num = 10000
+    bench_test_range = [Interval(0, 1)]
+    bench_function_name = "undefined"
+    # when execution is required, export binary into python runtime
+    # rather than executing it into a sub-process
+    embedded_binary = True
+    # cross-platform: build is done for and execution will be done on a remote machine (thus
+    # using Target object's execute method is required)
+    cross_platform = False
 
-## default argument template to be used for entity
-#  when no specific value are given for a specific parameter
+    # plotting options
+    plot_function = False
+    plot_error = False
+    plot_range = Interval(-1, 1)
+    plot_steps = 100
 
 
-class DefaultEntityArgTemplate(DefaultArgTemplate):
+class DefaultEntityArgTemplate(DefaultCommonArgTemplate):
+    """ default argument template to be used for entitye 
+        when no specific value are given for a specific parameter """
     base_name = "unknown_entity"
     entity_name = "unknown_entity"
     output_file = "entity.vhd"
@@ -559,13 +560,14 @@ class DefaultEntityArgTemplate(DefaultArgTemplate):
     recirculate_signal_map = {}
 
 
+# legacy aliasing
+DefaultArgTemplate = DefaultFunctionArgTemplate
 
-
-# Common ancestor for Argument Template class
 class ML_CommonArgTemplate(object):
-    # constructor for ML_CommonArgTemplate
-    #  add generic arguments description (e.g. --debug)
-    def __init__(self, parser, default_arg=DefaultArgTemplate):
+    """ Common ancestor for Argument Template class
+        constructor for ML_CommonArgTemplate
+        add generic arguments description (e.g. --debug) """
+    def __init__(self, parser, default_arg=DefaultCommonArgTemplate):
         self.parser = parser
         self.parser.add_argument(
             "--debug", metavar="debug", nargs="?", const=True, default=default_arg.debug, type=(lambda v: v.split(",")),
@@ -872,7 +874,7 @@ class ML_EntityArgTemplate(ML_CommonArgTemplate):
 class MetaFunctionArgTemplate(ML_CommonArgTemplate):
     def __init__(
             self,
-            default_arg=DefaultArgTemplate
+            default_arg=DefaultFunctionArgTemplate
         ):
         parser = argparse.ArgumentParser(
             " Metalibm {} function generation script".format(
@@ -943,7 +945,7 @@ class MetaFunctionArgTemplate(ML_CommonArgTemplate):
 ML_NewArgTemplate = MetaFunctionArgTemplate
 
 
-class DefaultMultiAryArgTemplate(DefaultArgTemplate):
+class DefaultMultiAryArgTemplate(DefaultFunctionArgTemplate):
     arity = 1
 
 

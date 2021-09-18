@@ -308,11 +308,6 @@ class ML_EntityBasis(object):
   #  @param output_file string name of source code output file
   #  @param debug_file string name of debug script output file
   #  @param io_precisions input/output ML_Format list
-  #  @param libm_compliant boolean flag indicating whether or not the function
-  #                        should be compliant with standard libm specification
-  #                        (wrt exception, error ...)
-  #  @param fast_path_extract boolean flag indicating whether or not fast
-  #                           path extraction optimization must be applied
   #  @param debug_flag boolean flag, indicating whether or not debug code
   #                    must be generated
   def __init__(self,
@@ -322,10 +317,8 @@ class ML_EntityBasis(object):
              output_file = ArgDefault(None, 2),
              # Specification
              io_precisions = ArgDefault([ML_Binary32], 2),
-             libm_compliant = ArgDefault(True, 2),
              # Optimization parameters
              backend = ArgDefault(VHDLBackend(), 2),
-             fast_path_extract = ArgDefault(True, 2),
              # Debug verbosity
              debug_flag = ArgDefault(False, 2),
              language = ArgDefault(VHDL_Code, 2),
@@ -344,7 +337,6 @@ class ML_EntityBasis(object):
     io_precisions = ArgDefault.select_value([io_precisions])
     # Optimization parameters
     backend = ArgDefault.select_value([arg_template.backend, backend])
-    fast_path_extract = ArgDefault.select_value([arg_template.fast_path_extract, fast_path_extract])
     # Debug verbosity
     debug_flag    = ArgDefault.select_value([arg_template.debug, debug_flag])
     language      = ArgDefault.select_value([arg_template.language, language])
@@ -397,7 +389,6 @@ class ML_EntityBasis(object):
 
     self.decorate_code=arg_template.decorate_code
 
-
     # target selection
     self.backend = backend
 
@@ -407,10 +398,7 @@ class ML_EntityBasis(object):
     self.reset_name = arg_template.reset_name
     self.recirculate_pipeline = arg_template.recirculate_pipeline
 
-
     # optimization parameters
-    self.fast_path_extract = fast_path_extract
-
     self.implementation = CodeEntity(self.entity_name)
 
     self.vhdl_code_generator = VHDLCodeGenerator(self.backend, declare_cst = False, disable_debug = not self.debug_flag, language = self.language, decorate_code=self.decorate_code)
