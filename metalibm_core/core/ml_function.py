@@ -1041,7 +1041,12 @@ class ML_FunctionBasis(object):
                     SAMPLE_NUM = 10
                     cpe_measures = [loaded_module.get_function_handle("bench_wrapper")() for _ in range(SAMPLE_NUM)]
                     mean = statistics.mean(cpe_measures)
-                    geomean = statistics.geometric_mean(cpe_measures)
+                    try:
+                        geomean = statistics.geometric_mean(cpe_measures)
+                    except AttributeError:
+                        # statistics.geometric_mean was added in Python 3.8
+                        # and will not be found in older versions
+                        geomean = None
                     stdev = statistics.stdev(cpe_measures)
                     print("speed stats: mean={}, geomean={}, stdev={}".format(mean, geomean, stdev))
                     exec_result["cpe_measure"] = mean
