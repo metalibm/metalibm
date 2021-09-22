@@ -124,12 +124,6 @@ class ML_Isqrt(ML_FunctionBasis):
         if self.debug_flag:
             Log.report(Log.Info, "\033[31;1m debug has been enabled \033[0;m")
 
-        # local overloading of RaiseReturn operation
-        def SqrtRaiseReturn(*args, **kwords):
-            kwords["arg_value"] = vx
-            kwords["function_name"] = self.function_name
-            return RaiseReturn(*args, **kwords)
-
         C0 = Constant(0, precision = self.precision)
         C0_plus = Constant(FP_PlusZero(self.precision))
 

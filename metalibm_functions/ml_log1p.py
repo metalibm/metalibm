@@ -83,12 +83,6 @@ class ML_Log1p(ML_FunctionBasis):
         vx = self.implementation.add_input_variable("x", self.precision)
         sollya_precision = self.get_input_precision().sollya_object
 
-        # local overloading of RaiseReturn operation
-        def ExpRaiseReturn(*args, **kwords):
-                kwords["arg_value"] = vx
-                kwords["function_name"] = self.function_name
-                return RaiseReturn(*args, **kwords)
-
         # 2-limb approximation of log(2)
         # hi part precision is reduced to provide exact operation
         # when multiplied by an exponent value

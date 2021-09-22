@@ -93,12 +93,6 @@ class ML_HyperbolicCosine(ScalarUnaryFunction):
     if self.debug_flag: 
         Log.report(Log.Info, "\033[31;1m debug has been enabled \033[0;m")
 
-    # local overloading of RaiseReturn operation
-    def ExpRaiseReturn(*args, **kwords):
-        kwords["arg_value"] = vx
-        kwords["function_name"] = self.function_name
-        return RaiseReturn(*args, **kwords)
-
     index_size = 3
 
     vx = Abs(vx)

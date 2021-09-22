@@ -36,7 +36,7 @@ from metalibm_core.utility.log_report import Log
 
 # TODO clean long import list
 from metalibm_core.core.ml_operations import (
-    Variable, Constant, ConditionBlock, Return, TableLoad, Statement,\
+    RaiseException, Variable, Constant, ConditionBlock, Return, TableLoad, Statement,\
     Loop, SpecificOperation, ExceptionOperation, ClearException, \
     NoResultOperation, SwitchBlock, FunctionObject, ReferenceAssign, \
     BooleanOperation,
@@ -308,12 +308,13 @@ class CCodeGenerator(CodeGenerator):
                 return None #return_code
 
         elif isinstance(optree, ExceptionOperation):
-            if optree.get_specifier() in [ExceptionOperation.RaiseException, ExceptionOperation.ClearException, ExceptionOperation.RaiseReturn]:
+            if isinstance(optree, (RaiseException, ClearException)):
                 result_code = self.processor.generate_expr(self, code_object, optree, optree.inputs, result_var=result_var, language=language)
                 # TODO/FIXME: need cleanup
                 if result_code != None:
                     code_object << "%s;\n" % result_code.get()
-                if optree.get_specifier() == ExceptionOperation.RaiseReturn:
+                if isinstance(optree, RaiseException):
+                    # todo: exception mode specilization
                     if self.libm_compliant:
                         # libm compliant exception management
                         code_object.add_header("support_lib/ml_libm_compatibility.h")
@@ -332,9 +333,6 @@ class CCodeGenerator(CodeGenerator):
                             code_object << "return ml_raise_libm_underflowf(%s, %s, \"%s\");\n" % (return_value.get(), arg_value.get(), function_name)
                         elif ML_FPE_Invalid in exception_list:
                             code_object << "return %s;\n" % return_value.get() 
-                    else:
-                        return_precision = optree.get_return_value().get_precision()
-                        self.generate_expr(code_object, Return(optree.get_return_value(), precision=return_precision), language=language)
                 return None
             else:
                 result = self.processor.generate_expr(self, code_object, optree, optree.inputs, result_var=result_var, language=language)

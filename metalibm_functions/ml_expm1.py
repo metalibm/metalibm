@@ -82,12 +82,6 @@ class ML_ExponentialM1_Red(ScalarUnaryFunction):
     if self.debug_flag: 
         Log.report(Log.Info, "\033[31;1m debug has been enabled \033[0;m")
     
-    # local overloading of RaiseReturn operation
-    def ExpRaiseReturn(*args, **kwords):
-        kwords["arg_value"] = vx
-        kwords["function_name"] = self.function_name
-        return RaiseReturn(*args, **kwords)
-    
     C_m1 = Constant(-1, precision = self.precision)
     
     test_NaN_or_inf = Test(vx, specifier = Test.IsInfOrNaN, likely = False, debug = debug_multi, tag = "NaN_or_inf", precision = ML_Bool)
@@ -195,7 +189,7 @@ class ML_ExponentialM1_Red(ScalarUnaryFunction):
     
     late_overflow_return = ConditionBlock(
         Test(late_overflow_result, specifier = Test.IsInfty, likely = False), 
-        ExpRaiseReturn(ML_FPE_Overflow, return_value = FP_PlusInfty(self.precision)), 
+        Statement(RaiseException(ML_FPE_Overflow), Return(FP_PlusInfty(self.precision))), 
         Return(late_overflow_result)
         )
 
@@ -215,7 +209,7 @@ class ML_ExponentialM1_Red(ScalarUnaryFunction):
     late_underflow_return = Statement(
         ConditionBlock(
             test_subnormal, 
-            ExpRaiseReturn(ML_FPE_Underflow, return_value = late_underflow_result)), 
+            Statement(RaiseException(ML_FPE_Underflow), Return(late_underflow_result)), 
             Return(late_underflow_result)
             )
     
