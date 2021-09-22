@@ -31,7 +31,7 @@ from sollya import inf, sup
 
 from metalibm_core.core.ml_formats import *
 from metalibm_core.core.ml_operations import (
-    ML_LeafNode, Constant, Variable,
+    ClearException, ML_LeafNode, Constant, Raise, RaiseException, Variable,
     Statement, ConditionBlock, ReferenceAssign,
     ConditionBlock, SwitchBlock, Abs, Select, Negation,
     Addition, Max, Min, FusedMultiplyAdd, Subtraction,
@@ -123,8 +123,10 @@ abstract_typing_rule = {
         lambda optree, *ops: optree.specifier.abstract_type_rule(optree, *ops),
     CopySign:
         lambda optree, *ops: optree.specifier.abstract_type_rule(optree, *ops),
-    ExceptionOperation:
-        lambda optree, *ops: optree.specifier.abstract_type_rule(optree, *ops),
+    RaiseException:
+        lambda optree, *ops: ML_Void,
+    ClearException:
+        lambda optree, *ops: ML_Void,
     NoResultOperation:
         lambda optree, *ops: optree.specifier.abstract_type_rule(optree, *ops),
     Split:
@@ -206,8 +208,10 @@ practical_typing_rule = {
         lambda backend, op, dprec: op.inputs[0].get_storage_precision(),
     Conversion:
         lambda backend, op, dprec: op.get_precision(),
-    ExceptionOperation:
-        lambda backend, op, dprec: dprec if op.get_specifier() == ExceptionOperation.RaiseReturn else None,
+    RaiseException:
+        lambda backend, op, dprec: None,
+    ClearException:
+        lambda backend, op, dprec: None,
     SpecificOperation:
         lambda backend, op, dprec: op.specifier.instantiated_type_rule(backend, op, dprec),
     NoResultOperation:

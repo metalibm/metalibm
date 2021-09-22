@@ -38,10 +38,10 @@ from sollya import (
 S2 = SollyaObject(2)
 
 from metalibm_core.core.ml_operations import (
-    Test, RaiseReturn, Comparison, Statement, NearestInteger,
+    Test, Comparison, Statement, NearestInteger,
     ConditionBlock, Return, ClearException, ExponentInsertion,
     Constant, Variable, Addition, Subtraction,
-    LogicalNot, LogicalOr,
+    LogicalNot, LogicalOr, RaiseException
 )
 from metalibm_core.core.ml_formats import (
     ML_Binary32, ML_Int32,
@@ -105,15 +105,6 @@ class ML_Exponential(ScalarUnaryFunction):
         if self.debug_flag:
             Log.report(Log.Info, "\033[31;1m debug has been enabled \033[0;m")
 
-        # local overloading of RaiseReturn operation
-        def ExpRaiseReturn(*args, **kwords):
-            kwords["arg_value"] = vx
-            kwords["function_name"] = self.function_name
-            if self.libm_compliant:
-                return RaiseReturn(*args, precision=self.precision, **kwords)
-            else:
-                return Return(kwords["return_value"], precision=self.precision)
-
         test_nan_or_inf = Test(
             vx, specifier=Test.IsInfOrNaN, likely=False,
             debug=debug_multi, tag="nan_or_inf")
@@ -127,7 +118,8 @@ class ML_Exponential(ScalarUnaryFunction):
             vx, specifier=Test.IsSignalingNaN, debug=debug_multi,
             tag="is_signaling_nan")
         return_snan = Statement(
-            ExpRaiseReturn(ML_FPE_Invalid, return_value=FP_QNaN(self.precision))
+            RaiseException(ML_FPE_Invalid),
+            Return(FP_QNaN(self.precision))
         )
 
         # return in case of infinity input
@@ -158,10 +150,9 @@ class ML_Exponential(ScalarUnaryFunction):
             likely=False, specifier=Comparison.Greater)
         early_overflow_return = Statement(
             ClearException() if self.libm_compliant else Statement(),
-            ExpRaiseReturn(
-                ML_FPE_Inexact, ML_FPE_Overflow,
-                return_value=FP_PlusInfty(self.precision)
-            )
+            RaiseException(ML_FPE_Inexact),
+            RaiseException(ML_FPE_Overflow),
+            Return(FP_PlusInfty(self.precision))
         )
 
         precision_emin = self.precision.get_emin_subnormal()
@@ -173,9 +164,9 @@ class ML_Exponential(ScalarUnaryFunction):
             likely=False, specifier=Comparison.Less)
         early_underflow_return = Statement(
             ClearException() if self.libm_compliant else Statement(),
-            ExpRaiseReturn(
-                ML_FPE_Inexact, ML_FPE_Underflow,
-                return_value=FP_PlusZero(self.precision)))
+            RaiseException(ML_FPE_Inexact),
+            RaiseException(ML_FPE_Underflow),
+            Return(FP_PlusZero(self.precision)))
 
         # constant computation
         invlog2 = self.precision.round_sollya_object(1/log(2), sollya.RN)
@@ -378,7 +369,9 @@ class ML_Exponential(ScalarUnaryFunction):
         )
         late_overflow_result = (ExponentInsertion(diff_k, precision = self.precision) * poly) * ExponentInsertion(cst_overflow_exp_offset, precision = self.precision)
         late_overflow_result.set_attributes(silent = False, tag = "late_overflow_result", debug = debug_multi, precision = self.precision)
-        late_overflow_return = ConditionBlock(Test(late_overflow_result, specifier = Test.IsInfty, likely = False), ExpRaiseReturn(ML_FPE_Overflow, return_value = FP_PlusInfty(self.precision)), Return(late_overflow_result, precision=self.precision))
+        late_overflow_return = ConditionBlock(Test(late_overflow_result, specifier = Test.IsInfty, likely = False),
+                                              Statement(RaiseException(ML_FPE_Overflow), Return(FP_PlusInfty(self.precision))),
+                                              Return(late_overflow_result, precision=self.precision))
 
         late_underflow_test = Comparison(k, self.precision.get_emin_normal(), specifier = Comparison.LessOrEqual, likely=False, tag="late_underflow_test")
         underflow_exp_offset = 2 * self.precision.get_field_size()
@@ -394,7 +387,9 @@ class ML_Exponential(ScalarUnaryFunction):
         late_underflow_result = (ExponentInsertion(corrected_exp, precision = self.precision) * poly) * ExponentInsertion(-underflow_exp_offset, precision = self.precision)
         late_underflow_result.set_attributes(debug = debug_multi, tag = "late_underflow_result", silent = False)
         test_subnormal = Test(late_underflow_result, specifier = Test.IsSubnormal)
-        late_underflow_return = Statement(ConditionBlock(test_subnormal, ExpRaiseReturn(ML_FPE_Underflow, return_value = late_underflow_result)), Return(late_underflow_result, precision=self.precision))
+        late_underflow_return = Statement(ConditionBlock(test_subnormal, 
+                                                         Statement(RaiseException(ML_FPE_Underflow), Return(late_underflow_result)),
+                                                         Return(late_underflow_result, precision=self.precision)))
 
         twok = ExponentInsertion(ik, tag = "exp_ik", debug = debug_multi, precision = self.precision)
         #std_result = twok * ((1 + exact_hi_part * pre_poly) + exact_lo_part * pre_poly) 

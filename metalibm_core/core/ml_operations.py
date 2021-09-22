@@ -1849,12 +1849,15 @@ class SpecificOperation(SpecifierOperation, GeneralOperation):
         new_copy.return_value_index = self.return_value_index
         new_copy.arg_value_index = self.arg_value_index
 
-class ExceptionOperation(SpecificOperation, ML_LeafNode):
-    # specifier init
-    ClearException = SO_Specifier_Builder("ClearException", lambda *ops: None, lambda backend, op, dprec: None)
-    RaiseException = SO_Specifier_Builder("RaiseException", lambda *ops: None, lambda backend, op, dprec: None)
-    RaiseReturn    = SO_Specifier_Builder("RaiseReturn", lambda *ops: None, lambda backend, op, dprec: dprec)
+class ExceptionOperation(GeneralOperation):
+    """ Operation manipulating exceptions """
+    pass
 
+class ClearException(ExceptionOperation):
+    name = "ClearException"
+class RaiseException(ExceptionOperation):
+    name = "RaiseException"
+    arity = 1
 
 class NoResultOperation(SpecificOperation, ML_LeafNode):
     SaveFPContext     = SO_Specifier_Builder("SaveFPContext", lambda optree, *ops: None, lambda backend, op, dprec: None)

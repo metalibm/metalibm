@@ -346,12 +346,6 @@ class MetaFixedLog(ScalarUnaryFunction):
   def generate_scheme(self):
     memory_limit = 2500
 
-    # local overloading of RaiseReturn operation
-    def ExpRaiseReturn(*args, **kwords):
-        kwords["arg_value"] = input_var
-        kwords["function_name"] = self.function_name
-        return RaiseReturn(*args, **kwords)
-
     ### Constants computations ###
 
     v_log2_hi = nearestint(log(2) * 2**-52) * 2**52
@@ -405,7 +399,7 @@ class MetaFixedLog(ScalarUnaryFunction):
     handling_special_cases = Statement(
       ConditionBlock(
         Test(input_var, specifier = Test.IsSignalingNaN, debug = True),
-        ExpRaiseReturn(ML_FPE_Invalid, return_value = FP_QNaN(self.precision))
+        Statement(RaiseException(ML_FPE_Invalid), Return(FP_QNaN(self.precision)))
       ),
       ConditionBlock(
         Test(input_var, specifier = Test.IsNaN, debug = True),

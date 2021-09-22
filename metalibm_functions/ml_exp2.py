@@ -81,12 +81,6 @@ class ML_Exp2(ScalarUnaryFunction):
     if self.debug_flag:
         Log.report(Log.Info, "\033[31;1m debug has been enabled \033[0;m")
 
-    # local overloading of RaiseReturn operation
-    def ExpRaiseReturn(*args, **kwords):
-        kwords["arg_value"] = vx
-        kwords["function_name"] = self.function_name
-        return RaiseReturn(*args, **kwords)
-
     # r_interval = Interval(0, 1.0)
     index_size = 3
     r_interval = Interval(-2**(-index_size), 2**-index_size)

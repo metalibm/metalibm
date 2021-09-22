@@ -272,20 +272,12 @@ class ML_GenericLog(ScalarUnaryFunction):
         return log_table, log_table_tho, table_index_range
 
     def generate_scalar_scheme(self, vx):
-
-
-        # local overloading of RaiseReturn operation
-        def ExpRaiseReturn(*args, **kwords):
-            kwords["arg_value"] = vx
-            kwords["function_name"] = self.function_name
-            return RaiseReturn(*args, **kwords)
-
         test_nan_or_inf = Test(vx, specifier = Test.IsInfOrNaN, likely = False, debug = True, tag = "nan_or_inf")
         test_nan = Test(vx, specifier = Test.IsNaN, debug = True, tag = "is_nan_test")
         test_positive = Comparison(vx, 0, specifier = Comparison.GreaterOrEqual, debug = True, tag = "inf_sign")
 
         test_signaling_nan = Test(vx, specifier = Test.IsSignalingNaN, debug = True, tag = "is_signaling_nan")
-        return_snan = Statement(ExpRaiseReturn(ML_FPE_Invalid, return_value = FP_QNaN(self.precision)))
+        return_snan = Statement(RaiseException(ML_FPE_Invalid), Return(FP_QNaN(self.precision)))
 
 
         int_precision = self.precision.get_integer_format()
