@@ -212,6 +212,7 @@ class ML_ExponentialM1_Red(ScalarUnaryFunction):
             Statement(RaiseException(ML_FPE_Underflow), Return(late_underflow_result)), 
             Return(late_underflow_result)
             )
+    )
     
     # Reconstruction
     
