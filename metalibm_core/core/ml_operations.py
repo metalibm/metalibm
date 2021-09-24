@@ -1853,33 +1853,23 @@ class ExceptionOperation(GeneralOperation):
     """ Operation manipulating exceptions """
     pass
 
+
 class ClearException(ExceptionOperation):
+    """ Clear any previous exception / flags from the default
+        environment """
     name = "ClearException"
+
+
 class RaiseException(ExceptionOperation):
+    """ raise a given exception / flag in the default environment"""
     name = "RaiseException"
     arity = 1
+
 
 class NoResultOperation(SpecificOperation, ML_LeafNode):
     SaveFPContext     = SO_Specifier_Builder("SaveFPContext", lambda optree, *ops: None, lambda backend, op, dprec: None)
     RestoreFPContext  = SO_Specifier_Builder("RestoreFPContext", lambda optree, *ops: None, lambda backend, op, dprec: None)
     SetRndMode        = SO_Specifier_Builder("SetRndMode", lambda optree, *ops: None, lambda backend, op, dprec: None)
-
-def ClearException(*args, **kwords):
-    if not "precision" in kwords:
-      kwords.update({"precision": ML_Void})
-    return ExceptionOperation(*args, specifier = ExceptionOperation.ClearException, **kwords)
-
-def Raise(*args, **kwords):
-    if not "precision" in kwords:
-      kwords.update({"precision": ML_Void})
-    kwords["specifier"] = ExceptionOperation.RaiseException
-    return ExceptionOperation(*args, **kwords)
-
-def RaiseReturn(*args, **kwords):
-    if not "precision" in kwords:
-      kwords.update({"precision": ML_Void})
-    kwords["specifier"] = ExceptionOperation.RaiseReturn
-    return ExceptionOperation(*args, **kwords)
 
 def SaveFPContext(**kwords):
     kwords["specifier"] = NoResultOperation.SaveFPContext
