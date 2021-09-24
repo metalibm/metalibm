@@ -31,7 +31,7 @@ from sollya import inf, sup
 
 from metalibm_core.core.ml_formats import *
 from metalibm_core.core.ml_operations import (
-    ClearException, ML_LeafNode, Constant, Raise, RaiseException, Variable,
+    ClearException, ML_LeafNode, Constant, RaiseException, Variable,
     Statement, ConditionBlock, ReferenceAssign,
     ConditionBlock, SwitchBlock, Abs, Select, Negation,
     Addition, Max, Min, FusedMultiplyAdd, Subtraction,

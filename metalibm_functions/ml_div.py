@@ -41,7 +41,7 @@ from metalibm_core.core.ml_operations import (
     SpecificOperation, Test,
     ConditionBlock, Statement, Return,
     ExponentInsertion, ExponentExtraction,
-    EmptyOperand, Raise,
+    EmptyOperand, RaiseException,
     LogicalOr, Select,
 )
 from metalibm_core.core.attributes import Attributes
@@ -514,7 +514,7 @@ class ML_Division(ML_FunctionBasis):
                 ConditionBlock(y_inf_or_nan,
                     Statement(
                         # signaling NaNs raise invalid operation flags
-                        ConditionBlock(y_snan, Raise(ML_FPE_Invalid)) if enable_raise else Statement(),
+                        ConditionBlock(y_snan, RaiseException(ML_FPE_Invalid)) if enable_raise else Statement(),
                         Return(FP_QNaN(self.precision)),
                     ),
                     ConditionBlock(
@@ -523,14 +523,14 @@ class ML_Division(ML_FunctionBasis):
                         Return(FP_PlusInfty(self.precision)))
                 ),
                 Statement(
-                    ConditionBlock(x_snan, Raise(ML_FPE_Invalid)) if enable_raise else Statement(),
+                    ConditionBlock(x_snan, RaiseException(ML_FPE_Invalid)) if enable_raise else Statement(),
                     Return(FP_QNaN(self.precision))
                 )
             ),
             ConditionBlock(x_zero,
                 ConditionBlock(LogicalOr(y_zero, y_nan, precision=ML_Bool),
                     Statement(
-                        ConditionBlock(y_snan, Raise(ML_FPE_Invalid)) if enable_raise else Statement(),
+                        ConditionBlock(y_snan, RaiseException(ML_FPE_Invalid)) if enable_raise else Statement(),
                         Return(FP_QNaN(self.precision))
                     ),
                     Return(vx)
@@ -543,13 +543,13 @@ class ML_Division(ML_FunctionBasis):
                                 FP_MinusZero(self.precision),
                                 FP_PlusZero(self.precision))),
                         Statement(
-                            ConditionBlock(y_snan, Raise(ML_FPE_Invalid)) if enable_raise else Statement(),
+                            ConditionBlock(y_snan, RaiseException(ML_FPE_Invalid)) if enable_raise else Statement(),
                             Return(FP_QNaN(self.precision))
                         )
                     ),
                     ConditionBlock(y_zero,
                         Statement(
-                            Raise(ML_FPE_DivideByZero) if enable_raise else Statement(),
+                            RaiseException(ML_FPE_DivideByZero) if enable_raise else Statement(),
                             ConditionBlock(comp_sign,
                                 Return(FP_MinusInfty(self.precision)),
                                 Return(FP_PlusInfty(self.precision))
@@ -568,7 +568,7 @@ class ML_Division(ML_FunctionBasis):
                                     #    Comparison(
                                     #        yerr_last, 0,
                                     #        specifier=Comparison.NotEqual, likely=True),
-                                    #    Statement(Raise(ML_FPE_Inexact, ML_FPE_Underflow))
+                                    #    Statement(RaiseException(ML_FPE_Inexact, ML_FPE_Underflow))
                                     #),
                                     Return(subnormal_result),
                                 ),
@@ -579,7 +579,7 @@ class ML_Division(ML_FunctionBasis):
                                     #    Comparison(
                                     #        yerr_last, 0,
                                     #        specifier=Comparison.NotEqual, likely=True),
-                                    #    Raise(ML_FPE_Inexact)
+                                    #    RaiseException(ML_FPE_Inexact)
                                     #),
                                     Return(unscaled_result)
                                 )
