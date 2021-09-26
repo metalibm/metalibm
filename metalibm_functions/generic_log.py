@@ -364,7 +364,7 @@ class ML_GenericLog(ScalarUnaryFunction):
         pre_scheme = ConditionBlock(neg_input,
             Statement(
                 ClearException(),
-                Raise(ML_FPE_Invalid),
+                RaiseException(ML_FPE_Invalid),
                 Return(FP_QNaN(self.precision), precision=self.precision)
             ),
             ConditionBlock(vx_nan_or_inf,
@@ -376,7 +376,7 @@ class ML_GenericLog(ScalarUnaryFunction):
                     Statement(
                         ClearException(),
                         ConditionBlock(vx_snan,
-                            Raise(ML_FPE_Invalid)
+                            RaiseException(ML_FPE_Invalid)
                         ),
                         Return(FP_QNaN(self.precision), precision=self.precision)
                     )
@@ -385,7 +385,7 @@ class ML_GenericLog(ScalarUnaryFunction):
                     ConditionBlock(vx_zero,
                         Statement(
                             ClearException(),
-                            Raise(ML_FPE_DivideByZero),
+                            RaiseException(ML_FPE_DivideByZero),
                             Return(FP_MinusInfty(self.precision), precision=self.precision),
                         ),
                         Return(result_subnormal)

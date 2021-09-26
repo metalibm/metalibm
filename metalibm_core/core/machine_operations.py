@@ -87,6 +87,6 @@ class MaterializeConstant(ML_ArithmeticOperation):
     name = "MaterializeConstant"
     arity = 1
 
-class MaterializeConstant(ReferenceAssign):
-    name = "MaterializeConstant"
+#class MaterializeConstant(ReferenceAssign):
+#    name = "MaterializeConstant"
 

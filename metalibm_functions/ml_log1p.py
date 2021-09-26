@@ -267,7 +267,7 @@ class ML_Log1p(ML_FunctionBasis):
         pre_scheme = ConditionBlock(neg_input,
             Statement(
                 ClearException(),
-                Raise(ML_FPE_Invalid),
+                RaiseException(ML_FPE_Invalid),
                 Return(FP_QNaN(self.precision))
             ),
             ConditionBlock(vx_nan_or_inf,
@@ -279,7 +279,7 @@ class ML_Log1p(ML_FunctionBasis):
                     Statement(
                         ClearException(),
                         ConditionBlock(vx_snan,
-                            Raise(ML_FPE_Invalid)
+                            RaiseException(ML_FPE_Invalid)
                         ),
                         Return(FP_QNaN(self.precision))
                     )
