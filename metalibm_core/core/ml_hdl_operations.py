@@ -268,6 +268,7 @@ class ComponentObject(object):
 ## Boolean assertion
 class Assert(GeneralOperation):#AbstractOperationConstructor("Assert")):
   name = "Assert"
+  arity = 1
   class Failure: 
     descriptor = "failure"
   class Warning: 
