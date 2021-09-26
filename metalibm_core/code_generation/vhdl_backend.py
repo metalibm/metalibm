@@ -1213,8 +1213,8 @@ vhdl_code_generation_table = {
     Replication: {
         None: {
             lambda optree: True:  {
-                type_custom_match(FSM(ML_StdLogic), FSM(ML_StdLogic)): 
-                    TransparentOperator(), # IdentityOperator(),
+                #type_custom_match(FSM(ML_StdLogic), FSM(ML_StdLogic)): 
+                #    TransparentOperator(), # IdentityOperator(),
                 type_custom_match(TCM(ML_StdLogicVectorFormat), FSM(ML_StdLogic), FSM(ML_Integer)): TemplateOperatorFormat("(0 to {1} - 1  => {0:s})", arity=2),
             },
         },
