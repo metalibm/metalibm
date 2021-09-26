@@ -113,11 +113,10 @@ class Concatenation(GeneralOperation): #AbstractOperationConstructor("Concatenat
     name = "Concatenation"
     arity = 2
 
-## This operation replicates its operand as to completely 
-#  populate its output format
-class Replication(GeneralOperation): #AbstractOperationConstructor("Replication", arity = 1)): pass
+class Replication(GeneralOperation):
+    """ Replication(pattern, replication number) """
     name = "Replication"
-    arity = 1
+    arity = 2
 
 class Signal(AbstractVariable):
     name = "Signal"
@@ -195,6 +194,7 @@ class RangeLoop(Loop):
 class ComponentInstance(GeneralOperation):#AbstractOperationConstructor("ComponentInstance")):
   """ Instance of a sub-component """
   name = "ComponentInstance"
+  arity = None
 
   def __init__(self, component_object, *args, **kwords):
     ComponentInstance.__base__.__init__(self, *args, **kwords)
@@ -290,6 +290,7 @@ class Assert(GeneralOperation):#AbstractOperationConstructor("Assert")):
 class Report(GeneralOperation):#AbstractOperationConstructor("Report")):
     """ Message reporting operation """
     name = "Report"
+    arity = None
     def __init__(self, *ops, **kw):
         Report.__base__.__init__(self, *ops, **kw)
         self.arity = len(ops)
@@ -298,6 +299,7 @@ class Report(GeneralOperation):#AbstractOperationConstructor("Report")):
 ## Timed wait routine
 class Wait(GeneralOperation):#AbstractOperationConstructor("Wait")):
   name = "Wait"
+  arity = 0
   def __init__(self, time_ns, **kw):
     Wait.__base__.__init__(self, **kw)
     self.time_ns = time_ns
