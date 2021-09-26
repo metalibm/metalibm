@@ -732,6 +732,7 @@ class LLVMBackend(GenericProcessor):
     def instanciate_pass_pipeline(self, pass_scheduler, processor, extra_passes, language=LLVM_IR_Code):
         """ instanciate an optimization pass pipeline for VectorBackend targets """
         EXTRA_VECTOR_PASSES = [
+            "beforecodegen:lowering_exception",
             "beforecodegen:gen_basic_block",
             "beforecodegen:basic_block_simplification",
             "beforecodegen:ssa_translation",
