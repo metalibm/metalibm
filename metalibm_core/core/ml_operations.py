@@ -1415,7 +1415,7 @@ class ExponentInsertion(SpecifierOperation, ML_ArithmeticOperation):
 class MantissaExtraction(ML_ArithmeticOperation):
     """ return the input's mantissa as a floating-point value, whose absolute value lies between 1 (included) and 2 (excluded), input sign is kept unmodified  """
     name = "MantissaExtraction"
-    airty = 1
+    arity = 1
 
     def bare_range_function(self, op_interval):
         # TODO/FIXME upper bound 2 could be refined to 2 - 2**-mantissa_size
@@ -1894,6 +1894,7 @@ class ClearException(ExceptionOperation):
     """ Clear any previous exception / flags from the default
         environment """
     name = "ClearException"
+    arity = 0
 
 
 class RaiseException(ExceptionOperation):
@@ -2127,6 +2128,7 @@ class SwitchBlock(ControlFlowOperation):
 
 class VectorAssembling(ML_ArithmeticOperation):
     name = "VectorAssembling"
+    arity = None
 
 class SubVectorExtract(ML_ArithmeticOperation):
     """ extraction of a sub-vector from a larger vector """
