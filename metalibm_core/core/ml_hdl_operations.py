@@ -55,6 +55,7 @@ from metalibm_core.core.advanced_operations import PlaceHolder
 ## Process object (sequential imperative module)
 class Process(GeneralOperation):
   name = "Process"
+  arity = None
   def __init__(self, *args, **kwords):
     GeneralOperation.__init__(self, *args, **kwords)
     self.arity = len(args)

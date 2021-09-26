@@ -101,7 +101,10 @@ def std_merge_abstract_format(*args):
 ## parent to Metalibm's operation
 #  @brief Every operation class must inherit from this class
 class ML_Operation(object):
-    pass
+    arity = None # None for arbitrary arity
+    def arityCheck(self, opsTuple):
+        """ Generic check for operation arity """
+        return self.arity is None or self.arity == len(opsTuple) 
 
 
 ## implicit operation conversion (from number to Constant when required)
@@ -794,7 +797,20 @@ class GeneralOperation(AbstractOperation):
 
     def __init__(self, *ops, **init_map):
         AbstractOperation.__init__(self, **init_map)
+        # inputs assignation is done before arity checking
+        # because some arityCheck method implementation rely on
+        # inputs being populated first (e.g. ConditionalBranch)
         self.inputs = tuple(implicit_op(op) for op in ops)
+        # checking arity
+        if not self.arityCheck(ops):
+            #python3
+            import inspect
+            from inspect import currentframe, getframeinfo
+
+            #frameinfo = inspect.getframeinfo(inspect.currentframe())
+            frameinfo = inspect.getouterframes(inspect.currentframe())[1]
+            Log.report(Log.Error, "number of operands ({}) mismatch with Operation's arity {}, {}, {}, {}",
+                       len(ops), self.arity, self.__class__, frameinfo.filename, frameinfo.lineno)
     def get_codegen_key(self):
         return None
     def copy(self, copy_map=None):
@@ -973,6 +989,7 @@ class FMASpecifier(object):
 class FusedMultiplyAdd(SpecifierOperation, ML_ArithmeticOperation):
     """ abstract fused multiply and add operation op0 * op1 + op2 """
     name = "FusedMultiplyAdd"
+    arity = 3
     ## standard FMA op0 * op1 + op2
     class Standard(FMASpecifier):
         """ op0 * op1 + op2 """
@@ -1175,17 +1192,27 @@ class Return(GeneralOperation):
     def bare_range_function(self, ops):
         return ops[0]
 
+    def arityCheck(self, opsTuple):
+        # 0 for void Return
+        # 1 for Return with value
+        return len(opsTuple) in [0, 1]
+
+
 ## Memory Load from a Multi-Dimensional
 #  The first argument is the table, following arguments
 #  are the table index in each dimension (from 1 to ...)
 class TableLoad(ML_ArithmeticOperation):
     """ abstract load from a table operation """
     name = "TableLoad"
-    arity = 2
+    arity = None
     def bare_range_function(self, ops):
         # TODO/FIXME: coarse-grained: could be refined by using index
         # interval to refine sub-table interval
         return ops[0]
+
+    def arityCheck(self, opsTuple):
+        # 2 (1D index), and 3 (2D index) are valid arity for TableLoad
+        return len(opsTuple) in [2, 3]
 
 ## Memory Store to a Multi-Dimensional
 #  The first argument is the table to store to,
@@ -1261,14 +1288,22 @@ class Max(ML_ArithmeticOperation):
 
 ## Control-flow loop construction
 #  1st operand is a loop initialization block
-#  2nd operand is a loop exit condition block
+#  2nd operand is a loop exit c ondition block
 #  3rd operand is a loop body block
 class Loop(ControlFlowOperation):
     """ abstract loop constructor
         loop (init_statement, exit_condition, loop_body)
     """
     name = "Loop"
+    # Some operations inheriting from Loop (e.g. RangeLoop)
+    # have less than 3 in arity (e.g. 2 for RangeLoop)
     arity = 3
+
+    def arityCheck(self, opsTuple):
+        # 3 for standard Loop
+        # 2 for RangeLoop
+        # are valid arities for ConditionBlock
+        return len(opsTuple) in [2, 3]
 
 class WhileLoop(ControlFlowOperation):
     """ abstract while loop constructor
@@ -1284,7 +1319,7 @@ class WhileLoop(ControlFlowOperation):
 class ConditionBlock(ControlFlowOperation):
     """ abstract if/then(/else) block """
     name = "ConditionBlock"
-    arity = 3
+    arity = None
 
     def __init__(self, *args, **kwords):
         """ condition block initialization """
@@ -1293,14 +1328,12 @@ class ConditionBlock(ControlFlowOperation):
         # statement being executed before the condition or either of the branch is executed
         self.pre_statement = Statement()
         self.extra_inputs = [self.pre_statement]
-        if len(args) > self.arity:
-            #python3
-            import inspect
-            from inspect import currentframe, getframeinfo
 
-            #frameinfo = inspect.getframeinfo(inspect.currentframe())
-            frameinfo = inspect.getouterframes(inspect.currentframe())[1]
-            Log.report(Log.Error, "node defined {}:{}\n{} has too many arguments", frameinfo.filename, frameinfo.lineno, self)
+    def arityCheck(self, opsTuple):
+        # 2 (if (cond) then st0 ) and
+        # 3 (if (cond) then st0 else st1)
+        # are valid arities for ConditionBlock
+        return len(opsTuple) in [2, 3]
 
     def set_extra_inputs(self, new_extra_inputs):
         self.extra_inputs = new_extra_inputs
@@ -1520,8 +1553,9 @@ class LogicalNot(LogicOperation):
 
 
 class Test(SpecifierOperation, BooleanOperation, ML_ArithmeticOperation):
-    name = "Test"
     """ Abstract Test operation class """
+    name = "Test"
+    arity = None
     class IsNaN(TestSpecifier):
         name = "IsNaN"
         arity = 1
@@ -1681,6 +1715,7 @@ def NotEqual(op0, op1, **kwords):
 #  void)
 class Statement(ControlFlowOperation):
     name = "Statement"
+    arity = None # multi-ary
     def __init__(self, *args, **kwords):
         ControlFlowOperation.__init__(self, *args, **kwords)
         self.arity = len(args)
@@ -1762,6 +1797,7 @@ class ReciprocalSquareRootSeed(ML_ArithmeticOperation):
 class SpecificOperation(SpecifierOperation, GeneralOperation):
     name = "SpecificOperation"
     # specifier init
+    arity = None
 
     class GetRndMode(SO_Specifier_Type):
         name = "GetRndMode"
