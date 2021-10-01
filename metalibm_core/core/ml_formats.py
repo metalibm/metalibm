@@ -955,7 +955,8 @@ class ML_Base_SW_FixedPoint_Format(ML_Base_FixedPoint_Format):
             if self.c_bit_size <= 64:
                 display_format = DisplayFormat(
                     format_string="%e/%\"PRI" + ("i" if self.signed else "u")  + str(self.c_bit_size) + "\"",
-                    pre_process_fct=fixed_point_beautify(self.frac_size)
+                    pre_process_fct=fixed_point_beautify(self.frac_size),
+                    required_header=["inttypes.h"]
                 )
             else:
                 assert (self.c_bit_size % 64 == 0)
@@ -963,7 +964,8 @@ class ML_Base_SW_FixedPoint_Format(ML_Base_FixedPoint_Format):
                 format_string = "%e / " + ("%\"PRIx64\"" * num_64b_chunk)
                 display_format = DisplayFormat(
                     format_string=format_string,
-                    pre_process_fct=multi_word_fixed_point_beautify(num_64b_chunk, self.frac_size)
+                    pre_process_fct=multi_word_fixed_point_beautify(num_64b_chunk, self.frac_size),
+                    required_header=["inttypes.h"]
                 )
 
             # using class map memoization to simplify type comparison

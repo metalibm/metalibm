@@ -486,12 +486,14 @@ class DefaultCommonArgTemplate:
 
 
 class DefaultFunctionArgTemplate(DefaultCommonArgTemplate):
-    """ default argument template to be used for meta-functions 
+    """ default argument template to be used for meta-functions
         when no specific value are given for a specific parameter """
     # None <=> [self.precision] * self.get_arity()
     abs_accuracy = None
     accuracy = ML_Faithful
     libm_compliant = False
+    # no external dependencies
+    pure = False
     target_exec_options = None
     fuse_fma = False
     fast_path_extract = True
@@ -520,9 +522,11 @@ class DefaultFunctionArgTemplate(DefaultCommonArgTemplate):
     plot_range = Interval(-1, 1)
     plot_steps = 100
 
+# alias
+DefaultArgTemplate = DefaultFunctionArgTemplate
 
 class DefaultEntityArgTemplate(DefaultCommonArgTemplate):
-    """ default argument template to be used for entitye 
+    """ default argument template to be used for entity
         when no specific value are given for a specific parameter """
     base_name = "unknown_entity"
     entity_name = "unknown_entity"
@@ -939,6 +943,16 @@ class MetaFunctionArgTemplate(ML_CommonArgTemplate):
             type=interval_parser,
             action="store", default=default_arg.plot_range,
             help="plot function range")
+        self.parser.add_argument(
+            "--pure", dest="pure", action="store_const",
+            const=True, default=default_arg.pure,
+            help="generate implementation without external dependency"
+        )
+        # self.parser.add_argument(
+        #     "--exception-mode", dest="exception_mode", action="store",
+        #     choices=["fenv", "arith"], default=default_arg.exception_mode,
+        #     help="selection exception generation mode"
+        # )
 
 
 # legacy alias

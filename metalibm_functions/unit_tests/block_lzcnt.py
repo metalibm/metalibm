@@ -32,7 +32,7 @@
 import sys
 
 from metalibm_core.core.ml_function import (
-    ML_Function, ML_FunctionBasis, DefaultArgTemplate
+    ML_Function, ML_FunctionBasis
     )
 
 from metalibm_core.core.ml_operations import *
