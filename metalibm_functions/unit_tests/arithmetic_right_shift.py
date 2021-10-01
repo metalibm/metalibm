@@ -28,41 +28,29 @@
 # last-modified:    Mar  7th, 2018
 # Author(s): Nicolas Brunie <nbrunie@kalray.eu>
 ###############################################################################
+from metalibm_functions.unit_tests.utils import TestRunner
+from sollya import SollyaObject
 
 from metalibm_core.core.ml_function import ML_Function, ML_FunctionBasis
-from metalibm_core.core.ml_operations import *
-from metalibm_core.core.ml_formats import *
+from metalibm_core.core.ml_formats import ML_Int32
+from metalibm_core.core.ml_operations import BitArithmeticRightShift, Return
 
-from metalibm_core.utility.ml_template import *
+from metalibm_core.utility.ml_template import DefaultFunctionArgTemplate
 
 
-class ML_UT_ArithmeticRightShift(ML_Function("ml_ut_arithmetic_right_shift")):
-  def __init__(self,
-               arg_template,
-               precision = ML_Int32,
-               libm_compliant = True,
-               debug_flag = False,
-               output_file = "ut_arithmetic_right_shift.c",
-               function_name = "ut_arithmetic_right_shift"):
-    # precision argument extraction
-    precision = ArgDefault.select_value([arg_template.precision, precision])
-    io_precisions = [precision] * 2
-
-    # initializing base class
-    ML_FunctionBasis.__init__(self,
-      base_name = "ut_arithmetic_right_shift",
-      function_name = function_name,
-      output_file = output_file,
-
-      io_precisions = io_precisions,
-      abs_accuracy = None,
-      libm_compliant = libm_compliant,
-
-      debug_flag = debug_flag,
-      arg_template = arg_template
-    )
-
-    self.precision = precision
+class ML_UT_ArithmeticRightShift(ML_FunctionBasis, TestRunner):
+  function_name = "ml_ut_arithmetic_right_shift"
+  @staticmethod
+  def get_default_args(**kw):
+    """ Return a structure containing the arguments for current class,
+        builtin from a default argument mapping overloaded with @p kw """
+    default_args = {
+        "output_file": "ut_arithmetic_right_shift.c",
+        "function_name": "ut_arithmetic_right_shift",
+        "precision": ML_Int32,
+    }
+    default_args.update(kw)
+    return DefaultFunctionArgTemplate(**default_args)
 
 
   def generate_scheme(self):
@@ -76,20 +64,19 @@ class ML_UT_ArithmeticRightShift(ML_Function("ml_ut_arithmetic_right_shift")):
   def numeric_emulate(self, *args):
     return SollyaObject(int(args[0]) >> 8)
 
+  @staticmethod
+  def __call__(args):
+    ml_ut_arithmetic_right_shift = ML_UT_ArithmeticRightShift(args)
+    ml_ut_arithmetic_right_shift.gen_implementation()
+    return True
 
-def run_test(args):
-  ml_ut_arithmetic_right_shift = ML_UT_ArithmeticRightShift(args)
-  ml_ut_arithmetic_right_shift.gen_implementation()
-  return True
+run_test = ML_UT_ArithmeticRightShift
+
 
 if __name__ == "__main__":
   # auto-test
-  arg_template = ML_NewArgTemplate(
-      "new_ut_arithmetic_right_shift",
-      default_output_file = "new_ut_arithmetic_right_shift.c",
-      )
+  arg_template = DefaultFunctionArgTemplate(default_args=ML_UT_ArithmeticRightShift.get_default_args())
   args = arg_template.arg_extraction()
-
 
   if run_test(args):
     exit(0)
