@@ -87,6 +87,7 @@ class CompoundAdder(ML_EntityBasis):
              "io_formats": {"x": fixed_point(32, 0, signed=False), "y": fixed_point(32, 0, signed=False)},
              "passes": ["beforepipelining:size_datapath", "beforepipelining:rtl_legalize", "beforepipelining:unify_pipeline_stages"],
              "entity_name": entity_name,
+             "base_name": "compound_adder",
              "language": VHDL_Code,
              "lower_limit": 1,
         }
@@ -101,7 +102,6 @@ class CompoundAdder(ML_EntityBasis):
 
         # initializing base class
         ML_EntityBasis.__init__(self,
-          base_name = "compound_adder",
           arg_template = arg_template
         )
 

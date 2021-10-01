@@ -62,6 +62,7 @@ from metalibm_core.utility.rtl_debug_utils import (
 
 class MinMaxSelectEntity(ML_Entity("ut_min_max_select_entity"), TestRunner):
     """ Adaptative Entity unit-test """
+    base_name = "min_max_select"
     @staticmethod
     def get_default_args(width=32, **kw):
         """ generate default argument template """
@@ -91,10 +92,7 @@ class MinMaxSelectEntity(ML_Entity("ut_min_max_select_entity"), TestRunner):
         )
 
         # initializing base class
-        ML_EntityBasis.__init__(self,
-                                base_name="adaptative_design",
-                                arg_template=arg_template
-                                )
+        ML_EntityBasis.__init__(self, arg_template=arg_template)
 
         self.accuracy = arg_template.accuracy
         self.precision = arg_template.precision

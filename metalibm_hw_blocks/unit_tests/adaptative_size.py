@@ -69,6 +69,7 @@ class AdaptativeEntity(ML_Entity("ml_adaptative_entity"), TestRunner):
             target=VHDLBackend(),
             output_file="my_adapative_entity.vhd",
             entity_name="my_adaptative_entity",
+            base_name="adaptative_size",
             language=VHDL_Code,
             width=width,
             passes=[("beforecodegen:size_datapath")],
@@ -89,10 +90,7 @@ class AdaptativeEntity(ML_Entity("ml_adaptative_entity"), TestRunner):
         )
 
         # initializing base class
-        ML_EntityBasis.__init__(self,
-                                base_name="adaptative_design",
-                                arg_template=arg_template
-                                )
+        ML_EntityBasis.__init__(self, arg_template=arg_template)
 
         self.accuracy = arg_template.accuracy
         self.precision = arg_template.precision

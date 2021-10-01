@@ -92,6 +92,7 @@ class RangeEvalEntity(ML_Entity("ml_range_eval_entity"), TestRunner):
             target=VHDLBackend(),
             output_file="my_range_eval_entity.vhd",
             entity_name="my_range_eval_entity",
+            base_name="range_eval",
             language=VHDL_Code,
             width=width,
             # passes=[("beforecodegen:size_datapath")],
@@ -109,7 +110,6 @@ class RangeEvalEntity(ML_Entity("ml_range_eval_entity"), TestRunner):
 
         # initializing base class
         ML_EntityBasis.__init__(self,
-                                base_name="adaptative_design",
                                 arg_template=arg_template
                                 )
 

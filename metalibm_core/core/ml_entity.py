@@ -303,43 +303,20 @@ class ML_EntityBasis(object):
   name = "entity_basis"
 
   ## constructor
-  #  @param base_name string function name (without precision considerations)
-  #  @param function_name
-  #  @param output_file string name of source code output file
-  #  @param debug_file string name of debug script output file
-  #  @param io_precisions input/output ML_Format list
-  #  @param debug_flag boolean flag, indicating whether or not debug code
-  #                    must be generated
-  def __init__(self,
-             # Naming
-             base_name = ArgDefault("unknown_entity", 2),
-             entity_name= ArgDefault(None, 2),
-             output_file = ArgDefault(None, 2),
-             # Specification
-             io_precisions = ArgDefault([ML_Binary32], 2),
-             # Optimization parameters
-             backend = ArgDefault(VHDLBackend(), 2),
-             # Debug verbosity
-             debug_flag = ArgDefault(False, 2),
-             language = ArgDefault(VHDL_Code, 2),
-             arg_template = DefaultEntityArgTemplate
-         ):
+  #  @param arg_template argument structure
+  def __init__(self, arg_template = DefaultEntityArgTemplate):
     # selecting argument values among defaults
-    base_name = ArgDefault.select_value([base_name])
-    Log.report(Log.Info, "pre entity_name: %s %s " % (entity_name, arg_template.entity_name))
-    entity_name = ArgDefault.select_value([arg_template.entity_name, entity_name])
-    Log.report(Log.Info, "entity_name: %s " % entity_name)
-    Log.report(Log.Info, "output_file: %s %s " % (arg_template.output_file, output_file))
-    Log.report(Log.Info, "debug_file:  %s "% arg_template.debug_file)
-    output_file = ArgDefault.select_value([arg_template.output_file, output_file])
+    base_name = arg_template.base_name
+    entity_name = arg_template.entity_name
+    output_file = arg_template.output_file
     debug_file  = arg_template.debug_file
     # Specification
-    io_precisions = ArgDefault.select_value([io_precisions])
+    io_precisions = arg_template.io_precisions
     # Optimization parameters
-    backend = ArgDefault.select_value([arg_template.backend, backend])
+    backend = arg_template.backend
     # Debug verbosity
-    debug_flag    = ArgDefault.select_value([arg_template.debug, debug_flag])
-    language      = ArgDefault.select_value([arg_template.language, language])
+    debug_flag    = arg_template.debug
+    language      = arg_template.language
     auto_test     = arg_template.auto_test
     auto_test_std = arg_template.auto_test_std
 

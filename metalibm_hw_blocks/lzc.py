@@ -67,6 +67,7 @@ class ML_LeadingZeroCounter(ML_Entity("ml_lzc")):
              debug_flag = False, 
              target = vhdl_backend.VHDLBackend(), 
              output_file = "my_lzc.vhd", 
+             base_name = "ml_lzc",
              entity_name = entity_name,
              language = VHDL_Code,
              width = width,
@@ -84,7 +85,6 @@ class ML_LeadingZeroCounter(ML_Entity("ml_lzc")):
 
     # initializing base class
     ML_EntityBasis.__init__(self, 
-      base_name = "ml_lzc",
       arg_template = arg_template
     )
 

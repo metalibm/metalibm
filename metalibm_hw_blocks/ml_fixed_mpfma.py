@@ -80,34 +80,13 @@ def rzext(optree, ext_size):
   return Concatenation(optree, Constant(0, precision = ext_format), precision = out_format)
 
 class FP_FIXED_MPFMA(ML_Entity("fp_fixed_mpfma")):
-  def __init__(self, 
-             arg_template = DefaultEntityArgTemplate, 
-             precision = ML_Binary32, 
-             target = VHDLBackend(), 
-             debug_flag = False,
-             output_file = "fp_fixed_mpfma.vhd", 
-             entity_name = "fp_fixed_mpfma",
-             language = VHDL_Code,
-             vector_size = 1,
-             ):
+  def __init__(self, arg_template):
     # initializing I/O precision
-    precision = ArgDefault.select_value([arg_template.precision, precision])
+    precision = arg_template.precision
     io_precisions = [precision] * 2
 
     # initializing base class
-    ML_EntityBasis.__init__(self, 
-      base_name = "fp_fixed_mpfma",
-      entity_name = entity_name,
-      output_file = output_file,
-
-      io_precisions = io_precisions,
-
-      backend = target,
-
-      debug_flag = debug_flag,
-      language = language,
-      arg_template = arg_template
-    )
+    ML_EntityBasis.__init__(self, arg_template=arg_template)
 
     self.precision = precision.get_base_format()
     self.io_precision = precision
@@ -126,6 +105,9 @@ class FP_FIXED_MPFMA(ML_Entity("fp_fixed_mpfma")):
     default_mapping = {
       "extra_digit" : 0,
       "sign_magnitude" : False,
+      "output_file": "fp_fixed_mpfma.vhd", 
+      "base_name": "fp_fixed_mpfma",
+      "entity_name": "fp_fixed_mpfma",
       "pipelined" : False
     }
     default_mapping.update(kw)
@@ -496,7 +478,7 @@ class FP_FIXED_MPFMA(ML_Entity("fp_fixed_mpfma")):
 
 if __name__ == "__main__":
     # auto-test
-    arg_template = ML_EntityArgTemplate(default_entity_name = "new_fp_fixed_mpfma", default_output_file = "ml_fp_fixed_mpfma.vhd" )
+    arg_template = ML_EntityArgTemplate(default_entity_name = "new_fp_fixed_mpfma", default_output_file = "ml_fp_fixed_mpfma.vhd" , default_arg=FP_FIXED_MPFMA.get_default_args())
     # extra digit command line argument
     arg_template.parser.add_argument("--extra-digit", dest = "extra_digit", type=int, default = 0, help = "set the number of accumulator extra digits")
     arg_template.parser.add_argument("--sign-magnitude", dest = "sign_magnitude", action = "store_const", default = False, const = True, help = "set sign-magnitude encoding for the accumulator")

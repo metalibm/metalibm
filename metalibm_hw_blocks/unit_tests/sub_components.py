@@ -84,6 +84,7 @@ class SubComponentInstance(ML_EntityBasis, TestRunner):
             output_file="ut_sub_component.vhd",
             entity_name="ut_sub_component",
             language=VHDL_Code,
+            base_name="adaptative_design",
             width=width,
             passes=[
                 ("beforepipelining:size_datapath"),
@@ -108,7 +109,6 @@ class SubComponentInstance(ML_EntityBasis, TestRunner):
 
         # initializing base class
         ML_EntityBasis.__init__(self,
-                                base_name="adaptative_design",
                                 arg_template=arg_template
                                 )
 

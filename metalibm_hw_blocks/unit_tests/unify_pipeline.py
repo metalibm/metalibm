@@ -74,6 +74,7 @@ class UnifyPipelineBench(ML_Entity("ut_unify_pipeline_bench_entity"), TestRunner
             target=VHDLBackend(),
             output_file="my_adapative_entity.vhd",
             entity_name="my_adaptative_entity",
+            base_name="adaptative_design",
             language=VHDL_Code,
             width=width,
             passes=[
@@ -103,7 +104,6 @@ class UnifyPipelineBench(ML_Entity("ut_unify_pipeline_bench_entity"), TestRunner
 
         # initializing base class
         ML_EntityBasis.__init__(self,
-                                base_name="adaptative_design",
                                 arg_template=arg_template
                                 )
 

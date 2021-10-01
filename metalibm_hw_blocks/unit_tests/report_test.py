@@ -58,6 +58,7 @@ class UT_RTL_Report(ML_Entity("ut_rtl_report"), TestRunner):
          "target": VHDLBackend(),
          "output_file": "ut_rtl_report.vhd",
          "entity_name": "ut_rtl_report",
+         "base_name": "ut_rtl_report",
          "language": VHDL_Code,
     }
     default_dict.update(kw)
@@ -70,7 +71,6 @@ class UT_RTL_Report(ML_Entity("ut_rtl_report"), TestRunner):
 
     # initializing base class
     ML_EntityBasis.__init__(self, 
-      base_name = "ut_rtl_report",
       arg_template = arg_template
     )
 

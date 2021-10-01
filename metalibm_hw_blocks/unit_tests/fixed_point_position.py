@@ -79,6 +79,7 @@ class UT_FixedPointPosition(ML_Entity("ml_ut_fixed_point_position"), TestRunner)
             debug_flag=False,
             target=VHDLBackend(),
             output_file="ut_fixed_point_position.vhd",
+            base_name="ut_fixed_point_position",
             entity_name="ut_fixed_point_position",
             language=VHDL_Code,
             width=width,
@@ -92,10 +93,7 @@ class UT_FixedPointPosition(ML_Entity("ml_ut_fixed_point_position"), TestRunner)
             arg_template is None else arg_template
 
         # initializing base class
-        ML_EntityBasis.__init__(self,
-                                base_name="ut_fixed_point_position",
-                                arg_template=arg_template
-                                )
+        ML_EntityBasis.__init__(self, arg_template=arg_template)
 
         self.accuracy = arg_template.accuracy
         self.precision = arg_template.precision
