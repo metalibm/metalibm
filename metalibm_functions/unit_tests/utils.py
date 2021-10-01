@@ -28,7 +28,7 @@
 # last-modified:    Mar  7th, 2018
 # Author(s): Nicolas Brunie <nbrunie@kalray.eu>
 ###############################################################################
-from metalibm_core.core.ml_function import DefaultArgTemplate
+from metalibm_core.utility.ml_template import DefaultCommonArgTemplate
 from metalibm_core.core.ml_formats import ML_Binary32
 
 ## Runner wrapper for unit tests
@@ -40,7 +40,7 @@ class TestRunner:
   #  may be overloaded
   @staticmethod
   def get_default_args(**kw):
-    arg_template = DefaultArgTemplate(
+    arg_template = DefaultCommonArgTemplate(
       precision = ML_Binary32,
       output_file = "ut_out.c",
       function_name = "ut_test"

@@ -79,7 +79,7 @@ from metalibm_core.code_generation.gappa_code_generator import GappaCodeGenerato
 
 from metalibm_core.utility.log_report import Log
 from metalibm_core.utility.debug_utils import *
-from metalibm_core.utility.ml_template import DefaultArgTemplate
+from metalibm_core.utility.ml_template import DefaultFunctionArgTemplate, DefaultArgTemplate
 import metalibm_core.utility.build_utils as build_utils
 from metalibm_core.utility.num_utils import ulp
 
@@ -391,7 +391,7 @@ class ML_FunctionBasis(object):
   ## constructor
   #   @param all arguments are transmittaed throughs @p arguments object which
   #          should inherit from DefaultArgTemplate
-  def __init__(self, args=DefaultArgTemplate):
+  def __init__(self, args=DefaultFunctionArgTemplate):
     # selecting argument values among defaults
     self.display_after_opt = args.display_after_opt
 
@@ -459,6 +459,7 @@ class ML_FunctionBasis(object):
 
     # self.abs_accuracy = args.abs_accuracy if args.abs_accuracy else S2**(-self.get_output_precision().get_precision())
     self.libm_compliant = args.libm_compliant
+    self.pure = args.pure
     self.accuracy_class = args.accuracy
     self.accuracy = args.accuracy(self.get_output_precision())
 
@@ -565,7 +566,7 @@ class ML_FunctionBasis(object):
   #  a meta-function specific default argument structure
   @staticmethod
   def get_default_args(**args):
-    return DefaultArgTemplate(**args)
+    return DefaultFunctionArgTemplate(**args)
 
   ## compute the evaluation error of an ML_Operation node
   #  @param optree ML_Operation object whose evaluation error is computed
@@ -1364,6 +1365,8 @@ class ML_FunctionBasis(object):
     input_display_formats = ", ".join(prec.get_display_format(self.language).format_string for prec in self.get_input_precisions())
     input_display_vars = ", ".join(prec.get_display_format(self.language).pre_process_fct("{%d}" % index) for index, prec in enumerate(self.get_input_precisions(), 1))
 
+    requiredHeaders = sum([prec.get_display_format(self.language).required_header for prec in self.get_input_precisions()], [])
+
     result_arg_id = 1 + len(self.get_input_precisions())
     output_format = self.get_output_precision()
     # expected_arg_id = 1 + result_arg_id
@@ -1385,7 +1388,7 @@ class ML_FunctionBasis(object):
                     result_display_vars=result_display_vars,
                     #expected_display_vars=expected_display_vars
                 )
-    printf_op = TemplateOperatorFormat(template, void_function=True, arity=(result_arg_id+1), require_header=["stdio.h"]) 
+    printf_op = TemplateOperatorFormat(template, void_function=True, arity=(result_arg_id+1), require_header=["stdio.h"] + requiredHeaders) 
     printf_input_function = FunctionObject("printf", [ML_Int32] + self.get_input_precisions() + [output_format], ML_Void, printf_op)
     return printf_input_function
 
@@ -1646,16 +1649,20 @@ class ML_FunctionBasis(object):
       local_error_absolute = self.accuracy.compute_error(local_result, stored_values, relative=False)
 
       # exclude error update when error is NaN
-      error_rel_comp = LogicalAnd(
-        Comparison(local_error_relative, max_error_relative, specifier=Comparison.Greater, precision=ML_Bool),
-        LogicalNot(Test(local_error_relative, specifier=Test.IsNaN)),
-        precision=ML_Bool
-      )
-      error_abs_comp = LogicalAnd(
-        Comparison(local_error_absolute, max_error_absolute, specifier=Comparison.Greater, precision=ML_Bool),
-        LogicalNot(Test(local_error_absolute, specifier=Test.IsNaN)),
-        precision=ML_Bool
-      )
+      error_rel_comp = Comparison(local_error_relative, max_error_relative, specifier=Comparison.Greater, precision=ML_Bool)
+      # error_rel_comp = LogicalAnd(
+      #  Comparison(local_error_relative, max_error_relative, specifier=Comparison.Greater, precision=ML_Bool),
+      #  LogicalNot(Test(local_error_relative, specifier=Test.IsNaN)),
+      #  precision=ML_Bool
+      #)
+
+      # if the absolute error is NaN
+      error_abs_comp = Comparison(local_error_absolute, max_error_absolute, specifier=Comparison.Greater, precision=ML_Bool)
+      # error_abs_comp = LogicalAnd(
+      #  Comparison(local_error_absolute, max_error_absolute, specifier=Comparison.Greater, precision=ML_Bool),
+      #  LogicalNot(Test(local_error_absolute, specifier=Test.IsNaN)),
+      #  precision=ML_Bool
+      #)
 
       loop_increment = 1
       printf_error_template = "printf(\"max %s error is absolute=%s, relative=%s \\n\", %s, %s)" % (

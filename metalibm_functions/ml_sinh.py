@@ -48,7 +48,7 @@ from metalibm_core.core.polynomials import (
 from metalibm_core.core.ml_table import ML_NewTable
 from metalibm_core.core.special_values import FP_PlusInfty
 
-from metalibm_core.utility.ml_template import ML_NewArgTemplate, ArgDefault
+from metalibm_core.utility.ml_template import DefaultFunctionArgTemplate
 from metalibm_core.utility.log_report    import Log
 from metalibm_core.utility.debug_utils import debug_multi
 from metalibm_core.utility.num_utils     import ulp
@@ -266,7 +266,7 @@ class ML_HyperbolicSine(ScalarUnaryFunction):
 
 if __name__ == "__main__":
     # auto-test
-    arg_template = ML_NewArgTemplate(default_arg=ML_HyperbolicSine.get_default_args())
+    arg_template = DefaultFunctionArgTemplate(default_arg=ML_HyperbolicSine.get_default_args())
     # argument extraction
     args = arg_template.arg_extraction()
     ml_sinh = ML_HyperbolicSine(args)

@@ -57,9 +57,6 @@ from metalibm_core.utility.debug_utils import *
 
 class ML_UT_PayneHanek(ML_Function("ml_ut_payne_hanek")):
   def __init__(self, args):
-    #precision = ArgDefault.select_value([arg_template.precision, precision])
-    #io_precisions = [precision] * 2
-
     # initializing base class
     ML_FunctionBasis.__init__(self, args)
 
