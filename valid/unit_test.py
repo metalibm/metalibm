@@ -42,6 +42,8 @@ from valid.test_utils import *
 
 from metalibm_core.core.ml_formats import ML_Int32, ML_Int16, ML_Int64
 
+from metalibm_core.utility.ml_template import DefaultArgTemplate
+
 from metalibm_functions.unit_tests.utils import TestRunner
 
 

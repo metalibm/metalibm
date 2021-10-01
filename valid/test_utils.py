@@ -35,7 +35,7 @@
 ###############################################################################
 
 from metalibm_core.core.ml_function import (
-    DefaultArgTemplate, BuildError, ValidError
+    BuildError, ValidError
 )
 
 class DisabledTest(Exception):

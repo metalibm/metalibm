@@ -51,14 +51,14 @@ from metalibm_core.core.ml_table import ML_Table
 from metalibm_core.core.precisions import ML_Faithful
 
 from metalibm_core.utility.ml_template import (
-    ML_NewArgTemplate, DefaultArgTemplate
+    DefaultFunctionArgTemplate, ML_NewArgTemplate, DefaultArgTemplate
 )
 
 from metalibm_core.utility.arg_utils import test_flag_option, extract_option_value
 
 
 class ML_UT_NewArgTemplate(ML_Function("ml_ut_new_arg_template")):
-  def __init__(self, args=DefaultArgTemplate):
+  def __init__(self, args=DefaultFunctionArgTemplate):
     # initializing base class
     ML_FunctionBasis.__init__(self, args)
 
@@ -75,7 +75,7 @@ class ML_UT_NewArgTemplate(ML_Function("ml_ut_new_arg_template")):
         "target": MPFRProcessor()
     }
     default_args.update(kw)
-    return DefaultArgTemplate(**default_args)
+    return DefaultFunctionArgTemplate(**default_args)
 
   def numeric_emulate(self, input_value):
     return input_value + input_value * input_value

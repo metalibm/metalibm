@@ -27,10 +27,8 @@
 ###############################################################################
 # last-modified:    Mar  7th, 2018
 ###############################################################################
-from metalibm_core.core.ml_function import ML_FunctionBasis, DefaultArgTemplate
 
-
-from metalibm_core.utility.ml_template import ML_NewArgTemplate
+from metalibm_core.utility.ml_template import DefaultFunctionArgTemplate
 from metalibm_core.utility.log_report  import Log
 
 import metalibm_core.utility.gappa_utils as gappa
@@ -38,26 +36,9 @@ import metalibm_core.core.polynomials as polynomials
 import metalibm_core.utility.ml_template as template
 
 
-
-class EmptyFunction(ML_FunctionBasis):
-    """ Dummy meta-function to generation Metalibm status """
-    function_name = "ml_empty_function"
-    def __init__(self,arg_template = DefaultArgTemplate):
-        # initializing I/O precision
-        precision = ArgDefault.select_value([arg_template.precision, precision])
-        io_precisions = [precision] * 2
-
-        # initializing base class
-        ML_FunctionBasis.__init__(self,
-          arg_template=arg_template
-        )
-
-        self.precision = precision
-
-
 if __name__ == "__main__":
     # auto-test
-    arg_template = ML_NewArgTemplate()
+    arg_template = DefaultFunctionArgTemplate()
 
     arg_template.get_parser().add_argument(
         "--test-gappa", dest="test_gappa", action="store_const", const=True,
