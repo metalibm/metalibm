@@ -28,26 +28,20 @@
 # last-modified:    Mar  7th, 2018
 # Author(s): Nicolas Brunie <nbrunie@kalray.eu>
 ###############################################################################
-import sys
-
 from sollya import SollyaObject
 
-S2 = SollyaObject(2)
+from metalibm_core.core.ml_function import ML_FunctionBasis
 
-from metalibm_core.core.ml_function import ML_Function, ML_FunctionBasis
+from metalibm_core.core.ml_operations import (ML_ArithmeticOperation,
+  ML_LeafNode, Multiplication, Addition, Constant,
+  Statement, Return)
 
-from metalibm_core.core.ml_operations import *
+from metalibm_core.core.ml_formats import ML_Int32
 
-from metalibm_core.core.ml_formats import *
-from metalibm_core.core.ml_complex_formats import * 
-
-from metalibm_core.code_generation.generic_processor import GenericProcessor
-from metalibm_core.code_generation.mpfr_backend import MPFRProcessor
 from metalibm_core.code_generation.code_constant import C_Code 
-from metalibm_core.core.ml_optimization_engine import OptimizationEngine
 
-
-from metalibm_core.utility.ml_template import *
+from metalibm_core.utility.ml_template import (
+  MetaFunctionArgTemplate, DefaultFunctionArgTemplate)
 
 
 class LatencyEvaluator:
@@ -76,42 +70,20 @@ class LatencyEvaluator:
         self.latency_map[optree] = latency
         return latency
 
-class ML_UT_LatencyEvaluation(ML_Function("ml_ut_latency_evaluation")):
-  def __init__(self, 
-                 arg_template,
-                 precision = ML_Binary32, 
-                 abs_accuracy = S2**-24, 
-                 libm_compliant = True, 
-                 debug_flag = False, 
-                 fuse_fma = True, 
-                 fast_path_extract = True,
-                 target = MPFRProcessor(), 
-                 output_file = "ut_latency_evaluation.c", 
-                 function_name = "ut_latency_evaluation"):
-    # precision argument extraction
-    precision = ArgDefault.select_value([arg_template.precision, precision])
-    io_precisions = [precision] * 2
+class ML_UT_LatencyEvaluation(ML_FunctionBasis):
+  function_name = "ml_ut_latency_evaluation"
 
-    # initializing base class
-    ML_FunctionBasis.__init__(self, 
-      base_name = "ut_latency_evaluation",
-      function_name = function_name,
-      output_file = output_file,
-
-      io_precisions = io_precisions,
-      abs_accuracy = None,
-      libm_compliant = libm_compliant,
-
-      processor = target,
-      fuse_fma = fuse_fma,
-      fast_path_extract = fast_path_extract,
-
-      debug_flag = debug_flag,
-      arg_template = arg_template,
-    )
-
-    self.precision = precision
-
+  @staticmethod
+  def get_default_args(**kw):
+    """ Return a structure containing the arguments for current class,
+        builtin from a default argument mapping overloaded with @p kw """
+    default_args = {
+        "output_file": "ut_latency_evaluation.c",
+        "function_name": "ut_latency_evaluation",
+        "precision": ML_Int32,
+    }
+    default_args.update(kw)
+    return DefaultFunctionArgTemplate(**default_args)
 
   def generate_scheme(self):
     vx = self.implementation.add_input_variable("x", self.precision)
@@ -124,24 +96,25 @@ class ML_UT_LatencyEvaluation(ML_Function("ml_ut_latency_evaluation")):
 
     latency_pass  = LatencyEvaluator(self.processor)
     latency_value = latency_pass.evaluate(operations)
-    print "latency evaluation result: {}".format(latency_value)
+    print("latency evaluation result: {}".format(latency_value))
     
-    scheme = Statement(
-              Return(operations, precision = self.precision)
-            )
+    scheme = Statement(Return(operations, precision = self.precision))
     return scheme
 
-def run_test(args):
-  ml_ut_latency_evaluation = ML_UT_LatencyEvaluation(args)
-  ml_ut_latency_evaluation.gen_implementation(display_after_gen = True, display_after_opt = True)
-  return True
+  @staticmethod
+  def __call__(args):
+    ml_ut_latency_evaluation = ML_UT_LatencyEvaluation(args)
+    ml_ut_latency_evaluation.gen_implementation(display_after_gen = True, display_after_opt = True)
+    return True
+
+run_test = ML_UT_LatencyEvaluation
 
 if __name__ == "__main__":
   # auto-test
-  arg_template = ML_NewArgTemplate("new_ut_latency_eval", default_output_file = "new_ut_latency_eval.c" )
+  arg_template = MetaFunctionArgTemplate(default_arg=ML_UT_LatencyEvaluation.get_default_args())
   args = arg_template.arg_extraction()
 
-  if run_test(args):
+  if run_test.__call__(args):
     exit(0)
   else:
     exit(1)
