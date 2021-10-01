@@ -94,6 +94,7 @@ import metalibm_functions.unit_tests.numerical_simplification as ut_numerical_si
 import metalibm_functions.unit_tests.machine_insn_test as ut_machine_insn_test
 import metalibm_functions.unit_tests.copysign as ut_copysign
 import metalibm_functions.unit_tests.arithmetic_right_shift as ut_arithmetic_right_shift
+import metalibm_functions.unit_tests.latency_evaluation as ut_latency_evaluation
 
 unit_test_list = [
   UnitTestScheme(
@@ -326,6 +327,11 @@ unit_test_list = [
     "arithmetic_right_shift",
     ut_arithmetic_right_shift,
     [{"auto_test": 1024, "execute_trigger": True}]
+  ),
+  UnitTestScheme(
+    "latency_evaluation",
+    ut_latency_evaluation,
+    [{}]
   ),
 ]
 
