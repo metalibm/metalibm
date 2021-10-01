@@ -578,10 +578,6 @@ class ML_CommonArgTemplate(object):
             # default=default_arg.debug,
             help="enable debug display of variable values in generated code, value can be indicated by a ','-separated list of tags or all default list of variable will be displayed")
         self.parser.add_argument(
-            "--fuse-fma", dest="fuse_fma", action="store_const",
-            const=True, default=default_arg.fuse_fma,
-            help="disable FMA-like operation fusion")
-        self.parser.add_argument(
             "--output", action="store", dest="output_file",
             default=default_arg.output_file,
             help="set output file")
@@ -589,16 +585,6 @@ class ML_CommonArgTemplate(object):
         self.parser.add_argument(
             "--accuracy", dest="accuracy", default=default_arg.accuracy,
             type=accuracy_parser, help="select accuracy")
-
-        self.parser.add_argument(
-            "--no-fpe", dest="fast_path_extract", action="store_const",
-            const=False, default=default_arg.fast_path_extract,
-            help="disable Fast Path Extraction")
-
-        self.parser.add_argument(
-            "--dot-product", dest="dot_product_enabled", action="store_const",
-            const=True, default=default_arg.dot_product_enabled,
-            help="enable Dot Product fusion")
 
         self.parser.add_argument(
             "--display-after-opt", dest="display_after_opt",
@@ -616,15 +602,6 @@ class ML_CommonArgTemplate(object):
             "--input-intervals", dest="input_intervals", type=interval_list_parser,
             default=default_arg.input_intervals, help="':' seperated list of input ranges")
 
-        self.parser.add_argument(
-            "--vector-size", dest="vector_size", type=int,
-            default=default_arg.vector_size,
-            help="define size of vector (1: scalar implemenation)")
-
-        self.parser.add_argument(
-            "--sub-vector-size", dest="sub_vector_size", type=int,
-            default=default_arg.sub_vector_size,
-            help="define size of sub vector")
         # language selection
         self.parser.add_argument(
             "--language", dest="language", type=language_parser,
@@ -661,31 +638,6 @@ class ML_CommonArgTemplate(object):
             type=(lambda s: [tuple(parse_with_error(v) for v in t.split(",")) for t in s.split(":")]),
             default=default_arg.value_test,
             help="give input value for tests as ':'-separated list of tuples")
-
-        # enable the computation of eval error (if self-testing enabled)
-        self.parser.add_argument(
-            "--max-error", dest="compute_max_error", action="store_const",
-            const=True, default=default_arg.compute_max_error,
-            help="enable the computation of the maximum error "
-                 "(if auto-test is enabled)")
-        self.parser.add_argument(
-            "--break_error", dest="break_error", action="store_const",
-            const=True, default=default_arg.break_error,
-            help="forces tester to continue when encountering an error")
-        # performance bench related arguments
-        self.parser.add_argument(
-            "--bench", dest="bench_test_number", action="store", nargs='?',
-            const=1000, type=int, default=default_arg.bench_test_number,
-            help="enable the generation of a performance bench")
-        self.parser.add_argument(
-            "--bench-loop-num", dest="bench_loop_num", action="store",
-            type=int, default=default_arg.bench_loop_num,
-            help="define the number of bench loop to run")
-        self.parser.add_argument(
-            "--bench-range", dest="bench_test_range", action="store",
-            type=rng_mode_list_parser, default=default_arg.bench_test_range,
-            help="define the interval of input values to use during "
-                  "performance bench")
 
         self.parser.add_argument(
             "--verbose", dest="verbose_enable", action=VerboseAction,
@@ -804,6 +756,11 @@ class ML_EntityArgTemplate(ML_CommonArgTemplate):
             default=self.default_entity_name,
             help="set entity name"
         )
+        self.parser.add_argument(
+            "--basename", dest="base_name",
+            default=default_arg.base_name,
+            help="set entity name"
+        )
         self.parser.add_argument("--backend", dest="backend", action="store",
             type=target_instanciate,
             default=default_arg.backend, help="select generation backend"
@@ -891,6 +848,20 @@ class MetaFunctionArgTemplate(ML_CommonArgTemplate):
             help="generate libm compliante code"
         )
         self.parser.add_argument(
+            "--no-fpe", dest="fast_path_extract", action="store_const",
+            const=False, default=default_arg.fast_path_extract,
+            help="disable Fast Path Extraction")
+
+        self.parser.add_argument(
+            "--dot-product", dest="dot_product_enabled", action="store_const",
+            const=True, default=default_arg.dot_product_enabled,
+            help="enable Dot Product fusion")
+
+        self.parser.add_argument(
+            "--fuse-fma", dest="fuse_fma", action="store_const",
+            const=True, default=default_arg.fuse_fma,
+            help="disable FMA-like operation fusion")
+        self.parser.add_argument(
             "--no-embedded-bin", dest="embedded_binary", action="store_const",
             const=False, default=default_arg.embedded_binary,
             help="link test program as shared object to be embedded"
@@ -924,6 +895,41 @@ class MetaFunctionArgTemplate(ML_CommonArgTemplate):
             type=format_list_parser,
             default=default_arg.input_precisions,
             help="comma separated list of input formats")
+        self.parser.add_argument(
+            "--vector-size", dest="vector_size", type=int,
+            default=default_arg.vector_size,
+            help="define size of vector (1: scalar implemenation)")
+
+        self.parser.add_argument(
+            "--sub-vector-size", dest="sub_vector_size", type=int,
+            default=default_arg.sub_vector_size,
+            help="define size of sub vector")
+
+        # enable the computation of eval error (if self-testing enabled)
+        self.parser.add_argument(
+            "--max-error", dest="compute_max_error", action="store_const",
+            const=True, default=default_arg.compute_max_error,
+            help="enable the computation of the maximum error "
+                 "(if auto-test is enabled)")
+        self.parser.add_argument(
+            "--break_error", dest="break_error", action="store_const",
+            const=True, default=default_arg.break_error,
+            help="forces tester to continue when encountering an error")
+        # performance bench related arguments
+        self.parser.add_argument(
+            "--bench", dest="bench_test_number", action="store", nargs='?',
+            const=1000, type=int, default=default_arg.bench_test_number,
+            help="enable the generation of a performance bench")
+        self.parser.add_argument(
+            "--bench-loop-num", dest="bench_loop_num", action="store",
+            type=int, default=default_arg.bench_loop_num,
+            help="define the number of bench loop to run")
+        self.parser.add_argument(
+            "--bench-range", dest="bench_test_range", action="store",
+            type=rng_mode_list_parser, default=default_arg.bench_test_range,
+            help="define the interval of input values to use during "
+                  "performance bench")
+
         # plotting options
         self.parser.add_argument(
             "--plot-function", dest="plot_function",
