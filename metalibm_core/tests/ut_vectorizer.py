@@ -33,7 +33,7 @@
 ###############################################################################
 import unittest
 
-from metalibm_core.core.ml_vectorizer import (
+from metalibm_core.core.static_vectorizer import (
     StaticVectorizer, fallback_policy, instanciate_variable)
 from metalibm_core.core.ml_operations import (
     Variable, Statement, ReferenceAssign, Constant, ConditionBlock,

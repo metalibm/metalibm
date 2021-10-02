@@ -52,7 +52,7 @@ from metalibm_core.code_generation.code_function import CodeFunction
 from metalibm_core.code_generation.code_constant import C_Code 
 from metalibm_core.core.ml_optimization_engine import OptimizationEngine
 
-from metalibm_core.core.ml_vectorizer import StaticVectorizer
+from metalibm_core.core.static_vectorizer import StaticVectorizer
 
 from metalibm_core.utility.ml_template import *
 

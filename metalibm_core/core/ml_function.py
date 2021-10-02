@@ -55,7 +55,7 @@ from metalibm_core.core.ml_complex_formats import ML_Mpfr_t
 from metalibm_core.core.ml_call_externalizer import (
     CallExternalizer, generate_function_from_optree
 )
-from metalibm_core.core.ml_vectorizer import (
+from metalibm_core.core.static_vectorizer import (
     StaticVectorizer, no_scalar_fallback_required,
     vectorize_format,
 )

@@ -59,7 +59,7 @@ from metalibm_core.core.array_function import (
 from metalibm_core.core.ml_call_externalizer import (
     generate_function_from_optree
 )
-from metalibm_core.core.ml_vectorizer import (
+from metalibm_core.core.static_vectorizer import (
     StaticVectorizer, no_scalar_fallback_required,
     vectorize_format,
 )
