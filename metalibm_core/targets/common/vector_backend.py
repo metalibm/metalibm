@@ -39,7 +39,7 @@ from metalibm_core.core.target import UniqueTargetDecorator
 from metalibm_core.core.ml_formats import *
 from metalibm_core.core.ml_table import ML_TableFormat, ML_Pointer_Format
 from metalibm_core.core.ml_operations import *
-from metalibm_core.core.ml_vectorizer import StaticVectorizer
+from metalibm_core.core.static_vectorizer import StaticVectorizer
 from metalibm_core.core.legalizer import (
     min_legalizer, max_legalizer
 )

@@ -48,7 +48,7 @@ from metalibm_core.targets.common.vector_backend import VectorBackend
 from metalibm_core.code_generation.code_object import CodeObject
 from metalibm_core.code_generation.code_constant import C_Code
 
-from metalibm_core.core.ml_vectorizer import StaticVectorizer
+from metalibm_core.core.static_vectorizer import StaticVectorizer
 
 from metalibm_core.utility.ml_template import *
 

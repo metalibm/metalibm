@@ -40,7 +40,7 @@ from metalibm_functions.external_bench import (
 
 from metalibm_core.core.ml_operations import (
     BuildFromComponent, ComponentSelection, Addition)
-from metalibm_core.core.ml_vectorizer import vectorize_format
+from metalibm_core.core.static_vectorizer import vectorize_format
 
 from metalibm_core.utility.ml_template import (
     MultiAryArgTemplate, DefaultMultiAryArgTemplate,

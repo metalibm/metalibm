@@ -36,7 +36,7 @@ from metalibm_core.core.ml_operations import (
     Variable, FunctionObject, Statement, Return)
 from metalibm_core.core.ml_formats import ML_Binary32
 from metalibm_core.core.precisions import ML_Faithful
-from metalibm_core.core.ml_vectorizer import vectorize_format
+from metalibm_core.core.static_vectorizer import vectorize_format
 
 from metalibm_core.code_generation.generic_processor import GenericProcessor
 from metalibm_core.code_generation.generator_utility import FunctionOperator
