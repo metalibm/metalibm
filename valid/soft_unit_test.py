@@ -95,6 +95,7 @@ import metalibm_functions.unit_tests.machine_insn_test as ut_machine_insn_test
 import metalibm_functions.unit_tests.copysign as ut_copysign
 import metalibm_functions.unit_tests.arithmetic_right_shift as ut_arithmetic_right_shift
 import metalibm_functions.unit_tests.latency_evaluation as ut_latency_evaluation
+import metalibm_functions.unit_tests.rvv_code as ut_rvv_code
 
 unit_test_list = [
   UnitTestScheme(
@@ -331,6 +332,11 @@ unit_test_list = [
   UnitTestScheme(
     "latency_evaluation",
     ut_latency_evaluation,
+    [{}]
+  ),
+  UnitTestScheme(
+    "rvv_code",
+    ut_rvv_code,
     [{}]
   ),
 ]
