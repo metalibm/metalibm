@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+
 ###############################################################################
 # This file is part of metalibm (https://github.com/metalibm/metalibm)
 ###############################################################################
@@ -24,11 +25,18 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 ###############################################################################
-# created:          Sep  5th, 2021
-# last-modified:    Sep  5th, 2021
+# created:              Oct  3rd, 2021
+# last-modified:        Oct  3rd, 2021
 #
-# Author(s):        Nicolas Brunie <metalibmdev@gmail.com>
+# author(s):    Nicolas Brunie (metalibm POINT dev AT gmail com)
+# desciprition: Vector Lenght Agnostic Vectorizer implementation for Metalibm
 ###############################################################################
 
-from .riscv import RISCV_RV64
-from .riscv_vector import RISCV_RVV64
+from metalibm_core.core.ml_operations import GeneralOperation, ML_ArithmeticOperation, SpecifierOperation, Statement
+from metalibm_core.core.ml_formats import ML_Binary32, ML_Format
+from metalibm_core.core.static_vectorizer import StaticVectorizer
+
+
+class VLAVectorizer(StaticVectorizer):
+    """ vectorizer for vector-length agnostic architecture """
+    pass
