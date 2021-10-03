@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+
 ###############################################################################
 # This file is part of metalibm (https://github.com/metalibm/metalibm)
 ###############################################################################
@@ -24,11 +25,50 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 ###############################################################################
-# created:          Sep  5th, 2021
-# last-modified:    Sep  5th, 2021
+# created:              Oct  3rd, 2021
+# last-modified:        Oct  3rd, 2021
 #
-# Author(s):        Nicolas Brunie <metalibmdev@gmail.com>
+# author(s):    Nicolas Brunie
+# desciprition: Vector Length Agnostic definitions
 ###############################################################################
 
-from .riscv import RISCV_RV64
-from .riscv_vector import RISCV_RVV64
+from metalibm_core.core.ml_operations import (
+    GeneralOperation, ML_ArithmeticOperation, SpecifierOperation, Statement)
+from metalibm_core.core.ml_formats import ML_Binary32, ML_Format
+
+class VLAType(ML_Format):
+    """ wrapper for vector length agnostic types """
+    def __init__(self, baseFormat, groupSize=1):
+        self.baseFormat = baseFormat
+        self.groupSize = groupSize
+
+    @staticmethod
+    def isVLAType(t):
+        return isinstance(t, VLAType)
+
+class VLAOperation(SpecifierOperation, ML_ArithmeticOperation):
+    arity = None
+    def __init__(self, *args, specifier=None, **kw):
+        ML_ArithmeticOperation.__init__(self, *args, **kw)
+        self.specifier = specifier
+
+    def finish_copy(self, new_copy, copy_map = {}):
+        new_copy.specifier = self.specifier
+
+    @property
+    def name(self):
+        return "VLAOperation.{}".format(self.specifier)
+
+
+class VLAGetLength(ML_ArithmeticOperation):
+    name = "VLAGetLength"
+    arity = 1
+
+
+
+VLA_Binary32_l1 = VLAType(ML_Binary32, 1)
+
+
+class VLABlock(GeneralOperation):
+    """ Block with same agnostic vector length """
+    arity = 2
