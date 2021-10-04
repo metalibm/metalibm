@@ -43,7 +43,7 @@ from metalibm_core.code_generation.code_function import FunctionGroup
 
 from metalibm_core.utility.ml_template import DefaultFunctionArgTemplate, MetaFunctionArgTemplate
 
-from metalibm_core.targets.riscv.riscv_vector import RVV_vBinary32_m1, RISCV_RVV64
+from metalibm_core.targets.riscv.riscv_vector import RVV_VectorSize_T, RVV_vBinary32_m1, RISCV_RVV64
 
 from metalibm_functions.unit_tests.utils import TestRunner
 
@@ -76,9 +76,9 @@ class ML_UT_RVVCode(ML_FunctionBasis, TestRunner):
     # declaring function input variable
     px = self.implementation.add_input_variable("px", ML_Binary32_p)
     py = self.implementation.add_input_variable("py", ML_Binary32_p)
-    l = self.implementation.add_input_variable("l", ML_Int32)
+    l = self.implementation.add_input_variable("l", RVV_VectorSize_T)
 
-    l = VLAGetLength(l, precision=ML_Int32)
+    l = VLAGetLength(l, precision=RVV_VectorSize_T)
     vx = VLAOperation(px, l, specifier=TableLoad, precision=RVV_vBinary32_m1)
     vadd = VLAOperation(vx, vx, l, specifier=Addition, precision=RVV_vBinary32_m1)
     scheme = Statement(

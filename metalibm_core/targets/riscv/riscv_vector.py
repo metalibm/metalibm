@@ -57,35 +57,61 @@ def RVVIntrinsic(*args, **kw):
   """ Wrapper for Risc-V Vector intrinsics """
   return FunctionOperator(*args, require_header=["riscv_vector.h"], **kw)
 
+def buildRVVType(lmul, eltType):
+    """ generic build for RVV vector types """
+    eltTypeTag = {
+        ML_Int32:    "int32",
+        ML_Int64:    "int64",
+        ML_Binary32: "float32",
+        ML_Binary64: "float64",
+    }[eltType]
+    typeName = "v{}m{}_t".format(eltTypeTag, lmul)
+    return ML_FormatConstructor(None, typeName, None, lambda v: None, header="riscv_vector.h")
+
+# build complete map of RVV vector types
+RVV_vectorTypeMap = {(lmul, eltType): buildRVVType(lmul, eltType) for lmul in [1, 2, 4, 8] for eltType in [ML_Binary32, ML_Binary64, ML_Int32, ML_Int64]}
+
+# specific RVV type aliases
 # RVV vector types with LMUL=1 (m1)
-RVV_vBinary32_m1  = ML_FormatConstructor(None, "vfloat32m1_t", None, lambda v: None, header="riscv_vector.h")
+RVV_vBinary32_m1  = RVV_vectorTypeMap[(1, ML_Binary32)]
+
+RVV_VectorSize_T = ML_FormatConstructor(None, "size_t", None, lambda v: None, header="stddef.h")
+
+RVVIntrSuffix = {
+    ML_Int32: "i32",
+    ML_Int64: "i64",
+    ML_Binary32: "f32",
+    ML_Binary64: "f64",
+}
 
 rvv64_CCodeGenTable = {
     VLAGetLength: {
         None: {
             lambda optree: True: {
-                type_strict_match(ML_Int32, ML_Int32):
-                    RVVIntrinsic("vsetvl_e32m1", arity=1, output_precision=ML_Int32)
+                type_strict_match(RVV_VectorSize_T, RVV_VectorSize_T):
+                    RVVIntrinsic("vsetvl_e32m1", arity=1, output_precision=RVV_VectorSize_T)
             }
         }
     },
     VLAOperation: {
         Addition: {
             lambda optree: True: {
-                type_strict_match(RVV_vBinary32_m1, RVV_vBinary32_m1, RVV_vBinary32_m1, ML_Int32):
-                    RVVIntrinsic("vfadd_vv_f32m1", arity=3, output_precision=RVV_vBinary32_m1),
+                # generating mapping for all vv version of vfadd
+                type_strict_match(RVV_vectorTypeMap[(lmul, eltType)], RVV_vectorTypeMap[(lmul, eltType)], RVV_vectorTypeMap[(lmul, eltType)], RVV_VectorSize_T): 
+                    RVVIntrinsic("vfadd_vv_%sm%d" % (RVVIntrSuffix[eltType], lmul), arity=3, output_precision=RVV_vectorTypeMap[(lmul, eltType)])
+                    for (lmul, eltType) in RVV_vectorTypeMap
             }
         },
         TableLoad: {
             lambda optree: True: {
-                type_custom_match(FSM(RVV_vBinary32_m1), TCM(ML_Pointer_Format), FSM(ML_Int32)):
-                    RVVIntrinsic("vle32_v_f32m1", arity=2, output_precision=RVV_vBinary32_m1),
+                type_custom_match(FSM(RVV_vectorTypeMap[((lmul, eltType))]), TCM(ML_Pointer_Format), FSM(RVV_VectorSize_T)):
+                    RVVIntrinsic("vle32_v_%sm%d" % (RVVIntrSuffix[eltType], lmul), arity=2, output_precision=RVV_vectorTypeMap[((lmul, eltType))]) for (lmul, eltType) in RVV_vectorTypeMap
             }
         },
         TableStore: {
             lambda optree: True: {
-                type_custom_match(FSM(ML_Void), TCM(ML_Pointer_Format), FSM(RVV_vBinary32_m1), FSM(ML_Int32)):
-                    RVVIntrinsic("vse32_v_f32m1", arity=3, output_precision=ML_Void, void_function=True),
+                type_custom_match(FSM(ML_Void), TCM(ML_Pointer_Format), FSM(RVV_vectorTypeMap[((lmul, eltType))]), FSM(RVV_VectorSize_T)):
+                    RVVIntrinsic("vse32_v_%sm%d" % (RVVIntrSuffix[eltType], lmul), arity=3, output_precision=ML_Void, void_function=True) for (lmul, eltType) in RVV_vectorTypeMap
             }
         },
     },
