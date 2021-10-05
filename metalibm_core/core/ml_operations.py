@@ -1765,18 +1765,13 @@ def specific_abstract_type_rule(optree, *ops):
 def specific_instantiated_type_rule(backend, op, dprec):
     return backend.merge_abstract_format(op, op.inputs)
 
-class SeedOperation(SO_Specifier_Type):
-    @staticmethod
-    def abstract_type_rule(optree, *ops):
-        return ops[0].get_precision()
-    @staticmethod
-    def instantiated_type_rule(backend, op, dprec):
-        return backend.merge_abstract_format(op, op.inputs)
 
 class DivisionSeed(ML_ArithmeticOperation):
+    """ Seed for the division operation """
     arity = 2
     name = "DivisionSeed"
 class ReciprocalSeed(ML_ArithmeticOperation):
+    """ Seed for the reciprocal operation """
     arity = 1
     name = "ReciprocalSeed"
 
