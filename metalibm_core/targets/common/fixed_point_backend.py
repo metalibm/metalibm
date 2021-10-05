@@ -486,15 +486,6 @@ fixed_c_code_generation_table = {
         },
     },
   },
-    SpecificOperation: {
-        None: {
-            lambda optree: True: {
-                type_custom_match(MCFIPF, FSM(ML_Binary32)):
-                    ComplexOperator(optree_modifier=legalize_float2fix_copy_sign),
-
-            }
-        }
-    },
     BitLogicLeftShift: {
         None: {
             lambda _: True: {

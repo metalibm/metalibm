@@ -35,8 +35,8 @@ import copy
 
 from metalibm_core.core.ml_operations import (
     Addition,
-    Variable, Constant, ConditionBlock, Return, TableLoad, Statement,
-    SpecificOperation, Conversion, FunctionObject,
+    Variable, Constant, ConditionBlock, Return, Statement,
+    FunctionObject,
     ReferenceAssign, Loop,
 )
 from metalibm_core.core.bb_operations import (

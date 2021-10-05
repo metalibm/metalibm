@@ -52,7 +52,7 @@ from metalibm_core.core.ml_operations import (
 
     Statement, Variable,
     TypeCast, Constant,
-    SpecificOperation, ReferenceAssign,
+    ReferenceAssign,
 
     is_leaf_node,
 )
@@ -437,8 +437,6 @@ class Pass_CriticalPathEval(OptreeOptimization):
                 optree,
                 CriticalPath(optree, 0.0, combinatorial=combinatorial) + self.evaluate_critical_path_node(op, combinatorial=combinatorial)
             )
-        elif isinstance(optree, SpecificOperation):
-            Log.report(Log.Error, "unknown specifier in evaluate_critical_path_node", optree)
         elif isinstance(optree, CopySign):
             op = optree.get_input(0)
             return self.memoize_result(

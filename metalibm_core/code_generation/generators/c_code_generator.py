@@ -36,9 +36,9 @@ from metalibm_core.utility.log_report import Log
 
 # TODO clean long import list
 from metalibm_core.core.ml_operations import (
-    RaiseException, Variable, Constant, ConditionBlock, Return, TableLoad, Statement,\
-    Loop, SpecificOperation, ExceptionOperation, ClearException, \
-    NoResultOperation, SwitchBlock, FunctionObject, ReferenceAssign, \
+    RaiseException, Variable, Constant, ConditionBlock, Return, Statement,\
+    Loop, ExceptionOperation, ClearException, \
+    SwitchBlock, FunctionObject, ReferenceAssign, \
     BooleanOperation,
     FunctionType
 )
@@ -336,11 +336,6 @@ class CCodeGenerator(CodeGenerator):
                 return None
             else:
                 result = self.processor.generate_expr(self, code_object, optree, optree.inputs, result_var=result_var, language=language)
-
-        elif isinstance(optree, NoResultOperation):
-            result_code = self.processor.generate_expr(self, code_object, optree, optree.inputs, result_var=result_var, language = language)
-            code_object << "%s;\n" % result_code.get()
-            return None
 
         elif isinstance(optree, PlaceHolder):
             head = optree.get_input(0)

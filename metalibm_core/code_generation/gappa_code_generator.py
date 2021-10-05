@@ -37,7 +37,7 @@ import os
 from .code_element import CodeVariable, CodeExpression
 from ..core.ml_operations import (
     Variable, Constant, ConditionBlock, Return, TableLoad, Statement,
-    SpecificOperation, Conversion)
+    Conversion)
 from ..core.ml_table import ML_Table
 from ..core.ml_formats import *
 
@@ -214,11 +214,6 @@ class GappaCodeGenerator(object):
             return None
 
         elif isinstance(optree, Return):
-            return None
-
-        elif isinstance(optree, SpecificOperation):
-            result_code = self.processor.generate_expr(self, code_object, optree, optree.inputs, inlined = False, result_var = result_var, language = self.language)
-            code_object << "%s;\n" % result_code.get()
             return None
 
         elif isinstance(optree, Statement):

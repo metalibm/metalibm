@@ -41,8 +41,8 @@ from metalibm_core.core.ml_operations import (
     Comparison, Test, LogicalAnd, LogicalOr, LogicalNot,
     BitLogicAnd, BitLogicOr, BitLogicXor, BitLogicNegate,
     BitLogicLeftShift, BitLogicRightShift, BitArithmeticRightShift,
-    Return, TableLoad, SpecificOperation, ExceptionOperation,
-    NoResultOperation, Split, ComponentSelection, FunctionCall,
+    Return, TableLoad, ExceptionOperation,
+    Split, ComponentSelection, FunctionCall,
     Conversion, DivisionSeed, ReciprocalSquareRootSeed, ReciprocalSeed,
     VectorElementSelection,
     CopySign,
@@ -119,16 +119,12 @@ abstract_typing_rule = {
         lambda *ops: ops[0].get_precision(),
     TableLoad:
         lambda optree, *ops: ops[0].get_storage_precision(),
-    SpecificOperation:
-        lambda optree, *ops: optree.specifier.abstract_type_rule(optree, *ops),
     CopySign:
         lambda optree, *ops: optree.specifier.abstract_type_rule(optree, *ops),
     RaiseException:
         lambda optree, *ops: ML_Void,
     ClearException:
         lambda optree, *ops: ML_Void,
-    NoResultOperation:
-        lambda optree, *ops: optree.specifier.abstract_type_rule(optree, *ops),
     Split:
         lambda optree, *ops: ML_Float,
     ComponentSelection:
@@ -211,10 +207,6 @@ practical_typing_rule = {
     RaiseException:
         lambda backend, op, dprec: None,
     ClearException:
-        lambda backend, op, dprec: None,
-    SpecificOperation:
-        lambda backend, op, dprec: op.specifier.instantiated_type_rule(backend, op, dprec),
-    NoResultOperation:
         lambda backend, op, dprec: None,
     Split:
         lambda backend, op, dprec: op.get_precision(),
