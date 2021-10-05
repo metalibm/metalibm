@@ -35,7 +35,7 @@ import os
 
 from metalibm_core.core.target import UniqueTargetDecorator
 from metalibm_core.core.ml_operations import (
-    SpecificOperation, NearestInteger, Conversion)
+    ReadTimeStamp, SpecificOperation, NearestInteger, Conversion)
 from metalibm_core.core.ml_formats import (
     ML_Int64, ML_Int32,
     ML_Binary64, ML_Binary32)
@@ -78,8 +78,8 @@ def lowerNearestInteger(intFormat, targetFormat):
     return modifier
 
 rv64CCodeGenTable = {
-    SpecificOperation: {
-        SpecificOperation.ReadTimeStamp: {
+    ReadTimeStamp: {
+        None: {
             lambda _: True: {
                 type_strict_match(ML_Int64): rdcycleOperator
             }

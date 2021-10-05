@@ -812,8 +812,8 @@ c_code_generation_table = {
             },
         },
     },
-    SpecificOperation: {
-        SpecificOperation.ReadTimeStamp: {
+    ReadTimeStamp: {
+        None: {
             lambda _: True: {
                 type_strict_match(ML_Int64):
                     FunctionOperator("PAPI_get_real_cyc", require_deps=[LibraryDependency("papi.h", "-lpapi")]),
@@ -1140,10 +1140,7 @@ class GenericProcessor(AbstractBackend):
   #  the current processor clock value
   def get_current_timestamp(self):
       """ return MDL expression to extract current CPU timestamp value """
-      return SpecificOperation(
-              specifier = SpecificOperation.ReadTimeStamp,
-              precision = ML_Int64
-             )
+      return ReadTimeStamp(precision=ML_Int64)
 
   def get_init_timestamp(self):
     """ initialize target timestamping mechanism to allow

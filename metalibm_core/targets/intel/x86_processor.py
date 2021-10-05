@@ -2827,8 +2827,8 @@ rdtsc_operator = AsmInlineOperator(
 )
 
 x86_c_code_generation_table = {
-    SpecificOperation: {
-        SpecificOperation.ReadTimeStamp: {
+    ReadTimeStamp: {
+        None: {
             lambda _: True: {
                 type_strict_match(ML_Int64): rdtsc_operator
             }
@@ -2849,10 +2849,7 @@ class X86_Processor(VectorBackend):
         super().__init__()
 
     def get_current_timestamp(self):
-        return SpecificOperation(
-                specifier = SpecificOperation.ReadTimeStamp,
-                precision = ML_Int64
-                )
+        return ReadTimeStamp(precision=ML_Int64)
 
 
 @UniqueTargetDecorator
