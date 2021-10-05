@@ -793,7 +793,7 @@ c_code_generation_table = {
         },
     },
     CopySign: {
-        SpecificOperation.CopySign: {
+        None: {
             lambda optree: True: {
                 type_strict_match(ML_Binary32, ML_Binary32, ML_Binary32):
                     Libm_Function("copysignf", arity=2), #, arity=2, arg_map={0: "1.f", 1: FO_Arg(0)}), 

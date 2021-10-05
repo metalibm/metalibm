@@ -35,7 +35,7 @@ from metalibm_core.utility.log_report import Log
 
 from metalibm_core.core.passes import FunctionPass, Pass, LOG_PASS_INFO
 from metalibm_core.core.ml_operations import (
-    Comparison, Addition, Select, Constant, ML_LeafNode, Conversion,
+    Comparison, Addition, CopySign, Select, Constant, ML_LeafNode, Conversion,
     Statement, ReferenceAssign, BitLogicNegate, Subtraction,
     SpecificOperation, Negation, BitLogicRightShift, BitLogicLeftShift,
     BitArithmeticRightShift,
@@ -312,14 +312,10 @@ def solve_format_Subtraction(optree, format_solver=None):
         format_solver=format_solver
     )
 
+def solve_format_CopySign(optree):
+    assert isinstance(optree, CopySign)
+    return ML_StdLogic
 
-def solve_format_SpecificOperation(optree):
-    assert isinstance(optree, SpecificOperation)
-    specifier = optree.get_specifier()
-    if specifier == SpecificOperation.CopySign:
-        return ML_StdLogic
-    else: 
-        raise NotImplementedError
 
 def solve_format_bitwise_op(optree):
     """ legalize format of bitwise logical operation
@@ -683,8 +679,8 @@ class FormatSolver:
                 new_format = solve_format_Addition(optree, format_solver=self)
             elif isinstance(optree, Subtraction):
                 new_format = solve_format_Subtraction(optree, format_solver=self)
-            elif isinstance(optree, SpecificOperation):
-                new_format = solve_format_SpecificOperation(optree)
+            elif isinstance(optree, CopySign):
+                new_format = solve_format_CopySign(optree)
             elif isinstance(optree, Select):
                 new_format = solve_format_Select(optree)
             elif isinstance(optree, Min) or isinstance(optree, Max):

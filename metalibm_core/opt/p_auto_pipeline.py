@@ -32,7 +32,7 @@ from functools import total_ordering
 
 from metalibm_core.core.passes import OptreeOptimization, Pass, LOG_PASS_INFO
 from metalibm_core.core.ml_operations import (
-    Addition, Subtraction, Comparison, Multiplication, Negation,
+    Addition, CopySign, Subtraction, Comparison, Multiplication, Negation,
 
     MantissaExtraction, CountLeadingZeros,
     BitLogicRightShift, BitLogicLeftShift,
@@ -438,14 +438,13 @@ class Pass_CriticalPathEval(OptreeOptimization):
                 CriticalPath(optree, 0.0, combinatorial=combinatorial) + self.evaluate_critical_path_node(op, combinatorial=combinatorial)
             )
         elif isinstance(optree, SpecificOperation):
-            if optree.specifier is SpecificOperation.CopySign:
-                op = optree.get_input(0)
-                return self.memoize_result(
-                    optree,
-                    CriticalPath(optree, 0.0, combinatorial=combinatorial) + self.evaluate_critical_path_node(op, combinatorial=combinatorial)
-                )
-            else:
-                Log.report(Log.Error, "unknown specifier in evaluate_critical_path_node", optree)
+            Log.report(Log.Error, "unknown specifier in evaluate_critical_path_node", optree)
+        elif isinstance(optree, CopySign):
+            op = optree.get_input(0)
+            return self.memoize_result(
+                optree,
+                CriticalPath(optree, 0.0, combinatorial=combinatorial) + self.evaluate_critical_path_node(op, combinatorial=combinatorial)
+            )
         elif isinstance(optree, ReferenceAssign):
             assign_value = optree.get_input(1)
             assign_var = optree.get_input(0)
