@@ -1816,20 +1816,23 @@ class CopySign(ML_ArithmeticOperation):
         return backend.merge_ops_abstract_format(op, op.inputs)
 
 
+class ReadTimeStamp(GeneralOperation):
+    name = "ReadTimeStamp"
+    arity = 0
+
+    @staticmethod
+    def abstract_type_rule(optree, *ops):
+        return optree.get_precision()
+    @staticmethod
+    def instantiated_type_rule(backend, op, dprec):
+        return backend.merge_abstract_format(op, op.inputs)
+
+
 class SpecificOperation(SpecifierOperation, GeneralOperation):
     name = "SpecificOperation"
     # specifier init
     arity = None
 
-
-    class ReadTimeStamp(SO_Specifier_Type):
-        name = "ReadTimeStamp"
-        @staticmethod
-        def abstract_type_rule(optree, *ops):
-            return optree.get_precision()
-        @staticmethod
-        def instantiated_type_rule(backend, op, dprec):
-            return backend.merge_abstract_format(op, op.inputs)
 
     def __init__(self, *args, **kwords):
         GeneralOperation.__init__(self, *args, **kwords)
