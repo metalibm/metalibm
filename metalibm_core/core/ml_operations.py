@@ -1746,25 +1746,6 @@ class FieldExtraction(ML_ArithmeticOperation):
     def finish_copy(self, new_copy, copy_map = {}):
         new_copy.arity = self.arity
 
-class SO_Specifier_Type(object):
-    """ parent to SpecificOperation Specifiers """
-    pass
-
-def SO_Specifier_Builder(name, abstract_type_rule, instantiated_type_rule, arity_func = None):
-    field_map = {
-        "name": name,
-        "abstract_type_rule": staticmethod(abstract_type_rule),
-        "instantiated_type_rule": staticmethod(instantiated_type_rule),
-        "arity_func": staticmethod(arity_func),
-    }
-    return type(name, (SO_Specifier_Type,), field_map)
-
-
-def specific_abstract_type_rule(optree, *ops):
-    return ops[0].get_precision()
-def specific_instantiated_type_rule(backend, op, dprec):
-    return backend.merge_abstract_format(op, op.inputs)
-
 
 class DivisionSeed(ML_ArithmeticOperation):
     """ Seed for the division operation """
@@ -1828,53 +1809,6 @@ class ReadTimeStamp(GeneralOperation):
         return backend.merge_abstract_format(op, op.inputs)
 
 
-class SpecificOperation(SpecifierOperation, GeneralOperation):
-    name = "SpecificOperation"
-    # specifier init
-    arity = None
-
-
-    def __init__(self, *args, **kwords):
-        GeneralOperation.__init__(self, *args, **kwords)
-        self.specifier = attr_init(kwords, "specifier", required = True)
-        return_value = attr_init(kwords, "return_value", None)
-        self.function_name = attr_init(kwords, "function_name", None)
-        arg_value = attr_init(kwords, "arg_value", None)
-        self.arity = len(args)
-        self.extra_inputs = [op for op in [return_value, arg_value] if op != None]
-        self.return_value_index = None if return_value == None else self.extra_inputs.index(return_value)
-        self.arg_value_index = None if arg_value == None else self.extra_inputs.index(arg_value)
-        self.extra_inputs = [implicit_op(op) for op in self.extra_inputs]
-
-    def get_name(self):
-        """ return operation name (class.specifier) """
-        return  "SpecificOperation.%s" % self.specifier.__name__
-
-    def set_extra_inputs(self, new_extra_inputs):
-        self.extra_inputs = new_extra_inputs
-
-    def get_return_value(self):
-        return self.extra_inputs[self.return_value_index]
-
-    def get_arg_value(self):
-        return self.extra_inputs[self.arg_value_index]
-
-    def get_specifier(self):
-        return self.specifier
-
-    def get_codegen_key(self):
-        """ return code generation specific key """
-        return self.specifier
-
-
-    def finish_copy(self, new_copy, copy_map = {}):
-        new_copy.specifier = self.specifier
-        new_copy.function_name = self.function_name
-        new_copy.arity = self.arity
-        new_copy.extra_inputs = [op.copy(copy_map) for op in self.extra_inputs]
-        new_copy.return_value_index = self.return_value_index
-        new_copy.arg_value_index = self.arg_value_index
-
 class ExceptionOperation(GeneralOperation):
     """ Operation manipulating exceptions """
     pass
@@ -1891,28 +1825,6 @@ class RaiseException(ExceptionOperation):
     """ raise a given exception / flag in the default environment"""
     name = "RaiseException"
     arity = 1
-
-
-class NoResultOperation(SpecificOperation, ML_LeafNode):
-    SaveFPContext     = SO_Specifier_Builder("SaveFPContext", lambda optree, *ops: None, lambda backend, op, dprec: None)
-    RestoreFPContext  = SO_Specifier_Builder("RestoreFPContext", lambda optree, *ops: None, lambda backend, op, dprec: None)
-    SetRndMode        = SO_Specifier_Builder("SetRndMode", lambda optree, *ops: None, lambda backend, op, dprec: None)
-
-def SaveFPContext(**kwords):
-    kwords["specifier"] = NoResultOperation.SaveFPContext
-    return NoResultOperation(**kwords)
-
-def RestoreFPContext(**kwords):
-    kwords["specifier"] = NoResultOperation.RestoreFPContext
-    return NoResultOperation(**kwords)
-
-def SetRndMode(new_rnd_mode, **kwords):
-    kwords["specifier"] = NoResultOperation.SetRndMode
-    return NoResultOperation(new_rnd_mode, **kwords)
-
-def GetRndMode(**kwords):
-    kwords["specifier"] = SpecificOperation.GetRndMode
-    return SpecificOperation(**kwords)
 
 
 class FunctionType(object):

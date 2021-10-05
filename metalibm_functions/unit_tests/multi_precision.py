@@ -41,7 +41,6 @@ from metalibm_core.core.ml_operations import (
     Return, Statement, Conversion,
     Addition, Multiplication, Subnormalize, Subtraction,
     FMA,
-    SpecificOperation,
     Constant,
 )
 from metalibm_core.core.ml_formats import (

@@ -37,7 +37,7 @@ from metalibm_core.core.passes import FunctionPass, Pass, LOG_PASS_INFO
 from metalibm_core.core.ml_operations import (
     Comparison, Addition, CopySign, Select, Constant, ML_LeafNode, Conversion,
     Statement, ReferenceAssign, BitLogicNegate, Subtraction,
-    SpecificOperation, Negation, BitLogicRightShift, BitLogicLeftShift,
+    Negation, BitLogicRightShift, BitLogicLeftShift,
     BitArithmeticRightShift,
     TypeCast,
     Min, Max, CountLeadingZeros, Multiplication,

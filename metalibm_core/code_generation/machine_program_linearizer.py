@@ -35,9 +35,7 @@ import sys
 import copy
 
 from ..core.ml_operations import (
-    Addition,
-    Variable, Constant, ConditionBlock, Return, TableLoad, Statement,
-    SpecificOperation, Conversion, FunctionObject,
+    Variable, Constant, ConditionBlock, Return, Statement,
     ReferenceAssign, Loop,
     is_leaf_node,
     TableStore,

@@ -33,10 +33,9 @@
 
 
 from metalibm_core.core.ml_operations import (
-    Addition,
-    Variable, Constant, ConditionBlock, Return, TableLoad, Statement,
-    SpecificOperation, Conversion, FunctionObject,
-    ReferenceAssign, Loop,
+    Variable, Constant, ConditionBlock, Return, Statement,
+    FunctionObject,
+    Loop,
     is_leaf_node,
     TableStore,
 )

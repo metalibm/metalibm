@@ -34,11 +34,12 @@ import sollya
 from sollya import Interval, sup
 
 from metalibm_core.core.ml_operations import (
+    Subnormalize,
     Variable,
     FusedMultiplyAdd, FMSN, FMA,
-    Min, Max, Comparison,
+    Min, Max,
     ReciprocalSeed, Constant,
-    SpecificOperation, Test,
+    Test,
     ConditionBlock, Statement, Return,
     ExponentInsertion, ExponentExtraction,
     EmptyOperand, RaiseException,
@@ -306,11 +307,10 @@ def subnormalize_result(recp_approx, div_approx, ex, ey, yerr_last, precision):
     # we make an extra step in extended precision
     ext_pre_result = FMA(yerr_last, recp_approx, div_approx, precision=extended_precision, tag="ext_pre_result")
     # subnormalize the result according to final result exponent
-    subnormal_pre_result_ext = SpecificOperation(
+    subnormal_pre_result_ext = Subnormalize(
         ext_pre_result,
         ex - ey,
         precision=extended_precision,
-        specifier=SpecificOperation.Subnormalize,
         tag="subnormal_pre_result",
         debug=debug_multi)
     subnormal_pre_result = subnormal_pre_result_ext.hi

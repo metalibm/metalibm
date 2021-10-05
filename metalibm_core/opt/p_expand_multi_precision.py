@@ -45,7 +45,7 @@ from metalibm_core.core.ml_operations import (
     Addition, Subnormalize, Subtraction, Multiplication,
     FusedMultiplyAdd,
     Conversion, Negation,
-    Constant, Variable, SpecificOperation,
+    Constant, Variable,
     BuildFromComponent, ComponentSelection,
     is_leaf_node,
 )

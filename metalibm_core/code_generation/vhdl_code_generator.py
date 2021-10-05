@@ -38,7 +38,7 @@ import sollya
 
 from ..core.ml_operations import (
     Variable, Constant, ConditionBlock, Return, TableLoad, Statement, Loop,
-    SpecificOperation, ExceptionOperation, ClearException, NoResultOperation,
+    ClearException,
     SwitchBlock, FunctionObject, ReferenceAssign
 )
 from ..core.ml_hdl_operations import *
@@ -472,11 +472,6 @@ class VHDLCodeGenerator(object):
               code_object << "\t{} when {},\n".format(table.get_precision().get_storage_precision().get_cst(value),index.get_precision().get_cst(tabid))
 
             code_object << "\t{} when others;\n".format(table.get_precision().get_storage_precision().get_cst(default_value))
-
-        elif isinstance(optree, NoResultOperation):
-            result_code = self.processor.generate_expr(self, code_object, optree, optree.inputs, inlined = False, result_var = result_var, language = language)
-            code_object << "%s;\n" % result_code.get()
-            return None
 
         elif isinstance(optree, Statement):
             for op in optree.inputs:
