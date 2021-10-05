@@ -1693,20 +1693,16 @@ class Comparison(BooleanOperation, SpecifierOperation, ML_ArithmeticOperation):
         new_copy.specifier = self.specifier
         BooleanOperation.finish_copy(self, new_copy, copy_map)
 
-## Equality comparision operation
-def Equal(op0, op1, **kwords):
-    """ syntaxic bypass for equality comparison """
-    # defaulting to ML_Bool precision
-    if not "precision" in kwords or kwords["precision"] is None:
-      kwords["precision"] = ML_Bool
-    kwords["specifier"] = Comparison.Equal
-    return Comparison(op0, op1, **kwords)
 
-## Inequality comparision operation
-def NotEqual(op0, op1, **kwords):
-    """ syntaxic bypass for non-equality comparison """
-    kwords["specifier"] = Comparison.NotEqual
-    return Comparison(op0, op1, **kwords)
+def Equal(op0, op1, precision=ML_Bool, **kwords):
+    """ syntactic sugar for equality comparison """
+    return Comparison(op0, op1, specifier=Comparison.Equal, precision= precision, **kwords)
+
+
+def NotEqual(op0, op1, precision=ML_Bool, **kwords):
+    """ syntactic sugar for non-equality comparison """
+    return Comparison(op0, op1, specifier=Comparison.NotEqual, precision=precision, **kwords)
+
 
 ## Sequential statement block, can have an arbitrary number of
 #  sub-statement operands. Each of those is executed sequentially in
