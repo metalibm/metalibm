@@ -39,7 +39,7 @@ from metalibm_core.core.ml_function import ML_Function, ML_FunctionBasis
 
 from metalibm_core.core.ml_operations import (
     Return, Statement, Conversion,
-    Addition, Multiplication, Subtraction,
+    Addition, Multiplication, Subnormalize, Subtraction,
     FMA,
     SpecificOperation,
     Constant,
@@ -139,10 +139,9 @@ class ML_UT_MultiPrecision(ML_FunctionBasis, TestRunner):
         # testing Add121
         add121 = Addition(fma2222, add112, precision=self.precision, tag="add121")
         # testing subnormalization
-        multi_subnormalize = SpecificOperation(
+        multi_subnormalize = Subnormalize(
             Addition(add121, add112, precision=double_format),
             Constant(3, precision=self.precision.get_integer_format()),
-            specifier=SpecificOperation.Subnormalize,
             precision=double_format,
             tag="multi_subnormalize")
         result = Conversion(multi_subnormalize, precision=self.precision)

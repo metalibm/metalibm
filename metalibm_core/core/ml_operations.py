@@ -1794,28 +1794,23 @@ class ReciprocalSquareRootSeed(ML_ArithmeticOperation):
         # TODO/FIXME: not taking into account op accuracy
         return  1 / sollya.sqrt(op_range)
 
+class Subnormalize(ML_ArithmeticOperation):
+    """ Subnormalize(op, shift) round op as if its exponent was (emin - shift)
+        where emin is the minimal normal exponent for the current format  """
+    name = "Subnormalize"
+    arity = 2
+    
+    @staticmethod
+    def abstract_type_rule(optree, *ops):
+        return optree.get_precision()
+    @staticmethod
+    def instantiated_type_rule(backend, op, dprec):
+        return op.get_precision()
+
 class SpecificOperation(SpecifierOperation, GeneralOperation):
     name = "SpecificOperation"
     # specifier init
     arity = None
-
-    class GetRndMode(SO_Specifier_Type):
-        name = "GetRndMode"
-        @staticmethod
-        def abstract_type_rule(optree, *ops):
-            return ML_FPRM_Type
-        @staticmethod
-        def instantiated_type_rule(backend, op, dprec):
-            return ML_FPRM_Type
-
-    class Subnormalize(SO_Specifier_Type):
-        name = "Subnormalize"
-        @staticmethod
-        def abstract_type_rule(optree, *ops):
-            return optree.get_precision()
-        @staticmethod
-        def instantiated_type_rule(backend, op, dprec):
-            return op.get_precision()
 
     class CopySign(SO_Specifier_Type):
         name = "CopySign"

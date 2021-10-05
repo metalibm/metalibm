@@ -804,13 +804,15 @@ c_code_generation_table = {
             },
         },
     },
-    SpecificOperation: {
-        SpecificOperation.Subnormalize: {
+    Subnormalize: {
+        None: {
             lambda optree: True: {
                 type_strict_match(ML_Binary64, ML_DoubleDouble, ML_Int32):
                     FunctionOperator("ml_subnormalize_d_dd_i", arity = 2),
             },
         },
+    },
+    SpecificOperation: {
         SpecificOperation.ReadTimeStamp: {
             lambda _: True: {
                 type_strict_match(ML_Int64):

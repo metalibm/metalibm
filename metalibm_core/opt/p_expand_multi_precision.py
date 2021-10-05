@@ -42,7 +42,7 @@ from metalibm_core.core.ml_formats import (
 )
 
 from metalibm_core.core.ml_operations import (
-    Addition, Subtraction, Multiplication,
+    Addition, Subnormalize, Subtraction, Multiplication,
     FusedMultiplyAdd,
     Conversion, Negation,
     Constant, Variable, SpecificOperation,
@@ -72,7 +72,7 @@ LOG_LEVEL_EXPAND_VERBOSE = Log.LogLevel("ExpandVerbose")
 
 def is_subnormalize_op(node):
     """ test if @p node is a Subnormalize operation """
-    return isinstance(node, SpecificOperation) and node.specifier is SpecificOperation.Subnormalize
+    return isinstance(node, Subnormalize)
 
 
 def get_elementary_precision(multi_precision):
@@ -260,7 +260,7 @@ class MultiPrecisionExpander:
         return self.expand_op(fma_node, FMA_EXPANSION_MAP, arity=3)
 
     def expand_subnormalize(self, sub_node):
-        """ Expand SpecificOperation.Subnormalize on multi-component node """
+        """ Expand Subnormalize on multi-component node """
         operand = sub_node.get_input(0)
         factor = sub_node.get_input(1)
         exp_operand = self.expand_node(operand)
