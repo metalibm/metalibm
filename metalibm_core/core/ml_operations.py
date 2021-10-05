@@ -1802,28 +1802,25 @@ class Subnormalize(ML_ArithmeticOperation):
     def instantiated_type_rule(backend, op, dprec):
         return op.get_precision()
 
+
+class CopySign(ML_ArithmeticOperation):
+    """ CopySign(x, y) = abs(x) . sign(y) """
+    name = "CopySign"
+    arity = 2
+
+    @staticmethod
+    def abstract_type_rule(optree, *ops):
+        return std_merge_abstract_format(ops[0].get_precision(), ops[1].get_precision())
+    @staticmethod
+    def instantiated_type_rule(backend, op, dprec):
+        return backend.merge_ops_abstract_format(op, op.inputs)
+
+
 class SpecificOperation(SpecifierOperation, GeneralOperation):
     name = "SpecificOperation"
     # specifier init
     arity = None
 
-    class CopySign(SO_Specifier_Type):
-        name = "CopySign"
-        @staticmethod
-        def abstract_type_rule(optree, *ops):
-            return std_merge_abstract_format(ops[0].get_precision(), ops[1].get_precision())
-        @staticmethod
-        def instantiated_type_rule(backend, op, dprec):
-            return backend.merge_ops_abstract_format(op, op.inputs)
-
-    class RoundedSignedOverflow(SO_Specifier_Type):
-        name = "RoundedSignedOverflow"
-        @staticmethod
-        def abstract_type_rule(optree, *ops):
-            return ops[0].get_precision()
-        @staticmethod
-        def instantiated_type_rule(backend, op, dprec):
-            return backend.merge_abstract_format(op, op.inputs)
 
     class ReadTimeStamp(SO_Specifier_Type):
         name = "ReadTimeStamp"
@@ -1913,17 +1910,6 @@ def SetRndMode(new_rnd_mode, **kwords):
 def GetRndMode(**kwords):
     kwords["specifier"] = SpecificOperation.GetRndMode
     return SpecificOperation(**kwords)
-
-class CopySign(SpecificOperation):
-    """ CopySign(x, y) = abs(x) . sign(y) """
-    name = "CopySign"
-    def __init__(self, op0, op1, **kw):
-        assert not "specifier" in kw
-        super().__init__(op0, op1, specifier=SpecificOperation.CopySign, **kw)
-
-def RoundedSignedOverflow(*args, **kwords):
-    kwords["specifier"] = SpecificOperation.RoundedSignedOverflow
-    return SpecificOperation(*args, **kwords)
 
 
 class FunctionType(object):
