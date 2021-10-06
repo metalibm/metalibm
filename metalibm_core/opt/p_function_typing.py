@@ -120,7 +120,7 @@ abstract_typing_rule = {
     TableLoad:
         lambda optree, *ops: ops[0].get_storage_precision(),
     CopySign:
-        lambda optree, *ops: optree.specifier.abstract_type_rule(optree, *ops),
+        lambda optree, *ops: optree.abstract_type_rule(optree, *ops),
     RaiseException:
         lambda optree, *ops: ML_Void,
     ClearException:
@@ -215,7 +215,7 @@ practical_typing_rule = {
     FunctionCall:
         lambda backend, op, dprec: op.get_precision(),
     CopySign:
-        lambda backend, op, dprec: op.specifier.instantiated_type_rule(backend, op, dprec),
+        lambda backend, op, dprec: op.instantiated_type_rule(backend, op, dprec),
 }
 
 post_typing_process_rules = {
