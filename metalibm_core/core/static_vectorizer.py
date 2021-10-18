@@ -229,7 +229,7 @@ class StaticVectorizer(object):
 
         for i in range(vector_size // sub_vector_size):
             if sub_vector_size == vector_size:
-                # if there is only one sub_vector, we must be carreful not to replicate input variable
+                # if there is only one sub_vector, we must be careful not to replicate input variable
                 # in a new Variable node, as it break node unicity required to detect scheme
                 # input variables properly
                 arg_list_copy = dict((arg_node, vec_arg_dict[arg_node]) for arg_node in arg_list)
@@ -282,7 +282,7 @@ class StaticVectorizer(object):
             vector_arg_list.append(sub_vec_arg_list)
             arg_list_copy.update(constant_dict)
 
-            # adding const table in pre-copied map toi avoid replication
+            # adding const table in pre-copied map to avoid replication
             arg_list_copy.update({table:table for table in table_set if table.const})
             sub_vector_path = linearized_most_likely_path.copy(arg_list_copy)
 
@@ -321,6 +321,14 @@ class StaticVectorizer(object):
             return True
         return False
 
+    def vectorizeFormat(self, eltType, vectorSize):
+        return vectorize_format(eltType, vectorSize)
+
+    def vectorizeConstInplace(self, constOp, vector_size, memoization_map):
+        """ """
+        if vector_size > 1:
+            constOp.set_value([constOp.get_value() for i in range(vector_size)])
+
     def vector_replicate_scheme_in_place(self, optree, vector_size, _memoization_map=None):
         """ update optree to replace scalar precision by vector precision of size
             @p vector_size Replacement is made in-place: node are kept unchanged 
@@ -336,11 +344,10 @@ class StaticVectorizer(object):
                 optree_precision = optree.get_precision()
                 if optree_precision is None:
                     Log.report(Log.Error, "operation node precision is None for {}", optree)
-                optree.set_precision(vectorize_format(optree.get_precision(), vector_size))
+                optree.set_precision(self.vectorizeFormat(optree.get_precision(), vector_size))
                 if isinstance(optree, Constant):
-                    # extend consntant value from scalar to replicated constant vector
-                    if vector_size > 1:
-                        optree.set_value([optree.get_value() for i in range(vector_size)])
+                    # extend constant value from scalar to replicated constant vector
+                    self.vectorizeConstInplace(optree, vector_size, memoization_map)
                 elif isinstance(optree, Variable):
                     # TODO: does not take into account intermediary variables
                     Log.report(Log.Warning, "Variable not supported in vector_replicate_scheme_in_place: {}", optree)
