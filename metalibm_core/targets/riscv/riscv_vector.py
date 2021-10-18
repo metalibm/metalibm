@@ -41,7 +41,7 @@ from metalibm_core.core.ml_operations import (
 from metalibm_core.core.ml_formats import (
     ML_FormatConstructor, ML_Int64, ML_Int32,
     ML_Binary64, ML_Binary32, ML_Void)
-from metalibm_core.core.vla_common import VLAGetLength, VLAOperation
+from metalibm_core.core.vla_common import VLAGetLength, VLAOperation, VLAOp
 
 from metalibm_core.code_generation.abstract_backend import LOG_BACKEND_INIT
 from metalibm_core.code_generation.code_constant import C_Code
@@ -94,6 +94,28 @@ rvv64_CCodeGenTable = {
         }
     },
     VLAOperation: {
+        Addition: {
+            lambda optree: True: {
+                # generating mapping for all vv version of vfadd
+                type_strict_match(RVV_vectorTypeMap[(lmul, eltType)], RVV_vectorTypeMap[(lmul, eltType)], RVV_vectorTypeMap[(lmul, eltType)], RVV_VectorSize_T): 
+                    RVVIntrinsic("vfadd_vv_%sm%d" % (RVVIntrSuffix[eltType], lmul), arity=3, output_precision=RVV_vectorTypeMap[(lmul, eltType)])
+                    for (lmul, eltType) in RVV_vectorTypeMap
+            }
+        },
+        TableLoad: {
+            lambda optree: True: {
+                type_custom_match(FSM(RVV_vectorTypeMap[((lmul, eltType))]), TCM(ML_Pointer_Format), FSM(RVV_VectorSize_T)):
+                    RVVIntrinsic("vle32_v_%sm%d" % (RVVIntrSuffix[eltType], lmul), arity=2, output_precision=RVV_vectorTypeMap[((lmul, eltType))]) for (lmul, eltType) in RVV_vectorTypeMap
+            }
+        },
+        TableStore: {
+            lambda optree: True: {
+                type_custom_match(FSM(ML_Void), TCM(ML_Pointer_Format), FSM(RVV_vectorTypeMap[((lmul, eltType))]), FSM(RVV_VectorSize_T)):
+                    RVVIntrinsic("vse32_v_%sm%d" % (RVVIntrSuffix[eltType], lmul), arity=3, output_precision=ML_Void, void_function=True) for (lmul, eltType) in RVV_vectorTypeMap
+            }
+        },
+    },
+    VLAOp: {
         Addition: {
             lambda optree: True: {
                 # generating mapping for all vv version of vfadd
