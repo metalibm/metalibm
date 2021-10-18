@@ -34,7 +34,8 @@
 
 from metalibm_core.core.ml_operations import (
     GeneralOperation, ML_ArithmeticOperation, SpecifierOperation, Statement)
-from metalibm_core.core.ml_formats import ML_Binary32, ML_Format
+from metalibm_core.core.ml_formats import (
+    ML_Binary32, ML_Binary64, ML_Format, ML_Int32, ML_UInt32, ML_UInt64, ML_Int64)
 
 class VLAType(ML_Format):
     """ wrapper for vector length agnostic types """
@@ -65,10 +66,25 @@ class VLAGetLength(ML_ArithmeticOperation):
     arity = 1
 
 
+VLA_FORMAT_MAP = {(eltType, lmul): VLAType(eltType, lmul) 
+                   for lmul in [1, 2, 4, 8] 
+                   for eltType in [ML_Binary32, ML_Binary64, ML_Int32, ML_Int64, ML_UInt32, ML_UInt64]}
 
-VLA_Binary32_l1 = VLAType(ML_Binary32, 1)
+VLA_Binary32_l1 = VLA_FORMAT_MAP[(ML_Binary32, 1)]
 
+
+class VLAOp(ML_ArithmeticOperation):
+    """ wrapper for VLA operation """
+    arity = None
+    def __init__(self, vlaOp, vl, **kw):
+        self.vlaOp = vlaOp
+        self.vl = vl
+        GeneralOperation.__init__(self, *tuple(vlaOp.get_inputs()), vl, **kw)
+
+    def get_codegen_key(self):
+        return self.vlaOp.__class__
 
 class VLABlock(GeneralOperation):
     """ Block with same agnostic vector length """
     arity = 2
+
