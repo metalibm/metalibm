@@ -1420,7 +1420,7 @@ class MantissaExtraction(ML_ArithmeticOperation):
     def bare_range_function(self, op_interval):
         # TODO/FIXME upper bound 2 could be refined to 2 - 2**-mantissa_size
         # if mantissa size if known
-        return Interval(1, 2)
+        return Interval(-2, 2)
 
 class ExponentExtraction(ML_ArithmeticOperation):
     """ extraction of the exponent field of a floating-point value
