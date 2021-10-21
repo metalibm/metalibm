@@ -133,10 +133,11 @@ class ML_GenericLog(ScalarUnaryFunction):
         # argument reduction
         # TODO: detect if single operand inverse seed is supported by the targeted architecture
 
-        C0 = Constant(0, precision=table_index.get_precision())
-        index_comp_0 = Equal(table_index, C0, tag="index_comp_0", debug=debug_multi)
+        if inv_approx_table[0] != 1.0:
+            C0 = Constant(0, precision=table_index.get_precision())
+            index_comp_0 = Equal(table_index, C0, tag="index_comp_0", debug=debug_multi)
+            rcp = Select(index_comp_0, 1.0, rcp, debug = debug_multi)
 
-        rcp = Select(index_comp_0, 1.0, rcp, debug = debug_multi)
         #_red_vx        = rcp * _vx_mant - 1.0
         _red_vx        = FMA(rcp, _vx_mant, -1.0)
         inv_err = S2**-6
