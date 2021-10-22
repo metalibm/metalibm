@@ -74,7 +74,7 @@ A more comprehensive user documentation can be found in [doc/USERGUIDE.md](https
 
     Nicolas Brunie, Hugues de Lassus Saint-Geniès,
     Marc Mezzarobba, Guillaume Gonnachon, Florent de Dinechin, Julien Le Maire,
-    Julien Villette, Guillaume Revy
+    Julien Villette, Guillaume Revy, Guillaume Melquiond
 
     This work has been supported by Kalray (kalrayinc.com) and other entities
     (to be listed)
