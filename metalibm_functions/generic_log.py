@@ -129,12 +129,6 @@ class ML_GenericLog(ScalarUnaryFunction):
 
 
         rcp = ReciprocalSeed(_vx_mant, precision=self.precision, tag="rcp")
-        r = Multiplication(
-            rcp,
-            _vx_mant,
-            precision=self.precision,
-            tag="r"
-        )
 
         int_format = self.precision.get_integer_format()
 
@@ -143,10 +137,7 @@ class ML_GenericLog(ScalarUnaryFunction):
         pre_arg_red_index = TypeCast(
             BitLogicAnd(
                 TypeCast(
-                    ReciprocalSeed(
-                        _vx_mant, precision = self.precision,
-                        tag = "seed", debug = debug_multi, silent = True
-                    ), precision=int_format
+                    rcp, precision=int_format
                 ),
                 Constant(-2, precision=int_format),
                 precision=int_format
