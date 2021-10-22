@@ -198,7 +198,7 @@ class RangeEvalEntity(ML_Entity("ml_range_eval_entity"), TestRunner):
             sollya.floor(sollya.log2(sollya.inf(abs(fp_x_range)))),
             sollya.floor(sollya.log2(sollya.sup(abs(fp_x_range))))
         )
-        expected_interval[mant_fp_x] = Interval(1, 2)
+        expected_interval[mant_fp_x] = Interval(-2, 2)
         expected_interval[ins_exp_fp_x] = Interval(
             S2**sollya.inf(expected_interval[exp_fp_x]),
             S2**sollya.sup(expected_interval[exp_fp_x])
