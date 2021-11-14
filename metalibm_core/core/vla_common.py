@@ -28,18 +28,21 @@
 # created:              Oct  3rd, 2021
 # last-modified:        Oct  3rd, 2021
 #
-# author(s):    Nicolas Brunie
-# desciprition: Vector Length Agnostic definitions
+# author(s):   Nicolas Brunie
+# description: Vector Length Agnostic definitions
 ###############################################################################
 
+from metalibm_core.code_generation.code_constant import C_Code
 from metalibm_core.core.ml_operations import (
     GeneralOperation, ML_ArithmeticOperation, SpecifierOperation, Statement)
 from metalibm_core.core.ml_formats import (
-    ML_Binary32, ML_Binary64, ML_Format, ML_Int32, ML_UInt32, ML_UInt64, ML_Int64)
+    ML_Binary32, ML_Binary64, ML_Format, ML_Int32, ML_UInt32, ML_UInt64, ML_Int64,
+    ML_Bool)
 
 class VLAType(ML_Format):
     """ wrapper for vector length agnostic types """
     def __init__(self, baseFormat, groupSize=1):
+        ML_Format.__init__(self, name={C_Code: "VLAType<{}>".format(baseFormat.name[C_Code])})
         self.baseFormat = baseFormat
         self.groupSize = groupSize
 
@@ -68,7 +71,7 @@ class VLAGetLength(ML_ArithmeticOperation):
 
 VLA_FORMAT_MAP = {(eltType, lmul): VLAType(eltType, lmul) 
                    for lmul in [1, 2, 4, 8] 
-                   for eltType in [ML_Binary32, ML_Binary64, ML_Int32, ML_Int64, ML_UInt32, ML_UInt64]}
+                   for eltType in [ML_Bool, ML_Binary32, ML_Binary64, ML_Int32, ML_Int64, ML_UInt32, ML_UInt64]}
 
 VLA_Binary32_l1 = VLA_FORMAT_MAP[(ML_Binary32, 1)]
 
