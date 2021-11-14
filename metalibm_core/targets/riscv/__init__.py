@@ -32,3 +32,4 @@
 
 from .riscv import RISCV_RV64
 from .riscv_vector import RISCV_RVV64
+from .rvv_legalization import Pass_RVV_Legalization
