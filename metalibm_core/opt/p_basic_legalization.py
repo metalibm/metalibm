@@ -29,24 +29,14 @@
 #              precision implementation
 ###############################################################################
 
-import sollya
-
 from metalibm_core.core.passes import OptreeOptimization, Pass, LOG_PASS_INFO
 from metalibm_core.opt.node_transformation import Pass_NodeTransformation
 from metalibm_core.opt.opt_utils import forward_attributes
-
-from metalibm_core.core.ml_formats import (
-    ML_FP_MultiElementFormat,
-    ML_Binary32, ML_Binary64,
-    ML_SingleSingle,
-    ML_DoubleDouble, ML_TripleDouble
-)
 
 from metalibm_core.core.ml_operations import (
     ExponentExtraction,
     ExponentInsertion,
     Test,
-    is_leaf_node,
 )
 from metalibm_core.core.legalizer import (
     generate_test_expansion, generate_exp_extraction,
