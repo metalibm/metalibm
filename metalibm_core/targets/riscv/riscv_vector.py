@@ -37,7 +37,7 @@
 from metalibm_core.core.ml_complex_formats import ML_Pointer_Format
 from metalibm_core.core.target import UniqueTargetDecorator
 from metalibm_core.core.ml_operations import (
-    Addition, TableLoad, TableStore)
+    Addition, Conversion, Multiplication, NearestInteger, TableLoad, TableStore)
 from metalibm_core.core.ml_formats import (
     ML_FormatConstructor, ML_Int64, ML_Int32,
     ML_Binary64, ML_Binary32, ML_Void)
@@ -46,7 +46,7 @@ from metalibm_core.core.vla_common import VLAGetLength, VLAOperation, VLAOp
 from metalibm_core.code_generation.abstract_backend import LOG_BACKEND_INIT
 from metalibm_core.code_generation.code_constant import C_Code
 from metalibm_core.code_generation.generator_utility import (
-    FSM, TCM, FunctionOperator, type_custom_match, type_strict_match)
+    FSM, TCM, FunctionOperator, SymbolOperator, type_custom_match, type_strict_match)
 
 from metalibm_core.utility.log_report import Log
 
@@ -71,6 +71,10 @@ def buildRVVType(lmul, eltType):
 # build complete map of RVV vector types
 RVV_vectorTypeMap = {(lmul, eltType): buildRVVType(lmul, eltType) for lmul in [1, 2, 4, 8] for eltType in [ML_Binary32, ML_Binary64, ML_Int32, ML_Int64]}
 
+RVV_vectorFloatTypeMap = {(lmul, eltType): RVV_vectorTypeMap[(lmul, eltType)] for lmul in [1, 2, 4, 8] for eltType in [ML_Binary32, ML_Binary64]}
+RVV_vectorIntTypeMap = {(lmul, eltType): RVV_vectorTypeMap[(lmul, eltType)] for lmul in [1, 2, 4, 8] for eltType in [ML_Int32, ML_Int64]}
+
+
 # specific RVV type aliases
 # RVV vector types with LMUL=1 (m1)
 RVV_vBinary32_m1  = RVV_vectorTypeMap[(1, ML_Binary32)]
@@ -84,12 +88,29 @@ RVVIntrSuffix = {
     ML_Binary64: "f64",
 }
 
+def getF2IResultType(eltType):
+    """ return the element result type of a float to integer conversion """
+    return {
+        ML_Binary32: ML_Int32, 
+        ML_Binary64: ML_Int64,
+    }[eltType]
+
 rvv64_CCodeGenTable = {
+    Conversion: {
+        None: {
+            lambda node: True: {
+                type_strict_match(ML_Int32, RVV_VectorSize_T):
+                    SymbolOperator("(int32_t)", arity=1),
+            },
+        },
+    },
     VLAGetLength: {
         None: {
             lambda optree: True: {
                 type_strict_match(RVV_VectorSize_T, RVV_VectorSize_T):
-                    RVVIntrinsic("vsetvl_e32m1", arity=1, output_precision=RVV_VectorSize_T)
+                    RVVIntrinsic("vsetvl_e32m1", arity=1, output_precision=RVV_VectorSize_T),
+                type_strict_match(RVV_VectorSize_T, ML_Int32):
+                    RVVIntrinsic("vsetvl_e32m1", arity=1, output_precision=RVV_VectorSize_T),
             }
         }
     },
@@ -100,11 +121,39 @@ rvv64_CCodeGenTable = {
                 type_strict_match(RVV_vectorTypeMap[(lmul, eltType)], RVV_vectorTypeMap[(lmul, eltType)], RVV_vectorTypeMap[(lmul, eltType)], RVV_VectorSize_T): 
                     RVVIntrinsic("vfadd_vv_%sm%d" % (RVVIntrSuffix[eltType], lmul), arity=3, output_precision=RVV_vectorTypeMap[(lmul, eltType)])
                     for (lmul, eltType) in RVV_vectorTypeMap
+            },
+            lambda optree: True: {
+                # generating mapping for all vv version of vfadd
+                type_strict_match(RVV_vectorTypeMap[(lmul, eltType)], RVV_vectorTypeMap[(lmul, eltType)], eltType, RVV_VectorSize_T): 
+                    RVVIntrinsic("vfadd_vf_%sm%d" % (RVVIntrSuffix[eltType], lmul), arity=3, output_precision=RVV_vectorTypeMap[(lmul, eltType)])
+                    for (lmul, eltType) in RVV_vectorTypeMap
+            },
+        },
+        Multiplication: {
+            lambda optree: True: {
+                # generating mapping for all vv version of vfadd
+                type_strict_match(RVV_vectorTypeMap[(lmul, eltType)], RVV_vectorTypeMap[(lmul, eltType)], RVV_vectorTypeMap[(lmul, eltType)], RVV_VectorSize_T): 
+                    RVVIntrinsic("vfmul_vv_%sm%d" % (RVVIntrSuffix[eltType], lmul), arity=3, output_precision=RVV_vectorTypeMap[(lmul, eltType)])
+                    for (lmul, eltType) in RVV_vectorTypeMap
+            },
+            lambda optree: True: {
+                # generating mapping for all vv version of vfadd
+                type_strict_match(RVV_vectorTypeMap[(lmul, eltType)], RVV_vectorTypeMap[(lmul, eltType)], eltType, RVV_VectorSize_T): 
+                    RVVIntrinsic("vfmul_vf_%sm%d" % (RVVIntrSuffix[eltType], lmul), arity=3, output_precision=RVV_vectorTypeMap[(lmul, eltType)])
+                    for (lmul, eltType) in RVV_vectorTypeMap
             }
+        },
+        NearestInteger: {
+            lambda optree: True: {
+                # generating mapping for all vv version of vfadd
+                type_strict_match(RVV_vectorTypeMap[(lmul, getF2IResultType(eltType))], RVV_vectorTypeMap[(lmul, eltType)], RVV_VectorSize_T): 
+                    RVVIntrinsic("vfcvt_x_f_v_%sm%d" % (RVVIntrSuffix[getF2IResultType(eltType)], lmul), arity=3, output_precision=RVV_vectorTypeMap[(lmul, getF2IResultType(eltType))])
+                    for (lmul, eltType) in RVV_vectorFloatTypeMap
+            },
         },
         TableLoad: {
             lambda optree: True: {
-                type_custom_match(FSM(RVV_vectorTypeMap[((lmul, eltType))]), TCM(ML_Pointer_Format), FSM(RVV_VectorSize_T)):
+                type_custom_match(FSM(RVV_vectorTypeMap[((lmul, eltType))]), TCM(ML_Pointer_Format), FSM(RVV_VectorSize_T), debug=True):
                     RVVIntrinsic("vle32_v_%sm%d" % (RVVIntrSuffix[eltType], lmul), arity=2, output_precision=RVV_vectorTypeMap[((lmul, eltType))]) for (lmul, eltType) in RVV_vectorTypeMap
             }
         },
