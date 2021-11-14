@@ -43,6 +43,8 @@ from metalibm_core.core.array_function import DefaultArrayFunctionArgTemplate, M
 from metalibm_core.core.vla_common import (
     VLA_FORMAT_MAP, VLA_Binary32_l1, VLAGetLength, VLAOperation)
 from metalibm_core.core.ml_operations import (
+    Addition,
+    Conversion,
     Loop,
     ReferenceAssign, Statement, TableLoad, TableStore, Variable, Constant, is_leaf_node)
 from metalibm_core.core.ml_formats import ML_Binary32, ML_Binary64, ML_Bool, ML_Format, ML_Int32, ML_Integer, ML_UInt32
@@ -123,6 +125,48 @@ class VLAVectorizer(StaticVectorizer):
         vec_arg_list = [vec_arg_dict[arg_node] for arg_node in arg_list]
         return vec_arg_list, vector_path, vector_mask
 
+    def vector_replicate_scheme_in_place(self, node, vectorLen, _memoization_map=None):
+        """ update node to replace scalar precision by vector precision of size
+            @p vector_size Replacement is made in-place: node are kept unchanged 
+                      except for the precision
+            @return modified operation graph
+        """
+        memoization_map = {} if _memoization_map is None else _memoization_map
+
+        if node in memoization_map:
+            return memoization_map[node]
+        else:
+            if self.is_vectorizable(node):
+                optree_precision = node.get_precision()
+                newNode = node # default: unmodified
+                if isinstance(node, Constant):
+                    # extend constant value from scalar to replicated constant vector
+                    newNode = self.vectorizeConstInplace(node, vectorLen, memoization_map)
+                elif isinstance(node, Variable):
+                    # TODO: does not take into account intermediary variables
+                    Log.report(Log.Warning, "Variable not supported in vector_replicate_scheme_in_place: {}", node)
+                    pass
+                elif not is_leaf_node(node):
+                    opInputs = []
+                    for input_id, optree_input in enumerate(node.get_inputs()):
+                        new_input = self.vector_replicate_scheme_in_place(optree_input, vectorLen, memoization_map)
+                        opInputs.append(new_input)
+                    # extracting operation class
+                    opClass = node.__class__
+                    try:
+                        opType = self.vectorizeFormat(optree_precision)
+                    except KeyError as e:
+                        Log.report(Log.Error, "unable to determine a vector-format for node {}", node, error=e)
+                    newNode = VLAOperation(*opInputs, vectorLen, precision=opType, specifier=opClass)
+                memoization_map[node] = newNode
+                return newNode
+            elif isinstance(node, ML_NewTable):
+                # TODO: does not take into account intermediary variables
+                Log.report(Log.Info, "skipping ML_NewTable node in vector_replicate_scheme_in_place: {} ", node)
+                pass
+            else:
+                Log.report(Log.Error, "node not vectorizable: {}", node)
+
     def vectorizeConstInplace(self, constOp, groupSize=1, memoization_map=None):
         """ Processing of Constant op during vectorization """
         # vector length agnostic architecture often support operations
@@ -150,8 +194,9 @@ class VLAVectorialFunction(ML_ArrayFunction):
             precision_ptr,
             index_format
         ]
+        # size of vector group
         self.group_size = args.group_size
-        self.function_ctor = args.function_ctor
+        self.function_ctor, self.ctor_arg_dict, _ = args.function_ctor
         self.scalar_emulate = args.scalar_emulate
 
     @staticmethod
@@ -175,7 +220,7 @@ class VLAVectorialFunction(ML_ArrayFunction):
         # declaring target and instantiating optimization engine
         precision_ptr = self.get_input_precision(0)
         index_format = self.get_input_precision(2)
-        multi_elt_num = self.multi_elt_num
+        group_size = self.group_size
 
         dst = self.implementation.add_input_variable("dst", precision_ptr)
         src = self.implementation.add_input_variable("src", precision_ptr)
@@ -184,22 +229,13 @@ class VLAVectorialFunction(ML_ArrayFunction):
         # instantiating vectorizer to vectorize scalar scheme
         vectorizer = VLAVectorizer()
 
-        element_format = self.precision
-
         self.function_list = []
-
-        element_format = vectorizer.vectorizeFormat(self.precision)
-
-        elt_input = VLAOperation(src, i, specifier=TableLoad, precision=element_format)
-
-        local_res = Variable("local_res", precision=element_format, var_type=Variable.Local)
-
-        scalar_result = Variable("scalar_result", precision=self.precision, var_type=Variable.Local)
 
         # building meta generator for scalar scheme
         fct_ctor_args = self.function_ctor.get_default_args(
             precision=self.precision,
             libm_compliant=False,
+            **self.ctor_arg_dict
         )
         meta_function = self.function_ctor(fct_ctor_args)
         scalar_scheme = meta_function.generate_scheme()
@@ -213,37 +249,43 @@ class VLAVectorialFunction(ML_ArrayFunction):
         scalar_scheme = pass_inst_prec.execute_on_optree(scalar_scheme)
 
         # extracting scalar argument from scalar meta function
-        scalar_input = meta_function.implementation.arg_list[0]
+        scalarInputList = meta_function.implementation.arg_list
 
         vectorSizeType = RVV_VectorSize_T
         # local sub-vector length used internally in the loop body
-        vectorLocalLen = Variable("l", var_type=Variable.Local, precision=ML_Int32)
+        vectorLocalLen = Variable("l", var_type=Variable.Local, precision=vectorSizeType)
         vectorOffset = Variable("offset", var_type=Variable.Local, precision=ML_Int32)
         # remaining vector length
-        vectorRemLen = Variable("remLen", var_type=Variable.Local)
+        vectorRemLen = Variable("remLen", var_type=Variable.Local, precision=ML_Int32)
         vec_arg_list, vector_scheme, vector_mask = \
-            self.vectorize_scheme(scalar_scheme, scalar_arg_list, vectorLocalLen)
+            vectorizer.vectorize_scheme(scalar_scheme, scalarInputList, vectorLocalLen)
 
         assert len(vec_arg_list) == 1, "currently a single vector argument is supported"
+
+        vectorType = vectorizer.vectorizeFormat(self.precision)
+        localSrc = Addition(src, vectorOffset, precision=precision_ptr)
+        localDst = Addition(dst, vectorOffset, precision=precision_ptr)
+
+        vectorLocalLen_int = Conversion(vectorLocalLen, precision=ML_Int32)
 
         # we build the strip mining Loop
         mainLoop = Statement(
             ReferenceAssign(vectorRemLen, n),
             ReferenceAssign(vectorOffset, 0),
             # strip mining
-            Loop(vectorLocalLen >= 0,
+            Loop(vectorLocalLen_int >= 0,
                 Statement(
                     # assigning local vector length
                     ReferenceAssign(vectorLocalLen, VLAGetLength(vectorLocalLen, precision=vectorSizeType)),
                     # assigning inputs
-                    ReferenceAssign(vec_arg_list[0], VLAOperation(src, vectorOffset, vectorLocalLen, specifier=TableLoad)),
+                    ReferenceAssign(vec_arg_list[0], VLAOperation(localSrc, vectorLocalLen, specifier=TableLoad, precision=vectorType)),
                     # computing and storing results
-                    VLAOperation(vector_scheme, dst, vectorOffset, vectorLocalLen, specifier=TableStore),
+                    VLAOperation(vector_scheme, localDst, vectorLocalLen, specifier=TableStore, precision=vectorType),
                     # updating remaining vector length by subtracting the number of elements
                     # evaluated in the loop body
-                    ReferenceAssign(vectorRemLen, vectorRemLen - vectorLocalLen),
+                    ReferenceAssign(vectorRemLen, vectorRemLen - vectorLocalLen_int),
                     # updating source/destination offset
-                    ReferenceAssign(vectorOffset, vectorOffset, vectorLocalLen),
+                    ReferenceAssign(vectorOffset, vectorOffset + vectorLocalLen_int),
                 )
             )
         )
@@ -273,8 +315,8 @@ if __name__ == "__main__":
         "--use-libm-fct", dest="use_libm_function", default=None,
         action="store", help="use standard libm function to implement element computation")
     arg_template.get_parser().add_argument(
-        "--multi-elt-num", dest="multi_elt_num", default=1, type=int,
-        action="store", help="number of vector element to be computed at each loop iteration")
+        "--group-zize", dest="group_size", default=1, type=int,
+        action="store", help="size of a vector group (number of vector register grouped together to build a super vector register)")
     arg_template.get_parser().add_argument(
         "--scalar-emulate", dest="scalar_emulate", default=sollya.exp,
         type=(lambda s: eval(s, {"sollya": sollya})),
