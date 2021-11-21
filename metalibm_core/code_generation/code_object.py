@@ -33,8 +33,6 @@
 
 import re
 import subprocess
-import sys
-import pdb
 
 import sollya
 

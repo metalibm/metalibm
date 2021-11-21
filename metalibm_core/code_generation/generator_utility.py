@@ -1077,20 +1077,25 @@ class type_fixed_match(object):
 class type_custom_match(BackendImplMatchPredicated):
     """ Callable class that checks whether all arguments match with their
         respective custom matching function. """
-    def __init__(self, *type_tuple, weak=False):
+    def __init__(self, *type_tuple, weak=False, debug=False):
         BackendImplMatchPredicated.__init__(self, weak=weak)
         self.type_tuple = type_tuple
+        self.debug = debug
 
     def __call__(self, *arg_tuple, **kwords):
         acc = True
+        if self.debug:
+            Log.report(Log.Info, "trying to match in type_custom_match")
         if len(self.type_tuple) != len(arg_tuple):
+            if self.debug: Log.report(Log.Info, "  match failed because of arg number mismatch")
             return False
         for match_func, t in zip(self.type_tuple, arg_tuple):
-            acc = acc and match_func(t)
+            localMatch = match_func(t)
+            if self.debug: Log.report(Log.Info, "  arg match with {} is {}", t, localMatch)
+            acc = acc and localMatch
         if acc:
             return MatchResult(weak=self.weak)
         return acc
-        #return reduce((lambda acc, v: acc and (v[0](v[1]))), zip(self.type_tuple, arg_tuple))
 
 class type_relax_match(object):
     """ implement a relaxed type comparison including ML_Exact as possible true answer """
