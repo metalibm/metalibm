@@ -797,15 +797,11 @@ class ML_FunctionBasis(object):
 
   def transform_function_group(self, function_group):
     """ Apply registered passes to a function_group """
-    Log.report(Log.Info, "Applying <Start> stage passes")
+
     def logFct(passSlot):
       """ function to log execution of all the passes from a given pass-slot """
       Log.report(Log.Info, "Applying <{}> stage passes", passSlot)
-    #_ = self.pass_scheduler.get_full_execute_from_slot(
-    #  function_group,
-    #  PassScheduler.Start,
-    #  execute_pass_on_fct_group
-    #)
+
     _ = self.executeSlotsPasses(function_group, execute_pass_on_fct_group,
                                 [PassScheduler.Start], logFct)
 
