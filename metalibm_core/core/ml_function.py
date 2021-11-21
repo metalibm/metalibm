@@ -783,14 +783,31 @@ class ML_FunctionBasis(object):
     embedding_binary = self.embedded_binary and self.processor.support_embedded_bin
     return self.build_and_execute_source_code(function_group, source_code, embedding_binary=embedding_binary)
 
+  def executeSlotsPasses(self, passInput, execFct, slotList, logFct):
+    """ execute all passes from all the slot in slotList using execFct """
+    result = passInput
+    for slot in slotList:
+      logFct(slot)
+      result = self.pass_scheduler.get_full_execute_from_slot(
+        result,
+        slot,
+        execFct
+      )
+    return result
+
   def transform_function_group(self, function_group):
     """ Apply registered passes to a function_group """
     Log.report(Log.Info, "Applying <Start> stage passes")
-    _ = self.pass_scheduler.get_full_execute_from_slot(
-      function_group,
-      PassScheduler.Start,
-      execute_pass_on_fct_group
-    )
+    def logFct(passSlot):
+      """ function to log execution of all the passes from a given pass-slot """
+      Log.report(Log.Info, "Applying <{}> stage passes", passSlot)
+    #_ = self.pass_scheduler.get_full_execute_from_slot(
+    #  function_group,
+    #  PassScheduler.Start,
+    #  execute_pass_on_fct_group
+    #)
+    _ = self.executeSlotsPasses(function_group, execute_pass_on_fct_group,
+                                [PassScheduler.Start], logFct)
 
     # generate vector size
     if self.get_vector_size() != self.implementation.vector_size and not self.implementation is None:
@@ -808,29 +825,8 @@ class ML_FunctionBasis(object):
             scalar_scheme, scalar_arg_list, self.get_vector_size()
         )
 
-    # format instantiation
-    Log.report(Log.Info, "Applying <Typing> stage passes")
-    _ = self.pass_scheduler.get_full_execute_from_slot(
-        function_group,
-        PassScheduler.Typing,
-        execute_pass_on_fct_group
-    )
-
-    # format instantiation
-    Log.report(Log.Info, "Applying <Optimization> stage passes")
-    _ = self.pass_scheduler.get_full_execute_from_slot(
-        function_group,
-        PassScheduler.Optimization,
-        execute_pass_on_fct_group
-    )
-
-    # format instantiation
-    Log.report(Log.Info, "Applying <JustBeforeCodeGen> stage passes")
-    _ = self.pass_scheduler.get_full_execute_from_slot(
-        function_group,
-        PassScheduler.JustBeforeCodeGen,
-        execute_pass_on_fct_group
-    )
+    _ = self.executeSlotsPasses(function_group, execute_pass_on_fct_group,
+                                [PassScheduler.Typing, PassScheduler.Optimization, PassScheduler.JustBeforeCodeGen], logFct)
     #
     debug_pass = Pass_DebugTaggedNode(self.processor, self.debug_flag)
     _ = self.pass_scheduler.execute_pass_list(
