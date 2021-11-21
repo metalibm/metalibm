@@ -69,14 +69,15 @@ class Pass_RVV_Legalization(FunctionPass):
     return RVV_vectorTypeMap[(lmul, eltType)]
 
   def isNodeLegal(self, node):
-    return not isinstance(node.get_precision(), VLAType)
+    predicate = not isinstance(node.get_precision(), VLAType)
+    return predicate
 
   def legalizeNode(self, node):
       """ Legalize a graph node by converting its vector type (if any)
           to a legal vector type for a RISC-V target with support for the Vector
           extension """
       if node in self.memoization_map:
-        self.memoization_map[node]
+        return self.memoization_map[node]
       # processing node's inputs if the node is not a leaf
       if not is_leaf_node(node):
         for op in node.get_inputs():
@@ -89,6 +90,7 @@ class Pass_RVV_Legalization(FunctionPass):
         node.set_precision(nodeNewType)
       # memoization
       self.memoize(node)
+      return node
 
   def memoize(self, node):
     self.memoization_map[node] = node.get_precision()
