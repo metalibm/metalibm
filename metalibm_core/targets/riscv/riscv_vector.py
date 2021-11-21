@@ -37,7 +37,7 @@
 from metalibm_core.core.ml_complex_formats import ML_Pointer_Format
 from metalibm_core.core.target import UniqueTargetDecorator
 from metalibm_core.core.ml_operations import (
-    Addition, Conversion, Multiplication, NearestInteger, TableLoad, TableStore)
+    Addition, BitArithmeticRightShift, BitLogicLeftShift, BitLogicRightShift, Conversion, Multiplication, NearestInteger, TableLoad, TableStore)
 from metalibm_core.core.ml_formats import (
     ML_FormatConstructor, ML_Int64, ML_Int32,
     ML_Binary64, ML_Binary32, ML_Void)
@@ -137,10 +137,34 @@ rvv64_CCodeGenTable = {
                     for (lmul, eltType) in RVV_vectorTypeMap
             },
             lambda optree: True: {
-                # generating mapping for all vv version of vfadd
+                # generating mapping for all vf version of vfadd
                 type_strict_match(RVV_vectorTypeMap[(lmul, eltType)], RVV_vectorTypeMap[(lmul, eltType)], eltType, RVV_VectorSize_T): 
                     RVVIntrinsic("vfmul_vf_%sm%d" % (RVVIntrSuffix[eltType], lmul), arity=3, output_precision=RVV_vectorTypeMap[(lmul, eltType)])
                     for (lmul, eltType) in RVV_vectorTypeMap
+            }
+        },
+        BitLogicLeftShift: {
+            lambda optree: True: {
+                # generating mapping for all vf version of vfadd
+                type_strict_match(RVV_vectorIntTypeMap[(lmul, eltType)], RVV_vectorIntTypeMap[(lmul, eltType)], eltType, RVV_VectorSize_T): 
+                    RVVIntrinsic("vsll_vx_%sm%d" % (RVVIntrSuffix[eltType], lmul), arity=3, output_precision=RVV_vectorTypeMap[(lmul, eltType)])
+                    for (lmul, eltType) in RVV_vectorIntTypeMap
+            }
+        },
+        BitLogicRightShift: {
+            lambda optree: True: {
+                # generating mapping for all vf version of vfadd
+                type_strict_match(RVV_vectorIntTypeMap[(lmul, eltType)], RVV_vectorIntTypeMap[(lmul, eltType)], eltType, RVV_VectorSize_T): 
+                    RVVIntrinsic("vsrl_vx_%sm%d" % (RVVIntrSuffix[eltType], lmul), arity=3, output_precision=RVV_vectorTypeMap[(lmul, eltType)])
+                    for (lmul, eltType) in RVV_vectorIntTypeMap
+            }
+        },
+        BitArithmeticRightShift: {
+            lambda optree: True: {
+                # generating mapping for all vf version of vfadd
+                type_strict_match(RVV_vectorIntTypeMap[(lmul, eltType)], RVV_vectorIntTypeMap[(lmul, eltType)], eltType, RVV_VectorSize_T): 
+                    RVVIntrinsic("vsra_vx_%sm%d" % (RVVIntrSuffix[eltType], lmul), arity=3, output_precision=RVV_vectorTypeMap[(lmul, eltType)])
+                    for (lmul, eltType) in RVV_vectorIntTypeMap
             }
         },
         NearestInteger: {
