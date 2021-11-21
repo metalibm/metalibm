@@ -37,10 +37,12 @@
 from metalibm_core.core.ml_complex_formats import ML_Pointer_Format
 from metalibm_core.core.target import UniqueTargetDecorator
 from metalibm_core.core.ml_operations import (
-    Addition, BitArithmeticRightShift, BitLogicLeftShift, BitLogicRightShift, Conversion, Multiplication, NearestInteger, TableLoad, TableStore)
+    Addition, BitArithmeticRightShift, BitLogicLeftShift, BitLogicRightShift,
+    Conversion, Multiplication, NearestInteger, TableLoad, TableStore,
+    TypeCast)
 from metalibm_core.core.ml_formats import (
-    ML_FormatConstructor, ML_Int64, ML_Int32,
-    ML_Binary64, ML_Binary32, ML_Void)
+    ML_Binary16, ML_FormatConstructor, ML_Int16, ML_Int64, ML_Int32,
+    ML_Binary64, ML_Binary32, ML_UInt16, ML_UInt32, ML_UInt64, ML_Void)
 from metalibm_core.core.vla_common import VLAGetLength, VLAOperation, VLAOp
 
 from metalibm_core.code_generation.abstract_backend import LOG_BACKEND_INIT
@@ -60,6 +62,8 @@ def RVVIntrinsic(*args, **kw):
 def buildRVVType(lmul, eltType):
     """ generic build for RVV vector types """
     eltTypeTag = {
+        ML_UInt32:    "uint32",
+        ML_UInt64:    "uint64",
         ML_Int32:    "int32",
         ML_Int64:    "int64",
         ML_Binary32: "float32",
@@ -69,10 +73,26 @@ def buildRVVType(lmul, eltType):
     return ML_FormatConstructor(None, typeName, None, lambda v: None, header="riscv_vector.h")
 
 # build complete map of RVV vector types
-RVV_vectorTypeMap = {(lmul, eltType): buildRVVType(lmul, eltType) for lmul in [1, 2, 4, 8] for eltType in [ML_Binary32, ML_Binary64, ML_Int32, ML_Int64]}
+RVV_vectorTypeMap = {(lmul, eltType): buildRVVType(lmul, eltType) for lmul in [1, 2, 4, 8] for eltType in [ML_Binary32, ML_Binary64, ML_Int32, ML_Int64, ML_UInt32, ML_UInt64]}
 
 RVV_vectorFloatTypeMap = {(lmul, eltType): RVV_vectorTypeMap[(lmul, eltType)] for lmul in [1, 2, 4, 8] for eltType in [ML_Binary32, ML_Binary64]}
-RVV_vectorIntTypeMap = {(lmul, eltType): RVV_vectorTypeMap[(lmul, eltType)] for lmul in [1, 2, 4, 8] for eltType in [ML_Int32, ML_Int64]}
+RVV_vectorIntTypeMap = {(lmul, eltType): RVV_vectorTypeMap[(lmul, eltType)] for lmul in [1, 2, 4, 8] for eltType in [ML_Int32, ML_Int64, ML_UInt32, ML_UInt64]}
+
+# correspondence mapping for cast 
+RVV_castEltTypeMapping = {
+    # from signed integers
+    ML_Int64: [ML_Binary64],
+    ML_Int32: [ML_Binary32],
+    ML_Int16: [ML_Binary16],
+    # from unsigned integers
+    ML_UInt64: [ML_Binary64],
+    ML_UInt32: [ML_Binary32],
+    ML_UInt16: [ML_Binary16],
+    # from floating-point
+    ML_Binary32: [ML_UInt32, ML_Int32],
+    ML_Binary64: [ML_UInt64, ML_Int64],
+    ML_Binary16: [ML_UInt16, ML_Int16],
+}
 
 
 # specific RVV type aliases
@@ -82,6 +102,8 @@ RVV_vBinary32_m1  = RVV_vectorTypeMap[(1, ML_Binary32)]
 RVV_VectorSize_T = ML_FormatConstructor(None, "size_t", None, lambda v: None, header="stddef.h")
 
 RVVIntrSuffix = {
+    ML_UInt32: "u32",
+    ML_UInt64: "u64",
     ML_Int32: "i32",
     ML_Int64: "i64",
     ML_Binary32: "f32",
@@ -165,6 +187,15 @@ rvv64_CCodeGenTable = {
                 type_strict_match(RVV_vectorIntTypeMap[(lmul, eltType)], RVV_vectorIntTypeMap[(lmul, eltType)], eltType, RVV_VectorSize_T): 
                     RVVIntrinsic("vsra_vx_%sm%d" % (RVVIntrSuffix[eltType], lmul), arity=3, output_precision=RVV_vectorTypeMap[(lmul, eltType)])
                     for (lmul, eltType) in RVV_vectorIntTypeMap
+            }
+        },
+        TypeCast: {
+            lambda optree: True: {
+                # generating mapping for all vf version of vfadd
+                # TODO/FIXME: TypeCast should not have length operand
+                type_strict_match(RVV_vectorTypeMap[(lmul, dstEltType)], RVV_vectorTypeMap[(lmul, eltType)], RVV_VectorSize_T): 
+                    RVVIntrinsic("vreinterpret_v_%sm%d_%sm%d" % (RVVIntrSuffix[eltType], lmul, RVVIntrSuffix[dstEltType], lmul), arity=3, output_precision=RVV_vectorTypeMap[(lmul, dstEltType)])
+                    for (lmul, eltType) in RVV_vectorTypeMap for dstEltType in RVV_castEltTypeMapping[eltType]
             }
         },
         NearestInteger: {
