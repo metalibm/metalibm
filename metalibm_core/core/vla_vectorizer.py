@@ -266,14 +266,17 @@ class VLAVectorialFunction(ML_ArrayFunction):
                 :return: pass execution result
                 :rtype: ML_Operation
             """
-            return passObj.execute_on_optree(nodeGraph)
+            result = passObj.execute_on_optree(nodeGraph)
+            assert not result is None, "pass execution must return a valid operation graph"
+            return result
 
         # list of pass slots to be executed before vectorization
         passSlots = [PassScheduler.Start,
                      PassScheduler.Typing,
                      PassScheduler.Optimization,
-                     PassScheduler.JustBeforeCodeGen]
+                     ]
 
+        # run passes to prepare the scalar operation scheme before vectorization
         scalar_scheme = self.executeSlotsPasses(scalar_scheme, executePassOnOpGraph,
                                                 passSlots, logFct)
 
@@ -291,6 +294,7 @@ class VLAVectorialFunction(ML_ArrayFunction):
         vec_arg_list, vector_scheme, vector_mask = \
             vectorizer.vectorize_scheme(scalar_scheme, scalarInputList, vectorLocalLen)
 
+
         assert len(vec_arg_list) == 1, "currently a single vector argument is supported"
 
         vectorType = vectorizer.vectorizeFormat(self.precision)
@@ -302,10 +306,11 @@ class VLAVectorialFunction(ML_ArrayFunction):
         # we build the strip mining Loop
         mainLoop = Statement(
             ReferenceAssign(vectorRemLen, n),
-            ReferenceAssign(vectorOffset, 0),
+            ReferenceAssign(vectorOffset, Constant(0, precision=index_format)),
             # strip mining
-            Loop(vectorLocalLen_int >= 0,
-                Statement(
+            Loop(Statement(),
+                 vectorLocalLen_int >= Constant(0, precision=ML_Int32),
+                 Statement(
                     # assigning local vector length
                     ReferenceAssign(vectorLocalLen, VLAGetLength(vectorLocalLen, precision=vectorSizeType)),
                     # assigning inputs
