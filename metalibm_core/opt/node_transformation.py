@@ -86,7 +86,7 @@ class Pass_NodeTransformation(FunctionPass):
         raise NotImplementedError
 
 
-    def transform_graph(self, node, *args):
+    def transform_graph(self, node, *args, root=False):
         if self.has_memoization(node):
             return self.get_memoization_value(node)
         elif not self.can_be_transformed(node):
@@ -101,16 +101,21 @@ class Pass_NodeTransformation(FunctionPass):
                         reconstructed_input = self.reconstruct_from_transformed(op_input, new_input)
                         Log.report(LOG_LEVEL_NODE_TRANSFORM_VERBOSE, "new input id={} of {} is {}", index, node, reconstructed_input)
                         node.set_input(index, reconstructed_input)
-                return None
-            return None
+                # if this call was made on the graph root then the
+                # node is returned unmodified else None is returned to
+                # indication no modification were made
+                return node if root else None
+            return node if root else None
         else:
             transformed_inputs = [self.transform_graph(op_input) for op_input in node.get_inputs()]
             new_node = self.transform_node(node, transformed_inputs)
             self.set_memoization_value(node, new_node)
             return new_node
 
-    def execute_on_optree(self, optree, fct, fct_group, memoization_map):
-        return self.transform_graph(optree)
+    def execute_on_optree(self, optree, fct=None, fct_group=None, memoization_map=None):
+        # TODO/FIXME: not using memoization_map may lead to inefficiencies and duplicate
+        #             node results
+        return self.transform_graph(optree, root=True)
 
 
 
