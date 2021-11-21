@@ -32,6 +32,7 @@
 # description: Vector Length Agnostic Vectorizer implementation for Metalibm
 ###############################################################################
 
+from metalibm_core.core.passes import PassScheduler
 import sollya
 
 from metalibm_core.code_generation.generic_processor import GenericProcessor
@@ -247,6 +248,36 @@ class VLAVectorialFunction(ML_ArrayFunction):
         # exectuting format instantiation passes on optree
         scalar_scheme = pass_inst_abstract_prec.execute_on_optree(scalar_scheme)
         scalar_scheme = pass_inst_prec.execute_on_optree(scalar_scheme)
+
+
+        def logFct(passSlot):
+            """ function to log execution of all the passes from a given pass-slot """
+            Log.report(Log.Info, "Applying <{}> stage passes", passSlot)
+
+        def executePassOnOpGraph (scheduler, passObj, nodeGraph):
+            """ execute an optimization pass on a nodeGraph/optree 
+
+                :param scheduler: pass scheduler
+                :type scheduler: PassScheduler
+                :param pass_object: pass to be executed 
+                :type pass_object: Pass
+                :param nodeGraph: graph of operation node (pass input)
+                :type nodeGraph: ML_Operation
+                :return: pass execution result
+                :rtype: ML_Operation
+            """
+            return passObj.execute_on_optree(nodeGraph)
+
+        # list of pass slots to be executed before vectorization
+        passSlots = [PassScheduler.Start,
+                     PassScheduler.Typing,
+                     PassScheduler.Optimization,
+                     PassScheduler.JustBeforeCodeGen]
+
+        scalar_scheme = self.executeSlotsPasses(scalar_scheme, executePassOnOpGraph,
+                                                passSlots, logFct)
+
+        # executing schedule pass
 
         # extracting scalar argument from scalar meta function
         scalarInputList = meta_function.implementation.arg_list
