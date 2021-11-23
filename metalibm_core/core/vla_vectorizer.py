@@ -47,8 +47,9 @@ from metalibm_core.core.ml_operations import (
     Addition,
     Conversion,
     Loop,
-    ReferenceAssign, Statement, TableLoad, TableStore, Variable, Constant, is_leaf_node)
-from metalibm_core.core.ml_formats import ML_Binary32, ML_Binary64, ML_Bool, ML_Format, ML_Int32, ML_Integer, ML_UInt32
+    ReferenceAssign, Statement,
+    Subtraction, TableLoad, TableStore, Variable, Constant, is_leaf_node)
+from metalibm_core.core.ml_formats import ML_Binary32, ML_Binary64, ML_Bool, ML_Format, ML_Int32, ML_Integer, ML_UInt32, ML_Void
 from metalibm_core.core.static_vectorizer import (
     StaticVectorizer, and_merge_conditions, extract_const, extract_tables,
     fallback_policy, instanciate_variable)
@@ -316,12 +317,12 @@ class VLAVectorialFunction(ML_ArrayFunction):
                     # assigning inputs
                     ReferenceAssign(vec_arg_list[0], VLAOperation(localSrc, vectorLocalLen, specifier=TableLoad, precision=vectorType)),
                     # computing and storing results
-                    VLAOperation(vector_scheme, localDst, vectorLocalLen, specifier=TableStore, precision=vectorType),
+                    VLAOperation(localDst, vector_scheme, vectorLocalLen, specifier=TableStore, precision=ML_Void),
                     # updating remaining vector length by subtracting the number of elements
                     # evaluated in the loop body
-                    ReferenceAssign(vectorRemLen, vectorRemLen - vectorLocalLen_int),
+                    ReferenceAssign(vectorRemLen, Subtraction(vectorRemLen, vectorLocalLen_int, precision=ML_Int32)),
                     # updating source/destination offset
-                    ReferenceAssign(vectorOffset, vectorOffset + vectorLocalLen_int),
+                    ReferenceAssign(vectorOffset, Addition(vectorOffset, vectorLocalLen_int, precision=ML_Int32)),
                 )
             )
         )
