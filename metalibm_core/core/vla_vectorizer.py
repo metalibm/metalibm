@@ -47,7 +47,8 @@ from metalibm_core.core.ml_operations import (
     Addition,
     Conversion,
     Loop,
-    ReferenceAssign, Statement,
+    ReferenceAssign,
+    SpecifierOperation, Statement,
     Subtraction, TableLoad, TableStore, Variable, Constant, is_leaf_node)
 from metalibm_core.core.ml_formats import ML_Binary32, ML_Binary64, ML_Bool, ML_Format, ML_Int32, ML_Integer, ML_UInt32, ML_Void
 from metalibm_core.core.static_vectorizer import (
@@ -154,12 +155,15 @@ class VLAVectorizer(StaticVectorizer):
                         new_input = self.vector_replicate_scheme_in_place(optree_input, vectorLen, memoization_map)
                         opInputs.append(new_input)
                     # extracting operation class
-                    opClass = node.__class__
                     try:
                         opType = self.vectorizeFormat(optree_precision)
                     except KeyError as e:
                         Log.report(Log.Error, "unable to determine a vector-format for node {}", node, error=e)
-                    newNode = VLAOperation(*opInputs, vectorLen, precision=opType, specifier=opClass)
+                    if isinstance(node, SpecifierOperation):
+                        specifier = (node.__class__, node.specifier)
+                    else:
+                        specifier = node.__class__
+                    newNode = VLAOperation(*opInputs, vectorLen, precision=opType, specifier=specifier)
                 memoization_map[node] = newNode
                 return newNode
             elif isinstance(node, ML_NewTable):
@@ -310,7 +314,7 @@ class VLAVectorialFunction(ML_ArrayFunction):
             ReferenceAssign(vectorOffset, Constant(0, precision=index_format)),
             # strip mining
             Loop(Statement(),
-                 vectorLocalLen_int >= Constant(0, precision=ML_Int32),
+                 vectorRemLen >= Constant(0, precision=ML_Int32),
                  Statement(
                     # assigning local vector length
                     ReferenceAssign(vectorLocalLen, VLAGetLength(vectorLocalLen, precision=vectorSizeType)),
