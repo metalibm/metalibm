@@ -193,7 +193,6 @@ def generate_parameters_piecewise_poly_approx(offset_fct, indexing, target_eps, 
                 subint_low = inf(approx_interval)
                 local_function = offset_fct(offset)
                 local_interval = approx_interval
-                #import pdb; pdb.set_trace()
                 cst_value = coeff_precision.round_sollya_object(local_function(subint_low), sollya.RN)
                 accuracy = target_eps
                 diff_with_cst_range = sollya.supnorm(cst_value, local_function, local_interval, sollya.absolute, accuracy)
