@@ -32,9 +32,10 @@
 ###############################################################################
 
 
+from metalibm_core.core.ml_formats import ML_BoolClass
 from metalibm_core.core.ml_operations import is_leaf_node
 from metalibm_core.core.vla_common import VLAType
-from metalibm_core.targets.riscv.riscv_vector import RVV_vectorTypeMap
+from metalibm_core.targets.riscv.riscv_vector import RVV_VectorMaskType, RVV_vectorTypeMap
 
 from metalibm_core.utility.log_report import Log
 
@@ -66,7 +67,10 @@ class Pass_RVV_Legalization(FunctionPass):
       return nodeType
     lmul = nodeType.groupSize
     eltType = nodeType.baseFormat
-    return RVV_vectorTypeMap[(lmul, eltType)]
+    if isinstance(eltType, ML_BoolClass):
+      return RVV_VectorMaskType(lmul, eltType)
+    else:
+      return RVV_vectorTypeMap[(lmul, eltType)]
 
   def isNodeLegal(self, node):
     predicate = not isinstance(node.get_precision(), VLAType)
