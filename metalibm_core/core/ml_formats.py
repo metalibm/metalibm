@@ -1143,6 +1143,7 @@ class ML_BoolClass(ML_FormatConstructor, ML_Bool_Format):
     return "ML_Bool"
 
 ML_Bool      = ML_BoolClass(32, "int", DisplayFormat("%d"), bool_get_c_cst)
+ML_Bool16    = ML_BoolClass(16, "int", DisplayFormat("%d"), bool_get_c_cst)
 ML_Bool32    = ML_BoolClass(32, "int", DisplayFormat("%d"), bool_get_c_cst)
 ML_Bool64    = ML_BoolClass(64, "long", DisplayFormat("%ld"), bool_get_c_cst)
 
