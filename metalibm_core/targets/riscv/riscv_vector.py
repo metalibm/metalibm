@@ -402,7 +402,7 @@ class RISCV_RVV64(RISCV_RV64):
         super().__init__()
 
     def get_compilation_options(self, ML_SRC_DIR):
-        return super(RISCV_RVV64, self).get_compilation_options(ML_SRC_DIR) + ["-march=rv64gcv"]
+        return super(RISCV_RVV64, self).get_compilation_options(ML_SRC_DIR) + ["-menable-experimental-extensions", "-march=rv64gcv0p10", "-target riscv64"]
 
 # debug message
 Log.report(LOG_BACKEND_INIT, "initializing RISC-V Vector target")
