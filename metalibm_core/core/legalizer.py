@@ -438,6 +438,46 @@ def generate_raw_mantissa_extraction(optree):
         base_precision.get_field_size() - 1,
     )
 
+
+def generate_mantissa_extraction(node):
+    """ generate an operation graph to extraction the significand field
+        of floating-point node <optree> (may be scalar or vector).
+        The implicit bit is not injected in this raw version """
+    nodeType = node.precision
+    if nodeType.is_vector_format():
+        base_precision = nodeType.get_scalar_format()
+        vector_size = nodeType.get_vector_size()
+        int_precision = {
+            v2float32: v2int32,
+            v2float64: v2int64,
+
+            v4float32: v4int32,
+            v4float64: v4int64,
+
+            v8float32: v8int32,
+            v8float64: v8int64,
+        }[nodeType]
+    else:
+        int_precision = nodeType.get_integer_format()
+        base_precision = nodeType
+    signMask = 1 << (base_precision.get_bit_size() - 1)
+    sigMask = (1 << base_precision.get_field_size()) - 1
+
+    fieldAndSign = TypeCast(
+        BitLogicAnd(
+            TypeCast(node, precision=int_precision),
+            Constant(sigMask | signMask, precision=int_precision),
+            precision=int_precision
+        ),
+        precision=nodeType
+    )
+    exp = ExponentExtraction(node, precision=int_precision)
+    return ExponentInsertion(
+        fieldAndSign,
+        exp,
+        precision=nodeType
+    )
+
 def generate_exp_insertion(optree, result_precision):
     """ generate the expanded version of ExponentInsertion
         with @p optree as input and assuming @p result_precision

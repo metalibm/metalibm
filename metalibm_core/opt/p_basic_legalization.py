@@ -36,10 +36,11 @@ from metalibm_core.opt.opt_utils import forward_attributes
 from metalibm_core.core.ml_operations import (
     ExponentExtraction,
     ExponentInsertion,
+    MantissaExtraction,
     Test,
 )
 from metalibm_core.core.legalizer import (
-    generate_test_expansion, generate_exp_extraction,
+    generate_raw_mantissa_extraction, generate_test_expansion, generate_exp_extraction,
     generate_exp_insertion
 )
 
@@ -78,6 +79,10 @@ class BasicExpander(object):
         elif isinstance(node, ExponentInsertion):
             op = wrap_expansion(node.get_input(0), self.expand_node(node.get_input(0)))
             result = generate_exp_insertion(op, node.precision)
+            forward_attributes(node, result)
+        elif isinstance(node, MantissaExtraction):
+            op = wrap_expansion(node.get_input(0), self.expand_node(node.get_input(0)))
+            result = generate_mantissa_extraction(op, node.precision)
             forward_attributes(node, result)
         elif is_expandable_test(node):
             op = wrap_expansion(node.get_input(0), self.expand_node(node.get_input(0)))
