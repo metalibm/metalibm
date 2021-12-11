@@ -29,7 +29,7 @@
 
 import sollya
 
-from metalibm_core.core.passes import OptreeOptimization, Pass, LOG_PASS_INFO
+from metalibm_core.core.passes import METALIBM_PASS_REGISTER, OptreeOptimization, Pass, LOG_PASS_INFO
 from metalibm_core.opt.node_transformation import Pass_NodeTransformation
 from metalibm_core.opt.opt_utils import forward_attributes
 
@@ -120,6 +120,7 @@ class VirtualBoolVectorLegalizer(object):
                is_virtual_bool_node(node)
 
 
+@METALIBM_PASS_REGISTER
 class Pass_VirtualVectorBoolLegalization(Pass_NodeTransformation):
     """ Pass to legalize vector of virtual bools """
     pass_tag = "virtual_vector_bool_legalization"
@@ -151,8 +152,3 @@ class Pass_VirtualVectorBoolLegalization(Pass_NodeTransformation):
     def execute(self, optree):
         """ Implémentation of the standard optimization pass API """
         return self.transform_graph(optree)
-
-
-Log.report(LOG_PASS_INFO, "Registering virtual_vector_bool_legalization pass")
-# register pass
-Pass.register(Pass_VirtualVectorBoolLegalization)
