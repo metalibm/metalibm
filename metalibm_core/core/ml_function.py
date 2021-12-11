@@ -481,7 +481,7 @@ class ML_FunctionBasis(object):
     self.plot_enabled = self.plot_function or self.plot_error
 
     # instance of CodeFunction containing the function implementation
-    self.implementation = CodeFunction(self.function_name, output_format=self.get_output_precision())
+    self.implementation = CodeFunction(self.function_name, output_format=self.get_main_fct_return_type())
     # instance of OptimizationEngine
     self.opt_engine = OptimizationEngine(self.processor, dot_product_enabled=self.dot_product_enabled)
     # instance of GappaCodeGenerator to perform inline proofs
@@ -600,6 +600,10 @@ class ML_FunctionBasis(object):
     """ return a unique identifier, combining base_name + function_name """
     return "%s_%s" % (self.function_name, base_name)
 
+
+  def get_main_fct_return_type(self):
+    """ return type for the main function """
+    return self.get_output_precision()
 
   def get_output_precision(self):
     return self.precision

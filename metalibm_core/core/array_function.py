@@ -349,7 +349,9 @@ class ML_ArrayFunction(ML_FunctionBasis):
             acc_num,
             post_statement_generator,
             NUM_INPUT_ARRAY=1):
-        """ generate a test loop for multi-array tests
+        """ generate a test loop for mult    def get_output_precision(self):
+        return ML_Void
+i-array tests
              @param test_num number of elementary array tests to be executed
              @param tested_function FunctionObject to be tested
              @param table_size_offset_array ML_NewTable object containing
@@ -412,7 +414,7 @@ class ML_ArrayFunction(ML_FunctionBasis):
         # interval where the array lenght is chosen from (randomly)
         index_range = self.test_index_range
 
-        auto_test = CodeFunction("bench_wrapper", output_format=ML_Binary64)
+        auto_test = CodeFunction("bench_wrapper", output_format=self.get_output_precision())
 
         tested_function        = self.implementation.get_function_object()
         function_name            = self.implementation.get_name()
@@ -545,3 +547,7 @@ class ML_ArrayFunction(ML_FunctionBasis):
         )
         auto_test.set_scheme(test_scheme)
         return FunctionGroup([auto_test])
+
+    def get_main_fct_return_type(self):
+        # Array-function does not return anything
+        return ML_Void
