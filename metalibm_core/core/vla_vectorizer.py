@@ -39,6 +39,7 @@ from metalibm_core.code_generation.generic_processor import GenericProcessor
 from metalibm_core.code_generation.code_function import FunctionGroup
 
 from metalibm_core.core.precisions import ML_Faithful
+from metalibm_core.core.ml_table import ML_NewTable
 from metalibm_core.core.ml_complex_formats import ML_Pointer_Format
 from metalibm_core.core.array_function import DefaultArrayFunctionArgTemplate, ML_ArrayFunction, ML_ArrayFunctionArgTemplate
 from metalibm_core.core.vla_common import (
@@ -99,7 +100,7 @@ class VLAVectorizer(StaticVectorizer):
 
         # dictionnary of arg_node (scalar) -> new variable (vector) mapping
         vec_arg_dict = dict(
-            (arg_node, Variable("vec_%s" % arg_node.get_tag(), precision=vlaVectorizeType(arg_node.get_precision()))) for arg_node in arg_list)
+            (arg_node, Variable("vec_%s" % arg_node.get_tag(), precision=vlaVectorizeType(arg_node.get_precision()), var_type=Variable.Local)) for arg_node in arg_list)
         constant_dict = {}
 
         arg_list_copy = dict((arg_node, vec_arg_dict[arg_node]) for arg_node in arg_list)
@@ -332,6 +333,9 @@ class VLAVectorialFunction(ML_ArrayFunction):
         )
 
         return mainLoop
+
+    def get_output_precision(self):
+        return ML_Void
 
     def generate_function_list(self):
         self.implementation.set_scheme(self.generate_scheme())
