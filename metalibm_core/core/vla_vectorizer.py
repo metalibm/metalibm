@@ -334,9 +334,6 @@ class VLAVectorialFunction(ML_ArrayFunction):
 
         return mainLoop
 
-    def get_output_precision(self):
-        return ML_Void
-
     def generate_function_list(self):
         self.implementation.set_scheme(self.generate_scheme())
         return FunctionGroup([self.implementation], self.function_list)
