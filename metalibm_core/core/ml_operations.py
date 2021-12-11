@@ -1395,8 +1395,8 @@ class ExponentInsertion(SpecifierOperation, ML_ArithmeticOperation):
     class Default: pass
     class NoOffset: pass
 
-    def __init__(self, *args, **kwords):
-        ML_ArithmeticOperation.__init__(self, *args, **kwords)
+    def __init__(self, expValue, **kwords):
+        ML_ArithmeticOperation.__init__(self, expValue, **kwords)
         self.specifier = attr_init(kwords, "specifier", default_value = ExponentInsertion.Default)
 
     def get_codegen_key(self):
@@ -1413,7 +1413,9 @@ class ExponentInsertion(SpecifierOperation, ML_ArithmeticOperation):
             return Interval(lo_bound, hi_bound)
 
 class MantissaExtraction(ML_ArithmeticOperation):
-    """ return the input's mantissa as a floating-point value, whose absolute value lies between 1 (included) and 2 (excluded), input sign is kept unmodified  """
+    """ return the input's mantissa as a floating-point value, whose absolute
+        value lies between 1 (included) and 2 (excluded), input sign is kept
+        unmodified  """
     name = "MantissaExtraction"
     arity = 1
 
