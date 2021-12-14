@@ -50,7 +50,8 @@ from metalibm_core.core.vla_common import VLAGetLength, VLAOperation, VLAOp
 from metalibm_core.code_generation.abstract_backend import LOG_BACKEND_INIT
 from metalibm_core.code_generation.code_constant import C_Code
 from metalibm_core.code_generation.generator_utility import (
-    FSM, TCM, FunctionOperator, SymbolOperator, type_custom_match, type_strict_match)
+    FSM, TCM, FO_Arg, FunctionOperator, SymbolOperator, type_custom_match, type_strict_match)
+from metalibm_core.utility.debug_utils import debug_multi, ML_Debug
 
 from metalibm_core.utility.log_report import Log
 
@@ -113,6 +114,13 @@ RVV_castEltTypeMapping = {
 # specific RVV type aliases
 # RVV vector types with LMUL=1 (m1)
 RVV_vBinary32_m1  = RVV_vectorTypeMap[(1, ML_Binary32)]
+
+# TODO/FIXME: should extract VLEN*LMUL/SEW values
+debug_vfloat32_m1  = ML_Debug(display_format = "{%a}", pre_process = lambda v: "vfmv_f_s_f32m1_f32(%s)" % (v))
+debug_vint32_m1  = ML_Debug(display_format = "{%d}", pre_process = lambda v: "vmv_x_s_i32m1_i32(%s)" % (v))
+
+debug_multi.add_mapping(RVV_vBinary32_m1, debug_vfloat32_m1)
+debug_multi.add_mapping(RVV_vectorTypeMap[(1, ML_Int32)], debug_vint32_m1)
 
 RVV_VectorSize_T = ML_FormatConstructor(None, "size_t", None, lambda v: None, header="stddef.h")
 
