@@ -315,10 +315,10 @@ class VLAVectorialFunction(ML_ArrayFunction):
             ReferenceAssign(vectorOffset, Constant(0, precision=index_format)),
             # strip mining
             Loop(Statement(),
-                 vectorRemLen >= Constant(0, precision=ML_Int32),
+                 vectorRemLen > Constant(0, precision=ML_Int32),
                  Statement(
                     # assigning local vector length
-                    ReferenceAssign(vectorLocalLen, VLAGetLength(vectorLocalLen, precision=vectorSizeType)),
+                    ReferenceAssign(vectorLocalLen, VLAGetLength(vectorRemLen, precision=vectorSizeType)),
                     # assigning inputs
                     ReferenceAssign(vec_arg_list[0], VLAOperation(localSrc, vectorLocalLen, specifier=TableLoad, precision=vectorType)),
                     # computing and storing results
