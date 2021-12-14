@@ -33,6 +33,7 @@
 ###############################################################################
 
 
+import os
 
 from metalibm_core.code_generation.complex_generator import ComplexOperator
 from metalibm_core.core.ml_complex_formats import ML_Pointer_Format
@@ -402,7 +403,28 @@ class RISCV_RVV64(RISCV_RV64):
         super().__init__()
 
     def get_compilation_options(self, ML_SRC_DIR):
-        return super(RISCV_RVV64, self).get_compilation_options(ML_SRC_DIR) + ["-menable-experimental-extensions", "-march=rv64gcv0p10", "-target riscv64"]
+        try:
+            RISCV_ENV = os.environ["RISCV"]
+        except KeyError:
+            Log.report(Log.Warning, "RISCV env variable must be set such than $RISCV/riscv64-unknown-elf/lib/ is accessible")
+            RISCV_ENV = "<RISCV undef>"
+        return super(RISCV_RVV64, self).get_compilation_options(ML_SRC_DIR) + [f"-L{RISCV_ENV}/riscv64-unknown-elf/lib/", f"--gcc-toolchain={RISCV_ENV}/ ", "-menable-experimental-extensions", "-march=rv64gcv0p10", "-target riscv64"]
+
+
+    def get_execution_command(self, test_file):
+        try:
+            pk_bin = os.environ["PK_BIN"]
+        except KeyError:
+            Log.report(Log.Warning, "PK_BIN env var must point to proxy-kernel image")
+            pk_bin = "<PK_BIN undef>"
+
+        try:
+            spike_bin = os.environ["SPIKE_BIN"]
+        except KeyError:
+            Log.report(Log.Warning, "SPIKE_BIN env var must point to spike simulator binary")
+            spike_bin = "<SPIKE_BIN undef>"
+        cmd = "{} --isa=RV64gcv {}  {}".format(spike_bin, pk_bin, test_file)
+        return cmd
 
 # debug message
 Log.report(LOG_BACKEND_INIT, "initializing RISC-V Vector target")
