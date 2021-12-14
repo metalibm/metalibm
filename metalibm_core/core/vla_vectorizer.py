@@ -66,6 +66,8 @@ from metalibm_core.targets.riscv.riscv_vector import RVV_VectorSize_T
 
 from metalibm_functions.function_map import FUNCTION_MAP
 
+from metalibm_core.utility.debug_utils import debug_multi
+
 class VLAVectorizer(StaticVectorizer):
     """ vectorizer for vector-length agnostic architecture """
     def vectorize_scheme(self, optree, arg_list, vectorLen):
@@ -165,6 +167,7 @@ class VLAVectorizer(StaticVectorizer):
                     else:
                         specifier = node.__class__
                     newNode = VLAOperation(*opInputs, vectorLen, precision=opType, specifier=specifier)
+                    forward_attributes(node, newNode)
                 memoization_map[node] = newNode
                 return newNode
             elif isinstance(node, ML_NewTable):
@@ -242,6 +245,7 @@ class VLAVectorialFunction(ML_ArrayFunction):
         fct_ctor_args = self.function_ctor.get_default_args(
             precision=self.precision,
             libm_compliant=False,
+            debug=self.debug_flag,
             **self.ctor_arg_dict
         )
         meta_function = self.function_ctor(fct_ctor_args)
@@ -320,7 +324,7 @@ class VLAVectorialFunction(ML_ArrayFunction):
                     # assigning local vector length
                     ReferenceAssign(vectorLocalLen, VLAGetLength(vectorRemLen, precision=vectorSizeType)),
                     # assigning inputs
-                    ReferenceAssign(vec_arg_list[0], VLAOperation(localSrc, vectorLocalLen, specifier=TableLoad, precision=vectorType)),
+                    ReferenceAssign(vec_arg_list[0], VLAOperation(localSrc, vectorLocalLen, specifier=TableLoad, precision=vectorType, debug=debug_multi, tag="varg")),
                     # computing and storing results
                     VLAOperation(localDst, vector_scheme, vectorLocalLen, specifier=TableStore, precision=ML_Void),
                     # updating remaining vector length by subtracting the number of elements
