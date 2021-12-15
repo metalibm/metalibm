@@ -140,7 +140,7 @@ class ML_ArrayFunction(ML_FunctionBasis):
         """ Generate inputs and output table to be shared between auto test
             and max_error tests """
         index_range = self.test_index_range
-        test_total   = test_num + len(self.standard_test_cases)
+        test_total   = test_num + len(self.standard_test_cases) + len(self.value_test)
 
         # number of arrays expected as inputs for tested_function
         NUM_INPUT_ARRAY = 1
@@ -150,7 +150,7 @@ class ML_ArrayFunction(ML_FunctionBasis):
 
         # concatenating standard test array at the beginning of randomly
         # generated array
-        TABLE_SIZE_VALUES = [len(std_table) for std_table in self.standard_test_cases] + [random.randrange(index_range[0], index_range[1] + 1) for i in range(test_num)]
+        TABLE_SIZE_VALUES = ([len(self.value_test)] if len(self.value_test) else []) + [len(std_table) for std_table in self.standard_test_cases] + [random.randrange(index_range[0], index_range[1] + 1) for i in range(test_num)]
         OFFSET_VALUES = [sum(TABLE_SIZE_VALUES[:i]) for i in range(test_total)]
 
         table_size_offset_array = generate_2d_table(
@@ -166,13 +166,29 @@ class ML_ArrayFunction(ML_FunctionBasis):
         input_precisions = [self.get_input_precision(1).get_data_precision()]
         rng_map = [get_precision_rng(precision, test_range) for precision, test_range in zip(input_precisions, test_ranges)]
 
+        def inputValueGen(table_id):
+            """ input value generator, select inputs from command-line value_test,
+                from stantard_cases or randomly generated based on index """
+            def helper(index):
+                value = None
+                if value is None and index < len(self.value_test):
+                    value = self.value_test[index][table_id]
+                index -= len(self.value_test)
+                if value is None and index < len(self.standard_test_cases):
+                    value = self.standard_test_cases[index]
+                if value is None:
+                    value = rng_map[table_id].get_new_value()
+                return input_precisions[table_id].round_sollya_object(value, sollya.RN)
+            return helper
+            
+
         # generated table of inputs
         input_tables = [
             generate_1d_table(
                 INPUT_ARRAY_SIZE,
                 self.get_input_precision(INPUT_INDEX_OFFSET + table_id).get_data_precision(),
                 self.uniquify_name("input_table_arg%d" % table_id),
-                value_gen=(lambda _: input_precisions[table_id].round_sollya_object(rng_map[table_id].get_new_value(), sollya.RN))
+                value_gen=inputValueGen(table_id)
             ) for table_id in range(NUM_INPUT_ARRAY)
         ]
 
