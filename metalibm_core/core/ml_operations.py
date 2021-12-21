@@ -1120,6 +1120,11 @@ class Extract(ML_ArithmeticOperation):
     """ (UNUSED) abstract word or vector extract-from-vector operation """
     name = "Extract"
 
+class Splat(ML_ArithmeticOperation):
+    """ scalar replication to vector """
+    name = "Splat"
+    arity = 1
+
 def numerical_modulo(lhs, rhs):
     """ compute lhs % rhs """
     if (isinstance(rhs, SollyaObject) and rhs.is_range()) or isinstance(rhs, (MetaInterval, MetaIntervalList)):
