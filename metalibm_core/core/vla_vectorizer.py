@@ -166,6 +166,7 @@ class VLAVectorizer(StaticVectorizer):
                         specifier = (node.__class__, node.specifier)
                     else:
                         specifier = node.__class__
+                    assert not None in opInputs
                     newNode = VLAOperation(*opInputs, vectorLen, precision=opType, specifier=specifier)
                     forward_attributes(node, newNode)
                 memoization_map[node] = newNode
@@ -173,7 +174,7 @@ class VLAVectorizer(StaticVectorizer):
             elif isinstance(node, ML_NewTable):
                 # TODO: does not take into account intermediary variables
                 Log.report(Log.Info, "skipping ML_NewTable node in vector_replicate_scheme_in_place: {} ", node)
-                pass
+                return node
             else:
                 Log.report(Log.Error, "node not vectorizable: {}", node)
 
