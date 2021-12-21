@@ -202,18 +202,18 @@ class ML_SinCos(ScalarUnaryFunction):
         polynomial_scheme_builder = PolynomialSchemeEvaluator.generate_horner_scheme
 
         table_index_size = frac_pi_index+1
-        cos_table = ML_NewTable(dimensions = [2**table_index_size, 1], storage_precision = self.precision, tag = self.uniquify_name("cos_table"))
+        cos_table = ML_NewTable(dimensions = [2**table_index_size], storage_precision = self.precision, tag = self.uniquify_name("cos_table"))
 
         common_factor = round(pi/S2**frac_pi_index, 200, sollya.RN)
         for i in range(2**(frac_pi_index+1)):
           local_x = i*common_factor
           cos_local = round(cos(local_x), self.precision.get_sollya_object(), sollya.RN)
-          cos_table[i][0] = cos_local
+          cos_table[i] = cos_local
 
 
         sin_index = Modulo(modk + 2**(frac_pi_index-1), 2**(frac_pi_index+1), precision = int_precision, tag = "sin_index", debug=debug_multi)
-        tabulated_cos = TableLoad(cos_table, modk, C0, precision = self.precision, tag = "tab_cos", debug = debug_multi)
-        tabulated_sin = -TableLoad(cos_table, sin_index , C0, precision = self.precision, tag = "tab_sin", debug = debug_multi)
+        tabulated_cos = TableLoad(cos_table, modk, precision = self.precision, tag = "tab_cos", debug = debug_multi)
+        tabulated_sin = -TableLoad(cos_table, sin_index, precision = self.precision, tag = "tab_sin", debug = debug_multi)
 
         poly_degree_cos   = sup(guessdegree(cos(sollya.x), approx_interval, S2**-self.precision.get_precision()) + 2) 
         poly_degree_sin   = sup(guessdegree(sin(sollya.x)/sollya.x, approx_interval, S2**-self.precision.get_precision()) + 2) 
