@@ -5,7 +5,7 @@ Metalibm is available under MIT Licence (see LICENSE file) from https://github.c
 ## INTEGRATION STATUS
 master branch: [![pipeline status](https://gitlab.com/nibrunie/metalibm_github/badges/master/pipeline.svg)](https://gitlab.com/nibrunie/metalibm_github/commits/master)
 
-meta-function generation report (master branch): https://nibrunie.gitlab.io/metalibm/perfs/report.master.html
+meta-function generation report (master branch): https://nibrunie.gitlab.io/metalibm/perfs/report.main.html
 
 ## DOCUMENTATION
 
