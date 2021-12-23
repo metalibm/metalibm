@@ -440,7 +440,7 @@ def generate_raw_mantissa_extraction(optree):
 
 
 def generate_mantissa_extraction(node):
-    """ generate an operation graph to extraction the significand field
+    """ generate an operation graph to extract the significand field
         of floating-point node <optree> (may be scalar or vector).
         The implicit bit is not injected in this raw version """
     nodeType = node.precision

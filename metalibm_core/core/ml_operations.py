@@ -1121,7 +1121,7 @@ class Extract(ML_ArithmeticOperation):
     name = "Extract"
 
 class Splat(ML_ArithmeticOperation):
-    """ scalar replication to vector """
+    """ Fill a vector by broadcasting a scalar input to all elements """
     name = "Splat"
     arity = 1
 
@@ -1418,7 +1418,7 @@ class ExponentInsertion(SpecifierOperation, ML_ArithmeticOperation):
             return Interval(lo_bound, hi_bound)
 
 class MantissaExtraction(ML_ArithmeticOperation):
-    """ return the input's mantissa as a floating-point value, whose absolute
+    """ return the input's significand/mantissa as a floating-point value, whose absolute
         value lies between 1 (included) and 2 (excluded), input sign is kept
         unmodified  """
     name = "MantissaExtraction"
