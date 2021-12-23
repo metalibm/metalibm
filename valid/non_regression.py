@@ -57,6 +57,7 @@ import metalibm_functions.remquo
 import metalibm_functions.softmax
 import metalibm_functions.vectorial_function
 import metalibm_functions.erf
+import metalibm_functions.vla_function
 
 from metalibm_core.core.ml_formats import ML_Binary32, ML_Binary64, ML_Int32, ML_Int64
 from metalibm_core.core.precisions import dar, ML_CorrectlyRounded
@@ -66,6 +67,7 @@ from metalibm_core.code_generation.generator_utility import LibraryDependency
 
 from metalibm_core.targets.common.vector_backend import VectorBackend
 from metalibm_core.targets.common.llvm_ir import LLVMBackend
+from metalibm_core.targets.riscv.riscv_vector import RISCV_RVV64
 
 from metalibm_core.targets.intel.x86_processor import (
         X86_Processor, X86_SSE_Processor, X86_SSE2_Processor,
@@ -418,6 +420,14 @@ new_scheme_function_list = [
         {"precision": ML_Binary32, "use_libm_function": "expf", "auto_test": 10, "execute_trigger": True, "passes": ["beforecodegen:virtual_vector_bool_legalization", "beforecodegen:vector_mask_test_legalization"]},
         {"precision": ML_Binary32, "multi_elt_num": 4, "target": VectorBackend.get_target_instance(), "auto_test": 10, "index_test_range": [16, 32], "execute_trigger": True,  "passes": ["beforecodegen:virtual_vector_bool_legalization", "beforecodegen:vector_mask_test_legalization"]},
         {"precision": ML_Binary64, "multi_elt_num": 4, "target": VectorBackend.get_target_instance(), "auto_test": 10,  "index_test_range": [16, 32], "execute_trigger": True, "expected_to_fail": True,  "passes": ["beforecodegen:virtual_vector_bool_legalization", "beforecodegen:vector_mask_test_legalization"]},
+    ],
+  ),
+  NewSchemeTest(
+    "basic vla function test",
+    metalibm_functions.vla_function.VLAFunction,
+    [
+        {"precision": ML_Binary32, "passes": ["optimization:basic_legalization", "optimization:fuse_fma", "beforecodegen:rvv_legalization"],
+         "target": RISCV_RVV64.get_target_instance()},
     ],
   ),
   NewSchemeTest(
