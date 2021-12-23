@@ -168,6 +168,8 @@ class ML_Cbrt(ScalarUnaryFunction):
             precision = self.precision
         )
 
+        # computing 1 / x
+        # both values will be NaN if x=0
         inverse_red_vx = Division(Constant(1, precision = self.precision), reduced_vx)
         inverse_vx = Division(Constant(1, precision = self.precision), vx)
 
@@ -188,12 +190,11 @@ class ML_Cbrt(ScalarUnaryFunction):
 
         FourThird = Constant(4/SollyaObject(3), precision = ext_precision)
 
+        C0 = Constant(0, precision=self.precision)
+
         # main scheme
         Log.report(Log.Info, "\033[33;1m MDL scheme \033[0m")
-        scheme = Statement(
-                                Return(
-                                        result
-                                    ))
+        scheme = Statement(Return(Select(Equal(vx, C0, tag="xIsZero", precision=ML_Bool, debug=debug_multi), C0, result)))
 
         return scheme
 
