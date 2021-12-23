@@ -351,7 +351,6 @@ class VLAVectorialFunction(ML_ArrayFunction):
     standard_test_cases = []
 
 
-
 if __name__ == "__main__":
     # auto-test
     arg_template = ML_ArrayFunctionArgTemplate(default_arg=VLAVectorialFunction.get_default_args())

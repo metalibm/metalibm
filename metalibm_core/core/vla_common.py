@@ -51,6 +51,8 @@ class VLAType(ML_Format):
         return isinstance(t, VLAType)
 
 class VLAOperation(SpecifierOperation, ML_ArithmeticOperation):
+    """ operation class wrapper to instantiate a vector length agnostic 
+          operation node """
     arity = None
     def __init__(self, *args, specifier=None, **kw):
         ML_ArithmeticOperation.__init__(self, *args, **kw)
@@ -65,6 +67,7 @@ class VLAOperation(SpecifierOperation, ML_ArithmeticOperation):
 
 
 class VLAGetLength(ML_ArithmeticOperation):
+    """ operation to retrieve the realizable vector length """
     name = "VLAGetLength"
     arity = 1
 
