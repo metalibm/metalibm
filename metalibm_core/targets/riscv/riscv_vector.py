@@ -480,6 +480,7 @@ rvv64_CCodeGenTable = {
 @UniqueTargetDecorator
 class RISCV_RVV64(RISCV_RV64):
     target_name = "rv64gv"
+    vectorSizeType = RVV_VectorSize_T
 
     code_generation_table = {
         C_Code: rvv64_CCodeGenTable,
