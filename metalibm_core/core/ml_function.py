@@ -1260,7 +1260,7 @@ class ML_FunctionBasis(object):
         test_total += len(self.value_test)
         non_random_test_cases += self.value_test
 
-    # round up the number of tests to the implementation vector-size
+    # round up the number of tests to be a multiple of the implementation vector-size
     diff = (self.get_vector_size() - (test_total % self.get_vector_size())) % self.get_vector_size()
     assert diff >= 0
     test_total += diff
@@ -1582,13 +1582,20 @@ class ML_FunctionBasis(object):
         local_error_relative = self.accuracy.compute_error(elt_result, output_values, relative=True)
         local_error_absolute = self.accuracy.compute_error(elt_result, output_values, relative=False)
 
+        # TODO/FIXME: cleanup error value selection when
+        # - error is NaN
+        # - result is NaN
+        # - one of the operand is NaN
+        # TODO: in particular check compute_error behavior on NaNs
         comp_statement.push(
           ReferenceAssign(
             max_error_relative,
             Select(
                 Test(local_error_relative, specifier=Test.IsNaN),
-                # force local_error_relative if it is equal to NaN
-                local_error_relative,
+                # force max_error_relative if local_error_relative is equal to NaN
+                # to ensure max error is never a NaN
+                # max-error is only valid for non-special cases
+                max_error_relative,
                 Max(
                   local_error_relative,
                   max_error_relative,
@@ -1599,7 +1606,7 @@ class ML_FunctionBasis(object):
             max_error_absolute,
             Select(
                 Test(local_error_absolute, specifier=Test.IsNaN),
-                local_error_absolute,
+                max_error_absolute,
                 Max(
                   local_error_absolute,
                   max_error_absolute,
