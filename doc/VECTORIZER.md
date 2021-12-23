@@ -5,7 +5,7 @@
 
 === VLAVectorizer
 
-The VLA vectorizer targets Vector Length Agnostic (VLA) architectures such as ARM's VLA or RISC-V V extensions.
+The VLA vectorizer targets Vector Length Agnostic (VLA) architectures such as ARM's SVE/SVE2 or RISC-V V extensions.
 The generate code is agnostic of the actual datapath or vector register lengths.
 
 VLA support introduces the following new operations:
