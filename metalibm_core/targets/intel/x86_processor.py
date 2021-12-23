@@ -1414,16 +1414,16 @@ sse2_c_code_generation_table = {
                 # documentation on _mm_sll_epi32. We need to make sure that the
                 # last vector is a constant that can be changed into either an
                 # imm8 (above) or an ML_SSE_m128_v1[u]int64.
-                type_strict_match_list(*(3*([ ML_SSE_m128_v4int32,
-                    ML_SSE_m128_v4uint32, ],))):
-                    EmmIntrin("_mm_sll_epi32", arity = 2,
-                              arg_map = {0: FO_Arg(0), 1: FO_Arg(1)})(
-                                  FO_Arg(0), FO_Arg(1)),
-                type_strict_match_list(*(3*([ ML_SSE_m128_v2int64,
-                    ML_SSE_m128_v2uint64, ],))):
-                    EmmIntrin("_mm_sll_epi64", arity = 2,
-                              arg_map = {0: FO_Arg(0), 1: FO_Arg(1)})(
-                                  FO_Arg(0), FO_Arg(1)),
+                # type_strict_match_list(*(3*([ ML_SSE_m128_v4int32,
+                #     ML_SSE_m128_v4uint32, ],))):
+                #     EmmIntrin("_mm_sll_epi32", arity = 2,
+                #               arg_map = {0: FO_Arg(0), 1: FO_Arg(1)})(
+                #                   FO_Arg(0), FO_Arg(1)),
+                # type_strict_match_list(*(3*([ ML_SSE_m128_v2int64,
+                #     ML_SSE_m128_v2uint64, ],))):
+                #     EmmIntrin("_mm_sll_epi64", arity = 2,
+                #               arg_map = {0: FO_Arg(0), 1: FO_Arg(1)})(
+                #                   FO_Arg(0), FO_Arg(1)),
             },
         },
     },
@@ -1442,17 +1442,17 @@ sse2_c_code_generation_table = {
                 # _mm_srl_epi32. We need to make sure that the last vector is a
                 # constant that can be changed into either an imm8 (above) or
                 # an ML_SSE_m128_v1int32
-                type_strict_match(*(3*(ML_SSE_m128_v4int32,))):
-                    EmmIntrin("_mm_srl_epi32", arity = 2,
-                              arg_map = {0: FO_Arg(0), 1: FO_Arg(1)})(
-                                  FO_Arg(0), FO_Arg(1)
-                                  ),
+                # type_strict_match(*(3*(ML_SSE_m128_v4int32,))):
+                #     EmmIntrin("_mm_srl_epi32", arity = 2,
+                #               arg_map = {0: FO_Arg(0), 1: FO_Arg(1)})(
+                #                 FO_Arg(0), FO_Arg(1)
+                #                  ),
                 # TODO: using signed primitives for unsigned formats
-                type_strict_match(*(3*(ML_SSE_m128_v4uint32,))):
-                    EmmIntrin("_mm_srl_epi32", arity = 2,
-                              arg_map = {0: FO_Arg(0), 1: FO_Arg(1)})(
-                                  FO_Arg(0), FO_Arg(1)
-                                  ),
+                # type_strict_match(*(3*(ML_SSE_m128_v4uint32,))):
+                #    EmmIntrin("_mm_srl_epi32", arity = 2,
+                #              arg_map = {0: FO_Arg(0), 1: FO_Arg(1)})(
+                #                  FO_Arg(0), FO_Arg(1)
+                #                  ),
             },
         },
     },
@@ -2231,6 +2231,12 @@ avx2_c_code_generation_table = {
     BitLogicNegate: {
         None: {
             lambda _: True: {
+                type_strict_match(ML_AVX_m256_v8float32, ML_AVX_m256_v8float32):
+                    ImmIntrin("_mm256_andnot_ps", arity = 2)(
+                              FO_Arg(0),
+                              FO_Value("_mm256_castsi256_ps(_mm256_set1_epi32(-1))",
+                                       ML_AVX_m256_v8int32)
+                              ),
                 type_strict_match(ML_AVX_m256_v8int32, ML_AVX_m256_v8int32):
                     ImmIntrin("_mm256_andnot_si256", arity = 2)(
                               FO_Arg(0),
@@ -2337,6 +2343,7 @@ avx2_c_code_generation_table = {
             lambda _: True: {
                 type_strict_match_or_list([ 3*(ML_AVX_m256_v8int32,),
                                             3*(ML_AVX_m256_v8uint32,),
+                                            3*(ML_AVX_m256_v8float32,),
                                             3*(ML_AVX_m256_v4int64,),
                                             3*(ML_AVX_m256_v4uint64,),
                                             3*(ML_AVX_m256_v4float64,),
