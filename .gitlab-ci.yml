@@ -32,7 +32,8 @@ non_regression_py3:
     - export PATH=/home/ghdl/bin:$PATH
     - export LD_LIBRARY_PATH=/usr/local/lib/:/home/ghdl/lib/
     - export PYTHONPATH=/app/local/python3/
-    - PYTHONPATH=$PWD:$PYTHONPATH  ML_SRC_DIR=$PWD python3 valid/non_regression.py --debug
+    # disabling long test (tanh, erf generation)
+    - PYTHONPATH=$PWD:$PYTHONPATH  ML_SRC_DIR=$PWD python3 valid/non_regression.py --debug --exclude basic_hyperbolic_tangent_gen_test,basic_error_function_test
 
 rtl_regression_py3:
   script:
