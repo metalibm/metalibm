@@ -888,7 +888,9 @@ class ML_FunctionBasis(object):
         if not self.auto_test_enable and self.compute_max_error:
             test_num = DEFAULT_MAX_ERROR_TEST_NUMBER
         test_total, input_tables, output_table = self.generate_test_tables(
-                test_num=test_num,
+                test_num,
+                self.get_output_precision(),
+                self.accuracy,
                 test_ranges = self.auto_test_range)
 
         if self.auto_test_enable:
@@ -1241,7 +1243,7 @@ class ML_FunctionBasis(object):
       yield tuple(input_list)
 
 
-  def generate_test_tables(self, test_num, test_ranges=[Interval(-1.0, 1.0)]):
+  def generate_test_tables(self, test_num, outType, outAccuracy, test_ranges=[Interval(-1.0, 1.0)]):
     """ Generate inputs and output table to be shared between auto test
         and max_error tests """
     test_total = test_num
@@ -1276,9 +1278,9 @@ class ML_FunctionBasis(object):
     ]
 
     ## output values required to check results are stored in output table
-    num_output_value = self.accuracy.get_num_output_value()
+    num_output_value = outAccuracy.get_num_output_value()
     output_table = ML_NewTable(dimensions=[test_total, num_output_value],
-                               storage_precision=self.get_output_precision(),
+                               storage_precision=outType,
                                const=False,
                                tag=self.uniquify_name("output_table"))
 
@@ -1313,7 +1315,7 @@ class ML_FunctionBasis(object):
       else:
         expected_output = self.numeric_emulate(*input_tuple[:self.arity])
       # computing and storing output values
-      output_values = self.accuracy.get_output_check_value(expected_output)
+      output_values = outAccuracy.get_output_check_value(expected_output)
       for o in range(num_output_value):
         output_table[table_index][o] = output_values[o]
 
@@ -1524,30 +1526,30 @@ class ML_FunctionBasis(object):
       """ Generate max_errror eval function, manages
           both scalar and vector formats """
       if self.implementation.get_output_format().is_vector_format():
-          max_error_main_statement = self.generate_vector_max_error_eval(tested_function, test_total, input_tables, output_table) 
+          max_error_main_statement = self.generate_vector_max_error_eval(tested_function, test_total, input_tables, output_table, self.get_output_precision(), self.accuracy) 
       else:
-          max_error_main_statement = self.generate_scalar_max_error_eval(tested_function, test_total, input_tables, output_table) 
+          max_error_main_statement = self.generate_scalar_max_error_eval(tested_function, test_total, input_tables, output_table, self.get_output_precision(), self.accuracy) 
       max_error_function = CodeFunction("max_error_eval", output_format=self.precision) 
       max_error_function.set_scheme(max_error_main_statement)
       return max_error_function
 
   def generate_vector_max_error_eval(self, tested_function, test_num,
-                                     input_tables, output_table):
+                                     input_tables, output_table, outType, outAccuracy):
       """ generate the main Statement to evaluate the maximal error (both
           relative and absolute) for a vector function """
-      max_error_relative = Variable("max_error_relative", precision=self.precision, var_type=Variable.Local)
-      max_error_absolute = Variable("max_error_absolute", precision=self.precision, var_type=Variable.Local)
+      errorPrecision = outType
+      max_error_relative = Variable("max_error_relative", precision=errorPrecision, var_type=Variable.Local)
+      max_error_absolute = Variable("max_error_absolute", precision=errorPrecision, var_type=Variable.Local)
 
       printf_error_template = "printf(\"max %s error is absolute=%s, relative=%s \\n\", %s, %s)" % (
         self.function_name,
-        self.precision.get_display_format(self.language).format_string,
-        self.precision.get_display_format(self.language).format_string,
-        self.precision.get_display_format(self.language).pre_process_fct("{0}"),
-        self.precision.get_display_format(self.language).pre_process_fct("{0}")
+        errorPrecision.get_display_format(self.language).format_string,
+        errorPrecision.get_display_format(self.language).format_string,
+        errorPrecision.get_display_format(self.language).pre_process_fct("{0}"),
+        errorPrecision.get_display_format(self.language).pre_process_fct("{0}")
       )
       printf_error_op = TemplateOperatorFormat(printf_error_template, arity=2, void_function=True, require_header=["stdio.h"])
-      printf_error_function = FunctionObject("printf", [self.precision, self.precision], ML_Void, printf_error_op)
-      vector_format = self.implementation.get_output_format()
+      printf_error_function = FunctionObject("printf", [errorPrecision, errorPrecision], ML_Void, printf_error_op)
 
       local_inputs = [
         Variable(
@@ -1574,13 +1576,12 @@ class ML_FunctionBasis(object):
 
       comp_statement = Statement()
       for k in range(self.get_vector_size()):
-        elt_inputs = [VectorElementSelection(local_inputs[input_id], k) for input_id in range(self.arity)]
         elt_result = VectorElementSelection(local_result, Constant(k, precision = ML_Integer))
 
-        output_values = [TableLoad(output_table, vi + k, i) for i in range(self.accuracy.get_num_output_value())]
+        output_values = [TableLoad(output_table, vi + k, i, precision=outType) for i in range(outAccuracy.get_num_output_value())]
 
-        local_error_relative = self.accuracy.compute_error(elt_result, output_values, relative=True)
-        local_error_absolute = self.accuracy.compute_error(elt_result, output_values, relative=False)
+        local_error_relative = outAccuracy.compute_error(elt_result, output_values, relative=True)
+        local_error_absolute = outAccuracy.compute_error(elt_result, output_values, relative=False)
 
         # TODO/FIXME: cleanup error value selection when
         # - error is NaN
@@ -1623,15 +1624,15 @@ class ML_FunctionBasis(object):
         ),
       )
       main_statement = Statement(
-          ReferenceAssign(max_error_absolute, Constant(0, precision=self.precision)),
-          ReferenceAssign(max_error_relative, Constant(0, precision=self.precision)),
+          ReferenceAssign(max_error_absolute, Constant(0, precision=errorPrecision)),
+          ReferenceAssign(max_error_relative, Constant(0, precision=errorPrecision)),
           error_loop,
           printf_error_function(max_error_absolute, max_error_relative),
           Return(max_error_relative))
       return main_statement
 
   def generate_scalar_max_error_eval(self, tested_function, test_num,
-                                     input_tables, output_table):
+                                     input_tables, output_table, outType, outAccuracy):
       """ generate the main Statement to evaluate the maximal error (both
           relative and absolute) for a scalar function """
       # loop iterator
@@ -1647,25 +1648,15 @@ class ML_FunctionBasis(object):
       test_num_cst = Constant(test_num, precision=ML_Int32, tag="test_num")
 
       local_result  = tested_function(*local_inputs)
-      stored_values = [TableLoad(output_table, vi, i) for i in range(self.accuracy.get_num_output_value())]
-      local_error_relative = self.accuracy.compute_error(local_result, stored_values, relative=True)
-      local_error_absolute = self.accuracy.compute_error(local_result, stored_values, relative=False)
+      stored_values = [TableLoad(output_table, vi, i, precision=outType) for i in range(outAccuracy.get_num_output_value())]
+      local_error_relative = outAccuracy.compute_error(local_result, stored_values, relative=True)
+      local_error_absolute = outAccuracy.compute_error(local_result, stored_values, relative=False)
 
       # exclude error update when error is NaN
       error_rel_comp = Comparison(local_error_relative, max_error_relative, specifier=Comparison.Greater, precision=ML_Bool)
-      # error_rel_comp = LogicalAnd(
-      #  Comparison(local_error_relative, max_error_relative, specifier=Comparison.Greater, precision=ML_Bool),
-      #  LogicalNot(Test(local_error_relative, specifier=Test.IsNaN)),
-      #  precision=ML_Bool
-      #)
 
       # if the absolute error is NaN
       error_abs_comp = Comparison(local_error_absolute, max_error_absolute, specifier=Comparison.Greater, precision=ML_Bool)
-      # error_abs_comp = LogicalAnd(
-      #  Comparison(local_error_absolute, max_error_absolute, specifier=Comparison.Greater, precision=ML_Bool),
-      #  LogicalNot(Test(local_error_absolute, specifier=Test.IsNaN)),
-      #  precision=ML_Bool
-      #)
 
       loop_increment = 1
       printf_error_template = "printf(\"max %s error is absolute=%s, relative=%s \\n\", %s, %s)" % (

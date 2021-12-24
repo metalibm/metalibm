@@ -161,8 +161,8 @@ class ML_TwoFactorPrecision(ML_FunctionPrecision):
         print_function = self.get_output_print_function(function_name, footer)
         return print_function(low, high)
 
-## Correctly Rounded (error <= 0.5 ulp) rounding output precision indication
 class ML_CorrectlyRounded(ML_FunctionPrecision):
+  """ Correctly Rounded (error <= 0.5 ulp) rounding output precision indication """
   def get_num_output_value(self):
     return 1
   def get_output_check_value(self, exact_value):
@@ -173,7 +173,9 @@ class ML_CorrectlyRounded(ML_FunctionPrecision):
         return (expected_value,)
 
   def compute_error(self, local_result, output_values, relative = False):
-    precision = local_result.get_precision()
+    # local_result and output_values precision may differ
+    # the computation should be performed in the largest precision
+    precision = getMostAccurate([local_result.get_precision(), self.precision])
     expected_value,  = output_values
     error = Subtraction(local_result, expected_value, precision = precision)
     if relative:

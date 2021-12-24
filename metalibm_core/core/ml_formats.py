@@ -1642,6 +1642,17 @@ def merge_abstract_format(*args):
         print([str(arg) for arg in args])
         Log.report(Log.Error, "unknown formats while merging abstract format tuple")
 
+
+def getMostAccurate(precList):
+    """ return the most accurate precision from a given list"""
+    mostAccurate = precList[0]
+    for prec in precList[1:]:
+        # TODO/FIXME: using the bit_size as an accuracy metric is a raw approximation
+        #             which should be refined
+        if prec.get_bit_size() > mostAccurate.get_bit_size():
+            mostAccurate = prec
+    return mostAccurate
+
 ## @}
 # end of metalibm's Doxygen ml_formats group
 
