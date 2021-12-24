@@ -136,7 +136,7 @@ class ML_ArrayFunction(ML_FunctionBasis):
     def element_numeric_emulate(self):
         """ single element emulation of function """
         raise NotImplementedError
-    def generate_test_tables(self, test_num, test_ranges=[Interval(-1.0, 1.0)]):
+    def generate_test_tables(self, test_num, outType, outAccuracy, test_ranges=[Interval(-1.0, 1.0)]):
         """ Generate inputs and output table to be shared between auto test
             and max_error tests """
         index_range = self.test_index_range
@@ -195,10 +195,10 @@ class ML_ArrayFunction(ML_FunctionBasis):
         # generate output_array
         output_array = generate_1d_table(
             INPUT_ARRAY_SIZE,
-            self.precision,
+            outType,
             self.uniquify_name("output_array"),
             const=False,
-            value_gen=(lambda _: FP_QNaN(self.precision))
+            value_gen=(lambda _: FP_QNaN(outType))
         )
         return test_total, (table_size_offset_array, input_tables), output_array
 
