@@ -49,6 +49,13 @@ from metalibm_core.opt.ml_blocks import Normalize_33
 from metalibm_core.utility.log_report import Log
 
 
+def legalize_mp_2elt_abs(node):
+    """ legalize a 2-elt multi-precision Abs node """
+    op = node.get_input(0)
+    predicate = Comparison(op.hi, Constant(0, precision=op.hi.get_precision()), specifier=Comparison.GreaterOrEqual, precision=ML_Bool)
+    op_lo = op.lo
+    return BuildFromComponent(Abs(op.hi), Select(predicate, op_lo, Negation(op_lo), precision=op_lo.get_precision()), precision=node.get_precision())
+
 def legalize_mp_2elt_comparison(optree):
     """ Transform comparison on ML_Compound_FP_Format object into
         comparison on sub-fields """
