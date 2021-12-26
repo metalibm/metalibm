@@ -907,8 +907,10 @@ class MetaFunctionArgTemplate(ML_CommonArgTemplate):
 
         # enable the computation of eval error (if self-testing enabled)
         self.parser.add_argument(
-            "--max-error", dest="compute_max_error", action="store_const",
-            const=True, default=default_arg.compute_max_error,
+            "--max-error", dest="compute_max_error",
+            const="accuracy_ulp", default=default_arg.compute_max_error,
+            choices=["accuracy_ulp", "true_ulp"],
+            nargs="?",
             help="enable the computation of the maximum error "
                  "(if auto-test is enabled)")
         self.parser.add_argument(

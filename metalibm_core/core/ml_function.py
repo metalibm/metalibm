@@ -38,6 +38,7 @@ import random
 import subprocess
 import re
 import statistics
+from metalibm_core.opt.p_expand_multi_precision import Pass_ExpandMultiPrecision
 
 try:
     # matplotlib import is optionnal (using for plotting only)
@@ -51,7 +52,6 @@ from metalibm_core.core.ml_formats import *
 from metalibm_core.core.ml_optimization_engine import OptimizationEngine
 from metalibm_core.core.ml_operations import *
 from metalibm_core.core.ml_table import ML_NewTable
-from metalibm_core.core.ml_complex_formats import ML_Mpfr_t
 from metalibm_core.core.ml_call_externalizer import (
     CallExternalizer, generate_function_from_optree
 )
@@ -906,10 +906,27 @@ class ML_FunctionBasis(object):
             # arguments
             tested_function    = self.implementation.get_function_object()
 
+            if self.compute_max_error == "true_ulp":
+              # the error precision/type is extended compared to the function precision
+              # to allow more accurate determination of the error
+              errorPrecision = getMoreAccurate(self.get_output_precision()) 
+              errorAccuracy = ML_CorrectlyRoundedUlpError(errorPrecision)
+            else:
+              errorPrecision = self.get_output_precision()
+              errorAccuracy = self.accuracy
+
+            test_total, maxError_inputTables, maxError_outputTable = self.generate_test_tables(
+                    test_num,
+                    errorPrecision,
+                    errorAccuracy,
+                    test_ranges = self.auto_test_range)
+
+
             max_error_function = self.generate_max_error_wrapper(tested_function,
                                                                  test_total,
-                                                                 input_tables,
-                                                                 output_table)
+                                                                 maxError_inputTables,
+                                                                 maxError_outputTable,
+                                                                 errorPrecision, errorAccuracy)
 
 
             # adding max_error function without calling it directly from main
@@ -1055,9 +1072,18 @@ class ML_FunctionBasis(object):
                 if self.compute_max_error:
                     max_error_value = loaded_module.get_function_handle("max_error_eval")()
                     # convert to ulps
-                    max_error_value = convert_error_to_ulp(max_error_value, self.precision)
+                    if self.compute_max_error == "accuracy_ulp":
+                      max_error_value = convert_error_to_ulp(max_error_value, self.precision)
+                    else:
+                      # if compute_max_error is "true_ulp" then max_error_value is already
+                      # expressed in ulps (no conversion required)
+                      pass
+
                     print("max_error_value={}".format(max_error_value))
-                    exec_result["max_error"] = max_error_value
+                    if isinstance(max_error_value, build_utils.CustomMultiPrecCTypes):
+                      exec_result["max_error"] = max_error_value.hi
+                    else:
+                      exec_result["max_error"] = max_error_value
 
                 if self.auto_test_enable:
                     test_result = loaded_module.get_function_handle("test_wrapper")()
@@ -1522,14 +1548,15 @@ class ML_FunctionBasis(object):
     return Statement(test_loop)
 
   def generate_max_error_wrapper(self, tested_function, test_total,
-                                 input_tables, output_table):
+                                 input_tables, output_table,
+                                 errorPrecision, errorAccuracy):
       """ Generate max_errror eval function, manages
           both scalar and vector formats """
       if self.implementation.get_output_format().is_vector_format():
-          max_error_main_statement = self.generate_vector_max_error_eval(tested_function, test_total, input_tables, output_table, self.get_output_precision(), self.accuracy) 
+          max_error_main_statement = self.generate_vector_max_error_eval(tested_function, test_total, input_tables, output_table, errorPrecision, errorAccuracy) 
       else:
-          max_error_main_statement = self.generate_scalar_max_error_eval(tested_function, test_total, input_tables, output_table, self.get_output_precision(), self.accuracy) 
-      max_error_function = CodeFunction("max_error_eval", output_format=self.precision) 
+          max_error_main_statement = self.generate_scalar_max_error_eval(tested_function, test_total, input_tables, output_table, errorPrecision, errorAccuracy) 
+      max_error_function = CodeFunction("max_error_eval", output_format=errorPrecision) 
       max_error_function.set_scheme(max_error_main_statement)
       return max_error_function
 
@@ -1600,7 +1627,7 @@ class ML_FunctionBasis(object):
                 Max(
                   local_error_relative,
                   max_error_relative,
-                  precision=self.precision)))
+                  precision=errorPrecision)))
             )
         comp_statement.push(
           ReferenceAssign(
@@ -1611,7 +1638,7 @@ class ML_FunctionBasis(object):
                 Max(
                   local_error_absolute,
                   max_error_absolute,
-                  precision=self.precision)))
+                  precision=errorPrecision)))
              )
 
       error_loop = Loop(
@@ -1638,8 +1665,9 @@ class ML_FunctionBasis(object):
       # loop iterator
       vi = Variable("i", precision=ML_Int32, var_type=Variable.Local)
 
-      max_error_relative = Variable("max_error_relative", precision=self.precision, var_type=Variable.Local)
-      max_error_absolute = Variable("max_error_absolute", precision=self.precision, var_type=Variable.Local)
+      errorPrecision = outType
+      max_error_relative = Variable("max_error_relative", precision=errorPrecision, var_type=Variable.Local)
+      max_error_absolute = Variable("max_error_absolute", precision=errorPrecision, var_type=Variable.Local)
 
       max_input = Variable("max_input", precision = ML_Int32, var_type = Variable.Local)
       max_result = Variable("max_result", precision = self.precision, var_type = Variable.Local)
@@ -1661,14 +1689,14 @@ class ML_FunctionBasis(object):
       loop_increment = 1
       printf_error_template = "printf(\"max %s error is absolute=%s, relative=%s \\n\", %s, %s)" % (
         self.function_name,
-        self.precision.get_display_format(self.language).format_string,
-        self.precision.get_display_format(self.language).format_string,
-        self.precision.get_display_format(self.language).pre_process_fct("{0}"),
-        self.precision.get_display_format(self.language).pre_process_fct("{1}")
+        errorPrecision.get_display_format(self.language).format_string,
+        errorPrecision.get_display_format(self.language).format_string,
+        errorPrecision.get_display_format(self.language).pre_process_fct("{0}"),
+        errorPrecision.get_display_format(self.language).pre_process_fct("{1}")
       )
       printf_error_op = TemplateOperatorFormat(printf_error_template, arity=2, void_function=True, require_header=["stdio.h"])
 
-      printf_error_function = FunctionObject("printf", [self.precision, self.precision], ML_Void, printf_error_op)
+      printf_error_function = FunctionObject("printf", [errorPrecision, errorPrecision], ML_Void, printf_error_op)
       printf_max_op = FunctionOperator("printf", arg_map = {0: "\"max %s error is reached at input number %s \\n \"" % (self.function_name, "%d"), 1: FO_Arg(0)}, void_function = True, require_header=["stdio.h"])
       printf_max_function = FunctionObject("printf", [ML_Int32], ML_Void, printf_max_op)
 
@@ -1695,14 +1723,19 @@ class ML_FunctionBasis(object):
         ),
       )
       main_statement = Statement(
-        ReferenceAssign(max_error_absolute, Constant(0, precision=self.precision)),
-        ReferenceAssign(max_error_relative, Constant(0, precision=self.precision)),
+        ReferenceAssign(max_error_absolute, Constant(0, precision=errorPrecision)),
+        ReferenceAssign(max_error_relative, Constant(0, precision=errorPrecision)),
         ReferenceAssign(max_input, Constant(0, precision=ML_Int32)),
         error_loop,
         printf_error_function(max_error_absolute, max_error_relative),
         printf_max_function(max_input),
         Return(max_error_relative),
       )
+
+      expandPass = Pass_ExpandMultiPrecision(self.processor)
+      expandPass.execute(main_statement)
+      assert not main_statement is None
+
       return main_statement
 
   def get_bench_storage_format(self):
