@@ -35,6 +35,7 @@ from metalibm_core.opt.node_transformation import Pass_NodeTransformation
 from metalibm_core.opt.opt_utils import forward_attributes
 
 from metalibm_core.core.ml_formats import (
+    ML_Bool,
     ML_FP_MultiElementFormat,
     ML_Binary32, ML_Binary64,
     ML_SingleSingle,
@@ -42,10 +43,10 @@ from metalibm_core.core.ml_formats import (
 )
 
 from metalibm_core.core.ml_operations import (
-    Addition, Subnormalize, Subtraction, Multiplication,
+    Abs, Addition, Comparison, Select, Subnormalize, Subtraction, Multiplication,
     FusedMultiplyAdd,
     Conversion, Negation,
-    Constant, Variable,
+    Constant, TableLoad, Variable,
     BuildFromComponent, ComponentSelection,
     is_leaf_node,
 )
@@ -212,6 +213,14 @@ class MultiPrecisionExpander:
         }
         return self.expand_op(add_node, ADD_EXPANSION_MAP, arity=2)
 
+    def expand_abs(self, absNode):
+        """ legalize a 2-elt multi-precision Abs node """
+        # TODO/FIXME: factorize with multi_precision.legalize_mp_2elt_abs
+        operand = absNode.get_input(0)
+        new_ops = self.expand_node(operand)
+        predicate = Comparison(new_ops[0], Constant(0, precision=new_ops[0].get_precision()), specifier=Comparison.GreaterOrEqual, precision=ML_Bool)
+        return [Abs(new_ops[0], precision=new_ops[0].precision)] + [Select(predicate, op, Negation(op), precision=op.get_precision()) for op in new_ops[1:]]
+
     def expand_mul(self, mul_node):
         """ Expand Multiplication """
         MUL_EXPANSION_MAP = {
@@ -271,6 +280,10 @@ class MultiPrecisionExpander:
         """ Expand Negation on multi-component node """
         op_input = neg_node.get_input(0)
         neg_operands = self.expand_node(op_input)
+        if neg_operands is None:
+            # input could not be expanded
+            if multi_element_output(op_input):
+                neg_operands = self.expand_var(op_input)
         Log.report(LOG_LEVEL_EXPAND_VERBOSE, "expanding Negation {} into {}", neg_node, neg_operands)
         return [Negation(op, precision=op.precision) for op in neg_operands]
 
@@ -356,7 +369,7 @@ class MultiPrecisionExpander:
 
     def expand_component_selection(self, node):
         # TODO: manage TD normalization properly
-        if is_leaf_node(node.get_input(0)):
+        if is_leaf_node(node.get_input(0)) or isinstance(node.get_input(0), TableLoad):
             # discard expansion of leaf nodes (Variable, ...)
             return None
         op_list = self.expand_node(node.get_input(0))
@@ -410,6 +423,8 @@ class MultiPrecisionExpander:
                 result = self.expand_cst(node)
             elif isinstance(node, Addition):
                 result = self.expand_add(node)
+            elif isinstance(node, Abs):
+                result = self.expand_abs(node)
             elif isinstance(node, Multiplication):
                 result = self.expand_mul(node)
             elif isinstance(node, Subtraction):
