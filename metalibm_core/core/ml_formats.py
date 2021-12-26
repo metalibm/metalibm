@@ -1657,6 +1657,18 @@ def getMostAccurate(precList):
             mostAccurate = prec
     return mostAccurate
 
+orderedFPFormatList = [ML_Binary16, ML_Binary32, ML_Binary64, ML_DoubleDouble, ML_TripleDouble]
+
+def getMoreAccurate(fpType):
+    """ return a floating-point format type which is strictly more accurate than fpType """
+    # TODO/FIXME: add proper accuracy metric and accuracy requirement
+    formatIndex = orderedFPFormatList.index(fpType)
+    try:
+        return orderedFPFormatList[formatIndex+1]
+    except IndexError as e:
+        Log.report(Log.Error, "no format more accurate than {} could be found", fpType, error=e)
+
+
 ## @}
 # end of metalibm's Doxygen ml_formats group
 
