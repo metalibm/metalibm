@@ -40,7 +40,7 @@ import os
 
 
 from metalibm_core.core.ml_formats import (
-    ML_Binary32, ML_Binary64,
+    ML_Binary32, ML_Binary64, ML_DoubleDouble,
     ML_Int32, ML_Int64, ML_UInt32, ML_UInt64,
 )
 from metalibm_core.utility.log_report import Log
@@ -65,6 +65,17 @@ def get_cmd_stdout(cmd):
     returncode = cmd_process.wait()
     return returncode, cmd_process.stdout.read()
 
+class CustomMultiPrecCTypes(ctypes.Structure):
+    """ Custom ctypes for multi-precision values """
+    pass
+
+class ml_dd_t(CustomMultiPrecCTypes):
+    _fields_ = [("hi", ctypes.c_double),
+                 ("lo", ctypes.c_double)]
+    
+    def __str__(self):
+        return "hi={}, lo={}".format(self.hi, self.lo)
+
 
 def get_ctype_translate(precision):
     """ translate a Metalibm format object to its ctypes equivalent """
@@ -75,6 +86,7 @@ def get_ctype_translate(precision):
         ML_UInt32: ctypes.c_uint, # TODO: check size compatibility
         ML_Int64: ctypes.c_longlong, # TODO: check size compatibility
         ML_UInt64: ctypes.c_ulonglong, # TODO: check size compatibility
+        ML_DoubleDouble: ml_dd_t,
     }[precision]
 
 
