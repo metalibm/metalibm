@@ -36,14 +36,14 @@
 
 import sollya
 from .ml_operations import (
-    LogicalAnd, LogicalNot,
-    LogicalOr, NotEqual,
+    Constant, Conversion, ExponentExtraction, ExponentInsertion, LogicalAnd, LogicalNot,
+    LogicalOr, Multiplication, NotEqual,
     Select, Equal,
     Comparison, FunctionObject, Min, Abs, Subtraction, Division,
     TypeCast, ComponentSelection)
 from metalibm_core.code_generation.generator_utility import *
 from metalibm_core.core.ml_formats import (
-    is_floating_format, ML_FP_MultiElementFormat)
+    is_floating_format, ML_FP_MultiElementFormat, getMostAccurate)
 
 from metalibm_core.core.special_values import FP_SpecialValue
 from metalibm_core.opt.opt_utils import (logical_or_reduce, logical_and_reduce)
@@ -176,6 +176,8 @@ class ML_CorrectlyRounded(ML_FunctionPrecision):
     # local_result and output_values precision may differ
     # the computation should be performed in the largest precision
     precision = getMostAccurate([local_result.get_precision(), self.precision])
+    if local_result.get_precision() != precision:
+        local_result = Conversion(local_result, precision=precision)
     expected_value,  = output_values
     error = Subtraction(local_result, expected_value, precision = precision)
     if relative:
@@ -258,6 +260,35 @@ class ML_CorrectlyRounded(ML_FunctionPrecision):
     expected_value, = output_values
     print_function = self.get_output_print_function(function_name, footer)
     return print_function(expected_value)
+
+
+class ML_CorrectlyRoundedUlpError(ML_CorrectlyRounded):
+  def compute_error(self, local_result, output_values, relative=None):
+    """ return an error in term of ulp of output_values (assuming local_result precision) """
+    # local_result and output_values precision may differ
+    # the computation should be performed in the largest precision
+    resultType = local_result.get_precision()
+    precision = getMostAccurate([resultType, self.precision])
+    # precision may be a high-accuracy type (e.g. double-double) as not a lot
+    # of operation are supported in such type (e.g. accuracte Division is not supported)
+    # some of the operations required to evaluate a raw ulp error value fallback
+    # to the lower accuracy resultType
+    expected_value,  = output_values
+    int_precision = resultType.get_integer_format()
+    localUlpValue = ExponentInsertion(
+                        Subtraction(
+                            ExponentExtraction(local_result, precision=int_precision),
+                            resultType.get_mantissa_size() - 1,
+                            precision=int_precision
+                        ),
+                        precision=resultType)
+    if local_result.get_precision() != precision:
+        local_result = Conversion(local_result, precision=precision)
+    absError = Abs(Subtraction(local_result, expected_value, precision=precision), precision=precision)
+    ulpRec = Conversion(Division(Constant(1, precision=resultType), localUlpValue, precision=resultType), precision=precision)
+    # ulpError = Division(Abs(error, precision = precision), localUlpValue, precision=precision)
+    ulpError = Multiplication(ulpRec, absError, precision=precision)
+    return ulpError
 
 ## Faithful (error <= 1 ulp) rounding output precision indication
 class ML_Faithful(ML_TwoFactorPrecision):
