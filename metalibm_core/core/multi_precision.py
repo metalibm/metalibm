@@ -37,8 +37,8 @@
 ###############################################################################
 
 from metalibm_core.core.ml_operations import (
-    Comparison, LogicalAnd, LogicalOr, BuildFromComponent,
-    VectorElementSelection,
+    BitLogicNegate, Comparison, LogicalAnd, LogicalOr, BuildFromComponent, Negation,
+    VectorElementSelection, Constant, Select, Abs, Division, FMA,
 )
 from metalibm_core.core.ml_formats import ML_Bool
 from metalibm_core.core.legalizer import is_constant
