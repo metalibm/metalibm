@@ -50,7 +50,7 @@ from ..core.generic_approximation import invsqrt_approx_table, generic_inv_appro
 from ..core.ml_complex_formats import ML_Pointer_Format
 
 from ..core.multi_precision import (
-    legalize_mp_2elt_comparison, legalize_mp_3elt_comparison
+    legalize_mp_2elt_abs, legalize_mp_2elt_comparison, legalize_mp_3elt_comparison
 )
 
 from .generator_utility import *
@@ -310,6 +310,9 @@ c_code_generation_table = {
                 type_strict_match(ML_Binary64, ML_Binary64): Libm_Function("fabs", arity = 1),
                 type_strict_match(ML_Int32, ML_Int32): Libm_Function("abs", arity = 1),
                 type_strict_match(ML_Int64, ML_Int64): Libm_Function("lfabs", arity = 1),
+
+                type_strict_match(ML_DoubleDouble, ML_DoubleDouble):
+                    ComplexOperator(optree_modifier=legalize_mp_2elt_abs),
             }
         }
     },
@@ -682,6 +685,8 @@ c_code_generation_table = {
                 type_strict_match(ML_Binary32, ML_Int32): ML_Utils_Function("ml_exp_insertion_fp32", arity = 1), 
                 type_strict_match(ML_Binary64, ML_Int32): ML_Utils_Function("ml_exp_insertion_fp64", arity = 1),
                 type_strict_match(ML_Binary64, ML_Int64): ML_Utils_Function("ml_exp_insertion_fp64", arity = 1),
+                type_strict_match(ML_DoubleDouble, ML_Int64):
+                    ComplexOperator(optree_modifier=lambda node: Conversion(ExponentInsertion(node.get_input(0), precision=node.get_input(0).get_precision()), precision=node.get_precision)),
             },
         },
         ExponentInsertion.NoOffset: {
