@@ -37,7 +37,7 @@
 ###############################################################################
 
 from metalibm_core.core.ml_operations import (
-    BitLogicNegate, Comparison, LogicalAnd, LogicalOr, BuildFromComponent, Negation,
+    BitLogicNegate, Comparison, LogicalAnd, LogicalOr, BuildFromComponent, Negation, Test,
     VectorElementSelection, Constant, Select, Abs, Division, FMA,
 )
 from metalibm_core.core.ml_formats import ML_Bool
@@ -55,6 +55,27 @@ def legalize_mp_2elt_abs(node):
     predicate = Comparison(op.hi, Constant(0, precision=op.hi.get_precision()), specifier=Comparison.GreaterOrEqual, precision=ML_Bool)
     op_lo = op.lo
     return BuildFromComponent(Abs(op.hi), Select(predicate, op_lo, Negation(op_lo), precision=op_lo.get_precision()), precision=node.get_precision())
+
+def legalize_mp_2elt_div(node):
+    """ legalize a 2-elt multi-precision Division node with
+        undetermined accuracy """
+    lhs = node.get_input(0)
+    rhs = node.get_input(1)
+    approx_hi = Division(lhs.hi, rhs.hi, precision=lhs.hi.get_precision())
+    remainder = FMA(approx_hi, rhs, -lhs, precision=lhs.hi.get_precision())
+    raise NotImplementedError
+
+    return BuildFromComponent(approx_hi, )
+
+
+def legalize_mp_2elt_test_nan(testNode):
+    """ Expand Max on multi-component node """
+    op = testNode.get_input(0)
+    return LogicalOr(
+            Test(op.hi, specifier=Test.IsNaN, precision=ML_Bool),
+            Test(op.lo, specifier=Test.IsNaN, precision=ML_Bool),
+            precision=ML_Bool)
+
 
 def legalize_mp_2elt_comparison(optree):
     """ Transform comparison on ML_Compound_FP_Format object into
@@ -175,7 +196,8 @@ def legalize_multi_precision_vector_element_selection(optree):
     else:
         Log.report(Log.Error, "unsupported number of limbs in legalize_multi_precision_vector_element_selection for {}", optree)
     result = BuildFromComponent(
-        *tuple(VectorElementSelection(vector, elt_index) for vector in component_vectors)
+        *tuple(VectorElementSelection(vector, elt_index) for vector in component_vectors),
+        precision=optree.precision
     )
     forward_attributes(optree, result)
     result.set_precision(optree.precision)
