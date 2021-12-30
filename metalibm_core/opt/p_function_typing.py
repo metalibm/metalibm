@@ -416,19 +416,20 @@ def merge_ops_abstract_float_format(arg_format_list, default_precision=None):
 
 
 def merge_ops_abstract_format(optree, args, default_precision = None):
-    """ merging input format in multi-ary operation to determined result format.
+    """ Determining a result format from the input format list in multi-ary operation.
         This function assumes that the result should be of the larger format
         which appears in the operand list. """
     try:
+        argTypes = list(arg.get_precision() for arg in args)
         if optree.get_precision() is ML_Float:
-            return merge_ops_abstract_float_format(list(arg.get_precision() for arg in args))
+            return merge_ops_abstract_float_format(argTypes)
         elif optree.get_precision() is ML_Integer:
-            return merge_ops_abstract_integer_format(list(arg.get_precision() for arg in args))
+            return merge_ops_abstract_integer_format(argTypes)
         else:
             raise NotImplementedError
     except KeyError as e:
-        Log.report(Log.Error, "unable to find record in merge_table for {}".format(
-            optree.get_precision(), error=e
+        Log.report(Log.Error, "unable to find record in merge_table for {}, argTypes={}, optree={}".format(
+            optree.get_precision(), argTypes, optree.get_str(), error=e
         ))
 
 
