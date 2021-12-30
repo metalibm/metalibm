@@ -51,6 +51,10 @@ typedef struct {
     float lo;
 } ml_ds_t;
 
+// ML_Bool constant
+#define ML_TRUE 1
+#define ML_FALSE 0
+
 /*******************************************************************************
  *                        Metalibm special values
  ******************************************************************************/
