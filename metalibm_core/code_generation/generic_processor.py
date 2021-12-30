@@ -50,7 +50,7 @@ from ..core.generic_approximation import invsqrt_approx_table, generic_inv_appro
 from ..core.ml_complex_formats import ML_Pointer_Format
 
 from ..core.multi_precision import (
-    legalize_mp_2elt_abs, legalize_mp_2elt_comparison, legalize_mp_3elt_comparison
+    legalize_mp_2elt_abs, legalize_mp_2elt_comparison, legalize_mp_2elt_test_nan, legalize_mp_3elt_comparison
 )
 
 from .generator_utility import *
@@ -581,6 +581,8 @@ c_code_generation_table = {
             lambda optree: True: {
                 type_strict_match_list([ML_Int32, ML_Bool], [ML_Binary32]): ML_Utils_Function("ml_is_nanf", arity = 1), 
                 type_strict_match_list([ML_Int32, ML_Bool], [ML_Binary64]): ML_Utils_Function("ml_is_nan", arity = 1), 
+                type_strict_match(ML_Bool, ML_DoubleDouble):
+                    ComplexOperator(optree_modifier=legalize_mp_2elt_test_nan),
             },
         },
         Test.IsSignalingNaN: {
