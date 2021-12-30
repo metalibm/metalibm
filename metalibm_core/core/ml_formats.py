@@ -1263,13 +1263,14 @@ class ML_Compound_Format(ML_Format):
         return sum([scalar.get_bit_size() for scalar in self.field_format_list])
 
     def get_cst(self, cst_value, language = C_Code):
+        # FIXME: should be moved into multi-element format class
         tmp_cst = cst_value
         field_str_list = []
         for field_name, field_format in zip(self.c_field_list, self.field_format_list):
             # FIXME, round is only valid for double_double or triple_double stype format
-            if isinstance(cst_value, FP_SpecialValue):
+            if isinstance(cst_value, FP_SpecialValue) or cst_value == ml_infty or cst_value == -ml_infty or cst_value == 0 or cst_value != cst_value:
                 field_value = field_format.get_cst(cst_value, language)
-                # no tmp_cst update required
+                # no tmp_cst update required, special values are translated as sum of the special value
             else:
                 field_value = sollya.round(tmp_cst, field_format.sollya_object, sollya.RN)
                 tmp_cst = tmp_cst - field_value
