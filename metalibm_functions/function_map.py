@@ -62,19 +62,22 @@ S2 = sollya.SollyaObject(2)
 # the second value of the value tuple is a dict which associates to a ML_Format
 # the corresponding libm function
 FUNCTION_MAP = {
-    "exp": (metalibm_functions.ml_exp.ML_Exponential, {}, sollya.exp),
-    "tanh": (metalibm_functions.ml_tanh.ML_HyperbolicTangent, {}, sollya.tanh),
-    "sqrt": (metalibm_functions.ml_sqrt.MetalibmSqrt, {}, sollya.sqrt),
     "log": (metalibm_functions.generic_log.ML_GenericLog, {"basis": sollya.exp(1)}, sollya.log),
     "log2": (metalibm_functions.generic_log.ML_GenericLog, {"basis": 2}, sollya.log2),
     "log10": (metalibm_functions.generic_log.ML_GenericLog, {"basis": 10}, sollya.log10),
+    "log1p": (metalibm_functions.ml_log1p.ML_Log1p, {}, (lambda x: sollya.log(1+x))),
+
+    "exp": (metalibm_functions.ml_exp.ML_Exponential, {}, sollya.exp),
     "exp2": (metalibm_functions.ml_exp2.ML_Exp2, {}, (lambda x: S2**x)),
+    "expm1": (metalibm_functions.ml_expm1.ML_ExponentialM1_Red, {}, (lambda x: sollya.exp(x) - 1)),
 
     "div": (metalibm_functions.ml_div.ML_Division, {}, (lambda x,y: x / y)),
     "cbrt": (metalibm_functions.ml_cbrt.ML_Cbrt, {}, cbrt),
+    "sqrt": (metalibm_functions.ml_sqrt.MetalibmSqrt, {}, sollya.sqrt),
 
     "cosh": (metalibm_functions.ml_cosh.ML_HyperbolicCosine, {}, sollya.cosh),
     "sinh": (metalibm_functions.ml_sinh.ML_HyperbolicSine, {}, sollya.sinh),
+    "tanh": (metalibm_functions.ml_tanh.ML_HyperbolicTangent, {}, sollya.tanh),
 
     "cos": (metalibm_functions.ml_sincos.ML_SinCos, {"sin_output": False}, sollya.cos),
     "sin": (metalibm_functions.ml_sincos.ML_SinCos, {"sin_output": True}, sollya.sin),
