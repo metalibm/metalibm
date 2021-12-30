@@ -1607,8 +1607,8 @@ class ML_FunctionBasis(object):
 
         output_values = [TableLoad(output_table, vi + k, i, precision=outType) for i in range(outAccuracy.get_num_output_value())]
 
-        local_error_relative = outAccuracy.compute_error(elt_result, output_values, relative=True)
-        local_error_absolute = outAccuracy.compute_error(elt_result, output_values, relative=False)
+        local_error_relative, localErrorValidty = outAccuracy.compute_error(elt_result, output_values, relative=True)
+        local_error_absolute, _ = outAccuracy.compute_error(elt_result, output_values, relative=False)
 
         # TODO/FIXME: cleanup error value selection when
         # - error is NaN
@@ -1627,7 +1627,8 @@ class ML_FunctionBasis(object):
                 Max(
                   local_error_relative,
                   max_error_relative,
-                  precision=errorPrecision)))
+                  precision=errorPrecision),
+                  precision=errorPrecision))
             )
         comp_statement.push(
           ReferenceAssign(
@@ -1638,7 +1639,8 @@ class ML_FunctionBasis(object):
                 Max(
                   local_error_absolute,
                   max_error_absolute,
-                  precision=errorPrecision)))
+                  precision=errorPrecision),
+                precision=errorPrecision))
              )
 
       error_loop = Loop(
@@ -1651,11 +1653,18 @@ class ML_FunctionBasis(object):
         ),
       )
       main_statement = Statement(
-          ReferenceAssign(max_error_absolute, Constant(0, precision=errorPrecision)),
-          ReferenceAssign(max_error_relative, Constant(0, precision=errorPrecision)),
+          ReferenceAssign(max_error_absolute, Constant(-1, precision=errorPrecision)),
+          ReferenceAssign(max_error_relative, Constant(-1, precision=errorPrecision)),
           error_loop,
           printf_error_function(max_error_absolute, max_error_relative),
           Return(max_error_relative))
+
+        
+      # TODO/FIXME: optimize
+      expandPass = Pass_ExpandMultiPrecision(self.processor)
+      expandPass.execute(main_statement)
+      assert not main_statement is None
+
       return main_statement
 
   def generate_scalar_max_error_eval(self, tested_function, test_num,
@@ -1669,16 +1678,18 @@ class ML_FunctionBasis(object):
       max_error_relative = Variable("max_error_relative", precision=errorPrecision, var_type=Variable.Local)
       max_error_absolute = Variable("max_error_absolute", precision=errorPrecision, var_type=Variable.Local)
 
-      max_input = Variable("max_input", precision = ML_Int32, var_type = Variable.Local)
+      max_input_index = Variable("max_input_index", precision = ML_Int32, var_type = Variable.Local)
       max_result = Variable("max_result", precision = self.precision, var_type = Variable.Local)
       max_vi = Variable("max_vi", precision = ML_Int32, var_type = Variable.Local)
       local_inputs  = tuple(TableLoad(input_tables[in_id], vi) for in_id in range(self.arity))
       test_num_cst = Constant(test_num, precision=ML_Int32, tag="test_num")
 
+      errorValid = Variable("errorValid", precision=ML_Bool, var_type=Variable.Local)
+
       local_result  = tested_function(*local_inputs)
       stored_values = [TableLoad(output_table, vi, i, precision=outType) for i in range(outAccuracy.get_num_output_value())]
-      local_error_relative = outAccuracy.compute_error(local_result, stored_values, relative=True)
-      local_error_absolute = outAccuracy.compute_error(local_result, stored_values, relative=False)
+      local_error_relative, localErrorValidty = outAccuracy.compute_error(local_result, stored_values, relative=True)
+      local_error_absolute, _ = outAccuracy.compute_error(local_result, stored_values, relative=False)
 
       # exclude error update when error is NaN
       error_rel_comp = Comparison(local_error_relative, max_error_relative, specifier=Comparison.Greater, precision=ML_Bool)
@@ -1696,19 +1707,32 @@ class ML_FunctionBasis(object):
       )
       printf_error_op = TemplateOperatorFormat(printf_error_template, arity=2, void_function=True, require_header=["stdio.h"])
 
+      printfErrorInputTemplate = "printf(\"max %s error input %s %s\\n\", %s)" % (
+        self.function_name,
+        "is" if self.arity <= 1 else "are",
+        " ".join(inp.get_display_format(self.language).format_string for inp in self.input_precisions),
+        ", ".join(inp.get_display_format(self.language).pre_process_fct("{%d}" % index) for (index, inp) in enumerate(self.input_precisions))
+      )
+      printfErrorInputOp = TemplateOperatorFormat(printfErrorInputTemplate, arity=(self.arity), void_function=True, require_header=["stdio.h"])
+
       printf_error_function = FunctionObject("printf", [errorPrecision, errorPrecision], ML_Void, printf_error_op)
       printf_max_op = FunctionOperator("printf", arg_map = {0: "\"max %s error is reached at input number %s \\n \"" % (self.function_name, "%d"), 1: FO_Arg(0)}, void_function = True, require_header=["stdio.h"])
       printf_max_function = FunctionObject("printf", [ML_Int32], ML_Void, printf_max_op)
+      printfErrorInputFunc = FunctionObject("printf", self.input_precisions, ML_Void, printfErrorInputOp)
 
       error_loop = Loop(
         ReferenceAssign(vi, Constant(0, precision = ML_Int32)),
         vi < test_num_cst,
         Statement(
+          ReferenceAssign(errorValid, LogicalAnd(errorValid, localErrorValidty, precision=ML_Bool)),
           ConditionBlock(
-            error_rel_comp,
+            LogicalOr(
+              LogicalAnd(error_rel_comp, errorValid),
+              LogicalNot(localErrorValidty)
+            ),
             Statement(
               ReferenceAssign(max_error_relative, local_error_relative),
-              ReferenceAssign(max_input, vi/loop_increment),
+              ReferenceAssign(max_input_index, vi/loop_increment),
               ReferenceAssign(max_vi, vi),
               ReferenceAssign(max_result, local_result)
             ),
@@ -1723,15 +1747,21 @@ class ML_FunctionBasis(object):
         ),
       )
       main_statement = Statement(
-        ReferenceAssign(max_error_absolute, Constant(0, precision=errorPrecision)),
-        ReferenceAssign(max_error_relative, Constant(0, precision=errorPrecision)),
-        ReferenceAssign(max_input, Constant(0, precision=ML_Int32)),
+        # setting initial negative error values and index (i.e. undefined)
+        ReferenceAssign(errorValid, Constant(True, precision=ML_Bool)),
+        ReferenceAssign(max_error_absolute, Constant(-1, precision=errorPrecision)),
+        ReferenceAssign(max_error_relative, Constant(-1, precision=errorPrecision)),
+        ReferenceAssign(max_input_index, Constant(-1, precision=ML_Int32)),
         error_loop,
         printf_error_function(max_error_absolute, max_error_relative),
-        printf_max_function(max_input),
-        Return(max_error_relative),
+        printf_max_function(max_input_index),
+        printfErrorInputFunc(*tuple([TableLoad(input_tables[in_id], max_input_index) for in_id in range(self.arity)])),
+        # if one error was invalid, we force the overall error to a default negative value
+        # to indicate an error was encountered
+        Return(Select(errorValid, max_error_relative, Constant(-2, precision=errorPrecision), precision=errorPrecision)),
       )
 
+      # TODO/FIXME: optimize
       expandPass = Pass_ExpandMultiPrecision(self.processor)
       expandPass.execute(main_statement)
       assert not main_statement is None
