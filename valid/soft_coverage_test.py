@@ -384,7 +384,7 @@ def generate_pretty_report(filename, test_list, test_summary, evolution_map):
                             else:
                                 max_error = "{:.2f} ulp(s)".format(max_error_ulps)
                             is_nan = (result.return_value["max_error"] != result.return_value["max_error"])
-                            if max_error_ulps > ERROR_ULP_THRESHOLD or is_nan:
+                            if max_error_ulps > ERROR_ULP_THRESHOLD or is_nan or max_error_ulps < 0:
                                 color = "orange"
                                 result_sumup = "KO[V]"
                     msg += color_cell(" %s   " % result_sumup, submsg="<br />[%s, %s]%s" % (cpe_measure, max_error, evolution_summary), color=color)
@@ -605,7 +605,7 @@ class GlobalTestResult:
                         if "max_error" in result.return_value:
                             max_error_value = result.return_value["max_error"]
                             max_error = "{}".format(max_error_value)
-                            if abs(max_error_value) > ERROR_ULP_THRESHOLD or max_error_value != max_error_value:
+                            if abs(max_error_value) > ERROR_ULP_THRESHOLD or max_error_value != max_error_value or max_error_value < 0:
                                 summary_tag = "KO[V]"
                     summary = [summary_tag, cpe_measure, max_error]
                 elif isinstance(result.error, GenerationError):
@@ -686,7 +686,7 @@ if __name__ == "__main__":
     if args.error_eval:
         NUM_AUTO_TEST = 0
         ENANBLE_STD_TEST = False
-        MAX_ERROR_EVAL = True
+        MAX_ERROR_EVAL = "true_ulp"
     else:
         NUM_AUTO_TEST = 1024 # to be divisible by standard vector length
         ENANBLE_STD_TEST = True
