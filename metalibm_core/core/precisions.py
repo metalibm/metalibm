@@ -39,11 +39,11 @@ from .ml_operations import (
     Constant, Conversion, ExponentExtraction, ExponentInsertion, LogicalAnd, LogicalNot,
     LogicalOr, Multiplication, NotEqual,
     Select, Equal,
-    Comparison, FunctionObject, Min, Abs, Subtraction, Division,
+    Comparison, FunctionObject, Min, Abs, Subtraction, Division, Test,
     TypeCast, ComponentSelection)
 from metalibm_core.code_generation.generator_utility import *
 from metalibm_core.core.ml_formats import (
-    is_floating_format, ML_FP_MultiElementFormat, getMostAccurate)
+    ML_Bool, is_floating_format, ML_FP_MultiElementFormat, getMostAccurate)
 
 from metalibm_core.core.special_values import FP_SpecialValue
 from metalibm_core.opt.opt_utils import (logical_or_reduce, logical_and_reduce)
@@ -75,11 +75,26 @@ class ML_FunctionPrecision(object):
     raise NotImplementedError
   def get_error_print_call(self, function_name, input_value, local_result, output_values):
     raise NotImplementedError
-  ## generate an optree to get evaluation error between local_result 
-  # and output_values
-  # @param relative select the computation of a relative error (default: absolute)
   def compute_error(self, local_result, output_values, relative = False):
+    """ generate an optree evaluating the evaluation error between local_result
+         and output_values, return a pair (optree_error, optree_validity """
     raise NotImplementedError
+
+  def errorValidGraph(self, localRes, outputWitness):
+      validity = LogicalOr(
+          # both expected and result are NaN
+          LogicalAnd(
+              Test(localRes, specifier=Test.IsNaN, precision=ML_Bool),
+              Test(outputWitness, specifier=Test.IsNaN, precision=ML_Bool),
+              precision=ML_Bool),
+          # neither expected not result is NaN
+          LogicalNot(LogicalOr(
+              Test(localRes, specifier=Test.IsNaN, precision=ML_Bool),
+              Test(outputWitness, specifier=Test.IsNaN, precision=ML_Bool),
+              precision=ML_Bool),
+          )
+      )
+      return validity
     
 class ML_TwoFactorPrecision(ML_FunctionPrecision):
     """ Precision defined by two bounds (low and high) """
@@ -100,6 +115,7 @@ class ML_TwoFactorPrecision(ML_FunctionPrecision):
             high_bound = self.get_check_value_high_bound(exact_value)
             return low_bound, high_bound
 
+
     def compute_error(self, local_result, stored_outputs, relative = False):
         """ return MDL expression to compute error between local_result and 
             stored_outputs """
@@ -110,6 +126,7 @@ class ML_TwoFactorPrecision(ML_FunctionPrecision):
           Abs(Subtraction(local_result, high_bound, precision = precision), precision = precision),
           precision = precision
         )
+        validity = self.errorValidGraph(local_result, high_bound)
         if relative:
             # to avoid NaN when dividing 0 / 0
             error = Select(
@@ -118,7 +135,7 @@ class ML_TwoFactorPrecision(ML_FunctionPrecision):
                 Abs(Division(error, local_result, precision = precision), precision = precision),
                 precision=precision
             )
-        return error
+        return error, validity
 
     def get_output_check_test(self, test_result, stored_outputs):
         low_bound, high_bound = stored_outputs
@@ -190,7 +207,7 @@ class ML_CorrectlyRounded(ML_FunctionPrecision):
       )
     else:
       error = Abs(error, precision = precision)
-    return error
+    return error, self.errorValidGraph(local_result, expected_value)
 
   def get_output_check_test(self, test_result, stored_outputs):
     """ generate operation graph to implement correctly rounded equality test
@@ -275,20 +292,19 @@ class ML_CorrectlyRoundedUlpError(ML_CorrectlyRounded):
     # to the lower accuracy resultType
     expected_value,  = output_values
     int_precision = resultType.get_integer_format()
-    localUlpValue = ExponentInsertion(
-                        Subtraction(
-                            ExponentExtraction(local_result, precision=int_precision),
-                            resultType.get_mantissa_size() - 1,
-                            precision=int_precision
-                        ),
-                        precision=resultType)
+    # the following computation does not work for
+    localUlpValueHi = ExponentInsertion(ExponentExtraction(local_result, precision=int_precision),
+                                        precision=resultType)
+    localUlpScaleFactor = Conversion(ExponentInsertion((resultType.get_mantissa_size() - 1), precision=resultType),
+                                     precision=precision)
     if local_result.get_precision() != precision:
         local_result = Conversion(local_result, precision=precision)
     absError = Abs(Subtraction(local_result, expected_value, precision=precision), precision=precision)
-    ulpRec = Conversion(Division(Constant(1, precision=resultType), localUlpValue, precision=resultType), precision=precision)
+    ulpRec = Conversion(Division(Constant(1, precision=resultType), localUlpValueHi, precision=resultType), precision=precision)
     # ulpError = Division(Abs(error, precision = precision), localUlpValue, precision=precision)
-    ulpError = Multiplication(ulpRec, absError, precision=precision)
-    return ulpError
+    ulpError = Multiplication(Multiplication(ulpRec, absError, precision=precision),
+                              localUlpScaleFactor, precision=precision)
+    return ulpError, self.errorValidGraph(local_result, expected_value)
 
 ## Faithful (error <= 1 ulp) rounding output precision indication
 class ML_Faithful(ML_TwoFactorPrecision):
