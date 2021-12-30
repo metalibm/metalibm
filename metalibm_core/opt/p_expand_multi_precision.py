@@ -43,11 +43,12 @@ from metalibm_core.core.ml_formats import (
 )
 
 from metalibm_core.core.ml_operations import (
-    Abs, Addition, Comparison, Select, Subnormalize, Subtraction, Multiplication,
+    Abs, Addition, Comparison, Equal, LogicalAnd, LogicalOr, Select, Subnormalize, Subtraction, Multiplication,
     FusedMultiplyAdd,
     Conversion, Negation,
-    Constant, TableLoad, Variable,
+    Constant, TableLoad, Test, Variable,
     BuildFromComponent, ComponentSelection,
+    Max, Min,
     is_leaf_node,
 )
 from metalibm_core.opt.ml_blocks import (
@@ -287,6 +288,58 @@ class MultiPrecisionExpander:
         Log.report(LOG_LEVEL_EXPAND_VERBOSE, "expanding Negation {} into {}", neg_node, neg_operands)
         return [Negation(op, precision=op.precision) for op in neg_operands]
 
+    def expand_select(self, selectNode):
+        """ Expand Select on multi-component node """
+        pred = selectNode.get_input(0)
+        lhs = selectNode.get_input(1)
+        rhs = selectNode.get_input(2)
+        expandedLhs = self.expand_node(lhs)
+        expandedRhs = self.expand_node(rhs)
+        assert not expandedLhs is None
+        assert not expandedRhs is None
+        return [Select(pred, a, b, precision=a.get_precision()) for (a, b) in zip(expandedLhs, expandedRhs)]
+
+    def expand_max(self, maxNode):
+        """ Expand Max on multi-component node """
+        lhs = maxNode.get_input(0)
+        rhs = maxNode.get_input(1)
+        expandedLhs = self.expand_node(lhs)
+        expandedRhs = self.expand_node(rhs)
+        assert not expandedLhs is None
+        assert not expandedRhs is None
+        predGt = Comparison(expandedLhs[0], expandedRhs[0], precision=ML_Bool, specifier=Comparison.Greater)
+        predEq = Equal(expandedLhs[0], expandedRhs[0], precision=ML_Bool)
+        for (a, b) in zip(expandedLhs[1:], expandedRhs[1:]):
+            predGt = LogicalOr(predGt, LogicalAnd(predEq, Comparison(a, b, specifier=Comparison.Greater, precision=ML_Bool)))
+            predEq = LogicalAnd(predEq, Equal(a, b, precision=ML_Bool))
+        return [Select(predGt, a, b, precision=a.get_precision()) for (a, b) in zip(expandedLhs, expandedRhs)]
+
+    def legalize_test_nan(self, selectNode):
+        """ Expand Max on multi-component node """
+        op = selectNode.get_input(0)
+        expOps = self.expand_node(op)
+        assert not expOps is None
+        pred = Test(expOps[0], specifier=Test.IsNaN, precision=ML_Bool) 
+        for limb in expOps:
+            pred = LogicalOr(pred, Test(limb, specifier=Test.IsNaN, precision=ML_Bool), precision=ML_Bool)
+        return pred
+
+    def expand_min(self, minNode):
+        """ Expand Min on multi-component node """
+        lhs = minNode.get_input(0)
+        rhs = minNode.get_input(1)
+        expandedLhs = self.expand_node(lhs)
+        expandedRhs = self.expand_node(rhs)
+        assert not expandedLhs is None
+        assert not expandedRhs is None
+        predGt = Comparison(expandedLhs[0], expandedRhs[0], precision=ML_Bool, specifier=Comparison.Greater)
+        predEq = Equal(expandedLhs[0], expandedRhs[0], precision=ML_Bool)
+        for (a, b) in zip(expandedLhs[1:], expandedRhs[1:]):
+            predGt = LogicalOr(predGt, LogicalAnd(predEq, Comparison(a, b, specifier=Comparison.Greater, precision=ML_Bool)))
+            predEq = LogicalAnd(predEq, Equal(a, b, precision=ML_Bool))
+        return [Select(predGt, b, a, precision=a.get_precision()) for (a, b) in zip(expandedLhs, expandedRhs)]
+        
+
     def is_expandable(self, node):
         """ Returns True if @p can be expanded from a multi-precision
             node to a list of scalar-precision fields,
@@ -300,6 +353,10 @@ class MultiPrecisionExpander:
              isinstance(node, Negation) or \
              isinstance(node, BuildFromComponent) or \
              isinstance(node, ComponentSelection) or \
+             isinstance(node, Select) or \
+             isinstance(node, Max) or \
+             isinstance(node, Min) or \
+             (isinstance(node, Test) and node.specifier == Test.IsNaN and False) or \
              is_subnormalize_op(node))
         if not expandable:
             Log.report(LOG_LEVEL_EXPAND_VERBOSE, "{} cannot be expanded", node)
@@ -435,6 +492,14 @@ class MultiPrecisionExpander:
                 result = self.expand_conversion(node)
             elif isinstance(node, Negation):
                 result = self.expand_negation(node)
+            elif isinstance(node, Select):
+                result = self.expand_select(node)
+            elif isinstance(node, Max):
+                result = self.expand_max(node)
+            elif isinstance(node, Min):
+                result = self.expand_min(node)
+            #elif isinstance(node, Test) and node.specifier == Test.IsNaN:
+            #    result = self.legalize_test_nan(node)
             elif isinstance(node, BuildFromComponent):
                 result = self.expand_build_from_component(node)
             elif isinstance(node, ComponentSelection):
