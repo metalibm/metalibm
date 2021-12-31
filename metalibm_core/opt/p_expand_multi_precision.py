@@ -315,7 +315,7 @@ class MultiPrecisionExpander:
         return [Select(predGt, a, b, precision=a.get_precision()) for (a, b) in zip(expandedLhs, expandedRhs)]
 
     def legalize_test_nan(self, selectNode):
-        """ Expand Max on multi-component node """
+        """ Expand Test.IsNaN on multi-component node """
         op = selectNode.get_input(0)
         expOps = self.expand_node(op)
         assert not expOps is None
