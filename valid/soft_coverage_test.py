@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# This file is part of metalibm (https://github.com/kalray/metalibm)
+# This file is part of metalibm (https://github.com/metalibm/metalibm)
 
 # MIT License
 #
@@ -23,12 +23,10 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-
 import datetime
 import argparse
 import sys
 import re
-import functools
 import os
 
 import sollya
@@ -59,46 +57,23 @@ from metalibm_core.utility.log_report import Log
 from metalibm_core.utility.ml_template import target_parser
 
 from metalibm_core.core.ml_formats import ML_Binary32, ML_Binary64, ML_Int32, ML_Int64
-from metalibm_core.core.ml_function import (
-    BuildError, ValidError
-)
 from metalibm_core.core.random_gen import UniformInterval
 
 from metalibm_core.targets.common.vector_backend import VectorBackend
 
 from metalibm_core.targets.intel.x86_processor import (
-        X86_Processor, X86_SSE_Processor, X86_SSE2_Processor,
-        X86_SSE3_Processor, X86_SSSE3_Processor, X86_SSE41_Processor,
-        X86_AVX_Processor, X86_AVX2_Processor
-        )
+        X86_Processor, X86_AVX2_Processor)
 from metalibm_core.code_generation.generic_processor import GenericProcessor
-from metalibm_core.code_generation.code_configuration import CodeConfiguration
 
 
-from metalibm_core.targets.intel.m128_promotion import Pass_M128_Promotion
-from metalibm_core.targets.intel.m256_promotion import Pass_M256_Promotion
-from metalibm_core.utility.ml_template import target_instanciate
 from metalibm_core.utility.build_utils import SourceFile
 
-from valid.test_utils import *
 from valid.test_summary import TestSummary
-
-
-try:
-    from metalibm_core.targets.kalray.k1b_processor import K1B_Processor
-    k1b_defined = True
-    k1b = K1B_Processor()
-except ImportError:
-    k1b_defined = False
-    k1b = None
+from valid.soft_test_suite import FunctionTest, execute_test_list, genGlobalTestList, generate_pretty_report
 
 
 # default directory to load AXF file from
 AXF_DIR = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "metalibm_functions", "axf")
-
-# common value threshold for error
-# FIXME/TODO: should be define on a per-function / per-test basis
-ERROR_ULP_THRESHOLD = 1.0
 
 class VerboseAction(argparse.Action):
     def __init__(self, option_strings, dest, nargs=None, **kwargs):
@@ -114,29 +89,6 @@ class VerboseAction(argparse.Action):
                 level, sub_level = level_str, None
             Log.enable_level(level, sub_level=sub_level)
 
-
-
-class FunctionTest:
-    def __init__(self, ctor, arg_map_list, title=None, specific_opts_builder=lambda v: v, predicate=lambda _: True):
-        """ FunctionTest constructor:
-
-            Args:
-                ctor(class): constructor of the meta-function
-                arg_map_list: list of dictionnaries
-                predicate: constraint of validity for the test
-
-        """
-        self.ctor = ctor
-        self.arg_map_list = arg_map_list
-        self.title = title if not title is None else ctor.function_name
-        # callback(<option dict>) -> specialized <option dict>
-        self.specific_opts_builder = specific_opts_builder
-        self.predicate = predicate
-
-
-    @property
-    def tag(self):
-        return self.title
 
 # global bench test range
 BENCH_TEST_RANGE = {
@@ -184,7 +136,6 @@ BINARY32_FCT = lambda opts: (opts["precision"] == ML_Binary32)
 BINARY64_FCT = lambda opts: (opts["precision"] == ML_Binary64)
 
 
-
 # libm functions
 LIBM_FUNCTION_LIST = [
     # single precision
@@ -227,7 +178,6 @@ LIBM_FUNCTION_LIST = [
         ("sinh", sollya.sinh, BENCH_TEST_RANGE["sinh"]),
         ("tanh", sollya.tanh, BENCH_TEST_RANGE["tanh"]),
     ]
-
 ]
 
 
@@ -291,142 +241,6 @@ FUNCTION_LIST = LIBM_FUNCTION_LIST + [
     FunctionTest(metalibm_functions.rootn.MetaRootN, [{}], specific_opts_builder=rootn_option_specialization),
 ]
 
-
-def get_cmdline_option(option_list, option_value):
-    """ generate the command line equivalent to the list of options and their
-        corresponding values """
-    OPTION_MAP = {
-        "passes": lambda vlist: ("--passes " + ",".join(vlist)),
-        "extra_passes": lambda vlist: ("--extra-passes " + ",".join(vlist)),
-        "execute_trigger": lambda v: "--execute",
-        "auto_test": lambda v: "--auto-test {}".format(v),
-        "bench_test_number": lambda v: "" if v is None else "--bench {}".format(v),
-        "bench_loop_num": lambda v: "--bench-loop-num {}".format(v),
-        "auto_test_std": lambda _: "--auto-test-std ",
-        "target": lambda v: "--target {}".format(v),
-        "precision": lambda v: "--precision {}".format(v),
-        "vector_size": lambda v: "--vector-size {}".format(v),
-        "function_name": lambda v: "--fname {}".format(v),
-        "output_file": lambda v: "--output {}".format(v),
-        "compute_max_error": lambda v: "--max-error",
-        # discarding target_specific_options
-        "target_exec_options": lambda _: "",
-    }
-    return " ".join(OPTION_MAP[option](option_value[option]) for option in option_list)
-
-
-def generate_pretty_report(filename, test_list, test_summary, evolution_map):
-    """ generate a HTML pretty version of the test report
-
-        :param filename: output file name
-        :type filename: str
-        :param test_summary: summary of test results
-        !type test_summary: TestSummary
-        :param evolution_map: dictionnary of changes between this test and
-                              a reference report
-        :type evolution_map: dict
-    """
-    # extracting summary properties (for compatibility with legacy print code)
-    success_count = test_summary.success_count
-    success = test_summary.success
-    result_map = test_summary.result_map
-    NUM_TESTS = test_summary.NUM_TESTS
-
-    with open(filename, "w") as OUTPUT_FILE:
-        def print_report(msg):
-            OUTPUT_FILE.write(msg)
-
-        print_report("<html><body><div>")
-        print_report("<b>Function generation test report:</b>")
-        print_report("generated with metalibm: <br/>")
-        print_report("<br/>".join(CodeConfiguration.get_git_comment().split("\n")))
-        print_report("<p><ul>\n")
-        for index, test_case in enumerate(test_list):
-            nice_str = "; ".join("{}: {}".format(option, str(test_case[option])) for option in test_case)
-            cmd_str = get_cmdline_option(test_case.keys(), test_case)
-            print_report("<li><b>({}): {}</b></li>\n".format(index, nice_str))
-            print_report("{}\n".format(cmd_str))
-
-        print_report("</ul></p>\n\n")
-        header = "<table border='1'>"
-        header += "<th>{:10}</th>".format("function "[:20])
-        header += "".join(["\t\t<th> {:2} </th>\n".format(i) for i in range(len(test_list))])
-        header += "\n"
-        print_report(header)
-
-        def color_cell(msg, submsg="", color="red", subcolor="black", markup="td", indent="\t\t"):
-            return """{indent}<{markup} style="color:{color}; text-align: center">{msg}<font color={subcolor}>{submsg}</font></{markup}>\n""".format(
-                indent=indent, color=color, msg=msg, markup=markup,
-                submsg=submsg, subcolor=subcolor
-            )
-
-        # report display
-        for test_scheme in sorted(result_map.keys(), key=(lambda ts: str.lower(ts.title))):
-            name = test_scheme.title
-            msg = "<tr>\n\t\t<td>{:15}</td>\n".format(name)
-            for result in result_map[test_scheme]:
-                evolution_summary = ""
-                if result.title in evolution_map:
-                    local_evolution = evolution_map[result.title]
-                    evolution_summary = local_evolution.html_msg
-                if result.get_result():
-                    cpe_measure = "-"
-                    max_error = "-"
-                    color = "green"
-                    result_sumup = " OK  "
-                    if result.return_value != None:
-                        if "cpe_measure" in result.return_value:
-                            cpe_measure = "{:.2f}".format(result.return_value["cpe_measure"])
-                        if "max_error" in result.return_value:
-                            max_error_ulps = float(result.return_value["max_error"])
-                            if max_error_ulps > 1000.0:
-                                max_error = "{:.2e} ulp(s)".format(max_error_ulps)
-                            else:
-                                max_error = "{:.2f} ulp(s)".format(max_error_ulps)
-                            is_nan = (result.return_value["max_error"] != result.return_value["max_error"])
-                            if max_error_ulps > ERROR_ULP_THRESHOLD or is_nan or max_error_ulps < 0:
-                                color = "orange"
-                                result_sumup = "KO[V]"
-                    msg += color_cell(" %s   " % result_sumup, submsg="<br />[%s, %s]%s" % (cpe_measure, max_error, evolution_summary), color=color)
-                elif isinstance(result.error, GenerationError):
-                    msg += color_cell("  KO[G]  ", submsg=evolution_summary, color="red")
-                elif isinstance(result.error, BuildError):
-                    msg += color_cell(" KO[B] ", submsg=evolution_summary, color="red")
-                elif isinstance(result.error, ValidError):
-                    msg += color_cell(" KO[V] ", submsg=evolution_summary, color="orange")
-                elif isinstance(result.error, DisabledTest):
-                    msg += color_cell(" N/A ", submsg=evolution_summary, color="grey")
-                else:
-                    msg += color_cell(" KO[{}] ".format(result.error), submsg=evolution_summary, color="red")
-            msg += "</tr>"
-            print_report(msg)
-
-        print_report("</table>")
-        print_report("<p>\n")
-        print_report("Total {}/{}/{} test(s)".format(
-                    color_cell("+%d" % success_count, color="green", markup="span"),
-                    color_cell("-%d" % (NUM_TESTS - success_count), color="red", markup="span"),
-                    NUM_TESTS)
-             )
-        if NUM_TESTS != 0:
-            print_report("      Success: {:.1f}%".format(float(success_count) / NUM_TESTS * 100))
-        else:
-            print_report("      Success: {:.1f}%".format(0))
-
-        print_report("</p>\n<p>\n")
-
-        if success:
-            print_report("OVERALL SUCCESS")
-        else:
-            print_report("OVERALL FAILURE")
-        print_report("</p>\n")
-        print_report("generated: {}".format(datetime.datetime.today()))
-
-        print_report("</div></body></html>")
-
-
-
-global_test_list = []
 
 # instantiating target objects
 X86_AVX2 = X86_AVX2_Processor.get_target_instance()
@@ -536,91 +350,6 @@ def generate_test_list(NUM_AUTO_TEST, NUM_BENCH_TEST,
     return test_list
 
 
-
-class SubFunctionTest(NewSchemeTest):
-    def sub_case_title(self, arg_tc):
-        """ method to generate sub-case title """
-        return self.title + "_" + arg_tc["function_name"]
-
-def execute_test_list(test_list):
-    """ execute all the tests listed in test_list """
-    result_map = {}
-    # forcing exception cause to be raised
-    Log.exit_on_error = False
-    for test_scheme in test_list:
-        test_results = test_scheme.perform_all_test_no_reduce(debug=args.debug)
-        result_map[test_scheme] = test_results
-
-    test_summary = GlobalTestResult.init_from_test_list(test_list, result_map)
-
-    return test_summary
-
-class GlobalTestResult:
-    """ Summary of global test execution """
-    def __init__(self):
-        self.success_count = None
-        self.success = None
-        self.result_map = {}
-        self.result_details = []
-        self.NUM_TESTS = None
-
-    @staticmethod
-    def init_from_test_list(global_test_list, result_map):
-        """ Generate a GlobalTestResult from a result_map """
-        test_summary = GlobalTestResult()
-        # reset success
-        test_summary.success = True
-        # reset success_count
-        test_summary.success_count = 0
-        # list of TestResult objects generated by execution
-        # of new scheme tests
-        test_summary.result_details = []
-        test_summary.result_map = result_map
-
-        test_summary.NUM_TESTS = functools.reduce(lambda acc, v: acc + v.num_test, global_test_list, 0)
-
-        for test_scheme in test_summary.result_map:
-            result_list = test_summary.result_map[test_scheme]
-            test_result = test_scheme.reduce_test_result(result_list)
-            test_summary.success_count += test_scheme.get_success_count(result_list)
-            test_summary.result_details.append(test_result)
-            if not test_result.get_result():
-                test_summary.success = False
-        return test_summary
-
-
-    def summarize(self):
-        """ convert a GlobalTestResult into a TestSummary """
-        test_map = {}
-        for test_scheme in sorted(self.result_map.keys(), key=(lambda ts: str.lower(ts.title))):
-            for result in self.result_map[test_scheme]:
-                name = result.title
-                if result.get_result():
-                    cpe_measure = "-"
-                    max_error = "-"
-                    summary_tag = "OK"
-                    if result.return_value != None:
-                        if "cpe_measure" in result.return_value:
-                            cpe_measure = "{:.2f}".format(result.return_value["cpe_measure"])
-                        if "max_error" in result.return_value:
-                            max_error_value = result.return_value["max_error"]
-                            max_error = "{}".format(max_error_value)
-                            if abs(max_error_value) > ERROR_ULP_THRESHOLD or max_error_value != max_error_value or max_error_value < 0:
-                                summary_tag = "KO[V]"
-                    summary = [summary_tag, cpe_measure, max_error]
-                elif isinstance(result.error, GenerationError):
-                    summary = ["KO[G]"]
-                elif isinstance(result.error, BuildError):
-                    summary = ["KO[B]"]
-                elif isinstance(result.error, ValidError):
-                    summary = ["KO[V]"]
-                elif isinstance(result.error, DisabledTest):
-                    summary = ["N/A"]
-                else:
-                    summary = ["KO[{}]".format(result.error)]
-                test_map[name] = summary
-        return TestSummary(test_map)
-
 def split_str(s):
     """ split s around ',' and removed empty sub-string """
     return [sub for sub in s.split(",") if s!= ""]
@@ -701,46 +430,18 @@ if __name__ == "__main__":
 
     def match_select(tag):
         return any(list(map(lambda e: re.match(e, tag), args.select)))
+    def validTag(f):
+        return (not f.tag in args.exclude) and \
+               (not f.title in args.exclude) and \
+                (args.select is None or match_select(f.tag) or match_select(f.title))
     # generating global test list
-    for function_test in [f for f in FUNCTION_LIST if ((not f.tag in args.exclude) and (not f.title in args.exclude) and (args.select is None or match_select(f.tag) or match_select(f.title)))]:
-        function = function_test.ctor
-        local_test_list = []
-        # updating copy
-        for test in test_list:
-            for sub_test in function_test.arg_map_list:
-                option = test.copy()
-                if not function_test.predicate(test):
-                    option["disabled"] = True
-                opt_fname = option["function_name"]
-                opt_oname = option["output_file"]
-                # extra_passes requrie specific management, as we do not wish to
-                # overwrite one list with the other, but rather to concatenate them
-                extra_passes = []
-                if "extra_passes" in option:
-                    extra_passes += [ep for ep in option["extra_passes"] if not ep in extra_passes]
-                if "extra_passes" in sub_test:
-                    extra_passes += [ep for ep in sub_test["extra_passes"] if not ep in extra_passes]
-
-                option.update(sub_test)
-                fname = sub_test["function_name"] if "function_name" in sub_test else function_test.tag # function.function_name
-                option["extra_passes"] = extra_passes
-                option["function_name"] = fname + "_" + function_test.title + "_" + opt_fname
-                option["output_file"] = fname + "_" +function_test.title + "_" + opt_oname
-                # specialization
-                function_test.specific_opts_builder(option)
-                local_test_list.append(option)
-        test_case = SubFunctionTest(
-            function_test.tag,
-            function, # class / constructor
-            local_test_list
-        )
-        global_test_list.append(test_case)
+    global_test_list = genGlobalTestList(filter(validTag, FUNCTION_LIST), test_list)
 
 
     # forcing exception cause to be raised
     Log.exit_on_error = False
 
-    test_result = execute_test_list(global_test_list)
+    test_result = execute_test_list(global_test_list, args.debug)
 
 
     test_summary = test_result.summarize()
