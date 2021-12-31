@@ -30,6 +30,7 @@
 ###############################################################################
 
 import random
+from metalibm_core.core.precisions import ML_FunctionPrecision
 import sollya
 from sollya import Interval, inf, sup
 
@@ -136,9 +137,15 @@ class ML_ArrayFunction(ML_FunctionBasis):
     def element_numeric_emulate(self):
         """ single element emulation of function """
         raise NotImplementedError
-    def generate_test_tables(self, test_num, outType, outAccuracy, test_ranges=[Interval(-1.0, 1.0)]):
+    def generate_test_tables(self, test_num, outType: ML_FunctionPrecision, outAccuracy, test_ranges=[Interval(-1.0, 1.0)]):
         """ Generate inputs and output table to be shared between auto test
-            and max_error tests """
+            and max_error tests
+            
+            Args:
+                outType (ML_Format): function output type
+                outAccuracy (ML_FunctionPrecision): function expected accuracy (unsued)
+                test_ranges : range(s) to select inputs from
+            """
         index_range = self.test_index_range
         test_total   = test_num + len(self.standard_test_cases) + len(self.value_test)
 
