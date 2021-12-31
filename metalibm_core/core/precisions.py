@@ -89,7 +89,7 @@ class ML_FunctionPrecision(object):
               Test(localRes, specifier=Test.IsNaN, precision=ML_Bool),
               Test(outputWitness, specifier=Test.IsNaN, precision=ML_Bool),
               precision=ML_Bool),
-          # neither expected not result is NaN
+          # neither expected nor result is NaN
           LogicalNot(LogicalOr(
               Test(localRes, specifier=Test.IsNaN, precision=ML_Bool),
               Test(outputWitness, specifier=Test.IsNaN, precision=ML_Bool),
@@ -120,7 +120,7 @@ class ML_TwoFactorPrecision(ML_FunctionPrecision):
 
     def compute_error(self, local_result, stored_outputs, relative = False):
         """ return MDL expression to compute error between local_result and 
-            stored_outputs """
+            stored_outputs alongside an error validity predicate """
         precision = local_result.get_precision()
         low_bound, high_bound = stored_outputs
         error = Min(
