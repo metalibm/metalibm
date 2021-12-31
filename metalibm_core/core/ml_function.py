@@ -1081,6 +1081,9 @@ class ML_FunctionBasis(object):
 
                     print("max_error_value={}".format(max_error_value))
                     if isinstance(max_error_value, build_utils.CustomMultiPrecCTypes):
+                      # if the max-error node is a multi-element value, only the high limb is returned
+                      # (this could lead to returnning a smaller value compared to the actual error, 
+                      # summing the limbs with round-away-from-zero could provide a better value)
                       exec_result["max_error"] = max_error_value.hi
                     else:
                       exec_result["max_error"] = max_error_value
