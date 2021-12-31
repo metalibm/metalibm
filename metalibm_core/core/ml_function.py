@@ -910,7 +910,7 @@ class ML_FunctionBasis(object):
               # the error precision/type is extended compared to the function precision
               # to allow more accurate determination of the error
               errorPrecision = getMoreAccurate(self.get_output_precision()) 
-              errorAccuracy = ML_CorrectlyRoundedUlpError(errorPrecision)
+              errorAccuracy = ML_ExactErrorUlp(errorPrecision)
             else:
               errorPrecision = self.get_output_precision()
               errorAccuracy = self.accuracy
