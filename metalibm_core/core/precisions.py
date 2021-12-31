@@ -81,6 +81,8 @@ class ML_FunctionPrecision(object):
     raise NotImplementedError
 
   def errorValidGraph(self, localRes, outputWitness):
+      """ generation an operation graph to evaluate the validity of evaluation
+          error expression """
       validity = LogicalOr(
           # both expected and result are NaN
           LogicalAnd(
