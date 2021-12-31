@@ -56,20 +56,9 @@ def legalize_mp_2elt_abs(node):
     op_lo = op.lo
     return BuildFromComponent(Abs(op.hi), Select(predicate, op_lo, Negation(op_lo), precision=op_lo.get_precision()), precision=node.get_precision())
 
-def legalize_mp_2elt_div(node):
-    """ legalize a 2-elt multi-precision Division node with
-        undetermined accuracy """
-    lhs = node.get_input(0)
-    rhs = node.get_input(1)
-    approx_hi = Division(lhs.hi, rhs.hi, precision=lhs.hi.get_precision())
-    remainder = FMA(approx_hi, rhs, -lhs, precision=lhs.hi.get_precision())
-    raise NotImplementedError
-
-    return BuildFromComponent(approx_hi, )
-
 
 def legalize_mp_2elt_test_nan(testNode):
-    """ Expand Max on multi-component node """
+    """ Expand Test.IsNaN on multi-component node """
     op = testNode.get_input(0)
     return LogicalOr(
             Test(op.hi, specifier=Test.IsNaN, precision=ML_Bool),
