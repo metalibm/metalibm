@@ -356,7 +356,6 @@ class MultiPrecisionExpander:
              isinstance(node, Select) or \
              isinstance(node, Max) or \
              isinstance(node, Min) or \
-             (isinstance(node, Test) and node.specifier == Test.IsNaN and False) or \
              is_subnormalize_op(node))
         if not expandable:
             Log.report(LOG_LEVEL_EXPAND_VERBOSE, "{} cannot be expanded", node)
