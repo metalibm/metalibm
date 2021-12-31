@@ -281,7 +281,11 @@ class ML_CorrectlyRounded(ML_FunctionPrecision):
     return print_function(expected_value)
 
 
-class ML_CorrectlyRoundedUlpError(ML_CorrectlyRounded):
+class ML_ExactErrorUlp(ML_CorrectlyRounded):
+  """ Compute an approximation of the error with respect to an exact value
+      (the exact value is approximated in a higher precision than the tested
+      implementation). The error is returned in terms of ulps in the implementation
+      precision """
   def compute_error(self, local_result, output_values, relative=None):
     """ return an error in term of ulp of output_values (assuming local_result precision) """
     # local_result and output_values precision may differ
