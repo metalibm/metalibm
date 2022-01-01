@@ -25,6 +25,7 @@
 
 import datetime
 import functools
+import argparse
 
 from metalibm_core.code_generation.code_configuration import CodeConfiguration
 from metalibm_core.core.ml_function import BuildError, ValidError
@@ -36,6 +37,22 @@ from valid.test_utils import DisabledTest, GenerationError, NewSchemeTest
 # common value threshold for error
 # FIXME/TODO: should be define on a per-function / per-test basis
 ERROR_ULP_THRESHOLD = 1.0
+
+
+class VerboseAction(argparse.Action):
+    def __init__(self, option_strings, dest, nargs=None, **kwargs):
+        if nargs is not None:
+            raise ValueError("nargs not allowed")
+        super(VerboseAction, self).__init__(option_strings, dest, **kwargs)
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        for level_str in values.split(","):
+            if ":" in level_str:
+                level, sub_level = level_str.split(":")
+            else:
+                level, sub_level = level_str, None
+            Log.enable_level(level, sub_level=sub_level)
+
 
 class FunctionTest:
     def __init__(self, ctor, arg_map_list, title=None, specific_opts_builder=lambda v: v, predicate=lambda _: True):
@@ -317,3 +334,51 @@ class GlobalTestResult:
         return TestSummary(test_map)
 
 
+def populateTestSuiteArgParser(arg_parser: argparse.ArgumentParser):
+    """ register standard argument for testsuite program """
+    arg_parser.add_argument("--debug", dest="debug", action="store_const",
+                            default=False, const=True,
+                            help="enable debug mode")
+    arg_parser.add_argument("--report-only", dest="report_only", action="store_const",
+                            default=False, const=True,
+                            help="limit display to final report")
+    arg_parser.add_argument("--output", dest="output", action="store",
+                            default="report.html",
+                            help="define output file")
+    arg_parser.add_argument("--select", dest="select", action="store",
+                            default=None, type=(lambda v: v.split(",")),
+                            help="limit test to those whose tag matches one of string list")
+    arg_parser.add_argument("--exclude", dest="exclude", action="store",
+                            default=[], type=(lambda v: v.split(",")),
+                            help="limit test to those whose tag does not match one of string list")
+    arg_parser.add_argument("--reference", dest="reference", action="store",
+                            default=None,
+                            help="load a reference result and compare them")
+    arg_parser.add_argument("--gen-reference", dest="gen_reference", action="store",
+                            default=None,
+                            help="generate a new reference file")
+    arg_parser.add_argument("--bench-test-number", dest="bench_test_number", action="store",
+                            default=None, type=int,
+                            help="set the number of loop to run during performance bench (0 disable performance benching alltogether)")
+    arg_parser.add_argument("--error-eval", dest="error_eval", action="store_const",
+                            default=False, const=True,
+                            help="evaluate error without failing on innacurate functions")
+    arg_parser.add_argument("--timestamp", dest="timestamp", action="store_const",
+                            default=False, const=True,
+                            help="enable filename timestamping")
+    arg_parser.add_argument("--bench-loop-num", dest="bench_loop_num", action="store",
+                            default=100, type=int,
+                            help="set the number of bench's loops")
+    arg_parser.add_argument("--libm", dest="custom_libm", action="store",
+                            default=None,
+                            help="select custom libm")
+    arg_parser.add_argument(
+        "--verbose", dest="verbose_enable", action=VerboseAction,
+        const=True, default=False,
+        help="enable Verbose log level")
+    return arg_parser
+
+
+def split_str(s):
+    """ split s around ',' and removed empty sub-string """
+    return list(filter(lambda v: v != "", s.split(",")))
