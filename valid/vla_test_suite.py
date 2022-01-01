@@ -28,16 +28,16 @@ import argparse
 import sys
 import re
 import os
+
 from metalibm_core.targets.riscv.riscv import RISCV_RV64
 from metalibm_core.targets.riscv.riscv_vector import RISCV_RVV64
 
-import sollya
 from sollya import Interval
 
 from metalibm_core.utility.log_report import Log
 from metalibm_core.utility.ml_template import target_parser
 
-from metalibm_core.core.ml_formats import ML_Binary32, ML_Binary64, ML_Int32, ML_Int64
+from metalibm_core.core.ml_formats import ML_Binary32, ML_Binary64
 from metalibm_core.core.random_gen import UniformInterval
 
 
@@ -46,25 +46,13 @@ from metalibm_core.utility.build_utils import SourceFile
 from metalibm_functions.vla_function import VLAFunction
 
 from valid.test_summary import TestSummary
-from valid.soft_test_suite import FunctionTest, execute_test_list, genGlobalTestList, generate_pretty_report
+from valid.soft_test_suite import (
+    FunctionTest, execute_test_list, genGlobalTestList, generate_pretty_report,
+    populateTestSuiteArgParser, split_str)
 
 
 # default directory to load AXF file from
 AXF_DIR = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "metalibm_functions", "axf")
-
-class VerboseAction(argparse.Action):
-    def __init__(self, option_strings, dest, nargs=None, **kwargs):
-        if nargs is not None:
-            raise ValueError("nargs not allowed")
-        super(VerboseAction, self).__init__(option_strings, dest, **kwargs)
-
-    def __call__(self, parser, namespace, values, option_string=None):
-        for level_str in values.split(","):
-            if ":" in level_str:
-                level, sub_level = level_str.split(":")
-            else:
-                level, sub_level = level_str, None
-            Log.enable_level(level, sub_level=sub_level)
 
 
 # global bench test range
@@ -79,19 +67,6 @@ BENCH_TEST_RANGE = {
     "cosh": [UniformInterval(-5,5)],
 }
 
-
-S2 = sollya.SollyaObject(2)
-S10 = sollya.SollyaObject(10)
-def emulate_exp2(v):
-    """ sollya emulation for exp2 a.k.a 2^x """
-    return S2**v
-def emulate_exp10(v):
-    """ sollya emulation for exp10 a.k.a 10^x """
-    return S10**v
-
-# predicate to limit libm test validity
-BINARY32_FCT = lambda opts: (opts["precision"] == ML_Binary32)
-BINARY64_FCT = lambda opts: (opts["precision"] == ML_Binary64)
 
 RV64_GV_EXTRA_PASSES = ["optimization:basic_legalization", "optimization:fuse_fma", "beforecodegen:rvv_legalization"]
 
@@ -196,31 +171,10 @@ def generate_test_list(NUM_AUTO_TEST, NUM_BENCH_TEST,
     return test_list
 
 
-def split_str(s):
-    """ split s around ',' and removed empty sub-string """
-    return [sub for sub in s.split(",") if s!= ""]
-
 if __name__ == "__main__":
     arg_parser = argparse.ArgumentParser(" Metalibm non-regression tests")
     # enable debug mode
-    arg_parser.add_argument("--debug", dest="debug", action="store_const",
-                            default=False, const=True,
-                            help="enable debug mode")
-    arg_parser.add_argument("--report-only", dest="report_only", action="store_const",
-                            default=False, const=True,
-                            help="limit display to final report")
-    arg_parser.add_argument("--output", dest="output", action="store",
-                            default="report.html",
-                            help="define output file")
-    arg_parser.add_argument("--select", dest="select", action="store",
-                            default=None, type=(lambda v: v.split(",")),
-                            help="limit test to those whose tag matches one of string list")
-    arg_parser.add_argument("--exclude", dest="exclude", action="store",
-                            default=[], type=(lambda v: v.split(",")),
-                            help="limit test to those whose tag does not match one of string list")
-    arg_parser.add_argument("--reference", dest="reference", action="store",
-                            default=None,
-                            help="load a reference result and compare them")
+    arg_parser = populateTestSuiteArgParser(arg_parser)
     arg_parser.add_argument("--scalar-targets", dest="scalar_targets", action="store",
                             default=["rv64g"],
                             type=split_str,
@@ -229,28 +183,6 @@ if __name__ == "__main__":
                             default=["rv64gv"],
                             type=split_str,
                             help="list of vector_targets")
-    arg_parser.add_argument("--gen-reference", dest="gen_reference", action="store",
-                            default=None,
-                            help="generate a new reference file")
-    arg_parser.add_argument("--bench-test-number", dest="bench_test_number", action="store",
-                            default=None, type=int,
-                            help="set the number of loop to run during performance bench (0 disable performance benching alltogether)")
-    arg_parser.add_argument("--error-eval", dest="error_eval", action="store_const",
-                            default=False, const=True,
-                            help="evaluate error without failing on innacurate functions")
-    arg_parser.add_argument("--timestamp", dest="timestamp", action="store_const",
-                            default=False, const=True,
-                            help="enable filename timestamping")
-    arg_parser.add_argument("--bench-loop-num", dest="bench_loop_num", action="store",
-                            default=100, type=int,
-                            help="set the number of bench's loops")
-    arg_parser.add_argument("--libm", dest="custom_libm", action="store",
-                            default=None,
-                            help="select custom libm")
-    arg_parser.add_argument(
-        "--verbose", dest="verbose_enable", action=VerboseAction,
-        const=True, default=False,
-        help="enable Verbose log level")
     args = arg_parser.parse_args(sys.argv[1:])
 
     # settings custom libm
