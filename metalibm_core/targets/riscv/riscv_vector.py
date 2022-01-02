@@ -457,11 +457,11 @@ rvv64_CCodeGenTable = {
         TableLoad: {
             lambda optree: True: {
                 type_custom_match(FSM(RVV_vectorTypeMap[((lmul, eltType))]), TCM(ML_Pointer_Format), FSM(RVV_VectorSize_T), debug=True):
-                    RVVIntrinsic("vle32_v_%sm%d" % (RVVIntrSuffix[eltType], lmul), arity=2, output_precision=RVV_vectorTypeMap[(lmul, eltType)]) for (lmul, eltType) in RVV_vectorTypeMap
+                    RVVIntrinsic("vle%d_v_%sm%d" % (eltType.get_bit_size(), RVVIntrSuffix[eltType], lmul), arity=2, output_precision=RVV_vectorTypeMap[(lmul, eltType)]) for (lmul, eltType) in RVV_vectorTypeMap
             },
             lambda optree: True: {
                 type_custom_match(FSM(RVV_vectorTypeMap[((lmul, eltType))]), TCM(ML_TableFormat), FSM(RVV_vectorTypeMap[(lmul, ML_UInt32)]), FSM(RVV_VectorSize_T), debug=True):
-                    RVVIntrinsic("vluxei32_v_%sm%d" % (RVVIntrSuffix[eltType], lmul), arity=3, output_precision=RVV_vectorTypeMap[((lmul, eltType))]) for (lmul, eltType) in RVV_vectorTypeMap
+                    RVVIntrinsic("vluxei%d_v_%sm%d" % (eltType.get_bit_size(), RVVIntrSuffix[eltType], lmul), arity=3, output_precision=RVV_vectorTypeMap[((lmul, eltType))]) for (lmul, eltType) in RVV_vectorTypeMap
             },
             lambda optree: True: {
                 type_custom_match(FSM(RVV_vectorTypeMap[((lmul, eltType))]), TCM(ML_TableFormat), FSM(RVV_vectorTypeMap[(lmul, ML_Int32)]), FSM(RVV_VectorSize_T), debug=True):
@@ -471,7 +471,7 @@ rvv64_CCodeGenTable = {
         TableStore: {
             lambda optree: True: {
                 type_custom_match(FSM(ML_Void), TCM(ML_Pointer_Format), FSM(RVV_vectorTypeMap[((lmul, eltType))]), FSM(RVV_VectorSize_T)):
-                    RVVIntrinsic("vse32_v_%sm%d" % (RVVIntrSuffix[eltType], lmul), arity=3, output_precision=ML_Void, void_function=True) for (lmul, eltType) in RVV_vectorTypeMap
+                    RVVIntrinsic("vse%d_v_%sm%d" % (eltType.get_bit_size(), RVVIntrSuffix[eltType], lmul), arity=3, output_precision=ML_Void, void_function=True) for (lmul, eltType) in RVV_vectorTypeMap
             }
         },
     },
