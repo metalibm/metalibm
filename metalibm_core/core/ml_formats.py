@@ -1260,22 +1260,7 @@ class ML_Compound_Format(ML_Format):
 
     def get_bit_size(self):
         """ Return bit-size of the full compound format """
-        return sum([scalar.get_bit_size() for scalar in self.field_format_list])
-
-    def get_cst(self, cst_value, language = C_Code):
-        # FIXME: should be moved into multi-element format class
-        tmp_cst = cst_value
-        field_str_list = []
-        for field_name, field_format in zip(self.c_field_list, self.field_format_list):
-            # FIXME, round is only valid for double_double or triple_double stype format
-            if isinstance(cst_value, FP_SpecialValue) or cst_value == ml_infty or cst_value == -ml_infty or cst_value == 0 or cst_value != cst_value:
-                field_value = field_format.get_cst(cst_value, language)
-                # no tmp_cst update required, special values are translated as sum of the special value
-            else:
-                field_value = sollya.round(tmp_cst, field_format.sollya_object, sollya.RN)
-                tmp_cst = tmp_cst - field_value
-            field_str_list.append(".%s = %s" % (field_name, field_format.get_cst(field_value, language=language)))
-        return "{%s}" % (", ".join(field_str_list))
+        return sum([field.get_bit_size() for field in self.field_format_list])
 
     def get_gappa_cst(self, cst_value):
         """ Constant generation in Gappa-language """
@@ -1295,10 +1280,28 @@ class ML_FP_MultiElementFormat(ML_Compound_FP_Format):
       return isinstance(format_object, ML_FP_MultiElementFormat)
 
     def get_bit_size(self):
-      return sum([scalar.get_bit_size() for scalar in self.field_format_list])
+      return sum([field.get_bit_size() for field in self.field_format_list])
+
 
     def get_limb_precision(self, limb_index):
         return self.field_format_list[limb_index]
+
+
+    def get_cst(self, cst_value, language=C_Code):
+        """ generate source code to materialize constant """
+        tmp_cst = cst_value
+        field_str_list = []
+        for field_name, field_format in zip(self.c_field_list, self.field_format_list):
+            # FIXME, round is only valid for double_double or triple_double stype format
+            if isinstance(cst_value, FP_SpecialValue) or cst_value == ml_infty or cst_value == -ml_infty or cst_value == 0 or cst_value != cst_value:
+                field_value = field_format.get_cst(cst_value, language)
+                # no tmp_cst update required, special values are translated as sum of the special value
+            else:
+                field_value = sollya.round(tmp_cst, field_format.sollya_object, sollya.RN)
+                tmp_cst = tmp_cst - field_value
+            field_str_list.append(".%s = %s" % (field_name, field_format.get_cst(field_value, language=language)))
+        return "{%s}" % (", ".join(field_str_list))
+
 
     @property
     def limb_num(self):
@@ -1329,8 +1332,8 @@ ML_TripleSingle = ML_FP_MultiElementFormat("ml_ts_t", ["hi", "me", "lo"],
 #                     VECTOR FORMAT
 ###############################################################################
 
-## common ancestor to every vector format
 class ML_VectorFormat(ML_Format):
+  """ Common ancestor to every vector format """
   def __init__(self, scalar_format, vector_size, c_name, header=None):
     ML_Format.__init__(self, name = {C_Code: c_name}, header=header)
     self.scalar_format = scalar_format
@@ -1361,8 +1364,8 @@ class ML_VectorFormat(ML_Format):
     except KeyError:
       return self.get_scalar_format().get_name(language)
 
-## Generic class for Metalibm support library vector format
 class ML_CompoundVectorFormat(ML_VectorFormat, ML_Compound_Format):
+  """ Generic class for ml_support_lib vector format """
   def __init__(self, c_format_name, opencl_format_name, vector_size, scalar_format, sollya_precision = None, cst_callback = None, display_format="", header=None):
     ML_VectorFormat.__init__(self, scalar_format, vector_size, c_format_name, header=header)
     # header must be re-submitted as argument to avoid being
