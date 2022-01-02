@@ -85,6 +85,7 @@ precision_map = {
     # aliases
     "half": ML_Binary16,
     "float": ML_Binary32,
+    "single": ML_Binary32,
     "double": ML_Binary64,
     # multi-word formats
     "dd": ML_DoubleDouble,
