@@ -147,7 +147,7 @@ class ML_ArrayFunction(ML_FunctionBasis):
                 test_ranges : range(s) to select inputs from
             """
         index_range = self.test_index_range
-        test_total   = test_num + len(self.standard_test_cases) + len(self.value_test)
+        test_total   = test_num + len(self.standard_test_cases) + 1 if len(self.value_test) else 0
 
         # number of arrays expected as inputs for tested_function
         NUM_INPUT_ARRAY = 1
