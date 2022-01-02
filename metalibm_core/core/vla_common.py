@@ -67,9 +67,10 @@ class VLAOperation(SpecifierOperation, ML_ArithmeticOperation):
 
 
 class VLAGetLength(ML_ArithmeticOperation):
-    """ operation to retrieve the realizable vector length """
+    """ operation to retrieve the realizable vector length for a given elt type
+        VLAGetLength(applicationVectorLength, elementLength, vecGrpSize) """
     name = "VLAGetLength"
-    arity = 1
+    arity = 3
 
 
 VLA_FORMAT_MAP = {(eltType, lmul): VLAType(eltType, lmul) 

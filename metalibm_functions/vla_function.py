@@ -183,6 +183,15 @@ class VLAFunction(ML_ArrayFunction):
 
         vectorLocalLen_int = Conversion(vectorLocalLen, precision=ML_Int32)
 
+        # vlEltSize should be the size of the widest element which must be supported
+        # in the vector implementation, as this size will determine the maximum
+        # number of element which can fit in a vector.
+        # Another solution would be to adapt the group-size to the element type (increasing the
+        # group size when the element size is larger such that a constant number of element can fit
+        # in a vector group)
+        vlEltSize = Constant(self.precision.get_bit_size(), precision=ML_Integer) 
+        vlGroupSize = Constant(1, precision=ML_Integer)
+
         # we build the strip mining Loop
         mainLoop = Statement(
             ReferenceAssign(vectorRemLen, n),
@@ -192,7 +201,7 @@ class VLAFunction(ML_ArrayFunction):
                  vectorRemLen > Constant(0, precision=ML_Int32),
                  Statement(
                     # assigning local vector length
-                    ReferenceAssign(vectorLocalLen, VLAGetLength(vectorRemLen, precision=vectorSizeType)),
+                    ReferenceAssign(vectorLocalLen, VLAGetLength(vectorRemLen, vlEltSize, vlGroupSize, precision=vectorSizeType)),
                     # assigning inputs
                     ReferenceAssign(vec_arg_list[0], VLAOperation(localSrc, vectorLocalLen, specifier=TableLoad, precision=vectorType, debug=debug_multi, tag="varg")),
                     # computing and storing results

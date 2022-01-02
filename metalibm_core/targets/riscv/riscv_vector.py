@@ -35,7 +35,7 @@
 
 import os
 
-from metalibm_core.code_generation.complex_generator import ComplexOperator
+from metalibm_core.code_generation.complex_generator import ComplexOperator, DynamicOperator
 from metalibm_core.core.ml_complex_formats import ML_Pointer_Format, ML_TableFormat
 from metalibm_core.core.target import UniqueTargetDecorator
 from metalibm_core.core.ml_operations import (
@@ -43,15 +43,14 @@ from metalibm_core.core.ml_operations import (
     Conversion, FusedMultiplyAdd, Modulo, Multiplication, NearestInteger, Negation, Splat, Subtraction, TableLoad, TableStore,
     TypeCast)
 from metalibm_core.core.ml_formats import (
-    ML_Binary16, ML_Bool16, ML_Bool32, ML_Bool64, ML_FP_Format,
-    ML_Format, ML_FormatConstructor, ML_Int16, ML_Int64, ML_Int32,
-    ML_Binary64, ML_Binary32, ML_UInt16, ML_UInt32, ML_UInt64, ML_Void)
+    ML_Binary16, ML_Bool16, ML_Bool32, ML_Bool64, ML_FP_Format, ML_Format, ML_FormatConstructor, ML_Int16, ML_Int64, ML_Int32,
+    ML_Binary64, ML_Binary32, ML_Integer, ML_UInt16, ML_UInt32, ML_UInt64, ML_Void)
 from metalibm_core.core.vla_common import VLAGetLength, VLAOperation
 
 from metalibm_core.code_generation.abstract_backend import LOG_BACKEND_INIT
 from metalibm_core.code_generation.code_constant import C_Code
 from metalibm_core.code_generation.generator_utility import (
-    FSM, TCM, FO_Arg, FunctionOperator, SymbolOperator, type_custom_match, type_strict_match)
+    FSM, TCM, FO_Arg, FunctionOperator, SymbolOperator, type_custom_match, type_strict_match, type_strict_match_list)
 from metalibm_core.utility.debug_utils import debug_multi, ML_Debug
 
 from metalibm_core.utility.log_report import Log
@@ -239,6 +238,19 @@ def typeCastInput(opIndex, vlIndex, castType):
         return node
     return helper
 
+SUPPORTED_GROUP_SIZES = [1, 2, 4, 8]
+SUPPORTED_ELT_SIZES = [8, 16, 32, 64]
+
+def vlaGetLengthOpGen(node):
+    """ Operator generator for VLAGetLength """
+    eltSize = node.get_input(1).value
+    groupSize = node.get_input(2).value
+    if not groupSize in SUPPORTED_GROUP_SIZES:
+        Log.report(Log.Error, "groupSize {} is not within the list of supported values {}", groupSize, SUPPORTED_GROUP_SIZES)
+    if not eltSize in SUPPORTED_ELT_SIZES:
+        Log.report(Log.Error, "eltSize {} is not within the list of supported values {}", eltSize, SUPPORTED_ELT_SIZES)
+    return RVVIntrinsic("vsetvl_e%dm%d" % (eltSize, groupSize), arity=1, output_precision=RVV_VectorSize_T)
+
 rvv64_CCodeGenTable = {
     Conversion: {
         None: {
@@ -251,10 +263,8 @@ rvv64_CCodeGenTable = {
     VLAGetLength: {
         None: {
             lambda optree: True: {
-                type_strict_match(RVV_VectorSize_T, RVV_VectorSize_T):
-                    RVVIntrinsic("vsetvl_e32m1", arity=1, output_precision=RVV_VectorSize_T),
-                type_strict_match(RVV_VectorSize_T, ML_Int32):
-                    RVVIntrinsic("vsetvl_e32m1", arity=1, output_precision=RVV_VectorSize_T),
+                type_strict_match_list([RVV_VectorSize_T], [RVV_VectorSize_T, ML_Int32, ML_Int64], [ML_Integer], [ML_Integer]):
+                    DynamicOperator(vlaGetLengthOpGen),
             }
         }
     },
