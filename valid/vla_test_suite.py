@@ -31,6 +31,7 @@ import os
 
 from metalibm_core.targets.riscv.riscv import RISCV_RV64
 from metalibm_core.targets.riscv.riscv_vector import RISCV_RVV64
+from metalibm_functions.function_map import FUNCTION_MAP
 
 from sollya import Interval
 
@@ -75,13 +76,12 @@ def vlaTargetPredicate(opts):
 
 VLA_FUNCTION_LIST = [
     # meta-functions
-    FunctionTest(VLAFunction, [{"extra_passes": RV64_GV_EXTRA_PASSES, "function": "exp"}], title="vla_exp", predicate=vlaTargetPredicate),
-    FunctionTest(VLAFunction, [{"extra_passes": RV64_GV_EXTRA_PASSES, "function": "exp2"}], title="vla_exp2", predicate=vlaTargetPredicate),
-    FunctionTest(VLAFunction, [{"extra_passes": RV64_GV_EXTRA_PASSES, "function": "exp10"}], title="vla_exp10", predicate=vlaTargetPredicate),
+    FunctionTest(VLAFunction, [{"extra_passes": RV64_GV_EXTRA_PASSES, "function_ctor": FUNCTION_MAP["exp"]}], title="vla_exp", predicate=vlaTargetPredicate),
+    FunctionTest(VLAFunction, [{"extra_passes": RV64_GV_EXTRA_PASSES, "function_ctor": FUNCTION_MAP["exp2"]}], title="vla_exp2", predicate=vlaTargetPredicate),
 
-    FunctionTest(VLAFunction, [{"extra_passes": RV64_GV_EXTRA_PASSES, "function": "log"}], title="vla_log", predicate=vlaTargetPredicate),
-    FunctionTest(VLAFunction, [{"extra_passes": RV64_GV_EXTRA_PASSES, "function": "log2"}], title="vla_log2", predicate=vlaTargetPredicate),
-    FunctionTest(VLAFunction, [{"extra_passes": RV64_GV_EXTRA_PASSES, "function": "log10"}], title="vla_log10", predicate=vlaTargetPredicate),
+    FunctionTest(VLAFunction, [{"extra_passes": RV64_GV_EXTRA_PASSES, "function_ctor": FUNCTION_MAP["log"]}], title="vla_log", predicate=vlaTargetPredicate),
+    FunctionTest(VLAFunction, [{"extra_passes": RV64_GV_EXTRA_PASSES, "function_ctor": FUNCTION_MAP["log2"]}], title="vla_log2", predicate=vlaTargetPredicate),
+    FunctionTest(VLAFunction, [{"extra_passes": RV64_GV_EXTRA_PASSES, "function_ctor": FUNCTION_MAP["log10"]}], title="vla_log10", predicate=vlaTargetPredicate),
 ]
 
 
