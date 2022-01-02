@@ -43,7 +43,8 @@ from metalibm_core.core.ml_operations import (
     Conversion, FusedMultiplyAdd, Modulo, Multiplication, NearestInteger, Negation, Splat, Subtraction, TableLoad, TableStore,
     TypeCast)
 from metalibm_core.core.ml_formats import (
-    ML_Binary16, ML_Bool16, ML_Bool32, ML_Bool64, ML_Format, ML_FormatConstructor, ML_Int16, ML_Int64, ML_Int32,
+    ML_Binary16, ML_Bool16, ML_Bool32, ML_Bool64, ML_FP_Format,
+    ML_Format, ML_FormatConstructor, ML_Int16, ML_Int64, ML_Int32,
     ML_Binary64, ML_Binary32, ML_UInt16, ML_UInt32, ML_UInt64, ML_Void)
 from metalibm_core.core.vla_common import VLAGetLength, VLAOperation
 
@@ -118,11 +119,38 @@ RVV_castEltTypeMapping = {
 RVV_vBinary32_m1  = RVV_vectorTypeMap[(1, ML_Binary32)]
 
 # TODO/FIXME: should extract VLEN*LMUL/SEW values
-debug_vfloat32_m1  = ML_Debug(display_format = "{%a}", pre_process = lambda v: "vfmv_f_s_f32m1_f32(%s)" % (v))
-debug_vint32_m1  = ML_Debug(display_format = "{%d}", pre_process = lambda v: "vmv_x_s_i32m1_i32(%s)" % (v))
+def getElt(eltType, index, v):
+    return "v{f}mv_{xf}_s_{suffix}m1_{suffix}(vslidedown_vx_{suffix}m1({v}, {v}, {index}, {index}+1))".format(
+                    xf="f" if isinstance(eltType, ML_FP_Format) else "x",
+                    f="f" if isinstance(eltType, ML_FP_Format) else "",
+                    v=v,
+                    index=index,
+                    suffix=RVVIntrSuffix[eltType])
+#debug_vfloat32_m1  = ML_Debug(display_format = "{%a}", pre_process = lambda v: "vfmv_f_s_f32m1_f32(%s)" % (v))
+#debug_vint32_m1    = ML_Debug(display_format = "{%d}", pre_process = lambda v: "vmv_x_s_i32m1_i32(%s)" % (v))
+#debug_vfloat64_m1  = ML_Debug(display_format = "{%a}", pre_process = lambda v: "vfmv_f_s_f64m1_f64(%s)" % (v))
+#debug_vint64_m1    = ML_Debug(display_format = "{%d}", pre_process = lambda v: "vmv_x_s_i64m1_i64(%s)" % (v))
+
+# number of element per vector to be displayed during debug
+DEBUG_LEN = 4
+def replicateFmt(fmt, n):
+    """ replicate debug type format string """
+    return "{" + ", ".join([fmt] * n) + "}"
+
+def generateDbg(eltType, n):
+    eltFmt = "%a" if isinstance(eltType, ML_FP_Format) else "%d"
+    pre_process = lambda v: (", ".join(getElt(eltType, index, "{0}") for index in range(DEBUG_LEN))).format(v)
+    return ML_Debug(display_format=replicateFmt(eltFmt, DEBUG_LEN), pre_process=pre_process)
+
+debug_vfloat32_m1  = generateDbg(ML_Binary32, DEBUG_LEN)
+debug_vint32_m1    = generateDbg(ML_Int32, DEBUG_LEN)
+debug_vfloat64_m1  = generateDbg(ML_Binary64, DEBUG_LEN)
+debug_vint64_m1    = generateDbg(ML_Int64, DEBUG_LEN)
 
 debug_multi.add_mapping(RVV_vBinary32_m1, debug_vfloat32_m1)
 debug_multi.add_mapping(RVV_vectorTypeMap[(1, ML_Int32)], debug_vint32_m1)
+debug_multi.add_mapping(RVV_vectorTypeMap[(1, ML_Binary64)], debug_vfloat64_m1)
+debug_multi.add_mapping(RVV_vectorTypeMap[(1, ML_Int64)], debug_vint64_m1)
 
 RVV_VectorSize_T = ML_FormatConstructor(None, "size_t", None, lambda v: None, header="stddef.h")
 
