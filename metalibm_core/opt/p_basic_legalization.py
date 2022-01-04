@@ -40,7 +40,7 @@ from metalibm_core.core.ml_operations import (
     Test,
 )
 from metalibm_core.core.legalizer import (
-    generate_raw_mantissa_extraction, generate_test_expansion, generate_exp_extraction,
+    generate_mantissa_extraction, generate_raw_mantissa_extraction, generate_test_expansion, generate_exp_extraction,
     generate_exp_insertion
 )
 
@@ -82,7 +82,7 @@ class BasicExpander(object):
             forward_attributes(node, result)
         elif isinstance(node, MantissaExtraction):
             op = wrap_expansion(node.get_input(0), self.expand_node(node.get_input(0)))
-            result = generate_mantissa_extraction(op, node.precision)
+            result = generate_mantissa_extraction(op)
             forward_attributes(node, result)
         elif is_expandable_test(node):
             op = wrap_expansion(node.get_input(0), self.expand_node(node.get_input(0)))
@@ -99,6 +99,7 @@ class BasicExpander(object):
         """ return True if @p node is expandable else False """
         return isinstance(node, ExponentExtraction) or \
                isinstance(node, ExponentInsertion) or \
+               isinstance(node, MantissaExtraction) or \
                is_expandable_test(node)
 
 
