@@ -42,7 +42,7 @@ import sollya
 from metalibm_core.utility.log_report import Log
 
 from metalibm_core.core.ml_operations import (
-    Comparison, Select, Constant, TypeCast, Multiplication, Addition,
+    BitLogicOr, Comparison, Select, Constant, TypeCast, Multiplication, Addition,
     Subtraction, Negation, Test,
     Max, Min,
     Conversion,
@@ -463,20 +463,45 @@ def generate_mantissa_extraction(node):
     signMask = 1 << (base_precision.get_bit_size() - 1)
     sigMask = (1 << base_precision.get_field_size()) - 1
 
-    fieldAndSign = TypeCast(
-        BitLogicAnd(
-            TypeCast(node, precision=int_precision),
-            Constant(sigMask | signMask, precision=int_precision),
+    fieldAndSign = BitLogicAnd(
+                TypeCast(node, precision=int_precision),
+                Constant(sigMask | signMask, precision=int_precision),
+                precision=int_precision)
+    
+    return TypeCast(
+        BitLogicOr(
+            fieldAndSign,
+            generate_static_raw_exp_insertion(0, base_precision),
             precision=int_precision
         ),
         precision=nodeType
     )
-    exp = ExponentExtraction(node, precision=int_precision)
-    return ExponentInsertion(
-        fieldAndSign,
-        exp,
-        precision=nodeType
-    )
+
+def generate_static_raw_exp_insertion(expValue, result_precision):
+    """ generate a constant value which corresponds to the floating-point constant 2^expValue
+        (scalar or vector depending on result_precision)
+        output is returned in a raw integer format (with same bitwidth as result_precision) """
+    if result_precision.is_vector_format():
+        vector_size = result_precision.get_vector_size()
+        scalar_format = result_precision.get_scalar_format()
+        # determine the working format (for expression)
+        work_format = VECTOR_TYPE_MAP[result_precision.get_scalar_format().get_integer_format()][vector_size] 
+        cstBuilder = lambda v, tag: Constant([v] * vector_size, precision=work_format, tag=tag)
+    else:
+        scalar_format = result_precision
+        work_format = result_precision.get_integer_format()
+        cstBuilder = lambda v, tag: Constant(v, precision=work_format, tag=tag)
+    # TODO add bound checks
+    biased_exponent = (expValue + -scalar_format.get_bias()) << scalar_format.get_field_size()
+    exp2str = "raw_2p" + ("m" if expValue < 0 else "") + "%s" % abs(expValue) 
+    result = cstBuilder(biased_exponent, exp2str)
+    return result
+
+def generate_static_exp_insertion(expValue, result_precision):
+    """ generate a constant value which corresponds to the floating-point constant 2^expValue
+        (scalar or vector depending on result_precision) """
+    return TypeCast(generate_static_raw_exp_insertion(expValue, result_precision), precision=result_precision)
+
 
 def generate_exp_insertion(optree, result_precision):
     """ generate the expanded version of ExponentInsertion
