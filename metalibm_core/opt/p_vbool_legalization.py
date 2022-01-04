@@ -27,8 +27,6 @@
 # Description: optimization pass to legalize vector of virtual boolean element
 ###############################################################################
 
-import sollya
-
 from metalibm_core.core.passes import METALIBM_PASS_REGISTER, OptreeOptimization, Pass, LOG_PASS_INFO
 from metalibm_core.opt.node_transformation import Pass_NodeTransformation
 from metalibm_core.opt.opt_utils import forward_attributes
