@@ -1000,6 +1000,14 @@ class FSM(object):
   def __call__(self, arg_format):
     return self.format_obj == arg_format
 
+class FSLM(object):
+  """ Format Strict List Match  """
+  def __init__(self, format_obj_list):
+    self.format_obj_list = format_obj_list
+
+  def __call__(self, arg_format):
+    return  any(map((lambda f: f == arg_format), self.format_obj_list))
+
 
 class BackendImplMatchPredicated:
     """ weak, is set to True if this match succeed it  will be used only
