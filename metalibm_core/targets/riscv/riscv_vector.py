@@ -39,11 +39,13 @@ from metalibm_core.code_generation.complex_generator import ComplexOperator, Dyn
 from metalibm_core.core.ml_complex_formats import ML_Pointer_Format, ML_TableFormat
 from metalibm_core.core.target import UniqueTargetDecorator
 from metalibm_core.core.ml_operations import (
-    Addition, BitArithmeticRightShift, BitLogicAnd, BitLogicLeftShift, BitLogicRightShift,
+    Addition, BitArithmeticRightShift, BitLogicAnd, BitLogicLeftShift, BitLogicOr, BitLogicRightShift, Comparison,
     Conversion, FusedMultiplyAdd, Modulo, Multiplication, NearestInteger, Negation, Splat, Subtraction, TableLoad, TableStore,
     TypeCast)
 from metalibm_core.core.ml_formats import (
-    ML_Binary16, ML_Bool16, ML_Bool32, ML_Bool64, ML_FP_Format, ML_Format, ML_FormatConstructor, ML_Int16, ML_Int64, ML_Int32,
+    ML_Binary16,
+    ML_Bool8, ML_Bool16, ML_Bool32, ML_Bool64, ML_FP_Format, ML_Format, ML_FormatConstructor,
+    ML_Int16, ML_Int64, ML_Int32,
     ML_Binary64, ML_Binary32, ML_Integer, ML_UInt16, ML_UInt32, ML_UInt64, ML_Void)
 from metalibm_core.core.vla_common import VLAGetLength, VLAOperation
 
@@ -79,9 +81,9 @@ class RVV_VectorType(ML_FormatConstructor):
 
 class RVV_VectorMaskType(RVV_VectorType):
     """ Constructor for vector-mask type for RISC-V Vector extension"""
-    def __init__(self, lmul, eltType):
+    def __init__(self, lmul, eltType): 
         # ratio SEW / LMUL
-        n = eltType.get_bit_size() / lmul
+        n = eltType.get_bit_size() // lmul
         typeName = "vbool{}_t".format(n)
         ML_FormatConstructor.__init__(self, None, typeName, None, lambda v: None, header="riscv_vector.h")
         self.lmul = lmul
@@ -94,7 +96,10 @@ RVV_vectorFloatTypeMap = {(lmul, eltType): RVV_vectorTypeMap[(lmul, eltType)] fo
 RVV_vectorIntTypeMap = {(lmul, eltType): RVV_vectorTypeMap[(lmul, eltType)] for lmul in [1, 2, 4, 8] for eltType in [ML_Int32, ML_Int64, ML_UInt32, ML_UInt64]}
 RVV_vectorSIntTypeMap = {(lmul, eltType): RVV_vectorTypeMap[(lmul, eltType)] for lmul in [1, 2, 4, 8] for eltType in [ML_Int32, ML_Int64]}
 RVV_vectorUIntTypeMap = {(lmul, eltType): RVV_vectorTypeMap[(lmul, eltType)] for lmul in [1, 2, 4, 8] for eltType in [ML_UInt32, ML_UInt64]}
-RVV_vectorBoolTypeMap = {(lmul, eltType): RVV_VectorMaskType(lmul, eltType) for lmul in [1, 2, 4, 8] for eltType in [ML_Bool16, ML_Bool32, ML_Bool64]}
+
+# associating previously built mask types to each pair (lmul, eltType)
+RVV_vectorBoolTypeMap = {(lmul, eltType.get_bit_size()): RVV_VectorMaskType(lmul, eltType) for lmul in [1, 2, 4, 8] for eltType in [ML_Bool8, ML_Bool16, ML_Bool32, ML_Bool64]}
+
 
 # correspondence mapping for cast 
 RVV_castEltTypeMapping = {
@@ -336,7 +341,20 @@ rvv64_CCodeGenTable = {
                     RVVIntrinsic("vand_vx_%sm%d" % (RVVIntrSuffix[eltType], lmul), arity=3, output_precision=RVV_vectorTypeMap[(lmul, eltType)])
                     for (lmul, eltType) in RVV_vectorIntTypeMap
             },
-
+        },
+        BitLogicOr: {
+            lambda optree: True: {
+                # generating mapping for all vv version of vor
+                type_strict_match(RVV_vectorTypeMap[(lmul, eltType)], RVV_vectorTypeMap[(lmul, eltType)], RVV_vectorTypeMap[(lmul, eltType)], RVV_VectorSize_T): 
+                    RVVIntrinsic("vor_vv_%sm%d" % (RVVIntrSuffix[eltType], lmul), arity=3, output_precision=RVV_vectorTypeMap[(lmul, eltType)])
+                    for (lmul, eltType) in RVV_vectorIntTypeMap
+            },
+            lambda optree: True: {
+                # generating mapping for all vx version of vor
+                type_strict_match(RVV_vectorTypeMap[(lmul, eltType)], RVV_vectorTypeMap[(lmul, eltType)], eltType, RVV_VectorSize_T): 
+                    RVVIntrinsic("vor_vx_%sm%d" % (RVVIntrSuffix[eltType], lmul), arity=3, output_precision=RVV_vectorTypeMap[(lmul, eltType)])
+                    for (lmul, eltType) in RVV_vectorIntTypeMap
+            },
         },
         Multiplication: {
              lambda optree: True: {
@@ -499,11 +517,21 @@ rvv64_CCodeGenTable = {
             },
             lambda optree: True: {
                 type_custom_match(FSM(RVV_vectorTypeMap[((lmul, eltType))]), TCM(ML_TableFormat), FSM(RVV_vectorTypeMap[(lmul, ML_UInt32)]), FSM(RVV_VectorSize_T), debug=True):
-                    RVVIntrinsic("vluxei%d_v_%sm%d" % (eltType.get_bit_size(), RVVIntrSuffix[eltType], lmul), arity=3, output_precision=RVV_vectorTypeMap[((lmul, eltType))]) for (lmul, eltType) in RVV_vectorTypeMap
+                    RVVIntrinsic("vluxei32_v_%sm%d" % (RVVIntrSuffix[eltType], lmul), arity=3, output_precision=RVV_vectorTypeMap[((lmul, eltType))]) for (lmul, eltType) in RVV_vectorTypeMap
             },
+            lambda optree: True: {
+                type_custom_match(FSM(RVV_vectorTypeMap[((lmul, eltType))]), TCM(ML_TableFormat), FSM(RVV_vectorTypeMap[(lmul, ML_UInt64)]), FSM(RVV_VectorSize_T), debug=True):
+                    RVVIntrinsic("vluxei64_v_%sm%d" % (RVVIntrSuffix[eltType], lmul), arity=3, output_precision=RVV_vectorTypeMap[((lmul, eltType))]) for (lmul, eltType) in RVV_vectorTypeMap
+            },
+            # mapping to cast int32 indices to uint32
             lambda optree: True: {
                 type_custom_match(FSM(RVV_vectorTypeMap[((lmul, eltType))]), TCM(ML_TableFormat), FSM(RVV_vectorTypeMap[(lmul, ML_Int32)]), FSM(RVV_VectorSize_T), debug=True):
                     ComplexOperator(optree_modifier=typeCastInput(opIndex=1, vlIndex=2, castType=RVV_vectorTypeMap[(lmul, ML_UInt32)] )) for (lmul, eltType) in RVV_vectorTypeMap
+            },
+            # mapping to cast int64 indices to uint64
+            lambda optree: True: {
+                type_custom_match(FSM(RVV_vectorTypeMap[((lmul, eltType))]), TCM(ML_TableFormat), FSM(RVV_vectorTypeMap[(lmul, ML_Int64)]), FSM(RVV_VectorSize_T), debug=True):
+                    ComplexOperator(optree_modifier=typeCastInput(opIndex=1, vlIndex=2, castType=RVV_vectorTypeMap[(lmul, ML_UInt64)] )) for (lmul, eltType) in RVV_vectorTypeMap
             },
         },
         TableStore: {
@@ -511,6 +539,21 @@ rvv64_CCodeGenTable = {
                 type_custom_match(FSM(ML_Void), TCM(ML_Pointer_Format), FSM(RVV_vectorTypeMap[((lmul, eltType))]), FSM(RVV_VectorSize_T)):
                     RVVIntrinsic("vse%d_v_%sm%d" % (eltType.get_bit_size(), RVVIntrSuffix[eltType], lmul), arity=3, output_precision=ML_Void, void_function=True) for (lmul, eltType) in RVV_vectorTypeMap
             }
+        },
+        (Comparison, Comparison.Greater): {
+            lambda optree: True: {
+                # generating mapping for all vf version of gt comparison 
+                type_strict_match(RVV_vectorBoolTypeMap[(lmul, eltType.get_bit_size())], RVV_vectorFloatTypeMap[(lmul, eltType)], eltType, RVV_VectorSize_T): 
+                    RVVIntrinsic("vmfgt_vf_%smf%d_%d" % (RVVIntrSuffix[eltType], lmul, eltType.get_bit_size() / lmul), arity=2, output_precision=RVV_vectorFloatTypeMap[(lmul, eltType)])
+                    for (lmul, eltType) in RVV_vectorFloatTypeMap
+            },
+            lambda optree: True: {
+                # generating mapping for all vv version of vfadd
+                type_strict_match(RVV_vectorBoolTypeMap[(lmul, eltType.get_bit_size())], RVV_vectorFloatTypeMap[(lmul, eltType)], RVV_vectorFloatTypeMap[(lmul, eltType)], RVV_VectorSize_T): 
+                    RVVIntrinsic("vmfgt_vv_%smf%d_%d" % (RVVIntrSuffix[eltType], lmul, eltType.get_bit_size() / lmul), arity=2, output_precision=RVV_vectorFloatTypeMap[(lmul, eltType)])
+                    for (lmul, eltType) in RVV_vectorFloatTypeMap
+            },
+
         },
     },
 }
