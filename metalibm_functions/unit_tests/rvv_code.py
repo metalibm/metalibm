@@ -34,8 +34,8 @@ import sys
 from sollya import Interval
 
 from metalibm_core.core.ml_function import ML_FunctionBasis
-from metalibm_core.core.ml_operations import Addition, TableStore, TableLoad, Statement
-from metalibm_core.core.ml_formats import ML_Int32, ML_Binary32, ML_Void
+from metalibm_core.core.ml_operations import Addition, Constant, TableStore, TableLoad, Statement
+from metalibm_core.core.ml_formats import ML_Int32, ML_Binary32, ML_Integer, ML_Void
 from metalibm_core.core.ml_complex_formats import ML_Binary32_p
 from metalibm_core.core.vla_common import (VLAGetLength, VLAOperation)
 
@@ -78,7 +78,7 @@ class ML_UT_RVVCode(ML_FunctionBasis, TestRunner):
     py = self.implementation.add_input_variable("py", ML_Binary32_p)
     l = self.implementation.add_input_variable("l", RVV_VectorSize_T)
 
-    l = VLAGetLength(l, precision=RVV_VectorSize_T)
+    l = VLAGetLength(l, Constant(ML_Binary32.get_bit_size(), precision=ML_Integer), Constant(RVV_vBinary32_m1.lmul, precision=ML_Integer), precision=RVV_VectorSize_T)
     vx = VLAOperation(px, l, specifier=TableLoad, precision=RVV_vBinary32_m1)
     vadd = VLAOperation(vx, vx, l, specifier=Addition, precision=RVV_vBinary32_m1)
     scheme = Statement(
