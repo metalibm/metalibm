@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 ###############################################################################
-# This file is part of metalibm (https://github.com/kalray/metalibm)
+# This file is part of metalibm (https://github.com/metalibm/metalibm)
 ###############################################################################
 # MIT License
 #
@@ -33,9 +33,9 @@
 
 
 from metalibm_core.core.ml_formats import ML_BoolClass
-from metalibm_core.core.ml_operations import is_leaf_node
+from metalibm_core.core.ml_operations import Comparison, LogicalAnd, LogicalNot, LogicalOr, is_leaf_node
 from metalibm_core.core.vla_common import VLAType
-from metalibm_core.targets.riscv.riscv_vector import RVV_VectorMaskType, RVV_vectorTypeMap
+from metalibm_core.targets.riscv.riscv_vector import RVV_VectorMaskType, RVV_vectorBoolTypeMap, RVV_vectorTypeMap
 
 from metalibm_core.utility.log_report import Log
 
@@ -60,7 +60,7 @@ class Pass_RVV_Legalization(FunctionPass):
   def execute_on_optree(self, optree, fct=None, fct_group=None, memoization_map=None):
     return self.legalizeNode(optree)
 
-  def legalizeType(self, nodeType):
+  def legalizeType(self, nodeType, node):
     """ legalize node type """
     if not isinstance(nodeType, VLAType):
       # unchanged
@@ -68,11 +68,12 @@ class Pass_RVV_Legalization(FunctionPass):
     lmul = nodeType.groupSize
     eltType = nodeType.baseFormat
     if isinstance(eltType, ML_BoolClass):
-      return RVV_VectorMaskType(lmul, eltType)
+      # type must be patched based on input types
+      return RVV_vectorBoolTypeMap[(lmul, eltType.get_bit_size())]
     else:
       return RVV_vectorTypeMap[(lmul, eltType)]
 
-  def isNodeLegal(self, node):
+  def isNodeTypeLegal(self, node):
     predicate = not isinstance(node.get_precision(), VLAType)
     return predicate
 
@@ -87,9 +88,9 @@ class Pass_RVV_Legalization(FunctionPass):
         for op in node.get_inputs():
           _ = self.legalizeNode(op)
       # translating node type
-      if not self.isNodeLegal(node):
+      if not self.isNodeTypeLegal(node):
         nodeType = node.get_precision()
-        nodeNewType = self.legalizeType(nodeType)
+        nodeNewType = self.legalizeType(nodeType, node)
         Log.report(LOG_RVV_LEGALIZATION_INFO, "legalization node {} type from {} to {}", node, nodeType, nodeNewType)
         node.set_precision(nodeNewType)
       # memoization
