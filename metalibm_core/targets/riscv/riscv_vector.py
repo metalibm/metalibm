@@ -40,7 +40,7 @@ from metalibm_core.core.ml_complex_formats import ML_Pointer_Format, ML_TableFor
 from metalibm_core.core.target import UniqueTargetDecorator
 from metalibm_core.core.ml_operations import (
     Addition, BitArithmeticRightShift, BitLogicAnd, BitLogicLeftShift, BitLogicOr, BitLogicRightShift, Comparison,
-    Conversion, FusedMultiplyAdd, Modulo, Multiplication, NearestInteger, Negation, Splat, Subtraction, TableLoad, TableStore,
+    Conversion, FusedMultiplyAdd, Modulo, Multiplication, NearestInteger, Negation, Select, Splat, Subtraction, TableLoad, TableStore,
     TypeCast)
 from metalibm_core.core.ml_formats import (
     ML_Binary16,
@@ -540,11 +540,28 @@ rvv64_CCodeGenTable = {
                     RVVIntrinsic("vse%d_v_%sm%d" % (eltType.get_bit_size(), RVVIntrSuffix[eltType], lmul), arity=3, output_precision=ML_Void, void_function=True) for (lmul, eltType) in RVV_vectorTypeMap
             }
         },
+        Select: {
+            lambda optree: True: {
+                type_strict_match(RVV_vectorTypeMap[(lmul, eltType)], RVV_vectorBoolTypeMap[(lmul, eltType.get_bit_size())], RVV_vectorTypeMap[(lmul, eltType)], RVV_vectorTypeMap[(lmul, eltType)], RVV_VectorSize_T):
+                    RVVIntrinsic("vmerge_vvm_%sm%d" % (RVVIntrSuffix[eltType], lmul), arity=4, output_precision=RVV_vectorTypeMap[(lmul, eltType)]) # op[1] and op[2] may need to be inverted
+                    for (lmul, eltType) in RVV_vectorTypeMap
+            },
+            lambda optree: True: {
+                type_strict_match(RVV_vectorTypeMap[(lmul, eltType)], RVV_vectorBoolTypeMap[(lmul, eltType.get_bit_size())], RVV_vectorTypeMap[(lmul, eltType)], eltType, RVV_VectorSize_T):
+                    RVVIntrinsic("vfmerge_vfm_%sm%d" % (RVVIntrSuffix[eltType], lmul), arity=4, output_precision=RVV_vectorTypeMap[(lmul, eltType)])
+                    for (lmul, eltType) in RVV_vectorFloatTypeMap
+            },
+            lambda optree: True: {
+                type_strict_match(RVV_vectorTypeMap[(lmul, eltType)], RVV_vectorBoolTypeMap[(lmul, eltType.get_bit_size())], eltType, eltType, RVV_VectorSize_T):
+                    ComplexOperator(optree_modifier=expandOpSplat(RVV_vectorTypeMap[(lmul, eltType)], 1, 3))
+                    for (lmul, eltType) in RVV_vectorFloatTypeMap
+            },
+        },
         (Comparison, Comparison.Greater): {
             lambda optree: True: {
                 # generating mapping for all vf version of gt comparison 
                 type_strict_match(RVV_vectorBoolTypeMap[(lmul, eltType.get_bit_size())], RVV_vectorFloatTypeMap[(lmul, eltType)], eltType, RVV_VectorSize_T): 
-                    RVVIntrinsic("vmfgt_vf_%smf%d_%d" % (RVVIntrSuffix[eltType], lmul, eltType.get_bit_size() / lmul), arity=2, output_precision=RVV_vectorFloatTypeMap[(lmul, eltType)])
+                    RVVIntrinsic("vmfgt_vf_%smf%d_%d" % (RVVIntrSuffix[eltType], lmul, eltType.get_bit_size() / lmul), arity=2, output_precision=RVV_vectorBoolTypeMap[(lmul, eltType.get_bit_size())])
                     for (lmul, eltType) in RVV_vectorFloatTypeMap
             },
             lambda optree: True: {
@@ -553,7 +570,14 @@ rvv64_CCodeGenTable = {
                     RVVIntrinsic("vmfgt_vv_%smf%d_%d" % (RVVIntrSuffix[eltType], lmul, eltType.get_bit_size() / lmul), arity=2, output_precision=RVV_vectorFloatTypeMap[(lmul, eltType)])
                     for (lmul, eltType) in RVV_vectorFloatTypeMap
             },
-
+        },
+        (Comparison, Comparison.Equal): {
+            lambda optree: True: {
+                # generating mapping for all vf version of gt comparison 
+                type_strict_match(RVV_vectorBoolTypeMap[(lmul, eltType.get_bit_size())], RVV_vectorTypeMap[(lmul, eltType)], eltType, RVV_VectorSize_T): 
+                    RVVIntrinsic("vmeq_vx_%sm%d_%d" % (RVVIntrSuffix[eltType], lmul, eltType.get_bit_size() / lmul), arity=2, output_precision=RVV_vectorBoolTypeMap[(lmul, eltType.get_bit_size())])
+                    for (lmul, eltType) in RVV_vectorIntTypeMap
+            },
         },
     },
 }
