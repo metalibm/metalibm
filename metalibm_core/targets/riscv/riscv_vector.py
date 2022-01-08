@@ -40,7 +40,7 @@ from metalibm_core.core.ml_complex_formats import ML_Pointer_Format, ML_TableFor
 from metalibm_core.core.target import UniqueTargetDecorator
 from metalibm_core.core.ml_operations import (
     Addition, BitArithmeticRightShift, BitLogicAnd, BitLogicLeftShift, BitLogicOr, BitLogicRightShift, Comparison,
-    Conversion, FusedMultiplyAdd, Modulo, Multiplication, NearestInteger, Negation, Select, Splat, Subtraction, TableLoad, TableStore,
+    Conversion, FusedMultiplyAdd, Modulo, Multiplication, NearestInteger, Negation, ReciprocalSeed, Select, Splat, Subtraction, TableLoad, TableStore,
     TypeCast)
 from metalibm_core.core.ml_formats import (
     ML_Binary16,
@@ -58,6 +58,7 @@ from metalibm_core.utility.debug_utils import debug_multi, ML_Debug
 from metalibm_core.utility.log_report import Log
 
 from metalibm_core.targets.riscv.riscv import RISCV_RV64
+from metalibm_core.targets.riscv.rvv_table import rvv_approx_table_map
 
 
 def RVVIntrinsic(*args, **kw):
@@ -579,6 +580,15 @@ rvv64_CCodeGenTable = {
                     for (lmul, eltType) in RVV_vectorIntTypeMap
             },
         },
+        ReciprocalSeed: {
+            lambda optree: True: {
+                type_strict_match(RVV_vectorFloatTypeMap[(lmul, eltType)], RVV_vectorFloatTypeMap[(lmul, eltType)], RVV_VectorSize_T): 
+                    RVVIntrinsic("vfrec7_v_%smf%d" % (RVVIntrSuffix[eltType], lmul), arity=2, output_precision=RVV_vectorFloatTypeMap[(lmul, eltType)])
+                    for (lmul, eltType) in RVV_vectorFloatTypeMap
+                
+            }
+
+        },
     },
 }
 
@@ -590,6 +600,10 @@ class RISCV_RVV64(RISCV_RV64):
     code_generation_table = {
         C_Code: rvv64_CCodeGenTable,
     }
+
+    # approximation table map
+    approx_table_map = rvv_approx_table_map
+
 
     def __init__(self):
         super().__init__()
