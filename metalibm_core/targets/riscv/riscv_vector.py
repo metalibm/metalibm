@@ -553,6 +553,11 @@ rvv64_CCodeGenTable = {
                     for (lmul, eltType) in RVV_vectorFloatTypeMap
             },
             lambda optree: True: {
+                type_strict_match(RVV_vectorTypeMap[(lmul, eltType)], RVV_vectorBoolTypeMap[(lmul, eltType.get_bit_size())], eltType, RVV_vectorTypeMap[(lmul, eltType)], RVV_VectorSize_T):
+                    ComplexOperator(optree_modifier=expandOpSplat(RVV_vectorTypeMap[(lmul, eltType)], 1, 3)) # TODO/optme: could be implemented by swaping vec ops and negating mask
+                    for (lmul, eltType) in RVV_vectorFloatTypeMap
+            },
+            lambda optree: True: {
                 type_strict_match(RVV_vectorTypeMap[(lmul, eltType)], RVV_vectorBoolTypeMap[(lmul, eltType.get_bit_size())], eltType, eltType, RVV_VectorSize_T):
                     ComplexOperator(optree_modifier=expandOpSplat(RVV_vectorTypeMap[(lmul, eltType)], 1, 3))
                     for (lmul, eltType) in RVV_vectorFloatTypeMap
@@ -568,7 +573,7 @@ rvv64_CCodeGenTable = {
             lambda optree: True: {
                 # generating mapping for all vv version of vfadd
                 type_strict_match(RVV_vectorBoolTypeMap[(lmul, eltType.get_bit_size())], RVV_vectorFloatTypeMap[(lmul, eltType)], RVV_vectorFloatTypeMap[(lmul, eltType)], RVV_VectorSize_T): 
-                    RVVIntrinsic("vmfgt_vv_%smf%d_%d" % (RVVIntrSuffix[eltType], lmul, eltType.get_bit_size() / lmul), arity=2, output_precision=RVV_vectorFloatTypeMap[(lmul, eltType)])
+                    RVVIntrinsic("vmfgt_vv_%smf%d_%d" % (RVVIntrSuffix[eltType], lmul, eltType.get_bit_size() / lmul), arity=3, output_precision=RVV_vectorFloatTypeMap[(lmul, eltType)])
                     for (lmul, eltType) in RVV_vectorFloatTypeMap
             },
         },
@@ -576,7 +581,7 @@ rvv64_CCodeGenTable = {
             lambda optree: True: {
                 # generating mapping for all vf version of gt comparison 
                 type_strict_match(RVV_vectorBoolTypeMap[(lmul, eltType.get_bit_size())], RVV_vectorTypeMap[(lmul, eltType)], eltType, RVV_VectorSize_T): 
-                    RVVIntrinsic("vmeq_vx_%sm%d_%d" % (RVVIntrSuffix[eltType], lmul, eltType.get_bit_size() / lmul), arity=2, output_precision=RVV_vectorBoolTypeMap[(lmul, eltType.get_bit_size())])
+                    RVVIntrinsic("vmeq_vx_%sm%d_%d" % (RVVIntrSuffix[eltType], lmul, eltType.get_bit_size() / lmul), arity=3, output_precision=RVV_vectorBoolTypeMap[(lmul, eltType.get_bit_size())])
                     for (lmul, eltType) in RVV_vectorIntTypeMap
             },
         },
