@@ -109,7 +109,7 @@ class PassScheduler:
   class Optimization:
     tag = "optimization"
   STANDARD_SLOT_LIST = [
-        Start, Whenever, JustBeforeCodeGen,
+        Start, Optimization, Whenever, JustBeforeCodeGen,
         BeforePipelining, AfterPipelining
   ]
 
