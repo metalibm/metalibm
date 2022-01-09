@@ -592,17 +592,17 @@ rvv64_CCodeGenTable = {
         Select: {
             lambda optree: True: {
                 type_strict_match(RVV_vectorTypeMap[(lmul, eltType)], RVV_vectorBoolTypeMap[(lmul, eltType.get_bit_size())], RVV_vectorTypeMap[(lmul, eltType)], RVV_vectorTypeMap[(lmul, eltType)], RVV_VectorSize_T):
-                    RVVIntrinsic("vmerge_vvm_%sm%d" % (RVVIntrSuffix[eltType], lmul), arity=4, output_precision=RVV_vectorTypeMap[(lmul, eltType)]) # op[1] and op[2] may need to be inverted
+                    RVVIntrinsic("vmerge_vvm_%sm%d" % (RVVIntrSuffix[eltType], lmul), arg_map={0: FO_Arg(0), 1: FO_Arg(2), 2: FO_Arg(1), 3: FO_Arg(3)}, arity=4, output_precision=RVV_vectorTypeMap[(lmul, eltType)]) # op[1] and op[2] may need to be inverted
                     for (lmul, eltType) in RVV_vectorTypeMap
             },
             lambda optree: True: {
                 type_strict_match(RVV_vectorTypeMap[(lmul, eltType)], RVV_vectorBoolTypeMap[(lmul, eltType.get_bit_size())], RVV_vectorTypeMap[(lmul, eltType)], eltType, RVV_VectorSize_T):
-                    RVVIntrinsic("vfmerge_vfm_%sm%d" % (RVVIntrSuffix[eltType], lmul), arity=4, output_precision=RVV_vectorTypeMap[(lmul, eltType)])
+                    ComplexOperator(optree_modifier=expandOpSplat(RVV_vectorTypeMap[(lmul, eltType)], 2, 3)) # TODO/optme: could be implemented by swaping vec ops and negating mask
                     for (lmul, eltType) in RVV_vectorFloatTypeMap
             },
             lambda optree: True: {
                 type_strict_match(RVV_vectorTypeMap[(lmul, eltType)], RVV_vectorBoolTypeMap[(lmul, eltType.get_bit_size())], eltType, RVV_vectorTypeMap[(lmul, eltType)], RVV_VectorSize_T):
-                    ComplexOperator(optree_modifier=expandOpSplat(RVV_vectorTypeMap[(lmul, eltType)], 1, 3)) # TODO/optme: could be implemented by swaping vec ops and negating mask
+                    RVVIntrinsic("vfmerge_vfm_%sm%d" % (RVVIntrSuffix[eltType], lmul), arg_map={0: FO_Arg(0), 1: FO_Arg(2), 2: FO_Arg(1), 3: FO_Arg(3)}, arity=4, output_precision=RVV_vectorTypeMap[(lmul, eltType)])
                     for (lmul, eltType) in RVV_vectorFloatTypeMap
             },
             lambda optree: True: {
