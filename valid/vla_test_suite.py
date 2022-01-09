@@ -57,10 +57,12 @@ AXF_DIR = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "metal
 
 
 # global bench test range
-BENCH_TEST_RANGE = {
+TEST_RANGE = {
     "exp": [UniformInterval(0, 80)],
     "expm1": [Interval(-1, 1)],
-    "log": [UniformInterval(0, 100)],
+    "log": [UniformInterval(0.5, 100)],
+    "log2": [UniformInterval(0.5, 100)],
+    "log10": [UniformInterval(0.5, 100)],
     "log1p": [Interval(-1, 1)],
     "trigo": [UniformInterval(-1e7, 1e7)],
     "tanh": [UniformInterval(-5,5)],
@@ -81,9 +83,9 @@ VLA_FUNCTION_LIST = [
     FunctionTest(VLAFunction, [{"extra_passes": RV64_GV_EXTRA_PASSES, "function_ctor": FUNCTION_MAP["exp"]}], title="vla_exp", predicate=vlaTargetPredicate),
     FunctionTest(VLAFunction, [{"extra_passes": RV64_GV_EXTRA_PASSES, "function_ctor": FUNCTION_MAP["exp2"]}], title="vla_exp2", predicate=vlaTargetPredicate),
 
-    FunctionTest(VLAFunction, [{"extra_passes": RV64_GV_EXTRA_PASSES, "function_ctor": FUNCTION_MAP["log"]}], title="vla_log", predicate=vlaTargetPredicate),
-    FunctionTest(VLAFunction, [{"extra_passes": RV64_GV_EXTRA_PASSES, "function_ctor": FUNCTION_MAP["log2"]}], title="vla_log2", predicate=vlaTargetPredicate),
-    FunctionTest(VLAFunction, [{"extra_passes": RV64_GV_EXTRA_PASSES, "function_ctor": FUNCTION_MAP["log10"]}], title="vla_log10", predicate=vlaTargetPredicate),
+    FunctionTest(VLAFunction, [{"extra_passes": RV64_GV_EXTRA_PASSES, "auto_test_range": TEST_RANGE["log"], "function_ctor": FUNCTION_MAP["log"]}], title="vla_log", predicate=vlaTargetPredicate),
+    FunctionTest(VLAFunction, [{"extra_passes": RV64_GV_EXTRA_PASSES, "auto_test_range": TEST_RANGE["log2"], "function_ctor": FUNCTION_MAP["log2"]}], title="vla_log2", predicate=vlaTargetPredicate),
+    FunctionTest(VLAFunction, [{"extra_passes": RV64_GV_EXTRA_PASSES, "auto_test_range": TEST_RANGE["log10"], "function_ctor": FUNCTION_MAP["log10"]}], title="vla_log10", predicate=vlaTargetPredicate),
 ]
 
 
