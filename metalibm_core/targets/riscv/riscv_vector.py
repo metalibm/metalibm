@@ -153,15 +153,17 @@ debug_vint32_m1    = generateDbg(ML_Int32, DEBUG_LEN)
 debug_vfloat64_m1  = generateDbg(ML_Binary64, DEBUG_LEN)
 debug_vint64_m1    = generateDbg(ML_Int64, DEBUG_LEN)
 
-debug_pp = lambda v, index: f"""vmv_x_s_i32m1_i32(vslidedown_vx_i32m1(vmv_v_x_i32m1(0, {DEBUG_LEN}), vmerge_vxm_i32m1({v}, vmv_v_x_i32m1(0, {DEBUG_LEN}), 1, {DEBUG_LEN}), {index}, {index+1}))""" 
+debug_pp = lambda v, index, isize: f"""vmv_x_s_i{isize}m1_i{isize}(vslidedown_vx_i{isize}m1(vmv_v_x_i{isize}m1(0, {DEBUG_LEN}), vmerge_vxm_i{isize}m1({v}, vmv_v_x_i{isize}m1(0, {DEBUG_LEN}), 1, {DEBUG_LEN}), {index}, {index+1}))""" 
 
-debug_vbool = ML_Debug(display_format=replicateFmt("%d", DEBUG_LEN), pre_process=lambda v: ", ".join(debug_pp(v, i) for i in range(DEBUG_LEN)))
+debug_vbool_i32 = ML_Debug(display_format=replicateFmt("%d", DEBUG_LEN), pre_process=lambda v: ", ".join(debug_pp(v, i, 32) for i in range(DEBUG_LEN)))
+debug_vbool_i64 = ML_Debug(display_format=replicateFmt("%ld", DEBUG_LEN), pre_process=lambda v: ", ".join(debug_pp(v, i, 64) for i in range(DEBUG_LEN)))
 
 debug_multi.add_mapping(RVV_vBinary32_m1, debug_vfloat32_m1)
 debug_multi.add_mapping(RVV_vectorTypeMap[(1, ML_Int32)], debug_vint32_m1)
 debug_multi.add_mapping(RVV_vectorTypeMap[(1, ML_Binary64)], debug_vfloat64_m1)
 debug_multi.add_mapping(RVV_vectorTypeMap[(1, ML_Int64)], debug_vint64_m1)
-debug_multi.add_mapping(RVV_vectorBoolTypeMap[(1, 32)], debug_vbool)
+debug_multi.add_mapping(RVV_vectorBoolTypeMap[(1, 32)], debug_vbool_i32)
+debug_multi.add_mapping(RVV_vectorBoolTypeMap[(1, 64)], debug_vbool_i64)
 
 RVV_VectorSize_T = ML_FormatConstructor(None, "size_t", None, lambda v: None, header="stddef.h")
 
@@ -459,13 +461,13 @@ rvv64_CCodeGenTable = {
         },
         (FusedMultiplyAdd, FusedMultiplyAdd.SubtractNegate): {
             lambda optree: True: {
-                # generating mapping for all vv version of vfadd
+                # generating mapping for all vv version of vfnmsub
                 type_strict_match(RVV_vectorTypeMap[(lmul, eltType)], RVV_vectorTypeMap[(lmul, eltType)], RVV_vectorTypeMap[(lmul, eltType)], RVV_vectorTypeMap[(lmul, eltType)], RVV_VectorSize_T): 
                     RVVIntrinsic("vfnmsub_vv_%sm%d" % (RVVIntrSuffix[eltType], lmul), arity=4, output_precision=RVV_vectorTypeMap[(lmul, eltType)])
                     for (lmul, eltType) in RVV_vectorTypeMap
             },
             lambda optree: True: {
-                # generating mapping for all vv version of vfadd
+                # generating mapping for all vf version of vfnmsub
                 type_strict_match(RVV_vectorTypeMap[(lmul, eltType)], RVV_vectorTypeMap[(lmul, eltType)], eltType, RVV_vectorTypeMap[(lmul, eltType)], RVV_VectorSize_T): 
                     RVVIntrinsic("vfnmsub_vf_%sm%d" % (RVVIntrSuffix[eltType], lmul), arity=4, output_precision=RVV_vectorTypeMap[(lmul, eltType)])
                     for (lmul, eltType) in RVV_vectorTypeMap
