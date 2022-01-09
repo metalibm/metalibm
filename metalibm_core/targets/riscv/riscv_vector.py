@@ -390,20 +390,26 @@ rvv64_CCodeGenTable = {
                  # generating mapping for all vv version of vfmul
                 type_strict_match(RVV_vectorTypeMap[(lmul, eltType)], RVV_vectorTypeMap[(lmul, eltType)], RVV_vectorTypeMap[(lmul, eltType)], RVV_VectorSize_T): 
                     RVVIntrinsic("vfmul_vv_%sm%d" % (RVVIntrSuffix[eltType], lmul), arity=3, output_precision=RVV_vectorTypeMap[(lmul, eltType)])
-                     for (lmul, eltType) in RVV_vectorTypeMap
+                     for (lmul, eltType) in RVV_vectorFloatTypeMap
              },
              lambda optree: True: {
                 # generating mapping for all vf version of vfmul
                 type_strict_match(RVV_vectorTypeMap[(lmul, eltType)], RVV_vectorTypeMap[(lmul, eltType)], eltType, RVV_VectorSize_T): 
                     RVVIntrinsic("vfmul_vf_%sm%d" % (RVVIntrSuffix[eltType], lmul), arity=3, output_precision=RVV_vectorTypeMap[(lmul, eltType)])
-                     for (lmul, eltType) in RVV_vectorTypeMap
+                     for (lmul, eltType) in RVV_vectorFloatTypeMap
              },
              lambda optree: True: {
                 # generating mapping for fv (swapped vf) version of vfmul
                 type_strict_match(RVV_vectorTypeMap[(lmul, eltType)], eltType, RVV_vectorTypeMap[(lmul, eltType)], RVV_VectorSize_T): 
                     ComplexOperator(optree_modifier=swapOperand(2, {0: 1}))
                      for (lmul, eltType) in RVV_vectorTypeMap
-            }
+            },
+             lambda optree: True: {
+                # generating mapping for all vf version of vfmul
+                type_strict_match(RVV_vectorTypeMap[(lmul, eltType)], RVV_vectorTypeMap[(lmul, eltType)], eltType, RVV_VectorSize_T): 
+                    RVVIntrinsic("vmul_vx_%sm%d" % (RVVIntrSuffix[eltType], lmul), arity=3, output_precision=RVV_vectorTypeMap[(lmul, eltType)])
+                     for (lmul, eltType) in RVV_vectorIntTypeMap
+             },
          },
         (FusedMultiplyAdd, FusedMultiplyAdd.Standard): {
             lambda optree: True: {
