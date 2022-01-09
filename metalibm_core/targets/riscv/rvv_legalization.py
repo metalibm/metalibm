@@ -33,9 +33,9 @@
 
 
 from metalibm_core.core.ml_formats import ML_BoolClass
-from metalibm_core.core.ml_operations import Comparison, LogicalAnd, LogicalNot, LogicalOr, is_leaf_node
-from metalibm_core.core.vla_common import VLAType
-from metalibm_core.targets.riscv.riscv_vector import RVV_VectorMaskType, RVV_vectorBoolTypeMap, RVV_vectorTypeMap
+from metalibm_core.core.ml_operations import Comparison, Constant, LogicalAnd, LogicalNot, LogicalOr, Multiplication, TableLoad, is_leaf_node
+from metalibm_core.core.vla_common import VLAOperation, VLAType
+from metalibm_core.targets.riscv.riscv_vector import RVV_VectorMaskType, RVV_VectorType, RVV_vectorBoolTypeMap, RVV_vectorTypeMap
 
 from metalibm_core.utility.log_report import Log
 
@@ -93,6 +93,15 @@ class Pass_RVV_Legalization(FunctionPass):
         nodeNewType = self.legalizeType(nodeType, node)
         Log.report(LOG_RVV_LEGALIZATION_INFO, "legalization node {} type from {} to {}", node, nodeType, nodeNewType)
         node.set_precision(nodeNewType)
+      if isinstance(node, VLAOperation) and node.specifier == TableLoad and len(node.inputs) == 3 and isinstance(node.get_input(1).get_precision(), RVV_VectorType):
+        # indexed loads expect byte indexing while metalibm uses element indexing by default
+        # the elt index must be multiplied by the byte-size of each index
+        eltIndex = node.get_input(1)
+        indexEltType = eltIndex.get_precision().eltType 
+        indexBSize = indexEltType.get_bit_size() // 8
+        vl = node.get_input(2) 
+        byteIndex = VLAOperation(eltIndex, Constant(indexBSize, precision=indexEltType), vl, precision=eltIndex.get_precision(), specifier=Multiplication)
+        node.set_input(1, byteIndex)
       # memoization
       self.memoize(node)
       return node
