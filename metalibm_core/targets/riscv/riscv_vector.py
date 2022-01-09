@@ -153,10 +153,15 @@ debug_vint32_m1    = generateDbg(ML_Int32, DEBUG_LEN)
 debug_vfloat64_m1  = generateDbg(ML_Binary64, DEBUG_LEN)
 debug_vint64_m1    = generateDbg(ML_Int64, DEBUG_LEN)
 
+debug_pp = lambda v, index: f"""vmv_x_s_i32m1_i32(vslidedown_vx_i32m1(vmv_v_x_i32m1(0, {DEBUG_LEN}), vmerge_vxm_i32m1({v}, vmv_v_x_i32m1(0, {DEBUG_LEN}), 1, {DEBUG_LEN}), {index}, {index+1}))""" 
+
+debug_vbool = ML_Debug(display_format=replicateFmt("%d", DEBUG_LEN), pre_process=lambda v: ", ".join(debug_pp(v, i) for i in range(DEBUG_LEN)))
+
 debug_multi.add_mapping(RVV_vBinary32_m1, debug_vfloat32_m1)
 debug_multi.add_mapping(RVV_vectorTypeMap[(1, ML_Int32)], debug_vint32_m1)
 debug_multi.add_mapping(RVV_vectorTypeMap[(1, ML_Binary64)], debug_vfloat64_m1)
 debug_multi.add_mapping(RVV_vectorTypeMap[(1, ML_Int64)], debug_vint64_m1)
+debug_multi.add_mapping(RVV_vectorBoolTypeMap[(1, 32)], debug_vbool)
 
 RVV_VectorSize_T = ML_FormatConstructor(None, "size_t", None, lambda v: None, header="stddef.h")
 
