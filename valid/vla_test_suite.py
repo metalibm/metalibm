@@ -69,7 +69,9 @@ BENCH_TEST_RANGE = {
 }
 
 
-RV64_GV_EXTRA_PASSES = ["optimization:basic_legalization", "optimization:fuse_fma", "beforecodegen:rvv_legalization"]
+RV64_GV_EXTRA_PASSES = ["optimization:table_linearization", "optimization:basic_legalization",
+                        "optimization:virtual_scalar_bool_legalization",
+                        "optimization:fuse_fma", "beforecodegen:rvv_legalization"]
 
 def vlaTargetPredicate(opts):
     return opts["target"] is RV64_GV
