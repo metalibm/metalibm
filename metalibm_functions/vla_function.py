@@ -87,7 +87,7 @@ class VLAFunction(ML_ArrayFunction):
             "output_file": "vla_vectorial_function.c",
             "function_name": "vla_vectorial_function",
             "function_ctor": FUNCTION_MAP["exp"],
-            "scalar_emulate": sollya.exp,
+            "scalar_emulate": None, #defined by default through function_ctor
             "group_size": 1,
             "precision": ML_Binary32,
             "accuracy": ML_Faithful,
@@ -116,6 +116,7 @@ class VLAFunction(ML_ArrayFunction):
             precision=self.precision,
             libm_compliant=False,
             debug=self.debug_flag,
+            target=self.processor,
             **self.ctor_arg_dict
         )
         meta_function = self.function_ctor(fct_ctor_args)
