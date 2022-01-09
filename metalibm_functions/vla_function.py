@@ -76,8 +76,8 @@ class VLAFunction(ML_ArrayFunction):
         ]
         # size of vector group
         self.group_size = args.group_size
-        self.function_ctor, self.ctor_arg_dict, _ = args.function_ctor
-        self.scalar_emulate = args.scalar_emulate
+        self.function_ctor, self.ctor_arg_dict, scalarEmulate = args.function_ctor
+        self.scalar_emulate = args.scalar_emulate or scalarEmulate
 
     @staticmethod
     def get_default_args(**kw):
@@ -242,7 +242,7 @@ if __name__ == "__main__":
         "--group-zize", dest="group_size", default=1, type=int,
         action="store", help="size of a vector group (number of vector register grouped together to build a super vector register)")
     arg_template.get_parser().add_argument(
-        "--scalar-emulate", dest="scalar_emulate", default=sollya.exp,
+        "--scalar-emulate", dest="scalar_emulate", default=None,
         type=(lambda s: eval(s, {"sollya": sollya})),
         action="store", help="function to use to compute exact expected value")
     # argument extraction
