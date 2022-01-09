@@ -507,8 +507,16 @@ class ML_Std_FP_Format(ML_FP_Format):
                 conv_result = "0.0" + self.c_suffix
             elif cst_value == ml_infty:
                 conv_result = "INFINITY"
+                if self.get_bit_size() == 32:
+                    conv_result = "__builtin_inff()"
+                elif self.get_bit_size() == 64:
+                    conv_result = "__builtin_inf()"
             elif cst_value == -ml_infty:
                 conv_result = "-INFINITY"
+                if self.get_bit_size() == 32:
+                    conv_result = "-__builtin_inff()"
+                elif self.get_bit_size() == 64:
+                    conv_result = "-__builtin_inf()"
             elif cst_value != cst_value:
                 # NaN detection
                 if self.get_bit_size() == 32:
