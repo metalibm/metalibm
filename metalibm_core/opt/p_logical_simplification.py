@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 ###############################################################################
-# This file is part of metalibm (https://github.com/kalray/metalibm)
+# This file is part of metalibm (https://github.com/metalibm/metalibm)
 ###############################################################################
 # MIT License
 #
@@ -27,31 +27,17 @@
 # Description: optimization pass to legalize vector of virtual boolean element
 ###############################################################################
 
-import sollya
-# must not import inf or sup from sollya, as overloaded functions
-# are imported from core.meta_interval
-from sollya import SollyaObject
-
-from metalibm_core.core.passes import FunctionPass, Pass, LOG_PASS_INFO
-
-from metalibm_core.opt.node_transformation import Pass_NodeTransformation
-from metalibm_core.opt.opt_utils import (
-    forward_attributes, logical_reduce,
-)
-
-
+from metalibm_core.core.passes import METALIBM_PASS_REGISTER, FunctionPass
 from metalibm_core.core.ml_operations import (
-    is_leaf_node,
-    LogicalAnd, LogicalOr, LogicalNot,
-)
-from metalibm_core.core.legalizer import is_constant
+    is_leaf_node, LogicalAnd, LogicalOr, LogicalNot)
+
+from metalibm_core.opt.opt_utils import (
+    forward_attributes, logical_reduce)
 
 from metalibm_core.utility.log_report import Log
 
+# verbosity level definition
 LOG_LOGICAL_SIMPLIFICATION = Log.LogLevel("LogicalSimplification")
-
-from metalibm_core.opt.opt_utils import is_false, is_true
-
 
 
 def is_logical_and_not(node):
@@ -64,6 +50,7 @@ def is_logical_and_not(node):
         return isinstance(op, LogicalNot) or is_logical_and_not(op)
     return input_predicate(lhs) and input_predicate(rhs)
 
+
 def is_logical_or_not(node):
     """ test if node is a tree of And(Not(), And(..)) """
     if not isinstance(node, LogicalOr):
@@ -73,6 +60,7 @@ def is_logical_or_not(node):
     def input_predicate(op):
         return isinstance(op, LogicalNot) or is_logical_or_not(op)
     return input_predicate(lhs) and input_predicate(rhs)
+
 
 def simplify_logical_tree(node,
                              op_predicate=lambda n: isinstance(n, LogicalAnd),
@@ -98,6 +86,7 @@ def simplify_logical_tree(node,
     forward_attributes(node, result)
     return result
 
+
 def simplify_logical_and_not(node, leaf_transform):
     """ Simplify a tree of LogicalAnd nodes, whose
         leaf are LogicalNot nodes """
@@ -118,6 +107,7 @@ def simplify_logical_and_not(node, leaf_transform):
     )
     forward_attributes(node, result)
     return result
+
 
 def simplify_logical_or_not(node, leaf_transform):
     """ Simplify a tree of LogicalOr nodes, whose
@@ -186,9 +176,7 @@ class LogicalSimplification:
             return result
 
 
-
-
-
+@METALIBM_PASS_REGISTER
 class Pass_LogicalSimplification(FunctionPass):
     """ Pass to simplify logical operation """
     pass_tag = "logical_simplification"
@@ -204,9 +192,3 @@ class Pass_LogicalSimplification(FunctionPass):
         """ If node can be transformed returns the transformed node
             else returns None """
         return self.simplifier.simplify(node)
-
-
-
-Log.report(LOG_PASS_INFO, "Registering logical_simplification pass")
-# register pass
-Pass.register(Pass_LogicalSimplification)
