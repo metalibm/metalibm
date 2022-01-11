@@ -39,7 +39,7 @@ from metalibm_core.code_generation.complex_generator import ComplexOperator, Dyn
 from metalibm_core.core.ml_complex_formats import ML_Pointer_Format, ML_TableFormat
 from metalibm_core.core.target import UniqueTargetDecorator
 from metalibm_core.core.ml_operations import (
-    Addition, BitArithmeticRightShift, BitLogicAnd, BitLogicLeftShift, BitLogicOr, BitLogicRightShift, Comparison,
+    Abs, Addition, BitArithmeticRightShift, BitLogicAnd, BitLogicLeftShift, BitLogicOr, BitLogicRightShift, Comparison,
     Conversion, Floor, FusedMultiplyAdd, Max, Min, Modulo, Multiplication, NearestInteger, Negation, ReciprocalSeed, Select, Splat, Subtraction, TableLoad, TableStore,
     TypeCast)
 from metalibm_core.core.ml_formats import (
@@ -649,6 +649,20 @@ rvv64_CCodeGenTable = {
                     for (lmul, eltType) in RVV_vectorFloatTypeMap
             },
         },
+        (Comparison, Comparison.Less): {
+            lambda optree: True: {
+                # generating mapping for all vf version of gt comparison
+                type_strict_match(RVV_vectorBoolTypeMap[(lmul, eltType.get_bit_size())], RVV_vectorFloatTypeMap[(lmul, eltType)], eltType, RVV_VectorSize_T):
+                    RVVIntrinsic("vmflt_vf_%sm%d_b%d" % (RVVIntrSuffix[eltType], lmul, eltType.get_bit_size() / lmul), arity=3, output_precision=RVV_vectorBoolTypeMap[(lmul, eltType.get_bit_size())])
+                    for (lmul, eltType) in RVV_vectorFloatTypeMap
+            },
+            lambda optree: True: {
+                # generating mapping for all vv version of vfadd
+                type_strict_match(RVV_vectorBoolTypeMap[(lmul, eltType.get_bit_size())], RVV_vectorFloatTypeMap[(lmul, eltType)], RVV_vectorFloatTypeMap[(lmul, eltType)], RVV_VectorSize_T):
+                    RVVIntrinsic("vmflt_vv_%sm%d_b%d" % (RVVIntrSuffix[eltType], lmul, eltType.get_bit_size() / lmul), arity=3, output_precision=RVV_vectorFloatTypeMap[(lmul, eltType)])
+                    for (lmul, eltType) in RVV_vectorFloatTypeMap
+            },
+        },
         (Comparison, Comparison.Equal): {
             lambda optree: True: {
                 # generating mapping for all vf version of gt comparison
@@ -663,7 +677,13 @@ rvv64_CCodeGenTable = {
                     RVVIntrinsic("vfrec7_v_%sm%d" % (RVVIntrSuffix[eltType], lmul), arity=2, output_precision=RVV_vectorFloatTypeMap[(lmul, eltType)])
                     for (lmul, eltType) in RVV_vectorFloatTypeMap
             }
-
+        },
+        Abs: {
+            lambda optree: True: {
+                type_strict_match(RVV_vectorFloatTypeMap[(lmul, eltType)], RVV_vectorFloatTypeMap[(lmul, eltType)], RVV_VectorSize_T):
+                    RVVIntrinsic("vfabs_v_%sm%d" % (RVVIntrSuffix[eltType], lmul), arity=2, output_precision=RVV_vectorFloatTypeMap[(lmul, eltType)])
+                    for (lmul, eltType) in RVV_vectorFloatTypeMap
+            }
         },
         Min: {
              lambda optree: True: {
