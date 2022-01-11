@@ -282,31 +282,42 @@ class ML_HyperbolicTangent(ScalarUnaryFunction):
         "0x1.ffb99ep-1",
         "0x1.f68b2cp-4"
     ]]
+    @classmethod
+    def parseArgs(cls, argList):
+        argParser = cls.buildArgParser()
+        return argParser.parse_args(argList)
 
+    @classmethod
+    def extendArgParser(cls, parser, action="store"):
+        """ extend a generic ArgumentParser with function specific command-line arguments """
+        parser.add_argument(
+            "--load-axf-approx", default=None,
+            action=action, help="load tanh approx from an axf file rathen than computing it")
+        parser.add_argument(
+            "--dump-axf-approx", default=False,
+            action=action, help="export approximation used in AXF format")
+        parser.add_argument(
+            "--interval-num", default=1024, type=int,
+            action=action, help="number of approximation sub-divisions")
+        parser.add_argument(
+            "--near-zero-bound", default=0.125, type=sollya.parse,
+            action=action, help="bound to switch from near-zero to generic approximation")
+        parser.add_argument(
+            "--max-poly-degree", default=7, type=int,
+            action=action, help="maximal polynomial degree in table approximation")
+    @classmethod
+    def buildArgParser(cls):
+        arg_template = ML_NewArgTemplate(
+            default_arg=cls.get_default_args())
+        cls.extendArgParser(arg_template.get_parser())
+        return arg_template.parser
+        
 
 
 if __name__ == "__main__":
-    # building argument template for main generation
-    arg_template = ML_NewArgTemplate(
-        default_arg=ML_HyperbolicTangent.get_default_args())
-    arg_template.get_parser().add_argument(
-         "--load-axf-approx", default=None,
-        action="store", help="load tanh approx from an axf file rathen than computing it")
-    arg_template.get_parser().add_argument(
-         "--dump-axf-approx", default=False,
-        action="store", help="export approximation used in AXF format")
-    arg_template.get_parser().add_argument(
-         "--interval-num", default=1024, type=int,
-        action="store", help="number of approximation sub-divisions")
-    arg_template.get_parser().add_argument(
-         "--near-zero-bound", default=0.125, type=sollya.parse,
-        action="store", help="bound to switch from near-zero to generic approximation")
-    arg_template.get_parser().add_argument(
-         "--max-poly-degree", default=7, type=int,
-        action="store", help="maximal polynomial degree in table approximation")
-
-
-    # argument extraction
-    args = arg_template.arg_extraction()
+    # command line argument parsing
+    args = ML_HyperbolicTangent.parseArgs(sys.argv[1:])
+    # meta-function instantiation
     ml_tanh = ML_HyperbolicTangent(args)
+    # generation
     ml_tanh.gen_implementation()

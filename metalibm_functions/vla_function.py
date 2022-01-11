@@ -31,8 +31,10 @@
 # author(s):    Nicolas Brunie
 # description: Vector Length Agnostic meta-function for Metalibm
 ###############################################################################
+import argparse
 
 from metalibm_core.core.passes import PassScheduler
+from metalibm_functions.ml_tanh import ML_HyperbolicTangent
 import sollya
 
 from metalibm_core.code_generation.generic_processor import GenericProcessor
@@ -58,6 +60,17 @@ from metalibm_functions.function_map import FUNCTION_MAP
 
 from metalibm_core.utility.debug_utils import debug_multi
 
+class GroupedAction(argparse.Action):    
+    """ specific argparse action to group subparser argument,
+        Source: https://stackoverflow.com/a/18677482 """
+    def __call__(self, parser, namespace, values, option_string=None):
+        group = "funcArgs"
+        dest = self.dest
+        groupspace = getattr(namespace, group, argparse.Namespace())
+        setattr(groupspace, dest, values)
+        setattr(namespace, group, groupspace)
+
+
 class VLAFunction(ML_ArrayFunction):
     """ Meta function to generate Vector Length Agnostic implementation
         of a scalar meta-function """
@@ -76,7 +89,9 @@ class VLAFunction(ML_ArrayFunction):
         ]
         # size of vector group
         self.group_size = args.group_size
-        self.function_ctor, self.ctor_arg_dict, scalarEmulate = args.function_ctor
+        function_ctor = FUNCTION_MAP[args.elt_function]
+        self.function_ctor, self.ctor_arg_dict, scalarEmulate = function_ctor
+        self.ctor_arg_dict.update(vars(args.funcArgs) if hasattr(args, "funcArgs") else {})
         self.scalar_emulate = args.scalar_emulate or scalarEmulate
 
     @staticmethod
@@ -86,7 +101,7 @@ class VLAFunction(ML_ArrayFunction):
         default_args_exp = {
             "output_file": "vla_vectorial_function.c",
             "function_name": "vla_vectorial_function",
-            "function_ctor": FUNCTION_MAP["exp"],
+            "elt_function": "exp",
             "scalar_emulate": None, #defined by default through function_ctor
             "group_size": 1,
             "precision": ML_Binary32,
@@ -234,9 +249,6 @@ if __name__ == "__main__":
     # auto-test
     arg_template = ML_ArrayFunctionArgTemplate(default_arg=VLAFunction.get_default_args())
     arg_template.get_parser().add_argument(
-        "--function", dest="function_ctor", default=FUNCTION_MAP["exp"], type=(lambda v: FUNCTION_MAP[v]),
-        help="define the function to be applied elementwise")
-    arg_template.get_parser().add_argument(
         "--use-libm-fct", dest="use_libm_function", default=None,
         action="store", help="use standard libm function to implement element computation")
     arg_template.get_parser().add_argument(
@@ -246,7 +258,9 @@ if __name__ == "__main__":
         "--scalar-emulate", dest="scalar_emulate", default=None,
         type=(lambda s: eval(s, {"sollya": sollya})),
         action="store", help="function to use to compute exact expected value")
-    # argument extraction
+    fct_parsers = arg_template.get_parser().add_subparsers(dest="elt_function")
+    fct_subparsers = {fname: fct_parsers.add_parser(fname) for fname in FUNCTION_MAP}
+    ML_HyperbolicTangent.extendArgParser(fct_subparsers["tanh"], action=GroupedAction)
     args = arg_template.arg_extraction()
 
     vlaVectorialFunction = VLAFunction(args)
