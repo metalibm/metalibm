@@ -38,7 +38,7 @@ from sollya import Interval
 from metalibm_core.utility.log_report import Log
 from metalibm_core.utility.ml_template import target_parser
 
-from metalibm_core.core.ml_formats import ML_Binary32, ML_Binary64
+from metalibm_core.core.ml_formats import ML_Binary32, ML_Binary64, ML_Bool32
 from metalibm_core.core.random_gen import UniformInterval
 
 
@@ -78,14 +78,32 @@ RV64_GV_EXTRA_PASSES = ["optimization:table_linearization", "optimization:basic_
 def vlaTargetPredicate(opts):
     return opts["target"] is RV64_GV
 
+# root directory for AXF description file
+AXF_DIR = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "metalibm_functions", "axf")
+
+
+def vlaTanhOptBuilder(opt_dict):
+    """ Option specilization callback for FunctionTest
+        dedicated to rootn meta-function """
+    precision = opt_dict["precision"]
+    opt_dict["funcArgs"] = {
+        ML_Binary32: argparse.Namespace(load_axf_approx=os.path.join(AXF_DIR, "tanh-fp32.json.axf")),
+        ML_Binary64: argparse.Namespace(load_axf_approx=os.path.join(AXF_DIR, "tanh-fp64.json.axf")),
+    }[precision]
+    return opt_dict
+
+
+# list of tested functions
 VLA_FUNCTION_LIST = [
     # meta-functions
-    FunctionTest(VLAFunction, [{"extra_passes": RV64_GV_EXTRA_PASSES, "function_ctor": FUNCTION_MAP["exp"]}], title="vla_exp", predicate=vlaTargetPredicate),
-    FunctionTest(VLAFunction, [{"extra_passes": RV64_GV_EXTRA_PASSES, "function_ctor": FUNCTION_MAP["exp2"]}], title="vla_exp2", predicate=vlaTargetPredicate),
+    FunctionTest(VLAFunction, [{"extra_passes": RV64_GV_EXTRA_PASSES, "elt_function": "exp"}], title="vla_exp", predicate=vlaTargetPredicate),
+    FunctionTest(VLAFunction, [{"extra_passes": RV64_GV_EXTRA_PASSES, "elt_function": "exp2"}], title="vla_exp2", predicate=vlaTargetPredicate),
 
-    FunctionTest(VLAFunction, [{"extra_passes": RV64_GV_EXTRA_PASSES, "auto_test_range": TEST_RANGE["log"], "function_ctor": FUNCTION_MAP["log"]}], title="vla_log", predicate=vlaTargetPredicate),
-    FunctionTest(VLAFunction, [{"extra_passes": RV64_GV_EXTRA_PASSES, "auto_test_range": TEST_RANGE["log2"], "function_ctor": FUNCTION_MAP["log2"]}], title="vla_log2", predicate=vlaTargetPredicate),
-    FunctionTest(VLAFunction, [{"extra_passes": RV64_GV_EXTRA_PASSES, "auto_test_range": TEST_RANGE["log10"], "function_ctor": FUNCTION_MAP["log10"]}], title="vla_log10", predicate=vlaTargetPredicate),
+    FunctionTest(VLAFunction, [{"extra_passes": RV64_GV_EXTRA_PASSES, "auto_test_range": TEST_RANGE["log"], "elt_function": "log"}], title="vla_log", predicate=vlaTargetPredicate),
+    FunctionTest(VLAFunction, [{"extra_passes": RV64_GV_EXTRA_PASSES, "auto_test_range": TEST_RANGE["log2"], "elt_function": "log2"}], title="vla_log2", predicate=vlaTargetPredicate),
+    FunctionTest(VLAFunction, [{"extra_passes": RV64_GV_EXTRA_PASSES, "auto_test_range": TEST_RANGE["log10"], "elt_function": "log10"}], title="vla_log10", predicate=vlaTargetPredicate),
+
+    FunctionTest(VLAFunction, [{"extra_passes": RV64_GV_EXTRA_PASSES, "elt_function": "tanh"}], title="vla_tanh", predicate=vlaTargetPredicate, specific_opts_builder=vlaTanhOptBuilder),
 ]
 
 
