@@ -73,6 +73,10 @@ the list of slot:pass_tag is a comma ',' separated list of `slot:pass` arguments
 The passes inserted through command-line arguments are inserted at the indicated slot, after default passes (if using `--extra-passes`) always in left-to-right-order.
 For example `--extra-passes typing:basic_legalization,beforecodegen:dump,beforecodegen:quit` will insert a step of basic operation legalization during typing stage after default passes, will dump the state of the operation graph before code generation and will exit (quit) generation after that (before generating any code).
 
+## Troubleshouting
+
+If metalibm fails to properly execute you can enable a higher level of verbosity such as `Info` and `Warning`.
+This should display useful (but numerous) messages about the possible problems metalibm found during execution.
 
 ## List of metafunctions (version 1.0):
 
