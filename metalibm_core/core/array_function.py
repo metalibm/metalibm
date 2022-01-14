@@ -217,13 +217,8 @@ class ML_ArrayFunction(ML_FunctionBasis):
         tested_function    = self.implementation.get_function_object()
         function_name      = self.implementation.get_name()
 
-        failure_report_op       = FunctionOperator("report_failure")
-        failure_report_function = FunctionObject("report_failure", [], ML_Void, failure_report_op)
-
         printf_success_op = FunctionOperator("printf", arg_map = {0: "\"test successful %s\\n\"" % function_name}, void_function = True, require_header=["stdio.h"]) 
         printf_success_function = FunctionObject("printf", [], ML_Void, printf_success_op)
-
-
 
         # accumulate element number
         acc_num = Variable("acc_num", precision=ML_Int64, var_type=Variable.Local)
@@ -446,10 +441,13 @@ i-array tests
         failure_report_function = FunctionObject("report_failure", [], ML_Void, failure_report_op)
 
 
-        printf_success_op = FunctionOperator("printf", arg_map = {0: "\"test successful %s\\n\"" % function_name}, void_function = True) 
+        printf_success_op = FunctionOperator("printf", arg_map = {0: "\"test successful %s\\n\"" % function_name}, void_function = True, require_header=["stdio.h"]) 
         printf_success_function = FunctionObject("printf", [], ML_Void, printf_success_op)
 
-        output_precision = FormatAttributeWrapper(self.precision, ["volatile"])
+        # BUGFIX: adding the volatile attribute make the bench output array incompatible
+        #         with the array function prototype which does not contain the volatile attribute
+        # output_precision = FormatAttributeWrapper(self.precision, ["volatile"])
+        output_precision = self.precision
 
         test_total = test_num
 
@@ -478,7 +476,7 @@ i-array tests
         # TODO/FIXME: implement proper input range depending on input index
         # assuming a single input array
         input_precisions = [self.get_input_precision(1).get_data_precision()]
-        rng_map = [get_precision_rng(precision, inf(test_range), sup(test_range)) for precision, test_range in zip(input_precisions, test_ranges)]
+        rng_map = [get_precision_rng(precision, Interval(inf(test_range), sup(test_range))) for precision, test_range in zip(input_precisions, test_ranges)]
 
         # generated table of inputs
         input_tables = [
@@ -524,7 +522,9 @@ i-array tests
                         0: "\"%s %%\"PRIi64\" elts computed in %%\"PRIi64\" nanoseconds => %%.3f CPE \\n\"" % function_name,
                         1: FO_Arg(0), 2: FO_Arg(1),
                         3: FO_Arg(2)
-                }, void_function = True
+                },
+                void_function = True,
+                require_header=["stdio.h", "inttypes.h"]
         )
         printf_timing_function = FunctionObject("printf", [ML_Int64, ML_Int64, ML_Binary64], ML_Void, printf_timing_op)
 
