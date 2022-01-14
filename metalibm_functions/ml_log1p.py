@@ -175,7 +175,7 @@ class ML_Log1p(ML_FunctionBasis):
         table_index.set_attributes(tag="table_index", debug=debug_multi)
 
         if non_zero_first_entry:
-            rcp_mt = Select(Equal(table_index, Constant(0, precision=ML_Int32), likely=False), Constant(1.0, precision=self.precision), rcp_mt, precision=self.precision)
+            rcp_mt = Select(Equal(table_index, Constant(0, precision=self.precision.get_integer_format()), likely=False), Constant(1.0, precision=self.precision), rcp_mt, precision=self.precision)
 
         log_inv_lo = TableLoad(log_table, table_index, 1, tag="log_inv_lo", debug=debug_multi) 
         log_inv_hi = TableLoad(log_table, table_index, 0, tag="log_inv_hi", debug=debug_multi)

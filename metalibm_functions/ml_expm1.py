@@ -31,7 +31,8 @@ import sys
 
 import sollya
 
-from sollya import Interval, round, inf, sup, log, exp, expm1, log2, guessdegree, dirtyinfnorm
+from sollya import (Interval, round, inf, sup, log, exp, expm1, ceil, 
+                   floor, guessdegree, dirtyinfnorm)
 S2 = sollya.SollyaObject(2)
 
 from metalibm_core.core.ml_operations import *
@@ -97,13 +98,13 @@ class ML_ExponentialM1_Red(ScalarUnaryFunction):
     
     precision_emax = self.precision.get_emax()
     precision_max_value = S2**(precision_emax + 1)
-    expm1_overflow_bound = ceil(log(precision_max_value + 1))
+    expm1_overflow_bound = sollya.ceil(log(precision_max_value + 1))
     overflow_test = Comparison(vx, expm1_overflow_bound, likely = False, specifier = Comparison.Greater, precision = ML_Bool)
     overflow_return = Statement(Return(FP_PlusInfty(self.precision)))
     
     precision_emin = self.precision.get_emin_subnormal()
     precision_min_value = S2** precision_emin
-    expm1_underflow_bound = floor(log(precision_min_value) + 1)
+    expm1_underflow_bound = sollya.floor(log(precision_min_value) + 1)
     underflow_test = Comparison(vx, expm1_underflow_bound, likely = False, specifier = Comparison.Less, precision = ML_Bool)
     underflow_return = Statement(Return(C_m1))
     
@@ -156,7 +157,7 @@ class ML_ExponentialM1_Red(ScalarUnaryFunction):
     error_function = lambda p, f, ai, mod, t: dirtyinfnorm(f - p, ai)
     Log.report(Log.Info, "\033[33;1m Building polynomial \033[0m\n")
     
-    poly_degree = sup(guessdegree(expm1(sollya.x), r_interval, error_goal) + 1)
+    poly_degree = int(sup(guessdegree(expm1(sollya.x), r_interval, error_goal) + 1))
     
     polynomial_scheme_builder = PolynomialSchemeEvaluator.generate_horner_scheme
     poly_degree_list = range(0, poly_degree)
@@ -179,7 +180,7 @@ class ML_ExponentialM1_Red(ScalarUnaryFunction):
     # Late Tests
     late_overflow_test = Comparison(ik, self.precision.get_emax(), specifier = Comparison.Greater, likely = False, debug = debug_multi, tag = "late_overflow_test")
     
-    overflow_exp_offset = (self.precision.get_emax() - self.precision.get_field_size() / 2)
+    overflow_exp_offset = (self.precision.get_emax() - self.precision.get_field_size() // 2)
     diff_k = ik - overflow_exp_offset 
     
     exp_diff_k = ExponentInsertion(diff_k, precision = self.precision, tag = "exp_diff_k", debug = debug_multi)
