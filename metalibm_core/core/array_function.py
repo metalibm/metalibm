@@ -432,17 +432,11 @@ i-array tests
         # interval where the array lenght is chosen from (randomly)
         index_range = self.test_index_range
 
-        auto_test = CodeFunction("bench_wrapper", output_format=self.get_output_precision())
+        # bench_wrapper result is always of type ML_Binary64, it is a CPE measure
+        auto_test = CodeFunction("bench_wrapper", output_format=ML_Binary64)
 
-        tested_function        = self.implementation.get_function_object()
-        function_name            = self.implementation.get_name()
-
-        failure_report_op             = FunctionOperator("report_failure")
-        failure_report_function = FunctionObject("report_failure", [], ML_Void, failure_report_op)
-
-
-        printf_success_op = FunctionOperator("printf", arg_map = {0: "\"test successful %s\\n\"" % function_name}, void_function = True, require_header=["stdio.h"]) 
-        printf_success_function = FunctionObject("printf", [], ML_Void, printf_success_op)
+        tested_function   = self.implementation.get_function_object()
+        function_name     = self.implementation.get_name()
 
         # BUGFIX: adding the volatile attribute make the bench output array incompatible
         #         with the array function prototype which does not contain the volatile attribute
