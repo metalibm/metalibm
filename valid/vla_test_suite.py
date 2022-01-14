@@ -73,6 +73,7 @@ TEST_RANGE = {
 
 RV64_GV_EXTRA_PASSES = ["optimization:table_linearization", "optimization:basic_legalization",
                         "optimization:virtual_scalar_bool_legalization",
+                        "optimization:expand_multi_precision",
                         "optimization:fuse_fma", "beforecodegen:rvv_legalization"]
 
 def vlaTargetPredicate(opts):
@@ -104,6 +105,12 @@ VLA_FUNCTION_LIST = [
     FunctionTest(VLAFunction, [{"extra_passes": RV64_GV_EXTRA_PASSES, "auto_test_range": TEST_RANGE["log10"], "elt_function": "log10"}], title="vla_log10", predicate=vlaTargetPredicate),
 
     FunctionTest(VLAFunction, [{"extra_passes": RV64_GV_EXTRA_PASSES, "elt_function": "tanh"}], title="vla_tanh", predicate=vlaTargetPredicate, specific_opts_builder=vlaTanhOptBuilder),
+
+    FunctionTest(VLAFunction, [{"extra_passes": RV64_GV_EXTRA_PASSES, "auto_test_range": TEST_RANGE["log"], "elt_function": "log1p"}], title="vla_log1p", predicate=vlaTargetPredicate),
+    FunctionTest(VLAFunction, [{"extra_passes": RV64_GV_EXTRA_PASSES, "auto_test_range": TEST_RANGE["exp"], "elt_function": "expm1"}], title="vla_expm1", predicate=vlaTargetPredicate),
+
+    FunctionTest(VLAFunction, [{"extra_passes": RV64_GV_EXTRA_PASSES, "auto_test_range": TEST_RANGE["exp"], "elt_function": "sinh"}], title="vla_cosh", predicate=vlaTargetPredicate),
+    FunctionTest(VLAFunction, [{"extra_passes": RV64_GV_EXTRA_PASSES, "auto_test_range": TEST_RANGE["exp"], "elt_function": "cosh"}], title="vla_sinh", predicate=vlaTargetPredicate),
 ]
 
 
