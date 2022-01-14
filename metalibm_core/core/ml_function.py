@@ -944,6 +944,7 @@ class ML_FunctionBasis(object):
         )
 
         def bench_check(bench_call):
+            # bench_wrapper returns a ML_Binary64 CPE measure
             return Comparison(bench_call, Constant(0.0, precision=ML_Binary64), specifier=Comparison.Less, precision=ML_Bool)
 
         bench_function_group.apply_to_all_functions(add_fct_call_check_in_main(bench_check))
@@ -1782,12 +1783,13 @@ class ML_FunctionBasis(object):
     # virtual scalar sleef bench as output precision
     return self.get_output_precision()
 
-  ## Generate a test wrapper for the @p self function
-  #  @param test_num   number of test to perform
-  #  @param test_range numeric range for test's inputs
-  #  @param debug enable debug mode
   def generate_bench_wrapper(self, test_num = 10, loop_num=100000, test_ranges = [Interval(-1.0, 1.0)], debug = False):
-    auto_test = CodeFunction("bench_wrapper", output_format=ML_Binary64)
+    """ Generate a test wrapper for the @p self function
+        @param test_num   number of test to perform
+        @param test_range numeric range for test's inputs
+        @param debug enable debug mode
+        @return CodeFunction """
+    bench_wrapper = CodeFunction("bench_wrapper", output_format=ML_Binary64)
 
     tested_function    = self.implementation.get_function_object()
     function_name      = self.implementation.get_name()
@@ -1909,8 +1911,8 @@ class ML_FunctionBasis(object):
       Return(cpe_measure),
       # Return(Constant(0, precision = ML_Int32))
     )
-    auto_test.set_scheme(test_scheme)
-    return FunctionGroup([auto_test])
+    bench_wrapper.set_scheme(test_scheme)
+    return FunctionGroup([bench_wrapper])
 
 
   ## generate a test loop for vector tests
