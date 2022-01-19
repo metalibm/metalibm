@@ -14,18 +14,33 @@ Documentation (for master branch) is available on gitlab's pages: https://nibrun
 
 ## INSTALL
 
-* Dependencies:
-    - metalibm depends on pythonsollya (python wrapper to Sollya library) which depends on sollya (https://www.sollya.org/)
-       - to install sollya binary and headers: e.g. on a recent ubuntu `sudo apt install sollya libsollya-dev`   
-       - to install pythonsollya and other python dependencies `pip install -r requirements.txt`
-    - Some features of Metalibm require Gappa (http://gappa.gforge.inria.fr/) (gappa install is recommended)
+Metalibm is a framework written in Python.
 
-* Python version compatibility: as of version 1.0, metalibm works with python3 (tested with 3.8).
 
+Python version compatibility: as of version 1.0, metalibm works with python3 (tested with 3.8).
+
+- Whatever the install you select, sollya (binary and headers) must be installed on your machine first.
+   On a recent version of ubuntu/debian you can install sollya binary and headers by executing:
+```sudo apt install sollya libsollya-dev```
+- Some features of Metalibm require Gappa (http://gappa.gforge.inria.fr/) (gappa install is recommended)
+
+
+
+### Quick Install (without intent to modify metalibm sources)
 Quick install from git sources (assuming sollya binary and header are installed):
 ```
 pip install git+https://github.com/metalibm/metalibm
 ```
+
+### Install for Development
+For development purpose, this repo should be cloned, and metalibm dependencies installed man
+You can install metalibm's python depdendies by running 
+
+```pip install -r requirements.txt```
+    
+
+
+
 
 
 ## USAGE
