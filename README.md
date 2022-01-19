@@ -33,15 +33,11 @@ pip install git+https://github.com/metalibm/metalibm
 ```
 
 ### Install for Development
-For development purpose, this repo should be cloned, and metalibm dependencies installed man
-You can install metalibm's python depdendies by running 
+For development purpose, this repo should be cloned, and metalibm dependencies installed manually.
+Once sollya and gappa have been installed, you can install metalibm's python depdendies by running 
 
 ```pip install -r requirements.txt```
     
-
-
-
-
 
 ## USAGE
 Before running metalibm, you will need to add its top directory to your PYTHONPATH env var:
