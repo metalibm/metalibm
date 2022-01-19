@@ -15,21 +15,28 @@ Documentation (for master branch) is available on gitlab's pages: https://nibrun
 ## INSTALL
 
 * Dependencies:
-    - metalibm depends on master branch of pythonsollya (python wrapper to Sollya library).
-      this dependency will be install by metalibm's setup script or it can be installed manually
-        install (if sollya is already installed): `pip install git+https://gitlab.com/metalibm-dev/pythonsollya`
-        beware that sollya master branch is required for pythonsollya master
-    - Some features of Metalibm require Gappa (http://gappa.gforge.inria.fr/)
-    - Others dependencies are listed in the `requirements.txt` if you install metalibm from source, run `pip install -r requirements.txt`
+    - metalibm depends on pythonsollya (python wrapper to Sollya library) which depends on sollya (https://www.sollya.org/)
+       - to install sollya binary and headers: e.g. on a recent ubuntu `sudo apt install sollya libsollya-dev`   
+       - to install pythonsollya and other python dependencies `pip install -r requirements.txt`
+    - Some features of Metalibm require Gappa (http://gappa.gforge.inria.fr/) (gappa install is recommended)
 
-* Python version compatibility: as of version 1.0, metalibm works with python3 (tested with 3.4).
+* Python version compatibility: as of version 1.0, metalibm works with python3 (tested with 3.8).
 
-Quick install from git sources
+Quick install from git sources (assuming sollya binary and header are installed):
 ```
 pip install git+https://github.com/metalibm/metalibm
 ```
 
+
 ## USAGE
+Before running metalibm, you will need to add its top directory to your PYTHONPATH env var:
+
+```export PYTHONPATH=<path to metalibm/metalibm_core>:$PYTHONPATH```
+
+You will also need to set the `ML_SRC_DIR` env var to point to metalibm support library:
+
+```export ML_SRC_DIR=<path to metalibm/>```
+
 Example of metafunctions can be found under the **metalibm_functions/** directory.
 
 * Example to generate a faithful (default) approximation of the exponential function for single precision on a x86 AVX2 target:
