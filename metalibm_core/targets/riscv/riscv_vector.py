@@ -58,7 +58,7 @@ from metalibm_core.utility.debug_utils import debug_multi, ML_Debug
 
 from metalibm_core.utility.log_report import Log
 
-from metalibm_core.targets.riscv.riscv import RISCV_RV64
+from metalibm_core.targets.riscv.riscv import RISCV_RV64, RISCV_RV64_CLANG
 from metalibm_core.targets.riscv.rvv_table import rvv_approx_table_map
 
 
@@ -779,7 +779,7 @@ rvv64_CCodeGenTable = {
 }
 
 @UniqueTargetDecorator
-class RISCV_RVV64(RISCV_RV64):
+class RISCV_RVV64(RISCV_RV64_CLANG):
     target_name = "rv64gv"
     vectorSizeType = RVV_VectorSize_T
 
@@ -795,28 +795,38 @@ class RISCV_RVV64(RISCV_RV64):
         super().__init__()
 
     def get_compilation_options(self, ML_SRC_DIR):
-        try:
-            RISCV_ENV = os.environ["RISCV"]
-        except KeyError:
-            Log.report(Log.Warning, "RISCV env variable must be set such than $RISCV/riscv64-unknown-elf/lib/ is accessible")
-            RISCV_ENV = "<RISCV undef>"
-        return super(RISCV_RVV64, self).get_compilation_options(ML_SRC_DIR) + [f"-L{RISCV_ENV}/riscv64-unknown-elf/lib/", f"--gcc-toolchain={RISCV_ENV}/ ", "-menable-experimental-extensions", "-march=rv64gcv0p10", "-target riscv64"]
+        RISCV_ENV = self.getRiscvEnv()
+        extraOpts = [f"-L{RISCV_ENV}/riscv64-unknown-elf/lib/",
+                     f"--gcc-toolchain={RISCV_ENV}/ ",
+                     "-menable-experimental-extensions",
+                     "-march=rv64gcv0p10",
+                     "-target riscv64"]
+        return super(RISCV_RVV64, self).get_compilation_options(ML_SRC_DIR) + extraOpts
 
-
-    def get_execution_command(self, test_file):
+    def getGem5ExeCmd(self, test_file):
+        """ build an execution command for a GEM5 runner"""
         try:
-            pk_bin = os.environ["PK_BIN"]
+            riscvGem5Bin = os.environ["GEM5_BIN"]
         except KeyError:
-            Log.report(Log.Warning, "PK_BIN env var must point to proxy-kernel image")
-            pk_bin = "<PK_BIN undef>"
+            Log.report(Log.Warning, "GEM5_BIN env var must point to a valid gem5 program")
+            riscvGem5Bin = "<GEM5_BIN undef>"
 
         try:
-            spike_bin = os.environ["SPIKE_BIN"]
+            gem5Cfg = os.environ["GEM5_CFG"]
         except KeyError:
-            Log.report(Log.Warning, "SPIKE_BIN env var must point to spike simulator binary")
-            spike_bin = "<SPIKE_BIN undef>"
-        cmd = "{} --isa=RV64gcv {}  {}".format(spike_bin, pk_bin, test_file)
+            Log.report(Log.Warning, "GEM5_CFG env var must point to a valid gem5 configuration")
+            gem5Cfg = "<SPIKE_BIN undef>"
+        cmd = f"{riscvGem5Bin} {gem5Cfg} --cmd {test_file}"
         return cmd
+
+    def get_execution_command(self, test_file, runner="spike"):
+        """ build an execution command which can be configured by a runner option """
+        if runner == "spike":
+            return self.getSpikeExecCmd(test_file, "RV64gcv")
+        elif runner == "gem5":
+            return self.getGem5ExeCmd(test_file)
+        else:
+            Log.report(Log.Error, f"unknown runner {runner} in target {self.__class__}")
 
 # debug message
 Log.report(LOG_BACKEND_INIT, "initializing RISC-V Vector target")
