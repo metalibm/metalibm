@@ -116,9 +116,7 @@ def buildRVCompilerPath():
     return compiler
 
 
-@UniqueTargetDecorator
-class RISCV_RV64(VectorBackend):
-    target_name = "rv64g"
+class RISCV_RV64_Common(VectorBackend):
     default_compiler = buildRVCompilerPath()
     # only cross-compilation (not binary embedding in python) is currently supported
     support_embedded_bin = False
@@ -132,9 +130,12 @@ class RISCV_RV64(VectorBackend):
         super().__init__()
 
     def get_compilation_options(self, ML_SRC_DIR):
-        return super(RISCV_RV64, self).get_compilation_options(ML_SRC_DIR) + ["-march=rv64gc"]
+        return super(RISCV_RV64_Common, self).get_compilation_options(ML_SRC_DIR) + ["-march=rv64gc"]
 
     def get_execution_command(self, test_file):
+        return self.getSpikeExecCmd(test_file, "RV64gc")
+
+    def getSpikeExecCmd(self, test_file, isa="RV64gc"):
         try:
             pk_bin = os.environ["PK_BIN"]
         except KeyError:
@@ -146,8 +147,34 @@ class RISCV_RV64(VectorBackend):
         except KeyError:
             Log.report(Log.Warning, "SPIKE_BIN env var must point to spike simulator binary")
             spike = "<SPIKE_BIN undef>"
-        cmd = "{} --isa=RV64gc {}  {}".format(spike_bin, pk_bin, test_file)
+        cmd = f"{spike_bin} --isa={isa} {pk_bin} {test_file}"
         return cmd
+
+
+@UniqueTargetDecorator
+class RISCV_RV64(RISCV_RV64_Common):
+    target_name = "rv64g"
+
+
+@UniqueTargetDecorator
+class RISCV_RV64_CLANG(RISCV_RV64_Common):
+    target_name = "rv64g-clang"
+
+    def getRiscvEnv(self):
+        try:
+            RISCV_ENV = os.environ["RISCV"]
+        except KeyError:
+            Log.report(Log.Warning, "RISCV env variable must be set such than $RISCV/riscv64-unknown-elf/lib/ is accessible")
+            RISCV_ENV = "<RISCV undef>"
+        return RISCV_ENV
+
+    def get_compilation_options(self, ML_SRC_DIR):
+        RISCV_ENV = self.getRiscvEnv()
+        extraOpts = [f"-L{RISCV_ENV}/riscv64-unknown-elf/lib/",
+                    f"--gcc-toolchain={RISCV_ENV}/ ",
+                    "-march=rv64gc",
+                    "-target riscv64"]
+        return super(RISCV_RV64_CLANG, self).get_compilation_options(ML_SRC_DIR) + extraOpts 
 
 # debug message
 Log.report(LOG_BACKEND_INIT, "initializing RISC-V targets")
