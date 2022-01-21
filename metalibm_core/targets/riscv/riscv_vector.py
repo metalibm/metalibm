@@ -39,13 +39,14 @@ from metalibm_core.code_generation.complex_generator import ComplexOperator, Dyn
 from metalibm_core.core.ml_complex_formats import ML_Pointer_Format, ML_TableFormat
 from metalibm_core.core.target import UniqueTargetDecorator
 from metalibm_core.core.ml_operations import (
-    Abs, Addition, BitArithmeticRightShift, BitLogicAnd, BitLogicLeftShift, BitLogicOr, BitLogicRightShift, Comparison,
-    Conversion, Floor, FusedMultiplyAdd, Max, Min, Modulo, Multiplication, NearestInteger, Negation, ReciprocalSeed, Select, Splat, Subtraction, TableLoad, TableStore, Trunc,
-    TypeCast)
+    Abs, Addition, BitArithmeticRightShift, BitLogicAnd, BitLogicLeftShift,
+    BitLogicOr, BitLogicRightShift, Comparison, Conversion, Floor, FusedMultiplyAdd,
+    Max, Min, Modulo, Multiplication, NearestInteger, Negation, ReciprocalSeed,
+    Select, Splat, Subtraction, TableLoad, TableStore, Trunc, TypeCast)
 from metalibm_core.core.ml_formats import (
     SUPPORT_FORMAT_MAP,
     ML_Binary16,
-    ML_Bool8, ML_Bool16, ML_Bool32, ML_Bool64, ML_FP_Format, ML_Format, ML_FormatConstructor,
+    ML_Bool8, ML_Bool16, ML_Bool32, ML_Bool64, ML_FP_Format, ML_FormatConstructor,
     ML_Int16, ML_Int64, ML_Int32,
     ML_Binary64, ML_Binary32, ML_Integer, ML_UInt16, ML_UInt32, ML_UInt64, ML_Void)
 from metalibm_core.core.vla_common import VLAGetLength, VLAOperation
@@ -53,12 +54,13 @@ from metalibm_core.core.vla_common import VLAGetLength, VLAOperation
 from metalibm_core.code_generation.abstract_backend import LOG_BACKEND_INIT
 from metalibm_core.code_generation.code_constant import C_Code
 from metalibm_core.code_generation.generator_utility import (
-    FSM, TCM, FO_Arg, FunctionOperator, SymbolOperator, type_custom_match, type_strict_match, type_strict_match_list)
+    FSM, TCM, FO_Arg, FunctionOperator, SymbolOperator, type_custom_match,
+    type_strict_match, type_strict_match_list)
 from metalibm_core.utility.debug_utils import debug_multi, ML_Debug
 
 from metalibm_core.utility.log_report import Log
 
-from metalibm_core.targets.riscv.riscv import RISCV_RV64, RISCV_RV64_CLANG
+from metalibm_core.targets.riscv.riscv import RISCV_RV64_CLANG
 from metalibm_core.targets.riscv.rvv_table import rvv_approx_table_map
 
 
@@ -132,10 +134,6 @@ def getElt(eltType, index, v):
                     v=v,
                     index=index,
                     suffix=RVVIntrSuffix[eltType])
-#debug_vfloat32_m1  = ML_Debug(display_format = "{%a}", pre_process = lambda v: "vfmv_f_s_f32m1_f32(%s)" % (v))
-#debug_vint32_m1    = ML_Debug(display_format = "{%d}", pre_process = lambda v: "vmv_x_s_i32m1_i32(%s)" % (v))
-#debug_vfloat64_m1  = ML_Debug(display_format = "{%a}", pre_process = lambda v: "vfmv_f_s_f64m1_f64(%s)" % (v))
-#debug_vint64_m1    = ML_Debug(display_format = "{%d}", pre_process = lambda v: "vmv_x_s_i64m1_i64(%s)" % (v))
 
 # number of element per vector to be displayed during debug
 DEBUG_LEN = 4

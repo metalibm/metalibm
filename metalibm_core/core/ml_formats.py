@@ -36,7 +36,6 @@
 # author(s): Nicolas Brunie (nicolas.brunie@kalray.eu)
 ###############################################################################
 
-import operator
 import re
 
 import sollya
@@ -75,7 +74,6 @@ def get_sollya_from_long(v):
     result += int(r) * power
     power *= base
   return result
-
 
 
 ## Ancestor class for Metalibm's format classes
