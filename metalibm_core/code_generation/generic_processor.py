@@ -31,7 +31,8 @@
 # author(s): Nicolas Brunie (nicolas.brunie@kalray.eu)
 ###############################################################################
 
-import os, inspect
+import os
+from metalibm_core.core.special_values import is_infty, is_minus_infty, is_plus_infty
 import sollya
 S2 = sollya.SollyaObject(2)
 
@@ -60,14 +61,12 @@ from .complex_generator import *
 from .generator_helper import *
 from .abstract_backend import *
 
-from metalibm_core.utility.debug_utils import debug_multi
-
 
 from metalibm_core.core.passes import (
     Pass, PassScheduler, PassDependency, AfterPassById,
 )
 from metalibm_core.opt.p_function_std import (
-    PassCheckProcessorSupport, PassSubExpressionSharing, PassFuseFMA
+    PassCheckProcessorSupport, PassSubExpressionSharing
 )
 from metalibm_core.opt.p_function_typing import (
     PassInstantiateAbstractPrecision, PassInstantiatePrecision,
@@ -278,10 +277,18 @@ c_code_generation_table = {
     },
     Constant: {
         None: {
-            lambda optree: True: {
+            lambda node: not FP_SpecialValue.is_special_value(node.get_value()) or not is_infty(node.get_value()): {
                 type_strict_match(ML_Binary32): ConstantOperator(),
                 type_custom_match(type_all_match, weak=True): ConstantOperator(),
-            }
+            },
+            lambda node: FP_SpecialValue.is_special_value(node.get_value()) and is_minus_infty(node.get_value()): {
+                type_strict_match(ML_Binary32): TemplateOperator("-__builtin_inff()"),
+                type_strict_match(ML_Binary64): TemplateOperator("-__builtin_inf()"),
+            },
+            lambda node: FP_SpecialValue.is_special_value(node.get_value()) and is_plus_infty(node.get_value()): {
+                type_strict_match(ML_Binary32): TemplateOperator("__builtin_inff()"),
+                type_strict_match(ML_Binary64): TemplateOperator("__builtin_inf()"),
+            },
         },
     },
     Select: {
