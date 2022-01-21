@@ -252,8 +252,8 @@ def typeCastInput(opIndex, vlIndex, castType):
         opToBeModified = node.get_input(opIndex)
         vl = node.get_input(vlIndex)
         newInput = VLAOperation(opToBeModified, vl, specifier=TypeCast, precision=castType)
-        node.set_input(opIndex, newInput)
-        return node
+        nodeCopy = node.copy(copy_map={opToBeModified: newInput, vl: vl})
+        return nodeCopy
     return helper
 
 
@@ -491,10 +491,17 @@ rvv64_CCodeGenTable = {
         },
         Negation: {
             lambda optree: True: {
-                # generating mapping for all vv version of vfadd
+                # generating mapping for all vv version of vneg
                 type_strict_match(RVV_vectorTypeMap[(lmul, eltType)], RVV_vectorTypeMap[(lmul, eltType)], RVV_VectorSize_T):
                     RVVIntrinsic("v%sneg_v_%sm%d" % ("f" if isinstance(eltType, ML_FP_Format) else "", RVVIntrSuffix[eltType], lmul), arity=2, output_precision=RVV_vectorTypeMap[(lmul, eltType)])
                     for (lmul, eltType) in RVV_vectorTypeMap
+            },
+            lambda optree: True: {
+                # generating mapping for all vv version of vneg with unsigned input and signed output
+                # FIXME: typecast of input may discard MSB value
+                type_strict_match(RVV_vectorTypeMap[(lmul, SUPPORT_FORMAT_MAP[True][eltType.get_bit_size()])], RVV_vectorTypeMap[(lmul, eltType)], RVV_VectorSize_T):
+                    ComplexOperator(optree_modifier=typeCastInput(opIndex=0, vlIndex=1, castType=RVV_vectorSIntTypeMap[(lmul, SUPPORT_FORMAT_MAP[True][eltType.get_bit_size()])]))
+                    for (lmul, eltType) in RVV_vectorUIntTypeMap
             },
         },
         Splat: {
