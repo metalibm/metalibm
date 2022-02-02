@@ -820,7 +820,7 @@ class RISCV_RVV64(RISCV_RV64_CLANG):
             gem5Cfg = os.environ["GEM5_CFG"]
         except KeyError:
             Log.report(Log.Warning, "GEM5_CFG env var must point to a valid gem5 configuration")
-            gem5Cfg = "<SPIKE_BIN undef>"
+            gem5Cfg = "<GEM5_CFG undef>"
         cmd = f"{riscvGem5Bin} {gem5Cfg} --cmd {test_file}"
         return cmd
 
