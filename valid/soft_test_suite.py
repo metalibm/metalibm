@@ -76,30 +76,32 @@ class FunctionTest:
     def tag(self):
         return self.title
 
-def get_cmdline_option(option_list, option_value):
+def get_cmdline_option(option_list, option_value, optionMap):
     """ generate the command line equivalent to the list of options and their
         corresponding values """
-    OPTION_MAP = {
-        "passes": lambda vlist: ("--passes " + ",".join(vlist)),
-        "extra_passes": lambda vlist: ("--extra-passes " + ",".join(vlist)),
-        "execute_trigger": lambda v: "--execute",
-        "auto_test": lambda v: "--auto-test {}".format(v),
-        "bench_test_number": lambda v: "" if v is None else "--bench {}".format(v),
-        "bench_loop_num": lambda v: "--bench-loop-num {}".format(v),
-        "auto_test_std": lambda _: "--auto-test-std ",
-        "target": lambda v: "--target {}".format(v),
-        "precision": lambda v: "--precision {}".format(v),
-        "vector_size": lambda v: "--vector-size {}".format(v),
-        "function_name": lambda v: "--fname {}".format(v),
-        "output_file": lambda v: "--output {}".format(v),
-        "compute_max_error": lambda v: "--max-error {}".format(v),
-        # discarding target_specific_options
-        "target_exec_options": lambda _: "",
-    }
-    return " ".join(OPTION_MAP[option](option_value[option]) for option in option_list)
+    return " ".join(optionMap[option](option_value[option]) for option in option_list)
 
+# generic option mapping: for each option label, a function
+# building the corresponding command line argument is provided
+DEFAULT_OPTION_MAP = {
+    "passes": lambda vlist: ("--passes " + ",".join(vlist)),
+    "extra_passes": lambda vlist: ("--extra-passes " + ",".join(vlist)),
+    "execute_trigger": lambda v: "--execute",
+    "auto_test": lambda v: "--auto-test {}".format(v),
+    "bench_test_number": lambda v: "" if v is None else "--bench {}".format(v),
+    "bench_loop_num": lambda v: "--bench-loop-num {}".format(v),
+    "auto_test_std": lambda _: "--auto-test-std ",
+    "target": lambda v: "--target {}".format(v),
+    "precision": lambda v: "--precision {}".format(v),
+    "vector_size": lambda v: "--vector-size {}".format(v),
+    "function_name": lambda v: "--fname {}".format(v),
+    "output_file": lambda v: "--output {}".format(v),
+    "compute_max_error": lambda v: "--max-error {}".format(v),
+    # discarding target_specific_options
+    "target_exec_options": lambda _: "",
+}
 
-def generate_pretty_report(filename, test_list, test_summary, evolution_map):
+def generate_pretty_report(filename, test_list, test_summary, evolution_map, optionMap=DEFAULT_OPTION_MAP):
     """ generate a HTML pretty version of the test report
 
         :param filename: output file name
@@ -127,7 +129,7 @@ def generate_pretty_report(filename, test_list, test_summary, evolution_map):
         print_report("<p><ul>\n")
         for index, test_case in enumerate(test_list):
             nice_str = "; ".join("{}: {}".format(option, str(test_case[option])) for option in test_case)
-            cmd_str = get_cmdline_option(test_case.keys(), test_case)
+            cmd_str = get_cmdline_option(test_case.keys(), test_case, optionMap)
             print_report("<li><b>({}): {}</b></li>\n".format(index, nice_str))
             print_report("{}\n".format(cmd_str))
 
