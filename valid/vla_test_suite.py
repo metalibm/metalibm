@@ -48,7 +48,7 @@ from metalibm_functions.vla_function import VLAFunction
 
 from valid.test_summary import TestSummary
 from valid.soft_test_suite import (
-    FunctionTest, execute_test_list, genGlobalTestList, generate_pretty_report,
+    DEFAULT_OPTION_MAP, FunctionTest, execute_test_list, genGlobalTestList, generate_pretty_report,
     populateTestSuiteArgParser, split_str)
 
 
@@ -125,9 +125,12 @@ TARGET_OPTIONS_MAP = {
 
 TARGET_BY_NAME_MAP = {target.target_name: target for target in TARGET_OPTIONS_MAP}
 
+# list of scalar element formats to be tested
 SCALAR_PRECISION_LIST = [ML_Binary32, ML_Binary64]
-
+# list of vector element formats to be tested
 VECTOR_PRECISION_LIST = [ML_Binary32, ML_Binary64]
+# list of vector group sizes (LMUL) to be tested
+VECTOR_GROUP_SIZE = [1] # , 2, 4, 8]
 
 def cleanify_name(name):
     return name.replace("-", "_")
@@ -150,7 +153,7 @@ def generate_test_list(NUM_AUTO_TEST, NUM_BENCH_TEST,
             target_specific_options = {}
             if ":" in target_tag:
                 target_tag, platform = target_tag.split(':')
-                target_specific_options["target_exec_options"]  = {"platform": platform}
+                target_specific_options["target_exec_options"]  = {"runner": platform}
             target = target_parser(target_tag).get_target_instance()
             TARGET_OPTIONS_MAP[target] = target_specific_options
         return target
@@ -182,21 +185,23 @@ def generate_test_list(NUM_AUTO_TEST, NUM_BENCH_TEST,
     # generating vector tests and adding them to test_list
     for vector_target_tag in vector_target_tag_list:
         vector_target = get_target_by_tag(vector_target_tag)
-        for precision in VECTOR_PRECISION_LIST:
-            options = {
-                "precision": precision,
-                "target": vector_target,
-                "auto_test": NUM_AUTO_TEST,
-                "bench_test_number": NUM_BENCH_TEST,
-                "bench_loop_num": NUM_BENCH_LOOP,
-                "auto_test_std": ENANBLE_STD_TEST,
-                "compute_max_error": MAX_ERROR_EVAL,
-                "execute_trigger": True,
-                "output_file": "vla-{}_{}.c".format(precision, cleanify_name(vector_target.target_name)),
-                "function_name": "vla_{}_{}".format(precision, cleanify_name(vector_target.target_name)),
-            }
-            options.update(get_target_option(vector_target))
-            test_list.append(options)
+        for groupSize in VECTOR_GROUP_SIZE:
+            for precision in VECTOR_PRECISION_LIST:
+                options = {
+                    "precision": precision,
+                    "target": vector_target,
+                    "auto_test": NUM_AUTO_TEST,
+                    "bench_test_number": NUM_BENCH_TEST,
+                    "bench_loop_num": NUM_BENCH_LOOP,
+                    "auto_test_std": ENANBLE_STD_TEST,
+                    "compute_max_error": MAX_ERROR_EVAL,
+                    "execute_trigger": True,
+                    "group_size": groupSize,
+                    "output_file": "vla-{}_{}.c".format(precision, cleanify_name(vector_target.target_name)),
+                    "function_name": "vla_{}_{}".format(precision, cleanify_name(vector_target.target_name)),
+                }
+                options.update(get_target_option(vector_target))
+                test_list.append(options)
     return test_list
 
 
@@ -265,7 +270,11 @@ if __name__ == "__main__":
         out_prefix, out_suffix = os.path.splitext(output_filename)
         output_filename = "{}.{}{}".format(out_prefix, current_date, out_suffix)
 
-    generate_pretty_report(output_filename, test_list, test_result, evolution)
+    # specialization of option mapping for vla_test_suite
+    VLA_OPTION_MAP = DEFAULT_OPTION_MAP.copy()
+    VLA_OPTION_MAP.update({"group_size": lambda v: f"--group-size {v}"})
+
+    generate_pretty_report(output_filename, test_list, test_result, evolution, VLA_OPTION_MAP)
     if args.gen_reference:
         # generate reference data filename (possibly with timestamp)
         reference_filename = args.gen_reference
