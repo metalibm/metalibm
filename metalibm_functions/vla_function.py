@@ -60,7 +60,8 @@ from metalibm_functions.function_map import FUNCTION_MAP
 
 from metalibm_core.utility.debug_utils import debug_multi
 
-class GroupedAction(argparse.Action):    
+
+class GroupedAction(argparse.Action):
     """ specific argparse action to group subparser argument,
         Source: https://stackoverflow.com/a/18677482 """
     def __call__(self, parser, namespace, values, option_string=None):
@@ -115,14 +116,14 @@ class VLAFunction(ML_ArrayFunction):
         # declaring target and instantiating optimization engine
         precision_ptr = self.get_input_precision(0)
         index_format = self.get_input_precision(2)
-        group_size = self.group_size
+        groupSize = self.group_size
 
         dst = self.implementation.add_input_variable("dst", precision_ptr)
         src = self.implementation.add_input_variable("src", precision_ptr)
         n = self.implementation.add_input_variable("len", index_format)
 
         # instantiating vectorizer to vectorize scalar scheme
-        vectorizer = VLAVectorizer()
+        vectorizer = VLAVectorizer(groupSize)
 
         self.function_list = []
 
@@ -193,7 +194,7 @@ class VLAFunction(ML_ArrayFunction):
 
         assert len(vec_arg_list) == 1, "currently a single vector argument is supported"
 
-        vectorType = vectorizer.vectorizeFormat(self.precision)
+        vectorType = vectorizer.vectorizeFormat(self.precision, groupSize)
         localSrc = Addition(src, vectorOffset, precision=precision_ptr)
         localDst = Addition(dst, vectorOffset, precision=precision_ptr)
 
@@ -252,7 +253,7 @@ if __name__ == "__main__":
         "--use-libm-fct", dest="use_libm_function", default=None,
         action="store", help="use standard libm function to implement element computation")
     arg_template.get_parser().add_argument(
-        "--group-zize", dest="group_size", default=1, type=int,
+        "--group-size", dest="group_size", default=1, type=int,
         action="store", help="size of a vector group (number of vector register grouped together to build a super vector register)")
     arg_template.get_parser().add_argument(
         "--scalar-emulate", dest="scalar_emulate", default=None,
