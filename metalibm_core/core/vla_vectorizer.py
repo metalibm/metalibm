@@ -70,6 +70,11 @@ from metalibm_core.utility.debug_utils import debug_multi
 
 class VLAVectorizer(StaticVectorizer):
     """ vectorizer for vector-length agnostic architecture """
+    def __init__(self, defaultGroupSize=1):
+        """ """
+        self.defaultGroupSize = defaultGroupSize
+
+
     def vectorize_scheme(self, optree, arg_list, vectorLen):
         """ optree static vectorization
             @param optree ML_Operation object, root of the DAG to be vectorized
@@ -98,7 +103,7 @@ class VLAVectorizer(StaticVectorizer):
         def vlaVectorizeType(eltType):
             """ return the corresponding VLA format for a given element type """
             # select group multiplier = 1 to for now
-            return VLA_FORMAT_MAP[(eltType, 1)]
+            return VLA_FORMAT_MAP[(eltType, self.defaultGroupSize)]
 
         # dictionnary of arg_node (scalar) -> new variable (vector) mapping
         vec_arg_dict = dict(
@@ -159,7 +164,7 @@ class VLAVectorizer(StaticVectorizer):
                         opInputs.append(new_input)
                     # extracting operation class
                     try:
-                        opType = self.vectorizeFormat(optree_precision)
+                        opType = self.vectorizeFormat(optree_precision, self.defaultGroupSize)
                     except KeyError as e:
                         Log.report(Log.Error, "unable to determine a vector-format for node {}", node, error=e)
                     if isinstance(node, SpecifierOperation):
