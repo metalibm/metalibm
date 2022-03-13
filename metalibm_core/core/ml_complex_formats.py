@@ -63,11 +63,12 @@ class ML_AdvancedFormat(ML_FP_Format):
 
 class ML_Pointer_Format(ML_Format):
   """ wrapper for address/pointer format """
-  def __init__(self, data_precision):
+  def __init__(self, data_precision, attributes=None):
     self.data_precision = data_precision
+    self.attributes     = attributes or []
 
-  def get_name(self, language = C_Code):
-    return "%s*" % self.get_data_precision().get_name(language)
+  def get_name(self, language=C_Code):
+    return "{}*".format(" ".join(self.attributes + [self.get_data_precision().get_name(language)]))
 
   def get_data_precision(self):
     return self.data_precision
@@ -78,7 +79,7 @@ class ML_Pointer_Format(ML_Format):
       if (is_pointer_format(other)):
         return (self.data_precision == other.data_precision)
       elif isinstance(other, ML_TableFormat):
-        return self.data_precision == other.storage_precision
+        return self.data_precision == other.storage_precision # FIXME attributes are not supported in format comparison (they break table/point match)
       else:
         return False
 

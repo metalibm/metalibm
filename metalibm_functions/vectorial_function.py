@@ -134,12 +134,13 @@ class ML_VectorialFunction(ML_ArrayFunction):
         # initializing base class
         ML_ArrayFunction.__init__(self, args)
         self.arity = 3
-        precision_ptr = ML_Pointer_Format(self.precision)
+        out_precision_ptr = ML_Pointer_Format(self.precision)
+        in_precision_ptr = ML_Pointer_Format(self.precision, attributes=["const"])
         index_format = ML_UInt32
         # self.input_precisions can no longer be modified directly
         self._input_precisions = [
-            precision_ptr,
-            precision_ptr,
+            out_precision_ptr,
+            in_precision_ptr,
             index_format
         ]
         self.use_libm_function = args.use_libm_function
@@ -167,12 +168,13 @@ class ML_VectorialFunction(ML_ArrayFunction):
 
     def generate_scheme(self):
         # declaring target and instantiating optimization engine
-        precision_ptr = self.get_input_precision(0)
+        out_precision_ptr = self.get_input_precision(0)
+        in_precision_ptr = self.get_input_precision(1)
         index_format = self.get_input_precision(2)
         multi_elt_num = self.multi_elt_num
 
-        dst = self.implementation.add_input_variable("dst", precision_ptr)
-        src = self.implementation.add_input_variable("src", precision_ptr)
+        dst = self.implementation.add_input_variable("dst", out_precision_ptr)
+        src = self.implementation.add_input_variable("src", in_precision_ptr)
         n = self.implementation.add_input_variable("len", index_format)
 
         i = Variable("i", precision=index_format, var_type=Variable.Local)

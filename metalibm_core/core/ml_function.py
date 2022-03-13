@@ -1118,7 +1118,6 @@ class ML_FunctionBasis(object):
                 ret_stdout = str(ret_stdout)
                 if Log.is_level_enabled(Log.Info):
                     print(str(ret_stdout.replace("\\n", "\n")))
-                #Log.report(Log.Info, "log: {}", ret_stdout)
                 # extracting benchmark result
                 if self.bench_enabled:
                     cpe_match = re.search("(?P<cpe_measure>\d+\.\d+) CPE", ret_stdout)
@@ -1275,7 +1274,12 @@ class ML_FunctionBasis(object):
 
   def generate_test_tables(self, test_num, outType, outAccuracy, test_ranges=[Interval(-1.0, 1.0)]):
     """ Generate inputs and output table to be shared between auto test
-        and max_error tests """
+        and max_error tests.
+        Return:
+          (test_total, input_table, output_table):
+            - test_total:  total number of test cases
+            - input_table: table of test case inputs
+            - output_table: table of expected test case outputs """
     test_total = test_num
     non_random_test_cases = []
     # add them to the total if standard test enabled
@@ -1307,12 +1311,6 @@ class ML_FunctionBasis(object):
       ) for i in range(self.arity)
     ]
 
-    ## output values required to check results are stored in output table
-    num_output_value = outAccuracy.get_num_output_value()
-    output_table = ML_NewTable(dimensions=[test_total, num_output_value],
-                               storage_precision=outType,
-                               const=False,
-                               tag=self.uniquify_name("output_table"))
 
     test_case_list = []
 
@@ -1333,6 +1331,12 @@ class ML_FunctionBasis(object):
     # adding randomly generated inputs
     test_case_list += list(self.generate_rand_input_iterator(test_num, test_ranges))
 
+    ## output values required to check results are stored in output table
+    num_output_value = outAccuracy.get_num_output_value()
+    output_table = ML_NewTable(dimensions=[test_total, num_output_value],
+                               storage_precision=outType,
+                               const=False,
+                               tag=self.uniquify_name("output_table"))
     # generating output from the concatenated list of all inputs
     for table_index, input_tuple in enumerate(test_case_list):
       # storing inputs
