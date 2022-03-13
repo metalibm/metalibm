@@ -31,6 +31,7 @@
 
 import random
 from metalibm_core.core.precisions import ML_FunctionPrecision
+from metalibm_core.opt.p_expand_multi_precision import Pass_ExpandMultiPrecision
 import sollya
 from sollya import Interval, inf, sup
 
@@ -43,7 +44,7 @@ from metalibm_core.code_generation.generator_utility import (
     FO_Arg,
 )
 from metalibm_core.core.ml_operations import (
-    Variable, Constant,
+    Max, Select, Test, Variable, Constant,
     Loop, ReferenceAssign, Statement,
     TableLoad, TableStore,
     FunctionObject,
@@ -137,6 +138,8 @@ class ML_ArrayFunction(ML_FunctionBasis):
     def element_numeric_emulate(self):
         """ single element emulation of function """
         raise NotImplementedError
+
+
     def generate_test_tables(self, test_num, outType: ML_FunctionPrecision, outAccuracy, test_ranges=[Interval(-1.0, 1.0)]):
         """ Generate inputs and output table to be shared between auto test
             and max_error tests
@@ -147,11 +150,11 @@ class ML_ArrayFunction(ML_FunctionBasis):
                 test_ranges : range(s) to select inputs from
             """
         index_range = self.test_index_range
-        test_total   = test_num + len(self.standard_test_cases) + (1 if len(self.value_test) else 0)
+        test_total  = test_num + len(self.standard_test_cases) + (1 if len(self.value_test) else 0)
 
         # number of arrays expected as inputs for tested_function
         NUM_INPUT_ARRAY = 1
-        # position of the input array in tested_function operands (generally
+        # position of the first input array in tested_function operands (generally
         # equals to 1 as to 0-th input is often the destination array)
         INPUT_INDEX_OFFSET = 1
 
@@ -199,17 +202,13 @@ class ML_ArrayFunction(ML_FunctionBasis):
             ) for table_id in range(NUM_INPUT_ARRAY)
         ]
 
-        # generate output_array
-        output_array = generate_1d_table(
-            INPUT_ARRAY_SIZE,
-            outType,
-            self.uniquify_name("output_array"),
-            const=False,
-            value_gen=(lambda _: FP_QNaN(outType))
-        )
-        return test_total, (table_size_offset_array, input_tables), output_array
+        # generate the expected table for the whole multi-array
+        expected_array = self.generate_expected_table(input_tables, table_size_offset_array)
 
-    def generate_test_wrapper(self, test_total, input_tuple, output_array):
+        return test_total, (table_size_offset_array, input_tables), expected_array
+
+
+    def generate_test_wrapper(self, test_total, input_tuple, expected_array):
         table_size_offset_array, input_tables = input_tuple
 
         auto_test = CodeFunction("test_wrapper", output_format = ML_Int32)
@@ -223,10 +222,23 @@ class ML_ArrayFunction(ML_FunctionBasis):
         # accumulate element number
         acc_num = Variable("acc_num", precision=ML_Int64, var_type=Variable.Local)
 
+        INPUT_ARRAY_SIZE = sum(TABLE_SIZE_VALUES)
+        outType = self.get_output_precision()
+
+        # generate output_array (empty table to store implementation results before compare)
+        output_array = generate_1d_table(
+            INPUT_ARRAY_SIZE,
+            outType,
+            self.uniquify_name("output_array"),
+            const=False,
+            value_gen=(lambda _: FP_QNaN(outType))
+        )
+
         test_loop = self.get_array_test_wrapper(
             test_total, tested_function,
             table_size_offset_array,
             input_tables,
+            expected_array,
             output_array,
             acc_num,
             self.generate_array_check_loop)
@@ -239,7 +251,6 @@ class ML_ArrayFunction(ML_FunctionBasis):
         )
         auto_test.set_scheme(test_scheme)
         return FunctionGroup([auto_test])
-
 
 
     def get_printf_input_function(self):
@@ -276,7 +287,7 @@ class ML_ArrayFunction(ML_FunctionBasis):
 
     def generate_expected_table(self, input_tables, table_size_offset_array):
         """ Generate the complete table of expected results """
-        ## output values required to check results are stored in output table
+        ## output values required to check results are stored in expected_table
         num_output_value = self.accuracy.get_num_output_value()
         NUM_INPUT_ARRAY = len(input_tables)
 
@@ -297,30 +308,14 @@ class ML_ArrayFunction(ML_FunctionBasis):
         return expected_table
 
 
-    def generate_array_check_loop(self, input_tables, output_array, table_size_offset_array,
+    def generate_array_check_loop(self, input_tables, expected_array, output_array, table_size_offset_array,
                                   array_offset, array_len, test_id):
         # internal array iterator index
         vj = Variable("j", precision=ML_UInt32, var_type=Variable.Local)
 
         printf_input_function = self.get_printf_input_function()
 
-        printf_error_template = "printf(\"max %s error is %s \\n\", %s)" % (
-            self.function_name,
-            self.precision.get_display_format().format_string,
-            self.precision.get_display_format().pre_process_fct("{0}")
-        )
-        printf_error_op = TemplateOperatorFormat(printf_error_template, arity=1, void_function=True, require_header=["stdio.h"])
-
-        printf_error_function = FunctionObject("printf", [self.precision], ML_Void, printf_error_op)
-
-        printf_max_op = FunctionOperator("printf", arg_map = {0: "\"max %s error is reached at input number %s \\n \"" % (self.function_name, "%d"), 1: FO_Arg(0)}, void_function = True, require_header=["stdio.h"]) 
-        printf_max_function = FunctionObject("printf", [self.precision], ML_Void, printf_max_op)
-
-
         NUM_INPUT_ARRAY = len(input_tables)
-
-        # generate the expected table for the whole multi-array
-        expected_table = self.generate_expected_table(input_tables, table_size_offset_array)
 
         # inputs for the (vj)-th entry of the sub-arrat
         local_inputs = tuple(TableLoad(input_tables[in_id], array_offset + vj) for in_id in range(NUM_INPUT_ARRAY))
@@ -359,11 +354,12 @@ class ML_ArrayFunction(ML_FunctionBasis):
         )
         return check_array_loop
 
+
     def get_array_test_wrapper(
             self,
             test_num, tested_function,
             table_size_offset_array,
-            input_tables, output_array,
+            input_tables, expected_array, output_array,
             acc_num,
             post_statement_generator,
             NUM_INPUT_ARRAY=1):
@@ -400,7 +396,7 @@ i-array tests
 
 
         post_statement = post_statement_generator(
-                            input_tables, output_array, table_size_offset_array,
+                            input_tables, expected_array, output_array, table_size_offset_array,
                             array_offset, array_len, test_id)
 
         loop_increment = 1
@@ -454,7 +450,8 @@ i-array tests
 
         # concatenating standard test array at the beginning of randomly
         # generated array
-        TABLE_SIZE_VALUES = [len(std_table) for std_table in self.standard_test_cases] + [random.randrange(index_range[0], index_range[1] + 1) for i in range(test_num)]
+        TABLE_SIZE_VALUES = [len(std_table) for std_table in self.standard_test_cases] + \
+                            [random.randrange(index_range[0], index_range[1] + 1) for i in range(test_num)]
         OFFSET_VALUES = [sum(TABLE_SIZE_VALUES[:i]) for i in range(test_total)]
 
         table_size_offset_array = generate_2d_table(
@@ -482,6 +479,9 @@ i-array tests
             ) for table_id in range(NUM_INPUT_ARRAY)
         ]
 
+        # generate the expected table for the whole multi-array
+        expected_array = self.generate_expected_table(input_tables, table_size_offset_array)
+
         # generate output_array
         output_array = generate_1d_table(
             INPUT_ARRAY_SIZE,
@@ -505,7 +505,7 @@ i-array tests
         test_loop = self.get_array_test_wrapper(
             test_total, tested_function,
             table_size_offset_array,
-            input_tables, output_array,
+            input_tables, expected_array, output_array,
             acc_num,
             empty_post_statement_gen)
 
@@ -568,3 +568,131 @@ i-array tests
     def get_main_fct_return_type(self):
         # Array-function does not return anything
         return ML_Void
+
+    def generate_max_error_wrapper(self, tested_function, test_total,
+                                   input_tables, output_table,
+                                   errorPrecision, errorAccuracy):
+        """ Generate max_errror eval function, manages
+            both scalar and vector formats """
+        max_error_main_statement = self.generate_vector_max_error_eval(tested_function, test_total, input_tables, output_table, errorPrecision, errorAccuracy) 
+        max_error_function = CodeFunction("max_error_eval", output_format=errorPrecision) 
+        max_error_function.set_scheme(max_error_main_statement)
+        return max_error_function
+  
+    def generate_vector_max_error_eval(self, tested_function, test_num,
+                                       input_bundle, output_table, outType, outAccuracy):
+        """ generate the main Statement to evaluate the maximal error (both
+            relative and absolute) for a vector function """
+        offsetArray, input_tables = input_bundle
+        errorPrecision = outType
+        max_error_relative = Variable("max_error_relative", precision=errorPrecision, var_type=Variable.Local)
+        max_error_absolute = Variable("max_error_absolute", precision=errorPrecision, var_type=Variable.Local)
+  
+        printf_error_template = "printf(\"max %s error is absolute=%s, relative=%s \\n\", %s, %s)" % (
+          self.function_name,
+          errorPrecision.get_display_format(self.language).format_string,
+          errorPrecision.get_display_format(self.language).format_string,
+          errorPrecision.get_display_format(self.language).pre_process_fct("{0}"),
+          errorPrecision.get_display_format(self.language).pre_process_fct("{0}")
+        )
+        printf_error_op = TemplateOperatorFormat(printf_error_template, arity=2, void_function=True, require_header=["stdio.h"])
+        printf_error_function = FunctionObject("printf", [errorPrecision, errorPrecision], ML_Void, printf_error_op)
+  
+        local_inputs = [
+          Variable(
+            "vec_x_{}".format(i) ,
+            precision=self.implementation.get_input_format(i),
+            var_type=Variable.Local
+          ) for i in range(self.arity)
+        ]
+        # table to store the function results, before comparing them to the expected values
+        resultTable = ML_NewTable(
+            dimensions=[test_num],
+            const=False,
+            empty=True,    # result table is initially empty
+            storage_precision = self.get_output_precision(),
+            tag=self.uniquify_name("max_error_result_table")
+        )
+
+        loop_increment = 1
+        test_num_cst = Constant(test_num, precision=ML_UInt32)
+        NUM_INPUT_ARRAY = len(input_tables)
+
+        # computing results
+        futRun = Statement(tested_function(resultTable, *tuple(input_tables), test_num_cst))
+
+        # error evaluation loop
+        vi = Variable("i", precision=ML_UInt32, var_type=Variable.Local)
+        # inputs for the (vi)-th entry of the sub-arrat
+        local_inputs = tuple(TableLoad(input_tables[in_id], vi) for in_id in range(NUM_INPUT_ARRAY))
+        # expected values for the (vi)-th entry of the sub-arrat
+        expected_values = [TableLoad(output_table, vi, i) for i in range(self.accuracy.get_num_output_value())]
+        # local result for the (vi)-th entry of the sub-arrat
+        local_result = TableLoad(resultTable, vi)
+
+        local_error_relative, localErrorValidty = outAccuracy.compute_error(local_result, expected_values, relative=True)
+        local_error_absolute, _ = outAccuracy.compute_error(local_result, expected_values, relative=False)
+
+        assignation_statement = Statement(local_result,
+                                          local_error_relative,
+                                          local_error_absolute)
+  
+        comp_statement = Statement()
+        # TODO/FIXME: cleanup error value selection when
+        # - error is NaN
+        # - result is NaN
+        # - one of the operand is NaN
+        # TODO: in particular check compute_error behavior on NaNs
+        comp_statement.push(
+          ReferenceAssign(
+            max_error_relative,
+            Select(
+                Test(local_error_relative, specifier=Test.IsNaN),
+                # force max_error_relative if local_error_relative is equal to NaN
+                # to ensure max error is never a NaN
+                # max-error is only valid for non-special cases
+                max_error_relative,
+                Max(
+                  local_error_relative,
+                  max_error_relative,
+                  precision=errorPrecision),
+                  precision=errorPrecision))
+            )
+        comp_statement.push(
+          ReferenceAssign(
+            max_error_absolute,
+            Select(
+                Test(local_error_absolute, specifier=Test.IsNaN),
+                max_error_absolute,
+                Max(
+                  local_error_absolute,
+                  max_error_absolute,
+                  precision=errorPrecision),
+                precision=errorPrecision))
+             )
+  
+        error_loop = Loop(
+          ReferenceAssign(vi, Constant(0, precision = ML_Int32)),
+          vi < test_num_cst,
+          Statement(
+            assignation_statement,
+            comp_statement,
+            ReferenceAssign(vi, vi + loop_increment)
+          ),
+        )
+        main_statement = Statement(
+            ReferenceAssign(max_error_absolute, Constant(-1, precision=errorPrecision)),
+            ReferenceAssign(max_error_relative, Constant(-1, precision=errorPrecision)),
+            futRun,
+            error_loop,
+            printf_error_function(max_error_absolute, max_error_relative),
+            Return(max_error_relative))
+  
+          
+        # TODO/FIXME: optimize
+        expandPass = Pass_ExpandMultiPrecision(self.processor)
+        expandPass.execute(main_statement)
+        assert not main_statement is None
+  
+        return main_statement
+  
