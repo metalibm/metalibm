@@ -222,7 +222,9 @@ class ML_ArrayFunction(ML_FunctionBasis):
         # accumulate element number
         acc_num = Variable("acc_num", precision=ML_Int64, var_type=Variable.Local)
 
-        INPUT_ARRAY_SIZE = sum(TABLE_SIZE_VALUES)
+        # the total number of input values can be evaluated as the sum of the elements of the
+        # last row of table_size_offtset_array which contain the last offset and the the last array size
+        INPUT_ARRAY_SIZE = table_size_offset_array[test_total - 1][0] + table_size_offset_array[test_total - 1][1]
         outType = self.get_output_precision()
 
         # generate output_array (empty table to store implementation results before compare)
@@ -320,14 +322,14 @@ class ML_ArrayFunction(ML_FunctionBasis):
         # inputs for the (vj)-th entry of the sub-arrat
         local_inputs = tuple(TableLoad(input_tables[in_id], array_offset + vj) for in_id in range(NUM_INPUT_ARRAY))
         # expected values for the (vj)-th entry of the sub-arrat
-        expected_values = [TableLoad(expected_table, array_offset + vj, i) for i in range(self.accuracy.get_num_output_value())]
+        expected_values = [TableLoad(expected_array, array_offset + vj, i) for i in range(self.accuracy.get_num_output_value())]
         # local result for the (vj)-th entry of the sub-arrat
         local_result = TableLoad(output_array, array_offset + vj)
 
         if self.break_error:
             return_statement_break = Statement(
                 printf_input_function(*((vj,) + local_inputs + (local_result,))), 
-                self.accuracy.get_output_print_call(self.function_name, output_values)
+                self.accuracy.get_output_print_call(self.function_name, expected_values)
             )
         else:
             return_statement_break = Statement(
