@@ -203,7 +203,7 @@ class ML_ArrayFunction(ML_FunctionBasis):
         ]
 
         # generate the expected table for the whole multi-array
-        expected_array = self.generate_expected_table(input_tables, table_size_offset_array)
+        expected_array = self.generate_expected_table(outType, outAccuracy, input_tables, table_size_offset_array)
 
         return test_total, (table_size_offset_array, input_tables), expected_array
 
@@ -287,23 +287,23 @@ class ML_ArrayFunction(ML_FunctionBasis):
         return printf_input_function
 
 
-    def generate_expected_table(self, input_tables, table_size_offset_array):
+    def generate_expected_table(self, outPrecision, outAccuracy, input_tables, table_size_offset_array):
         """ Generate the complete table of expected results """
         ## output values required to check results are stored in expected_table
-        num_output_value = self.accuracy.get_num_output_value()
+        num_output_value = outAccuracy.get_num_output_value()
         NUM_INPUT_ARRAY = len(input_tables)
 
         def expected_value_gen(table_id, table_row_id):
             """ generate a full row of expected values using inputs from input_tables"""
             table_offset = table_size_offset_array[table_id][1]
             row_id = table_offset + table_row_id
-            output_values = self.accuracy.get_output_check_value(self.numeric_emulate(*tuple(input_tables[table_index][row_id] for table_index in range(NUM_INPUT_ARRAY))))
+            output_values = outAccuracy.get_output_check_value(self.numeric_emulate(*tuple(input_tables[table_index][row_id] for table_index in range(NUM_INPUT_ARRAY))))
             return output_values
 
         # generating expected value table
         expected_table = generate_2d_multi_table(
             table_size_offset_array, num_output_value,
-            self.precision,
+            outPrecision,
             "expected_table",
             value_gen=expected_value_gen
         )
@@ -482,7 +482,7 @@ i-array tests
         ]
 
         # generate the expected table for the whole multi-array
-        expected_array = self.generate_expected_table(input_tables, table_size_offset_array)
+        expected_array = self.generate_expected_table(self.get_output_precision(), self.accuracy, input_tables, table_size_offset_array)
 
         # generate output_array
         output_array = generate_1d_table(
@@ -626,11 +626,11 @@ i-array tests
         # error evaluation loop
         vi = Variable("i", precision=ML_UInt32, var_type=Variable.Local)
         # inputs for the (vi)-th entry of the sub-arrat
-        local_inputs = tuple(TableLoad(input_tables[in_id], vi) for in_id in range(NUM_INPUT_ARRAY))
+        local_inputs = tuple(TableLoad(input_tables[in_id], vi, precision=self.precision) for in_id in range(NUM_INPUT_ARRAY))
         # expected values for the (vi)-th entry of the sub-arrat
-        expected_values = [TableLoad(output_table, vi, i) for i in range(self.accuracy.get_num_output_value())]
+        expected_values = [TableLoad(output_table, vi, i, precision=outType) for i in range(outAccuracy.get_num_output_value())]
         # local result for the (vi)-th entry of the sub-arrat
-        local_result = TableLoad(resultTable, vi)
+        local_result = TableLoad(resultTable, vi, precision=self.get_output_precision())
 
         local_error_relative, localErrorValidty = outAccuracy.compute_error(local_result, expected_values, relative=True)
         local_error_absolute, _ = outAccuracy.compute_error(local_result, expected_values, relative=False)
