@@ -615,6 +615,19 @@ class ML_FunctionBasis(object):
   def get_sollya_precision(self):
     """ return the main precision use for sollya calls """
     return self.sollya_precision
+    
+  def getErrorTypes(self):
+    """ return a pair (precision, accuracy) to describe the error expected
+        when determining the max function error """
+    if self.compute_max_error == "true_ulp":
+      # the error precision/type is extended compared to the function precision
+      # to allow more accurate determination of the error
+      errorPrecision = getMoreAccurate(self.get_output_precision()) 
+      errorAccuracy = ML_ExactErrorUlp(errorPrecision)
+    else:
+      errorPrecision = self.get_output_precision()
+      errorAccuracy = self.accuracy
+    return errorPrecision, errorAccuracy
 
   def generate_scheme(self):
     """ generate MDL scheme for function implementation """
@@ -906,14 +919,7 @@ class ML_FunctionBasis(object):
             # arguments
             tested_function    = self.implementation.get_function_object()
 
-            if self.compute_max_error == "true_ulp":
-              # the error precision/type is extended compared to the function precision
-              # to allow more accurate determination of the error
-              errorPrecision = getMoreAccurate(self.get_output_precision()) 
-              errorAccuracy = ML_ExactErrorUlp(errorPrecision)
-            else:
-              errorPrecision = self.get_output_precision()
-              errorAccuracy = self.accuracy
+            errorPrecision, errorAccuracy = self.getErrorTypes()
 
             test_total, maxError_inputTables, maxError_outputTable = self.generate_test_tables(
                     test_num,
@@ -1130,11 +1136,12 @@ class ML_FunctionBasis(object):
                         Log.report(Log.Error, "unable to extract float cpe measure from {}", cpe_match.group("cpe_measure"), error=e)
                 # extracting max error result
                 if self.compute_max_error:
-                    max_error = re.search("relative=(?P<max_error>0x[0-9a-fA-F\.]+p[+-]\d+|nan|inf)", ret_stdout)
+                    errorPrecision, _ = self.getErrorTypes()
+                    max_error = re.search(f"relative=(?P<max_error>{errorPrecision.rePattern})", ret_stdout)
                     if max_error is None:
                         Log.report(Log.Error, "not able to extract max error measure from log: {}", ret_stdout)
                     try:
-                        max_error_value = sollya.parse(max_error.group("max_error"))
+                        max_error_value = errorPrecision.parseFromStr(max_error.group("max_error"))
                         max_error_value = convert_error_to_ulp(max_error_value, self.precision)
                         exec_result["max_error"] = max_error_value
                     except Exception as e:
