@@ -578,6 +578,17 @@ class ML_Std_FP_Format(ML_FP_Format):
                 }
         return uint_precision[self]
 
+    def parseFromStr(self, s):
+        """ convert a string into a value of type self"""
+        return sollya.parse(s)
+
+    # a regular expression matching the format value """
+    rePattern = "0x[0-9a-fA-F\.]+p[+-]\d+|nan|inf"
+
+    def matchInStr(self, s):
+        """ determine if the string s could be a value of type self (permissive) """
+        return re.search(self.rePattern, s)
+
 
 def is_std_float(precision):
     return isinstance(precision, ML_Std_FP_Format)
@@ -1273,6 +1284,9 @@ class ML_Compound_Format(ML_Format):
         """ Constant generation in Gappa-language """
         return str(cst_value)
 
+    @property
+    def rePattern(self):
+        return "{" + " *, *".join(f".{fieldName}=(?P<{fieldName}>{field.rePattern})" for (fieldName, field) in list(zip(self.c_field_list, self.field_format_list))) + "}"
 
 
 class ML_Compound_FP_Format(ML_Compound_Format, ML_FP_Format):
@@ -1314,6 +1328,16 @@ class ML_FP_MultiElementFormat(ML_Compound_FP_Format):
     def limb_num(self):
         """ return the number of limbs of the multi-precision format """
         return len(self.field_format_list)
+
+
+    def parseFromStr(self, s):
+        """ parse a type value from a string """
+        match = re.search(self.rePattern, s)
+        cst = 0
+        for name, fieldType in zip(self.c_field_list, self.field_format_list):
+            fieldValue = fieldType.parseFromStr(match.group(name))
+            cst += fieldValue
+        return cst
 
 
 # compound binary floating-point format declaration
