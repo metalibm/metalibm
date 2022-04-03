@@ -147,9 +147,11 @@ def generateDbg(eltType, n):
     return ML_Debug(display_format=replicateFmt(eltFmt, DEBUG_LEN), pre_process=pre_process)
 
 debug_vfloat32_m1  = generateDbg(ML_Binary32, DEBUG_LEN)
-debug_vint32_m1    = generateDbg(ML_Int32, DEBUG_LEN)
+debug_vint32_m1    = generateDbg(ML_Int32,    DEBUG_LEN)
+debug_vuint32_m1   = generateDbg(ML_UInt32,   DEBUG_LEN)
 debug_vfloat64_m1  = generateDbg(ML_Binary64, DEBUG_LEN)
-debug_vint64_m1    = generateDbg(ML_Int64, DEBUG_LEN)
+debug_vint64_m1    = generateDbg(ML_Int64,    DEBUG_LEN)
+debug_vuint64_m1   = generateDbg(ML_UInt64,   DEBUG_LEN)
 
 debug_pp = lambda v, index, isize: f"""vmv_x_s_i{isize}m1_i{isize}(vslidedown_vx_i{isize}m1(vmv_v_x_i{isize}m1(0, {DEBUG_LEN}), vmerge_vxm_i{isize}m1({v}, vmv_v_x_i{isize}m1(0, {DEBUG_LEN}), 1, {DEBUG_LEN}), {index}, {index+1}))"""
 
@@ -158,8 +160,10 @@ debug_vbool_i64 = ML_Debug(display_format=replicateFmt("%ld", DEBUG_LEN), pre_pr
 
 debug_multi.add_mapping(RVV_vBinary32_m1, debug_vfloat32_m1)
 debug_multi.add_mapping(RVV_vectorTypeMap[(1, ML_Int32)], debug_vint32_m1)
+debug_multi.add_mapping(RVV_vectorTypeMap[(1, ML_UInt32)], debug_vuint32_m1)
 debug_multi.add_mapping(RVV_vectorTypeMap[(1, ML_Binary64)], debug_vfloat64_m1)
 debug_multi.add_mapping(RVV_vectorTypeMap[(1, ML_Int64)], debug_vint64_m1)
+debug_multi.add_mapping(RVV_vectorTypeMap[(1, ML_UInt64)], debug_vuint64_m1)
 debug_multi.add_mapping(RVV_vectorBoolTypeMap[(1, 32)], debug_vbool_i32)
 debug_multi.add_mapping(RVV_vectorBoolTypeMap[(1, 64)], debug_vbool_i64)
 
