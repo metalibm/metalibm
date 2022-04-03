@@ -44,12 +44,13 @@ from metalibm_core.code_generation.generator_utility import (
     FO_Arg,
 )
 from metalibm_core.core.ml_operations import (
-    Max, Select, Test, Variable, Constant,
+    LogicalAnd, LogicalNot, Max, Select, Test, Variable, Constant,
     Loop, ReferenceAssign, Statement,
-    TableLoad, TableStore,
+    TableLoad,
     FunctionObject,
     Return, ConditionBlock,
     Division, Conversion, Subtraction, Addition,
+    Equal
 )
 from metalibm_core.core.special_values import FP_QNaN
 from metalibm_core.core.ml_table import ML_NewTable
@@ -587,18 +588,23 @@ i-array tests
             relative and absolute) for a vector function """
         offsetArray, input_tables = input_bundle
         errorPrecision = outType
+        print(f"errorPrecision={errorPrecision}")
         max_error_relative = Variable("max_error_relative", precision=errorPrecision, var_type=Variable.Local)
         max_error_absolute = Variable("max_error_absolute", precision=errorPrecision, var_type=Variable.Local)
   
-        printf_error_template = "printf(\"max %s error is absolute=%s, relative=%s \\n\", %s, %s)" % (
+        printf_error_template = "printf(\"max %s error is absolute=%s reached at index %s, relative=%s reached at index %s\\n\", %s, %s, %s, %s)" % (
           self.function_name,
           errorPrecision.get_display_format(self.language).format_string,
+          ML_UInt32.get_display_format(self.language).format_string,
           errorPrecision.get_display_format(self.language).format_string,
+          ML_UInt32.get_display_format(self.language).format_string,
           errorPrecision.get_display_format(self.language).pre_process_fct("{0}"),
-          errorPrecision.get_display_format(self.language).pre_process_fct("{0}")
+          ML_UInt32.get_display_format(self.language).pre_process_fct("{2}"),
+          errorPrecision.get_display_format(self.language).pre_process_fct("{1}"),
+          ML_UInt32.get_display_format(self.language).pre_process_fct("{3}")
         )
-        printf_error_op = TemplateOperatorFormat(printf_error_template, arity=2, void_function=True, require_header=["stdio.h"])
-        printf_error_function = FunctionObject("printf", [errorPrecision, errorPrecision], ML_Void, printf_error_op)
+        printf_error_op = TemplateOperatorFormat(printf_error_template, arity=4, void_function=True, require_header=["stdio.h"])
+        printf_error_function = FunctionObject("printf", [errorPrecision, errorPrecision, ML_UInt32, ML_UInt32], ML_Void, printf_error_op)
   
         local_inputs = [
           Variable(
@@ -625,12 +631,14 @@ i-array tests
 
         # error evaluation loop
         vi = Variable("i", precision=ML_UInt32, var_type=Variable.Local)
+        maxAbsErrIndex = Variable("maxAbsErrIndex", precision=ML_UInt32, var_type=Variable.Local)
+        maxRelErrIndex = Variable("maxRelErrIndex", precision=ML_UInt32, var_type=Variable.Local)
         # inputs for the (vi)-th entry of the sub-arrat
-        local_inputs = tuple(TableLoad(input_tables[in_id], vi, precision=self.precision) for in_id in range(NUM_INPUT_ARRAY))
+        local_inputs = tuple(TableLoad(input_tables[in_id], vi, precision=self.precision, tag = "local_inputs") for in_id in range(NUM_INPUT_ARRAY))
         # expected values for the (vi)-th entry of the sub-arrat
-        expected_values = [TableLoad(output_table, vi, i, precision=outType) for i in range(outAccuracy.get_num_output_value())]
+        expected_values = [TableLoad(output_table, vi, i, precision=outType, tag="expected_%d" % i)  for i in range(outAccuracy.get_num_output_value())]
         # local result for the (vi)-th entry of the sub-arrat
-        local_result = TableLoad(resultTable, vi, precision=self.get_output_precision())
+        local_result = TableLoad(resultTable, vi, precision=self.get_output_precision(), tag="local_result")
 
         local_error_relative, localErrorValidty = outAccuracy.compute_error(local_result, expected_values, relative=True)
         local_error_absolute, _ = outAccuracy.compute_error(local_result, expected_values, relative=False)
@@ -645,10 +653,7 @@ i-array tests
         # - result is NaN
         # - one of the operand is NaN
         # TODO: in particular check compute_error behavior on NaNs
-        comp_statement.push(
-          ReferenceAssign(
-            max_error_relative,
-            Select(
+        newRelErr = Select(
                 Test(local_error_relative, specifier=Test.IsNaN),
                 # force max_error_relative if local_error_relative is equal to NaN
                 # to ensure max error is never a NaN
@@ -658,23 +663,31 @@ i-array tests
                   local_error_relative,
                   max_error_relative,
                   precision=errorPrecision),
-                  precision=errorPrecision))
-            )
-        comp_statement.push(
-          ReferenceAssign(
-            max_error_absolute,
-            Select(
+                  precision=errorPrecision, tag="newRelErr")
+        newAbsErr = Select(
                 Test(local_error_absolute, specifier=Test.IsNaN),
                 max_error_absolute,
                 Max(
                   local_error_absolute,
                   max_error_absolute,
                   precision=errorPrecision),
-                precision=errorPrecision))
-             )
+                precision=errorPrecision, tag="newAbsErr")
+             
+        def EqualAndNotNaN(lhs, rhs):
+            return LogicalAnd(Equal(lhs, rhs),
+                              LogicalAnd(LogicalNot(Test(lhs, specifier=Test.IsNaN)),
+                                         LogicalNot(Test(rhs, specifier=Test.IsNaN))))
+        comp_statement.add(ReferenceAssign(maxRelErrIndex, Select(EqualAndNotNaN(max_error_relative, newRelErr), maxRelErrIndex, vi)))
+        comp_statement.add(ReferenceAssign(max_error_relative, newRelErr))
+        comp_statement.add(ReferenceAssign(maxAbsErrIndex, Select(EqualAndNotNaN(max_error_absolute, newAbsErr), maxAbsErrIndex, vi)))
+        comp_statement.add(ReferenceAssign(max_error_absolute, newAbsErr))
   
         error_loop = Loop(
-          ReferenceAssign(vi, Constant(0, precision = ML_Int32)),
+          Statement(
+            ReferenceAssign(vi, Constant(0, precision = ML_Int32)),
+            ReferenceAssign(maxAbsErrIndex, Constant(0, precision = ML_Int32)),
+            ReferenceAssign(maxRelErrIndex, Constant(0, precision = ML_Int32)),
+          ),
           vi < test_num_cst,
           Statement(
             assignation_statement,
@@ -687,7 +700,7 @@ i-array tests
             ReferenceAssign(max_error_relative, Constant(-1, precision=errorPrecision)),
             futRun,
             error_loop,
-            printf_error_function(max_error_absolute, max_error_relative),
+            printf_error_function(max_error_absolute, max_error_relative, maxAbsErrIndex, maxRelErrIndex),
             Return(max_error_relative))
   
           
