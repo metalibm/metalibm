@@ -583,7 +583,7 @@ class ML_Std_FP_Format(ML_FP_Format):
         return sollya.parse(s)
 
     # a regular expression matching the format value """
-    rePattern = "0x[0-9a-fA-F\.]+p[+-]\d+|nan|inf"
+    rePattern = "-?0x[0-9a-fA-F\.]+p[+-]\d+|nan|inf"
 
     def matchInStr(self, s):
         """ determine if the string s could be a value of type self (permissive) """
