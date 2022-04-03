@@ -969,7 +969,12 @@ class ML_Base_SW_FixedPoint_Format(ML_Base_FixedPoint_Format):
     def build_display_format_object(self):
         key = (self.integer_size, self.frac_size, self.support_format)
         if not key in ML_Base_SW_FixedPoint_Format.DISPLAY_FORMAT_MAP:
-            if self.c_bit_size <= 64:
+            if self.frac_size == 0:
+                display_format = DisplayFormat(
+                    format_string="%\"PRI" + ("i" if self.signed else "u")  + str(self.c_bit_size) + "\"",
+                    required_header=["inttypes.h"]
+                )
+            elif self.c_bit_size <= 64:
                 display_format = DisplayFormat(
                     format_string="%e/%\"PRI" + ("i" if self.signed else "u")  + str(self.c_bit_size) + "\"",
                     pre_process_fct=fixed_point_beautify(self.frac_size),
