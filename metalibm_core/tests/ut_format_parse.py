@@ -31,6 +31,8 @@
 # description:    unit-tests for Metalibm format parsing
 ###############################################################################
 import unittest
+import sollya
+
 from metalibm_core.core.ml_formats import (
     ML_Binary32, ML_Binary64, ML_DoubleDouble, ML_SingleSingle)
 
@@ -45,6 +47,8 @@ class UT_FormatParse(unittest.TestCase):
         self.assertTrue(ML_Binary32.parseFromStr("0x1.8p1") == 3.0)
         self.assertTrue(ML_DoubleDouble.parseFromStr("{.hi=0x1.0p+2, .lo=0x1p+0}") == 5.0)
         self.assertTrue(ML_SingleSingle.parseFromStr("{.hi=0x1.0p+2, .lo=0x1p+0}") == 5.0)
+        self.assertTrue(ML_SingleSingle.parseFromStr("{.hi=0x1.0p+2, .lo=0x1p-53}") != None)
+        self.assertTrue(ML_DoubleDouble.parseFromStr("{.hi=0x1.df0b8b5388ea7p-1, .lo=-0x1p-56}") == sollya.parse("0x1.df0b8b5388ea7p-1 + -0x1p-56 "))
 
 
 if __name__ == '__main__':
