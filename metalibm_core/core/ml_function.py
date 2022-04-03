@@ -91,6 +91,25 @@ import metalibm_core.code_generation.generators
 from metalibm_core.code_generation.code_generator import CodeGenerator
 
 
+def convertRelErrorToUlp(error_value, error_format):
+    """ convert error_value whose assuming format error_format
+        to a ulp(s) metric """
+    numerical_format = error_format.get_base_format()
+    if numerical_format.is_vector_format():
+        numerical_format = numerical_format.get_scalar_format()
+    error_value = abs(error_value) / ulp(1.0, numerical_format)
+    return error_value
+
+
+def postProcessErrorToUlp(errorPrecision, errorValue, errorType="accuracy_ulp"):
+  """ convert any type of error to an ULP metric """
+  if errorType == "accuracy_ulp":
+    return convertRelErrorToUlp(errorValue, errorPrecision)
+  else:
+    # if compute_max_error is "true_ulp" then max_error_value is already
+    # expressed in ulps (no conversion required)
+    return errorValue
+
 ## \defgroup ml_function ml_function
 ## @{
 
@@ -114,15 +133,6 @@ class ValidError(Exception):
     """ Exception to indicate that a validation stage failed """
     pass
 
-
-def convert_error_to_ulp(error_value, error_format):
-    """ convert error_value whose assuming format error_format
-        to a ulp(s) metric """
-    numerical_format = error_format.get_base_format()
-    if numerical_format.is_vector_format():
-        numerical_format = numerical_format.get_scalar_format()
-    error_value = abs(error_value) / ulp(1.0, numerical_format)
-    return error_value
 
 ## standardized function name geneation
 #  @param base_name string name of the mathematical function
@@ -1079,12 +1089,7 @@ class ML_FunctionBasis(object):
                 if self.compute_max_error:
                     max_error_value = loaded_module.get_function_handle("max_error_eval")()
                     # convert to ulps
-                    if self.compute_max_error == "accuracy_ulp":
-                      max_error_value = convert_error_to_ulp(max_error_value, self.precision)
-                    else:
-                      # if compute_max_error is "true_ulp" then max_error_value is already
-                      # expressed in ulps (no conversion required)
-                      pass
+                    max_error_value = postProcessErrorToUlp(self.precision, max_error_value, self.compute_max_error)
 
                     print("max_error_value={}".format(max_error_value))
                     if isinstance(max_error_value, build_utils.CustomMultiPrecCTypes):
@@ -1137,12 +1142,13 @@ class ML_FunctionBasis(object):
                 # extracting max error result
                 if self.compute_max_error:
                     errorPrecision, _ = self.getErrorTypes()
-                    max_error = re.search(f"relative=(?P<max_error>{errorPrecision.rePattern})", ret_stdout)
+                    relErrorPattern = f"relative=(?P<max_error>{errorPrecision.rePattern})"
+                    max_error = re.search(relErrorPattern, ret_stdout)
                     if max_error is None:
                         Log.report(Log.Error, "not able to extract max error measure from log: {}", ret_stdout)
                     try:
                         max_error_value = errorPrecision.parseFromStr(max_error.group("max_error"))
-                        max_error_value = convert_error_to_ulp(max_error_value, self.precision)
+                        max_error_value = postProcessErrorToUlp(self.precision, max_error_value, self.compute_max_error)
                         exec_result["max_error"] = max_error_value
                     except Exception as e:
                         Log.report(Log.Error, "unable to extract sollya.parse max-error measure from {}", max_error.group("max_error"), error=e)
