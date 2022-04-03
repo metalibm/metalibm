@@ -407,13 +407,13 @@ class CodeObject(CodeConfiguration, CommonCodeObject):
         self << "} %s {" % transition
         self.inc_level()
 
-    def get_multiline_comment(self, comment_list):
+    def get_multiline_comment(self, comment_list, newLineSep=(" *", " * ")):
         result = "/**"
         def empty_line(s):
             return not len(s.replace(" ", "").replace("\t", ""))
         for comment in comment_list:
             # result += " * " + comment.replace("\n", "\n * ") + "\n"
-            result += "\n" + "\n".join(map(lambda s: (" *" if empty_line(s) else " * " + s), comment.split("\n")))
+            result += "\n" + "\n".join(map(lambda s: (newLineSep[0] if empty_line(s) else newLineSep[1] + s), comment.split("\n")))
         result += "\n */\n"
         return result
 
@@ -426,7 +426,7 @@ class CodeObject(CodeConfiguration, CommonCodeObject):
             git_comment = CodeConfiguration.get_git_comment()
             self.header_comment.insert(0, git_comment)
         # generating header comments
-        result += self.get_multiline_comment(self.header_comment)
+        result += self.get_multiline_comment(self.header_comment, newLineSep=("", "  "))
 
         for header_file in self.header_list:
             result += """#include <%s>\n""" % (header_file)

@@ -76,7 +76,7 @@ def check_git_status(exec_dir=SCRIPT_DIR):
 
 def extract_cmdline():
     """ Rebuild the command line which one used to generate a function """
-    return " ".join(sys.argv)
+    return "python " + " ".join(map(lambda s: f"'{s}'", sys.argv))
 
 # statically extracting info once (at module init)
 GIT_SHA = extract_git_hash()
