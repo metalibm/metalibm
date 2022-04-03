@@ -70,10 +70,7 @@ from metalibm_core.targets.common.llvm_ir import LLVMBackend
 from metalibm_core.targets.riscv.riscv_vector import RISCV_RVV64
 
 from metalibm_core.targets.intel.x86_processor import (
-        X86_Processor, X86_SSE_Processor, X86_SSE2_Processor,
-        X86_SSE3_Processor, X86_SSSE3_Processor, X86_SSE41_Processor,
-        X86_AVX_Processor, X86_AVX2_Processor
-        )
+        X86_Processor, X86_AVX2_Processor)
 
 
 from metalibm_core.targets.intel.m128_promotion import Pass_M128_Promotion
@@ -82,14 +79,6 @@ from metalibm_core.utility.ml_template import (
     target_instanciate, VerboseAction, ExitOnErrorAction)
 
 from valid.test_utils import *
-
-try:
-    from metalibm_core.targets.kalray.k1b_processor import K1B_Processor
-    k1b_defined = True
-    k1b = K1B_Processor()
-except ImportError:
-    k1b_defined = False
-    k1b = None
 
 
 # default directory to load AXF file from
