@@ -46,6 +46,7 @@ from ..core.ml_formats import ML_GlobalRoundMode, ML_Fixed_Format, ML_FP_Format,
 from .code_configuration import CodeConfiguration
 
 from metalibm_core.core.meta_interval import MetaIntervalList, MetaInterval
+from metalibm_core.utility.log_report import Log
 
 
 class DataLayout(object):
@@ -659,7 +660,11 @@ class LLVMCodeObject(CodeObject):
         )
 
 
-    def get_multiline_comment(self, comment_list):
+    def get_multiline_comment(self, comment_list, newLineSep=None):
+        # newLipSep is not supported for LLVM-IR code, as ";" is required
+        # at the beginning of each comment line
+        if newLineSep:
+            Log.report(Log.Warning, "non-void newLineSep {} is not supported in LLVM-IR multi-line comments", newLineSep)
         result = ""
         for comment in comment_list:
             result += "; " + comment.replace("\n", "\n;") + "\n"
