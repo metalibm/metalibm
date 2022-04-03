@@ -181,10 +181,10 @@ class ML_SoftMax(ML_ArrayFunction):
         return main_scheme
 
 
-    def generate_expected_table(self, input_tables, table_size_offset_array):
+    def generate_expected_table(self, outType, outAccuracy, input_tables, table_size_offset_array):
         """ Generate the complete table of expected results """
         ## output values required to check results are stored in output table
-        num_output_value = self.accuracy.get_num_output_value()
+        num_output_value = outAccuracy.get_num_output_value()
         NUM_INPUT_ARRAY = len(input_tables)
 
         TABLE_SIZE = input_tables[0].dimensions[0]
@@ -216,13 +216,13 @@ class ML_SoftMax(ML_ArrayFunction):
                 input_tables"""
             table_offset = table_size_offset_array[table_id][1]
             row_id = table_offset + table_row_id
-            output_values = self.accuracy.get_output_check_value(EXP_TABLE[row_id])
+            output_values = outAccuracy.get_output_check_value(EXP_TABLE[row_id])
             return output_values
 
         # generating expected value table
         expected_table = generate_2d_multi_table(
             table_size_offset_array, num_output_value,
-            self.precision,
+            outType,
             "expected_table",
             value_gen=expected_value_gen
         )
