@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
 
 ###############################################################################
-# This file is part of metalibm (https://github.com/kalray/metalibm)
+# This file is part of metalibm (https://github.com/metalibm/metalibm)
 ###############################################################################
 # MIT License
 #
 # Copyright (c) 2018 Kalray
+# Copyright (c) 2022 Nicolas Brunie
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -25,33 +26,31 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 ###############################################################################
-# last-modified:        Mar    7th, 2018
+# last-modified:        May    5th, 2022
 ###############################################################################
 import sys
 
 import sollya
 
 from sollya import (
-    Interval, ceil, round, inf, sup, pi, sinh, asinh, log, log2, exp,
+    Interval, ceil, round, sup, sinh, asinh, log, log2, exp,
     guessdegree, dirtyinfnorm)
 S2 = sollya.SollyaObject(2)
 
-from metalibm_core.core.ml_function import (
-    DefaultArgTemplate)
+from metalibm_core.core.ml_function import DefaultArgTemplate
 
 from metalibm_core.core.ml_operations import *
 from metalibm_core.core.ml_formats import *
-from metalibm_core.core.precisions import ML_Faithful, ML_CorrectlyRounded
+from metalibm_core.core.precisions import ML_Faithful
 from metalibm_core.code_generation.generic_processor import GenericProcessor
 from metalibm_core.core.polynomials import (
     PolynomialSchemeEvaluator, Polynomial)
 from metalibm_core.core.ml_table import ML_NewTable
 from metalibm_core.core.special_values import FP_PlusInfty
 
-from metalibm_core.utility.ml_template import DefaultFunctionArgTemplate
+from metalibm_core.utility.ml_template import ML_NewArgTemplate
 from metalibm_core.utility.log_report    import Log
 from metalibm_core.utility.debug_utils import debug_multi
-from metalibm_core.utility.num_utils     import ulp
 from metalibm_core.utility.gappa_utils import is_gappa_installed
 
 from metalibm_core.core.simple_scalar_function import ScalarUnaryFunction
@@ -266,7 +265,8 @@ class ML_HyperbolicSine(ScalarUnaryFunction):
 
 if __name__ == "__main__":
     # auto-test
-    arg_template = DefaultFunctionArgTemplate(default_arg=ML_HyperbolicSine.get_default_args())
+    arg_template = ML_NewArgTemplate(default_arg=ML_HyperbolicSine.get_default_args())
+
     # argument extraction
     args = arg_template.arg_extraction()
     ml_sinh = ML_HyperbolicSine(args)
