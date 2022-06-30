@@ -116,6 +116,15 @@ class FunctionExpression(ML_FunctionBasis):
         self.function_expr = None
         self.var_mapping = None
         self.expand_div = args.expand_div
+        # patching some default value to match arity
+        if len(self.input_intervals) < self.arity:
+            if len(self.input_intervals) != 1:
+                Log.report(Log.Error, "default input_intervals: {} should contain a single value", self.input_intervals)
+            self.input_intervals = [self.input_intervals[0]] * self.arity
+        if len(self.auto_test_range) < self.arity:
+            if len(self.auto_test_range) != 1:
+                Log.report(Log.Error, "default auto_test_range: {} should contain a single value", self.auto_test_range)
+            self.auto_test_range = [self.auto_test_range[0]] * self.arity
 
     @staticmethod
     def get_default_args(**kw):
