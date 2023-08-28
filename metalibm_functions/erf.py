@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ###############################################################################
-# This file is part of metalibm (https://github.com/kalray/metalibm)
+# This file is part of metalibm (https://github.com/metalibm/metalibm)
 ###############################################################################
 # MIT License
 #
@@ -142,7 +142,7 @@ class ML_Erf(ScalarUnaryFunction):
         def offset_div_function(fct):
             return lambda offset: fct(sollya.x + offset)
 
-        # empiral numbers
+        # empirical numbers
         field_size = {
             ML_Binary32: 6,
             ML_Binary64: 8
@@ -194,17 +194,19 @@ class ML_Erf(ScalarUnaryFunction):
         near_approx.set_attributes(tag="near_approx", debug=debug_multi)
         medium_approx.set_attributes(tag="medium_approx", debug=debug_multi)
 
+        sign = Select(vx < 0, -1.0, 1.0, precision=self.precision)
+
         # approximation for positive values
         scheme = ConditionBlock(
             abs_vx < eps,
-            Return(result),
+            Return(sign * result),
             ConditionBlock(
                 abs_vx < near_indexing.max_bound,
-                Return(near_approx),
+                Return(sign * near_approx),
                 ConditionBlock(
                     abs_vx < medium_indexing.max_bound,
-                    Return(medium_approx),
-                    Return(Constant(1.0, precision=self.precision))
+                    Return(sign * medium_approx),
+                    Return(sign),
                 )
             )
         )
