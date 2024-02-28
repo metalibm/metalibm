@@ -62,6 +62,7 @@ from ..core.ml_hdl_format import (
 )
 
 from metalibm_core.code_generation.vhdl_backend import VHDLBackend
+from metalibm_core.code_generation.chisel_backend import ChiselBackend
 
 # import optimization passes
 from metalibm_core.opt import *
@@ -131,6 +132,7 @@ language_map = {
     "opencl": OpenCL_Code,
     "gappa": Gappa_Code,
     "vhdl": VHDL_Code,
+    "chisel": Chisel_Code,
 
     "ll": LLVM_IR_Code,
 

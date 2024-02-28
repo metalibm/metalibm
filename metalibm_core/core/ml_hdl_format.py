@@ -43,7 +43,7 @@ from .ml_formats import (
     VirtualFormat, get_virtual_cst,
     ML_StringClass, DisplayFormat,
 )
-from ..code_generation.code_constant import VHDL_Code, C_Code
+from ..code_generation.code_constant import VHDL_Code, C_Code, Chisel_Code
 from .ml_operations import ML_Operation
 
 from ..utility.log_report import Log
@@ -95,6 +95,34 @@ def generic_get_vhdl_cst(value, bit_size, is_std_logic=False):
     else:
         return "\"%s\"" % bin(value)[2:].replace("L","").zfill(bit_size)
 
+def generic_get_chisel_cst(value, bit_size, is_std_logic=False):
+    """
+        :param is_std_logic: indicates whether or not fixed-point support format
+            is a single-bit std_logic (rather than std_logic_vector) which implies
+            particular value string generation
+        :type is_std_logic: bool
+
+    """
+    try:
+        value = int(value)
+        value &= int(2**bit_size - 1)
+    except TypeError:
+        Log.report(Log.Error, "unsupported value={}/bit_size={} in generic_get_vhdl_cst".format(value, bit_size), error=TypeError)
+    assert bit_size > 0
+    assert value <= (2**bit_size - 1)
+    if is_std_logic:
+        assert bit_size == 1
+        if bit_size != 1:
+            Log.report(Log.Error, "bit_size must be 1 (not {}) for generic_get_vhdl_cst is_std_logic=True)", bit_size)
+        if value:
+           return "true.B"
+        else:
+           return "false.B"
+    else:
+        if bit_size % 8 == 0:
+            return f"\"h{value:x}\".U({bit_size}.W)"
+        return f"{value}.U({bit_size}.W)"
+
 class ML_UnevaluatedFormat:
     """ generic virtual class for unevaluated format.
         Unevaluated format is a parameterized format whose parameters can be left
@@ -142,6 +170,10 @@ class RTL_FixedPointFormat(ML_Base_FixedPoint_Format):
         is_std_logic = (self.support_format == ML_StdLogic)
         return generic_get_vhdl_cst(cst_value * S2**self.get_frac_size(), self.get_bit_size(), is_std_logic=is_std_logic)
 
+    def get_chisel_cst(self, cst_value):
+        is_std_logic = (self.support_format == ML_StdLogic)
+        return generic_get_chisel_cst(cst_value * S2**self.get_frac_size(), self.get_bit_size(), is_std_logic=is_std_logic)
+
     def get_name(self, language = VHDL_Code):
         return self.support_format.get_name(language)
     def get_code_name(self, language = VHDL_Code):
@@ -153,6 +185,8 @@ class RTL_FixedPointFormat(ML_Base_FixedPoint_Format):
     def get_cst(self, cst_value, language = VHDL_Code):
         if language is VHDL_Code:
             return self.get_vhdl_cst(cst_value)
+        elif language is Chisel_Code:
+            return self.get_chisel_cst(cst_value)
         else:
             raise NotImplementedError
 
@@ -203,6 +237,7 @@ class HDL_LowLevelFormat(ML_Format):
     self.name[VHDL_Code] = "{format_prefix}({direction_descriptor})".format(
         format_prefix=self.format_prefix,
         direction_descriptor = direction.get_descriptor(offset, offset + self.bit_size - 1))
+    self.name[Chisel_Code] = f"Bits({bit_size}.W)"
     self.direction = direction
     self.offset = offset
     self.display_format[VHDL_Code] = "%s"
@@ -220,6 +255,8 @@ class HDL_LowLevelFormat(ML_Format):
   def get_cst(self, cst_value, language = VHDL_Code):
     if language is VHDL_Code:
       return self.get_vhdl_cst(cst_value)
+    elif language is Chisel_Code:
+      return self.get_chisel_cst(cst_value)
     else:
       # default case
       return self.get_vhdl_cst(cst_value)
@@ -231,6 +268,9 @@ class HDL_LowLevelFormat(ML_Format):
 
   def get_vhdl_cst(self, value):
     return generic_get_vhdl_cst(value, self.bit_size)
+
+  def get_chisel_cst(self, value):
+    return generic_get_chisel_cst(value, self.bit_size)
 
   def is_cst_decl_required(self):
     return False
@@ -278,6 +318,7 @@ class ML_StdLogicClass(ML_Format):
     ML_Format.__init__(self)
     self.bit_size = 1
     self.name[VHDL_Code] = "std_logic"
+    self.name[Chisel_Code] = "Bool"
     self.display_format[VHDL_Code] = "%s"
 
   def __str__(self):
@@ -285,7 +326,10 @@ class ML_StdLogicClass(ML_Format):
   def get_name(self, language = VHDL_Code):
     return self.name[language]
   def get_cst(self, value, language = VHDL_Code):
-    return "'%d'" % value
+    if language is VHDL_Code:
+        return "'%d'" % value
+    elif language is Chisel_Code:
+       return f"{'true' if value else 'false'}.B"
   def get_bit_size(self):
     return self.bit_size
   def get_support_format(self):
