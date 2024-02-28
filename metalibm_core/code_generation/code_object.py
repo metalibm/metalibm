@@ -713,6 +713,7 @@ class LLVMCodeObject(CodeObject):
 
 
 class VHDLCodeObject(CodeConfiguration, CommonCodeObject):
+    comment_symbol = "--"
     def __init__(self, language, shared_tables = None, parent_tables = None, rounding_mode = ML_GlobalRoundMode, uniquifier = "", main_code_level = False, var_ctor = None):
         """ code object initialization """
         self.expanded_code = ""
@@ -764,12 +765,12 @@ class VHDLCodeObject(CodeConfiguration, CommonCodeObject):
             self.header_comment.insert(0, git_comment)
 
         # generating header comments
-        result += "--\n"
+        result += f"{self.comment_symbol}\n"
         for comment in self.header_comment:
-            result += "-- " + comment.replace("\n", "\n--") + "\n"
+            result += f"{self.comment_symbol} " + comment.replace("\n", f"\n{self.comment_symbol}") + "\n"
         # TODO/FIXME: erase trailing white spaces properly
-        result.replace("--\n", "--\n")
-        result += "--\n"
+        result.replace(f"{self.comment_symbol}\n", f"{self.comment_symbol}\n")
+        result += f"{self.comment_symbol}\n"
 
         for library_file in self.library_list:
             result += "library {lib};\n".format(lib = library_file)
@@ -906,11 +907,92 @@ class VHDLCodeObject(CodeConfiguration, CommonCodeObject):
 
     def add_comment(self, comment):
         """ add a full line comment """
-        self << ("-- %s\n" % comment)
+        self << f"{self.comment_symbol} {comment}\n"
 
     def add_multiline_comment(self, comment):
         for line in comment.split("\n"):
             if line != "": self.add_comment(line) 
+
+
+class ChiselCodeObject(VHDLCodeObject):
+    comment_symbol = "//"
+    def __init__(self, language, shared_tables = None, parent_tables = None, rounding_mode = ML_GlobalRoundMode, uniquifier = "", main_code_level = False, var_ctor = None):
+        super().__init__(language=language, shared_tables=shared_tables, parent_tables=parent_tables, rounding_mode=rounding_mode, uniquifier=uniquifier, main_code_level=main_code_level, var_ctor=var_ctor)
+
+    def generate_header_code(self, git_tag = True):
+        """ generate code for header file inclusion """
+        result = ""
+        # generating git comment
+        if git_tag:
+            git_comment = CodeConfiguration.get_git_comment()
+            self.header_comment.insert(0, git_comment)
+
+        # generating header comments
+        result += "//\n"
+        for comment in self.header_comment:
+            result += "// " + comment.replace("\n", "\n//") + "\n"
+        # TODO/FIXME: erase trailing white spaces properly
+        result.replace("//\n", "//\n")
+        result += "//\n"
+
+        for library_file in self.library_list:
+            result += "import {lib}\n".format(lib = library_file)
+
+        for header_file in self.header_list:
+            result += """import %s\n""" % (header_file)
+        return result
+
+    def get(self, code_generator, static_cst = False, static_table = False, headers = False, skip_function = False):
+        """ generate unrolled code content """
+        result = ""
+
+        if headers:
+            result += self.generate_header_code()
+            result += "\n\n"
+
+        # Entities are always excluded from generation
+        # They will be processed in a separate manner (see ML_EntityBasis)
+        declaration_exclusion_list = [MultiSymbolTable.EntitySymbol]
+        if static_cst:
+            declaration_exclusion_list.append(MultiSymbolTable.ConstantSymbol)
+        if static_table:
+            declaration_exclusion_list.append(MultiSymbolTable.TableSymbol)
+        if skip_function:
+            declaration_exclusion_list.append(MultiSymbolTable.FunctionSymbol)
+        if self.shared_symbol_table_f:
+            declaration_exclusion_list.append(MultiSymbolTable.SignalSymbol)
+
+        #result += self.symbol_table.generate_declarations(code_generator, exclusion_list = declaration_exclusion_list)
+        #result += self.symbol_table.generate_initializations(code_generator, init_required_list = [MultiSymbolTable.ConstantSymbol, MultiSymbolTable.VariableSymbol])
+        result += "{\n" if not self.main_code_level else ""
+        result += "\n" if result != "" else ""
+        result += self.expanded_code
+        return result
+
+    def push_into_parent_code(self, parent_code, code_generator, static_cst = False, static_table = False, headers = False, skip_function = False):
+        """ generate unrolled code content """
+
+        if headers:
+            parent_code << self.generate_header_code()
+            parent_code << "\n\n"
+
+        declaration_exclusion_list = [MultiSymbolTable.EntitySymbol]
+        if static_cst:
+            declaration_exclusion_list.append(MultiSymbolTable.ConstantSymbol)
+        if static_table:
+            declaration_exclusion_list.append(MultiSymbolTable.TableSymbol)
+        if skip_function:
+            declaration_exclusion_list.append(MultiSymbolTable.FunctionSymbol)
+        if self.shared_symbol_table_f:
+            declaration_exclusion_list.append(MultiSymbolTable.SignalSymbol)
+        #parent_code << self.symbol_table.generate_declarations(code_generator, exclusion_list = declaration_exclusion_list)
+        #parent_code << self.symbol_table.generate_initializations(code_generator, init_required_list = [MultiSymbolTable.ConstantSymbol, MultiSymbolTable.VariableSymbol])
+        parent_code.dec_level()
+        parent_code << "\n"
+        parent_code << ("{\n" if not self.main_code_level else "")
+        parent_code.inc_level()
+        parent_code << self.expanded_code
+
 
 ## Nested code object
 #  language is derived from code_generator's language

@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 
 ###############################################################################
-# This file is part of metalibm (https://github.com/metalibm/metalibm)
+# This file is part of metalibm (https://github.com/kalray/metalibm)
 ###############################################################################
 # MIT License
 #
-# Copyright (c) 2024 Nicolas Brunie
+# Copyright (c) 2018 Kalray
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -25,11 +25,10 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 ###############################################################################
-# created:          Feb 23rd, 2024
-# last-modified:
+# created:          Nov 19th, 2016
+# last-modified:    Mar  7th, 2018
 #
-# author(s):    Nicolas Brunie
-# description:  Implement a chisel RTL code generator
+# author(s): Nicolas Brunie (nbrunie@kalray.eu)
 ###############################################################################
 
 
@@ -64,10 +63,10 @@ def result_too_long(result, threshold=VHDLCodeGeneratorParams.STRING_LEN_THRESHO
     else:
         return len(result.get()) > threshold
 
-class VHDLCodeGenerator(object):
-    language = C_Code
+class ChiselCodeGenerator(object):
+    language = Chisel_Code
 
-    """ C language code generator """
+    """ Chisel language code generator """
     def __init__(self, processor, declare_cst = False, disable_debug = False,
                  libm_compliant=False, default_silent=None, language=C_Code,
                  decorate_code=False):
@@ -80,7 +79,7 @@ class VHDLCodeGenerator(object):
         self.decorate_code = decorate_code
         # memoization map for debug wrappers
         self.debug_map = {}
-        Log.report(Log.Info, "VHDLCodeGenerator initialized with language: %s" % self.language)
+        Log.report(Log.Info, "ChiselCodeGenerator initialized with language: %s" % self.language)
 
 
 
@@ -243,7 +242,7 @@ class VHDLCodeGenerator(object):
 
             def get_assign_symbol(node):
                 if isinstance(node, Signal):
-                    assign_sign = "<="
+                    assign_sign = ":="
                 elif isinstance(node, Variable):
                     assign_sign = ":="
                 else:
@@ -371,7 +370,7 @@ class VHDLCodeGenerator(object):
             code_object << "\n{component_tag} : {component_name}\n".format(component_name = component_name, component_tag = component_tag)
             code_object << "  port map (\n"
             code_object << "  " + ",\n  ".join("{} => {}".format(io_tag, mapped_io[io_tag].get()) for io_tag in mapped_io) 
-            code_object << "\n);\n"
+            code_object << "\n)\n"
 
             return None
 
@@ -430,7 +429,7 @@ class VHDLCodeGenerator(object):
              prefix = optree.get_tag(default = "setmp")
              result_varname = result_var if result_var != None else code_object.get_free_var_name(optree.get_precision(), prefix = prefix)
              result = CodeVariable(result_varname, optree.get_precision())
-             select_opcond_list = flatten_select(optree);
+             select_opcond_list = flatten_select(optree)
              if not select_opcond_list[-1][1] is None:
                 Log.report(Log.Error, "last condition in flatten select differs from None")
 
@@ -444,13 +443,13 @@ class VHDLCodeGenerator(object):
                else:
                  gen_list.append((op_code, None))
 
-             code_object << "{result} <= \n".format(result = result.get())
+             code_object << "{result} = \n".format(result = result.get())
              code_object.inc_level()
              for op_code, cond_code in gen_list:
                if not cond_code is None:
                  code_object << "{op_code} when {cond_code} else\n".format(op_code = op_code.get(), cond_code = cond_code.get())
                else:
-                 code_object << "{op_code};\n".format(op_code = op_code.get())
+                 code_object << "{op_code}\n".format(op_code = op_code.get())
              code_object.dec_level()
 
         elif isinstance(optree, TableLoad):
@@ -460,7 +459,8 @@ class VHDLCodeGenerator(object):
             prefix = optree.get_tag(default = "table_value")
             result_varname = result_var if result_var != None else code_object.get_free_var_name(optree.get_precision(), prefix = prefix)
             result = CodeVariable(result_varname, optree.get_precision())
-            code_object << "with {index} select {result} <=\n".format(index = index_code.get(), result = result.get())
+            # code_object << "with {index} select {result} <=\n".format(index = index_code.get(), result = result.get())
+            code_object << f"val {result.get()} = VecInit(Seq(\n" #.format(index = index_code.get(), result = result.get())
 
             table_dimensions = table.get_precision().get_dimensions()
             assert len(table_dimensions) == 1
@@ -469,10 +469,10 @@ class VHDLCodeGenerator(object):
             default_value = 0
 
             # linearizing table selection
-            for tabid, value in enumerate(table.get_data()):
-              code_object << "\t{} when {},\n".format(table.get_precision().get_storage_precision().get_cst(value),index.get_precision().get_cst(tabid))
+            for value in table.get_data():
+              code_object << "\t{},\n".format(table.get_precision().get_storage_precision().get_cst(value, language))
 
-            code_object << "\t{} when others;\n".format(table.get_precision().get_storage_precision().get_cst(default_value))
+            code_object << f"))({index_code.get()})\n"
 
         elif isinstance(optree, Statement):
             for op in optree.inputs:
@@ -532,9 +532,9 @@ class VHDLCodeGenerator(object):
             :type original_node: ML_Operation
         """
         assign_sign_map = {
-            Signal: "<=",
+            Signal: "=",
             Variable: ":=",
-            None: "<="
+            None: "="
         }
         if self.decorate_code and not original_node is None:
             code_decoration = original_node.get_str(depth=2, display_precision=True)
@@ -544,16 +544,13 @@ class VHDLCodeGenerator(object):
                                          final=final, assign_sign=assign_sign)
 
 
-    def generate_assignation(self, result_var, expression_code, final = True, assign_sign = "<="):
+    def generate_assignation(self, result_var, expression_code, final = True, assign_sign = "="):
         """ generate code for assignation of value <expression_code> to
             variable <result_var> """
-        final_symbol = ";\n" if final else ""
-        return "{result} {assign_sign} {expr}{final_symbol}".format(
-            result = result_var,
-            assign_sign = assign_sign,
-            expr = expression_code,
-            final_symbol = final_symbol
-        )
+        final_symbol = "\n" if final else ""
+        # TODO/FIXME: dirty workaround to distinguish I/O ReferenceAssign from actual val assign
+        prefix = "val " if assign_sign != ":=" else "" 
+        return f"{prefix}{result_var} {assign_sign} {expression_code}{final_symbol}"
 
     def generate_untied_statement(self, expression_code, final=True):
         """ Generation of the code string corresponding to an untied piece
@@ -566,32 +563,32 @@ class VHDLCodeGenerator(object):
                           line of code
             :return: code string representing the untied statement
             :rtype: str """
-        final_symbol = ";\n" if final else ""
+        final_symbol = "\n" if final else ""
         return "%s%s" % (expression_code, final_symbol)
 
 
     def generate_declaration(self, symbol, symbol_object, initial = True, final = True):
         if isinstance(symbol_object, Constant):
             precision_symbol = (symbol_object.get_precision().get_code_name(language = self.language) + " ") 
-            final_symbol = ";\n"
-            return "constant %s : %s := %s%s" % (symbol, precision_symbol, symbol_object.get_precision().get_cst(symbol_object.get_value(), language = self.language), final_symbol) 
+            final_symbol = "\n"
+            return "val %s : %s = %s%s" % (symbol, precision_symbol, symbol_object.get_precision().get_cst(symbol_object.get_value(), language = self.language), final_symbol) 
 
         elif isinstance(symbol_object, Variable):
             var_format = symbol_object.get_precision()
             if var_format is HDL_FILE:
-                return "file %s : TEXT;\n" % (symbol)
+                raise NotImplementedError
             else:
                 precision_symbol = (var_format.get_code_name(language = self.language) + " ")
-                return "variable %s : %s;\n" % (symbol, precision_symbol)
+                return "var %s : %s\n" % (symbol, precision_symbol)
 
         elif isinstance(symbol_object, Signal):
             precision_symbol = (symbol_object.get_precision().get_code_name(language = self.language) + " ") if initial else ""
-            return "signal %s : %s;\n" % (symbol, precision_symbol)
+            return "val %s : %s\n" % (symbol, precision_symbol)
 
         elif isinstance(symbol_object, ML_Table):
             initial_symbol = (symbol_object.get_definition(symbol, final = "", language = self.language) + " ") if initial else ""
             table_content_init = symbol_object.get_content_init(language = self.language)
-            return "%s = %s;\n" % (initial_symbol, table_content_init)
+            return "%s = %s\n" % (initial_symbol, table_content_init)
 
         elif isinstance(symbol_object, CodeFunction):
             return "%s\n" % symbol_object.get_declaration()
@@ -608,7 +605,7 @@ class VHDLCodeGenerator(object):
 
     def generate_initialization(self, symbol, symbol_object, initial = True, final = True):
       if isinstance(symbol_object, Constant) or isinstance(symbol_object, Variable):
-        final_symbol = ";\n" if final else ""
+        final_symbol = "\n" if final else ""
         init_code = symbol_object.get_precision().generate_initialization(symbol, symbol_object, language = self.language)
         if init_code != None:
           return "%s%s" % (init_code, final_symbol)

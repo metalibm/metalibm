@@ -66,15 +66,16 @@ from metalibm_core.core.ml_hdl_format import (
 )
 
 from metalibm_core.code_generation.code_object import (
-    NestedCode, VHDLCodeObject, CodeObject, MultiSymbolTable
+    NestedCode, VHDLCodeObject, ChiselCodeObject, CodeObject, MultiSymbolTable
 )
 from metalibm_core.code_generation.generator_utility import (
     FunctionOperator, FO_Arg
 )
-from metalibm_core.code_generation.code_entity import CodeEntity
+from metalibm_core.code_generation.code_entity import (CodeEntity, ChiselCodeEntity)
 from metalibm_core.code_generation.vhdl_backend import VHDLBackend
 from metalibm_core.code_generation.vhdl_code_generator import VHDLCodeGenerator
-from metalibm_core.code_generation.code_constant import VHDL_Code
+from metalibm_core.code_generation.chisel_code_generator import ChiselCodeGenerator
+from metalibm_core.code_generation.code_constant import VHDL_Code, Chisel_Code
 
 from metalibm_core.core.passes import (
     PassScheduler, PassDependency, Pass, AfterPassById
@@ -399,14 +400,20 @@ class ML_EntityBasis(object):
     self.recirculate_pipeline = arg_template.recirculate_pipeline
 
     # optimization parameters
-    self.implementation = CodeEntity(self.entity_name)
 
-    self.vhdl_code_generator = VHDLCodeGenerator(self.backend, declare_cst = False, disable_debug = not self.debug_flag, language = self.language, decorate_code=self.decorate_code)
+
+    if self.language is VHDL_Code:
+      self.implementation = CodeEntity(self.entity_name)
+      self.vhdl_code_generator = VHDLCodeGenerator(self.backend, declare_cst = False, disable_debug = not self.debug_flag, language = self.language, decorate_code=self.decorate_code)
+    else:
+      # TODO/FIXME: rename self.vhdl_code_generator to self.rtl_code_generator
+      self.implementation = ChiselCodeEntity(self.entity_name)
+      self.vhdl_code_generator = ChiselCodeGenerator(self.backend, declare_cst = False, disable_debug = not self.debug_flag, language = self.language, decorate_code=self.decorate_code)
     uniquifier = self.entity_name
     self.main_code_object = NestedCode(
         self.vhdl_code_generator, static_cst=False,
         uniquifier="{0}_".format(self.entity_name),
-        code_ctor=VHDLCodeObject,
+        code_ctor=self.implementation.get_code_ctor(),
         shared_symbol_list=[MultiSymbolTable.EntitySymbol, MultiSymbolTable.ProtectedSymbol]
     )
     if self.debug_flag:
@@ -554,7 +561,7 @@ class ML_EntityBasis(object):
       entity_code_object = NestedCode(
         self.vhdl_code_generator, static_cst=False,
         uniquifier="{0}_".format(self.entity_name),
-        code_ctor=VHDLCodeObject,
+        code_ctor=VHDLCodeObject if self.language is VHDL_Code else ChiselCodeObject, # FIXME/TODO: refactor code constructor seleciton mechanism
         shared_symbol_list=[MultiSymbolTable.EntitySymbol, MultiSymbolTable.ProtectedSymbol],
       )
       if self.is_main_entity(code_entity):
@@ -562,12 +569,18 @@ class ML_EntityBasis(object):
       else:
         self.vhdl_code_generator.disable_debug = True
       result = code_entity.add_definition(self.vhdl_code_generator, language, entity_code_object, static_cst = False)
-      result.add_library("ieee")
-      result.add_header("ieee.std_logic_1164.all")
-      result.add_header("ieee.std_logic_arith.all")
-      result.add_header("ieee.std_logic_misc.all")
-      result.add_header("STD.textio.all")
-      result.add_header("ieee.std_logic_textio.all")
+      if language is VHDL_Code:
+        result.add_library("ieee")
+        result.add_header("ieee.std_logic_1164.all")
+        result.add_header("ieee.std_logic_arith.all")
+        result.add_header("ieee.std_logic_misc.all")
+        result.add_header("STD.textio.all")
+        result.add_header("ieee.std_logic_textio.all")
+      elif language is Chisel_Code:
+         result.add_header("chisel3._")
+         result.add_header("chisel3.utils._")
+      else:
+         raise NotImplementedError
       code_str += result.get(self.vhdl_code_generator, headers = True)
 
       generated_entity.append(code_entity)
