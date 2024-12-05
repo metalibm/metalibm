@@ -129,37 +129,17 @@ class ML_GenericLog(ScalarUnaryFunction):
 
 
         rcp = ReciprocalSeed(_vx_mant, precision=self.precision, tag="rcp")
-        r = Multiplication(
-            rcp,
-            _vx_mant,
-            precision=self.precision,
-            tag="r"
-        )
-
-        int_format = self.precision.get_integer_format()
 
         # argument reduction
         # TODO: detect if single operand inverse seed is supported by the targeted architecture
-        pre_arg_red_index = TypeCast(
-            BitLogicAnd(
-                TypeCast(
-                    ReciprocalSeed(
-                        _vx_mant, precision = self.precision,
-                        tag = "seed", debug = debug_multi, silent = True
-                    ), precision=int_format
-                ),
-                Constant(-2, precision=int_format),
-                precision=int_format
-            ),
-            precision=self.precision,
-            tag="pre_arg_red_index", debug = debug_multi)
 
-        C0 = Constant(0, precision=table_index.get_precision())
-        index_comp_0 = Equal(table_index, C0, tag="index_comp_0", debug=debug_multi)
+        if inv_approx_table[0] != 1.0:
+            C0 = Constant(0, precision=table_index.get_precision())
+            index_comp_0 = Equal(table_index, C0, tag="index_comp_0", debug=debug_multi)
+            rcp = Select(index_comp_0, 1.0, rcp, debug = debug_multi)
 
-        arg_red_index = Select(index_comp_0, 1.0, pre_arg_red_index, tag = "arg_red_index", debug = debug_multi)
-        #_red_vx        = arg_red_index * _vx_mant - 1.0
-        _red_vx        = FMA(arg_red_index, _vx_mant, -1.0)
+        #_red_vx        = rcp * _vx_mant - 1.0
+        _red_vx        = FMA(rcp, _vx_mant, -1.0)
         inv_err = S2**-6
         red_interval = Interval(1 - inv_err, 1 + inv_err)
         _red_vx.set_attributes(tag = "_red_vx", debug = debug_multi, interval = red_interval)
@@ -345,7 +325,7 @@ class ML_GenericLog(ScalarUnaryFunction):
 
         # exp=-1 case
         Log.report(Log.Info, "managing exp=-1 case")
-        #red_vx_2 = arg_red_index * vx_mant * 0.5
+        #red_vx_2 = rcp * vx_mant * 0.5
         #approx_interval2 = Interval(0.5 - inv_err, 0.5 + inv_err)
         #poly_degree2 = sup(guessdegree(log(x), approx_interval2, S2**-(self.precision.get_field_size()+1))) + 1
         #poly_object2 = Polynomial.build_from_approximation(log(sollya.x), poly_degree, [self.precision]*(poly_degree+1), approx_interval2, sollya.absolute)
