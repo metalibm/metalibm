@@ -39,6 +39,7 @@ import os
 import sollya
 
 import metalibm_core.utility.build_utils as build_utils
+from metalibm_core.utility.log_report  import Log
 
 def parse_gappa_interval(interval_value):
     # search for middle ","
@@ -65,6 +66,7 @@ def execute_gappa_script_extract(gappa_code, gappa_filename=None):
     gappa_stream.write(gappa_code)
     gappa_stream.close()
     gappa_cmd = "gappa {}".format(gappa_filename)
+    Log.report(Log.Info, "Gappa command: {}".format(gappa_cmd))
     cmd_result = subprocess.check_output(
         gappa_cmd, stderr=subprocess.STDOUT, shell=True)
     if sys.version_info >= (3, 0):
@@ -88,5 +90,5 @@ def is_gappa_installed():
         return False
     """ check if gappa is present on the execution environement """
     dev_null = open("/dev/null", "w")
-    gappa_test = subprocess.call("gappa --help 2> /dev/null", shell=True)
+    gappa_test = subprocess.call("gappa --version &> /dev/null", shell=True)
     return (gappa_test == 0)
