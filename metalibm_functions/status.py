@@ -28,7 +28,7 @@
 # last-modified:    Mar  7th, 2018
 ###############################################################################
 
-from metalibm_core.utility.ml_template import DefaultFunctionArgTemplate
+from metalibm_core.utility.ml_template import ML_NewArgTemplate
 from metalibm_core.utility.log_report  import Log
 
 import metalibm_core.utility.gappa_utils as gappa
@@ -38,7 +38,7 @@ import metalibm_core.utility.ml_template as template
 
 if __name__ == "__main__":
     # auto-test
-    arg_template = DefaultFunctionArgTemplate()
+    arg_template = ML_NewArgTemplate()
 
     arg_template.get_parser().add_argument(
         "--test-gappa", dest="test_gappa", action="store_const", const=True,
