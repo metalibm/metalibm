@@ -188,6 +188,8 @@ class AssemblySynthesizer:
                     program.sink_bb.add_predecessor(program.current_bb)
 
                 elif isinstance(node, (UnconditionalBranch, ConditionalBranch)):
+                    cond_jump = False
+                    nocond_jump = False
                     for ml_bb_succ in node.destination_list:
                         if not ml_bb_succ in ml_bb_to_asmde_bb:
                             list_unresolved_links.append(
@@ -205,8 +207,12 @@ class AssemblySynthesizer:
                         cond = node.get_input(0)
                         # NOTES: transform tuple into list 
                         use_list = list(self.generate_allocatable_register(cond))
+                        cond_jump = True
+                    else:
+                        assert isinstance(node, UnconditionalBranch)
+                        nocond_jump = True
 
-                    insn = asmde.Instruction(node, use_list=use_list, is_jump=True, dbg_object=node)
+                    insn = asmde.Instruction(node, use_list=use_list, is_cond_jump=cond_jump, is_nocond_jump=nocond_jump, dbg_object=node)
 
                 else:
                     insn = self.generate_insn_from_node(node)
