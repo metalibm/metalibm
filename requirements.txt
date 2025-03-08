@@ -2,4 +2,4 @@ matplotlib
 bigfloat
 pyyaml
 git+https://gitlab.com/metalibm-dev/pythonsollya
-git+https://github.com/nibrunie/asmde@d5beae9
+git+https://github.com/nibrunie/asmde@63e8789a43023967f3d20cead525434920dd8bcd
