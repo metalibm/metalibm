@@ -21,8 +21,13 @@ Python version compatibility: as of version 1.0, metalibm works with python3 (te
 
 - Whatever the install you select, sollya (binary and headers) must be installed on your machine first.
    On a recent version of ubuntu/debian you can install sollya binary and headers by executing:
+
 ```sudo apt install sollya libsollya-dev```
+
 - Some features of Metalibm require Gappa (http://gappa.gforge.inria.fr/) (gappa install is recommended)
+- To run performance benchmark from metalibm, you will need a compiler setup and papi headers (https://icl.utk.edu/papi/)
+
+```sudo apt install libpapi-dev```
 
 
 
