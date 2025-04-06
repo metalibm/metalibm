@@ -38,14 +38,14 @@ from metalibm_core.utility.log_report import Log
 
 from ..core.ml_operations import AbstractVariable, Variable, FunctionObject, Statement, ReferenceAssign
 from ..core.ml_hdl_operations import Signal, ComponentObject
-from .code_object import NestedCode
+from .code_object import NestedCode, VHDLCodeObject, ChiselCodeObject
 from .generator_utility import FunctionOperator, FO_Arg
 from .code_constant import *
 from ..core.attributes import Attributes, AttributeCtor
 
 
 class CodeEntity(object):
-  """ function code object """
+  """ RTL entity code object (vhdl centric) """
   def __init__(self, name, arg_list = None, output_map = None, code_object = None, language = VHDL_Code):
     """ code function initialization """
     self.name = name
@@ -228,8 +228,11 @@ class CodeEntity(object):
     self.declare_inputs(code_object)
     self.declare_outputs(code_object)
 
+  def get_code_ctor(self):
+    return VHDLCodeObject
+
   def get_definition(self, code_generator, language, folded = True, static_cst = False):
-    code_object = NestedCode(code_generator, static_cst = static_cst, code_ctor = VHDLCodeObject)
+    code_object = NestedCode(code_generator, static_cst = static_cst, code_ctor = self.get_code_ctor())
     code_object.add_local_header("ieee.std_logic_1164.all")
     code_object.add_local_header("ieee.std_logic_unsigned.all")
     code_object.add_local_header("ieee.numeric_std.all")
@@ -256,3 +259,86 @@ class CodeEntity(object):
     code_object << "end architecture;\n"
     #code_object.close_level(inc = False)
     return code_object
+
+
+
+class ChiselCodeEntity(CodeEntity):
+  """ Chisel RTL entity code object """
+  def __init__(self, name, arg_list = None, output_map = None, code_object = None, language = Chisel_Code):
+    """ code function initialization """
+    super().__init__(name, arg_list=arg_list, output_map=output_map, code_object=code_object, language=language)
+
+  def get_definition(self, code_generator, language, folded = True, static_cst = False):
+    code_object = NestedCode(code_generator, static_cst = static_cst, code_ctor = ChiselCodeObject)
+    code_object.add_local_header("chisel3._")
+    code_object.add_local_header("chisel3.util._")
+    code_object << self.get_declaration(final = False, language = language)
+
+    # reserving I/O names
+    self.reserve_io_names(code_object)
+
+    code_object.open_level(inc = False)
+    code_generator.generate_expr(code_object, self.get_scheme(), inlined = folded, initial = False, language = language)
+    code_object.close_level(inc = False)
+    return code_object
+
+  def add_definition(self, code_generator, language, code_object, folded = True, static_cst = False):
+    def get_in_prec_code_name(node, language=None):
+        prec = node.get_precision()
+        if prec is None:
+            Log.report(Log.Error, "node with None precision: {}", node)
+        return  prec.get_code_name(language=language)
+    def get_out_prec_code_name(node, language=None):
+        prec = self.get_output_precision(node)
+        if prec is None:
+            Log.report(Log.Error, "node with None precision: {}", node)
+        return  prec.get_code_name(language=language)
+    code_object << self.get_declaration(final = False, language = language)
+    code_object << "\n"
+
+    # reserving I/O names
+    self.reserve_io_names(code_object)
+
+    def postProcessIO(ioLabel):
+      """ removing io. prefix on I/O signals """
+      assert ioLabel[:3] == "io."
+      return ioLabel[3:]
+
+    code_object.open_level()
+    code_object.add_comment("RTL implementation  of {entity_name} \n".format(entity_name = self.name))
+    # declaring I/O bundle
+    # input signal declaration
+    input_port_list = ["val %s = Input(%s)" % (postProcessIO(inp.get_tag()), get_in_prec_code_name(inp, language=language)) for inp in self.arg_list]
+    # output signal declaration
+    output_port_list = ["val %s = Output(%s)" % (postProcessIO(self.get_port_from_output(out).get_tag()), get_out_prec_code_name(out, language=language)) for out in self.get_output_assign()]
+    port_format_list = "\n  ".join(input_port_list + output_port_list)
+    # FIXME: add suport for inout and generic
+    port_desc = "\n  {port_list}\n".format(port_list = port_format_list)
+    if len(port_format_list) == 0:
+      port_desc = ""
+    io_class = f"val io = IO(new Bundle({{ {port_desc} }}))\n"
+    code_object << io_class
+
+    code_generator.generate_expr(code_object, self.get_scheme(), inlined = folded, initial = False, language = language)
+    code_object.close_level()
+    code_object << "}\n"
+    return code_object
+
+  def get_code_ctor(self):
+    return ChiselCodeObject
+
+  def get_declaration(self, final = True, language = None):
+    language = self.language if language is None else language
+    return f"class {self.name} extends Module"
+
+  def add_input_signal(self, name, signaltype):
+    input_signal = Signal(f"io.{name}", precision = signaltype) 
+    self.arg_list.append(input_signal)
+    self.arg_map[name] = input_signal
+    return input_signal
+  def add_output_signal(self, name, output_node):
+    output_var = Signal(f"io.{name}", precision = output_node.get_precision(), var_type = Signal.Output)
+    output_assign = ReferenceAssign(output_var, output_node)
+    if name in self.output_map:
+        Log.report(Log.Error, "pre-existing name {} in output_map".format(name))
+    self.output_map[name] = output_assign

@@ -51,6 +51,10 @@ class OpenCL_Code(CodeType):
 class VHDL_Code(CodeType):
     desc = "VHDL_Code"
 
+## Chisel (HW) class Code
+class Chisel_Code(CodeType):
+    desc = "Chisel_Code"
+
 class LLVM_IR_Code(CodeType):
     """ LLVM intermediate representation code type """
     desc = "LLVM_IR_Code"

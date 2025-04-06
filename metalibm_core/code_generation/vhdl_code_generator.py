@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 
 ###############################################################################
-# This file is part of metalibm (https://github.com/kalray/metalibm)
+# This file is part of metalibm (https://github.com/metalibm/metalibm)
 ###############################################################################
 # MIT License
 #
-# Copyright (c) 2018 Kalray
+# Copyright (c) 2024 Nicolas Brunie
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -25,10 +25,11 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 ###############################################################################
-# created:          Nov 19th, 2016
-# last-modified:    Mar  7th, 2018
+# created:          Feb 23rd, 2024
+# last-modified:
 #
-# author(s): Nicolas Brunie (nbrunie@kalray.eu)
+# author(s):    Nicolas Brunie
+# description:  Implement a chisel RTL code generator
 ###############################################################################
 
 

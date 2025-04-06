@@ -475,7 +475,7 @@ class BipartiteApprox(ML_Entity("bipartite_approx"), GenericBipartiteApprox):
         # rounding mode input
         rnd_mode = self.implementation.add_input_signal("rnd_mode", rnd_mode_format)
 
-        vr_out = self.generate_bipartite_approx_module(vx )
+        vr_out = self.generate_bipartite_approx_module(vx)
 
         self.implementation.add_output_signal("vr_out", vr_out)
 
