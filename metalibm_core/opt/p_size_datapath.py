@@ -435,7 +435,7 @@ def determine_minimal_fixed_format_cst(value):
             frac_size = i
             break
     if frac_size < 0:
-        Log.report(Log.Error, "value {} is not an integer, from node:\n{}", value, optree)
+        Log.report(Log.Error, "value {} is not an integer.\n", value)
     abs_value = abs(value)
     signed = value < 0
     # int_size = max(int(sollya.ceil(sollya.log2(abs_value+2**frac_size))), 0) + (1 if signed else 0)
